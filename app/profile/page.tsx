@@ -11,6 +11,7 @@ import { Progress } from "@/components/ui/progress";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import TeacherProfile from "@/components/TeacherProfile";
 import ThemeSwitcher from "@/components/ThemeSwitcher";
+import { CreditsSection } from "@/components/CreditsSection";
 
 export default function Profile() {
   const { user: authUser, profile, signOut, signInWithGoogle } = useAuth();
@@ -100,6 +101,14 @@ export default function Profile() {
                 <LogOut className="w-4 h-4 mr-2" /> Log Out
               </Button>
             </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }}
+          >
+            <CreditsSection rdmBalance={rdm} userHandle={displayName} />
           </motion.div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
