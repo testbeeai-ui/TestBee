@@ -21,6 +21,12 @@ import {
   ArrowRight,
   BookOpen,
   BookMarked,
+  MessageCircleQuestion,
+  School,
+  ClipboardList,
+  Flame,
+  GraduationCap,
+  Clock,
 } from "lucide-react";
 import { Subject } from "@/types";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -93,11 +99,24 @@ export default function HomePage() {
       });
   }, [allResults]);
 
+  const motivationalTips = [
+    "Consistency beats intensity. Solve at least 5 questions daily!",
+    "Review your mistakes — they're your best teachers.",
+    "Challenge a friend to a mock test today!",
+    "Spaced repetition boosts memory by 200%. Use your Revision cards!",
+    "Top rankers solve doubts for others. Help someone today!",
+    "A 25-minute focused session is worth 2 hours of distracted study.",
+    "Break hard problems into smaller steps. Start with what you know.",
+  ];
+  const dailyTip = motivationalTips[new Date().getDay() % motivationalTips.length];
+
   const quickActions = [
     { label: "Question Gun", desc: "Fire 5 random questions", path: "/play", gradient: "from-orange-500 to-red-500", emoji: "🔥" },
+    { label: "Mock Test", desc: "Take a timed subject exam", path: "/mock", gradient: "from-indigo-500 to-blue-500", emoji: "📝" },
     { label: "Explore Topics", desc: "Browse by subject & topic", path: "/explore", gradient: "from-blue-500 to-cyan-500", emoji: "🧭" },
+    { label: "Ask a Doubt", desc: "Get help from peers", path: "/doubts", gradient: "from-amber-500 to-yellow-500", emoji: "❓" },
+    { label: "My Classes", desc: "Join or explore classrooms", path: "/classrooms", gradient: "from-teal-500 to-green-500", emoji: "🏫" },
     { label: "Revision Bank", desc: "Review saved questions", path: "/revision", gradient: "from-green-500 to-emerald-500", emoji: "📚" },
-    { label: "Premium Plans", desc: "Unlock more features", path: "/pricing", gradient: "from-purple-500 to-pink-500", emoji: "👑" },
   ];
 
   const statCards = [
@@ -150,6 +169,41 @@ export default function HomePage() {
               </motion.div>
             ))}
           </div>
+
+          {/* Daily Motivation Banner */}
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.35 }}
+            className="relative overflow-hidden rounded-2xl border border-edu-orange/20 bg-gradient-to-r from-edu-orange/5 via-edu-yellow/5 to-edu-green/5 p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4"
+          >
+            <div className="flex items-center gap-3 shrink-0">
+              <motion.div
+                animate={{ scale: [1, 1.2, 1] }}
+                transition={{ duration: 1.5, repeat: Infinity }}
+                className="w-12 h-12 rounded-xl bg-edu-orange/15 flex items-center justify-center"
+              >
+                <Flame className="w-6 h-6 text-edu-orange" />
+              </motion.div>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-extrabold text-sm text-foreground flex items-center gap-2">
+                <span className="text-edu-orange">Daily Tip</span>
+                <span className="text-xs text-muted-foreground font-bold">·</span>
+                <span className="text-xs text-muted-foreground font-bold flex items-center gap-1">
+                  <Clock className="w-3 h-3" />
+                  {new Date().toLocaleDateString('en-US', { weekday: 'long' })}
+                </span>
+              </p>
+              <p className="text-sm text-muted-foreground mt-1 font-medium">{dailyTip}</p>
+            </div>
+            <button
+              onClick={() => router.push('/play')}
+              className="shrink-0 edu-btn-fire px-5 py-2.5 text-sm flex items-center gap-2"
+            >
+              Start Streak <ArrowRight className="w-4 h-4" />
+            </button>
+          </motion.div>
 
           <div className="grid lg:grid-cols-5 gap-6">
             <motion.div
@@ -232,7 +286,7 @@ export default function HomePage() {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.3 }}
-              className="lg:col-span-2 space-y-3"
+              className="lg:col-span-2 space-y-3 max-h-[500px] overflow-y-auto pr-1"
             >
               <h2 className="text-xl font-display text-foreground mb-4">Quick Actions</h2>
               {quickActions.map((action, i) => (
@@ -259,6 +313,80 @@ export default function HomePage() {
             </motion.div>
           </div>
 
+          {/* Continue Learning Section */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.45 }}
+            className="grid md:grid-cols-3 gap-4"
+          >
+            {/* Mock Test Nudge */}
+            <button
+              onClick={() => router.push('/mock')}
+              className="edu-card p-5 text-left hover:border-primary/30 group transition-all"
+            >
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-blue-500 flex items-center justify-center text-white shadow-md">
+                  <ClipboardList className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="font-extrabold text-sm text-foreground">Mock Tests</p>
+                  <p className="text-xs text-muted-foreground">Timed practice exams</p>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground font-medium">
+                Take a 60, 90, or 180 minute mock exam across all your subjects. Track your time, flag tricky questions, and review your score.
+              </p>
+              <span className="text-xs text-primary font-extrabold mt-3 flex items-center gap-1 group-hover:underline">
+                Start a Mock Test <ArrowRight className="w-3 h-3" />
+              </span>
+            </button>
+
+            {/* Doubts Nudge */}
+            <button
+              onClick={() => router.push('/doubts')}
+              className="edu-card p-5 text-left hover:border-primary/30 group transition-all"
+            >
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-yellow-500 flex items-center justify-center text-white shadow-md">
+                  <MessageCircleQuestion className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="font-extrabold text-sm text-foreground">Doubts Forum</p>
+                  <p className="text-xs text-muted-foreground">Ask & answer questions</p>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground font-medium">
+                Post your doubts, earn RDM by helping others, and set bounties on tough questions. The community has your back!
+              </p>
+              <span className="text-xs text-primary font-extrabold mt-3 flex items-center gap-1 group-hover:underline">
+                Browse Doubts <ArrowRight className="w-3 h-3" />
+              </span>
+            </button>
+
+            {/* Classes Nudge */}
+            <button
+              onClick={() => router.push('/classrooms')}
+              className="edu-card p-5 text-left hover:border-primary/30 group transition-all"
+            >
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-500 to-green-500 flex items-center justify-center text-white shadow-md">
+                  <School className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="font-extrabold text-sm text-foreground">Classrooms</p>
+                  <p className="text-xs text-muted-foreground">Learn with your teachers</p>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground font-medium">
+                Join your teacher&apos;s classroom, attend live sessions, access study materials, and collaborate with classmates in real-time.
+              </p>
+              <span className="text-xs text-primary font-extrabold mt-3 flex items-center gap-1 group-hover:underline">
+                Explore Classes <ArrowRight className="w-3 h-3" />
+              </span>
+            </button>
+          </motion.div>
+
           {recentActivity.length > 0 && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -279,9 +407,8 @@ export default function HomePage() {
                     className="flex items-center gap-3 bg-muted/40 rounded-xl p-3.5 hover:bg-muted/60 transition-colors"
                   >
                     <div
-                      className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                        activity.isCorrect ? "bg-edu-green/15 text-edu-green" : "bg-destructive/15 text-destructive"
-                      }`}
+                      className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activity.isCorrect ? "bg-edu-green/15 text-edu-green" : "bg-destructive/15 text-destructive"
+                        }`}
                     >
                       {activity.isCorrect ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
                     </div>
