@@ -25,6 +25,10 @@ import { getInstaCueCards } from '@/data/instaCueCards';
 import type { InstaCueCard } from '@/data/instaCueCards';
 import InstaCue from '@/components/InstaCue';
 import SubjectChatbot from '@/components/SubjectChatbot';
+import AnimatedPhysicsIcon from '@/components/AnimatedPhysicsIcon';
+import AnimatedChemistryIcon from '@/components/AnimatedChemistryIcon';
+import AnimatedMathIcon from '@/components/AnimatedMathIcon';
+import AnimatedBiologyIcon from '@/components/AnimatedBiologyIcon';
 import {
   Dialog,
   DialogContent,
@@ -176,6 +180,7 @@ const Explore = () => {
   const [filteredQuestions, setFilteredQuestions] = useState<Question[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [view, setView] = useState<ViewState>('subjects');
+  const [hoveredSubject, setHoveredSubject] = useState<string | null>(null);
 
   const visibleExamTypes = getVisibleExamTypes(classLevel);
   const visibleSubjectValues = getVisibleSubjects(classLevel, subjectCombo);
@@ -210,6 +215,7 @@ const Explore = () => {
     const relevant = topicTaxonomy.filter(
       (t) =>
         t.subject === selectedSubject &&
+        t.classLevel >= 11 && // Pause Class 9 & 10 for now
         (classLevel == null || t.classLevel <= classLevel) &&
         (!selectedExam || t.examRelevance.includes(selectedExam))
     );
@@ -309,8 +315,8 @@ const Explore = () => {
                       key={e.value}
                       onClick={() => setSelectedExam(selectedExam === e.value ? null : e.value)}
                       className={`px-5 py-2.5 rounded-full text-sm font-extrabold transition-all ${selectedExam === e.value
-                          ? 'bg-primary text-primary-foreground shadow-md'
-                          : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                        ? 'bg-primary text-primary-foreground shadow-md'
+                        : 'bg-muted text-muted-foreground hover:bg-muted/80'
                         }`}
                     >
                       {e.emoji} {e.label}
@@ -327,6 +333,7 @@ const Explore = () => {
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   {visibleSubjectsList.map((s, i) => {
                     const count = getSubjectCount(s.value);
+                    const isHovered = hoveredSubject === s.value;
                     return (
                       <motion.button
                         key={s.value}
@@ -334,14 +341,27 @@ const Explore = () => {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: i * 0.05 }}
                         onClick={() => handleSubjectSelect(s.value)}
-                        className={`p-5 rounded-2xl text-left transition-all edu-card hover:shadow-lg hover:scale-[1.03] group`}
+                        onMouseEnter={() => setHoveredSubject(s.value)}
+                        onMouseLeave={() => setHoveredSubject(null)}
+                        className={`p-5 rounded-2xl text-left transition-all edu-card hover:shadow-[0_8px_30px_rgba(0,0,0,0.12)] hover:scale-[1.03] group`}
                       >
-                        <span className="text-3xl block mb-2">{s.emoji}</span>
+                        <div className="mb-2 h-10 w-10 flex items-center justify-start -ml-1">
+                          {s.value === 'physics' ? (
+                            <AnimatedPhysicsIcon size="44px" isOpen={isHovered} />
+                          ) : s.value === 'chemistry' ? (
+                            <AnimatedChemistryIcon size="44px" isOpen={isHovered} />
+                          ) : s.value === 'math' ? (
+                            <AnimatedMathIcon size="44px" isOpen={isHovered} />
+                          ) : s.value === 'biology' ? (
+                            <AnimatedBiologyIcon size="44px" isOpen={isHovered} />
+                          ) : (
+                            <span className="text-3xl block">{s.emoji}</span>
+                          )}
+                        </div>
                         <span className="font-extrabold text-sm block text-foreground">{s.label}</span>
                         <span className="text-xs text-muted-foreground font-bold mt-1 block">
                           {count} questions
                         </span>
-                        <ChevronRight className="w-4 h-4 text-muted-foreground mt-2 opacity-0 group-hover:opacity-100 transition-opacity" />
                       </motion.button>
                     );
                   })}
@@ -478,9 +498,11 @@ const Explore = () => {
                   <span className="font-extrabold text-sm">{subjectMeta?.label}</span>
                 </div>
                 <span className="edu-chip bg-muted text-foreground font-bold">Class {selectedTopicClassLevel}</span>
+                {/* 
                 <Button size="sm" variant="outline" onClick={() => setBitsAllPopup(true)} className="rounded-xl gap-1.5 font-bold">
                   <Zap className="w-3.5 h-3.5 text-primary" /> Bits
                 </Button>
+                */}
                 {getTopicCount(selectedSubject, selectedTopicNode.topic) > 0 && (
                   <Button size="sm" onClick={handleStartPractice} className="rounded-xl gap-1.5 edu-btn-primary">
                     <Play className="w-3.5 h-3.5" /> Practice questions
@@ -492,7 +514,7 @@ const Explore = () => {
                 <BookOpen className="w-6 h-6 text-primary" />
                 {selectedTopicNode.topic}
               </h2>
-              <p className="edu-page-desc mb-6 text-sm">Read the theory for each subtopic. Use InstaCue cards on the right for quick revision.</p>
+              {/* <p className="edu-page-desc mb-6 text-sm">Read the theory for each subtopic. Use InstaCue cards on the right for quick revision.</p> */}
 
               <div className="flex flex-col lg:flex-row gap-6">
                 <div className="flex-1 min-w-0 space-y-6">
@@ -517,6 +539,18 @@ const Explore = () => {
                             </p>
                           ))}
                         </div>
+                        {st.name === 'SI Units' && (
+                          <div className="mb-4 rounded-xl overflow-hidden border border-border bg-muted/30 p-1 lg:p-2">
+                            <Image
+                              src="/images/si-units.jpg"
+                              alt="SI UNITS: The Universal Language of Science & Measurement"
+                              width={800}
+                              height={450}
+                              className="w-full h-auto object-contain rounded-lg"
+                              unoptimized
+                            />
+                          </div>
+                        )}
                         {st.name === 'Distance & Displacement' && (
                           <div className="mb-4 rounded-xl overflow-hidden border border-border bg-muted/30">
                             <Image
@@ -530,6 +564,7 @@ const Explore = () => {
                           </div>
                         )}
                         <div className="flex flex-wrap gap-2">
+                          {/* 
                           <Button
                             variant="outline"
                             size="sm"
@@ -538,6 +573,7 @@ const Explore = () => {
                           >
                             <Zap className="w-3.5 h-3.5 text-primary" /> Bits
                           </Button>
+                          */}
                           {st.name === 'Distance & Displacement' && (
                             <Button
                               variant="outline"
@@ -593,11 +629,9 @@ const Explore = () => {
                       <Zap className="w-5 h-5 text-primary" /> Bits — {selectedTopicNode?.topic}
                     </DialogTitle>
                   </DialogHeader>
-                  {selectedSubject && selectedTopicNode && selectedTopicClassLevel && (
-                    <p className="text-sm text-muted-foreground">
-                      Use InstaCue cards on the right for quick revision. Click the Bits button under each subtopic for related MCQs.
-                    </p>
-                  )}
+                  <p className="text-sm text-muted-foreground">
+                    Click the Practice questions button for related MCQs.
+                  </p>
                 </DialogContent>
               </Dialog>
 
