@@ -15,6 +15,8 @@ import {
 } from "@/components/ui/tooltip";
 import PlayQuestionCard from "@/components/PlayQuestionCard";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import AnimatedBookIcon from "@/components/AnimatedBookIcon";
+import AnimatedFlameIcon from "@/components/AnimatedFlameIcon";
 import type { PlayQuestionRow, PlayDomain, AcademicCategory, FunbrainCategory } from "@/types";
 import {
   BookOpen,
@@ -36,7 +38,7 @@ const ACADEMIC_CATEGORIES: { id: AcademicCategory | "mixed"; label: string }[] =
   { id: "math", label: "Math" },
   { id: "biology", label: "Biology" },
   { id: "cs", label: "CS" },
-  { id: "mixed", label: "Grand Trial" },
+  // { id: "mixed", label: "Grand Trial" }, // hidden — breaks category row alignment
 ];
 
 const FUNBRAIN_CATEGORIES: { id: FunbrainCategory; label: string }[] = [
@@ -68,6 +70,8 @@ export default function PlayPage() {
   const [loadingStats, setLoadingStats] = useState(true);
   const [selectedDomain, setSelectedDomain] = useState<PlayDomain | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [academicHovered, setAcademicHovered] = useState(false);
+  const [funbrainHovered, setFunbrainHovered] = useState(false);
 
   // Streak Survival
   const [streakQuestion, setStreakQuestion] = useState<PlayQuestionRow | null>(null);
@@ -312,208 +316,266 @@ export default function PlayPage() {
                 transition={{ duration: 0.3 }}
                 className="space-y-8"
               >
-                {/* Hero header */}
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 ring-2 ring-primary/20">
-                    <Target className="h-6 w-6 text-primary" />
-                  </div>
-                  <div>
-                    <h1 className="text-2xl md:text-3xl font-display font-bold tracking-tight text-foreground">Play</h1>
-                    <p className="text-sm text-muted-foreground">Knowledge or logic — level up your rank.</p>
+                {/* ── Hero header ── */}
+                <div className="relative mb-8">
+                  <div className="absolute -inset-x-4 -top-6 h-32 bg-gradient-to-b from-violet-500/8 via-primary/5 to-transparent rounded-3xl pointer-events-none" />
+                  <div className="relative flex items-center gap-4">
+                    <motion.div
+                      className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-primary shadow-lg shadow-primary/25"
+                      whileHover={{ scale: 1.05, rotate: 5 }}
+                      transition={{ type: "spring", stiffness: 400 }}
+                    >
+                      <Target className="h-7 w-7 text-white" />
+                    </motion.div>
+                    <div>
+                      <h1 className="text-3xl md:text-4xl font-display font-extrabold tracking-tight bg-gradient-to-r from-foreground via-foreground/90 to-foreground/70 bg-clip-text text-transparent">
+                        Play
+                      </h1>
+                      <p className="text-sm text-muted-foreground mt-0.5">Challenge yourself. Climb the ranks. Outsmart everyone.</p>
+                    </div>
                   </div>
                 </div>
 
-                <div className="grid md:grid-cols-2 gap-6">
-                  {/* Zone A: Academic Arena */}
+                <div className="grid md:grid-cols-2 gap-5">
+                  {/* ── Zone A: Academic Arena ── */}
                   <motion.div
-                    className="edu-card rounded-2xl p-6 border-2 border-primary/25 bg-gradient-to-br from-primary/8 via-primary/3 to-transparent shadow-sm hover:shadow-md hover:border-primary/35 transition-all duration-200"
-                    whileHover={{ y: -2 }}
-                    transition={{ type: "tween", duration: 0.2 }}
+                    className="relative group rounded-2xl p-6 border border-white/20 dark:border-white/10 bg-white/60 dark:bg-white/5 backdrop-blur-xl shadow-[0_8px_32px_rgba(99,102,241,0.08)] hover:shadow-[0_12px_40px_rgba(99,102,241,0.15)] transition-all duration-300 overflow-hidden"
+                    whileHover={{ y: -3 }}
+                    transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                    onMouseEnter={() => setAcademicHovered(true)}
+                    onMouseLeave={() => setAcademicHovered(false)}
                   >
-                    <div className="flex items-center gap-2 mb-1">
-                      <BookOpen className="h-6 w-6 text-primary shrink-0" />
-                      <h2 className="text-xl font-display font-bold text-foreground">Academic Arena</h2>
-                    </div>
-                    <p className="text-sm text-muted-foreground mb-4">Knowledge-based. Mastery rank per subject.</p>
-                    <div className="flex flex-wrap gap-2 mb-3">
-                      {ACADEMIC_CATEGORIES.map((c) => {
-                        const rating = c.id === "mixed" ? null : getRatingForCategory(c.id);
-                        const rank = rating != null ? RATING_TO_RANK(rating) : null;
-                        const nextTier = rating != null ? RATING_TO_NEXT(rating) : null;
-                        const isSelected = selectedDomain === "academic" && selectedCategory === c.id;
-                        const isGrandTrial = c.id === "mixed";
-                        return (
-                          <div key={c.id} className="flex flex-col items-center gap-1">
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant={isSelected ? "default" : "outline"}
-                                  size="sm"
-                                  className={`rounded-xl transition-all duration-200 ${isGrandTrial ? "ring-2 ring-amber-400/50 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/20 hover:from-amber-100 hover:to-orange-100 dark:hover:from-amber-900/40 dark:hover:to-orange-900/30 font-semibold" : ""}`}
-                                  onClick={() => { setSelectedDomain("academic"); setSelectedCategory(c.id); }}
-                                  disabled={streakLoading}
-                                >
-                                  {isGrandTrial && <Sparkles className="h-3.5 w-3.5 mr-1 text-amber-600" />}
-                                  {c.label}
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent side="top" className="max-w-[200px]">
-                                {isGrandTrial ? "All subjects, random. One ultimate challenge." : (nextTier?.next ? `Progress to ${nextTier.next}: ${nextTier.progress.toFixed(0)}%` : "Master rank")}
-                              </TooltipContent>
-                            </Tooltip>
-                            {rank && !isGrandTrial && (
-                              <div className="flex flex-col items-center w-full max-w-[72px]">
-                                <span className={`text-xs font-semibold ${rank.color}`}>{rank.label}</span>
-                                {nextTier?.next && (
-                                  <Progress value={nextTier.progress} className="h-1 w-full mt-0.5 bg-muted" />
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            className="w-full rounded-xl h-11 font-semibold shadow-md hover:shadow-lg active:scale-[0.98] transition-all duration-200"
-                            onClick={() => selectedDomain === "academic" && selectedCategory && startStreak("academic", selectedCategory)}
-                            disabled={selectedDomain !== "academic" || !selectedCategory || streakLoading || gauntletLoading}
-                          >
-                            {streakLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4 mr-2" />}
-                            Start Streak Survival
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent side="top">
-                          Pick a subject above, then start. 5s per question, 3 strikes and out.
-                        </TooltipContent>
-                      </Tooltip>
-                      <div className="relative mt-2">
+                    {/* Decorative gradient orb */}
+                    <div className="absolute -top-12 -right-12 w-40 h-40 rounded-full bg-gradient-to-br from-indigo-400/20 to-violet-500/10 blur-2xl pointer-events-none group-hover:scale-125 transition-transform duration-500" />
+
+                    <div className="relative">
+                      <div className="flex items-center gap-2.5 mb-2">
+                        <AnimatedBookIcon size="40px" isOpen={academicHovered} />
+                        <div>
+                          <h2 className="text-lg font-display font-bold text-foreground tracking-tight">Academic Arena</h2>
+                          <p className="text-xs text-muted-foreground -mt-0.5">Knowledge-based. Master every subject.</p>
+                        </div>
+                      </div>
+
+                      {/* Subject pills with unique colors */}
+                      <div className="flex flex-wrap gap-2 mt-4 mb-4">
+                        {ACADEMIC_CATEGORIES.map((c) => {
+                          const rating = c.id === "mixed" ? null : getRatingForCategory(c.id);
+                          const rank = rating != null ? RATING_TO_RANK(rating) : null;
+                          const nextTier = rating != null ? RATING_TO_NEXT(rating) : null;
+                          const isSelected = selectedDomain === "academic" && selectedCategory === c.id;
+                          const isGrandTrial = c.id === "mixed";
+                          // Subject-specific accent colors
+                          const subjectColors: Record<string, string> = {
+                            physics: "from-blue-500 to-cyan-500 shadow-blue-500/25",
+                            chemistry: "from-emerald-500 to-teal-500 shadow-emerald-500/25",
+                            math: "from-rose-500 to-pink-500 shadow-rose-500/25",
+                            biology: "from-green-500 to-lime-500 shadow-green-500/25",
+                            cs: "from-amber-500 to-yellow-500 shadow-amber-500/25",
+                          };
+                          const pillGradient = subjectColors[c.id] || "from-violet-500 to-purple-500 shadow-violet-500/25";
+                          return (
+                            <div key={c.id} className="flex flex-col items-center gap-1">
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button
+                                    className={`relative px-3.5 py-1.5 rounded-full text-sm font-semibold transition-all duration-200 ${isSelected
+                                      ? `bg-gradient-to-r ${pillGradient} text-white shadow-lg scale-105`
+                                      : "bg-muted/50 dark:bg-white/8 text-foreground/80 hover:bg-muted dark:hover:bg-white/12 hover:scale-[1.02]"
+                                      }`}
+                                    onClick={() => { setSelectedDomain("academic"); setSelectedCategory(c.id); }}
+                                    disabled={streakLoading}
+                                  >
+                                    {isGrandTrial && <Sparkles className="h-3.5 w-3.5 mr-1 inline text-amber-300" />}
+                                    {c.label}
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="max-w-[200px]">
+                                  {isGrandTrial ? "All subjects mixed. Ultimate challenge." : (nextTier?.next ? `Progress to ${nextTier.next}: ${nextTier.progress.toFixed(0)}%` : "Master rank")}
+                                </TooltipContent>
+                              </Tooltip>
+                              {rank && !isGrandTrial && (
+                                <div className="flex flex-col items-center w-full max-w-[72px]">
+                                  <span className={`text-[10px] font-bold uppercase tracking-wider ${rank.color}`}>{rank.label}</span>
+                                  {nextTier?.next && (
+                                    <div className="w-full h-1 rounded-full bg-muted/50 mt-0.5 overflow-hidden">
+                                      <motion.div
+                                        className={`h-full rounded-full bg-gradient-to-r ${pillGradient}`}
+                                        initial={{ width: 0 }}
+                                        animate={{ width: `${nextTier.progress}%` }}
+                                        transition={{ duration: 0.8, ease: "easeOut" }}
+                                      />
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* CTAs */}
+                      <div className="flex flex-col gap-2.5 mt-1">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              className="w-full rounded-xl h-11 font-bold bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 text-white shadow-lg shadow-indigo-500/25 hover:shadow-xl hover:shadow-indigo-500/30 active:scale-[0.97] transition-all duration-200"
+                              onClick={() => selectedDomain === "academic" && selectedCategory && startStreak("academic", selectedCategory)}
+                              disabled={selectedDomain !== "academic" || !selectedCategory || streakLoading || gauntletLoading}
+                            >
+                              {streakLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4 mr-2" />}
+                              Start Streak Survival
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent side="top">Pick a subject above, then start. 5s per question, 3 strikes and out.</TooltipContent>
+                        </Tooltip>
                         <Button
                           variant="outline"
-                          className="w-full rounded-xl h-11 font-medium hover:bg-primary/10 hover:border-primary/30 transition-all duration-200"
+                          className="w-full rounded-xl h-11 font-semibold border-indigo-200 dark:border-indigo-500/20 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 hover:border-indigo-300 dark:hover:border-indigo-500/30 transition-all duration-200"
                           onClick={() => checkGauntletAndStart("academic")}
                           disabled={streakLoading || gauntletLoading}
                         >
-                          {gauntletLoading && selectedDomain === "academic" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trophy className="h-4 w-4 mr-2 text-primary" />}
+                          {gauntletLoading && selectedDomain === "academic" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trophy className="h-4 w-4 mr-2 text-indigo-500" />}
                           Daily Gauntlet
                           {gauntletPlayedToday.academic && (
-                            <span className="ml-2 inline-flex items-center rounded-full bg-edu-green/15 px-2 py-0.5 text-xs font-semibold text-edu-green">
-                              <Medal className="h-3 w-3 mr-0.5" /> Done today
+                            <span className="ml-2 inline-flex items-center rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                              <Medal className="h-3 w-3 mr-0.5" /> Done
                             </span>
                           )}
                         </Button>
                       </div>
+
+                      <div className="flex items-center justify-between mt-3">
+                        <p className="text-[11px] text-muted-foreground/70">5s/Q · 3 strikes · Gauntlet: 10Qs, 1 attempt</p>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-[11px] text-indigo-500 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 h-auto py-0.5 px-1"
+                          onClick={async () => {
+                            setSelectedDomain("academic");
+                            setGauntletAlreadyPlayed(gauntletPlayedToday.academic);
+                            setView("gauntlet_result");
+                            const today = todayDate();
+                            setLeaderboardLoading(true);
+                            const { data } = await supabase.rpc("get_daily_gauntlet_leaderboard", { p_gauntlet_date: today, p_domain: "academic" });
+                            const rows = (data as { rank: number; user_id?: string; display_name: string | null; correct_count: number; total_time_ms: number }[]) || [];
+                            setLeaderboard(rows);
+                            setLeaderboardLoading(false);
+                            const myRow = rows.find(r => r.user_id === user?.id);
+                            if (myRow) setGauntletSubmitted({ correct_count: myRow.correct_count, total_time_ms: myRow.total_time_ms });
+                          }}
+                        >
+                          Leaderboard <ChevronRight className="h-3 w-3 ml-0.5" />
+                        </Button>
+                      </div>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-2.5">Streak: 5s per Q, 3 strikes · Gauntlet: 10 Qs, 1 attempt</p>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="mt-2 text-xs text-primary dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 -ml-1"
-                      onClick={async () => {
-                        setSelectedDomain("academic");
-                        setGauntletAlreadyPlayed(gauntletPlayedToday.academic);
-                        setView("gauntlet_result");
-                        // Fetch leaderboard and extract user's own row
-                        const today = todayDate();
-                        setLeaderboardLoading(true);
-                        const { data } = await supabase.rpc("get_daily_gauntlet_leaderboard", { p_gauntlet_date: today, p_domain: "academic" });
-                        const rows = (data as { rank: number; user_id?: string; display_name: string | null; correct_count: number; total_time_ms: number }[]) || [];
-                        setLeaderboard(rows);
-                        setLeaderboardLoading(false);
-                        const myRow = rows.find(r => r.user_id === user?.id);
-                        if (myRow) setGauntletSubmitted({ correct_count: myRow.correct_count, total_time_ms: myRow.total_time_ms });
-                      }}
-                    >
-                      View leaderboard <ChevronRight className="h-3 w-3 ml-0.5" />
-                    </Button>
                   </motion.div>
 
-                  {/* Zone B: Funbrain Forge */}
+                  {/* ── Zone B: Funbrain Forge ── */}
                   <motion.div
-                    className="edu-card rounded-2xl p-6 border-2 border-orange-500/25 bg-gradient-to-br from-orange-500/8 via-orange-500/3 to-purple-500/5 shadow-sm hover:shadow-md hover:border-orange-500/40 transition-all duration-200"
-                    whileHover={{ y: -2 }}
-                    transition={{ type: "tween", duration: 0.2 }}
+                    className="relative group rounded-2xl p-6 border border-white/20 dark:border-white/10 bg-white/60 dark:bg-white/5 backdrop-blur-xl shadow-[0_8px_32px_rgba(249,115,22,0.08)] hover:shadow-[0_12px_40px_rgba(249,115,22,0.15)] transition-all duration-300 overflow-hidden"
+                    whileHover={{ y: -3 }}
+                    transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                    onMouseEnter={() => setFunbrainHovered(true)}
+                    onMouseLeave={() => setFunbrainHovered(false)}
                   >
-                    <div className="flex items-center gap-2 mb-1">
-                      <Flame className="h-6 w-6 text-orange-500 shrink-0" />
-                      <h2 className="text-xl font-display font-bold text-foreground">Funbrain Forge</h2>
-                    </div>
-                    <div className="flex items-baseline gap-2 mb-4 flex-wrap">
-                      <span className="text-sm text-muted-foreground">Logic-based. Global rating:</span>
-                      <span className="text-2xl font-bold tabular-nums bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent">
-                        {loadingStats ? "—" : Math.round(logicRating)}
-                      </span>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span className="text-xs text-muted-foreground cursor-help border-b border-dashed border-muted-foreground/50">Elo-style</span>
-                        </TooltipTrigger>
-                        <TooltipContent side="top">Your logic skill rating. Play Streak Survival to climb.</TooltipContent>
-                      </Tooltip>
-                    </div>
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      {FUNBRAIN_CATEGORIES.map((c) => (
+                    {/* Decorative gradient orb */}
+                    <div className="absolute -top-12 -left-12 w-40 h-40 rounded-full bg-gradient-to-br from-orange-400/20 to-rose-500/10 blur-2xl pointer-events-none group-hover:scale-125 transition-transform duration-500" />
+
+                    <div className="relative">
+                      <div className="flex items-center gap-2.5 mb-2">
+                        <AnimatedFlameIcon size="40px" isOpen={funbrainHovered} />
+                        <div>
+                          <h2 className="text-lg font-display font-bold text-foreground tracking-tight">Funbrain Forge</h2>
+                          <p className="text-xs text-muted-foreground -mt-0.5">Logic-based. Outsmart the competition.</p>
+                        </div>
+                      </div>
+
+                      {/* Rating display */}
+                      <div className="flex items-center gap-3 mt-3 mb-4 px-3 py-2.5 rounded-xl bg-gradient-to-r from-orange-500/8 to-rose-500/5 dark:from-orange-500/15 dark:to-rose-500/10 border border-orange-200/50 dark:border-orange-500/15">
+                        <div className="flex flex-col">
+                          <span className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">Global Rating</span>
+                          <span className="text-2xl font-extrabold tabular-nums bg-gradient-to-r from-orange-500 via-rose-500 to-pink-500 bg-clip-text text-transparent leading-tight">
+                            {loadingStats ? "—" : Math.round(logicRating)}
+                          </span>
+                        </div>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="text-[10px] text-muted-foreground/60 cursor-help border-b border-dashed border-muted-foreground/30 uppercase tracking-wider font-medium">Elo</span>
+                          </TooltipTrigger>
+                          <TooltipContent side="top">Your logic skill rating. Play to climb.</TooltipContent>
+                        </Tooltip>
+                      </div>
+
+                      {/* Category pills */}
+                      <div className="flex flex-wrap gap-2 mb-4">
+                        {FUNBRAIN_CATEGORIES.map((c) => {
+                          const isSelected = selectedDomain === "funbrain" && selectedCategory === c.id;
+                          return (
+                            <button
+                              key={c.id}
+                              className={`px-3.5 py-1.5 rounded-full text-sm font-semibold transition-all duration-200 ${isSelected
+                                ? "bg-gradient-to-r from-orange-500 to-rose-500 text-white shadow-lg shadow-orange-500/25 scale-105"
+                                : "bg-muted/50 dark:bg-white/8 text-foreground/80 hover:bg-muted dark:hover:bg-white/12 hover:scale-[1.02]"
+                                }`}
+                              onClick={() => { setSelectedDomain("funbrain"); setSelectedCategory(c.id); }}
+                            >
+                              {c.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* CTAs */}
+                      <div className="flex flex-col gap-2.5">
                         <Button
-                          key={c.id}
-                          variant={selectedDomain === "funbrain" && selectedCategory === c.id ? "default" : "outline"}
-                          size="sm"
-                          className="rounded-xl transition-all duration-200 data-[state=open]:ring-2 data-[state=open]:ring-orange-500/30"
-                          onClick={() => { setSelectedDomain("funbrain"); setSelectedCategory(c.id); }}
+                          className="w-full rounded-xl h-11 font-bold bg-gradient-to-r from-orange-500 to-rose-500 hover:from-orange-600 hover:to-rose-600 text-white shadow-lg shadow-orange-500/25 hover:shadow-xl hover:shadow-orange-500/30 active:scale-[0.97] transition-all duration-200"
+                          onClick={() => selectedCategory && startStreak("funbrain", selectedCategory)}
+                          disabled={!selectedCategory || streakLoading}
                         >
-                          {c.label}
+                          {streakLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4 mr-2" />}
+                          Streak Survival
                         </Button>
-                      ))}
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <Button
-                        variant="default"
-                        className="w-full rounded-xl h-11 font-semibold bg-orange-500 hover:bg-orange-600 shadow-md hover:shadow-lg active:scale-[0.98] transition-all duration-200"
-                        onClick={() => selectedCategory && startStreak("funbrain", selectedCategory)}
-                        disabled={!selectedCategory || streakLoading}
-                      >
-                        {streakLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4 mr-2" />}
-                        Streak Survival
-                      </Button>
-                      <div className="relative">
                         <Button
                           variant="outline"
-                          className="w-full rounded-xl h-11 font-medium hover:bg-orange-500/10 hover:border-orange-500/30 transition-all duration-200"
+                          className="w-full rounded-xl h-11 font-semibold border-orange-200 dark:border-orange-500/20 hover:bg-orange-50 dark:hover:bg-orange-500/10 hover:border-orange-300 dark:hover:border-orange-500/30 transition-all duration-200"
                           onClick={() => checkGauntletAndStart("funbrain")}
                           disabled={streakLoading || gauntletLoading}
                         >
-                          {gauntletLoading && selectedDomain === "funbrain" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trophy className="h-4 w-4 mr-2 text-amber-500" />}
+                          {gauntletLoading && selectedDomain === "funbrain" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trophy className="h-4 w-4 mr-2 text-orange-500" />}
                           Daily Gauntlet
                           {gauntletPlayedToday.funbrain && (
-                            <span className="ml-2 inline-flex items-center rounded-full bg-edu-green/15 px-2 py-0.5 text-xs font-semibold text-edu-green">
-                              <Medal className="h-3 w-3 mr-0.5" /> Done today
+                            <span className="ml-2 inline-flex items-center rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                              <Medal className="h-3 w-3 mr-0.5" /> Done
                             </span>
                           )}
                         </Button>
                       </div>
+
+                      <div className="flex items-center justify-between mt-3">
+                        <p className="text-[11px] text-muted-foreground/70">10 puzzles · 1 attempt · Ranked by speed</p>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-[11px] text-orange-500 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 h-auto py-0.5 px-1"
+                          onClick={async () => {
+                            setSelectedDomain("funbrain");
+                            setGauntletAlreadyPlayed(gauntletPlayedToday.funbrain);
+                            setView("gauntlet_result");
+                            const today = todayDate();
+                            setLeaderboardLoading(true);
+                            const { data } = await supabase.rpc("get_daily_gauntlet_leaderboard", { p_gauntlet_date: today, p_domain: "funbrain" });
+                            const rows = (data as { rank: number; user_id?: string; display_name: string | null; correct_count: number; total_time_ms: number }[]) || [];
+                            setLeaderboard(rows);
+                            setLeaderboardLoading(false);
+                            const myRow = rows.find(r => r.user_id === user?.id);
+                            if (myRow) setGauntletSubmitted({ correct_count: myRow.correct_count, total_time_ms: myRow.total_time_ms });
+                          }}
+                        >
+                          Leaderboard <ChevronRight className="h-3 w-3 ml-0.5" />
+                        </Button>
+                      </div>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-2.5">Same 10 puzzles for everyone today · One attempt · Leaderboard by speed</p>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="mt-2 -ml-1 text-xs text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300"
-                      onClick={async () => {
-                        setSelectedDomain("funbrain");
-                        setGauntletAlreadyPlayed(gauntletPlayedToday.funbrain);
-                        setView("gauntlet_result");
-                        // Fetch leaderboard and extract user's own row
-                        const today = todayDate();
-                        setLeaderboardLoading(true);
-                        const { data } = await supabase.rpc("get_daily_gauntlet_leaderboard", { p_gauntlet_date: today, p_domain: "funbrain" });
-                        const rows = (data as { rank: number; user_id?: string; display_name: string | null; correct_count: number; total_time_ms: number }[]) || [];
-                        setLeaderboard(rows);
-                        setLeaderboardLoading(false);
-                        const myRow = rows.find(r => r.user_id === user?.id);
-                        if (myRow) setGauntletSubmitted({ correct_count: myRow.correct_count, total_time_ms: myRow.total_time_ms });
-                      }}
-                    >
-                      View leaderboard <ChevronRight className="h-3 w-3 ml-0.5" />
-                    </Button>
                   </motion.div>
                 </div>
               </motion.div>
