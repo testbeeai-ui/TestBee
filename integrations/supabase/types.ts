@@ -872,6 +872,72 @@ export type Database = {
         }
         Relationships: [{ foreignKeyName: "daily_gauntlet_attempts_user_id_fkey"; columns: ["user_id"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] }]
       }
+      profile_academics: {
+        Row: {
+          id: string
+          user_id: string
+          exam: string
+          board: string
+          score: string
+          verified: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          exam: string
+          board?: string
+          score?: string
+          verified?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          exam?: string
+          board?: string
+          score?: string
+          verified?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [{ foreignKeyName: "profile_academics_user_id_fkey"; columns: ["user_id"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] }]
+      }
+      profile_achievements: {
+        Row: {
+          id: string
+          user_id: string
+          name: string
+          level: string
+          year: number
+          result: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          name: string
+          level: string
+          year: number
+          result?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          name?: string
+          level?: string
+          year?: number
+          result?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [{ foreignKeyName: "profile_achievements_user_id_fkey"; columns: ["user_id"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] }]
+      }
     }
     Views: {
       [_ in never]: never

@@ -32,6 +32,7 @@ import {
   MessageCircle,
   ChevronLeft,
   RotateCcw,
+  Trophy,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -42,6 +43,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Info } from "lucide-react";
+import { UserHoverCard } from "@/components/UserHoverCard";
 
 type DoubtRow = {
   id: string;
@@ -57,6 +59,7 @@ type DoubtRow = {
   views?: number;
   created_at: string;
   doubt_answers?: { id: string }[];
+  profiles?: { name: string | null; avatar_url: string | null } | null;
 };
 
 type SortOption = "recent" | "upvoted" | "unanswered" | "bounty";
@@ -100,6 +103,7 @@ export default function DoubtsPage() {
   const [unansweredOnly, setUnansweredOnly] = useState(false);
   const [seedLoading, setSeedLoading] = useState(false);
   const [panelDemoLoading, setPanelDemoLoading] = useState(false);
+  const [profileDemoLoading, setProfileDemoLoading] = useState(false);
   const [activityView, setActivityView] = useState<ActivityView>("feed");
   const [profile, setProfile] = useState<ProfileRow | null>(null);
   const [strikeRate, setStrikeRate] = useState<{ accepted: number; total: number } | null>(null);
@@ -153,17 +157,35 @@ export default function DoubtsPage() {
 
   const fetchDoubts = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("doubts")
-      .select("*, doubt_answers(id)")
-      .order("created_at", { ascending: false });
-    if (error) {
-      toast({ title: "Could not load doubts", description: error.message, variant: "destructive" });
+    try {
+      const { data, error } = await supabase
+        .from("doubts")
+        .select("*, doubt_answers(id), profiles(name, avatar_url)")
+        .order("created_at", { ascending: false });
+      if (error) {
+        const isNetworkError = error.message?.includes("fetch") || error.message?.includes("Failed to fetch");
+        toast({
+          title: "Could not load Gyan++",
+          description: isNetworkError
+            ? "Network error. Check your connection and that the Supabase project is not paused."
+            : error.message,
+          variant: "destructive",
+        });
+        setDoubts([]);
+      } else {
+        setDoubts((data as DoubtRow[]) || []);
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Network or connection error.";
+      toast({
+        title: "Could not load Gyan++",
+        description: msg.includes("fetch") ? "Network error. Check your connection and that the Supabase project is not paused." : msg,
+        variant: "destructive",
+      });
       setDoubts([]);
-    } else {
-      setDoubts((data as DoubtRow[]) || []);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   useEffect(() => {
@@ -386,6 +408,30 @@ export default function DoubtsPage() {
     }
   };
 
+  const seedProfileDemo = async () => {
+    setProfileDemoLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: HeadersInit = { "Content-Type": "application/json" };
+      if (session?.access_token) headers["Authorization"] = `Bearer ${session.access_token}`;
+      const res = await fetch("/api/seed-profile-demo", { method: "POST", credentials: "include", headers });
+      const data = await res.json();
+      if (!res.ok) {
+        toast({ title: data?.error ?? "Failed to load profile demo", variant: "destructive" });
+        return;
+      }
+      const r = data.results ?? {};
+      const msg = r.profilesCreated
+        ? `Created ${r.profilesCreated} missing profile(s). ${r.academicsAdded} academics, ${r.achievementsAdded} achievements added.`
+        : r.usersSeeded
+          ? `Profiles seeded for ${r.usersSeeded} users (${r.academicsAdded} academics, ${r.achievementsAdded} achievements)`
+          : "Profile demo data ran.";
+      toast({ title: msg });
+    } finally {
+      setProfileDemoLoading(false);
+    }
+  };
+
   const handleAskDoubtStart = () => {
     const hadDraft = loadDraft();
     if (!hadDraft) {
@@ -502,38 +548,36 @@ export default function DoubtsPage() {
               <div className="lg:sticky lg:top-4 space-y-6">
                 <TooltipProvider>
                   <div className="edu-card p-4 rounded-2xl">
-                    <div className="flex items-center gap-3 mb-3">
-                      <Avatar className="h-12 w-12 rounded-xl">
+                    <div className="flex items-center gap-3 mb-2">
+                      <Avatar className="h-12 w-12 rounded-xl shrink-0">
                         <AvatarImage src={profile?.avatar_url ?? undefined} />
                         <AvatarFallback className="rounded-xl">{(profile?.name ?? "?").slice(0, 2).toUpperCase()}</AvatarFallback>
                       </Avatar>
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <p className="font-bold text-foreground truncate">{profile?.name ?? "You"}</p>
                         <p className="flex items-center gap-1 text-sm text-edu-orange font-semibold">
-                          <Coins className="w-4 h-4" /> {profile?.rdm ?? 0} RDM
+                          <Coins className="w-4 h-4 shrink-0" /> {profile?.rdm ?? 0} RDM
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
+                          {strikeRate && strikeRate.total > 0 ? (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="cursor-help inline-flex items-center gap-0.5">
+                                  Strike rate: {Math.round((strikeRate.accepted / strikeRate.total) * 100)}%
+                                  <Info className="w-3 h-3" />
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent side="right">Accepted answers ÷ total answers you&apos;ve given</TooltipContent>
+                            </Tooltip>
+                          ) : (
+                            <span>Strike rate: —</span>
+                          )}
+                          <span className="text-edu-green font-medium">{rankFromLifetime(profile?.lifetime_answer_rdm ?? 0)}</span>
+                          {rdmToNextRank(profile?.lifetime_answer_rdm ?? 0) && (
+                            <span>{rdmToNextRank(profile?.lifetime_answer_rdm ?? 0)}</span>
+                          )}
                         </p>
                       </div>
-                    </div>
-                    {strikeRate && strikeRate.total > 0 && (
-                      <div className="flex items-center gap-1">
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span className="text-xs text-muted-foreground cursor-help flex items-center gap-0.5">
-                              Strike rate: {Math.round((strikeRate.accepted / strikeRate.total) * 100)}%
-                              <Info className="w-3 h-3" />
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent side="right">Accepted answers ÷ total answers you&apos;ve given</TooltipContent>
-                        </Tooltip>
-                      </div>
-                    )}
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-xs font-medium text-primary">
-                        {rankFromLifetime(profile?.lifetime_answer_rdm ?? 0)}
-                      </span>
-                      {rdmToNextRank(profile?.lifetime_answer_rdm ?? 0) && (
-                        <span className="text-xs text-muted-foreground">{rdmToNextRank(profile?.lifetime_answer_rdm ?? 0)}</span>
-                      )}
                     </div>
                   </div>
                   <div className="edu-card p-4 rounded-2xl">
@@ -563,34 +607,35 @@ export default function DoubtsPage() {
                     <div className="flex flex-col gap-1">
                       <button
                         type="button"
-                        className={`text-left text-sm py-1.5 px-2 rounded-lg flex items-center justify-between ${activityView === "feed" ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-muted"}`}
+                        className={`text-left text-sm py-1.5 px-2 rounded-lg flex items-center justify-between w-full ${activityView === "feed" ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-muted"}`}
                         onClick={() => setActivityView("feed")}
                       >
-                        All doubts <span className="text-muted-foreground tabular-nums">{filteredAndSorted.length}</span>
+                        <span className="flex items-center gap-1.5">All doubts</span>
+                        <span className={activityView === "feed" ? "text-primary tabular-nums font-medium" : "text-muted-foreground tabular-nums"}>{filteredAndSorted.length}</span>
                       </button>
                       <button
                         type="button"
-                        className={`text-left text-sm py-1.5 px-2 rounded-lg flex items-center justify-between ${activityView === "asked" ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-muted"}`}
+                        className={`text-left text-sm py-1.5 px-2 rounded-lg flex items-center justify-between w-full ${activityView === "asked" ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-muted"}`}
                         onClick={() => setActivityView("asked")}
                       >
-                        <span className="flex items-center gap-1.5"><FileQuestion className="w-4 h-4" /> Questions I Asked</span>
-                        <span className="text-muted-foreground tabular-nums">({askedCount})</span>
+                        <span className="flex items-center gap-1.5"><FileQuestion className={`w-4 h-4 shrink-0 ${activityView === "asked" ? "text-primary" : "text-muted-foreground"}`} /> Questions I Asked</span>
+                        <span className={activityView === "asked" ? "text-primary tabular-nums font-medium" : "text-muted-foreground tabular-nums"}>({askedCount})</span>
                       </button>
                       <button
                         type="button"
-                        className={`text-left text-sm py-1.5 px-2 rounded-lg flex items-center justify-between ${activityView === "answered" ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-muted"}`}
+                        className={`text-left text-sm py-1.5 px-2 rounded-lg flex items-center justify-between w-full ${activityView === "answered" ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-muted"}`}
                         onClick={() => setActivityView("answered")}
                       >
-                        <span className="flex items-center gap-1.5"><MessageCircle className="w-4 h-4" /> Questions I Answered</span>
-                        <span className="text-muted-foreground tabular-nums">({answeredCount})</span>
+                        <span className="flex items-center gap-1.5"><MessageCircle className={`w-4 h-4 shrink-0 ${activityView === "answered" ? "text-primary" : "text-muted-foreground"}`} /> Questions I Answered</span>
+                        <span className={activityView === "answered" ? "text-primary tabular-nums font-medium" : "text-muted-foreground tabular-nums"}>({answeredCount})</span>
                       </button>
                       <button
                         type="button"
                         className={`text-left text-sm py-1.5 px-2 rounded-lg flex items-center justify-between w-full ${activityView === "saved" ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-muted"}`}
                         onClick={(e) => { e.preventDefault(); setActivityView("saved"); }}
                       >
-                        <span className="flex items-center gap-1.5"><Bookmark className="w-4 h-4" /> Saved Doubts</span>
-                        <span className="text-muted-foreground tabular-nums">({savedCount})</span>
+                        <span className="flex items-center gap-1.5"><Bookmark className={`w-4 h-4 shrink-0 ${activityView === "saved" ? "text-primary" : "text-muted-foreground"}`} /> Saved Doubts</span>
+                        <span className={activityView === "saved" ? "text-primary tabular-nums font-medium" : "text-muted-foreground tabular-nums"}>({savedCount})</span>
                       </button>
                     </div>
                   </div>
@@ -605,7 +650,7 @@ export default function DoubtsPage() {
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-primary/10">
                     <HelpCircle className="w-5 h-5 text-primary" />
                   </div>
-                  Doubts
+                  Gyan++
                 </h2>
                 <p className="edu-page-desc">Ask and answer. Earn RDM for helpful answers.</p>
               </div>
@@ -643,9 +688,9 @@ export default function DoubtsPage() {
                 </div>
               ) : filteredAndSorted.length === 0 ? (
                 <div className="edu-card p-10 text-center">
-                  <p className="text-muted-foreground">No doubts yet. Be the first to ask or load demo data.</p>
+                  <p className="text-muted-foreground">No questions yet. Be the first to ask or load demo data.</p>
                   <div className="flex flex-wrap justify-center gap-3 mt-4">
-                    <Button className="rounded-xl" onClick={handleAskDoubtStart}>Ask a Doubt</Button>
+                    <Button className="rounded-xl" onClick={handleAskDoubtStart}>Ask a question</Button>
                     <Button variant="outline" className="rounded-xl" onClick={() => seedDemo(true)} disabled={seedLoading}>
                       {seedLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : null} Load demo data
                     </Button>
@@ -655,43 +700,65 @@ export default function DoubtsPage() {
                 <div className="space-y-3">
                   {filteredAndSorted.map((d, i) => (
                     <motion.div key={d.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}>
-                      <Link href={`/doubts/${d.id}`} className="block edu-card p-5 rounded-2xl hover:border-primary/40 hover:shadow-md transition-all duration-200">
+                      <div className="edu-card p-5 rounded-2xl hover:border-primary/40 hover:shadow-md transition-all duration-200">
                         <div className="flex gap-4">
-                          <div className="flex flex-col items-center shrink-0 text-muted-foreground">
-                            <span className="flex items-center gap-0.5 font-bold text-foreground"><ChevronUp className="w-4 h-4" /> {d.upvotes}</span>
-                            <span className="flex items-center gap-0.5 font-bold"><ChevronDown className="w-4 h-4" /> {d.downvotes}</span>
-                            <span className="text-xs mt-1 flex items-center gap-1"><MessageSquare className="w-3.5 h-3.5" /> {d.doubt_answers?.length ?? 0}</span>
-                          </div>
+                          <Link
+                            href={`/doubts/${d.id}`}
+                            className="flex flex-col items-center shrink-0 w-10 text-muted-foreground hover:text-foreground"
+                          >
+                            <ChevronUp className="w-5 h-5" />
+                            <span className="font-bold text-foreground text-sm tabular-nums">{d.upvotes - d.downvotes}</span>
+                            <ChevronDown className="w-5 h-5" />
+                          </Link>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-start justify-between gap-2">
-                              <h3 className="font-bold text-foreground line-clamp-1">{d.title}</h3>
+                              <UserHoverCard userId={d.user_id}>
+                                <div className="flex items-center gap-2 shrink-0 cursor-pointer hover:opacity-80 transition-opacity">
+                                  <Avatar className="h-7 w-7 rounded-full shrink-0">
+                                    <AvatarImage src={d.profiles?.avatar_url ?? undefined} />
+                                    <AvatarFallback className="rounded-full text-xs">{(d.profiles?.name ?? "S").slice(0, 2).toUpperCase()}</AvatarFallback>
+                                  </Avatar>
+                                  <div className="flex items-center gap-1.5 min-w-0">
+                                    <span className="text-sm font-medium text-foreground truncate">{d.profiles?.name ?? "Student"}</span>
+                                    {!d.profiles && (
+                                      <span className="text-xs text-muted-foreground shrink-0">· No marks</span>
+                                    )}
+                                  </div>
+                                  <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                    {new Date(d.created_at).toLocaleDateString(undefined, { day: "2-digit", month: "2-digit", year: "2-digit" })}
+                                  </span>
+                                </div>
+                              </UserHoverCard>
                               <Button
                                 type="button"
                                 variant="ghost"
                                 size="icon"
-                                className="rounded-lg h-8 w-8 shrink-0 text-muted-foreground hover:text-primary"
+                                className="rounded-lg h-8 w-8 shrink-0 text-muted-foreground hover:text-primary -mr-1"
                                 onClick={(e) => toggleSave(d.id, e)}
                                 title={savedDoubtIds.has(d.id) ? "Unsave" : "Save"}
                               >
                                 <Bookmark className={`w-4 h-4 ${savedDoubtIds.has(d.id) ? "fill-current text-primary" : ""}`} />
                               </Button>
                             </div>
-                            <p className="text-sm text-muted-foreground mt-0.5 line-clamp-2">{stripHtml(d.body) || "No description."}</p>
-                            <div className="flex flex-wrap items-center gap-2 mt-2">
-                              {(d.bounty_rdm ?? 0) > 0 && (
-                                <span className="inline-flex items-center gap-1 rounded-full bg-edu-orange/20 text-edu-orange text-xs font-semibold px-2.5 py-0.5 border border-edu-orange/30">
-                                  <Coins className="w-3.5 h-3.5" /> +{d.bounty_rdm} RDM Bounty
+                            <Link href={`/doubts/${d.id}`} className="block mt-2">
+                              <h3 className="font-bold text-foreground line-clamp-1">{d.title}</h3>
+                              <p className="text-sm text-muted-foreground mt-0.5 line-clamp-2">{stripHtml(d.body) || "No description."}</p>
+                              <div className="flex flex-wrap items-center gap-2 mt-2">
+                                {d.subject && <span className="edu-chip bg-primary/10 text-primary text-xs">{d.subject}</span>}
+                                {d.is_resolved && <span className="edu-chip bg-edu-green/10 text-edu-green text-xs">Resolved</span>}
+                                {(d.bounty_rdm ?? 0) > 0 && (
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-edu-orange/20 text-edu-orange text-xs font-semibold px-2.5 py-0.5 border border-edu-orange/30">
+                                    +{d.bounty_rdm} RDM
+                                  </span>
+                                )}
+                                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                                  <MessageSquare className="w-3.5 h-3.5" /> {d.doubt_answers?.length ?? 0}
                                 </span>
-                              )}
-                              {d.subject && <span className="edu-chip bg-primary/10 text-primary text-xs">{d.subject}</span>}
-                              {d.is_resolved && <span className="edu-chip bg-edu-green/10 text-edu-green text-xs">Resolved</span>}
-                              <span className="text-xs text-muted-foreground">
-                                {new Date(d.created_at).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" })}
-                              </span>
-                            </div>
+                              </div>
+                            </Link>
                           </div>
                         </div>
-                      </Link>
+                      </div>
                     </motion.div>
                   ))}
                 </div>
@@ -703,20 +770,31 @@ export default function DoubtsPage() {
               <div className="lg:sticky lg:top-4 space-y-6">
                 <div className="edu-card p-4 rounded-2xl border-dashed border-2 border-primary/30 bg-primary/5">
                   <p className="text-sm font-medium text-foreground mb-1">See how these panels work?</p>
-                  <p className="text-xs text-muted-foreground mb-2">The panels below show <strong>sample data</strong> from your doubts until real data is loaded. Click the button to fill Bounty Board, Trending, and Top Contributors with demo data from the server.</p>
-                  <Button
-                    variant="default"
-                    size="sm"
-                    className="rounded-xl w-full"
-                    onClick={seedPanelDemo}
-                    disabled={panelDemoLoading}
-                  >
-                    {panelDemoLoading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : "Load panel demo data"}
-                  </Button>
+                  <p className="text-xs text-muted-foreground mb-2">The panels below show <strong>sample data</strong> until real data is loaded. Click to seed demo data.</p>
+                  <div className="flex flex-col gap-2">
+                    <Button
+                      variant="default"
+                      size="sm"
+                      className="rounded-xl w-full"
+                      onClick={seedPanelDemo}
+                      disabled={panelDemoLoading}
+                    >
+                      {panelDemoLoading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : "Load panel demo data"}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="rounded-xl w-full"
+                      onClick={seedProfileDemo}
+                      disabled={profileDemoLoading}
+                    >
+                      {profileDemoLoading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : "Load profile demo data (academics & achievements)"}
+                    </Button>
+                  </div>
                 </div>
                 <div className="edu-card p-4 rounded-2xl">
                   <h3 className="font-bold text-foreground mb-2 flex items-center gap-1.5">
-                    <Coins className="w-4 h-4 text-edu-orange" /> Bounty Board
+                    <Coins className="w-4 h-4 text-edu-orange shrink-0" /> Bounty Board
                     {bountyBoard.length > 0 ? <span className="text-[10px] font-normal normal-case bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.5 rounded">Live</span> : <span className="text-[10px] font-normal normal-case bg-muted text-muted-foreground px-1.5 py-0.5 rounded">Sample</span>}
                   </h3>
                   <p className="text-xs text-muted-foreground mb-2">Top unresolved bounties</p>
@@ -740,7 +818,7 @@ export default function DoubtsPage() {
                 </div>
                 <div className="edu-card p-4 rounded-2xl">
                   <h3 className="font-bold text-foreground mb-2 flex items-center gap-1.5">
-                    Trending Now
+                    <HelpCircle className="w-4 h-4 text-primary shrink-0" /> Trending Now
                     {trending.length > 0 ? <span className="text-[10px] font-normal normal-case bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.5 rounded">Live</span> : <span className="text-[10px] font-normal normal-case bg-muted text-muted-foreground px-1.5 py-0.5 rounded">Sample</span>}
                   </h3>
                   <ul className="space-y-2">
@@ -763,22 +841,24 @@ export default function DoubtsPage() {
                 </div>
                 <div className="edu-card p-4 rounded-2xl">
                   <h3 className="font-bold text-foreground mb-2 flex items-center gap-1.5">
-                    Top Contributors (this week)
+                    <Trophy className="w-4 h-4 text-edu-orange shrink-0" /> Top Contributors (this week)
                     {topContributors.length > 0 ? null : <span className="text-[10px] font-normal normal-case bg-muted text-muted-foreground px-1.5 py-0.5 rounded">Sample</span>}
                   </h3>
                   <ul className="space-y-2">
                     {topContributors.length > 0 ? topContributors.map((c, i) => (
                       <li key={c.user_id} className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className="text-xs font-bold text-muted-foreground w-5 shrink-0">
-                            {i === 0 ? "1st" : i === 1 ? "2nd" : i === 2 ? "3rd" : `${i + 1}`}
-                          </span>
-                          <Avatar className="h-7 w-7 rounded-lg shrink-0">
-                            <AvatarImage src={c.profiles?.avatar_url ?? undefined} />
-                            <AvatarFallback className="rounded-lg text-xs">{(c.profiles?.name ?? "?").slice(0, 2).toUpperCase()}</AvatarFallback>
-                          </Avatar>
-                          <span className="truncate text-sm font-medium">{c.profiles?.name ?? "Someone"}</span>
-                        </div>
+                        <UserHoverCard userId={c.user_id}>
+                          <div className="flex items-center gap-2 min-w-0 cursor-pointer hover:opacity-80 transition-opacity">
+                            <span className="text-xs font-bold text-muted-foreground w-5 shrink-0">
+                              {i === 0 ? "1st" : i === 1 ? "2nd" : i === 2 ? "3rd" : `${i + 1}`}
+                            </span>
+                            <Avatar className="h-7 w-7 rounded-lg shrink-0">
+                              <AvatarImage src={c.profiles?.avatar_url ?? undefined} />
+                              <AvatarFallback className="rounded-lg text-xs">{(c.profiles?.name ?? "?").slice(0, 2).toUpperCase()}</AvatarFallback>
+                            </Avatar>
+                            <span className="truncate text-sm font-medium">{c.profiles?.name ?? "Someone"}</span>
+                          </div>
+                        </UserHoverCard>
                         <span className="text-edu-orange font-semibold text-sm shrink-0">{c.total} RDM</span>
                       </li>
                     )) : SAMPLE_CONTRIBUTORS.map((c, i) => (

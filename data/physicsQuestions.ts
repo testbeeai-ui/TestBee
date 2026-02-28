@@ -167,7 +167,7 @@ export const physicsQuestions: Question[] = [
 
   // ===== CLASS 11 =====
   {
-    id: 'phy-11-1', subject: 'physics', topic: 'Units & Measurements', classLevel: 11,
+    id: 'phy-11-1', subject: 'physics', topic: 'Physical World and Measurement', classLevel: 11,
     examType: ['other'],
     question: 'Which of the following is a dimensionless quantity?',
     options: ['Strain', 'Force', 'Velocity', 'Pressure'],
@@ -197,7 +197,7 @@ export const physicsQuestions: Question[] = [
     reference: { theory: 'Apparent weight depends on the normal force, which changes with acceleration of the reference frame.', relatedTopics: ['Free Body Diagram', 'Pseudo Force', 'Weightlessness'], applicationExample: 'You feel heavier when an elevator starts going up and lighter when it starts going down.' },
   },
   {
-    id: 'phy-11-4', subject: 'physics', topic: 'Work, Energy & Power', classLevel: 11,
+    id: 'phy-11-4', subject: 'physics', topic: 'Work, Energy and Power', classLevel: 11,
     examType: ['KCET'],
     question: 'The work done by centripetal force is:',
     options: ['Always zero', 'Always positive', 'Always negative', 'Sometimes positive'],
@@ -237,7 +237,7 @@ export const physicsQuestions: Question[] = [
     reference: { theory: 'Carnot efficiency is the maximum possible efficiency for a heat engine operating between two temperatures.', inventor: 'Sadi Carnot', relatedTopics: ['Second Law of Thermodynamics', 'Heat Engine', 'Entropy'], applicationExample: 'Real engines always have efficiency less than Carnot efficiency due to friction and irreversibilities.' },
   },
   {
-    id: 'phy-11-8', subject: 'physics', topic: 'Waves', classLevel: 11,
+    id: 'phy-11-8', subject: 'physics', topic: 'Oscillations and Waves', classLevel: 11,
     examType: ['other'],
     question: 'The frequency of a wave is 50 Hz and its wavelength is 2 m. The velocity of the wave is:',
     options: ['100 m/s', '25 m/s', '50 m/s', '200 m/s'],
@@ -247,7 +247,7 @@ export const physicsQuestions: Question[] = [
     reference: { theory: 'Wave velocity relates frequency and wavelength through v = fλ.', relatedTopics: ['Wavelength', 'Frequency', 'Period'], applicationExample: 'Radio waves travel at the speed of light (3×10⁸ m/s), so higher frequency means shorter wavelength.' },
   },
   {
-    id: 'phy-11-9', subject: 'physics', topic: 'Waves', classLevel: 11,
+    id: 'phy-11-9', subject: 'physics', topic: 'Oscillations and Waves', classLevel: 11,
     examType: ['JEE', 'NEET'],
     question: 'Two waves of frequencies 256 Hz and 260 Hz are sounded together. The beat frequency is:',
     options: ['4 Hz', '516 Hz', '2 Hz', '8 Hz'],
@@ -257,7 +257,7 @@ export const physicsQuestions: Question[] = [
     reference: { theory: 'Beats occur when two waves of slightly different frequencies interfere, producing periodic variation in loudness.', relatedTopics: ['Superposition', 'Interference', 'Standing Waves'], applicationExample: 'Musicians use beats to tune instruments — they adjust until beats disappear (frequencies match).' },
   },
   {
-    id: 'phy-11-10', subject: 'physics', topic: 'Electromagnetism', classLevel: 11,
+    id: 'phy-11-10', subject: 'physics', topic: 'Laws of Motion', classLevel: 11,
     examType: ['JEE', 'NEET', 'KCET'],
     question: 'Newton\'s second law of motion relates:',
     options: ['Force and acceleration', 'Action and reaction', 'Inertia and mass', 'Energy and work'],
@@ -309,7 +309,7 @@ export const physicsQuestions: Question[] = [
     reference: { theory: 'Wheatstone bridge is used for precise measurement of unknown resistance.', inventor: 'Samuel Hunter Christie / Charles Wheatstone', relatedTopics: ['Kirchhoff\'s Laws', 'Galvanometer', 'Potentiometer'], applicationExample: 'Strain gauges in engineering use Wheatstone bridges to measure tiny resistance changes.' },
   },
   {
-    id: 'phy-12-5', subject: 'physics', topic: 'Magnetism', classLevel: 12,
+    id: 'phy-12-5', subject: 'physics', topic: 'Magnetic Effects of Current and Magnetism', classLevel: 12,
     examType: ['KCET'],
     question: 'A current-carrying circular loop behaves like a:',
     options: ['Magnetic dipole', 'Electric dipole', 'Monopole', 'Quadrupole'],
@@ -319,7 +319,7 @@ export const physicsQuestions: Question[] = [
     reference: { theory: 'Moving charges create magnetic fields. A current loop has a magnetic moment M = IA.', relatedTopics: ['Magnetic Moment', 'Solenoid', 'Biot-Savart Law'], applicationExample: 'Electromagnets use coils of wire carrying current to produce strong magnetic fields.' },
   },
   {
-    id: 'phy-12-6', subject: 'physics', topic: 'Electromagnetic Induction', classLevel: 12,
+    id: 'phy-12-6', subject: 'physics', topic: 'Electromagnetic Induction and Alternating Currents', classLevel: 12,
     examType: ['JEE', 'NEET'],
     question: 'Lenz\'s law is a consequence of the law of conservation of:',
     options: ['Energy', 'Charge', 'Momentum', 'Mass'],
@@ -349,7 +349,7 @@ export const physicsQuestions: Question[] = [
     reference: { theory: 'Young\'s experiment demonstrates interference of light, proving its wave nature.', inventor: 'Thomas Young', relatedTopics: ['Interference', 'Coherent Sources', 'Path Difference'], applicationExample: 'Anti-reflective coatings on lenses use thin film interference to reduce unwanted reflections.' },
   },
   {
-    id: 'phy-12-9', subject: 'physics', topic: 'Modern Physics', classLevel: 12,
+    id: 'phy-12-9', subject: 'physics', topic: 'Dual Nature of Matter and Radiation', classLevel: 12,
     examType: ['JEE', 'NEET'],
     question: 'The photoelectric effect demonstrates the:',
     options: ['Particle nature of light', 'Wave nature of light', 'Dual nature of matter', 'Diffraction of light'],
@@ -359,7 +359,7 @@ export const physicsQuestions: Question[] = [
     reference: { theory: 'Einstein\'s explanation: light comes in quanta (photons). KE_max = hf - φ (work function).', inventor: 'Albert Einstein (explanation)', relatedTopics: ['Work Function', 'Threshold Frequency', 'Planck\'s Constant'], applicationExample: 'Solar cells and photodetectors work on the photoelectric effect.' },
   },
   {
-    id: 'phy-12-10', subject: 'physics', topic: 'Modern Physics', classLevel: 12,
+    id: 'phy-12-10', subject: 'physics', topic: 'Dual Nature of Matter and Radiation', classLevel: 12,
     examType: ['KCET'],
     question: 'The de Broglie wavelength of a particle is inversely proportional to its:',
     options: ['Momentum', 'Energy', 'Mass only', 'Charge'],
