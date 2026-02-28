@@ -63,6 +63,48 @@ This acceleration is called **centripetal acceleration** and always points **tow
     ],
   },
 
+  // ---------- Class 11 Physics: Physical World and Measurement ----------
+  [key('physics', 11, 'Physical World and Measurement', 'Scope and excitement of Physics')]: {
+    theory: `**1. The Fundamental Definition**
+Physics is the study of the basic laws of nature and their manifestation across diverse physical phenomena. It operates on the premise that the physical universe behaves according to predictable, mathematical rules.
+
+**2. The Scope of Physics (The Two Domains)**
+The scope of physics encompasses extreme ranges of magnitude. It is strictly categorized into two primary domains that use entirely different frameworks:
+
+* **The Macroscopic Domain (Governed by Classical Physics):** Deals with phenomena at the laboratory, terrestrial, and astronomical scales. It includes:
+* *Mechanics:* Based on Newton's laws of motion and the law of gravitation. It governs the behavior of particles, rigid bodies, and deformable bodies (e.g., the orbit of planets, the propulsion of a rocket, the propagation of sound waves).
+* *Electrodynamics:* Dictates electric and magnetic phenomena associated with charged and magnetic bodies. It is governed by Maxwell's equations (e.g., the working of an antenna, AC circuits, radio waves).
+* *Optics:* Deals with phenomena involving light and its interactions with matter (e.g., telescopes, microscopes, the formation of rainbows).
+* *Thermodynamics:* Critically, this branch does *not* deal with the motion of individual particles. It deals exclusively with macroscopic systems in equilibrium and changes in bulk properties like internal energy, temperature, and entropy (e.g., the efficiency of heat engines and refrigerators).
+
+* **The Microscopic Domain (Governed by Quantum Physics):** Deals with the constitution and structure of matter at the atomic and nuclear scales. Classical mechanics universally fails at this level. It involves interactions of electrons, protons, and other elementary particles.
+* *(Note: The **Mesoscopic Domain** is the intermediate field dealing with systems of a few tens to hundreds of atoms).*
+
+**3. The Extremes of Scale (Exam Critical Data)**
+To understand the scope, you must memorize the quantitative boundaries of the physical universe. Examiners frequently target these orders of magnitude:
+
+* **Scale of Length:** Ranges from the radius of a proton (≈ 10⁻¹⁵ m) to the estimated size of the observable universe (≈ 10²⁶ m). This represents a sheer scale factor of 10⁴¹.
+* **Scale of Mass:** Ranges from the mass of an electron (≈ 10⁻³⁰ kg) to the estimated mass of the known universe (≈ 10⁵⁵ kg).
+* **Scale of Time:** Ranges from the time it takes light to cross a nuclear distance (≈ 10⁻²² s) to the age of the universe (≈ 10¹⁸ s).
+
+**4. The Excitement of Physics (The Two Principal Thrusts)**
+The "excitement" refers to the intellectual thrill of solving complex universe-scale problems. Physicists rely on two distinct philosophical approaches. You must be able to differentiate them:
+
+* **Unification:** The attempt to explain diverse, seemingly unrelated physical phenomena in terms of a few universal concepts and laws.
+* *Example:* Newton's universal law of gravitation unified terrestrial mechanics (an apple falling) with celestial mechanics (the moon orbiting Earth). Maxwell unified electricity, magnetism, and optics into a single theory of electromagnetism.
+
+* **Reductionism:** The attempt to derive the properties of a large, complex macroscopic system from the properties and interactions of its simplest, microscopic constituent parts.
+* *Example:* Thermodynamics (macroscopic) studies bulk properties like temperature. Reductionism explains this through Kinetic Theory—proving that "temperature" is simply the average kinetic energy of billions of microscopic molecules moving randomly.`,
+    bits: [
+      'Physics = study of basic laws of nature; universe obeys predictable mathematical rules.',
+      'Macroscopic domain (Classical): mechanics, electrodynamics, optics, thermodynamics.',
+      'Microscopic domain (Quantum): atomic/nuclear scale; classical mechanics fails here.',
+      'Length scale: ~10⁻¹⁵ m (proton) to ~10²⁶ m (universe); scale factor 10⁴¹.',
+      'Unification = explaining diverse phenomena via few universal laws (e.g. Newton, Maxwell).',
+      'Reductionism = deriving macro properties from micro constituents (e.g. Kinetic Theory).',
+    ],
+  },
+
   // ---------- Class 11 Physics: Units & Measurements ----------
   [key('physics', 11, 'Units & Measurements', 'SI Units')]: {
     theory: `**SI Units** (International System of Units) are the standard units used globally in science to ensure consistency. Imagine trying to build a spaceship with engineers in different countries using different rulers—it would be a disaster! That's why we established a universal language of measurement.
@@ -302,6 +344,115 @@ A potentiometer is a versatile, highly accurate instrument that essentially acts
       'A Wheatstone Bridge is most sensitive when all four resistances are of the same order of magnitude.',
       'In a balanced Wheatstone Bridge, no current flows through the central galvanometer arm.',
       'A potentiometer does not draw any current from the cell whose EMF is being measured, making it more accurate than a standard voltmeter.',
+    ],
+  },
+
+  // ---------- Class 11 Chemistry: Some Basic Concepts of Chemistry ----------
+  [key('chemistry', 11, 'Some Basic Concepts of Chemistry', 'Importance and scope of chemistry')]: {
+    theory: `**1. The Central Science**
+Chemistry is the study of the composition, properties, and structure of matter, alongside the changes it undergoes during chemical reactions. It is classified as the "central science" because its principles establish the foundational mechanics for biology, physics, geology, and environmental science. It explains macroscopic observations through microscopic (atomic and molecular) interactions.
+
+**2. Industrial and Economic Scope**
+The application of chemical principles is the primary driver of the global manufacturing sector. The scope includes the mass production of:
+
+* **Agrochemicals:** Fertilizers, pesticides, and insecticides required to sustain global food security.
+* **Bulk Chemicals:** Acids, alkalis, and salts used as raw materials across all manufacturing.
+* **Synthetic Materials:** Polymers, plastics, alloys, and dyes.
+* **Consumer Goods:** Soaps, detergents, and preservatives.
+
+**3. Medicinal and Healthcare Interventions**
+Chemistry isolates naturally occurring substances and synthesizes artificial molecules to manipulate biological pathways. Specific compounds mandated for study include:
+
+* **Cisplatin and Taxol:** Chemical compounds specifically utilized in cancer therapy.
+* **AZT (Azidothymidine):** An antiretroviral medication synthesized for the treatment of AIDS.
+* **General Therapeutics:** The continuous development of analgesics, antibiotics, and targeted drug delivery systems.
+
+**4. Environmental Scope and Green Chemistry**
+Chemistry provides the analytical tools to detect environmental degradation and the synthetic methods to resolve it.
+
+* **Ozone Mitigation:** Chemical analysis identified Chlorofluorocarbons (CFCs), used historically as refrigerants, as the agents destroying stratospheric ozone.
+* **Chemical Replacement:** The discipline subsequently engineered environmentally viable alternatives, such as hydrofluorocarbons (HFCs), which lack ozone-depleting potential.
+* **Green Chemistry:** The current operational standard requiring the design of chemical products and processes that eliminate the generation of hazardous waste.
+
+**5. Material Science and Future Technologies**
+The frontier of chemistry involves the deliberate manipulation of molecular structures to engineer materials with specific physical properties. This includes the development of:
+
+* Superconducting ceramics for frictionless transport.
+* Conducting polymers for advanced electronics.
+* Optical fibers for telecommunications.
+* Nanomaterials for targeted biochemical applications.`,
+    bits: [
+      'Chemistry = study of matter, its composition, properties, structure, and changes during reactions.',
+      'Central science: principles underpin biology, physics, geology, environmental science.',
+      'Industrial scope: agrochemicals, bulk chemicals, synthetic materials, consumer goods.',
+      'Medicinal examples: Cisplatin, Taxol (cancer); AZT (AIDS); analgesics, antibiotics.',
+      'Green chemistry: design products/processes to eliminate hazardous waste generation.',
+      'CFCs destroyed ozone; HFCs are safer alternatives. Nanomaterials enable targeted applications.',
+    ],
+  },
+
+  // ---------- Class 11 Math: Sets and Functions ----------
+  [key('math', 11, 'Sets and Functions', 'Sets and their representations')]: {
+    theory: `**1. The Core Concept: What is a Set?**
+In mathematics, a **Set** is a *well-defined* collection of distinct objects.
+
+* **The "Well-Defined" Rule:** For a collection to be a set, there must be absolutely no confusion or personal opinion about whether an object belongs to it.
+* *Valid Set:* "The vowels in the English alphabet." (Everyone agrees it is exactly a, e, i, o, u).
+* *Not a Set:* "The 5 best cricketers in India." (This is an opinion; it is not well-defined).
+
+**2. Mathematical Notation (The Language of Sets)**
+To write sets, you must follow strict grammatical rules of mathematics:
+
+* **The Set Name:** Always denoted by Capital Letters (A, B, C, X, Y, Z).
+* **The Elements (Members):** The objects inside the set. Denoted by lowercase letters (a, b, c, x, y, z).
+* **The "Belongs To" Symbol (∈):** If an element 'a' is inside set A, we write **a ∈ A** (read as "a belongs to A").
+* **The "Does Not Belong To" Symbol (∉):** If an element 'b' is not inside set A, we write **b ∉ A**.
+
+**3. Standard Mathematical Sets (Memorize These)**
+These specific letters are reserved for universal number sets. You will use these constantly in calculus and algebra:
+
+* **ℕ** : The set of all Natural numbers {1, 2, 3, ...}
+* **ℤ** : The set of all Integers {..., -2, -1, 0, 1, 2, ...}
+* **ℚ** : The set of all Rational numbers (fractions).
+* **ℝ** : The set of all Real numbers.
+
+**4. The Two Ways to Represent a Set**
+You can write a set by either *listing its contents* or *describing its rule*.
+
+**Method 1: Roster or Tabular Form (The "List" Method)**
+In this form, all the elements of a set are listed, separated by commas, and enclosed within curly braces **{}**.
+
+* *Example:* Let V be the set of all vowels.
+* *Written as:* V = {a, e, i, o, u}
+* **The Two Golden Rules of Roster Form:**
+1. **Order does not matter:** {1, 2, 3} is exactly the same set as {3, 1, 2}.
+2. **Never repeat elements:** The set of letters forming the word "SCHOOL" is written as {S, C, H, O, L}. You drop the extra 'O'.
+
+**Method 2: Set-Builder Form (The "Rule" Method)**
+Instead of listing elements, you write the common property or "rule" that every element must satisfy to get into the set.
+
+* *Structure:* A = {x : statement about x}
+* The colon ":" (or sometimes a vertical line "|") is read as *"such that"*.
+* *Example:* Instead of writing V = {a, e, i, o, u}, you write:
+* **V = {x : x is a vowel in the English alphabet}**
+
+* *Read as:* "V is the set of all x, such that x is a vowel in the English alphabet."
+* *Math Example:* B = {x : x ∈ ℕ and 3 < x < 10} (This simply means {4, 5, 6, 7, 8, 9}).
+
+**5. Exam Trap Warnings**
+
+* **Trap 1: The Bracket Mistake.** Using () or [] instead of {} for sets. Examiners will mark this wrong immediately. Sets *must* use curly braces.
+* **Trap 2: Redundant Listing.** If a question asks for the Roster form of "MISSISSIPPI", the answer is {M, I, S, P}. Writing {M, I, S, S, I, S, S, I, P, P, I} is a critical error.
+* **Trap 3: Misreading Inequalities.** In Set-Builder form, pay extreme attention to < vs ≤.
+* {x ∈ ℕ : x < 5} = {1, 2, 3, 4}
+* {x ∈ ℕ : x ≤ 5} = {1, 2, 3, 4, 5}`,
+    bits: [
+      'Set = well-defined collection of distinct objects. No ambiguity about membership.',
+      'a ∈ A means "a belongs to A"; b ∉ A means "b does not belong to A".',
+      'Standard sets: ℕ (natural), ℤ (integers), ℚ (rational), ℝ (real).',
+      'Roster form: list elements in {}. Order doesn\'t matter; never repeat elements.',
+      'Set-builder: {x : statement about x}. Colon reads "such that".',
+      'Sets must use {}. < vs ≤: x < 5 excludes 5; x ≤ 5 includes 5.',
     ],
   },
 };

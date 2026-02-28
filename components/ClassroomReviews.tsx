@@ -10,6 +10,7 @@ import { StarRating, StarRatingBadge } from "@/components/StarRating";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { formatDistanceToNow } from "date-fns";
 import { Star, Video, Volume2, Pencil, Send, MessageSquareText, CheckCircle2 } from "lucide-react";
+import { UserHoverCard } from "@/components/UserHoverCard";
 import { motion, AnimatePresence, Variants } from "framer-motion";
 
 interface Review {
@@ -484,20 +485,26 @@ export default function ClassroomReviews({
                         {reviews.map((r) => (
                             <motion.div key={r.id} variants={itemVariants} className="edu-card p-5 hover:shadow-md transition-shadow">
                                 <div className="flex gap-4">
-                                    <Avatar className="h-10 w-10 rounded-full border-2 border-background shadow-sm shrink-0">
-                                        <AvatarFallback className="text-sm font-bold bg-gradient-to-br from-primary/20 to-primary/10 text-primary">
-                                            {(r.reviewer_name ?? "?").slice(0, 2).toUpperCase()}
-                                        </AvatarFallback>
-                                    </Avatar>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center justify-between gap-4 mb-2 flex-wrap">
+                                    <UserHoverCard userId={r.user_id}>
+                                        <div className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity shrink-0">
+                                            <Avatar className="h-10 w-10 rounded-full border-2 border-background shadow-sm shrink-0">
+                                                <AvatarFallback className="text-sm font-bold bg-gradient-to-br from-primary/20 to-primary/10 text-primary">
+                                                    {(r.reviewer_name ?? "?").slice(0, 2).toUpperCase()}
+                                                </AvatarFallback>
+                                            </Avatar>
                                             <div className="flex items-center gap-2 flex-wrap">
-                                                <span className="font-extrabold text-foreground">{r.reviewer_name ?? "Student"}</span>
+                                                <span className="font-extrabold text-foreground hover:text-primary hover:underline">{r.reviewer_name ?? "Student"}</span>
                                                 {r.is_explorer && (
                                                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 font-bold uppercase tracking-wide">
                                                         Explorer
                                                     </span>
                                                 )}
+                                            </div>
+                                        </div>
+                                    </UserHoverCard>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center justify-between gap-4 mb-2 flex-wrap">
+                                            <div className="flex items-center gap-2 flex-wrap">
                                             </div>
                                             <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap">
                                                 {formatDistanceToNow(new Date(r.created_at), { addSuffix: true })}

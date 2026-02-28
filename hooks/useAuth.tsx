@@ -54,25 +54,44 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (typeof p.rdm === 'number') useUserStore.getState().setRdmFromProfile(p.rdm);
       return;
     }
+    // Profile read failed (RLS, network, or row missing). Do NOT upsert — that would overwrite
+    // an existing completed profile with onboarding_complete: false when token refresh fires.
+    // handle_new_user trigger creates profiles for new signups. If we can't read, set null
+    // and retry will happen on next auth state change or refresh.
     if (error?.code === 'PGRST116' || !data) {
       const name = userMeta?.name || 'User';
       const { data: inserted } = await supabase
         .from('profiles')
-        .upsert({
-          id: userId,
-          name: name || 'User',
-          avatar_url: userMeta?.avatar_url ?? null,
-          role: 'student',
-          onboarding_complete: false,
-          google_connected: userMeta?.provider === 'google',
-        }, { onConflict: 'id' })
+        .upsert(
+          {
+            id: userId,
+            name: name || 'User',
+            avatar_url: userMeta?.avatar_url ?? null,
+            role: 'student',
+            onboarding_complete: false,
+            google_connected: userMeta?.provider === 'google',
+          },
+          { onConflict: 'id', ignoreDuplicates: true }
+        )
         .select()
-        .single();
+        .maybeSingle();
       if (inserted) {
         const p = inserted as Profile;
         setProfile(p);
         if (typeof p.rdm === 'number') useUserStore.getState().setRdmFromProfile(p.rdm);
-      } else setProfile(null);
+      } else {
+        // Row exists but ignoreDuplicates prevented update; refetch to get current state
+        const { data: refetched } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .maybeSingle();
+        if (refetched) {
+          const p = refetched as Profile;
+          setProfile(p);
+          if (typeof p.rdm === 'number') useUserStore.getState().setRdmFromProfile(p.rdm);
+        } else setProfile(null);
+      }
       return;
     }
     setProfile(null);

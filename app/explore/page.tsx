@@ -19,7 +19,8 @@ import {
 } from '@/components/ui/accordion';
 import dynamic from 'next/dynamic';
 import Image from 'next/image';
-import { Search, Filter, ArrowLeft, Sparkles, BookOpen, ChevronRight, Zap, Play, Box, CheckCircle2, XCircle } from 'lucide-react';
+import Link from 'next/link';
+import { Search, Filter, ArrowLeft, Sparkles, BookOpen, ChevronRight, Zap, Play, Box, CheckCircle2, XCircle, Compass, Crosshair } from 'lucide-react';
 import { getTheoryOrPlaceholder } from '@/data/topicTheory';
 import { getInstaCueCards } from '@/data/instaCueCards';
 import type { InstaCueCard } from '@/data/instaCueCards';
@@ -90,7 +91,7 @@ function getQuestionsForSubtopic(
   return [...withMatch, ...rest].slice(0, limit);
 }
 
-type ViewState = 'subjects' | 'topics' | 'topic-detail' | 'questions';
+type ViewState = 'hub' | 'subjects' | 'topics' | 'topic-detail' | 'questions';
 
 function BitsMCQs({ questions: qs }: { questions: Question[] }) {
   const [index, setIndex] = useState(0);
@@ -179,8 +180,11 @@ const Explore = () => {
   const [visualPlayableOpen, setVisualPlayableOpen] = useState(false);
   const [filteredQuestions, setFilteredQuestions] = useState<Question[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [view, setView] = useState<ViewState>('subjects');
+  const [view, setView] = useState<ViewState>('hub');
   const [hoveredSubject, setHoveredSubject] = useState<string | null>(null);
+  const [expandedTheoryKeys, setExpandedTheoryKeys] = useState<Set<string>>(new Set());
+
+  const THEORY_TRUNCATE_CHARS = 450; // ~4–5 lines; show "Read more" beyond this
 
   const visibleExamTypes = getVisibleExamTypes(classLevel);
   const visibleSubjectValues = getVisibleSubjects(classLevel, subjectCombo);
@@ -216,7 +220,7 @@ const Explore = () => {
       (t) =>
         t.subject === selectedSubject &&
         t.classLevel >= 11 && // Pause Class 9 & 10 for now
-        (classLevel == null || t.classLevel <= classLevel) &&
+        (classLevel == null || classLevel >= 11) && // Show Class 11 & 12 to users in 11/12 or unset
         (!selectedExam || t.examRelevance.includes(selectedExam))
     );
     const grouped: Record<number, TopicNode[]> = {};
@@ -252,6 +256,15 @@ const Explore = () => {
     }
   };
 
+  const toggleTheoryExpanded = (key: string) => {
+    setExpandedTheoryKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
   const handleTopicSelect = (topic: string) => {
     if (!selectedSubject) return;
     let filtered = questions.filter(
@@ -267,7 +280,7 @@ const Explore = () => {
 
   const handleBackToSubjects = () => {
     setSelectedSubject(null);
-    setView('subjects');
+    setView('hub');
   };
 
   const handleBackToTopics = () => {
@@ -286,6 +299,55 @@ const Explore = () => {
     <ProtectedRoute>
       <AppLayout>
         <AnimatePresence mode="wait">
+          {view === 'hub' && (
+            <motion.div
+              key="hub"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="max-w-3xl mx-auto"
+            >
+              <div className="edu-page-header">
+                <h2 className="edu-page-title flex items-center gap-3">
+                  <div className="w-10 h-10 gradient-primary rounded-xl flex items-center justify-center">
+                    <Compass className="w-5 h-5 text-primary-foreground" />
+                  </div>
+                  Explore & Play
+                </h2>
+                <p className="edu-page-desc">Choose how you want to learn</p>
+              </div>
+              <div className="grid sm:grid-cols-2 gap-4 mt-8">
+                <motion.button
+                  type="button"
+                  onClick={() => setView('subjects')}
+                  className="edu-card p-6 rounded-2xl text-left hover:shadow-[0_8px_30px_rgba(0,0,0,0.12)] hover:scale-[1.02] transition-all border border-border group"
+                >
+                  <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
+                    <Compass className="w-6 h-6 text-primary" />
+                  </div>
+                  <h3 className="font-extrabold text-lg text-foreground mb-1">Explore</h3>
+                  <p className="text-sm text-muted-foreground">Browse subjects, topics, and practice questions</p>
+                  <span className="inline-flex items-center gap-1 mt-3 text-sm font-bold text-primary">
+                    Open <ChevronRight className="w-4 h-4" />
+                  </span>
+                </motion.button>
+                <Link
+                  href="/play"
+                  className="edu-card p-6 rounded-2xl text-left hover:shadow-[0_8px_30px_rgba(0,0,0,0.12)] hover:scale-[1.02] transition-all border border-border group block"
+                >
+                  <div className="w-12 h-12 rounded-xl bg-edu-orange/10 flex items-center justify-center mb-4 group-hover:bg-edu-orange/20 transition-colors">
+                    <Crosshair className="w-6 h-6 text-edu-orange" />
+                  </div>
+                  <h3 className="font-extrabold text-lg text-foreground mb-1">Play</h3>
+                  <p className="text-sm text-muted-foreground">Fun, timed practice and challenges</p>
+                  <span className="inline-flex items-center gap-1 mt-3 text-sm font-bold text-edu-orange">
+                    Go to Play <ChevronRight className="w-4 h-4" />
+                  </span>
+                </Link>
+              </div>
+            </motion.div>
+          )}
+
           {view === 'subjects' && (
             <motion.div
               key="subjects"
@@ -295,6 +357,14 @@ const Explore = () => {
               className="max-w-3xl mx-auto"
             >
               <div className="edu-page-header">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setView('hub')}
+                  className="rounded-full font-extrabold mb-3 -ml-1"
+                >
+                  <ArrowLeft className="w-4 h-4 mr-1" /> Back to Explore & Play
+                </Button>
                 <h2 className="edu-page-title flex items-center gap-3">
                   <div className="w-10 h-10 gradient-primary rounded-xl flex items-center justify-center">
                     <Search className="w-5 h-5 text-primary-foreground" />
@@ -443,7 +513,11 @@ const Explore = () => {
                               >
                                 <div className="flex items-center justify-between mb-2">
                                   <span className="font-bold text-sm text-foreground">
-                                    {topicNode.topic}
+                                    {topicNode.unitLabel && topicNode.totalPeriods != null
+                                      ? `${topicNode.unitLabel}: ${topicNode.topic} (Total Periods: ${topicNode.totalPeriods})`
+                                      : topicNode.totalPeriods != null
+                                        ? `${topicNode.topic} (Total Periods: ${topicNode.totalPeriods})`
+                                        : topicNode.topic}
                                   </span>
                                   {hasQuestions ? (
                                     <Badge className="text-xs font-bold bg-primary/10 text-primary border-0">
@@ -512,7 +586,11 @@ const Explore = () => {
 
               <h2 className="edu-page-title text-2xl mb-1 flex items-center gap-2">
                 <BookOpen className="w-6 h-6 text-primary" />
-                {selectedTopicNode.topic}
+                {selectedTopicNode.unitLabel && selectedTopicNode.totalPeriods != null
+                  ? `${selectedTopicNode.unitLabel}: ${selectedTopicNode.topic} (Total Periods: ${selectedTopicNode.totalPeriods})`
+                  : selectedTopicNode.totalPeriods != null
+                    ? `${selectedTopicNode.topic} (Total Periods: ${selectedTopicNode.totalPeriods})`
+                    : selectedTopicNode.topic}
               </h2>
               {/* <p className="edu-page-desc mb-6 text-sm">Read the theory for each subtopic. Use InstaCue cards on the right for quick revision.</p> */}
 
@@ -520,6 +598,13 @@ const Explore = () => {
                 <div className="flex-1 min-w-0 space-y-6">
                   {selectedTopicNode.subtopics.map((st, idx) => {
                     const theoryData = getTheoryOrPlaceholder(selectedSubject, selectedTopicClassLevel, selectedTopicNode.topic, st.name);
+                    const theoryKey = `${selectedTopicNode.topic}-${st.name}`;
+                    const isLong = theoryData.theory.length > THEORY_TRUNCATE_CHARS;
+                    const isExpanded = expandedTheoryKeys.has(theoryKey);
+                    const truncateAt = theoryData.theory.lastIndexOf(' ', THEORY_TRUNCATE_CHARS);
+                    const displayTheory = isLong && !isExpanded
+                      ? theoryData.theory.slice(0, truncateAt > 200 ? truncateAt : THEORY_TRUNCATE_CHARS).trim() + '...'
+                      : theoryData.theory;
                     return (
                       <div key={st.name} className="edu-card p-5 rounded-2xl border border-border">
                         <h3 className="font-bold text-foreground mb-2 flex items-center gap-2">
@@ -527,7 +612,7 @@ const Explore = () => {
                           {st.name}
                         </h3>
                         <div className="text-sm text-muted-foreground leading-relaxed mb-4 whitespace-pre-wrap [&>*]:mb-2">
-                          {theoryData.theory.split(/\n\n+/).map((para, i) => (
+                          {displayTheory.split(/\n\n+/).map((para, i) => (
                             <p key={i} className="mb-2 last:mb-0">
                               {para.split(/(\*\*[^*]+\*\*)/g).map((part, j) =>
                                 part.startsWith('**') && part.endsWith('**') ? (
@@ -539,6 +624,39 @@ const Explore = () => {
                             </p>
                           ))}
                         </div>
+                        {isLong && (
+                          <button
+                            type="button"
+                            onClick={() => toggleTheoryExpanded(theoryKey)}
+                            className="text-sm font-semibold text-primary hover:underline mb-4"
+                          >
+                            {isExpanded ? 'Read less' : 'Read more'}
+                          </button>
+                        )}
+                        {st.name === 'Scope and excitement of Physics' && (
+                          <div className="mb-4 rounded-xl overflow-hidden border border-border bg-muted/30 p-2 lg:p-4">
+                            <Image
+                              src="/images/scope-and-excitement-of-physics.png"
+                              alt="THE SCOPE AND EXCITEMENT OF PHYSICS - An Explorer's Guide to the Universe (Class 11)"
+                              width={1200}
+                              height={800}
+                              className="w-full h-auto object-contain rounded-lg"
+                              unoptimized
+                            />
+                          </div>
+                        )}
+                        {st.name === 'Importance and scope of chemistry' && (
+                          <div className="mb-4 rounded-xl overflow-hidden border border-border bg-muted/30 p-2 lg:p-4">
+                            <Image
+                              src="/images/importance-and-scope-of-chemistry.png"
+                              alt="THE IMPORTANCE & SCOPE OF CHEMISTRY - Unlocking the Universe's Building Blocks (Class 11)"
+                              width={1200}
+                              height={800}
+                              className="w-full h-auto object-contain rounded-lg"
+                              unoptimized
+                            />
+                          </div>
+                        )}
                         {st.name === 'SI Units' && (
                           <div className="mb-4 rounded-xl overflow-hidden border border-border bg-muted/30 p-1 lg:p-2">
                             <Image
@@ -559,6 +677,18 @@ const Explore = () => {
                               width={800}
                               height={500}
                               className="w-full h-auto object-contain"
+                              unoptimized
+                            />
+                          </div>
+                        )}
+                        {st.name === 'Sets and their representations' && (
+                          <div className="mb-4 rounded-xl overflow-hidden border border-border bg-muted/30 p-2 lg:p-4">
+                            <Image
+                              src="/images/sets-and-their-representations.png"
+                              alt="MATH UNLOCKED: Sets & their Representations (Gen Z Edition)"
+                              width={1200}
+                              height={800}
+                              className="w-full h-auto object-contain rounded-lg"
                               unoptimized
                             />
                           </div>

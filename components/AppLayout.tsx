@@ -5,7 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserStore } from '@/store/useUserStore';
-import { LayoutDashboard, Crosshair, Compass, BookMarked, User, Coins, Settings, Crown, School, ClipboardList, HelpCircle } from 'lucide-react';
+import { LayoutDashboard, Compass, User, Coins, Settings, ClipboardList, HelpCircle, Heart } from 'lucide-react';
 import StreakTimer from '@/components/StreakTimer';
 import NotificationBell from '@/components/NotificationBell';
 import BreakScreen from '@/components/BreakScreen';
@@ -19,12 +19,10 @@ interface AppLayoutProps {
 
 const baseNavItems = [
   { path: '/home', icon: LayoutDashboard, label: 'Dashboard', emoji: '📊' },
-  { path: '/play', icon: Crosshair, label: 'Play', emoji: '🔥' },
   { path: '/explore', icon: Compass, label: 'Explore', emoji: '🧭' },
-  { path: '/classrooms', icon: School, label: 'Classes', emoji: '🏫' },
-  { path: '/mock', icon: ClipboardList, label: 'Mock', emoji: '📝' },
-  { path: '/doubts', icon: HelpCircle, label: 'Doubts', emoji: '❓' },
-  { path: '/revision', icon: BookMarked, label: 'Revision', emoji: '📚' },
+  { path: '/exam-prep', icon: ClipboardList, label: 'Exam Prep', emoji: '📋' },
+  { path: '/doubts', icon: HelpCircle, label: 'Gyan++', emoji: '💡' },
+  { path: '/edufund', icon: Heart, label: 'EduFund', emoji: '💛' },
   { path: '/profile', icon: User, label: 'Profile', emoji: '👤' },
 ];
 
@@ -54,7 +52,7 @@ const AppLayout = ({ children, streakTimer }: AppLayoutProps) => {
           {/* Nav Links - Desktop */}
           <nav className="hidden md:flex items-center gap-0.5 bg-muted/50 rounded-2xl p-1">
             {navItems.map(({ path, icon: Icon, label }) => {
-              const isActive = pathname === path;
+              const isActive = pathname === path || (path === '/exam-prep' && ['/classrooms', '/mock', '/revision'].includes(pathname)) || (path === '/explore' && pathname === '/play') || (path === '/edufund' && (pathname === '/edufund' || pathname.startsWith('/edufund/')));
               return (
                 <Link
                   key={path}
@@ -105,7 +103,7 @@ const AppLayout = ({ children, streakTimer }: AppLayoutProps) => {
         <div className="md:hidden border-t border-border/60">
           <div className="flex overflow-x-auto px-2 gap-0.5">
             {navItems.map(({ path, icon: Icon, label, emoji }) => {
-              const isActive = pathname === path;
+              const isActive = pathname === path || (path === '/exam-prep' && ['/classrooms', '/mock', '/revision'].includes(pathname)) || (path === '/explore' && pathname === '/play') || (path === '/edufund' && (pathname === '/edufund' || pathname.startsWith('/edufund/')));
               return (
                 <Link
                   key={path}

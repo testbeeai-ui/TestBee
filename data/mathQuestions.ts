@@ -167,7 +167,7 @@ export const mathQuestions: Question[] = [
 
   // ===== CLASS 11 =====
   {
-    id: 'math-11-1', subject: 'math', topic: 'Sets', classLevel: 11,
+    id: 'math-11-1', subject: 'math', topic: 'Sets and Functions', classLevel: 11,
     examType: ['other'],
     question: 'If A = {1, 2, 3} and B = {2, 3, 4}, then A ∩ B is:',
     options: ['{2, 3}', '{1, 2, 3, 4}', '{1, 4}', '{1}'],
@@ -177,7 +177,7 @@ export const mathQuestions: Question[] = [
     reference: { theory: 'Intersection of sets contains only elements that belong to both sets.', relatedTopics: ['Union', 'Complement', 'Venn Diagrams'], applicationExample: 'In databases, finding common customers between two lists is a set intersection operation.' },
   },
   {
-    id: 'math-11-2', subject: 'math', topic: 'Relations & Functions', classLevel: 11,
+    id: 'math-11-2', subject: 'math', topic: 'Sets and Functions', classLevel: 11,
     examType: ['KCET'],
     question: 'A function f: A → B is one-one (injective) if:',
     options: ['f(a₁) = f(a₂) implies a₁ = a₂', 'Every element of B has a preimage', 'f is continuous', 'f(a) = a for all a'],
@@ -187,7 +187,7 @@ export const mathQuestions: Question[] = [
     reference: { theory: 'Injective functions preserve distinctness — different inputs always produce different outputs.', relatedTopics: ['Surjective', 'Bijective', 'Inverse Functions'], applicationExample: 'Student roll numbers are an injective mapping — each student gets a unique number.' },
   },
   {
-    id: 'math-11-3', subject: 'math', topic: 'Trigonometric Functions', classLevel: 11,
+    id: 'math-11-3', subject: 'math', topic: 'Sets and Functions', classLevel: 11,
     examType: ['JEE'],
     question: 'The value of sin(A+B) is:',
     options: ['sinA cosB + cosA sinB', 'sinA sinB + cosA cosB', 'sinA cosB - cosA sinB', 'cosA cosB - sinA sinB'],
@@ -197,7 +197,7 @@ export const mathQuestions: Question[] = [
     reference: { theory: 'Compound angle formulas allow calculation of trig functions of sum/difference of angles.', relatedTopics: ['cos(A+B)', 'Double Angle', 'Half Angle'], applicationExample: 'Used in signal processing to combine waves of different frequencies.' },
   },
   {
-    id: 'math-11-4', subject: 'math', topic: 'Complex Numbers', classLevel: 11,
+    id: 'math-11-4', subject: 'math', topic: 'Algebra', classLevel: 11,
     examType: ['JEE', 'KCET'],
     question: 'The value of i² is:',
     options: ['-1', '1', 'i', '-i'],
@@ -207,7 +207,7 @@ export const mathQuestions: Question[] = [
     reference: { theory: 'Complex numbers extend real numbers by introducing i where i² = -1.', inventor: 'Leonhard Euler (notation)', relatedTopics: ['Complex Plane', 'Modulus', 'Argument'], applicationExample: 'Complex numbers are essential in electrical engineering for analyzing AC circuits.' },
   },
   {
-    id: 'math-11-5', subject: 'math', topic: 'Sequences & Series', classLevel: 11,
+    id: 'math-11-5', subject: 'math', topic: 'Algebra', classLevel: 11,
     examType: ['KCET'],
     question: 'The sum of first n natural numbers is:',
     options: ['n(n+1)/2', 'n²', 'n(n-1)/2', '(n+1)/2'],
@@ -217,7 +217,7 @@ export const mathQuestions: Question[] = [
     reference: { theory: 'This formula can be derived by pairing terms or using AP sum formula with a=1, d=1.', inventor: 'Carl Friedrich Gauss (discovered as a child)', relatedTopics: ['AP Sum', 'GP Sum', 'Sigma Notation'], applicationExample: 'Gauss reportedly summed 1 to 100 instantly as a schoolboy: 100×101/2 = 5050.' },
   },
   {
-    id: 'math-11-6', subject: 'math', topic: 'Sequences & Series', classLevel: 11,
+    id: 'math-11-6', subject: 'math', topic: 'Algebra', classLevel: 11,
     examType: ['JEE'],
     question: 'The sum of an infinite geometric series with first term a and common ratio r (|r| < 1) is:',
     options: ['a/(1-r)', 'a/(1+r)', 'ar/(1-r)', '1/(1-r)'],
@@ -227,7 +227,7 @@ export const mathQuestions: Question[] = [
     reference: { theory: 'An infinite GP converges only when |r| < 1. The partial sums approach a/(1-r).', relatedTopics: ['Convergence', 'Divergence', 'Geometric Mean'], applicationExample: 'In finance, the present value of perpetuity (infinite periodic payments) uses this formula.' },
   },
   {
-    id: 'math-11-7', subject: 'math', topic: 'Straight Lines', classLevel: 11,
+    id: 'math-11-7', subject: 'math', topic: 'Coordinate Geometry', classLevel: 11,
     examType: ['other'],
     question: 'The slope of a line passing through (1, 2) and (3, 6) is:',
     options: ['2', '4', '1', '3'],
@@ -237,7 +237,7 @@ export const mathQuestions: Question[] = [
     reference: { theory: 'Slope measures the steepness of a line and the rate of change of y with respect to x.', relatedTopics: ['Point-Slope Form', 'Slope-Intercept Form', 'Parallel Lines'], applicationExample: 'In economics, slope represents marginal cost/revenue — the rate of change.' },
   },
   {
-    id: 'math-11-8', subject: 'math', topic: 'Straight Lines', classLevel: 11,
+    id: 'math-11-8', subject: 'math', topic: 'Coordinate Geometry', classLevel: 11,
     examType: ['KCET'],
     question: 'Two lines are perpendicular if the product of their slopes is:',
     options: ['-1', '0', '1', 'Undefined'],
@@ -247,7 +247,7 @@ export const mathQuestions: Question[] = [
     reference: { theory: 'Perpendicular lines intersect at 90°. Their slopes are negative reciprocals of each other.', relatedTopics: ['Parallel Lines', 'Angle Between Lines', 'Normal'], applicationExample: 'Building corners must be perpendicular — architects verify using slope relationships.' },
   },
   {
-    id: 'math-11-9', subject: 'math', topic: 'Probability', classLevel: 11,
+    id: 'math-11-9', subject: 'math', topic: 'Statistics and Probability', classLevel: 11,
     examType: ['other'],
     question: 'If a coin is tossed, the probability of getting a head is:',
     options: ['1/2', '1', '0', '1/4'],
@@ -257,7 +257,7 @@ export const mathQuestions: Question[] = [
     reference: { theory: 'Probability = Number of favorable outcomes / Total number of equally likely outcomes.', relatedTopics: ['Sample Space', 'Events', 'Complementary Events'], applicationExample: 'Coin tosses are used in cricket to decide which team bats first.' },
   },
   {
-    id: 'math-11-10', subject: 'math', topic: 'Probability', classLevel: 11,
+    id: 'math-11-10', subject: 'math', topic: 'Statistics and Probability', classLevel: 11,
     examType: ['JEE', 'KCET'],
     question: 'Two events A and B are independent if:',
     options: ['P(A∩B) = P(A)·P(B)', 'P(A∪B) = P(A)+P(B)', 'P(A) = P(B)', 'P(A∩B) = 0'],
@@ -269,7 +269,7 @@ export const mathQuestions: Question[] = [
 
   // ===== CLASS 12 =====
   {
-    id: 'math-12-1', subject: 'math', topic: 'Relations & Functions', classLevel: 12,
+    id: 'math-12-1', subject: 'math', topic: 'Relations and Functions', classLevel: 12,
     examType: ['KCET'],
     question: 'A function that is both one-one and onto is called:',
     options: ['Bijective', 'Surjective', 'Injective', 'Constant'],
@@ -279,7 +279,7 @@ export const mathQuestions: Question[] = [
     reference: { theory: 'Bijections establish perfect pairing between elements of domain and codomain.', relatedTopics: ['Inverse Functions', 'Composition', 'Domain & Range'], applicationExample: 'Encryption functions should be bijective — each input produces a unique output that can be reversed.' },
   },
   {
-    id: 'math-12-2', subject: 'math', topic: 'Inverse Trigonometric Functions', classLevel: 12,
+    id: 'math-12-2', subject: 'math', topic: 'Relations and Functions', classLevel: 12,
     examType: ['JEE'],
     question: 'The principal value of sin⁻¹(1) is:',
     options: ['π/2', 'π', '0', '3π/2'],
@@ -289,7 +289,7 @@ export const mathQuestions: Question[] = [
     reference: { theory: 'Inverse trig functions return angles in restricted ranges to ensure they are functions.', relatedTopics: ['Principal Values', 'cos⁻¹', 'tan⁻¹'], applicationExample: 'Inverse trig functions are used in navigation to calculate bearing angles.' },
   },
   {
-    id: 'math-12-3', subject: 'math', topic: 'Matrices', classLevel: 12,
+    id: 'math-12-3', subject: 'math', topic: 'Algebra', classLevel: 12,
     examType: ['other'],
     question: 'A matrix with equal number of rows and columns is called:',
     options: ['Square matrix', 'Diagonal matrix', 'Identity matrix', 'Null matrix'],
@@ -299,7 +299,7 @@ export const mathQuestions: Question[] = [
     reference: { theory: 'Square matrices have special properties like determinants, eigenvalues, and inverses.', relatedTopics: ['Determinant', 'Trace', 'Transpose'], applicationExample: 'Transformation matrices in computer graphics are typically 4×4 square matrices.' },
   },
   {
-    id: 'math-12-4', subject: 'math', topic: 'Determinants', classLevel: 12,
+    id: 'math-12-4', subject: 'math', topic: 'Algebra', classLevel: 12,
     examType: ['JEE', 'KCET'],
     question: 'If det(A) = 0, then the matrix A is called:',
     options: ['Singular', 'Non-singular', 'Diagonal', 'Symmetric'],
@@ -309,7 +309,7 @@ export const mathQuestions: Question[] = [
     reference: { theory: 'Singular matrices map some non-zero vectors to zero — they "collapse" a dimension.', relatedTopics: ['Inverse Matrix', 'Linear Dependence', 'Cramer\'s Rule'], applicationExample: 'A system of linear equations has no unique solution when the coefficient matrix is singular.' },
   },
   {
-    id: 'math-12-5', subject: 'math', topic: 'Continuity & Differentiability', classLevel: 12,
+    id: 'math-12-5', subject: 'math', topic: 'Calculus', classLevel: 12,
     examType: ['KCET'],
     question: 'The derivative of sin(x) is:',
     options: ['cos(x)', '-cos(x)', 'sin(x)', '-sin(x)'],
@@ -319,7 +319,7 @@ export const mathQuestions: Question[] = [
     reference: { theory: 'Differentiation measures instantaneous rate of change.', relatedTopics: ['Chain Rule', 'Integration', 'Trigonometric Derivatives'], applicationExample: 'If displacement is s = sin(ωt), velocity is v = ω·cos(ωt).' },
   },
   {
-    id: 'math-12-6', subject: 'math', topic: 'Continuity & Differentiability', classLevel: 12,
+    id: 'math-12-6', subject: 'math', topic: 'Calculus', classLevel: 12,
     examType: ['JEE', 'NEET'],
     question: 'The derivative of eˣ is:',
     options: ['eˣ', 'xeˣ⁻¹', 'eˣ/x', 'ln(x)'],
@@ -329,7 +329,7 @@ export const mathQuestions: Question[] = [
     reference: { theory: 'eˣ is the only function (up to scalar multiple) that is its own derivative.', inventor: 'Leonhard Euler', relatedTopics: ['Natural Logarithm', 'Chain Rule', 'Exponential Growth'], applicationExample: 'Radioactive decay and population growth follow exponential models where rate ∝ current value.' },
   },
   {
-    id: 'math-12-7', subject: 'math', topic: 'Integrals', classLevel: 12,
+    id: 'math-12-7', subject: 'math', topic: 'Calculus', classLevel: 12,
     examType: ['KCET'],
     question: '∫ 2x dx equals:',
     options: ['x² + C', '2x² + C', 'x + C', '2 + C'],
@@ -339,7 +339,7 @@ export const mathQuestions: Question[] = [
     reference: { theory: 'Integration is the reverse of differentiation. The constant C accounts for all antiderivatives.', relatedTopics: ['Definite Integrals', 'Fundamental Theorem', 'Substitution'], applicationExample: 'Finding area under a velocity-time graph gives displacement.' },
   },
   {
-    id: 'math-12-8', subject: 'math', topic: 'Integrals', classLevel: 12,
+    id: 'math-12-8', subject: 'math', topic: 'Calculus', classLevel: 12,
     examType: ['JEE'],
     question: '∫₀¹ x² dx equals:',
     options: ['1/3', '1/2', '1', '2/3'],
@@ -349,7 +349,7 @@ export const mathQuestions: Question[] = [
     reference: { theory: 'Definite integrals give the net area under a curve between two limits.', relatedTopics: ['Fundamental Theorem of Calculus', 'Area Under Curve', 'Properties of Integrals'], applicationExample: 'Computing work done by a variable force requires definite integration of F(x).' },
   },
   {
-    id: 'math-12-9', subject: 'math', topic: 'Vectors', classLevel: 12,
+    id: 'math-12-9', subject: 'math', topic: 'Vectors and Three-Dimensional Geometry', classLevel: 12,
     examType: ['other'],
     question: 'The dot product of two perpendicular vectors is:',
     options: ['0', '1', '-1', 'Undefined'],

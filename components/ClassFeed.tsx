@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { FileText, Video, HelpCircle, ClipboardList, BarChart3, Megaphone, Calendar } from 'lucide-react';
+import { UserHoverCard } from '@/components/UserHoverCard';
 import { format } from 'date-fns';
 
 export interface Post {
@@ -92,7 +93,10 @@ const ClassFeed = ({ classroomId, refreshKey, onSelectPost, initialPosts }: Prop
               </p>
             )}
             <p className="text-[11px] text-muted-foreground/70 mt-auto pt-3">
-              {post.profiles?.name || 'Teacher'} · {format(new Date(post.created_at), 'MMM d')}
+              <UserHoverCard userId={post.teacher_id}>
+                <span className="font-medium hover:text-primary hover:underline cursor-pointer">{post.profiles?.name || 'Teacher'}</span>
+              </UserHoverCard>
+              {' · '}{format(new Date(post.created_at), 'MMM d')}
             </p>
           </div>
         );

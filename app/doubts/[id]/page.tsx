@@ -27,6 +27,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ArrowLeft, ChevronUp, ChevronDown, MessageSquare, Check, Loader2, Flag, ClipboardCheck, MoreVertical, Pencil, Trash2 } from "lucide-react";
+import { UserHoverCard } from "@/components/UserHoverCard";
 
 type Doubt = {
   id: string;
@@ -147,7 +148,7 @@ export default function DoubtDetailPage() {
   }, [id, fetchDoubt, fetchAnswers]);
 
   useEffect(() => {
-    if (id) supabase.rpc("increment_doubt_views", { p_doubt_id: id }).then(() => {});
+    if (id) supabase.rpc("increment_doubt_views", { p_doubt_id: id }).then(() => { });
   }, [id]);
 
   useEffect(() => {
@@ -356,9 +357,9 @@ export default function DoubtDetailPage() {
       <ProtectedRoute>
         <AppLayout>
           <div className="max-w-3xl mx-auto px-4 py-8 text-center">
-            <p className="text-muted-foreground">Doubt not found.</p>
+            <p className="text-muted-foreground">Question not found.</p>
             <Button variant="outline" className="rounded-xl mt-4" onClick={() => router.push("/doubts")}>
-              Back to Doubts
+              Back to Gyan++
             </Button>
           </div>
         </AppLayout>
@@ -376,7 +377,7 @@ export default function DoubtDetailPage() {
       <AppLayout>
         <div className="max-w-3xl mx-auto px-4 py-6">
           <Link href="/doubts" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4">
-            <ArrowLeft className="w-4 h-4" /> Back to Doubts
+            <ArrowLeft className="w-4 h-4" /> Back to Gyan++
           </Link>
 
           <div className="edu-card p-6 rounded-2xl">
@@ -570,7 +571,13 @@ export default function DoubtDetailPage() {
                       )}
                       <div className="flex items-center justify-between mt-2 flex-wrap gap-2">
                         <span className="text-xs text-muted-foreground">
-                          {a.profiles?.name ?? "Someone"} · {new Date(a.created_at).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" })}
+                          <UserHoverCard userId={a.user_id}>
+                            <span className="font-medium text-foreground hover:text-primary hover:underline cursor-pointer">
+                              {a.profiles?.name ?? "Someone"}
+                            </span>
+                          </UserHoverCard>
+                          {" · "}
+                          {new Date(a.created_at).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" })}
                         </span>
                         <div className="flex items-center gap-1">
                           {user && user.id === a.user_id && !a.is_accepted && !doubt.is_resolved && (

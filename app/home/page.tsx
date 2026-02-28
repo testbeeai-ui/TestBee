@@ -52,14 +52,6 @@ export default function HomePage() {
   const router = useRouter();
   const streakTimer = useStreakTimer();
 
-  if (profile?.role === "teacher") {
-    return (
-      <ProtectedRoute>
-        <TeacherDashboard />
-      </ProtectedRoute>
-    );
-  }
-
   const subjects: Subject[] = useMemo(() => {
     if (!user) return ["physics", "chemistry", "math"];
     return user.subjectCombo === "PCMB"
@@ -99,12 +91,20 @@ export default function HomePage() {
       });
   }, [allResults]);
 
+  if (profile?.role === "teacher") {
+    return (
+      <ProtectedRoute>
+        <TeacherDashboard />
+      </ProtectedRoute>
+    );
+  }
+
   const motivationalTips = [
     "Consistency beats intensity. Solve at least 5 questions daily!",
     "Review your mistakes — they're your best teachers.",
     "Challenge a friend to a mock test today!",
     "Spaced repetition boosts memory by 200%. Use your Revision cards!",
-    "Top rankers solve doubts for others. Help someone today!",
+    "Top rankers help others in Gyan++. Help someone today!",
     "A 25-minute focused session is worth 2 hours of distracted study.",
     "Break hard problems into smaller steps. Start with what you know.",
   ];
@@ -114,7 +114,7 @@ export default function HomePage() {
     { label: "Question Gun", desc: "Fire 5 random questions", path: "/play", gradient: "from-orange-500 to-red-500", emoji: "🔥" },
     { label: "Mock Test", desc: "Take a timed subject exam", path: "/mock", gradient: "from-indigo-500 to-blue-500", emoji: "📝" },
     { label: "Explore Topics", desc: "Browse by subject & topic", path: "/explore", gradient: "from-blue-500 to-cyan-500", emoji: "🧭" },
-    { label: "Ask a Doubt", desc: "Get help from peers", path: "/doubts", gradient: "from-amber-500 to-yellow-500", emoji: "❓" },
+    { label: "Gyan++", desc: "Get help from peers", path: "/doubts", gradient: "from-amber-500 to-yellow-500", emoji: "💡" },
     { label: "My Classes", desc: "Join or explore classrooms", path: "/classrooms", gradient: "from-teal-500 to-green-500", emoji: "🏫" },
     { label: "Revision Bank", desc: "Review saved questions", path: "/revision", gradient: "from-green-500 to-emerald-500", emoji: "📚" },
   ];
@@ -342,7 +342,7 @@ export default function HomePage() {
               </span>
             </button>
 
-            {/* Doubts Nudge */}
+            {/* Gyan++ Nudge */}
             <button
               onClick={() => router.push('/doubts')}
               className="edu-card p-5 text-left hover:border-primary/30 group transition-all"
@@ -352,15 +352,15 @@ export default function HomePage() {
                   <MessageCircleQuestion className="w-5 h-5" />
                 </div>
                 <div>
-                  <p className="font-extrabold text-sm text-foreground">Doubts Forum</p>
+                  <p className="font-extrabold text-sm text-foreground">Gyan++</p>
                   <p className="text-xs text-muted-foreground">Ask & answer questions</p>
                 </div>
               </div>
               <p className="text-xs text-muted-foreground font-medium">
-                Post your doubts, earn RDM by helping others, and set bounties on tough questions. The community has your back!
+                Post your questions, earn RDM by helping others, and set bounties on tough ones. The community has your back!
               </p>
               <span className="text-xs text-primary font-extrabold mt-3 flex items-center gap-1 group-hover:underline">
-                Browse Doubts <ArrowRight className="w-3 h-3" />
+                Browse Gyan++ <ArrowRight className="w-3 h-3" />
               </span>
             </button>
 

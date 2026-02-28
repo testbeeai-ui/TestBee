@@ -147,7 +147,7 @@ export const chemistryQuestions: Question[] = [
 
   // ===== CLASS 11 =====
   {
-    id: 'chem-11-1', subject: 'chemistry', topic: 'Atomic Structure', classLevel: 11,
+    id: 'chem-11-1', subject: 'chemistry', topic: 'Structure of Atom', classLevel: 11,
     examType: ['JEE', 'NEET'],
     question: 'Which quantum number determines the shape of an orbital?',
     options: ['Azimuthal (l)', 'Principal (n)', 'Magnetic (ml)', 'Spin (ms)'],
@@ -157,7 +157,7 @@ export const chemistryQuestions: Question[] = [
     reference: { theory: 'Quantum numbers describe properties of atomic orbitals and electrons.', relatedTopics: ['Quantum Mechanics', 'Electron Configuration', 'Orbitals'], applicationExample: 'Understanding orbital shapes helps predict molecular geometry and bonding.' },
   },
   {
-    id: 'chem-11-2', subject: 'chemistry', topic: 'Chemical Bonding', classLevel: 11,
+    id: 'chem-11-2', subject: 'chemistry', topic: 'Chemical Bonding and Molecular Structure', classLevel: 11,
     examType: ['KCET'],
     question: 'Which type of bond is formed by sharing of electrons?',
     options: ['Covalent bond', 'Ionic bond', 'Metallic bond', 'Hydrogen bond'],
@@ -167,7 +167,7 @@ export const chemistryQuestions: Question[] = [
     reference: { theory: 'Covalent bonding involves mutual sharing of electron pairs between atoms.', relatedTopics: ['Electronegativity', 'Molecular Geometry', 'VSEPR Theory'], applicationExample: 'Water (H₂O) has covalent bonds between oxygen and hydrogen atoms.' },
   },
   {
-    id: 'chem-11-3', subject: 'chemistry', topic: 'Chemical Bonding', classLevel: 11,
+    id: 'chem-11-3', subject: 'chemistry', topic: 'Chemical Bonding and Molecular Structure', classLevel: 11,
     examType: ['JEE', 'NEET'],
     question: 'The geometry of methane (CH₄) molecule is:',
     options: ['Tetrahedral', 'Square planar', 'Trigonal planar', 'Linear'],
@@ -177,7 +177,7 @@ export const chemistryQuestions: Question[] = [
     reference: { theory: 'VSEPR theory predicts molecular geometry based on electron pair repulsion.', relatedTopics: ['VSEPR Theory', 'Hybridization', 'Bond Angles'], applicationExample: 'Many organic molecules have tetrahedral carbon centers — this shape is fundamental in biochemistry.' },
   },
   {
-    id: 'chem-11-4', subject: 'chemistry', topic: 'States of Matter', classLevel: 11,
+    id: 'chem-11-4', subject: 'chemistry', topic: 'States of Matter: Gases and Liquids', classLevel: 11,
     examType: ['other'],
     question: 'At constant temperature, the pressure of a gas is inversely proportional to its volume. This is:',
     options: ['Boyle\'s Law', 'Charles\'s Law', 'Avogadro\'s Law', 'Dalton\'s Law'],
@@ -217,7 +217,7 @@ export const chemistryQuestions: Question[] = [
     reference: { theory: 'For strong acids, [H⁺] = concentration of acid. pH = -log[H⁺].', relatedTopics: ['Strong Acids', 'pOH', 'Buffer Solutions'], applicationExample: 'Stomach acid has pH around 1-2, much more acidic than this solution.' },
   },
   {
-    id: 'chem-11-8', subject: 'chemistry', topic: 'Organic Chemistry', classLevel: 11,
+    id: 'chem-11-8', subject: 'chemistry', topic: 'Hydrocarbons', classLevel: 11,
     examType: ['other'],
     question: 'The general formula of alkanes is:',
     options: ['CₙH₂ₙ₊₂', 'CₙH₂ₙ', 'CₙH₂ₙ₋₂', 'CₙHₙ'],
@@ -227,7 +227,7 @@ export const chemistryQuestions: Question[] = [
     reference: { theory: 'Alkanes are saturated hydrocarbons with single C-C bonds only.', relatedTopics: ['Alkenes', 'Alkynes', 'Isomerism'], applicationExample: 'LPG (cooking gas) contains propane (C₃H₈) and butane (C₄H₁₀), both alkanes.' },
   },
   {
-    id: 'chem-11-9', subject: 'chemistry', topic: 'Organic Chemistry', classLevel: 11,
+    id: 'chem-11-9', subject: 'chemistry', topic: 'Organic Chemistry - Basic Principles', classLevel: 11,
     examType: ['JEE', 'NEET'],
     question: 'The IUPAC name of CH₃-CH=CH₂ is:',
     options: ['Propene', 'Propane', 'Propyne', 'Ethene'],
@@ -237,7 +237,7 @@ export const chemistryQuestions: Question[] = [
     reference: { theory: 'IUPAC naming uses the longest carbon chain as root and suffix indicates bond type.', relatedTopics: ['IUPAC Nomenclature', 'Functional Groups', 'Isomerism'], applicationExample: 'Propene (propylene) is used to make polypropylene, a common plastic.' },
   },
   {
-    id: 'chem-11-10', subject: 'chemistry', topic: 'States of Matter', classLevel: 11,
+    id: 'chem-11-10', subject: 'chemistry', topic: 'States of Matter: Gases and Liquids', classLevel: 11,
     examType: ['KCET'],
     question: 'The gas that deviates most from ideal behavior is:',
     options: ['NH₃', 'H₂', 'He', 'N₂'],

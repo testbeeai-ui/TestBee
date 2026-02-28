@@ -12,6 +12,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import TeacherProfile from "@/components/TeacherProfile";
 import ThemeSwitcher from "@/components/ThemeSwitcher";
 import { CreditsSection } from "@/components/CreditsSection";
+import ProfileAcademicsAchievements from "@/components/ProfileAcademicsAchievements";
 
 export default function Profile() {
   const { user: authUser, profile, signOut, signInWithGoogle } = useAuth();
@@ -133,6 +134,8 @@ export default function Profile() {
               </motion.div>
             ))}
           </div>
+
+          <ProfileAcademicsAchievements userId={profile.id} />
 
           <motion.div
             initial={{ opacity: 0, y: 10 }}
