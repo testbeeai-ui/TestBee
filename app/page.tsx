@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, Suspense } from "react";
-import { HERO_STUDY_DESK_DATA_URL } from "./hero-study-desk-data";
+import Image from "next/image";
+import heroStudyDesk from "@/public/images/hero-study-desk.png";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Zap, BookOpen, Trophy, Sparkles, ArrowRight } from "lucide-react";
@@ -34,12 +35,13 @@ function WelcomeContent() {
 
   return (
     <div className="min-h-screen flex flex-col bg-neutral-900">
-      {/* Embedded data URL so image always shows (no CDN/path issues in production) */}
-      <img
-        src={HERO_STUDY_DESK_DATA_URL}
-        alt=""
-        className="absolute inset-0 w-full h-full object-cover object-center pointer-events-none select-none"
-        fetchPriority="high"
+      <Image
+        src={heroStudyDesk}
+        alt="Study Background"
+        fill
+        priority
+        className="object-cover object-center pointer-events-none select-none"
+        quality={100}
       />
       <div className="absolute inset-0 bg-black/40" />
 

@@ -83,11 +83,11 @@ function AuthContent() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <div
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-        style={{ backgroundImage: "url(/images/hero-study-desk.png)" }}
-      />
-      <div className="absolute inset-0 bg-black/40" />
+      <div className="absolute inset-0 gradient-hero opacity-95" />
+      <div className="absolute inset-0">
+        <div className="absolute top-20 left-10 w-72 h-72 bg-primary-foreground/5 rounded-full blur-3xl" />
+        <div className="absolute bottom-20 right-10 w-96 h-96 bg-primary-foreground/5 rounded-full blur-3xl" />
+      </div>
 
       <div className="relative flex-1 flex items-center justify-center p-6">
         <motion.div
