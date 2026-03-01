@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, Suspense } from "react";
-import heroStudyDesk from "@/public/images/hero-study-desk.png";
+import { HERO_STUDY_DESK_DATA_URL } from "./hero-study-desk-data";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Zap, BookOpen, Trophy, Sparkles, ArrowRight } from "lucide-react";
@@ -34,9 +34,9 @@ function WelcomeContent() {
 
   return (
     <div className="min-h-screen flex flex-col bg-neutral-900">
-      {/* Background as img so bundled asset is always served in production */}
+      {/* Embedded data URL so image always shows (no CDN/path issues in production) */}
       <img
-        src={heroStudyDesk.src}
+        src={HERO_STUDY_DESK_DATA_URL}
         alt=""
         className="absolute inset-0 w-full h-full object-cover object-center pointer-events-none select-none"
         fetchPriority="high"
