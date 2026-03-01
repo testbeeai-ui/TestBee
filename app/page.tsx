@@ -33,10 +33,13 @@ function WelcomeContent() {
   }, [user, profile?.onboarding_complete, loading, router]);
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <div
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-        style={{ backgroundImage: `url(${heroStudyDesk.src})` }}
+    <div className="min-h-screen flex flex-col bg-neutral-900">
+      {/* Background as img so bundled asset is always served in production */}
+      <img
+        src={heroStudyDesk.src}
+        alt=""
+        className="absolute inset-0 w-full h-full object-cover object-center pointer-events-none select-none"
+        fetchPriority="high"
       />
       <div className="absolute inset-0 bg-black/40" />
 
