@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, Suspense } from "react";
+import heroStudyDesk from "@/public/images/hero-study-desk.png";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Zap, BookOpen, Trophy, Sparkles, ArrowRight } from "lucide-react";
@@ -35,7 +36,7 @@ function WelcomeContent() {
     <div className="min-h-screen flex flex-col">
       <div
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-        style={{ backgroundImage: "url(/images/hero-study-desk.png)" }}
+        style={{ backgroundImage: `url(${heroStudyDesk.src})` }}
       />
       <div className="absolute inset-0 bg-black/40" />
 
