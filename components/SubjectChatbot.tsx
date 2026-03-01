@@ -72,6 +72,19 @@ function formatTime(date: Date) {
     return date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
 }
 
+const CHATBOT_POSITION_KEY = 'edublast-chatbot-position';
+
+function getStoredPosition(): { x: number; y: number } | null {
+    if (typeof window === 'undefined') return null;
+    try {
+        const s = localStorage.getItem(CHATBOT_POSITION_KEY);
+        if (!s) return null;
+        const { x, y } = JSON.parse(s) as { x: number; y: number };
+        if (typeof x === 'number' && typeof y === 'number') return { x, y };
+    } catch {}
+    return null;
+}
+
 export default function SubjectChatbot({ subject, topic, subtopic }: Props) {
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState<Message[]>([]);
@@ -80,6 +93,14 @@ export default function SubjectChatbot({ subject, topic, subtopic }: Props) {
     const [language, setLanguage] = useState('en');
     const [showLangMenu, setShowLangMenu] = useState(false);
     const [hasGreeted, setHasGreeted] = useState(false);
+    const [position, setPosition] = useState<{ x: number; y: number }>(() => {
+        const stored = getStoredPosition();
+        if (stored) return stored;
+        return { x: 24, y: 24 };
+    });
+    const [isDragging, setIsDragging] = useState(false);
+    const dragRef = useRef<{ startX: number; startY: number; startPos: { x: number; y: number } } | null>(null);
+    const justDraggedRef = useRef(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const meta = SUBJECT_META[subject] ?? SUBJECT_META.physics;
@@ -164,19 +185,67 @@ export default function SubjectChatbot({ subject, topic, subtopic }: Props) {
 
     const selectedLang = LANGUAGES.find(l => l.code === language) ?? LANGUAGES[0];
 
+    const handlePointerDown = useCallback((e: React.PointerEvent) => {
+        e.preventDefault();
+        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+        dragRef.current = { startX: e.clientX, startY: e.clientY, startPos: { ...position } };
+        setIsDragging(false);
+    }, [position]);
+
+    const handlePointerMove = useCallback((e: React.PointerEvent) => {
+        if (!dragRef.current) return;
+        const dx = e.clientX - dragRef.current.startX;
+        const dy = e.clientY - dragRef.current.startY;
+        if (!isDragging && (Math.abs(dx) > 4 || Math.abs(dy) > 4)) setIsDragging(true);
+        setPosition({
+            x: Math.max(0, Math.min(window.innerWidth - 80, dragRef.current.startPos.x - dx)),
+            y: Math.max(0, Math.min(window.innerHeight - 100, dragRef.current.startPos.y - dy)),
+        });
+    }, [isDragging]);
+
+    const handlePointerUp = useCallback(() => {
+        if (dragRef.current) {
+            if (isDragging) {
+                justDraggedRef.current = true;
+                try { localStorage.setItem(CHATBOT_POSITION_KEY, JSON.stringify(position)); } catch {}
+            }
+            dragRef.current = null;
+        }
+        setIsDragging(false);
+    }, [isDragging, position]);
+
+    const handleTriggerClick = useCallback(() => {
+        if (justDraggedRef.current) {
+            justDraggedRef.current = false;
+            return;
+        }
+        setIsOpen(true);
+    }, []);
+
     return (
         <>
-            {/* Floating trigger button */}
+            {/* Floating trigger button - draggable */}
             <AnimatePresence>
                 {!isOpen && (
-                    <div className="fixed bottom-28 right-6 z-50 flex flex-col items-end gap-3 pointer-events-none">
+                    <div
+                        className="fixed z-50 flex flex-col items-end gap-3 pointer-events-auto select-none cursor-grab active:cursor-grabbing"
+                        style={{
+                            right: position.x,
+                            bottom: position.y,
+                        }}
+                        onPointerDown={handlePointerDown}
+                        onPointerMove={handlePointerMove}
+                        onPointerUp={handlePointerUp}
+                        onPointerLeave={handlePointerUp}
+                        onPointerCancel={handlePointerUp}
+                    >
                         {/* Tooltip speech bubble */}
                         <motion.div
                             initial={{ opacity: 0, y: 10, scale: 0.9 }}
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             transition={{ delay: 2, type: 'spring' }}
-                            className="bg-white px-4 py-2.5 rounded-2xl rounded-br-sm shadow-xl border border-gray-100/50 flex items-center gap-2 origin-bottom-right pointer-events-auto cursor-pointer"
-                            onClick={() => setIsOpen(true)}
+                            className="bg-white px-4 py-2.5 rounded-2xl rounded-br-sm shadow-xl border border-gray-100/50 flex items-center gap-2 origin-bottom-right cursor-grab active:cursor-grabbing"
+                            onClick={handleTriggerClick}
                         >
                             <span className="text-sm font-semibold text-gray-700">Need help? Ask AI!</span>
                             <motion.span animate={{ rotate: [0, 15, -10, 15, 0] }} transition={{ repeat: Infinity, duration: 2, delay: 3 }} className="inline-block origin-bottom-center">👋</motion.span>
@@ -188,7 +257,7 @@ export default function SubjectChatbot({ subject, topic, subtopic }: Props) {
                             animate={{ scale: 1 }}
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
-                            onClick={() => setIsOpen(true)}
+                            onClick={handleTriggerClick}
                             className="relative group w-[68px] h-[68px] rounded-full flex items-center justify-center outline-none pointer-events-auto"
                         >
                             {/* Pulse glowing rings */}
@@ -315,8 +384,10 @@ export default function SubjectChatbot({ subject, topic, subtopic }: Props) {
                                 </div>
 
                                 <button
+                                    type="button"
                                     onClick={() => setIsOpen(false)}
                                     className="w-8 h-8 rounded-xl bg-white/15 hover:bg-white/25 transition-colors flex items-center justify-center"
+                                    aria-label="Close chat"
                                 >
                                     <X className="w-4 h-4" />
                                 </button>

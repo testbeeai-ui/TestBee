@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ArrowLeft, ChevronUp, ChevronDown, MessageSquare, Check, Loader2, Flag, ClipboardCheck, MoreVertical, Pencil, Trash2 } from "lucide-react";
 import { UserHoverCard } from "@/components/UserHoverCard";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 type Doubt = {
   id: string;
@@ -51,7 +52,7 @@ type Answer = {
   is_accepted: boolean;
   hidden: boolean;
   created_at: string;
-  profiles?: { name: string } | null;
+  profiles?: { name: string | null; avatar_url: string | null } | null;
 };
 
 type VoteRow = { target_type: string; target_id: string; vote_type: number };
@@ -104,7 +105,7 @@ export default function DoubtDetailPage() {
     if (!id) return;
     const { data, error } = await supabase
       .from("doubt_answers")
-      .select("*, profiles!doubt_answers_user_id_fkey(name)")
+      .select("*, profiles!doubt_answers_user_id_fkey(name, avatar_url)")
       .eq("doubt_id", id)
       .eq("hidden", false)
       .order("is_accepted", { ascending: false })
@@ -570,10 +571,18 @@ export default function DoubtDetailPage() {
                         </div>
                       )}
                       <div className="flex items-center justify-between mt-2 flex-wrap gap-2">
-                        <span className="text-xs text-muted-foreground">
+                        <span className="flex items-center gap-2 text-xs text-muted-foreground">
                           <UserHoverCard userId={a.user_id}>
-                            <span className="font-medium text-foreground hover:text-primary hover:underline cursor-pointer">
-                              {a.profiles?.name ?? "Someone"}
+                            <span className="flex items-center gap-2 cursor-pointer group">
+                              <Avatar className="h-7 w-7 rounded-lg shrink-0">
+                                <AvatarImage src={a.profiles?.avatar_url ?? undefined} />
+                                <AvatarFallback className="rounded-lg text-xs">
+                                  {(a.profiles?.name ?? "?").slice(0, 2).toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+                              <span className="font-medium text-foreground group-hover:text-primary group-hover:underline">
+                                {a.profiles?.name ?? "Someone"}
+                              </span>
                             </span>
                           </UserHoverCard>
                           {" · "}

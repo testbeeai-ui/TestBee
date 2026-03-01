@@ -358,6 +358,19 @@ export default function MockPage() {
                   />
                 </motion.div>
 
+                {currentIndex === questions.length - 1 && questions.length > 0 && (
+                  <div className="mt-6 p-4 rounded-2xl border-2 border-primary/30 bg-primary/5">
+                    <p className="text-sm font-semibold text-foreground mb-2">Last question — ready to submit?</p>
+                    <Button
+                      size="lg"
+                      className="w-full sm:w-auto rounded-xl edu-btn-primary"
+                      onClick={() => setSubmitDialogOpen(true)}
+                    >
+                      Submit test
+                    </Button>
+                  </div>
+                )}
+
                 <Dialog open={submitDialogOpen} onOpenChange={setSubmitDialogOpen}>
                   <DialogContent className="rounded-2xl max-w-sm">
                     <DialogHeader>

@@ -542,9 +542,9 @@ export default function DoubtsPage() {
     <ProtectedRoute>
       <AppLayout>
         <div className="max-w-[1600px] mx-auto px-4 py-6">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
             {/* Left column: sticky profile + filters + activity */}
-            <aside className="lg:col-span-3 xl:col-span-3 order-2 lg:order-1">
+            <aside className="lg:col-span-3 xl:col-span-3 order-2 lg:order-1 min-w-0">
               <div className="lg:sticky lg:top-4 space-y-6">
                 <TooltipProvider>
                   <div className="edu-card p-4 rounded-2xl">
@@ -644,7 +644,7 @@ export default function DoubtsPage() {
             </aside>
 
             {/* Center: ask bar + feed */}
-            <main className="lg:col-span-6 xl:col-span-5 order-1 lg:order-2">
+            <main className="lg:col-span-6 xl:col-span-5 order-1 lg:order-2 min-w-0">
               <div className="edu-page-header mb-4">
                 <h2 className="edu-page-title flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-primary/10">
@@ -766,16 +766,16 @@ export default function DoubtsPage() {
             </main>
 
             {/* Right: Bounty Board, Trending, Top Contributors */}
-            <aside className="lg:col-span-3 xl:col-span-4 order-3">
+            <aside className="lg:col-span-3 xl:col-span-4 order-3 min-w-0 max-w-full">
               <div className="lg:sticky lg:top-4 space-y-6">
-                <div className="edu-card p-4 rounded-2xl border-dashed border-2 border-primary/30 bg-primary/5">
+                <div className="edu-card p-4 rounded-2xl border-dashed border-2 border-primary/30 bg-primary/5 min-w-0">
                   <p className="text-sm font-medium text-foreground mb-1">See how these panels work?</p>
-                  <p className="text-xs text-muted-foreground mb-2">The panels below show <strong>sample data</strong> until real data is loaded. Click to seed demo data.</p>
-                  <div className="flex flex-col gap-2">
+                  <p className="text-xs text-muted-foreground mb-3">The panels below show <strong>sample data</strong> until real data is loaded. Click to seed demo data.</p>
+                  <div className="flex flex-col gap-3">
                     <Button
                       variant="default"
                       size="sm"
-                      className="rounded-xl w-full"
+                      className="rounded-xl w-full min-h-[36px] shrink-0"
                       onClick={seedPanelDemo}
                       disabled={panelDemoLoading}
                     >
@@ -784,15 +784,22 @@ export default function DoubtsPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="rounded-xl w-full"
+                      className="rounded-xl w-full min-h-[36px] text-left whitespace-normal py-2 h-auto shrink-0"
                       onClick={seedProfileDemo}
                       disabled={profileDemoLoading}
                     >
-                      {profileDemoLoading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : "Load profile demo data (academics & achievements)"}
+                      {profileDemoLoading ? (
+                        <Loader2 className="w-4 h-4 animate-spin mx-auto" />
+                      ) : (
+                        <span className="block">
+                          <span className="hidden sm:inline">Load profile demo data (academics & achievements)</span>
+                          <span className="sm:hidden">Load profile demo data</span>
+                        </span>
+                      )}
                     </Button>
                   </div>
                 </div>
-                <div className="edu-card p-4 rounded-2xl">
+                <div className="edu-card p-4 rounded-2xl min-w-0">
                   <h3 className="font-bold text-foreground mb-2 flex items-center gap-1.5">
                     <Coins className="w-4 h-4 text-edu-orange shrink-0" /> Bounty Board
                     {bountyBoard.length > 0 ? <span className="text-[10px] font-normal normal-case bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.5 rounded">Live</span> : <span className="text-[10px] font-normal normal-case bg-muted text-muted-foreground px-1.5 py-0.5 rounded">Sample</span>}
@@ -816,7 +823,7 @@ export default function DoubtsPage() {
                     )) : <li className="text-sm text-muted-foreground">None</li>}
                   </ul>
                 </div>
-                <div className="edu-card p-4 rounded-2xl">
+                <div className="edu-card p-4 rounded-2xl min-w-0">
                   <h3 className="font-bold text-foreground mb-2 flex items-center gap-1.5">
                     <HelpCircle className="w-4 h-4 text-primary shrink-0" /> Trending Now
                     {trending.length > 0 ? <span className="text-[10px] font-normal normal-case bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.5 rounded">Live</span> : <span className="text-[10px] font-normal normal-case bg-muted text-muted-foreground px-1.5 py-0.5 rounded">Sample</span>}
@@ -839,7 +846,7 @@ export default function DoubtsPage() {
                     )) : <li className="text-sm text-muted-foreground">None</li>}
                   </ul>
                 </div>
-                <div className="edu-card p-4 rounded-2xl">
+                <div className="edu-card p-4 rounded-2xl min-w-0">
                   <h3 className="font-bold text-foreground mb-2 flex items-center gap-1.5">
                     <Trophy className="w-4 h-4 text-edu-orange shrink-0" /> Top Contributors (this week)
                     {topContributors.length > 0 ? null : <span className="text-[10px] font-normal normal-case bg-muted text-muted-foreground px-1.5 py-0.5 rounded">Sample</span>}
