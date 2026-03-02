@@ -5,14 +5,14 @@ import Image from "next/image";
 import heroStudyDesk from "@/public/images/hero-study-desk.png";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Zap, BookOpen, Trophy, Sparkles, ArrowRight } from "lucide-react";
+import { Zap, BookOpen, Trophy, ArrowRight } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function Welcome() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-background"><span className="text-4xl animate-pulse">🎯</span></div>}>
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50"><span className="text-4xl animate-pulse">🎯</span></div>}>
       <WelcomeContent />
     </Suspense>
   );
@@ -34,16 +34,17 @@ function WelcomeContent() {
   }, [user, profile?.onboarding_complete, loading, router]);
 
   return (
-    <div className="min-h-screen flex flex-col bg-neutral-900">
+    <div className="min-h-screen flex flex-col bg-white overflow-hidden relative">
+      {/* Hero image: full brightness, no blur - exactly as your sir likes it */}
       <Image
         src={heroStudyDesk}
-        alt="Study Background"
+        alt="Study and learning"
         fill
         priority
         className="object-cover object-center pointer-events-none select-none"
         quality={100}
+        sizes="100vw"
       />
-      <div className="absolute inset-0 bg-black/40" />
 
       <div className="relative flex-1 flex items-center justify-center p-6">
         <AnimatePresence mode="wait">
@@ -62,13 +63,13 @@ function WelcomeContent() {
               >
                 🎯
               </motion.div>
-              <h1 className="text-5xl md:text-7xl font-display text-primary-foreground mb-4 tracking-tight">
+              <h1 className="text-5xl md:text-7xl font-display text-slate-900 mb-4 tracking-tight">
                 EduBlast
               </h1>
-              <p className="text-xl md:text-2xl text-primary-foreground/90 mb-3 font-extrabold">
+              <p className="text-xl md:text-2xl text-slate-900 mb-3 font-extrabold">
                 Learn. Play. Conquer.
               </p>
-              <p className="text-primary-foreground/60 mb-10 text-base md:text-lg max-w-lg mx-auto">
+              <p className="text-slate-600 mb-10 text-base md:text-lg max-w-lg mx-auto font-medium">
                 Fire questions, earn RDM, and blast through your syllabus with
                 byte-sized learning!
               </p>
@@ -82,13 +83,13 @@ function WelcomeContent() {
                   <motion.div
                     key={label}
                     whileHover={{ scale: 1.05 }}
-                    className="bg-white/15 backdrop-blur-md rounded-2xl p-4 text-center min-w-[120px] border border-white/20 shadow-lg"
+                    className="bg-white rounded-2xl p-4 text-center min-w-[120px] border border-slate-100 shadow-xl shadow-slate-200/50"
                   >
-                    <Icon className="w-7 h-7 text-primary-foreground mx-auto mb-2" />
-                    <span className="text-sm text-primary-foreground font-extrabold block">
+                    <Icon className="w-7 h-7 text-indigo-600 mx-auto mb-2" />
+                    <span className="text-sm text-slate-900 font-extrabold block">
                       {label}
                     </span>
-                    <span className="text-xs text-primary-foreground/60">{desc}</span>
+                    <span className="text-xs text-slate-600">{desc}</span>
                   </motion.div>
                 ))}
               </div>
@@ -96,13 +97,13 @@ function WelcomeContent() {
               <Button
                 onClick={() => setStep("role")}
                 size="lg"
-                className="bg-primary-foreground text-primary hover:bg-primary-foreground/90 rounded-full px-12 py-7 text-lg font-extrabold shadow-2xl hover:scale-105 transition-transform"
+                className="bg-indigo-600 text-white hover:bg-indigo-700 rounded-full px-12 py-7 text-lg font-extrabold shadow-xl shadow-indigo-200/50 hover:scale-105 transition-transform"
               >
                 Get Started <ArrowRight className="w-5 h-5 ml-2" />
               </Button>
-              <p className="mt-6 text-primary-foreground/70 text-sm">
+              <p className="mt-6 text-slate-600 text-sm font-medium">
                 Teacher or already have an account?{" "}
-                <Link href="/auth" className="font-bold underline hover:text-primary-foreground">
+                <Link href="/auth" className="font-bold text-indigo-600 underline hover:text-indigo-700">
                   Sign in
                 </Link>
               </p>
@@ -115,12 +116,12 @@ function WelcomeContent() {
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -30 }}
-              className="bg-card rounded-3xl p-8 shadow-2xl w-full max-w-md border border-border/50 text-center"
+              className="bg-white rounded-3xl p-8 shadow-xl shadow-slate-200/50 w-full max-w-md border border-slate-100 text-center"
             >
               <div className="mb-6">
                 <span className="text-5xl mb-3 block">👋</span>
-                <h2 className="text-2xl font-display text-foreground">Are you a Student or Teacher?</h2>
-                <p className="text-muted-foreground text-sm mt-1">
+                <h2 className="text-2xl font-display text-slate-900">Are you a Student or Teacher?</h2>
+                <p className="text-slate-600 text-sm mt-1">
                   We&apos;ll take you to the right sign-in and setup flow.
                 </p>
               </div>
@@ -128,29 +129,29 @@ function WelcomeContent() {
               <div className="grid grid-cols-2 gap-3">
                 <button
                   onClick={() => router.push("/auth?role=student")}
-                  className="bg-muted/20 rounded-2xl p-5 text-center border-2 border-border/50 hover:border-primary/40 hover:shadow-md transition-all"
+                  className="bg-white rounded-2xl p-5 text-center border-2 border-slate-100 hover:border-indigo-600 hover:shadow-md transition-all"
                 >
                   <span className="text-4xl block mb-2">🎓</span>
-                  <h3 className="font-display text-sm text-foreground">Student</h3>
-                  <p className="text-xs text-muted-foreground mt-1">Continue with Google</p>
+                  <h3 className="font-display text-sm text-slate-900">Student</h3>
+                  <p className="text-xs text-slate-600 mt-1">Continue with Google</p>
                 </button>
                 <button
                   onClick={() => router.push("/auth?role=teacher")}
-                  className="bg-muted/20 rounded-2xl p-5 text-center border-2 border-border/50 hover:border-primary/40 hover:shadow-md transition-all"
+                  className="bg-white rounded-2xl p-5 text-center border-2 border-slate-100 hover:border-indigo-600 hover:shadow-md transition-all"
                 >
                   <span className="text-4xl block mb-2">📖</span>
-                  <h3 className="font-display text-sm text-foreground">Teacher</h3>
-                  <p className="text-xs text-muted-foreground mt-1">Sign in / create account</p>
+                  <h3 className="font-display text-sm text-slate-900">Teacher</h3>
+                  <p className="text-xs text-slate-600 mt-1">Sign in / create account</p>
                 </button>
               </div>
 
               <div className="mt-6">
-                <Button variant="outline" className="rounded-xl" onClick={() => setStep("welcome")}>
+                <Button variant="outline" className="rounded-xl border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-indigo-300" onClick={() => setStep("welcome")}>
                   Back
                 </Button>
-                <p className="mt-4 text-muted-foreground text-xs">
+                <p className="mt-4 text-slate-600 text-xs">
                   Already have an account?{" "}
-                  <Link href="/auth" className="font-bold text-primary hover:underline">
+                  <Link href="/auth" className="font-bold text-indigo-600 hover:text-indigo-700 hover:underline">
                     Sign in
                   </Link>
                 </p>
@@ -161,7 +162,7 @@ function WelcomeContent() {
       </div>
 
       <div className="relative text-center pb-6">
-        <p className="text-white/70 text-xs font-bold">
+        <p className="text-slate-600 text-xs font-bold">
           Classes 9-12 · PCM & PCMB · JEE · NEET · KCET
         </p>
       </div>
