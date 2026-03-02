@@ -1,0 +1,1 @@
+{"error":"Failed to insert doubts","details":{"code":"23503","details":"Key (user_id)=(1a04c4a4-96dc-48ab-9809-a46d2fad9748) is not present in table \"profiles\".","hint":null,"message":"insert or update on table \"doubts\" violates foreign key constraint \"doubts_user_id_fkey\""}}

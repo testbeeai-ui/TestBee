@@ -268,11 +268,12 @@ export default function InstaCue({
 
   const handleAddCard = () => {
     if (!front.trim() || !back.trim() || !onAddCard) return;
+    const subtopicForCard = effectiveSubtopic || subtopicName || topicName;
     onAddCard({
       type,
       frontContent: front.trim(),
       backContent: back.trim(),
-      subtopicName: subtopicName ?? topicName,
+      subtopicName: subtopicForCard,
       topic: topicName,
       subject,
       classLevel,
