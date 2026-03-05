@@ -187,7 +187,8 @@ export default function SubjectChatbot({ subject, topic, subtopic }: Props) {
 
     const handlePointerDown = useCallback((e: React.PointerEvent) => {
         e.preventDefault();
-        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+        // Do NOT capture pointer here — otherwise the bubble/button never receive click.
+        // We'll capture only once a drag is detected in handlePointerMove.
         dragRef.current = { startX: e.clientX, startY: e.clientY, startPos: { ...position } };
         setIsDragging(false);
     }, [position]);
@@ -196,11 +197,17 @@ export default function SubjectChatbot({ subject, topic, subtopic }: Props) {
         if (!dragRef.current) return;
         const dx = e.clientX - dragRef.current.startX;
         const dy = e.clientY - dragRef.current.startY;
-        if (!isDragging && (Math.abs(dx) > 4 || Math.abs(dy) > 4)) setIsDragging(true);
-        setPosition({
-            x: Math.max(0, Math.min(window.innerWidth - 80, dragRef.current.startPos.x - dx)),
-            y: Math.max(0, Math.min(window.innerHeight - 100, dragRef.current.startPos.y - dy)),
-        });
+        const startedDrag = !isDragging && (Math.abs(dx) > 4 || Math.abs(dy) > 4);
+        if (startedDrag) {
+            setIsDragging(true);
+            (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+        }
+        if (isDragging || startedDrag) {
+            setPosition({
+                x: Math.max(0, Math.min(window.innerWidth - 80, dragRef.current.startPos.x - dx)),
+                y: Math.max(0, Math.min(window.innerHeight - 100, dragRef.current.startPos.y - dy)),
+            });
+        }
     }, [isDragging]);
 
     const handlePointerUp = useCallback(() => {
