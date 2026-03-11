@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { supabase } from '@/integrations/supabase/client';
 import type { User, Session } from '@supabase/supabase-js';
 import { useUserStore } from '@/store/useUserStore';
-import type { ClassLevel, SubjectCombo } from '@/types';
+import type { ClassLevel, SubjectCombo, SavedBit, SavedFormula } from '@/types';
 
 interface Profile {
   id: string;
@@ -20,6 +20,8 @@ interface Profile {
   google_connected: boolean;
   onboarding_complete: boolean;
   rdm?: number;
+  saved_bits?: SavedBit[];
+  saved_formulas?: SavedFormula[];
 }
 
 interface AuthContextType {
@@ -49,7 +51,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       .eq('id', userId)
       .maybeSingle();
     if (data) {
-      const p = data as Profile;
+      const p = data as unknown as Profile;
       setProfile(p);
       if (typeof p.rdm === 'number') useUserStore.getState().setRdmFromProfile(p.rdm);
       return;
@@ -76,7 +78,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .select()
         .maybeSingle();
       if (inserted) {
-        const p = inserted as Profile;
+        const p = inserted as unknown as Profile;
         setProfile(p);
         if (typeof p.rdm === 'number') useUserStore.getState().setRdmFromProfile(p.rdm);
       } else {
@@ -87,7 +89,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           .eq('id', userId)
           .maybeSingle();
         if (refetched) {
-          const p = refetched as Profile;
+          const p = refetched as unknown as Profile;
           setProfile(p);
           if (typeof p.rdm === 'number') useUserStore.getState().setRdmFromProfile(p.rdm);
         } else setProfile(null);
@@ -137,12 +139,34 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     if (!profile) return;
-    if (useUserStore.getState().user) return;
-    const cl = profile.class_level;
-    const classLevel: ClassLevel = (cl === 9 || cl === 10 || cl === 11 || cl === 12) ? cl : 11;
-    const subjectCombo: SubjectCombo = profile.subject_combo === 'PCMB' ? 'PCMB' : 'PCM';
-    useUserStore.getState().signup(profile.name || 'User', classLevel, 'science', subjectCombo);
-  }, [profile?.id, profile?.name, profile?.class_level, profile?.subject_combo]);
+    const maybeSignup = () => {
+      if (useUserStore.getState().user) return;
+      const cl = profile.class_level;
+      const classLevel: ClassLevel = (cl === 11 || cl === 12) ? cl : 11;
+      const subjectCombo: SubjectCombo = profile.subject_combo === 'PCMB' ? 'PCMB' : 'PCM';
+      useUserStore.getState().signup(profile.name || 'User', classLevel, 'science', subjectCombo);
+    };
+    const syncSavedFromProfile = () => {
+      const bits = Array.isArray(profile.saved_bits) ? profile.saved_bits : [];
+      const formulas = Array.isArray(profile.saved_formulas) ? profile.saved_formulas : [];
+      if (bits.length > 0 || formulas.length > 0) {
+        useUserStore.getState().setSavedFromServer(bits, formulas);
+      }
+    };
+    const run = () => {
+      maybeSignup();
+      syncSavedFromProfile();
+    };
+    const persist = (useUserStore as unknown as { persist?: { onFinishHydration: (cb: () => void) => () => void; hasHydrated: () => boolean } }).persist;
+    if (persist?.onFinishHydration) {
+      if (persist.hasHydrated?.()) {
+        run();
+        return;
+      }
+      return persist.onFinishHydration(() => run());
+    }
+    run();
+  }, [profile?.id, profile?.name, profile?.class_level, profile?.subject_combo, profile?.saved_bits, profile?.saved_formulas]);
 
   const signInWithGoogle = async (redirectPath: string = '/onboarding') => {
     const normalized = redirectPath.startsWith('/') ? redirectPath : `/${redirectPath}`;

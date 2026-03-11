@@ -3,7 +3,7 @@ import { createClient } from "@/integrations/supabase/server";
 import { createAdminClient } from "@/integrations/supabase/server";
 
 const DEMO_ACADEMICS = [
-  { exam: "Class 10", board: "State Board", score: "94%", verified: "verified" },
+  { exam: "Class 11", board: "State Board", score: "94%", verified: "verified" },
   { exam: "Class 12", board: "State Board", score: "88%", verified: "verified" },
 ];
 

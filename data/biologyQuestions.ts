@@ -1,19 +1,19 @@
 import { Question } from '@/types';
 
 export const biologyQuestions: Question[] = [
-  // ===== CLASS 9 =====
+  // ===== CLASS 11 =====
   {
-    id: 'bio-9-1', subject: 'biology', topic: 'Cell Biology', classLevel: 9,
-    examType: ['other'],
-    question: 'The basic structural and functional unit of life is:',
-    options: ['Cell', 'Tissue', 'Organ', 'Atom'],
+    id: 'bio-11-1', subject: 'biology', topic: 'Cell Biology', classLevel: 11,
+    examType: ['NEET'],
+    question: 'The powerhouse of the cell is:',
+    options: ['Mitochondria', 'Nucleus', 'Ribosome', 'Golgi apparatus'],
     correctAnswer: 0,
-    hint: 'Robert Hooke first observed it in cork slices.',
-    solution: 'The cell is the basic unit of life. All living organisms are composed of one or more cells.',
-    reference: { theory: 'Cell theory states that all living things are made of cells.', relatedTopics: ['Cell Theory', 'Prokaryotic vs Eukaryotic', 'Organelles'], applicationExample: 'Red blood cells carry oxygen throughout the body.' },
+    hint: 'This organelle produces ATP through cellular respiration.',
+    solution: 'Mitochondria produce ATP through oxidative phosphorylation and the Krebs cycle, providing energy for cellular activities.',
+    reference: { theory: 'Mitochondria are double-membrane organelles with their own DNA. They perform aerobic respiration.', relatedTopics: ['Cellular Respiration', 'ATP', 'Krebs Cycle'], applicationExample: 'Muscle cells have more mitochondria because they need more energy.' },
   },
   {
-    id: 'bio-9-2', subject: 'biology', topic: 'Cell Biology', classLevel: 9,
+    id: 'bio-11-2', subject: 'biology', topic: 'Cell Biology', classLevel: 11,
     examType: ['NEET'],
     question: 'Which organelle is known as the "suicide bag" of the cell?',
     options: ['Lysosome', 'Mitochondria', 'Ribosome', 'Golgi body'],
@@ -23,7 +23,7 @@ export const biologyQuestions: Question[] = [
     reference: { theory: 'Lysosomes are membrane-bound organelles containing digestive enzymes for intracellular digestion.', inventor: 'Christian de Duve', relatedTopics: ['Autophagy', 'Endocytosis', 'Apoptosis'], applicationExample: 'During tadpole metamorphosis, lysosomes digest the tail cells.' },
   },
   {
-    id: 'bio-9-3', subject: 'biology', topic: 'Tissues', classLevel: 9,
+    id: 'bio-9-3', subject: 'biology', topic: 'Tissues', classLevel: 11,
     examType: ['other'],
     question: 'Which tissue provides support to plants and makes them hard and stiff?',
     options: ['Sclerenchyma', 'Parenchyma', 'Collenchyma', 'Meristem'],
@@ -33,7 +33,7 @@ export const biologyQuestions: Question[] = [
     reference: { theory: 'Plant tissues include parenchyma (thin walls), collenchyma (unevenly thick), and sclerenchyma (thick, lignified).', relatedTopics: ['Xylem', 'Phloem', 'Permanent Tissues'], applicationExample: 'The hard shell of coconut and walnut is made of sclerenchyma tissue.' },
   },
   {
-    id: 'bio-9-4', subject: 'biology', topic: 'Diversity in Living Organisms', classLevel: 9,
+    id: 'bio-9-4', subject: 'biology', topic: 'Diversity in Living Organisms', classLevel: 11,
     examType: ['KCET'],
     question: 'The five-kingdom classification was proposed by:',
     options: ['R.H. Whittaker', 'Carolus Linnaeus', 'Ernst Haeckel', 'Carl Woese'],
@@ -43,7 +43,7 @@ export const biologyQuestions: Question[] = [
     reference: { theory: 'Classification helps organize living organisms based on shared characteristics.', inventor: 'R.H. Whittaker', relatedTopics: ['Taxonomy', 'Binomial Nomenclature', 'Three-Domain System'], applicationExample: 'This classification helps scientists communicate about organisms using a universal system.' },
   },
   {
-    id: 'bio-9-5', subject: 'biology', topic: 'Disease & Health', classLevel: 9,
+    id: 'bio-9-5', subject: 'biology', topic: 'Disease & Health', classLevel: 11,
     examType: ['NEET'],
     question: 'Which of the following diseases is caused by a virus?',
     options: ['AIDS', 'Tuberculosis', 'Malaria', 'Cholera'],
@@ -53,7 +53,7 @@ export const biologyQuestions: Question[] = [
     reference: { theory: 'Infectious diseases can be caused by bacteria, viruses, fungi, or protozoans.', relatedTopics: ['Pathogens', 'Immune System', 'Vaccination'], applicationExample: 'Antiretroviral therapy (ART) manages HIV by preventing viral replication.' },
   },
   {
-    id: 'bio-9-6', subject: 'biology', topic: 'Disease & Health', classLevel: 9,
+    id: 'bio-9-6', subject: 'biology', topic: 'Disease & Health', classLevel: 11,
     examType: ['other'],
     question: 'The first line of defense in the human body against pathogens is:',
     options: ['Skin', 'White blood cells', 'Antibodies', 'Lymph nodes'],
@@ -65,7 +65,7 @@ export const biologyQuestions: Question[] = [
 
   // ===== CLASS 10 =====
   {
-    id: 'bio-10-1', subject: 'biology', topic: 'Life Processes', classLevel: 10,
+    id: 'bio-10-1', subject: 'biology', topic: 'Life Processes', classLevel: 11,
     examType: ['other'],
     question: 'The process by which green plants make their food using sunlight is:',
     options: ['Photosynthesis', 'Respiration', 'Digestion', 'Transpiration'],
@@ -75,7 +75,7 @@ export const biologyQuestions: Question[] = [
     reference: { theory: 'Photosynthesis occurs in chloroplasts using chlorophyll to convert light energy to chemical energy.', relatedTopics: ['Calvin Cycle', 'Light Reactions', 'Chlorophyll'], applicationExample: 'All food chains ultimately depend on photosynthesis as the primary energy source.' },
   },
   {
-    id: 'bio-10-2', subject: 'biology', topic: 'Life Processes', classLevel: 10,
+    id: 'bio-10-2', subject: 'biology', topic: 'Life Processes', classLevel: 11,
     examType: ['NEET'],
     question: 'In human digestion, the enzyme pepsin works in:',
     options: ['Acidic medium (stomach)', 'Basic medium (intestine)', 'Neutral medium', 'Any pH'],
@@ -85,7 +85,7 @@ export const biologyQuestions: Question[] = [
     reference: { theory: 'Enzymes work best at specific pH levels. Pepsin needs acidic conditions.', relatedTopics: ['Enzymes', 'Digestion', 'pH'], applicationExample: 'Antacids can reduce pepsin activity by raising stomach pH, providing relief from acidity.' },
   },
   {
-    id: 'bio-10-3', subject: 'biology', topic: 'Control & Coordination', classLevel: 10,
+    id: 'bio-10-3', subject: 'biology', topic: 'Control & Coordination', classLevel: 11,
     examType: ['KCET'],
     question: 'The part of the brain that controls involuntary actions like breathing and heartbeat is:',
     options: ['Medulla oblongata', 'Cerebrum', 'Cerebellum', 'Hypothalamus'],
@@ -95,7 +95,7 @@ export const biologyQuestions: Question[] = [
     reference: { theory: 'The brain has specialized regions for different functions.', relatedTopics: ['Nervous System', 'Reflex Arc', 'Brain Structure'], applicationExample: 'Damage to the medulla is life-threatening as it controls essential life functions.' },
   },
   {
-    id: 'bio-10-4', subject: 'biology', topic: 'Control & Coordination', classLevel: 10,
+    id: 'bio-10-4', subject: 'biology', topic: 'Control & Coordination', classLevel: 11,
     examType: ['NEET'],
     question: 'Insulin is produced by:',
     options: ['Pancreas (β-cells)', 'Liver', 'Pituitary gland', 'Thyroid gland'],
@@ -105,7 +105,7 @@ export const biologyQuestions: Question[] = [
     reference: { theory: 'The pancreas is both an exocrine (digestive enzymes) and endocrine (hormones) gland.', inventor: 'Frederick Banting & Charles Best (discovery)', relatedTopics: ['Diabetes', 'Glucagon', 'Endocrine System'], applicationExample: 'Type 1 diabetes occurs when the immune system destroys β-cells, requiring insulin injections.' },
   },
   {
-    id: 'bio-10-5', subject: 'biology', topic: 'Reproduction', classLevel: 10,
+    id: 'bio-10-5', subject: 'biology', topic: 'Reproduction', classLevel: 11,
     examType: ['other'],
     question: 'Asexual reproduction in Hydra occurs by:',
     options: ['Budding', 'Binary fission', 'Fragmentation', 'Spore formation'],
@@ -115,7 +115,7 @@ export const biologyQuestions: Question[] = [
     reference: { theory: 'Asexual reproduction produces offspring from a single parent without gamete fusion.', relatedTopics: ['Binary Fission', 'Vegetative Propagation', 'Regeneration'], applicationExample: 'Yeast also reproduces by budding, which is used in baking and brewing.' },
   },
   {
-    id: 'bio-10-6', subject: 'biology', topic: 'Heredity & Evolution', classLevel: 10,
+    id: 'bio-10-6', subject: 'biology', topic: 'Heredity & Evolution', classLevel: 11,
     examType: ['NEET'],
     question: 'The father of genetics is:',
     options: ['Gregor Mendel', 'Charles Darwin', 'Hugo de Vries', 'T.H. Morgan'],
@@ -125,7 +125,7 @@ export const biologyQuestions: Question[] = [
     reference: { theory: 'Mendel discovered dominant/recessive traits, segregation, and independent assortment.', inventor: 'Gregor Johann Mendel', relatedTopics: ['Law of Segregation', 'Law of Independent Assortment', 'Punnett Square'], applicationExample: 'Understanding genetics helps predict traits in offspring and identify genetic disorders.' },
   },
   {
-    id: 'bio-10-7', subject: 'biology', topic: 'Heredity & Evolution', classLevel: 10,
+    id: 'bio-10-7', subject: 'biology', topic: 'Heredity & Evolution', classLevel: 11,
     examType: ['JEE', 'NEET'],
     question: 'The theory of natural selection was proposed by:',
     options: ['Charles Darwin', 'Jean-Baptiste Lamarck', 'Gregor Mendel', 'Hugo de Vries'],
@@ -135,7 +135,7 @@ export const biologyQuestions: Question[] = [
     reference: { theory: 'Natural selection is the mechanism of evolution — "survival of the fittest".', inventor: 'Charles Darwin', relatedTopics: ['Evolution', 'Adaptation', 'Speciation'], applicationExample: 'Antibiotic-resistant bacteria evolve through natural selection — resistant ones survive and multiply.' },
   },
   {
-    id: 'bio-10-8', subject: 'biology', topic: 'Environment', classLevel: 10,
+    id: 'bio-10-8', subject: 'biology', topic: 'Environment', classLevel: 11,
     examType: ['other'],
     question: 'In a food chain, the 10% law of energy transfer was given by:',
     options: ['Lindeman', 'Odum', 'Tansley', 'Elton'],

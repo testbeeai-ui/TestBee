@@ -487,6 +487,8 @@ export type Database = {
           onboarding_complete: boolean
           rdm: number
           role: string
+          saved_bits: Json
+          saved_formulas: Json
           stream: string | null
           subject_combo: string | null
           subjects: string[] | null
@@ -507,6 +509,8 @@ export type Database = {
           onboarding_complete?: boolean
           rdm?: number
           role?: string
+          saved_bits?: Json
+          saved_formulas?: Json
           stream?: string | null
           subject_combo?: string | null
           subjects?: string[] | null
@@ -527,6 +531,8 @@ export type Database = {
           onboarding_complete?: boolean
           rdm?: number
           role?: string
+          saved_bits?: Json
+          saved_formulas?: Json
           stream?: string | null
           subject_combo?: string | null
           subjects?: string[] | null

@@ -22,6 +22,7 @@ const baseNavItems = [
   { path: '/explore', icon: Compass, label: 'Explore', emoji: '🧭' },
   { path: '/exam-prep', icon: ClipboardList, label: 'Exam Prep', emoji: '📋' },
   { path: '/doubts', icon: HelpCircle, label: 'Gyan++', emoji: '💡' },
+  { path: '/explore-1', icon: Compass, label: 'Explore-1', emoji: '🧭' },
   { path: '/edufund', icon: Heart, label: 'EduFund', emoji: '💛' },
   { path: '/profile', icon: User, label: 'Profile', emoji: '👤' },
 ];
@@ -52,7 +53,7 @@ const AppLayout = ({ children, streakTimer }: AppLayoutProps) => {
           {/* Nav Links - Desktop */}
           <nav className="hidden md:flex items-center gap-0.5 bg-muted/50 rounded-2xl p-1">
             {navItems.map(({ path, icon: Icon, label }) => {
-              const isActive = pathname === path || (path === '/exam-prep' && ['/classrooms', '/mock', '/revision'].includes(pathname)) || (path === '/explore' && pathname === '/play') || (path === '/edufund' && (pathname === '/edufund' || pathname.startsWith('/edufund/')));
+              const isActive = pathname === path || (path === '/exam-prep' && ['/classrooms', '/mock', '/revision'].includes(pathname)) || (path === '/explore' && pathname === '/play') || (path === '/explore-1' && pathname === '/explore-1') || (path === '/edufund' && (pathname === '/edufund' || pathname.startsWith('/edufund/')));
               return (
                 <Link
                   key={path}
@@ -103,7 +104,7 @@ const AppLayout = ({ children, streakTimer }: AppLayoutProps) => {
         <div className="md:hidden border-t border-border/60">
           <div className="flex overflow-x-auto px-2 gap-0.5">
             {navItems.map(({ path, icon: Icon, label, emoji }) => {
-              const isActive = pathname === path || (path === '/exam-prep' && ['/classrooms', '/mock', '/revision'].includes(pathname)) || (path === '/explore' && pathname === '/play') || (path === '/edufund' && (pathname === '/edufund' || pathname.startsWith('/edufund/')));
+              const isActive = pathname === path || (path === '/exam-prep' && ['/classrooms', '/mock', '/revision'].includes(pathname)) || (path === '/explore' && pathname === '/play') || (path === '/explore-1' && pathname === '/explore-1') || (path === '/edufund' && (pathname === '/edufund' || pathname.startsWith('/edufund/')));
               return (
                 <Link
                   key={path}

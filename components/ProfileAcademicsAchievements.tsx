@@ -126,7 +126,7 @@ export default function ProfileAcademicsAchievements({ userId }: { userId: strin
         {loading ? (
           <p className="text-sm text-muted-foreground">Loading...</p>
         ) : academics.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No records yet. Add your Class 10/12 results for your public profile.</p>
+          <p className="text-sm text-muted-foreground">No records yet. Add your Class 11/12 results for your public profile.</p>
         ) : (
           <div className="space-y-2">
             {academics.map((a) => (
@@ -242,7 +242,7 @@ function AcademicFormDialog({
         <div className="grid gap-4 py-4">
           <div>
             <Label htmlFor="exam">Exam</Label>
-            <Input id="exam" value={exam} onChange={(e) => setExam(e.target.value)} placeholder="e.g. Class 10, Class 12" className="mt-1 rounded-xl" />
+            <Input id="exam" value={exam} onChange={(e) => setExam(e.target.value)} placeholder="e.g. Class 11, Class 12" className="mt-1 rounded-xl" />
           </div>
           <div>
             <Label htmlFor="board">Board</Label>

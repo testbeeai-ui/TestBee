@@ -209,7 +209,7 @@ function OnboardingContent() {
               <div>
                 <label className="text-sm font-extrabold text-foreground mb-2 block">Class</label>
                 <div className="grid grid-cols-4 gap-2">
-                  {[9, 10, 11, 12].map((c) => (
+                  {[11, 12].map((c) => (
                     <button
                       key={c}
                       onClick={() => setClassLevel(c)}
