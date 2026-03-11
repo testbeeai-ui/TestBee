@@ -12,6 +12,8 @@ export interface InstaCueCard {
   topic: string;
   subject: Subject;
   classLevel: ClassLevel;
+  /** Deep Dive section index (0=1.1, 1=1.2, 2=1.3...). When set, card only shows for that section. */
+  sectionIndex?: number;
 }
 
 function key(subject: Subject, classLevel: ClassLevel, topic: string, subtopicName: string): string {
@@ -19,8 +21,8 @@ function key(subject: Subject, classLevel: ClassLevel, topic: string, subtopicNa
 }
 
 const cardsMap: Record<string, InstaCueCard[]> = {
-  // ---------- Class 9 Physics: Motion ----------
-  [key('physics', 9, 'Motion', 'Distance & Displacement')]: [
+  // ---------- Class 11 Physics: Motion ----------
+  [key('physics', 11, 'Motion', 'Distance & Displacement')]: [
     {
       id: 'dd-1',
       type: 'concept',
@@ -29,7 +31,7 @@ const cardsMap: Record<string, InstaCueCard[]> = {
       subtopicName: 'Distance & Displacement',
       topic: 'Motion',
       subject: 'physics',
-      classLevel: 9,
+      classLevel: 11,
     },
     {
       id: 'dd-2',
@@ -39,7 +41,7 @@ const cardsMap: Record<string, InstaCueCard[]> = {
       subtopicName: 'Distance & Displacement',
       topic: 'Motion',
       subject: 'physics',
-      classLevel: 9,
+      classLevel: 11,
     },
     {
       id: 'dd-3',
@@ -49,7 +51,7 @@ const cardsMap: Record<string, InstaCueCard[]> = {
       subtopicName: 'Distance & Displacement',
       topic: 'Motion',
       subject: 'physics',
-      classLevel: 9,
+      classLevel: 11,
     },
     {
       id: 'dd-4',
@@ -59,7 +61,7 @@ const cardsMap: Record<string, InstaCueCard[]> = {
       subtopicName: 'Distance & Displacement',
       topic: 'Motion',
       subject: 'physics',
-      classLevel: 9,
+      classLevel: 11,
     },
     {
       id: 'dd-5',
@@ -69,10 +71,10 @@ const cardsMap: Record<string, InstaCueCard[]> = {
       subtopicName: 'Distance & Displacement',
       topic: 'Motion',
       subject: 'physics',
-      classLevel: 9,
+      classLevel: 11,
     },
   ],
-  [key('physics', 9, 'Motion', 'Uniform & Non-Uniform Motion')]: [
+  [key('physics', 11, 'Motion', 'Uniform & Non-Uniform Motion')]: [
     {
       id: 'unif-1',
       type: 'concept',
@@ -81,7 +83,7 @@ const cardsMap: Record<string, InstaCueCard[]> = {
       subtopicName: 'Uniform & Non-Uniform Motion',
       topic: 'Motion',
       subject: 'physics',
-      classLevel: 9,
+      classLevel: 11,
     },
     {
       id: 'unif-2',
@@ -91,7 +93,7 @@ const cardsMap: Record<string, InstaCueCard[]> = {
       subtopicName: 'Uniform & Non-Uniform Motion',
       topic: 'Motion',
       subject: 'physics',
-      classLevel: 9,
+      classLevel: 11,
     },
     {
       id: 'unif-3',
@@ -101,10 +103,10 @@ const cardsMap: Record<string, InstaCueCard[]> = {
       subtopicName: 'Uniform & Non-Uniform Motion',
       topic: 'Motion',
       subject: 'physics',
-      classLevel: 9,
+      classLevel: 11,
     },
   ],
-  [key('physics', 9, 'Motion', 'Equations of Motion')]: [
+  [key('physics', 11, 'Motion', 'Equations of Motion')]: [
     {
       id: 'eom-1',
       type: 'formula',
@@ -113,7 +115,7 @@ const cardsMap: Record<string, InstaCueCard[]> = {
       subtopicName: 'Equations of Motion',
       topic: 'Motion',
       subject: 'physics',
-      classLevel: 9,
+      classLevel: 11,
     },
     {
       id: 'eom-2',
@@ -123,7 +125,7 @@ const cardsMap: Record<string, InstaCueCard[]> = {
       subtopicName: 'Equations of Motion',
       topic: 'Motion',
       subject: 'physics',
-      classLevel: 9,
+      classLevel: 11,
     },
     {
       id: 'eom-3',
@@ -133,10 +135,10 @@ const cardsMap: Record<string, InstaCueCard[]> = {
       subtopicName: 'Equations of Motion',
       topic: 'Motion',
       subject: 'physics',
-      classLevel: 9,
+      classLevel: 11,
     },
   ],
-  [key('physics', 9, 'Motion', 'Uniform Circular Motion')]: [
+  [key('physics', 11, 'Motion', 'Uniform Circular Motion')]: [
     {
       id: 'ucm-1',
       type: 'concept',
@@ -145,7 +147,7 @@ const cardsMap: Record<string, InstaCueCard[]> = {
       subtopicName: 'Uniform Circular Motion',
       topic: 'Motion',
       subject: 'physics',
-      classLevel: 9,
+      classLevel: 11,
     },
     {
       id: 'ucm-2',
@@ -155,7 +157,7 @@ const cardsMap: Record<string, InstaCueCard[]> = {
       subtopicName: 'Uniform Circular Motion',
       topic: 'Motion',
       subject: 'physics',
-      classLevel: 9,
+      classLevel: 11,
     },
   ],
 
@@ -802,6 +804,221 @@ const cardsMap: Record<string, InstaCueCard[]> = {
       classLevel: 12,
     },
   ],
+  // ---------- Physics Class 11: Thermodynamics - Thermal equilibrium and zeroth law ----------
+  // Section 0 = 1.1 (State Variables & Walls), Section 1 = 1.2 (Thermal Equilibrium), Section 2 = 1.3 (Zeroth Law)
+  [key('physics', 11, 'Thermodynamics', 'Thermal equilibrium and zeroth law')]: [
+    {
+      id: 'te-sys-1',
+      type: 'concept',
+      frontContent: 'In thermodynamics, what is the "System"?',
+      backContent: 'The imaginary boundary around what you are studying. Everything inside this line is the System.',
+      subtopicName: 'Thermal equilibrium and zeroth law',
+      topic: 'Thermodynamics',
+      subject: 'physics',
+      classLevel: 11,
+      sectionIndex: 0,
+    },
+    {
+      id: 'te-sys-2',
+      type: 'concept',
+      frontContent: 'What are the Surroundings in thermodynamics?',
+      backContent: 'Everything outside the System. In a piston-cylinder, the metal walls, piston head, and room air are the Surroundings.',
+      subtopicName: 'Thermal equilibrium and zeroth law',
+      topic: 'Thermodynamics',
+      subject: 'physics',
+      classLevel: 11,
+      sectionIndex: 0,
+    },
+    {
+      id: 'te-sys-3',
+      type: 'formula',
+      frontContent: 'System + Surroundings = ?',
+      backContent: 'The Universe. In thermodynamics, these two together make up everything you need to consider.',
+      subtopicName: 'Thermal equilibrium and zeroth law',
+      topic: 'Thermodynamics',
+      subject: 'physics',
+      classLevel: 11,
+      sectionIndex: 0,
+    },
+    {
+      id: 'te-sys-4',
+      type: 'common_mistake',
+      frontContent: 'Why must you define your System clearly?',
+      backContent: "If you don't, your energy calculations will be wrong. Heat lost by coffee ≠ heat gained by cup — you must pick which is your system.",
+      subtopicName: 'Thermal equilibrium and zeroth law',
+      topic: 'Thermodynamics',
+      subject: 'physics',
+      classLevel: 11,
+      sectionIndex: 0,
+    },
+    {
+      id: 'te-pv-1',
+      type: 'concept',
+      frontContent: 'What are Macroscopic Variables (State Variables)?',
+      backContent: "The 'vital signs' of a gas — P, V, T, n. Instead of tracking billions of molecules, we use these bulk properties.",
+      subtopicName: 'Thermal equilibrium and zeroth law',
+      topic: 'Thermodynamics',
+      subject: 'physics',
+      classLevel: 11,
+      sectionIndex: 0,
+    },
+    {
+      id: 'te-pv-2',
+      type: 'concept',
+      frontContent: 'What causes Pressure (P) at the microscopic level?',
+      backContent: 'Billions of molecules slamming into the walls every second. Pressure is the "force" of the gas.',
+      subtopicName: 'Thermal equilibrium and zeroth law',
+      topic: 'Thermodynamics',
+      subject: 'physics',
+      classLevel: 11,
+      sectionIndex: 0,
+    },
+    {
+      id: 'te-pv-3',
+      type: 'trap',
+      frontContent: 'What happens to Pressure if the molecules stop moving?',
+      backContent: 'Pressure becomes zero. No molecular collisions = no pressure.',
+      subtopicName: 'Thermal equilibrium and zeroth law',
+      topic: 'Thermodynamics',
+      subject: 'physics',
+      classLevel: 11,
+      sectionIndex: 0,
+    },
+    {
+      id: 'te-pv-4',
+      type: 'concept',
+      frontContent: 'What does Temperature (T) represent microscopically?',
+      backContent: 'The average kinetic energy (speed) of the molecules. Double T (in Kelvin) = double the average energy per molecule.',
+      subtopicName: 'Thermal equilibrium and zeroth law',
+      topic: 'Thermodynamics',
+      subject: 'physics',
+      classLevel: 11,
+      sectionIndex: 0,
+    },
+    {
+      id: 'te-wall-1',
+      type: 'concept',
+      frontContent: 'What are Diathermic walls?',
+      backContent: 'The "open door" — they allow heat to pass through freely. Thin metals (copper, aluminum). A single-walled water bottle is an example.',
+      subtopicName: 'Thermal equilibrium and zeroth law',
+      topic: 'Thermodynamics',
+      subject: 'physics',
+      classLevel: 11,
+      sectionIndex: 0,
+    },
+    {
+      id: 'te-wall-2',
+      type: 'concept',
+      frontContent: 'What are Adiabatic walls?',
+      backContent: 'Heat-proof — no heat enters or leaves. Insulators (foam, vacuum). A Thermos flask is an example. Energy changes only via Work.',
+      subtopicName: 'Thermal equilibrium and zeroth law',
+      topic: 'Thermodynamics',
+      subject: 'physics',
+      classLevel: 11,
+      sectionIndex: 0,
+    },
+    {
+      id: 'te-wall-3',
+      type: 'trap',
+      frontContent: 'Rigid vs Movable walls: how does the gas do work?',
+      backContent: 'Rigid: volume is locked, gas cannot do work. Movable: system expands or contracts — this is how engines work.',
+      subtopicName: 'Thermal equilibrium and zeroth law',
+      topic: 'Thermodynamics',
+      subject: 'physics',
+      classLevel: 11,
+      sectionIndex: 0,
+    },
+    // ----- Section 1 (1.2): Thermal Equilibrium -----
+    {
+      id: 'te-eq-1',
+      type: 'concept',
+      frontContent: 'Does "cold" exist as a physical property?',
+      backContent: 'No. "Cold" is just the absence of heat. Physics only recognizes heat. When you touch ice, your hand loses heat to the ice — the ice is not "giving you cold."',
+      subtopicName: 'Thermal equilibrium and zeroth law',
+      topic: 'Thermodynamics',
+      subject: 'physics',
+      classLevel: 11,
+      sectionIndex: 1,
+    },
+    {
+      id: 'te-eq-2',
+      type: 'concept',
+      frontContent: 'Which way does heat flow?',
+      backContent: 'Heat flows strictly from higher temperature to lower temperature. Thermal equilibrium is the moment heat stops flowing — the temperatures match.',
+      subtopicName: 'Thermal equilibrium and zeroth law',
+      topic: 'Thermodynamics',
+      subject: 'physics',
+      classLevel: 11,
+      sectionIndex: 1,
+    },
+    {
+      id: 'te-eq-3',
+      type: 'concept',
+      frontContent: 'What happens microscopically during heat transfer?',
+      backContent: 'Hot atoms (high KE) collide with the wall; vibrations pass to cold atoms (low KE). Fast atoms slow down, slow atoms speed up. Continues until all atoms share the same average speed.',
+      subtopicName: 'Thermal equilibrium and zeroth law',
+      topic: 'Thermodynamics',
+      subject: 'physics',
+      classLevel: 11,
+      sectionIndex: 1,
+    },
+    {
+      id: 'te-eq-4',
+      type: 'trap',
+      frontContent: 'At thermal equilibrium, do the atoms stop moving?',
+      backContent: 'No! Heat still jumps back and forth. For every 1 Joule left, exactly 1 Joule goes right. Net transfer = zero. It is dynamic equilibrium, not static.',
+      subtopicName: 'Thermal equilibrium and zeroth law',
+      topic: 'Thermodynamics',
+      subject: 'physics',
+      classLevel: 11,
+      sectionIndex: 1,
+    },
+    {
+      id: 'te-eq-5',
+      type: 'concept',
+      frontContent: 'What happens to P, V, T at thermal equilibrium?',
+      backContent: 'They stop changing. The vital signs (macroscopic state variables) stabilize. The pressure gauge needle stops moving. The system is locked.',
+      subtopicName: 'Thermal equilibrium and zeroth law',
+      topic: 'Thermodynamics',
+      subject: 'physics',
+      classLevel: 11,
+      sectionIndex: 1,
+    },
+    // ----- Section 2 (1.3): The Zeroth Law & Temperature Measurement -----
+    {
+      id: 'te-zeroth-1',
+      type: 'concept',
+      frontContent: 'What does the Zeroth Law state?',
+      backContent: 'If A is in thermal equilibrium with C (thermometer), and B is in thermal equilibrium with C, then A and B are in thermal equilibrium. This is why thermometers work.',
+      subtopicName: 'Thermal equilibrium and zeroth law',
+      topic: 'Thermodynamics',
+      subject: 'physics',
+      classLevel: 11,
+      sectionIndex: 2,
+    },
+    {
+      id: 'te-zeroth-2',
+      type: 'concept',
+      frontContent: 'Why is it called the "Zeroth" Law?',
+      backContent: 'Ralph Fowler (1931) realized Temperature was never defined before the First and Second Laws. This law underpins them, so it was slotted in as "Zeroth."',
+      subtopicName: 'Thermal equilibrium and zeroth law',
+      topic: 'Thermodynamics',
+      subject: 'physics',
+      classLevel: 11,
+      sectionIndex: 2,
+    },
+    {
+      id: 'te-zeroth-3',
+      type: 'concept',
+      frontContent: 'What is a Thermometric Property?',
+      backContent: 'A physical property that changes predictably with heat — e.g. volume (liquid expands), resistance (metal wire), pressure (gas in rigid box).',
+      subtopicName: 'Thermal equilibrium and zeroth law',
+      topic: 'Thermodynamics',
+      subject: 'physics',
+      classLevel: 11,
+      sectionIndex: 2,
+    },
+  ],
   [key('physics', 12, 'Current Electricity', 'Wheatstone Bridge & Potentiometer')]: [
     {
       id: 'wb-1',
@@ -836,16 +1053,27 @@ const cardsMap: Record<string, InstaCueCard[]> = {
   ],
 };
 
+/**
+ * Get InstaCue cards for a subtopic. On Deep Dive pages, pass sectionIndex to get
+ * section-specific cards only (1.1, 1.2, 1.3 each have their own cards).
+ * On topic/explore pages, omit sectionIndex to get all cards for the subtopic.
+ */
 export function getInstaCueCards(
   subject: Subject,
   classLevel: ClassLevel,
   topic: string,
-  subtopicNames: string[]
+  subtopicNames: string[],
+  sectionIndex?: number
 ): InstaCueCard[] {
   const all: InstaCueCard[] = [];
   for (const st of subtopicNames) {
     const k = key(subject, classLevel, topic, st);
-    all.push(...(cardsMap[k] ?? []));
+    const cards = cardsMap[k] ?? [];
+    if (sectionIndex !== undefined) {
+      all.push(...cards.filter((c) => c.sectionIndex === sectionIndex));
+    } else {
+      all.push(...cards);
+    }
   }
   return all;
 }

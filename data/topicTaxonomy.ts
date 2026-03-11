@@ -1,13 +1,24 @@
 import { Subject, ClassLevel, ExamType } from '@/types';
 
+/**
+ * A topic (lesson) within a unit. In syllabus terms this is a single topic/lesson;
+ * the parent unit is represented by TopicNode.
+ */
 export interface SubTopic {
   name: string;
 }
 
+/**
+ * Syllabus unit (e.g. Thermodynamics, Kinematics). In syllabus terms this is the "Unit";
+ * `topic` is the unit name (also used as Question.topic for filtering).
+ * `subtopics` are the topics/lessons within this unit.
+ */
 export interface TopicNode {
   subject: Subject;
   classLevel: ClassLevel;
-  topic: string; // matches Question.topic field
+  /** Unit name (syllabus unit); matches Question.topic field */
+  topic: string;
+  /** Topics (lessons) within this unit */
   subtopics: SubTopic[];
   examRelevance: ExamType[];
   /** Unit label for display, e.g. "Unit I", "Unit II" */
@@ -18,20 +29,6 @@ export interface TopicNode {
 
 export const topicTaxonomy: TopicNode[] = [
   // ========== PHYSICS ==========
-
-  // Class 9
-  { subject: 'physics', classLevel: 9, topic: 'Motion', subtopics: [{ name: 'Distance & Displacement' }, { name: 'Uniform & Non-Uniform Motion' }, { name: 'Equations of Motion' }, { name: 'Uniform Circular Motion' }], examRelevance: ['JEE', 'NEET', 'KCET', 'other'] },
-  { subject: 'physics', classLevel: 9, topic: 'Force & Laws of Motion', subtopics: [{ name: "Newton's Three Laws" }, { name: 'Inertia and Mass' }, { name: 'Conservation of Momentum' }], examRelevance: ['JEE', 'NEET', 'KCET', 'other'] },
-  { subject: 'physics', classLevel: 9, topic: 'Gravitation', subtopics: [{ name: 'Universal Law of Gravitation' }, { name: 'Free Fall & g' }, { name: 'Mass vs. Weight' }, { name: "Archimedes' Principle & Buoyancy" }], examRelevance: ['JEE', 'NEET', 'KCET', 'other'] },
-  { subject: 'physics', classLevel: 9, topic: 'Work & Energy', subtopics: [{ name: 'Work by Constant Force' }, { name: 'Kinetic & Potential Energy' }, { name: 'Conservation of Energy' }, { name: 'Power' }], examRelevance: ['JEE', 'NEET', 'KCET', 'other'] },
-  { subject: 'physics', classLevel: 9, topic: 'Sound', subtopics: [{ name: 'Production & Propagation' }, { name: 'Wavelength, Frequency, Amplitude' }, { name: 'Echo & Sonar' }, { name: 'Human Ear Structure' }], examRelevance: ['JEE', 'NEET', 'KCET', 'other'] },
-
-  // Class 10
-  { subject: 'physics', classLevel: 10, topic: 'Light - Reflection & Refraction', subtopics: [{ name: 'Spherical Mirrors & Image Formation' }, { name: 'Mirror Formula & Magnification' }, { name: 'Refraction through Lenses' }, { name: 'Lens Formula & Power' }], examRelevance: ['JEE', 'NEET', 'KCET', 'other'] },
-  { subject: 'physics', classLevel: 10, topic: 'Human Eye & Colorful World', subtopics: [{ name: 'Defects of Vision' }, { name: 'Refraction through Prism' }, { name: 'Dispersion & Scattering' }], examRelevance: ['NEET', 'KCET', 'other'] },
-  { subject: 'physics', classLevel: 10, topic: 'Electricity', subtopics: [{ name: 'Current & Potential Difference' }, { name: "Ohm's Law & Resistance" }, { name: "Joule's Law (Heating Effect)" }, { name: 'Electric Power' }], examRelevance: ['JEE', 'NEET', 'KCET', 'other'] },
-  { subject: 'physics', classLevel: 10, topic: 'Magnetic Effects of Current', subtopics: [{ name: 'Magnetic Field Lines' }, { name: 'Force on Current-Carrying Conductor' }, { name: 'Electric Motor & Generator' }, { name: 'Domestic Electric Circuits' }], examRelevance: ['JEE', 'NEET', 'KCET', 'other'] },
-  { subject: 'physics', classLevel: 10, topic: 'Sources of Energy', subtopics: [{ name: 'Renewable vs Non-renewable' }, { name: 'Solar & Wind Energy' }, { name: 'Nuclear Energy' }], examRelevance: ['KCET', 'other'] },
 
   // Class 11 — CBSE NCERT Physics syllabus
   { subject: 'physics', classLevel: 11, topic: 'Physical World and Measurement', unitLabel: 'Unit I', totalPeriods: 10, subtopics: [{ name: 'Scope and excitement of Physics' }, { name: 'Nature of physical laws' }, { name: 'Physics, technology and society' }, { name: 'Need for measurement' }, { name: 'Units of measurement and systems of units' }, { name: 'SI units, fundamental and derived units' }, { name: 'Length, mass and time measurements' }, { name: 'Accuracy and precision of measuring instruments' }, { name: 'Errors in measurement and significant figures' }, { name: 'Dimensions of physical quantities' }, { name: 'Dimensional analysis and its applications' }], examRelevance: ['JEE', 'NEET', 'KCET'] },
@@ -58,18 +55,6 @@ export const topicTaxonomy: TopicNode[] = [
   { subject: 'physics', classLevel: 12, topic: 'Communication Systems', unitLabel: 'Unit X', totalPeriods: 10, subtopics: [{ name: 'Elements of a communication system (block diagram)' }, { name: 'Bandwidth of signals and transmission medium' }, { name: 'Propagation of EM waves (sky and space wave)' }, { name: 'Need for modulation, amplitude-modulated wave production/detection' }], examRelevance: ['JEE', 'NEET', 'KCET'] },
 
   // ========== CHEMISTRY ==========
-
-  // Class 9
-  { subject: 'chemistry', classLevel: 9, topic: 'Matter', subtopics: [{ name: 'Physical & Chemical Changes' }, { name: 'States of Matter' }, { name: 'Particle Nature of Matter' }], examRelevance: ['JEE', 'NEET', 'KCET', 'other'] },
-  { subject: 'chemistry', classLevel: 9, topic: 'Atoms & Molecules', subtopics: [{ name: 'Laws of Chemical Combination' }, { name: "Avogadro's Number" }, { name: 'Mole Concept' }], examRelevance: ['JEE', 'NEET', 'KCET', 'other'] },
-  { subject: 'chemistry', classLevel: 9, topic: 'Structure of Atom', subtopics: [{ name: 'Protons, Neutrons, Electrons' }, { name: 'Bohr Model & Electron Shells' }, { name: 'Atomic Number & Mass Number' }], examRelevance: ['JEE', 'NEET', 'KCET', 'other'] },
-
-  // Class 10
-  { subject: 'chemistry', classLevel: 10, topic: 'Chemical Reactions', subtopics: [{ name: 'Oxidation & Reduction' }, { name: 'Displacement Reactions' }, { name: 'Balancing Equations' }], examRelevance: ['JEE', 'NEET', 'KCET', 'other'] },
-  { subject: 'chemistry', classLevel: 10, topic: 'Acids, Bases & Salts', subtopics: [{ name: 'pH Scale & Indicators' }, { name: 'Neutralization' }, { name: 'Salts & Their Properties' }], examRelevance: ['JEE', 'NEET', 'KCET', 'other'] },
-  { subject: 'chemistry', classLevel: 10, topic: 'Metals & Non-metals', subtopics: [{ name: 'Reactivity Series' }, { name: 'Ionic Bonding' }, { name: 'Extraction of Metals' }], examRelevance: ['JEE', 'NEET', 'KCET', 'other'] },
-  { subject: 'chemistry', classLevel: 10, topic: 'Carbon Compounds', subtopics: [{ name: 'Hydrocarbons' }, { name: 'Functional Groups' }, { name: 'Homologous Series' }], examRelevance: ['JEE', 'NEET', 'KCET', 'other'] },
-  { subject: 'chemistry', classLevel: 10, topic: 'Periodic Table', subtopics: [{ name: 'Modern Periodic Law' }, { name: 'Trends in Properties' }, { name: 'Electron Configuration & Groups' }], examRelevance: ['JEE', 'NEET', 'KCET', 'other'] },
 
   // Class 11 — CBSE NCERT Chemistry syllabus
   { subject: 'chemistry', classLevel: 11, topic: 'Some Basic Concepts of Chemistry', unitLabel: 'Unit I', totalPeriods: 14, subtopics: [{ name: 'Importance and scope of chemistry' }, { name: 'Historical approach to particulate nature of matter' }, { name: "Laws of chemical combination" }, { name: "Dalton's atomic theory (elements, atoms, molecules)" }, { name: 'Atomic and molecular masses' }, { name: 'Mole concept and molar mass' }, { name: 'Percentage composition, empirical and molecular formula' }, { name: 'Chemical reactions, stoichiometry, and calculations' }], examRelevance: ['JEE', 'NEET', 'KCET'] },
@@ -107,22 +92,6 @@ export const topicTaxonomy: TopicNode[] = [
 
   // ========== MATH ==========
 
-  // Class 9
-  { subject: 'math', classLevel: 9, topic: 'Number Systems', subtopics: [{ name: 'Rational & Irrational Numbers' }, { name: 'Real Number Line' }, { name: 'Decimal Expansions' }], examRelevance: ['JEE', 'KCET', 'other'] },
-  { subject: 'math', classLevel: 9, topic: 'Polynomials', subtopics: [{ name: 'Degree of Polynomial' }, { name: 'Zeros of Polynomial' }, { name: 'Factor & Remainder Theorem' }], examRelevance: ['JEE', 'KCET', 'other'] },
-  { subject: 'math', classLevel: 9, topic: 'Coordinate Geometry', subtopics: [{ name: 'Cartesian Plane' }, { name: 'Plotting Points' }, { name: 'Quadrants' }], examRelevance: ['JEE', 'KCET', 'other'] },
-  { subject: 'math', classLevel: 9, topic: 'Linear Equations', subtopics: [{ name: 'Linear Equations in Two Variables' }, { name: 'Graphical Representation' }, { name: 'Simultaneous Equations' }], examRelevance: ['JEE', 'KCET', 'other'] },
-  { subject: 'math', classLevel: 9, topic: 'Triangles', subtopics: [{ name: 'Angle Sum Property' }, { name: 'Congruence Rules (SSS, SAS, ASA)' }, { name: 'Pythagorean Theorem' }], examRelevance: ['JEE', 'KCET', 'other'] },
-  { subject: 'math', classLevel: 9, topic: 'Statistics', subtopics: [{ name: 'Mean, Median, Mode' }, { name: 'Frequency Distribution' }, { name: 'Bar Graphs & Histograms' }], examRelevance: ['KCET', 'other'] },
-
-  // Class 10
-  { subject: 'math', classLevel: 10, topic: 'Real Numbers', subtopics: [{ name: 'HCF & LCM' }, { name: 'Fundamental Theorem of Arithmetic' }, { name: 'Irrationality Proofs' }], examRelevance: ['JEE', 'KCET', 'other'] },
-  { subject: 'math', classLevel: 10, topic: 'Polynomials', subtopics: [{ name: 'Sum & Product of Zeros' }, { name: 'Division Algorithm' }, { name: 'Quadratic Polynomials' }], examRelevance: ['JEE', 'KCET', 'other'] },
-  { subject: 'math', classLevel: 10, topic: 'Quadratic Equations', subtopics: [{ name: 'Discriminant & Nature of Roots' }, { name: 'Quadratic Formula' }, { name: 'Factorization Method' }], examRelevance: ['JEE', 'KCET', 'other'] },
-  { subject: 'math', classLevel: 10, topic: 'Arithmetic Progressions', subtopics: [{ name: 'nth Term Formula' }, { name: 'Sum of n Terms' }, { name: 'Common Difference' }], examRelevance: ['JEE', 'KCET', 'other'] },
-  { subject: 'math', classLevel: 10, topic: 'Trigonometry', subtopics: [{ name: 'Trigonometric Ratios' }, { name: 'Standard Angles' }, { name: 'Pythagorean Identity' }], examRelevance: ['JEE', 'NEET', 'KCET', 'other'] },
-  { subject: 'math', classLevel: 10, topic: 'Coordinate Geometry', subtopics: [{ name: 'Distance Formula' }, { name: 'Section & Midpoint Formula' }, { name: 'Area of Triangle' }], examRelevance: ['JEE', 'KCET', 'other'] },
-
   // Class 11 — CBSE NCERT Mathematics syllabus
   { subject: 'math', classLevel: 11, topic: 'Sets and Functions', unitLabel: 'Unit I', totalPeriods: 44, subtopics: [{ name: 'Sets and their representations' }, { name: 'Empty, Finite, Infinite, and Equal sets' }, { name: 'Subsets and intervals (real numbers)' }, { name: 'Power set and Universal set' }, { name: 'Venn diagrams' }, { name: 'Union, intersection, difference, and complement of sets' }, { name: 'Ordered pairs and Cartesian product of sets' }, { name: 'Domain, co-domain, and range of a relation' }, { name: 'Pictorial representation of functions' }, { name: 'Real valued functions (constant, identity, polynomial, rational, modulus, signum, greatest integer) and their graphs' }, { name: 'Algebra of functions (sum, difference, product, quotients)' }, { name: 'Measuring angles in radians/degrees and conversion' }, { name: 'Trigonometric functions via unit circle' }, { name: 'Signs and graphs of trigonometric functions' }, { name: 'Sum and difference identities (sin(x±y), cos(x±y), tan(x±y), cot(x±y))' }, { name: 'Multiple angle identities (sin2x, cos2x, tan2x, sin3x, etc.)' }, { name: 'General solution of trigonometric equations' }, { name: 'Sine and cosine formulae' }], examRelevance: ['JEE', 'KCET'] },
   { subject: 'math', classLevel: 11, topic: 'Algebra', unitLabel: 'Unit II', totalPeriods: 56, subtopics: [{ name: 'Process of proof by induction' }, { name: 'Principle of mathematical induction and simple applications' }, { name: 'Need for complex numbers' }, { name: 'Algebraic properties' }, { name: 'Argand plane and polar representation' }, { name: 'Fundamental Theorem of Algebra' }, { name: 'Solution of quadratic equations in the complex number system' }, { name: 'Square-root of a complex number' }, { name: 'Algebraic solutions of linear inequalities in one variable' }, { name: 'Graphical solution of linear inequalities in two variables' }, { name: 'Solution of system of linear inequalities' }, { name: 'Fundamental principle of counting' }, { name: 'Factorial n' }, { name: 'Derivation of permutation and combination formulae and their connections' }, { name: 'Statement and proof of the binomial theorem for positive integral indices' }, { name: "Pascal's triangle" }, { name: 'General and middle term in binomial expansion' }, { name: 'Arithmetic Progression (A.P.) and Arithmetic Mean (A.M.)' }, { name: 'Geometric Progression (G.P.), general term, and sum of n terms' }, { name: 'Infinite G.P. and its sum' }, { name: 'Geometric Mean (G.M.) and relation to A.M.' }, { name: 'Sum to n terms of special series' }], examRelevance: ['JEE', 'KCET'] },
@@ -140,20 +109,6 @@ export const topicTaxonomy: TopicNode[] = [
   { subject: 'math', classLevel: 12, topic: 'Probability', unitLabel: 'Unit VI', totalPeriods: 18, subtopics: [{ name: 'Multiplications theorem' }, { name: 'Conditional probability and independent events' }, { name: 'Total probability and Baye\'s theorem' }, { name: 'Random variables and probability distribution (mean, variance)' }, { name: 'Bernoulli trials and Binomial distribution' }], examRelevance: ['JEE', 'NEET', 'KCET'] },
 
   // ========== BIOLOGY ==========
-
-  // Class 9
-  { subject: 'biology', classLevel: 9, topic: 'Cell Biology', subtopics: [{ name: 'Plasma Membrane' }, { name: 'Nucleus & Organelles' }, { name: 'Mitochondria & Plastids' }], examRelevance: ['NEET', 'KCET', 'other'] },
-  { subject: 'biology', classLevel: 9, topic: 'Tissues', subtopics: [{ name: 'Plant Tissues (Meristematic/Permanent)' }, { name: 'Animal Tissues (Epithelial, Connective, Muscular, Nervous)' }], examRelevance: ['NEET', 'KCET', 'other'] },
-  { subject: 'biology', classLevel: 9, topic: 'Diversity in Living Organisms', subtopics: [{ name: 'Five Kingdom Classification' }, { name: 'Binomial Nomenclature' }, { name: 'Monera to Animalia' }], examRelevance: ['NEET', 'KCET', 'other'] },
-  { subject: 'biology', classLevel: 9, topic: 'Disease & Health', subtopics: [{ name: 'Infectious vs Non-infectious' }, { name: 'Immunization' }, { name: 'Pathogens (Bacteria, Virus, Protozoa)' }], examRelevance: ['NEET', 'KCET', 'other'] },
-  { subject: 'biology', classLevel: 9, topic: 'Natural Resources', subtopics: [{ name: 'Water, Air, Soil' }, { name: 'Biogeochemical Cycles (N₂, O₂, C)' }], examRelevance: ['NEET', 'KCET', 'other'] },
-
-  // Class 10
-  { subject: 'biology', classLevel: 10, topic: 'Life Processes', subtopics: [{ name: 'Nutrition & Digestive System' }, { name: 'Respiration' }, { name: 'Transportation (Heart/Circulation)' }, { name: 'Excretion (Kidney/Nephron)' }], examRelevance: ['NEET', 'KCET', 'other'] },
-  { subject: 'biology', classLevel: 10, topic: 'Control & Coordination', subtopics: [{ name: 'Nervous System & Reflex Arc' }, { name: 'Brain Structure' }, { name: 'Hormones in Animals & Plants' }], examRelevance: ['NEET', 'KCET', 'other'] },
-  { subject: 'biology', classLevel: 10, topic: 'Reproduction', subtopics: [{ name: 'Fission & Budding' }, { name: 'Vegetative Propagation' }, { name: 'Sexual Reproduction in Plants/Humans' }], examRelevance: ['NEET', 'KCET', 'other'] },
-  { subject: 'biology', classLevel: 10, topic: 'Heredity & Evolution', subtopics: [{ name: "Mendel's Laws" }, { name: 'Sex Determination' }, { name: 'Acquired vs Inherited Traits' }], examRelevance: ['NEET', 'KCET', 'other'] },
-  { subject: 'biology', classLevel: 10, topic: 'Environment', subtopics: [{ name: 'Food Chains & Webs' }, { name: '10% Energy Transfer Law' }, { name: 'Ecological Pyramids' }], examRelevance: ['NEET', 'KCET', 'other'] },
 
   // Class 11
   { subject: 'biology', classLevel: 11, topic: 'Cell Biology', subtopics: [{ name: 'Cell Structure & Functions' }, { name: 'Fluid Mosaic Model' }, { name: 'Cell Cycle & Division' }], examRelevance: ['NEET', 'KCET'] },

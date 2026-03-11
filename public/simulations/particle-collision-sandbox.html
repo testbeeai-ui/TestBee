@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Particle Collision Sandbox</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #050810;
+    --panel: #0a0f1e;
+    --border: #1a2540;
+    --cyan: #00e5ff;
+    --orange: #ff6b35;
+    --green: #00ff88;
+    --red: #ff2d55;
+    --dim: #3a4a6a;
+    --text: #c8d8f0;
+    --mono: 'Share Tech Mono', monospace;
+    --display: 'Orbitron', sans-serif;
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    position: fixed;
+  }
+
+  .fit-container {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  }
+
+  .scaler {
+    --s: min(1, 100vw / 900, 100dvh / 480);
+    width: 900px;
+    min-height: 480px;
+    transform: scale(var(--s));
+    transform-origin: top center;
+    position: relative;
+    z-index: 1;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,229,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrapper {
+    position: relative;
+    width: 100%;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 10px;
+  }
+
+  .lab-tag {
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: var(--cyan);
+    opacity: 0.6;
+    text-transform: uppercase;
+    margin-bottom: 2px;
+  }
+
+  h1 {
+    font-family: var(--display);
+    font-size: clamp(12px, 2.5vw, 18px);
+    font-weight: 900;
+    letter-spacing: 1px;
+    color: #fff;
+  }
+
+  .subtitle {
+    font-size: 9px;
+    color: var(--dim);
+    margin-top: 2px;
+  }
+
+  .main-grid {
+    display: grid;
+    grid-template-columns: 1fr 180px;
+    gap: 10px;
+    align-items: start;
+  }
+
+  @media (max-width: 640px) {
+    .main-grid { grid-template-columns: 1fr; }
+  }
+
+  .canvas-wrap {
+    position: relative;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+    background: #020408;
+    max-width: 100%;
+  }
+
+  .canvas-wrap canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-width: 640px;
+    max-height: 320px;
+  }
+
+  .wall-line {
+    position: absolute;
+    top: 0; bottom: 0;
+    left: 50%;
+    width: 2px;
+    background: linear-gradient(to bottom, transparent, rgba(0,229,255,0.8), rgba(0,229,255,0.8), transparent);
+    transform: translateX(-50%);
+    transition: opacity 0.4s ease;
+    pointer-events: none;
+  }
+
+  .wall-line.removed { opacity: 0; }
+
+  .wall-label {
+    position: absolute;
+    top: 6px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 9px;
+    letter-spacing: 1px;
+    color: var(--cyan);
+    background: rgba(0,0,0,0.7);
+    padding: 2px 6px;
+    border-radius: 2px;
+  }
+
+  .wall-label.removed { opacity: 0; }
+
+  .box-label {
+    position: absolute;
+    top: 8px;
+    font-size: 10px;
+  }
+
+  .box-label.a { left: 8px; color: var(--cyan); }
+  .box-label.b { right: 8px; color: var(--orange); }
+
+  .equil-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,255,136,0.07);
+    border: 2px solid var(--green);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+  }
+
+  .equil-overlay.show { opacity: 1; }
+  .equil-text {
+    font-family: var(--display);
+    font-size: clamp(12px, 2.5vw, 18px);
+    font-weight: 900;
+    color: var(--green);
+    letter-spacing: 2px;
+  }
+
+  .equil-sub { font-size: 9px; color: rgba(0,255,136,0.7); margin-top: 4px; }
+
+  .panel { display: flex; flex-direction: column; gap: 6px; }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 6px 8px;
+  }
+
+  .card-title {
+    font-size: 7px;
+    letter-spacing: 1px;
+    color: var(--dim);
+    text-transform: uppercase;
+    margin-bottom: 5px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .speed-row { display: flex; flex-direction: column; gap: 4px; margin-bottom: 4px; }
+  .speed-item label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    margin-bottom: 4px;
+  }
+  .val-a { color: var(--cyan); }
+  .val-b { color: var(--orange); }
+
+  input[type=range] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 3px;
+    border-radius: 2px;
+    background: var(--border);
+  }
+  input[type=range].slider-a { accent-color: var(--cyan); }
+  input[type=range].slider-b { accent-color: var(--orange); }
+
+  .btn {
+    width: 100%;
+    padding: 6px 8px;
+    border: none;
+    border-radius: 2px;
+    font-family: var(--display);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    cursor: pointer;
+    text-transform: uppercase;
+  }
+  .btn-remove { background: transparent; color: var(--cyan); border: 1px solid var(--cyan); }
+  .btn-remove:hover:not(:disabled) { background: rgba(0,229,255,0.1); }
+  .btn-remove:disabled { opacity: 0.3; cursor: not-allowed; }
+  .btn-reset { background: transparent; color: var(--dim); border: 1px solid var(--border); margin-top: 4px; }
+  .btn-reset:hover { color: var(--text); border-color: var(--text); }
+
+  .readout-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+  .readout {
+    background: rgba(0,0,0,0.4);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    padding: 4px;
+    text-align: center;
+  }
+  .readout-label { font-size: 6px; letter-spacing: 0.5px; color: var(--dim); }
+  .readout-val { font-size: 11px; font-family: var(--display); font-weight: 700; }
+  .readout-val.a { color: var(--cyan); }
+  .readout-val.b { color: var(--orange); }
+  .readout-val.eq { color: var(--green); }
+  .readout-val.neq { color: var(--text); }
+  .readout-full { padding: 4px; text-align: center; margin-top: 4px; border: 1px solid var(--border); border-radius: 2px; background: rgba(0,0,0,0.4); }
+
+  .progress-wrap { margin-top: 4px; }
+  .progress-label { font-size: 6px; color: var(--dim); margin-bottom: 1px; }
+  .progress-bar { height: 2px; background: var(--border); border-radius: 1px; overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(to right, var(--orange), var(--cyan)); transition: width 0.1s; width: 0%; }
+
+  .count-row { font-size: 8px; color: var(--dim); margin-top: 2px; display: flex; justify-content: space-between; }
+  .log { font-size: 7px; color: var(--dim); height: 22px; overflow: hidden; margin-top: 2px; }
+  .log-line.active { color: var(--green); }
+</style>
+</head>
+<body>
+<div class="fit-container">
+<div class="scaler">
+<div class="wrapper">
+  <header>
+    <div class="lab-tag">// thermodynamics lab //</div>
+    <h1>PARTICLE COLLISION SANDBOX</h1>
+    <div class="subtitle">entropy & equilibrium</div>
+  </header>
+  <div class="main-grid">
+    <div class="canvas-wrap" id="canvasWrap">
+      <canvas id="sim" width="640" height="360"></canvas>
+      <div class="wall-line" id="wallLine"></div>
+      <div class="wall-label" id="wallLabel">◈ WALL ◈</div>
+      <div class="box-label a">BOX A</div>
+      <div class="box-label b">BOX B</div>
+      <div class="equil-overlay" id="equilOverlay">
+        <div class="equil-text">EQUILIBRIUM</div>
+        <div class="equil-sub">Δ AVG SPEED → 0</div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="card">
+        <div class="card-title">Particle Config</div>
+        <div class="speed-row">
+          <div class="speed-item">
+            <label><span>Box A</span><span class="val-a" id="valA">100</span></label>
+            <input type="range" min="10" max="200" value="100" id="sliderA" class="slider-a">
+          </div>
+          <div class="speed-item">
+            <label><span>Box B</span><span class="val-b" id="valB">10</span></label>
+            <input type="range" min="10" max="200" value="10" id="sliderB" class="slider-b">
+          </div>
+        </div>
+        <div class="count-row"><span class="count-a">▲ 20</span><span class="count-b">20 ▲</span></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Controls</div>
+        <button class="btn btn-remove" id="btnWall">Remove Wall</button>
+        <button class="btn btn-reset" id="btnReset">↺ Reset</button>
+      </div>
+      <div class="card">
+        <div class="card-title">Telemetry</div>
+        <div class="readout-grid">
+          <div class="readout"><div class="readout-label">AVG A</div><div class="readout-val a" id="avgA">—</div></div>
+          <div class="readout"><div class="readout-label">AVG B</div><div class="readout-val b" id="avgB">—</div></div>
+        </div>
+        <div class="readout-full">
+          <div class="readout-label">Δ SPEED</div>
+          <div class="readout-val neq" id="avgDiff">—</div>
+        </div>
+        <div class="progress-wrap">
+          <div class="progress-label"><span>MIXING</span><span id="pctLabel">0%</span></div>
+          <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Log</div>
+        <div class="log" id="log">
+          <div class="log-line">» Configure and remove wall</div>
+          <div class="log-line">» Observe entropy increase</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+</div>
+<script>
+(function() {
+  const canvas = document.getElementById('sim');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height, MID = W / 2;
+
+  let particles = [], wallUp = true, equilibriumReached = false, frameCount = 0, startDiff = null, animId;
+  const sliderA = document.getElementById('sliderA'), sliderB = document.getElementById('sliderB');
+  const valA = document.getElementById('valA'), valB = document.getElementById('valB');
+  const btnWall = document.getElementById('btnWall'), btnReset = document.getElementById('btnReset');
+  const wallLine = document.getElementById('wallLine'), wallLabel = document.getElementById('wallLabel');
+  const equilOverlay = document.getElementById('equilOverlay');
+  const avgAEl = document.getElementById('avgA'), avgBEl = document.getElementById('avgB');
+  const avgDiffEl = document.getElementById('avgDiff'), progressFill = document.getElementById('progressFill');
+  const pctLabel = document.getElementById('pctLabel'), logEl = document.getElementById('log');
+
+  function log(msg, active) {
+    const lines = logEl.querySelectorAll('.log-line');
+    if (lines.length >= 2) {
+      lines[0].textContent = lines[1].textContent;
+      lines[0].classList.remove('active');
+      lines[1].textContent = '» ' + msg;
+      lines[1].className = 'log-line' + (active ? ' active' : '');
+    }
+  }
+
+  sliderA.oninput = () => { valA.textContent = sliderA.value; if (wallUp) initParticles(); };
+  sliderB.oninput = () => { valB.textContent = sliderB.value; if (wallUp) initParticles(); };
+
+  function makeParticle(side) {
+    const speed = side === 'A' ? +sliderA.value : +sliderB.value;
+    const angle = Math.random() * Math.PI * 2;
+    const margin = 14;
+    const x = side === 'A'
+      ? margin + Math.random() * (MID - margin * 2 - 20)
+      : MID + 20 + Math.random() * (MID - margin * 2 - 20);
+    const y = margin + Math.random() * (H - margin * 2);
+    return {
+      x, y, r: 4, side,
+      vx: Math.cos(angle) * speed * 0.04,
+      vy: Math.sin(angle) * speed * 0.04,
+    };
+  }
+
+  function initParticles() {
+    particles = [];
+    for (let i = 0; i < 20; i++) particles.push(makeParticle('A'));
+    for (let i = 0; i < 20; i++) particles.push(makeParticle('B'));
+    equilibriumReached = false;
+    startDiff = null;
+    frameCount = 0;
+    equilOverlay.classList.remove('show');
+    updateReadouts();
+  }
+
+  function getAvgSpeed(side) {
+    const g = particles.filter(p => p.side === side);
+    if (!g.length) return 0;
+    return g.reduce((s, p) => s + Math.sqrt(p.vx*p.vx+p.vy*p.vy), 0) / g.length;
+  }
+
+  function updateReadouts() {
+    const a = getAvgSpeed('A') * 25, b = getAvgSpeed('B') * 25, diff = Math.abs(a - b);
+    avgAEl.textContent = a.toFixed(1);
+    avgBEl.textContent = b.toFixed(1);
+    avgDiffEl.textContent = diff.toFixed(1);
+    if (startDiff && startDiff > 0 && !wallUp) {
+      const p = Math.min(100, (1 - diff / startDiff) * 100);
+      progressFill.style.width = p + '%';
+      pctLabel.textContent = p.toFixed(0) + '%';
+      avgDiffEl.className = diff < 2 ? 'readout-val eq' : 'readout-val neq';
+    }
+  }
+
+  function resolveCollisions() {
+    for (let i = 0; i < particles.length; i++) {
+      for (let j = i + 1; j < particles.length; j++) {
+        const pi = particles[i], pj = particles[j];
+        const dx = pj.x - pi.x, dy = pj.y - pi.y, dist = Math.sqrt(dx*dx+dy*dy), minD = pi.r + pj.r;
+        if (dist < minD && dist > 0) {
+          const nx = dx/dist, ny = dy/dist;
+          const dv = (pi.vx-pj.vx)*nx + (pi.vy-pj.vy)*ny;
+          if (dv > 0) {
+            pi.vx -= dv*nx; pi.vy -= dv*ny;
+            pj.vx += dv*nx; pj.vy += dv*ny;
+          }
+          const ov = (minD-dist)/2;
+          pi.x -= nx*ov; pi.y -= ny*ov;
+          pj.x += nx*ov; pj.y += ny*ov;
+        }
+      }
+    }
+  }
+
+  const scale = 0.6;
+  function update() {
+    particles.forEach(p => {
+      p.x += p.vx*scale; p.y += p.vy*scale;
+      if (p.x - p.r < 0) { p.x = p.r; p.vx = Math.abs(p.vx); }
+      if (p.x + p.r > W) { p.x = W - p.r; p.vx = -Math.abs(p.vx); }
+      if (p.y - p.r < 0) { p.y = p.r; p.vy = Math.abs(p.vy); }
+      if (p.y + p.r > H) { p.y = H - p.r; p.vy = -Math.abs(p.vy); }
+      if (wallUp) {
+        if (p.side === 'A' && p.x + p.r > MID - 1) { p.x = MID - 1 - p.r; p.vx = -Math.abs(p.vx); }
+        if (p.side === 'B' && p.x - p.r < MID + 1) { p.x = MID + 1 + p.r; p.vx = Math.abs(p.vx); }
+      }
+    });
+    resolveCollisions();
+  }
+
+  function drawBg() {
+    ctx.fillStyle = '#020408';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = 'rgba(0,229,255,0.012)';
+    ctx.fillRect(0, 0, MID, H);
+    ctx.fillStyle = 'rgba(255,107,53,0.012)';
+    ctx.fillRect(MID, 0, MID, H);
+  }
+
+  function drawParticle(p) {
+    const c = p.side === 'A' ? [0,229,255] : [255,107,53];
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+    ctx.fillStyle = 'rgb('+c[0]+','+c[1]+','+c[2]+')';
+    ctx.fill();
+  }
+
+  function checkEquilibrium() {
+    if (equilibriumReached || wallUp) return;
+    const a = getAvgSpeed('A'), b = getAvgSpeed('B');
+    const diff = Math.abs(a-b), avg = (a+b)/2;
+    if (avg > 0 && diff/avg < 0.04) {
+      equilibriumReached = true;
+      equilOverlay.classList.add('show');
+      avgDiffEl.className = 'readout-val eq';
+      progressFill.style.width = '100%';
+      pctLabel.textContent = '100%';
+      log('EQUILIBRIUM — entropy maximized', true);
+    }
+  }
+
+  function loop() {
+    drawBg();
+    update();
+    particles.forEach(drawParticle);
+    frameCount++;
+    if (frameCount % 3 === 0) {
+      updateReadouts();
+      if (!wallUp && !equilibriumReached) checkEquilibrium();
+    }
+    animId = requestAnimationFrame(loop);
+  }
+
+  btnWall.onclick = () => {
+    if (!wallUp) return;
+    wallUp = false;
+    wallLine.classList.add('removed');
+    wallLabel.classList.add('removed');
+    btnWall.disabled = true;
+    startDiff = Math.abs(getAvgSpeed('A') - getAvgSpeed('B'));
+    sliderA.disabled = true;
+    sliderB.disabled = true;
+    log('Wall removed — mixing');
+  };
+
+  btnReset.onclick = () => {
+    wallUp = true;
+    wallLine.classList.remove('removed');
+    wallLabel.classList.remove('removed');
+    btnWall.disabled = false;
+    sliderA.disabled = false;
+    sliderB.disabled = false;
+    progressFill.style.width = '0%';
+    pctLabel.textContent = '0%';
+    avgDiffEl.className = 'readout-val neq';
+    initParticles();
+    log('Reset');
+  };
+
+  initParticles();
+  loop();
+})();
+</script>
+</body>
+</html>

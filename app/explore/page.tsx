@@ -21,7 +21,9 @@ import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Search, Filter, ArrowLeft, Sparkles, BookOpen, ChevronRight, Zap, Play, Box, CheckCircle2, XCircle, Compass, Crosshair } from 'lucide-react';
-import { getTheoryOrPlaceholder } from '@/data/topicTheory';
+import { getTheoryOrPlaceholder, type InteractiveBlock } from '@/data/topicTheory';
+import InteractiveTheoryRenderer from '@/components/InteractiveTheoryRenderer';
+import TheoryContent from '@/components/TheoryContent';
 import { getInstaCueCards } from '@/data/instaCueCards';
 import type { InstaCueCard } from '@/data/instaCueCards';
 import InstaCue from '@/components/InstaCue';
@@ -56,17 +58,13 @@ const exams: { value: ExamType; label: string; emoji: string }[] = [
   { value: 'other', label: 'Other', emoji: '📝' },
 ];
 
-const EXAM_TYPES_9_10: ExamType[] = ['NEET'];
 const EXAM_TYPES_11_12: ExamType[] = ['JEE', 'NEET', 'KCET', 'other'];
 
-function getVisibleExamTypes(classLevel: ClassLevel | null): ExamType[] {
-  if (classLevel === null || classLevel === undefined) return EXAM_TYPES_11_12;
-  return classLevel <= 10 ? EXAM_TYPES_9_10 : EXAM_TYPES_11_12;
+function getVisibleExamTypes(_classLevel: ClassLevel | null): ExamType[] {
+  return EXAM_TYPES_11_12;
 }
 
-function getVisibleSubjects(classLevel: ClassLevel | null, subjectCombo: SubjectCombo | null): Subject[] {
-  if (classLevel === null || classLevel === undefined) return ['physics', 'chemistry', 'math', 'biology'];
-  if (classLevel <= 10) return ['physics', 'chemistry', 'math'];
+function getVisibleSubjects(_classLevel: ClassLevel | null, subjectCombo: SubjectCombo | null): Subject[] {
   return subjectCombo === 'PCMB' ? ['physics', 'chemistry', 'math', 'biology'] : ['physics', 'chemistry', 'math'];
 }
 
@@ -156,6 +154,131 @@ function BitsMCQs({ questions: qs }: { questions: Question[] }) {
   );
 }
 
+function TopicIntroQuiz({
+  questions: qs,
+  topicNode,
+  classLevel,
+  onComplete,
+}: {
+  questions: Question[];
+  topicNode: TopicNode;
+  classLevel: ClassLevel;
+  onComplete: () => void;
+}) {
+  const [index, setIndex] = useState(0);
+  const [selected, setSelected] = useState<number | null>(null);
+  const [score, setScore] = useState(0);
+  const [quizDone, setQuizDone] = useState(false);
+
+  if (qs.length === 0) return null;
+
+  const q = qs[index]!;
+  const answered = selected !== null;
+  const isCorrect = selected === q.correctAnswer;
+
+  const handleSelect = (i: number) => {
+    if (answered) return;
+    setSelected(i);
+    if (i === q.correctAnswer) setScore((s) => s + 1);
+  };
+
+  const handleNext = () => {
+    if (index < qs.length - 1) {
+      setIndex((i) => i + 1);
+      setSelected(null);
+    } else {
+      setQuizDone(true);
+    }
+  };
+
+  // Professor's feedback screen after quiz
+  if (quizDone) {
+    const total = qs.length;
+    const pct = total > 0 ? Math.round((score / total) * 100) : 0;
+    const isHighScore = pct >= 70;
+    return (
+      <div className="space-y-4">
+        <div className="text-center py-4">
+          <p className="text-sm text-muted-foreground mb-2">
+            You got {score} out of {total} correct.
+          </p>
+          {isHighScore ? (
+            <>
+              <p className="text-foreground font-semibold mb-2">
+                Excellent! You already have a strong grasp of these concepts. Let&apos;s do a quick revision of the topics to solidify your knowledge!
+              </p>
+              <p className="text-xs text-muted-foreground italic mb-4">
+                — Professor&apos;s Note
+              </p>
+              <Button onClick={onComplete} className="rounded-xl gap-2 edu-btn-primary">
+                <BookOpen className="w-4 h-4" /> Revise Topics
+              </Button>
+            </>
+          ) : (
+            <>
+              <p className="text-foreground font-semibold mb-2">
+                It seems some of these concepts might be new to you. No worries, that&apos;s what we&apos;re here for! Let&apos;s dive in and build your foundation.
+              </p>
+              <p className="text-xs text-muted-foreground italic mb-4">
+                — Professor&apos;s Note
+              </p>
+              <Button onClick={onComplete} className="rounded-xl gap-2 edu-btn-primary">
+                <BookOpen className="w-4 h-4" /> Learn Topics
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-muted-foreground">
+        Quick Bits — see how much you already know before diving into the theory. Useful for revision!
+      </p>
+      <h4 className="font-semibold text-foreground text-sm">
+        Question {index + 1} of {qs.length}
+      </h4>
+      <p className="text-sm font-medium text-foreground">{q.question}</p>
+      <div className="space-y-2">
+        {q.options.map((opt, i) => {
+          let style = "bg-muted hover:bg-muted/80 text-foreground";
+          if (answered) {
+            if (i === q.correctAnswer) style = "bg-edu-green/15 border-2 border-edu-green text-foreground";
+            else if (i === selected && !isCorrect) style = "bg-destructive/15 border-2 border-destructive text-foreground";
+            else style = "bg-muted/50 text-muted-foreground";
+          } else if (i === selected) style = "bg-primary/20 border-2 border-primary text-foreground";
+          return (
+            <button
+              key={i}
+              type="button"
+              disabled={answered}
+              onClick={() => handleSelect(i)}
+              className={`w-full text-left p-3 rounded-xl text-sm font-medium transition-all flex items-center gap-2 ${style}`}
+            >
+              <span className="w-6 h-6 rounded-full bg-background/60 flex items-center justify-center text-xs shrink-0">
+                {String.fromCharCode(65 + i)}
+              </span>
+              {opt}
+              {answered && i === q.correctAnswer && <CheckCircle2 className="w-4 h-4 shrink-0 text-edu-green ml-auto" />}
+              {answered && i === selected && !isCorrect && <XCircle className="w-4 h-4 shrink-0 text-destructive ml-auto" />}
+            </button>
+          );
+        })}
+      </div>
+      {answered && q.solution && (
+        <div className="text-xs text-muted-foreground bg-muted/50 p-3 rounded-xl">{q.solution}</div>
+      )}
+      {answered && (
+        <Button size="sm" variant="outline" onClick={handleNext} className="rounded-xl">
+          {index < qs.length - 1 ? "Next question" : "See results"}
+        </Button>
+      )}
+    </div>
+  );
+}
+
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 
 const Explore = () => {
@@ -176,6 +299,7 @@ const Explore = () => {
   const [selectedTopicClassLevel, setSelectedTopicClassLevel] = useState<ClassLevel | null>(null);
   const [bitsPopup, setBitsPopup] = useState<{ subtopicName: string; topicNode: TopicNode; classLevel: ClassLevel } | null>(null);
   const [bitsAllPopup, setBitsAllPopup] = useState(false);
+  const [topicIntroState, setTopicIntroState] = useState<{ topicNode: TopicNode; classLevel: ClassLevel } | null>(null);
   const [userInstaCueCards, setUserInstaCueCards] = useState<InstaCueCard[]>([]);
   const [visualPlayableOpen, setVisualPlayableOpen] = useState(false);
   const [filteredQuestions, setFilteredQuestions] = useState<Question[]>([]);
@@ -183,6 +307,7 @@ const Explore = () => {
   const [view, setView] = useState<ViewState>('hub');
   const [hoveredSubject, setHoveredSubject] = useState<string | null>(null);
   const [expandedTheoryKeys, setExpandedTheoryKeys] = useState<Set<string>>(new Set());
+  const [practicePopupBlock, setPracticePopupBlock] = useState<InteractiveBlock | null>(null);
 
   const THEORY_TRUNCATE_CHARS = 450; // ~4–5 lines; show "Read more" beyond this
 
@@ -219,8 +344,8 @@ const Explore = () => {
     const relevant = topicTaxonomy.filter(
       (t) =>
         t.subject === selectedSubject &&
-        t.classLevel >= 11 && // Pause Class 9 & 10 for now
-        (classLevel == null || classLevel >= 11) && // Show Class 11 & 12 to users in 11/12 or unset
+        t.classLevel >= 11 &&
+        (classLevel == null || classLevel >= 11) &&
         (!selectedExam || t.examRelevance.includes(selectedExam))
     );
     const grouped: Record<number, TopicNode[]> = {};
@@ -237,6 +362,17 @@ const Explore = () => {
   };
 
   const handleTopicClick = (topicNode: TopicNode, classLvl: ClassLevel) => {
+    if (topicNode.topic === 'Physical World and Measurement') {
+      setTopicIntroState({ topicNode, classLevel: classLvl });
+      return;
+    }
+    setSelectedTopicNode(topicNode);
+    setSelectedTopicClassLevel(classLvl);
+    setView('topic-detail');
+  };
+
+  const handleTopicIntroComplete = (topicNode: TopicNode, classLvl: ClassLevel) => {
+    setTopicIntroState(null);
     setSelectedTopicNode(topicNode);
     setSelectedTopicClassLevel(classLvl);
     setView('topic-detail');
@@ -471,13 +607,13 @@ const Explore = () => {
 
               <h2 className="edu-page-title text-2xl mb-1 flex items-center gap-2">
                 <BookOpen className="w-6 h-6 text-primary" />
-                Topics & Subtopics
+                Units & Topics
               </h2>
-              <p className="edu-page-desc mb-6 text-sm">Click a topic to read theory by subtopic, use Bits to revise, then practice questions</p>
+              <p className="edu-page-desc mb-6 text-sm">Click a unit to read theory by topic, use Bits to revise, then practice questions</p>
 
               {/* Topics by Class */}
               <Accordion type="multiple" defaultValue={Object.keys(topicsByClass)} className="space-y-3">
-                {([9, 10, 11, 12] as ClassLevel[])
+                {([11, 12] as ClassLevel[])
                   .filter((cl) => topicsByClass[cl] && topicsByClass[cl].length > 0)
                   .map((classLevel) => (
                     <AccordionItem
@@ -547,6 +683,55 @@ const Explore = () => {
                     </AccordionItem>
                   ))}
               </Accordion>
+
+              {/* Topic Intro Bits Dialog - Physical World and Measurement */}
+              <Dialog open={!!topicIntroState} onOpenChange={(open) => !open && setTopicIntroState(null)}>
+                <DialogContent className="rounded-2xl max-w-lg max-h-[85vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                      <Zap className="w-5 h-5 text-primary" /> Bits
+                      {topicIntroState && (
+                        <span className="font-normal text-muted-foreground">
+                          — {topicIntroState.topicNode.unitLabel} {topicIntroState.topicNode.topic}
+                        </span>
+                      )}
+                    </DialogTitle>
+                  </DialogHeader>
+                  {topicIntroState && selectedSubject && (
+                    (() => {
+                      let topicQs = questions.filter(
+                        (q) =>
+                          q.subject === selectedSubject &&
+                          q.topic === topicIntroState.topicNode.topic &&
+                          (classLevel == null || q.classLevel <= topicIntroState.classLevel)
+                      );
+                      if (selectedExam) topicQs = topicQs.filter((q) => q.examType.includes(selectedExam));
+                      topicQs = topicQs.sort(() => Math.random() - 0.5).slice(0, 5);
+                      if (topicQs.length === 0) {
+                        return (
+                          <div className="space-y-4">
+                            <p className="text-sm text-muted-foreground">No questions for this topic yet. Proceed to read the theory.</p>
+                            <Button
+                              onClick={() => handleTopicIntroComplete(topicIntroState.topicNode, topicIntroState.classLevel)}
+                              className="rounded-xl gap-2 edu-btn-primary"
+                            >
+                              <BookOpen className="w-4 h-4" /> Go to Topics
+                            </Button>
+                          </div>
+                        );
+                      }
+                      return (
+                        <TopicIntroQuiz
+                          questions={topicQs}
+                          topicNode={topicIntroState.topicNode}
+                          classLevel={topicIntroState.classLevel}
+                          onComplete={() => handleTopicIntroComplete(topicIntroState.topicNode, topicIntroState.classLevel)}
+                        />
+                      );
+                    })()
+                  )}
+                </DialogContent>
+              </Dialog>
             </motion.div>
           )}
 
@@ -611,27 +796,59 @@ const Explore = () => {
                           <span className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center text-sm text-primary">{idx + 1}</span>
                           {st.name}
                         </h3>
-                        <div className="text-sm text-muted-foreground leading-relaxed mb-4 whitespace-pre-wrap [&>*]:mb-2">
-                          {displayTheory.split(/\n\n+/).map((para, i) => (
-                            <p key={i} className="mb-2 last:mb-0">
-                              {para.split(/(\*\*[^*]+\*\*)/g).map((part, j) =>
-                                part.startsWith('**') && part.endsWith('**') ? (
-                                  <strong key={j} className="font-semibold text-foreground">{part.slice(2, -2)}</strong>
-                                ) : (
-                                  part
-                                )
-                              )}
-                            </p>
-                          ))}
-                        </div>
-                        {isLong && (
-                          <button
-                            type="button"
-                            onClick={() => toggleTheoryExpanded(theoryKey)}
-                            className="text-sm font-semibold text-primary hover:underline mb-4"
-                          >
-                            {isExpanded ? 'Read less' : 'Read more'}
-                          </button>
+                        {theoryData.theorySectionsWithPractice && theoryData.theorySectionsWithPractice.length > 0 && theoryData.interactiveBlocks ? (
+                          <div className="space-y-6 mb-4">
+                            {theoryData.theorySectionsWithPractice.map((section, si) => {
+                              const block = theoryData.interactiveBlocks![section.blockIndex];
+                              return (
+                                <div key={si} className="rounded-xl border border-border bg-muted/20 p-4">
+                                  <h4 className="font-bold text-foreground text-sm mb-2">{section.title}</h4>
+                                  <div className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap [&>*]:mb-2 mb-3">
+                                    {section.content.split(/\n\n+/).map((para, i) => (
+                                      <p key={i} className="mb-2 last:mb-0">
+                                        {para.split(/(\*\*[^*]+\*\*)/g).map((part, j) =>
+                                          part.startsWith('**') && part.endsWith('**') ? (
+                                            <strong key={j} className="font-semibold text-foreground">{part.slice(2, -2)}</strong>
+                                          ) : (
+                                            part
+                                          )
+                                        )}
+                                      </p>
+                                    ))}
+                                  </div>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => setPracticePopupBlock(block)}
+                                    className="rounded-xl gap-2 font-bold"
+                                  >
+                                    <Zap className="w-3.5 h-3.5 text-primary" /> Practice
+                                  </Button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <>
+                            <div className="text-sm mb-4">
+                              <TheoryContent theory={displayTheory} />
+                            </div>
+                            {isLong && (
+                              <button
+                                type="button"
+                                onClick={() => toggleTheoryExpanded(theoryKey)}
+                                className="text-sm font-semibold text-primary hover:underline mb-4"
+                              >
+                                {isExpanded ? 'Read less' : 'Read more'}
+                              </button>
+                            )}
+                            {theoryData.interactiveBlocks && theoryData.interactiveBlocks.length > 0 && (
+                              <div className="mt-6 pt-4 border-t border-border">
+                                <h4 className="font-bold text-foreground mb-3 text-sm">Practice — Test your understanding</h4>
+                                <InteractiveTheoryRenderer blocks={theoryData.interactiveBlocks} />
+                              </div>
+                            )}
+                          </>
                         )}
                         {st.name === 'Scope and excitement of Physics' && (
                           <div className="mb-4 rounded-xl overflow-hidden border border-border bg-muted/30 p-2 lg:p-4">
@@ -785,7 +1002,7 @@ const Explore = () => {
                         );
                         if (mcqs.length === 0) {
                           return (
-                            <p className="text-sm text-muted-foreground">No MCQs for this subtopic yet. Use InstaCue cards on the right for quick revision.</p>
+                            <p className="text-sm text-muted-foreground">No MCQs for this topic yet. Use InstaCue cards on the right for quick revision.</p>
                           );
                         }
                         return <BitsMCQs questions={mcqs} />;
@@ -806,6 +1023,19 @@ const Explore = () => {
                   <div className="px-5 pb-5">
                     <DistanceDisplacementScene />
                   </div>
+                </DialogContent>
+              </Dialog>
+
+              <Dialog open={!!practicePopupBlock} onOpenChange={(open) => !open && setPracticePopupBlock(null)}>
+                <DialogContent className="rounded-2xl max-w-lg max-h-[85vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                      <Zap className="w-5 h-5 text-primary" /> Practice
+                    </DialogTitle>
+                  </DialogHeader>
+                  {practicePopupBlock && (
+                    <InteractiveTheoryRenderer blocks={[practicePopupBlock]} />
+                  )}
                 </DialogContent>
               </Dialog>
             </motion.div>
@@ -830,10 +1060,10 @@ const Explore = () => {
             >
               <div className="flex items-center justify-between mb-5">
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
                   onClick={handleBackToTopics}
-                  className="rounded-full font-extrabold"
+                  className="rounded-full font-extrabold border-primary/30 text-primary hover:bg-primary/10"
                 >
                   <ArrowLeft className="w-4 h-4 mr-1" /> Back to topics
                 </Button>

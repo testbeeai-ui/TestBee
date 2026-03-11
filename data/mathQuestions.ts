@@ -1,19 +1,19 @@
 import { Question } from '@/types';
 
 export const mathQuestions: Question[] = [
-  // ===== CLASS 9 =====
+  // ===== CLASS 11 =====
   {
-    id: 'math-9-1', subject: 'math', topic: 'Number Systems', classLevel: 9,
+    id: 'math-11-1', subject: 'math', topic: 'Sets and Functions', classLevel: 11,
     examType: ['other'],
-    question: 'Which of the following is an irrational number?',
-    options: ['√2', '3/4', '0.5', '7'],
+    question: 'If A = {1, 2, 3} and B = {2, 3, 4}, then A ∩ B is:',
+    options: ['{2, 3}', '{1, 2, 3, 4}', '{1, 4}', '{1}'],
     correctAnswer: 0,
-    hint: 'An irrational number cannot be expressed as a simple fraction.',
-    solution: '√2 = 1.41421356... — non-terminating and non-repeating, hence irrational.',
-    reference: { theory: 'Irrational numbers cannot be expressed as p/q where p, q are integers and q ≠ 0.', relatedTopics: ['Real Numbers', 'Rational Numbers', 'Decimal Expansions'], applicationExample: 'The diagonal of a unit square is √2, an irrational number.' },
+    hint: 'A ∩ B contains elements common to both sets.',
+    solution: 'A ∩ B = elements common to A and B = {2, 3}.',
+    reference: { theory: 'Intersection of sets contains only elements that belong to both sets.', relatedTopics: ['Union', 'Complement', 'Venn Diagrams'], applicationExample: 'In databases, finding common customers between two lists is a set intersection operation.' },
   },
   {
-    id: 'math-9-2', subject: 'math', topic: 'Polynomials', classLevel: 9,
+    id: 'math-11-2', subject: 'math', topic: 'Sets and Functions', classLevel: 11,
     examType: ['KCET'],
     question: 'The degree of the polynomial 4x³ + 2x² + 7 is:',
     options: ['3', '2', '4', '7'],
@@ -23,7 +23,7 @@ export const mathQuestions: Question[] = [
     reference: { theory: 'The degree of a polynomial is the highest exponent of the variable with non-zero coefficient.', relatedTopics: ['Linear Polynomial', 'Quadratic Polynomial', 'Zeros of Polynomial'], applicationExample: 'Degree determines the maximum number of roots — a cubic can have at most 3 real roots.' },
   },
   {
-    id: 'math-9-3', subject: 'math', topic: 'Coordinate Geometry', classLevel: 9,
+    id: 'math-9-3', subject: 'math', topic: 'Coordinate Geometry', classLevel: 11,
     examType: ['other'],
     question: 'The point (0, 0) is called:',
     options: ['Origin', 'Vertex', 'Midpoint', 'Centroid'],
@@ -33,7 +33,7 @@ export const mathQuestions: Question[] = [
     reference: { theory: 'The Cartesian coordinate system uses two perpendicular axes meeting at the origin.', inventor: 'René Descartes', relatedTopics: ['Quadrants', 'Axes', 'Coordinates'], applicationExample: 'GPS coordinates use a similar reference system with latitude and longitude from reference points.' },
   },
   {
-    id: 'math-9-4', subject: 'math', topic: 'Linear Equations', classLevel: 9,
+    id: 'math-9-4', subject: 'math', topic: 'Linear Equations', classLevel: 11,
     examType: ['KCET'],
     question: 'The graph of a linear equation in two variables is a:',
     options: ['Straight line', 'Parabola', 'Circle', 'Hyperbola'],
@@ -43,7 +43,7 @@ export const mathQuestions: Question[] = [
     reference: { theory: 'Linear equations have the form ax + by + c = 0 and their graphs are always straight lines.', relatedTopics: ['Slope', 'Intercept', 'Simultaneous Equations'], applicationExample: 'Linear equations model relationships like distance = speed × time at constant speed.' },
   },
   {
-    id: 'math-9-5', subject: 'math', topic: 'Triangles', classLevel: 9,
+    id: 'math-9-5', subject: 'math', topic: 'Triangles', classLevel: 11,
     examType: ['other'],
     question: 'The sum of angles of a triangle is:',
     options: ['180°', '360°', '90°', '270°'],
@@ -53,7 +53,7 @@ export const mathQuestions: Question[] = [
     reference: { theory: 'This is proved using the parallel postulate — draw a line parallel to the base through the opposite vertex.', relatedTopics: ['Exterior Angle Theorem', 'Types of Triangles', 'Congruence'], applicationExample: 'If two angles of a triangle are 60° and 80°, the third must be 40°.' },
   },
   {
-    id: 'math-9-6', subject: 'math', topic: 'Triangles', classLevel: 9,
+    id: 'math-9-6', subject: 'math', topic: 'Triangles', classLevel: 11,
     examType: ['JEE', 'NEET'],
     question: 'In a right triangle, the side opposite the right angle is called:',
     options: ['Hypotenuse', 'Base', 'Perpendicular', 'Median'],
@@ -63,7 +63,7 @@ export const mathQuestions: Question[] = [
     reference: { theory: 'In a right triangle, hypotenuse² = base² + perpendicular² (Pythagorean theorem).', inventor: 'Pythagoras', relatedTopics: ['Pythagorean Theorem', 'Trigonometry', 'Right Triangles'], applicationExample: 'Construction workers use the 3-4-5 rule to check right angles when building.' },
   },
   {
-    id: 'math-9-7', subject: 'math', topic: 'Statistics', classLevel: 9,
+    id: 'math-9-7', subject: 'math', topic: 'Statistics', classLevel: 11,
     examType: ['other'],
     question: 'The mean of 2, 4, 6, 8, 10 is:',
     options: ['6', '5', '7', '8'],
@@ -73,7 +73,7 @@ export const mathQuestions: Question[] = [
     reference: { theory: 'Mean (average) is the sum of all observations divided by the number of observations.', relatedTopics: ['Median', 'Mode', 'Range'], applicationExample: 'Average marks in a class help teachers understand overall performance.' },
   },
   {
-    id: 'math-9-8', subject: 'math', topic: 'Statistics', classLevel: 9,
+    id: 'math-9-8', subject: 'math', topic: 'Statistics', classLevel: 11,
     examType: ['KCET'],
     question: 'The mode of the data set 3, 5, 5, 7, 8, 5, 9 is:',
     options: ['5', '3', '7', '8'],
@@ -85,7 +85,7 @@ export const mathQuestions: Question[] = [
 
   // ===== CLASS 10 =====
   {
-    id: 'math-10-1', subject: 'math', topic: 'Real Numbers', classLevel: 10,
+    id: 'math-10-1', subject: 'math', topic: 'Real Numbers', classLevel: 11,
     examType: ['other'],
     question: 'The HCF of 12 and 18 is:',
     options: ['6', '3', '12', '36'],
@@ -95,7 +95,7 @@ export const mathQuestions: Question[] = [
     reference: { theory: 'HCF (Highest Common Factor) is the largest number that divides two or more numbers exactly.', relatedTopics: ['LCM', 'Prime Factorization', 'Euclidean Algorithm'], applicationExample: 'HCF helps simplify fractions: 12/18 = (12÷6)/(18÷6) = 2/3.' },
   },
   {
-    id: 'math-10-2', subject: 'math', topic: 'Polynomials', classLevel: 10,
+    id: 'math-10-2', subject: 'math', topic: 'Polynomials', classLevel: 11,
     examType: ['KCET'],
     question: 'The sum of zeros of the quadratic polynomial x² - 5x + 6 is:',
     options: ['5', '6', '-5', '-6'],
@@ -105,7 +105,7 @@ export const mathQuestions: Question[] = [
     reference: { theory: 'For ax² + bx + c: sum of zeros = -b/a, product of zeros = c/a.', relatedTopics: ['Quadratic Formula', 'Factorization', 'Vieta\'s Formulas'], applicationExample: 'These relationships help verify solutions of quadratic equations without solving them.' },
   },
   {
-    id: 'math-10-3', subject: 'math', topic: 'Quadratic Equations', classLevel: 10,
+    id: 'math-10-3', subject: 'math', topic: 'Quadratic Equations', classLevel: 11,
     examType: ['JEE', 'KCET'],
     question: 'The discriminant of x² + 4x + 4 = 0 is:',
     options: ['0', '16', '8', '-16'],
@@ -115,7 +115,7 @@ export const mathQuestions: Question[] = [
     reference: { theory: 'Discriminant determines nature of roots: D > 0 (distinct real), D = 0 (equal real), D < 0 (complex).', relatedTopics: ['Nature of Roots', 'Quadratic Formula', 'Perfect Square'], applicationExample: 'D = 0 means the parabola y = x² + 4x + 4 just touches the x-axis at one point.' },
   },
   {
-    id: 'math-10-4', subject: 'math', topic: 'Arithmetic Progressions', classLevel: 10,
+    id: 'math-10-4', subject: 'math', topic: 'Arithmetic Progressions', classLevel: 11,
     examType: ['other'],
     question: 'The 10th term of the AP 2, 5, 8, 11, ... is:',
     options: ['29', '32', '26', '35'],
@@ -125,7 +125,7 @@ export const mathQuestions: Question[] = [
     reference: { theory: 'In an AP, each term differs from the previous by a constant common difference d.', relatedTopics: ['Common Difference', 'Sum of AP', 'Geometric Progression'], applicationExample: 'Monthly EMI payments with fixed increase form an AP.' },
   },
   {
-    id: 'math-10-5', subject: 'math', topic: 'Trigonometry', classLevel: 10,
+    id: 'math-10-5', subject: 'math', topic: 'Trigonometry', classLevel: 11,
     examType: ['KCET'],
     question: 'The value of sin 30° is:',
     options: ['1/2', '1/√2', '√3/2', '1'],
@@ -135,7 +135,7 @@ export const mathQuestions: Question[] = [
     reference: { theory: 'Trigonometric ratios relate the angles and sides of a right triangle.', relatedTopics: ['cos', 'tan', 'Trigonometric Identities'], applicationExample: 'sin 30° = 1/2 means in a 30-60-90 triangle, the side opposite 30° is half the hypotenuse.' },
   },
   {
-    id: 'math-10-6', subject: 'math', topic: 'Trigonometry', classLevel: 10,
+    id: 'math-10-6', subject: 'math', topic: 'Trigonometry', classLevel: 11,
     examType: ['JEE', 'NEET'],
     question: 'sin²θ + cos²θ equals:',
     options: ['1', '0', 'sin 2θ', 'cos 2θ'],
@@ -145,7 +145,7 @@ export const mathQuestions: Question[] = [
     reference: { theory: 'This is the most fundamental trigonometric identity, derived from x² + y² = r² on the unit circle.', relatedTopics: ['Pythagorean Identity', 'Unit Circle', 'Other Trig Identities'], applicationExample: 'This identity is used to simplify complex trigonometric expressions in physics and engineering.' },
   },
   {
-    id: 'math-10-7', subject: 'math', topic: 'Coordinate Geometry', classLevel: 10,
+    id: 'math-10-7', subject: 'math', topic: 'Coordinate Geometry', classLevel: 11,
     examType: ['other'],
     question: 'The distance between points (3, 4) and (0, 0) is:',
     options: ['5', '7', '6', '4'],
@@ -155,7 +155,7 @@ export const mathQuestions: Question[] = [
     reference: { theory: 'The distance formula is derived from the Pythagorean theorem.', relatedTopics: ['Pythagorean Theorem', 'Section Formula', 'Midpoint'], applicationExample: 'GPS systems use 3D distance formulas to calculate distances between locations.' },
   },
   {
-    id: 'math-10-8', subject: 'math', topic: 'Coordinate Geometry', classLevel: 10,
+    id: 'math-10-8', subject: 'math', topic: 'Coordinate Geometry', classLevel: 11,
     examType: ['KCET'],
     question: 'The midpoint of the segment joining (2, 4) and (6, 8) is:',
     options: ['(4, 6)', '(3, 5)', '(8, 12)', '(2, 2)'],

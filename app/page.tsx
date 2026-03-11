@@ -163,7 +163,7 @@ function WelcomeContent() {
 
       <div className="relative text-center pb-6">
         <p className="text-slate-600 text-xs font-bold">
-          Classes 9-12 · PCM & PCMB · JEE · NEET · KCET
+          Classes 11-12 · PCM & PCMB · JEE · NEET · KCET
         </p>
       </div>
     </div>

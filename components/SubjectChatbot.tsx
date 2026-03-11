@@ -93,11 +93,7 @@ export default function SubjectChatbot({ subject, topic, subtopic }: Props) {
     const [language, setLanguage] = useState('en');
     const [showLangMenu, setShowLangMenu] = useState(false);
     const [hasGreeted, setHasGreeted] = useState(false);
-    const [position, setPosition] = useState<{ x: number; y: number }>(() => {
-        const stored = getStoredPosition();
-        if (stored) return stored;
-        return { x: 24, y: 24 };
-    });
+    const [position, setPosition] = useState<{ x: number; y: number }>({ x: 24, y: 24 });
     const [isDragging, setIsDragging] = useState(false);
     const dragRef = useRef<{ startX: number; startY: number; startPos: { x: number; y: number } } | null>(null);
     const justDraggedRef = useRef(false);
@@ -105,6 +101,12 @@ export default function SubjectChatbot({ subject, topic, subtopic }: Props) {
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const meta = SUBJECT_META[subject] ?? SUBJECT_META.physics;
     const presets = getPresetQuestions(topic, subtopic);
+
+    // Apply stored position after mount to avoid hydration mismatch (localStorage only on client)
+    useEffect(() => {
+        const stored = getStoredPosition();
+        if (stored) setPosition(stored);
+    }, []);
 
     // Auto-scroll to latest message
     useEffect(() => {

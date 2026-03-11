@@ -1,8 +1,8 @@
 export type Subject = 'physics' | 'chemistry' | 'math' | 'biology';
 export type Stream = 'science' | 'commerce' | 'arts';
 export type SubjectCombo = 'PCM' | 'PCMB';
-export type ExamType = 'JEE' | 'NEET' | 'KCET' | 'other';
-export type ClassLevel = 9 | 10 | 11 | 12;
+export type ExamType = 'JEE' | 'JEE_Mains' | 'JEE_Advance' | 'NEET' | 'KCET' | 'other';
+export type ClassLevel = 11 | 12;
 export type StreakPhase = 'playing' | 'break' | 'recall';
 
 export interface Question {
@@ -27,16 +27,78 @@ export interface Question {
 
 export type RevisionCardType = 'concept' | 'formula' | 'common_mistake' | 'trap';
 
+/** Revision card; topic = unit name, subtopicName = topic (lesson) within that unit */
 export interface SavedRevisionCard {
   id: string;
   type: RevisionCardType;
   frontContent: string;
   backContent: string;
+  /** Topic (lesson) within the unit */
   subtopicName: string;
+  /** Unit name */
   topic: string;
   subject: Subject;
   classLevel: ClassLevel;
   status?: 'unsure' | 'tomorrow' | 'know_it' | 'new';
+}
+
+/** Syllabus board, e.g. CBSE. Default for Explore is CBSE. */
+export type Board = 'CBSE' | 'ICSE';
+
+/** Difficulty level for topic/Deep Dive. */
+export type DifficultyLevel = 'basics' | 'intermediate' | 'advanced';
+
+/** Saved Bits question from Deep Dive (one MCQ). */
+export interface SavedBit {
+  id: string;
+  question: string;
+  options: string[];
+  correctAnswer: number;
+  solution?: string;
+  subject: Subject;
+  topic: string;
+  subtopicName: string;
+  classLevel: ClassLevel;
+  unitName?: string;
+  level?: string;
+  board?: Board;
+  sectionIndex?: number;
+  /** When saved from formula practice – used to show a "Formula" badge. */
+  formulaName?: string;
+  formulaLatex?: string;
+}
+
+/** Saved formula practice from Deep Dive. */
+export interface SavedFormula {
+  id: string;
+  name: string;
+  formulaLatex?: string;
+  description?: string;
+  bitsQuestions: Array<{ question: string; options: string[]; correctAnswer: number; solution?: string }>;
+  subject: Subject;
+  topic: string;
+  subtopicName: string;
+  classLevel: ClassLevel;
+  unitName?: string;
+  level?: string;
+  board?: Board;
+  sectionIndex?: number;
+}
+
+/** Saved Deep Dive section for "Unit Revision" – unit = chapter, subtopic = lesson. */
+export interface SavedRevisionUnit {
+  id: string;
+  board: Board;
+  subject: Subject;
+  classLevel: ClassLevel;
+  /** Unit/chapter name (e.g. Thermodynamics). */
+  unitName: string;
+  /** Subtopic name (e.g. First Law). */
+  subtopicName: string;
+  level: DifficultyLevel;
+  sectionIndex: number;
+  /** Section title for display (e.g. "State Variables & Thermodynamic Walls"). */
+  sectionTitle: string;
 }
 
 export interface UserProfile {
@@ -44,10 +106,20 @@ export interface UserProfile {
   classLevel: ClassLevel;
   stream: Stream;
   subjectCombo: SubjectCombo;
+  /** Syllabus board; default CBSE. Editable in Profile. */
+  board?: Board;
+  /** Exam focus for filtering topics/questions; null = no filter. Editable in Profile. */
+  examType?: ExamType | null;
   rdm: number;
   answeredQuestions: string[];
   savedQuestions: string[];
   savedRevisionCards?: SavedRevisionCard[];
+  /** Deep Dive sections marked for revision. */
+  savedRevisionUnits?: SavedRevisionUnit[];
+  /** Saved Bits questions from Deep Dive. */
+  savedBits?: SavedBit[];
+  /** Saved formula practice from Deep Dive. */
+  savedFormulas?: SavedFormula[];
   likedQuestions: string[];
   streakMinutes: number;
   isOnBreak: boolean;
