@@ -377,10 +377,62 @@ A thermometer does not actually measure "temperature" directly. It measures a ph
       },
     ],
   },
-  // ----- INTERMEDIATE level - Subtopic 1.1 (add content when ready) -----
-  // [key("physics", 11, "Thermodynamics", "Thermal equilibrium and zeroth law", 0, "intermediate")]: { ... },
-  // ----- ADVANCED level - Subtopic 1.1 (add content when ready) -----
-  // [key("physics", 11, "Thermodynamics", "Thermal equilibrium and zeroth law", 0, "advanced")]: { ... },
+  // ----- INTERMEDIATE level - Subtopic 1.1 (State Variables & Walls — deeper application) -----
+  [key("physics", 11, "Thermodynamics", "Thermal equilibrium and zeroth law", 0, "intermediate")]: {
+    title: "Subtopic 1.1: State Variables & Thermodynamic Walls (Level: Intermediate)",
+    content: `**Extending the Basics**
+
+You've mastered System vs Surroundings and the geometry of walls. At the intermediate level, we combine these with proportionality reasoning.
+
+**Key extensions:**
+* **Rigid + Diathermic:** Heat can flow, but Volume is locked. Work = 0. Only P and T can change.
+* **Adiabatic + Movable:** No heat, but Work crosses the boundary. Compression/expansion changes internal energy.
+* **PV = nRT** — apply proportionality: which variables are locked, and how do the others respond?`,
+    bitsQuestions: [
+      { question: "A gas is in a rigid diathermic container. You place it in a hotter room. Which of P, V, T, n changes?", options: ["Only T", "T and P (V and n locked)", "T, P, and V", "None — diathermic blocks all change"], correctAnswer: 1, solution: "V locked (rigid), n constant. Heat enters (diathermic). T rises, and since PV=nRT with V,n constant, P ∝ T. So P rises too." },
+      { question: "An adiabatic piston-cylinder holds gas. You slowly push the piston in. What happens to internal energy?", options: ["Decreases (heat leaves)", "Stays constant", "Increases (work done on gas)", "Drops to zero"], correctAnswer: 2, solution: "Adiabatic = no heat. Work is done ON the gas (compression). ΔU = Q + W. Q=0, W>0 ⇒ ΔU > 0." },
+      { question: "Same gas, same T. Container A has volume V, Container B has volume 2V. Both rigid. Compare pressures.", options: ["P_A = P_B", "P_A = 2 P_B", "P_A = 0.5 P_B", "Cannot compare without n"], correctAnswer: 1, solution: "PV = nRT. Same n, T, R. P ∝ 1/V. B has 2× volume ⇒ B has half the pressure. So P_A = 2 P_B." },
+      { question: "Which combination allows the gas to do work on the surroundings?", options: ["Rigid adiabatic walls", "Rigid diathermic walls", "Movable diathermic walls (e.g. piston)", "Fixed mass in a sealed box"], correctAnswer: 2, solution: "Work requires volume change. Movable walls allow expansion; the gas pushes the piston. Rigid walls lock V ⇒ no work." },
+    ],
+    practiceFormulas: [
+      {
+        name: "Ideal Gas Proportionality",
+        formulaLatex: "PV = nRT",
+        description: "For intermediate: identify which variables are constant, then use P∝T, P∝n/V, etc.",
+        bitsQuestions: [
+          { question: "Rigid container, constant T. You add more gas (n doubles). What happens to P?", options: ["P doubles", "P halves", "P unchanged", "P quadruples"], correctAnswer: 0, solution: "V, T constant. P ∝ n. Doubling n doubles P." },
+        ],
+      },
+    ],
+  },
+  // ----- ADVANCED level - Subtopic 1.1 (State Variables & Walls — exam traps) -----
+  [key("physics", 11, "Thermodynamics", "Thermal equilibrium and zeroth law", 0, "advanced")]: {
+    title: "Subtopic 1.1: State Variables & Thermodynamic Walls (Level: Advanced)",
+    content: `**Assertion-Reasoning & JEE/NEET Traps**
+
+Advanced questions combine walls, state variables, and the Zeroth Law in subtle ways.
+
+**Common traps:**
+* Adiabatic ≠ isolated. Work can still cross.
+* Rigid + adiabatic: only Work can change U.
+* Extensive vs intensive: n, V are extensive; P, T are intensive.`,
+    bitsQuestions: [
+      { question: "Assertion: A gas in a rigid adiabatic container cannot exchange energy with surroundings. Reason: Both heat and work are zero. The assertion is _____ and reason is _____.", options: ["Both correct; reason explains assertion", "Assertion wrong; work can cross adiabatic rigid boundary if wall moves", "Assertion correct; reason wrong", "Both wrong"], correctAnswer: 0, solution: "Rigid = no volume change = no work. Adiabatic = no heat. So no energy transfer. Both correct and reason explains assertion." },
+      { question: "Which is intensive: (A) Pressure, (B) Volume, (C) Number of moles?", options: ["Only A", "A and B", "B and C", "All three"], correctAnswer: 0, solution: "Intensive: independent of system size (P, T). Extensive: scale with size (V, n)." },
+      { question: "A gas at 300 K in a rigid container is heated to 600 K. If n is constant, by what factor does P change?", options: ["×2", "×0.5", "×4", "unchanged"], correctAnswer: 0, solution: "PV=nRT. V, n constant. P ∝ T. Double T ⇒ double P." },
+      { question: "Two ideal gases at same P and T. Gas 1 has twice the volume of Gas 2. What is n1/n2?", options: ["2", "0.5", "1", "4"], correctAnswer: 0, solution: "n = PV/(RT). Same P, T. n ∝ V. So n1/n2 = V1/V2 = 2." },
+    ],
+    practiceFormulas: [
+      {
+        name: "State Variable Constraints",
+        formulaLatex: "PV = nRT",
+        description: "Advanced: combine wall constraints with extensivity to solve multi-step problems.",
+        bitsQuestions: [
+          { question: "Rigid adiabatic container. Gas is compressed (piston pushed in). What stays constant?", options: ["U (internal energy)", "T", "P", "n"], correctAnswer: 3, solution: "n is fixed (closed system). Adiabatic + work done on gas: U increases, so T increases. P = nRT/V; T↑, V↓ ⇒ P increases. Only n is constant." },
+        ],
+      },
+    ],
+  },
 };
 
 export function getDeepDiveContent(
