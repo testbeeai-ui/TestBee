@@ -1,0 +1,33 @@
+name: Deploy RAG sidecar to Modal
+
+on:
+  push:
+    branches:
+      - Rag-Chatbot
+      - main
+    paths:
+      - "rag-server/**"
+
+jobs:
+  deploy:
+    name: modal deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Modal CLI
+        run: pip install modal>=0.73.0
+
+      - name: Deploy to Modal
+        working-directory: rag-server
+        env:
+          MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+          MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
+        run: modal deploy modal_app.py

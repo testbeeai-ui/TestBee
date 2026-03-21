@@ -237,7 +237,7 @@ export default function DeepDivePage() {
       diffLevel,
       fromRandom ? "random" : undefined
     );
-    const baseCards = getInstaCueCards(node.subject, node.classLevel, node.topic, [stName], sectionIndex);
+    const baseCards = getInstaCueCards(node.subject, node.classLevel, node.topic, [stName], sectionIndex, diffLevelStr);
     const userCards = savedCards
       .filter((c) => c.topic === node.topic && c.subtopicName === stName && c.subject === node.subject && c.classLevel === node.classLevel)
       .map((c) => ({ ...c })) as InstaCueCard[];

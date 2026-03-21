@@ -2,6 +2,7 @@ import type { Subject } from '@/types';
 import type { ClassLevel } from '@/types';
 
 export type InstaCueCardType = 'concept' | 'formula' | 'common_mistake' | 'trap';
+export type InstaCueLevel = 'basics' | 'intermediate' | 'advanced';
 
 export interface InstaCueCard {
   id: string;
@@ -14,6 +15,8 @@ export interface InstaCueCard {
   classLevel: ClassLevel;
   /** Deep Dive section index (0=1.1, 1=1.2, 2=1.3...). When set, card only shows for that section. */
   sectionIndex?: number;
+  /** Level-specific cards. When set, card only shows for that level. Omit for legacy cards (show for all levels). */
+  level?: InstaCueLevel;
 }
 
 function key(subject: Subject, classLevel: ClassLevel, topic: string, subtopicName: string): string {
@@ -806,6 +809,7 @@ const cardsMap: Record<string, InstaCueCard[]> = {
   ],
   // ---------- Physics Class 11: Thermodynamics - Thermal equilibrium and zeroth law ----------
   // Section 0 = 1.1 (State Variables & Walls), Section 1 = 1.2 (Thermal Equilibrium), Section 2 = 1.3 (Zeroth Law)
+  // Level-specific: basics, intermediate, advanced each have DIFFERENT cards for the same section.
   [key('physics', 11, 'Thermodynamics', 'Thermal equilibrium and zeroth law')]: [
     {
       id: 'te-sys-1',
@@ -817,6 +821,7 @@ const cardsMap: Record<string, InstaCueCard[]> = {
       subject: 'physics',
       classLevel: 11,
       sectionIndex: 0,
+      level: 'basics',
     },
     {
       id: 'te-sys-2',
@@ -828,6 +833,7 @@ const cardsMap: Record<string, InstaCueCard[]> = {
       subject: 'physics',
       classLevel: 11,
       sectionIndex: 0,
+      level: 'basics',
     },
     {
       id: 'te-sys-3',
@@ -839,6 +845,7 @@ const cardsMap: Record<string, InstaCueCard[]> = {
       subject: 'physics',
       classLevel: 11,
       sectionIndex: 0,
+      level: 'basics',
     },
     {
       id: 'te-sys-4',
@@ -850,6 +857,7 @@ const cardsMap: Record<string, InstaCueCard[]> = {
       subject: 'physics',
       classLevel: 11,
       sectionIndex: 0,
+      level: 'basics',
     },
     {
       id: 'te-pv-1',
@@ -861,6 +869,7 @@ const cardsMap: Record<string, InstaCueCard[]> = {
       subject: 'physics',
       classLevel: 11,
       sectionIndex: 0,
+      level: 'basics',
     },
     {
       id: 'te-pv-2',
@@ -872,6 +881,7 @@ const cardsMap: Record<string, InstaCueCard[]> = {
       subject: 'physics',
       classLevel: 11,
       sectionIndex: 0,
+      level: 'basics',
     },
     {
       id: 'te-pv-3',
@@ -883,6 +893,7 @@ const cardsMap: Record<string, InstaCueCard[]> = {
       subject: 'physics',
       classLevel: 11,
       sectionIndex: 0,
+      level: 'basics',
     },
     {
       id: 'te-pv-4',
@@ -894,6 +905,7 @@ const cardsMap: Record<string, InstaCueCard[]> = {
       subject: 'physics',
       classLevel: 11,
       sectionIndex: 0,
+      level: 'basics',
     },
     {
       id: 'te-wall-1',
@@ -905,6 +917,7 @@ const cardsMap: Record<string, InstaCueCard[]> = {
       subject: 'physics',
       classLevel: 11,
       sectionIndex: 0,
+      level: 'basics',
     },
     {
       id: 'te-wall-2',
@@ -916,6 +929,7 @@ const cardsMap: Record<string, InstaCueCard[]> = {
       subject: 'physics',
       classLevel: 11,
       sectionIndex: 0,
+      level: 'basics',
     },
     {
       id: 'te-wall-3',
@@ -927,6 +941,129 @@ const cardsMap: Record<string, InstaCueCard[]> = {
       subject: 'physics',
       classLevel: 11,
       sectionIndex: 0,
+      level: 'basics',
+    },
+    // ----- INTERMEDIATE: Section 0 (1.1) - deeper application -----
+    {
+      id: 'te-int-1',
+      type: 'concept',
+      frontContent: 'For a gas in a rigid adiabatic container, which state variable(s) can change if you heat the walls externally?',
+      backContent: 'Only Temperature (T) and Pressure (P). Volume (V) is locked by rigid walls. Heat enters through the walls (diathermic from outside); internal energy rises, so T and P increase.',
+      subtopicName: 'Thermal equilibrium and zeroth law',
+      topic: 'Thermodynamics',
+      subject: 'physics',
+      classLevel: 11,
+      sectionIndex: 0,
+      level: 'intermediate',
+    },
+    {
+      id: 'te-int-2',
+      type: 'trap',
+      frontContent: 'A student claims: "Adiabatic means no energy transfer at all." Why is this wrong?',
+      backContent: 'Work can still cross an adiabatic boundary! Adiabatic means no HEAT transfer. You can compress a gas (do work on it) and its internal energy increases even with perfect adiabatic walls.',
+      subtopicName: 'Thermal equilibrium and zeroth law',
+      topic: 'Thermodynamics',
+      subject: 'physics',
+      classLevel: 11,
+      sectionIndex: 0,
+      level: 'intermediate',
+    },
+    {
+      id: 'te-int-3',
+      type: 'formula',
+      frontContent: 'Why does doubling moles (n) in a rigid container at constant T double the pressure?',
+      backContent: 'PV = nRT. With V and T constant, P ∝ n. Twice the molecules hitting the walls = twice the force per unit area.',
+      subtopicName: 'Thermal equilibrium and zeroth law',
+      topic: 'Thermodynamics',
+      subject: 'physics',
+      classLevel: 11,
+      sectionIndex: 0,
+      level: 'intermediate',
+    },
+    {
+      id: 'te-int-4',
+      type: 'common_mistake',
+      frontContent: 'Can a system have diathermic walls for heat but rigid walls for work?',
+      backContent: 'Yes! Many real systems: a gas in a rigid metal box. Heat flows in/out (diathermic), but volume is fixed (rigid). Work = 0.',
+      subtopicName: 'Thermal equilibrium and zeroth law',
+      topic: 'Thermodynamics',
+      subject: 'physics',
+      classLevel: 11,
+      sectionIndex: 0,
+      level: 'intermediate',
+    },
+    {
+      id: 'te-int-5',
+      type: 'concept',
+      frontContent: 'What distinguishes a diathermic rigid wall from a diathermic movable wall?',
+      backContent: 'Both allow heat. Rigid: V is fixed, no work. Movable: V can change (e.g. piston), so the gas can do work on the surroundings (or vice versa).',
+      subtopicName: 'Thermal equilibrium and zeroth law',
+      topic: 'Thermodynamics',
+      subject: 'physics',
+      classLevel: 11,
+      sectionIndex: 0,
+      level: 'intermediate',
+    },
+    // ----- ADVANCED: Section 0 (1.1) - exam-level traps -----
+    {
+      id: 'te-adv-1',
+      type: 'trap',
+      frontContent: 'Assertion: A gas in a rigid adiabatic container cannot change its internal energy. Reasoning: No heat or work can cross the boundary. Are both correct?',
+      backContent: 'Both false. Work CAN cross: you can compress the gas (move the wall). Adiabatic only blocks heat. So internal energy CAN change via work.',
+      subtopicName: 'Thermal equilibrium and zeroth law',
+      topic: 'Thermodynamics',
+      subject: 'physics',
+      classLevel: 11,
+      sectionIndex: 0,
+      level: 'advanced',
+    },
+    {
+      id: 'te-adv-2',
+      type: 'formula',
+      frontContent: 'In PV=nRT, which variable(s) are extensive (depend on system size) and which are intensive?',
+      backContent: 'Extensive: n (moles), V (volume). Intensive: P (pressure), T (temperature). Dividing extensive by extensive (e.g. V/n) gives intensive.',
+      subtopicName: 'Thermal equilibrium and zeroth law',
+      topic: 'Thermodynamics',
+      subject: 'physics',
+      classLevel: 11,
+      sectionIndex: 0,
+      level: 'advanced',
+    },
+    {
+      id: 'te-adv-3',
+      type: 'common_mistake',
+      frontContent: 'A perfectly rigid, perfectly adiabatic, perfectly isolated system: can its state variables ever change?',
+      backContent: 'No. No heat (adiabatic), no work (rigid), no mass transfer (isolated). P, V, T, n are all locked. Such a system is "frozen" forever.',
+      subtopicName: 'Thermal equilibrium and zeroth law',
+      topic: 'Thermodynamics',
+      subject: 'physics',
+      classLevel: 11,
+      sectionIndex: 0,
+      level: 'advanced',
+    },
+    {
+      id: 'te-adv-4',
+      type: 'concept',
+      frontContent: 'Why do we use Kelvin (not Celsius) in the ideal gas law?',
+      backContent: 'PV=nRT requires T to be the thermodynamic temperature. Zero must mean zero kinetic energy. Celsius has an arbitrary zero (ice point); Kelvin has true absolute zero.',
+      subtopicName: 'Thermal equilibrium and zeroth law',
+      topic: 'Thermodynamics',
+      subject: 'physics',
+      classLevel: 11,
+      sectionIndex: 0,
+      level: 'advanced',
+    },
+    {
+      id: 'te-adv-5',
+      type: 'trap',
+      frontContent: 'Two gases, same P and T, in separate rigid containers. One has twice the volume. What can you conclude about n?',
+      backContent: 'PV=nRT ⇒ n = PV/(RT). Same P, T, R. V doubles ⇒ n doubles. The larger container has twice the number of moles.',
+      subtopicName: 'Thermal equilibrium and zeroth law',
+      topic: 'Thermodynamics',
+      subject: 'physics',
+      classLevel: 11,
+      sectionIndex: 0,
+      level: 'advanced',
     },
     // ----- Section 1 (1.2): Thermal Equilibrium -----
     {
@@ -1054,8 +1191,8 @@ const cardsMap: Record<string, InstaCueCard[]> = {
 };
 
 /**
- * Get InstaCue cards for a subtopic. On Deep Dive pages, pass sectionIndex to get
- * section-specific cards only (1.1, 1.2, 1.3 each have their own cards).
+ * Get InstaCue cards for a subtopic. On Deep Dive pages, pass sectionIndex and level to get
+ * section- and level-specific cards only (Basic 1.1, Intermediate 1.1, Advanced 1.1 each have their own cards).
  * On topic/explore pages, omit sectionIndex to get all cards for the subtopic.
  */
 export function getInstaCueCards(
@@ -1063,17 +1200,20 @@ export function getInstaCueCards(
   classLevel: ClassLevel,
   topic: string,
   subtopicNames: string[],
-  sectionIndex?: number
+  sectionIndex?: number,
+  level?: InstaCueLevel
 ): InstaCueCard[] {
   const all: InstaCueCard[] = [];
   for (const st of subtopicNames) {
     const k = key(subject, classLevel, topic, st);
-    const cards = cardsMap[k] ?? [];
+    let cards = cardsMap[k] ?? [];
     if (sectionIndex !== undefined) {
-      all.push(...cards.filter((c) => c.sectionIndex === sectionIndex));
-    } else {
-      all.push(...cards);
+      cards = cards.filter((c) => c.sectionIndex === sectionIndex);
     }
+    if (level !== undefined) {
+      cards = cards.filter((c) => !c.level || c.level === level);
+    }
+    all.push(...cards);
   }
   return all;
 }

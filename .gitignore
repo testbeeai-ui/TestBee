@@ -1,5 +1,8 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
+# local agent / IDE
+.claude/
+
 # dependencies
 /node_modules
 /.pnp
@@ -39,3 +42,8 @@ next-env.d.ts
 # built text files
 build_*.txt
 tsc_errors*.txt
+
+# rag-server (Python sidecar)
+rag-server/.env
+rag-server/__pycache__/
+rag-server/.venv/
