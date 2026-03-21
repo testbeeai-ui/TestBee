@@ -145,39 +145,6 @@ def serve():
 
 
 # ---------------------------------------------------------------------------
-# Scheduled warm-up: keeps container alive during Indian student study hours
-#
-# IST (UTC+5:30) study windows → converted to UTC for cron:
-#   Morning  : 6:00 AM – 9:00 AM  IST  →  0:30 –  3:30 UTC  (cron hours 0-3)
-#   Evening  : 4:00 PM – 11:00 PM IST  → 10:30 – 17:30 UTC  (cron hours 10-17)
-#
-# Runs every minute inside those windows. Each ping hits /health (no GPU work),
-# which resets the scaledown_window timer and keeps the T4 container alive.
-# Outside these windows the container sleeps → zero GPU cost.
-# ---------------------------------------------------------------------------
-
-# Lightweight CPU-only image — no GPU or heavy ML libs needed for a health ping
-_ping_image = modal.Image.debian_slim(python_version="3.11").pip_install("httpx>=0.27.0")
-
-# The deployed sidecar URL (update if your Modal workspace name changes)
-_SIDECAR_URL = "https://testbeeai--testbee-rag-serve.modal.run"
-
-
-@app.function(
-    image=_ping_image,
-    schedule=modal.Cron("* 0-3,10-17 * * *"),  # every minute, IST study hours
-)
-def keepwarm():
-    """Ping /health during IST study hours to prevent T4 cold starts."""
-    import httpx
-    try:
-        r = httpx.get(f"{_SIDECAR_URL}/health", timeout=10)
-        print(f"[keepwarm] {r.status_code}")
-    except Exception as exc:
-        print(f"[keepwarm] ping failed: {exc}")
-
-
-# ---------------------------------------------------------------------------
 # Local entrypoint: prints deploy instructions when run with `modal run`
 # ---------------------------------------------------------------------------
 @app.local_entrypoint()
