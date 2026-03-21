@@ -42,3 +42,8 @@ next-env.d.ts
 # built text files
 build_*.txt
 tsc_errors*.txt
+
+# rag-server (Python sidecar)
+rag-server/.env
+rag-server/__pycache__/
+rag-server/.venv/

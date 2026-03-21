@@ -2,7 +2,10 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, X, ChevronDown, Mic, Sparkles, Globe } from 'lucide-react';
+import { Send, X, ChevronDown, Globe, Copy, Check, ChevronUp } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
 import type { Subject } from '@/types';
 
 interface Message {
@@ -16,6 +19,7 @@ interface Props {
     subject: Subject;
     topic: string;
     subtopic?: string;
+    gradeLevel?: number;
 }
 
 const SUBJECT_META: Record<Subject, { label: string; emoji: string; gradient: string; accentColor: string; lightBg: string }> = {
@@ -57,6 +61,71 @@ const LANGUAGES = [
     { code: 'te', label: 'తెలుగు' },
 ];
 
+const TYPING_PHRASES: Record<string, string[]> = {
+    physics: ['Applying Newton\'s laws...', 'Calculating forces...', 'Checking the equations...', 'Tracing the wave...'],
+    chemistry: ['Balancing the reaction...', 'Checking the bonds...', 'Mixing reagents...', 'Looking up the compound...'],
+    math: ['Solving step by step...', 'Working through the proof...', 'Crunching numbers...', 'Checking the formula...'],
+    biology: ['Tracing the pathway...', 'Checking the textbook...', 'Looking up the process...', 'Reading the diagram...'],
+};
+
+// BotBubble: renders a bot message with collapsible long content + copy button
+const COLLAPSE_THRESHOLD = 420; // chars
+
+function BotBubble({ content, accentColor, gradient }: { content: string; accentColor: string; gradient: string }) {
+    const isLong = content.length > COLLAPSE_THRESHOLD;
+    const [expanded, setExpanded] = useState(!isLong);
+    const [copied, setCopied] = useState(false);
+
+    const handleCopy = () => {
+        navigator.clipboard.writeText(content).then(() => {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1800);
+        });
+    };
+
+    return (
+        <div className="group relative">
+            <div className={`px-3.5 py-2.5 rounded-2xl rounded-bl-md shadow-sm border border-gray-100 bg-white text-gray-800 chat-markdown text-[15px] leading-relaxed ${!expanded ? 'overflow-hidden' : ''}`}>
+                <ReactMarkdown
+                    remarkPlugins={[remarkMath]}
+                    rehypePlugins={[rehypeKatex]}
+                    components={{
+                        // Sanitize links: block javascript: hrefs, always open external links safely
+                        a: ({ href, children }) => {
+                            const safe = href && !href.startsWith('javascript:') ? href : '#';
+                            return <a href={safe} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">{children}</a>;
+                        },
+                        // Disable image rendering — LLM-generated image URLs can be tracking pixels
+                        img: () => null,
+                    }}
+                >
+                    {expanded ? content : content.slice(0, COLLAPSE_THRESHOLD) + '…'}
+                </ReactMarkdown>
+            </div>
+            {/* Copy button — shown on hover */}
+            <button
+                onClick={handleCopy}
+                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-white border border-gray-200 rounded-lg p-1 shadow-sm hover:bg-gray-50"
+                title="Copy"
+            >
+                {copied
+                    ? <Check className="w-3 h-3 text-green-500" />
+                    : <Copy className="w-3 h-3 text-gray-400" />
+                }
+            </button>
+            {isLong && (
+                <button
+                    onClick={() => setExpanded(p => !p)}
+                    className="mt-1 flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full hover:bg-gray-100 transition-colors"
+                    style={{ color: accentColor }}
+                >
+                    {expanded ? <><ChevronUp className="w-3 h-3" />Show less</> : <><ChevronDown className="w-3 h-3" />Show more</>}
+                </button>
+            )}
+        </div>
+    );
+}
+
 function getPresetQuestions(topic: string, subtopic?: string) {
     const context = subtopic || topic;
     return [
@@ -73,6 +142,10 @@ function formatTime(date: Date) {
 }
 
 const CHATBOT_POSITION_KEY = 'edublast-chatbot-position';
+const CHATBOT_SIZE_KEY = 'edublast-chatbot-size';
+const DEFAULT_SIZE = { width: 390, height: 560 };
+const MIN_SIZE = { width: 300, height: 400 };
+const MAX_SIZE = { width: 600, height: 800 };
 
 function getStoredPosition(): { x: number; y: number } | null {
     if (typeof window === 'undefined') return null;
@@ -85,7 +158,18 @@ function getStoredPosition(): { x: number; y: number } | null {
     return null;
 }
 
-export default function SubjectChatbot({ subject, topic, subtopic }: Props) {
+function getStoredSize(): { width: number; height: number } | null {
+    if (typeof window === 'undefined') return null;
+    try {
+        const s = localStorage.getItem(CHATBOT_SIZE_KEY);
+        if (!s) return null;
+        const { width, height } = JSON.parse(s) as { width: number; height: number };
+        if (typeof width === 'number' && typeof height === 'number') return { width, height };
+    } catch {}
+    return null;
+}
+
+export default function SubjectChatbot({ subject, topic, subtopic, gradeLevel }: Props) {
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState('');
@@ -94,31 +178,56 @@ export default function SubjectChatbot({ subject, topic, subtopic }: Props) {
     const [showLangMenu, setShowLangMenu] = useState(false);
     const [hasGreeted, setHasGreeted] = useState(false);
     const [position, setPosition] = useState<{ x: number; y: number }>({ x: 24, y: 24 });
+    const [chatSize, setChatSize] = useState(DEFAULT_SIZE);
     const [isDragging, setIsDragging] = useState(false);
+    const [isResizing, setIsResizing] = useState(false);
+    const [showScrollBtn, setShowScrollBtn] = useState(false);
     const dragRef = useRef<{ startX: number; startY: number; startPos: { x: number; y: number } } | null>(null);
+    const resizeRef = useRef<{ startX: number; startY: number; startSize: { width: number; height: number } } | null>(null);
     const justDraggedRef = useRef(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
+    const typingPhrases = TYPING_PHRASES[subject] ?? TYPING_PHRASES.physics;
+    const [typingPhrase] = useState(() => typingPhrases[Math.floor(Math.random() * typingPhrases.length)]);
     const meta = SUBJECT_META[subject] ?? SUBJECT_META.physics;
     const presets = getPresetQuestions(topic, subtopic);
 
-    // Apply stored position after mount to avoid hydration mismatch (localStorage only on client)
+    // Apply stored position/size after mount to avoid hydration mismatch (localStorage only on client)
     useEffect(() => {
         const stored = getStoredPosition();
         if (stored) setPosition(stored);
+        const storedSize = getStoredSize();
+        if (storedSize) setChatSize(storedSize);
     }, []);
 
-    // Auto-scroll to latest message
+    // Auto-scroll to latest message — only when user is already near the bottom
     useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        const container = scrollContainerRef.current;
+        if (!container) return;
+        const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 120;
+        if (isNearBottom || isLoading) {
+            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }
     }, [messages, isLoading]);
+
+    const handleScroll = useCallback(() => {
+        const container = scrollContainerRef.current;
+        if (!container) return;
+        const distFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+        setShowScrollBtn(distFromBottom > 150);
+    }, []);
+
+    const scrollToBottom = useCallback(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, []);
 
     // Welcome message when first opened
     useEffect(() => {
         if (isOpen && !hasGreeted) {
             setHasGreeted(true);
             const greeting: Message = {
-                id: `bot-${Date.now()}`,
+                id: crypto.randomUUID(),
                 role: 'bot',
                 content: `Hi! I'm your ${meta.label} ${meta.emoji}\n\nI'm here to help you master **${topic}**. Ask me anything — I can explain concepts, solve examples, give memory tricks, or answer in your regional language!\n\nWhat would you like to know? 🚀`,
                 timestamp: new Date(),
@@ -139,7 +248,7 @@ export default function SubjectChatbot({ subject, topic, subtopic }: Props) {
         if (!trimmed || isLoading) return;
 
         const userMsg: Message = {
-            id: `user-${Date.now()}`,
+            id: crypto.randomUUID(),
             role: 'user',
             content: trimmed,
             timestamp: new Date(),
@@ -150,16 +259,27 @@ export default function SubjectChatbot({ subject, topic, subtopic }: Props) {
         setIsLoading(true);
 
         try {
+            // Send last 6 messages as history for follow-up context
+            const historyToSend = messages.slice(-6).map(m => ({ role: m.role, content: m.content }));
+
             const res = await fetch('/api/subject-chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: trimmed, subject, topic, subtopic, language }),
+                body: JSON.stringify({
+                    message: trimmed,
+                    subject,
+                    topic,
+                    subtopic,
+                    language,
+                    gradeLevel: gradeLevel ?? 11,
+                    history: historyToSend,
+                }),
             });
 
             const data = await res.json();
 
             const botMsg: Message = {
-                id: `bot-${Date.now()}`,
+                id: crypto.randomUUID(),
                 role: 'bot',
                 content: data.reply || data.error || 'Sorry, I could not generate a response.',
                 timestamp: new Date(),
@@ -167,7 +287,7 @@ export default function SubjectChatbot({ subject, topic, subtopic }: Props) {
             setMessages(prev => [...prev, botMsg]);
         } catch {
             const errMsg: Message = {
-                id: `bot-err-${Date.now()}`,
+                id: crypto.randomUUID(),
                 role: 'bot',
                 content: 'Connection issue. Please check your internet and try again. 🔌',
                 timestamp: new Date(),
@@ -230,6 +350,34 @@ export default function SubjectChatbot({ subject, topic, subtopic }: Props) {
         }
         setIsOpen(true);
     }, []);
+
+    const handleResizePointerDown = useCallback((e: React.PointerEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+        resizeRef.current = { startX: e.clientX, startY: e.clientY, startSize: { ...chatSize } };
+        setIsResizing(true);
+    }, [chatSize]);
+
+    const handleResizePointerMove = useCallback((e: React.PointerEvent) => {
+        if (!resizeRef.current || !isResizing) return;
+        // Chat is anchored bottom-right, resize handle is top-left corner
+        // Dragging left = increase width, dragging up = increase height
+        const dx = resizeRef.current.startX - e.clientX;
+        const dy = resizeRef.current.startY - e.clientY;
+        setChatSize({
+            width: Math.max(MIN_SIZE.width, Math.min(MAX_SIZE.width, resizeRef.current.startSize.width + dx)),
+            height: Math.max(MIN_SIZE.height, Math.min(MAX_SIZE.height, resizeRef.current.startSize.height + dy)),
+        });
+    }, [isResizing]);
+
+    const handleResizePointerUp = useCallback(() => {
+        if (resizeRef.current && isResizing) {
+            try { localStorage.setItem(CHATBOT_SIZE_KEY, JSON.stringify(chatSize)); } catch {}
+        }
+        resizeRef.current = null;
+        setIsResizing(false);
+    }, [isResizing, chatSize]);
 
     return (
         <>
@@ -341,11 +489,27 @@ export default function SubjectChatbot({ subject, topic, subtopic }: Props) {
                         transition={{ type: 'spring', stiffness: 280, damping: 26 }}
                         className="fixed bottom-6 right-6 z-50 flex flex-col rounded-3xl overflow-hidden shadow-2xl"
                         style={{
-                            width: 'min(390px, calc(100vw - 24px))',
-                            height: 'min(560px, calc(100vh - 80px))',
+                            width: `min(${chatSize.width}px, calc(100vw - 24px))`,
+                            height: `min(${chatSize.height}px, calc(100vh - 80px))`,
                             boxShadow: `0 24px 80px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)`,
                         }}
                     >
+                        {/* Resize handle — top-left corner, 3×3 dot grip */}
+                        <div
+                            onPointerDown={handleResizePointerDown}
+                            onPointerMove={handleResizePointerMove}
+                            onPointerUp={handleResizePointerUp}
+                            onPointerCancel={handleResizePointerUp}
+                            className="absolute top-0 left-0 w-8 h-8 z-[60] cursor-nw-resize flex items-center justify-center group/resize"
+                            style={{ touchAction: 'none' }}
+                            title="Drag to resize"
+                        >
+                            <div className="grid grid-cols-3 gap-[3px] opacity-40 group-hover/resize:opacity-80 transition-opacity">
+                                {Array.from({ length: 9 }).map((_, i) => (
+                                    <div key={i} className="w-[3px] h-[3px] rounded-full bg-white" />
+                                ))}
+                            </div>
+                        </div>
                         {/* Header */}
                         <div className={`flex items-center justify-between px-4 py-3.5 bg-gradient-to-br ${meta.gradient} text-white shrink-0`}>
                             <div className="flex items-center gap-3">
@@ -404,7 +568,8 @@ export default function SubjectChatbot({ subject, topic, subtopic }: Props) {
                         </div>
 
                         {/* Messages */}
-                        <div className="flex-1 overflow-y-auto bg-[#f8f9fc] px-4 py-3 space-y-3" onClick={() => setShowLangMenu(false)}>
+                        <div className="relative flex-1 overflow-hidden">
+                        <div ref={scrollContainerRef} onScroll={handleScroll} className="h-full overflow-y-auto bg-[#f8f9fc] px-4 py-3 space-y-3" onClick={() => setShowLangMenu(false)}>
                             <AnimatePresence initial={false}>
                                 {messages.map(msg => (
                                     <motion.div
@@ -421,17 +586,24 @@ export default function SubjectChatbot({ subject, topic, subtopic }: Props) {
                                                 {meta.emoji}
                                             </div>
                                         )}
-                                        <div className={`max-w-[82%] ${msg.role === 'user' ? 'items-end' : 'items-start'} flex flex-col gap-1`}>
-                                            <div
-                                                className={`px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${msg.role === 'user'
-                                                    ? 'bg-gradient-to-br text-white rounded-br-md'
-                                                    : 'bg-white text-gray-800 rounded-bl-md shadow-sm border border-gray-100'
-                                                    }`}
-                                                style={msg.role === 'user' ? { background: `linear-gradient(135deg, ${meta.accentColor}, ${meta.accentColor}cc)` } : {}}
-                                            >
-                                                {msg.content.replace(/\*\*(.*?)\*\*/g, '$1')}
-                                            </div>
-                                            <span className="text-[10px] text-gray-400 px-1">{formatTime(msg.timestamp)}</span>
+                                        <div className={`max-w-[82%] ${msg.role === 'user' ? 'items-end' : 'items-start'} flex flex-col gap-1 group/msg`}>
+                                            {msg.role === 'user' ? (
+                                                <div
+                                                    className="px-3.5 py-2.5 rounded-2xl text-[15px] leading-relaxed text-white rounded-br-md whitespace-pre-wrap"
+                                                    style={{ background: `linear-gradient(135deg, ${meta.accentColor}, ${meta.accentColor}cc)` }}
+                                                >
+                                                    {msg.content}
+                                                </div>
+                                            ) : (
+                                                <BotBubble
+                                                    content={msg.content}
+                                                    accentColor={meta.accentColor}
+                                                    gradient={meta.gradient}
+                                                />
+                                            )}
+                                            <span className="text-[10px] text-gray-400 px-1 opacity-0 group-hover/msg:opacity-100 transition-opacity">
+                                                {formatTime(msg.timestamp)}
+                                            </span>
                                         </div>
                                     </motion.div>
                                 ))}
@@ -448,16 +620,19 @@ export default function SubjectChatbot({ subject, topic, subtopic }: Props) {
                                         <div className={`w-7 h-7 rounded-xl flex items-center justify-center text-sm bg-gradient-to-br ${meta.gradient} text-white`}>
                                             {meta.emoji}
                                         </div>
-                                        <div className="bg-white rounded-2xl rounded-bl-md px-4 py-3 shadow-sm border border-gray-100 flex items-center gap-1.5">
-                                            {[0, 0.15, 0.3].map((delay, i) => (
-                                                <motion.div
-                                                    key={i}
-                                                    className="w-2 h-2 rounded-full"
-                                                    style={{ backgroundColor: meta.accentColor }}
-                                                    animate={{ y: [0, -5, 0], opacity: [0.4, 1, 0.4] }}
-                                                    transition={{ repeat: Infinity, duration: 0.8, delay }}
-                                                />
-                                            ))}
+                                        <div className="bg-white rounded-2xl rounded-bl-md px-4 py-3 shadow-sm border border-gray-100 flex items-center gap-2">
+                                            <div className="flex items-center gap-1.5">
+                                                {[0, 0.15, 0.3].map((delay, i) => (
+                                                    <motion.div
+                                                        key={i}
+                                                        className="w-2 h-2 rounded-full"
+                                                        style={{ backgroundColor: meta.accentColor }}
+                                                        animate={{ y: [0, -5, 0], opacity: [0.4, 1, 0.4] }}
+                                                        transition={{ repeat: Infinity, duration: 0.8, delay }}
+                                                    />
+                                                ))}
+                                            </div>
+                                            <span className="text-[11px] text-gray-400 italic">{typingPhrase}</span>
                                         </div>
                                     </motion.div>
                                 )}
@@ -465,10 +640,28 @@ export default function SubjectChatbot({ subject, topic, subtopic }: Props) {
                             <div ref={messagesEndRef} />
                         </div>
 
+                        {/* Scroll-to-bottom button */}
+                        <AnimatePresence>
+                            {showScrollBtn && (
+                                <motion.button
+                                    key="scroll-btn"
+                                    initial={{ opacity: 0, scale: 0.8 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.8 }}
+                                    onClick={scrollToBottom}
+                                    className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-gray-200 shadow-md text-[11px] font-semibold text-gray-600 hover:bg-gray-50 transition-colors z-10"
+                                >
+                                    <ChevronDown className="w-3.5 h-3.5" />
+                                    Scroll to latest
+                                </motion.button>
+                            )}
+                        </AnimatePresence>
+                        </div>
+
                         {/* Preset chips */}
                         {messages.length <= 1 && (
                             <div className="bg-[#f8f9fc] px-3 pb-2 flex gap-2 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none'] shrink-0">
-                                {presets.slice(0, 3).map(q => (
+                                {presets.map(q => (
                                     <button
                                         key={q}
                                         onClick={() => sendMessage(q)}
