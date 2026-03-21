@@ -114,8 +114,7 @@ secrets = [modal.Secret.from_name("custom-secret")]
     gpu="T4",
     volumes={MODEL_CACHE_DIR: model_volume},
     secrets=secrets,
-    scaledown_window=600,  # keep warm 10 min after last request
-    keep_warm=1,           # always keep 1 container ready — eliminates cold starts
+    scaledown_window=120,  # stay warm for 2 min after last request, then sleep
 )
 @modal.concurrent(max_inputs=10)
 @modal.asgi_app()
