@@ -37,7 +37,9 @@ def load_model() -> None:
         from sentence_transformers import SentenceTransformer
 
         logger.info("Loading BAAI/bge-m3 locally (this may take a moment)...")
-        _model = SentenceTransformer("BAAI/bge-m3")
+        import os
+        cache_folder = os.environ.get("MODEL_CACHE_DIR") or None
+        _model = SentenceTransformer("BAAI/bge-m3", cache_folder=cache_folder)
         logger.info("BGE-M3 model loaded successfully.")
     else:
         logger.info(

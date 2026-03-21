@@ -97,7 +97,7 @@ export async function fetchRAGContext(
         grade_level: gradeLevel,
         match_count: 8,
       }),
-      signal: AbortSignal.timeout(5000), // 5-second timeout
+      signal: AbortSignal.timeout(25000), // 25s — accommodates Modal cold start
     });
 
     if (!response.ok) {

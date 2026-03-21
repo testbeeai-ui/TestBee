@@ -158,13 +158,18 @@ FORMATTING RULES:
 - Do NOT use HTML tags.
 ${ragBlock}`;
 
-        // Build conversation history (last 6 turns max to stay within token budget)
+        // Build conversation history (last 6 turns max to stay within token budget).
+        // Drop any leading assistant messages — Sarvam requires the first message
+        // after [system] to be from user, but our history may start with the bot greeting.
         const recentHistory = history
             .slice(-6)
             .map(m => ({
                 role: m.role === 'bot' ? 'assistant' : 'user',
                 content: String(m.content).slice(0, 1000),
             }));
+        while (recentHistory.length > 0 && recentHistory[0].role !== 'user') {
+            recentHistory.shift();
+        }
 
         const response = await fetch('https://api.sarvam.ai/v1/chat/completions', {
             method: 'POST',
@@ -186,7 +191,6 @@ ${ragBlock}`;
         });
 
         if (!response.ok) {
-            // Log only status/statusText — never log the raw body which may echo prompt content
             console.error('Sarvam AI error:', response.status, response.statusText);
             return NextResponse.json(
                 { error: 'AI service temporarily unavailable. Please try again.' },
