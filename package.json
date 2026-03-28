@@ -6,10 +6,13 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "generate:curriculum-seed": "tsx scripts/generate-curriculum-seed.ts",
+    "audit:curriculum-cbse": "tsx scripts/audit-cbse-curriculum.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.2.0",
+    "@google/genai": "^1.46.0",
     "@jitsi/react-sdk": "^1.4.4",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-aspect-ratio": "^1.1.8",
@@ -77,7 +80,9 @@
     "eslint-config-next": "16.1.6",
     "react-hook-form": "^7.71.2",
     "react-resizable-panels": "^4.6.4",
+    "supabase": "^2.83.0",
     "tailwindcss": "^4",
+    "tsx": "^4.21.0",
     "typescript": "^5"
   }
 }

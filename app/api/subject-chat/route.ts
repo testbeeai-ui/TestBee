@@ -72,6 +72,30 @@ function normalizeLatex(text: string): string {
     return s;
 }
 
+/**
+ * Some model outputs wrap chemistry/math tokens in \text{...}, which can break
+ * KaTeX parsing for reactions. Strip those wrappers when content is token-like.
+ */
+function normalizeTextWrappedFormulaTokens(text: string): string {
+    let s = text;
+    for (let i = 0; i < 3; i++) {
+        s = s.replace(
+            /\\text\{([^{}]+)\}/g,
+            (_m, inner: string) => {
+                const v = inner.trim();
+                // Keep natural-language labels like "\text{if }" untouched.
+                if (!v) return _m;
+                if (/\s{2,}/.test(v)) return _m;
+                if (/[A-Za-z]/.test(v) && /[_^0-9+\-=()[\]{}\\/]/.test(v) && !/\s/.test(v)) {
+                    return v;
+                }
+                return _m;
+            }
+        );
+    }
+    return s;
+}
+
 /** Strip/sanitize a string field from user input to prevent prompt injection. */
 function sanitizeField(value: unknown, maxLen = 200): string {
     if (typeof value !== 'string') return '';
@@ -156,6 +180,9 @@ FORMATTING RULES:
 - When listing multiple formulas, group them with a bold heading and display each on its own line as $$formula$$.
 - Do NOT use plain-text math like PV=nRT — always use $PV = nRT$ instead.
 - Do NOT use HTML tags.
+- NEVER wrap formulas/tokens in \text{...}. BAD: \text{CH}_3\text{COOH}, \text{H_2O}; GOOD: CH_3COOH, H_2O
+- Chemistry equations must be direct math mode, e.g. $$ CH_3COOH + C_2H_5OH \rightleftharpoons CH_3COOC_2H_5 + H_2O $$
+- Use \text{...} only for short natural-language labels (e.g. \text{if } x > 0), never for chemical species/math tokens.
 ${ragBlock}`;
 
         // Build conversation history (last 6 turns max to stay within token budget).
@@ -206,6 +233,8 @@ ${ragBlock}`;
 
         // Normalize \(...\) and \[...\] to KaTeX-compatible $...$ format
         reply = normalizeLatex(reply);
+        // Remove bad \text{token} wrappers that break chemistry/math rendering
+        reply = normalizeTextWrappedFormulaTokens(reply);
 
         return NextResponse.json({ reply });
     } catch (err) {

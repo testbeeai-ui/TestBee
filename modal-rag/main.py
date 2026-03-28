@@ -5,9 +5,11 @@ Endpoints:
   GET  /health    -> {"status": "ok"}
   POST /retrieve  -> embed query, multi-pass Supabase retrieval, return formatted passages
 
-Run:
-  cd rag-server
+Local dev (optional):
+  cd modal-rag
   uvicorn main:app --host 0.0.0.0 --port 8100 --reload
+
+Production: deploy with Modal — see modal_app.py
 """
 
 import logging

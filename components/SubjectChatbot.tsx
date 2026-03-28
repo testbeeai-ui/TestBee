@@ -660,12 +660,12 @@ export default function SubjectChatbot({ subject, topic, subtopic, gradeLevel }:
 
                         {/* Preset chips */}
                         {messages.length <= 1 && (
-                            <div className="bg-[#f8f9fc] px-3 pb-2 flex gap-2 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none'] shrink-0">
+                            <div className="bg-[#f8f9fc] px-3 pb-2 flex flex-wrap gap-2 overflow-hidden shrink-0">
                                 {presets.map(q => (
                                     <button
                                         key={q}
                                         onClick={() => sendMessage(q)}
-                                        className="whitespace-nowrap text-[11px] font-semibold px-3 py-1.5 rounded-full border border-gray-200 bg-white hover:border-blue-300 hover:text-blue-600 text-gray-600 transition-colors shrink-0 shadow-sm"
+                                        className="text-[11px] font-semibold px-3 py-1.5 rounded-full border border-gray-200 bg-white hover:border-blue-300 hover:text-blue-600 text-gray-600 transition-colors shadow-sm"
                                     >
                                         {q}
                                     </button>

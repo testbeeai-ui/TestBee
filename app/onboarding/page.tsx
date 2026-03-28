@@ -208,33 +208,25 @@ function OnboardingContent() {
               </div>
               <div>
                 <label className="text-sm font-extrabold text-foreground mb-2 block">Class</label>
-                <div className="grid grid-cols-4 gap-2">
-                  {[11, 12].map((c) => (
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { value: 11, label: "Class 11th" },
+                    { value: 12, label: "Class 12th" },
+                  ].map(({ value, label }) => (
                     <button
-                      key={c}
-                      onClick={() => setClassLevel(c)}
-                      className={`py-2.5 rounded-xl font-extrabold text-sm transition-all ${classLevel === c ? "bg-primary text-primary-foreground shadow-md scale-105" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
+                      key={value}
+                      onClick={() => setClassLevel(value)}
+                      className={`py-3 rounded-[12px] font-extrabold text-sm transition-all duration-200 ${classLevel === value ? "bg-primary text-primary-foreground shadow-md shadow-primary/20 scale-[1.02]" : "bg-muted/80 text-muted-foreground hover:bg-muted border border-transparent"}`}
                     >
-                      {c}
+                      {label}
                     </button>
                   ))}
                 </div>
               </div>
               <div>
-                <label className="text-sm font-extrabold text-foreground mb-2 block">Subject Combo</label>
-                <div className="grid grid-cols-2 gap-3">
-                  {["PCM", "PCMB"].map((sc) => (
-                    <button
-                      key={sc}
-                      onClick={() => setSubjectCombo(sc)}
-                      className={`py-3.5 rounded-xl font-extrabold transition-all ${subjectCombo === sc ? "bg-accent text-accent-foreground shadow-md scale-105" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
-                    >
-                      {sc}
-                      <span className="block text-xs font-bold mt-0.5 opacity-70">
-                        {sc === "PCM" ? "Physics, Chem, Math" : "+ Biology"}
-                      </span>
-                    </button>
-                  ))}
+                <label className="text-sm font-extrabold text-foreground mb-2 block">Subject</label>
+                <div className="py-3.5 px-4 rounded-[12px] bg-muted/50 border border-border/60 text-foreground font-semibold text-sm">
+                  PCM — Physics, Chemistry, Math
                 </div>
               </div>
               <div className="flex gap-3">

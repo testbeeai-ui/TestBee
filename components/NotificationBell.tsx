@@ -20,16 +20,37 @@ const NotificationBell = () => {
   const router = useRouter();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [open, setOpen] = useState(false);
+  const notificationsEnabled =
+    process.env.NEXT_PUBLIC_NOTIFICATIONS_ENABLED === 'true' &&
+    process.env.NODE_ENV === 'production';
 
   useEffect(() => {
-    if (!user) return;
-    supabase.from('notifications').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(20)
-      .then(({ data }) => setNotifications((data as Notification[]) || []));
-  }, [user]);
+    if (!user || !notificationsEnabled) return;
+    let mounted = true;
+    supabase
+      .from('notifications')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(20)
+      .then(({ data, error }) => {
+        // Silently disable bell data if table is unavailable in this environment.
+        if (error || !mounted) return;
+        setNotifications((data as Notification[]) || []);
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, [user, notificationsEnabled]);
 
   const unread = notifications.filter(n => !n.read).length;
 
   const markRead = async (id: string, actionUrl: string | null) => {
+    if (!notificationsEnabled) {
+      if (actionUrl) { router.push(actionUrl); setOpen(false); }
+      return;
+    }
     await supabase.from('notifications').update({ read: true }).eq('id', id);
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
     if (actionUrl) { router.push(actionUrl); setOpen(false); }
@@ -39,7 +60,7 @@ const NotificationBell = () => {
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button className="relative w-9 h-9 rounded-xl bg-muted/60 hover:bg-muted flex items-center justify-center transition-colors">
-          <Bell className="w-4.5 h-4.5 text-muted-foreground" />
+          <Bell className="w-4.5 h-4.5 text-muted-foreground" suppressHydrationWarning />
           {unread > 0 && (
             <span className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-destructive-foreground text-[10px] font-extrabold rounded-full flex items-center justify-center">
               {unread > 9 ? '9+' : unread}

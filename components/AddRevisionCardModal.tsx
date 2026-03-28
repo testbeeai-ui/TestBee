@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { useUserStore } from '@/store/useUserStore';
+import { syncAllSavedContent } from '@/lib/savedContentService';
 import { RevisionCardType, Subject } from '@/types';
 import { Brain, Calculator, AlertTriangle, Lightbulb, Plus } from 'lucide-react';
 
@@ -42,6 +43,7 @@ export default function AddRevisionCardModal({ isOpen, onClose }: Props) {
             classLevel: 12,
             status: 'new',
         });
+        syncAllSavedContent().catch(() => {});
 
         // Reset form
         setTitle('');

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient, createClientWithToken } from "@/integrations/supabase/server";
-import type { SavedBit, SavedFormula } from "@/types";
+import type { SavedBit, SavedFormula, SavedRevisionCard } from "@/types";
 
 async function getSupabaseAndUser(request: Request) {
   const cookieClient = await createClient();
@@ -27,7 +27,7 @@ export async function GET(request: Request) {
     const { supabase, user } = ctx;
     const { data: profile, error } = await supabase
       .from("profiles")
-      .select("saved_bits, saved_formulas")
+      .select("saved_bits, saved_formulas, saved_revision_cards")
       .eq("id", user.id)
       .maybeSingle();
     if (error) {
@@ -36,7 +36,8 @@ export async function GET(request: Request) {
     }
     const savedBits = (profile?.saved_bits ?? []) as unknown as SavedBit[];
     const savedFormulas = (profile?.saved_formulas ?? []) as unknown as SavedFormula[];
-    return NextResponse.json({ savedBits, savedFormulas });
+    const savedRevisionCards = (profile?.saved_revision_cards ?? []) as unknown as SavedRevisionCard[];
+    return NextResponse.json({ savedBits, savedFormulas, savedRevisionCards });
   } catch (e) {
     console.error("saved-content GET error", e);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
@@ -53,12 +54,23 @@ export async function POST(request: Request) {
     const body = await request.json();
     const savedBits = Array.isArray(body?.savedBits) ? body.savedBits : undefined;
     const savedFormulas = Array.isArray(body?.savedFormulas) ? body.savedFormulas : undefined;
-    if (savedBits === undefined && savedFormulas === undefined) {
-      return NextResponse.json({ error: "savedBits or savedFormulas required" }, { status: 400 });
+    const savedRevisionCards = Array.isArray(body?.savedRevisionCards)
+      ? body.savedRevisionCards
+      : undefined;
+    if (
+      savedBits === undefined &&
+      savedFormulas === undefined &&
+      savedRevisionCards === undefined
+    ) {
+      return NextResponse.json(
+        { error: "savedBits, savedFormulas, or savedRevisionCards required" },
+        { status: 400 }
+      );
     }
     const updates: Record<string, unknown> = {};
     if (savedBits !== undefined) updates.saved_bits = savedBits;
     if (savedFormulas !== undefined) updates.saved_formulas = savedFormulas;
+    if (savedRevisionCards !== undefined) updates.saved_revision_cards = savedRevisionCards;
     const { error } = await supabase
       .from("profiles")
       .update(updates)

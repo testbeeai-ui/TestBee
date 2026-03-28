@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import type { InteractiveBlock } from '@/data/topicTheory';
 import { CheckCircle2, XCircle } from 'lucide-react';
+import MathText from "@/components/MathText";
 
 function renderMarkdown(text: string) {
   return text.split(/(\*\*[^*]+\*\*)/g).map((part, j) =>
@@ -103,7 +104,9 @@ function FormulaVariationsBlock({ block }: { block: Extract<InteractiveBlock, { 
     <div className="space-y-4 rounded-xl border border-border bg-card p-4">
       <h4 className="font-semibold text-foreground">{block.title}</h4>
       <p className="text-sm text-muted-foreground">{block.content}</p>
-      <p className="text-base font-mono font-semibold text-primary">{block.formula}</p>
+      <p className="text-base font-semibold text-primary overflow-x-auto [&_.katex]:text-[1.05em]">
+        <MathText weight="semibold">{block.formula}</MathText>
+      </p>
       <div className="rounded-lg bg-muted/50 p-3 font-mono text-sm">
         {Object.entries(v.variables).map(([k, val]) => (
           <div key={k} className="flex gap-2">

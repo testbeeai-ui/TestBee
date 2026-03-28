@@ -7,7 +7,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useUserStore } from '@/store/useUserStore';
 import { questions } from '@/data/questions';
 import { Question, Subject, ExamType, ClassLevel, SubjectCombo } from '@/types';
-import { topicTaxonomy, TopicNode } from '@/data/topicTaxonomy';
+import type { TopicNode } from '@/data/topicTaxonomy';
+import { useTopicTaxonomy } from '@/hooks/useTopicTaxonomy';
 import QuestionCard from '@/components/QuestionCard';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -309,6 +310,8 @@ const Explore = () => {
   const [expandedTheoryKeys, setExpandedTheoryKeys] = useState<Set<string>>(new Set());
   const [practicePopupBlock, setPracticePopupBlock] = useState<InteractiveBlock | null>(null);
 
+  const { taxonomy: topicTaxonomy, loading: taxonomyLoading, error: taxonomyError } = useTopicTaxonomy();
+
   const THEORY_TRUNCATE_CHARS = 450; // ~4–5 lines; show "Read more" beyond this
 
   const visibleExamTypes = getVisibleExamTypes(classLevel);
@@ -354,7 +357,7 @@ const Explore = () => {
       grouped[t.classLevel].push(t);
     }
     return grouped;
-  }, [selectedSubject, selectedExam, classLevel]);
+  }, [selectedSubject, selectedExam, classLevel, topicTaxonomy]);
 
   const handleSubjectSelect = (subject: Subject) => {
     setSelectedSubject(subject);
@@ -604,6 +607,17 @@ const Explore = () => {
                   </Badge>
                 )}
               </div>
+
+              {taxonomyLoading && (
+                <div className="mb-4 rounded-2xl border border-border bg-muted/40 px-4 py-3 text-sm font-semibold text-muted-foreground">
+                  Loading syllabus…
+                </div>
+              )}
+              {taxonomyError && !taxonomyLoading && (
+                <div className="mb-4 rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-foreground">
+                  {taxonomyError}
+                </div>
+              )}
 
               <h2 className="edu-page-title text-2xl mb-1 flex items-center gap-2">
                 <BookOpen className="w-6 h-6 text-primary" />

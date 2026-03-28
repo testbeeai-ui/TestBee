@@ -1,7 +1,7 @@
 /**
- * lib/rag.ts — TypeScript RAG client for the FastAPI sidecar.
+ * lib/rag.ts — TypeScript RAG client for the retrieval service.
  *
- * Calls POST /retrieve on the sidecar and returns formatted textbook passages.
+ * Calls POST /retrieve on RAG_SIDECAR_URL (e.g. Modal ASGI deployment) and returns formatted textbook passages.
  * Returns null on ANY failure so the caller can gracefully fall back to LLM-only.
  *
  * Server-side only (uses process.env).
@@ -19,7 +19,7 @@ const SUBJECT_LABELS: Record<string, string> = {
   biology:   "Biology",
 };
 
-type QueryIntent = "formula" | "definition" | "derivation" | "example" | "comparison" | "general";
+export type QueryIntent = "formula" | "definition" | "derivation" | "example" | "comparison" | "general";
 
 function classifyIntent(query: string): QueryIntent {
   const q = query.toLowerCase();
@@ -48,8 +48,69 @@ export interface RAGContext {
   chunkCount: number;
 }
 
+/** True when the query matches “generic chat” patterns and RAG is skipped client-side. */
+export function isRagSkippedAsGenericQuery(query: string): boolean {
+  return GENERIC_FOLLOW_UPS.test(query.trim());
+}
+
 /**
- * Fetch RAG context from the sidecar.
+ * How the sidecar request is built (for admin traces / debugging).
+ * Does not call the network.
+ */
+export function buildRAGRequestTrace(
+  query: string,
+  subject: string,
+  gradeLevel: number,
+  topic?: string,
+  subtopic?: string,
+  matchCount = 8
+): {
+  baseQuery: string;
+  augmentedQuery: string;
+  intent: QueryIntent;
+  sidecarConfigured: boolean;
+  skippedAsGeneric: boolean;
+  sidecarPath: string;
+  postBody: { query: string; subject: string; grade_level: number; match_count: number };
+} {
+  const sidecarConfigured = Boolean(process.env.RAG_SIDECAR_URL?.trim());
+  const skippedAsGeneric = isRagSkippedAsGenericQuery(query);
+  const subjectLabel = SUBJECT_LABELS[subject] ?? subject;
+  const intent = classifyIntent(query);
+  const intentPrefix = buildIntentPrefix(intent, subjectLabel);
+  const parts = [intentPrefix, topic, subtopic, query].filter(Boolean);
+  const augmentedQuery = parts.join(". ");
+  return {
+    baseQuery: query,
+    augmentedQuery,
+    intent,
+    sidecarConfigured,
+    skippedAsGeneric,
+    sidecarPath: "/retrieve",
+    postBody: {
+      query: augmentedQuery,
+      subject,
+      grade_level: gradeLevel,
+      match_count: matchCount,
+    },
+  };
+}
+
+function buildAugmentedRagQuery(
+  query: string,
+  subject: string,
+  topic?: string,
+  subtopic?: string
+): { augmentedQuery: string; intent: QueryIntent } {
+  const subjectLabel = SUBJECT_LABELS[subject] ?? subject;
+  const intent = classifyIntent(query);
+  const intentPrefix = buildIntentPrefix(intent, subjectLabel);
+  const parts = [intentPrefix, topic, subtopic, query].filter(Boolean);
+  return { augmentedQuery: parts.join(". "), intent };
+}
+
+/**
+ * Fetch RAG context from RAG_SIDECAR_URL (Modal or any compatible /retrieve API).
  *
  * @returns RAGContext if relevant passages found, null otherwise.
  *          NEVER throws — all errors are caught and logged.
@@ -60,6 +121,7 @@ export async function fetchRAGContext(
   gradeLevel: number,
   topic?: string,
   subtopic?: string,
+  matchCount = 8,
 ): Promise<RAGContext | null> {
   const sidecarUrl = process.env.RAG_SIDECAR_URL;
 
@@ -69,22 +131,21 @@ export async function fetchRAGContext(
   }
 
   // Skip RAG for generic conversational follow-ups
-  if (GENERIC_FOLLOW_UPS.test(query.trim())) {
+  if (isRagSkippedAsGenericQuery(query)) {
     return null;
   }
 
+  const timeoutRaw = Number(process.env.RAG_RETRIEVE_TIMEOUT_MS);
+  const timeoutMs =
+    Number.isFinite(timeoutRaw) && timeoutRaw >= 5_000 && timeoutRaw <= 180_000
+      ? timeoutRaw
+      : 60_000; // 60s default — Modal / cold sidecars often exceed 25s
+
   try {
-    // Augment with subject label + intent-aware prefix so the embedding is
-    // anchored in the correct domain even for vague queries like "give me formulas".
-    const subjectLabel = SUBJECT_LABELS[subject] ?? subject;
-    const intent = classifyIntent(query);
-    const intentPrefix = buildIntentPrefix(intent, subjectLabel);
-    // Period-separated: BGE-M3 treats "." as a soft sentence boundary, preserving
-    // semantic weight of each segment instead of blending into one long noun phrase.
-    const parts = [intentPrefix, topic, subtopic, query].filter(Boolean);
-    const augmentedQuery = parts.join(". ");
+    const { augmentedQuery } = buildAugmentedRagQuery(query, subject, topic, subtopic);
 
     const internalToken = process.env.RAG_INTERNAL_TOKEN;
+
     const response = await fetch(`${sidecarUrl}/retrieve`, {
       method: "POST",
       headers: {
@@ -95,14 +156,14 @@ export async function fetchRAGContext(
         query: augmentedQuery,
         subject,
         grade_level: gradeLevel,
-        match_count: 8,
+        match_count: matchCount,
       }),
-      signal: AbortSignal.timeout(25000), // 25s — accommodates Modal cold start
+      signal: AbortSignal.timeout(timeoutMs),
     });
 
     if (!response.ok) {
       console.warn(
-        `[RAG] Sidecar returned ${response.status}: ${response.statusText}`,
+        `[RAG] RAG service returned ${response.status}: ${response.statusText}`,
       );
       return null;
     }
@@ -122,7 +183,17 @@ export async function fetchRAGContext(
     };
   } catch (error) {
     // Network error, timeout, JSON parse error, etc.
-    console.warn("[RAG] Sidecar unreachable, falling back to LLM-only:", error);
+    const isTimeout =
+      error instanceof Error &&
+      (error.name === "TimeoutError" || error.message.toLowerCase().includes("timeout"));
+    if (isTimeout) {
+      console.warn(
+        `[RAG] Request timed out (limit ${timeoutMs}ms). ` +
+          "Increase RAG_RETRIEVE_TIMEOUT_MS or check Modal cold starts. Falling back to LLM-only."
+      );
+    } else {
+      console.warn("[RAG] RAG service unreachable, falling back to LLM-only:", error);
+    }
     return null;
   }
 }

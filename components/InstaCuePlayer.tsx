@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { useUserStore } from '@/store/useUserStore';
+import { syncAllSavedContent } from '@/lib/savedContentService';
 import { SavedRevisionCard } from '@/types';
 import { Plus, HelpCircle, Clock, Check, Layers, X, RotateCcw, ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -51,8 +52,12 @@ export default function InstaCuePlayer({ cards, onClose }: Props) {
         // Update local status map so tabs update immediately (works for demo cards too)
         setLocalStatuses(prev => ({ ...prev, [currentCard.id]: status }));
 
-        // Also persist to store for real saved cards
+        // Also persist to store for real saved cards (skip demo deck IDs)
         updateRevisionCardStatus(currentCard.id, status);
+        const stored = useUserStore.getState().user?.savedRevisionCards ?? [];
+        if (stored.some((c) => c.id === currentCard.id)) {
+          syncAllSavedContent().catch(() => {});
+        }
 
         // Advance to next card in filtered tabs (card leaves the current filtered list)
         if (activeTab !== 'all') {

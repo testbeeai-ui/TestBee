@@ -6,7 +6,7 @@ on:
       - Rag-Chatbot
       - main
     paths:
-      - "rag-server/**"
+      - "modal-rag/**"
 
 jobs:
   deploy:
@@ -26,7 +26,7 @@ jobs:
         run: pip install modal>=0.73.0
 
       - name: Deploy to Modal
-        working-directory: rag-server
+        working-directory: modal-rag
         env:
           MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
           MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}

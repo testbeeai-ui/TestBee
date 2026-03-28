@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { supabase } from '@/integrations/supabase/client';
 import type { User, Session } from '@supabase/supabase-js';
 import { useUserStore } from '@/store/useUserStore';
-import type { ClassLevel, SubjectCombo, SavedBit, SavedFormula } from '@/types';
+import type { ClassLevel, SubjectCombo, SavedBit, SavedFormula, SavedRevisionCard } from '@/types';
 
 interface Profile {
   id: string;
@@ -22,6 +22,7 @@ interface Profile {
   rdm?: number;
   saved_bits?: SavedBit[];
   saved_formulas?: SavedFormula[];
+  saved_revision_cards?: SavedRevisionCard[];
 }
 
 interface AuthContextType {
@@ -149,8 +150,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const syncSavedFromProfile = () => {
       const bits = Array.isArray(profile.saved_bits) ? profile.saved_bits : [];
       const formulas = Array.isArray(profile.saved_formulas) ? profile.saved_formulas : [];
-      if (bits.length > 0 || formulas.length > 0) {
-        useUserStore.getState().setSavedFromServer(bits, formulas);
+      const revisionCards = Array.isArray(profile.saved_revision_cards)
+        ? profile.saved_revision_cards
+        : [];
+      if (bits.length > 0 || formulas.length > 0 || revisionCards.length > 0) {
+        useUserStore.getState().setSavedFromServer(bits, formulas, revisionCards);
       }
     };
     const run = () => {
@@ -166,17 +170,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return persist.onFinishHydration(() => run());
     }
     run();
-  }, [profile?.id, profile?.name, profile?.class_level, profile?.subject_combo, profile?.saved_bits, profile?.saved_formulas]);
+  }, [
+    profile?.id,
+    profile?.name,
+    profile?.class_level,
+    profile?.subject_combo,
+    profile?.saved_bits,
+    profile?.saved_formulas,
+    profile?.saved_revision_cards,
+  ]);
 
   const signInWithGoogle = async (redirectPath: string = '/onboarding') => {
     const normalized = redirectPath.startsWith('/') ? redirectPath : `/${redirectPath}`;
     try {
       sessionStorage.setItem('auth_redirect_after_login', normalized);
     } catch (_) {}
-    await supabase.auth.signInWithOAuth({
+    await supabase.auth.getSession();
+    const redirectTo = `${window.location.origin}/auth/callback`;
+    const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: window.location.origin + '/auth/callback' },
+      options: { redirectTo },
     });
+    if (error) console.error('signInWithOAuth', error);
   };
 
   const signInWithEmail = async (email: string, password: string) => {

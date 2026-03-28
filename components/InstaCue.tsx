@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Lightbulb, Plus, ChevronLeft, ChevronRight, Check, Bookmark, BookmarkCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import TheoryContent from "@/components/TheoryContent";
 import { useUserStore } from "@/store/useUserStore";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -12,8 +13,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import type { InstaCueCard, InstaCueCardType } from "@/data/instaCueCards";
+import type { InstaCueCard, InstaCueCardType, InstaCueLevel } from "@/data/instaCueCards";
 import type { SavedRevisionCard } from "@/types";
+import { syncAllSavedContent } from "@/lib/savedContentService";
 
 const TYPE_CONFIG: Record<
   InstaCueCardType,
@@ -45,6 +47,25 @@ const TYPE_CONFIG: Record<
   },
 };
 
+function normalizeCardMath(raw: string): string {
+  let out = raw ?? "";
+  // Handle doubly-escaped delimiters from JSON payloads.
+  out = out
+    .replace(/\\\\\(/g, "\\(")
+    .replace(/\\\\\)/g, "\\)")
+    .replace(/\\\\\[/g, "\\[")
+    .replace(/\\\\\]/g, "\\]");
+  return out;
+}
+
+function getVisibleDotIndexes(total: number, current: number): number[] {
+  // Keep pagination compact for long decks (e.g. 30+ cards).
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i);
+  if (current <= 2) return [0, 1, 2, 3, 4, total - 1];
+  if (current >= total - 3) return [0, total - 5, total - 4, total - 3, total - 2, total - 1];
+  return [0, current - 1, current, current + 1, total - 1];
+}
+
 function SaveCardButton({ card }: { card: InstaCueCard }) {
   const { user, saveRevisionCard, unsaveRevisionCard } = useUserStore();
   const { toast } = useToast();
@@ -60,9 +81,11 @@ function SaveCardButton({ card }: { card: InstaCueCard }) {
     }
     if (saved) {
       unsaveRevisionCard(card.id);
+      syncAllSavedContent().catch(() => {});
       toast({ title: "Removed from Revision Bank" });
     } else {
       saveRevisionCard(card as unknown as SavedRevisionCard);
+      syncAllSavedContent().catch(() => {});
       setJustSaved(true);
       toast({ title: "Saved to Revision Bank!" });
       setTimeout(() => setJustSaved(false), 800);
@@ -155,9 +178,12 @@ function RevisionCard({
             >
               {config.label}
             </span>
-            <p className="text-sm font-semibold text-foreground flex-1 leading-relaxed break-words">
-              {card.frontContent}
-            </p>
+            <div className="text-sm font-semibold text-foreground flex-1 leading-relaxed break-words overflow-auto pr-1">
+              <TheoryContent
+                theory={normalizeCardMath(card.frontContent)}
+                className="!space-y-2 !text-sm !leading-relaxed"
+              />
+            </div>
             <p className="text-xs text-muted-foreground mt-2 shrink-0">Tap to flip</p>
           </div>
         </div>
@@ -177,9 +203,12 @@ function RevisionCard({
               <Check className="w-4 h-4" />
               Answer
             </div>
-            <p className="text-sm text-foreground flex-1 leading-relaxed break-words">
-              {card.backContent}
-            </p>
+            <div className="text-sm text-foreground flex-1 leading-relaxed break-words overflow-auto pr-1">
+              <TheoryContent
+                theory={normalizeCardMath(card.backContent)}
+                className="!space-y-2 !text-sm !leading-relaxed"
+              />
+            </div>
             <p className="text-xs text-muted-foreground mt-2 shrink-0">Tap to flip back</p>
           </div>
         </div>
@@ -192,6 +221,7 @@ interface InstaCueProps {
   cards: InstaCueCard[];
   topicName: string;
   subtopicName?: string;
+  level?: InstaCueLevel;
   subject: InstaCueCard["subject"];
   classLevel: InstaCueCard["classLevel"];
   /** Optional: subtopic names for filter dropdown; if provided, first is default. */
@@ -206,6 +236,7 @@ export default function InstaCue({
   cards,
   topicName,
   subtopicName,
+  level,
   subject,
   classLevel,
   subtopicOptions,
@@ -227,7 +258,6 @@ export default function InstaCue({
       ? cards.filter((c) => c.subtopicName === effectiveSubtopic)
       : cards;
 
-  const currentCard = filteredCards[index];
   const total = filteredCards.length;
 
   const handleSubtopicChange = (name: string) => {
@@ -258,6 +288,7 @@ export default function InstaCue({
 
   const safeIndex = Math.min(index, Math.max(0, filteredCards.length - 1));
   const displayCard = filteredCards[safeIndex];
+  const visibleDots = getVisibleDotIndexes(filteredCards.length, safeIndex);
 
   useEffect(() => {
     if (index >= filteredCards.length && filteredCards.length > 0) {
@@ -277,6 +308,7 @@ export default function InstaCue({
       topic: topicName,
       subject,
       classLevel,
+      level,
     });
     setFront("");
     setBack("");
@@ -305,13 +337,12 @@ export default function InstaCue({
         </div>
         <p className="text-xs text-muted-foreground mb-4">Quick revision cards</p>
         <p className="text-sm text-muted-foreground">
-          No cards yet. Add your own for concepts you find tricky!
+          No cards yet for this subtopic and level. Use + to add one.
         </p>
         <div className="mt-4 p-3 rounded-xl bg-muted/50 text-xs text-muted-foreground flex items-start gap-2">
           <Lightbulb className="w-4 h-4 shrink-0 text-amber-400/80 dark:text-amber-500/80 mt-0.5" />
           <span>
-            Tip: Add your own cards for concepts you find tricky. They&apos;ll
-            appear here during revision!
+            Tip: Cards you add are kept separate per subtopic and level, and are ready for direct Supabase syncing.
           </span>
         </div>
         {onAddCard && (
@@ -397,14 +428,26 @@ export default function InstaCue({
           <ChevronLeft className="w-5 h-5" />
         </Button>
         <div className="flex items-center gap-1.5">
-          {filteredCards.map((_, i) => (
-            <div
-              key={i}
-              className={`w-2 h-2 rounded-full transition-colors ${
-                i === safeIndex ? "bg-primary/70" : "bg-muted"
-              }`}
-            />
-          ))}
+          {visibleDots.map((i, idx) => {
+            const prev = visibleDots[idx - 1];
+            const hasGap = typeof prev === "number" && i - prev > 1;
+            return (
+              <div key={i} className="flex items-center gap-1.5">
+                {hasGap && <span className="text-[10px] text-muted-foreground/70">...</span>}
+                <button
+                  type="button"
+                  className={`rounded-full transition-colors ${
+                    i === safeIndex ? "w-2.5 h-2.5 bg-primary/80" : "w-2 h-2 bg-muted hover:bg-muted-foreground/40"
+                  }`}
+                  onClick={() => {
+                    setIndex(i);
+                    setFlipped(false);
+                  }}
+                  aria-label={`Go to card ${i + 1}`}
+                />
+              </div>
+            );
+          })}
         </div>
         <div className="flex items-center gap-1 shrink-0">
           <Button
@@ -428,8 +471,7 @@ export default function InstaCue({
       <div className="mt-4 p-3 rounded-xl bg-muted/50 text-xs text-muted-foreground flex items-start gap-2">
         <Lightbulb className="w-4 h-4 shrink-0 text-amber-500 mt-0.5" />
         <span>
-          Tip: Add your own cards for concepts you find tricky. They&apos;ll
-          appear here during revision!
+          Tip: Cards you add are kept separate per subtopic and level, and are ready for direct Supabase syncing.
         </span>
       </div>
 

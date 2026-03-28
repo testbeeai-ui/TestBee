@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, Trash2, XCircle } from "lucide-react";
 import type { SavedFormula } from "@/types";
+import MathText from "@/components/MathText";
 
 interface InteractiveFormulaProps {
   formula: SavedFormula;
@@ -32,7 +33,9 @@ function FormulaQuestion({
 
   return (
     <div className="mt-3 pl-2 border-l-2 border-primary/30">
-      <p className="font-medium text-foreground text-sm mb-2">{question}</p>
+      <p className="font-medium text-foreground text-sm mb-2">
+        <MathText>{question}</MathText>
+      </p>
       <div className="space-y-1.5">
         {options.map((opt, i) => {
           let optionClass = "bg-muted hover:bg-muted/80 text-foreground";
@@ -55,7 +58,7 @@ function FormulaQuestion({
               <span className="w-5 h-5 rounded-full bg-background/60 flex items-center justify-center text-xs shrink-0 font-bold">
                 {String.fromCharCode(65 + i)}
               </span>
-              {opt}
+              <MathText>{opt}</MathText>
               {answered && i === correctAnswer && (
                 <CheckCircle2 className="w-3.5 h-3.5 shrink-0 text-emerald-600 ml-auto" />
               )}
@@ -69,7 +72,7 @@ function FormulaQuestion({
       {answered && solution && (
         <div className="rounded-lg bg-primary/5 border border-primary/20 text-xs text-muted-foreground mt-2 p-2">
           <span className="font-semibold text-foreground">Explanation: </span>
-          {solution}
+          <MathText>{solution}</MathText>
         </div>
       )}
     </div>
@@ -84,7 +87,9 @@ export function InteractiveFormula({ formula, onUnsave }: InteractiveFormulaProp
           <div className="flex-1 min-w-0">
             <p className="font-bold text-foreground text-sm">{formula.name}</p>
             {formula.formulaLatex && (
-              <p className="font-mono text-xs text-muted-foreground mt-0.5">{formula.formulaLatex}</p>
+              <p className="font-mono text-xs text-muted-foreground mt-0.5">
+                <MathText>{`$$${formula.formulaLatex}$$`}</MathText>
+              </p>
             )}
           </div>
           <Button
