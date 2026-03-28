@@ -15,7 +15,7 @@ DEPLOY
        pip install modal
        modal setup
 
-2. From the rag-server/ directory, run:
+2. From the modal-rag/ directory, run:
 
        modal deploy modal_app.py
 
@@ -80,7 +80,7 @@ model_volume = modal.Volume.from_name(
 # ---------------------------------------------------------------------------
 # Container image
 # ---------------------------------------------------------------------------
-# We install all Python dependencies first, then copy the rag-server source
+# We install all Python dependencies first, then copy the modal-rag source
 # code into /app.  .copy_local_dir is executed at image-build time, so the
 # image snapshot already contains all application code.
 image = (
@@ -95,7 +95,7 @@ image = (
         "numpy",
         "httpx>=0.27.0",
     )
-    # Copy all rag-server source files (the directory that contains this file)
+    # Copy all modal-rag source files (the directory that contains this file)
     # into /app inside the container.  modal_app.py itself is included, which
     # is harmless — it is never imported by the application code.
     .add_local_dir(".", remote_path="/app")
@@ -114,7 +114,7 @@ secrets = [modal.Secret.from_name("custom-secret")]
     gpu="T4",
     volumes={MODEL_CACHE_DIR: model_volume},
     secrets=secrets,
-    scaledown_window=300,
+    scaledown_window=120,  # stay warm for 2 min after last request, then sleep
 )
 @modal.concurrent(max_inputs=10)
 @modal.asgi_app()
@@ -122,14 +122,14 @@ def serve():
     """Return the Testbee RAG FastAPI application as a Modal ASGI app.
 
     Steps performed at container startup:
-      1. Insert /app onto sys.path so all rag-server modules are importable.
+      1. Insert /app onto sys.path so all modal-rag modules are importable.
       2. Set MODEL_CACHE_DIR in the environment so embed.py points
          SentenceTransformer at the persistent Modal Volume path.
       3. Import main.py, which triggers the FastAPI lifespan on first request
          (FastAPI/Starlette runs the lifespan when the ASGI app receives its
          first request from Modal's ASGI gateway).
     """
-    # Make all rag-server modules importable.
+    # Make all modal-rag modules importable.
     sys.path.insert(0, "/app")
 
     # Tell embed.py to use the Volume-backed path for the model cache so that

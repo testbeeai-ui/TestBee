@@ -48,6 +48,7 @@
 }
 
 :root {
+  --font-sans: Calibri, Arial, sans-serif;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -138,6 +139,148 @@
 }
 .chat-markdown .katex-display > .katex { font-size: 1.25em; }
 
+/* Heavier KaTeX in headings (formulas ignore parent font-weight without this) */
+.math-text-katex-heavy .katex,
+.math-text-katex-heavy .katex * {
+  font-weight: 700 !important;
+}
+.math-text-katex-extra .katex,
+.math-text-katex-extra .katex * {
+  font-weight: 800 !important;
+}
+
+/* Subtopic headings: KaTeX defaults to muted blue — force readable black (dark: light).
+   Never override .katex font-family: Calibri breaks Greek letters (π shows as “pi”) and math layout. */
+/* overflow-x: hidden + overflow-y: visible forces y to compute to auto → stray vertical scrollbar */
+.subtopic-title-text {
+  color: #0a0a0a;
+  font-family: "KaTeX_Main", "Times New Roman", serif !important;
+  display: block;
+  max-width: 100%;
+  overflow: visible;
+}
+.subtopic-title-text .katex,
+.subtopic-title-text .katex * {
+  color: #0a0a0a !important;
+  font-family: "KaTeX_Main", "Times New Roman", serif !important;
+}
+.dark .subtopic-title-text {
+  color: #fafafa;
+  font-family: "KaTeX_Main", "Times New Roman", serif !important;
+}
+.dark .subtopic-title-text .katex,
+.dark .subtopic-title-text .katex * {
+  color: #fafafa !important;
+  font-family: "KaTeX_Main", "Times New Roman", serif !important;
+}
+
+/* Standard areas block: even vertical rhythm; one formula unit per row (scroll if narrow). */
+.subtopic-standard-areas {
+  width: 100%;
+  max-width: 100%;
+}
+.subtopic-standard-areas-row {
+  max-width: 100%;
+  overflow: hidden;
+}
+.subtopic-standard-areas-katex .katex {
+  white-space: nowrap;
+  max-width: none;
+  font-size: 0.88em;
+}
+
+/* Prose + "R = ∅ ⊆ A × A" relation line (subtopic headings). */
+.subtopic-relation-title {
+  width: 100%;
+  max-width: 100%;
+}
+.subtopic-relation-title-formula {
+  max-width: 100%;
+  overflow: hidden;
+}
+.subtopic-relation-title-katex .katex {
+  white-space: nowrap;
+  font-size: 0.88em;
+}
+
+/* Reflexive / symmetric / transitive heading: "Label:" + inline KaTeX definition. */
+.subtopic-relation-property-title {
+  width: 100%;
+  max-width: 100%;
+}
+.subtopic-relation-property-katex .katex {
+  white-space: normal;
+  max-width: 100%;
+  font-size: 0.88em;
+}
+
+/* Equivalence class [a]: … — two stacked lines, wrap-friendly, no horizontal scrollbar. */
+.subtopic-equivalence-class-title {
+  width: 100%;
+  max-width: 100%;
+}
+.subtopic-equivalence-class-line .katex {
+  font-size: 0.88em;
+  max-width: 100%;
+  white-space: normal;
+}
+.subtopic-equivalence-class-line .katex-display {
+  margin: 0;
+}
+.subtopic-equivalence-class-line--body .katex {
+  font-size: 0.88em;
+}
+
+/* Injective / surjective / bijective subtopic headings (two-line KaTeX, wrap, no scrollbar). */
+.subtopic-function-def-title {
+  width: 100%;
+  max-width: 100%;
+}
+.subtopic-function-def-line .katex {
+  font-size: 0.88em;
+  max-width: 100%;
+  white-space: normal;
+}
+.subtopic-function-def-line .katex-display {
+  margin: 0;
+}
+.subtopic-function-def-line--body .katex {
+  font-size: 0.88em;
+}
+
+/* Matrix multiplication (line 2): nudge summation index k closer to \sum (KaTeX default gap is loose). */
+.subtopic-matmult-sum-line2 .mop.op-limits .vlist[style*="height:1.05em"] > span:first-child {
+  top: -2.12em !important;
+}
+
+/* Theory readability: keep sans-serif and boost math visibility. */
+.theory-content-readable {
+  font-family: Calibri, Arial, sans-serif !important;
+}
+.theory-content-readable .katex,
+.theory-content-readable .katex * {
+  color: #0f172a !important;
+  font-family: Calibri, Arial, sans-serif !important;
+  font-style: normal !important;
+}
+.dark .theory-content-readable .katex,
+.dark .theory-content-readable .katex * {
+  color: #f8fafc !important;
+}
+.theory-content-readable .theory-inline-math .katex,
+.theory-content-readable .theory-inline-math .katex * {
+  font-weight: 500 !important;
+}
+.theory-content-readable .theory-display-math .katex,
+.theory-content-readable .theory-display-math .katex * {
+  font-weight: 600 !important;
+}
+.theory-inline-math {
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
+}
+
 /* EduBlast / RDM Quiz Hub tokens and utilities */
 :root {
   --edu-purple: 262 83% 58%;
@@ -165,7 +308,7 @@
 
 /* Display font for headings (use as className="font-display") */
 .font-display {
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-family: Calibri, Arial, sans-serif;
 }
 
 @layer components {
@@ -174,7 +317,7 @@
   .edu-page-header { @apply mb-8; }
   .edu-page-title {
     @apply text-3xl md:text-4xl text-foreground mb-2;
-    font-family: var(--font-geist-sans), system-ui, sans-serif;
+    font-family: Calibri, Arial, sans-serif;
   }
   .edu-page-desc { @apply text-muted-foreground text-base md:text-lg; }
   .edu-stat-card { @apply bg-card rounded-2xl border border-border p-5 text-center hover:shadow-md transition-all hover:-translate-y-0.5; }
@@ -202,5 +345,9 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: Calibri, Arial, sans-serif;
+  }
+  input, textarea, select, button {
+    font-family: Calibri, Arial, sans-serif;
   }
 }

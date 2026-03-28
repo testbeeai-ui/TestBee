@@ -40,6 +40,10 @@ export interface SavedRevisionCard {
   subject: Subject;
   classLevel: ClassLevel;
   status?: 'unsure' | 'tomorrow' | 'know_it' | 'new';
+  /** Deep Dive / InstaCue context when saved from a section */
+  level?: DifficultyLevel;
+  board?: Board;
+  sectionIndex?: number;
 }
 
 /** Syllabus board, e.g. CBSE. Default for Explore is CBSE. */

@@ -1,8 +1,10 @@
 -- ============================================================
--- Classroom Reviews — tables, views, RLS
+-- Classroom Reviews — legacy migration (idempotent)
+-- Replaces invalid remote history version "20250221" (8-digit) which
+-- did not map to a local file under current Supabase CLI rules.
+-- Safe to run on DBs that already have classroom_reviews from dashboard/manual.
 -- ============================================================
 
--- 1. Reviews table
 CREATE TABLE IF NOT EXISTS classroom_reviews (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   classroom_id UUID NOT NULL REFERENCES classrooms(id) ON DELETE CASCADE,
@@ -17,7 +19,6 @@ CREATE TABLE IF NOT EXISTS classroom_reviews (
   UNIQUE(classroom_id, user_id)
 );
 
--- 2. Aggregate view for fast lookups on explore cards
 CREATE OR REPLACE VIEW classroom_rating_summary AS
 SELECT
   classroom_id,
@@ -28,19 +29,18 @@ SELECT
 FROM classroom_reviews
 GROUP BY classroom_id;
 
--- 3. RLS
 ALTER TABLE classroom_reviews ENABLE ROW LEVEL SECURITY;
 
--- Anyone authenticated can read reviews (needed for explore cards + teacher dashboard)
+DROP POLICY IF EXISTS "Anyone can read reviews" ON classroom_reviews;
 CREATE POLICY "Anyone can read reviews"
   ON classroom_reviews FOR SELECT TO authenticated USING (true);
 
--- Students can insert their own review
+DROP POLICY IF EXISTS "Users can insert own review" ON classroom_reviews;
 CREATE POLICY "Users can insert own review"
   ON classroom_reviews FOR INSERT TO authenticated
   WITH CHECK (auth.uid() = user_id);
 
--- Students can update their own review
+DROP POLICY IF EXISTS "Users can update own review" ON classroom_reviews;
 CREATE POLICY "Users can update own review"
   ON classroom_reviews FOR UPDATE TO authenticated
   USING (auth.uid() = user_id);

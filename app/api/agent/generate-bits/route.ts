@@ -1,0 +1,197 @@
+import { NextResponse } from "next/server";
+import { getSupabaseAndUser } from "@/lib/apiAuth";
+import {
+  generateArtifactJson,
+  bitsResponseSchema,
+  isVertexForTopicAgentEnabled,
+} from "@/lib/geminiTopicGenerate";
+import { isAdminUser } from "@/lib/admin";
+import { supabaseForLongJobPersist } from "@/lib/supabaseAdminPersist";
+import { resolveGeminiModelId, resolveVertexTopicModelId } from "@/lib/geminiModel";
+import { fetchRAGContext } from "@/lib/rag";
+import { normalizeSubjectKey, normalizeSubtopicContentKey } from "@/lib/subtopicContentKeys";
+
+const ALLOWED_LEVELS = new Set(["basics", "intermediate", "advanced"]);
+
+const MIN_BITS_BY_LEVEL: Record<string, number> = {
+  basics: 10,
+  intermediate: 15,
+  advanced: 25,
+};
+
+function normalizeBits(value: unknown): Array<{
+  question: string;
+  options: string[];
+  correctAnswer: string;
+  solution: string;
+}> {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((row) => {
+      if (!row || typeof row !== "object") return null;
+      const o = row as Record<string, unknown>;
+      const question = typeof o.question === "string" ? o.question.trim() : "";
+      const options = Array.isArray(o.options)
+        ? o.options.filter((x): x is string => typeof x === "string").map((x) => x.trim()).filter(Boolean)
+        : [];
+      const correctAnswer = typeof o.correctAnswer === "string" ? o.correctAnswer.trim() : "";
+      const solution = typeof o.solution === "string" ? o.solution.trim() : "";
+      if (!question || options.length !== 4 || !correctAnswer || !solution) return null;
+      if (!options.includes(correctAnswer)) return null;
+      return { question, options, correctAnswer, solution };
+    })
+    .filter((x): x is { question: string; options: string[]; correctAnswer: string; solution: string } => Boolean(x));
+}
+
+export async function POST(request: Request) {
+  try {
+    const ctx = await getSupabaseAndUser(request);
+    if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { supabase, user } = ctx;
+    if (!(await isAdminUser(supabase, user.id))) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!isVertexForTopicAgentEnabled() && !apiKey?.trim()) {
+      return NextResponse.json({ error: "GEMINI_API_KEY is not configured." }, { status: 503 });
+    }
+
+    const body = await request.json();
+    const board = normalizeSubtopicContentKey(body?.board);
+    const subject = normalizeSubjectKey(body?.subject);
+    const classLevel = Number(body?.classLevel);
+    const topic = normalizeSubtopicContentKey(body?.topic);
+    const subtopicName = normalizeSubtopicContentKey(body?.subtopicName);
+    const level = normalizeSubtopicContentKey(body?.level);
+    const includeTrace = body?.includeTrace === true;
+
+    if (
+      !board || !subject || !topic || !subtopicName ||
+      !ALLOWED_LEVELS.has(level) || Number.isNaN(classLevel) || ![11, 12].includes(classLevel)
+    ) {
+      return NextResponse.json({ error: "Missing or invalid fields" }, { status: 400 });
+    }
+
+    // Fetch existing theory
+    const { data: existing, error: fetchErr } = await supabase
+      .from("subtopic_content")
+      .select("theory")
+      .eq("board", board).eq("subject", subject).eq("class_level", classLevel)
+      .eq("topic", topic).eq("subtopic_name", subtopicName).eq("level", level)
+      .maybeSingle();
+
+    if (fetchErr || !existing?.theory?.trim()) {
+      return NextResponse.json(
+        { error: "No theory found for this subtopic. Generate the Deep Dive first." },
+        { status: 400 }
+      );
+    }
+
+    const minBits = MIN_BITS_BY_LEVEL[level] ?? 10;
+    const targetBits = level === "advanced" ? 32 : level === "intermediate" ? 20 : 14;
+    const ragMatchCount = level === "advanced" ? 24 : level === "intermediate" ? 16 : 10;
+    const ragQuery = `${topic} ${subtopicName} CBSE Class ${classLevel} ${subject} exam MCQ numerical conceptual`;
+    const rag = await fetchRAGContext(ragQuery, subject, classLevel, topic, subtopicName, ragMatchCount);
+    const ragBlock = rag?.formattedContext
+      ? `\n\nRAG CONTEXT (trusted textbook snippets):\n${rag.formattedContext}`
+      : "";
+
+    const baseSystemInstruction = `You are an expert ${subject} educator for CBSE Class ${classLevel}. Generate multiple-choice questions (Bits) from the provided subtopic theory.
+Each question has:
+- question: The MCQ question text
+- options: Array of exactly 4 answer choices
+- correctAnswer: Must match one of the options exactly
+- solution: Step-by-step solution explanation
+
+Rules:
+- Generate at least ${minBits} questions (strict minimum). Prefer ${targetBits}+ if content supports.
+- Questions should test conceptual understanding, formula application, and exam-style problem solving.
+- Include a mix of easy, medium, and hard questions.
+- For ${level} level: ${level === "basics" ? "focus on definitions, basic concepts, and simple application." : level === "intermediate" ? "include NCERT-style problems, derivation-based questions, and numerical problems." : "include HOTS questions, multi-concept problems, competitive exam style, and trap questions."}
+- Use LaTeX \\( ... \\) for inline math and $$ ... $$ for block math in questions and solutions.
+- Each option should be plausible — no obviously wrong fillers.
+- Output valid JSON only.`;
+
+    const baseUserPrompt = `Topic: ${topic}
+Subtopic: ${subtopicName}
+Level: ${level}
+Theory:
+${existing.theory.slice(0, 16000)}${ragBlock}`;
+
+    const { modelId: studioModelId } = resolveGeminiModelId(process.env.GEMINI_MODEL);
+    const vertexEnabled = isVertexForTopicAgentEnabled();
+    const { modelId: vertexResolvedId } = resolveVertexTopicModelId(studioModelId);
+    const modelId = vertexEnabled ? vertexResolvedId : studioModelId;
+
+    let backend = vertexEnabled ? "vertex" : "api_key";
+    let items: Array<{ question: string; options: string[]; correctAnswer: string; solution: string }> = [];
+    let raw = "";
+
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      const shortfallHint =
+        attempt === 1
+          ? ""
+          : `\n\nSTRICT REPAIR: previous output had fewer than ${minBits} valid questions. Return at least ${minBits} fully valid questions now.`;
+      const out = await generateArtifactJson({
+        apiKey,
+        modelId,
+        userPrompt: `${baseUserPrompt}${shortfallHint}`,
+        systemInstruction: baseSystemInstruction,
+        temperature: attempt === 1 ? 0.5 : 0.35,
+        responseSchema: bitsResponseSchema(),
+      });
+      raw = out.raw;
+      backend = out.backend;
+      const parsed = JSON.parse(raw) as { items?: unknown[] };
+      items = normalizeBits(parsed.items);
+      if (items.length >= minBits) break;
+    }
+
+    console.log(`[generate-bits] backend=${backend} model=${modelId} topic=${topic} subtopic=${subtopicName} level=${level}`);
+    if (items.length < minBits) {
+      return NextResponse.json(
+        {
+          error: `Generated only ${items.length} Bits; minimum required is ${minBits}. Try regenerate again.`,
+          code: "INSUFFICIENT_BITS",
+          minRequired: minBits,
+          generated: items.length,
+        },
+        { status: 502 }
+      );
+    }
+
+    const persistDb = supabaseForLongJobPersist(supabase);
+    const { error: upsertError } = await persistDb.from("subtopic_content").update({
+      bits_questions: JSON.parse(JSON.stringify(items)),
+      updated_by: user.id,
+      updated_at: new Date().toISOString(),
+    }).eq("board", board).eq("subject", subject).eq("class_level", classLevel)
+      .eq("topic", topic).eq("subtopic_name", subtopicName).eq("level", level);
+
+    if (upsertError) {
+      console.error("bits_questions update error", upsertError);
+      return NextResponse.json({ error: upsertError.message }, { status: 500 });
+    }
+
+    let trace: Record<string, unknown> | undefined;
+    if (includeTrace) {
+      trace = {
+        generatedAt: new Date().toISOString(),
+        pipelineSteps: [
+          "Verify admin user.",
+          "Fetch existing theory from subtopic_content.",
+          rag?.formattedContext ? `Fetch RAG context (${rag?.chunkCount ?? 0} chunks).` : "RAG returned no context.",
+          `Call Gemini "${modelId}" with Bits MCQ schema.`,
+          `Generated ${items.length} questions. Saved to subtopic_content.bits_questions.`,
+        ],
+        prompts: { systemInstruction: baseSystemInstruction, userPrompt: baseUserPrompt },
+      };
+    }
+
+    return NextResponse.json({ ok: true, items, modelId, trace });
+  } catch (e) {
+    console.error("generate-bits error", e);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
+  }
+}

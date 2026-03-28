@@ -36,11 +36,14 @@ def load_model() -> None:
     if settings.embed_mode.lower() == "local":
         from sentence_transformers import SentenceTransformer
 
-        logger.info("Loading BAAI/bge-m3 locally (this may take a moment)...")
         import os
+
+        local = (settings.embed_local_model_path or "").strip()
+        model_ref = local if local else "BAAI/bge-m3"
+        logger.info("Loading embedding model locally from %s ...", model_ref)
         cache_folder = os.environ.get("MODEL_CACHE_DIR") or None
-        _model = SentenceTransformer("BAAI/bge-m3", cache_folder=cache_folder)
-        logger.info("BGE-M3 model loaded successfully.")
+        _model = SentenceTransformer(model_ref, cache_folder=cache_folder)
+        logger.info("Embedding model loaded successfully.")
     else:
         logger.info(
             "Embedding mode: external API at %s", settings.embed_mode

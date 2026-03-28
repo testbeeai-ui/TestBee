@@ -160,7 +160,7 @@ export default function DoubtsPage() {
     try {
       const { data, error } = await supabase
         .from("doubts")
-        .select("*, doubt_answers(id), profiles(name, avatar_url)")
+        .select("*, doubt_answers(id), profiles!doubts_user_id_fkey(name, avatar_url)")
         .order("created_at", { ascending: false });
       if (error) {
         const isNetworkError = error.message?.includes("fetch") || error.message?.includes("Failed to fetch");

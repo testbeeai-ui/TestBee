@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, Trash2, XCircle } from "lucide-react";
 import type { SavedBit } from "@/types";
+import MathText from "@/components/MathText";
 
 interface InteractiveBitProps {
   bit: SavedBit;
@@ -27,13 +28,15 @@ export function InteractiveBit({ bit, onUnsave }: InteractiveBitProps) {
       <div className={`bg-card rounded-2xl border shadow-sm p-4 ${isFormula ? "border-primary/40 ring-1 ring-primary/20" : "border-border"}`}>
         {isFormula && (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary/15 text-primary text-xs font-bold mb-3">
-            <span className="font-mono">{bit.formulaLatex ?? bit.formulaName}</span>
+            <span className="font-mono">
+              <MathText>{bit.formulaLatex ?? bit.formulaName ?? ""}</MathText>
+            </span>
             <span>Formula</span>
           </span>
         )}
         <div className="flex items-start justify-between gap-3 mb-3">
           <h3 className="font-bold text-foreground leading-snug flex-1 min-w-0 text-sm">
-            {bit.question}
+            <MathText>{bit.question}</MathText>
           </h3>
           <Button
             variant="ghost"
@@ -67,7 +70,7 @@ export function InteractiveBit({ bit, onUnsave }: InteractiveBitProps) {
                 <span className="w-6 h-6 rounded-full bg-background/60 flex items-center justify-center text-xs shrink-0 font-bold">
                   {String.fromCharCode(65 + i)}
                 </span>
-                {opt}
+                <MathText>{opt}</MathText>
                 {answered && i === bit.correctAnswer && (
                   <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600 ml-auto" />
                 )}
@@ -81,7 +84,7 @@ export function InteractiveBit({ bit, onUnsave }: InteractiveBitProps) {
         {answered && bit.solution && (
           <div className="rounded-xl bg-primary/5 border border-primary/20 text-sm text-muted-foreground mt-2 p-2.5">
             <span className="font-semibold text-foreground">Explanation: </span>
-            {bit.solution}
+            <MathText>{bit.solution}</MathText>
           </div>
         )}
       </div>

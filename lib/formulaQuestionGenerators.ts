@@ -1,4 +1,5 @@
-﻿import type { BitsQuestion } from "@/data/deepDiveContent";
+import type { BitsQuestion } from "@/data/deepDiveContent";
+import type { ArtifactBitsQuestion, ArtifactFormula } from "@/lib/subtopicContentService";
 
 /**
  * Formula practice question generators for the Deep Dive "Regenerate" button.
@@ -196,6 +197,8 @@ const REGENERATABLE_FORMULAS = new Set([
   "Logical Proof of the Zeroth Law",
   "Absolute Temperature Conversion",
   "Universal Thermometer Formula",
+  "Area between two curves",
+  "Area under y = f(x) (above the x-axis)",
 ]);
 
 export function canRegenerate(formulaName: string): boolean {
@@ -232,6 +235,14 @@ export function generateFormulaQuestions(formulaName: string, currentQuestions?:
 
   if (formulaName === "Universal Thermometer Formula") {
     return genUniversalThermometer(currentQuestions);
+  }
+
+  if (formulaName === "Area between two curves") {
+    return genAreaBetweenTwoCurves();
+  }
+
+  if (formulaName === "Area under y = f(x) (above the x-axis)") {
+    return genAreaUnderCurveAboveXAxis();
   }
 
   if (currentQuestions?.length) {
@@ -388,4 +399,183 @@ function genUniversalThermometer(currentQuestions?: BitsQuestion[]): BitsQuestio
   }
   const [q0, , q2, q3] = currentQuestions;
   return [shuffleOptions(q0!), denominatorQuestion, shuffleOptions(q2!), shuffleOptions(q3!)];
+}
+
+function bitsToArtifactQuestions(bits: BitsQuestion[]): ArtifactBitsQuestion[] {
+  return bits.map((q) => ({
+    question: q.question,
+    options: q.options,
+    correctAnswer: q.options[q.correctAnswer] ?? q.options[0] ?? "",
+    solution: q.solution ?? "",
+  }));
+}
+
+/** When Supabase has no practice_formulas yet, serve local MCQs for common Class 12 patterns. */
+export function getFallbackPracticeFormulas(params: {
+  subject: string;
+  topic: string;
+  subtopicName: string;
+}): ArtifactFormula[] {
+  const subj = String(params.subject ?? "").toLowerCase();
+  if (subj !== "math") return [];
+  const blob = `${params.subtopicName} ${params.topic}`.toLowerCase();
+  if (blob.includes("area between two curve") || blob.includes("area-between-two-curves")) {
+    return [
+      {
+        name: "Area between two curves",
+        formulaLatex: String.raw`\int_a^b \bigl(f(x)-g(x)\bigr)\,dx \text{ where } f(x)\ge g(x)\text{ on }[a,b]`,
+        description:
+          "Net area between the upper boundary y = f(x) and the lower boundary y = g(x) over [a, b], when f stays on top.",
+        bitsQuestions: bitsToArtifactQuestions(genAreaBetweenTwoCurves()),
+      },
+    ];
+  }
+  if (blob.includes("area under") && (blob.includes("x-axis") || blob.includes("x axis") || blob.includes("curve y"))) {
+    return [
+      {
+        name: "Area under y = f(x) (above the x-axis)",
+        formulaLatex: String.raw`\int_a^b f(x)\,dx \quad\text{when } f(x)\ge 0 \text{ on } [a,b]`,
+        description:
+          "When the graph of f lies on or above the x-axis on [a, b], this integral equals the area of the region under the curve.",
+        bitsQuestions: bitsToArtifactQuestions(genAreaUnderCurveAboveXAxis()),
+      },
+    ];
+  }
+  return [];
+}
+
+function genAreaBetweenTwoCurves(): BitsQuestion[] {
+  const s0 = shuffleFour(0, [
+    String.raw`\int_a^b \bigl(f(x)-g(x)\bigr)\,dx`,
+    String.raw`\int_a^b \bigl(g(x)-f(x)\bigr)\,dx`,
+    String.raw`\int_a^b f(x)\,dx + \int_a^b g(x)\,dx`,
+    String.raw`\int_a^b \bigl(f(x)\,g(x)\bigr)\,dx`,
+  ]);
+  const s1 = shuffleFour(0, ["1/6", "1/3", "1/2", "5/6"]);
+  const s2 = shuffleFour(2, [
+    "Always g(x) − f(x) on the whole interval without checking which graph is on top.",
+    "Always f(x) − g(x); a negative answer means you should report the absolute value only.",
+    "Use |f(x) − g(x)| and split the interval wherever the curves cross.",
+    "Use the average (f(x) + g(x))/2.",
+  ]);
+  const s3 = shuffleFour(0, [
+    "The net area between the two graphs (upper minus lower) when f ≥ g.",
+    "The arc length of y = f(x).",
+    "The volume of revolution about the x-axis.",
+    "The average value of f on [a, b].",
+  ]);
+  const p1 = oneOf(2, 3);
+  const p2 = oneOf(4, 5);
+  const sum = p1 + p2;
+  const s4 = shuffleFour(0, [
+    `${sum}`,
+    `${p1 * p2}`,
+    `${Math.abs(p1 - p2)}`,
+    `${p1 * p1 + p2 * p2}`,
+  ]);
+  return [
+    {
+      question:
+        "On [a, b], suppose y = f(x) lies above y = g(x) (so f(x) ≥ g(x)). Which integral gives the area between the two curves?",
+      ...s0,
+      solution:
+        "Area = ∫ₐᵇ (upper − lower) dx = ∫ₐᵇ (f(x) − g(x)) dx when f is the upper curve throughout the interval.",
+    },
+    {
+      question:
+        "Between y = x and y = x² on [0, 1], x is the upper curve. What is the area ∫₀¹ (x − x²) dx?",
+      ...s1,
+      solution: "∫₀¹ (x − x²) dx = [x²/2 − x³/3]₀¹ = 1/2 − 1/3 = 1/6.",
+    },
+    {
+      question:
+        "If the curves cross inside [a, b] so sometimes f is on top and sometimes g, how should you set up the total area?",
+      ...s2,
+      solution:
+        "Split at intersection points. On each piece, integrate (upper − lower). Equivalently, integrate |f − g| with correct splitting.",
+    },
+    {
+      question:
+        "In the standard setup with f(x) ≥ g(x) on [a, b], the definite integral ∫ₐᵇ (f(x) − g(x)) dx measures which geometric quantity?",
+      ...s3,
+      solution: "It is the area of the region bounded above by f, below by g, from x = a to x = b.",
+    },
+    {
+      question: `For rectangles of height 1 and widths ${p1} and ${p2} placed side by side (no overlap), the total area is:`,
+      ...s4,
+      solution: `Heights are 1, so total area = sum of widths = ${p1} + ${p2} = ${sum}.`,
+    },
+  ];
+}
+
+function genAreaUnderCurveAboveXAxis(): BitsQuestion[] {
+  const s0 = shuffleFour(0, [
+    String.raw`\int_a^b f(x)\,dx`,
+    String.raw`\int_a^b |f(x)|\,dx \text{ (always, even if } f<0\text{)}`,
+    String.raw`f(b)-f(a)`,
+    String.raw`\int_a^b f'(x)\,dx`,
+  ]);
+  const a = 0;
+  const b = oneOf(1, 2, 3);
+  const areaNum = (b * b * b) / 3 - (a * a * a) / 3;
+  const areaStr = Number.isInteger(areaNum) ? String(areaNum) : areaStrFixed(areaNum);
+  const wrong1 = (b * b) / 2 - (a * a) / 2;
+  const s1 = shuffleFour(0, [
+    areaStr,
+    String(wrong1),
+    String(b - a),
+    String(b * b),
+  ]);
+  const s2 = shuffleFour(0, [
+    "Wherever f(x) ≥ 0, use ∫ f dx; wherever f(x) < 0, add the area ∫ (−f) dx on those pieces (or use ∫ |f| with splits).",
+    "Replace f by |f| on the whole interval without splitting.",
+    "The single integral ∫ₐᵇ f(x) dx is always the geometric area even if f dips below 0.",
+    "Double ∫₀ᵇ f(x)dx regardless of sign.",
+  ]);
+  const s3 = shuffleFour(2, [
+    "It can be negative (signed area).",
+    "It must be zero.",
+    "It equals the geometric area between graph and axis only if f does not go negative on [a, b].",
+    "It always equals ∫ |f| dx with no extra conditions.",
+  ]);
+  const s4 = shuffleFour(0, [
+    "Antiderivative F with F′ = f, then F(b) − F(a) (FTC).",
+    "f(b) − f(a) only.",
+    "The slope of the secant line.",
+    "The arc length of y = f(x).",
+  ]);
+  return [
+    {
+      question:
+        "For a continuous f with f(x) ≥ 0 on [a, b], what is the area of the region under y = f(x) and above the x-axis?",
+      ...s0,
+      solution: "Area = ∫ₐᵇ f(x) dx when f stays nonnegative on [a, b].",
+    },
+    {
+      question: `For f(x) = x² on [${a}, ${b}], compute ∫_${a}^{${b}} x^2 dx.`,
+      ...s1,
+      solution: String.raw`[x^3/3]_0^{${b}} = ${b}^3/3 = ${areaStr}.`,
+    },
+    {
+      question: "If f dips below the x-axis on part of [a, b], how do you recover the total geometric area between graph and x-axis?",
+      ...s2,
+      solution: "Integrate piecewise: add areas where f is nonnegative, add −∫ f where f is negative, or use ∫ |f| with splits at zeros.",
+    },
+    {
+      question:
+        "True or false: If f is continuous on [a, b] but sometimes negative, ∫ₐᵇ f(x) dx always equals the total geometric area between the graph and the x-axis.",
+      ...s3,
+      solution: "False. The integral is signed; geometric area uses |f| or a piecewise upper-boundary setup.",
+    },
+    {
+      question:
+        "The definite integral ∫ₐᵇ f(x) dx can be evaluated with which tool when you know one antiderivative F?",
+      ...s4,
+      solution: "Fundamental Theorem of Calculus: ∫ₐᵇ f(x) dx = F(b) − F(a) if F′ = f.",
+    },
+  ];
+}
+
+function areaStrFixed(n: number): string {
+  return Number.isInteger(n) ? String(n) : n.toFixed(2);
 }

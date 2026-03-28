@@ -64,7 +64,7 @@ const AppLayout = ({ children, streakTimer }: AppLayoutProps) => {
                       : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
-                  <Icon className="w-4 h-4" />
+                  <Icon className="w-4 h-4" suppressHydrationWarning />
                   {label}
                 </Link>
               );
@@ -85,7 +85,7 @@ const AppLayout = ({ children, streakTimer }: AppLayoutProps) => {
                 href="/pricing"
                 className="flex items-center gap-1.5 bg-edu-yellow/15 hover:bg-edu-yellow/25 px-3.5 py-2 rounded-full transition-colors"
               >
-                <Coins className="w-4 h-4 text-edu-orange" />
+                <Coins className="w-4 h-4 text-edu-orange" suppressHydrationWarning />
                 <span className="font-extrabold text-sm text-foreground">{rdm}</span>
                 <span className="text-xs text-muted-foreground hidden sm:inline font-bold">RDM</span>
               </Link>
@@ -95,7 +95,7 @@ const AppLayout = ({ children, streakTimer }: AppLayoutProps) => {
               href="/profile"
               className="w-9 h-9 rounded-xl bg-muted/60 hover:bg-muted flex items-center justify-center transition-colors"
             >
-              <Settings className="w-4.5 h-4.5 text-muted-foreground" />
+              <Settings className="w-4.5 h-4.5 text-muted-foreground" suppressHydrationWarning />
             </Link>
           </div>
         </div>

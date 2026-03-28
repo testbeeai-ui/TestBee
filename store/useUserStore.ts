@@ -25,7 +25,11 @@ interface UserState {
   unsaveBit: (bitId: string) => void;
   saveFormula: (formula: SavedFormula) => void;
   unsaveFormula: (formulaId: string) => void;
-  setSavedFromServer: (savedBits: SavedBit[], savedFormulas: SavedFormula[]) => void;
+  setSavedFromServer: (
+    savedBits: SavedBit[],
+    savedFormulas: SavedFormula[],
+    savedRevisionCards: SavedRevisionCard[]
+  ) => void;
   likeQuestion: (questionId: string) => void;
   unlikeQuestion: (questionId: string) => void;
   clearRound: () => void;
@@ -240,10 +244,17 @@ export const useUserStore = create<UserState>()(
             : null,
         })),
 
-      setSavedFromServer: (savedBits, savedFormulas) =>
+      setSavedFromServer: (savedBits, savedFormulas, savedRevisionCards) =>
         set((state) =>
           state.user
-            ? { user: { ...state.user, savedBits, savedFormulas } }
+            ? {
+                user: {
+                  ...state.user,
+                  savedBits,
+                  savedFormulas,
+                  savedRevisionCards,
+                },
+              }
             : state
         ),
 
@@ -295,6 +306,7 @@ export const useUserStore = create<UserState>()(
         if (user && typeof user === 'object') {
           if (!Array.isArray(user.savedBits)) user.savedBits = [];
           if (!Array.isArray(user.savedFormulas)) user.savedFormulas = [];
+          if (!Array.isArray(user.savedRevisionCards)) user.savedRevisionCards = [];
         }
         return persistedState;
       },

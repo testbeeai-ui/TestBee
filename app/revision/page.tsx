@@ -22,7 +22,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import InstaCuePlayer from '@/components/InstaCuePlayer';
 import AddRevisionCardModal from '@/components/AddRevisionCardModal';
 import { buildDeepDivePath } from '@/lib/topicRoutes';
-import { fetchSavedContent, syncSavedContent } from '@/lib/savedContentService';
+import { fetchSavedContent, syncAllSavedContent } from '@/lib/savedContentService';
 
 const DEMO_CARDS: SavedRevisionCard[] = [
   {
@@ -94,12 +94,12 @@ const Revision = () => {
     const storeBits = useUserStore.getState().user?.savedBits ?? [];
     const storeFormulas = useUserStore.getState().user?.savedFormulas ?? [];
     fetchSavedContent()
-      .then(({ savedBits: bits, savedFormulas: formulas }) => {
+      .then(({ savedBits: bits, savedFormulas: formulas, savedRevisionCards: revisionCards }) => {
         // API is source of truth when it returns data
-        if (bits.length > 0 || formulas.length > 0) {
+        if (bits.length > 0 || formulas.length > 0 || revisionCards.length > 0) {
           setSavedBits(bits);
           setSavedFormulas(formulas);
-          useUserStore.getState().setSavedFromServer(bits, formulas);
+          useUserStore.getState().setSavedFromServer(bits, formulas, revisionCards);
         } else {
           // API empty: fallback to local store (bits saved before Supabase sync)
           setSavedBits(storeBits);
@@ -141,7 +141,7 @@ const Revision = () => {
     const u = useUserStore.getState().user;
     const nextBits = u?.savedBits ?? [];
     setSavedBits(nextBits);
-    syncSavedContent(nextBits, u?.savedFormulas ?? []).catch(() => {});
+    syncAllSavedContent().catch(() => {});
   };
 
   const handleUnsaveFormula = (formulaId: string) => {
@@ -149,7 +149,7 @@ const Revision = () => {
     const u = useUserStore.getState().user;
     const nextFormulas = u?.savedFormulas ?? [];
     setSavedFormulas(nextFormulas);
-    syncSavedContent(u?.savedBits ?? [], nextFormulas).catch(() => {});
+    syncAllSavedContent().catch(() => {});
   };
 
   return (

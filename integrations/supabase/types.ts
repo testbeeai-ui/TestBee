@@ -41,6 +41,111 @@ export type Database = {
           { foreignKeyName: "accepted_answer_payouts_answer_id_fkey"; columns: ["answer_id"]; isOneToOne: false; referencedRelation: "doubt_answers"; referencedColumns: ["id"] },
         ]
       }
+      curriculum_units: {
+        Row: {
+          id: string
+          subject: string
+          class_level: number
+          unit_label: string
+          unit_title: string
+          exam_relevance: string[] | null
+          sort_order: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          subject: string
+          class_level: number
+          unit_label: string
+          unit_title: string
+          exam_relevance?: string[] | null
+          sort_order?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          subject?: string
+          class_level?: number
+          unit_label?: string
+          unit_title?: string
+          exam_relevance?: string[] | null
+          sort_order?: number
+          created_at?: string
+        }
+        Relationships: []
+      }
+      curriculum_chapters: {
+        Row: {
+          id: string
+          unit_id: string
+          title: string
+          sort_order: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          unit_id: string
+          title: string
+          sort_order?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          unit_id?: string
+          title?: string
+          sort_order?: number
+          created_at?: string
+        }
+        Relationships: [{ foreignKeyName: "curriculum_chapters_unit_id_fkey"; columns: ["unit_id"]; isOneToOne: false; referencedRelation: "curriculum_units"; referencedColumns: ["id"] }]
+      }
+      curriculum_topics: {
+        Row: {
+          id: string
+          chapter_id: string
+          title: string
+          sort_order: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          chapter_id: string
+          title: string
+          sort_order?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          chapter_id?: string
+          title?: string
+          sort_order?: number
+          created_at?: string
+        }
+        Relationships: [{ foreignKeyName: "curriculum_topics_chapter_id_fkey"; columns: ["chapter_id"]; isOneToOne: false; referencedRelation: "curriculum_chapters"; referencedColumns: ["id"] }]
+      }
+      curriculum_subtopics: {
+        Row: {
+          id: string
+          topic_id: string
+          name: string
+          sort_order: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          topic_id: string
+          name: string
+          sort_order?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          topic_id?: string
+          name?: string
+          sort_order?: number
+          created_at?: string
+        }
+        Relationships: [{ foreignKeyName: "curriculum_subtopics_topic_id_fkey"; columns: ["topic_id"]; isOneToOne: false; referencedRelation: "curriculum_topics"; referencedColumns: ["id"] }]
+      }
       classroom_members: {
         Row: {
           classroom_id: string
@@ -489,6 +594,7 @@ export type Database = {
           role: string
           saved_bits: Json
           saved_formulas: Json
+          saved_revision_cards: Json
           stream: string | null
           subject_combo: string | null
           subjects: string[] | null
@@ -511,6 +617,7 @@ export type Database = {
           role?: string
           saved_bits?: Json
           saved_formulas?: Json
+          saved_revision_cards?: Json
           stream?: string | null
           subject_combo?: string | null
           subjects?: string[] | null
@@ -533,12 +640,178 @@ export type Database = {
           role?: string
           saved_bits?: Json
           saved_formulas?: Json
+          saved_revision_cards?: Json
           stream?: string | null
           subject_combo?: string | null
           subjects?: string[] | null
           teaching_levels?: number[] | null
           updated_at?: string
           visibility?: string
+        }
+        Relationships: []
+      }
+      subtopic_content: {
+        Row: {
+          bits_questions: Json
+          board: string
+          class_level: number
+          created_at: string
+          did_you_know: string
+          display_title: string | null
+          id: string
+          instacue_cards: Json
+          level: string
+          practice_formulas: Json
+          reading_references: Json
+          subject: string
+          subtopic_name: string
+          theory: string
+          topic: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          bits_questions?: Json
+          board: string
+          class_level: number
+          created_at?: string
+          did_you_know?: string
+          display_title?: string | null
+          id?: string
+          instacue_cards?: Json
+          level: string
+          practice_formulas?: Json
+          reading_references?: Json
+          subject: string
+          subtopic_name: string
+          theory?: string
+          topic: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          bits_questions?: Json
+          board?: string
+          class_level?: number
+          created_at?: string
+          did_you_know?: string
+          display_title?: string | null
+          id?: string
+          instacue_cards?: Json
+          level?: string
+          practice_formulas?: Json
+          reading_references?: Json
+          subject?: string
+          subtopic_name?: string
+          theory?: string
+          topic?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      topic_content: {
+        Row: {
+          board: string
+          class_level: number
+          created_at: string
+          id: string
+          level: string
+          real_world: string
+          subject: string
+          topic: string
+          updated_at: string
+          updated_by: string | null
+          what_learn: string
+          why_study: string
+        }
+        Insert: {
+          board: string
+          class_level: number
+          created_at?: string
+          id?: string
+          level: string
+          real_world?: string
+          subject: string
+          topic: string
+          updated_at?: string
+          updated_by?: string | null
+          what_learn?: string
+          why_study?: string
+        }
+        Update: {
+          board?: string
+          class_level?: number
+          created_at?: string
+          id?: string
+          level?: string
+          real_world?: string
+          subject?: string
+          topic?: string
+          updated_at?: string
+          updated_by?: string | null
+          what_learn?: string
+          why_study?: string
+        }
+        Relationships: []
+      }
+      topic_content_runs: {
+        Row: {
+          board: string
+          class_level: number
+          created_at: string
+          created_by: string | null
+          disliked_points: string
+          feedback_text: string
+          id: string
+          instructions: string
+          level: string
+          liked_points: string
+          model_id: string
+          output_content: Json
+          previous_content: Json
+          rag_chunk_count: number
+          run_type: string
+          subject: string
+          topic: string
+        }
+        Insert: {
+          board: string
+          class_level: number
+          created_at?: string
+          created_by?: string | null
+          disliked_points?: string
+          feedback_text?: string
+          id?: string
+          instructions?: string
+          level: string
+          liked_points?: string
+          model_id?: string
+          output_content?: Json
+          previous_content?: Json
+          rag_chunk_count?: number
+          run_type: string
+          subject: string
+          topic: string
+        }
+        Update: {
+          board?: string
+          class_level?: number
+          created_at?: string
+          created_by?: string | null
+          disliked_points?: string
+          feedback_text?: string
+          id?: string
+          instructions?: string
+          level?: string
+          liked_points?: string
+          model_id?: string
+          output_content?: Json
+          previous_content?: Json
+          rag_chunk_count?: number
+          run_type?: string
+          subject?: string
+          topic?: string
         }
         Relationships: []
       }

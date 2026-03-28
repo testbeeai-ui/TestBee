@@ -43,7 +43,7 @@ next-env.d.ts
 build_*.txt
 tsc_errors*.txt
 
-# rag-server (Python sidecar)
-rag-server/.env
-rag-server/__pycache__/
-rag-server/.venv/
+# modal-rag (RAG service deployed to Modal; local .env optional)
+modal-rag/.env
+modal-rag/__pycache__/
+modal-rag/.venv/
