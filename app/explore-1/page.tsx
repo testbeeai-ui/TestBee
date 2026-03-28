@@ -1751,9 +1751,7 @@ const Explore = () => {
                       <div className="mt-6 pt-4 border-t border-border flex flex-wrap items-center gap-3">
                         <Button
                           size="lg"
-                          onClick={() =>
-                            isDetailedUnitView ? handleLinearMode() : setPracticeModePopupOpen(true)
-                          }
+                          onClick={() => setPracticeModePopupOpen(true)}
                           className="rounded-xl gap-2 edu-btn-primary w-full sm:w-auto"
                         >
                           <Play className="w-4 h-4" /> {isDetailedUnitView ? 'Start Chapter' : 'Start'}

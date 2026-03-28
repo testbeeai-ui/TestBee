@@ -38,10 +38,10 @@ function darken(hex: string, p: number) {
 
 function drawWheel(
   canvas: HTMLCanvasElement,
-  labels: string[],
+  segmentCount: number,
   highlightIndex: number | null
 ) {
-  const n = labels.length;
+  const n = segmentCount;
   if (n === 0) return;
 
   const dpr = window.devicePixelRatio || 1;
@@ -134,17 +134,13 @@ function drawWheel(
     ctx.rotate(ma + Math.PI / 2);
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    const fs = n <= 4 ? 16 : n <= 7 ? 13 : n <= 12 ? 11 : 9;
-    ctx.font = `800 ${fs}px 'Outfit', system-ui, sans-serif`;
+    // Numbers on slices only; full subtopic title is shown below after the spin.
+    const numFs = n <= 6 ? 28 : n <= 10 ? 24 : n <= 14 ? 20 : 16;
+    ctx.font = `800 ${numFs}px 'Outfit', system-ui, sans-serif`;
     ctx.fillStyle = "#fff";
     ctx.shadowColor = "rgba(0,0,0,0.5)";
     ctx.shadowBlur = 3;
-    const maxChars = n <= 5 ? 14 : n <= 8 ? 11 : n <= 12 ? 8 : 6;
-    const label =
-      labels[i].length > maxChars
-        ? labels[i].slice(0, maxChars - 1) + "…"
-        : labels[i];
-    ctx.fillText(label, 0, 0);
+    ctx.fillText(String(i + 1), 0, 0);
     ctx.shadowColor = "transparent";
     ctx.restore();
   }
@@ -276,7 +272,7 @@ export default function SubtopicWheelDialog({
   // Re-draw canvas when winner is set (to highlight segment)
   useEffect(() => {
     if (canvasRef.current) {
-      drawWheel(canvasRef.current, subtopics, winnerIndex);
+      drawWheel(canvasRef.current, subtopics.length, winnerIndex);
     }
   }, [winnerIndex, subtopics]);
 
@@ -292,7 +288,7 @@ export default function SubtopicWheelDialog({
     if (n < 2) return;
     // Small delay for dialog entrance animation
     const id = setTimeout(() => {
-      if (canvasRef.current) drawWheel(canvasRef.current, subtopics, null);
+      if (canvasRef.current) drawWheel(canvasRef.current, subtopics.length, null);
       startSpin();
     }, 150);
     return () => clearTimeout(id);
@@ -302,7 +298,7 @@ export default function SubtopicWheelDialog({
   const handleSpinAgain = useCallback(() => {
     setShowResult(false);
     setWinnerIndex(null);
-    if (canvasRef.current) drawWheel(canvasRef.current, subtopics, null);
+    if (canvasRef.current) drawWheel(canvasRef.current, subtopics.length, null);
     setTimeout(startSpin, 80);
   }, [subtopics, startSpin]);
 

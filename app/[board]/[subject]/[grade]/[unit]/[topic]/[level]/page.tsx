@@ -1356,7 +1356,7 @@ export default function TopicPage() {
                   </div>
                 </section>
 
-                {(topicLevelSiblings.prev || topicLevelSiblings.next) && (
+                {!isRandomMode && (topicLevelSiblings.prev || topicLevelSiblings.next) && (
                   <nav
                     className="mt-10 pt-8 border-t border-border"
                     aria-label="Previous and next syllabus topic in this chapter"
@@ -1668,49 +1668,51 @@ export default function TopicPage() {
                       </div>
                     )}
                   </section>
-                  <div className="mt-5 pt-3 border-t border-border grid min-w-0 w-full grid-cols-1 gap-2 sm:grid-cols-2">
-                    {prevSubtopicHref && prevSubtopic && (
-                      <Button
-                        asChild
-                        size="sm"
-                        variant="outline"
-                        className="h-auto min-h-0 w-full min-w-0 max-w-full shrink justify-start gap-0 overflow-hidden rounded-lg py-2 px-2.5 text-left font-semibold"
-                      >
-                        <Link
-                          href={prevSubtopicHref}
-                          className="flex w-full min-w-0 max-w-full flex-nowrap items-center gap-1.5 overflow-hidden text-left"
-                          title={prettifySubtopicTitle(prevSubtopic.name)}
+                  {!isRandomMode && (
+                    <div className="mt-5 pt-3 border-t border-border grid min-w-0 w-full grid-cols-1 gap-2 sm:grid-cols-2">
+                      {prevSubtopicHref && prevSubtopic && (
+                        <Button
+                          asChild
+                          size="sm"
+                          variant="outline"
+                          className="h-auto min-h-0 w-full min-w-0 max-w-full shrink justify-start gap-0 overflow-hidden rounded-lg py-2 px-2.5 text-left font-semibold"
                         >
-                          <ArrowLeft className="size-4 shrink-0 opacity-80" aria-hidden />
-                          <span className="shrink-0 text-xs text-muted-foreground sm:text-sm">
-                            Previous subtopic:
-                          </span>
-                          <span className="min-w-0 flex-1 truncate text-xs text-foreground sm:text-sm">
-                            {subtopicNavPreviewLine(prevSubtopic.name)}
-                          </span>
-                        </Link>
-                      </Button>
-                    )}
-                    {nextSubtopicHref && nextSubtopic && (
-                      <Button
-                        asChild
-                        size="sm"
-                        className="edu-btn-primary h-auto min-h-0 w-full min-w-0 max-w-full shrink justify-start gap-0 overflow-hidden rounded-lg py-2 px-2.5 text-left font-semibold"
-                      >
-                        <Link
-                          href={nextSubtopicHref}
-                          className="flex w-full min-w-0 max-w-full flex-nowrap items-center gap-1.5 overflow-hidden text-left text-primary-foreground"
-                          title={prettifySubtopicTitle(nextSubtopic.name)}
+                          <Link
+                            href={prevSubtopicHref}
+                            className="flex w-full min-w-0 max-w-full flex-nowrap items-center gap-1.5 overflow-hidden text-left"
+                            title={prettifySubtopicTitle(prevSubtopic.name)}
+                          >
+                            <ArrowLeft className="size-4 shrink-0 opacity-80" aria-hidden />
+                            <span className="shrink-0 text-xs text-muted-foreground sm:text-sm">
+                              Previous subtopic:
+                            </span>
+                            <span className="min-w-0 flex-1 truncate text-xs text-foreground sm:text-sm">
+                              {subtopicNavPreviewLine(prevSubtopic.name)}
+                            </span>
+                          </Link>
+                        </Button>
+                      )}
+                      {nextSubtopicHref && nextSubtopic && (
+                        <Button
+                          asChild
+                          size="sm"
+                          className="edu-btn-primary h-auto min-h-0 w-full min-w-0 max-w-full shrink justify-start gap-0 overflow-hidden rounded-lg py-2 px-2.5 text-left font-semibold"
                         >
-                          <span className="shrink-0 text-xs opacity-90 sm:text-sm">Next subtopic:</span>
-                          <span className="min-w-0 flex-1 truncate text-xs sm:text-sm">
-                            {subtopicNavPreviewLine(nextSubtopic.name)}
-                          </span>
-                          <ChevronRight className="size-4 shrink-0 opacity-90" aria-hidden />
-                        </Link>
-                      </Button>
-                    )}
-                  </div>
+                          <Link
+                            href={nextSubtopicHref}
+                            className="flex w-full min-w-0 max-w-full flex-nowrap items-center gap-1.5 overflow-hidden text-left text-primary-foreground"
+                            title={prettifySubtopicTitle(nextSubtopic.name)}
+                          >
+                            <span className="shrink-0 text-xs opacity-90 sm:text-sm">Next subtopic:</span>
+                            <span className="min-w-0 flex-1 truncate text-xs sm:text-sm">
+                              {subtopicNavPreviewLine(nextSubtopic.name)}
+                            </span>
+                            <ChevronRight className="size-4 shrink-0 opacity-90" aria-hidden />
+                          </Link>
+                        </Button>
+                      )}
+                    </div>
+                  )}
                 </>
               )}
 
