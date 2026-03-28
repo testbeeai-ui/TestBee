@@ -27,18 +27,20 @@ const NotificationBell = () => {
   useEffect(() => {
     if (!user || !notificationsEnabled) return;
     let mounted = true;
-    supabase
-      .from('notifications')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(20)
-      .then(({ data, error }) => {
-        // Silently disable bell data if table is unavailable in this environment.
+    void (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('notifications')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(20);
         if (error || !mounted) return;
         setNotifications((data as Notification[]) || []);
-      })
-      .catch(() => {});
+      } catch {
+        /* table or network unavailable in some environments */
+      }
+    })();
     return () => {
       mounted = false;
     };

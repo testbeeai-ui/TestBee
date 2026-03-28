@@ -211,7 +211,7 @@ export async function POST(request: Request) {
     const next = trimAttemptStore({ ...current, [key]: attempt });
     const { error: writeErr } = await supabase
       .from("profiles")
-      .update({ bits_test_attempts: next } as never)
+      .update({ bits_test_attempts: next })
       .eq("id", user.id);
     if (writeErr) return NextResponse.json({ error: writeErr.message }, { status: 500 });
 

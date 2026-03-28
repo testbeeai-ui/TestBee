@@ -303,7 +303,7 @@ function parseTrapsStructured(trimmed: string): { intro: string; items: TrapList
     const intro = firstIdx > 0 ? segments.slice(0, firstIdx).join("\n\n").trim() : "";
     const items: TrapListItem[] = [];
     for (let k = firstIdx; k < segments.length; k++) {
-      const m = segments[k].match(/^\*\*-\s*Trap\s+(\d+):\s*(.*)$/s);
+      const m = segments[k].match(/^\*\*-\s*Trap\s+(\d+):\s*([\s\S]*)$/);
       if (m) items.push({ num: m[1], body: m[2].trim() });
     }
     return items.length > 0 ? { intro, items } : null;

@@ -1444,56 +1444,52 @@ const Explore = () => {
                                   <Sparkles className="w-5 h-5 text-primary" />
                                   Let&apos;s take a look at {agentHeading}
                                 </h3>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-[11px] font-bold px-2 py-1 rounded-full bg-muted text-muted-foreground">
-                                    {canEditTopicContent ? 'Admin' : 'Admin only'}
-                                  </span>
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="outline"
-                                    className="rounded-xl gap-2 font-bold shrink-0"
-                                    disabled={!canEditTopicContent || generatingTopic || savingTopicContent}
-                                    onClick={() => {
-                                      if (!canEditTopicContent) return;
-                                      setDraftWhyStudy(topicWhyStudy);
-                                      setDraftWhatLearn(topicWhatLearn);
-                                      setDraftRealWorld(topicRealWorld);
-                                      setTopicEditorOpen((prev) => !prev);
-                                    }}
-                                    title={canEditTopicContent ? 'Edit and save topic info' : 'Only admins can edit'}
-                                  >
-                                    {topicEditorOpen ? 'Close Edit' : 'Edit'}
-                                  </Button>
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    variant={canEditTopicContent ? 'secondary' : 'outline'}
-                                    className="rounded-xl gap-2 font-bold shrink-0"
-                                    disabled={
-                                      generatingTopic ||
-                                      topicContentLoading ||
-                                      !topicForHub.trim() ||
-                                      !canEditTopicContent ||
-                                      !selectedSubject ||
-                                      selectedTopicClassLevel === null
-                                    }
-                                    title={
-                                      canEditTopicContent
-                                        ? topicContentExists
+                                {canEditTopicContent ? (
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-[11px] font-bold px-2 py-1 rounded-full bg-muted text-muted-foreground">
+                                      Admin
+                                    </span>
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      variant="outline"
+                                      className="rounded-xl gap-2 font-bold shrink-0"
+                                      disabled={generatingTopic || savingTopicContent}
+                                      onClick={() => {
+                                        setDraftWhyStudy(topicWhyStudy);
+                                        setDraftWhatLearn(topicWhatLearn);
+                                        setDraftRealWorld(topicRealWorld);
+                                        setTopicEditorOpen((prev) => !prev);
+                                      }}
+                                      title="Edit and save topic info"
+                                    >
+                                      {topicEditorOpen ? 'Close Edit' : 'Edit'}
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      variant="secondary"
+                                      className="rounded-xl gap-2 font-bold shrink-0"
+                                      disabled={
+                                        generatingTopic ||
+                                        topicContentLoading ||
+                                        !topicForHub.trim() ||
+                                        !selectedSubject ||
+                                        selectedTopicClassLevel === null
+                                      }
+                                      title={
+                                        topicContentExists
                                           ? hubAgentUi.regenerateTooltip
                                           : hubAgentUi.generateTooltip
-                                        : 'Only admins can use this agent'
-                                    }
-                                    onClick={async () => {
-                                      if (
-                                        !topicForHub.trim() ||
-                                        !canEditTopicContent ||
-                                        !selectedSubject ||
-                                        selectedTopicClassLevel === null ||
-                                        !activeTopicForAgent
-                                      )
-                                        return;
+                                      }
+                                      onClick={async () => {
+                                        if (
+                                          !topicForHub.trim() ||
+                                          !selectedSubject ||
+                                          selectedTopicClassLevel === null ||
+                                          !activeTopicForAgent
+                                        )
+                                          return;
                                       if (topicContentExists) {
                                         setFbLiked('');
                                         setFbDisliked('');
@@ -1560,7 +1556,8 @@ const Explore = () => {
                                         ? hubAgentUi.buttonRegenerate
                                         : hubAgentUi.buttonGenerate}
                                   </Button>
-                                </div>
+                                  </div>
+                                ) : null}
                               </div>
                               {canEditTopicContent ? (
                                 <TopicAgentTracePanel trace={topicAgentTrace} onClear={() => setTopicAgentTrace(null)} />
