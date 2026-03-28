@@ -1008,49 +1008,43 @@ export default function TopicPage() {
                       <h2 className="text-base font-extrabold text-primary uppercase tracking-wide">
                         Topic hub
                       </h2>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[11px] font-bold px-2 py-1 rounded-full bg-muted text-muted-foreground">
-                          {canEditTopicContent ? "Admin" : "Admin only"}
-                        </span>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          className="rounded-xl gap-2 font-bold shrink-0"
-                          disabled={!canEditTopicContent || generatingTopic || savingTopicContent}
-                          onClick={() => {
-                            if (!canEditTopicContent) return;
-                            if (topicEditorOpen) {
-                              setTopicEditorOpen(false);
-                            } else {
-                              setDraftTopicWhyStudy(topicWhyStudy);
-                              setDraftTopicSubtopicPreviews(buildTopicHubDraftPreviews());
-                              setTopicEditorOpen(true);
-                            }
-                          }}
-                          title={
-                            canEditTopicContent
-                              ? "Edit topic intro and each subtopic preview card"
-                              : "Only admins can edit"
-                          }
-                        >
-                          {topicEditorOpen ? "Close Edit" : "Edit"}
-                        </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant={canEditTopicContent ? "secondary" : "outline"}
-                          className="rounded-xl gap-2 font-bold shrink-0"
-                          disabled={generatingTopic || topicContentLoading || !topicNode || !canEditTopicContent}
-                          title={
-                            canEditTopicContent
-                              ? topicContentExists
+                      {canEditTopicContent ? (
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] font-bold px-2 py-1 rounded-full bg-muted text-muted-foreground">
+                            Admin
+                          </span>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="rounded-xl gap-2 font-bold shrink-0"
+                            disabled={generatingTopic || savingTopicContent}
+                            onClick={() => {
+                              if (topicEditorOpen) {
+                                setTopicEditorOpen(false);
+                              } else {
+                                setDraftTopicWhyStudy(topicWhyStudy);
+                                setDraftTopicSubtopicPreviews(buildTopicHubDraftPreviews());
+                                setTopicEditorOpen(true);
+                              }
+                            }}
+                            title="Edit topic intro and each subtopic preview card"
+                          >
+                            {topicEditorOpen ? "Close Edit" : "Edit"}
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="secondary"
+                            className="rounded-xl gap-2 font-bold shrink-0"
+                            disabled={generatingTopic || topicContentLoading || !topicNode}
+                            title={
+                              topicContentExists
                                 ? "Regenerate only this topic’s hub (separate row from chapter overview in Supabase)"
                                 : "Generate topic hub with AI"
-                              : "Only admins can use this agent"
-                          }
-                          onClick={async () => {
-                            if (!topicNode || !canEditTopicContent) return;
+                            }
+                            onClick={async () => {
+                              if (!topicNode) return;
                             if (topicContentExists) {
                               setFbLiked("");
                               setFbDisliked("");
@@ -1102,7 +1096,8 @@ export default function TopicPage() {
                               ? "Regenerate topic"
                               : "Generate topic hub"}
                         </Button>
-                      </div>
+                        </div>
+                      ) : null}
                     </div>
                     <p className="text-xs text-muted-foreground mb-3">
                       Level-wise topic master guide in educator format. Subtopic cards below are focused previews before deep dive.

@@ -83,14 +83,14 @@ function looksLikeRawTexExpression(text: string): boolean {
  */
 function splitProseSemicolonRelationEq(text: string): { prose: string; formulaRaw: string } | null {
   const t = text.trim();
-  const semi = t.match(/^(.+?);\s*([Rr])\s*=\s*(.+)$/is);
+  const semi = t.match(/^([\s\S]+?);\s*([Rr])\s*=\s*([\s\S]+)$/i);
   if (semi) {
     const prose = semi[1]!.trim();
     const tail = semi[3]!.trim();
     if (prose.length >= 8 && tail.length >= 2) return { prose, formulaRaw: `R = ${tail}` };
   }
   if (/\brelation\b/i.test(t)) {
-    const rel = t.match(/\b([Rr])\s*=\s*(.+)$/is);
+    const rel = t.match(/\b([Rr])\s*=\s*([\s\S]+)$/i);
     if (rel && rel.index != null && rel.index >= 12) {
       const prose = t
         .slice(0, rel.index)

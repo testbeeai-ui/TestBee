@@ -582,6 +582,7 @@ export type Database = {
         Row: {
           avatar_url: string | null
           bio: string | null
+          bits_test_attempts: Json
           class_level: number | null
           created_at: string
           exam_tags: string[] | null
@@ -605,6 +606,7 @@ export type Database = {
         Insert: {
           avatar_url?: string | null
           bio?: string | null
+          bits_test_attempts?: Json
           class_level?: number | null
           created_at?: string
           exam_tags?: string[] | null
@@ -628,6 +630,7 @@ export type Database = {
         Update: {
           avatar_url?: string | null
           bio?: string | null
+          bits_test_attempts?: Json
           class_level?: number | null
           created_at?: string
           exam_tags?: string[] | null
