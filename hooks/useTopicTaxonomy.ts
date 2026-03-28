@@ -30,8 +30,8 @@ export function useTopicTaxonomy(): TopicTaxonomyState {
           setTaxonomy([]);
           setError(
             data == null
-              ? 'Could not load curriculum. Run Supabase migrations (schema + seed) and ensure you are signed in.'
-              : 'No curriculum rows in the database yet. Run the curriculum seed migration.'
+              ? 'Could not load curriculum from Supabase. In Vercel, set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to your project. In Supabase, run migrations (curriculum schema + seed). Curriculum tables are readable without sign-in once they exist.'
+              : 'No curriculum rows in the database yet. Run the curriculum seed migration on your Supabase project.'
           );
         } else {
           setTaxonomy(data);
