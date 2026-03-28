@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAndUser } from "@/lib/apiAuth";
+import type { Json } from "@/integrations/supabase/types";
+
+/** DB column from migration; cast when `Database` types are not yet regenerated (e.g. Vercel on older main). */
+type ProfileBitsRow = { bits_test_attempts?: Json | null };
 
 type BitsAttemptRecord = {
   board: string;
@@ -125,13 +129,14 @@ export async function GET(request: Request) {
 
     const { data, error } = await supabase
       .from("profiles")
-      .select("bits_test_attempts")
+      .select("*")
       .eq("id", user.id)
       .maybeSingle();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
     const key = makeAttemptKey({ board, subject, classLevel, topic, subtopicName, level });
-    const store = parseAttemptsStore(data?.bits_test_attempts);
+    const row = data as ProfileBitsRow | null;
+    const store = parseAttemptsStore(row?.bits_test_attempts);
     return NextResponse.json({ attempt: store[key] ?? null });
   } catch (e) {
     console.error("bits-attempts GET error", e);
@@ -202,16 +207,17 @@ export async function POST(request: Request) {
     const key = makeAttemptKey({ board, subject, classLevel, topic, subtopicName, level });
     const { data: profile, error: readErr } = await supabase
       .from("profiles")
-      .select("bits_test_attempts")
+      .select("*")
       .eq("id", user.id)
       .maybeSingle();
     if (readErr) return NextResponse.json({ error: readErr.message }, { status: 500 });
 
-    const current = parseAttemptsStore(profile?.bits_test_attempts);
+    const profileRow = profile as ProfileBitsRow | null;
+    const current = parseAttemptsStore(profileRow?.bits_test_attempts);
     const next = trimAttemptStore({ ...current, [key]: attempt });
     const { error: writeErr } = await supabase
       .from("profiles")
-      .update({ bits_test_attempts: next })
+      .update({ bits_test_attempts: next } as never)
       .eq("id", user.id);
     if (writeErr) return NextResponse.json({ error: writeErr.message }, { status: 500 });
 
