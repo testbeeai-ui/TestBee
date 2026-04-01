@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { CheckCircle2, Trash2, XCircle } from "lucide-react";
 import type { SavedFormula } from "@/types";
 import MathText from "@/components/MathText";
+import { stripFormulaDelimiters } from "@/lib/stripFormulaDelimiters";
 
 interface InteractiveFormulaProps {
   formula: SavedFormula;
@@ -88,7 +89,7 @@ export function InteractiveFormula({ formula, onUnsave }: InteractiveFormulaProp
             <p className="font-bold text-foreground text-sm">{formula.name}</p>
             {formula.formulaLatex && (
               <p className="font-mono text-xs text-muted-foreground mt-0.5">
-                <MathText>{`$$${formula.formulaLatex}$$`}</MathText>
+                <MathText>{`$$${stripFormulaDelimiters(formula.formulaLatex)}$$`}</MathText>
               </p>
             )}
           </div>

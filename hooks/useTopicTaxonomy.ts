@@ -21,33 +21,36 @@ export function useTopicTaxonomy(): TopicTaxonomyState {
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setError(null);
-    fetchFullCurriculumFromSupabase()
-      .then((data) => {
-        if (cancelled) return;
-        if (data == null || data.length === 0) {
-          setTaxonomy([]);
-          setError(
-            data == null
-              ? 'Could not load curriculum from Supabase. In Vercel, set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to your project. In Supabase, run migrations (curriculum schema + seed). Curriculum tables are readable without sign-in once they exist.'
-              : 'No curriculum rows in the database yet. Run the curriculum seed migration on your Supabase project.'
-          );
-        } else {
-          setTaxonomy(data);
-          setError(null);
-        }
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          console.error('[useTopicTaxonomy]', err);
-          setTaxonomy([]);
-          setError(err?.message ?? 'Failed to load curriculum.');
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+    queueMicrotask(() => {
+      if (cancelled) return;
+      setLoading(true);
+      setError(null);
+      fetchFullCurriculumFromSupabase()
+        .then((data) => {
+          if (cancelled) return;
+          if (data == null || data.length === 0) {
+            setTaxonomy([]);
+            setError(
+              data == null
+                ? 'Could not load curriculum from Supabase. In Vercel, set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to your project. In Supabase, run migrations (curriculum schema + seed). Curriculum tables are readable without sign-in once they exist.'
+                : 'No curriculum rows in the database yet. Run the curriculum seed migration on your Supabase project.'
+            );
+          } else {
+            setTaxonomy(data);
+            setError(null);
+          }
+        })
+        .catch((err) => {
+          if (!cancelled) {
+            console.error('[useTopicTaxonomy]', err);
+            setTaxonomy([]);
+            setError(err?.message ?? 'Failed to load curriculum.');
+          }
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
+    });
     return () => {
       cancelled = true;
     };

@@ -56,11 +56,13 @@ export default function PostDetailModal({ post, open, onClose, canEdit, onUpdate
 
   useEffect(() => {
     if (!post) return;
-    setTitle(post.title);
-    setDescription(post.description ?? '');
-    setTagsStr((post.tags ?? []).join(', '));
-    setDueDate(post.due_date ? new Date(post.due_date).toISOString().slice(0, 16) : '');
-    setEditing(false);
+    queueMicrotask(() => {
+      setTitle(post.title);
+      setDescription(post.description ?? '');
+      setTagsStr((post.tags ?? []).join(', '));
+      setDueDate(post.due_date ? new Date(post.due_date).toISOString().slice(0, 16) : '');
+      setEditing(false);
+    });
   }, [post]);
 
   if (!post) return null;

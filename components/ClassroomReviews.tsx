@@ -80,8 +80,8 @@ export default function ClassroomReviews({
         if (!classroomId) return;
         setLoading(true);
 
-        const { data: revData } = await supabase
-            .from("classroom_reviews" as any)
+        const { data: revData } = await (supabase as any)
+            .from("classroom_reviews")
             .select("*")
             .eq("classroom_id", classroomId)
             .order("created_at", { ascending: false });
@@ -137,10 +137,12 @@ export default function ClassroomReviews({
         }
 
         setLoading(false);
-    }, [classroomId, user?.id]);
+    }, [classroomId, user]);
 
     useEffect(() => {
-        fetchReviews();
+        queueMicrotask(() => {
+            void fetchReviews();
+        });
     }, [fetchReviews]);
 
     const handleSubmit = async () => {
@@ -162,14 +164,14 @@ export default function ClassroomReviews({
         };
 
         if (myReview) {
-            const { error } = await supabase.from("classroom_reviews" as any).update(payload).eq("id", myReview.id);
+            const { error } = await (supabase as any).from("classroom_reviews").update(payload).eq("id", myReview.id);
             if (error) {
                 toast({ title: "Error updating review", description: error.message, variant: "destructive" });
                 setSubmitting(false);
                 return;
             }
         } else {
-            const { error } = await supabase.from("classroom_reviews" as any).insert(payload);
+            const { error } = await (supabase as any).from("classroom_reviews").insert(payload);
             if (error) {
                 if (error.code === "23505") {
                     toast({ title: "You've already reviewed this class" });

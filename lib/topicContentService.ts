@@ -88,6 +88,26 @@ export type TopicContentResponse = {
   lastRun?: TopicRunMetadata | null;
 };
 
+/** Same viability rule as `lib/subtopicCompleteness` topic hub gate (keep in sync). */
+export function isTopicContentResponseViable(r: TopicContentResponse): boolean {
+  const w = (s: string) => String(s ?? "").trim().length > 0;
+  if (w(r.whyStudy) || w(r.whatLearn) || w(r.realWorld)) return true;
+  return Array.isArray(r.subtopicPreviews) && r.subtopicPreviews.length > 0;
+}
+
+/** Client-side prerequisite: topic hub rows exist for all three difficulties. */
+export async function fetchTopicHubThreeLevelGate(
+  params: Omit<TopicContentParams, "level">
+): Promise<{ ok: boolean; missingLevels: DifficultyLevel[] }> {
+  const levels: DifficultyLevel[] = ["basics", "intermediate", "advanced"];
+  const missing: DifficultyLevel[] = [];
+  for (const level of levels) {
+    const r = await fetchTopicContent({ ...params, level });
+    if (!isTopicContentResponseViable(r)) missing.push(level);
+  }
+  return { ok: missing.length === 0, missingLevels: missing };
+}
+
 export async function fetchTopicContent(
   params: TopicContentParams,
   options?: TopicContentFetchOptions
@@ -281,4 +301,60 @@ export async function upsertTopicContent(
   if (!res.ok) {
     throw new Error(data.error || "Failed to save topic content");
   }
+}
+
+export type CompleteSubtopicResponse = {
+  ok: boolean;
+  dryRun?: boolean;
+  topicHubGate?: {
+    ok: boolean;
+    missingTopicLevels?: string[];
+    viableByLevel?: Record<string, boolean>;
+  };
+  levels?: Record<
+    string,
+    {
+      theory: string;
+      instacue: string;
+      bits: string;
+      formulas: string;
+      warnings: string[];
+    }
+  >;
+  warnings?: string[];
+  retries?: { level: string; block: string }[];
+  error?: string;
+  code?: string;
+};
+
+/** Admin: fill missing subtopic blocks across basics/intermediate/advanced (server enforces topic hub gate). */
+export async function postCompleteSubtopic(
+  body: Omit<TopicContentParams, "level"> & {
+    subtopicName: string;
+    dryRun?: boolean;
+    includeTrace?: boolean;
+    levels?: DifficultyLevel[];
+  }
+): Promise<CompleteSubtopicResponse> {
+  const authHeaders = await getAuthHeaders();
+  const res = await fetch("/api/agent/complete-subtopic", {
+    method: "POST",
+    headers: { ...authHeaders, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      board: body.board,
+      subject: body.subject,
+      classLevel: body.classLevel,
+      topic: body.topic,
+      subtopicName: body.subtopicName,
+      hubScope: body.hubScope === "chapter" ? "chapter" : "topic",
+      dryRun: body.dryRun === true,
+      includeTrace: body.includeTrace === true,
+      ...(Array.isArray(body.levels) && body.levels.length > 0 ? { levels: body.levels } : {}),
+    }),
+  });
+  const data = (await res.json().catch(() => ({}))) as CompleteSubtopicResponse & { error?: string };
+  if (!res.ok) {
+    throw new Error(data.error || `complete-subtopic failed (${res.status})`);
+  }
+  return data;
 }

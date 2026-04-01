@@ -10,6 +10,8 @@ import { supabaseForLongJobPersist } from "@/lib/supabaseAdminPersist";
 import { resolveGeminiModelId, resolveVertexTopicModelId } from "@/lib/geminiModel";
 import { fetchRAGContext } from "@/lib/rag";
 import { normalizeSubjectKey, normalizeSubtopicContentKey } from "@/lib/subtopicContentKeys";
+import { getGeminiApiKeyFromEnv } from "@/lib/geminiEnv";
+import { logAiUsage } from "@/lib/aiLogger";
 
 const ALLOWED_LEVELS = new Set(["basics", "intermediate", "advanced"]);
 
@@ -34,10 +36,20 @@ function normalizeBits(value: unknown): Array<{
       const options = Array.isArray(o.options)
         ? o.options.filter((x): x is string => typeof x === "string").map((x) => x.trim()).filter(Boolean)
         : [];
-      const correctAnswer = typeof o.correctAnswer === "string" ? o.correctAnswer.trim() : "";
+      let correctAnswer = typeof o.correctAnswer === "string" ? o.correctAnswer.trim() : "";
       const solution = typeof o.solution === "string" ? o.solution.trim() : "";
       if (!question || options.length !== 4 || !correctAnswer || !solution) return null;
-      if (!options.includes(correctAnswer)) return null;
+
+      if (!options.includes(correctAnswer)) {
+        const fuzzyAns = correctAnswer.replace(/\s+/g, "").toLowerCase();
+        const matchedOpt = options.find((opt) => opt.replace(/\s+/g, "").toLowerCase() === fuzzyAns);
+        if (matchedOpt) {
+          correctAnswer = matchedOpt;
+        } else {
+          return null;
+        }
+      }
+
       return { question, options, correctAnswer, solution };
     })
     .filter((x): x is { question: string; options: string[]; correctAnswer: string; solution: string } => Boolean(x));
@@ -54,7 +66,10 @@ export async function POST(request: Request) {
 
     const apiKey = process.env.GEMINI_API_KEY;
     if (!isVertexForTopicAgentEnabled() && !apiKey?.trim()) {
-      return NextResponse.json({ error: "GEMINI_API_KEY is not configured." }, { status: 503 });
+      return NextResponse.json(
+        { error: "GEMINI_API_KEY or GOOGLE_GENERATIVE_AI_API_KEY is not configured." },
+        { status: 503 },
+      );
     }
 
     const body = await request.json();
@@ -109,7 +124,7 @@ Rules:
 - Questions should test conceptual understanding, formula application, and exam-style problem solving.
 - Include a mix of easy, medium, and hard questions.
 - For ${level} level: ${level === "basics" ? "focus on definitions, basic concepts, and simple application." : level === "intermediate" ? "include NCERT-style problems, derivation-based questions, and numerical problems." : "include HOTS questions, multi-concept problems, competitive exam style, and trap questions."}
-- Use LaTeX \\( ... \\) for inline math and $$ ... $$ for block math in questions and solutions.
+- Write question, every option, and solution in normal English (or exam-style phrasing). You MUST wrap ANY math expressions, variables, units, or symbols in inline math delimiters: \\( ... \\). Use $$ ... $$ only for true display/block equations when needed. Never put bare LaTeX like \\mu, \\sigma, or exponents such as m^2 in plain text — always delimit them.
 - Each option should be plausible — no obviously wrong fillers.
 - Output valid JSON only.`;
 
@@ -143,6 +158,26 @@ ${existing.theory.slice(0, 16000)}${ragBlock}`;
       });
       raw = out.raw;
       backend = out.backend;
+      await logAiUsage({
+        supabase,
+        userId: user.id,
+        actionType: "generate_bits",
+        modelId,
+        backend: out.backend,
+        usage: out.usage,
+        metadata: {
+          board,
+          subject,
+          classLevel,
+          topic,
+          subtopicName,
+          level,
+          attempt,
+          minBits,
+          targetBits,
+          ragChunkCount: rag?.chunkCount ?? 0,
+        },
+      });
       const parsed = JSON.parse(raw) as { items?: unknown[] };
       items = normalizeBits(parsed.items);
       if (items.length >= minBits) break;

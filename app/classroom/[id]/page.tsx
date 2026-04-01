@@ -161,7 +161,7 @@ const ClassroomDetail = () => {
       setPostCount(count ?? 0);
 
       // Fetch rating summary
-      const { data: reviews } = await supabase.from('classroom_reviews' as any).select('rating').eq('classroom_id', id);
+      const { data: reviews } = await (supabase as any).from('classroom_reviews').select('rating').eq('classroom_id', id);
       const reviewRows = (reviews as unknown as { rating: number }[]) || [];
       if (reviewRows.length > 0) {
         const avg = reviewRows.reduce((s, r) => s + r.rating, 0) / reviewRows.length;
@@ -474,7 +474,7 @@ const ClassroomDetail = () => {
           {!isOwner && explorationAllowed === true && explorationExpiresAt != null && (
             <div className="edu-card p-5 rounded-2xl border-primary/30 bg-primary/5 dark:bg-primary/10 text-center space-y-3">
               <p className="font-bold text-foreground">
-                You're exploring this class.{' '}
+                You&apos;re exploring this class.{' '}
                 {explorationSecondsLeft != null ? (
                   <span className="font-mono tabular-nums">
                     {Math.floor(explorationSecondsLeft / 60)}:{String(explorationSecondsLeft % 60).padStart(2, '0')} left

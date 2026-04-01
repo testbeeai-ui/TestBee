@@ -16,7 +16,9 @@ export default function WallToggleSimulation() {
     history: [{ t: 0, hot: INITIAL_HOT, cold: INITIAL_COLD }] as { t: number; hot: number; cold: number }[],
   });
   const wallRef = useRef(wallType);
-  wallRef.current = wallType;
+  useEffect(() => {
+    wallRef.current = wallType;
+  }, [wallType]);
 
   const reset = useCallback(() => {
     setState({

@@ -6,6 +6,9 @@ const MODEL_ALIASES: Record<string, string> = {
   // v1beta uses *-preview* for Gemini 3.1 Pro public preview (not "gemini-3.1-pro" alone).
   "gemini-3.1-pro": "gemini-3.1-pro-preview",
   "gemini-3-pro": "gemini-3-pro-preview",
+  // "Gemini 3 Flash" (not 3.1); 3.1 fast tier is Flash-Lite below.
+  "gemini-3-flash": "gemini-3-flash-preview",
+  "gemini-3.1-flash-lite": "gemini-3.1-flash-lite-preview",
 };
 
 export function resolveGeminiModelId(raw: string | undefined): {
@@ -27,7 +30,6 @@ export function resolveGeminiModelId(raw: string | undefined): {
 
 /** IDs that commonly work on AI Studio but return 404 on Vertex (wrong publisher / region). */
 const VERTEX_TYPICAL_404_IDS = new Set([
-  "gemini-3.1-pro-preview",
   "gemini-3-pro-preview",
 ]);
 
@@ -38,6 +40,7 @@ const VERTEX_TYPICAL_404_IDS = new Set([
  * - Set `VERTEX_GEMINI_MODEL` to force a Vertex id (recommended for production).
  * - If unset and the resolved `GEMINI_MODEL` is a known AI-Studio-only preview, we fall back to
  *   `VERTEX_TOPIC_FALLBACK_MODEL` or `gemini-2.5-pro` so local Vertex dev does not 404.
+ *   (Gemini 3.1 Pro preview is on Vertex at location `global`; see `vertexLocationOrDefault` in geminiTopicGenerate.)
  */
 export function resolveVertexTopicModelId(fallbackFromGeminiModel: string): {
   modelId: string;

@@ -33,7 +33,7 @@ import PremiumFeatureDialog from "@/components/PremiumFeatureDialog";
 import { syncAllSavedContent } from "@/lib/savedContentService";
 import MathText from "@/components/MathText";
 import { stripFormulaDelimiters } from "@/lib/stripFormulaDelimiters";
-import { displaySubtopicHeading } from "@/lib/subtopicTitles";
+import { subtopicMathTextLabel } from "@/lib/subtopicTitles";
 
 /** Check if a BitsQuestion matches a SavedBit (same content). */
 function isBitSaved(question: BitsQuestion, savedBits: SavedBit[]): boolean {
@@ -276,10 +276,6 @@ export default function DeepDivePage() {
   const [formulaCurrentIndex, setFormulaCurrentIndex] = useState(0);
   const levelLabel = level === "intermediate" ? "Intermediate" : level === "advanced" ? "Advanced" : "Basic";
 
-  useEffect(() => {
-    setFormulaCurrentIndex(0);
-  }, [selectedFormula?.name, formulaQuizKey]);
-
   const { deepDiveContent, sectionTitle, instaCueCards, topicHref, topicNode, subtopicName } = useMemo(() => {
     if (!resolved) return { deepDiveContent: null, sectionTitle: "Deep Dive", instaCueCards: [] as InstaCueCard[], topicHref: "/explore-1", topicNode: null, subtopicName: "" };
     const { topicNode: node, subtopicName: stName, level: diffLevel } = resolved;
@@ -463,7 +459,9 @@ export default function DeepDivePage() {
           {sectionTitle}
         </h2>
         <p className="text-sm text-muted-foreground mb-6 min-w-0 overflow-hidden">
-          <span className="font-semibold text-foreground">{displaySubtopicHeading(subtopicName)}</span>
+          <MathText as="span" weight="semibold" className="font-semibold text-foreground">
+            {subtopicMathTextLabel(subtopicName)}
+          </MathText>
         </p>
 
         <div className="flex flex-col lg:flex-row gap-6">
@@ -542,9 +540,11 @@ export default function DeepDivePage() {
         <Dialog open={bitsDialogOpen} onOpenChange={setBitsDialogOpen}>
           <DialogContent className="rounded-2xl max-w-2xl max-h-[85vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Zap className="w-5 h-5 text-primary" />
-                Bits — Subtopic {sectionIndex + 1}: {displaySubtopicHeading(subtopicName)} (Level: {levelLabel})
+              <DialogTitle className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <Zap className="w-5 h-5 text-primary shrink-0" />
+                <span>Bits — Subtopic {sectionIndex + 1}: </span>
+                <MathText as="span" className="min-w-0">{subtopicMathTextLabel(subtopicName)}</MathText>
+                <span> (Level: {levelLabel})</span>
               </DialogTitle>
             </DialogHeader>
             {deepDiveContent?.bitsQuestions && deepDiveContent.bitsQuestions.length > 0 ? (
@@ -671,6 +671,7 @@ export default function DeepDivePage() {
             if (next.length > 0) {
               setFormulaPracticeQuestions(next);
               setFormulaQuizKey((k) => k + 1);
+              setFormulaCurrentIndex(0);
             }
           }}
         />
@@ -716,7 +717,7 @@ export default function DeepDivePage() {
                   )}
                   {selectedFormula.formulaLatex && (
                     <div className="text-foreground bg-muted/50 rounded-2xl px-6 py-5 overflow-x-auto math-text-katex-heavy [&_.katex]:text-[clamp(1rem,3.5vw,1.5rem)]">
-                      <MathText weight="bold">{stripFormulaDelimiters(selectedFormula.formulaLatex)}</MathText>
+                      <MathText weight="bold">{`$$${stripFormulaDelimiters(selectedFormula.formulaLatex)}$$`}</MathText>
                     </div>
                   )}
                 </div>
@@ -779,7 +780,10 @@ export default function DeepDivePage() {
                       <button
                         key={i}
                         type="button"
-                        onClick={() => setSelectedFormula(formula)}
+                        onClick={() => {
+                          setSelectedFormula(formula);
+                          setFormulaCurrentIndex(0);
+                        }}
                         className="text-left p-4 rounded-xl border-2 border-border hover:border-primary/40 hover:bg-primary/5 transition-all"
                       >
                         <span className="font-bold text-foreground">{formula.name}</span>
@@ -790,7 +794,7 @@ export default function DeepDivePage() {
                         )}
                         {formula.formulaLatex && (
                           <div className="mt-2 text-primary overflow-x-auto [&_.katex]:text-[1em]">
-                            <MathText>{stripFormulaDelimiters(formula.formulaLatex)}</MathText>
+                            <MathText>{`$$${stripFormulaDelimiters(formula.formulaLatex)}$$`}</MathText>
                           </div>
                         )}
                         <span className="text-xs text-muted-foreground mt-2 block">

@@ -9,6 +9,7 @@ import { questions } from '@/data/questions';
 import { Question, Subject, ExamType, ClassLevel, SubjectCombo } from '@/types';
 import type { TopicNode } from '@/data/topicTaxonomy';
 import { useTopicTaxonomy } from '@/hooks/useTopicTaxonomy';
+import ExploreHubDashboard from '@/components/explore/ExploreHubDashboard';
 import QuestionCard from '@/components/QuestionCard';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -28,6 +29,7 @@ import TheoryContent from '@/components/TheoryContent';
 import { getInstaCueCards } from '@/data/instaCueCards';
 import type { InstaCueCard } from '@/data/instaCueCards';
 import InstaCue from '@/components/InstaCue';
+import { prettifySubtopicTitle } from '@/lib/subtopicTitles';
 import SubjectChatbot from '@/components/SubjectChatbot';
 import AnimatedPhysicsIcon from '@/components/AnimatedPhysicsIcon';
 import AnimatedChemistryIcon from '@/components/AnimatedChemistryIcon';
@@ -323,7 +325,8 @@ const Explore = () => {
   );
 
   useEffect(() => {
-    if (selectedExam && !visibleExamTypes.includes(selectedExam)) setSelectedExam(null);
+    if (!selectedExam || visibleExamTypes.includes(selectedExam)) return;
+    queueMicrotask(() => setSelectedExam(null));
   }, [visibleExamTypes, selectedExam]);
 
   // Get question count for a specific subject
@@ -349,7 +352,7 @@ const Explore = () => {
         t.subject === selectedSubject &&
         t.classLevel >= 11 &&
         (classLevel == null || classLevel >= 11) &&
-        (!selectedExam || t.examRelevance.includes(selectedExam))
+        (!selectedExam || selectedExam === 'other' || t.examRelevance.length === 0 || t.examRelevance.includes(selectedExam))
     );
     const grouped: Record<number, TopicNode[]> = {};
     for (const t of relevant) {
@@ -444,46 +447,19 @@ const Explore = () => {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="max-w-3xl mx-auto"
             >
-              <div className="edu-page-header">
-                <h2 className="edu-page-title flex items-center gap-3">
-                  <div className="w-10 h-10 gradient-primary rounded-xl flex items-center justify-center">
-                    <Compass className="w-5 h-5 text-primary-foreground" />
-                  </div>
-                  Explore & Play
-                </h2>
-                <p className="edu-page-desc">Choose how you want to learn</p>
-              </div>
-              <div className="grid sm:grid-cols-2 gap-4 mt-8">
-                <motion.button
-                  type="button"
-                  onClick={() => setView('subjects')}
-                  className="edu-card p-6 rounded-2xl text-left hover:shadow-[0_8px_30px_rgba(0,0,0,0.12)] hover:scale-[1.02] transition-all border border-border group"
-                >
-                  <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
-                    <Compass className="w-6 h-6 text-primary" />
-                  </div>
-                  <h3 className="font-extrabold text-lg text-foreground mb-1">Explore</h3>
-                  <p className="text-sm text-muted-foreground">Browse subjects, topics, and practice questions</p>
-                  <span className="inline-flex items-center gap-1 mt-3 text-sm font-bold text-primary">
-                    Open <ChevronRight className="w-4 h-4" />
-                  </span>
-                </motion.button>
-                <Link
-                  href="/play"
-                  className="edu-card p-6 rounded-2xl text-left hover:shadow-[0_8px_30px_rgba(0,0,0,0.12)] hover:scale-[1.02] transition-all border border-border group block"
-                >
-                  <div className="w-12 h-12 rounded-xl bg-edu-orange/10 flex items-center justify-center mb-4 group-hover:bg-edu-orange/20 transition-colors">
-                    <Crosshair className="w-6 h-6 text-edu-orange" />
-                  </div>
-                  <h3 className="font-extrabold text-lg text-foreground mb-1">Play</h3>
-                  <p className="text-sm text-muted-foreground">Fun, timed practice and challenges</p>
-                  <span className="inline-flex items-center gap-1 mt-3 text-sm font-bold text-edu-orange">
-                    Go to Play <ChevronRight className="w-4 h-4" />
-                  </span>
-                </Link>
-              </div>
+              <ExploreHubDashboard
+                onNavigateToSubjects={() => setView('subjects')}
+                onNavigateToSubject={handleSubjectSelect}
+                onNavigateToTopic={(node) => {
+                  setSelectedSubject(node.subject);
+                  handleTopicClick(node, node.classLevel);
+                }}
+                onNavigateToSubjectWithExam={(subject, _exam) => {
+                  setSelectedSubject(subject);
+                  setView('topics');
+                }}
+              />
             </motion.div>
           )}
 
@@ -685,7 +661,7 @@ const Explore = () => {
                                       key={st.name}
                                       className="edu-chip bg-muted/60 text-muted-foreground text-[10px]"
                                     >
-                                      {st.name}
+                                      {prettifySubtopicTitle(st.name)}
                                     </span>
                                   ))}
                                 </div>
@@ -808,7 +784,7 @@ const Explore = () => {
                       <div key={st.name} className="edu-card p-5 rounded-2xl border border-border">
                         <h3 className="font-bold text-foreground mb-2 flex items-center gap-2">
                           <span className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center text-sm text-primary">{idx + 1}</span>
-                          {st.name}
+                          {prettifySubtopicTitle(st.name)}
                         </h3>
                         {theoryData.theorySectionsWithPractice && theoryData.theorySectionsWithPractice.length > 0 && theoryData.interactiveBlocks ? (
                           <div className="space-y-6 mb-4">

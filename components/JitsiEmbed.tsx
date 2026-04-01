@@ -87,12 +87,12 @@ export function JitsiEmbed({ meetLink, displayName, className = "", sessionId }:
 
   useEffect(() => {
     if (!meetLink || !isJitsiLink(meetLink)) {
-      setError("This meeting link cannot be embedded.");
+      queueMicrotask(() => setError("This meeting link cannot be embedded."));
       return;
     }
     if (typeof window === "undefined") return;
     if (window.JitsiMeetExternalAPI) {
-      setScriptReady(true);
+      queueMicrotask(() => setScriptReady(true));
       return;
     }
     const sel = 'script[src="' + JITSI_SCRIPT_URL + '"]';
@@ -131,7 +131,9 @@ export function JitsiEmbed({ meetLink, displayName, className = "", sessionId }:
       const api = window.JitsiMeetExternalAPI(JITSI_DOMAIN as string, options);
       apiRef.current = api;
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to start meeting.");
+      queueMicrotask(() =>
+        setError(e instanceof Error ? e.message : "Failed to start meeting."),
+      );
     }
     return () => {
       if (apiRef.current) {

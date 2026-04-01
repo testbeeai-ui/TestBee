@@ -90,9 +90,9 @@ const Revision = () => {
 
   useEffect(() => {
     if (activeTab !== 'saved') return;
-    setSavedContentLoading(true);
     const storeBits = useUserStore.getState().user?.savedBits ?? [];
     const storeFormulas = useUserStore.getState().user?.savedFormulas ?? [];
+    queueMicrotask(() => setSavedContentLoading(true));
     fetchSavedContent()
       .then(({ savedBits: bits, savedFormulas: formulas, savedRevisionCards: revisionCards }) => {
         // API is source of truth when it returns data

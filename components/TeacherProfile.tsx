@@ -42,11 +42,13 @@ export default function TeacherProfile() {
 
   useEffect(() => {
     if (!profile) return;
-    setName(profile.name ?? "");
-    setTeachingLevelsSel((profile.teaching_levels as unknown as string[]) ?? []);
-    setSubjectsSel(profile.subjects ?? []);
-    setExamTagsSel(profile.exam_tags ?? []);
-    setVisibility(profile.visibility ?? "public");
+    queueMicrotask(() => {
+      setName(profile.name ?? "");
+      setTeachingLevelsSel((profile.teaching_levels as unknown as string[]) ?? []);
+      setSubjectsSel(profile.subjects ?? []);
+      setExamTagsSel(profile.exam_tags ?? []);
+      setVisibility(profile.visibility ?? "public");
+    });
   }, [profile?.id, profile?.name, profile?.teaching_levels, profile?.subjects, profile?.exam_tags, profile?.visibility]);
 
   if (!user || !profile) return null;

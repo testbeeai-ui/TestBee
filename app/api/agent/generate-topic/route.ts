@@ -9,6 +9,8 @@ import {
 import { isAdminUser } from "@/lib/admin";
 import { resolveGeminiModelId, resolveVertexTopicModelId } from "@/lib/geminiModel";
 import { buildRAGRequestTrace, fetchRAGContext } from "@/lib/rag";
+import { getGeminiApiKeyFromEnv } from "@/lib/geminiEnv";
+import { logAiUsage } from "@/lib/aiLogger";
 
 const TRACE_MAX_USER_PROMPT = 48_000;
 const TRACE_MAX_RAG_CONTEXT = 32_000;
@@ -378,25 +380,28 @@ const TOPIC_MAIN_SECTION_REQUIREMENTS: TopicSectionRequirement[] = [
 function topicHubLevelStructureGuidance(level: string): string {
   if (level === "basics") {
     return [
-      "BASIC STRUCTURE RULES:",
-      "- Keep each section compact and beginner-friendly (short paragraphs + 2-4 bullets).",
-      "- Prioritize intuition and simple examples before dense formalism.",
-      "- Use only essential formulas; explain each symbol in plain language.",
+      "BASIC LEVEL RULES (THE HOOK & INTUITION):",
+      "- Tone: Highly accessible, conversational, and encouraging.",
+      "- Structure: Keep every section brief and beginner-friendly (short paragraphs + 2-3 bullets).",
+      "- Content: Prioritize everyday analogies, visual intuition, and 'why this matters' over dense formalism.",
+      "- Math/Formulas: Introduce only the absolute minimum essential formula. Explain every single symbol in plain English without jumping into complex derivations.",
     ].join("\n");
   }
   if (level === "intermediate") {
     return [
-      "INTERMEDIATE STRUCTURE RULES:",
-      "- Use exam-ready structure with clear definitions, standard formula usage, and process flow.",
-      "- Include medium-depth explanation in every section (paragraph + bullets/checkpoints).",
-      "- Add concrete board-style solving guidance, not just conceptual talk.",
+      "INTERMEDIATE LEVEL RULES (THE EXAM ENGINE):",
+      "- Tone: Strict academic, precise, and NCERT-aligned.",
+      "- Structure: Clear, structured paragraphs with specific definitions and standard bulleted checklists.",
+      "- Content: Focus squarely on standard board-exam derivation flows, sign conventions, unit dimensions, and correct formal definitions.",
+      "- Math/Formulas: Provide exact standard formulas using proper LaTeX. Include medium-depth explanations of the process flow for standard numericals.",
     ].join("\n");
   }
   return [
-    "ADVANCED STRUCTURE RULES:",
-    "- Write as a full master-note: dense but scannable, with high-yield sectioning.",
-    "- Under each section, include edge cases, exceptions, and strategy cues where relevant.",
-    "- Emphasize exam decision-making under time pressure and trap-avoidance heuristics.",
+    "ADVANCED LEVEL RULES (THE STRESS TEST):",
+    "- Tone: Rigorous, fast-paced, dense, and competitive-exam (JEE/NEET) oriented.",
+    "- Structure: High-yield, compact sections that skip basic filler entirely.",
+    "- Content: Pack every section with edge cases, exceptions, parameter constraints, and multi-concept chaining.",
+    "- Math/Formulas: Emphasize calculus forms, non-uniform distributions, smarter shortcuts, and trap-avoidance heuristics. Assume the student already knows the basics.",
   ].join("\n");
 }
 
@@ -825,7 +830,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = getGeminiApiKeyFromEnv();
     const vertexFlag = process.env.GEMINI_USE_VERTEX?.trim().toLowerCase();
     const vertexExplicitlyOn = vertexFlag === "true" || vertexFlag === "1";
     if (vertexExplicitlyOn && !process.env.GOOGLE_CLOUD_PROJECT?.trim()) {
@@ -841,7 +846,7 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           error:
-            "GEMINI_API_KEY is not configured. Set it for the AI Studio path, or enable Vertex with GEMINI_USE_VERTEX=true and GOOGLE_CLOUD_PROJECT plus ADC.",
+            "No Gemini API key: set GEMINI_API_KEY (or GOOGLE_GENERATIVE_AI_API_KEY) for the AI Studio path, or enable Vertex with GEMINI_USE_VERTEX=true and GOOGLE_CLOUD_PROJECT plus ADC.",
         },
         { status: 503 }
       );
@@ -1038,6 +1043,7 @@ export async function POST(request: Request) {
 
     let backend: TopicGeminiBackend = vertexEnabled ? "vertex" : "api_key";
     let raw: string;
+    let usage: { promptTokenCount: number; candidatesTokenCount: number; totalTokenCount: number } | undefined;
     try {
       const out = await generateTopicHubJson({
         apiKey,
@@ -1049,6 +1055,7 @@ export async function POST(request: Request) {
       });
       raw = out.raw;
       backend = out.backend;
+      usage = out.usage;
     } catch (err: unknown) {
       const status =
         err &&
@@ -1074,9 +1081,8 @@ export async function POST(request: Request) {
         return NextResponse.json(
           {
             error:
-              `Vertex could not load model "${modelId}" in ${vertexLocationOrDefault()}. ` +
-              "AI Studio names (e.g. gemini-3.1-pro-preview) are often different or unavailable on Vertex in your region. " +
-              'Set VERTEX_GEMINI_MODEL to a model from the Vertex catalog (try gemini-2.5-pro) and ensure the API is enabled. ' +
+              `Vertex could not load model "${modelId}" in ${vertexLocationOrDefault(modelId)}. ` +
+              "For gemini-3.1-pro-preview the app uses Vertex location global. If this persists, confirm Vertex AI API, billing, and Model Garden access for your project. " +
               "See https://cloud.google.com/vertex-ai/generative-ai/docs/learn/model-versions",
             code: "VERTEX_MODEL_NOT_FOUND",
           },
@@ -1107,6 +1113,27 @@ export async function POST(request: Request) {
     console.log(
       `[generate-topic] runType=${mode} hubScope=${hubScope} backend=${backend} model=${modelId} ragChunks=${ragChunkCount} topic=${topic} level=${level}`
     );
+    await logAiUsage({
+      supabase,
+      userId: user.id,
+      actionType: "generate_topic",
+      modelId,
+      backend,
+      usage,
+      metadata: {
+        board,
+        subject,
+        classLevel,
+        topic,
+        level,
+        hubScope,
+        mode,
+        unitLabel,
+        unitTitle,
+        chapterTitle,
+        ragChunkCount,
+      },
+    });
 
     if (!raw) {
       return NextResponse.json({ error: "Empty model response" }, { status: 502 });
@@ -1146,6 +1173,25 @@ export async function POST(request: Request) {
           systemInstruction,
           temperature: 0.35,
           maxOutputTokens: 12288,
+        });
+        await logAiUsage({
+          supabase,
+          userId: user.id,
+          actionType: "generate_topic_retry",
+          modelId,
+          backend: jsonRetryOut.backend,
+          usage: jsonRetryOut.usage,
+          metadata: {
+            board,
+            subject,
+            classLevel,
+            topic,
+            level,
+            hubScope,
+            mode,
+            retryType: "invalid_json_repair",
+            ragChunkCount,
+          },
         });
         const parsedRetry = parseTopicAgentJson(jsonRetryOut.raw);
         if (!parsedRetry.parsed) {

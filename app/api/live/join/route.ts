@@ -117,7 +117,7 @@ export async function POST(request: Request) {
       .eq('user_id', user.id)
       .maybeSingle();
 
-    let explorerJoinedAt = existingExplorerJoin ? new Date(existingExplorerJoin.joined_at).getTime() : now;
+    const explorerJoinedAt = existingExplorerJoin ? new Date(existingExplorerJoin.joined_at).getTime() : now;
     if (!existingExplorerJoin) {
       await admin.from('explorer_live_joins').insert({
         session_id: sessionId,

@@ -105,14 +105,29 @@ export async function fetchSubtopicContent(params: SubtopicContentParams): Promi
     throw new Error("Failed to fetch subtopic content");
   }
   const data = (await res.json()) as Record<string, unknown>;
+  const theory = typeof data.theory === "string" ? data.theory : "";
+  const instacueCards = Array.isArray(data.instacueCards)
+    ? (data.instacueCards as ArtifactInstaCueCard[])
+    : [];
+  const bitsQuestions = Array.isArray(data.bitsQuestions)
+    ? (data.bitsQuestions as ArtifactBitsQuestion[])
+    : [];
+  const practiceFormulas = Array.isArray(data.practiceFormulas)
+    ? (data.practiceFormulas as ArtifactFormula[])
+    : [];
+  const hasPersistedSubtopic =
+    theory.trim().length > 0 ||
+    instacueCards.length > 0 ||
+    bitsQuestions.length > 0 ||
+    practiceFormulas.length > 0;
   return {
-    theory: typeof data.theory === "string" ? data.theory : "",
+    theory,
     references: parseReferences(data.references),
     didYouKnow: typeof data.didYouKnow === "string" ? data.didYouKnow : "",
-    instacueCards: Array.isArray(data.instacueCards) ? data.instacueCards as ArtifactInstaCueCard[] : [],
-    bitsQuestions: Array.isArray(data.bitsQuestions) ? data.bitsQuestions as ArtifactBitsQuestion[] : [],
-    practiceFormulas: Array.isArray(data.practiceFormulas) ? data.practiceFormulas as ArtifactFormula[] : [],
-    exists: data.exists === true,
+    instacueCards,
+    bitsQuestions,
+    practiceFormulas,
+    exists: data.exists === true || hasPersistedSubtopic,
     canEdit: data.canEdit === true,
   };
 }

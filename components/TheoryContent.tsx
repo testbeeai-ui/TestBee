@@ -32,6 +32,15 @@ function renderMath(latex: string, displayMode: boolean): string | null {
  */
 function repairCorruptedLatexEscapes(s: string): string {
   let out = s;
+  // Bad generator typo: \uparrowrac{…}{…} instead of \frac{…}{…} (Curie–Weiss, etc.)
+  out = out.replace(/\\uparrowrac\b/g, "\\frac");
+  // Broader arrow-variant typos seen in some payloads: ↑rac, ⬆rac, \uarrac, \arrowrac.
+  out = out.replace(/(?:\\uarrac|\\arrowrac)\b/g, "\\frac");
+  out = out.replace(/(?:\\(?:up)?arrow|[↑⇑⬆⭡⇧↟])\s*rac\b/g, "\\frac");
+  // Last-resort recovery for malformed "\frac" prefixes such as "\xrac", "\yrac", "^rac", "rac".
+  // Scope is limited to command-like tokens immediately before a brace to avoid normal prose changes.
+  out = out.replace(/\\[A-Za-z^]*rac(?=\s*\{)/g, "\\frac");
+  out = out.replace(/(^|[=\s(])(?:\^|[↑⇑⬆⭡⇧↟])?\s*rac(?=\s*\{)/g, "$1\\frac");
   // JSON "\frac{...}" → \f + "rac{...}" (form feed)
   out = out.replace(/\u000cfrac\b/g, "\\frac");
   out = out.replace(/\u000cbox\b/g, "\\fbox");
@@ -131,7 +140,23 @@ function normalizeTheoryForRender(raw: string): string {
   // "$\\vec{r}$ = x $\\hat{i}$ + y $\\hat{j}$" -> "$\\vec{r} = x\\hat{i} + y\\hat{j}$"
   out = mergeFragmentedInlineMath(out);
 
+  // Ampère's circuital law (line-integral form): models sometimes emit a quoted "." instead of \cdot
+  // between \\vec{B} and d\\vec{l}, or a bare period that KaTeX stacks oddly.
+  out = out.replace(
+    /\\vec\{B\}\s*[`\u201C\u201D\u2018\u2019"']\s*\.\s*[`\u201C\u201D\u2018\u2019"']\s*d\\vec\{l\}/gi,
+    "\\vec{B} \\cdot d\\vec{l}",
+  );
+  out = out.replace(
+    /\\vec\{B\}\s*\.\s*d\\vec\{l\}(\s*=\s*\\mu)/gi,
+    "\\vec{B} \\cdot d\\vec{l}$1",
+  );
+  // Subscript "enclosed" in mu_0 I_enclosed → proper \\text inside display math
+  out = out.replace(/(\\mu_0\s*)I_\{?enclosed\}?/gi, "$1I_{\\text{enclosed}}");
+
   out = repairRunonPhysicsGivenLine(out);
+
+  // Plain "Question:" / "Solution:" (no **) still renders bold in some exports — normalize so label parsing runs.
+  out = out.replace(/(^|\n)(Question|Solution):\s+/gm, "$1**$2:** ");
 
   // Trim trailing spaces and collapse excessive blank lines.
   out = out
@@ -209,7 +234,7 @@ function renderInlineFormatting(text: string) {
         parts.push(
           <span
             key={key++}
-            className="theory-display-math block my-3 p-4 rounded-lg bg-primary/5 border border-primary/20 overflow-x-auto"
+            className="theory-display-math block my-2 py-3.5 px-4 rounded-xl text-center bg-sky-50/90 dark:bg-sky-950/30 border border-sky-200/60 dark:border-sky-800/45 overflow-x-auto shadow-sm [&_.katex-display]:my-0 [&_.katex-display]:text-center [&_.katex]:text-[1.05em] sm:[&_.katex]:text-[1.08em]"
             dangerouslySetInnerHTML={{ __html: html }}
           />
         );
@@ -416,6 +441,293 @@ function parseDenseOrderedListWithIntro(trimmed: string): { intro: string; items
   return { intro, items };
 }
 
+/**
+ * Example 2–style "comparative" physics (e.g. long solenoid B₁ vs B₂): step labels (*italic* or plain)
+ * are glued in one paragraph ("Initial field: … New current: …"). Split before each label so
+ * SolutionStepsBlock renders like Example 1’s numbered list.
+ */
+function splitComparativePhysicsSolutionSteps(rest: string): string[] | null {
+  const t = rest.replace(/\s+/g, " ").trim();
+  if (t.length < 24) return null;
+
+  const hasInitialField = /(?:\*Initial field:\*|\bInitial field:)/i.test(t);
+  const hasComparativeSteps =
+    /(?:\*New turn density:\*|\bNew turn density:)/i.test(t) ||
+    /(?:\*New current:\*|\bNew current:)/i.test(t) ||
+    /(?:\*New field:\*|\bNew field:)/i.test(t);
+  if (!hasInitialField || !hasComparativeSteps) return null;
+
+  // Split before each step label. Allow optional space after ":" (plain export) and "Result:*" typos.
+  const stepBoundary =
+    /\s+(?=\*Initial field:\*|\*New turn density:\*|\*New current:\*|\*New field:\*|\*Result:\*|\bInitial field:\s*|\bNew turn density:\s*|\bNew current:\s*|\bNew field:\s*|\bResult:\s*\*|\bResult:\s)/gi;
+
+  const parts = t
+    .split(stepBoundary)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  const cleaned = parts.map((p) =>
+    p.replace(/^Result:\*\s+/i, "*Result:* ")
+  );
+
+  return cleaned.length >= 2 ? cleaned : null;
+}
+
+/**
+ * Worked examples often store the whole solution as one paragraph ("Volume…. Taking logs…. Given…").
+ * Split on sentence boundaries before typical step-start words so each step renders on its own row.
+ */
+function splitWorkedExampleSolutionSteps(rest: string): string[] {
+  const comparative = splitComparativePhysicsSolutionSteps(rest);
+  if (comparative) return comparative;
+
+  const t = rest.trim();
+  if (t.length < 40) return [t];
+
+  const lines = t.split(/\n/).map((l) => l.trim()).filter(Boolean);
+  if (lines.length >= 2) return lines;
+
+  // After ". " (or ".** " etc.), next token starts a new reasoning step.
+  const stepStart =
+    "(?:Taking|Substitute|Substituting|Given|Therefore|Hence|Thus|Now|Next|Also|Finally|Alternatively|Using|Apply|Here|From\\s+the|We\\s+have|We\\s+get|This\\s+gives|Simplifying|Calculating|Resolving|So\\s+the|New|Resistance|Volume|Current|Power|Imply|It\\s+follows)";
+  // Physics lines like "4%. dR/R = …" (lowercase differential quotient after a full stop).
+  const derivQuotient = "d[A-Za-z]{1,6}/[A-Za-z]";
+
+  const re = new RegExp(`\\.\\s+(?=(?:${stepStart}\\b|${derivQuotient}))`, "gi");
+  const chunks: string[] = [];
+  let start = 0;
+  const r = new RegExp(re.source, re.flags);
+  let m: RegExpExecArray | null;
+  while ((m = r.exec(t)) !== null) {
+    const afterDot = m.index + 1;
+    const segment = t.slice(start, afterDot).trim();
+    if (segment) chunks.push(segment);
+    start = m.index + m[0].length;
+  }
+  const tail = t.slice(start).trim();
+  if (tail) chunks.push(tail);
+
+  return chunks.length >= 2 ? chunks : [t];
+}
+
+/** `## Title\\n**Question:**` in one chunk (single newlines) — split heading from body so heading isn't a wall of text. */
+function splitHeadingRestBlock(trimmed: string): string[] {
+  const m = trimmed.match(/^(#{1,4}\s+[^\n]+)\n([\s\S]+)$/);
+  if (!m?.[2]) return [trimmed];
+  const body = m[2].trim();
+  if (!body) return [trimmed];
+  return [m[1].trim(), body];
+}
+
+/** One \\n\\n block sometimes contains both **Question:** and **Solution:** — split so each gets its own renderer. */
+function splitBlockOnQuestionSolutionLabels(trimmed: string): string[] {
+  const re = /(\*\*(?:Question|Solution)\*\*:\s*|\*(?:Question|Solution)\*:\s*)/gi;
+  const matches = [...trimmed.matchAll(re)];
+  if (matches.length === 0) return [trimmed];
+
+  const parts: string[] = [];
+  const firstIdx = matches[0]!.index ?? 0;
+  if (firstIdx > 0) {
+    const head = trimmed.slice(0, firstIdx).trim();
+    if (head) parts.push(head);
+  }
+  for (let i = 0; i < matches.length; i++) {
+    const start = matches[i]!.index ?? 0;
+    const end = matches[i + 1]?.index ?? trimmed.length;
+    parts.push(trimmed.slice(start, end).trim());
+  }
+  return parts.length ? parts : [trimmed];
+}
+
+function expandTheoryBlocks(blocks: string[]): string[] {
+  const out: string[] = [];
+  for (const block of blocks) {
+    const t = block.trim();
+    const headBody = splitHeadingRestBlock(t);
+    const segments = headBody.length === 2 ? headBody : [t];
+    for (const seg of segments) {
+      const sub = splitBlockOnQuestionSolutionLabels(seg.trim());
+      out.push(...(sub.length > 1 ? sub : [seg.trim()]));
+    }
+  }
+  return out;
+}
+
+/** AI output often glues rows as `...| Solenoid | | :--- |` — insert newlines before the next row. */
+function normalizeRunonPipeTableString(s: string): string {
+  let out = s;
+  out = out.replace(/\|\s+\|\s+(?=:[-:]{2,})/g, "|\n| ");
+  out = out.replace(/\|\s+\|\s+(?=\*\*)/g, "|\n| ");
+  // Next row starts with Title Case phrase then ` | ` (e.g. "| … | | Form continuous … |")
+  out = out.replace(
+    /\|\s+\|\s+(?=[A-Z][a-z]{2,}(?:\s+[a-z,°\-²³]+)*\s*\|)/g,
+    "|\n| "
+  );
+  return out;
+}
+
+function splitPipeTableRow(line: string): string[] {
+  const t = line.trim();
+  if (!t.startsWith("|")) return [];
+  const core = t.endsWith("|") ? t.slice(1, -1) : t.slice(1);
+  return core.split("|").map((c) => c.trim());
+}
+
+function isMarkdownTableSeparatorRow(line: string): boolean {
+  const cells = splitPipeTableRow(line);
+  return (
+    cells.length >= 2 &&
+    cells.every((c) => {
+      const x = c.trim();
+      return /^:?-{2,}:?$/.test(x);
+    })
+  );
+}
+
+function cellAlignFromSeparator(cell: string): "left" | "center" | "right" {
+  const t = cell.trim();
+  if (/^:[-:]+:$/.test(t)) return "center";
+  if (/^[-:]+:$/.test(t)) return "right";
+  return "left";
+}
+
+function tryParseMarkdownPipeTable(raw: string): {
+  header: string[];
+  aligns: ("left" | "center" | "right")[];
+  rows: string[][];
+} | null {
+  const normalized = normalizeRunonPipeTableString(raw.trim());
+  const linesAll = normalized.split(/\n/).map((l) => l.trim()).filter(Boolean);
+  const lines = linesAll.filter((l) => l.startsWith("|") && l.includes("|", 1));
+  if (lines.length < 2) return null;
+
+  const sepIdx = lines.findIndex(isMarkdownTableSeparatorRow);
+  if (sepIdx < 1) return null;
+
+  const header = splitPipeTableRow(lines[0]);
+  if (header.length < 2) return null;
+
+  const sepCells = splitPipeTableRow(lines[sepIdx]);
+  const aligns: ("left" | "center" | "right")[] = [];
+  for (let j = 0; j < header.length; j++) {
+    aligns.push(cellAlignFromSeparator(sepCells[j] ?? "---"));
+  }
+
+  const rows: string[][] = [];
+  for (let r = sepIdx + 1; r < lines.length; r++) {
+    if (isMarkdownTableSeparatorRow(lines[r])) continue;
+    const row = splitPipeTableRow(lines[r]);
+    if (row.length === 0) continue;
+    const padded = [...row];
+    while (padded.length < header.length) padded.push("");
+    rows.push(padded.slice(0, header.length));
+  }
+  if (rows.length === 0) return null;
+  return { header, aligns, rows };
+}
+
+function trySplitBlockTablePreamble(trimmed: string): {
+  preamble: string;
+  header: string[];
+  aligns: ("left" | "center" | "right")[];
+  rows: string[][];
+} | null {
+  const lines = trimmed.split(/\n/);
+  let start = -1;
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i].trim();
+    if (!l.startsWith("|")) continue;
+    const pipeCount = (l.match(/\|/g) ?? []).length;
+    if (pipeCount >= 3) {
+      start = i;
+      break;
+    }
+  }
+  if (start < 0) return null;
+  const tableSpan = lines.slice(start).join("\n");
+  const parsed = tryParseMarkdownPipeTable(tableSpan);
+  if (!parsed) return null;
+  const preamble = lines
+    .slice(0, start)
+    .join("\n")
+    .trim();
+  return { preamble, ...parsed };
+}
+
+const tableAlignClass: Record<"left" | "center" | "right", string> = {
+  left: "text-left",
+  center: "text-center",
+  right: "text-right",
+};
+
+function MarkdownTableBlock({
+  header,
+  aligns,
+  rows,
+}: {
+  header: string[];
+  aligns: ("left" | "center" | "right")[];
+  rows: string[][];
+}) {
+  return (
+    <div className="overflow-x-auto my-4 rounded-xl border border-border bg-muted/30 shadow-sm">
+      <table className="w-full min-w-[300px] text-sm border-collapse">
+        <thead>
+          <tr className="border-b-2 border-primary/35 bg-primary/8">
+            {header.map((h, j) => (
+              <th
+                key={j}
+                scope="col"
+                className={`px-3 py-2.5 font-semibold text-foreground ${tableAlignClass[aligns[j] ?? "left"]}`}
+              >
+                {renderInlineFormatting(h)}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, ri) => (
+            <tr key={ri} className="border-b border-border/70 last:border-b-0 odd:bg-background/50">
+              {row.map((cell, ci) => (
+                <td
+                  key={ci}
+                  className={`px-3 py-2.5 text-muted-foreground align-top ${tableAlignClass[aligns[ci] ?? "left"]}`}
+                >
+                  {renderInlineFormatting(cell)}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function SolutionStepsBlock({ labelHtml, steps }: { labelHtml: string; steps: string[] }) {
+  return (
+    <div className="space-y-3 pl-4 py-2.5 rounded-r-lg bg-primary/5 border-l-[3px] border-primary/60">
+      <span className="inline-block text-sm font-semibold text-primary [&_.katex]:text-[1em]">
+        {renderInlineFormatting(labelHtml)}
+      </span>
+      <ol className="space-y-3 list-none pl-0 m-0" role="list">
+        {steps.map((step, j) => (
+          <li
+            key={j}
+            className="flex gap-3 text-muted-foreground pl-0 border-l-0"
+            role="listitem"
+          >
+            <span className="font-semibold text-foreground/80 shrink-0 tabular-nums w-6 text-right select-none">
+              {j + 1}.
+            </span>
+            <div className="min-w-0 flex-1 leading-relaxed">{renderInlineFormatting(step.trim())}</div>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
 function TrapListBlock({ intro, items }: { intro: string; items: TrapListItem[] }) {
   return (
     <div className="space-y-4 my-3">
@@ -441,7 +753,7 @@ function TrapListBlock({ intro, items }: { intro: string; items: TrapListItem[] 
 /** Render theory content with proper heading hierarchy and readable formatting. Same pattern for Basic and Intermediate. */
 export default function TheoryContent({ theory, className }: { theory: string; className?: string }) {
   const normalizedTheory = normalizeTheoryForRender(theory);
-  const blocks = normalizedTheory.split(/\n\n+/).filter((b) => b.trim());
+  const blocks = expandTheoryBlocks(normalizedTheory.split(/\n\n+/).filter((b) => b.trim()));
   return (
     <div className={`theory-content-readable font-sans space-y-6 text-[15px] leading-relaxed ${className ?? ""}`}>
       {blocks.map((block, i) => {
@@ -534,6 +846,21 @@ export default function TheoryContent({ theory, className }: { theory: string; c
           );
         }
 
+        const tableWithPreamble = trySplitBlockTablePreamble(trimmed);
+        if (tableWithPreamble) {
+          const { preamble, header, aligns, rows } = tableWithPreamble;
+          return (
+            <div key={i} className="space-y-4">
+              {preamble ? (
+                <div className="text-base font-semibold text-foreground [&_.katex]:text-[1em]">
+                  {renderInlineFormatting(preamble)}
+                </div>
+              ) : null}
+              <MarkdownTableBlock header={header} aligns={aligns} rows={rows} />
+            </div>
+          );
+        }
+
         const trapsParsed = parseTrapsStructured(trimmed);
         if (trapsParsed && trapsParsed.items.length > 0) {
           return <TrapListBlock key={i} intro={trapsParsed.intro} items={trapsParsed.items} />;
@@ -599,6 +926,14 @@ export default function TheoryContent({ theory, className }: { theory: string; c
         if (labelMatch) {
           const label = labelMatch[1];
           const rest = trimmed.slice(labelMatch[0].length).trim();
+          if (/^solution$/i.test(label.trim())) {
+            const steps = splitWorkedExampleSolutionSteps(rest);
+            if (steps.length >= 2) {
+              return (
+                <SolutionStepsBlock key={i} labelHtml={`${label}:`} steps={steps} />
+              );
+            }
+          }
           return (
             <div key={i} className="space-y-1.5 pl-4 py-2.5 rounded-r-lg bg-primary/5 border-l-[3px] border-primary/60">
               <span className="inline-block text-sm font-semibold text-primary [&_.katex]:text-[1em]">

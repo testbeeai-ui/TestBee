@@ -91,6 +91,14 @@ export default function DoubtDetailPage() {
   const [deleteAnswerLoading, setDeleteAnswerLoading] = useState(false);
   const [similarDoubts, setSimilarDoubts] = useState<{ id: string; title: string; similarity_score: number }[]>([]);
 
+  const getErrorMessage = (error: unknown, fallback: string) => {
+    if (error && typeof error === "object" && "message" in error) {
+      return String(error.message);
+    }
+    if (error instanceof Error) return error.message;
+    return fallback;
+  };
+
   const fetchDoubt = useCallback(async () => {
     if (!id) return;
     const { data, error } = await supabase.from("doubts").select("*").eq("id", id).maybeSingle();
@@ -140,12 +148,14 @@ export default function DoubtDetailPage() {
       if (answerVotes?.length) votes.push(...answerVotes);
     }
     setMyVotes(votes);
-  }, [user?.id, id, answers.map((a) => a.id).join(",")]);
+  }, [user, id, answers]);
 
   useEffect(() => {
     if (!id) return;
-    setLoading(true);
-    Promise.all([fetchDoubt(), fetchAnswers()]).then(() => setLoading(false));
+    queueMicrotask(() => {
+      setLoading(true);
+      Promise.all([fetchDoubt(), fetchAnswers()]).then(() => setLoading(false));
+    });
   }, [id, fetchDoubt, fetchAnswers]);
 
   useEffect(() => {
@@ -154,7 +164,7 @@ export default function DoubtDetailPage() {
 
   useEffect(() => {
     if (!doubt?.title?.trim() || !id) {
-      setSimilarDoubts([]);
+      queueMicrotask(() => setSimilarDoubts([]));
       return;
     }
     supabase
@@ -166,7 +176,9 @@ export default function DoubtDetailPage() {
   }, [doubt?.id, doubt?.title, id]);
 
   useEffect(() => {
-    fetchMyVotes();
+    queueMicrotask(() => {
+      void fetchMyVotes();
+    });
   }, [fetchMyVotes]);
 
   const refetchAll = useCallback(() => {
@@ -181,61 +193,74 @@ export default function DoubtDetailPage() {
   };
 
   const handleVote = async (targetType: "doubt" | "answer", targetId: string, voteType: 1 | -1) => {
-    if (!user) return;
+    if (!user || !targetId || votingId) return;
     setVotingId(targetId);
-    const { data, error } = await supabase.rpc("vote_on_doubt", {
-      p_target_type: targetType,
-      p_target_id: targetId,
-      p_vote_type: voteType,
-    });
-    setVotingId(null);
-    if (error) {
-      toast({ title: "Vote failed", description: error.message, variant: "destructive" });
-      return;
+    try {
+      const { data, error } = await supabase.rpc("vote_on_doubt", {
+        p_target_type: targetType,
+        p_target_id: targetId,
+        p_vote_type: voteType,
+      });
+      if (error) throw error;
+      const res = data as { ok: boolean; upvotes?: number; downvotes?: number; error?: string };
+      if (res?.ok) {
+        refetchAll();
+      } else {
+        toast({ title: "Vote failed", description: res?.error ?? "Unable to process vote.", variant: "destructive" });
+      }
+    } catch (error: unknown) {
+      toast({ title: "Vote failed", description: getErrorMessage(error, "Network error while voting."), variant: "destructive" });
+    } finally {
+      setVotingId(null);
     }
-    const res = data as { ok: boolean; upvotes?: number; downvotes?: number };
-    if (res?.ok) refetchAll();
   };
 
   const handleAccept = async (answerId: string) => {
-    if (!id || !user) return;
+    if (!id || !user || !answerId || acceptingId) return;
     setAcceptingId(answerId);
-    const { data, error } = await supabase.rpc("accept_doubt_answer", {
-      p_doubt_id: id,
-      p_answer_id: answerId,
-      p_bonus_rdm: 10,
-    });
-    setAcceptingId(null);
-    if (error) {
-      toast({ title: "Could not accept answer", description: error.message, variant: "destructive" });
-      return;
-    }
-    const res = data as { ok: boolean; rdm_paid?: number };
-    if (res?.ok) {
-      toast({ title: "Answer accepted!" + (res.rdm_paid ? ` ${res.rdm_paid} RDM to the answerer.` : "") });
-      refetchAll();
+    try {
+      const { data, error } = await supabase.rpc("accept_doubt_answer", {
+        p_doubt_id: id,
+        p_answer_id: answerId,
+        p_bonus_rdm: 10,
+      });
+      if (error) throw error;
+      const res = data as { ok: boolean; rdm_paid?: number; error?: string };
+      if (res?.ok) {
+        toast({ title: "Answer accepted!" + (res.rdm_paid ? ` ${res.rdm_paid} RDM to the answerer.` : "") });
+        refetchAll();
+      } else {
+        toast({ title: "Could not accept answer", description: res?.error ?? "Unable to accept this answer.", variant: "destructive" });
+      }
+    } catch (error: unknown) {
+      toast({ title: "Could not accept answer", description: getErrorMessage(error, "Network error while accepting answer."), variant: "destructive" });
+    } finally {
+      setAcceptingId(null);
     }
   };
 
   const handlePostAnswer = async () => {
-    if (!user?.id || !id || !answerBody.trim()) {
+    if (!user?.id || !id || !answerBody.trim() || submitLoading) {
       toast({ title: "Write an answer", variant: "destructive" });
       return;
     }
+    const body = answerBody.trim();
     setSubmitLoading(true);
-    const { error } = await supabase.from("doubt_answers").insert({
-      doubt_id: id,
-      user_id: user.id,
-      body: answerBody.trim(),
-    });
-    setSubmitLoading(false);
-    if (error) {
-      toast({ title: "Could not post answer", description: error.message, variant: "destructive" });
-      return;
+    try {
+      const { error } = await supabase.from("doubt_answers").insert({
+        doubt_id: id,
+        user_id: user.id,
+        body,
+      });
+      if (error) throw error;
+      toast({ title: "Answer posted!" });
+      setAnswerBody("");
+      refetchAll();
+    } catch (error: unknown) {
+      toast({ title: "Could not post answer", description: getErrorMessage(error, "Network error while posting answer."), variant: "destructive" });
+    } finally {
+      setSubmitLoading(false);
     }
-    toast({ title: "Answer posted!" });
-    setAnswerBody("");
-    refetchAll();
   };
 
   const handleEditDoubtOpen = () => {
@@ -247,41 +272,45 @@ export default function DoubtDetailPage() {
   };
 
   const handleEditDoubtSave = async () => {
-    if (!id || !editDoubtTitle.trim()) {
+    if (!id || !editDoubtTitle.trim() || editDoubtSaving) {
       toast({ title: "Title required", variant: "destructive" });
       return;
     }
     setEditDoubtSaving(true);
-    const { error } = await supabase
-      .from("doubts")
-      .update({
-        title: editDoubtTitle.trim(),
-        body: editDoubtBody.trim(),
-        subject: editDoubtSubject.trim() || null,
-      })
-      .eq("id", id);
-    setEditDoubtSaving(false);
-    setEditDoubtOpen(false);
-    if (error) {
-      toast({ title: "Could not update question", description: error.message, variant: "destructive" });
-      return;
+    try {
+      const { error } = await supabase
+        .from("doubts")
+        .update({
+          title: editDoubtTitle.trim(),
+          body: editDoubtBody.trim(),
+          subject: editDoubtSubject.trim() || null,
+        })
+        .eq("id", id);
+      if (error) throw error;
+      setEditDoubtOpen(false);
+      toast({ title: "Question updated" });
+      fetchDoubt();
+    } catch (error: unknown) {
+      toast({ title: "Could not update question", description: getErrorMessage(error, "Network error while updating question."), variant: "destructive" });
+    } finally {
+      setEditDoubtSaving(false);
     }
-    toast({ title: "Question updated" });
-    fetchDoubt();
   };
 
   const handleDeleteDoubt = async () => {
-    if (!id) return;
+    if (!id || deleteDoubtLoading) return;
     setDeleteDoubtLoading(true);
-    const { error } = await supabase.from("doubts").delete().eq("id", id);
-    setDeleteDoubtLoading(false);
-    setDeleteDoubtConfirmOpen(false);
-    if (error) {
-      toast({ title: "Could not delete question", description: error.message, variant: "destructive" });
-      return;
+    try {
+      const { error } = await supabase.from("doubts").delete().eq("id", id);
+      if (error) throw error;
+      setDeleteDoubtConfirmOpen(false);
+      toast({ title: "Question deleted" });
+      router.push("/doubts");
+    } catch (error: unknown) {
+      toast({ title: "Could not delete question", description: getErrorMessage(error, "Network error while deleting question."), variant: "destructive" });
+    } finally {
+      setDeleteDoubtLoading(false);
     }
-    toast({ title: "Question deleted" });
-    router.push("/doubts");
   };
 
   const handleEditAnswerOpen = (a: Answer) => {
@@ -290,31 +319,35 @@ export default function DoubtDetailPage() {
   };
 
   const handleEditAnswerSave = async () => {
-    if (!editAnswerId || !editAnswerBody.trim()) return;
+    if (!editAnswerId || !editAnswerBody.trim() || editAnswerSaving) return;
     setEditAnswerSaving(true);
-    const { error } = await supabase.from("doubt_answers").update({ body: editAnswerBody.trim() }).eq("id", editAnswerId);
-    setEditAnswerSaving(false);
-    setEditAnswerId(null);
-    if (error) {
-      toast({ title: "Could not update answer", description: error.message, variant: "destructive" });
-      return;
+    try {
+      const { error } = await supabase.from("doubt_answers").update({ body: editAnswerBody.trim() }).eq("id", editAnswerId);
+      if (error) throw error;
+      setEditAnswerId(null);
+      toast({ title: "Answer updated" });
+      fetchAnswers();
+    } catch (error: unknown) {
+      toast({ title: "Could not update answer", description: getErrorMessage(error, "Network error while updating answer."), variant: "destructive" });
+    } finally {
+      setEditAnswerSaving(false);
     }
-    toast({ title: "Answer updated" });
-    fetchAnswers();
   };
 
   const handleDeleteAnswerConfirm = async () => {
-    if (!deleteAnswerId) return;
+    if (!deleteAnswerId || deleteAnswerLoading) return;
     setDeleteAnswerLoading(true);
-    const { error } = await supabase.from("doubt_answers").delete().eq("id", deleteAnswerId);
-    setDeleteAnswerLoading(false);
-    setDeleteAnswerId(null);
-    if (error) {
-      toast({ title: "Could not delete answer", description: error.message, variant: "destructive" });
-      return;
+    try {
+      const { error } = await supabase.from("doubt_answers").delete().eq("id", deleteAnswerId);
+      if (error) throw error;
+      setDeleteAnswerId(null);
+      toast({ title: "Answer deleted" });
+      fetchAnswers();
+    } catch (error: unknown) {
+      toast({ title: "Could not delete answer", description: getErrorMessage(error, "Network error while deleting answer."), variant: "destructive" });
+    } finally {
+      setDeleteAnswerLoading(false);
     }
-    toast({ title: "Answer deleted" });
-    fetchAnswers();
   };
 
   const handleReportOpen = (answerId: string) => {
@@ -323,22 +356,32 @@ export default function DoubtDetailPage() {
   };
 
   const handleReportSubmit = async () => {
-    if (!user?.id || !reportAnswerId) return;
+    if (!user?.id || !reportAnswerId || reportSubmitting) return;
     setReportSubmitting(true);
-    const { error } = await supabase.from("doubt_answer_reports").insert({
-      answer_id: reportAnswerId,
-      reporter_user_id: user.id,
-      reason: reportReason,
-    });
-    setReportSubmitting(false);
-    setReportAnswerId(null);
-    if (error) {
-      if (error.code === "23505") toast({ title: "You already reported this answer", variant: "destructive" });
-      else toast({ title: "Report failed", description: error.message, variant: "destructive" });
-      return;
+    try {
+      const { error } = await supabase.from("doubt_answer_reports").insert({
+        answer_id: reportAnswerId,
+        reporter_user_id: user.id,
+        reason: reportReason,
+      });
+      if (error) throw error;
+      setReportAnswerId(null);
+      toast({ title: "Report received. Thank you." });
+      refetchAll();
+    } catch (error: unknown) {
+      if (
+        error &&
+        typeof error === "object" &&
+        "code" in error &&
+        String(error.code) === "23505"
+      ) {
+        toast({ title: "You already reported this answer", variant: "destructive" });
+      } else {
+        toast({ title: "Report failed", description: getErrorMessage(error, "Network error while reporting answer."), variant: "destructive" });
+      }
+    } finally {
+      setReportSubmitting(false);
     }
-    toast({ title: "Report received. Thank you." });
-    refetchAll();
   };
 
   if (loading && !doubt) {
