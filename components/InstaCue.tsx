@@ -270,7 +270,7 @@ export default function InstaCue({
   useEffect(() => {
     const first = subtopicOptions?.[0] ?? "";
     if (subtopicOptions?.length && !subtopicOptions.includes(localSubtopic)) {
-      setLocalSubtopic(first);
+      queueMicrotask(() => setLocalSubtopic(first));
     }
   }, [subtopicOptions, localSubtopic]);
 
@@ -292,8 +292,10 @@ export default function InstaCue({
 
   useEffect(() => {
     if (index >= filteredCards.length && filteredCards.length > 0) {
-      setIndex(0);
-      setFlipped(false);
+      queueMicrotask(() => {
+        setIndex(0);
+        setFlipped(false);
+      });
     }
   }, [filteredCards.length, index]);
 

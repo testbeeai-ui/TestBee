@@ -34,8 +34,8 @@ export default function ReviewPopup({ classroomId, classroomName }: ReviewPopupP
         if (localStorage.getItem(todayKey)) return;
 
         (async () => {
-            const { data } = await supabase
-                .from("classroom_reviews" as any)
+            const { data } = await (supabase as any)
+                .from("classroom_reviews")
                 .select("id")
                 .eq("classroom_id", classroomId)
                 .eq("user_id", user.id)

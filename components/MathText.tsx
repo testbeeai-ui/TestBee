@@ -6,6 +6,14 @@ import katex from "katex";
 /** Preprocess curriculum-style formula text to valid LaTeX. */
 function toLatex(text: string): string {
   let s = text;
+  // Bad generator typo: \uparrowrac → \frac (e.g. Curie–Weiss χ = C/(T − T_C))
+  s = s.replace(/\\uparrowrac\b/g, "\\frac");
+  // Broader arrow-variant typos seen in some payloads: ↑rac, ⬆rac, \uarrac, \arrowrac.
+  s = s.replace(/(?:\\uarrac|\\arrowrac)\b/g, "\\frac");
+  s = s.replace(/(?:\\(?:up)?arrow|[↑⇑⬆⭡⇧↟])\s*rac\b/g, "\\frac");
+  // Last-resort recovery for malformed "\frac" prefixes such as "\xrac", "\yrac", "^rac", "rac".
+  s = s.replace(/\\[A-Za-z^]*rac(?=\s*\{)/g, "\\frac");
+  s = s.replace(/(^|[=\s(])(?:\^|[↑⇑⬆⭡⇧↟])?\s*rac(?=\s*\{)/g, "$1\\frac");
   // Bad generator output: "A = \{\pi}" / "{ \pi }" — KaTeX error (red); normalize to \pi
   s = s.replace(/\\\{\s*\\pi\s*\}/g, "\\pi");
   s = s.replace(/\{\s*\\pi\s*\}/g, "\\pi");
@@ -68,9 +76,130 @@ function wordTokenCount(text: string): number {
   return text.trim().split(/\s+/).filter(Boolean).length;
 }
 
-/** Backend often stores full TeX (\\int, \\frac, …) with no $…$ delimiters — still needs KaTeX, not the long-prose plain-text escape. */
+function hasExistingMathDelimiters(text: string): boolean {
+  return /\\\(|\\\[|\$\$/.test(text) || /\$(?!\s)/.test(text);
+}
+
+/**
+ * Wrap naked LaTeX / unit-style math in prose so splitIntoMathChunks can render inline
+ * (avoids whole-string KaTeX that collapses spaces and causes horizontal scroll).
+ */
+function preprocessNakedMath(text: string): string {
+  const t = text;
+  if (!t.trim()) return t;
+  if (hasExistingMathDelimiters(t)) return t;
+
+  const wc = wordTokenCount(t);
+  const proseHeavy = wc > 5 || t.length > 70;
+  if (!proseHeavy) return t;
+
+  const hasNaked =
+    /\\[a-zA-Z]{2,}\b/.test(t) ||
+    /\b(tau|sigma|rho|theta|alpha|beta|gamma|delta|epsilon|omega|phi|psi|lambda)\b/i.test(t) ||
+    /\b[a-z]\^(\d+)\b/i.test(t);
+  if (!hasNaked) return t;
+
+  /** Count whether we're inside an odd number of \( ... \) pairs opened so far (rough delimiter depth). */
+  const delimiterDepthAt = (before: string): number => {
+    let depth = 0;
+    const re = /\\\(|\\\)/g;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(before)) !== null) {
+      if (m[0] === "\\(") depth++;
+      else depth = Math.max(0, depth - 1);
+    }
+    return depth;
+  };
+
+  let s = t;
+
+  const greekWordToTex: Record<string, string> = {
+    tau: "\\tau",
+    sigma: "\\sigma",
+    rho: "\\rho",
+    theta: "\\theta",
+    alpha: "\\alpha",
+    beta: "\\beta",
+    gamma: "\\gamma",
+    delta: "\\delta",
+    epsilon: "\\varepsilon",
+    omega: "\\omega",
+    phi: "\\phi",
+    psi: "\\psi",
+    lambda: "\\lambda",
+  };
+  for (const [word, tex] of Object.entries(greekWordToTex)) {
+    const re = new RegExp(`\\b${word}\\b`, "gi");
+    s = s.replace(re, (match, offset) => {
+      if (delimiterDepthAt(s.slice(0, offset)) > 0) return match;
+      return `\\(${tex}\\)`;
+    });
+  }
+
+  // Common prose exponents: x^2, m^2 (single letter + digit)
+  s = s.replace(/\b([a-z])\^(\d+)\b/gi, (match, _a, _n, offset) => {
+    if (delimiterDepthAt(s.slice(0, offset)) > 0) return match;
+    return `\\(${match}\\)`;
+  });
+
+  const skipNakedWrap = new Set([
+    "text",
+    "mathrm",
+    "mathbf",
+    "mathit",
+    "mathcal",
+    "mathbb",
+    "mathfrak",
+    "frac",
+    "sqrt",
+    "sum",
+    "prod",
+    "lim",
+    "int",
+    "left",
+    "right",
+    "middle",
+    "begin",
+    "end",
+    "hline",
+    "dots",
+    "cdots",
+    "ldots",
+    "vdots",
+    "ddots",
+    "big",
+    "Big",
+    "bigg",
+    "Bigg",
+  ]);
+
+  s = s.replace(/\\([a-zA-Z]+)/g, (match, cmd: string, offset) => {
+    if (delimiterDepthAt(s.slice(0, offset)) > 0) return match;
+    if (skipNakedWrap.has(cmd.toLowerCase())) return match;
+    return `\\(${match}\\)`;
+  });
+
+  return s;
+}
+
+/**
+ * True when the string is predominantly a TeX expression (short or formula-like), not long English
+ * prose with an occasional \\mu — whole-string KaTeX is appropriate only for the former.
+ */
 function looksLikeRawTexExpression(text: string): boolean {
-  return /\\[a-zA-Z]/.test(text.trim());
+  const t = text.trim();
+  if (!/\\[a-zA-Z]/.test(t)) return false;
+  const wc = wordTokenCount(t);
+  if (wc > 14) return false;
+  if (
+    wc > 8 &&
+    /\b(the|a|an|is|are|was|were|what|which|when|where|how|why|and|or|but|if|then|from|this|that|these|those|for|with|wire|length|charge|uniform|straight|carries|total|distribution|linear|surface|volume)\b/i.test(
+      t,
+    )
+  ) {
+    return false;
+  }
+  return true;
 }
 
 /**
@@ -316,7 +445,7 @@ function parseAdjointInverseFormulaTitle(raw: string): string | null {
  * Display: Adjoint of A :  adj(A) = (cofactor matrix of A)^T
  */
 function parseAdjointCofactorTransposeTitle(raw: string): string | null {
-  let n = raw.replace(/\s+/g, " ").trim().replace(/\.\s*$/, "");
+  const n = raw.replace(/\s+/g, " ").trim().replace(/\.\s*$/, "");
   const strict = n.match(
     /^Adjoint\s*:\s*adj\s*\(\s*A\s*\)\s*=\s*transpose\s+of\s+cofactor\s+matrix\s*;\s*A\s*\.\s*adj\s*\(\s*A\s*\)\s*=\s*\|\s*A\s*\|\s*\.\s*I\s*$/i,
   );
@@ -711,10 +840,10 @@ export default function MathText({
   weight = "normal",
 }: MathTextProps) {
   const w = WEIGHT_CLASS[weight];
-  const raw = String(children).trim();
-  if (!raw) return <Tag className={`${w} ${className}`.trim()} />;
+  const rawBase = String(children).trim();
+  if (!rawBase) return <Tag className={`${w} ${className}`.trim()} />;
 
-  const equivParts = parseEquivalenceClassCurriculumParts(raw);
+  const equivParts = parseEquivalenceClassCurriculumParts(rawBase);
   if (equivParts) {
     const htmlHead = renderLatex(toLatex(equivParts.prefixLatex), displayMode);
     const htmlBody = renderLatex(toLatex(equivParts.suffixLatex), displayMode);
@@ -738,12 +867,12 @@ export default function MathText({
     }
     return (
       <Tag className={`${w} ${className} whitespace-normal`.trim()} title={title}>
-        {raw}
+        {rawBase}
       </Tag>
     );
   }
 
-  const injFn = parseInjectiveFunctionTitleParts(raw);
+  const injFn = parseInjectiveFunctionTitleParts(rawBase);
   if (injFn) {
     const h1 = renderLatex(toLatex(injFn.line1), displayMode);
     const h2 = renderLatex(toLatex(injFn.line2), displayMode);
@@ -767,7 +896,7 @@ export default function MathText({
     }
   }
 
-  const surFn = parseSurjectiveFunctionTitleParts(raw);
+  const surFn = parseSurjectiveFunctionTitleParts(rawBase);
   if (surFn) {
     const h1 = renderLatex(toLatex(surFn.line1), displayMode);
     const h2 = renderLatex(toLatex(surFn.line2), displayMode);
@@ -791,7 +920,7 @@ export default function MathText({
     }
   }
 
-  const bijLatex = parseBijectiveFunctionTitleLatex(raw);
+  const bijLatex = parseBijectiveFunctionTitleLatex(rawBase);
   if (bijLatex) {
     const html = renderLatex(toLatex(bijLatex), displayMode);
     const katexW = katexWeightClass(weight);
@@ -810,7 +939,7 @@ export default function MathText({
     }
   }
 
-  const invTrigDomainRange = parseInverseTrigDomainRangeTitle(raw);
+  const invTrigDomainRange = parseInverseTrigDomainRangeTitle(rawBase);
   if (invTrigDomainRange) {
     const html = renderLatex(toLatex(invTrigDomainRange), displayMode);
     const katexW = katexWeightClass(weight);
@@ -829,7 +958,7 @@ export default function MathText({
     }
   }
 
-  const adjointCofactorTranspose = parseAdjointCofactorTransposeTitle(raw);
+  const adjointCofactorTranspose = parseAdjointCofactorTransposeTitle(rawBase);
   if (adjointCofactorTranspose) {
     const html = renderLatex(toLatex(adjointCofactorTranspose), displayMode);
     const katexW = katexWeightClass(weight);
@@ -848,7 +977,7 @@ export default function MathText({
     }
   }
 
-  const minorMijTitle = parseMinorMijDefinitionTitle(raw);
+  const minorMijTitle = parseMinorMijDefinitionTitle(rawBase);
   if (minorMijTitle) {
     const html = renderLatex(toLatex(minorMijTitle), displayMode);
     const katexW = katexWeightClass(weight);
@@ -867,7 +996,7 @@ export default function MathText({
     }
   }
 
-  const cofactorCijTitle = parseCofactorCijTitle(raw);
+  const cofactorCijTitle = parseCofactorCijTitle(rawBase);
   if (cofactorCijTitle) {
     const html = renderLatex(toLatex(cofactorCijTitle), displayMode);
     const katexW = katexWeightClass(weight);
@@ -886,7 +1015,7 @@ export default function MathText({
     }
   }
 
-  const elementaryRowOpsInverse = parseElementaryRowOpsInverseTitle(raw);
+  const elementaryRowOpsInverse = parseElementaryRowOpsInverseTitle(rawBase);
   if (elementaryRowOpsInverse) {
     const html = renderLatex(toLatex(elementaryRowOpsInverse), true);
     const katexW = katexWeightClass(weight);
@@ -905,7 +1034,7 @@ export default function MathText({
     }
   }
 
-  const matrixTypesCatalog = parseMatrixTypesCatalogTitle(raw);
+  const matrixTypesCatalog = parseMatrixTypesCatalogTitle(rawBase);
   if (matrixTypesCatalog) {
     const html = renderLatex(toLatex(matrixTypesCatalog), true);
     const katexW = katexWeightClass(weight);
@@ -924,7 +1053,7 @@ export default function MathText({
     }
   }
 
-  const matrixMultDef = parseMatrixMultiplicationDefinitionTitle(raw);
+  const matrixMultDef = parseMatrixMultiplicationDefinitionTitle(rawBase);
   if (matrixMultDef) {
     const h1 = renderLatex(toLatex(matrixMultDef.line1), true);
     const h2 = renderLatex(toLatex(matrixMultDef.line2), true);
@@ -948,7 +1077,7 @@ export default function MathText({
     }
   }
 
-  const adjointInverseLatex = parseAdjointInverseFormulaTitle(raw);
+  const adjointInverseLatex = parseAdjointInverseFormulaTitle(rawBase);
   if (adjointInverseLatex) {
     const html = renderLatex(toLatex(adjointInverseLatex), displayMode);
     const katexW = katexWeightClass(weight);
@@ -967,7 +1096,7 @@ export default function MathText({
     }
   }
 
-  const proseRelation = splitProseSemicolonRelationEq(raw);
+  const proseRelation = splitProseSemicolonRelationEq(rawBase);
   if (proseRelation) {
     const latex = relationEqPlainToLatex(proseRelation.formulaRaw);
     const html = renderLatex(latex, displayMode);
@@ -993,7 +1122,7 @@ export default function MathText({
     );
   }
 
-  const relationProperty = binaryRelationPropertyHeading(raw);
+  const relationProperty = binaryRelationPropertyHeading(rawBase);
   if (relationProperty) {
     const latex = toLatex(relationProperty.definitionLatex);
     const html = renderLatex(latex, displayMode);
@@ -1016,8 +1145,8 @@ export default function MathText({
     );
   }
 
-  if (isStandardAreasTitle(raw)) {
-    const body = raw.replace(/^standard\s+areas\s*:\s*/i, "").trim();
+  if (isStandardAreasTitle(rawBase)) {
+    const body = rawBase.replace(/^standard\s+areas\s*:\s*/i, "").trim();
     const parts = body.split(/\s*;\s*/).map((p) => normalizeStandardAreasSegment(p.trim())).filter(Boolean);
     const katexW = katexWeightClass(weight);
     return (
@@ -1098,6 +1227,8 @@ export default function MathText({
       </Tag>
     );
   }
+
+  const raw = preprocessNakedMath(rawBase);
 
   if (!hasMathNotation(raw)) {
     return (

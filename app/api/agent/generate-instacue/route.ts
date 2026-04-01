@@ -4,13 +4,14 @@ import {
   generateArtifactJson,
   instaCueResponseSchema,
   isVertexForTopicAgentEnabled,
-  vertexLocationOrDefault,
 } from "@/lib/geminiTopicGenerate";
 import { isAdminUser } from "@/lib/admin";
 import { supabaseForLongJobPersist } from "@/lib/supabaseAdminPersist";
 import { resolveGeminiModelId, resolveVertexTopicModelId } from "@/lib/geminiModel";
 import { fetchRAGContext } from "@/lib/rag";
 import { normalizeSubjectKey, normalizeSubtopicContentKey } from "@/lib/subtopicContentKeys";
+import { getGeminiApiKeyFromEnv } from "@/lib/geminiEnv";
+import { logAiUsage } from "@/lib/aiLogger";
 
 const ALLOWED_LEVELS = new Set(["basics", "intermediate", "advanced"]);
 
@@ -55,7 +56,10 @@ export async function POST(request: Request) {
 
     const apiKey = process.env.GEMINI_API_KEY;
     if (!isVertexForTopicAgentEnabled() && !apiKey?.trim()) {
-      return NextResponse.json({ error: "GEMINI_API_KEY is not configured." }, { status: 503 });
+      return NextResponse.json(
+        { error: "GEMINI_API_KEY or GOOGLE_GENERATIVE_AI_API_KEY is not configured." },
+        { status: 503 },
+      );
     }
 
     const body = await request.json();
@@ -107,7 +111,7 @@ Each card has:
 Rules:
 - Generate at least ${minCards} cards (strict minimum). Prefer ${targetCards}+ if content supports.
 - Cards must be self-contained and useful for quick revision.
-- Use LaTeX \\( ... \\) for inline math and $$ ... $$ for block math where needed.
+- For frontContent and backContent, write normal text and you MUST wrap ANY math expressions, variables, units, or symbols in \\( ... \\). Use $$ ... $$ only for true display/block math when needed. Never output bare LaTeX (e.g. \\lambda, \\pi, m^2) in undelimited plain text.
 - For "formula" type cards: front = formula name/context, back = the formula in LaTeX.
 - For "common_mistake" type: front = the mistake students make, back = the correct approach.
 - For "trap" type: front = the tricky scenario, back = why the obvious answer is wrong + correct answer.
@@ -141,6 +145,26 @@ ${existing.theory.slice(0, 16000)}${ragBlock}`;
         responseSchema: instaCueResponseSchema(),
       });
       backend = out.backend;
+      await logAiUsage({
+        supabase,
+        userId: user.id,
+        actionType: "generate_instacue",
+        modelId,
+        backend: out.backend,
+        usage: out.usage,
+        metadata: {
+          board,
+          subject,
+          classLevel,
+          topic,
+          subtopicName,
+          level,
+          attempt,
+          minCards,
+          targetCards,
+          ragChunkCount: rag?.chunkCount ?? 0,
+        },
+      });
       const parsed = JSON.parse(out.raw) as { items?: unknown[] };
       items = normalizeInstaCue(parsed.items);
       if (items.length >= minCards) break;

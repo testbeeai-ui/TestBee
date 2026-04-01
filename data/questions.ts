@@ -1,4 +1,4 @@
-import { Question, Subject } from '@/types';
+import type { ExamType, Question, Subject } from '@/types';
 import { physicsQuestions } from './physicsQuestions';
 import { chemistryQuestions } from './chemistryQuestions';
 import { mathQuestions } from './mathQuestions';
@@ -17,8 +17,8 @@ export const getQuestionsBySubject = (subject: Subject): Question[] =>
 export const getQuestionsByClass = (classLevel: number): Question[] =>
   questions.filter((q) => q.classLevel <= classLevel);
 
-export const getQuestionsByExam = (examType: string): Question[] =>
-  questions.filter((q) => q.examType.includes(examType as any));
+export const getQuestionsByExam = (examType: ExamType): Question[] =>
+  questions.filter((q) => q.examType.includes(examType));
 
 export const getRandomQuestions = (
   subjects: Subject[],

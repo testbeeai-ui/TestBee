@@ -9,27 +9,19 @@ import { questions } from '@/data/questions';
 import { Question, Subject, ExamType, ClassLevel, SubjectCombo, Board } from '@/types';
 import { TopicNode } from '@/data/topicTaxonomy';
 import { useTopicTaxonomy } from '@/hooks/useTopicTaxonomy';
+import ExploreHubDashboard from '@/components/explore/ExploreHubDashboard';
 import QuestionCard from '@/components/QuestionCard';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion';
 import dynamic from 'next/dynamic';
-import Image from 'next/image';
-import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Search, ArrowLeft, Sparkles, BookOpen, ChevronRight, Zap, Play, Box, CheckCircle2, XCircle, Compass, Crosshair, Bot, ListOrdered, Shuffle, Filter } from 'lucide-react';
+import { Search, ArrowLeft, Sparkles, BookOpen, ChevronRight, Zap, Play, Box, CheckCircle2, XCircle, Bot, ListOrdered, Shuffle, Filter } from 'lucide-react';
 import { getTheoryOrPlaceholder, type InteractiveBlock } from '@/data/topicTheory';
 import InteractiveTheoryRenderer from '@/components/InteractiveTheoryRenderer';
 import TheoryContentWithDeepDive, { parseTheorySections } from '@/components/TheoryContentWithDeepDive';
 import DeepDiveLinearSelector from '@/components/DeepDiveLinearSelector';
-import { getInstaCueCards } from '@/data/instaCueCards';
-import type { InstaCueCard } from '@/data/instaCueCards';
-import InstaCue from '@/components/InstaCue';
+import MathText from '@/components/MathText';
+import { subtopicMathTextLabel, subtopicNavPreviewPlain } from '@/lib/subtopicTitles';
 import SubjectChatbot from '@/components/SubjectChatbot';
 import AnimatedPhysicsIcon from '@/components/AnimatedPhysicsIcon';
 import AnimatedChemistryIcon from '@/components/AnimatedChemistryIcon';
@@ -44,7 +36,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import TopicRoulette from '@/components/TopicRoulette';
-import type { SubTopic } from '@/data/topicTaxonomy';
 import { buildTopicPath, buildTopicOverviewPath, buildDeepDivePath } from '@/lib/topicRoutes';
 import { slugify } from '@/lib/slugs';
 import TheoryContent from '@/components/TheoryContent';
@@ -59,6 +50,7 @@ import {
 } from '@/lib/topicContentService';
 import { useToast } from '@/hooks/use-toast';
 import { fuzzySubtopicKey } from '@/lib/utils';
+import { useOrchestratorStore } from '@/store/useOrchestratorStore';
 
 const DistanceDisplacementScene = dynamic(
   () => import('@/components/DistanceDisplacementScene'),
@@ -84,6 +76,10 @@ const EXAM_TYPES_11_12: ExamType[] = ['JEE_Mains', 'JEE_Advance', 'KCET', 'other
 /** JEE_Mains and JEE_Advance both use content tagged as JEE until we have separate tagging. */
 function examMatchesFilter(profileExam: ExamType | null, dataExams: ExamType[]): boolean {
   if (!profileExam) return true;
+  // CBSE ('other') is the base curriculum — matches everything
+  if (profileExam === 'other') return true;
+  // Untagged topics (empty examRelevance) are universal — match any exam
+  if (dataExams.length === 0) return true;
   if (profileExam === 'JEE_Mains' || profileExam === 'JEE_Advance') return dataExams.includes('JEE');
   return dataExams.includes(profileExam);
 }
@@ -91,6 +87,18 @@ function examMatchesFilter(profileExam: ExamType | null, dataExams: ExamType[]):
 /** Chapter bucket key — must match `unitChapterGroups` (`chapterTitle` or falls back to syllabus topic title). Never use a shared "Untitled" bucket. */
 function chapterGroupKey(node: TopicNode): string {
   return node.chapterTitle?.trim() || node.topic;
+}
+
+/** "Unit 10" must sort after "Unit 2" — plain localeCompare treats digit strings lexicographically. */
+function compareUnitLabels(a: string, b: string): number {
+  const ra = /^Unit\s+(\d+)\s*$/i.exec(String(a ?? "").trim());
+  const rb = /^Unit\s+(\d+)\s*$/i.exec(String(b ?? "").trim());
+  if (ra && rb) {
+    const na = parseInt(ra[1]!, 10);
+    const nb = parseInt(rb[1]!, 10);
+    if (Number.isFinite(na) && Number.isFinite(nb) && na !== nb) return na - nb;
+  }
+  return String(a ?? "").localeCompare(String(b ?? ""));
 }
 
 /** Open the topic row that matches the card label when possible; otherwise first row (deterministic). */
@@ -113,10 +121,19 @@ function getExamLabel(value: ExamType): string {
   return exams.find((e) => e.value === value)?.label ?? value;
 }
 
+function toDateTimeLocalValue(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
 /** Classes shown in the Topics accordion. */
 const VISIBLE_CLASSES: ClassLevel[] = [11, 12];
 
-function getVisibleExamTypes(_classLevel: ClassLevel | null): ExamType[] {
+function getVisibleExamTypes(): ExamType[] {
   return EXAM_TYPES_11_12;
 }
 
@@ -227,19 +244,6 @@ const UNIT_COLORS = [
   { outline: 'border-yellow-500', accent: 'bg-yellow-500/12',  text: 'text-yellow-800',  btn: 'bg-yellow-500 hover:bg-yellow-600 text-white', stroke: '#eab308' },
 ];
 
-const UNIT_SHORT_NAMES: Record<string, string> = {
-  'Physical World and Measurement':              'MEASUREMENT',
-  'Kinematics':                                  'KINEMATICS',
-  'Laws of Motion':                              'LAWS OF MOTION',
-  'Work, Energy and Power':                      'WORK & ENERGY',
-  'Motion of System of Particles and Rigid Body':'PARTICLES & RIGID BODY',
-  'Gravitation':                                 'GRAVITATION',
-  'Properties of Bulk Matter':                   'BULK MATTER',
-  'Thermodynamics':                              'THERMODYNAMICS',
-  'Behaviour of Perfect Gas and Kinetic Theory': 'KINETIC THEORY',
-  'Oscillations and Waves':                      'OSCILLATIONS & WAVES',
-};
-
 const UNIT_ICONS: Record<string, string> = {
   'Physical World and Measurement':              '📏',
   'Kinematics':                                  '🏃',
@@ -271,7 +275,7 @@ function UnitRoadmap({ topics, subject, classLevel, onTopicClick, getTopicCount,
   const sorted = [...topics].sort((a, b) => {
     const aLabel = a.unitLabel ?? '';
     const bLabel = b.unitLabel ?? '';
-    if (aLabel !== bLabel) return aLabel.localeCompare(bLabel);
+    if (aLabel !== bLabel) return compareUnitLabels(aLabel, bLabel);
     const aChapter = (a.chapterTitle ?? '').toLowerCase();
     const bChapter = (b.chapterTitle ?? '').toLowerCase();
     if (aChapter !== bChapter) return aChapter.localeCompare(bChapter);
@@ -285,11 +289,13 @@ function UnitRoadmap({ topics, subject, classLevel, onTopicClick, getTopicCount,
     list.push(node);
     unitMap.set(key, list);
   }
-  const unitCards = Array.from(unitMap.entries()).map(([unitLabel, unitTopics]) => ({
-    unitLabel,
-    unitTopics,
-    representative: unitTopics[0]!,
-  }));
+  const unitCards = Array.from(unitMap.entries())
+    .map(([unitLabel, unitTopics]) => ({
+      unitLabel,
+      unitTopics,
+      representative: unitTopics[0]!,
+    }))
+    .sort((a, b) => compareUnitLabels(a.unitLabel, b.unitLabel));
   const chapterCards = unitCards.flatMap((unit, unitIndex) => {
     const chapterMap = new Map<string, TopicNode[]>();
     for (const topic of unit.unitTopics) {
@@ -341,7 +347,6 @@ function UnitRoadmap({ topics, subject, classLevel, onTopicClick, getTopicCount,
     const hasStarted = correct > 0;
     const crowns = getCrowns(correct, qCount);
     const periods = chapterTopics.reduce((sum, t) => sum + (t.totalPeriods ?? 0), 0);
-    const chapterCount = new Set(unitTopics.map((t) => t.chapterTitle).filter(Boolean)).size || 1;
     const topicCount = chapterTopics.length;
     const unitNumberLabel = unitLabel.replace('Unit', 'U').trim();
     return (
@@ -481,7 +486,6 @@ const Explore = () => {
   const [selectedTopicClassLevel, setSelectedTopicClassLevel] = useState<ClassLevel | null>(null);
   const [bitsPopup, setBitsPopup] = useState<{ subtopicName: string; topicNode: TopicNode; classLevel: ClassLevel } | null>(null);
   const [bitsAllPopup, setBitsAllPopup] = useState(false);
-  const [userInstaCueCards, setUserInstaCueCards] = useState<InstaCueCard[]>([]);
   const [visualPlayableOpen, setVisualPlayableOpen] = useState(false);
   const [filteredQuestions, setFilteredQuestions] = useState<Question[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -506,6 +510,10 @@ const Explore = () => {
   const [generatingTopic, setGeneratingTopic] = useState(false);
   const [topicEditorOpen, setTopicEditorOpen] = useState(false);
   const [topicRegenFeedbackOpen, setTopicRegenFeedbackOpen] = useState(false);
+  const [chapterScheduleOpen, setChapterScheduleOpen] = useState(false);
+  const [chapterScheduleValue, setChapterScheduleValue] = useState(() =>
+    toDateTimeLocalValue(new Date(Date.now() + 10 * 60 * 1000))
+  );
   const [fbLiked, setFbLiked] = useState('');
   const [fbDisliked, setFbDisliked] = useState('');
   const [fbInstructions, setFbInstructions] = useState('');
@@ -516,10 +524,12 @@ const Explore = () => {
   const [draftRealWorld, setDraftRealWorld] = useState('');
   const subtopicRefs = useRef<(HTMLDivElement | null)[]>([]);
   const { taxonomy: topicTaxonomy, loading: taxonomyLoading, error: taxonomyError } = useTopicTaxonomy();
+  const orchestratorJobs = useOrchestratorStore((s) => s.jobs);
+  const scheduleChapterJob = useOrchestratorStore((s) => s.scheduleChapterJob);
 
   const THEORY_TRUNCATE_CHARS = 450; // ~4–5 lines; show "Read more" beyond this
 
-  const visibleExamTypes = getVisibleExamTypes(classLevel);
+  const visibleExamTypes = getVisibleExamTypes();
   const visibleSubjectValues = getVisibleSubjects(classLevel, subjectCombo);
   const visibleSubjectsList = useMemo(
     () => subjects.filter((s) => visibleSubjectValues.includes(s.value)),
@@ -641,28 +651,10 @@ const Explore = () => {
     });
   };
 
-  const handleTopicSelect = (topic: string) => {
-    if (!selectedSubject) return;
-    let filtered = questions.filter(
-      (q) => q.subject === selectedSubject && q.topic === topic
-    );
-    if (profileExamType) filtered = filtered.filter((q) => examMatchesFilter(profileExamType, q.examType));
-    if (classLevel != null) filtered = filtered.filter((q) => q.classLevel <= classLevel);
-    if (filtered.length === 0) return;
-    setFilteredQuestions(filtered.sort(() => Math.random() - 0.5));
-    setCurrentIndex(0);
-    setView('questions');
-  };
-
-  const handleBackToSubjects = () => {
-    setSelectedSubject(null);
-    setView('hub');
-  };
-
-  /** Back from unit map (topics view) goes to Explore Learning (exam + subject selection), not Explore & Play. */
+  /** Back from unit map (topics view) goes to Explore hub. */
   const handleBackFromTopicsToExploreLearning = () => {
     setSelectedSubject(null);
-    setView('subjects');
+    setView('hub');
   };
 
   const handleBackToTopics = () => {
@@ -712,7 +704,6 @@ const Explore = () => {
     return Array.from(byChapter.entries()).map(([chapter, topics]) => ({ chapter, topics }));
   }, [unitSiblings]);
   const isDetailedUnitView = unitChapterGroups.length > 1 || Boolean(selectedTopicNode?.chapterTitle);
-  const currentUnitName = selectedTopicNode?.unitTitle ?? selectedTopicNode?.topic ?? '';
   const selectedChapterGroup = useMemo(() => {
     if (!unitChapterGroups.length) return null;
     return unitChapterGroups.find((g) => g.chapter === selectedChapterName) ?? unitChapterGroups[0];
@@ -764,15 +755,36 @@ const Explore = () => {
     };
   }, [hubScopeForHub]);
 
+  const existingScheduledChapterJob = useMemo(() => {
+    if (
+      hubScopeForHub !== 'chapter' ||
+      !selectedSubject ||
+      selectedTopicClassLevel === null ||
+      !selectedChapterGroup?.chapter
+    ) {
+      return null;
+    }
+    return orchestratorJobs.find(
+      (job) =>
+        job.board === ((String(profileBoard).toUpperCase() === 'ICSE' ? 'ICSE' : 'CBSE') as Board) &&
+        job.subject === selectedSubject &&
+        job.classLevel === (selectedTopicClassLevel as 11 | 12) &&
+        job.chapterTitle === selectedChapterGroup.chapter &&
+        (job.status === 'pending' || job.status === 'running')
+    ) ?? null;
+  }, [
+    hubScopeForHub,
+    orchestratorJobs,
+    profileBoard,
+    selectedChapterGroup,
+    selectedSubject,
+    selectedTopicClassLevel,
+  ]);
+
   const chapterSubtopicNames = useMemo(() => {
     if (!isDetailedUnitView || !selectedChapterGroup) return [];
     return selectedChapterGroup.topics.flatMap((t) => t.subtopics.map((s) => s.name)).filter(Boolean);
   }, [isDetailedUnitView, selectedChapterGroup]);
-
-  const selectedChapterSubtopicNames = useMemo(() => {
-    if (!isDetailedUnitView || !selectedChapterTopic) return [];
-    return selectedChapterTopic.subtopics.map((s) => s.name).filter(Boolean);
-  }, [isDetailedUnitView, selectedChapterTopic]);
 
   const memberTopicTitles = useMemo(() => {
     if (!isDetailedUnitView || !selectedChapterGroup) return [] as string[];
@@ -900,6 +912,147 @@ const Explore = () => {
   }, [view, focusedSubtopicIndex, selectedSubject, selectedTopicClassLevel, topicForHub, hubScopeForHub, profileBoard]);
 
   const boardSlug = (profileBoard || 'cbse').toLowerCase();
+
+  const runImmediateTopicHubGeneration = useCallback(async () => {
+    if (
+      !topicForHub.trim() ||
+      !selectedSubject ||
+      selectedTopicClassLevel === null ||
+      !activeTopicForAgent
+    ) {
+      return;
+    }
+
+    const boardName = (String(profileBoard).toUpperCase() === 'ICSE' ? 'ICSE' : 'CBSE') as Board;
+    const meta = activeTopicForAgent;
+    setGeneratingTopic(true);
+    try {
+      const out = await generateTopicContent({
+        board: boardName,
+        subject: selectedSubject,
+        classLevel: selectedTopicClassLevel as 11 | 12,
+        topic: topicForHub,
+        level: 'basics',
+        hubScope: hubScopeForHub,
+        unitLabel: meta.unitLabel,
+        unitTitle: meta.unitTitle,
+        chapterTitle:
+          hubScopeForHub === 'chapter' && selectedChapterGroup
+            ? selectedChapterGroup.chapter
+            : meta.chapterTitle ?? undefined,
+        subtopicNames:
+          hubScopeForHub === 'chapter'
+            ? chapterSubtopicNames
+            : meta.subtopics.map((s) => s.name),
+        memberTopicTitles:
+          hubScopeForHub === 'chapter' ? memberTopicTitles : undefined,
+        mode: 'generate',
+        includeTrace: true,
+      });
+      setTopicWhyStudy(out.whyStudy);
+      setTopicWhatLearn(out.whatLearn);
+      setTopicRealWorld(out.realWorld);
+      setTopicSubtopicPreviews(out.subtopicPreviews ?? []);
+      setDraftWhyStudy(out.whyStudy);
+      setDraftWhatLearn(out.whatLearn);
+      setDraftRealWorld(out.realWorld);
+      setTopicContentExists(true);
+      setTopicAgentTrace(out.trace ?? null);
+      toast({
+        title: hubAgentUi.toastGenerated,
+        description:
+          out.ragChunks != null
+            ? `Saved to Supabase · RAG passages used: ${out.ragChunks}`
+            : 'Saved to Supabase',
+      });
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Generation failed';
+      toast({ title: message, variant: 'destructive' });
+    } finally {
+      setGeneratingTopic(false);
+    }
+  }, [
+    activeTopicForAgent,
+    chapterSubtopicNames,
+    hubAgentUi.toastGenerated,
+    hubScopeForHub,
+    memberTopicTitles,
+    profileBoard,
+    selectedChapterGroup,
+    selectedSubject,
+    selectedTopicClassLevel,
+    toast,
+    topicForHub,
+  ]);
+
+  const handleScheduleChapterAgent = useCallback(() => {
+    if (
+      !selectedSubject ||
+      selectedTopicClassLevel === null ||
+      !selectedChapterGroup?.chapter
+    ) {
+      return;
+    }
+
+    if (existingScheduledChapterJob) {
+      toast({
+        title: 'Slot already allocated',
+        description: `This chapter is already scheduled for ${new Date(
+          existingScheduledChapterJob.originalScheduledAt
+        ).toLocaleString()}.`,
+      });
+      return;
+    }
+
+    const parsed = new Date(chapterScheduleValue);
+    if (Number.isNaN(parsed.getTime())) {
+      toast({ title: 'Pick a valid time slot', variant: 'destructive' });
+      return;
+    }
+
+    const boardName = (String(profileBoard).toUpperCase() === 'ICSE' ? 'ICSE' : 'CBSE') as Board;
+    const scheduled = scheduleChapterJob({
+      board: boardName,
+      subject: selectedSubject,
+      classLevel: selectedTopicClassLevel as 11 | 12,
+      mode: topicContentExists ? 'regenerate' : 'generate',
+      unitLabel: activeTopicForAgent?.unitLabel ?? null,
+      unitTitle: activeTopicForAgent?.unitTitle ?? null,
+      chapterTitle: selectedChapterGroup.chapter,
+      scheduledAt: parsed.toISOString(),
+      topics: selectedChapterGroup.topics.map((topic) => ({
+        title: topic.topic,
+        subtopics: topic.subtopics.map((subtopic) => subtopic.name),
+      })),
+    });
+
+    if (!scheduled.ok) {
+      toast({
+        title: 'Slot already allocated',
+        description: `This chapter is already scheduled for ${new Date(
+          scheduled.existing.originalScheduledAt
+        ).toLocaleString()}.`,
+      });
+      return;
+    }
+
+    setChapterScheduleOpen(false);
+    toast({
+      title: topicContentExists ? 'Chapter regenerate scheduled' : 'Chapter overview scheduled',
+      description: `Agent scheduled for ${parsed.toLocaleString()}. It will stay visible even after refresh.`,
+    });
+  }, [
+    activeTopicForAgent,
+    chapterScheduleValue,
+    existingScheduledChapterJob,
+    profileBoard,
+    scheduleChapterJob,
+    selectedChapterGroup,
+    selectedSubject,
+    selectedTopicClassLevel,
+    toast,
+    topicContentExists,
+  ]);
 
   const handleLinearMode = useCallback(() => {
     setPracticeModePopupOpen(false);
@@ -1118,46 +1271,20 @@ const Explore = () => {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="max-w-3xl mx-auto"
             >
-              <div className="edu-page-header">
-                <h2 className="edu-page-title flex items-center gap-3">
-                  <div className="w-10 h-10 gradient-primary rounded-xl flex items-center justify-center">
-                    <Compass className="w-5 h-5 text-primary-foreground" />
-                  </div>
-                  Explore & Play
-                </h2>
-                <p className="edu-page-desc">Choose how you want to learn</p>
-              </div>
-              <div className="grid sm:grid-cols-2 gap-4 mt-8">
-                <motion.button
-                  type="button"
-                  onClick={() => setView('subjects')}
-                  className="edu-card p-6 rounded-2xl text-left hover:shadow-[0_8px_30px_rgba(0,0,0,0.12)] hover:scale-[1.02] transition-all border border-border group"
-                >
-                  <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
-                    <Compass className="w-6 h-6 text-primary" />
-                  </div>
-                  <h3 className="font-extrabold text-lg text-foreground mb-1">Explore</h3>
-                  <p className="text-sm text-muted-foreground">Browse subjects, topics, and practice questions</p>
-                  <span className="inline-flex items-center gap-1 mt-3 text-sm font-bold text-primary">
-                    Open <ChevronRight className="w-4 h-4" />
-                  </span>
-                </motion.button>
-                <Link
-                  href="/play"
-                  className="edu-card p-6 rounded-2xl text-left hover:shadow-[0_8px_30px_rgba(0,0,0,0.12)] hover:scale-[1.02] transition-all border border-border group block"
-                >
-                  <div className="w-12 h-12 rounded-xl bg-edu-orange/10 flex items-center justify-center mb-4 group-hover:bg-edu-orange/20 transition-colors">
-                    <Crosshair className="w-6 h-6 text-edu-orange" />
-                  </div>
-                  <h3 className="font-extrabold text-lg text-foreground mb-1">Play</h3>
-                  <p className="text-sm text-muted-foreground">Fun, timed practice and challenges</p>
-                  <span className="inline-flex items-center gap-1 mt-3 text-sm font-bold text-edu-orange">
-                    Go to Play <ChevronRight className="w-4 h-4" />
-                  </span>
-                </Link>
-              </div>
+              <ExploreHubDashboard
+                onNavigateToSubjects={() => setView('subjects')}
+                onNavigateToSubject={handleSubjectSelect}
+                onNavigateToTopic={(node) => {
+                  setSelectedSubject(node.subject);
+                  handleTopicClick(node, node.classLevel, node.chapterTitle ?? undefined, node.topic);
+                }}
+                onNavigateToSubjectWithExam={(subject, exam) => {
+                  setExamType(exam ?? null);
+                  setSelectedSubject(subject);
+                  setView('topics');
+                }}
+              />
             </motion.div>
           )}
 
@@ -1369,7 +1496,9 @@ const Explore = () => {
                         {selectedTopicNode.subtopics.map((st, idx) => (
                           <li key={`exam-st-${idx}-${st.name || 'sub'}`} className="flex gap-2">
                             <span className="text-primary font-medium shrink-0">{idx + 1}.</span>
-                            <span>{st.name}</span>
+                            <MathText as="span" className="[&_.katex]:!text-[0.95em]">
+                              {subtopicMathTextLabel(st.name)}
+                            </MathText>
                           </li>
                         ))}
                       </ul>
@@ -1490,6 +1619,10 @@ const Explore = () => {
                                           !activeTopicForAgent
                                         )
                                           return;
+                                      if (hubScopeForHub === 'chapter') {
+                                        setChapterScheduleOpen(true);
+                                        return;
+                                      }
                                       if (topicContentExists) {
                                         setFbLiked('');
                                         setFbDisliked('');
@@ -1497,54 +1630,7 @@ const Explore = () => {
                                         setTopicRegenFeedbackOpen(true);
                                         return;
                                       }
-                                      const boardName = (String(profileBoard).toUpperCase() === 'ICSE' ? 'ICSE' : 'CBSE') as Board;
-                                      const meta = activeTopicForAgent;
-                                      setGeneratingTopic(true);
-                                      try {
-                                        const out = await generateTopicContent({
-                                          board: boardName,
-                                          subject: selectedSubject,
-                                          classLevel: selectedTopicClassLevel as 11 | 12,
-                                          topic: topicForHub,
-                                          level: 'basics',
-                                          hubScope: hubScopeForHub,
-                                          unitLabel: meta.unitLabel,
-                                          unitTitle: meta.unitTitle,
-                                          chapterTitle:
-                                            hubScopeForHub === 'chapter' && selectedChapterGroup
-                                              ? selectedChapterGroup.chapter
-                                              : meta.chapterTitle ?? undefined,
-                                          subtopicNames:
-                                            hubScopeForHub === 'chapter'
-                                              ? chapterSubtopicNames
-                                              : meta.subtopics.map((s) => s.name),
-                                          memberTopicTitles:
-                                            hubScopeForHub === 'chapter' ? memberTopicTitles : undefined,
-                                          mode: 'generate',
-                                          includeTrace: true,
-                                        });
-                                        setTopicWhyStudy(out.whyStudy);
-                                        setTopicWhatLearn(out.whatLearn);
-                                        setTopicRealWorld(out.realWorld);
-                                        setTopicSubtopicPreviews(out.subtopicPreviews ?? []);
-                                        setDraftWhyStudy(out.whyStudy);
-                                        setDraftWhatLearn(out.whatLearn);
-                                        setDraftRealWorld(out.realWorld);
-                                        setTopicContentExists(true);
-                                        setTopicAgentTrace(out.trace ?? null);
-                                        toast({
-                                          title: hubAgentUi.toastGenerated,
-                                          description:
-                                            out.ragChunks != null
-                                              ? `Saved to Supabase · RAG passages used: ${out.ragChunks}`
-                                              : 'Saved to Supabase',
-                                        });
-                                      } catch (e) {
-                                        const message = e instanceof Error ? e.message : 'Generation failed';
-                                        toast({ title: message, variant: 'destructive' });
-                                      } finally {
-                                        setGeneratingTopic(false);
-                                      }
+                                      await runImmediateTopicHubGeneration();
                                     }}
                                   >
                                     <Bot className="w-4 h-4" />
@@ -1556,6 +1642,12 @@ const Explore = () => {
                                         ? hubAgentUi.buttonRegenerate
                                         : hubAgentUi.buttonGenerate}
                                   </Button>
+                                  {hubScopeForHub === 'chapter' && existingScheduledChapterJob ? (
+                                    <p className="text-[11px] font-semibold text-amber-700 dark:text-amber-300">
+                                      Slot already allocated for{' '}
+                                      {new Date(existingScheduledChapterJob.originalScheduledAt).toLocaleString()}.
+                                    </p>
+                                  ) : null}
                                   </div>
                                 ) : null}
                               </div>
@@ -1808,14 +1900,16 @@ const Explore = () => {
                               {idx + 1} / {selectedTopicNode.subtopics.length}
                             </span>
                           </div>
-                          <h3 className="font-extrabold text-lg text-foreground mb-3 flex items-center gap-2">
-                            <span className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-sm text-primary">{idx + 1}</span>
-                            {st.name}
+                          <h3 className="font-extrabold text-lg text-foreground mb-3 flex items-center gap-2 min-w-0">
+                            <span className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-sm text-primary shrink-0">{idx + 1}</span>
+                            <MathText weight="extrabold" className="min-w-0 break-words leading-snug [&_.katex]:!text-[0.95em]">
+                              {subtopicMathTextLabel(st.name)}
+                            </MathText>
                           </h3>
                           <div className="text-sm mb-4">
                             {isPlaceholder ? (
                               <div className={`min-h-[120px] rounded-xl border-2 border-dashed ${outlineColor} flex items-center justify-center p-6 text-center`}>
-                                <p className="text-muted-foreground text-sm">Content coming soon. Refer to your textbook for {st.name}.</p>
+                                <p className="text-muted-foreground text-sm">Content coming soon. Refer to your textbook for {subtopicNavPreviewPlain(st.name)}.</p>
                               </div>
                             ) : generatedPreview ? (
                               <div className="theory-content text-[15px] leading-relaxed text-muted-foreground">
@@ -1980,7 +2074,9 @@ const Explore = () => {
                                 {selectedChapterTopic.subtopics.map((st, i) => (
                                   <li key={`one-topic-subtopic-${i}-${st.name}`} className="flex gap-2">
                                     <span className="text-primary font-medium shrink-0">{i + 1}.</span>
-                                    <span>{st.name}</span>
+                                    <MathText as="span" className="[&_.katex]:!text-[0.9em]">
+                                      {subtopicMathTextLabel(st.name)}
+                                    </MathText>
                                   </li>
                                 ))}
                               </ul>
@@ -1990,9 +2086,11 @@ const Explore = () => {
                       ) : (
                         <ul className="space-y-2 text-sm text-muted-foreground">
                           {selectedTopicNode.subtopics.map((st, idx) => (
-                            <li key={`cbse-sidebar-st-${idx}-${st.name || 'st'}`} className="flex gap-2">
+                            <li key={`cbse-sidebar-st-${idx}-${st.name || 'st'}`} className="flex gap-2 min-w-0">
                               <span className="text-primary font-medium shrink-0">{idx + 1}.</span>
-                              <span>{st.name}</span>
+                              <MathText as="span" className="min-w-0 [&_.katex]:!text-[0.9em]">
+                                {subtopicMathTextLabel(st.name)}
+                              </MathText>
                             </li>
                           ))}
                         </ul>
@@ -2165,6 +2263,74 @@ const Explore = () => {
             ))}
 
           <Fragment key="explore-topic-regenerate-dialog">
+          <Dialog open={chapterScheduleOpen} onOpenChange={setChapterScheduleOpen}>
+            <DialogContent className="rounded-2xl max-w-lg max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>
+                  {topicContentExists ? 'Schedule chapter regeneration' : 'Schedule chapter overview'}
+                </DialogTitle>
+                <DialogDescription>
+                  Pick the time when the orchestrator should start this chapter. It will generate
+                  the chapter overview first, then topic hubs for basics, intermediate, and
+                  advanced, then every subtopic AI pack with formula retries and fallback checks.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                {existingScheduledChapterJob ? (
+                  <div className="rounded-xl border border-amber-300/60 bg-amber-50/70 dark:bg-amber-950/20 p-3">
+                    <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">
+                      You have already allocated the slot.
+                    </p>
+                    <p className="mt-1 text-xs text-amber-800/90 dark:text-amber-300">
+                      Current slot: {new Date(existingScheduledChapterJob.originalScheduledAt).toLocaleString()}
+                    </p>
+                    <p className="mt-1 text-xs text-amber-800/90 dark:text-amber-300">
+                      Status: {existingScheduledChapterJob.status}
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="space-y-2">
+                      <label
+                        htmlFor="chapter-orchestrator-time"
+                        className="text-sm font-semibold text-foreground"
+                      >
+                        Activation time
+                      </label>
+                      <input
+                        id="chapter-orchestrator-time"
+                        type="datetime-local"
+                        value={chapterScheduleValue}
+                        onChange={(e) => setChapterScheduleValue(e.target.value)}
+                        className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+                      />
+                    </div>
+                    <div className="rounded-xl border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
+                      After this chapter finishes, the next scheduled chapter will start immediately
+                      so overlapping does not happen. If a previous chapter overruns the next slot,
+                      the runner will show the delay automatically.
+                    </div>
+                  </>
+                )}
+              </div>
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-lg"
+                  onClick={() => setChapterScheduleOpen(false)}
+                >
+                  Close
+                </Button>
+                {!existingScheduledChapterJob ? (
+                  <Button type="button" className="rounded-lg" onClick={handleScheduleChapterAgent}>
+                    Allocate slot
+                  </Button>
+                ) : null}
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
           <Dialog open={topicRegenFeedbackOpen} onOpenChange={setTopicRegenFeedbackOpen}>
             <DialogContent className="rounded-2xl max-w-lg max-h-[90vh] overflow-y-auto">
               <DialogHeader>

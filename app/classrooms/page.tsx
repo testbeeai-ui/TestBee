@@ -10,9 +10,8 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useRouter, usePathname } from 'next/navigation';
-import { Plus, Users, Copy, BookOpen, Link2, School, UserPlus, Loader2, RotateCw, X } from 'lucide-react';
+import { Plus, Users, Copy, BookOpen, School, Loader2, RotateCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import GoogleConnectChecklist from '@/components/GoogleConnectChecklist';
 import { StarRatingBadge } from '@/components/StarRating';
 
 interface Classroom {
@@ -185,7 +184,7 @@ function ExploreClassesSection({
 }
 
 const Classrooms = () => {
-  const { user, profile } = useAuth();
+  const { user, profile, session } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const { toast } = useToast();
@@ -193,13 +192,10 @@ const Classrooms = () => {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [joinDialogOpen, setJoinDialogOpen] = useState(false);
-  const [step, setStep] = useState<'type' | 'google_checklist' | 'google_link' | 'form'>('type');
-  const [classroomType, setClassroomType] = useState<'esm_only' | 'google_linked'>('esm_only');
   const [newName, setNewName] = useState('');
   const [newSubject, setNewSubject] = useState('');
   const [newSection, setNewSection] = useState('');
   const [newDescription, setNewDescription] = useState('');
-  const [googleClassroomLink, setGoogleClassroomLink] = useState('');
   const [joinCode, setJoinCode] = useState('');
   const [exploreClassrooms, setExploreClassrooms] = useState<ExploreClassroom[]>([]);
   const [exploreLoading, setExploreLoading] = useState(false);
@@ -210,7 +206,8 @@ const Classrooms = () => {
 
   const isTeacher = profile?.role === 'teacher';
 
-  const fetchClassrooms = async () => {
+  const fetchClassrooms = useCallback(async () => {
+    await Promise.resolve();
     if (!user) return;
     setLoading(true);
     if (isTeacher) {
@@ -227,62 +224,51 @@ const Classrooms = () => {
       }
     }
     setLoading(false);
-  };
-
-  useEffect(() => { fetchClassrooms(); }, [user, profile]);
+  }, [user, isTeacher]);
 
   useEffect(() => {
-    if (isTeacher || !user?.id) return;
+    queueMicrotask(() => {
+      void fetchClassrooms();
+    });
+  }, [fetchClassrooms]);
+
+  useEffect(() => {
+    if (!user?.id) return;
     let cancelled = false;
-    setExploreLoading(true);
     (async () => {
-      const { data: allClassrooms } = await supabase.from('classrooms').select('id, name, subject, section, description, type, teacher_id');
+      await Promise.resolve();
       if (cancelled) return;
-      const list = allClassrooms || [];
-      if (list.length === 0) {
+      setExploreLoading(true);
+
+      let accessToken = session?.access_token;
+      if (!accessToken) {
+        const { data: { session: s } } = await supabase.auth.getSession();
+        accessToken = s?.access_token;
+      }
+      const res = await fetch('/api/classrooms/explore', {
+        credentials: 'include',
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+      });
+      if (cancelled) return;
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        if (process.env.NODE_ENV === 'development') {
+          console.error('[classrooms/explore]', res.status, body);
+        }
+        toast({
+          title: 'Could not load classes to explore',
+          description: typeof body?.error === 'string' ? body.error : 'Try again in a moment.',
+          variant: 'destructive',
+        });
         setExploreClassrooms([]);
-        setMyRequestMap({});
         setExploreLoading(false);
         return;
       }
-      const teacherIds = [...new Set(list.map((c: { teacher_id: string }) => c.teacher_id))];
-      const { data: teacherProfiles } = await supabase.from('profiles').select('id, name, visibility').in('id', teacherIds);
-      const profileMap = new Map((teacherProfiles || []).map((p: { id: string; name: string | null; visibility: string }) => [p.id, p]));
-      const withTeacher: ExploreClassroom[] = list
-        .map((c: { id: string; name: string; subject: string | null; section: string | null; description: string | null; type: string; teacher_id: string }) => {
-          const p = profileMap.get(c.teacher_id);
-          return { ...c, teacher_name: p?.name ?? null, teacher_visibility: p?.visibility ?? null };
-        })
-        .filter((c: ExploreClassroom) => c.teacher_visibility !== 'invite_only');
+
+      const payload = (await res.json()) as { classrooms?: ExploreClassroom[] };
+      const withTeacher = payload.classrooms ?? [];
       if (cancelled) return;
       setExploreClassrooms(withTeacher);
-
-      // Fetch review ratings for explore cards
-      const classroomIds = withTeacher.map((c: ExploreClassroom) => c.id);
-      if (classroomIds.length > 0) {
-        const { data: reviewData } = await supabase
-          .from('classroom_reviews' as any)
-          .select('classroom_id, rating')
-          .in('classroom_id', classroomIds);
-        if (!cancelled && reviewData) {
-          const ratingMap = new Map<string, { sum: number; count: number }>();
-          (reviewData as unknown as { classroom_id: string; rating: number }[]).forEach((r) => {
-            const existing = ratingMap.get(r.classroom_id) || { sum: 0, count: 0 };
-            existing.sum += r.rating;
-            existing.count += 1;
-            ratingMap.set(r.classroom_id, existing);
-          });
-          setExploreClassrooms((prev) =>
-            prev.map((c) => {
-              const stats = ratingMap.get(c.id);
-              if (stats) {
-                return { ...c, avg_rating: Math.round((stats.sum / stats.count) * 10) / 10, review_count: stats.count };
-              }
-              return c;
-            })
-          );
-        }
-      }
 
       const { data: requests } = await supabase.from('classroom_join_requests').select('classroom_id, status').eq('user_id', user.id);
       if (cancelled) return;
@@ -301,7 +287,7 @@ const Classrooms = () => {
       setExploreLoading(false);
     })();
     return () => { cancelled = true; };
-  }, [user?.id, isTeacher]);
+  }, [user?.id, session?.access_token, toast]);
 
   const refetchMyRequestMap = useCallback(async () => {
     if (!user?.id) return;
@@ -309,7 +295,7 @@ const Classrooms = () => {
     const map: Record<string, string> = {};
     (requests || []).forEach((r: { classroom_id: string; status: string }) => { map[r.classroom_id] = r.status; });
     setMyRequestMap(map);
-  }, [user?.id]);
+  }, [user]);
 
   const refetchExplorationEnded = useCallback(async () => {
     if (!user?.id) return;
@@ -320,22 +306,24 @@ const Classrooms = () => {
       if (new Date(e.started_at).getTime() < cutoff) ended.add(e.classroom_id);
     });
     setExplorationEndedClassroomIds(ended);
-  }, [user?.id]);
+  }, [user]);
 
   // Refetch which classes have exploration ended whenever user lands on Classrooms (e.g. back from class page)
   useEffect(() => {
-    if (pathname === '/classrooms' && user?.id && !isTeacher) {
-      refetchExplorationEnded();
+    if (pathname === '/classrooms' && user?.id) {
+      queueMicrotask(() => {
+        void refetchExplorationEnded();
+      });
     }
-  }, [pathname, user?.id, isTeacher, refetchExplorationEnded]);
+  }, [pathname, user?.id, refetchExplorationEnded]);
 
   // Also refetch when page becomes visible (handles full reload or tab switch so exploration-ended state is fresh)
   useEffect(() => {
-    if (!user?.id || isTeacher) return;
+    if (!user?.id) return;
     const onVisible = () => refetchExplorationEnded();
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
-  }, [user?.id, isTeacher, refetchExplorationEnded]);
+  }, [user?.id, refetchExplorationEnded]);
 
   const handleRequestJoin = async (classroomId: string) => {
     if (!user?.id) return;
@@ -388,8 +376,8 @@ const Classrooms = () => {
       subject: newSubject.trim() || null,
       section: newSection.trim() || null,
       description: newDescription.trim() || null,
-      type: classroomType,
-      google_classroom_id: googleClassroomLink.trim() || null,
+      type: 'esm_only',
+      google_classroom_id: null,
     });
     if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return; }
 
@@ -405,10 +393,7 @@ const Classrooms = () => {
 
   const resetDialog = () => {
     setDialogOpen(false);
-    setStep('type');
     setNewName(''); setNewSubject(''); setNewSection(''); setNewDescription('');
-    setGoogleClassroomLink('');
-    setClassroomType('esm_only');
   };
 
   const handleJoin = async () => {
@@ -464,69 +449,18 @@ const Classrooms = () => {
                     <Button className="rounded-xl edu-btn-primary font-bold gap-2"><Plus className="w-4 h-4" /> New Classroom</Button>
                   </DialogTrigger>
                   <DialogContent className="rounded-2xl max-w-lg">
-                    <DialogHeader><DialogTitle className="font-display">
-                      {step === 'type' ? 'Choose Classroom Type' : step === 'google_checklist' ? 'Google Setup' : step === 'google_link' ? 'Link Google Classroom' : 'Create Classroom'}
-                    </DialogTitle></DialogHeader>
-
-                    {step === 'type' && (
-                      <div className="grid grid-cols-2 gap-3 mt-2">
-                        <button onClick={() => { setClassroomType('google_linked'); setStep('google_checklist'); }}
-                          className="bg-muted/30 rounded-2xl p-5 text-center border-2 border-border/50 hover:border-primary/40 hover:shadow-md transition-all">
-                          <span className="text-3xl block mb-2">🔗</span>
-                          <h3 className="font-display text-sm text-foreground">Link with Google</h3>
-                          <p className="text-xs text-muted-foreground mt-1">Recommended</p>
-                        </button>
-                        <button onClick={() => { setClassroomType('esm_only'); setStep('form'); }}
-                          className="bg-muted/30 rounded-2xl p-5 text-center border-2 border-border/50 hover:border-primary/40 hover:shadow-md transition-all">
-                          <span className="text-3xl block mb-2">🎯</span>
-                          <h3 className="font-display text-sm text-foreground">ESM-only</h3>
-                          <p className="text-xs text-muted-foreground mt-1">No Google needed</p>
-                        </button>
-                      </div>
-                    )}
-
-                    {step === 'google_checklist' && (
-                      <div className="mt-2">
-                        <GoogleConnectChecklist
-                          onContinue={() => setStep('google_link')}
-                          onSkip={() => { setClassroomType('esm_only'); setStep('form'); }}
-                        />
-                      </div>
-                    )}
-
-                    {step === 'google_link' && (
-                      <div className="mt-2 space-y-4">
-                        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4">
-                          <p className="text-sm font-bold text-foreground mb-1">🔗 Google Classroom API</p>
-                          <p className="text-xs text-muted-foreground">Google API integration requires credentials setup in your Supabase project. For now, we'll create an ESM classroom marked for Google linking.</p>
-                        </div>
-                        <Button onClick={() => setStep('form')} className="w-full rounded-xl edu-btn-primary h-11 font-bold">
-                          Continue to Create →
-                        </Button>
-                      </div>
-                    )}
-
-                    {step === 'form' && (
-                      <div className="space-y-4 mt-2">
-                        <div className="flex items-center gap-2 text-xs">
-                          <span className={`px-2 py-1 rounded-lg font-bold ${classroomType === 'google_linked' ? 'bg-blue-500/10 text-blue-600' : 'bg-primary/10 text-primary'}`}>
-                            {classroomType === 'google_linked' ? '🔗 Google-linked' : '🎯 ESM-only'}
-                          </span>
-                        </div>
-                        <Input placeholder="Class name (e.g. JEE Physics – Mechanics)" value={newName} onChange={e => setNewName(e.target.value)} className="rounded-xl h-12" />
-                        <Input placeholder="Subject (optional)" value={newSubject} onChange={e => setNewSubject(e.target.value)} className="rounded-xl" />
-                        <Input placeholder="Section (optional)" value={newSection} onChange={e => setNewSection(e.target.value)} className="rounded-xl" />
-                        <Textarea placeholder="Description (optional)" value={newDescription} onChange={e => setNewDescription(e.target.value)} className="rounded-xl" />
-                        <div>
-                          <label className="text-sm font-extrabold text-foreground">Google Classroom link (optional)</label>
-                          <Input placeholder="https://classroom.google.com/c/... or class code" value={googleClassroomLink} onChange={e => setGoogleClassroomLink(e.target.value)} className="rounded-xl mt-1" />
-                        </div>
-                        <div className="flex gap-2">
-                          <Button variant="outline" onClick={() => setStep('type')} className="rounded-xl">Back</Button>
-                          <Button onClick={createClassroom} disabled={!newName.trim()} className="flex-1 rounded-xl edu-btn-primary h-12 font-extrabold">Create 🎯</Button>
-                        </div>
-                      </div>
-                    )}
+                    <DialogHeader>
+                      <DialogTitle className="font-display">Create Classroom</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 mt-2">
+                      <Input placeholder="Class name (e.g. JEE Physics – Mechanics)" value={newName} onChange={e => setNewName(e.target.value)} className="rounded-xl h-12" />
+                      <Input placeholder="Subject (optional)" value={newSubject} onChange={e => setNewSubject(e.target.value)} className="rounded-xl" />
+                      <Input placeholder="Section (optional)" value={newSection} onChange={e => setNewSection(e.target.value)} className="rounded-xl" />
+                      <Textarea placeholder="Description (optional)" value={newDescription} onChange={e => setNewDescription(e.target.value)} className="rounded-xl" />
+                      <Button onClick={createClassroom} disabled={!newName.trim()} className="w-full rounded-xl edu-btn-primary h-12 font-extrabold">
+                        Create 🎯
+                      </Button>
+                    </div>
                   </DialogContent>
                 </Dialog>
               )}
@@ -567,7 +501,7 @@ const Classrooms = () => {
                   </motion.div>
                 ))}
               </div>
-              {!isTeacher && (exploreClassrooms.length > 0 || exploreLoading) && (
+              {(exploreClassrooms.length > 0 || exploreLoading) && (
                 <ExploreClassesSection
                   exploreClassrooms={exploreClassrooms.filter((ec) => !classrooms.some((my) => my.id === ec.id))}
                   exploreLoading={exploreLoading}
@@ -600,12 +534,29 @@ const Classrooms = () => {
               emptySubtitle="Browse classes below and request to join, or use a code from your teacher with the button above."
             />
           ) : (
-            <div className="text-center py-16">
-              <div className="w-20 h-20 bg-muted rounded-3xl flex items-center justify-center mx-auto mb-4">
-                <BookOpen className="w-10 h-10 text-muted-foreground/40" />
+            <div className="space-y-10">
+              <div className="text-center py-10">
+                <div className="w-20 h-20 bg-muted rounded-3xl flex items-center justify-center mx-auto mb-4">
+                  <BookOpen className="w-10 h-10 text-muted-foreground/40" />
+                </div>
+                <h3 className="font-display text-xl text-foreground mb-1">No classrooms you teach yet</h3>
+                <p className="text-muted-foreground text-sm">Create a class with New Classroom, or browse public classes below.</p>
               </div>
-              <h3 className="font-display text-xl text-foreground mb-1">No classrooms yet</h3>
-              <p className="text-muted-foreground text-sm">Create your first classroom to get started!</p>
+              <ExploreClassesSection
+                exploreClassrooms={exploreClassrooms}
+                exploreLoading={exploreLoading}
+                myRequestMap={myRequestMap}
+                myMemberClassroomIds={new Set()}
+                explorationEndedClassroomIds={explorationEndedClassroomIds}
+                requestingId={requestingId}
+                withdrawingId={withdrawingId}
+                onRequestJoin={handleRequestJoin}
+                onWithdrawRequest={handleWithdrawRequest}
+                onOpenClass={(id) => router.push(`/classroom/${id}`)}
+                onRefreshStatus={async () => { await refetchMyRequestMap(); await refetchExplorationEnded(); toast({ title: 'Status updated' }); }}
+                emptyTitle="No public classes to show"
+                emptySubtitle="Tip: add SUPABASE_SERVICE_ROLE_KEY to .env.local and restart the dev server so this list can read classrooms when RLS blocks the anon client."
+              />
             </div>
           )}
         </div>

@@ -11,6 +11,8 @@ import { resolveGeminiModelId, resolveVertexTopicModelId } from "@/lib/geminiMod
 import { fetchRAGContext } from "@/lib/rag";
 import { normalizeSubjectKey, normalizeSubtopicContentKey } from "@/lib/subtopicContentKeys";
 import { supabaseForLongJobPersist } from "@/lib/supabaseAdminPersist";
+import { getGeminiApiKeyFromEnv } from "@/lib/geminiEnv";
+import { logAiUsage } from "@/lib/aiLogger";
 
 const ALLOWED_LEVELS = new Set(["basics", "intermediate", "advanced"]);
 
@@ -24,29 +26,39 @@ function levelGuidance(level: string, subject: string): string {
   const s = subject.toLowerCase();
   if (level === "basics") {
     if (s === "math")
-      return "Tier 1: Basic. Build intuition, patterns, and visual meaning before formal proofs. Use light notation and short examples.";
+      return "Tier 1: Basic. Build deep intuition, patterns, and visual meaning before formal proofs. Use light notation but provide exhaustive, step-by-step simple examples. Do not be brief; explain the 'why' behind every step.";
     if (s === "chemistry")
-      return "Tier 1: Basic. Concept-first understanding using daily-life and lab intuition. Avoid dense numeric calculations.";
+      return "Tier 1: Basic. Concept-first understanding using multiple daily-life and lab intuition examples. Avoid dense numeric calculations but explain the fundamental mechanism in great detail. Be narrative and thorough.";
     if (s === "biology")
-      return "Tier 1: Basic. Big-picture understanding with clear process stories. Introduce CBSE terms gently.";
-    return "Tier 1: Basic. Storytelling + real-world intuition + why it matters. State formulas conceptually in simple inline LaTeX. Include all key formulas the student needs at this level.";
+      return "Tier 1: Basic. Big-picture understanding with clear, highly detailed process stories. Introduce CBSE terms gently but do not skip steps in biological pathways. Provide rich, descriptive context.";
+    return "Tier 1: Basic. Storytelling + multiple real-world examples + why it matters. State formulas conceptually in simple inline LaTeX. Include all key formulas the student needs at this level and explain every variable comprehensively.";
   }
   if (level === "intermediate") {
     if (s === "math")
-      return "Tier 2: Intermediate. Strict NCERT definitions, theorem statements, standard derivation/proof flow. Show method-first exam solving with proper LaTeX.";
+      return "Tier 2: Intermediate. Strict NCERT definitions, theorem statements, and full, unskipped derivation/proof flows. Show method-first exam solving with proper LaTeX. Every single algebraic step must be shown and explained.";
     if (s === "chemistry")
-      return "Tier 2: Intermediate. NCERT definitions, balanced equations in LaTeX, named reactions/trends, CBSE-style derivations. Explicit conditions, units, sign conventions.";
+      return "Tier 2: Intermediate. NCERT definitions, balanced equations in LaTeX, named reactions/trends, and thorough CBSE-style derivations. Explicit conditions, units, and sign conventions. Explain the reason behind every condition or exception.";
     if (s === "biology")
-      return "Tier 2: Intermediate. NCERT terminology, mechanism flow, labelled process sequencing. Exam-style distinctions.";
-    return "Tier 2: Intermediate. NCERT definitions, strict CBSE formulas/sign conventions, standard derivation flow. Exact formulas in LaTeX with vector notations and unit dimensions. Exam-oriented and precise.";
+      return "Tier 2: Intermediate. NCERT terminology, detailed mechanism flow, and comprehensively labelled process sequencing. Provide exhaustive exam-style distinctions and step-by-step biological processes.";
+    return "Tier 2: Intermediate. NCERT definitions, strict CBSE formulas/sign conventions, and complete, unskipped derivation flows. Exact formulas in LaTeX with vector notations and unit dimensions. Be extremely thorough and exam-oriented.";
   }
   if (s === "math")
-    return "Tier 3: Advanced. Treat this as a full exam-prep chapter replacement, not a short note. Cover HOTS traps, edge cases, domain/constraint pitfalls, multi-concept chaining, alternate methods, and rich solved examples. Add exam strategy, mistake analysis, and advanced calculus/algebra forms in strict LaTeX.";
+    return "Tier 3: Advanced. Treat this as a full exam-prep chapter replacement. Cover HOTS traps, multiple edge cases, domain/constraint pitfalls, multi-concept chaining, alternate methods, and rich, multi-step solved examples. Show all working in strict LaTeX.";
   if (s === "chemistry")
-    return "Tier 3: Advanced. Treat this as a full exam-prep chapter replacement, not a short note. Cover mechanism depth, reagents/conditions, exception trends, comparison tables, integrated physical-organic-inorganic links, and exam traps with corrections. Include rigorous LaTeX equations and reaction pathways with strong CBSE/competitive framing.";
+    return "Tier 3: Advanced. Treat this as a full exam-prep chapter replacement. Cover mechanism depth exhaustively, all reagents/conditions, exception trends, comparison tables, integrated links, and exam traps with corrections. Include rigorous LaTeX equations.";
   if (s === "biology")
-    return "Tier 3: Advanced. Treat this as a full exam-prep chapter replacement, not a short note. Cover pathway integration, regulation logic, edge cases, misconceptions, and high-yield exam differentiators. Build deep conceptual clarity with retention anchors.";
-  return "Tier 3: Advanced. Treat this as a full exam-prep chapter replacement, not a short note. Cover HOTS traps, edge cases, multi-concept integration, and deep worked applications. Include strict LaTeX for all equations and edge-case variations. Depth must be high, CBSE-accurate, and exam-focused.";
+    return "Tier 3: Advanced. Treat this as a full exam-prep chapter replacement. Cover pathway integration, regulation logic, edge cases, misconceptions, and high-yield exam differentiators in extreme detail. Build deep conceptual clarity.";
+  return "Tier 3: Advanced. Treat this as a full exam-prep chapter replacement, not a short note. Cover HOTS traps, exhaustive edge cases, multi-concept integration, and deep, step-by-step worked applications. Include strict LaTeX for all equations.";
+}
+
+function generalDepthMandate(): string {
+  return `
+GENERAL EXHAUSTIVENESS MANDATE (NON-NEGOTIABLE):
+- You MUST write a highly detailed, exhaustive response. Do NOT be brief.
+- Flash-tier models tend to summarize or skip steps. You must actively counter this bias by expanding on every point.
+- Explain the physical/mathematical/logical reasoning behind every single step, formula, and concept.
+- Aim for a word count of at least 1000-1500 words of dense, high-quality instructional material. This is a full textbook chapter replacement.
+`;
 }
 
 function advancedDepthMandate(level: string): string {
@@ -67,6 +79,132 @@ function salvageJsonForLatex(raw: string): string {
   // Many model JSON failures come from single backslashes in LaTeX (e.g. \alpha, \rightarrow).
   // Escape unknown JSON backslash sequences while preserving valid ones.
   return raw.replace(/\\(?!["\\/bfnrtu])/g, "\\\\");
+}
+
+/** `\u` must be followed by 4 hex digits in JSON; models sometimes emit broken sequences. */
+function repairInvalidJsonUnicodeEscapes(s: string): string {
+  return s.replace(/\\u(?![0-9a-fA-F]{4})/g, "\\\\u");
+}
+
+function tryParseSubtopicJson(raw: string): {
+  theory?: string;
+  did_you_know?: string;
+  references?: unknown;
+} | null {
+  const trimmed = raw.trim();
+  const variants: string[] = [
+    trimmed,
+    repairInvalidJsonUnicodeEscapes(trimmed),
+    salvageJsonForLatex(trimmed),
+    salvageJsonForLatex(repairInvalidJsonUnicodeEscapes(trimmed)),
+  ];
+  const seen = new Set<string>();
+  for (const v of variants) {
+    if (!v || seen.has(v)) continue;
+    seen.add(v);
+    try {
+      return JSON.parse(v) as { theory?: string; did_you_know?: string; references?: unknown };
+    } catch {
+      /* try next */
+    }
+  }
+  return null;
+}
+
+/**
+ * Last-resort: scan for `"theory":"..."` and unescape like JSON.parse would, without parsing the whole blob.
+ * Helps when only a trailing field or escape breaks global JSON.parse.
+ */
+function extractTheoryFromMalformedJson(raw: string): string | null {
+  const m = raw.match(/"theory"\s*:\s*"/);
+  if (!m || m.index === undefined) return null;
+  let i = m.index + m[0].length;
+  let out = "";
+  while (i < raw.length) {
+    const c = raw[i]!;
+    if (c === "\\") {
+      i += 1;
+      if (i >= raw.length) break;
+      const n = raw[i]!;
+      if (n === "\\" || n === '"' || n === "/") {
+        out += n === "\\" ? "\\" : n === '"' ? '"' : "/";
+        i += 1;
+        continue;
+      }
+      if (n === "b") {
+        out += "\b";
+        i += 1;
+        continue;
+      }
+      if (n === "f") {
+        out += "\f";
+        i += 1;
+        continue;
+      }
+      if (n === "n") {
+        out += "\n";
+        i += 1;
+        continue;
+      }
+      if (n === "r") {
+        out += "\r";
+        i += 1;
+        continue;
+      }
+      if (n === "t") {
+        out += "\t";
+        i += 1;
+        continue;
+      }
+      if (n === "u") {
+        const hex = raw.slice(i + 1, i + 5);
+        if (/^[0-9a-fA-F]{4}$/.test(hex)) {
+          const cp = parseInt(hex, 16);
+          out += String.fromCodePoint(Number.isFinite(cp) ? cp : 0xfffd);
+          i += 5;
+          continue;
+        }
+        out += "\\u";
+        i += 1;
+        continue;
+      }
+      // Preserve backslash for LaTeX tokens: \( \), \alpha, etc.
+      out += "\\" + n;
+      i += 1;
+      continue;
+    }
+    if (c === '"') {
+      return out.length >= 80 ? out : null;
+    }
+    out += c;
+    i += 1;
+  }
+  return out.length >= 80 ? out : null;
+}
+
+function buildSubtopicStubTheory(params: {
+  topic: string;
+  subtopicName: string;
+  level: string;
+  subject: string;
+  classLevel: number;
+  preview: string;
+  ragBlock: string;
+}): string {
+  const { topic, subtopicName, level, subject, classLevel, preview, ragBlock } = params;
+  const note =
+    "> **Notice:** The model returned output that could not be parsed as JSON. This page is a **stub** built from your preview and reference context. Use **Generate Subtopic AI** again to replace it with a full lesson.\n\n";
+  const header = `## ${subtopicName}\n\n**Topic:** ${topic} · **CBSE Class ${classLevel} ${subject}** · **Level:** ${level}\n\n`;
+  const fromPreview = preview.trim()
+    ? `### From your topic preview\n\n${preview.trim()}\n\n`
+    : "";
+  const ragExcerpt =
+    ragBlock.length > 120 && !ragBlock.startsWith("No textbook passages")
+      ? `### Reference context (excerpt)\n\n${ragBlock.slice(0, 14_000)}${ragBlock.length > 14_000 ? "\n\n…" : ""}\n\n`
+      : "";
+  const tail =
+    "### Next steps\n\n- Retry **Generate Subtopic AI** (invalid escapes in long JSON are intermittent).\n- If failures persist, try **intermediate** first, then **advanced**.\n";
+  return normalizeVectorNotation(note + header + fromPreview + ragExcerpt + tail);
 }
 
 function normalizeVectorNotation(text: string): string {
@@ -96,6 +234,7 @@ Topic: ${topic}
 Subtopic: ${subtopicName}
 Tone: Mentor — empathetic yet rigorous, logical, exam-aware, and error-free.
 
+${generalDepthMandate()}
 ${levelGuidance(level, subject)}
 ${advancedDepthMandate(level)}
 
@@ -135,11 +274,11 @@ LATEX CHEMISTRY & MATH RULES (STRICTLY ENFORCED):
   - Do NOT wrap whole equations in **bold** markdown.
 
 Output must be valid JSON only (no markdown fences) with these keys:
-- theory: The complete lesson in Markdown. Structure it with clear ## headings, explanations, formulas, derivations (level-appropriate), worked examples where helpful, and key takeaways. For Basic: focus on conceptual clarity, real-world intuition, and stating formulas with meaning. For Intermediate: include full NCERT-style derivations, sign conventions, solved examples, and exam tips. For Advanced: push into HOTS territory — traps, edge cases, multi-concept links, and competitive-level depth. There is NO length limit — write everything the student needs at this level to never need another source.
+- theory: The COMPLETE, EXHAUSTIVE lesson in Markdown. Structure it with clear ## headings, deep explanations, unskipped derivations, multiple rich worked examples, and key takeaways. This must be LONG and detailed enough to replace a textbook chapter entirely. Do NOT summarize or be brief.
 - did_you_know: A single short, engaging fun fact or surprising perspective related to this subtopic (1-3 sentences). Something that sparks curiosity.
 - references: A JSON array of 1-3 suggested study resources. Each object: { "type": "video" or "reading", "title": "...", "url": "https://...", "description": "..." }. Suggest real, well-known educational resources (NCERT, Khan Academy, Physics Wallah, etc.). If you cannot cite a real URL, omit the array or return [].
 
-Stay strictly within CBSE ${subject} Class ${classLevel}. Do not invent syllabus details. If context is thin, still write useful, accurate content.`;
+Stay strictly within CBSE ${subject} Class ${classLevel}. Do not invent syllabus details. If context is thin, you MUST still write useful, accurate, and deeply detailed content based on your knowledge.`;
 }
 
 export async function POST(request: Request) {
@@ -154,7 +293,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = getGeminiApiKeyFromEnv();
     const vertexExplicit =
       (process.env.GEMINI_USE_VERTEX?.trim().toLowerCase() === "true" ||
         process.env.GEMINI_USE_VERTEX?.trim() === "1") &&
@@ -167,7 +306,7 @@ export async function POST(request: Request) {
     }
     if (!isVertexForTopicAgentEnabled() && !apiKey?.trim()) {
       return NextResponse.json(
-        { error: "GEMINI_API_KEY is not configured." },
+        { error: "GEMINI_API_KEY or GOOGLE_GENERATIVE_AI_API_KEY is not configured." },
         { status: 503 }
       );
     }
@@ -261,6 +400,7 @@ ${ragBlock}`;
 
     let backend: TopicGeminiBackend = vertexEnabled ? "vertex" : "api_key";
     let raw: string;
+    let usage: { promptTokenCount: number; candidatesTokenCount: number; totalTokenCount: number } | undefined;
 
     try {
       const out = await generateSubtopicJson({
@@ -272,6 +412,7 @@ ${ragBlock}`;
       });
       raw = out.raw;
       backend = out.backend;
+      usage = out.usage;
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       const status =
@@ -284,7 +425,7 @@ ${ragBlock}`;
         console.error("[generate-subtopic] Vertex model not found:", msg.slice(0, 600));
         return NextResponse.json(
           {
-            error: `Vertex could not load model "${modelId}" in ${vertexLocationOrDefault()}.`,
+            error: `Vertex could not load model "${modelId}" in ${vertexLocationOrDefault(modelId)}.`,
             code: "VERTEX_MODEL_NOT_FOUND",
           },
           { status: 502 }
@@ -301,34 +442,64 @@ ${ragBlock}`;
     console.log(
       `[generate-subtopic] backend=${backend} model=${modelId} ragChunks=${ragChunkCount} topic=${topic} subtopic=${subtopicName} level=${level}`
     );
+    await logAiUsage({
+      supabase,
+      userId: user.id,
+      actionType: "generate_subtopic",
+      modelId,
+      backend,
+      usage,
+      metadata: {
+        board,
+        subject,
+        classLevel,
+        topic,
+        subtopicName,
+        level,
+        ragChunkCount,
+      },
+    });
 
     if (!raw) {
       return NextResponse.json({ error: "Empty model response" }, { status: 502 });
     }
 
     let parsed: { theory?: string; did_you_know?: string; references?: unknown };
-    try {
-      parsed = JSON.parse(raw) as typeof parsed;
-    } catch (parseErr) {
-      const salvaged = salvageJsonForLatex(raw);
-      try {
-        parsed = JSON.parse(salvaged) as typeof parsed;
+    let parseFallback: "extracted_theory" | "stub" | null = null;
+
+    const tryFirst = tryParseSubtopicJson(raw);
+    if (tryFirst) {
+      parsed = tryFirst;
+    } else {
+      const extracted = extractTheoryFromMalformedJson(raw);
+      if (extracted && extracted.trim().length >= 80) {
         console.warn(
-          `[generate-subtopic] JSON parse recovered via LaTeX backslash salvage — topic=${topic} subtopic=${subtopicName} level=${level}`
+          `[generate-subtopic] JSON parse failed; recovered theory via loose extract — topic=${topic} subtopic=${subtopicName} level=${level}`
         );
-      } catch (parseErr2) {
-        console.error(
-          "[generate-subtopic] invalid JSON from model",
-          {
+        parsed = { theory: extracted, did_you_know: "", references: [] };
+        parseFallback = "extracted_theory";
+      } else {
+        console.error("[generate-subtopic] invalid JSON from model; using stub fallback", {
+          topic,
+          subtopicName,
+          level,
+          rawPreview: raw.slice(0, 1200),
+        });
+        parsed = {
+          theory: buildSubtopicStubTheory({
             topic,
             subtopicName,
             level,
-            firstError: parseErr instanceof Error ? parseErr.message : String(parseErr),
-            secondError: parseErr2 instanceof Error ? parseErr2.message : String(parseErr2),
-            rawPreview: raw.slice(0, 1200),
-          }
-        );
-        return NextResponse.json({ error: "Model returned invalid JSON" }, { status: 502 });
+            subject,
+            classLevel,
+            preview,
+            ragBlock,
+          }),
+          did_you_know:
+            "The SI ampere was historically tied to the force between parallel wires — precise mechanical measurement shaped the unit.",
+          references: [],
+        };
+        parseFallback = "stub";
       }
     }
 
@@ -436,6 +607,7 @@ ${ragBlock}`;
       ragChunks: ragChunkCount,
       modelId,
       trace,
+      parseFallback,
     });
   } catch (e) {
     console.error("generate-subtopic error", e);

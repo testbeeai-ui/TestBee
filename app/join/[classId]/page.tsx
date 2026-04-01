@@ -8,6 +8,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import AdminRequestTemplate from '@/components/AdminRequestTemplate';
+import type { Database } from '@/integrations/supabase/types';
+
+type ClassroomRow = Database['public']['Tables']['classrooms']['Row'];
 
 const JoinClassroom = () => {
   const params = useParams();
@@ -15,7 +18,7 @@ const JoinClassroom = () => {
   const { user, profile, loading: authLoading } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
-  const [classroom, setClassroom] = useState<any>(null);
+  const [classroom, setClassroom] = useState<ClassroomRow | null>(null);
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
   const [showFallback, setShowFallback] = useState(false);
@@ -71,7 +74,7 @@ const JoinClassroom = () => {
                 )}
               </div>
             )}
-            <p className="text-sm text-muted-foreground mt-4">You've been invited to join this classroom</p>
+            <p className="text-sm text-muted-foreground mt-4">You&apos;ve been invited to join this classroom</p>
           </div>
 
           {!showFallback ? (

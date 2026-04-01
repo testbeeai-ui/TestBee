@@ -106,8 +106,10 @@ export default function TopicRoulette({
   // Flapper physics during spin
   useEffect(() => {
     if (!spinning) {
-      setFlapAngle(0);
-      lastPeg.current = -1;
+      queueMicrotask(() => {
+        setFlapAngle(0);
+        lastPeg.current = -1;
+      });
       return;
     }
     const norm = ((rotation % 360) + 360) % 360;
@@ -115,7 +117,7 @@ export default function TopicRoulette({
     const pegIdx = Math.floor(norm / pegSpace);
     if (pegIdx !== lastPeg.current) {
       lastPeg.current = pegIdx;
-      setFlapAngle(-22);
+      queueMicrotask(() => setFlapAngle(-22));
       setTimeout(() => setFlapAngle(10), 50);
       setTimeout(() => setFlapAngle(-5), 100);
       setTimeout(() => setFlapAngle(0), 150);

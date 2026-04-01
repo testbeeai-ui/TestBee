@@ -49,7 +49,7 @@ export default function TeacherDashboard() {
   const quickActions = [
     {
       label: "Create Classroom",
-      desc: "New ESM or Google-linked class",
+      desc: "New class on EduBlast",
       path: "/classrooms",
       emoji: "📚",
       gradient: "from-primary to-secondary",

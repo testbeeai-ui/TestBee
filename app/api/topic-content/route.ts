@@ -58,6 +58,28 @@ function parseQuery(url: string): QueryParams | null {
   return { board, subject, classLevel: classLevelRaw, topic, level, hubScope };
 }
 
+/** Narrow fluent client for topic_content when Supabase generics don’t infer this table. */
+type TopicContentSelectBuilder = {
+  eq: (column: string, value: string | number) => TopicContentSelectBuilder;
+  maybeSingle: () => Promise<{
+    data: {
+      why_study?: string | null;
+      what_learn?: string | null;
+      real_world?: string | null;
+      subtopic_previews?: unknown;
+    } | null;
+    error: { message: string } | null;
+  }>;
+};
+
+type TopicContentTableClient = {
+  select: (columns: string) => TopicContentSelectBuilder;
+  upsert: (
+    values: Record<string, unknown>,
+    options?: Record<string, unknown>
+  ) => Promise<{ error: { message: string } | null }>;
+};
+
 function parseBody(body: unknown): UpsertBody | null {
   if (!body || typeof body !== "object") return null;
   const b = body as Record<string, unknown>;
@@ -104,10 +126,7 @@ export async function GET(request: Request) {
 
     const { supabase, user } = ctx;
     const canEdit = await isAdminUser(supabase, user.id);
-    const topicContentTable = supabase.from("topic_content") as unknown as {
-      select: (query: string) => any;
-      upsert: (values: Record<string, unknown>, options?: Record<string, unknown>) => Promise<{ error: { message: string } | null }>;
-    };
+    const topicContentTable = supabase.from("topic_content") as unknown as TopicContentTableClient;
     const { data, error } = await topicContentTable
       .select("why_study, what_learn, real_world, subtopic_previews")
       .eq("board", params.board)
@@ -201,9 +220,7 @@ export async function POST(request: Request) {
     if (!canEdit) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
-    const topicContentTable = supabase.from("topic_content") as unknown as {
-      upsert: (values: Record<string, unknown>, options?: Record<string, unknown>) => Promise<{ error: { message: string } | null }>;
-    };
+    const topicContentTable = supabase.from("topic_content") as unknown as TopicContentTableClient;
 
     const parsed = parseBody(await request.json());
     if (!parsed) {

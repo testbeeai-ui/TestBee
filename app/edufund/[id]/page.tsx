@@ -105,7 +105,7 @@ export default function EduFundDetailPage() {
           <div className="max-w-3xl mx-auto text-center py-16">
             <h2 className="text-2xl font-bold text-foreground mb-2">Proposal not found.</h2>
             <p className="text-muted-foreground mb-4">
-              The proposal you're looking for may have been removed or doesn't exist.
+              The proposal you&apos;re looking for may have been removed or doesn&apos;t exist.
             </p>
             <Link href="/edufund">
               <Button variant="outline" className="rounded-xl">

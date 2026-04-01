@@ -11,20 +11,23 @@ import NotificationBell from '@/components/NotificationBell';
 import BreakScreen from '@/components/BreakScreen';
 import RecallExercise from '@/components/RecallExercise';
 import { useStreakTimer } from '@/hooks/useStreakTimer';
+import AgentOrchestratorRunner from '@/components/AgentOrchestratorRunner';
 
 interface AppLayoutProps {
   children: ReactNode;
   streakTimer?: ReturnType<typeof useStreakTimer>;
 }
 
+/** Curriculum browser: URL stays `/explore-1`; navbar label is "Explore". */
+export const EXPLORE_APP_PATH = "/explore-1" as const;
+
 const baseNavItems = [
-  { path: '/home', icon: LayoutDashboard, label: 'Dashboard', emoji: '📊' },
-  { path: '/explore', icon: Compass, label: 'Explore', emoji: '🧭' },
-  { path: '/exam-prep', icon: ClipboardList, label: 'Exam Prep', emoji: '📋' },
-  { path: '/doubts', icon: HelpCircle, label: 'Gyan++', emoji: '💡' },
-  { path: '/explore-1', icon: Compass, label: 'Explore-1', emoji: '🧭' },
-  { path: '/edufund', icon: Heart, label: 'EduFund', emoji: '💛' },
-  { path: '/profile', icon: User, label: 'Profile', emoji: '👤' },
+  { path: "/home", icon: LayoutDashboard, label: "Dashboard", emoji: "📊" },
+  { path: EXPLORE_APP_PATH, icon: Compass, label: "Explore", emoji: "🧭" },
+  { path: "/exam-prep", icon: ClipboardList, label: "Exam Prep", emoji: "📋" },
+  { path: "/doubts", icon: HelpCircle, label: "Gyan++", emoji: "💡" },
+  { path: "/edufund", icon: Heart, label: "EduFund", emoji: "💛" },
+  { path: "/profile", icon: User, label: "Profile", emoji: "👤" },
 ];
 
 const AppLayout = ({ children, streakTimer }: AppLayoutProps) => {
@@ -53,7 +56,10 @@ const AppLayout = ({ children, streakTimer }: AppLayoutProps) => {
           {/* Nav Links - Desktop */}
           <nav className="hidden md:flex items-center gap-0.5 bg-muted/50 rounded-2xl p-1">
             {navItems.map(({ path, icon: Icon, label }) => {
-              const isActive = pathname === path || (path === '/exam-prep' && ['/classrooms', '/mock', '/revision'].includes(pathname)) || (path === '/explore' && pathname === '/play') || (path === '/explore-1' && pathname === '/explore-1') || (path === '/edufund' && (pathname === '/edufund' || pathname.startsWith('/edufund/')));
+              const isActive =
+                pathname === path ||
+                (path === "/exam-prep" && ["/classrooms", "/mock", "/revision"].includes(pathname)) ||
+                (path === "/edufund" && (pathname === "/edufund" || pathname.startsWith("/edufund/")));
               return (
                 <Link
                   key={path}
@@ -104,7 +110,10 @@ const AppLayout = ({ children, streakTimer }: AppLayoutProps) => {
         <div className="md:hidden border-t border-border/60">
           <div className="flex overflow-x-auto px-2 gap-0.5">
             {navItems.map(({ path, icon: Icon, label, emoji }) => {
-              const isActive = pathname === path || (path === '/exam-prep' && ['/classrooms', '/mock', '/revision'].includes(pathname)) || (path === '/explore' && pathname === '/play') || (path === '/explore-1' && pathname === '/explore-1') || (path === '/edufund' && (pathname === '/edufund' || pathname.startsWith('/edufund/')));
+              const isActive =
+                pathname === path ||
+                (path === "/exam-prep" && ["/classrooms", "/mock", "/revision"].includes(pathname)) ||
+                (path === "/edufund" && (pathname === "/edufund" || pathname.startsWith("/edufund/")));
               return (
                 <Link
                   key={path}
@@ -134,6 +143,7 @@ const AppLayout = ({ children, streakTimer }: AppLayoutProps) => {
       {streakTimer?.isActive && streakTimer.phase === 'recall' && (
         <RecallExercise secondsLeft={streakTimer.secondsLeft} recentResults={allResults.slice(-5)} />
       )}
+      <AgentOrchestratorRunner />
 
       {/* Footer */}
       <footer className="border-t border-border/60 bg-card/40 py-5">
@@ -142,7 +152,7 @@ const AppLayout = ({ children, streakTimer }: AppLayoutProps) => {
           <div className="flex gap-6">
             <Link href="/pricing" className="hover:text-foreground transition-colors font-bold">Pricing</Link>
             <Link href="/profile" className="hover:text-foreground transition-colors font-bold">Profile</Link>
-            <Link href="/explore" className="hover:text-foreground transition-colors font-bold">Explore</Link>
+            <Link href={EXPLORE_APP_PATH} className="hover:text-foreground transition-colors font-bold">Explore</Link>
           </div>
         </div>
       </footer>

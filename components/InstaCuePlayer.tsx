@@ -200,7 +200,7 @@ export default function InstaCuePlayer({ cards, onClose }: Props) {
                                 <div className="w-16 h-16 bg-slate-100 text-slate-400 rounded-full flex items-center justify-center mx-auto mb-4">
                                     <Check className="w-8 h-8" />
                                 </div>
-                                <h3 className="text-xl font-bold text-slate-900 mb-2">You're all caught up!</h3>
+                                <h3 className="text-xl font-bold text-slate-900 mb-2">You&apos;re all caught up!</h3>
                                 <p className="text-slate-500">There are no cards in this section right now.</p>
                             </div>
                         )}

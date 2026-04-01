@@ -17,7 +17,13 @@ import {
   buildTopicOverviewPath,
   getSiblingTopics,
 } from "@/lib/topicRoutes";
-import { humanReadableSubtopicTitle } from "@/lib/subtopicTitles";
+import {
+  humanReadableSubtopicTitle,
+  prettifySubtopicTitle,
+  subtopicDeepDiveHeadingMarkdown,
+  subtopicMathTextLabel,
+  subtopicNavPreviewPlain,
+} from "@/lib/subtopicTitles";
 import { useTopicTaxonomy } from "@/hooks/useTopicTaxonomy";
 import type { DifficultyLevel } from "@/lib/slugs";
 import {
@@ -51,15 +57,20 @@ import {
   type ArtifactBitsQuestion,
   type ArtifactFormula,
 } from "@/lib/subtopicContentService";
+import { assessSubtopicRow } from "@/lib/subtopicCompleteness";
 import { canRegenerate, generateFormulaQuestions, getFallbackPracticeFormulas } from "@/lib/formulaQuestionGenerators";
 import {
   fetchTopicContent,
   generateTopicContent,
   upsertTopicContent,
+  postCompleteSubtopic,
+  fetchTopicHubThreeLevelGate,
   type TopicAgentTrace,
   type TopicSubtopicPreview,
 } from "@/lib/topicContentService";
+import { subtopicTheoryIsPlaceholder } from "@/lib/subtopicCompleteness";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { fuzzySubtopicKey } from "@/lib/utils";
 import { fetchBitsAttempt, saveBitsAttempt, type BitsAttemptRecord } from "@/lib/bitsAttemptService";
 import SubtopicWheelDialog from "@/components/SubtopicWheelDialog";
@@ -67,11 +78,14 @@ import SubtopicWheelDialog from "@/components/SubtopicWheelDialog";
 const SUBTOPIC_STACK_PREVIEW_CHARS = 420;
 
 /**
- * Auto “AI artifacts” pipeline (InstaCue → Bits → Formulas) lives in `runAiArtifactPipeline` below.
+ * Manual “AI artifacts” pipeline (InstaCue → Bits → Formulas) lives in `runAiArtifactPipeline` below.
  * Tune these delays to space out Vertex/Gemini calls and reduce ECONNRESET / rate limits.
  */
-const ARTIFACT_PIPELINE_AFTER_DEEP_DIVE_MS = 12_000;
 const ARTIFACT_PIPELINE_BETWEEN_STEPS_MS = 15_000;
+/** After subtopic/deep-dive save, brief pause so generate-* APIs read committed theory from DB. */
+const ARTIFACT_PIPELINE_AFTER_DEEP_DIVE_SETTLE_MS = 1_200;
+const ARTIFACT_STEP_MAX_ATTEMPTS = 3;
+const ARTIFACT_STEP_RETRY_DELAY_MS = 3_000;
 
 function truncateForStack(text: string, max: number): string {
   if (text.length <= max) return text;
@@ -79,10 +93,65 @@ function truncateForStack(text: string, max: number): string {
   return (cut > max * 0.5 ? text.slice(0, cut) : text.slice(0, max)).trim() + "…";
 }
 
+/**
+ * Keep model content intact but present it cleanly in preview cards.
+ * This is display-only formatting for readability.
+ */
+function formatSubtopicPreviewText(raw: string): string {
+  let s = String(raw ?? "").replace(/\r\n/g, "\n").trim();
+  if (!s) return "";
+
+  const alreadyStructured =
+    /(^|\n)\s*(#{1,6}\s|[-*]\s|\d+\.\s|>)/m.test(s) || s.includes("\n\n");
+  if (alreadyStructured) return s;
+
+  // Promote common inline labels to their own lines.
+  s = s
+    .replace(/\s+(Exam\s*Trap:)/gi, "\n\n$1")
+    .replace(/\s+(Key\s*Idea[s]?:)/gi, "\n\n$1")
+    .replace(/\s+(Curie[- ]Weiss\s*Law:)/gi, "\n\n$1")
+    .replace(/\s+(Where\s+[A-Za-z]\s+is\b)/g, "\n\n$1");
+
+  // Sentence-wise paragraphing for compact AI output.
+  s = s.replace(/([.?!])\s+(?=[A-Z(\\])/g, "$1\n\n");
+  s = s.trim();
+
+  // Convert simple paragraph blocks into bullet points for cleaner scanability.
+  const blocks = s
+    .split(/\n{2,}/)
+    .map((b) => b.replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+  if (blocks.length <= 1) return s;
+
+  return blocks.map((b) => `- ${b}`).join("\n");
+}
+
 function delay(ms: number) {
   return new Promise<void>((resolve) => {
     setTimeout(resolve, ms);
   });
+}
+
+async function runArtifactStepWithRetries<T>(
+  stepLabel: string,
+  fn: () => Promise<T>
+): Promise<{ ok: true; value: T } | { ok: false; error: string }> {
+  let last = "";
+  for (let attempt = 1; attempt <= ARTIFACT_STEP_MAX_ATTEMPTS; attempt++) {
+    try {
+      const value = await fn();
+      return { ok: true, value };
+    } catch (e) {
+      last = e instanceof Error ? e.message : String(e);
+      if (attempt < ARTIFACT_STEP_MAX_ATTEMPTS) {
+        await delay(ARTIFACT_STEP_RETRY_DELAY_MS);
+      }
+    }
+  }
+  return {
+    ok: false,
+    error: last ? `${stepLabel}: ${last}` : `${stepLabel} failed`,
+  };
 }
 
 function shouldUseTwoColumnOptions(options: string[]): boolean {
@@ -108,67 +177,8 @@ function getBitsSignature(items: ArtifactBitsQuestion[]): string {
   return `v1-${items.length}-${Math.abs(hash)}`;
 }
 
-function prettifySubtopicTitle(raw: string): string {
-  let s = String(raw ?? "");
-  s = s.replace(/[\u200B-\u200D\u2060\uFEFF]/g, "");
-
-  // Fix smashed words (AI / math-mode artifacts): ")andx", "axisfromx", "atox ="
-  s = s
-    .replace(/\)([A-Za-z])/g, ") $1")
-    .replace(/axisfromx/gi, "axis from x")
-    .replace(/axisfromy/gi, "axis from y")
-    .replace(/fromx\s*=/gi, "from x =")
-    .replace(/fromy\s*=/gi, "from y =")
-    .replace(/\bx\s*=\s*atox\s*=/gi, "x = a to x =")
-    .replace(/\by\s*=\s*ctoy\s*=/gi, "y = c to y =")
-    .replace(/\|\s*f\s*\(\s*x\s*\)\s*\|\s*dx/gi, "|f(x)| dx");
-
-  s = s
-    .replace(/\\times/g, "×")
-    // Keep axis words intact before any multiplication normalization.
-    .replace(/\bx\s*[- ]*a\s*x(?:is)?\s+from\b/gi, "x-axis from")
-    .replace(/\by\s*[- ]*a\s*x(?:is)?\s+from\b/gi, "y-axis from")
-    .replace(/\bx\s*axis\b/gi, "x-axis")
-    .replace(/\by\s*axis\b/gi, "y-axis")
-    // Normalize plain "x" used as multiplication, but avoid touching words (e.g. x-axis, xis).
-    .replace(/(\b\d+|\b[a-z]\b)\s*[x×]\s*(\d+\b|\b[a-z]\b)/gi, "$1 × $2")
-    .replace(/\bpi\b/gi, "π")
-    .replace(/\s*[-−]\s*/g, " - ")
-    .replace(/\|\s*a\s*\|\s*\|\s*b\s*\|/gi, "|a| |b|");
-
-  s = s
-    .replace(/\(\s*theta\s*\)/gi, "θ")
-    .replace(/\btheta\b/gi, "θ")
-    .replace(/\bsin\s*θ\b/gi, "sinθ ")
-    .replace(/\bn\s*[-_ ]*hat/gi, "n̂ ")
-    .replace(/\\hat\s*\{?\s*n\s*\}?/gi, "n̂ ");
-
-  if (/right\s*[- ]*hand/i.test(s) || /hand\s*rule/i.test(s) || /by\s*right/i.test(s) || /byright/i.test(s)) {
-    s = s
-      .replace(/\bby\s*right\b/gi, "")
-      .replace(/byright/gi, "")
-      .replace(/\bright\s*[- ]*hand\b/gi, "")
-      .replace(/\bhand\s*rule\b/gi, "")
-      .replace(/\brule\b/gi, "")
-      .replace(/[\(\)\-]/g, "")
-      .trim();
-    s = `${s} (Right-hand rule)`;
-  }
-
-  s = s.replace(/\s+/g, " ").trim();
-  s = s.replace(/\s*=\s*/g, " = ");
-  return s;
-}
-
-/** One-line prev/next nav: no KaTeX (avoids overflow); strip $ so truncate + ellipsis work. */
 function subtopicNavPreviewLine(raw: string): string {
-  return prettifySubtopicTitle(raw).replace(/\$/g, "").replace(/\s+/g, " ").trim();
-}
-
-function subtopicTheoryIsPlaceholder(theory: string): boolean {
-  return (
-    theory.includes("Study your textbook and notes") || theory.includes("Key ideas will appear")
-  );
+  return subtopicNavPreviewPlain(raw);
 }
 
 function shuffleWithCorrectOption(options: string[], correctAnswer: string): { options: string[]; correctAnswer: string } {
@@ -304,6 +314,7 @@ export default function TopicPage() {
   const user = useUserStore((s) => s.user);
   const saveRevisionCard = useUserStore((s) => s.saveRevisionCard);
   const { toast } = useToast();
+  const { loading: authLoading, session } = useAuth();
   const [dbTheory, setDbTheory] = useState<string>("");
   const [dbTheoryExists, setDbTheoryExists] = useState(false);
   const [canEditTheory, setCanEditTheory] = useState(false);
@@ -354,18 +365,25 @@ export default function TopicPage() {
   const [formulaBitsSelectedAnswers, setFormulaBitsSelectedAnswers] = useState<Record<number, number>>({});
   const [formulaQuestionsOverride, setFormulaQuestionsOverride] = useState<Record<number, ArtifactBitsQuestion[]>>({});
   const [artifactRunLog, setArtifactRunLog] = useState<string[]>([]);
-  const [artifactRunStatus, setArtifactRunStatus] = useState<"idle" | "running" | "success" | "failed">("idle");
+  const [artifactRunStatus, setArtifactRunStatus] = useState<
+    "idle" | "running" | "success" | "partial" | "failed"
+  >("idle");
   const [artifactLastRunAt, setArtifactLastRunAt] = useState<string | null>(null);
+  const [topicHubGateLoading, setTopicHubGateLoading] = useState(false);
+  const [topicHubGateOk, setTopicHubGateOk] = useState(true);
+  const [topicHubGateMissing, setTopicHubGateMissing] = useState<DifficultyLevel[]>([]);
+  const [completingSubtopicAll, setCompletingSubtopicAll] = useState(false);
+
+  const subtopicAiBlockedByTopicHub = useMemo(() => {
+    if (isOverview) return false;
+    if (!canEditTheory) return false;
+    if (topicHubGateLoading) return true;
+    return !topicHubGateOk;
+  }, [isOverview, canEditTheory, topicHubGateLoading, topicHubGateOk]);
 
   const bitsSignature = useMemo(() => getBitsSignature(dbBitsQuestions), [dbBitsQuestions]);
   /** Full "Standard areas: …" string must reach MathText so KaTeX can format circle/parabola rows. */
-  const displaySubtopicTitle = useMemo(() => {
-    const raw = subtopicName.trim();
-    if (/^standard\s+areas\b/i.test(raw)) {
-      return prettifySubtopicTitle(raw);
-    }
-    return prettifySubtopicTitle(humanReadableSubtopicTitle(subtopicName));
-  }, [subtopicName]);
+  const displaySubtopicTitle = useMemo(() => subtopicMathTextLabel(subtopicName), [subtopicName]);
   const practiceFormulasForUi = useMemo(() => {
     if (dbPracticeFormulas.length > 0) return dbPracticeFormulas;
     if (!topicNode || !subtopicName) return [];
@@ -398,11 +416,21 @@ export default function TopicPage() {
     };
   }, [dbInstacueCards.length, dbBitsQuestions.length, dbPracticeFormulas.length]);
 
-  /** InstaCue → Bits → Practice Formulas (same as “AI Generate Cards”). `after-deep-dive` skips the deep-dive gate because state may not have re-rendered yet. */
+  /** InstaCue → Bits → Practice Formulas (manual run from dedicated AI buttons). */
   const runAiArtifactPipeline = useCallback(
-    async (opts: { source: "button" | "after-deep-dive" }) => {
+    async (opts?: { skipDeepDiveGate?: boolean }) => {
       if (!topicNode || !subtopicName) return;
-      if (opts.source === "button" && !hasDeepDiveForAiArtifacts) return;
+      if (subtopicAiBlockedByTopicHub) {
+        toast({
+          title: "Topic hub incomplete",
+          description: `Generate the topic hub for Basics, Intermediate, and Advanced first (Explore). Missing: ${
+            topicHubGateMissing.length ? topicHubGateMissing.join(", ") : "one or more levels"
+          }.`,
+          variant: "destructive",
+        });
+        return;
+      }
+      if (!opts?.skipDeepDiveGate && !hasDeepDiveForAiArtifacts) return;
 
       const boardName = (board === "icse" ? "ICSE" : "CBSE") as Board;
       const runLog: string[] = [];
@@ -416,41 +444,43 @@ export default function TopicPage() {
       setArtifactRunStatus("running");
       setArtifactLastRunAt(new Date().toLocaleString());
       setArtifactRunLog([]);
-      appendArtifactLog(
-        opts.source === "after-deep-dive"
-          ? "Run started automatically after Deep Dive completed (admin): InstaCue → Bits → Formulas."
-          : "Run started by clicking Regenerate AI Cards.",
-      );
+      appendArtifactLog("Run started manually: InstaCue → Bits → Formulas.");
       appendArtifactLog(
         `Current counts before run -> InstaCue: ${beforeInsta}, Bits: ${beforeBits}, Practice Formulas: ${beforeFormulas}.`,
       );
-      if (opts.source === "after-deep-dive") {
-        appendArtifactLog(
-          `Waiting ${Math.round(ARTIFACT_PIPELINE_AFTER_DEEP_DIVE_MS / 1000)}s after Deep Dive before InstaCue (spacing for Google API stability).`,
-        );
-        await delay(ARTIFACT_PIPELINE_AFTER_DEEP_DIVE_MS);
-      }
       setGeneratingInstacue(true);
+      const stepErrors: string[] = [];
       try {
         runLog.push("Started AI Cards");
-        appendArtifactLog("Step 1/3: Generating InstaCue cards.");
-        const out = await generateInstaCueCards({
-          board: boardName,
-          subject: topicNode.subject as Subject,
-          classLevel: topicNode.classLevel as 11 | 12,
-          topic: topicNode.topic,
-          subtopicName,
-          level: difficultyLevel,
-          includeTrace: true,
-        });
-        setDbInstacueCards(out.items);
-        nextInsta = out.items.length;
-        runLog.push(`Finished AI Cards (${out.items.length})`);
-        appendArtifactLog(`Step 1/3 complete: InstaCue generated ${out.items.length} cards (was ${beforeInsta}).`);
-        toast({
-          title: `Generated ${out.items.length} InstaCue cards`,
-          description: "Starting Bits generation…",
-        });
+        appendArtifactLog(
+          `Step 1/3: Generating InstaCue cards (up to ${ARTIFACT_STEP_MAX_ATTEMPTS} attempts, ${ARTIFACT_STEP_RETRY_DELAY_MS / 1000}s between retries).`,
+        );
+        const instaRes = await runArtifactStepWithRetries("InstaCue", () =>
+          generateInstaCueCards({
+            board: boardName,
+            subject: topicNode.subject as Subject,
+            classLevel: topicNode.classLevel as 11 | 12,
+            topic: topicNode.topic,
+            subtopicName,
+            level: difficultyLevel,
+            includeTrace: true,
+          })
+        );
+        if (instaRes.ok) {
+          const out = instaRes.value;
+          setDbInstacueCards(out.items);
+          nextInsta = out.items.length;
+          runLog.push(`Finished AI Cards (${out.items.length})`);
+          appendArtifactLog(`Step 1/3 complete: InstaCue generated ${out.items.length} cards (was ${beforeInsta}).`);
+          toast({
+            title: `Generated ${out.items.length} InstaCue cards`,
+            description: "Starting Bits generation…",
+          });
+        } else {
+          stepErrors.push(instaRes.error);
+          runLog.push("AI Cards failed");
+          appendArtifactLog(`Step 1/3 failed after retries: ${instaRes.error}`);
+        }
 
         appendArtifactLog(
           `Waiting ${Math.round(ARTIFACT_PIPELINE_BETWEEN_STEPS_MS / 1000)}s before Bits (step gap — edit ARTIFACT_PIPELINE_BETWEEN_STEPS_MS in page.tsx to change).`,
@@ -460,26 +490,37 @@ export default function TopicPage() {
         setGeneratingBits(true);
         try {
           runLog.push("Started Bits");
-          appendArtifactLog("Step 2/3: Generating Bits questions.");
-          const bitsOut = await generateBitsQuestions({
-            board: boardName,
-            subject: topicNode.subject as Subject,
-            classLevel: topicNode.classLevel as 11 | 12,
-            topic: topicNode.topic,
-            subtopicName,
-            level: difficultyLevel,
-            includeTrace: true,
-          });
-          setDbBitsQuestions(bitsOut.items);
-          nextBits = bitsOut.items.length;
-          setBitsCurrentIdx(0);
-          setBitsSelectedAnswers({});
-          runLog.push(`Finished Bits (${bitsOut.items.length})`);
-          appendArtifactLog(`Step 2/3 complete: Bits generated ${bitsOut.items.length} questions (was ${beforeBits}).`);
-          toast({
-            title: `Generated ${bitsOut.items.length} Bits questions`,
-            description: "Starting formula practice generation…",
-          });
+          appendArtifactLog(
+            `Step 2/3: Generating Bits questions (up to ${ARTIFACT_STEP_MAX_ATTEMPTS} attempts).`,
+          );
+          const bitsRes = await runArtifactStepWithRetries("Bits", () =>
+            generateBitsQuestions({
+              board: boardName,
+              subject: topicNode.subject as Subject,
+              classLevel: topicNode.classLevel as 11 | 12,
+              topic: topicNode.topic,
+              subtopicName,
+              level: difficultyLevel,
+              includeTrace: true,
+            })
+          );
+          if (bitsRes.ok) {
+            const bitsOut = bitsRes.value;
+            setDbBitsQuestions(bitsOut.items);
+            nextBits = bitsOut.items.length;
+            setBitsCurrentIdx(0);
+            setBitsSelectedAnswers({});
+            runLog.push(`Finished Bits (${bitsOut.items.length})`);
+            appendArtifactLog(`Step 2/3 complete: Bits generated ${bitsOut.items.length} questions (was ${beforeBits}).`);
+            toast({
+              title: `Generated ${bitsOut.items.length} Bits questions`,
+              description: "Starting formula practice generation…",
+            });
+          } else {
+            stepErrors.push(bitsRes.error);
+            runLog.push("Bits failed");
+            appendArtifactLog(`Step 2/3 failed after retries: ${bitsRes.error}`);
+          }
         } finally {
           setGeneratingBits(false);
         }
@@ -492,40 +533,66 @@ export default function TopicPage() {
         setGeneratingFormulas(true);
         try {
           runLog.push("Started Formula Practice");
-          appendArtifactLog("Step 3/3: Generating Practice Formulas.");
-          const formulasOut = await generateFormulaPractice({
-            board: boardName,
-            subject: topicNode.subject as Subject,
-            classLevel: topicNode.classLevel as 11 | 12,
-            topic: topicNode.topic,
-            subtopicName,
-            level: difficultyLevel,
-            includeTrace: true,
-          });
-          setDbPracticeFormulas(formulasOut.items);
-          nextFormulas = formulasOut.items.length;
-          setSelectedFormulaIdx(null);
-          setFormulaBitsCurrentIdx(0);
-          setFormulaBitsSelectedAnswers({});
-          runLog.push(`Finished Formula Practice (${formulasOut.items.length})`);
           appendArtifactLog(
-            `Step 3/3 complete: Practice Formulas generated ${formulasOut.items.length} sets (was ${beforeFormulas}).`,
+            `Step 3/3: Generating Practice Formulas (up to ${ARTIFACT_STEP_MAX_ATTEMPTS} attempts).`,
           );
-          toast({ title: `Generated ${formulasOut.items.length} formula sets` });
+          const formulasRes = await runArtifactStepWithRetries("Formulas", () =>
+            generateFormulaPractice({
+              board: boardName,
+              subject: topicNode.subject as Subject,
+              classLevel: topicNode.classLevel as 11 | 12,
+              topic: topicNode.topic,
+              subtopicName,
+              level: difficultyLevel,
+              includeTrace: true,
+            })
+          );
+          if (formulasRes.ok) {
+            const formulasOut = formulasRes.value;
+            setDbPracticeFormulas(formulasOut.items);
+            nextFormulas = formulasOut.items.length;
+            setSelectedFormulaIdx(null);
+            setFormulaBitsCurrentIdx(0);
+            setFormulaBitsSelectedAnswers({});
+            runLog.push(`Finished Formula Practice (${formulasOut.items.length})`);
+            appendArtifactLog(
+              `Step 3/3 complete: Practice Formulas generated ${formulasOut.items.length} sets (was ${beforeFormulas}).`,
+            );
+            toast({ title: `Generated ${formulasOut.items.length} formula sets` });
+          } else {
+            stepErrors.push(formulasRes.error);
+            runLog.push("Formula Practice failed");
+            appendArtifactLog(`Step 3/3 failed after retries: ${formulasRes.error}`);
+          }
         } finally {
           setGeneratingFormulas(false);
         }
 
         appendArtifactLog(
-          `Run completed successfully -> InstaCue: ${nextInsta}, Bits: ${nextBits}, Practice Formulas: ${nextFormulas}.`,
+          `Run finished -> InstaCue: ${nextInsta}, Bits: ${nextBits}, Practice Formulas: ${nextFormulas}. Errors: ${stepErrors.length}.`,
         );
-        setArtifactRunStatus("success");
-        toast({
-          title: "AI artifacts completed",
-          description: runLog.join(" → "),
-        });
+        if (stepErrors.length === 0) {
+          setArtifactRunStatus("success");
+          toast({
+            title: "AI artifacts completed",
+            description: runLog.join(" → "),
+          });
+        } else if (stepErrors.length === 3) {
+          setArtifactRunStatus("failed");
+          toast({
+            title: "AI artifacts failed",
+            description: stepErrors.join(" · "),
+            variant: "destructive",
+          });
+        } else {
+          setArtifactRunStatus("partial");
+          toast({
+            title: "AI artifacts partially completed",
+            description: stepErrors.join(" · "),
+          });
+        }
       } catch (e) {
-        appendArtifactLog(`Run failed: ${e instanceof Error ? e.message : "Unknown error"}`);
+        appendArtifactLog(`Run failed unexpectedly: ${e instanceof Error ? e.message : "Unknown error"}`);
         setArtifactRunStatus("failed");
         toast({
           title: e instanceof Error ? e.message : "Generation failed",
@@ -542,9 +609,373 @@ export default function TopicPage() {
       hasDeepDiveForAiArtifacts,
       subtopicName,
       toast,
+      subtopicAiBlockedByTopicHub,
+      topicHubGateMissing,
       topicNode,
     ]
   );
+
+  const runDeepDiveGeneration = useCallback(
+    async (opts?: { fromSubtopicAi?: boolean }) => {
+      if (!topicNode || !subtopicName) return false;
+      if (subtopicAiBlockedByTopicHub) {
+        toast({
+          title: "Topic hub incomplete",
+          description: `Generate the topic hub for Basics, Intermediate, and Advanced first. Missing: ${
+            topicHubGateMissing.length ? topicHubGateMissing.join(", ") : "one or more levels"
+          }.`,
+          variant: "destructive",
+        });
+        return false;
+      }
+      const boardName = (board === "icse" ? "ICSE" : "CBSE") as Board;
+      const existingPreview =
+        topicSubtopicPreviews.find((p) => p.subtopicName.trim().toLowerCase() === subtopicName.trim().toLowerCase())
+          ?.preview ?? "";
+      const isRegenerate = dbTheoryExists;
+      setGeneratingDeepDive(true);
+      setSubtopicAgentTrace(null);
+      try {
+        const out = await generateSubtopicContent({
+          board: boardName,
+          subject: topicNode.subject as Subject,
+          classLevel: topicNode.classLevel as 11 | 12,
+          topic: topicNode.topic,
+          subtopicName,
+          level: difficultyLevel as "basics" | "intermediate" | "advanced",
+          chapterTitle: topicNode.chapterTitle,
+          preview: existingPreview,
+          includeTrace: true,
+        });
+        setDbTheory(out.theory);
+        setDbTheoryExists(true);
+        setDbDidYouKnow(out.didYouKnow);
+        setDbReferences(out.references);
+        setSubtopicAgentTrace(out.trace ?? null);
+        toast({
+          title: isRegenerate ? "Deep dive regenerated" : "Deep dive generated",
+          description:
+            (out.ragChunks != null
+              ? `${subtopicName} (${difficultyLevel}) · Saved to Supabase · RAG passages used: ${out.ragChunks}. `
+              : `${subtopicName} (${difficultyLevel}) · Saved to Supabase. `) +
+            (opts?.fromSubtopicAi
+              ? "Starting InstaCue, Bits, and formula practice."
+              : canEditTheory
+                ? "Now use Generate Subtopic AI to create InstaCue, Bits, and formula practice."
+                : "Use the section generate buttons to build InstaCue, Bits, and formulas."),
+        });
+        return true;
+      } catch (e) {
+        const message = e instanceof Error ? e.message : "Generation failed";
+        toast({ title: message, variant: "destructive" });
+        return false;
+      } finally {
+        setGeneratingDeepDive(false);
+      }
+    },
+    [
+      board,
+      canEditTheory,
+      dbTheoryExists,
+      difficultyLevel,
+      subtopicName,
+      toast,
+      topicNode,
+      subtopicAiBlockedByTopicHub,
+      topicHubGateMissing,
+      topicSubtopicPreviews,
+    ]
+  );
+
+  const runSubtopicAiGeneration = useCallback(async () => {
+    if (!topicNode || !subtopicName) return;
+    if (subtopicAiBlockedByTopicHub) return;
+    if (generatingDeepDive || generatingInstacue || generatingBits || generatingFormulas || loadingDbTheory) return;
+    const deepDiveOk = await runDeepDiveGeneration({ fromSubtopicAi: true });
+    if (!deepDiveOk) return;
+    await delay(ARTIFACT_PIPELINE_AFTER_DEEP_DIVE_SETTLE_MS);
+    await runAiArtifactPipeline({ skipDeepDiveGate: true });
+  }, [
+    generatingBits,
+    generatingDeepDive,
+    generatingFormulas,
+    generatingInstacue,
+    loadingDbTheory,
+    runAiArtifactPipeline,
+    runDeepDiveGeneration,
+    subtopicAiBlockedByTopicHub,
+    subtopicName,
+    topicNode,
+  ]);
+
+  const runBitsOnly = useCallback(async () => {
+    if (!topicNode || !subtopicName || !hasDeepDiveForAiArtifacts) return;
+    if (subtopicAiBlockedByTopicHub) return;
+    if (generatingDeepDive || generatingInstacue || generatingBits || generatingFormulas) return;
+    const boardName = (board === "icse" ? "ICSE" : "CBSE") as Board;
+    setArtifactRunStatus("running");
+    setArtifactLastRunAt(new Date().toLocaleString());
+    setArtifactRunLog([]);
+    appendArtifactLog("Manual run started: Bits only.");
+    setGeneratingBits(true);
+    try {
+      const bitsOut = await generateBitsQuestions({
+        board: boardName,
+        subject: topicNode.subject as Subject,
+        classLevel: topicNode.classLevel as 11 | 12,
+        topic: topicNode.topic,
+        subtopicName,
+        level: difficultyLevel,
+        includeTrace: true,
+      });
+      setDbBitsQuestions(bitsOut.items);
+      setBitsCurrentIdx(0);
+      setBitsSelectedAnswers({});
+      appendArtifactLog(`Bits complete: generated ${bitsOut.items.length} questions.`);
+      setArtifactRunStatus("success");
+      toast({ title: `Generated ${bitsOut.items.length} Bits questions` });
+    } catch (e) {
+      appendArtifactLog(`Bits failed: ${e instanceof Error ? e.message : "Unknown error"}`);
+      setArtifactRunStatus("failed");
+      toast({ title: e instanceof Error ? e.message : "Bits generation failed", variant: "destructive" });
+    } finally {
+      setGeneratingBits(false);
+    }
+  }, [
+    appendArtifactLog,
+    board,
+    difficultyLevel,
+    generatingBits,
+    generatingDeepDive,
+    generatingFormulas,
+    generatingInstacue,
+    hasDeepDiveForAiArtifacts,
+    subtopicAiBlockedByTopicHub,
+    subtopicName,
+    toast,
+    topicNode,
+  ]);
+
+  const runFormulasOnly = useCallback(async () => {
+    if (!topicNode || !subtopicName || !hasDeepDiveForAiArtifacts) return;
+    if (subtopicAiBlockedByTopicHub) return;
+    if (generatingDeepDive || generatingInstacue || generatingBits || generatingFormulas) return;
+    const boardName = (board === "icse" ? "ICSE" : "CBSE") as Board;
+    setArtifactRunStatus("running");
+    setArtifactLastRunAt(new Date().toLocaleString());
+    setArtifactRunLog([]);
+    appendArtifactLog("Manual run started: Practice Formulas only.");
+    setGeneratingFormulas(true);
+    try {
+      const formulasOut = await generateFormulaPractice({
+        board: boardName,
+        subject: topicNode.subject as Subject,
+        classLevel: topicNode.classLevel as 11 | 12,
+        topic: topicNode.topic,
+        subtopicName,
+        level: difficultyLevel,
+        includeTrace: true,
+      });
+      setDbPracticeFormulas(formulasOut.items);
+      setSelectedFormulaIdx(null);
+      setFormulaBitsCurrentIdx(0);
+      setFormulaBitsSelectedAnswers({});
+      appendArtifactLog(`Practice Formulas complete: generated ${formulasOut.items.length} sets.`);
+      setArtifactRunStatus("success");
+      toast({ title: `Generated ${formulasOut.items.length} formula sets` });
+    } catch (e) {
+      appendArtifactLog(`Practice Formulas failed: ${e instanceof Error ? e.message : "Unknown error"}`);
+      setArtifactRunStatus("failed");
+      toast({ title: e instanceof Error ? e.message : "Formula generation failed", variant: "destructive" });
+    } finally {
+      setGeneratingFormulas(false);
+    }
+  }, [
+    appendArtifactLog,
+    board,
+    difficultyLevel,
+    generatingBits,
+    generatingDeepDive,
+    generatingFormulas,
+    generatingInstacue,
+    hasDeepDiveForAiArtifacts,
+    subtopicAiBlockedByTopicHub,
+    subtopicName,
+    toast,
+    topicNode,
+  ]);
+
+  const runCompleteSubtopicAll = useCallback(
+    async (opts?: { dryRun?: boolean }) => {
+      if (!topicNode || !subtopicName) return;
+      if (subtopicAiBlockedByTopicHub && opts?.dryRun !== true) {
+        toast({
+          title: "Topic hub incomplete",
+          description: `Generate the topic hub for Basics, Intermediate, and Advanced first. Missing: ${
+            topicHubGateMissing.length ? topicHubGateMissing.join(", ") : "one or more levels"
+          }.`,
+          variant: "destructive",
+        });
+        return;
+      }
+      const boardName = (board === "icse" ? "ICSE" : "CBSE") as Board;
+      setCompletingSubtopicAll(true);
+      setArtifactRunStatus("running");
+      setArtifactLastRunAt(new Date().toLocaleString());
+      setArtifactRunLog([]);
+      appendArtifactLog(
+        opts?.dryRun
+          ? "Audit current subtopic (no AI): basics → intermediate → advanced …"
+          : "Complete-subtopic fallback: filling gaps for basics → intermediate → advanced…",
+      );
+      try {
+        const out = await postCompleteSubtopic({
+          board: boardName,
+          subject: topicNode.subject as Subject,
+          classLevel: topicNode.classLevel as 11 | 12,
+          topic: topicNode.topic,
+          subtopicName,
+          hubScope: "topic",
+          dryRun: opts?.dryRun === true,
+        });
+        if (!out.ok && out.topicHubGate && !out.topicHubGate.ok) {
+          const miss = (out.topicHubGate.missingTopicLevels ?? []).join(", ");
+          appendArtifactLog(`Topic hub gate failed. Missing levels: ${miss || "unknown"}`);
+          setArtifactRunStatus("failed");
+          toast({
+            title: "Topic hub incomplete",
+            description: miss ? `Missing: ${miss}` : "Generate Basics, Intermediate, and Advanced topic hubs first.",
+            variant: "destructive",
+          });
+          return;
+        }
+        const levelEntries = Object.entries(out.levels ?? {});
+        for (const [lv, rep] of levelEntries) {
+          appendArtifactLog(
+            `[${lv}] theory=${rep.theory} instacue=${rep.instacue} bits=${rep.bits} formulas=${rep.formulas}`,
+          );
+          for (const w of rep.warnings ?? []) appendArtifactLog(`[${lv}] ${w}`);
+        }
+        for (const w of out.warnings ?? []) appendArtifactLog(`Warning: ${w}`);
+        for (const r of out.retries ?? []) appendArtifactLog(`Retry: ${r.level}/${r.block}`);
+        if (opts?.dryRun) {
+          setArtifactRunStatus("success");
+          toast({ title: "Audit complete", description: "See Behind the scenes log for all levels." });
+          return;
+        }
+        const hadFail = levelEntries.some(([, lv]) =>
+          [lv.theory, lv.instacue, lv.bits, lv.formulas].some((s) => s === "failed" || s === "failed_after_retry")
+        );
+        setArtifactRunStatus(hadFail ? "partial" : "success");
+        toast({
+          title: hadFail ? "Complete-subtopic finished with issues" : "Complete-subtopic finished",
+          description: "This page’s difficulty level was refreshed from the server.",
+        });
+        const refreshed = await fetchSubtopicContent({
+          board: boardName,
+          subject: topicNode.subject,
+          classLevel: topicNode.classLevel,
+          topic: topicNode.topic,
+          subtopicName,
+          level: difficultyLevel,
+        });
+        setDbTheory(refreshed.theory);
+        setDbTheoryExists(refreshed.exists);
+        setDbReferences(refreshed.references);
+        setDbDidYouKnow(refreshed.didYouKnow);
+        setDbInstacueCards(refreshed.instacueCards);
+        setDbBitsQuestions(refreshed.bitsQuestions);
+        setDbPracticeFormulas(refreshed.practiceFormulas);
+      } catch (e) {
+        setArtifactRunStatus("failed");
+        toast({
+          title: e instanceof Error ? e.message : "complete-subtopic failed",
+          variant: "destructive",
+        });
+      } finally {
+        setCompletingSubtopicAll(false);
+      }
+    },
+    [
+      appendArtifactLog,
+      board,
+      difficultyLevel,
+      subtopicAiBlockedByTopicHub,
+      subtopicName,
+      toast,
+      topicHubGateMissing,
+      topicNode,
+    ]
+  );
+
+  const runAuditAllSubtopicsAllLevels = useCallback(async () => {
+    if (!topicNode) return;
+    const boardName = (board === "icse" ? "ICSE" : "CBSE") as Board;
+    const levels: DifficultyLevel[] = ["basics", "intermediate", "advanced"];
+
+    setArtifactRunStatus("running");
+    setArtifactLastRunAt(new Date().toLocaleString());
+    setArtifactRunLog([]);
+    appendArtifactLog("Audit all levels (no AI): basics → intermediate → advanced (all subtopics) …");
+
+    try {
+      const subtopics = topicNode.subtopics.map((s) => s.name).filter(Boolean);
+      for (const level of levels) {
+        appendArtifactLog("");
+        appendArtifactLog(`=== ${level.toUpperCase()} ===`);
+
+        let complete = 0;
+        let pending = 0;
+        for (const name of subtopics) {
+          const row = await fetchSubtopicContent({
+            board: boardName,
+            subject: topicNode.subject,
+            classLevel: topicNode.classLevel,
+            topic: topicNode.topic,
+            subtopicName: name,
+            level,
+          });
+          const assess = assessSubtopicRow({
+            theory: row.theory,
+            instacue_cards: row.instacueCards,
+            bits_questions: row.bitsQuestions,
+            practice_formulas: row.practiceFormulas,
+          });
+
+          const missing: string[] = [];
+          if (assess.theoryMissingOrPlaceholder) missing.push("deep_dive");
+          if (assess.instacueGap) missing.push("instacue");
+          if (assess.bitsGap) missing.push("bits");
+          if (!assess.skipFormulasConceptual && assess.formulasGap) missing.push("formulas");
+
+          if (missing.length === 0) {
+            complete += 1;
+            appendArtifactLog(`✅ ${name}`);
+          } else {
+            pending += 1;
+            appendArtifactLog(
+              `⏳ ${name} — missing: ${missing.join(", ")}${
+                assess.skipFormulasConceptual ? " (conceptual: formulas skipped)" : ""
+              }`
+            );
+          }
+        }
+        appendArtifactLog(`Summary (${level}): complete=${complete} pending=${pending}`);
+      }
+
+      setArtifactRunStatus("success");
+      toast({
+        title: "Audit complete",
+        description: "See Behind the scenes log grouped by Basics → Intermediate → Advanced.",
+      });
+    } catch (e) {
+      setArtifactRunStatus("failed");
+      toast({
+        title: e instanceof Error ? e.message : "audit failed",
+        variant: "destructive",
+      });
+    }
+  }, [appendArtifactLog, board, toast, topicNode]);
 
   const handleWheelSelect = useCallback(
     (subtopicName: string) => {
@@ -690,7 +1121,48 @@ export default function TopicPage() {
     return () => {
       cancelled = true;
     };
-  }, [topicNode, isOverview, subtopicName, difficultyLevel, board]);
+  }, [topicNode, isOverview, subtopicName, difficultyLevel, board, authLoading, session?.access_token]);
+
+  useEffect(() => {
+    if (isOverview || !topicNode || !session?.access_token) {
+      setTopicHubGateOk(true);
+      setTopicHubGateMissing([]);
+      setTopicHubGateLoading(false);
+      return;
+    }
+    if (!canEditTheory) {
+      setTopicHubGateOk(true);
+      setTopicHubGateMissing([]);
+      setTopicHubGateLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setTopicHubGateLoading(true);
+    const boardName = (board === "icse" ? "ICSE" : "CBSE") as Board;
+    void fetchTopicHubThreeLevelGate({
+      board: boardName,
+      subject: topicNode.subject as Subject,
+      classLevel: topicNode.classLevel as 11 | 12,
+      topic: topicNode.topic,
+      hubScope: "topic",
+    })
+      .then((r) => {
+        if (cancelled) return;
+        setTopicHubGateOk(r.ok);
+        setTopicHubGateMissing(r.missingLevels);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setTopicHubGateOk(false);
+        setTopicHubGateMissing(["basics", "intermediate", "advanced"]);
+      })
+      .finally(() => {
+        if (!cancelled) setTopicHubGateLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isOverview, topicNode, board, session?.access_token, canEditTheory]);
 
   useEffect(() => {
     if (!topicNode || isOverview || !subtopicName || dbBitsQuestions.length === 0) {
@@ -730,6 +1202,11 @@ export default function TopicPage() {
       setTopicAgentTrace(null);
       return;
     }
+    if (authLoading) {
+      setTopicContentLoading(true);
+      return;
+    }
+
     let cancelled = false;
     const boardName = (board === "icse" ? "ICSE" : "CBSE") as Board;
     setTopicContentLoading(true);
@@ -763,7 +1240,7 @@ export default function TopicPage() {
     return () => {
       cancelled = true;
     };
-  }, [topicNode, isOverview, difficultyLevel, board]);
+  }, [topicNode, isOverview, difficultyLevel, board, authLoading, session?.access_token]);
 
   const sidebarInstaCueCards = useMemo(() => {
     if (!topicNode || isOverview || !subtopicName) return [] as InstaCueCard[];
@@ -1320,7 +1797,9 @@ export default function TopicPage() {
               <div className="space-y-6">
                     {subtopicStackRows.map((row, idx) => {
                       const generatedPreview = topicPreviewByName.get(row.name) ?? "";
-                      const displayText = generatedPreview || truncateForStack(row.theoryFull, SUBTOPIC_STACK_PREVIEW_CHARS);
+                      const displayText = formatSubtopicPreviewText(
+                        generatedPreview || truncateForStack(row.theoryFull, SUBTOPIC_STACK_PREVIEW_CHARS)
+                      );
                       return (
                         <section
                           key={row.name}
@@ -1330,12 +1809,15 @@ export default function TopicPage() {
                             <span className="w-8 h-8 rounded-lg bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center text-sm font-extrabold text-black dark:text-white shrink-0">
                               {idx + 1}
                             </span>
-                            <MathText
-                              weight="extrabold"
-                              className="subtopic-title-text break-words min-w-0 flex-1 [&>.katex]:!text-[0.95em]"
-                            >
-                              {prettifySubtopicTitle(row.name)}
-                            </MathText>
+                            <span className="subtopic-title-text break-words min-w-0 flex-1">
+                              <MathText
+                                weight="extrabold"
+                                className="[&_.katex]:!text-[0.88em] sm:[&_.katex]:!text-[0.92em]"
+                                title={subtopicNavPreviewLine(row.name)}
+                              >
+                                {subtopicMathTextLabel(row.name)}
+                              </MathText>
+                            </span>
                           </h3>
                           {!generatedPreview && row.isPh ? (
                             <div
@@ -1442,24 +1924,26 @@ export default function TopicPage() {
                     <span className="shrink-0">Topic: </span>
                     <span className="text-foreground">{topicNode.topic}</span>
                   </p>
-                  <h1 className="font-black text-xl sm:text-2xl tracking-tight text-foreground mb-4 min-w-0">
+                  <h1 className="font-black text-xl sm:text-2xl tracking-tight text-foreground mb-4 min-w-0 break-words">
                     <MathText
                       weight="extrabold"
                       className="subtopic-title-text break-words [&_.katex]:!text-[0.8em] sm:[&_.katex]:!text-[0.88em]"
                     >
-                      {displaySubtopicTitle}
+                      {subtopicDeepDiveHeadingMarkdown(subtopicName)}
                     </MathText>
                   </h1>
 
                   <section className="mb-2">
-                    <div className="flex items-center justify-between gap-3 mb-3">
-                      <h2 className="text-base font-extrabold text-primary uppercase tracking-wide">Theory</h2>
-                      <div className="flex items-center gap-2">
+                    <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+                      <h2 className="shrink-0 text-base font-extrabold text-primary uppercase tracking-wide">
+                        Theory
+                      </h2>
+                      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 sm:justify-end">
                         {canEditTheory && (
                           <Button
                             variant="outline"
                             size="sm"
-                            className="rounded-lg"
+                            className="shrink-0 whitespace-nowrap rounded-lg"
                             onClick={() => {
                               if (!editorOpen) {
                                 setDraftTheory(activeTheory);
@@ -1474,61 +1958,50 @@ export default function TopicPage() {
                         )}
                         {canEditTheory && topicNode && subtopicName && (
                           <Button
+                            variant="outline"
+                            size="sm"
+                            className="shrink-0 whitespace-nowrap rounded-lg gap-2 font-bold"
+                            disabled={
+                              subtopicAiBlockedByTopicHub ||
+                              generatingDeepDive ||
+                              generatingInstacue ||
+                              generatingBits ||
+                              generatingFormulas ||
+                              loadingDbTheory ||
+                              completingSubtopicAll
+                            }
+                            title={
+                              "Generate this subtopic Deep Dive, then InstaCue, Bits, and practice formulas."
+                            }
+                            onClick={() => void runSubtopicAiGeneration()}
+                          >
+                            {generatingInstacue || generatingBits || generatingFormulas ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Sparkles className="w-4 h-4" />
+                            )}
+                            {generatingDeepDive || generatingInstacue || generatingBits || generatingFormulas
+                              ? "Generating Subtopic AI…"
+                              : "Generate Subtopic AI"}
+                          </Button>
+                        )}
+                        {canEditTheory && topicNode && subtopicName && (
+                          <Button
                             variant="secondary"
                             size="sm"
-                            className="rounded-lg gap-2 font-bold"
-                            disabled={generatingDeepDive || loadingDbTheory}
+                            className="shrink-0 whitespace-nowrap rounded-lg gap-2 font-bold"
+                            disabled={
+                              subtopicAiBlockedByTopicHub ||
+                              generatingDeepDive ||
+                              loadingDbTheory ||
+                              completingSubtopicAll
+                            }
                             title={
                               dbTheoryExists
                                 ? `Regenerate deep dive for ${subtopicName} (${difficultyLevel})`
                                 : `Generate deep dive for ${subtopicName} (${difficultyLevel})`
                             }
-                            onClick={async () => {
-                              if (!topicNode || !subtopicName) return;
-                              const boardName = (board === "icse" ? "ICSE" : "CBSE") as Board;
-                              const existingPreview = topicPreviewByName.get(subtopicName) ?? "";
-                              const isRegenerate = dbTheoryExists;
-                              let deepDiveSucceeded = false;
-                              setGeneratingDeepDive(true);
-                              setSubtopicAgentTrace(null);
-                              try {
-                                const out = await generateSubtopicContent({
-                                  board: boardName,
-                                  subject: topicNode.subject as Subject,
-                                  classLevel: topicNode.classLevel as 11 | 12,
-                                  topic: topicNode.topic,
-                                  subtopicName,
-                                  level: difficultyLevel as "basics" | "intermediate" | "advanced",
-                                  chapterTitle: topicNode.chapterTitle,
-                                  preview: existingPreview,
-                                  includeTrace: true,
-                                });
-                                setDbTheory(out.theory);
-                                setDbTheoryExists(true);
-                                setDbDidYouKnow(out.didYouKnow);
-                                setDbReferences(out.references);
-                                setSubtopicAgentTrace(out.trace ?? null);
-                                deepDiveSucceeded = true;
-                                toast({
-                                  title: isRegenerate ? "Deep dive regenerated" : "Deep dive generated",
-                                  description:
-                                    (out.ragChunks != null
-                                      ? `${subtopicName} (${difficultyLevel}) · Saved to Supabase · RAG passages used: ${out.ragChunks}. `
-                                      : `${subtopicName} (${difficultyLevel}) · Saved to Supabase. `) +
-                                    (canEditTheory
-                                      ? "Starting InstaCue, Bits, and formula practice automatically…"
-                                      : "Open AI Generate Cards when available to build InstaCue, Bits, and formulas."),
-                                });
-                              } catch (e) {
-                                const message = e instanceof Error ? e.message : "Generation failed";
-                                toast({ title: message, variant: "destructive" });
-                              } finally {
-                                setGeneratingDeepDive(false);
-                              }
-                              if (deepDiveSucceeded && canEditTheory) {
-                                await runAiArtifactPipeline({ source: "after-deep-dive" });
-                              }
-                            }}
+                            onClick={() => void runDeepDiveGeneration()}
                           >
                             <Sparkles className="w-4 h-4" />
                             {generatingDeepDive
@@ -1540,8 +2013,61 @@ export default function TopicPage() {
                                 : "Generate Deep Dive"}
                           </Button>
                         )}
+                        {canEditTheory && topicNode && subtopicName && (
+                          <>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="shrink-0 whitespace-nowrap rounded-lg gap-2 font-bold"
+                              disabled={
+                                subtopicAiBlockedByTopicHub ||
+                                completingSubtopicAll ||
+                                generatingDeepDive ||
+                                generatingInstacue ||
+                                generatingBits ||
+                                generatingFormulas
+                              }
+                              title="Server fallback: fill missing Deep Dive, InstaCue, Bits, and formulas for this subtopic on Basics, Intermediate, and Advanced (topic hub must exist for all three)."
+                              onClick={() => void runCompleteSubtopicAll()}
+                            >
+                              {completingSubtopicAll ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <RefreshCw className="w-4 h-4" />
+                              )}
+                              Complete all levels
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="shrink-0 whitespace-nowrap rounded-lg text-xs font-bold"
+                              disabled={
+                                completingSubtopicAll ||
+                                generatingDeepDive ||
+                                generatingInstacue ||
+                                generatingBits ||
+                                generatingFormulas
+                              }
+                              title="No AI: audit all subtopics level-by-level (Basics → Intermediate → Advanced) and print pending items into the Behind the scenes log."
+                              onClick={() => void runAuditAllSubtopicsAllLevels()}
+                            >
+                              Audit all levels
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </div>
+                    {canEditTheory && subtopicAiBlockedByTopicHub && (
+                      <p className="text-[10px] text-amber-900 dark:text-amber-200 mb-2 leading-snug">
+                        Subtopic AI is locked until the topic hub exists for Basics, Intermediate, and Advanced
+                        (generate on topic overview / Explore).
+                        {topicHubGateLoading ? (
+                          <span className="font-semibold"> Checking hub…</span>
+                        ) : topicHubGateMissing.length > 0 ? (
+                          <span className="font-semibold"> Missing: {topicHubGateMissing.join(", ")}.</span>
+                        ) : null}
+                      </p>
+                    )}
                     {canEditTheory ? (
                       <TopicAgentTracePanel
                         trace={subtopicAgentTrace}
@@ -1680,7 +2206,7 @@ export default function TopicPage() {
                           <Link
                             href={prevSubtopicHref}
                             className="flex w-full min-w-0 max-w-full flex-nowrap items-center gap-1.5 overflow-hidden text-left"
-                            title={prettifySubtopicTitle(prevSubtopic.name)}
+                            title={subtopicNavPreviewLine(prevSubtopic.name)}
                           >
                             <ArrowLeft className="size-4 shrink-0 opacity-80" aria-hidden />
                             <span className="shrink-0 text-xs text-muted-foreground sm:text-sm">
@@ -1701,7 +2227,7 @@ export default function TopicPage() {
                           <Link
                             href={nextSubtopicHref}
                             className="flex w-full min-w-0 max-w-full flex-nowrap items-center gap-1.5 overflow-hidden text-left text-primary-foreground"
-                            title={prettifySubtopicTitle(nextSubtopic.name)}
+                            title={subtopicNavPreviewLine(nextSubtopic.name)}
                           >
                             <span className="shrink-0 text-xs opacity-90 sm:text-sm">Next subtopic:</span>
                             <span className="min-w-0 flex-1 truncate text-xs sm:text-sm">
@@ -1911,10 +2437,12 @@ export default function TopicPage() {
                         </span>
                         <div className="min-w-0 flex-1">
                           <p
-                            className="text-sm font-semibold text-foreground truncate whitespace-nowrap"
-                            title={prettifySubtopicTitle(st.name)}
+                            className="text-sm font-semibold text-foreground min-w-0 break-words leading-snug"
+                            title={subtopicNavPreviewLine(st.name)}
                           >
-                            {prettifySubtopicTitle(st.name)}
+                            <MathText weight="semibold" className="[&_.katex]:!text-[0.9em]">
+                              {subtopicMathTextLabel(st.name)}
+                            </MathText>
                           </p>
                         </div>
                       </li>
@@ -1971,7 +2499,7 @@ export default function TopicPage() {
                               key={st.name}
                               href={href}
                               className="w-9 h-9 rounded-lg flex items-center justify-center text-sm font-bold transition-colors bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground"
-                              title={prettifySubtopicTitle(st.name)}
+                              title={subtopicNavPreviewLine(st.name)}
                             >
                               {idx + 1}
                             </Link>
@@ -2017,29 +2545,43 @@ export default function TopicPage() {
                         className="rounded-lg gap-1.5 text-xs font-bold text-primary disabled:opacity-50"
                         title={
                           hasDeepDiveForAiArtifacts
-                            ? "Re-run InstaCue, Bits, and practice formulas from saved theory. (These also start automatically after each Deep Dive.)"
-                            : "Generate Deep Dive first; InstaCue/Bits/formulas then run automatically for admins."
+                            ? "Runs the full pack: InstaCue cards, then Bits (MCQs), then practice formulas — same pipeline as Generate Subtopic AI step 2."
+                            : "Generate Deep Dive first, then run AI cards."
                         }
                         disabled={
+                          subtopicAiBlockedByTopicHub ||
                           !hasDeepDiveForAiArtifacts ||
                           generatingDeepDive ||
                           generatingInstacue ||
                           generatingBits ||
-                          generatingFormulas
+                          generatingFormulas ||
+                          completingSubtopicAll
                         }
-                        onClick={() => void runAiArtifactPipeline({ source: "button" })}
+                        onClick={() => void runAiArtifactPipeline()}
                       >
-                        {generatingInstacue ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-                        {generatingInstacue ? "Generating cards..." : dbInstacueCards.length > 0 ? "Regenerate AI Cards" : "AI Generate Cards"}
+                        {generatingInstacue || generatingBits || generatingFormulas ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Sparkles className="w-3.5 h-3.5" />
+                        )}
+                        {generatingFormulas
+                          ? "Generating formulas…"
+                          : generatingBits
+                            ? "Generating Bits…"
+                            : generatingInstacue
+                              ? "Generating InstaCue…"
+                              : dbInstacueCards.length > 0 || dbBitsQuestions.length > 0 || dbPracticeFormulas.length > 0
+                                ? "Regenerate AI pack"
+                                : "Generate InstaCue + Bits + Formulas"}
                       </Button>
                       {!hasDeepDiveForAiArtifacts && !generatingDeepDive && (
                         <p className="text-[10px] text-muted-foreground text-right max-w-[14rem] leading-snug">
-                          Generate Deep Dive above; for admins, InstaCue/Bits/formulas then run automatically.
+                          Generate Deep Dive above, then use the AI pack button or Generate Subtopic AI.
                         </p>
                       )}
                       {generatingDeepDive && (
                         <p className="text-[10px] text-muted-foreground text-right max-w-[14rem] leading-snug">
-                          Deep Dive running — AI cards pipeline starts right after it finishes.
+                          Deep Dive running — AI cards can be generated after it finishes.
                         </p>
                       )}
                     </div>
@@ -2048,7 +2590,7 @@ export default function TopicPage() {
                     <div className="mb-3 rounded-xl border border-dashed border-primary/40 bg-primary/5 p-3">
                       <div className="flex items-center justify-between gap-2 mb-2">
                         <p className="text-[11px] font-extrabold uppercase tracking-wide text-primary">
-                          Behind the scenes · AI artifacts (auto after Deep Dive or manual)
+                          Behind the scenes · AI artifacts (manual run)
                         </p>
                         <span
                           className={`text-[11px] font-bold ${
@@ -2056,18 +2598,22 @@ export default function TopicPage() {
                               ? "text-blue-700 dark:text-blue-300"
                               : artifactRunStatus === "success"
                                 ? "text-green-700 dark:text-green-300"
-                                : artifactRunStatus === "failed"
-                                  ? "text-red-700 dark:text-red-300"
-                                  : "text-muted-foreground"
+                                : artifactRunStatus === "partial"
+                                  ? "text-amber-700 dark:text-amber-300"
+                                  : artifactRunStatus === "failed"
+                                    ? "text-red-700 dark:text-red-300"
+                                    : "text-muted-foreground"
                           }`}
                         >
                           {artifactRunStatus === "running"
                             ? "Running"
                             : artifactRunStatus === "success"
                               ? "Completed"
-                              : artifactRunStatus === "failed"
-                                ? "Failed"
-                                : "Idle"}
+                              : artifactRunStatus === "partial"
+                                ? "Partial"
+                                : artifactRunStatus === "failed"
+                                  ? "Failed"
+                                  : "Idle"}
                         </span>
                       </div>
                       <p className="text-[11px] text-muted-foreground mb-2">
@@ -2075,9 +2621,9 @@ export default function TopicPage() {
                         {dbBitsQuestions.length}, Practice Formulas {dbPracticeFormulas.length}
                       </p>
                       <p className="text-[10px] text-muted-foreground mb-2 leading-snug">
-                        Auto-regenerate: only for admins, right after &quot;Generate / Regenerate Deep Dive&quot; (or use
-                        Regenerate AI Cards). Step delays are set at the top of this file:{" "}
-                        <span className="font-mono text-foreground/80">ARTIFACT_PIPELINE_AFTER_DEEP_DIVE_MS</span>,{" "}
+                        Manual run: <span className="font-semibold text-foreground">Generate InstaCue + Bits + Formulas</span>{" "}
+                        or <span className="font-semibold text-foreground">Generate Subtopic AI</span> (or section buttons). Step
+                        delay:{" "}
                         <span className="font-mono text-foreground/80">ARTIFACT_PIPELINE_BETWEEN_STEPS_MS</span>.
                       </p>
                       <div className="rounded-lg border border-border bg-background/80 p-2 max-h-44 overflow-y-auto">
@@ -2099,6 +2645,28 @@ export default function TopicPage() {
                       <p className="text-sm font-medium text-foreground mb-2">
                         Want to recall what you&apos;ve read?
                       </p>
+                      {canEditTheory && (
+                        <div className="flex justify-end mb-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="rounded-lg gap-1.5 text-xs font-bold text-primary disabled:opacity-50"
+                            disabled={
+                              subtopicAiBlockedByTopicHub ||
+                              !hasDeepDiveForAiArtifacts ||
+                              generatingDeepDive ||
+                              generatingInstacue ||
+                              generatingBits ||
+                              generatingFormulas ||
+                              completingSubtopicAll
+                            }
+                            onClick={() => void runBitsOnly()}
+                          >
+                            {generatingBits ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                            {generatingBits ? "Generating Bits..." : dbBitsQuestions.length > 0 ? "Regenerate Bits" : "Generate Bits"}
+                          </Button>
+                        </div>
+                      )}
                       <Dialog
                         open={bitsDialogOpen}
                         onOpenChange={(open) => {
@@ -2139,8 +2707,7 @@ export default function TopicPage() {
                               <p className="text-xs text-muted-foreground">
                                 First run <span className="font-semibold text-foreground">Generate Deep Dive</span> so theory is
                                 saved to Supabase, then click{" "}
-                                <span className="font-semibold text-foreground">AI Generate Cards</span> to create Bits (and
-                                InstaCue / formulas).
+                                <span className="font-semibold text-foreground">Generate Bits</span> to create questions.
                               </p>
                             </div>
                           ) : (
@@ -2391,6 +2958,36 @@ export default function TopicPage() {
                       <p className="text-sm font-medium text-foreground mb-2">
                         Want to practice formulas?
                       </p>
+                      {canEditTheory && (
+                        <div className="flex justify-end mb-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="rounded-lg gap-1.5 text-xs font-bold text-primary disabled:opacity-50"
+                            disabled={
+                              subtopicAiBlockedByTopicHub ||
+                              !hasDeepDiveForAiArtifacts ||
+                              generatingDeepDive ||
+                              generatingInstacue ||
+                              generatingBits ||
+                              generatingFormulas ||
+                              completingSubtopicAll
+                            }
+                            onClick={() => void runFormulasOnly()}
+                          >
+                            {generatingFormulas ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <Sparkles className="w-3.5 h-3.5" />
+                            )}
+                            {generatingFormulas
+                              ? "Generating Formulas..."
+                              : dbPracticeFormulas.length > 0
+                                ? "Regenerate Practice Formulas"
+                                : "Generate Practice Formulas"}
+                          </Button>
+                        </div>
+                      )}
                       <Dialog
                         open={formulasDialogOpen}
                         onOpenChange={(open) => {
@@ -2440,8 +3037,8 @@ export default function TopicPage() {
                               <p className="text-sm text-muted-foreground mb-3">No formulas generated yet for this subtopic.</p>
                               <p className="text-xs text-muted-foreground">
                                 First run <span className="font-semibold text-foreground">Generate Deep Dive</span>, then{" "}
-                                <span className="font-semibold text-foreground">AI Generate Cards</span> to generate formula
-                                practice (and InstaCue / Bits).
+                                <span className="font-semibold text-foreground">Generate Practice Formulas</span> to generate
+                                formula practice.
                               </p>
                             </div>
                           ) : selectedFormulaIdx === null ? (
@@ -2462,7 +3059,7 @@ export default function TopicPage() {
                                     <MathText>{f.description}</MathText>
                                   </p>
                                   <div className="rounded-lg bg-muted/60 px-3 py-2 text-primary overflow-x-auto [&_.katex]:text-[1.05em]">
-                                    <MathText>{stripFormulaDelimiters(f.formulaLatex)}</MathText>
+                                    <MathText>{`$$${stripFormulaDelimiters(f.formulaLatex)}$$`}</MathText>
                                   </div>
                                   <p className="text-sm text-muted-foreground">
                                     {f.bitsQuestions?.length ?? 0} question{(f.bitsQuestions?.length ?? 0) !== 1 ? "s" : ""}
@@ -2506,7 +3103,7 @@ export default function TopicPage() {
                                     <MathText>{formula.description}</MathText>
                                   </p>
                                   <div className="rounded-lg bg-muted/60 px-3 py-2 text-primary overflow-x-auto [&_.katex]:text-[1.05em]">
-                                    <MathText>{stripFormulaDelimiters(formula.formulaLatex)}</MathText>
+                                    <MathText>{`$$${stripFormulaDelimiters(formula.formulaLatex)}$$`}</MathText>
                                   </div>
 
                                   <div className="flex items-center gap-1.5">

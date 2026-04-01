@@ -1,10 +1,16 @@
 /**
  * Topic hub JSON generation — Google AI Studio (API key) OR Vertex AI via @google/genai.
  * Vertex uses the same SDK as AI Studio with `vertexai: true` + project + location (recommended over deprecated @google-cloud/vertexai).
- * Do not remove GEMINI_API_KEY until Vertex is enabled and ADC works for your environment.
+ * When GEMINI_USE_VERTEX=true, stay on the Vertex path and do not fail over to the free-tier API key backend.
  */
 
 import { ApiError, GoogleGenAI, Type } from "@google/genai";
+
+export type GeminiUsageStats = {
+  promptTokenCount: number;
+  candidatesTokenCount: number;
+  totalTokenCount: number;
+};
 
 function sleepMs(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -67,7 +73,7 @@ async function generateContentWithRetries(
     maxOutputTokens?: number;
   },
   maxAttempts = 6
-): Promise<string> {
+): Promise<{ raw: string; usage: GeminiUsageStats }> {
   let last: unknown;
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
@@ -78,7 +84,15 @@ async function generateContentWithRetries(
       });
       const raw = response.text;
       if (!raw) throw new Error("Empty model response");
-      return raw;
+      const usage = response.usageMetadata;
+      return {
+        raw,
+        usage: {
+          promptTokenCount: Number(usage?.promptTokenCount ?? 0),
+          candidatesTokenCount: Number(usage?.candidatesTokenCount ?? 0),
+          totalTokenCount: Number(usage?.totalTokenCount ?? 0),
+        },
+      };
     } catch (e) {
       last = e;
       const retryable = isRetryableGeminiError(e) && attempt < maxAttempts;
@@ -86,7 +100,8 @@ async function generateContentWithRetries(
       const status = e instanceof ApiError ? e.status : undefined;
       const wait = geminiRetryWaitMs(attempt - 1, status);
       console.warn(
-        `[geminiTopicGenerate] attempt ${attempt}/${maxAttempts} failed (${status ?? "?"}) — retrying in ${Math.round(wait / 1000)}s`
+        `[geminiTopicGenerate] attempt ${attempt}/${maxAttempts} failed (${status ?? "?"}) — retrying in ${Math.round(wait / 1000)}s`,
+        e instanceof Error ? e.message : String(e)
       );
       await sleepMs(wait);
     }
@@ -99,9 +114,35 @@ export function isVertexForTopicAgentEnabled(): boolean {
   return (v === "true" || v === "1") && Boolean(process.env.GOOGLE_CLOUD_PROJECT?.trim());
 }
 
-/** Default Vertex location for Gemini 3.x global routing; override with GOOGLE_CLOUD_LOCATION (e.g. us-central1). */
-export function vertexLocationOrDefault(): string {
-  return process.env.GOOGLE_CLOUD_LOCATION?.trim() || "global";
+/**
+ * Preview models listed in Vertex docs as "Global" only resolve under location `global`.
+ * Using e.g. us-central1 returns 404 Publisher Model not found for the same model id.
+ * @see https://cloud.google.com/vertex-ai/generative-ai/docs/models/gemini/3-1-pro
+ */
+const VERTEX_GLOBAL_ONLY_MODEL_IDS = new Set([
+  "gemini-3.1-pro-preview",
+  "gemini-3.1-pro-preview-customtools",
+  /** Gemini 3 / 3.1 Flash family on Vertex is global-only (not us-central1). */
+  "gemini-3-flash-preview",
+  "gemini-3.1-flash-lite-preview",
+]);
+
+/**
+ * Vertex location for Gemini calls. For global-only model ids, always `global` regardless of
+ * GOOGLE_CLOUD_LOCATION (quotas are still project-scoped in Cloud Console).
+ */
+export function vertexLocationOrDefault(vertexModelId?: string): string {
+  const env = process.env.GOOGLE_CLOUD_LOCATION?.trim() || "";
+  const id = vertexModelId?.trim().toLowerCase() ?? "";
+  if (id && VERTEX_GLOBAL_ONLY_MODEL_IDS.has(id)) {
+    if (env && env !== "global") {
+      console.warn(
+        `[geminiTopicGenerate] Model "${vertexModelId}" is only published on Vertex location "global"; ignoring GOOGLE_CLOUD_LOCATION=${JSON.stringify(env)}.`
+      );
+    }
+    return "global";
+  }
+  return env || "global";
 }
 
 function topicHubResponseSchema() {
@@ -167,7 +208,7 @@ async function generateContentJson(
   systemInstruction: string,
   temperature: number,
   maxOutputTokens?: number
-): Promise<string> {
+): Promise<{ raw: string; usage: GeminiUsageStats }> {
   const config: {
     systemInstruction: string;
     responseMimeType: "application/json";
@@ -184,17 +225,7 @@ async function generateContentJson(
     config.maxOutputTokens = maxOutputTokens;
   }
 
-  const response = await client.models.generateContent({
-    model: modelId,
-    contents: userPrompt,
-    config,
-  });
-
-  const raw = response.text;
-  if (!raw) {
-    throw new Error("Empty model response");
-  }
-  return raw;
+  return generateContentWithRetries(client, modelId, userPrompt, config);
 }
 
 async function generateSubtopicContentJson(
@@ -204,7 +235,7 @@ async function generateSubtopicContentJson(
   systemInstruction: string,
   temperature: number,
   maxOutputTokens?: number
-): Promise<string> {
+): Promise<{ raw: string; usage: GeminiUsageStats }> {
   const config: {
     systemInstruction: string;
     responseMimeType: "application/json";
@@ -221,17 +252,8 @@ async function generateSubtopicContentJson(
     config.maxOutputTokens = maxOutputTokens;
   }
 
-  const response = await client.models.generateContent({
-    model: modelId,
-    contents: userPrompt,
-    config,
-  });
-
-  const raw = response.text;
-  if (!raw) {
-    throw new Error("Empty model response");
-  }
-  return raw;
+  // Same as artifacts: long JSON deep-dives often hit transient ECONNRESET / 503 from Vertex or the edge.
+  return generateContentWithRetries(client, modelId, userPrompt, config);
 }
 
 export type TopicGeminiBackend = "api_key" | "vertex";
@@ -243,10 +265,10 @@ export async function generateTopicHubJson(params: {
   systemInstruction: string;
   temperature: number;
   maxOutputTokens?: number;
-}): Promise<{ raw: string; backend: TopicGeminiBackend }> {
+}): Promise<{ raw: string; backend: TopicGeminiBackend; usage: GeminiUsageStats }> {
   if (isVertexForTopicAgentEnabled()) {
     const project = process.env.GOOGLE_CLOUD_PROJECT!.trim();
-    const location = vertexLocationOrDefault();
+    const location = vertexLocationOrDefault(params.modelId);
 
     const ai = new GoogleGenAI({
       vertexai: true,
@@ -254,7 +276,7 @@ export async function generateTopicHubJson(params: {
       location,
     });
 
-    const raw = await generateContentJson(
+    const out = await generateContentJson(
       ai,
       params.modelId,
       params.userPrompt,
@@ -262,18 +284,18 @@ export async function generateTopicHubJson(params: {
       params.temperature,
       params.maxOutputTokens
     );
-    return { raw, backend: "vertex" };
+    return { raw: out.raw, backend: "vertex", usage: out.usage };
   }
 
   const key = params.apiKey?.trim();
   if (!key) {
     throw new Error(
-      "GEMINI_API_KEY is not set. Either set it for the AI Studio path, or set GEMINI_USE_VERTEX=true with GOOGLE_CLOUD_PROJECT and Application Default Credentials (GOOGLE_APPLICATION_CREDENTIALS or gcloud auth application-default login)."
+      "Gemini API key is not set (use GEMINI_API_KEY or GOOGLE_GENERATIVE_AI_API_KEY for the AI Studio path), or set GEMINI_USE_VERTEX=true with GOOGLE_CLOUD_PROJECT and Application Default Credentials (GOOGLE_APPLICATION_CREDENTIALS or gcloud auth application-default login)."
     );
   }
 
   const ai = new GoogleGenAI({ apiKey: key });
-  const raw = await generateContentJson(
+  const out = await generateContentJson(
     ai,
     params.modelId,
     params.userPrompt,
@@ -281,7 +303,7 @@ export async function generateTopicHubJson(params: {
     params.temperature,
     params.maxOutputTokens
   );
-  return { raw, backend: "api_key" };
+  return { raw: out.raw, backend: "api_key", usage: out.usage };
 }
 
 export async function generateSubtopicJson(params: {
@@ -291,10 +313,10 @@ export async function generateSubtopicJson(params: {
   systemInstruction: string;
   temperature: number;
   maxOutputTokens?: number;
-}): Promise<{ raw: string; backend: TopicGeminiBackend }> {
+}): Promise<{ raw: string; backend: TopicGeminiBackend; usage: GeminiUsageStats }> {
   if (isVertexForTopicAgentEnabled()) {
     const project = process.env.GOOGLE_CLOUD_PROJECT!.trim();
-    const location = vertexLocationOrDefault();
+    const location = vertexLocationOrDefault(params.modelId);
 
     const ai = new GoogleGenAI({
       vertexai: true,
@@ -302,7 +324,7 @@ export async function generateSubtopicJson(params: {
       location,
     });
 
-    const raw = await generateSubtopicContentJson(
+    const out = await generateSubtopicContentJson(
       ai,
       params.modelId,
       params.userPrompt,
@@ -310,18 +332,18 @@ export async function generateSubtopicJson(params: {
       params.temperature,
       params.maxOutputTokens
     );
-    return { raw, backend: "vertex" };
+    return { raw: out.raw, backend: "vertex", usage: out.usage };
   }
 
   const key = params.apiKey?.trim();
   if (!key) {
     throw new Error(
-      "GEMINI_API_KEY is not set. Either set it for the AI Studio path, or set GEMINI_USE_VERTEX=true with GOOGLE_CLOUD_PROJECT and Application Default Credentials (GOOGLE_APPLICATION_CREDENTIALS or gcloud auth application-default login)."
+      "Gemini API key is not set (use GEMINI_API_KEY or GOOGLE_GENERATIVE_AI_API_KEY for the AI Studio path), or set GEMINI_USE_VERTEX=true with GOOGLE_CLOUD_PROJECT and Application Default Credentials (GOOGLE_APPLICATION_CREDENTIALS or gcloud auth application-default login)."
     );
   }
 
   const ai = new GoogleGenAI({ apiKey: key });
-  const raw = await generateSubtopicContentJson(
+  const out = await generateSubtopicContentJson(
     ai,
     params.modelId,
     params.userPrompt,
@@ -329,7 +351,7 @@ export async function generateSubtopicJson(params: {
     params.temperature,
     params.maxOutputTokens
   );
-  return { raw, backend: "api_key" };
+  return { raw: out.raw, backend: "api_key", usage: out.usage };
 }
 
 // ---------- Artifact schemas (InstaCue / Bits / Formulas) ----------
@@ -427,7 +449,7 @@ export async function generateArtifactJson(params: {
   temperature: number;
   responseSchema: Record<string, unknown>;
   maxOutputTokens?: number;
-}): Promise<{ raw: string; backend: TopicGeminiBackend }> {
+}): Promise<{ raw: string; backend: TopicGeminiBackend; usage: GeminiUsageStats }> {
   const config: {
     systemInstruction: string;
     responseMimeType: "application/json";
@@ -446,19 +468,25 @@ export async function generateArtifactJson(params: {
 
   if (isVertexForTopicAgentEnabled()) {
     const project = process.env.GOOGLE_CLOUD_PROJECT!.trim();
-    const location = vertexLocationOrDefault();
+    const location = vertexLocationOrDefault(params.modelId);
     const ai = new GoogleGenAI({ vertexai: true, project, location });
-    const raw = await generateContentWithRetries(ai, params.modelId, params.userPrompt, config);
-    return { raw, backend: "vertex" };
+    const out = await generateContentWithRetries(
+      ai,
+      params.modelId,
+      params.userPrompt,
+      config,
+      6
+    );
+    return { raw: out.raw, backend: "vertex", usage: out.usage };
   }
 
   const key = params.apiKey?.trim();
   if (!key) {
     throw new Error(
-      "GEMINI_API_KEY is not set. Either set it for the AI Studio path, or set GEMINI_USE_VERTEX=true with GOOGLE_CLOUD_PROJECT."
+      "Gemini API key is not set (use GEMINI_API_KEY or GOOGLE_GENERATIVE_AI_API_KEY for the AI Studio path), or set GEMINI_USE_VERTEX=true with GOOGLE_CLOUD_PROJECT."
     );
   }
   const ai = new GoogleGenAI({ apiKey: key });
-  const raw = await generateContentWithRetries(ai, params.modelId, params.userPrompt, config);
-  return { raw, backend: "api_key" };
+  const out = await generateContentWithRetries(ai, params.modelId, params.userPrompt, config);
+  return { raw: out.raw, backend: "api_key", usage: out.usage };
 }

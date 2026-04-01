@@ -10,8 +10,11 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   transpilePackages: ["three", "@react-three/fiber", "@react-three/drei"],
-  turbopack: {
-    root: process.cwd(),
+  experimental: {
+    // Default in Next 16 is true; persistent Turbopack dev cache is flaky on some Windows setups.
+    turbopackFileSystemCacheForDev: false,
+    /** Tree-shake icon imports in dev/prod — large pages with many `lucide-react` icons compile faster. */
+    optimizePackageImports: ["lucide-react"],
   },
   async headers() {
     return [

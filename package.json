@@ -3,12 +3,16 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "node scripts/dev-webpack.cjs",
+    "dev:fresh": "npm run clean:next && node scripts/dev-webpack.cjs",
+    "dev:turbo": "next dev --turbopack",
+    "clean:next": "node -e \"const fs=require('fs');try{fs.rmSync('.next',{recursive:true,force:true});console.log('Removed .next');}catch(e){if(e.code!=='ENOENT'){console.error(e);process.exit(1);}}\"",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
     "generate:curriculum-seed": "tsx scripts/generate-curriculum-seed.ts",
-    "audit:curriculum-cbse": "tsx scripts/audit-cbse-curriculum.ts"
+    "audit:curriculum-cbse": "tsx scripts/audit-cbse-curriculum.ts",
+    "verify:class11-physics": "tsx scripts/verify-class11-physics-curriculum.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.2.0",

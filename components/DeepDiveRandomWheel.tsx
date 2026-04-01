@@ -75,7 +75,7 @@ export default function DeepDiveRandomWheel({
   // 5-minute break timer countdown
   useEffect(() => {
     if (!timerDialogOpen) return;
-    setTimerSeconds(5 * 60);
+    queueMicrotask(() => setTimerSeconds(5 * 60));
     const id = setInterval(() => {
       setTimerSeconds((prev) => {
         if (prev <= 1) {

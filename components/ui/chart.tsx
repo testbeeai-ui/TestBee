@@ -13,6 +13,15 @@ export type ChartConfig = {
   } & ({ color?: string; theme?: never } | { color?: never; theme: Record<keyof typeof THEMES, string> });
 };
 
+/** Recharts tooltip/legend payload item (loosely typed for chart helpers). */
+type ChartPayloadItem = {
+  dataKey?: string | number;
+  name?: string;
+  value?: number | string;
+  color?: string;
+  payload?: Record<string, unknown> & { fill?: string };
+};
+
 type ChartContextProps = {
   config: ChartConfig;
 };
@@ -161,14 +170,14 @@ const ChartTooltipContent = React.forwardRef<
       >
         {!nestLabel ? tooltipLabel : null}
         <div className="grid gap-1.5">
-          {payload.map((item: any, index: number) => {
+          {payload.map((item: ChartPayloadItem, index: number) => {
             const key = `${nameKey || item.name || item.dataKey || "value"}`;
             const itemConfig = getPayloadConfigFromPayload(config, item, key);
-            const indicatorColor = color || item.payload.fill || item.color;
+            const indicatorColor = color || item.payload?.fill || item.color;
 
             return (
               <div
-                key={item.dataKey}
+                key={String(item.dataKey ?? index)}
                 className={cn(
                   "flex w-full flex-wrap items-stretch gap-2 [&>svg]:h-2.5 [&>svg]:w-2.5 [&>svg]:text-muted-foreground",
                   indicator === "dot" && "items-center",
@@ -234,7 +243,7 @@ const ChartLegendContent = React.forwardRef<
   Pick<RechartsPrimitive.LegendProps, "verticalAlign"> & {
     hideIcon?: boolean;
     nameKey?: string;
-    payload?: any[];
+    payload?: ChartPayloadItem[];
   }
 >(({ className, hideIcon = false, payload, verticalAlign = "bottom", nameKey }, ref) => {
   const { config } = useChart();
@@ -248,7 +257,7 @@ const ChartLegendContent = React.forwardRef<
       ref={ref}
       className={cn("flex items-center justify-center gap-4", verticalAlign === "top" ? "pb-3" : "pt-3", className)}
     >
-      {payload.map((item: any) => {
+      {payload.map((item: ChartPayloadItem) => {
         const key = `${nameKey || item.dataKey || "value"}`;
         const itemConfig = getPayloadConfigFromPayload(config, item, key);
 

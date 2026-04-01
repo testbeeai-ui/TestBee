@@ -40,18 +40,22 @@ const ClassFeed = ({ classroomId, refreshKey, onSelectPost, initialPosts }: Prop
 
   useEffect(() => {
     if (initialPosts !== undefined) {
-      setPosts(initialPosts ?? []);
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    supabase.from('posts').select('*, profiles!posts_teacher_id_fkey(name)')
-      .eq('classroom_id', classroomId)
-      .order('created_at', { ascending: false })
-      .then(({ data }) => {
-        setPosts((data as unknown as Post[]) || []);
+      queueMicrotask(() => {
+        setPosts(initialPosts ?? []);
         setLoading(false);
       });
+      return;
+    }
+    queueMicrotask(() => {
+      setLoading(true);
+      supabase.from('posts').select('*, profiles!posts_teacher_id_fkey(name)')
+        .eq('classroom_id', classroomId)
+        .order('created_at', { ascending: false })
+        .then(({ data }) => {
+          setPosts((data as unknown as Post[]) || []);
+          setLoading(false);
+        });
+    });
   }, [classroomId, refreshKey, initialPosts]);
 
   if (loading) {

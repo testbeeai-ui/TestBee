@@ -25,7 +25,7 @@ export function parseTheorySections(theory: string): ParsedTheory {
   const blocks = theory.split(/\n\n+/).filter((b) => b.trim());
   let currentTitle = "";
   let currentBlocks: string[] = [];
-  let preambleBlocks: string[] = [];
+  const preambleBlocks: string[] = [];
 
   for (const block of blocks) {
     const trimmed = block.trim();

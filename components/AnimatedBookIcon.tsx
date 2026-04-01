@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect } from "react";
-import { motion, useMotionValue, useTransform, animate } from "framer-motion";
+import { motion, useMotionValue, useTransform, animate, type MotionValue } from "framer-motion";
 
 const project = (x: number, y: number, z: number) => ({
     x: 400 + (x - z) * 0.866025,
@@ -81,7 +81,7 @@ function AnimatedPage({
     fill,
     stroke,
 }: {
-    progress: any;
+    progress: MotionValue<number>;
     isCover: boolean;
     rightY: number;
     leftY: number;
@@ -118,7 +118,7 @@ function CoverPage({
     leftY,
     side,
 }: {
-    progress: any;
+    progress: MotionValue<number>;
     rightY: number;
     leftY: number;
     side: string;

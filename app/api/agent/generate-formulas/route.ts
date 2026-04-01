@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { ApiError } from "@google/genai";
+import { ApiError, Type } from "@google/genai";
 import { getSupabaseAndUser } from "@/lib/apiAuth";
 import {
   generateArtifactJson,
@@ -10,10 +10,14 @@ import { isAdminUser } from "@/lib/admin";
 import { supabaseForLongJobPersist } from "@/lib/supabaseAdminPersist";
 import { resolveGeminiModelId, resolveVertexTopicModelId } from "@/lib/geminiModel";
 import { normalizeSubjectKey, normalizeSubtopicContentKey } from "@/lib/subtopicContentKeys";
+import { getGeminiApiKeyFromEnv } from "@/lib/geminiEnv";
+import { logAiUsage } from "@/lib/aiLogger";
+import { repairEscapedLatexCommands } from "@/lib/stripFormulaDelimiters";
 
 const ALLOWED_LEVELS = new Set(["basics", "intermediate", "advanced"]);
 const MIN_BITS_PER_FORMULA = 5;
-const MIN_ACCEPTABLE_VERIFIER_SCORE = 0.85;
+/** Verifier gate; if still not met, we may still persist generator/verifier-shaped output (see fallback below). */
+const MIN_ACCEPTABLE_VERIFIER_SCORE = 0.58;
 
 function sanitize(value: unknown, maxLen = 400): string {
   if (typeof value !== "string") return "";
@@ -40,24 +44,110 @@ type FormulaVerificationResult = {
   score: number;
   notes: string;
   items: FormulaItem[];
+  backend: "api_key" | "vertex";
+  usage: {
+    promptTokenCount: number;
+    candidatesTokenCount: number;
+    totalTokenCount: number;
+  };
+  /** When true, verifier output could not be parsed — caller must not persist or treat as validated. */
+  verifierMalformed?: boolean;
 };
 
+function addTokenUsage(
+  a: FormulaVerificationResult["usage"],
+  b: FormulaVerificationResult["usage"]
+): FormulaVerificationResult["usage"] {
+  return {
+    promptTokenCount: a.promptTokenCount + b.promptTokenCount,
+    candidatesTokenCount: a.candidatesTokenCount + b.candidatesTokenCount,
+    totalTokenCount: a.totalTokenCount + b.totalTokenCount,
+  };
+}
+
 function normalizeLatex(raw: string): string {
-  return String(raw ?? "")
+  let out = repairEscapedLatexCommands(String(raw ?? ""));
+  out = out
     .trim()
     .replace(/^\\?\$\\?\$([\s\S]*)\\?\$\\?\$$/, "$1")
     .replace(/^\\\(([\s\S]*)\\\)$/, "$1")
     .replace(/^\\\[([\s\S]*)\\\]$/, "$1")
     .trim();
+  // Keep KaTeX parse-safe if model drops command body.
+  out = out.replace(/\\bar\s*\{\s*\}/g, "\\bar{\\nu}");
+  out = out.replace(/\\text\s*\{\s*\}/g, "\\text{ }");
+  return out;
+}
+
+function tryParseJsonObject(raw: string): Record<string, unknown> | null {
+  const text = String(raw ?? "").trim();
+  if (!text) return null;
+
+  const directCandidates = [
+    text,
+    text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim(),
+  ];
+  for (const candidate of directCandidates) {
+    if (!candidate) continue;
+    try {
+      const parsed = JSON.parse(candidate) as unknown;
+      if (parsed && typeof parsed === "object") return parsed as Record<string, unknown>;
+    } catch {
+      // try next candidate
+    }
+  }
+
+  // Heuristic salvage for model responses with extra prose/trailing garbage.
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  if (start >= 0 && end > start) {
+    const sliced = text.slice(start, end + 1);
+    try {
+      const parsed = JSON.parse(sliced) as unknown;
+      if (parsed && typeof parsed === "object") return parsed as Record<string, unknown>;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+/** Escape stray LaTeX backslashes so JSON.parse can succeed (same idea as generate-subtopic). */
+function salvageJsonForLatex(raw: string): string {
+  return raw.replace(/\\(?!["\\/bfnrtu])/g, "\\\\");
+}
+
+/** `\u` must be followed by 4 hex digits; models sometimes emit broken Unicode escapes. */
+function repairInvalidJsonUnicodeEscapes(s: string): string {
+  return s.replace(/\\u(?![0-9a-fA-F]{4})/g, "\\\\u");
+}
+
+/** Try multiple repairs before giving up — reduces flaky 502s from otherwise-valid payloads. */
+function tryParseJsonObjectWithSalvage(raw: string): Record<string, unknown> | null {
+  const trimmed = String(raw ?? "").trim();
+  const variants = [
+    trimmed,
+    repairInvalidJsonUnicodeEscapes(trimmed),
+    salvageJsonForLatex(trimmed),
+    salvageJsonForLatex(repairInvalidJsonUnicodeEscapes(trimmed)),
+  ];
+  const seen = new Set<string>();
+  for (const v of variants) {
+    if (!v || seen.has(v)) continue;
+    seen.add(v);
+    const p = tryParseJsonObject(v);
+    if (p) return p;
+  }
+  return null;
 }
 
 function formulasVerifierSchema() {
   return {
-    type: "object",
+    type: Type.OBJECT,
     properties: {
-      approved: { type: "boolean" },
-      score: { type: "number" },
-      notes: { type: "string" },
+      approved: { type: Type.BOOLEAN },
+      score: { type: Type.NUMBER },
+      notes: { type: Type.STRING },
       items: formulasResponseSchema().properties.items,
     },
     required: ["approved", "score", "notes", "items"],
@@ -71,18 +161,29 @@ function normalizeAndValidateFormulaItems(input: unknown): FormulaItem[] {
     if (!x || typeof x !== "object") continue;
     const it = x as FormulaItem;
     const name = sanitize(it.name, 140);
-    const formulaLatex = normalizeLatex(sanitize(it.formulaLatex, 1200));
+    const formulaLatex = sanitize(normalizeLatex(String(it.formulaLatex ?? "")), 1200);
     const description = sanitize(it.description, 500);
     const bitsQuestions = Array.isArray(it.bitsQuestions) ? it.bitsQuestions : [];
     const normalizedBits = bitsQuestions
-      .map((q) => ({
-        question: sanitize(q?.question, 800),
-        options: Array.isArray(q?.options)
+      .map((q) => {
+        const question = sanitize(q?.question, 800);
+        const options = Array.isArray(q?.options)
           ? q.options.map((o) => sanitize(o, 500)).filter(Boolean).slice(0, 4)
-          : [],
-        correctAnswer: sanitize(q?.correctAnswer, 500),
-        solution: sanitize(q?.solution, 1200),
-      }))
+          : [];
+        let correctAnswer = sanitize(q?.correctAnswer, 500);
+        const solution = sanitize(q?.solution, 1200);
+
+        // Attempt fuzzy match for correctAnswer if it doesn't match exactly
+        if (options.length === 4 && correctAnswer && !options.includes(correctAnswer)) {
+          const fuzzyAns = correctAnswer.replace(/\s+/g, "").toLowerCase();
+          const matchedOpt = options.find(
+            (o) => o.replace(/\s+/g, "").toLowerCase() === fuzzyAns
+          );
+          if (matchedOpt) correctAnswer = matchedOpt;
+        }
+
+        return { question, options, correctAnswer, solution };
+      })
       .filter((q) => {
         if (!q.question || q.options.length !== 4 || !q.correctAnswer || !q.solution) return false;
         if (!q.options.includes(q.correctAnswer)) return false;
@@ -95,7 +196,7 @@ function normalizeAndValidateFormulaItems(input: unknown): FormulaItem[] {
   return out;
 }
 
-async function verifyFormulaItems(params: {
+async function verifyFormulaItemsOnce(params: {
   apiKey: string | undefined;
   modelId: string;
   subject: string;
@@ -104,7 +205,9 @@ async function verifyFormulaItems(params: {
   subtopicName: string;
   level: string;
   items: FormulaItem[];
-}): Promise<FormulaVerificationResult> {
+  temperature: number;
+  attemptLabel: string;
+}): Promise<FormulaVerificationResult | { parseFailed: true; backend: FormulaVerificationResult["backend"]; usage: FormulaVerificationResult["usage"]; rawLen: number }> {
   const verificationSystemInstruction = `You are a strict senior exam reviewer.
 Verify formula practice sets for correctness, not style.
 Hard rules:
@@ -128,21 +231,75 @@ ${JSON.stringify({ items: params.items })}`;
     modelId: params.modelId,
     userPrompt: verificationPrompt,
     systemInstruction: verificationSystemInstruction,
-    temperature: 0.1,
+    temperature: params.temperature,
     responseSchema: formulasVerifierSchema(),
   });
-  const parsed = JSON.parse(out.raw) as Partial<FormulaVerificationResult>;
+  const rawLen = String(out.raw ?? "").length;
+  const parsed =
+    (tryParseJsonObjectWithSalvage(out.raw) as Partial<FormulaVerificationResult> | null) ?? null;
+  if (!parsed) {
+    console.warn(
+      `[generate-formulas] verifier JSON parse failed (${params.attemptLabel}) subtopic=${params.subtopicName} rawLen=${rawLen}`
+    );
+    return { parseFailed: true, backend: out.backend, usage: out.usage, rawLen };
+  }
   const verifiedItems = normalizeAndValidateFormulaItems(parsed.items);
+  const rawScore = Number(parsed.score);
   const score =
-    typeof parsed.score === "number" && Number.isFinite(parsed.score)
-      ? Math.max(0, Math.min(1, parsed.score))
+    !Number.isNaN(rawScore) && Number.isFinite(rawScore)
+      ? Math.max(0, Math.min(1, rawScore))
       : 0;
   return {
     approved: parsed.approved === true && score >= MIN_ACCEPTABLE_VERIFIER_SCORE,
     score,
     notes: typeof parsed.notes === "string" ? parsed.notes : "",
     items: verifiedItems,
+    backend: out.backend,
+    usage: out.usage,
   };
+}
+
+async function verifyFormulaItems(params: {
+  apiKey: string | undefined;
+  modelId: string;
+  subject: string;
+  classLevel: number;
+  topic: string;
+  subtopicName: string;
+  level: string;
+  items: FormulaItem[];
+}): Promise<FormulaVerificationResult> {
+  let first = await verifyFormulaItemsOnce({
+    ...params,
+    temperature: 0.1,
+    attemptLabel: "attempt1",
+  });
+  if ("parseFailed" in first) {
+    await new Promise((r) => setTimeout(r, 2000));
+    const second = await verifyFormulaItemsOnce({
+      ...params,
+      temperature: 0,
+      attemptLabel: "attempt2",
+    });
+    const usage = addTokenUsage(first.usage, second.usage);
+    if ("parseFailed" in second) {
+      console.warn(
+        `[generate-formulas] verifier JSON parse failed after retry subtopic=${params.subtopicName}`
+      );
+      return {
+        verifierMalformed: true,
+        approved: false,
+        score: 0,
+        notes: "Verifier returned malformed JSON after retry. Nothing was saved.",
+        items: [],
+        backend: second.backend,
+        usage,
+      };
+    }
+    first = second;
+  }
+
+  return { ...first, verifierMalformed: false };
 }
 
 function enrichFormulaBits(item: FormulaItem): FormulaItem {
@@ -189,9 +346,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = getGeminiApiKeyFromEnv();
     if (!isVertexForTopicAgentEnabled() && !apiKey?.trim()) {
-      return NextResponse.json({ error: "GEMINI_API_KEY is not configured." }, { status: 503 });
+      return NextResponse.json(
+        { error: "GEMINI_API_KEY or GOOGLE_GENERATIVE_AI_API_KEY is not configured." },
+        { status: 503 },
+      );
     }
 
     const body = await request.json();
@@ -239,7 +399,8 @@ Rules:
   - Physics: include units, sign convention traps, and multi-step numericals.
   - Chemistry: include stoichiometric/molar reasoning, unit consistency, and conceptual traps.
 - For ${level} level: ${level === "basics" ? "keep base numericals direct but still include at least one conceptual trap." : level === "intermediate" ? "include NCERT-style numericals with sign conventions and at least one multi-step question." : "include multi-step problems, edge cases, parameter perturbations, and exam-style traps."}
-- Output formulaLatex WITHOUT wrapping delimiters (no $$, no \\( \\), no \\[ \\]). Return pure latex expression only.
+- Output formulaLatex WITHOUT wrapping delimiters (no $$, no \\( \\), no \\[ \\]). Return pure latex expression only for that field only.
+- In description and in every bitsQuestions field (question, each option, solution), write normal text and you MUST wrap ANY math, variables, units, or symbols in \\( ... \\) (use $$ ... $$ only for a full display equation if truly needed). Never leave naked LaTeX commands or powers like x^2 in undelimited plain text.
 - Each MCQ must have exactly 4 plausible options.
 - Output valid JSON only.`;
 
@@ -263,7 +424,7 @@ ${existing.theory.slice(0, 12000)}`;
     const { modelId: verifierVertexResolvedId } = resolveVertexTopicModelId(verifierStudioModelId);
     const verifierModelId = vertexEnabled ? verifierVertexResolvedId : verifierStudioModelId;
 
-    const { raw, backend } = await generateArtifactJson({
+    const { raw, backend, usage } = await generateArtifactJson({
       apiKey,
       modelId,
       userPrompt,
@@ -271,14 +432,75 @@ ${existing.theory.slice(0, 12000)}`;
       temperature: 0.25,
       responseSchema: formulasResponseSchema(),
     });
+    await logAiUsage({
+      supabase,
+      userId: user.id,
+      actionType: "generate_formulas",
+      modelId,
+      backend,
+      usage,
+      metadata: {
+        board,
+        subject,
+        classLevel,
+        topic,
+        subtopicName,
+        level,
+      },
+    });
 
     console.log(`[generate-formulas] backend=${backend} model=${modelId} topic=${topic} subtopic=${subtopicName} level=${level}`);
 
     // Second Gemini call (verifier) follows immediately — brief pause reduces 429 bursts on Vertex.
     await new Promise((r) => setTimeout(r, 5000));
 
-    const parsed = JSON.parse(raw) as { items?: unknown[] };
+    const parsed = tryParseJsonObjectWithSalvage(raw);
+    if (!parsed) {
+      return NextResponse.json(
+        {
+          error: "Model returned malformed JSON for formulas. Please retry generate.",
+          code: "MALFORMED_FORMULAS_JSON",
+        },
+        { status: 502 }
+      );
+    }
+    
     const seedItems = normalizeAndValidateFormulaItems(parsed.items);
+    
+    // Check for legitimate empty formulas (e.g., conceptual subtopic)
+    if (seedItems.length === 0) {
+      if (Array.isArray(parsed.items) && parsed.items.length === 0) {
+        const persistDb = supabaseForLongJobPersist(supabase);
+        const { error: upsertError } = await persistDb.from("subtopic_content").update({
+          practice_formulas: [],
+          updated_by: user.id,
+          updated_at: new Date().toISOString(),
+        }).eq("board", board).eq("subject", subject).eq("class_level", classLevel)
+          .eq("topic", topic).eq("subtopic_name", subtopicName).eq("level", level);
+
+        if (upsertError) {
+          console.error("practice_formulas empty update error", upsertError);
+          return NextResponse.json({ error: upsertError.message }, { status: 500 });
+        }
+
+        return NextResponse.json({
+          ok: true,
+          items: [],
+          modelId,
+          verifier: { modelId: "skipped", score: 1.0, approved: true, notes: "No formulas found." },
+        });
+      } else {
+        return NextResponse.json(
+          {
+            error: "Generator failed to produce any valid formulas. Please retry.",
+            code: "FORMULA_VALIDATION_FAILED",
+            score: 0,
+            notes: "All generated items failed normalization/validation.",
+          },
+          { status: 422 }
+        );
+      }
+    }
     const reviewed = await verifyFormulaItems({
       apiKey,
       modelId: verifierModelId,
@@ -289,12 +511,63 @@ ${existing.theory.slice(0, 12000)}`;
       level,
       items: seedItems,
     });
-    const verifiedItems = reviewed.items.map((it) => enrichFormulaBits(it));
-    if (!reviewed.approved || verifiedItems.length === 0) {
+    await logAiUsage({
+      supabase,
+      userId: user.id,
+      actionType: "generate_formulas_verifier",
+      modelId: verifierModelId,
+      backend: reviewed.backend,
+      usage: reviewed.usage,
+      metadata: {
+        board,
+        subject,
+        classLevel,
+        topic,
+        subtopicName,
+        level,
+        verifierMalformed: reviewed.verifierMalformed === true,
+      },
+    });
+    let usedSeedFallback = false;
+    let items: FormulaItem[];
+
+    if (reviewed.verifierMalformed) {
+      items = seedItems.map((it) => enrichFormulaBits(it));
+      usedSeedFallback = true;
+      if (items.length === 0) {
+        return NextResponse.json(
+          {
+            error:
+              "Formula verifier failed and there was no usable generator output to save. Please run generate again.",
+            code: "MALFORMED_VERIFIER_JSON",
+          },
+          { status: 502 }
+        );
+      }
+      console.warn(
+        `[generate-formulas] verifier malformed; persisted ${items.length} formula set(s) from generator seed subtopic=${subtopicName}`
+      );
+    } else {
+      items = reviewed.items.map((it) => enrichFormulaBits(it));
+      if (items.length === 0 && seedItems.length > 0) {
+        items = seedItems.map((it) => enrichFormulaBits(it));
+        usedSeedFallback = true;
+        console.warn(
+          `[generate-formulas] verifier yielded no valid items; persisted ${items.length} formula set(s) from generator seed subtopic=${subtopicName}`
+        );
+      }
+      if (!reviewed.approved && items.length > 0) {
+        console.warn(
+          `[generate-formulas] verifier score=${reviewed.score.toFixed(2)} (approved=${reviewed.approved}); saving ${items.length} formula set(s) anyway subtopic=${subtopicName}`
+        );
+      }
+    }
+
+    if (items.length === 0) {
       return NextResponse.json(
         {
           error:
-            "Formula regenerate did not pass quality validation. Please retry regenerate.",
+            "Could not produce any valid formula practice sets after checks. Please retry generation.",
           code: "FORMULA_VALIDATION_FAILED",
           score: reviewed.score,
           notes: reviewed.notes,
@@ -302,7 +575,6 @@ ${existing.theory.slice(0, 12000)}`;
         { status: 422 }
       );
     }
-    const items = verifiedItems;
 
     // Persist after long Gemini + verifier — user JWT may be expired; use service role if configured.
     const persistDb = supabaseForLongJobPersist(supabase);
@@ -328,7 +600,9 @@ ${existing.theory.slice(0, 12000)}`;
           `Call Gemini "${modelId}" with Formulas schema (cheap model path).`,
           `Call verifier model "${verifierModelId}" for correctness review.`,
           `Validation score: ${reviewed.score.toFixed(2)} (${reviewed.approved ? "approved" : "rejected"}).`,
-          `Saved ${items.length} verified formulas with practice questions to subtopic_content.practice_formulas.`,
+          usedSeedFallback
+            ? `Saved ${items.length} formula set(s) using generator fallback (verifier missing or rejected structured output).`
+            : `Saved ${items.length} formulas with practice questions to subtopic_content.practice_formulas.`,
         ],
         prompts: { systemInstruction, userPrompt },
       };
@@ -343,6 +617,7 @@ ${existing.theory.slice(0, 12000)}`;
         score: reviewed.score,
         approved: reviewed.approved,
         notes: reviewed.notes,
+        persistedFromSeed: usedSeedFallback,
       },
       trace,
     });

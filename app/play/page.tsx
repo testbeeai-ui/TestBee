@@ -102,10 +102,12 @@ export default function PlayPage() {
     const { data } = await supabase.from("user_play_stats").select("category, current_rating").eq("user_id", user.id);
     setUserStats((data as { category: string; current_rating: number }[]) || []);
     setLoadingStats(false);
-  }, [user?.id]);
+  }, [user]);
 
   useEffect(() => {
-    fetchUserStats();
+    queueMicrotask(() => {
+      void fetchUserStats();
+    });
   }, [fetchUserStats]);
 
   const todayDate = () => {

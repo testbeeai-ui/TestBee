@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import type { User, Session } from '@supabase/supabase-js';
+import type { AuthError, User, Session } from '@supabase/supabase-js';
 import { useUserStore } from '@/store/useUserStore';
 import type { ClassLevel, SubjectCombo, SavedBit, SavedFormula, SavedRevisionCard } from '@/types';
 
@@ -31,8 +31,8 @@ interface AuthContextType {
   profile: Profile | null;
   loading: boolean;
   signInWithGoogle: (redirectPath?: string) => Promise<void>;
-  signInWithEmail: (email: string, password: string) => Promise<{ error: any }>;
-  signUpWithEmail: (email: string, password: string, name: string) => Promise<{ error: any }>;
+  signInWithEmail: (email: string, password: string) => Promise<{ error: AuthError | null }>;
+  signUpWithEmail: (email: string, password: string, name: string) => Promise<{ error: AuthError | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
