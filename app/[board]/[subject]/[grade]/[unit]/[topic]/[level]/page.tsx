@@ -74,6 +74,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { fuzzySubtopicKey } from "@/lib/utils";
 import { fetchBitsAttempt, saveBitsAttempt, type BitsAttemptRecord } from "@/lib/bitsAttemptService";
 import SubtopicWheelDialog from "@/components/SubtopicWheelDialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const SUBTOPIC_STACK_PREVIEW_CHARS = 420;
 
@@ -311,6 +312,10 @@ export default function TopicPage() {
   const subtopicIndex = resolved?.subtopicIndex ?? 0;
   const subtopicName = resolved?.subtopicName ?? "";
   const difficultyLevel = (resolved?.level ?? "basics") as DifficultyLevel;
+  // New 3-column PhysX layout scoped to one specific subtopic+level
+  const isPhysXLayout =
+    topicSlug === "wattless-current-i-sin-phi-component-does-not-consume-power" &&
+    difficultyLevel === "advanced";
   const user = useUserStore((s) => s.user);
   const saveRevisionCard = useUserStore((s) => s.saveRevisionCard);
   const { toast } = useToast();
@@ -354,6 +359,8 @@ export default function TopicPage() {
   const [generatingBits, setGeneratingBits] = useState(false);
   const [generatingFormulas, setGeneratingFormulas] = useState(false);
   const [bitsDialogOpen, setBitsDialogOpen] = useState(false);
+  const [quizStarted, setQuizStarted] = useState(false);
+  const [activeSectionIdx, setActiveSectionIdx] = useState(0);
   const [formulasDialogOpen, setFormulasDialogOpen] = useState(false);
   const [bitsCurrentIdx, setBitsCurrentIdx] = useState(0);
   const [bitsSelectedAnswers, setBitsSelectedAnswers] = useState<Record<number, number>>({});
@@ -1297,6 +1304,74 @@ export default function TopicPage() {
     });
   }, [topicNode, isOverview, subtopicName, difficultyLevel, user?.savedRevisionCards, dbInstacueCards]);
 
+  // Extract section headings from theory markdown for left sidebar
+  const dbTheorySections = useMemo(() => {
+    if (!dbTheory) return [] as string[];
+    const matches = [...dbTheory.matchAll(/^#{1,2}\s+(.+)/gm)];
+    return matches.map((m) => (m[1] ?? "").replace(/\*\*/g, "").trim()).filter(Boolean).slice(0, 10);
+  }, [dbTheory]);
+
+  // Concept cards for Concepts tab (concept + formula types)
+  const conceptCards = useMemo(
+    () => sidebarInstaCueCards.filter((c) => c.type === "concept" || c.type === "formula"),
+    [sidebarInstaCueCards]
+  );
+
+  // Refs for scroll-sync between theory and concepts panel
+  const conceptsScrollRef = useRef<HTMLDivElement>(null);
+  const conceptsHoveredRef = useRef(false);
+
+  // Sync theory window scroll → concepts panel scroll proportionally
+  useEffect(() => {
+    if (!isPhysXLayout) return;
+    const onScroll = () => {
+      if (conceptsHoveredRef.current) return; // user is scrolling concepts independently
+      const el = conceptsScrollRef.current;
+      if (!el) return;
+      const docH = document.documentElement.scrollHeight - window.innerHeight;
+      if (docH <= 0) return;
+      const ratio = window.scrollY / docH;
+      const elMax = el.scrollHeight - el.clientHeight;
+      if (elMax > 0) el.scrollTop = ratio * elMax;
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [isPhysXLayout]);
+
+  // Track which theory section is in view for left sidebar highlight (scroll-based)
+  useEffect(() => {
+    if (!isPhysXLayout || dbTheorySections.length === 0) return;
+    let headings: HTMLElement[] = [];
+    let removeScroll: (() => void) | null = null;
+
+    const timer = setTimeout(() => {
+      const theoryCard = document.querySelector("[data-theory-card]");
+      if (!theoryCard) return;
+      headings = Array.from(theoryCard.querySelectorAll<HTMLElement>("h2"));
+      if (headings.length === 0) return;
+
+      const update = () => {
+        // "trigger line" = 30% from top of viewport
+        const triggerY = window.scrollY + window.innerHeight * 0.3;
+        let activeIdx = 0; // default = Theory Overview
+        headings.forEach((h, i) => {
+          const top = h.getBoundingClientRect().top + window.scrollY;
+          if (top <= triggerY) activeIdx = i + 1;
+        });
+        setActiveSectionIdx(activeIdx);
+      };
+
+      window.addEventListener("scroll", update, { passive: true });
+      update();
+      removeScroll = () => window.removeEventListener("scroll", update);
+    }, 600);
+
+    return () => {
+      clearTimeout(timer);
+      removeScroll?.();
+    };
+  }, [isPhysXLayout, dbTheorySections, dbTheory]);
+
   if (taxonomyLoading) {
     return (
       <AppLayout>
@@ -1441,9 +1516,102 @@ export default function TopicPage() {
           )}
         </div>
 
-        <div className="flex flex-col lg:flex-row gap-8">
+        <div className="flex flex-col lg:flex-row gap-6">
+
+          {/* ── LEFT SIDEBAR (desktop only, subtopic view, PhysX layout only) ── */}
+          {!isOverview && isPhysXLayout && (
+            <aside className="hidden lg:flex flex-col w-44 shrink-0">
+              <div className="sticky top-24 space-y-5 text-sm">
+
+                {/* Theory sections list */}
+                <div>
+                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2 px-1">
+                    Theory Overview
+                  </h4>
+                  <ul className="space-y-0.5">
+                    <li className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-bold transition-colors ${activeSectionIdx === 0 ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted/60"}`}>
+                      {activeSectionIdx === 0 && <span className="text-green-600 shrink-0">✓</span>}
+                      Theory Overview
+                    </li>
+                    {dbTheorySections.map((title, i) => (
+                      <li
+                        key={title}
+                        className={`px-2 py-1.5 rounded-lg text-xs font-medium transition-colors truncate cursor-default ${activeSectionIdx === i + 1 ? "bg-primary/10 text-primary font-bold" : "text-muted-foreground hover:bg-muted/60"}`}
+                        title={title}
+                      >
+                        {title}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                {/* Topic Snapshot */}
+                <div>
+                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2 px-1">
+                    Topic Snapshot
+                  </h4>
+                  <ul className="space-y-2 px-1">
+                    <li className="flex items-center justify-between gap-1">
+                      <span className="text-xs text-muted-foreground">Difficulty</span>
+                      <span className="text-xs font-bold text-amber-600">★★★ Moderate</span>
+                    </li>
+                    <li className="flex items-center justify-between gap-1">
+                      <span className="text-xs text-muted-foreground">Exam Weight</span>
+                      <span className="text-xs font-bold text-red-600">High · JEE/NEET</span>
+                    </li>
+                    <li className="flex items-center justify-between gap-1">
+                      <span className="text-xs text-muted-foreground">Level</span>
+                      <span className="text-xs font-bold text-primary capitalize">{difficultyLevel}</span>
+                    </li>
+                  </ul>
+                </div>
+
+                {/* Quiz progress */}
+                {bitsAttempt && (
+                  <div>
+                    <h4 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2 px-1">
+                      Your Progress
+                    </h4>
+                    <div className="px-1 space-y-2">
+                      <div>
+                        <div className="flex justify-between text-xs mb-1">
+                          <span className="text-muted-foreground">Quiz score</span>
+                          <span className="font-bold text-foreground">
+                            {bitsAttempt.totalQuestions > 0
+                              ? `${Math.round((bitsAttempt.correctCount / bitsAttempt.totalQuestions) * 100)}%`
+                              : "0%"}
+                          </span>
+                        </div>
+                        <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-primary rounded-full"
+                            style={{
+                              width: bitsAttempt.totalQuestions > 0
+                                ? `${Math.round((bitsAttempt.correctCount / bitsAttempt.totalQuestions) * 100)}%`
+                                : "0%",
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Did You Know */}
+                {dbDidYouKnow && (
+                  <div className="bg-edu-yellow/10 border border-edu-yellow/30 rounded-xl p-3">
+                    <p className="text-[10px] font-extrabold text-edu-orange uppercase mb-1 tracking-wide">
+                      Did You Know?
+                    </p>
+                    <p className="text-[11px] text-foreground/80 leading-snug">{dbDidYouKnow}</p>
+                  </div>
+                )}
+              </div>
+            </aside>
+          )}
+
           <main className="flex-1 min-w-0">
-            <div className={`edu-card p-6 rounded-2xl border-2 shadow-lg ${mainCardBorderClass}`}>
+            <div data-theory-card className={`edu-card p-6 rounded-2xl border-2 shadow-lg ${mainCardBorderClass}`}>
               {isOverview ? (
                 <>
                   <div className="flex justify-end mb-3">
@@ -2414,7 +2582,7 @@ export default function TopicPage() {
             )}
           </main>
 
-          <aside className="w-full lg:w-80 xl:w-96 shrink-0">
+          <aside className="w-full lg:w-72 xl:w-80 shrink-0">
             <div className="lg:sticky lg:top-24 space-y-4">
               {isOverview && (
               <div className="edu-card p-5 rounded-2xl border border-border">
@@ -2511,7 +2679,547 @@ export default function TopicPage() {
                 </div>
               )}
 
-              {!isOverview && (
+              {/* PhysX 4-tab panel — wattless-current/advanced only */}
+              {!isOverview && isPhysXLayout && (
+                <Tabs defaultValue="instacue" className="w-full">
+                  <TabsList className="grid w-full grid-cols-4 mb-3">
+                    <TabsTrigger value="instacue" className="text-xs">+ InstaCue</TabsTrigger>
+                    <TabsTrigger value="quiz" className="text-xs">
+                      Quiz{dbBitsQuestions.length > 0 ? ` (${dbBitsQuestions.length})` : ""}
+                    </TabsTrigger>
+                    <TabsTrigger value="numerals" className="text-xs">Numerals</TabsTrigger>
+                    <TabsTrigger value="concepts" className="text-xs">Concepts</TabsTrigger>
+                  </TabsList>
+
+                  {/* Tab 1: InstaCue */}
+                  <TabsContent value="instacue" className="space-y-3 mt-0">
+                    <InstaCue
+                      cards={sidebarInstaCueCards}
+                      topicName={topicNode.topic}
+                      subtopicName={subtopicName}
+                      level={difficultyLevel as "basics" | "intermediate" | "advanced"}
+                      subject={topicNode.subject}
+                      classLevel={topicNode.classLevel}
+                      onAddCard={
+                        user
+                          ? (card) => {
+                              const id = `user-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+                              saveRevisionCard({
+                                ...card,
+                                id,
+                                board: (board === "icse" ? "ICSE" : "CBSE") as Board,
+                              } as Parameters<typeof saveRevisionCard>[0]);
+                              syncAllSavedContent().catch(() => {});
+                            }
+                          : undefined
+                      }
+                    />
+                    {canEditTheory && (
+                      <div className="flex flex-col items-end gap-1 -mt-2 mb-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="rounded-lg gap-1.5 text-xs font-bold text-primary disabled:opacity-50"
+                          title={
+                            hasDeepDiveForAiArtifacts
+                              ? "Runs the full pack: InstaCue cards, then Bits (MCQs), then practice formulas — same pipeline as Generate Subtopic AI step 2."
+                              : "Generate Deep Dive first, then run AI cards."
+                          }
+                          disabled={
+                            subtopicAiBlockedByTopicHub ||
+                            !hasDeepDiveForAiArtifacts ||
+                            generatingDeepDive ||
+                            generatingInstacue ||
+                            generatingBits ||
+                            generatingFormulas ||
+                            completingSubtopicAll
+                          }
+                          onClick={() => void runAiArtifactPipeline()}
+                        >
+                          {generatingInstacue || generatingBits || generatingFormulas ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Sparkles className="w-3.5 h-3.5" />
+                          )}
+                          {generatingFormulas
+                            ? "Generating formulas…"
+                            : generatingBits
+                              ? "Generating Bits…"
+                              : generatingInstacue
+                                ? "Generating InstaCue…"
+                                : dbInstacueCards.length > 0 || dbBitsQuestions.length > 0 || dbPracticeFormulas.length > 0
+                                  ? "Regenerate AI pack"
+                                  : "Generate InstaCue + Bits + Formulas"}
+                        </Button>
+                        {!hasDeepDiveForAiArtifacts && !generatingDeepDive && (
+                          <p className="text-[10px] text-muted-foreground text-right max-w-[14rem] leading-snug">
+                            Generate Deep Dive above, then use the AI pack button or Generate Subtopic AI.
+                          </p>
+                        )}
+                        {generatingDeepDive && (
+                          <p className="text-[10px] text-muted-foreground text-right max-w-[14rem] leading-snug">
+                            Deep Dive running — AI cards can be generated after it finishes.
+                          </p>
+                        )}
+                      </div>
+                    )}
+                    {canEditTheory && artifactRunLog.length > 0 && (
+                      <div className="mb-3 rounded-xl border border-dashed border-primary/40 bg-primary/5 p-3">
+                        <div className="flex items-center justify-between gap-2 mb-2">
+                          <p className="text-[11px] font-extrabold uppercase tracking-wide text-primary">
+                            Behind the scenes · AI artifacts (manual run)
+                          </p>
+                          <span
+                            className={`text-[11px] font-bold ${
+                              artifactRunStatus === "running"
+                                ? "text-blue-700 dark:text-blue-300"
+                                : artifactRunStatus === "success"
+                                  ? "text-green-700 dark:text-green-300"
+                                  : artifactRunStatus === "partial"
+                                    ? "text-amber-700 dark:text-amber-300"
+                                    : artifactRunStatus === "failed"
+                                      ? "text-red-700 dark:text-red-300"
+                                      : "text-muted-foreground"
+                            }`}
+                          >
+                            {artifactRunStatus === "running"
+                              ? "Running"
+                              : artifactRunStatus === "success"
+                                ? "Completed"
+                                : artifactRunStatus === "partial"
+                                  ? "Partial"
+                                  : artifactRunStatus === "failed"
+                                    ? "Failed"
+                                    : "Idle"}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground mb-2">
+                          Last run: {artifactLastRunAt ?? "—"} · Current data: InstaCue {dbInstacueCards.length}, Bits{" "}
+                          {dbBitsQuestions.length}, Practice Formulas {dbPracticeFormulas.length}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground mb-2 leading-snug">
+                          Manual run: <span className="font-semibold text-foreground">Generate InstaCue + Bits + Formulas</span>{" "}
+                          or <span className="font-semibold text-foreground">Generate Subtopic AI</span> (or section buttons). Step
+                          delay:{" "}
+                          <span className="font-mono text-foreground/80">ARTIFACT_PIPELINE_BETWEEN_STEPS_MS</span>.
+                        </p>
+                        <div className="rounded-lg border border-border bg-background/80 p-2 max-h-44 overflow-y-auto">
+                          <ul className="space-y-1">
+                            {artifactRunLog.map((line, idx) => (
+                              <li key={`${line}-${idx}`} className="text-[11px] text-foreground/90 font-mono break-words">
+                                {line}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+                    )}
+                  </TabsContent>
+
+                  {/* Tab 2: Quiz — intro card + Dialog popup */}
+                  <TabsContent value="quiz" className="space-y-3 mt-0">
+                    {canEditTheory && (
+                      <div className="flex justify-end">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="rounded-lg gap-1.5 text-xs font-bold text-primary disabled:opacity-50"
+                          disabled={
+                            subtopicAiBlockedByTopicHub ||
+                            !hasDeepDiveForAiArtifacts ||
+                            generatingDeepDive ||
+                            generatingInstacue ||
+                            generatingBits ||
+                            generatingFormulas ||
+                            completingSubtopicAll
+                          }
+                          onClick={() => void runBitsOnly()}
+                        >
+                          {generatingBits ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                          {generatingBits ? "Generating Bits..." : dbBitsQuestions.length > 0 ? "Regenerate Bits" : "Generate Bits"}
+                        </Button>
+                      </div>
+                    )}
+
+                    {dbBitsQuestions.length === 0 ? (
+                      <div className="py-6 text-center">
+                        <p className="text-sm text-muted-foreground mb-3">No quiz questions yet for this subtopic.</p>
+                        <p className="text-xs text-muted-foreground">
+                          First run <span className="font-semibold text-foreground">Generate Deep Dive</span> so theory is
+                          saved to Supabase, then generate quiz questions.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="edu-card p-4 rounded-xl border border-border space-y-3">
+                        <div>
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Topic Quiz</p>
+                          <p className="font-bold text-sm text-foreground leading-snug">
+                            <MathText>{displaySubtopicTitle}</MathText>
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-blue-500/15 text-blue-700 dark:text-blue-300">
+                            {topicNode?.subject ?? "Subject"}
+                          </span>
+                          <span className="text-xs text-muted-foreground">{topicNode?.topic ?? "Topic"}</span>
+                        </div>
+                        <ul className="space-y-1.5 text-xs divide-y divide-border/40">
+                          <li className="flex justify-between py-1">
+                            <span className="text-muted-foreground">Questions</span>
+                            <span className="font-bold text-foreground">{dbBitsQuestions.length} MCQs</span>
+                          </li>
+                          <li className="flex justify-between py-1">
+                            <span className="text-muted-foreground">Level</span>
+                            <span className="font-bold text-foreground capitalize">{difficultyLevel}</span>
+                          </li>
+                          {bitsAttempt && (
+                            <li className="flex justify-between py-1">
+                              <span className="text-muted-foreground">Last score</span>
+                              <span className="font-bold text-green-700 dark:text-green-300">
+                                {Math.round((bitsAttempt.correctCount / bitsAttempt.totalQuestions) * 100)}% · {bitsAttempt.correctCount}/{bitsAttempt.totalQuestions}
+                              </span>
+                            </li>
+                          )}
+                        </ul>
+                        <Button
+                          className="w-full rounded-xl edu-btn-primary text-sm font-bold"
+                          onClick={() => {
+                            setBitsCurrentIdx(0);
+                            setBitsSelectedAnswers({});
+                            setBitsReviewMode(false);
+                            setBitsDialogOpen(true);
+                          }}
+                        >
+                          Start Quiz →
+                        </Button>
+                        {bitsAttempt && (
+                          <button
+                            type="button"
+                            className="w-full text-xs text-primary hover:underline text-center"
+                            onClick={() => {
+                              const selected: Record<number, number> = {};
+                              for (const [k, v] of Object.entries(bitsAttempt.selectedAnswers)) {
+                                const idx = Number(k);
+                                if (Number.isInteger(idx)) selected[idx] = v;
+                              }
+                              setBitsSelectedAnswers(selected);
+                              setBitsCurrentIdx(0);
+                              setBitsReviewMode(true);
+                              setBitsDialogOpen(true);
+                            }}
+                          >
+                            Review previous answers
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Quiz Dialog */}
+                    <Dialog
+                      open={bitsDialogOpen}
+                      onOpenChange={(open) => {
+                        setBitsDialogOpen(open);
+                        if (!open) {
+                          setBitsCurrentIdx(0);
+                          setBitsSelectedAnswers({});
+                          setBitsReviewMode(false);
+                        }
+                      }}
+                    >
+                      <DialogContent className="max-w-2xl max-h-[82vh] overflow-y-auto">
+                        <DialogHeader className="space-y-1">
+                          <DialogTitle className="text-[1.05rem] font-bold tracking-tight leading-snug text-foreground pr-8">
+                            Topic Quiz —{" "}
+                            <MathText as="span" weight="semibold" className="font-semibold">
+                              {displaySubtopicTitle}
+                            </MathText>
+                          </DialogTitle>
+                          <DialogDescription className="text-xs">Test your understanding</DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-3">
+                          {!bitsReviewMode && bitsAttempt ? (
+                            <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
+                              <p className="text-lg font-bold text-foreground">Previous submission found</p>
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                <div className="rounded-xl bg-green-500/10 border border-green-500/30 p-3">
+                                  <p className="text-xs text-muted-foreground">Correct</p>
+                                  <p className="text-xl font-bold text-green-700 dark:text-green-300">{bitsAttempt.correctCount}</p>
+                                </div>
+                                <div className="rounded-xl bg-destructive/10 border border-destructive/30 p-3">
+                                  <p className="text-xs text-muted-foreground">Wrong</p>
+                                  <p className="text-xl font-bold text-destructive">{bitsAttempt.wrongCount}</p>
+                                </div>
+                                <div className="rounded-xl bg-muted border border-border p-3">
+                                  <p className="text-xs text-muted-foreground">Score</p>
+                                  <p className="text-xl font-bold text-foreground">
+                                    {bitsAttempt.totalQuestions > 0
+                                      ? `${Math.round((bitsAttempt.correctCount / bitsAttempt.totalQuestions) * 100)}%`
+                                      : "0%"}
+                                  </p>
+                                </div>
+                              </div>
+                              <p className="text-xs text-muted-foreground">
+                                Submitted on {new Date(bitsAttempt.submittedAt).toLocaleString()}
+                              </p>
+                              <div className="flex items-center justify-between gap-2 pt-1">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="rounded-xl h-8 px-3 text-xs"
+                                  onClick={() => {
+                                    const selected: Record<number, number> = {};
+                                    for (const [k, v] of Object.entries(bitsAttempt.selectedAnswers)) {
+                                      const idx = Number(k);
+                                      if (Number.isInteger(idx)) selected[idx] = v;
+                                    }
+                                    setBitsSelectedAnswers(selected);
+                                    setBitsCurrentIdx(0);
+                                    setBitsReviewMode(true);
+                                  }}
+                                >
+                                  Review submitted answers
+                                </Button>
+                                <Button
+                                  variant="default"
+                                  size="sm"
+                                  className="rounded-xl h-8 px-3 text-xs"
+                                  onClick={() => {
+                                    setBitsSelectedAnswers({});
+                                    setBitsCurrentIdx(0);
+                                    setBitsReviewMode(true);
+                                  }}
+                                >
+                                  Take test another time
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (() => {
+                            const q = dbBitsQuestions[bitsCurrentIdx];
+                            if (!q) return null;
+                            const selected = bitsSelectedAnswers[bitsCurrentIdx];
+                            const answered = typeof selected === "number";
+                            const isCorrectSelection = answered && q.options[selected] === q.correctAnswer;
+                            const useTwoColumns = shouldUseTwoColumnOptions(q.options);
+                            return (
+                              <>
+                                <div className="flex items-center justify-center">
+                                  <span className="text-xs font-semibold text-muted-foreground" aria-live="polite">
+                                    Question {bitsCurrentIdx + 1} of {dbBitsQuestions.length}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-blue-500/15 text-blue-700 dark:text-blue-300">
+                                    {topicNode?.subject ?? "Subject"}
+                                  </span>
+                                  <span className="text-xs font-medium text-foreground/80">
+                                    {topicNode?.topic ?? "Topic"}
+                                  </span>
+                                </div>
+                                <div className="rounded-2xl border border-border p-4 space-y-3 bg-card">
+                                  <h3 className="text-[1.05rem] font-bold leading-snug text-foreground">
+                                    <MathText>{q.question}</MathText>
+                                  </h3>
+                                  <div
+                                    className={useTwoColumns ? "grid grid-cols-1 sm:grid-cols-2 gap-2" : "space-y-2"}
+                                    role="radiogroup"
+                                    aria-label={`Answers for question ${bitsCurrentIdx + 1}`}
+                                  >
+                                    {q.options.map((opt, oi) => {
+                                      const isCorrect = opt === q.correctAnswer;
+                                      let cls = "bg-muted/70 hover:bg-muted text-foreground border-border";
+                                      if (answered) {
+                                        if (isCorrect) cls = "bg-green-500/12 border-green-500 text-foreground";
+                                        else if (selected === oi && !isCorrectSelection) cls = "bg-destructive/10 border-destructive text-foreground";
+                                        else cls = "bg-muted/60 text-muted-foreground border-border";
+                                      }
+                                      return (
+                                        <button
+                                          key={oi}
+                                          type="button"
+                                          disabled={answered}
+                                          onClick={() => setBitsSelectedAnswers((prev) => ({ ...prev, [bitsCurrentIdx]: oi }))}
+                                          role="radio"
+                                          aria-checked={selected === oi}
+                                          className={`w-full text-left px-3 py-2 rounded-xl text-sm border transition-colors flex items-center gap-2.5 ${cls}`}
+                                        >
+                                          <span className="w-7 h-7 rounded-full bg-background/90 flex items-center justify-center text-sm shrink-0 font-bold">
+                                            {String.fromCharCode(65 + oi)}
+                                          </span>
+                                          <MathText>{opt}</MathText>
+                                          {answered && isCorrect && <CheckCircle2 className="inline w-4 h-4 ml-auto text-green-600" />}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                  <div className="flex items-center justify-between gap-2 pt-1">
+                                    <Button
+                                      variant="outline" size="sm"
+                                      className="rounded-xl h-8 px-3 text-xs min-w-24"
+                                      onClick={() => setBitsCurrentIdx((i) => Math.max(0, i - 1))}
+                                      disabled={bitsCurrentIdx === 0}
+                                    >
+                                      <ChevronLeft className="w-4 h-4 mr-1" /> Previous
+                                    </Button>
+                                    <Button
+                                      variant={bitsCurrentIdx === dbBitsQuestions.length - 1 ? "default" : "outline"}
+                                      size="sm"
+                                      className="rounded-xl h-8 px-3 text-xs min-w-24"
+                                      onClick={async () => {
+                                        if (bitsCurrentIdx < dbBitsQuestions.length - 1) {
+                                          setBitsCurrentIdx((i) => Math.min(dbBitsQuestions.length - 1, i + 1));
+                                          return;
+                                        }
+                                        const total = dbBitsQuestions.length;
+                                        const answeredCount = Object.keys(bitsSelectedAnswers).length;
+                                        if (answeredCount < total) {
+                                          toast({ title: "Answer all questions before submit", description: `${answeredCount}/${total} answered` });
+                                          return;
+                                        }
+                                        const correctCount = dbBitsQuestions.reduce((acc, item, idx) => {
+                                          const si = bitsSelectedAnswers[idx];
+                                          if (typeof si !== "number") return acc;
+                                          return item.options[si] === item.correctAnswer ? acc + 1 : acc;
+                                        }, 0);
+                                        const wrongCount = total - correctCount;
+                                        if (!topicNode || !subtopicName) return;
+                                        const boardName = (board === "icse" ? "ICSE" : "CBSE") as Board;
+                                        const payload: BitsAttemptRecord = {
+                                          board: boardName, subject: topicNode.subject, classLevel: topicNode.classLevel,
+                                          topic: topicNode.topic, subtopicName, level: difficultyLevel, bitsSignature,
+                                          totalQuestions: total, correctCount, wrongCount,
+                                          selectedAnswers: Object.fromEntries(Object.entries(bitsSelectedAnswers).map(([k, v]) => [String(k), v])),
+                                          submittedAt: new Date().toISOString(),
+                                        };
+                                        setSubmittingBits(true);
+                                        try {
+                                          const persisted = await saveBitsAttempt(payload);
+                                          setBitsAttempt(persisted);
+                                          setBitsReviewMode(false);
+                                          toast({ title: "Quiz submitted", description: `Correct: ${correctCount}, Wrong: ${wrongCount}` });
+                                        } catch {
+                                          toast({ title: "Failed to save result", description: "Please retry submit.", variant: "destructive" });
+                                        } finally {
+                                          setSubmittingBits(false);
+                                        }
+                                      }}
+                                      disabled={submittingBits || (bitsCurrentIdx === dbBitsQuestions.length - 1 && Object.keys(bitsSelectedAnswers).length < dbBitsQuestions.length)}
+                                    >
+                                      {bitsCurrentIdx === dbBitsQuestions.length - 1
+                                        ? submittingBits ? <><Loader2 className="w-4 h-4 mr-1 animate-spin" /> Submitting</> : "Submit"
+                                        : <>Next <ChevronRight className="w-4 h-4 ml-1" /></>}
+                                    </Button>
+                                  </div>
+                                  {answered && q.solution && (
+                                    <div className="mt-2 p-3 rounded-xl bg-muted/50 text-sm text-muted-foreground">
+                                      <p className="font-bold text-foreground mb-1">Explanation</p>
+                                      <MathText>{q.solution}</MathText>
+                                    </div>
+                                  )}
+                                </div>
+                              </>
+                            );
+                          })()}
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                  </TabsContent>
+
+                  {/* Tab 3: Numerals */}
+                  <TabsContent value="numerals" className="space-y-3 mt-0">
+                    {canEditTheory && (
+                      <div className="flex justify-end mb-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="rounded-lg gap-1.5 text-xs font-bold text-primary disabled:opacity-50"
+                          disabled={
+                            subtopicAiBlockedByTopicHub ||
+                            !hasDeepDiveForAiArtifacts ||
+                            generatingDeepDive ||
+                            generatingInstacue ||
+                            generatingBits ||
+                            generatingFormulas ||
+                            completingSubtopicAll
+                          }
+                          onClick={() => void runFormulasOnly()}
+                        >
+                          {generatingFormulas ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Sparkles className="w-3.5 h-3.5" />
+                          )}
+                          {generatingFormulas
+                            ? "Generating Formulas..."
+                            : dbPracticeFormulas.length > 0
+                              ? "Regenerate Practice Formulas"
+                              : "Generate Practice Formulas"}
+                        </Button>
+                      </div>
+                    )}
+                    {dbPracticeFormulas.length === 0 ? (
+                      <div className="py-6 text-center">
+                        <p className="text-sm text-muted-foreground">No numerals yet for this subtopic.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {dbPracticeFormulas.map((formula, i) => (
+                          <div key={i} className="edu-card p-3 rounded-xl border border-border/60">
+                            <p className="text-[10px] font-extrabold text-primary uppercase mb-1">
+                              Numeral {i + 1}
+                            </p>
+                            <p className="font-bold text-sm mb-1">{formula.name}</p>
+                            <p className="text-xs text-muted-foreground mb-2 line-clamp-2">{formula.description}</p>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedFormulaIdx(i);
+                                setFormulasDialogOpen(true);
+                              }}
+                              className="text-primary text-xs font-bold hover:underline"
+                            >
+                              Try this →
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </TabsContent>
+
+                  {/* Tab 4: Concepts */}
+                  <TabsContent value="concepts" className="mt-0">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">
+                      Key Concepts
+                    </p>
+                    {conceptCards.length === 0 ? (
+                      <div className="py-6 text-center">
+                        <p className="text-sm text-muted-foreground">No concept cards yet for this subtopic.</p>
+                      </div>
+                    ) : (
+                      <div
+                        ref={conceptsScrollRef}
+                        className="space-y-2 overflow-y-auto no-scrollbar"
+                        style={{ maxHeight: "calc(100vh - 220px)" }}
+                        onMouseEnter={() => { conceptsHoveredRef.current = true; }}
+                        onMouseLeave={() => { conceptsHoveredRef.current = false; }}
+                      >
+                        {conceptCards.map((card) => (
+                          <div key={card.id} className="edu-card p-3 rounded-xl border border-border/60">
+                            <p className="text-xs font-bold text-primary mb-1">
+                              <MathText>{card.frontContent}</MathText>
+                            </p>
+                            <p className="text-xs text-foreground/80">
+                              <MathText>{card.backContent}</MathText>
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </TabsContent>
+                </Tabs>
+              )}
+
+              {/* Original layout — all other subtopics */}
+              {!isOverview && !isPhysXLayout && (
                 <>
                   {/* InstaCue Section */}
                   <InstaCue
@@ -2536,7 +3244,6 @@ export default function TopicPage() {
                     }
                   />
 
-                  {/* AI Generate InstaCue Cards (admin only): visible always; enabled after Deep Dive is saved to Supabase */}
                   {canEditTheory && (
                     <div className="flex flex-col items-end gap-1 -mt-2 mb-1">
                       <Button
@@ -2640,7 +3347,6 @@ export default function TopicPage() {
 
                   {/* Bits & Formulas Section */}
                   <section className="edu-card rounded-2xl p-4 border border-border space-y-4">
-                    {/* --- Bits (MCQs) --- */}
                     <div>
                       <p className="text-sm font-medium text-foreground mb-2">
                         Want to recall what you&apos;ve read?
@@ -2779,14 +3485,10 @@ export default function TopicPage() {
                                 return (
                                   <>
                                     <div className="flex items-center justify-center">
-                                      <span
-                                        className="text-xs font-semibold text-muted-foreground"
-                                        aria-live="polite"
-                                      >
+                                      <span className="text-xs font-semibold text-muted-foreground" aria-live="polite">
                                         Question {bitsCurrentIdx + 1} of {dbBitsQuestions.length}
                                       </span>
                                     </div>
-
                                     <div className="flex items-center gap-1.5">
                                       <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-blue-500/15 text-blue-700 dark:text-blue-300">
                                         {topicNode?.subject ?? "Subject"}
@@ -2795,7 +3497,6 @@ export default function TopicPage() {
                                         {topicNode?.topic ?? "Topic"}
                                       </span>
                                     </div>
-
                                     <div className="rounded-2xl border border-border p-4 space-y-3 bg-card">
                                       <h3 className="text-[1.05rem] font-bold leading-snug text-foreground">
                                         <MathText>{q.question}</MathText>
@@ -2919,16 +3620,12 @@ export default function TopicPage() {
                                         >
                                           {bitsCurrentIdx === dbBitsQuestions.length - 1 ? (
                                             submittingBits ? (
-                                              <>
-                                                <Loader2 className="w-4 h-4 mr-1 animate-spin" /> Submitting
-                                              </>
+                                              <><Loader2 className="w-4 h-4 mr-1 animate-spin" /> Submitting</>
                                             ) : (
                                               "Submit"
                                             )
                                           ) : (
-                                            <>
-                                              Next <ChevronRight className="w-4 h-4 ml-1" />
-                                            </>
+                                            <>Next <ChevronRight className="w-4 h-4 ml-1" /></>
                                           )}
                                         </Button>
                                       </div>
@@ -2953,7 +3650,6 @@ export default function TopicPage() {
                       )}
                     </div>
 
-                    {/* --- Practice Formulas --- */}
                     <div>
                       <p className="text-sm font-medium text-foreground mb-2">
                         Want to practice formulas?
@@ -2988,261 +3684,18 @@ export default function TopicPage() {
                           </Button>
                         </div>
                       )}
-                      <Dialog
-                        open={formulasDialogOpen}
-                        onOpenChange={(open) => {
-                          setFormulasDialogOpen(open);
-                          if (!open) {
-                            setSelectedFormulaIdx(null);
-                            setFormulaBitsCurrentIdx(0);
-                            setFormulaBitsSelectedAnswers({});
-                            setFormulaQuestionsOverride({});
-                          }
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full rounded-xl gap-2 font-bold border-primary/40 text-primary"
+                        onClick={() => {
+                          setSelectedFormulaIdx(null);
+                          setFormulasDialogOpen(true);
                         }}
                       >
-                        <DialogTrigger asChild>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="w-full rounded-xl gap-2 font-bold border-primary/40 text-primary"
-                          >
-                            <Calculator className="w-4 h-4" />
-                            Practice Formulas{practiceFormulasForUi.length > 0 ? ` (${practiceFormulasForUi.length})` : ""}
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-                          <DialogHeader>
-                            <DialogTitle>
-                              {selectedFormulaIdx === null
-                                ? "Which formula do you want to practice?"
-                                : practiceFormulasForUi[selectedFormulaIdx]?.name ?? "Practice Formula"}
-                            </DialogTitle>
-                            <DialogDescription asChild>
-                              <div className="text-sm text-muted-foreground">
-                                {selectedFormulaIdx === null ? (
-                                  <>
-                                    <span className="text-muted-foreground">Formulas from </span>
-                                    <MathText className="inline text-foreground [&_.katex]:text-[1em]">
-                                      {displaySubtopicTitle}
-                                    </MathText>
-                                  </>
-                                ) : (
-                                  "Practice questions in the same Bits structure"
-                                )}
-                              </div>
-                            </DialogDescription>
-                          </DialogHeader>
-                          {practiceFormulasForUi.length === 0 ? (
-                            <div className="py-6 text-center">
-                              <p className="text-sm text-muted-foreground mb-3">No formulas generated yet for this subtopic.</p>
-                              <p className="text-xs text-muted-foreground">
-                                First run <span className="font-semibold text-foreground">Generate Deep Dive</span>, then{" "}
-                                <span className="font-semibold text-foreground">Generate Practice Formulas</span> to generate
-                                formula practice.
-                              </p>
-                            </div>
-                          ) : selectedFormulaIdx === null ? (
-                            <div className="space-y-4">
-                              {practiceFormulasForUi.map((f, fi) => (
-                                <button
-                                  key={fi}
-                                  type="button"
-                                  className="w-full text-left rounded-2xl border border-border p-4 space-y-2 hover:border-primary/50 hover:bg-muted/20 transition-colors"
-                                  onClick={() => {
-                                    setSelectedFormulaIdx(fi);
-                                    setFormulaBitsCurrentIdx(0);
-                                    setFormulaBitsSelectedAnswers({});
-                                  }}
-                                >
-                                  <p className="text-lg font-bold text-foreground">{f.name}</p>
-                                  <p className="text-sm text-muted-foreground [&_.katex]:text-[0.95em]">
-                                    <MathText>{f.description}</MathText>
-                                  </p>
-                                  <div className="rounded-lg bg-muted/60 px-3 py-2 text-primary overflow-x-auto [&_.katex]:text-[1.05em]">
-                                    <MathText>{`$$${stripFormulaDelimiters(f.formulaLatex)}$$`}</MathText>
-                                  </div>
-                                  <p className="text-sm text-muted-foreground">
-                                    {f.bitsQuestions?.length ?? 0} question{(f.bitsQuestions?.length ?? 0) !== 1 ? "s" : ""}
-                                  </p>
-                                </button>
-                              ))}
-                            </div>
-                          ) : (
-                            (() => {
-                              const formula = practiceFormulasForUi[selectedFormulaIdx];
-                              if (!formula) return null;
-                              const formulaQuestions = formulaQuestionsOverride[selectedFormulaIdx] ?? formula.bitsQuestions ?? [];
-                              const q = formulaQuestions[formulaBitsCurrentIdx];
-                              if (!q) {
-                                return (
-                                  <div className="py-6 text-center text-sm text-muted-foreground">
-                                    No practice questions available for this formula.
-                                  </div>
-                                );
-                              }
-                              const selected = formulaBitsSelectedAnswers[formulaBitsCurrentIdx];
-                              const answered = typeof selected === "number";
-                              const isCorrectSelection = answered && q.options[selected] === q.correctAnswer;
-                              const useTwoColumns = shouldUseTwoColumnOptions(q.options);
-
-                              return (
-                                <div className="space-y-4">
-                                  <button
-                                    type="button"
-                                    className="inline-flex items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-foreground"
-                                    onClick={() => {
-                                      setSelectedFormulaIdx(null);
-                                      setFormulaBitsCurrentIdx(0);
-                                      setFormulaBitsSelectedAnswers({});
-                                    }}
-                                  >
-                                    <ArrowLeft className="w-4 h-4" />
-                                    Back to Formulas
-                                  </button>
-                                  <p className="text-sm text-muted-foreground [&_.katex]:text-[0.95em]">
-                                    <MathText>{formula.description}</MathText>
-                                  </p>
-                                  <div className="rounded-lg bg-muted/60 px-3 py-2 text-primary overflow-x-auto [&_.katex]:text-[1.05em]">
-                                    <MathText>{`$$${stripFormulaDelimiters(formula.formulaLatex)}$$`}</MathText>
-                                  </div>
-
-                                  <div className="flex items-center gap-1.5">
-                                    <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-blue-500/15 text-blue-700 dark:text-blue-300">
-                                      {topicNode?.subject ?? "Subject"}
-                                    </span>
-                                    <span className="text-xs font-medium text-foreground/80">
-                                      {topicNode?.topic ?? "Topic"}
-                                    </span>
-                                  </div>
-
-                                  <div className="rounded-2xl border border-border p-4 space-y-3 bg-card">
-                                    <h3 className="text-[1.05rem] font-bold leading-snug text-foreground">
-                                      <MathText>{q.question}</MathText>
-                                    </h3>
-                                    <div
-                                      className={useTwoColumns ? "grid grid-cols-1 sm:grid-cols-2 gap-2" : "space-y-2"}
-                                      role="radiogroup"
-                                      aria-label={`Formula answers for question ${formulaBitsCurrentIdx + 1}`}
-                                    >
-                                      {q.options.map((opt, oi) => {
-                                        const isCorrect = opt === q.correctAnswer;
-                                        let cls = "bg-muted/70 hover:bg-muted text-foreground border-border";
-                                        if (answered) {
-                                          if (isCorrect) cls = "bg-green-500/12 border-green-500 text-foreground";
-                                          else if (selected === oi && !isCorrectSelection) cls = "bg-destructive/10 border-destructive text-foreground";
-                                          else cls = "bg-muted/60 text-muted-foreground border-border";
-                                        }
-                                        return (
-                                          <button
-                                            key={oi}
-                                            type="button"
-                                            disabled={answered}
-                                            onClick={() =>
-                                              setFormulaBitsSelectedAnswers((prev) => ({
-                                                ...prev,
-                                                [formulaBitsCurrentIdx]: oi,
-                                              }))
-                                            }
-                                            className={`w-full text-left px-3 py-2 rounded-xl text-sm border transition-colors flex items-center gap-2.5 ${cls}`}
-                                          >
-                                            <span className="w-7 h-7 rounded-full bg-background/90 flex items-center justify-center text-sm shrink-0 font-bold">
-                                              {String.fromCharCode(65 + oi)}
-                                            </span>
-                                            <MathText>{opt}</MathText>
-                                            {answered && isCorrect && (
-                                              <CheckCircle2 className="inline w-4 h-4 ml-auto text-green-600" />
-                                            )}
-                                          </button>
-                                        );
-                                      })}
-                                    </div>
-                                    {answered && q.solution && (
-                                      <div className="mt-2 p-3 rounded-xl bg-muted/50 text-sm text-muted-foreground">
-                                        <p className="font-bold text-foreground mb-1">Explanation</p>
-                                        <MathText>{q.solution}</MathText>
-                                      </div>
-                                    )}
-                                    <div className="space-y-2 pt-1">
-                                      <div className="flex items-center justify-between gap-2">
-                                        <Button
-                                          variant="outline"
-                                          size="sm"
-                                          className="rounded-full h-9 px-3 text-xs min-w-24"
-                                          onClick={() => setFormulaBitsCurrentIdx((i) => Math.max(0, i - 1))}
-                                          disabled={formulaBitsCurrentIdx === 0}
-                                        >
-                                          <ChevronLeft className="w-4 h-4 mr-1" /> Previous
-                                        </Button>
-                                        <span className="text-xs font-semibold text-muted-foreground">
-                                          Question {formulaBitsCurrentIdx + 1} of {formulaQuestions.length}
-                                        </span>
-                                        <Button
-                                          variant="outline"
-                                          size="sm"
-                                          className="rounded-full h-9 px-3 text-xs min-w-24"
-                                          onClick={() => setFormulaBitsCurrentIdx((i) => Math.min(formulaQuestions.length - 1, i + 1))}
-                                          disabled={formulaBitsCurrentIdx === formulaQuestions.length - 1}
-                                        >
-                                          Next <ChevronRight className="w-4 h-4 ml-1" />
-                                        </Button>
-                                      </div>
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="w-full max-w-[620px] mx-auto rounded-full h-10 gap-2 font-semibold border-primary/40 text-primary hover:bg-primary/10"
-                                        onClick={async () => {
-                                          const next = regenerateFormulaBitsAlgorithmic(
-                                            formula.name,
-                                            formula.bitsQuestions ?? []
-                                          );
-                                          if (next.length > 0) {
-                                            const updatedFormulas = practiceFormulasForUi.map((f, i) =>
-                                              i === selectedFormulaIdx ? { ...f, bitsQuestions: next } : f
-                                            );
-                                            setFormulaQuestionsOverride((prev) => ({
-                                              ...prev,
-                                              [selectedFormulaIdx]: next,
-                                            }));
-                                            setDbPracticeFormulas(updatedFormulas);
-                                            setFormulaBitsCurrentIdx(0);
-                                            setFormulaBitsSelectedAnswers({});
-                                            try {
-                                              if (topicNode && subtopicName) {
-                                                await saveFormulaPractice({
-                                                  board: (board === "icse" ? "ICSE" : "CBSE") as Board,
-                                                  subject: topicNode.subject as Subject,
-                                                  classLevel: topicNode.classLevel as 11 | 12,
-                                                  topic: topicNode.topic,
-                                                  subtopicName,
-                                                  level: difficultyLevel,
-                                                  practiceFormulas: updatedFormulas,
-                                                });
-                                              }
-                                              toast({
-                                                title: "Regenerated and saved",
-                                                description: "Stored in Supabase. Reopening will show this updated set.",
-                                              });
-                                            } catch (e) {
-                                              toast({
-                                                title: e instanceof Error ? e.message : "Save failed",
-                                                description: "Regenerated locally, but Supabase save failed.",
-                                                variant: "destructive",
-                                              });
-                                            }
-                                          }
-                                        }}
-                                      >
-                                        <RefreshCw className="w-4 h-4" />
-                                        Regenerate
-                                      </Button>
-                                    </div>
-                                  </div>
-                                </div>
-                              );
-                            })()
-                          )}
-                        </DialogContent>
-                      </Dialog>
+                        <Calculator className="w-4 h-4" />
+                        Practice Formulas{practiceFormulasForUi.length > 0 ? ` (${practiceFormulasForUi.length})` : ""}
+                      </Button>
                       {practiceFormulasForUi.length === 0 && !canEditTheory && (
                         <p className="text-xs text-muted-foreground mt-2">
                           No formulas data yet for this subtopic and level.
@@ -3252,6 +3705,253 @@ export default function TopicPage() {
                   </section>
                 </>
               )}
+
+              {/* Formulas Dialog — opened programmatically from Numerals tab */}
+              <Dialog
+                open={formulasDialogOpen}
+                onOpenChange={(open) => {
+                  setFormulasDialogOpen(open);
+                  if (!open) {
+                    setSelectedFormulaIdx(null);
+                    setFormulaBitsCurrentIdx(0);
+                    setFormulaBitsSelectedAnswers({});
+                    setFormulaQuestionsOverride({});
+                  }
+                }}
+              >
+                <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>
+                      {selectedFormulaIdx === null
+                        ? "Which formula do you want to practice?"
+                        : practiceFormulasForUi[selectedFormulaIdx]?.name ?? "Practice Formula"}
+                    </DialogTitle>
+                    <DialogDescription asChild>
+                      <div className="text-sm text-muted-foreground">
+                        {selectedFormulaIdx === null ? (
+                          <>
+                            <span className="text-muted-foreground">Formulas from </span>
+                            <MathText className="inline text-foreground [&_.katex]:text-[1em]">
+                              {displaySubtopicTitle}
+                            </MathText>
+                          </>
+                        ) : (
+                          "Practice questions in the same Bits structure"
+                        )}
+                      </div>
+                    </DialogDescription>
+                  </DialogHeader>
+                  {practiceFormulasForUi.length === 0 ? (
+                    <div className="py-6 text-center">
+                      <p className="text-sm text-muted-foreground mb-3">No formulas generated yet for this subtopic.</p>
+                      <p className="text-xs text-muted-foreground">
+                        First run <span className="font-semibold text-foreground">Generate Deep Dive</span>, then{" "}
+                        <span className="font-semibold text-foreground">Generate Practice Formulas</span> to generate
+                        formula practice.
+                      </p>
+                    </div>
+                  ) : selectedFormulaIdx === null ? (
+                    <div className="space-y-4">
+                      {practiceFormulasForUi.map((f, fi) => (
+                        <button
+                          key={fi}
+                          type="button"
+                          className="w-full text-left rounded-2xl border border-border p-4 space-y-2 hover:border-primary/50 hover:bg-muted/20 transition-colors"
+                          onClick={() => {
+                            setSelectedFormulaIdx(fi);
+                            setFormulaBitsCurrentIdx(0);
+                            setFormulaBitsSelectedAnswers({});
+                          }}
+                        >
+                          <p className="text-lg font-bold text-foreground">{f.name}</p>
+                          <p className="text-sm text-muted-foreground [&_.katex]:text-[0.95em]">
+                            <MathText>{f.description}</MathText>
+                          </p>
+                          <div className="rounded-lg bg-muted/60 px-3 py-2 text-primary overflow-x-auto [&_.katex]:text-[1.05em]">
+                            <MathText>{`$$${stripFormulaDelimiters(f.formulaLatex)}$$`}</MathText>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            {f.bitsQuestions?.length ?? 0} question{(f.bitsQuestions?.length ?? 0) !== 1 ? "s" : ""}
+                          </p>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    (() => {
+                      const formula = practiceFormulasForUi[selectedFormulaIdx];
+                      if (!formula) return null;
+                      const formulaQuestions = formulaQuestionsOverride[selectedFormulaIdx] ?? formula.bitsQuestions ?? [];
+                      const q = formulaQuestions[formulaBitsCurrentIdx];
+                      if (!q) {
+                        return (
+                          <div className="py-6 text-center text-sm text-muted-foreground">
+                            No practice questions available for this formula.
+                          </div>
+                        );
+                      }
+                      const selected = formulaBitsSelectedAnswers[formulaBitsCurrentIdx];
+                      const answered = typeof selected === "number";
+                      const isCorrectSelection = answered && q.options[selected] === q.correctAnswer;
+                      const useTwoColumns = shouldUseTwoColumnOptions(q.options);
+
+                      return (
+                        <div className="space-y-4">
+                          <button
+                            type="button"
+                            className="inline-flex items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-foreground"
+                            onClick={() => {
+                              setSelectedFormulaIdx(null);
+                              setFormulaBitsCurrentIdx(0);
+                              setFormulaBitsSelectedAnswers({});
+                            }}
+                          >
+                            <ArrowLeft className="w-4 h-4" />
+                            Back to Formulas
+                          </button>
+                          <p className="text-sm text-muted-foreground [&_.katex]:text-[0.95em]">
+                            <MathText>{formula.description}</MathText>
+                          </p>
+                          <div className="rounded-lg bg-muted/60 px-3 py-2 text-primary overflow-x-auto [&_.katex]:text-[1.05em]">
+                            <MathText>{`$$${stripFormulaDelimiters(formula.formulaLatex)}$$`}</MathText>
+                          </div>
+
+                          <div className="flex items-center gap-1.5">
+                            <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-blue-500/15 text-blue-700 dark:text-blue-300">
+                              {topicNode?.subject ?? "Subject"}
+                            </span>
+                            <span className="text-xs font-medium text-foreground/80">
+                              {topicNode?.topic ?? "Topic"}
+                            </span>
+                          </div>
+
+                          <div className="rounded-2xl border border-border p-4 space-y-3 bg-card">
+                            <h3 className="text-[1.05rem] font-bold leading-snug text-foreground">
+                              <MathText>{q.question}</MathText>
+                            </h3>
+                            <div
+                              className={useTwoColumns ? "grid grid-cols-1 sm:grid-cols-2 gap-2" : "space-y-2"}
+                              role="radiogroup"
+                              aria-label={`Formula answers for question ${formulaBitsCurrentIdx + 1}`}
+                            >
+                              {q.options.map((opt, oi) => {
+                                const isCorrect = opt === q.correctAnswer;
+                                let cls = "bg-muted/70 hover:bg-muted text-foreground border-border";
+                                if (answered) {
+                                  if (isCorrect) cls = "bg-green-500/12 border-green-500 text-foreground";
+                                  else if (selected === oi && !isCorrectSelection) cls = "bg-destructive/10 border-destructive text-foreground";
+                                  else cls = "bg-muted/60 text-muted-foreground border-border";
+                                }
+                                return (
+                                  <button
+                                    key={oi}
+                                    type="button"
+                                    disabled={answered}
+                                    onClick={() =>
+                                      setFormulaBitsSelectedAnswers((prev) => ({
+                                        ...prev,
+                                        [formulaBitsCurrentIdx]: oi,
+                                      }))
+                                    }
+                                    className={`w-full text-left px-3 py-2 rounded-xl text-sm border transition-colors flex items-center gap-2.5 ${cls}`}
+                                  >
+                                    <span className="w-7 h-7 rounded-full bg-background/90 flex items-center justify-center text-sm shrink-0 font-bold">
+                                      {String.fromCharCode(65 + oi)}
+                                    </span>
+                                    <MathText>{opt}</MathText>
+                                    {answered && isCorrect && (
+                                      <CheckCircle2 className="inline w-4 h-4 ml-auto text-green-600" />
+                                    )}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            {answered && q.solution && (
+                              <div className="mt-2 p-3 rounded-xl bg-muted/50 text-sm text-muted-foreground">
+                                <p className="font-bold text-foreground mb-1">Explanation</p>
+                                <MathText>{q.solution}</MathText>
+                              </div>
+                            )}
+                            <div className="space-y-2 pt-1">
+                              <div className="flex items-center justify-between gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="rounded-full h-9 px-3 text-xs min-w-24"
+                                  onClick={() => setFormulaBitsCurrentIdx((i) => Math.max(0, i - 1))}
+                                  disabled={formulaBitsCurrentIdx === 0}
+                                >
+                                  <ChevronLeft className="w-4 h-4 mr-1" /> Previous
+                                </Button>
+                                <span className="text-xs font-semibold text-muted-foreground">
+                                  Question {formulaBitsCurrentIdx + 1} of {formulaQuestions.length}
+                                </span>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="rounded-full h-9 px-3 text-xs min-w-24"
+                                  onClick={() => setFormulaBitsCurrentIdx((i) => Math.min(formulaQuestions.length - 1, i + 1))}
+                                  disabled={formulaBitsCurrentIdx === formulaQuestions.length - 1}
+                                >
+                                  Next <ChevronRight className="w-4 h-4 ml-1" />
+                                </Button>
+                              </div>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="w-full max-w-[620px] mx-auto rounded-full h-10 gap-2 font-semibold border-primary/40 text-primary hover:bg-primary/10"
+                                onClick={async () => {
+                                  const next = regenerateFormulaBitsAlgorithmic(
+                                    formula.name,
+                                    formula.bitsQuestions ?? []
+                                  );
+                                  if (next.length > 0) {
+                                    const updatedFormulas = practiceFormulasForUi.map((f, i) =>
+                                      i === selectedFormulaIdx ? { ...f, bitsQuestions: next } : f
+                                    );
+                                    setFormulaQuestionsOverride((prev) => ({
+                                      ...prev,
+                                      [selectedFormulaIdx]: next,
+                                    }));
+                                    setDbPracticeFormulas(updatedFormulas);
+                                    setFormulaBitsCurrentIdx(0);
+                                    setFormulaBitsSelectedAnswers({});
+                                    try {
+                                      if (topicNode && subtopicName) {
+                                        await saveFormulaPractice({
+                                          board: (board === "icse" ? "ICSE" : "CBSE") as Board,
+                                          subject: topicNode.subject as Subject,
+                                          classLevel: topicNode.classLevel as 11 | 12,
+                                          topic: topicNode.topic,
+                                          subtopicName,
+                                          level: difficultyLevel,
+                                          practiceFormulas: updatedFormulas,
+                                        });
+                                      }
+                                      toast({
+                                        title: "Regenerated and saved",
+                                        description: "Stored in Supabase. Reopening will show this updated set.",
+                                      });
+                                    } catch (e) {
+                                      toast({
+                                        title: e instanceof Error ? e.message : "Save failed",
+                                        description: "Regenerated locally, but Supabase save failed.",
+                                        variant: "destructive",
+                                      });
+                                    }
+                                  }
+                                }}
+                              >
+                                <RefreshCw className="w-4 h-4" />
+                                Regenerate
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()
+                  )}
+                </DialogContent>
+              </Dialog>
             </div>
           </aside>
         </div>

@@ -338,6 +338,11 @@
   font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
 
+@layer utilities {
+  .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+}
+
 @layer components {
   .edu-card { @apply bg-card rounded-2xl border border-border shadow-sm hover:shadow-md transition-shadow; }
   .edu-section { @apply py-8; }
