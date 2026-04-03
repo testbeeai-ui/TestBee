@@ -359,6 +359,7 @@ export default function TopicPage() {
   const [generatingBits, setGeneratingBits] = useState(false);
   const [generatingFormulas, setGeneratingFormulas] = useState(false);
   const [bitsDialogOpen, setBitsDialogOpen] = useState(false);
+  const [referencesDialogOpen, setReferencesDialogOpen] = useState(false);
   const [quizStarted, setQuizStarted] = useState(false);
   const [activeSectionIdx, setActiveSectionIdx] = useState(0);
   const [formulasDialogOpen, setFormulasDialogOpen] = useState(false);
@@ -1375,7 +1376,7 @@ export default function TopicPage() {
   if (taxonomyLoading) {
     return (
       <AppLayout>
-        <div className="max-w-6xl mx-auto py-6 px-4">
+        <div className="max-w-6xl mx-auto px-4 -mt-6 pt-2 pb-6">
           <div className="mb-6 flex flex-wrap items-center gap-3">
             <div className="h-9 w-24 rounded-full bg-muted animate-pulse" />
             <div className="h-8 w-24 rounded-full bg-muted animate-pulse" />
@@ -1442,6 +1443,8 @@ export default function TopicPage() {
     difficultyLevel,
     isRandomMode ? "random" : undefined
   );
+  /** Subtopic view: top Back goes to topic overview (same as old in-card "Topic overview"). Overview: Back to Explore unit. */
+  const topBackHref = isOverview ? backHref : overviewHref;
   const prevSubtopic = !isOverview && subtopicIndex > 0 ? topicNode.subtopics[subtopicIndex - 1] : null;
   const nextSubtopic =
     !isOverview && subtopicIndex < topicNode.subtopics.length - 1 ? topicNode.subtopics[subtopicIndex + 1] : null;
@@ -1482,38 +1485,43 @@ export default function TopicPage() {
 
   return (
     <AppLayout>
-      <div className="max-w-6xl mx-auto py-6 px-4">
-        <div className="mb-6 flex items-center gap-3">
-          <Button variant="ghost" size="sm" asChild className="rounded-full font-bold -ml-1">
-            <Link href={backHref}>
+      <div className="max-w-6xl mx-auto px-4 -mt-6 pt-2 pb-6">
+        <div className="mb-6 flex flex-wrap items-center gap-2 sm:gap-3">
+          <Button variant="ghost" size="sm" asChild className="rounded-full font-bold -ml-1 shrink-0">
+            <Link href={topBackHref}>
               <ArrowLeft className="w-4 h-4 mr-1" /> Back
             </Link>
           </Button>
-          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 text-sm font-bold text-primary">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 text-sm font-bold text-primary shrink-0">
             <Zap className="w-4 h-4" />
             {topicNode.subject.charAt(0).toUpperCase() + topicNode.subject.slice(1)}
           </span>
-          <span className="px-3 py-1.5 rounded-full bg-muted text-sm font-bold text-muted-foreground">
+          <span className="px-3 py-1.5 rounded-full bg-muted text-sm font-bold text-muted-foreground shrink-0">
             Class {topicNode.classLevel}
           </span>
-          <span className="px-3 py-1.5 rounded-full bg-primary/10 text-sm font-bold text-primary">
+          <span className="px-3 py-1.5 rounded-full bg-primary/10 text-sm font-bold text-primary shrink-0">
             {(params.board as string).toUpperCase()}
           </span>
-        </div>
-
-        <div className="mb-4">
-          <p className="text-sm text-foreground font-bold flex items-center gap-2">
-            <BookOpen className="w-4 h-4" />
-            {topicNode.unitLabel ?? "Unit"}: {topicNode.unitTitle ?? topicNode.topic}
-            {topicNode.totalPeriods != null && (
-              <span className="font-semibold text-muted-foreground"> · {topicNode.totalPeriods} periods</span>
-            )}
-          </p>
-          {topicNode.chapterTitle && (
-            <p className="text-xs text-foreground font-semibold mt-1.5">
-              Chapter: {topicNode.chapterTitle} · Topic: {topicNode.topic}
-            </p>
-          )}
+          {topicNode.chapterTitle ? (
+            <span
+              className="inline-flex min-w-0 max-w-full items-center gap-1.5 px-3 py-1.5 rounded-full border border-border/80 bg-muted/80 text-sm font-bold text-foreground sm:max-w-[min(100%,20rem)]"
+              title={topicNode.chapterTitle}
+            >
+              <span className="shrink-0 text-xs font-extrabold uppercase tracking-wide text-muted-foreground">
+                Chapter
+              </span>
+              <span className="truncate">{topicNode.chapterTitle}</span>
+            </span>
+          ) : null}
+          <span
+            className="inline-flex min-w-0 max-w-full items-center gap-1.5 px-3 py-1.5 rounded-full border border-border/80 bg-muted/80 text-sm font-bold text-foreground sm:max-w-[min(100%,22rem)]"
+            title={topicNode.topic}
+          >
+            <span className="shrink-0 text-xs font-extrabold uppercase tracking-wide text-muted-foreground">
+              Topic
+            </span>
+            <span className="truncate">{topicNode.topic}</span>
+          </span>
         </div>
 
         <div className="flex flex-col lg:flex-row gap-6">
@@ -2080,26 +2088,35 @@ export default function TopicPage() {
                 </>
               ) : (
                 <>
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-                    <Button asChild variant="outline" size="sm" className="rounded-xl font-bold w-fit">
-                      <Link href={overviewHref}>
-                        <ArrowLeft className="w-4 h-4 mr-1" /> Topic overview
-                      </Link>
-                    </Button>
-                    <span className="text-sm font-extrabold text-muted-foreground">Subtopic deep dive</span>
-                  </div>
-                  <p className="text-xs font-semibold text-muted-foreground mb-2">
-                    <span className="shrink-0">Topic: </span>
-                    <span className="text-foreground">{topicNode.topic}</span>
-                  </p>
-                  <h1 className="font-black text-xl sm:text-2xl tracking-tight text-foreground mb-4 min-w-0 break-words">
-                    <MathText
-                      weight="extrabold"
-                      className="subtopic-title-text break-words [&_.katex]:!text-[0.8em] sm:[&_.katex]:!text-[0.88em]"
+                  <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                    <p className="min-w-0 flex-1 text-xl sm:text-2xl font-black tracking-tight text-foreground break-words">
+                      <span className="text-muted-foreground font-extrabold text-base sm:text-lg">Topic · </span>
+                      <span>{topicNode.topic}</span>
+                    </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setReferencesDialogOpen(true)}
+                      className="shrink-0 gap-2 rounded-full border-primary/50 bg-primary/5 font-semibold text-foreground hover:bg-primary/10"
                     >
-                      {subtopicDeepDiveHeadingMarkdown(subtopicName)}
-                    </MathText>
-                  </h1>
+                      <BookOpen className="h-4 w-4" />
+                      References
+                    </Button>
+                  </div>
+                  <div className="mb-5 rounded-2xl border-2 border-primary/40 bg-primary/5 px-4 py-4 sm:px-5 sm:py-5 shadow-sm ring-1 ring-primary/10">
+                    <div className="mb-2 inline-flex items-center rounded-full bg-primary/15 px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider text-primary">
+                      Subtopic
+                    </div>
+                    <h1 className="font-black text-xl sm:text-2xl tracking-tight text-foreground min-w-0 break-words">
+                      <MathText
+                        weight="extrabold"
+                        className="subtopic-title-text break-words [&_.katex]:!text-[0.8em] sm:[&_.katex]:!text-[0.88em]"
+                      >
+                        {subtopicDeepDiveHeadingMarkdown(subtopicName)}
+                      </MathText>
+                    </h1>
+                  </div>
 
                   <section className="mb-2">
                     <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
@@ -2433,16 +2450,16 @@ export default function TopicPage() {
                 className="mt-5 flex flex-wrap items-center gap-2"
                 aria-label="Video, reading references, and did you know"
               >
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="rounded-full gap-2 font-semibold border-primary text-foreground bg-primary/5 hover:bg-primary/10"
-                    >
-                      <BookOpen className="w-4 h-4 text-foreground" />
-                      Video &amp; Reading References
-                    </Button>
-                  </DialogTrigger>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setReferencesDialogOpen(true)}
+                  className="rounded-full gap-2 font-semibold border-primary text-foreground bg-primary/5 hover:bg-primary/10"
+                >
+                  <BookOpen className="w-4 h-4 text-foreground" />
+                  Video &amp; Reading References
+                </Button>
+                <Dialog open={referencesDialogOpen} onOpenChange={setReferencesDialogOpen}>
                   <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto">
                     <DialogHeader>
                       <DialogTitle className="flex items-center gap-2">

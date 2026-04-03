@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ArrowRight, BookOpen, GraduationCap, Award, Globe, Lock, Sparkles } from "lucide-react";
+import { TARGET_EXAM_OPTIONS, type TargetExamKey } from "@/lib/targetExam";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 
@@ -35,7 +36,7 @@ function OnboardingContent() {
   const [role, setRole] = useState<"student" | "teacher" | null>(null);
   const [step, setStep] = useState<"role" | "details">("role");
   const [name, setName] = useState(profile?.name || "");
-  const [classLevel, setClassLevel] = useState(11);
+  const [targetExam, setTargetExam] = useState<TargetExamKey>("cbse");
   const [subjectCombo, setSubjectCombo] = useState("PCM");
   const [teachingSubjects, setTeachingSubjects] = useState<string[]>([]);
   const [selectedLevels, setSelectedLevels] = useState<string[]>([]);
@@ -78,6 +79,13 @@ function OnboardingContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, profile?.role, role, profileTimeout]);
 
+  useEffect(() => {
+    const te = profile?.target_exam;
+    if (!te) return;
+    const valid = TARGET_EXAM_OPTIONS.some((o) => o.key === te);
+    if (valid) setTargetExam(te as TargetExamKey);
+  }, [profile?.target_exam]);
+
   if (loading)
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -108,7 +116,8 @@ function OnboardingContent() {
       };
 
       if (role === "student") {
-        (updates as Record<string, unknown>).class_level = classLevel;
+        (updates as Record<string, unknown>).class_level = 11;
+        (updates as Record<string, unknown>).target_exam = targetExam;
         (updates as Record<string, unknown>).subject_combo = subjectCombo;
         (updates as Record<string, unknown>).stream = "science";
       } else {
@@ -189,12 +198,14 @@ function OnboardingContent() {
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-card rounded-3xl p-8 shadow-2xl w-full max-w-md border border-border/50"
+            className="bg-card rounded-3xl p-8 shadow-2xl w-full max-w-lg border border-border/50"
           >
             <div className="text-center mb-6">
               <span className="text-4xl block mb-2">🎉</span>
-              <h2 className="text-2xl font-display text-foreground">Join EduBlast!</h2>
-              <p className="text-muted-foreground text-sm mt-1">Set up your learning profile</p>
+              <h2 className="text-2xl font-display text-foreground">Choose your exam</h2>
+              <p className="text-muted-foreground text-sm mt-1">
+                Select your exam to see relevant Physics topics
+              </p>
             </div>
             <div className="space-y-5">
               <div>
@@ -207,17 +218,24 @@ function OnboardingContent() {
                 />
               </div>
               <div>
-                <label className="text-sm font-extrabold text-foreground mb-2 block">Class</label>
+                <label className="text-sm font-extrabold text-foreground mb-2 block">Exam</label>
                 <div className="grid grid-cols-2 gap-3">
-                  {[
-                    { value: 11, label: "Class 11th" },
-                    { value: 12, label: "Class 12th" },
-                  ].map(({ value, label }) => (
+                  {TARGET_EXAM_OPTIONS.map(({ key, label, Icon, iconClass }) => (
                     <button
-                      key={value}
-                      onClick={() => setClassLevel(value)}
-                      className={`py-3 rounded-[12px] font-extrabold text-sm transition-all duration-200 ${classLevel === value ? "bg-primary text-primary-foreground shadow-md shadow-primary/20 scale-[1.02]" : "bg-muted/80 text-muted-foreground hover:bg-muted border border-transparent"}`}
+                      key={key}
+                      type="button"
+                      onClick={() => setTargetExam(key)}
+                      className={`flex items-center gap-3 py-3.5 px-4 rounded-[14px] font-extrabold text-sm text-left transition-all duration-200 border ${
+                        targetExam === key
+                          ? "bg-primary text-primary-foreground shadow-md shadow-primary/20 border-primary scale-[1.02]"
+                          : "bg-muted/80 text-foreground hover:bg-muted border-border/60"
+                      }`}
                     >
+                      <span
+                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-background/80 ${targetExam === key ? "text-primary-foreground bg-primary-foreground/15" : ""}`}
+                      >
+                        <Icon className={`h-5 w-5 ${targetExam === key ? "" : iconClass}`} />
+                      </span>
                       {label}
                     </button>
                   ))}
