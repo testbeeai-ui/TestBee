@@ -60,7 +60,7 @@
 }
 
 :root {
-  --font-sans: var(--font-geist-sans), system-ui, sans-serif;
+  --font-sans: Calibri, Arial, sans-serif;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -128,6 +128,9 @@
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
 }
+
+/* ── Landing page font scope (Geist only on marketing page) ──── */
+.landing-page { font-family: var(--font-geist-sans), system-ui, sans-serif; }
 
 /* ── Chat markdown + KaTeX rendering ───────────────────────────── */
 .chat-markdown { font-size: 0.9375rem; line-height: 1.65; }
