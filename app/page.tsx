@@ -40,7 +40,7 @@ function LandingPageContent() {
   }, [user, profile?.onboarding_complete, loading, router]);
 
   return (
-    <div className="min-h-screen bg-white scroll-smooth">
+    <div className="landing-page min-h-screen bg-white scroll-smooth">
       <LandingNavbar />
       <HeroSection />
       <ProblemSection />

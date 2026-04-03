@@ -5,7 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserStore } from '@/store/useUserStore';
-import { LayoutDashboard, Compass, User, Coins, Settings, ClipboardList, HelpCircle, Heart } from 'lucide-react';
+import { LayoutDashboard, Compass, User, Coins, Settings, ClipboardList, HelpCircle, Heart, GraduationCap } from 'lucide-react';
 import StreakTimer from '@/components/StreakTimer';
 import NotificationBell from '@/components/NotificationBell';
 import BreakScreen from '@/components/BreakScreen';
@@ -25,6 +25,7 @@ const baseNavItems = [
   { path: "/home", icon: LayoutDashboard, label: "Dashboard", emoji: "📊" },
   { path: EXPLORE_APP_PATH, icon: Compass, label: "Explore", emoji: "🧭" },
   { path: "/exam-prep", icon: ClipboardList, label: "Exam Prep", emoji: "📋" },
+  { path: "/mock", icon: GraduationCap, label: "Prep + Mock", emoji: "🎓" },
   { path: "/doubts", icon: HelpCircle, label: "Gyan++", emoji: "💡" },
   { path: "/edufund", icon: Heart, label: "EduFund", emoji: "💛" },
   { path: "/profile", icon: User, label: "Profile", emoji: "👤" },
@@ -58,7 +59,8 @@ const AppLayout = ({ children, streakTimer }: AppLayoutProps) => {
             {navItems.map(({ path, icon: Icon, label }) => {
               const isActive =
                 pathname === path ||
-                (path === "/exam-prep" && ["/classrooms", "/mock", "/revision"].includes(pathname)) ||
+                (path === "/exam-prep" && ["/classrooms", "/revision"].includes(pathname)) ||
+                (path === "/mock" && pathname === "/mock") ||
                 (path === "/edufund" && (pathname === "/edufund" || pathname.startsWith("/edufund/")));
               return (
                 <Link
@@ -112,7 +114,8 @@ const AppLayout = ({ children, streakTimer }: AppLayoutProps) => {
             {navItems.map(({ path, icon: Icon, label, emoji }) => {
               const isActive =
                 pathname === path ||
-                (path === "/exam-prep" && ["/classrooms", "/mock", "/revision"].includes(pathname)) ||
+                (path === "/exam-prep" && ["/classrooms", "/revision"].includes(pathname)) ||
+                (path === "/mock" && pathname === "/mock") ||
                 (path === "/edufund" && (pathname === "/edufund" || pathname.startsWith("/edufund/")));
               return (
                 <Link
