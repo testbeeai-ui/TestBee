@@ -3,12 +3,14 @@ import { supabase } from '@/integrations/supabase/client';
 import type { AuthError, User, Session } from '@supabase/supabase-js';
 import { useUserStore } from '@/store/useUserStore';
 import type { ClassLevel, SubjectCombo, SavedBit, SavedFormula, SavedRevisionCard } from '@/types';
+import { targetExamToExamType } from '@/lib/targetExam';
 
 interface Profile {
   id: string;
   name: string;
   role: 'student' | 'teacher';
   class_level: number | null;
+  target_exam?: string | null;
   stream: string | null;
   subject_combo: string | null;
   avatar_url: string | null;
@@ -143,9 +145,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const maybeSignup = () => {
       if (useUserStore.getState().user) return;
       const cl = profile.class_level;
-      const classLevel: ClassLevel = (cl === 11 || cl === 12) ? cl : 11;
+      const classLevel: ClassLevel = (cl === 11 || cl === 12) ? cl : 12;
       const subjectCombo: SubjectCombo = profile.subject_combo === 'PCMB' ? 'PCMB' : 'PCM';
       useUserStore.getState().signup(profile.name || 'User', classLevel, 'science', subjectCombo);
+    };
+    const syncExamFromProfile = () => {
+      if (profile.role !== 'student') return;
+      const next = targetExamToExamType(profile.target_exam);
+      useUserStore.getState().setExamType(next);
     };
     const syncSavedFromProfile = () => {
       const bits = Array.isArray(profile.saved_bits) ? profile.saved_bits : [];
@@ -159,6 +166,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
     const run = () => {
       maybeSignup();
+      syncExamFromProfile();
       syncSavedFromProfile();
     };
     const persist = (useUserStore as unknown as { persist?: { onFinishHydration: (cb: () => void) => () => void; hasHydrated: () => boolean } }).persist;
@@ -173,7 +181,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [
     profile?.id,
     profile?.name,
+    profile?.role,
     profile?.class_level,
+    profile?.target_exam,
     profile?.subject_combo,
     profile?.saved_bits,
     profile?.saved_formulas,

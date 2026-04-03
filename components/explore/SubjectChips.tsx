@@ -1,8 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import type { Subject, ExamType } from '@/types';
+import type { Subject, ExamType, ClassLevel } from '@/types';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
+import { examTypeToTargetExam } from '@/lib/targetExam';
+import { cn } from '@/lib/utils';
 
 const subjectList: { value: Subject; label: string; color: string; bg: string }[] = [
   { value: 'physics', label: 'Physics', color: 'text-blue-600', bg: 'bg-blue-500/10 border-blue-500/30' },
@@ -24,6 +28,24 @@ interface SubjectChipsProps {
 
 export default function SubjectChips({ onSelectSubject }: SubjectChipsProps) {
   const [pendingSubject, setPendingSubject] = useState<Subject | null>(null);
+  const [dialogClass, setDialogClass] = useState<ClassLevel>(11);
+  const { user, profile, refreshProfile } = useAuth();
+
+  useEffect(() => {
+    if (!pendingSubject) return;
+    const cl = profile?.class_level;
+    setDialogClass(cl === 12 ? 12 : 11);
+  }, [pendingSubject, profile?.class_level]);
+
+  const persistStudentPrefs = async (exam: ExamType | null) => {
+    if (!user?.id || profile?.role !== 'student') return;
+    const target_exam = examTypeToTargetExam(exam);
+    const { error } = await supabase
+      .from('profiles')
+      .update({ class_level: dialogClass, target_exam })
+      .eq('id', user.id);
+    if (!error) await refreshProfile();
+  };
 
   return (
     <>
@@ -44,23 +66,48 @@ export default function SubjectChips({ onSelectSubject }: SubjectChipsProps) {
       </div>
 
       <Dialog open={!!pendingSubject} onOpenChange={(open) => { if (!open) setPendingSubject(null); }}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="text-lg">Choose your exam</DialogTitle>
             <DialogDescription>
-              Select your exam to see relevant {pendingSubject ? subjectList.find((s) => s.value === pendingSubject)?.label : ''} topics
+              Select your exam to see relevant {pendingSubject ? subjectList.find((s) => s.value === pendingSubject)?.label : ''}{' '}
+              topics
             </DialogDescription>
           </DialogHeader>
+
+          {profile?.role === 'student' && (
+            <div className="space-y-2 pt-1">
+              <p className="text-xs font-extrabold text-foreground uppercase tracking-wide">Class</p>
+              <div className="flex rounded-xl border border-border/80 bg-muted/40 p-1 gap-1">
+                {([11, 12] as const).map((cl) => (
+                  <button
+                    key={cl}
+                    type="button"
+                    onClick={() => setDialogClass(cl)}
+                    className={cn(
+                      'flex-1 py-2.5 rounded-lg text-sm font-extrabold transition-all',
+                      dialogClass === cl
+                        ? 'bg-primary text-primary-foreground shadow-md'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/80'
+                    )}
+                  >
+                    Class {cl}th
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-3 mt-2">
             {examOptions.map((exam) => (
               <button
                 key={exam.label}
                 type="button"
-                onClick={() => {
-                  if (pendingSubject) {
-                    onSelectSubject(pendingSubject, exam.value);
-                    setPendingSubject(null);
-                  }
+                onClick={async () => {
+                  if (!pendingSubject) return;
+                  await persistStudentPrefs(exam.value);
+                  onSelectSubject(pendingSubject, exam.value);
+                  setPendingSubject(null);
                 }}
                 className="flex items-center gap-3 p-3 rounded-xl border border-border hover:border-primary/40 hover:bg-primary/5 hover:shadow-sm transition-all text-left group"
               >

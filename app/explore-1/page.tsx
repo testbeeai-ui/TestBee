@@ -51,6 +51,13 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { fuzzySubtopicKey } from '@/lib/utils';
 import { useOrchestratorStore } from '@/store/useOrchestratorStore';
+import {
+  CLASS12_PHYSICS_CHAPTER_BLURB,
+  CLASS12_PHYSICS_CHAPTER_ICON,
+  CLASS12_PHYSICS_SECTIONS,
+  CLASS12_PHYSICS_UNIT_COUNT_LABEL,
+  isClass12Physics,
+} from '@/lib/class12PhysicsExplore';
 
 const DistanceDisplacementScene = dynamic(
   () => import('@/components/DistanceDisplacementScene'),
@@ -319,6 +326,10 @@ function UnitRoadmap({ topics, subject, classLevel, onTopicClick, getTopicCount,
     });
   });
   const unitKeys = unitCards.map((u) => u.unitLabel);
+  const physics12Layout = isClass12Physics(subject, classLevel);
+
+  const chapterByTitle = new Map<string, (typeof chapterCards)[number]>();
+  for (const ch of chapterCards) chapterByTitle.set(ch.chapterTitle, ch);
 
   const getCrowns = (correct: number, totalQ: number): number => {
     if (totalQ === 0 || correct === 0) return 0;
@@ -326,6 +337,65 @@ function UnitRoadmap({ topics, subject, classLevel, onTopicClick, getTopicCount,
     if (ratio >= 0.8) return 3;
     if (ratio >= 0.4) return 2;
     return 1;
+  };
+
+  const renderPhysics12Card = (chapter: (typeof chapterCards)[number], animDelay: number, colorIdx: number) => {
+    const c = UNIT_COLORS[colorIdx % UNIT_COLORS.length];
+    const blurb = CLASS12_PHYSICS_CHAPTER_BLURB[chapter.chapterTitle] ?? '';
+    const icon =
+      CLASS12_PHYSICS_CHAPTER_ICON[chapter.chapterTitle] ??
+      UNIT_ICONS[chapter.unitRepresentative.unitTitle ?? chapter.unitRepresentative.topic] ??
+      '📚';
+    const topicCount = chapter.chapterTopics.length;
+    const unitNumberLabel = chapter.unitLabel.replace('Unit', 'U').trim();
+    const { chapterTitle, representative } = chapter;
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: animDelay, type: 'spring', stiffness: 260, damping: 24 }}
+        whileHover={{ scale: 1.015, transition: { duration: 0.15 } }}
+        whileTap={{ scale: 0.99 }}
+        onClick={() => onTopicClick(representative, classLevel, chapterTitle, representative.topic)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onTopicClick(representative, classLevel, chapterTitle, representative.topic);
+          }
+        }}
+        role="button"
+        tabIndex={0}
+        aria-label={`Open ${chapterTitle}`}
+        className="w-full text-left rounded-2xl border border-border/80 bg-card shadow-md hover:shadow-lg transition-shadow duration-200 p-4 sm:p-5 min-h-[232px] flex flex-col cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 overflow-hidden"
+        style={{ borderTopWidth: 3, borderTopStyle: 'solid', borderTopColor: c.stroke }}
+      >
+        <div className="flex items-start justify-between gap-2">
+          <span className="text-[11px] font-extrabold tracking-widest text-muted-foreground">{unitNumberLabel}</span>
+          <span className="flex gap-1 pt-0.5 shrink-0" aria-hidden>
+            <span className="w-1.5 h-1.5 rounded-full" style={{ background: c.stroke, opacity: 1 }} />
+            <span className="w-1.5 h-1.5 rounded-full" style={{ background: c.stroke, opacity: 0.65 }} />
+            <span className="w-1.5 h-1.5 rounded-full" style={{ background: c.stroke, opacity: 0.35 }} />
+          </span>
+        </div>
+        <div className="flex justify-center my-3">
+          <div
+            className={`w-[52px] h-[52px] sm:w-14 sm:h-14 rounded-xl flex items-center justify-center text-2xl sm:text-3xl ${c.accent} border border-border/40`}
+          >
+            {icon}
+          </div>
+        </div>
+        <h4 className="text-[15px] sm:text-base font-extrabold text-foreground leading-snug mb-2">{chapterTitle}</h4>
+        <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed line-clamp-4 flex-1">{blurb}</p>
+        <div className="mt-4 pt-3 border-t border-border/60 flex items-center justify-between gap-2">
+          <span className="text-xs font-bold text-muted-foreground">
+            {topicCount} {topicCount === 1 ? 'topic' : 'topics'}
+          </span>
+          <span className="rounded-full px-3 py-1.5 text-[11px] font-extrabold border border-border bg-muted/50 text-foreground shrink-0">
+            Theory
+          </span>
+        </div>
+      </motion.div>
+    );
   };
 
   const renderCard = (
@@ -403,6 +473,69 @@ function UnitRoadmap({ topics, subject, classLevel, onTopicClick, getTopicCount,
     );
   };
 
+  if (physics12Layout) {
+    const titleToPaletteIndex = new Map<string, number>();
+    const titleToAnimIndex = new Map<string, number>();
+    let ordinal = 0;
+    for (const sec of CLASS12_PHYSICS_SECTIONS) {
+      for (const title of sec.chapters) {
+        if (!chapterByTitle.has(title)) continue;
+        titleToPaletteIndex.set(title, ordinal);
+        titleToAnimIndex.set(title, ordinal);
+        ordinal += 1;
+      }
+    }
+    const footerDelay = chapterCards.length * 0.03 + 0.2;
+    return (
+      <div className="w-full max-w-6xl mx-auto py-6 sm:py-8 select-none px-2">
+        {CLASS12_PHYSICS_SECTIONS.map((sec, secIndex) => (
+          <section key={sec.heading} className={secIndex > 0 ? 'mt-10' : ''}>
+            <h3 className="text-[11px] sm:text-xs font-extrabold tracking-[0.18em] text-muted-foreground uppercase mb-4">
+              {sec.heading}
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+              {sec.chapters.map((title) => {
+                const chapter = chapterByTitle.get(title);
+                if (!chapter) return null;
+                const ai = titleToAnimIndex.get(title) ?? 0;
+                const pi = titleToPaletteIndex.get(title) ?? 0;
+                return (
+                  <div
+                    key={`${classLevel}-${chapter.unitLabel}-${chapter.chapterTitle}-${chapter.representative.topic}`}
+                  >
+                    {renderPhysics12Card(chapter, ai * 0.03, pi)}
+                  </div>
+                );
+              })}
+              {sec.trailingPlaceholder ? (
+                <div
+                  className="rounded-2xl border border-dashed border-border/70 bg-muted/25 min-h-[232px] flex flex-col items-center justify-center text-muted-foreground p-6"
+                  aria-hidden
+                >
+                  <span className="text-3xl font-light mb-1">+</span>
+                  <span className="text-sm font-semibold text-center">More coming soon.</span>
+                </div>
+              ) : null}
+            </div>
+          </section>
+        ))}
+
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: footerDelay }}
+          className="flex justify-center mt-8"
+        >
+          <div className="bg-muted/60 rounded-xl px-4 py-2.5 inline-flex items-center gap-2 border border-border/60">
+            <p className="text-xs font-bold text-muted-foreground text-center">
+              Ready to level up? Pick a unit above to begin. · {CLASS12_PHYSICS_UNIT_COUNT_LABEL} · Class {classLevel}
+            </p>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full max-w-4xl mx-auto py-6 sm:py-8 select-none px-2">
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-5">
@@ -470,8 +603,10 @@ const Explore = () => {
   const { toast } = useToast();
   const user = useUserStore((s) => s.user);
   const classLevel: ClassLevel | null =
-    profile?.role === 'student' && profile?.class_level != null
-      ? (profile.class_level as ClassLevel)
+    profile?.role === 'student'
+      ? profile.class_level != null
+        ? (profile.class_level as ClassLevel)
+        : null
       : user?.classLevel ?? null;
   const subjectCombo: SubjectCombo | null =
     profile?.role === 'student' && profile?.subject_combo

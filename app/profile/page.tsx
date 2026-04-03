@@ -13,6 +13,7 @@ import TeacherProfile from "@/components/TeacherProfile";
 import ThemeSwitcher from "@/components/ThemeSwitcher";
 import { CreditsSection } from "@/components/CreditsSection";
 import ProfileAcademicsAchievements from "@/components/ProfileAcademicsAchievements";
+import { targetExamLabel } from "@/lib/targetExam";
 
 export default function Profile() {
   const { user: authUser, profile, signOut, signInWithGoogle } = useAuth();
@@ -28,7 +29,11 @@ export default function Profile() {
   if (!profile) return null;
 
   const displayName = profile.name || authUser?.email?.split("@")[0] || "Student";
-  const classLevel = profile.class_level ?? storeUser?.classLevel ?? "—";
+  const examLabel = targetExamLabel(profile.target_exam);
+  const classLevelDisplay =
+    profile.class_level != null
+      ? `Class ${profile.class_level}`
+      : "Classes 11 & 12";
   const subjectCombo = profile.subject_combo || storeUser?.subjectCombo || "—";
 
   const totalCorrect = allResults.filter((r) => r.isCorrect).length;
@@ -59,7 +64,10 @@ export default function Profile() {
             <div className="text-center sm:text-left flex-1">
               <h2 className="text-2xl font-display text-foreground">{displayName}</h2>
               <div className="flex flex-wrap items-center gap-2 mt-2 justify-center sm:justify-start">
-                <span className="edu-chip bg-primary/10 text-primary">Class {classLevel}</span>
+                {examLabel ? (
+                  <span className="edu-chip bg-primary/10 text-primary">{examLabel}</span>
+                ) : null}
+                <span className="edu-chip bg-muted text-foreground">{classLevelDisplay}</span>
                 <span className="edu-chip bg-edu-green/10 text-edu-green">{subjectCombo}</span>
               </div>
               <div className="mt-4">

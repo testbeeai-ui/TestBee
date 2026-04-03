@@ -288,8 +288,12 @@ const Explore = () => {
   const { profile } = useAuth();
   const user = useUserStore((s) => s.user);
   const classLevel: ClassLevel | null =
-    profile?.role === 'student' && profile?.class_level != null
-      ? (profile.class_level as ClassLevel)
+    profile?.role === 'student'
+      ? profile.class_level === 12
+        ? 12
+        : profile.class_level === 11
+          ? 11
+          : 11
       : user?.classLevel ?? null;
   const subjectCombo: SubjectCombo | null =
     profile?.role === 'student' && profile?.subject_combo
@@ -455,7 +459,8 @@ const Explore = () => {
                   setSelectedSubject(node.subject);
                   handleTopicClick(node, node.classLevel);
                 }}
-                onNavigateToSubjectWithExam={(subject, _exam) => {
+                onNavigateToSubjectWithExam={(subject, exam) => {
+                  setSelectedExam(exam);
                   setSelectedSubject(subject);
                   setView('topics');
                 }}
