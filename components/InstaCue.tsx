@@ -142,24 +142,27 @@ function RevisionCard({
   card,
   isFlipped,
   onFlip,
+  compact,
 }: {
   card: InstaCueCard;
   isFlipped: boolean;
   onFlip: () => void;
+  compact?: boolean;
 }) {
   const config = TYPE_CONFIG[card.type];
 
+  const cardH = compact ? 148 : 200;
   return (
     <div
       className="perspective-[1000px] w-full cursor-pointer"
       onClick={onFlip}
-      style={{ minHeight: 200 }}
+      style={{ minHeight: cardH }}
     >
       <div
         className={`relative w-full transition-transform duration-500 ${isFlipped ? "[transform:rotateY(180deg)]" : ""}`}
         style={{
           transformStyle: "preserve-3d",
-          height: 200,
+          height: cardH,
         }}
       >
         {/* Front */}
@@ -230,6 +233,7 @@ interface InstaCueProps {
   selectedSubtopic?: string;
   onSubtopicChange?: (name: string) => void;
   onAddCard?: (card: Omit<InstaCueCard, "id">) => void;
+  compact?: boolean;
 }
 
 export default function InstaCue({
@@ -243,6 +247,7 @@ export default function InstaCue({
   selectedSubtopic,
   onSubtopicChange,
   onAddCard,
+  compact,
 }: InstaCueProps) {
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
@@ -367,8 +372,8 @@ export default function InstaCue({
   }
 
   return (
-    <div className="edu-card rounded-2xl p-5 border border-border">
-      <div className="flex items-center justify-between mb-3">
+    <div className={`edu-card rounded-2xl border border-border ${compact ? "p-3" : "p-5"}`}>
+      <div className={`flex items-center justify-between ${compact ? "mb-2" : "mb-3"}`}>
         <div>
           <div className="flex items-center gap-2">
             <Lightbulb className="w-5 h-5 text-amber-400/80 dark:text-amber-500/80" />
@@ -416,6 +421,7 @@ export default function InstaCue({
           card={displayCard}
           isFlipped={flipped}
           onFlip={handleFlip}
+          compact={compact}
         />
       )}
 
@@ -470,12 +476,14 @@ export default function InstaCue({
         {displayCard ? safeIndex + 1 : 0} of {filteredCards.length} cards
       </p>
 
-      <div className="mt-4 p-3 rounded-xl bg-muted/50 text-xs text-muted-foreground flex items-start gap-2">
-        <Lightbulb className="w-4 h-4 shrink-0 text-amber-500 mt-0.5" />
-        <span>
-          Tip: Cards you add are kept separate per subtopic and level, and are ready for direct Supabase syncing.
-        </span>
-      </div>
+      {!compact && (
+        <div className="mt-4 p-3 rounded-xl bg-muted/50 text-xs text-muted-foreground flex items-start gap-2">
+          <Lightbulb className="w-4 h-4 shrink-0 text-amber-500 mt-0.5" />
+          <span>
+            Tip: Cards you add are kept separate per subtopic and level, and are ready for direct Supabase syncing.
+          </span>
+        </div>
+      )}
 
       {onAddCard && (
         <AddCardModal
