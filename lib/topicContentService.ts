@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { fetchWithClientAuth } from "@/lib/clientApiAuth";
 import type { DifficultyLevel } from "@/lib/slugs";
 import type { Board, Subject } from "@/types";
 
@@ -17,19 +17,6 @@ export type TopicContentParams = {
   /** Defaults to topic (per-topic hub). */
   hubScope?: TopicHubScope;
 };
-
-async function getAuthHeaders(): Promise<HeadersInit> {
-  const headers: Record<string, string> = {};
-  if (typeof window !== "undefined") {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (session?.access_token) {
-      headers.Authorization = `Bearer ${session.access_token}`;
-    }
-  }
-  return headers;
-}
 
 export type TopicContentFetchOptions = {
   includeLatestRun?: boolean;
@@ -112,8 +99,7 @@ export async function fetchTopicContent(
   params: TopicContentParams,
   options?: TopicContentFetchOptions
 ): Promise<TopicContentResponse> {
-  const headers = await getAuthHeaders();
-  const res = await fetch(buildQuery(params, options), { headers });
+  const res = await fetchWithClientAuth(buildQuery(params, options), {});
   if (!res.ok) {
     if (res.status === 401) {
       return {
@@ -223,10 +209,9 @@ export type GenerateTopicResponse = {
 };
 
 export async function generateTopicContent(body: GenerateTopicBody): Promise<GenerateTopicResponse> {
-  const authHeaders = await getAuthHeaders();
-  const res = await fetch(API_GENERATE, {
+  const res = await fetchWithClientAuth(API_GENERATE, {
     method: "POST",
-    headers: { ...authHeaders, "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       board: body.board,
       subject: body.subject,
@@ -280,10 +265,9 @@ export async function upsertTopicContent(
     subtopicPreviews?: TopicSubtopicPreview[];
   }
 ): Promise<void> {
-  const authHeaders = await getAuthHeaders();
-  const res = await fetch(API_GET, {
+  const res = await fetchWithClientAuth(API_GET, {
     method: "POST",
-    headers: { ...authHeaders, "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       board: body.board,
       subject: body.subject,
@@ -336,10 +320,9 @@ export async function postCompleteSubtopic(
     levels?: DifficultyLevel[];
   }
 ): Promise<CompleteSubtopicResponse> {
-  const authHeaders = await getAuthHeaders();
-  const res = await fetch("/api/agent/complete-subtopic", {
+  const res = await fetchWithClientAuth("/api/agent/complete-subtopic", {
     method: "POST",
-    headers: { ...authHeaders, "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       board: body.board,
       subject: body.subject,

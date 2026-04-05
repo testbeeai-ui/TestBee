@@ -41,6 +41,9 @@ function isRetryableGeminiError(e: unknown): boolean {
     return s === 429 || s === 500 || s === 502 || s === 503;
   }
   const blob = errorTextDeep(e);
+  if (/empty model response|empty response|no candidates?/i.test(blob)) {
+    return true;
+  }
   if (
     /ECONNRESET|ETIMEDOUT|ECONNABORTED|EPIPE|ENOTFOUND|EAI_AGAIN|UND_ERR_(CONNECT_TIMEOUT|BODY_TIMEOUT|SOCKET)/i.test(
       blob

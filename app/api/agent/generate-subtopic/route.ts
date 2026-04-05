@@ -13,6 +13,7 @@ import { normalizeSubjectKey, normalizeSubtopicContentKey } from "@/lib/subtopic
 import { supabaseForLongJobPersist } from "@/lib/supabaseAdminPersist";
 import { getGeminiApiKeyFromEnv } from "@/lib/geminiEnv";
 import { logAiUsage } from "@/lib/aiLogger";
+import { sanitizeJsonForDb } from "@/lib/sanitizeJsonForDb";
 
 const ALLOWED_LEVELS = new Set(["basics", "intermediate", "advanced"]);
 
@@ -527,20 +528,22 @@ ${ragBlock}`;
     }
 
     const persistDb = supabaseForLongJobPersist(supabase);
+    const row = sanitizeJsonForDb({
+      board,
+      subject,
+      class_level: classLevel,
+      topic,
+      subtopic_name: subtopicName,
+      level,
+      theory,
+      reading_references: references,
+      did_you_know: didYouKnow,
+      updated_by: user.id,
+      updated_at: new Date().toISOString(),
+    });
+
     const { error: upsertError } = await persistDb.from("subtopic_content").upsert(
-      {
-        board,
-        subject,
-        class_level: classLevel,
-        topic,
-        subtopic_name: subtopicName,
-        level,
-        theory,
-        reading_references: references,
-        did_you_know: didYouKnow,
-        updated_by: user.id,
-        updated_at: new Date().toISOString(),
-      },
+      row,
       { onConflict: "board,subject,class_level,topic,subtopic_name,level" }
     );
 

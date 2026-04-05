@@ -11,6 +11,7 @@ import { resolveGeminiModelId, resolveVertexTopicModelId } from "@/lib/geminiMod
 import { buildRAGRequestTrace, fetchRAGContext } from "@/lib/rag";
 import { getGeminiApiKeyFromEnv } from "@/lib/geminiEnv";
 import { logAiUsage } from "@/lib/aiLogger";
+import { sanitizeJsonForDb } from "@/lib/sanitizeJsonForDb";
 
 const TRACE_MAX_USER_PROMPT = 48_000;
 const TRACE_MAX_RAG_CONTEXT = 32_000;
@@ -287,6 +288,20 @@ function mergeSubtopicPreviews(base: SubtopicPreview[], patch: SubtopicPreview[]
     const pv = p?.preview?.trim();
     return pv ? { ...row, preview: p!.preview } : row;
   });
+}
+
+function buildFallbackSubtopicPreview(params: {
+  topic: string;
+  subtopicName: string;
+  classLevel: number;
+  subject: string;
+  level: string;
+}): string {
+  return [
+    `**Core idea:** ${params.subtopicName} is a key part of **${params.topic}** in Class ${params.classLevel} ${params.subject}.`,
+    `Focus on definition, standard steps, and where this appears in NCERT/exam-style questions at the **${params.level}** level.`,
+    "Practice a few representative problems and revise common mistakes/sign conventions before moving ahead.",
+  ].join("\n\n");
 }
 
 function buildMetadataBlock(params: {
@@ -1376,14 +1391,25 @@ export async function POST(request: Request) {
 
       const stillEmpty = subtopicPreviews.filter((r) => !r.preview.trim());
       if (stillEmpty.length > 0) {
-        return NextResponse.json(
-          {
-            error:
-              "Model returned incomplete subtopic previews after a repair pass. Regenerate, or edit missing cards in the topic hub editor.",
-            code: "INCOMPLETE_SUBTOPIC_PREVIEWS",
-            missingSubtopics: stillEmpty.map((r) => r.subtopicName),
-          },
-          { status: 502 }
+        const missingNames = stillEmpty.map((r) => r.subtopicName);
+        console.warn(
+          `[generate-topic] topic hub: gap-fill incomplete; using deterministic fallback preview for: ${missingNames.join(
+            "; "
+          )}`
+        );
+        subtopicPreviews = subtopicPreviews.map((row) =>
+          row.preview.trim()
+            ? row
+            : {
+                ...row,
+                preview: buildFallbackSubtopicPreview({
+                  topic,
+                  subtopicName: row.subtopicName,
+                  classLevel,
+                  subject,
+                  level,
+                }),
+              }
         );
       }
     }
@@ -1413,24 +1439,26 @@ export async function POST(request: Request) {
       }
     }
 
+    const topicContentRow = sanitizeJsonForDb({
+      board,
+      subject,
+      class_level: classLevel,
+      topic,
+      level,
+      hub_scope: hubScope,
+      why_study,
+      what_learn,
+      real_world,
+      subtopic_previews: subtopicPreviews.map((row) => ({
+        subtopic_name: row.subtopicName,
+        preview: row.preview,
+      })),
+      updated_by: user.id,
+      updated_at: new Date().toISOString(),
+    });
+
     const { error: upsertError } = await supabase.from("topic_content").upsert(
-      {
-        board,
-        subject,
-        class_level: classLevel,
-        topic,
-        level,
-        hub_scope: hubScope,
-        why_study,
-        what_learn,
-        real_world,
-        subtopic_previews: subtopicPreviews.map((row) => ({
-          subtopic_name: row.subtopicName,
-          preview: row.preview,
-        })),
-        updated_by: user.id,
-        updated_at: new Date().toISOString(),
-      },
+      topicContentRow,
       { onConflict: "board,subject,class_level,topic,level,hub_scope" }
     );
 
@@ -1442,7 +1470,7 @@ export async function POST(request: Request) {
     const createdAt = new Date().toISOString();
     const feedbackText = [likedPoints, dislikedPoints, instructions].filter(Boolean).join("\n---\n").slice(0, 8000);
 
-    const { error: runLogError } = await supabase.from("topic_content_runs").insert({
+    const runLogRow = sanitizeJsonForDb({
       board,
       subject,
       class_level: classLevel,
@@ -1476,6 +1504,8 @@ export async function POST(request: Request) {
       created_by: user.id,
       created_at: createdAt,
     });
+
+    const { error: runLogError } = await supabase.from("topic_content_runs").insert(runLogRow);
 
     if (runLogError) {
       console.error("topic_content_runs insert", runLogError);
@@ -1580,6 +1610,16 @@ export async function POST(request: Request) {
     });
   } catch (e) {
     console.error("generate-topic error", e);
+    const msg = e instanceof Error ? e.message : String(e ?? "");
+    if (/empty model response|no candidates?/i.test(msg)) {
+      return NextResponse.json(
+        {
+          error: "Gemini returned an empty response after retries. Please retry.",
+          code: "GEMINI_EMPTY_RESPONSE",
+        },
+        { status: 502 }
+      );
+    }
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

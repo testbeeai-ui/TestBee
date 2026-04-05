@@ -12,6 +12,8 @@ import { fetchRAGContext } from "@/lib/rag";
 import { normalizeSubjectKey, normalizeSubtopicContentKey } from "@/lib/subtopicContentKeys";
 import { getGeminiApiKeyFromEnv } from "@/lib/geminiEnv";
 import { logAiUsage } from "@/lib/aiLogger";
+import { tryParseJsonObjectWithSalvage } from "@/lib/parseModelJson";
+import { sanitizeJsonForDb } from "@/lib/sanitizeJsonForDb";
 
 const ALLOWED_LEVELS = new Set(["basics", "intermediate", "advanced"]);
 
@@ -131,17 +133,19 @@ ${existing.theory.slice(0, 16000)}${ragBlock}`;
     let backend = vertexEnabled ? "vertex" : "api_key";
     let items: Array<{ type: "concept" | "formula" | "common_mistake" | "trap"; frontContent: string; backContent: string }> = [];
 
-    for (let attempt = 1; attempt <= 2; attempt++) {
+    for (let attempt = 1; attempt <= 3; attempt++) {
       const shortfallHint =
         attempt === 1
           ? ""
-          : `\n\nSTRICT REPAIR: previous output had fewer than ${minCards} valid cards. Return at least ${minCards} fully valid cards now.`;
+          : attempt === 2
+            ? `\n\nSTRICT REPAIR: previous output had fewer than ${minCards} valid cards. Return at least ${minCards} fully valid cards now.`
+            : `\n\nCRITICAL: Your previous reply was not valid JSON. Output ONE JSON object only: {"items":[...]} with double-quoted keys/strings. Escape backslashes inside strings as \\\\. At least ${minCards} cards.`;
       const out = await generateArtifactJson({
         apiKey,
         modelId,
         userPrompt: `${baseUserPrompt}${shortfallHint}`,
         systemInstruction: baseSystemInstruction,
-        temperature: attempt === 1 ? 0.5 : 0.35,
+        temperature: attempt === 1 ? 0.5 : attempt === 2 ? 0.35 : 0.25,
         responseSchema: instaCueResponseSchema(),
       });
       backend = out.backend;
@@ -165,7 +169,14 @@ ${existing.theory.slice(0, 16000)}${ragBlock}`;
           ragChunkCount: rag?.chunkCount ?? 0,
         },
       });
-      const parsed = JSON.parse(out.raw) as { items?: unknown[] };
+      const parsed = tryParseJsonObjectWithSalvage(out.raw);
+      if (!parsed) {
+        console.warn(
+          `[generate-instacue] JSON parse failed after salvage (attempt ${attempt}) subtopic=${subtopicName.slice(0, 80)}`
+        );
+        items = [];
+        continue;
+      }
       items = normalizeInstaCue(parsed.items);
       if (items.length >= minCards) break;
     }
@@ -184,8 +195,9 @@ ${existing.theory.slice(0, 16000)}${ragBlock}`;
     }
 
     const persistDb = supabaseForLongJobPersist(supabase);
+    const safeItems = sanitizeJsonForDb(items);
     const { error: upsertError } = await persistDb.from("subtopic_content").update({
-      instacue_cards: JSON.parse(JSON.stringify(items)),
+      instacue_cards: safeItems,
       updated_by: user.id,
       updated_at: new Date().toISOString(),
     }).eq("board", board).eq("subject", subject).eq("class_level", classLevel)

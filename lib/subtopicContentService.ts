@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { fetchWithClientAuth } from "@/lib/clientApiAuth";
 import type { DifficultyLevel } from "@/lib/slugs";
 import type { Board, Subject } from "@/types";
 import type { DeepDiveReference } from "@/data/deepDiveContent";
@@ -51,19 +51,6 @@ export type SubtopicContentResponse = {
   canEdit: boolean;
 };
 
-async function getAuthHeaders(): Promise<HeadersInit> {
-  const headers: Record<string, string> = {};
-  if (typeof window !== "undefined") {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (session?.access_token) {
-      headers.Authorization = `Bearer ${session.access_token}`;
-    }
-  }
-  return headers;
-}
-
 function buildQuery(params: SubtopicContentParams): string {
   const search = new URLSearchParams({
     board: params.board,
@@ -93,8 +80,7 @@ function parseReferences(data: unknown): DeepDiveReference[] {
 }
 
 export async function fetchSubtopicContent(params: SubtopicContentParams): Promise<SubtopicContentResponse> {
-  const headers = await getAuthHeaders();
-  const res = await fetch(buildQuery(params), { headers, cache: "no-store" });
+  const res = await fetchWithClientAuth(buildQuery(params), { cache: "no-store" });
   const empty: SubtopicContentResponse = {
     theory: "", references: [], didYouKnow: "",
     instacueCards: [], bitsQuestions: [], practiceFormulas: [],
@@ -139,10 +125,9 @@ export async function upsertSubtopicContent(
     didYouKnow: string;
   }
 ): Promise<void> {
-  const authHeaders = await getAuthHeaders();
-  const res = await fetch(API, {
+  const res = await fetchWithClientAuth(API, {
     method: "POST",
-    headers: { ...authHeaders, "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       ...params,
       references: params.references,
@@ -181,10 +166,9 @@ export type GenerateSubtopicResponse = {
 export async function generateSubtopicContent(
   body: GenerateSubtopicBody
 ): Promise<GenerateSubtopicResponse> {
-  const authHeaders = await getAuthHeaders();
-  const res = await fetch(API_GENERATE, {
+  const res = await fetchWithClientAuth(API_GENERATE, {
     method: "POST",
-    headers: { ...authHeaders, "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       board: body.board,
       subject: body.subject,
@@ -230,10 +214,9 @@ async function callArtifactApi<T>(
   endpoint: string,
   body: ArtifactGenerateBody
 ): Promise<ArtifactGenerateResponse<T>> {
-  const authHeaders = await getAuthHeaders();
-  const res = await fetch(endpoint, {
+  const res = await fetchWithClientAuth(endpoint, {
     method: "POST",
-    headers: { ...authHeaders, "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       board: body.board,
       subject: body.subject,
@@ -280,10 +263,9 @@ export function generateFormulaPractice(
 export async function saveFormulaPractice(
   body: SubtopicContentParams & { practiceFormulas: ArtifactFormula[] }
 ): Promise<void> {
-  const authHeaders = await getAuthHeaders();
-  const res = await fetch(API_UPDATE_FORMULAS, {
+  const res = await fetchWithClientAuth(API_UPDATE_FORMULAS, {
     method: "POST",
-    headers: { ...authHeaders, "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       board: body.board,
       subject: body.subject,

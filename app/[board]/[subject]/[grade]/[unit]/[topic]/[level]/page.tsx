@@ -68,7 +68,11 @@ import {
   type TopicAgentTrace,
   type TopicSubtopicPreview,
 } from "@/lib/topicContentService";
-import { subtopicTheoryIsPlaceholder } from "@/lib/subtopicCompleteness";
+import {
+  MIN_BITS_QUESTIONS,
+  MIN_INSTACUE_CARDS,
+  subtopicTheoryIsPlaceholder,
+} from "@/lib/subtopicCompleteness";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { fuzzySubtopicKey } from "@/lib/utils";
@@ -389,6 +393,21 @@ export default function TopicPage() {
     return !topicHubGateOk;
   }, [isOverview, canEditTheory, topicHubGateLoading, topicHubGateOk]);
 
+  /** Subtopic row already has AI output in Supabase — allow regen even if theory text fails placeholder heuristics. */
+  const hasPersistedAiArtifacts = useMemo(
+    () =>
+      dbInstacueCards.length >= MIN_INSTACUE_CARDS ||
+      dbBitsQuestions.length >= MIN_BITS_QUESTIONS ||
+      dbPracticeFormulas.length > 0,
+    [dbInstacueCards.length, dbBitsQuestions.length, dbPracticeFormulas.length]
+  );
+
+  /** Topic hub is required for first-time generation; don't block admins who already have saved artifacts. */
+  const artifactActionsTopicHubBlocked = useMemo(
+    () => subtopicAiBlockedByTopicHub && !hasPersistedAiArtifacts,
+    [subtopicAiBlockedByTopicHub, hasPersistedAiArtifacts]
+  );
+
   const bitsSignature = useMemo(() => getBitsSignature(dbBitsQuestions), [dbBitsQuestions]);
   /** Full "Standard areas: …" string must reach MathText so KaTeX can format circle/parabola rows. */
   const displaySubtopicTitle = useMemo(() => subtopicMathTextLabel(subtopicName), [subtopicName]);
@@ -402,13 +421,14 @@ export default function TopicPage() {
     });
   }, [dbPracticeFormulas, topicNode, subtopicName]);
 
-  /** InstaCue / Bits / Formulas APIs read theory from `subtopic_content` — enable only after real deep dive is saved. */
+  /** InstaCue / Bits / Formulas need persisted theory unless this subtopic level already has DB artifacts to regenerate from. */
   const hasDeepDiveForAiArtifacts = useMemo(() => {
+    if (hasPersistedAiArtifacts) return true;
     if (!dbTheoryExists) return false;
     const t = dbTheory.trim();
     if (!t) return false;
     return !subtopicTheoryIsPlaceholder(t);
-  }, [dbTheoryExists, dbTheory]);
+  }, [hasPersistedAiArtifacts, dbTheoryExists, dbTheory]);
 
   const appendArtifactLog = useCallback((message: string) => {
     const ts = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
@@ -428,16 +448,6 @@ export default function TopicPage() {
   const runAiArtifactPipeline = useCallback(
     async (opts?: { skipDeepDiveGate?: boolean }) => {
       if (!topicNode || !subtopicName) return;
-      if (subtopicAiBlockedByTopicHub) {
-        toast({
-          title: "Topic hub incomplete",
-          description: `Generate the topic hub for Basics, Intermediate, and Advanced first (Explore). Missing: ${
-            topicHubGateMissing.length ? topicHubGateMissing.join(", ") : "one or more levels"
-          }.`,
-          variant: "destructive",
-        });
-        return;
-      }
       if (!opts?.skipDeepDiveGate && !hasDeepDiveForAiArtifacts) return;
 
       const boardName = (board === "icse" ? "ICSE" : "CBSE") as Board;
@@ -617,8 +627,6 @@ export default function TopicPage() {
       hasDeepDiveForAiArtifacts,
       subtopicName,
       toast,
-      subtopicAiBlockedByTopicHub,
-      topicHubGateMissing,
       topicNode,
     ]
   );
@@ -626,16 +634,6 @@ export default function TopicPage() {
   const runDeepDiveGeneration = useCallback(
     async (opts?: { fromSubtopicAi?: boolean }) => {
       if (!topicNode || !subtopicName) return false;
-      if (subtopicAiBlockedByTopicHub) {
-        toast({
-          title: "Topic hub incomplete",
-          description: `Generate the topic hub for Basics, Intermediate, and Advanced first. Missing: ${
-            topicHubGateMissing.length ? topicHubGateMissing.join(", ") : "one or more levels"
-          }.`,
-          variant: "destructive",
-        });
-        return false;
-      }
       const boardName = (board === "icse" ? "ICSE" : "CBSE") as Board;
       const existingPreview =
         topicSubtopicPreviews.find((p) => p.subtopicName.trim().toLowerCase() === subtopicName.trim().toLowerCase())
@@ -689,15 +687,12 @@ export default function TopicPage() {
       subtopicName,
       toast,
       topicNode,
-      subtopicAiBlockedByTopicHub,
-      topicHubGateMissing,
       topicSubtopicPreviews,
     ]
   );
 
   const runSubtopicAiGeneration = useCallback(async () => {
     if (!topicNode || !subtopicName) return;
-    if (subtopicAiBlockedByTopicHub) return;
     if (generatingDeepDive || generatingInstacue || generatingBits || generatingFormulas || loadingDbTheory) return;
     const deepDiveOk = await runDeepDiveGeneration({ fromSubtopicAi: true });
     if (!deepDiveOk) return;
@@ -711,14 +706,22 @@ export default function TopicPage() {
     loadingDbTheory,
     runAiArtifactPipeline,
     runDeepDiveGeneration,
-    subtopicAiBlockedByTopicHub,
     subtopicName,
     topicNode,
   ]);
 
   const runBitsOnly = useCallback(async () => {
     if (!topicNode || !subtopicName || !hasDeepDiveForAiArtifacts) return;
-    if (subtopicAiBlockedByTopicHub) return;
+    if (artifactActionsTopicHubBlocked) {
+      toast({
+        title: "Topic hub incomplete",
+        description: `Generate the topic hub for Basics, Intermediate, and Advanced first. Missing: ${
+          topicHubGateMissing.length ? topicHubGateMissing.join(", ") : "one or more levels"
+        }.`,
+        variant: "destructive",
+      });
+      return;
+    }
     if (generatingDeepDive || generatingInstacue || generatingBits || generatingFormulas) return;
     const boardName = (board === "icse" ? "ICSE" : "CBSE") as Board;
     setArtifactRunStatus("running");
@@ -757,16 +760,26 @@ export default function TopicPage() {
     generatingDeepDive,
     generatingFormulas,
     generatingInstacue,
+    artifactActionsTopicHubBlocked,
     hasDeepDiveForAiArtifacts,
-    subtopicAiBlockedByTopicHub,
     subtopicName,
     toast,
+    topicHubGateMissing,
     topicNode,
   ]);
 
   const runFormulasOnly = useCallback(async () => {
     if (!topicNode || !subtopicName || !hasDeepDiveForAiArtifacts) return;
-    if (subtopicAiBlockedByTopicHub) return;
+    if (artifactActionsTopicHubBlocked) {
+      toast({
+        title: "Topic hub incomplete",
+        description: `Generate the topic hub for Basics, Intermediate, and Advanced first. Missing: ${
+          topicHubGateMissing.length ? topicHubGateMissing.join(", ") : "one or more levels"
+        }.`,
+        variant: "destructive",
+      });
+      return;
+    }
     if (generatingDeepDive || generatingInstacue || generatingBits || generatingFormulas) return;
     const boardName = (board === "icse" ? "ICSE" : "CBSE") as Board;
     setArtifactRunStatus("running");
@@ -806,10 +819,11 @@ export default function TopicPage() {
     generatingDeepDive,
     generatingFormulas,
     generatingInstacue,
+    artifactActionsTopicHubBlocked,
     hasDeepDiveForAiArtifacts,
-    subtopicAiBlockedByTopicHub,
     subtopicName,
     toast,
+    topicHubGateMissing,
     topicNode,
   ]);
 
@@ -1146,6 +1160,7 @@ export default function TopicPage() {
     }
     let cancelled = false;
     setTopicHubGateLoading(true);
+    setTopicHubGateOk(false);
     const boardName = (board === "icse" ? "ICSE" : "CBSE") as Board;
     void fetchTopicHubThreeLevelGate({
       board: boardName,
@@ -1376,7 +1391,7 @@ export default function TopicPage() {
   if (taxonomyLoading) {
     return (
       <AppLayout>
-        <div className="max-w-6xl mx-auto px-4 -mt-6 pt-2 pb-6">
+        <div className="max-w-6xl mx-auto w-full min-w-0 px-4 -mt-6 pt-2 pb-6">
           <div className="mb-6 flex flex-wrap items-center gap-3">
             <div className="h-9 w-24 rounded-full bg-muted animate-pulse" />
             <div className="h-8 w-24 rounded-full bg-muted animate-pulse" />
@@ -1485,7 +1500,7 @@ export default function TopicPage() {
 
   return (
     <AppLayout>
-      <div className="max-w-6xl mx-auto px-4 -mt-6 pt-2 pb-6">
+      <div className="max-w-6xl mx-auto w-full min-w-0 px-4 -mt-6 pt-2 pb-6">
         <div className="mb-6 flex flex-wrap items-center gap-2 sm:gap-3">
           <Button variant="ghost" size="sm" asChild className="rounded-full font-bold -ml-1 shrink-0">
             <Link href={topBackHref}>
@@ -1524,7 +1539,7 @@ export default function TopicPage() {
           </span>
         </div>
 
-        <div className="flex flex-col lg:flex-row gap-6">
+        <div className="flex flex-col lg:flex-row gap-6 min-w-0 max-w-full">
 
           {/* ── LEFT SIDEBAR (desktop only, subtopic view, PhysX layout only) ── */}
           {!isOverview && isPhysXLayout && (
@@ -1619,7 +1634,10 @@ export default function TopicPage() {
           )}
 
           <main className="flex-1 min-w-0">
-            <div data-theory-card className={`edu-card p-6 rounded-2xl border-2 shadow-lg ${mainCardBorderClass}`}>
+            <div
+              data-theory-card
+              className={`edu-card p-6 rounded-2xl border-2 shadow-lg min-w-0 max-w-full ${mainCardBorderClass}`}
+            >
               {isOverview ? (
                 <>
                   <div className="flex justify-end mb-3">
@@ -1979,13 +1997,13 @@ export default function TopicPage() {
                       return (
                         <section
                           key={row.name}
-                          className="rounded-2xl border-2 border-border bg-muted/20 p-4 sm:p-5 transition-shadow"
+                          className="rounded-2xl border-2 border-border bg-muted/20 p-4 sm:p-5 transition-shadow min-w-0 max-w-full overflow-x-clip"
                         >
-                          <h3 className="font-extrabold text-base flex min-w-0 items-center gap-2 mb-3">
+                          <h3 className="font-extrabold text-base flex min-w-0 max-w-full items-start gap-2 mb-3">
                             <span className="w-8 h-8 rounded-lg bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center text-sm font-extrabold text-black dark:text-white shrink-0">
                               {idx + 1}
                             </span>
-                            <span className="subtopic-title-text break-words min-w-0 flex-1">
+                            <span className="subtopic-title-text min-w-0 flex-1 max-w-full">
                               <MathText
                                 weight="extrabold"
                                 className="[&_.katex]:!text-[0.88em] sm:[&_.katex]:!text-[0.92em]"
@@ -2004,7 +2022,7 @@ export default function TopicPage() {
                               </p>
                             </div>
                           ) : (
-                            <div className="theory-content text-[15px] leading-relaxed text-muted-foreground">
+                            <div className="theory-content text-[15px] leading-relaxed text-muted-foreground min-w-0 max-w-full [overflow-wrap:anywhere] break-words">
                               <TheoryContent theory={displayText} />
                             </div>
                           )}
@@ -2124,12 +2142,44 @@ export default function TopicPage() {
                         Theory
                       </h2>
                       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 sm:justify-end">
-                        {canEditTheory && (
+                        {loadingDbTheory && !canEditTheory && (
+                          <>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="shrink-0 whitespace-nowrap rounded-lg"
+                              disabled
+                            >
+                              <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+                              Loading actions…
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="shrink-0 whitespace-nowrap rounded-lg"
+                              disabled
+                            >
+                              Generate Subtopic AI
+                            </Button>
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              className="shrink-0 whitespace-nowrap rounded-lg"
+                              disabled
+                            >
+                              Regenerate Deep Dive
+                            </Button>
+                          </>
+                        )}
+                        {topicNode && subtopicName && (
                           <Button
                             variant="outline"
                             size="sm"
                             className="shrink-0 whitespace-nowrap rounded-lg"
+                            disabled={!canEditTheory}
+                            title={canEditTheory ? "Edit theory content" : "Admin only"}
                             onClick={() => {
+                              if (!canEditTheory) return;
                               if (!editorOpen) {
                                 setDraftTheory(activeTheory);
                                 setDraftDidYouKnow(dbDidYouKnow);
@@ -2141,13 +2191,13 @@ export default function TopicPage() {
                             {editorOpen ? "Close editor" : "Edit"}
                           </Button>
                         )}
-                        {canEditTheory && topicNode && subtopicName && (
+                        {topicNode && subtopicName && (
                           <Button
                             variant="outline"
                             size="sm"
                             className="shrink-0 whitespace-nowrap rounded-lg gap-2 font-bold"
                             disabled={
-                              subtopicAiBlockedByTopicHub ||
+                              !canEditTheory ||
                               generatingDeepDive ||
                               generatingInstacue ||
                               generatingBits ||
@@ -2155,9 +2205,7 @@ export default function TopicPage() {
                               loadingDbTheory ||
                               completingSubtopicAll
                             }
-                            title={
-                              "Generate this subtopic Deep Dive, then InstaCue, Bits, and practice formulas."
-                            }
+                            title={canEditTheory ? "Generate this subtopic Deep Dive, then InstaCue, Bits, and practice formulas." : "Admin only"}
                             onClick={() => void runSubtopicAiGeneration()}
                           >
                             {generatingInstacue || generatingBits || generatingFormulas ? (
@@ -2170,13 +2218,13 @@ export default function TopicPage() {
                               : "Generate Subtopic AI"}
                           </Button>
                         )}
-                        {canEditTheory && topicNode && subtopicName && (
+                        {topicNode && subtopicName && (
                           <Button
                             variant="secondary"
                             size="sm"
                             className="shrink-0 whitespace-nowrap rounded-lg gap-2 font-bold"
                             disabled={
-                              subtopicAiBlockedByTopicHub ||
+                              !canEditTheory ||
                               generatingDeepDive ||
                               loadingDbTheory ||
                               completingSubtopicAll
@@ -2198,13 +2246,14 @@ export default function TopicPage() {
                                 : "Generate Deep Dive"}
                           </Button>
                         )}
-                        {canEditTheory && topicNode && subtopicName && (
+                        {topicNode && subtopicName && (
                           <>
                             <Button
                               variant="outline"
                               size="sm"
                               className="shrink-0 whitespace-nowrap rounded-lg gap-2 font-bold"
                               disabled={
+                                !canEditTheory ||
                                 subtopicAiBlockedByTopicHub ||
                                 completingSubtopicAll ||
                                 generatingDeepDive ||
@@ -2227,6 +2276,7 @@ export default function TopicPage() {
                               size="sm"
                               className="shrink-0 whitespace-nowrap rounded-lg text-xs font-bold"
                               disabled={
+                                !canEditTheory ||
                                 completingSubtopicAll ||
                                 generatingDeepDive ||
                                 generatingInstacue ||
@@ -2244,7 +2294,7 @@ export default function TopicPage() {
                     </div>
                     {canEditTheory && subtopicAiBlockedByTopicHub && (
                       <p className="text-[10px] text-amber-900 dark:text-amber-200 mb-2 leading-snug">
-                        Subtopic AI is locked until the topic hub exists for Basics, Intermediate, and Advanced
+                        Complete all levels requires topic hub coverage for Basics, Intermediate, and Advanced
                         (generate on topic overview / Explore).
                         {topicHubGateLoading ? (
                           <span className="font-semibold"> Checking hub…</span>
@@ -2599,7 +2649,7 @@ export default function TopicPage() {
             )}
           </main>
 
-          <aside className="w-full lg:w-72 xl:w-80 shrink-0">
+          <aside className="w-full lg:w-72 xl:w-80 shrink-0 min-w-0 lg:min-w-[18rem]">
             <div className="lg:sticky lg:top-24 space-y-4">
               {isOverview && (
               <div className="edu-card p-5 rounded-2xl border border-border">
@@ -2743,7 +2793,7 @@ export default function TopicPage() {
                               : "Generate Deep Dive first, then run AI cards."
                           }
                           disabled={
-                            subtopicAiBlockedByTopicHub ||
+                            artifactActionsTopicHubBlocked ||
                             !hasDeepDiveForAiArtifacts ||
                             generatingDeepDive ||
                             generatingInstacue ||
@@ -2842,7 +2892,7 @@ export default function TopicPage() {
                           size="sm"
                           className="rounded-lg gap-1.5 text-xs font-bold text-primary disabled:opacity-50"
                           disabled={
-                            subtopicAiBlockedByTopicHub ||
+                            artifactActionsTopicHubBlocked ||
                             !hasDeepDiveForAiArtifacts ||
                             generatingDeepDive ||
                             generatingInstacue ||
@@ -3150,7 +3200,7 @@ export default function TopicPage() {
                           size="sm"
                           className="rounded-lg gap-1.5 text-xs font-bold text-primary disabled:opacity-50"
                           disabled={
-                            subtopicAiBlockedByTopicHub ||
+                            artifactActionsTopicHubBlocked ||
                             !hasDeepDiveForAiArtifacts ||
                             generatingDeepDive ||
                             generatingInstacue ||
@@ -3273,7 +3323,7 @@ export default function TopicPage() {
                             : "Generate Deep Dive first, then run AI cards."
                         }
                         disabled={
-                          subtopicAiBlockedByTopicHub ||
+                          artifactActionsTopicHubBlocked ||
                           !hasDeepDiveForAiArtifacts ||
                           generatingDeepDive ||
                           generatingInstacue ||
@@ -3375,7 +3425,7 @@ export default function TopicPage() {
                             size="sm"
                             className="rounded-lg gap-1.5 text-xs font-bold text-primary disabled:opacity-50"
                             disabled={
-                              subtopicAiBlockedByTopicHub ||
+                              artifactActionsTopicHubBlocked ||
                               !hasDeepDiveForAiArtifacts ||
                               generatingDeepDive ||
                               generatingInstacue ||
@@ -3678,7 +3728,7 @@ export default function TopicPage() {
                             size="sm"
                             className="rounded-lg gap-1.5 text-xs font-bold text-primary disabled:opacity-50"
                             disabled={
-                              subtopicAiBlockedByTopicHub ||
+                              artifactActionsTopicHubBlocked ||
                               !hasDeepDiveForAiArtifacts ||
                               generatingDeepDive ||
                               generatingInstacue ||

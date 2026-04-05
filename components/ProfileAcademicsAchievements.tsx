@@ -113,31 +113,36 @@ export default function ProfileAcademicsAchievements({ userId }: { userId: strin
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="edu-card p-6"
+        className="rounded-2xl border border-border bg-card p-5 dark:border-white/10 dark:bg-slate-950/80"
       >
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-display text-lg text-foreground flex items-center gap-2">
-            <GraduationCap className="w-5 h-5 text-primary" /> Academic Record
+          <h3 className="text-xl font-black text-foreground dark:text-white flex items-center gap-2">
+            <GraduationCap className="w-5 h-5 text-indigo-300" /> Academic Record
           </h3>
-          <Button size="sm" variant="outline" className="rounded-xl" onClick={() => setAcademicDialog({ open: true })}>
+          <Button
+            size="sm"
+            variant="outline"
+            className="rounded-xl border-border bg-muted text-foreground hover:bg-muted/80 dark:border-white/15 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+            onClick={() => setAcademicDialog({ open: true })}
+          >
             <Plus className="w-4 h-4 mr-1" /> Add
           </Button>
         </div>
         {loading ? (
-          <p className="text-sm text-muted-foreground">Loading...</p>
+          <p className="text-sm text-muted-foreground dark:text-slate-400">Loading...</p>
         ) : academics.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No records yet. Add your Class 11/12 results for your public profile.</p>
+          <p className="text-sm text-muted-foreground dark:text-slate-400">No records yet. Add your Class 11/12 results for your public profile.</p>
         ) : (
           <div className="space-y-2">
             {academics.map((a) => (
-              <div key={a.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                <p className="font-semibold text-foreground">{a.exam} — {a.board}</p>
+              <div key={a.id} className="flex items-center justify-between py-2 border-b border-border last:border-0 dark:border-white/10">
+                <p className="font-semibold text-foreground dark:text-slate-100">{a.exam} — {a.board}</p>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground">{a.score}</span>
-                  <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => setAcademicDialog({ open: true, edit: a })}>
+                  <span className="text-sm text-muted-foreground dark:text-slate-400">{a.score}</span>
+                  <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-muted-foreground hover:bg-muted dark:text-slate-300 dark:hover:bg-slate-800" onClick={() => setAcademicDialog({ open: true, edit: a })}>
                     <Pencil className="w-4 h-4" />
                   </Button>
-                  <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive hover:text-destructive" onClick={() => handleDeleteAcademic(a.id)}>
+                  <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-rose-400 hover:bg-rose-500/20 hover:text-rose-300" onClick={() => handleDeleteAcademic(a.id)}>
                     <Trash2 className="w-4 h-4" />
                   </Button>
                 </div>
@@ -145,7 +150,7 @@ export default function ProfileAcademicsAchievements({ userId }: { userId: strin
             ))}
           </div>
         )}
-        <Button variant="link" size="sm" className="mt-2 text-primary px-0" asChild>
+        <Button variant="link" size="sm" className="mt-2 text-violet-300 px-0 hover:text-violet-200" asChild>
           <Link href={`/user/${userId}`}>View public profile →</Link>
         </Button>
       </motion.div>
@@ -154,32 +159,37 @@ export default function ProfileAcademicsAchievements({ userId }: { userId: strin
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.25 }}
-        className="edu-card p-6"
+        className="rounded-2xl border border-border bg-card p-5 dark:border-white/10 dark:bg-slate-950/80"
       >
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-display text-lg text-foreground flex items-center gap-2">
-            <Medal className="w-5 h-5 text-primary" /> Achievements & Competitions
+          <h3 className="text-xl font-black text-foreground dark:text-white flex items-center gap-2">
+            <Medal className="w-5 h-5 text-amber-300" /> Achievements & Competitions
           </h3>
-          <Button size="sm" variant="outline" className="rounded-xl" onClick={() => setAchievementDialog({ open: true })}>
+          <Button
+            size="sm"
+            variant="outline"
+            className="rounded-xl border-border bg-muted text-foreground hover:bg-muted/80 dark:border-white/15 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+            onClick={() => setAchievementDialog({ open: true })}
+          >
             <Plus className="w-4 h-4 mr-1" /> Add
           </Button>
         </div>
         {loading ? (
-          <p className="text-sm text-muted-foreground">Loading...</p>
+          <p className="text-sm text-muted-foreground dark:text-slate-400">Loading...</p>
         ) : achievements.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No achievements yet. Add Olympiads, competitions, and more.</p>
+          <p className="text-sm text-muted-foreground dark:text-slate-400">No achievements yet. Add Olympiads, competitions, and more.</p>
         ) : (
           <div className="space-y-2">
             {achievements.map((a) => (
-              <div key={a.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                <p className="font-semibold text-foreground">{a.name}</p>
+              <div key={a.id} className="flex items-center justify-between py-2 border-b border-border last:border-0 dark:border-white/10">
+                <p className="font-semibold text-foreground dark:text-slate-100">{a.name}</p>
                 <div className="flex items-center gap-2">
-                  <span className="edu-chip text-[10px] font-bold bg-muted">{a.level}</span>
-                  <span className="text-sm text-muted-foreground">{a.year} — {a.result}</span>
-                  <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => setAchievementDialog({ open: true, edit: a })}>
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-bold text-muted-foreground dark:bg-slate-800 dark:text-slate-300">{a.level}</span>
+                  <span className="text-sm text-muted-foreground dark:text-slate-400">{a.year} — {a.result}</span>
+                  <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-muted-foreground hover:bg-muted dark:text-slate-300 dark:hover:bg-slate-800" onClick={() => setAchievementDialog({ open: true, edit: a })}>
                     <Pencil className="w-4 h-4" />
                   </Button>
-                  <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive hover:text-destructive" onClick={() => handleDeleteAchievement(a.id)}>
+                  <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-rose-400 hover:bg-rose-500/20 hover:text-rose-300" onClick={() => handleDeleteAchievement(a.id)}>
                     <Trash2 className="w-4 h-4" />
                   </Button>
                 </div>

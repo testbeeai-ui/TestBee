@@ -1,49 +1,235 @@
 "use client";
 
-import { useMemo } from "react";
-import { motion } from "framer-motion";
+import { type ComponentType, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserStore } from "@/store/useUserStore";
 import { questions } from "@/data/questions";
 import AppLayout from "@/components/AppLayout";
 import { useStreakTimer } from "@/hooks/useStreakTimer";
-import { Progress } from "@/components/ui/progress";
 import TeacherDashboard from "@/components/TeacherDashboard";
 import {
-  Target,
-  TrendingUp,
-  CheckCircle2,
-  XCircle,
-  Coins,
-  AlertTriangle,
-  Zap,
-  ArrowRight,
   BookOpen,
-  BookMarked,
-  MessageCircleQuestion,
-  School,
-  ClipboardList,
+  BookText,
+  BrainCircuit,
+  CalendarDays,
+  ChevronRight,
+  CircleDashed,
+  Coins,
   Flame,
   GraduationCap,
-  Clock,
+  Sigma,
+  TrendingUp,
+  Target,
 } from "lucide-react";
 import { Subject } from "@/types";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 
-const subjectEmojis: Record<Subject, string> = {
-  physics: "⚡",
-  chemistry: "🧪",
-  math: "📐",
-  biology: "🧬",
+type SubjectStat = {
+  subject: Subject;
+  total: number;
+  correct: number;
+  wrong: number;
+  skipped: number;
+  accuracy: number;
 };
 
-const subjectGradients: Record<Subject, string> = {
-  physics: "from-blue-500 to-cyan-400",
-  chemistry: "from-purple-500 to-violet-400",
-  math: "from-orange-500 to-amber-400",
-  biology: "from-green-500 to-emerald-400",
+const SUBJECT_META: Record<
+  Subject,
+  {
+    label: string;
+    short: string;
+    tones: {
+      border: string;
+      badge: string;
+      chip: string;
+      percent: string;
+    };
+    tags: string[];
+  }
+> = {
+  physics: {
+    label: "Physics",
+    short: "P",
+    tones: {
+      border: "border-blue-500/45 dark:border-blue-400/45",
+      badge: "bg-blue-500/15 text-blue-600 dark:bg-blue-500/20 dark:text-blue-300",
+      chip: "bg-blue-500/10 text-blue-700 dark:bg-blue-500/20 dark:text-blue-200",
+      percent: "text-blue-600 dark:text-blue-300",
+    },
+    tags: ["Electrostatics", "Mechanics", "Optics"],
+  },
+  chemistry: {
+    label: "Chemistry",
+    short: "C",
+    tones: {
+      border: "border-rose-500/45 dark:border-rose-400/45",
+      badge: "bg-rose-500/15 text-rose-600 dark:bg-rose-500/20 dark:text-rose-300",
+      chip: "bg-rose-500/10 text-rose-700 dark:bg-rose-500/20 dark:text-rose-200",
+      percent: "text-rose-600 dark:text-rose-300",
+    },
+    tags: ["Organic", "Inorganic", "Physical"],
+  },
+  math: {
+    label: "Mathematics",
+    short: "M",
+    tones: {
+      border: "border-violet-500/45 dark:border-violet-400/45",
+      badge: "bg-violet-500/15 text-violet-600 dark:bg-violet-500/20 dark:text-violet-300",
+      chip: "bg-violet-500/10 text-violet-700 dark:bg-violet-500/20 dark:text-violet-200",
+      percent: "text-violet-600 dark:text-violet-300",
+    },
+    tags: ["Calculus", "Algebra", "Geometry"],
+  },
+  biology: {
+    label: "Biology",
+    short: "B",
+    tones: {
+      border: "border-emerald-500/45 dark:border-emerald-400/45",
+      badge: "bg-emerald-500/15 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-300",
+      chip: "bg-emerald-500/10 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200",
+      percent: "text-emerald-600 dark:text-emerald-300",
+    },
+    tags: ["Botany", "Zoology", "Genetics"],
+  },
 };
+
+const EXAM_CARDS: Array<{
+  key: string;
+  title: string;
+  subtitle: string;
+  tone: string;
+  iconBg: string;
+  icon: ComponentType<{ className?: string }>;
+}> = [
+  {
+    key: "cbse",
+    title: "CBSE Board",
+    subtitle: "0 tests · Class 12",
+    tone: "border-blue-500/35 dark:border-blue-400/35",
+    iconBg: "bg-blue-500/15 text-blue-600 dark:bg-blue-500/20 dark:text-blue-300",
+    icon: GraduationCap,
+  },
+  {
+    key: "jee-main",
+    title: "JEE Main",
+    subtitle: "0 tests · NTA pattern",
+    tone: "border-amber-500/35 dark:border-amber-400/35",
+    iconBg: "bg-amber-500/15 text-amber-600 dark:bg-amber-500/20 dark:text-amber-300",
+    icon: BrainCircuit,
+  },
+  {
+    key: "jee-advanced",
+    title: "JEE Advanced",
+    subtitle: "0 tests · IIT pattern",
+    tone: "border-violet-500/35 dark:border-violet-400/35",
+    iconBg: "bg-violet-500/15 text-violet-600 dark:bg-violet-500/20 dark:text-violet-300",
+    icon: Sigma,
+  },
+  {
+    key: "kcet",
+    title: "KCET",
+    subtitle: "0 tests · Karnataka",
+    tone: "border-emerald-500/35 dark:border-emerald-400/35",
+    iconBg: "bg-emerald-500/15 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-300",
+    icon: BookText,
+  },
+];
+
+const QUICK_ACTIONS = [
+  {
+    label: "Question Gun",
+    desc: "Fire 5 random questions",
+    path: "/play",
+    tone: "from-orange-500 to-red-500",
+    icon: Flame,
+  },
+  {
+    label: "Mock Test",
+    desc: "Take a timed subject exam",
+    path: "/mock",
+    tone: "from-indigo-500 to-blue-500",
+    icon: BookOpen,
+  },
+  {
+    label: "Explore Topics",
+    desc: "Browse by subject & topic",
+    path: "/explore",
+    tone: "from-cyan-500 to-blue-500",
+    icon: Target,
+  },
+  {
+    label: "Gyan++",
+    desc: "Get help from peers",
+    path: "/doubts",
+    tone: "from-amber-500 to-orange-500",
+    icon: TrendingUp,
+  },
+  {
+    label: "My Classes",
+    desc: "Join or explore classrooms",
+    path: "/classrooms",
+    tone: "from-emerald-500 to-teal-500",
+    icon: GraduationCap,
+  },
+];
+
+function RingDial({ label }: { label: string }) {
+  return (
+    <div className="flex flex-col items-center gap-1.5">
+      <div className="h-14 w-14 rounded-full border border-border/70 bg-background/80 p-1 dark:bg-slate-900/60">
+        <div className="flex h-full w-full items-center justify-center rounded-full border border-border/60 text-muted-foreground">
+          <CircleDashed className="h-4 w-4" />
+        </div>
+      </div>
+      <p className="text-[11px] font-medium text-muted-foreground">{label}</p>
+    </div>
+  );
+}
+
+function SubjectBreakdownCard({ stat }: { stat: SubjectStat }) {
+  const meta = SUBJECT_META[stat.subject];
+  return (
+    <div className={`rounded-2xl border bg-card/80 p-4 dark:bg-slate-950/65 ${meta.tones.border}`}>
+      <div className="flex items-center justify-between gap-4">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2.5">
+            <span className={`inline-flex h-8 w-8 items-center justify-center rounded-lg text-sm font-bold ${meta.tones.badge}`}>
+              {meta.short}
+            </span>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-foreground">{meta.label}</p>
+              <p className="text-xs text-muted-foreground">0 quizzes · {stat.total} questions</p>
+            </div>
+          </div>
+        </div>
+        <p className={`text-3xl font-extrabold tracking-tight ${meta.tones.percent}`}>{stat.accuracy}%</p>
+      </div>
+      <div className="mt-3 grid grid-cols-3 gap-2">
+        <div className="rounded-xl border border-border/60 bg-background/70 px-2 py-1.5 text-center dark:bg-slate-900/50">
+          <p className="text-lg font-bold text-emerald-500">{stat.correct}</p>
+          <p className="text-[11px] text-muted-foreground">Correct</p>
+        </div>
+        <div className="rounded-xl border border-border/60 bg-background/70 px-2 py-1.5 text-center dark:bg-slate-900/50">
+          <p className="text-lg font-bold text-rose-500">{stat.wrong}</p>
+          <p className="text-[11px] text-muted-foreground">Wrong</p>
+        </div>
+        <div className="rounded-xl border border-border/60 bg-background/70 px-2 py-1.5 text-center dark:bg-slate-900/50">
+          <p className="text-lg font-bold text-muted-foreground">{stat.skipped}</p>
+          <p className="text-[11px] text-muted-foreground">Skipped</p>
+        </div>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {meta.tags.map((tag) => (
+          <span key={tag} className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${meta.tones.chip}`}>
+            {tag}
+          </span>
+        ))}
+        <span className="rounded-full bg-muted px-2.5 py-1 text-[11px] font-medium text-muted-foreground">+ more</span>
+      </div>
+    </div>
+  );
+}
 
 export default function HomePage() {
   const { profile } = useAuth();
@@ -60,13 +246,15 @@ export default function HomePage() {
   }, [user]);
 
   const subjectStats = useMemo(() => {
-    return subjects.map((subject) => {
+    return subjects.map<SubjectStat>((subject) => {
       const subjectQIds = questions.filter((q) => q.subject === subject).map((q) => q.id);
       const subjectResults = allResults.filter((r) => subjectQIds.includes(r.questionId));
       const total = subjectResults.length;
       const correct = subjectResults.filter((r) => r.isCorrect).length;
+      const wrong = total - correct;
+      const skipped = 0;
       const accuracy = total > 0 ? Math.round((correct / total) * 100) : 0;
-      return { subject, total, correct, wrong: total - correct, accuracy };
+      return { subject, total, correct, wrong, skipped, accuracy };
     });
   }, [subjects, allResults]);
 
@@ -74,22 +262,16 @@ export default function HomePage() {
   const totalCorrect = allResults.filter((r) => r.isCorrect).length;
   const overallAccuracy =
     totalAnswered > 0 ? Math.round((totalCorrect / totalAnswered) * 100) : 0;
-
-  const weakestSubject = useMemo(() => {
-    const attempted = subjectStats.filter((s) => s.total > 0);
-    if (attempted.length === 0) return null;
-    return attempted.reduce((min, s) => (s.accuracy < min.accuracy ? s : min));
-  }, [subjectStats]);
-
-  const recentActivity = useMemo(() => {
-    return allResults
-      .slice(-5)
-      .reverse()
-      .map((r) => {
-        const q = questions.find((q) => q.id === r.questionId);
-        return { ...r, question: q };
-      });
-  }, [allResults]);
+  const totalWrong = totalAnswered - totalCorrect;
+  const totalSkipped = subjectStats.reduce((sum, s) => sum + s.skipped, 0);
+  const heatmapCells = useMemo(
+    () =>
+      Array.from({ length: 84 }, (_, i) => {
+        if (i > 84 - Math.min(totalAnswered, 20)) return (i + totalAnswered) % 4;
+        return 0;
+      }),
+    [totalAnswered]
+  );
 
   if (profile?.role === "teacher") {
     return (
@@ -110,321 +292,241 @@ export default function HomePage() {
   ];
   const dailyTip = motivationalTips[new Date().getDay() % motivationalTips.length];
 
-  const quickActions = [
-    { label: "Question Gun", desc: "Fire 5 random questions", path: "/play", gradient: "from-orange-500 to-red-500", emoji: "🔥" },
-    { label: "Mock Test", desc: "Take a timed subject exam", path: "/mock", gradient: "from-indigo-500 to-blue-500", emoji: "📝" },
-    { label: "Explore Topics", desc: "Browse by subject & topic", path: "/explore", gradient: "from-blue-500 to-cyan-500", emoji: "🧭" },
-    { label: "Gyan++", desc: "Get help from peers", path: "/doubts", gradient: "from-amber-500 to-yellow-500", emoji: "💡" },
-    { label: "My Classes", desc: "Join or explore classrooms", path: "/classrooms", gradient: "from-teal-500 to-green-500", emoji: "🏫" },
-    { label: "Revision Bank", desc: "Review saved questions", path: "/revision", gradient: "from-green-500 to-emerald-500", emoji: "📚" },
-  ];
-
   const statCards = [
-    { icon: Target, label: "Questions Done", value: totalAnswered, color: "text-edu-blue", bg: "bg-edu-blue/10" },
-    { icon: TrendingUp, label: "Accuracy", value: `${overallAccuracy}%`, color: "text-edu-green", bg: "bg-edu-green/10" },
-    { icon: Coins, label: "RDM Balance", value: profile?.rdm ?? user?.rdm ?? 0, color: "text-edu-orange", bg: "bg-edu-orange/10" },
-    { icon: BookMarked, label: "Saved", value: user?.savedQuestions.length ?? 0, color: "text-edu-purple", bg: "bg-edu-purple/10" },
+    {
+      icon: Target,
+      label: "Questions Done",
+      value: totalAnswered,
+      tone: "border-amber-500/40 dark:border-amber-400/40",
+      iconTone: "text-amber-600 dark:text-amber-300",
+    },
+    {
+      icon: TrendingUp,
+      label: "Accuracy",
+      value: `${overallAccuracy}%`,
+      tone: "border-emerald-500/40 dark:border-emerald-400/40",
+      iconTone: "text-emerald-600 dark:text-emerald-300",
+    },
+    {
+      icon: Coins,
+      label: "RDM Balance",
+      value: profile?.rdm ?? user?.rdm ?? 0,
+      tone: "border-orange-500/40 dark:border-orange-400/40",
+      iconTone: "text-orange-600 dark:text-orange-300",
+    },
+    {
+      icon: BookOpen,
+      label: "Saved",
+      value: user?.savedQuestions.length ?? 0,
+      tone: "border-violet-500/40 dark:border-violet-400/40",
+      iconTone: "text-violet-600 dark:text-violet-300",
+    },
   ];
 
   return (
     <ProtectedRoute>
       <AppLayout streakTimer={streakTimer}>
-        <div className="space-y-8">
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="relative overflow-hidden rounded-3xl gradient-primary p-8 md:p-10 text-primary-foreground"
-          >
+        <div className="mx-auto w-full max-w-7xl space-y-6 px-1 pb-6">
+          <section className="relative overflow-hidden rounded-3xl border border-blue-300/35 bg-gradient-to-r from-indigo-600 via-blue-500 to-cyan-400 p-6 text-white shadow-[0_24px_65px_rgba(37,99,235,0.28)] dark:border-white/10 dark:shadow-[0_26px_70px_rgba(37,99,235,0.35)] md:p-8">
             <div className="relative z-10">
-              <p className="text-primary-foreground/70 text-sm font-bold mb-1">Welcome back 👋</p>
-              <h1 className="text-3xl md:text-4xl font-display mb-2">{user?.name}!</h1>
-              <div className="flex flex-wrap items-center gap-3 mt-3">
-                <span className="edu-chip bg-primary-foreground/20 text-primary-foreground">🎓 Class {user?.classLevel}</span>
-                <span className="edu-chip bg-primary-foreground/20 text-primary-foreground">📚 {user?.subjectCombo}</span>
-                <span className="edu-chip bg-primary-foreground/20 text-primary-foreground">
-                  🔬 {user?.stream.charAt(0).toUpperCase()}
-                  {user?.stream.slice(1)}
-                </span>
+              <p className="text-sm font-semibold text-white/80">Welcome back 👋</p>
+              <h1 className="mt-1 text-3xl font-extrabold tracking-tight md:text-4xl">{user?.name}!</h1>
+              <div className="mt-4 flex flex-wrap items-center gap-2.5">
+                <span className="rounded-full bg-white/18 px-3 py-1 text-xs font-semibold backdrop-blur">🎓 Class {user?.classLevel}</span>
+                <span className="rounded-full bg-white/18 px-3 py-1 text-xs font-semibold backdrop-blur">📚 {user?.subjectCombo}</span>
+                <span className="rounded-full bg-white/18 px-3 py-1 text-xs font-semibold backdrop-blur">🔬 Science</span>
               </div>
             </div>
-            <div className="absolute -right-8 -top-8 w-36 h-36 bg-primary-foreground/10 rounded-full blur-sm" />
-            <div className="absolute -right-4 bottom--4 w-20 h-20 bg-primary-foreground/5 rounded-full" />
-            <div className="absolute left-1/2 -bottom-6 w-32 h-32 bg-primary-foreground/5 rounded-full" />
-          </motion.div>
+            <div className="pointer-events-none absolute -right-14 -top-10 h-40 w-40 rounded-full bg-white/12" />
+            <div className="pointer-events-none absolute right-1/3 top-8 h-24 w-24 rounded-full bg-white/10" />
+          </section>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             {statCards.map((stat, i) => (
-              <motion.div
+              <div
                 key={stat.label}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.08 }}
-                className="edu-stat-card"
+                className={`rounded-2xl border bg-card/90 px-4 py-3.5 text-center shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg dark:bg-slate-950/60 md:py-4 ${stat.tone} ${i === 0 ? "lg:col-start-1" : ""}`}
               >
-                <div className={`w-11 h-11 ${stat.bg} rounded-xl flex items-center justify-center mx-auto mb-3`}>
-                  <stat.icon className={`w-5 h-5 ${stat.color}`} />
+                <div className="mx-auto mb-2 flex h-8 w-8 items-center justify-center rounded-lg bg-muted/60 dark:bg-white/5">
+                  <stat.icon className={`h-4 w-4 ${stat.iconTone}`} />
                 </div>
-                <div className="text-2xl font-extrabold text-foreground">{stat.value}</div>
-                <div className="text-xs text-muted-foreground mt-1 font-bold">{stat.label}</div>
-              </motion.div>
+                <p className="text-2xl font-extrabold tracking-tight text-foreground">{stat.value}</p>
+                <p className="mt-0.5 text-[11px] font-medium text-muted-foreground">{stat.label}</p>
+              </div>
             ))}
-          </div>
+          </section>
 
-          {/* Daily Motivation Banner */}
-          <motion.div
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.35 }}
-            className="relative overflow-hidden rounded-2xl border border-edu-orange/20 bg-gradient-to-r from-edu-orange/5 via-edu-yellow/5 to-edu-green/5 p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4"
-          >
-            <div className="flex items-center gap-3 shrink-0">
-              <motion.div
-                animate={{ scale: [1, 1.2, 1] }}
-                transition={{ duration: 1.5, repeat: Infinity }}
-                className="w-12 h-12 rounded-xl bg-edu-orange/15 flex items-center justify-center"
-              >
-                <Flame className="w-6 h-6 text-edu-orange" />
-              </motion.div>
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-extrabold text-sm text-foreground flex items-center gap-2">
-                <span className="text-edu-orange">Daily Tip</span>
-                <span className="text-xs text-muted-foreground font-bold">·</span>
-                <span className="text-xs text-muted-foreground font-bold flex items-center gap-1">
-                  <Clock className="w-3 h-3" />
-                  {new Date().toLocaleDateString('en-US', { weekday: 'long' })}
+          <section className="flex flex-col gap-4 rounded-2xl border border-orange-500/30 bg-gradient-to-r from-orange-500/5 via-amber-500/5 to-emerald-500/5 px-4 py-4 dark:border-orange-400/20 sm:flex-row sm:items-center">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-500/15 text-orange-600 dark:bg-orange-500/20 dark:text-orange-300">
+                <Flame className="h-5 w-5" />
+              </div>
+              <p className="text-sm font-semibold text-foreground">
+                <span className="text-orange-600 dark:text-orange-300">Daily Tip</span>
+                <span className="mx-1.5 text-muted-foreground">·</span>
+                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                  <CalendarDays className="h-3.5 w-3.5" />
+                  {new Date().toLocaleDateString("en-US", { weekday: "long" })}
                 </span>
               </p>
-              <p className="text-sm text-muted-foreground mt-1 font-medium">{dailyTip}</p>
             </div>
+            <p className="flex-1 text-sm text-muted-foreground">{dailyTip}</p>
             <button
-              onClick={() => router.push('/play')}
-              className="shrink-0 edu-btn-fire px-5 py-2.5 text-sm flex items-center gap-2"
+              onClick={() => router.push("/play")}
+              className="inline-flex items-center justify-center gap-2 rounded-full bg-orange-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-orange-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400"
             >
-              Start Streak <ArrowRight className="w-4 h-4" />
+              Start Streak
+              <ChevronRight className="h-4 w-4" />
             </button>
-          </motion.div>
+          </section>
 
-          <div className="grid lg:grid-cols-5 gap-6">
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.2 }}
-              className="lg:col-span-3 edu-card p-6"
-            >
-              <div className="flex items-center gap-2.5 mb-6">
-                <div className="w-9 h-9 bg-primary/10 rounded-xl flex items-center justify-center">
-                  <BookOpen className="w-5 h-5 text-primary" />
-                </div>
-                <h2 className="text-xl font-display text-foreground">Subject Performance</h2>
+          <section className="grid gap-5 lg:grid-cols-5">
+            <div className="rounded-3xl border border-border bg-card/90 p-4 shadow-sm dark:bg-slate-950/60 lg:col-span-3">
+              <div className="mb-4 flex items-center gap-2">
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/12 text-blue-600 dark:bg-blue-500/20 dark:text-blue-300">
+                  <BookOpen className="h-4 w-4" />
+                </span>
+                <h2 className="text-2xl font-bold tracking-tight text-foreground">Quiz breakdown by subject</h2>
               </div>
-
-              {totalAnswered === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  <div className="w-16 h-16 bg-muted rounded-2xl flex items-center justify-center mx-auto mb-4">
-                    <Target className="w-8 h-8 opacity-40" />
-                  </div>
-                  <p className="font-bold text-foreground">No questions answered yet</p>
-                  <p className="text-sm mt-1">Fire the Question Gun to start tracking!</p>
-                </div>
-              ) : (
-                <div className="space-y-5">
-                  {subjectStats.map((stat) => (
-                    <div key={stat.subject} className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2.5">
-                          <div
-                            className={`w-8 h-8 rounded-lg bg-gradient-to-br ${subjectGradients[stat.subject]} flex items-center justify-center text-sm`}
-                          >
-                            {subjectEmojis[stat.subject]}
-                          </div>
-                          <span className="font-extrabold text-sm text-foreground capitalize">{stat.subject}</span>
-                        </div>
-                        <div className="flex items-center gap-3 text-xs font-bold">
-                          <span className="flex items-center gap-1 text-edu-green">
-                            <CheckCircle2 className="w-3.5 h-3.5" /> {stat.correct}
-                          </span>
-                          <span className="flex items-center gap-1 text-destructive">
-                            <XCircle className="w-3.5 h-3.5" /> {stat.wrong}
-                          </span>
-                          <span className="text-foreground bg-muted px-2 py-0.5 rounded-full">{stat.accuracy}%</span>
-                        </div>
-                      </div>
-                      <Progress value={stat.total > 0 ? stat.accuracy : 0} className="h-3 rounded-full" />
-                    </div>
-                  ))}
-                  {weakestSubject && weakestSubject.accuracy < 70 && (
-                    <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="mt-5 flex items-start gap-3 bg-edu-orange/10 border border-edu-orange/20 rounded-2xl p-4"
-                    >
-                      <div className="w-9 h-9 bg-edu-orange/15 rounded-xl flex items-center justify-center shrink-0">
-                        <AlertTriangle className="w-5 h-5 text-edu-orange" />
-                      </div>
-                      <div>
-                        <p className="font-extrabold text-sm text-foreground">
-                          Focus on {weakestSubject.subject.charAt(0).toUpperCase() + weakestSubject.subject.slice(1)}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          Accuracy at {weakestSubject.accuracy}% — practice more to improve!
-                        </p>
-                        <button
-                          onClick={() => router.push("/explore")}
-                          className="text-xs text-primary font-extrabold mt-2 flex items-center gap-1 hover:underline"
-                        >
-                          Practice now <ArrowRight className="w-3 h-3" />
-                        </button>
-                      </div>
-                    </motion.div>
-                  )}
-                </div>
-              )}
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.3 }}
-              className="lg:col-span-2 space-y-3 max-h-[500px] overflow-y-auto pr-1"
-            >
-              <h2 className="text-xl font-display text-foreground mb-4">Quick Actions</h2>
-              {quickActions.map((action, i) => (
-                <motion.button
-                  key={action.label}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3 + i * 0.08 }}
-                  onClick={() => router.push(action.path)}
-                  className="w-full flex items-center gap-4 edu-card p-4 hover:border-primary/30 group text-left"
-                >
-                  <div
-                    className={`w-12 h-12 rounded-xl bg-gradient-to-br ${action.gradient} flex items-center justify-center text-white text-xl shrink-0 shadow-md group-hover:scale-105 transition-transform`}
-                  >
-                    {action.emoji}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-extrabold text-sm text-foreground">{action.label}</div>
-                    <div className="text-xs text-muted-foreground">{action.desc}</div>
-                  </div>
-                  <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" />
-                </motion.button>
-              ))}
-            </motion.div>
-          </div>
-
-          {/* Continue Learning Section */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.45 }}
-            className="grid md:grid-cols-3 gap-4"
-          >
-            {/* Mock Test Nudge */}
-            <button
-              onClick={() => router.push('/mock')}
-              className="edu-card p-5 text-left hover:border-primary/30 group transition-all"
-            >
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-blue-500 flex items-center justify-center text-white shadow-md">
-                  <ClipboardList className="w-5 h-5" />
-                </div>
-                <div>
-                  <p className="font-extrabold text-sm text-foreground">Mock Tests</p>
-                  <p className="text-xs text-muted-foreground">Timed practice exams</p>
-                </div>
-              </div>
-              <p className="text-xs text-muted-foreground font-medium">
-                Take a 60, 90, or 180 minute mock exam across all your subjects. Track your time, flag tricky questions, and review your score.
-              </p>
-              <span className="text-xs text-primary font-extrabold mt-3 flex items-center gap-1 group-hover:underline">
-                Start a Mock Test <ArrowRight className="w-3 h-3" />
-              </span>
-            </button>
-
-            {/* Gyan++ Nudge */}
-            <button
-              onClick={() => router.push('/doubts')}
-              className="edu-card p-5 text-left hover:border-primary/30 group transition-all"
-            >
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-yellow-500 flex items-center justify-center text-white shadow-md">
-                  <MessageCircleQuestion className="w-5 h-5" />
-                </div>
-                <div>
-                  <p className="font-extrabold text-sm text-foreground">Gyan++</p>
-                  <p className="text-xs text-muted-foreground">Ask & answer questions</p>
-                </div>
-              </div>
-              <p className="text-xs text-muted-foreground font-medium">
-                Post your questions, earn RDM by helping others, and set bounties on tough ones. The community has your back!
-              </p>
-              <span className="text-xs text-primary font-extrabold mt-3 flex items-center gap-1 group-hover:underline">
-                Browse Gyan++ <ArrowRight className="w-3 h-3" />
-              </span>
-            </button>
-
-            {/* Classes Nudge */}
-            <button
-              onClick={() => router.push('/classrooms')}
-              className="edu-card p-5 text-left hover:border-primary/30 group transition-all"
-            >
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-500 to-green-500 flex items-center justify-center text-white shadow-md">
-                  <School className="w-5 h-5" />
-                </div>
-                <div>
-                  <p className="font-extrabold text-sm text-foreground">Classrooms</p>
-                  <p className="text-xs text-muted-foreground">Learn with your teachers</p>
-                </div>
-              </div>
-              <p className="text-xs text-muted-foreground font-medium">
-                Join your teacher&apos;s classroom, attend live sessions, access study materials, and collaborate with classmates in real-time.
-              </p>
-              <span className="text-xs text-primary font-extrabold mt-3 flex items-center gap-1 group-hover:underline">
-                Explore Classes <ArrowRight className="w-3 h-3" />
-              </span>
-            </button>
-          </motion.div>
-
-          {recentActivity.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
-              className="edu-card p-6"
-            >
-              <div className="flex items-center gap-2.5 mb-5">
-                <div className="w-9 h-9 bg-edu-blue/10 rounded-xl flex items-center justify-center">
-                  <Zap className="w-5 h-5 text-edu-blue" />
-                </div>
-                <h2 className="text-xl font-display text-foreground">Recent Activity</h2>
-              </div>
-              <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-                {recentActivity.map((activity, i) => (
-                  <div
-                    key={`${activity.questionId}-${i}`}
-                    className="flex items-center gap-3 bg-muted/40 rounded-xl p-3.5 hover:bg-muted/60 transition-colors"
-                  >
-                    <div
-                      className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${activity.isCorrect ? "bg-edu-green/15 text-edu-green" : "bg-destructive/15 text-destructive"
-                        }`}
-                    >
-                      {activity.isCorrect ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs font-extrabold text-foreground truncate">
-                        {activity.question?.topic ?? "Unknown"}
-                      </p>
-                      <p className="text-[11px] text-muted-foreground capitalize font-bold">
-                        {activity.question?.subject}
-                      </p>
-                    </div>
-                  </div>
+              <div className="space-y-3">
+                {subjectStats.map((stat) => (
+                  <SubjectBreakdownCard key={stat.subject} stat={stat} />
                 ))}
               </div>
-            </motion.div>
-          )}
+              <div className="mt-3 rounded-xl border border-border/70 bg-background/70 px-4 py-2.5 dark:bg-slate-900/40">
+                <p className="text-sm text-muted-foreground">
+                  Total quizzes taken <span className="float-right text-lg font-bold text-foreground">0</span>
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-border bg-card/90 p-4 shadow-sm dark:bg-slate-950/60 lg:col-span-2">
+              <div className="mb-4 flex items-center gap-2">
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-yellow-500/12 text-yellow-600 dark:bg-yellow-500/20 dark:text-yellow-300">
+                  <TrendingUp className="h-4 w-4" />
+                </span>
+                <h2 className="text-2xl font-bold tracking-tight text-foreground">Quick actions</h2>
+              </div>
+              <div className="space-y-2.5">
+                {QUICK_ACTIONS.map((action) => (
+                  <button
+                    key={action.label}
+                    onClick={() => router.push(action.path)}
+                    className="group flex w-full items-center gap-3 rounded-2xl border border-border/70 bg-background/70 p-3 text-left transition-all hover:border-primary/35 hover:bg-muted/40 dark:bg-slate-900/45"
+                  >
+                    <div className={`inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br ${action.tone} text-white shadow-sm`}>
+                      <action.icon className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-foreground">{action.label}</p>
+                      <p className="text-xs text-muted-foreground">{action.desc}</p>
+                    </div>
+                    <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-primary" />
+                  </button>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          <section className="rounded-3xl border border-border bg-card/90 p-4 shadow-sm dark:bg-slate-950/60">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-2xl font-bold tracking-tight text-foreground">Test performance by category</h2>
+              <p className="text-sm text-muted-foreground">Speed · Accuracy · Stamina dials</p>
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              {EXAM_CARDS.map((card) => (
+                <div key={card.key} className={`rounded-2xl border bg-background/75 p-4 dark:bg-slate-900/50 ${card.tone}`}>
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <span className={`inline-flex h-9 w-9 items-center justify-center rounded-lg ${card.iconBg}`}>
+                        <card.icon className="h-4.5 w-4.5" />
+                      </span>
+                      <div>
+                        <p className="text-base font-semibold text-foreground">{card.title}</p>
+                        <p className="text-xs text-muted-foreground">{card.subtitle}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                    <div>
+                      <p className="text-2xl font-bold text-foreground">0</p>
+                      <p className="text-[11px] text-muted-foreground">Tests</p>
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-emerald-500">0%</p>
+                      <p className="text-[11px] text-muted-foreground">Avg score</p>
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-amber-500">—</p>
+                      <p className="text-[11px] text-muted-foreground">Best rank</p>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex items-center justify-around rounded-xl border border-border/60 bg-background/70 py-2 dark:bg-slate-950/50">
+                    <RingDial label="Speed" />
+                    <RingDial label="Accuracy" />
+                    <RingDial label="Stamina" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="rounded-3xl border border-border bg-card/90 p-4 shadow-sm dark:bg-slate-950/60">
+            <div className="mb-3 flex items-center gap-2">
+              <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-violet-500/12 text-violet-600 dark:bg-violet-500/20 dark:text-violet-300">
+                <CalendarDays className="h-4.5 w-4.5" />
+              </span>
+              <h2 className="text-2xl font-bold tracking-tight text-foreground">Activity heatmap</h2>
+              <p className="text-sm text-muted-foreground">Last 10 weeks</p>
+            </div>
+            <div className="overflow-x-auto">
+              <div className="inline-grid grid-flow-col grid-rows-7 gap-1 rounded-xl border border-border/70 bg-background/70 p-3 dark:bg-slate-900/45">
+                {heatmapCells.map((intensity, idx) => (
+                  <div
+                    key={idx}
+                    className={`h-3.5 w-3.5 rounded-[4px] ${
+                      intensity === 0
+                        ? "bg-muted/80"
+                        : intensity === 1
+                          ? "bg-violet-300 dark:bg-violet-900"
+                          : intensity === 2
+                            ? "bg-violet-400 dark:bg-violet-700"
+                            : "bg-violet-500 dark:bg-violet-500"
+                    }`}
+                  />
+                ))}
+              </div>
+            </div>
+            <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+              <span>Less</span>
+              <span className="h-2.5 w-2.5 rounded-[3px] bg-muted/80" />
+              <span className="h-2.5 w-2.5 rounded-[3px] bg-violet-300 dark:bg-violet-900" />
+              <span className="h-2.5 w-2.5 rounded-[3px] bg-violet-400 dark:bg-violet-700" />
+              <span className="h-2.5 w-2.5 rounded-[3px] bg-violet-500 dark:bg-violet-500" />
+              <span>More</span>
+            </div>
+          </section>
+
+          <section className="grid gap-4 md:grid-cols-4">
+            <div className="rounded-2xl border border-border bg-card/90 px-4 py-3 dark:bg-slate-950/60">
+              <p className="text-xs text-muted-foreground">Overall Correct</p>
+              <p className="text-2xl font-bold text-emerald-500">{totalCorrect}</p>
+            </div>
+            <div className="rounded-2xl border border-border bg-card/90 px-4 py-3 dark:bg-slate-950/60">
+              <p className="text-xs text-muted-foreground">Overall Wrong</p>
+              <p className="text-2xl font-bold text-rose-500">{totalWrong}</p>
+            </div>
+            <div className="rounded-2xl border border-border bg-card/90 px-4 py-3 dark:bg-slate-950/60">
+              <p className="text-xs text-muted-foreground">Overall Skipped</p>
+              <p className="text-2xl font-bold text-muted-foreground">{totalSkipped}</p>
+            </div>
+            <div className="rounded-2xl border border-border bg-card/90 px-4 py-3 dark:bg-slate-950/60">
+              <p className="text-xs text-muted-foreground">Daily Momentum</p>
+              <p className="text-2xl font-bold text-amber-500">
+                {Math.max(1, Math.min(7, Math.floor(totalAnswered / 5) || 1))}x
+              </p>
+            </div>
+          </section>
         </div>
       </AppLayout>
     </ProtectedRoute>

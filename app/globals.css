@@ -171,13 +171,23 @@
   color: #0a0a0a;
   font-family: "KaTeX_Main", "Times New Roman", serif !important;
   display: block;
+  min-width: 0;
   max-width: 100%;
-  overflow: visible;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  /* Contain wide KaTeX / run-on chemistry strings so flex layouts don’t grow past the column */
+  overflow-x: auto;
+  overflow-y: visible;
 }
 .subtopic-title-text .katex,
 .subtopic-title-text .katex * {
   color: #0a0a0a !important;
   font-family: "KaTeX_Main", "Times New Roman", serif !important;
+}
+.subtopic-title-text .katex-display {
+  max-width: 100%;
+  overflow-x: auto;
+  padding-bottom: 2px;
 }
 .dark .subtopic-title-text {
   color: #fafafa;

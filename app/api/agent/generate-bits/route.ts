@@ -12,6 +12,8 @@ import { fetchRAGContext } from "@/lib/rag";
 import { normalizeSubjectKey, normalizeSubtopicContentKey } from "@/lib/subtopicContentKeys";
 import { getGeminiApiKeyFromEnv } from "@/lib/geminiEnv";
 import { logAiUsage } from "@/lib/aiLogger";
+import { sanitizeJsonForDb } from "@/lib/sanitizeJsonForDb";
+import { tryParseJsonObjectWithSalvage } from "@/lib/parseModelJson";
 
 const ALLOWED_LEVELS = new Set(["basics", "intermediate", "advanced"]);
 
@@ -143,17 +145,19 @@ ${existing.theory.slice(0, 16000)}${ragBlock}`;
     let items: Array<{ question: string; options: string[]; correctAnswer: string; solution: string }> = [];
     let raw = "";
 
-    for (let attempt = 1; attempt <= 2; attempt++) {
+    for (let attempt = 1; attempt <= 3; attempt++) {
       const shortfallHint =
         attempt === 1
           ? ""
-          : `\n\nSTRICT REPAIR: previous output had fewer than ${minBits} valid questions. Return at least ${minBits} fully valid questions now.`;
+          : attempt === 2
+            ? `\n\nSTRICT REPAIR: previous output had fewer than ${minBits} valid questions. Return at least ${minBits} fully valid questions now.`
+            : `\n\nCRITICAL: Your previous reply was not valid JSON (e.g. trailing commas, single quotes, or unescaped backslashes in strings). Output ONE JSON object only: {"items":[...]} with double-quoted keys and strings. Escape every backslash inside strings as \\\\. At least ${minBits} questions.`;
       const out = await generateArtifactJson({
         apiKey,
         modelId,
         userPrompt: `${baseUserPrompt}${shortfallHint}`,
         systemInstruction: baseSystemInstruction,
-        temperature: attempt === 1 ? 0.5 : 0.35,
+        temperature: attempt === 1 ? 0.5 : attempt === 2 ? 0.35 : 0.25,
         responseSchema: bitsResponseSchema(),
       });
       raw = out.raw;
@@ -178,7 +182,14 @@ ${existing.theory.slice(0, 16000)}${ragBlock}`;
           ragChunkCount: rag?.chunkCount ?? 0,
         },
       });
-      const parsed = JSON.parse(raw) as { items?: unknown[] };
+      const parsed = tryParseJsonObjectWithSalvage(raw);
+      if (!parsed) {
+        console.warn(
+          `[generate-bits] JSON parse failed after salvage (attempt ${attempt}) subtopic=${subtopicName.slice(0, 80)}`
+        );
+        items = [];
+        continue;
+      }
       items = normalizeBits(parsed.items);
       if (items.length >= minBits) break;
     }
@@ -197,8 +208,9 @@ ${existing.theory.slice(0, 16000)}${ragBlock}`;
     }
 
     const persistDb = supabaseForLongJobPersist(supabase);
+    const safeItems = sanitizeJsonForDb(items);
     const { error: upsertError } = await persistDb.from("subtopic_content").update({
-      bits_questions: JSON.parse(JSON.stringify(items)),
+      bits_questions: safeItems,
       updated_by: user.id,
       updated_at: new Date().toISOString(),
     }).eq("board", board).eq("subject", subject).eq("class_level", classLevel)

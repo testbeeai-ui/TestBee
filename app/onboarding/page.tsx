@@ -6,7 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowRight, BookOpen, GraduationCap, Award, Globe, Lock, Sparkles } from "lucide-react";
+import { ArrowRight, BookOpen, GraduationCap, Award, Globe, Lock, Sparkles, Check, UserCircle2 } from "lucide-react";
 import { TARGET_EXAM_OPTIONS, type TargetExamKey } from "@/lib/targetExam";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
@@ -15,6 +15,21 @@ const teachingLevels = ["School", "UG", "PG", "Competitive", "International"];
 const teachingLevelToNumber: Record<string, number> = { School: 1, UG: 2, PG: 3, Competitive: 4, International: 5 };
 const examTags = ["JEE", "NEET", "GRE", "GMAT", "SAT", "TOEFL"];
 const subjects = ["Physics", "Chemistry", "Math", "Biology"];
+const studentExamTargets: { key: TargetExamKey; label: string; tag?: string; locked?: boolean }[] = [
+  { key: "cbse", label: "CBSE Board", locked: true },
+  { key: "jee_mains", label: "JEE Main", tag: "NTA" },
+  { key: "jee_advance", label: "JEE Advanced", tag: "IIT" },
+  { key: "other", label: "Other" },
+];
+const mandatoryStudentSubjects = [
+  { key: "physics", label: "Physics", subtitle: "Mechanics, electrostatics, optics" },
+  { key: "chemistry", label: "Chemistry", subtitle: "Organic, inorganic & physical" },
+  { key: "math", label: "Mathematics", subtitle: "Calculus, algebra, geometry" },
+];
+const comingSoonStudentSubjects = [
+  { key: "biology", label: "Biology", subtitle: "Botany & zoology" },
+  { key: "other", label: "Other", subtitle: "Specify when available" },
+];
 const visibilityOptions = [
   { value: "public", label: "Public", desc: "Anyone can find you", Icon: Globe },
   { value: "invite_only", label: "Invite-only", desc: "Only via link/code", Icon: Lock },
@@ -36,7 +51,10 @@ function OnboardingContent() {
   const [role, setRole] = useState<"student" | "teacher" | null>(null);
   const [step, setStep] = useState<"role" | "details">("role");
   const [name, setName] = useState(profile?.name || "");
-  const [targetExam, setTargetExam] = useState<TargetExamKey>("cbse");
+  const [studentClassLevel, setStudentClassLevel] = useState<11 | 12>(
+    profile?.class_level === 12 ? 12 : 11
+  );
+  const [studentTargetExams, setStudentTargetExams] = useState<TargetExamKey[]>(["cbse"]);
   const [subjectCombo, setSubjectCombo] = useState("PCM");
   const [teachingSubjects, setTeachingSubjects] = useState<string[]>([]);
   const [selectedLevels, setSelectedLevels] = useState<string[]>([]);
@@ -80,11 +98,17 @@ function OnboardingContent() {
   }, [searchParams, profile?.role, role, profileTimeout]);
 
   useEffect(() => {
-    const te = profile?.target_exam;
-    if (!te) return;
-    const valid = TARGET_EXAM_OPTIONS.some((o) => o.key === te);
-    if (valid) setTargetExam(te as TargetExamKey);
-  }, [profile?.target_exam]);
+    if (profile?.class_level === 11 || profile?.class_level === 12) {
+      setStudentClassLevel(profile.class_level);
+    }
+    const te = profile?.target_exam as TargetExamKey | null | undefined;
+    if (te && TARGET_EXAM_OPTIONS.some((o) => o.key === te)) {
+      setStudentTargetExams((prev) => {
+        const merged = Array.from(new Set(["cbse", ...prev, te])) as TargetExamKey[];
+        return merged;
+      });
+    }
+  }, [profile?.class_level, profile?.target_exam]);
 
   if (loading)
     return (
@@ -105,6 +129,15 @@ function OnboardingContent() {
   const toggle = (arr: string[], val: string, setter: (v: string[]) => void) =>
     setter(arr.includes(val) ? arr.filter((x) => x !== val) : [...arr, val]);
 
+  const toggleStudentExam = (exam: TargetExamKey, locked = false) => {
+    if (locked) return;
+    setStudentTargetExams((prev) => {
+      const next = prev.includes(exam) ? prev.filter((x) => x !== exam) : [...prev, exam];
+      if (!next.includes("cbse")) next.unshift("cbse");
+      return next as TargetExamKey[];
+    });
+  };
+
   const handleComplete = async () => {
     setSaving(true);
     try {
@@ -116,8 +149,17 @@ function OnboardingContent() {
       };
 
       if (role === "student") {
-        (updates as Record<string, unknown>).class_level = 11;
-        (updates as Record<string, unknown>).target_exam = targetExam;
+        const primaryTargetExam: TargetExamKey =
+          studentTargetExams.includes("jee_advance")
+            ? "jee_advance"
+            : studentTargetExams.includes("jee_mains")
+              ? "jee_mains"
+              : studentTargetExams.includes("other")
+                ? "other"
+                : "cbse";
+        (updates as Record<string, unknown>).class_level = studentClassLevel;
+        (updates as Record<string, unknown>).target_exam = primaryTargetExam;
+        (updates as Record<string, unknown>).exam_tags = studentTargetExams;
         (updates as Record<string, unknown>).subject_combo = subjectCombo;
         (updates as Record<string, unknown>).stream = "science";
       } else {
@@ -198,57 +240,144 @@ function OnboardingContent() {
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-card rounded-3xl p-8 shadow-2xl w-full max-w-lg border border-border/50"
+            className="bg-card rounded-3xl p-6 sm:p-8 shadow-2xl w-full max-w-5xl border border-border/50"
           >
-            <div className="text-center mb-6">
-              <span className="text-4xl block mb-2">🎉</span>
-              <h2 className="text-2xl font-display text-foreground">Choose your exam</h2>
-              <p className="text-muted-foreground text-sm mt-1">
-                Select your exam to see relevant Physics topics
-              </p>
+            <div className="mb-6">
+              <div className="mb-4 grid grid-cols-2 gap-2">
+                <div className="h-1.5 rounded-full bg-primary/80" />
+                <div className="h-1.5 rounded-full bg-primary/35" />
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="rounded-xl bg-primary/10 p-2.5 text-primary">
+                  <UserCircle2 className="h-5 w-5" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-extrabold text-foreground">Set up your profile</h2>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Personalises learning and verifies you for scholarships, awards & rewards
+                  </p>
+                </div>
+              </div>
             </div>
-            <div className="space-y-5">
+            <div className="space-y-6">
               <div>
-                <label className="text-sm font-extrabold text-foreground mb-1.5 block">Your Name</label>
+                <label className="text-sm font-extrabold text-foreground mb-1.5 block">Full name</label>
+                <p className="text-sm text-muted-foreground mb-2">As per govt ID (Aadhaar / PAN)</p>
                 <Input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="rounded-xl h-12"
-                  placeholder="Enter your name"
+                  placeholder="e.g. Sanjana Lakshmi"
                 />
               </div>
-              <div>
-                <label className="text-sm font-extrabold text-foreground mb-2 block">Exam</label>
-                <div className="grid grid-cols-2 gap-3">
-                  {TARGET_EXAM_OPTIONS.map(({ key, label, Icon, iconClass }) => (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => setTargetExam(key)}
-                      className={`flex items-center gap-3 py-3.5 px-4 rounded-[14px] font-extrabold text-sm text-left transition-all duration-200 border ${
-                        targetExam === key
-                          ? "bg-primary text-primary-foreground shadow-md shadow-primary/20 border-primary scale-[1.02]"
-                          : "bg-muted/80 text-foreground hover:bg-muted border-border/60"
-                      }`}
-                    >
-                      <span
-                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-background/80 ${targetExam === key ? "text-primary-foreground bg-primary-foreground/15" : ""}`}
+
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                <div>
+                  <label className="text-sm font-extrabold text-foreground mb-2 block">Class</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    {([
+                      { value: 11 as const, label: "11", subtitle: "First year" },
+                      { value: 12 as const, label: "12", subtitle: "Second year" },
+                    ]).map((cl) => (
+                      <button
+                        key={cl.value}
+                        type="button"
+                        onClick={() => setStudentClassLevel(cl.value)}
+                        className={`rounded-2xl border px-4 py-3 text-left transition ${
+                          studentClassLevel === cl.value
+                            ? "border-primary bg-primary/10 shadow-sm"
+                            : "border-border/60 bg-muted/20 hover:bg-muted/40"
+                        }`}
                       >
-                        <Icon className={`h-5 w-5 ${targetExam === key ? "" : iconClass}`} />
-                      </span>
-                      {label}
-                    </button>
-                  ))}
+                        <div className="text-4xl font-black leading-none text-foreground">{cl.label}</div>
+                        <div className="mt-1 text-sm font-semibold text-muted-foreground">{cl.subtitle}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-sm font-extrabold text-foreground mb-2 block">Exam targets — multi-select</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    {studentExamTargets.map((exam) => {
+                      const active = studentTargetExams.includes(exam.key);
+                      return (
+                        <button
+                          key={exam.key}
+                          type="button"
+                          onClick={() => toggleStudentExam(exam.key, exam.locked)}
+                          className={`rounded-2xl border px-4 py-3 text-left transition ${
+                            active ? "border-primary bg-primary/10" : "border-border/60 bg-muted/20 hover:bg-muted/40"
+                          } ${exam.locked ? "cursor-default" : ""}`}
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`inline-flex h-7 w-7 items-center justify-center rounded-md border ${
+                                  active
+                                    ? "border-primary bg-primary text-primary-foreground"
+                                    : "border-border/70 bg-background"
+                                }`}
+                              >
+                                {active ? <Check className="h-4 w-4" /> : null}
+                              </span>
+                              <span className="text-lg font-extrabold text-foreground leading-tight">{exam.label}</span>
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
+
               <div>
-                <label className="text-sm font-extrabold text-foreground mb-2 block">Subject</label>
-                <div className="py-3.5 px-4 rounded-[12px] bg-muted/50 border border-border/60 text-foreground font-semibold text-sm">
-                  PCM — Physics, Chemistry, Math
+                <label className="text-sm font-extrabold text-foreground mb-2 block">Subjects — pick what you study</label>
+                <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                  <div className="space-y-3">
+                    {mandatoryStudentSubjects.map((item) => (
+                      <div
+                        key={item.key}
+                        className="rounded-2xl border border-emerald-200/70 bg-emerald-50/60 px-4 py-3"
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-emerald-500 text-white">
+                            <Check className="h-4 w-4" />
+                          </span>
+                          <div>
+                            <p className="text-2xl font-black text-foreground leading-tight">{item.label}</p>
+                            <p className="text-sm text-muted-foreground">{item.subtitle}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="space-y-3">
+                    {comingSoonStudentSubjects.map((item) => (
+                      <div
+                        key={item.key}
+                        className="rounded-2xl border border-border/60 bg-muted/20 px-4 py-3 opacity-60"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-2xl font-black text-foreground leading-tight">{item.label}</p>
+                            <p className="text-sm text-muted-foreground">{item.subtitle}</p>
+                          </div>
+                          <span className="text-sm font-bold text-muted-foreground">Soon</span>
+                        </div>
+                      </div>
+                    ))}
+                    <p className="px-1 text-sm text-muted-foreground">
+                      Specify other subject
+                      <br />
+                      <span className="font-semibold text-base">Unlocks soon…</span>
+                    </p>
+                  </div>
                 </div>
               </div>
-              <div className="flex gap-3">
-                <Button variant="outline" onClick={() => setStep("role")} className="rounded-xl">
+
+              <div className="flex gap-3 pt-3">
+                <Button variant="outline" onClick={() => setStep("role")} className="rounded-xl min-w-24">
                   Back
                 </Button>
                 <Button
@@ -256,7 +385,7 @@ function OnboardingContent() {
                   disabled={saving}
                   className="flex-1 rounded-xl edu-btn-primary h-12 text-base font-extrabold"
                 >
-                  {saving ? "Saving..." : "Start Learning! ✨"} <ArrowRight className="w-4 h-4 ml-1" />
+                  {saving ? "Saving..." : "Continue"} <ArrowRight className="w-4 h-4 ml-1" />
                 </Button>
               </div>
             </div>

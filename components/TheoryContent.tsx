@@ -755,7 +755,9 @@ export default function TheoryContent({ theory, className }: { theory: string; c
   const normalizedTheory = normalizeTheoryForRender(theory);
   const blocks = expandTheoryBlocks(normalizedTheory.split(/\n\n+/).filter((b) => b.trim()));
   return (
-    <div className={`theory-content-readable font-sans space-y-6 text-[15px] leading-relaxed ${className ?? ""}`}>
+    <div
+      className={`theory-content-readable font-sans space-y-6 text-[15px] leading-relaxed min-w-0 max-w-full [overflow-wrap:anywhere] break-words ${className ?? ""}`}
+    >
       {blocks.map((block, i) => {
         const trimmed = block.trim();
         const singleLine = !trimmed.includes("\n");
