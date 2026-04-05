@@ -5,7 +5,6 @@ import { AlertCircle, CheckCircle2, Clock3, Loader2, XCircle } from "lucide-reac
 import { Button } from "@/components/ui/button";
 import {
   fetchTopicContent,
-  fetchTopicHubThreeLevelGate,
   generateTopicContent,
   postCompleteSubtopic,
 } from "@/lib/topicContentService";
@@ -27,13 +26,42 @@ import {
 } from "@/store/useOrchestratorStore";
 
 const ORCHESTRATOR_POLL_MS = 5_000;
-const VERIFY_SETTLE_MS = 1_500;
+const VERIFY_SETTLE_MS = 600;
 const FORMULA_RETRY_DELAY_MS = 5_000;
-const SUBTOPIC_PARALLEL_LIMIT = 2;
+const TOPIC_HUB_PARALLEL_LIMIT = 3;
+const SUBTOPIC_PARALLEL_LIMIT = 4;
+/** Parallel fetch+assess rows during final chapter audit */
+const AUDIT_SUBTOPIC_PARALLEL = 6;
 const CHAPTER_RETRY_BASE_DELAY_MS = 60_000;
+/** One subtopic = deep dive + instacue + bits + formula retries; cap wall time so a hung fetch cannot stall the whole batch forever. */
+const SUBTOPIC_PIPELINE_TIMEOUT_MS = 22 * 60_000;
 
 function sleep(ms: number) {
   return new Promise<void>((resolve) => setTimeout(resolve, ms));
+}
+
+function withSubtopicPipelineTimeout<T>(promise: Promise<T>, subtopicLabel: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(() => {
+      reject(
+        new Error(
+          `Subtopic pipeline timed out after ${Math.round(
+            SUBTOPIC_PIPELINE_TIMEOUT_MS / 60000
+          )} min (still waiting on network or AI): ${subtopicLabel.slice(0, 120)}`
+        )
+      );
+    }, SUBTOPIC_PIPELINE_TIMEOUT_MS);
+    promise.then(
+      (v) => {
+        clearTimeout(t);
+        resolve(v);
+      },
+      (e) => {
+        clearTimeout(t);
+        reject(e);
+      }
+    );
+  });
 }
 
 function getChapterRetryDelayMs(retryCount: number) {
@@ -51,19 +79,22 @@ function getPreviewForSubtopic(
 }
 
 function getCurrentLevel(cursor: OrchestratorCursor): OrchestratorLevel {
-  return ORCHESTRATOR_LEVELS[cursor.levelIndex] ?? "basics";
+  return ORCHESTRATOR_LEVELS[cursor.levelIndex] ?? ORCHESTRATOR_LEVELS[0] ?? "advanced";
 }
 
-function nextCursorAfterTopicHub(job: OrchestratorJob): OrchestratorCursor {
+function nextCursorAfterTopicHubBatch(job: OrchestratorJob, processedCount: number): OrchestratorCursor {
   const topicCount = job.topics.length;
+  const nextTopicIndex = job.cursor.topicIndex + processedCount;
+  const hasMoreTopicsAtCurrentLevel = nextTopicIndex < topicCount;
+  if (hasMoreTopicsAtCurrentLevel) {
+    return { ...job.cursor, topicIndex: nextTopicIndex };
+  }
+
   const hasMoreLevels = job.cursor.levelIndex < ORCHESTRATOR_LEVELS.length - 1;
   if (hasMoreLevels) {
-    return { ...job.cursor, levelIndex: job.cursor.levelIndex + 1 };
+    return { ...job.cursor, topicIndex: 0, levelIndex: job.cursor.levelIndex + 1 };
   }
-  const hasMoreTopics = job.cursor.topicIndex < topicCount - 1;
-  if (hasMoreTopics) {
-    return { ...job.cursor, topicIndex: job.cursor.topicIndex + 1, levelIndex: 0 };
-  }
+
   return {
     phase: "subtopic",
     topicIndex: 0,
@@ -108,9 +139,72 @@ function nextCursorAfterSubtopic(job: OrchestratorJob): OrchestratorCursor {
 
   return {
     ...job.cursor,
-    phase: "done",
+    phase: "final_audit",
     subtopicStep: "deep_dive",
   };
+}
+
+async function auditBlueprintAdvancedCompleteness(
+  job: OrchestratorJob,
+  appendLog: (jobId: string, message: string) => void
+) {
+  const level = ORCHESTRATOR_LEVELS[0];
+  type Task = { label: string; check: () => Promise<boolean> };
+  const tasks: Task[] = [];
+  for (const topic of job.topics) {
+    for (const subtopicName of topic.subtopics) {
+      tasks.push({
+        label: `${topic.title} → ${subtopicName}`,
+        check: async () => {
+          const row = await fetchSubtopicContent({
+            board: job.board,
+            subject: job.subject,
+            classLevel: job.classLevel,
+            topic: topic.title,
+            subtopicName,
+            level,
+          });
+          const assess = assessSubtopicRow({
+            theory: row.theory,
+            instacue_cards: row.instacueCards,
+            bits_questions: row.bitsQuestions,
+            practice_formulas: row.practiceFormulas,
+          });
+          return (
+            !assess.theoryMissingOrPlaceholder &&
+            !assess.instacueGap &&
+            !assess.bitsGap &&
+            (!assess.formulasGap || assess.skipFormulasConceptual)
+          );
+        },
+      });
+    }
+  }
+
+  const gaps: string[] = [];
+  for (let i = 0; i < tasks.length; i += AUDIT_SUBTOPIC_PARALLEL) {
+    const slice = tasks.slice(i, i + AUDIT_SUBTOPIC_PARALLEL);
+    const results = await Promise.all(
+      slice.map(async (t) => ({ label: t.label, ok: await t.check() }))
+    );
+    for (const r of results) {
+      if (!r.ok) gaps.push(r.label);
+    }
+  }
+
+  if (gaps.length === 0) {
+    appendLog(
+      job.id,
+      `Final audit: all ${tasks.length} advanced subtopic slot(s) in this chapter blueprint look complete.`
+    );
+    return;
+  }
+  appendLog(
+    job.id,
+    `Final audit: ${gaps.length} slot(s) may still be incomplete — open topic hub / regenerate if needed: ${gaps
+      .slice(0, 10)
+      .join("; ")}${gaps.length > 10 ? ` … +${gaps.length - 10} more` : ""}`
+  );
 }
 
 function jobLabel(job: OrchestratorJob): string {
@@ -134,6 +228,7 @@ function stepLabel(job: OrchestratorJob): string {
     const subtopic = topic?.subtopics[job.cursor.subtopicIndex] ?? "Subtopic";
     return `${job.cursor.subtopicStep.replace("_", " ")} · ${level} · ${subtopic}`;
   }
+  if (job.cursor.phase === "final_audit") return "Final audit (advanced)";
   return "Completed";
 }
 
@@ -211,48 +306,59 @@ export default function AgentOrchestratorRunner() {
       }
 
       if (isRegenerate || assess.theoryMissingOrPlaceholder) {
-        const cacheKey = `${topic.title}::${level}`;
-        let previewRow = previewCache.get(cacheKey);
-        if (!previewRow) {
-          previewRow = await fetchTopicContent({
-            board: job.board,
-            subject: job.subject,
-            classLevel: job.classLevel,
-            topic: topic.title,
-            level,
-            hubScope: "topic",
+        if (!isRegenerate) {
+          subtopicContent = await fetchSubtopicContent(contentParams);
+          assess = assessSubtopicRow({
+            theory: subtopicContent.theory,
+            instacue_cards: subtopicContent.instacueCards,
+            bits_questions: subtopicContent.bitsQuestions,
+            practice_formulas: subtopicContent.practiceFormulas,
           });
-          previewCache.set(cacheKey, previewRow);
         }
+        if (!isRegenerate && !assess.theoryMissingOrPlaceholder) {
+          appendLog(
+            job.id,
+            `Deep dive for ${subtopicName} (${level}) appeared while orchestrator was running. Skipping generation.`
+          );
+        } else {
+          const cacheKey = `${topic.title}::${level}`;
+          let previewRow = previewCache.get(cacheKey);
+          if (!previewRow) {
+            previewRow = await fetchTopicContent({
+              board: job.board,
+              subject: job.subject,
+              classLevel: job.classLevel,
+              topic: topic.title,
+              level,
+              hubScope: "topic",
+            });
+            previewCache.set(cacheKey, previewRow);
+          }
 
-        await generateSubtopicContent({
-          ...contentParams,
-          chapterTitle: job.chapterTitle,
-          preview: getPreviewForSubtopic(previewRow.subtopicPreviews, subtopicName),
-          includeTrace: false,
-        });
-        await sleep(VERIFY_SETTLE_MS);
-        subtopicContent = await fetchSubtopicContent(contentParams);
-        assess = assessSubtopicRow({
-          theory: subtopicContent.theory,
-          instacue_cards: subtopicContent.instacueCards,
-          bits_questions: subtopicContent.bitsQuestions,
-          practice_formulas: subtopicContent.practiceFormulas,
-        });
-        if (assess.theoryMissingOrPlaceholder) {
-          throw new Error(`Deep dive did not persist correctly for ${subtopicName} (${level}).`);
+          await generateSubtopicContent({
+            ...contentParams,
+            chapterTitle: job.chapterTitle,
+            preview: getPreviewForSubtopic(previewRow.subtopicPreviews, subtopicName),
+            includeTrace: false,
+          });
+          await sleep(VERIFY_SETTLE_MS);
+          subtopicContent = await fetchSubtopicContent(contentParams);
+          assess = assessSubtopicRow({
+            theory: subtopicContent.theory,
+            instacue_cards: subtopicContent.instacueCards,
+            bits_questions: subtopicContent.bitsQuestions,
+            practice_formulas: subtopicContent.practiceFormulas,
+          });
+          if (assess.theoryMissingOrPlaceholder) {
+            throw new Error(`Deep dive did not persist correctly for ${subtopicName} (${level}).`);
+          }
+          appendLog(job.id, `Deep dive completed for ${subtopicName} (${level}).`);
         }
-        appendLog(job.id, `Deep dive completed for ${subtopicName} (${level}).`);
       } else {
         appendLog(job.id, `Deep dive already exists for ${subtopicName} (${level}). Skipping.`);
       }
 
-      if (isRegenerate || assess.instacueGap) {
-        await generateInstaCueCards({
-          ...contentParams,
-          includeTrace: false,
-        });
-        await sleep(VERIFY_SETTLE_MS);
+      if (!isRegenerate) {
         subtopicContent = await fetchSubtopicContent(contentParams);
         assess = assessSubtopicRow({
           theory: subtopicContent.theory,
@@ -260,20 +366,193 @@ export default function AgentOrchestratorRunner() {
           bits_questions: subtopicContent.bitsQuestions,
           practice_formulas: subtopicContent.practiceFormulas,
         });
-        if ((subtopicContent.instacueCards?.length ?? 0) === 0) {
-          throw new Error(`InstaCue generation returned no cards for ${subtopicName} (${level}).`);
-        }
-        appendLog(job.id, `InstaCue completed for ${subtopicName} (${level}).`);
-      } else {
-        appendLog(job.id, `InstaCue already exists for ${subtopicName} (${level}). Skipping.`);
       }
 
-      if (isRegenerate || assess.bitsGap) {
-        await generateBitsQuestions({
-          ...contentParams,
-          includeTrace: false,
-        });
-        await sleep(VERIFY_SETTLE_MS);
+      const needInstacue = isRegenerate || assess.instacueGap;
+      const needBits = isRegenerate || assess.bitsGap;
+
+      if (needInstacue && needBits) {
+        let runInstacue = true;
+        let runBits = true;
+        if (!isRegenerate) {
+          subtopicContent = await fetchSubtopicContent(contentParams);
+          assess = assessSubtopicRow({
+            theory: subtopicContent.theory,
+            instacue_cards: subtopicContent.instacueCards,
+            bits_questions: subtopicContent.bitsQuestions,
+            practice_formulas: subtopicContent.practiceFormulas,
+          });
+          runInstacue = assess.instacueGap;
+          runBits = assess.bitsGap;
+        }
+        if (!runInstacue && !runBits) {
+          appendLog(
+            job.id,
+            `InstaCue and Bits for ${subtopicName} (${level}) already present. Skipping generation.`
+          );
+        } else if (runInstacue && runBits) {
+          await Promise.all([
+            generateInstaCueCards({ ...contentParams, includeTrace: false }),
+            generateBitsQuestions({ ...contentParams, includeTrace: false }),
+          ]);
+          await sleep(VERIFY_SETTLE_MS);
+          subtopicContent = await fetchSubtopicContent(contentParams);
+          assess = assessSubtopicRow({
+            theory: subtopicContent.theory,
+            instacue_cards: subtopicContent.instacueCards,
+            bits_questions: subtopicContent.bitsQuestions,
+            practice_formulas: subtopicContent.practiceFormulas,
+          });
+          if ((subtopicContent.instacueCards?.length ?? 0) === 0) {
+            throw new Error(`InstaCue generation returned no cards for ${subtopicName} (${level}).`);
+          }
+          if ((subtopicContent.bitsQuestions?.length ?? 0) === 0) {
+            throw new Error(`Bits generation returned no questions for ${subtopicName} (${level}).`);
+          }
+          appendLog(job.id, `InstaCue + Bits completed in parallel for ${subtopicName} (${level}).`);
+        } else if (runInstacue) {
+          await generateInstaCueCards({
+            ...contentParams,
+            includeTrace: false,
+          });
+          await sleep(VERIFY_SETTLE_MS);
+          subtopicContent = await fetchSubtopicContent(contentParams);
+          assess = assessSubtopicRow({
+            theory: subtopicContent.theory,
+            instacue_cards: subtopicContent.instacueCards,
+            bits_questions: subtopicContent.bitsQuestions,
+            practice_formulas: subtopicContent.practiceFormulas,
+          });
+          if ((subtopicContent.instacueCards?.length ?? 0) === 0) {
+            throw new Error(`InstaCue generation returned no cards for ${subtopicName} (${level}).`);
+          }
+          appendLog(job.id, `InstaCue completed for ${subtopicName} (${level}).`);
+        } else {
+          await generateBitsQuestions({
+            ...contentParams,
+            includeTrace: false,
+          });
+          await sleep(VERIFY_SETTLE_MS);
+          subtopicContent = await fetchSubtopicContent(contentParams);
+          assess = assessSubtopicRow({
+            theory: subtopicContent.theory,
+            instacue_cards: subtopicContent.instacueCards,
+            bits_questions: subtopicContent.bitsQuestions,
+            practice_formulas: subtopicContent.practiceFormulas,
+          });
+          if ((subtopicContent.bitsQuestions?.length ?? 0) === 0) {
+            throw new Error(`Bits generation returned no questions for ${subtopicName} (${level}).`);
+          }
+          appendLog(job.id, `Bits completed for ${subtopicName} (${level}).`);
+        }
+      } else if (needInstacue) {
+        if (!isRegenerate) {
+          subtopicContent = await fetchSubtopicContent(contentParams);
+          assess = assessSubtopicRow({
+            theory: subtopicContent.theory,
+            instacue_cards: subtopicContent.instacueCards,
+            bits_questions: subtopicContent.bitsQuestions,
+            practice_formulas: subtopicContent.practiceFormulas,
+          });
+          if (!assess.instacueGap) {
+            appendLog(
+              job.id,
+              `InstaCue for ${subtopicName} (${level}) already present. Skipping generation.`
+            );
+          } else {
+            await generateInstaCueCards({
+              ...contentParams,
+              includeTrace: false,
+            });
+            await sleep(VERIFY_SETTLE_MS);
+            subtopicContent = await fetchSubtopicContent(contentParams);
+            assess = assessSubtopicRow({
+              theory: subtopicContent.theory,
+              instacue_cards: subtopicContent.instacueCards,
+              bits_questions: subtopicContent.bitsQuestions,
+              practice_formulas: subtopicContent.practiceFormulas,
+            });
+            if ((subtopicContent.instacueCards?.length ?? 0) === 0) {
+              throw new Error(`InstaCue generation returned no cards for ${subtopicName} (${level}).`);
+            }
+            appendLog(job.id, `InstaCue completed for ${subtopicName} (${level}).`);
+          }
+        } else {
+          await generateInstaCueCards({
+            ...contentParams,
+            includeTrace: false,
+          });
+          await sleep(VERIFY_SETTLE_MS);
+          subtopicContent = await fetchSubtopicContent(contentParams);
+          assess = assessSubtopicRow({
+            theory: subtopicContent.theory,
+            instacue_cards: subtopicContent.instacueCards,
+            bits_questions: subtopicContent.bitsQuestions,
+            practice_formulas: subtopicContent.practiceFormulas,
+          });
+          if ((subtopicContent.instacueCards?.length ?? 0) === 0) {
+            throw new Error(`InstaCue generation returned no cards for ${subtopicName} (${level}).`);
+          }
+          appendLog(job.id, `InstaCue completed for ${subtopicName} (${level}).`);
+        }
+      } else if (needBits) {
+        if (!isRegenerate) {
+          subtopicContent = await fetchSubtopicContent(contentParams);
+          assess = assessSubtopicRow({
+            theory: subtopicContent.theory,
+            instacue_cards: subtopicContent.instacueCards,
+            bits_questions: subtopicContent.bitsQuestions,
+            practice_formulas: subtopicContent.practiceFormulas,
+          });
+          if (!assess.bitsGap) {
+            appendLog(
+              job.id,
+              `Bits for ${subtopicName} (${level}) already present. Skipping generation.`
+            );
+          } else {
+            await generateBitsQuestions({
+              ...contentParams,
+              includeTrace: false,
+            });
+            await sleep(VERIFY_SETTLE_MS);
+            subtopicContent = await fetchSubtopicContent(contentParams);
+            assess = assessSubtopicRow({
+              theory: subtopicContent.theory,
+              instacue_cards: subtopicContent.instacueCards,
+              bits_questions: subtopicContent.bitsQuestions,
+              practice_formulas: subtopicContent.practiceFormulas,
+            });
+            if ((subtopicContent.bitsQuestions?.length ?? 0) === 0) {
+              throw new Error(`Bits generation returned no questions for ${subtopicName} (${level}).`);
+            }
+            appendLog(job.id, `Bits completed for ${subtopicName} (${level}).`);
+          }
+        } else {
+          await generateBitsQuestions({
+            ...contentParams,
+            includeTrace: false,
+          });
+          await sleep(VERIFY_SETTLE_MS);
+          subtopicContent = await fetchSubtopicContent(contentParams);
+          assess = assessSubtopicRow({
+            theory: subtopicContent.theory,
+            instacue_cards: subtopicContent.instacueCards,
+            bits_questions: subtopicContent.bitsQuestions,
+            practice_formulas: subtopicContent.practiceFormulas,
+          });
+          if ((subtopicContent.bitsQuestions?.length ?? 0) === 0) {
+            throw new Error(`Bits generation returned no questions for ${subtopicName} (${level}).`);
+          }
+          appendLog(job.id, `Bits completed for ${subtopicName} (${level}).`);
+        }
+      } else {
+        appendLog(
+          job.id,
+          `InstaCue and Bits already exist for ${subtopicName} (${level}). Skipping.`
+        );
+      }
+
+      if (!isRegenerate) {
         subtopicContent = await fetchSubtopicContent(contentParams);
         assess = assessSubtopicRow({
           theory: subtopicContent.theory,
@@ -281,12 +560,6 @@ export default function AgentOrchestratorRunner() {
           bits_questions: subtopicContent.bitsQuestions,
           practice_formulas: subtopicContent.practiceFormulas,
         });
-        if ((subtopicContent.bitsQuestions?.length ?? 0) === 0) {
-          throw new Error(`Bits generation returned no questions for ${subtopicName} (${level}).`);
-        }
-        appendLog(job.id, `Bits completed for ${subtopicName} (${level}).`);
-      } else {
-        appendLog(job.id, `Bits already exist for ${subtopicName} (${level}). Skipping.`);
       }
 
       if (!isRegenerate && assess.skipFormulasConceptual) {
@@ -301,6 +574,30 @@ export default function AgentOrchestratorRunner() {
 
       let formulaAttempt = 0;
       while (formulaAttempt < 3) {
+        if (!isRegenerate) {
+          subtopicContent = await fetchSubtopicContent(contentParams);
+          assess = assessSubtopicRow({
+            theory: subtopicContent.theory,
+            instacue_cards: subtopicContent.instacueCards,
+            bits_questions: subtopicContent.bitsQuestions,
+            practice_formulas: subtopicContent.practiceFormulas,
+          });
+          if (assess.skipFormulasConceptual) {
+            appendLog(
+              job.id,
+              `Formulas for ${subtopicName} (${level}) not required (conceptual). Skipping generation.`
+            );
+            return;
+          }
+          if (!assess.formulasGap) {
+            appendLog(
+              job.id,
+              `Formulas for ${subtopicName} (${level}) already present. Skipping generation.`
+            );
+            return;
+          }
+        }
+
         let formulaError = "";
         try {
           await generateFormulaPractice({
@@ -452,6 +749,27 @@ export default function AgentOrchestratorRunner() {
         }
 
         try {
+          if (current.cursor.phase === "final_audit") {
+            patchJob(jobId, {
+              currentAction: "Final audit: checking advanced completeness for all blueprint subtopics",
+            });
+            appendLog(
+              jobId,
+              "Starting final audit (GET checks only — no new AI generation). This can take 1–3 minutes on large chapters."
+            );
+            await auditBlueprintAdvancedCompleteness(current, appendLog);
+            patchJob(jobId, {
+              cursor: {
+                phase: "done",
+                topicIndex: 0,
+                levelIndex: 0,
+                subtopicIndex: 0,
+                subtopicStep: "deep_dive",
+              },
+            });
+            continue;
+          }
+
           if (current.cursor.phase === "chapter_overview") {
             if (current.mode === "generate") {
               const existing = await fetchTopicContent({
@@ -487,6 +805,40 @@ export default function AgentOrchestratorRunner() {
               currentAction: `Generating chapter overview for ${current.chapterTitle}`,
             });
 
+            if (current.mode === "generate") {
+              const late = await fetchTopicContent({
+                board: current.board,
+                subject: current.subject,
+                classLevel: current.classLevel,
+                topic: current.chapterTitle,
+                level: "basics",
+                hubScope: "chapter",
+              });
+              const nowComplete =
+                late.exists &&
+                (late.whyStudy.trim() ||
+                  late.whatLearn.trim() ||
+                  late.realWorld.trim() ||
+                  (late.subtopicPreviews?.length ?? 0) > 0);
+              if (nowComplete) {
+                appendLog(
+                  jobId,
+                  "Chapter overview already present (filled while orchestrator was running). Skipping generation."
+                );
+                patchJob(jobId, {
+                  cursor: {
+                    phase: "topic_hub",
+                    topicIndex: 0,
+                    levelIndex: 0,
+                    subtopicIndex: 0,
+                    subtopicStep: "deep_dive",
+                  },
+                });
+                await sleep(VERIFY_SETTLE_MS);
+                continue;
+              }
+            }
+
             const allSubtopics = current.topics.flatMap((topic) => topic.subtopics);
             await generateTopicContent({
               board: current.board,
@@ -519,9 +871,12 @@ export default function AgentOrchestratorRunner() {
           }
 
           if (current.cursor.phase === "topic_hub") {
-            const topic = current.topics[current.cursor.topicIndex];
             const level = getCurrentLevel(current.cursor);
-            if (!topic) {
+            const topicBatch = current.topics.slice(
+              current.cursor.topicIndex,
+              current.cursor.topicIndex + TOPIC_HUB_PARALLEL_LIMIT
+            );
+            if (topicBatch.length === 0) {
               patchJob(jobId, {
                 cursor: {
                   phase: "subtopic",
@@ -534,77 +889,105 @@ export default function AgentOrchestratorRunner() {
               continue;
             }
 
-            if (current.mode === "generate") {
-              const existingHub = await fetchTopicContent({
-                board: current.board,
-                subject: current.subject,
-                classLevel: current.classLevel,
-                topic: topic.title,
-                level,
-                hubScope: "topic",
-              });
-              const hubAlreadyComplete =
-                existingHub.exists &&
-                (existingHub.whyStudy.trim() ||
-                  existingHub.whatLearn.trim() ||
-                  existingHub.realWorld.trim() ||
-                  (existingHub.subtopicPreviews?.length ?? 0) > 0);
-              if (hubAlreadyComplete) {
-                previewCache.set(`${topic.title}::${level}`, existingHub);
-                appendLog(jobId, `Topic hub already exists for ${topic.title} (${level}). Skipping.`);
-                patchJob(jobId, {
-                  cursor: nextCursorAfterTopicHub(current),
+            patchJob(jobId, {
+              currentAction: `Generating ${level} topic hubs for ${topicBatch.length} topic(s)`,
+            });
+
+            const hubSettled = await Promise.allSettled(
+              topicBatch.map(async (topic) => {
+                if (current.mode === "generate") {
+                  const hubNow = await fetchTopicContent({
+                    board: current.board,
+                    subject: current.subject,
+                    classLevel: current.classLevel,
+                    topic: topic.title,
+                    level,
+                    hubScope: "topic",
+                  });
+                  const hubAlreadyComplete =
+                    hubNow.exists &&
+                    (hubNow.whyStudy.trim() ||
+                      hubNow.whatLearn.trim() ||
+                      hubNow.realWorld.trim() ||
+                      (hubNow.subtopicPreviews?.length ?? 0) > 0);
+                  if (hubAlreadyComplete) {
+                    previewCache.set(`${topic.title}::${level}`, hubNow);
+                    appendLog(
+                      jobId,
+                      `Topic hub already exists for ${topic.title} (${level}). Skipping generation.`
+                    );
+                    return;
+                  }
+                }
+
+                await generateTopicContent({
+                  board: current.board,
+                  subject: current.subject,
+                  classLevel: current.classLevel,
+                  topic: topic.title,
+                  level,
+                  hubScope: "topic",
+                  unitLabel: current.unitLabel ?? undefined,
+                  unitTitle: current.unitTitle ?? undefined,
+                  chapterTitle: current.chapterTitle,
+                  subtopicNames: topic.subtopics,
+                  mode: "generate",
+                  includeTrace: false,
                 });
-                await sleep(VERIFY_SETTLE_MS);
-                continue;
-              }
+                const refreshedHub = await fetchTopicContent({
+                  board: current.board,
+                  subject: current.subject,
+                  classLevel: current.classLevel,
+                  topic: topic.title,
+                  level,
+                  hubScope: "topic",
+                });
+                previewCache.set(`${topic.title}::${level}`, refreshedHub);
+                appendLog(jobId, `Topic hub generated for ${topic.title} (${level}).`);
+              })
+            );
+            const hubFailure = hubSettled.find((result) => result.status === "rejected");
+            if (hubFailure?.status === "rejected") {
+              throw hubFailure.reason instanceof Error
+                ? hubFailure.reason
+                : new Error("Parallel topic-hub generation failed");
             }
 
-            patchJob(jobId, {
-              currentAction: `Generating ${level} topic hub for ${topic.title}`,
-            });
-            await generateTopicContent({
-              board: current.board,
-              subject: current.subject,
-              classLevel: current.classLevel,
-              topic: topic.title,
-              level,
-              hubScope: "topic",
-              unitLabel: current.unitLabel ?? undefined,
-              unitTitle: current.unitTitle ?? undefined,
-              chapterTitle: current.chapterTitle,
-              subtopicNames: topic.subtopics,
-              mode: "generate",
-              includeTrace: false,
-            });
-            const refreshedHub = await fetchTopicContent({
-              board: current.board,
-              subject: current.subject,
-              classLevel: current.classLevel,
-              topic: topic.title,
-              level,
-              hubScope: "topic",
-            });
-            previewCache.set(`${topic.title}::${level}`, refreshedHub);
-            appendLog(jobId, `Topic hub generated for ${topic.title} (${level}).`);
-
-            const nextCursor = nextCursorAfterTopicHub(current);
+            const nextCursor = nextCursorAfterTopicHubBatch(current, topicBatch.length);
             if (nextCursor.phase === "subtopic") {
               const topicChecks = await Promise.all(
                 current.topics.map(async (topicRow) => ({
                   topic: topicRow.title,
-                  gate: await fetchTopicHubThreeLevelGate({
-                    board: current.board,
-                    subject: current.subject,
-                    classLevel: current.classLevel,
-                    topic: topicRow.title,
-                    hubScope: "topic",
-                  }),
+                  missingLevels: (
+                    await Promise.all(
+                      ORCHESTRATOR_LEVELS.map(async (requiredLevel) => {
+                        const hub = await fetchTopicContent({
+                          board: current.board,
+                          subject: current.subject,
+                          classLevel: current.classLevel,
+                          topic: topicRow.title,
+                          level: requiredLevel,
+                          hubScope: "topic",
+                        });
+                        const hubReady =
+                          hub.exists &&
+                          (hub.whyStudy.trim() ||
+                            hub.whatLearn.trim() ||
+                            hub.realWorld.trim() ||
+                            (hub.subtopicPreviews?.length ?? 0) > 0);
+                        return hubReady ? null : requiredLevel;
+                      })
+                    )
+                  ).filter((value): value is OrchestratorLevel => Boolean(value)),
                 }))
               );
-              const firstGap = topicChecks.find((entry) => !entry.gate.ok);
+              const firstGap = topicChecks
+                .find((entry) => entry.missingLevels.length > 0);
               if (firstGap) {
-                const firstMissingLevel = firstGap.gate.missingLevels[0] ?? "basics";
+                const firstMissingLevel = firstGap.missingLevels[0] ?? ORCHESTRATOR_LEVELS[0];
+                const missingLevelIndex = ORCHESTRATOR_LEVELS.findIndex(
+                  (candidate) => candidate === firstMissingLevel
+                );
                 appendLog(
                   jobId,
                   `Verification found missing topic hub data for ${firstGap.topic} (${firstMissingLevel}). Re-running that level before subtopics.`
@@ -613,14 +996,14 @@ export default function AgentOrchestratorRunner() {
                   cursor: {
                     phase: "topic_hub",
                     topicIndex: current.topics.findIndex((item) => item.title === firstGap.topic),
-                    levelIndex: ORCHESTRATOR_LEVELS.indexOf(firstMissingLevel),
+                    levelIndex: missingLevelIndex >= 0 ? missingLevelIndex : 0,
                     subtopicIndex: 0,
                     subtopicStep: "deep_dive",
                   },
                 });
                 continue;
               }
-              appendLog(jobId, "Verified topic hubs for basics, intermediate, and advanced.");
+              appendLog(jobId, `Verified topic hubs for ${ORCHESTRATOR_LEVELS.join(", ")}.`);
             }
 
             patchJob(jobId, {
@@ -636,7 +1019,7 @@ export default function AgentOrchestratorRunner() {
             patchJob(jobId, {
               cursor: {
                 ...current.cursor,
-                phase: "done",
+                phase: "final_audit",
               },
             });
             continue;
@@ -670,7 +1053,10 @@ export default function AgentOrchestratorRunner() {
 
           const settled = await Promise.allSettled(
             batch.map((subtopic) =>
-              ensureSubtopicLevelComplete(current, topic, level, subtopic, previewCache)
+              withSubtopicPipelineTimeout(
+                ensureSubtopicLevelComplete(current, topic, level, subtopic, previewCache),
+                `${topic.title} · ${subtopic}`
+              )
             )
           );
 
@@ -681,17 +1067,27 @@ export default function AgentOrchestratorRunner() {
               : new Error("Parallel subtopic processing failed");
           }
 
+          const nextIndex = current.cursor.subtopicIndex + batch.length;
+          const totalSubs = topic.subtopics.length;
+          const hasMoreInLevel = nextIndex < totalSubs;
+          appendLog(
+            jobId,
+            hasMoreInLevel
+              ? `Subtopic batch finished for ${topic.title} (${level}). Progress ${nextIndex}/${totalSubs} — starting next batch.`
+              : `Subtopic batch finished for ${topic.title} (${level}). Moving to next topic, final audit, or chapter complete.`
+          );
+
           patchJob(jobId, (job) => {
-            const nextIndex = job.cursor.subtopicIndex + batch.length;
-            const hasMoreInLevel =
-              nextIndex < (job.topics[job.cursor.topicIndex]?.subtopics.length ?? 0);
-            if (hasMoreInLevel) {
+            const nextIdx = job.cursor.subtopicIndex + batch.length;
+            const moreInTopic =
+              nextIdx < (job.topics[job.cursor.topicIndex]?.subtopics.length ?? 0);
+            if (moreInTopic) {
               return {
                 ...job,
                 formulaRetryCount: 0,
                 cursor: {
                   ...job.cursor,
-                  subtopicIndex: nextIndex,
+                  subtopicIndex: nextIdx,
                   subtopicStep: "deep_dive",
                 },
               };

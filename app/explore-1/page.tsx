@@ -52,6 +52,35 @@ import { useToast } from '@/hooks/use-toast';
 import { fuzzySubtopicKey } from '@/lib/utils';
 import { useOrchestratorStore } from '@/store/useOrchestratorStore';
 import {
+  CLASS11_CHEMISTRY_CHAPTER_BLURB,
+  CLASS11_CHEMISTRY_CHAPTER_ICON,
+  CLASS11_CHEMISTRY_SECTIONS,
+  CLASS11_CHEMISTRY_UNIT_COUNT_LABEL,
+  CLASS11_MATH_CHAPTER_BLURB,
+  CLASS11_MATH_CHAPTER_ICON,
+  CLASS11_MATH_SECTIONS,
+  CLASS11_MATH_UNIT_COUNT_LABEL,
+  CLASS12_CHEMISTRY_CHAPTER_BLURB,
+  CLASS12_CHEMISTRY_CHAPTER_ICON,
+  CLASS12_CHEMISTRY_SECTIONS,
+  CLASS12_CHEMISTRY_UNIT_COUNT_LABEL,
+  CLASS12_MATH_CHAPTER_BLURB,
+  CLASS12_MATH_CHAPTER_ICON,
+  CLASS12_MATH_SECTIONS,
+  CLASS12_MATH_UNIT_COUNT_LABEL,
+  isClass11Chemistry,
+  isClass11Math,
+  isClass12Chemistry,
+  isClass12Math,
+} from '@/lib/chemMathExplore';
+import {
+  CLASS11_PHYSICS_CHAPTER_BLURB,
+  CLASS11_PHYSICS_CHAPTER_ICON,
+  CLASS11_PHYSICS_SECTIONS,
+  CLASS11_PHYSICS_UNIT_COUNT_LABEL,
+  isClass11Physics,
+} from '@/lib/class11PhysicsExplore';
+import {
   CLASS12_PHYSICS_CHAPTER_BLURB,
   CLASS12_PHYSICS_CHAPTER_ICON,
   CLASS12_PHYSICS_SECTIONS,
@@ -112,6 +141,15 @@ function compareUnitLabels(a: string, b: string): number {
 function pickPrimaryTopicForChapter(chapterKey: string, nodes: TopicNode[]): TopicNode {
   const sorted = [...nodes].sort((a, b) => a.topic.localeCompare(b.topic));
   return sorted.find((t) => t.topic === chapterKey) ?? sorted[0]!;
+}
+
+function chapterLookupKey(value: string): string {
+  return String(value ?? '')
+    .toLowerCase()
+    .replace(/&/g, ' and ')
+    .replace(/[—–-]/g, ' ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
 }
 
 /** Stored copy sometimes has literal `\n` / `\t` instead of real newlines — fix markdown/list rendering. */
@@ -326,10 +364,22 @@ function UnitRoadmap({ topics, subject, classLevel, onTopicClick, getTopicCount,
     });
   });
   const unitKeys = unitCards.map((u) => u.unitLabel);
+  const chemistry11Layout = isClass11Chemistry(subject, classLevel);
+  const chemistry12Layout = isClass12Chemistry(subject, classLevel);
+  const math11Layout = isClass11Math(subject, classLevel);
+  const math12Layout = isClass12Math(subject, classLevel);
+  const physics11Layout = isClass11Physics(subject, classLevel);
   const physics12Layout = isClass12Physics(subject, classLevel);
 
   const chapterByTitle = new Map<string, (typeof chapterCards)[number]>();
   for (const ch of chapterCards) chapterByTitle.set(ch.chapterTitle, ch);
+  const chapterByLookupTitle = new Map<string, (typeof chapterCards)[number]>();
+  for (const ch of chapterCards) {
+    const key = chapterLookupKey(ch.chapterTitle);
+    if (!chapterByLookupTitle.has(key)) chapterByLookupTitle.set(key, ch);
+  }
+  const getChapterByAnyTitle = (title: string): (typeof chapterCards)[number] | undefined =>
+    chapterByTitle.get(title) ?? chapterByLookupTitle.get(chapterLookupKey(title));
 
   const getCrowns = (correct: number, totalQ: number): number => {
     if (totalQ === 0 || correct === 0) return 0;
@@ -395,6 +445,231 @@ function UnitRoadmap({ topics, subject, classLevel, onTopicClick, getTopicCount,
           </span>
         </div>
       </motion.div>
+    );
+  };
+
+  const renderPhysics11Card = (chapter: (typeof chapterCards)[number], animDelay: number, colorIdx: number) => {
+    const c = UNIT_COLORS[colorIdx % UNIT_COLORS.length];
+    const blurb = CLASS11_PHYSICS_CHAPTER_BLURB[chapter.chapterTitle] ?? '';
+    const icon =
+      CLASS11_PHYSICS_CHAPTER_ICON[chapter.chapterTitle] ??
+      UNIT_ICONS[chapter.unitRepresentative.unitTitle ?? chapter.unitRepresentative.topic] ??
+      '📚';
+    const topicCount = chapter.chapterTopics.length;
+    const unitNumberLabel = chapter.unitLabel.replace('Unit', 'U').trim();
+    const { chapterTitle, representative } = chapter;
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: animDelay, type: 'spring', stiffness: 250, damping: 24 }}
+        whileHover={{ scale: 1.012, transition: { duration: 0.15 } }}
+        whileTap={{ scale: 0.99 }}
+        onClick={() => onTopicClick(representative, classLevel, chapterTitle, representative.topic)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onTopicClick(representative, classLevel, chapterTitle, representative.topic);
+          }
+        }}
+        role="button"
+        tabIndex={0}
+        aria-label={`Open ${chapterTitle}`}
+        className="w-full text-left rounded-2xl border border-border/70 bg-card/95 shadow-[0_8px_24px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_30px_rgba(0,0,0,0.36)] hover:shadow-[0_12px_30px_rgba(0,0,0,0.13)] dark:hover:shadow-[0_14px_34px_rgba(0,0,0,0.5)] transition-shadow duration-200 p-4 sm:p-5 min-h-[232px] flex flex-col cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 overflow-hidden"
+        style={{ borderTopWidth: 2, borderTopStyle: 'solid', borderTopColor: c.stroke }}
+      >
+        <div className="flex items-start justify-between gap-2">
+          <span className="text-[11px] font-extrabold tracking-widest text-muted-foreground/90">{unitNumberLabel}</span>
+          <span className="flex gap-1 pt-0.5 shrink-0" aria-hidden>
+            <span className="w-1.5 h-1.5 rounded-full" style={{ background: c.stroke, opacity: 1 }} />
+            <span className="w-1.5 h-1.5 rounded-full" style={{ background: c.stroke, opacity: 0.65 }} />
+            <span className="w-1.5 h-1.5 rounded-full" style={{ background: c.stroke, opacity: 0.35 }} />
+          </span>
+        </div>
+        <div className="flex items-center gap-3 mt-3">
+          <div
+            className="w-11 h-11 rounded-lg flex items-center justify-center text-xl border border-border/50 bg-background/60 dark:bg-background/30 shrink-0"
+            style={{ boxShadow: `inset 0 0 0 1px ${c.stroke}22` }}
+          >
+            {icon}
+          </div>
+          <h4 className="text-[15px] sm:text-base font-extrabold text-foreground leading-snug">{chapterTitle}</h4>
+        </div>
+        <p className="mt-3 text-xs sm:text-sm text-muted-foreground leading-relaxed line-clamp-4 flex-1">{blurb}</p>
+        <div className="mt-4 pt-3 border-t border-border/60 flex items-center justify-between gap-2">
+          <span className="text-xs font-bold text-muted-foreground">
+            {topicCount} {topicCount === 1 ? 'topic' : 'topics'}
+          </span>
+          <span className="rounded-full px-3 py-1.5 text-[11px] font-extrabold border border-border bg-muted/50 text-foreground shrink-0">
+            Theory
+          </span>
+        </div>
+      </motion.div>
+    );
+  };
+
+  const renderInvestorCard = (
+    chapter: (typeof chapterCards)[number],
+    displayTitle: string,
+    animDelay: number,
+    colorIdx: number,
+    blurbs: Record<string, string>,
+    icons: Record<string, string>
+  ) => {
+    const c = UNIT_COLORS[colorIdx % UNIT_COLORS.length];
+    const blurbLookup = new Map<string, string>();
+    for (const [k, v] of Object.entries(blurbs)) {
+      const nk = chapterLookupKey(k);
+      if (!blurbLookup.has(nk)) blurbLookup.set(nk, v);
+    }
+    const blurb =
+      blurbs[displayTitle] ??
+      blurbs[chapter.chapterTitle] ??
+      blurbLookup.get(chapterLookupKey(displayTitle)) ??
+      blurbLookup.get(chapterLookupKey(chapter.chapterTitle)) ??
+      '';
+    const icon =
+      icons[displayTitle] ??
+      icons[chapter.chapterTitle] ??
+      UNIT_ICONS[chapter.unitRepresentative.unitTitle ?? chapter.unitRepresentative.topic] ??
+      '📚';
+    const topicCount = chapter.chapterTopics.length;
+    const unitNumberLabel = chapter.unitLabel.replace('Unit', 'U').trim();
+    const { representative } = chapter;
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: animDelay, type: 'spring', stiffness: 250, damping: 24 }}
+        whileHover={{ scale: 1.012, transition: { duration: 0.15 } }}
+        whileTap={{ scale: 0.99 }}
+        onClick={() => onTopicClick(representative, classLevel, displayTitle, representative.topic)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onTopicClick(representative, classLevel, displayTitle, representative.topic);
+          }
+        }}
+        role="button"
+        tabIndex={0}
+        aria-label={`Open ${displayTitle}`}
+        className="w-full text-left rounded-2xl border border-border/70 bg-card/95 shadow-[0_8px_24px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_30px_rgba(0,0,0,0.36)] hover:shadow-[0_12px_30px_rgba(0,0,0,0.13)] dark:hover:shadow-[0_14px_34px_rgba(0,0,0,0.5)] transition-shadow duration-200 p-4 sm:p-5 min-h-[232px] flex flex-col cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 overflow-hidden"
+        style={{ borderTopWidth: 2, borderTopStyle: 'solid', borderTopColor: c.stroke }}
+      >
+        <div className="flex items-start justify-between gap-2">
+          <span className="text-[11px] font-extrabold tracking-widest text-muted-foreground/90">{unitNumberLabel}</span>
+          <span className="flex gap-1 pt-0.5 shrink-0" aria-hidden>
+            <span className="w-1.5 h-1.5 rounded-full" style={{ background: c.stroke, opacity: 1 }} />
+            <span className="w-1.5 h-1.5 rounded-full" style={{ background: c.stroke, opacity: 0.65 }} />
+            <span className="w-1.5 h-1.5 rounded-full" style={{ background: c.stroke, opacity: 0.35 }} />
+          </span>
+        </div>
+        <div className="flex items-center gap-3 mt-3">
+          <div
+            className="w-11 h-11 rounded-lg flex items-center justify-center text-xl border border-border/50 bg-background/60 dark:bg-background/30 shrink-0"
+            style={{ boxShadow: `inset 0 0 0 1px ${c.stroke}22` }}
+          >
+            {icon}
+          </div>
+          <h4 className="text-[15px] sm:text-base font-extrabold text-foreground leading-snug">{displayTitle}</h4>
+        </div>
+        <p className="mt-3 text-xs sm:text-sm text-muted-foreground leading-relaxed line-clamp-4 flex-1">{blurb}</p>
+        <div className="mt-4 pt-3 border-t border-border/60 flex items-center justify-between gap-2">
+          <span className="text-xs font-bold text-muted-foreground">
+            {topicCount} {topicCount === 1 ? 'topic' : 'topics'}
+          </span>
+          <span className="rounded-full px-3 py-1.5 text-[11px] font-extrabold border border-border bg-muted/50 text-foreground shrink-0">
+            Theory
+          </span>
+        </div>
+      </motion.div>
+    );
+  };
+
+  const renderInvestorRoadmap = (
+    sections: { heading: string; chapters: readonly string[] }[],
+    blurbs: Record<string, string>,
+    icons: Record<string, string>,
+    unitCountLabel: string,
+    classBadgeLabel: string
+  ) => {
+    const titleToPaletteIndex = new Map<string, number>();
+    const titleToAnimIndex = new Map<string, number>();
+    let ordinal = 0;
+    for (const sec of sections) {
+      for (const title of sec.chapters) {
+        if (!getChapterByAnyTitle(title)) continue;
+        titleToPaletteIndex.set(title, ordinal);
+        titleToAnimIndex.set(title, ordinal);
+        ordinal += 1;
+      }
+    }
+    const footerDelay = chapterCards.length * 0.03 + 0.2;
+    return (
+      <div className="w-full max-w-6xl mx-auto py-6 sm:py-8 select-none px-2">
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+          className="rounded-2xl border border-primary/30 bg-gradient-to-r from-primary/10 via-card to-primary/10 p-4 sm:p-5 mb-6 flex items-center justify-between gap-4"
+        >
+          <div className="flex items-start gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg border border-primary/35 bg-primary/15 shrink-0">
+              ✨
+            </div>
+            <div className="min-w-0">
+              <div className="text-[10px] sm:text-[11px] font-extrabold uppercase tracking-[0.16em] text-primary">
+                Your unit map
+              </div>
+              <h2 className="text-xl sm:text-2xl font-extrabold text-foreground leading-tight">Pick a unit. Unlock it.</h2>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                Tap a unit below — read the theory, master each topic, then crush practice. Each card shows how many
+                topics you&apos;ll cover across {unitCountLabel} of {classBadgeLabel}.
+              </p>
+            </div>
+          </div>
+          <div className="hidden sm:flex flex-col items-end shrink-0">
+            <span className="text-3xl font-extrabold text-primary leading-none">{unitCountLabel.split(' ')[0]}</span>
+            <span className="text-[11px] font-extrabold tracking-widest uppercase text-muted-foreground">
+              Units · {classBadgeLabel}
+            </span>
+          </div>
+        </motion.div>
+
+        {sections.map((sec, secIndex) => (
+          <section key={sec.heading} className={secIndex > 0 ? 'mt-8' : ''}>
+            <h3 className="text-[11px] sm:text-xs font-extrabold tracking-[0.18em] text-muted-foreground uppercase mb-4">
+              {sec.heading}
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+              {sec.chapters.map((title) => {
+                const chapter = getChapterByAnyTitle(title);
+                if (!chapter) return null;
+                const ai = titleToAnimIndex.get(title) ?? 0;
+                const pi = titleToPaletteIndex.get(title) ?? 0;
+                return (
+                  <div key={`${classLevel}-${chapter.unitLabel}-${chapter.chapterTitle}-${chapter.representative.topic}`}>
+                    {renderInvestorCard(chapter, title, ai * 0.03, pi, blurbs, icons)}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        ))}
+
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: footerDelay }}
+          className="flex justify-center mt-8"
+        >
+          <div className="bg-muted/60 rounded-xl px-4 py-2.5 inline-flex items-center gap-2 border border-border/60">
+            <p className="text-xs font-bold text-muted-foreground text-center">
+              Ready to level up? Pick a unit above to begin. · {unitCountLabel} · {classBadgeLabel}
+            </p>
+          </div>
+        </motion.div>
+      </div>
     );
   };
 
@@ -472,6 +747,124 @@ function UnitRoadmap({ topics, subject, classLevel, onTopicClick, getTopicCount,
       </motion.div>
     );
   };
+
+  if (physics11Layout) {
+    const titleToPaletteIndex = new Map<string, number>();
+    const titleToAnimIndex = new Map<string, number>();
+    let ordinal = 0;
+    for (const sec of CLASS11_PHYSICS_SECTIONS) {
+      for (const title of sec.chapters) {
+        if (!chapterByTitle.has(title)) continue;
+        titleToPaletteIndex.set(title, ordinal);
+        titleToAnimIndex.set(title, ordinal);
+        ordinal += 1;
+      }
+    }
+    const footerDelay = chapterCards.length * 0.03 + 0.2;
+    return (
+      <div className="w-full max-w-6xl mx-auto py-6 sm:py-8 select-none px-2">
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+          className="rounded-2xl border border-primary/30 bg-gradient-to-r from-primary/10 via-card to-primary/10 p-4 sm:p-5 mb-6 flex items-center justify-between gap-4"
+        >
+          <div className="flex items-start gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg border border-primary/35 bg-primary/15 shrink-0">
+              ✨
+            </div>
+            <div className="min-w-0">
+              <div className="text-[10px] sm:text-[11px] font-extrabold uppercase tracking-[0.16em] text-primary">
+                Your unit map
+              </div>
+              <h2 className="text-xl sm:text-2xl font-extrabold text-foreground leading-tight">Pick a unit. Unlock it.</h2>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                This is all Physics for Class 11. Each card shows chapter scope, topic count, and your path to start.
+              </p>
+            </div>
+          </div>
+          <div className="hidden sm:flex flex-col items-end shrink-0">
+            <span className="text-3xl font-extrabold text-primary leading-none">10</span>
+            <span className="text-[11px] font-extrabold tracking-widest uppercase text-muted-foreground">Units · Class 11</span>
+          </div>
+        </motion.div>
+
+        {CLASS11_PHYSICS_SECTIONS.map((sec, secIndex) => (
+          <section key={sec.heading} className={secIndex > 0 ? 'mt-8' : ''}>
+            <h3 className="text-[11px] sm:text-xs font-extrabold tracking-[0.18em] text-muted-foreground uppercase mb-4">
+              {sec.heading}
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+              {sec.chapters.map((title) => {
+                const chapter = chapterByTitle.get(title);
+                if (!chapter) return null;
+                const ai = titleToAnimIndex.get(title) ?? 0;
+                const pi = titleToPaletteIndex.get(title) ?? 0;
+                return (
+                  <div key={`${classLevel}-${chapter.unitLabel}-${chapter.chapterTitle}-${chapter.representative.topic}`}>
+                    {renderPhysics11Card(chapter, ai * 0.03, pi)}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        ))}
+
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: footerDelay }}
+          className="flex justify-center mt-8"
+        >
+          <div className="bg-muted/60 rounded-xl px-4 py-2.5 inline-flex items-center gap-2 border border-border/60">
+            <p className="text-xs font-bold text-muted-foreground text-center">
+              Ready to level up? Pick a unit above to begin. · {CLASS11_PHYSICS_UNIT_COUNT_LABEL} · Class 11 Physics
+            </p>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
+  if (chemistry11Layout) {
+    return renderInvestorRoadmap(
+      CLASS11_CHEMISTRY_SECTIONS,
+      CLASS11_CHEMISTRY_CHAPTER_BLURB,
+      CLASS11_CHEMISTRY_CHAPTER_ICON,
+      CLASS11_CHEMISTRY_UNIT_COUNT_LABEL,
+      'Class 11 Chemistry'
+    );
+  }
+
+  if (chemistry12Layout) {
+    return renderInvestorRoadmap(
+      CLASS12_CHEMISTRY_SECTIONS,
+      CLASS12_CHEMISTRY_CHAPTER_BLURB,
+      CLASS12_CHEMISTRY_CHAPTER_ICON,
+      CLASS12_CHEMISTRY_UNIT_COUNT_LABEL,
+      'Class 12 Chemistry'
+    );
+  }
+
+  if (math11Layout) {
+    return renderInvestorRoadmap(
+      CLASS11_MATH_SECTIONS,
+      CLASS11_MATH_CHAPTER_BLURB,
+      CLASS11_MATH_CHAPTER_ICON,
+      CLASS11_MATH_UNIT_COUNT_LABEL,
+      'Class 11 Mathematics'
+    );
+  }
+
+  if (math12Layout) {
+    return renderInvestorRoadmap(
+      CLASS12_MATH_SECTIONS,
+      CLASS12_MATH_CHAPTER_BLURB,
+      CLASS12_MATH_CHAPTER_ICON,
+      CLASS12_MATH_UNIT_COUNT_LABEL,
+      'Class 12 Mathematics'
+    );
+  }
 
   if (physics12Layout) {
     const titleToPaletteIndex = new Map<string, number>();
@@ -2406,8 +2799,8 @@ const Explore = () => {
                 </DialogTitle>
                 <DialogDescription>
                   Pick the time when the orchestrator should start this chapter. It will generate
-                  the chapter overview first, then topic hubs for basics, intermediate, and
-                  advanced, then every subtopic AI pack with formula retries and fallback checks.
+                  the chapter overview first, then topic hubs for advanced only, then every
+                  subtopic AI pack with formula retries and fallback checks.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">

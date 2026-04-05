@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Board, Subject } from '@/types';
 
-export const ORCHESTRATOR_LEVELS = ['basics', 'intermediate', 'advanced'] as const;
+export const ORCHESTRATOR_LEVELS = ['advanced'] as const;
 export type OrchestratorLevel = (typeof ORCHESTRATOR_LEVELS)[number];
 
 export type OrchestratorSubtopicStep =
@@ -15,6 +15,7 @@ export type OrchestratorPhase =
   | 'chapter_overview'
   | 'topic_hub'
   | 'subtopic'
+  | 'final_audit'
   | 'done';
 
 export type OrchestratorJobStatus =
@@ -330,7 +331,7 @@ export const useOrchestratorStore = create<OrchestratorState>()(
     }),
     {
       name: 'edublast-orchestrator',
-      version: 1,
+      version: 2,
       partialize: (state) => ({ jobs: state.jobs }),
     }
   )

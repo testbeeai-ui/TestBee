@@ -1,11 +1,11 @@
 "use client";
 
 import { ReactNode } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserStore } from '@/store/useUserStore';
-import { LayoutDashboard, Compass, User, Coins, Settings, ClipboardList, HelpCircle, Heart, GraduationCap } from 'lucide-react';
+import { LayoutDashboard, Compass, User, Coins, Settings, HelpCircle, Heart, GraduationCap, Gift } from 'lucide-react';
 import StreakTimer from '@/components/StreakTimer';
 import NotificationBell from '@/components/NotificationBell';
 import BreakScreen from '@/components/BreakScreen';
@@ -21,25 +21,31 @@ interface AppLayoutProps {
 /** Curriculum browser: URL stays `/explore-1`; navbar label is "Explore". */
 export const EXPLORE_APP_PATH = "/explore-1" as const;
 
+/** Prep + Mock hub: highlight when user is on mock, revision, or class flows (Exam Prep removed from top nav). */
+function isPrepMockActive(pathname: string): boolean {
+  if (pathname === "/mock" || pathname === "/exam-prep") return true;
+  if (pathname === "/classrooms" || pathname === "/revision") return true;
+  if (pathname.startsWith("/classroom/")) return true;
+  return false;
+}
+
 const baseNavItems = [
   { path: "/home", icon: LayoutDashboard, label: "Dashboard", emoji: "📊" },
   { path: EXPLORE_APP_PATH, icon: Compass, label: "Explore", emoji: "🧭" },
-  { path: "/exam-prep", icon: ClipboardList, label: "Exam Prep", emoji: "📋" },
   { path: "/mock", icon: GraduationCap, label: "Prep + Mock", emoji: "🎓" },
   { path: "/doubts", icon: HelpCircle, label: "Gyan++", emoji: "💡" },
   { path: "/edufund", icon: Heart, label: "EduFund", emoji: "💛" },
+  { path: "/refer-earn", icon: Gift, label: "Refer & Earn", emoji: "🎁" },
   { path: "/profile", icon: User, label: "Profile", emoji: "👤" },
 ];
 
 const AppLayout = ({ children, streakTimer }: AppLayoutProps) => {
-  const router = useRouter();
   const pathname = usePathname();
-  const { profile, signOut } = useAuth();
+  const { profile } = useAuth();
   const user = useUserStore((s) => s.user);
   const rdm = profile?.rdm ?? user?.rdm ?? 0;
   const allResults = useUserStore((s) => s.allResults);
   const navItems = baseNavItems;
-  const displayName = profile?.name ?? user?.name;
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -59,8 +65,7 @@ const AppLayout = ({ children, streakTimer }: AppLayoutProps) => {
             {navItems.map(({ path, icon: Icon, label }) => {
               const isActive =
                 pathname === path ||
-                (path === "/exam-prep" && ["/classrooms", "/revision"].includes(pathname)) ||
-                (path === "/mock" && pathname === "/mock") ||
+                (path === "/mock" && isPrepMockActive(pathname)) ||
                 (path === "/edufund" && (pathname === "/edufund" || pathname.startsWith("/edufund/")));
               return (
                 <Link
@@ -114,8 +119,7 @@ const AppLayout = ({ children, streakTimer }: AppLayoutProps) => {
             {navItems.map(({ path, icon: Icon, label, emoji }) => {
               const isActive =
                 pathname === path ||
-                (path === "/exam-prep" && ["/classrooms", "/revision"].includes(pathname)) ||
-                (path === "/mock" && pathname === "/mock") ||
+                (path === "/mock" && isPrepMockActive(pathname)) ||
                 (path === "/edufund" && (pathname === "/edufund" || pathname.startsWith("/edufund/")));
               return (
                 <Link

@@ -13,6 +13,8 @@ import { normalizeSubjectKey, normalizeSubtopicContentKey } from "@/lib/subtopic
 import { getGeminiApiKeyFromEnv } from "@/lib/geminiEnv";
 import { logAiUsage } from "@/lib/aiLogger";
 import { repairEscapedLatexCommands } from "@/lib/stripFormulaDelimiters";
+import { sanitizeJsonForDb } from "@/lib/sanitizeJsonForDb";
+import { tryParseJsonObjectWithSalvage } from "@/lib/parseModelJson";
 
 const ALLOWED_LEVELS = new Set(["basics", "intermediate", "advanced"]);
 const MIN_BITS_PER_FORMULA = 5;
@@ -77,68 +79,6 @@ function normalizeLatex(raw: string): string {
   out = out.replace(/\\bar\s*\{\s*\}/g, "\\bar{\\nu}");
   out = out.replace(/\\text\s*\{\s*\}/g, "\\text{ }");
   return out;
-}
-
-function tryParseJsonObject(raw: string): Record<string, unknown> | null {
-  const text = String(raw ?? "").trim();
-  if (!text) return null;
-
-  const directCandidates = [
-    text,
-    text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim(),
-  ];
-  for (const candidate of directCandidates) {
-    if (!candidate) continue;
-    try {
-      const parsed = JSON.parse(candidate) as unknown;
-      if (parsed && typeof parsed === "object") return parsed as Record<string, unknown>;
-    } catch {
-      // try next candidate
-    }
-  }
-
-  // Heuristic salvage for model responses with extra prose/trailing garbage.
-  const start = text.indexOf("{");
-  const end = text.lastIndexOf("}");
-  if (start >= 0 && end > start) {
-    const sliced = text.slice(start, end + 1);
-    try {
-      const parsed = JSON.parse(sliced) as unknown;
-      if (parsed && typeof parsed === "object") return parsed as Record<string, unknown>;
-    } catch {
-      return null;
-    }
-  }
-  return null;
-}
-
-/** Escape stray LaTeX backslashes so JSON.parse can succeed (same idea as generate-subtopic). */
-function salvageJsonForLatex(raw: string): string {
-  return raw.replace(/\\(?!["\\/bfnrtu])/g, "\\\\");
-}
-
-/** `\u` must be followed by 4 hex digits; models sometimes emit broken Unicode escapes. */
-function repairInvalidJsonUnicodeEscapes(s: string): string {
-  return s.replace(/\\u(?![0-9a-fA-F]{4})/g, "\\\\u");
-}
-
-/** Try multiple repairs before giving up — reduces flaky 502s from otherwise-valid payloads. */
-function tryParseJsonObjectWithSalvage(raw: string): Record<string, unknown> | null {
-  const trimmed = String(raw ?? "").trim();
-  const variants = [
-    trimmed,
-    repairInvalidJsonUnicodeEscapes(trimmed),
-    salvageJsonForLatex(trimmed),
-    salvageJsonForLatex(repairInvalidJsonUnicodeEscapes(trimmed)),
-  ];
-  const seen = new Set<string>();
-  for (const v of variants) {
-    if (!v || seen.has(v)) continue;
-    seen.add(v);
-    const p = tryParseJsonObject(v);
-    if (p) return p;
-  }
-  return null;
 }
 
 function formulasVerifierSchema() {
@@ -451,8 +391,11 @@ ${existing.theory.slice(0, 12000)}`;
 
     console.log(`[generate-formulas] backend=${backend} model=${modelId} topic=${topic} subtopic=${subtopicName} level=${level}`);
 
-    // Second Gemini call (verifier) follows immediately — brief pause reduces 429 bursts on Vertex.
-    await new Promise((r) => setTimeout(r, 5000));
+    // Short pause before verifier (default 1s; override with FORMULAS_VERIFIER_PAUSE_MS=300–3000).
+    const fromEnv = Number(process.env.FORMULAS_VERIFIER_PAUSE_MS);
+    const baseMs = Number.isFinite(fromEnv) && fromEnv > 0 ? fromEnv : 1000;
+    const verifierPauseMs = Math.min(3000, Math.max(300, baseMs));
+    await new Promise((r) => setTimeout(r, verifierPauseMs));
 
     const parsed = tryParseJsonObjectWithSalvage(raw);
     if (!parsed) {
@@ -578,8 +521,9 @@ ${existing.theory.slice(0, 12000)}`;
 
     // Persist after long Gemini + verifier — user JWT may be expired; use service role if configured.
     const persistDb = supabaseForLongJobPersist(supabase);
+    const safeItems = sanitizeJsonForDb(items);
     const { error: upsertError } = await persistDb.from("subtopic_content").update({
-      practice_formulas: JSON.parse(JSON.stringify(items)),
+      practice_formulas: safeItems,
       updated_by: user.id,
       updated_at: new Date().toISOString(),
     }).eq("board", board).eq("subject", subject).eq("class_level", classLevel)

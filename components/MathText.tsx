@@ -1232,7 +1232,10 @@ export default function MathText({
 
   if (!hasMathNotation(raw)) {
     return (
-      <Tag className={`${w} ${className}`.trim()} title={title}>
+      <Tag
+        className={`${w} ${className} min-w-0 max-w-full [overflow-wrap:anywhere] break-words whitespace-normal`.trim()}
+        title={title}
+      >
         {raw}
       </Tag>
     );
@@ -1242,7 +1245,10 @@ export default function MathText({
   if (chunks.some((c) => c.isMath)) {
     const katexW = katexWeightClass(weight);
     return (
-      <Tag className={`${w} ${className}`.trim()} title={title}>
+      <Tag
+        className={`${w} ${className} min-w-0 max-w-full [overflow-wrap:anywhere] break-words`.trim()}
+        title={title}
+      >
         {chunks.map((chunk, i) => {
           if (!chunk.isMath) return <React.Fragment key={`t-${i}`}>{chunk.text}</React.Fragment>;
           const html = renderLatex(toLatex(chunk.text), chunk.displayMode || displayMode);
@@ -1324,7 +1330,7 @@ export default function MathText({
     const katexW = katexWeightClass(weight);
     return (
       <Tag
-        className={`${w} ${katexW} [&>.katex]:text-[1em] ${className}`.trim()}
+        className={`${w} ${katexW} [&>.katex]:text-[1em] max-w-full min-w-0 overflow-x-auto ${className}`.trim()}
         title={title}
         dangerouslySetInnerHTML={{ __html: html }}
       />
@@ -1332,7 +1338,10 @@ export default function MathText({
   }
 
   return (
-    <Tag className={`${w} ${className}`.trim()} title={title}>
+    <Tag
+      className={`${w} ${className} min-w-0 max-w-full [overflow-wrap:anywhere] break-words`.trim()}
+      title={title}
+    >
       {raw}
     </Tag>
   );

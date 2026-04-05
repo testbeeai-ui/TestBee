@@ -21,16 +21,17 @@ export default function RevisionInstaCueSection({ cards }: RevisionInstaCueSecti
 
   return (
     <section className="space-y-3">
-      <div className="flex items-center justify-between">
-        <h3 className="font-display font-bold text-foreground text-sm flex items-center gap-2">
-          <RotateCcw className="w-4 h-4 text-primary" />
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="font-display font-bold text-foreground text-sm flex items-center gap-2 min-w-0">
+          <RotateCcw className="w-4 h-4 text-primary shrink-0" />
           Revision — InstaCue
         </h3>
-        {cards.length > 0 && (
-          <Link href="/revision" className="text-xs font-bold text-primary hover:underline flex items-center gap-1">
-            View all <ArrowRight className="w-3 h-3" />
-          </Link>
-        )}
+        <Link
+          href="/revision"
+          className="text-xs font-bold text-primary hover:underline flex items-center gap-1 shrink-0"
+        >
+          View all <ArrowRight className="w-3 h-3" />
+        </Link>
       </div>
 
       {preview.length === 0 ? (
