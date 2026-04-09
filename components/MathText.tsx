@@ -6,6 +6,13 @@ import katex from "katex";
 /** Preprocess curriculum-style formula text to valid LaTeX. */
 function toLatex(text: string): string {
   let s = text;
+  // Remove hidden control chars that can break KaTeX command parsing.
+  s = s.replace(/[\u0000-\u0008\u000B-\u001F\u007F]/g, "");
+  s = s.replace(/&times;/gi, "\\times ");
+  s = s.replace(/&middot;/gi, "\\cdot ");
+  s = s.replace(/&minus;/gi, "-");
+  s = s.replace(/&nbsp;/g, " ");
+  s = s.replace(/×/g, "\\times ");
   // Bad generator typo: \uparrowrac → \frac (e.g. Curie–Weiss χ = C/(T − T_C))
   s = s.replace(/\\uparrowrac\b/g, "\\frac");
   // Broader arrow-variant typos seen in some payloads: ↑rac, ⬆rac, \uarrac, \arrowrac.
@@ -17,8 +24,8 @@ function toLatex(text: string): string {
   // Bad generator output: "A = \{\pi}" / "{ \pi }" — KaTeX error (red); normalize to \pi
   s = s.replace(/\\\{\s*\\pi\s*\}/g, "\\pi");
   s = s.replace(/\{\s*\\pi\s*\}/g, "\\pi");
-  // Common API payload artifact: escaped backslashes arrive doubled.
-  s = s.replace(/\\\\([A-Za-z()[\]{}])/g, "\\$1");
+  // Common API payload artifact: escaped backslashes arrive over-escaped.
+  s = s.replace(/\\{2,}(?=[()[\]{}A-Za-z])/g, "\\");
   s = s.replace(/piepsilon_0/g, "\\pi\\varepsilon_0");
   s = s.replace(/piepsilon/g, "\\pi\\varepsilon");
   s = s.replace(/\blambda\b/g, "\\lambda");
@@ -30,6 +37,30 @@ function toLatex(text: string): string {
   s = s.replace(/\bintegral_([a-zA-Z])\s*\^\s*([a-zA-Z])\b/g, "\\int_{$1}^{$2}");
   s = s.replace(/\bpi\s*r\b/gi, "\\pi r");
   s = s.replace(/\bpir\b/gi, "\\pi r");
+  // Common trig command corruption from model output.
+  s = s.replace(/\\os(?=\s|[\^_{(]|$)/g, "\\cos");
+  s = s.replace(/\\an(?=\s|[\^_{(]|$)/g, "\\tan");
+  s = s.replace(/\\ec(?=\s|[\^_{(]|$)/g, "\\sec");
+  s = s.replace(/\\sc(?=\s|[\^_{(]|$)/g, "\\csc");
+  // Sometimes the leading "\" is dropped inside math snippets (e.g. "os x").
+  // Missing-slash trig words should be fixed only in math-like contexts, not prose.
+  s = s.replace(/\bos(?=\s*(?:x\b|\(|\^|_))/gi, "\\cos");
+  s = s.replace(/\ban(?=\s*(?:x\b|\(|\^|_))/gi, "\\tan");
+  s = s.replace(/\bec(?=\s*(?:x\b|\(|\^|_))/gi, "\\sec");
+  s = s.replace(/\bsc(?=\s*(?:x\b|\(|\^|_))/gi, "\\csc");
+  // Complex-number artifacts:
+  // 1) \widehat{i}{n}      -> \widehat{i}^{n}
+  // 2) $\widehat{i}${4k}   -> $\widehat{i}^{4k}$
+  // 3) \widehat{i}k        -> \widehat{i}^{k}
+  s = s.replace(/\\widehat\{([^}]+)\}\s*\{([^}]+)\}/g, "\\widehat{$1}^{$2}");
+  s = s.replace(/\$\s*\\widehat\{([^}]+)\}\s*\$\s*\{([^}]+)\}/g, "$\\widehat{$1}^{$2}$");
+  s = s.replace(/\\widehat\{([^}]+)\}\s*([A-Za-z0-9]+)/g, "\\widehat{$1}^{$2}");
+  // Combinatorics notation often arrives as "^nC_r" (invalid TeX superscript without base).
+  // Normalize to "{}^{n}C_{r}" so KaTeX renders cleanly.
+  s = s.replace(
+    /(^|[\s(=+\-},;])\^\{?\s*([A-Za-z0-9]+)\s*\}?\s*C\s*_\s*\{?\s*([A-Za-z0-9]+)\s*\}?/g,
+    "$1{}^{$2}C_{$3}",
+  );
   s = s.replace(/\bgeq\b/gi, "\\geq");
   s = s.replace(/\bleq\b/gi, "\\leq");
   // Strip full-wrapper delimiters if present.
@@ -716,12 +747,34 @@ function standardAreasRowFullLatex(segment: string): string | null {
 /** Render LaTeX string to HTML, or null on failure. */
 function renderLatex(latex: string, displayMode: boolean): string | null {
   try {
-    return katex.renderToString(latex, {
+    const firstPass = katex.renderToString(latex, {
       displayMode,
       throwOnError: false,
       output: "html",
       strict: false,
     });
+    if (!firstPass.includes("katex-error")) return firstPass;
+
+    const retry = latex
+      .replace(/\\{2,}(?=[()[\]{}A-Za-z])/g, "\\")
+      .replace(/\\widehat\{\$\s*\\?([A-Za-z0-9]+)\s*\$\}/g, "\\widehat{$1}")
+      .replace(
+        /\\widehat\{([A-Za-z0-9]+)\}\{\$?\s*([A-Za-z0-9]+)\s*\$?\}/g,
+        "\\widehat{$1}^{$2}",
+      )
+      .replace(/\\widehat\{([A-Za-z0-9]+)\}\{\$?\s*th(?:'s)?\s*\$?\}/gi, "\\widehat{$1}^{\\text{th}}")
+      .replace(/\\widehat\{([^}]+)\}\s*\{([^}]+)\}/g, "\\widehat{$1}^{$2}")
+      .replace(/\\widehat\{([^}]+)\}\s*([A-Za-z0-9+\-]+)/g, "\\widehat{$1}^{$2}")
+      .replace(/\\\(|\\\)|\\\[|\\\]/g, "");
+    const secondPass = katex.renderToString(retry, {
+      displayMode,
+      throwOnError: false,
+      output: "html",
+      strict: false,
+    });
+    // Never show red error output; fallback to plain text path.
+    if (secondPass.includes("katex-error")) return null;
+    return secondPass;
   } catch {
     return null;
   }
@@ -752,14 +805,21 @@ function hasMathNotation(text: string): boolean {
 
 type MathChunk = { text: string; isMath: boolean; displayMode: boolean };
 
+function normalizeEscapedMathDelimiters(text: string): string {
+  // Some payloads contain over-escaped delimiters (e.g. "\\[ ... \\]" or "\\\\( ... \\\\)").
+  // Normalize only delimiter escapes so LaTeX commands remain untouched.
+  return text.replace(/\\{2,}(?=[()[\]])/g, "\\");
+}
+
 function splitIntoMathChunks(text: string): MathChunk[] {
+  const source = normalizeEscapedMathDelimiters(text);
   const pattern = /(\\\((?:[\s\S]+?)\\\)|\\\[(?:[\s\S]+?)\\\]|\$\$(?:[\s\S]+?)\$\$|\$(?:[^$\n]+?)\$)/g;
   const chunks: MathChunk[] = [];
   let last = 0;
   let m: RegExpExecArray | null;
-  while ((m = pattern.exec(text)) !== null) {
+  while ((m = pattern.exec(source)) !== null) {
     if (m.index > last) {
-      chunks.push({ text: text.slice(last, m.index), isMath: false, displayMode: false });
+      chunks.push({ text: source.slice(last, m.index), isMath: false, displayMode: false });
     }
     const token = m[0];
     let inner = token;
@@ -775,8 +835,8 @@ function splitIntoMathChunks(text: string): MathChunk[] {
     chunks.push({ text: inner, isMath: true, displayMode });
     last = m.index + token.length;
   }
-  if (last < text.length) {
-    chunks.push({ text: text.slice(last), isMath: false, displayMode: false });
+  if (last < source.length) {
+    chunks.push({ text: source.slice(last), isMath: false, displayMode: false });
   }
   return chunks;
 }

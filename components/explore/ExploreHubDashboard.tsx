@@ -55,9 +55,9 @@ export default function ExploreHubDashboard({
           <div className="w-10 h-10 gradient-primary rounded-xl flex items-center justify-center">
             <Compass className="w-5 h-5 text-primary-foreground" />
           </div>
-          Explore
+          Lessons
         </h2>
-        <p className="edu-page-desc">Discover topics, connect with learners, and grow every day</p>
+        <p className="edu-page-desc">Discover lessons, connect with learners, and grow every day</p>
       </div>
 
       {/* Main layout: sidebar + content */}

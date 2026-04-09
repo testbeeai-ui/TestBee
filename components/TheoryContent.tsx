@@ -11,15 +11,42 @@ function enhanceVectorLatex(latex: string): string {
   return out;
 }
 
+function normalizeKatexRetryLatex(latex: string): string {
+  let out = latex;
+  out = out.replace(/\\{2,}(?=[()[\]{}A-Za-z])/g, "\\");
+  out = out.replace(/\\widehat\{\$\s*\\?([A-Za-z0-9]+)\s*\$\}/g, "\\widehat{$1}");
+  out = out.replace(
+    /\\widehat\{([A-Za-z0-9]+)\}\{\$?\s*([A-Za-z0-9]+)\s*\$?\}/g,
+    "\\widehat{$1}^{$2}",
+  );
+  out = out.replace(/\\widehat\{([A-Za-z0-9]+)\}\{\$?\s*th(?:'s)?\s*\$?\}/gi, "\\widehat{$1}^{\\text{th}}");
+  out = out.replace(/\\widehat\{([^}]+)\}\s*\{([^}]+)\}/g, "\\widehat{$1}^{$2}");
+  out = out.replace(/\\widehat\{([^}]+)\}\s*([A-Za-z0-9+\-]+)/g, "\\widehat{$1}^{$2}");
+  out = out.replace(/\\\(|\\\)|\\\[|\\\]/g, "");
+  return out;
+}
+
 function renderMath(latex: string, displayMode: boolean): string | null {
   try {
     const fixed = repairCorruptedLatexEscapes(latex);
-    return katex.renderToString(enhanceVectorLatex(fixed), {
+    const firstPass = katex.renderToString(enhanceVectorLatex(fixed), {
       displayMode,
       throwOnError: false,
       output: "html",
       strict: false,
     });
+    if (!firstPass.includes("katex-error")) return firstPass;
+
+    const retry = normalizeKatexRetryLatex(fixed);
+    const secondPass = katex.renderToString(enhanceVectorLatex(retry), {
+      displayMode,
+      throwOnError: false,
+      output: "html",
+      strict: false,
+    });
+    // Never surface red KaTeX error spans to users.
+    if (secondPass.includes("katex-error")) return null;
+    return secondPass;
   } catch {
     return null;
   }
@@ -32,6 +59,9 @@ function renderMath(latex: string, displayMode: boolean): string | null {
  */
 function repairCorruptedLatexEscapes(s: string): string {
   let out = s;
+  // Remove hidden control chars that often appear as red replacement glyphs in UI.
+  // Keep \n and \t for text layout; drop the rest.
+  out = out.replace(/[\u0000-\u0008\u000B-\u001F\u007F]/g, "");
   // Bad generator typo: \uparrowrac{…}{…} instead of \frac{…}{…} (Curie–Weiss, etc.)
   out = out.replace(/\\uparrowrac\b/g, "\\frac");
   // Broader arrow-variant typos seen in some payloads: ↑rac, ⬆rac, \uarrac, \arrowrac.
@@ -44,6 +74,10 @@ function repairCorruptedLatexEscapes(s: string): string {
   // JSON "\frac{...}" → \f + "rac{...}" (form feed)
   out = out.replace(/\u000cfrac\b/g, "\\frac");
   out = out.replace(/\u000cbox\b/g, "\\fbox");
+  out = out.replace(/\u000cos\b/g, "\\cos");
+  out = out.replace(/\u000can\b/g, "\\tan");
+  out = out.replace(/\u000cec\b/g, "\\sec");
+  out = out.replace(/\u000csc\b/g, "\\csc");
   // Literal spade + "rac" (reported on Coulomb worked-example content)
   out = out.replace(/\u2660rac\b/g, "\\frac");
   out = out.replace(/♠rac\b/g, "\\frac");
@@ -55,10 +89,37 @@ function repairCorruptedLatexEscapes(s: string): string {
   out = out.replace(/\u0009heta\b/g, "\\theta");
   out = out.replace(/\u0009an\b/g, "\\tan");
   out = out.replace(/\u0009ext(?=\s*\{)/g, "\\text");
+  // Common payload artifact: math commands arrive over-escaped (\\widehat, \\\\sum, ...).
+  // Collapse repeated slashes before delimiters/commands to a single LaTeX slash.
+  out = out.replace(/\\{2,}(?=[()[\]{}A-Za-z])/g, "\\");
   // JSON "\mathrm{…}", "\rho" — \r is carriage return (U+000D)
   out = out.replace(/\u000Dm\{/g, "\\mathrm{");
   out = out.replace(/\u000Dho\b/g, "\\rho");
   out = out.replace(/\u000Dightarrow\b/g, "\\rightarrow");
+  // Common trig command corruption from model output.
+  out = out.replace(/\\os(?=\s|[\^_{(]|$)/g, "\\cos");
+  out = out.replace(/\\an(?=\s|[\^_{(]|$)/g, "\\tan");
+  out = out.replace(/\\ec(?=\s|[\^_{(]|$)/g, "\\sec");
+  out = out.replace(/\\sc(?=\s|[\^_{(]|$)/g, "\\csc");
+  // Sometimes the leading "\" is dropped inside math snippets (e.g. "os x").
+  // Missing-slash trig words should be fixed only in math-like contexts, not prose.
+  out = out.replace(/\bos(?=\s*(?:x\b|\(|\^|_))/gi, "\\cos");
+  out = out.replace(/\ban(?=\s*(?:x\b|\(|\^|_))/gi, "\\tan");
+  out = out.replace(/\bec(?=\s*(?:x\b|\(|\^|_))/gi, "\\sec");
+  out = out.replace(/\bsc(?=\s*(?:x\b|\(|\^|_))/gi, "\\csc");
+  // Complex-number artifacts:
+  // 1) \widehat{i}{n}      -> \widehat{i}^{n}
+  // 2) $\widehat{i}${4k}   -> $\widehat{i}^{4k}$
+  // 3) \widehat{i}k        -> \widehat{i}^{k}
+  out = out.replace(/\\widehat\{([^}]+)\}\s*\{([^}]+)\}/g, "\\widehat{$1}^{$2}");
+  out = out.replace(/\$\s*\\widehat\{([^}]+)\}\s*\$\s*\{([^}]+)\}/g, "$\\widehat{$1}^{$2}$");
+  out = out.replace(/\\widehat\{([^}]+)\}\s*([A-Za-z0-9]+)/g, "\\widehat{$1}^{$2}");
+  // Combinatorics notation often arrives as "^nC_r" which KaTeX treats as invalid (missing base).
+  // Normalize to "{}^{n}C_{r}" so expressions render instead of turning red.
+  out = out.replace(
+    /(^|[\s(=+\-},;])\^\{?\s*([A-Za-z0-9]+)\s*\}?\s*C\s*_\s*\{?\s*([A-Za-z0-9]+)\s*\}?/g,
+    "$1{}^{$2}C_{$3}",
+  );
   return out;
 }
 
@@ -85,6 +146,16 @@ function normalizeTheoryForRender(raw: string): string {
 
   // Legacy line breaks from model output.
   out = out.replace(/<br\s*\/?>/gi, "\n");
+  // HTML entities pasted into LaTeX break KaTeX (& starts tab alignment; × must be \times).
+  out = out.replace(/&times;/gi, "\\times ");
+  out = out.replace(/&middot;/gi, "\\cdot ");
+  out = out.replace(/&sdot;/gi, "\\cdot ");
+  out = out.replace(/&div;/gi, "\\div ");
+  out = out.replace(/&minus;/gi, "-");
+  out = out.replace(/&nbsp;/g, " ");
+  out = out.replace(/×/g, "\\times ");
+  // Normalize over-escaped delimiters like "\\(" / "\\\\[" to "\(" / "\[".
+  out = out.replace(/\\{2,}(?=[()[\]])/g, "\\");
 
   // Convert bracketed LaTeX to dollar syntax used by this renderer.
   out = out.replace(/\\\[((?:.|\n)*?)\\\]/g, (_, expr: string) => `$$${expr.trim()}$$`);
@@ -116,6 +187,19 @@ function normalizeTheoryForRender(raw: string): string {
   // Ensure there is a blank line after markdown heading lines so block splitting
   // keeps headings separate from the following paragraph.
   out = out.replace(/(^|\n)(#{1,4}\s+[^\n]+)\n(?!\n)/g, "$1$2\n\n");
+
+  // Presentation polish: split inline "Example"/"Maximum Work" callouts onto their own lines
+  // so dense physics prose reads as clear point + separate example.
+  // Handles forms like:
+  //   " - Example: ...", " - **Example 1:** ...", ". **Maximum Work:** ..."
+  out = out.replace(
+    /\s+[-–—]\s*\*{0,2}(Example(?:\s*\d+)?|Maximum Work|Minimum Work)\*{0,2}\s*:\s*/gi,
+    "\n\n**$1:** "
+  );
+  out = out.replace(
+    /([.?!])\s+\*{0,2}(Example(?:\s*\d+)?|Maximum Work|Minimum Work)\*{0,2}\s*:\s*/gi,
+    "$1\n\n**$2:** "
+  );
 
   // Normalize common math shorthand issues from model output:
   // - i^, j^, k^  ->  \hat{i}, \hat{j}, \hat{k}
@@ -223,11 +307,11 @@ function mergeFragmentedInlineMath(text: string): string {
 /** Render inline bold **x**, italic *x*, and LaTeX $x$ / $$x$$ within text. */
 function renderInlineFormatting(text: string) {
   const parts: (string | React.ReactElement)[] = [];
-  let remaining = text;
+  let remaining = text.replace(/\\\\(?=[()[\]])/g, "\\");
   let key = 0;
   while (remaining.length > 0) {
-    // Display math $$...$$
-    const displayMathMatch = remaining.match(/^\$\$([\s\S]*?)\$\$/);
+    // Display math $$...$$ (allow leading whitespace — e.g. "**label:** $$ ... $$")
+    const displayMathMatch = remaining.match(/^\s*\$\$([\s\S]*?)\$\$/);
     if (displayMathMatch) {
       const html = renderMath(displayMathMatch[1].trim(), true);
       if (html) {
@@ -244,8 +328,26 @@ function renderInlineFormatting(text: string) {
       remaining = remaining.slice(displayMathMatch[0].length);
       continue;
     }
-    // Inline math $...$
-    const inlineMathMatch = remaining.match(/^\$([^$]+)\$/);
+    // Display math \[...\]
+    const bracketDisplayMatch = remaining.match(/^\s*\\\[([\s\S]*?)\\\]/);
+    if (bracketDisplayMatch) {
+      const html = renderMath(bracketDisplayMatch[1].trim(), true);
+      if (html) {
+        parts.push(
+          <span
+            key={key++}
+            className="theory-display-math block my-2 py-3.5 px-4 rounded-xl text-center bg-sky-50/90 dark:bg-sky-950/30 border border-sky-200/60 dark:border-sky-800/45 overflow-x-auto shadow-sm [&_.katex-display]:my-0 [&_.katex-display]:text-center [&_.katex]:text-[1.05em] sm:[&_.katex]:text-[1.08em]"
+            dangerouslySetInnerHTML={{ __html: html }}
+          />
+        );
+      } else {
+        parts.push(bracketDisplayMatch[0]);
+      }
+      remaining = remaining.slice(bracketDisplayMatch[0].length);
+      continue;
+    }
+    // Inline math $...$ (not $$); allow leading whitespace
+    const inlineMathMatch = remaining.match(/^\s*\$([^$\n]+)\$/);
     if (inlineMathMatch) {
       const html = renderMath(inlineMathMatch[1].trim(), false);
       if (html) {
@@ -261,6 +363,25 @@ function renderInlineFormatting(text: string) {
         parts.push(inlineMathMatch[0]);
       }
       remaining = remaining.slice(inlineMathMatch[0].length);
+      continue;
+    }
+    // Inline math \(...\)
+    const parenInlineMathMatch = remaining.match(/^\\\(([\s\S]*?)\\\)/);
+    if (parenInlineMathMatch) {
+      const html = renderMath(parenInlineMathMatch[1].trim(), false);
+      if (html) {
+        parts.push(
+          <span
+            key={key++}
+            className="theory-inline-math inline align-baseline [&>.katex]:text-[1em]"
+            style={{ background: "transparent", padding: 0, borderRadius: 0, boxShadow: "none" }}
+            dangerouslySetInnerHTML={{ __html: html }}
+          />
+        );
+      } else {
+        parts.push(parenInlineMathMatch[0]);
+      }
+      remaining = remaining.slice(parenInlineMathMatch[0].length);
       continue;
     }
     const boldMatch = remaining.match(/^\*\*([^*]+)\*\*/);
@@ -281,10 +402,14 @@ function renderInlineFormatting(text: string) {
       remaining = remaining.slice(italicMatch[0].length);
     } else {
       const nextDollar = remaining.indexOf("$");
+      const nextParenMath = remaining.indexOf("\\(");
+      const nextBracketMath = remaining.indexOf("\\[");
       const nextBold = remaining.indexOf("**");
       const nextItalic = remaining.indexOf("*");
       let next = remaining.length;
       if (nextDollar >= 0 && nextDollar < next) next = nextDollar;
+      if (nextParenMath >= 0 && nextParenMath < next) next = nextParenMath;
+      if (nextBracketMath >= 0 && nextBracketMath < next) next = nextBracketMath;
       if (nextBold >= 0 && nextBold < next) next = nextBold;
       if (nextItalic >= 0 && nextItalic < next) next = nextItalic;
       const chunk = next > 0 ? remaining.slice(0, next) : remaining[0] ?? "";
@@ -510,6 +635,28 @@ function splitWorkedExampleSolutionSteps(rest: string): string[] {
   return chunks.length >= 2 ? chunks : [t];
 }
 
+/**
+ * Worked solutions often use "1. Find …: … 2. Find …: …" on one line.
+ * Split so each numbered step becomes its own SolutionStepsBlock row.
+ */
+function splitSolutionNumberedSubsteps(rest: string): string[] | null {
+  const t = rest.trim();
+  if (t.length < 20) return null;
+  // Step starts: space + "N. " + (optional **) + letter (avoids "6.92" style decimals)
+  const stepHead = /\s+(?=[1-9]\d?\.\s+(?:\*\*)?[A-Za-z])/g;
+  const parts = t.split(stepHead).map((s) => s.trim()).filter(Boolean);
+  if (parts.length < 2) return null;
+  if (!/^\d{1,2}\.\s+/.test(parts[0]!)) return null;
+  return parts;
+}
+
+function splitSolutionRestIntoSteps(rest: string): string[] {
+  const numbered = splitSolutionNumberedSubsteps(rest);
+  if (numbered) return numbered;
+  const worked = splitWorkedExampleSolutionSteps(rest);
+  return worked.length ? worked : [rest.trim()];
+}
+
 /** `## Title\\n**Question:**` in one chunk (single newlines) — split heading from body so heading isn't a wall of text. */
 function splitHeadingRestBlock(trimmed: string): string[] {
   const m = trimmed.match(/^(#{1,4}\s+[^\n]+)\n([\s\S]+)$/);
@@ -705,6 +852,29 @@ function MarkdownTableBlock({
 }
 
 function SolutionStepsBlock({ labelHtml, steps }: { labelHtml: string; steps: string[] }) {
+  const splitStepLines = (step: string): string[] => {
+    const compact = step.replace(/\s+/g, " ").trim();
+    if (!compact) return [];
+    let out = compact;
+    // Strip leading "N. Title:" from the body (step number is already in the left column).
+    out = out.replace(/^\d{1,2}\.\s+[^:]+:\s*/i, "").trim();
+    // Common physics / numeric derivation phrases — each on its own line.
+    out = out.replace(
+      /\s+(?=(?:The\s+load|Area|Pressure|Force|Diameter|Volume|Current|Using|By\s+Pascal|Hence|Thus|Therefore)\b)/gi,
+      "\n"
+    );
+    out = out.replace(
+      /([.!?])\s+(?=(?:Area|Pressure|Force|The\s+load|Diameter|By\s+Pascal|Hence|Thus|Therefore)\b)/gi,
+      "$1\n"
+    );
+    // Break before assignments like F_2 =, A_1 =, P =, d_1 = (subscripts allowed).
+    out = out.replace(/\s+(?=[A-Za-z][A-Za-z0-9_]{0,12}\s*=\s)/g, "\n");
+    return out
+      .split(/\n+/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+  };
+
   return (
     <div className="space-y-3 pl-4 py-2.5 rounded-r-lg bg-primary/5 border-l-[3px] border-primary/60">
       <span className="inline-block text-sm font-semibold text-primary [&_.katex]:text-[1em]">
@@ -720,7 +890,11 @@ function SolutionStepsBlock({ labelHtml, steps }: { labelHtml: string; steps: st
             <span className="font-semibold text-foreground/80 shrink-0 tabular-nums w-6 text-right select-none">
               {j + 1}.
             </span>
-            <div className="min-w-0 flex-1 leading-relaxed">{renderInlineFormatting(step.trim())}</div>
+            <div className="min-w-0 flex-1 leading-relaxed space-y-1.5">
+              {splitStepLines(step).map((line, k) => (
+                <div key={k}>{renderInlineFormatting(line)}</div>
+              ))}
+            </div>
           </li>
         ))}
       </ol>
@@ -929,12 +1103,8 @@ export default function TheoryContent({ theory, className }: { theory: string; c
           const label = labelMatch[1];
           const rest = trimmed.slice(labelMatch[0].length).trim();
           if (/^solution$/i.test(label.trim())) {
-            const steps = splitWorkedExampleSolutionSteps(rest);
-            if (steps.length >= 2) {
-              return (
-                <SolutionStepsBlock key={i} labelHtml={`${label}:`} steps={steps} />
-              );
-            }
+            const steps = splitSolutionRestIntoSteps(rest);
+            return <SolutionStepsBlock key={i} labelHtml={`${label}:`} steps={steps} />;
           }
           return (
             <div key={i} className="space-y-1.5 pl-4 py-2.5 rounded-r-lg bg-primary/5 border-l-[3px] border-primary/60">

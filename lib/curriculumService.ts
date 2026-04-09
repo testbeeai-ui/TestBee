@@ -43,6 +43,25 @@ const CANONICAL_SUBTOPICS: Record<string, string[]> = {
   ],
 };
 
+function shouldSkipTopicNode(
+  subject: Subject,
+  classLevel: number,
+  chapterTitle: string,
+  topicTitle: string
+): boolean {
+  // Data cleanup: Chapter 7 (Alcohols, Phenols and Ethers) has a duplicate/incorrect
+  // "Reactions" row that overlaps with Chapter 6 style content. Hide this one only.
+  if (
+    subject === "chemistry" &&
+    classLevel === 12 &&
+    chapterTitle.trim().toLowerCase() === "alcohols, phenols and ethers" &&
+    topicTitle.trim().toLowerCase() === "reactions"
+  ) {
+    return true;
+  }
+  return false;
+}
+
 function normalizeText(value: string | null | undefined): string {
   return typeof value === 'string' ? value.trim() : '';
 }
@@ -76,6 +95,28 @@ function applyCanonicalSubtopicFixups(subject: Subject, classLevel: number, topi
     out.push(normalized);
   }
   return out;
+}
+
+function getTopicOrderOverride(
+  subject: Subject,
+  classLevel: number,
+  chapterTitle: string,
+  topicTitle: string
+): number | null {
+  // Chapter-specific ordering fix:
+  // In Alcohols/Phenols/Ethers, keep "Properties & Reactions" as the final topic
+  // so chapter navigation doesn't show a false "next" after it.
+  if (
+    subject === "chemistry" &&
+    classLevel === 12 &&
+    chapterTitle.trim().toLowerCase() === "alcohols, phenols and ethers"
+  ) {
+    const t = topicTitle.trim().toLowerCase();
+    if (t === "preparation") return 1;
+    if (t === "preparation & acidity") return 2;
+    if (t === "properties & reactions") return 3;
+  }
+  return null;
 }
 
 /**
@@ -132,9 +173,27 @@ export async function fetchCurriculumFromSupabase(
       (a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)
     );
     for (const chapter of chapters) {
-      const topics = (chapter.curriculum_topics ?? []).sort(
-        (a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)
-      );
+      const chapterTitleForSort = normalizeText(chapter.title);
+      const topics = (chapter.curriculum_topics ?? []).sort((a, b) => {
+        const aTitle = normalizeText(a.title);
+        const bTitle = normalizeText(b.title);
+        const aOverride = getTopicOrderOverride(
+          unit.subject as Subject,
+          unit.class_level as 11 | 12,
+          chapterTitleForSort,
+          aTitle
+        );
+        const bOverride = getTopicOrderOverride(
+          unit.subject as Subject,
+          unit.class_level as 11 | 12,
+          chapterTitleForSort,
+          bTitle
+        );
+        if (aOverride !== null || bOverride !== null) {
+          return (aOverride ?? Number.MAX_SAFE_INTEGER) - (bOverride ?? Number.MAX_SAFE_INTEGER);
+        }
+        return (a.sort_order ?? 0) - (b.sort_order ?? 0);
+      });
       for (const topic of topics) {
         const unitLabel = normalizeText(unit.unit_label);
         const unitTitle = normalizeText(unit.unit_title);
@@ -152,6 +211,9 @@ export async function fetchCurriculumFromSupabase(
               topicTitle,
             })
           );
+          continue;
+        }
+        if (shouldSkipTopicNode(unit.subject as Subject, unit.class_level as 11 | 12, chapterTitle, topicTitle)) {
           continue;
         }
 

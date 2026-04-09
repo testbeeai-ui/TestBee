@@ -282,6 +282,8 @@ export async function POST(request: Request) {
     const ctx = await getSupabaseAndUser(request);
     if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     const { supabase, user } = ctx;
+    // Keep long-running logging/persistence resilient even if user JWT expires mid-run.
+    const persistDb = supabaseForLongJobPersist(supabase);
     if (!(await isAdminUser(supabase, user.id))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -373,7 +375,7 @@ ${existing.theory.slice(0, 12000)}`;
       responseSchema: formulasResponseSchema(),
     });
     await logAiUsage({
-      supabase,
+      supabase: persistDb,
       userId: user.id,
       actionType: "generate_formulas",
       modelId,
@@ -455,7 +457,7 @@ ${existing.theory.slice(0, 12000)}`;
       items: seedItems,
     });
     await logAiUsage({
-      supabase,
+      supabase: persistDb,
       userId: user.id,
       actionType: "generate_formulas_verifier",
       modelId: verifierModelId,
@@ -520,7 +522,6 @@ ${existing.theory.slice(0, 12000)}`;
     }
 
     // Persist after long Gemini + verifier — user JWT may be expired; use service role if configured.
-    const persistDb = supabaseForLongJobPersist(supabase);
     const safeItems = sanitizeJsonForDb(items);
     const { error: upsertError } = await persistDb.from("subtopic_content").update({
       practice_formulas: safeItems,
@@ -584,6 +585,16 @@ ${existing.theory.slice(0, 12000)}`;
           error:
             "Gemini rate limit (429). Automatic retries were used; wait briefly and run Regenerate AI Cards again.",
           code: "RATE_LIMIT",
+        },
+        { status: 503 }
+      );
+    }
+    if (/UND_ERR_HEADERS_TIMEOUT|Headers Timeout Error|fetch failed/i.test(msg)) {
+      return NextResponse.json(
+        {
+          error:
+            "Upstream Vertex/Gemini timeout while generating formulas. This is transient; retry will continue automatically.",
+          code: "UPSTREAM_TIMEOUT",
         },
         { status: 503 }
       );

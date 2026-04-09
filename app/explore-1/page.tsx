@@ -139,8 +139,7 @@ function compareUnitLabels(a: string, b: string): number {
 
 /** Open the topic row that matches the card label when possible; otherwise first row (deterministic). */
 function pickPrimaryTopicForChapter(chapterKey: string, nodes: TopicNode[]): TopicNode {
-  const sorted = [...nodes].sort((a, b) => a.topic.localeCompare(b.topic));
-  return sorted.find((t) => t.topic === chapterKey) ?? sorted[0]!;
+  return nodes[0]!;
 }
 
 function chapterLookupKey(value: string): string {
@@ -317,15 +316,22 @@ interface UnitRoadmapProps {
 }
 
 function UnitRoadmap({ topics, subject, classLevel, onTopicClick, getTopicCount, correctByTopic }: UnitRoadmapProps) {
-  const sorted = [...topics].sort((a, b) => {
-    const aLabel = a.unitLabel ?? '';
-    const bLabel = b.unitLabel ?? '';
-    if (aLabel !== bLabel) return compareUnitLabels(aLabel, bLabel);
-    const aChapter = (a.chapterTitle ?? '').toLowerCase();
-    const bChapter = (b.chapterTitle ?? '').toLowerCase();
-    if (aChapter !== bChapter) return aChapter.localeCompare(bChapter);
-    return a.topic.localeCompare(b.topic);
-  });
+  // Sort by unit → chapter only; keep syllabus order within a chapter (do not sort by topic title —
+  // alphabetical order made chapter cards open the wrong "first" topic, e.g. Capacitors before Electric Potential).
+  const sorted = [...topics]
+    .map((node, syllabusIndex) => ({ node, syllabusIndex }))
+    .sort((a, b) => {
+      const A = a.node;
+      const B = b.node;
+      const aLabel = A.unitLabel ?? '';
+      const bLabel = B.unitLabel ?? '';
+      if (aLabel !== bLabel) return compareUnitLabels(aLabel, bLabel);
+      const aChapter = (A.chapterTitle ?? '').toLowerCase();
+      const bChapter = (B.chapterTitle ?? '').toLowerCase();
+      if (aChapter !== bChapter) return aChapter.localeCompare(bChapter);
+      return a.syllabusIndex - b.syllabusIndex;
+    })
+    .map(({ node }) => node);
 
   const unitMap = new Map<string, TopicNode[]>();
   for (const node of sorted) {
@@ -350,7 +356,7 @@ function UnitRoadmap({ topics, subject, classLevel, onTopicClick, getTopicCount,
       chapterMap.set(chapterKey, list);
     }
     return Array.from(chapterMap.entries()).map(([chapterKey, chapterTopicsRaw], chapterIndex) => {
-      const chapterTopics = [...chapterTopicsRaw].sort((a, b) => a.topic.localeCompare(b.topic));
+      const chapterTopics = [...chapterTopicsRaw];
       return {
         unitLabel: unit.unitLabel,
         unitTopics: unit.unitTopics,
@@ -1212,13 +1218,7 @@ const Explore = () => {
           t.subject === selectedSubject &&
           t.classLevel === selectedTopicClassLevel &&
           t.unitLabel === selectedTopicNode.unitLabel
-      )
-      .sort((a, b) => {
-        const aChapter = (a.chapterTitle ?? '').toLowerCase();
-        const bChapter = (b.chapterTitle ?? '').toLowerCase();
-        if (aChapter !== bChapter) return aChapter.localeCompare(bChapter);
-        return a.topic.localeCompare(b.topic);
-      });
+      );
   }, [selectedSubject, selectedTopicClassLevel, selectedTopicNode, topicTaxonomy]);
 
   const unitChapterGroups = useMemo(() => {
@@ -1364,6 +1364,7 @@ const Explore = () => {
       return;
     }
     setSelectedChapterTopicName((prev) => {
+      // Preserve user-chosen topic within the chapter; do not auto-jump.
       if (prev && selectedChapterGroup.topics.some((t) => t.topic === prev)) return prev;
       if (
         selectedTopicNode?.topic &&
@@ -1595,7 +1596,9 @@ const Explore = () => {
         selectedSubject,
         selectedTopicClassLevel,
         effectiveTopic.topic,
-        'basics'
+        'basics',
+        undefined,
+        effectiveTopic.chapterTitle
       )
     );
   }, [
@@ -1625,7 +1628,8 @@ const Explore = () => {
               t.topic,
               t.subtopics[0].name,
               'basics',
-              'random'
+              'random',
+              t.chapterTitle
             )
           );
         return;
@@ -1647,7 +1651,8 @@ const Explore = () => {
             selectedTopicNode.topic,
             st.name,
             'basics',
-            'random'
+            'random',
+            selectedTopicNode.chapterTitle
           )
         );
       return;
@@ -1671,7 +1676,8 @@ const Explore = () => {
             selectedTopicClassLevel,
             topicNode.topic,
             level,
-            'random'
+            'random',
+            topicNode.chapterTitle
           )
         );
         setRouletteChapterTopics(null);
@@ -1688,7 +1694,8 @@ const Explore = () => {
           selectedTopicNode.topic,
           st.name,
           level,
-          'random'
+          'random',
+          selectedTopicNode.chapterTitle
         )
       );
     },
@@ -1788,7 +1795,7 @@ const Explore = () => {
                 The link may be outdated or this unit is not in your curriculum.
               </p>
               <Button type="button" className="rounded-xl font-bold" onClick={() => router.replace("/explore-1")}>
-                Go to Explore
+                Go to Lessons
               </Button>
             </motion.div>
           )}
@@ -1831,13 +1838,13 @@ const Explore = () => {
                   onClick={() => setView('hub')}
                   className="rounded-full font-extrabold mb-3 -ml-1"
                 >
-                  <ArrowLeft className="w-4 h-4 mr-1" /> Back to Explore & Play
+                  <ArrowLeft className="w-4 h-4 mr-1" /> Back to Lessons & Play
                 </Button>
                 <h2 className="edu-page-title flex items-center gap-3">
                   <div className="w-10 h-10 gradient-primary rounded-xl flex items-center justify-center">
                     <Search className="w-5 h-5 text-primary-foreground" />
                   </div>
-                  Explore Learning
+                  Lessons
                 </h2>
                 <p className="edu-page-desc">Pick a subject to browse topics and questions</p>
               </div>
@@ -2537,10 +2544,7 @@ const Explore = () => {
                       {isDetailedUnitView ? (
                         <div className="space-y-2">
                           <div className="rounded-xl border border-border/60 bg-background/70 overflow-hidden">
-                            {(selectedChapterGroup?.topics ?? [])
-                            .slice()
-                            .sort((a, b) => a.topic.localeCompare(b.topic))
-                            .map((topic, idx) => {
+                            {(selectedChapterGroup?.topics ?? []).map((topic, idx) => {
                               const isActive = selectedChapterTopic?.topic === topic.topic;
                               return (
                                 <button
@@ -2555,7 +2559,9 @@ const Explore = () => {
                                         selectedSubject,
                                         selectedTopicClassLevel,
                                         topic.topic,
-                                        'basics'
+                                        'basics',
+                                        undefined,
+                                        topic.chapterTitle
                                       )
                                     );
                                   }}

@@ -28,8 +28,9 @@ import {
 const ORCHESTRATOR_POLL_MS = 5_000;
 const VERIFY_SETTLE_MS = 600;
 const FORMULA_RETRY_DELAY_MS = 5_000;
-const TOPIC_HUB_PARALLEL_LIMIT = 3;
-const SUBTOPIC_PARALLEL_LIMIT = 4;
+// Vertex/Gemini quotas can 429 under bursty fan-out; keep concurrency moderate for stability.
+const TOPIC_HUB_PARALLEL_LIMIT = 1;
+const SUBTOPIC_PARALLEL_LIMIT = 2;
 /** Parallel fetch+assess rows during final chapter audit */
 const AUDIT_SUBTOPIC_PARALLEL = 6;
 const CHAPTER_RETRY_BASE_DELAY_MS = 60_000;
@@ -391,10 +392,10 @@ export default function AgentOrchestratorRunner() {
             `InstaCue and Bits for ${subtopicName} (${level}) already present. Skipping generation.`
           );
         } else if (runInstacue && runBits) {
-          await Promise.all([
-            generateInstaCueCards({ ...contentParams, includeTrace: false }),
-            generateBitsQuestions({ ...contentParams, includeTrace: false }),
-          ]);
+          // Run sequentially to reduce Vertex quota burst (429 RESOURCE_EXHAUSTED).
+          await generateInstaCueCards({ ...contentParams, includeTrace: false });
+          await sleep(VERIFY_SETTLE_MS);
+          await generateBitsQuestions({ ...contentParams, includeTrace: false });
           await sleep(VERIFY_SETTLE_MS);
           subtopicContent = await fetchSubtopicContent(contentParams);
           assess = assessSubtopicRow({
@@ -409,7 +410,7 @@ export default function AgentOrchestratorRunner() {
           if ((subtopicContent.bitsQuestions?.length ?? 0) === 0) {
             throw new Error(`Bits generation returned no questions for ${subtopicName} (${level}).`);
           }
-          appendLog(job.id, `InstaCue + Bits completed in parallel for ${subtopicName} (${level}).`);
+          appendLog(job.id, `InstaCue + Bits completed sequentially for ${subtopicName} (${level}).`);
         } else if (runInstacue) {
           await generateInstaCueCards({
             ...contentParams,
