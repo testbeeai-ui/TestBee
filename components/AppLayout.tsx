@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserStore } from '@/store/useUserStore';
-import { LayoutDashboard, Compass, User, Coins, Settings, HelpCircle, Heart, GraduationCap, Gift } from 'lucide-react';
+import { LayoutDashboard, Compass, Sparkles, User, Coins, Settings, HelpCircle, Heart, GraduationCap, Gift } from 'lucide-react';
 import StreakTimer from '@/components/StreakTimer';
 import NotificationBell from '@/components/NotificationBell';
 import BreakScreen from '@/components/BreakScreen';
@@ -18,7 +18,7 @@ interface AppLayoutProps {
   streakTimer?: ReturnType<typeof useStreakTimer>;
 }
 
-/** Curriculum browser: URL stays `/explore-1`; navbar label is "Explore". */
+/** Curriculum browser: URL stays `/explore-1`; UI label is "Lessons". */
 export const EXPLORE_APP_PATH = "/explore-1" as const;
 
 /** Prep + Mock hub: highlight when user is on mock, revision, or class flows (Exam Prep removed from top nav). */
@@ -31,7 +31,8 @@ function isPrepMockActive(pathname: string): boolean {
 
 const baseNavItems = [
   { path: "/home", icon: LayoutDashboard, label: "Dashboard", emoji: "📊" },
-  { path: EXPLORE_APP_PATH, icon: Compass, label: "Explore", emoji: "🧭" },
+  { path: "/magic-wall", icon: Sparkles, label: "Magic Wall", emoji: "✨" },
+  { path: EXPLORE_APP_PATH, icon: Compass, label: "Lessons", emoji: "🧭" },
   { path: "/mock", icon: GraduationCap, label: "Prep + Mock", emoji: "🎓" },
   { path: "/doubts", icon: HelpCircle, label: "Gyan++", emoji: "💡" },
   { path: "/edufund", icon: Heart, label: "EduFund", emoji: "💛" },
@@ -159,7 +160,7 @@ const AppLayout = ({ children, streakTimer }: AppLayoutProps) => {
           <div className="flex gap-6">
             <Link href="/pricing" className="hover:text-foreground transition-colors font-bold">Pricing</Link>
             <Link href="/profile" className="hover:text-foreground transition-colors font-bold">Profile</Link>
-            <Link href={EXPLORE_APP_PATH} className="hover:text-foreground transition-colors font-bold">Explore</Link>
+            <Link href={EXPLORE_APP_PATH} className="hover:text-foreground transition-colors font-bold">Lessons</Link>
           </div>
         </div>
       </footer>

@@ -247,8 +247,18 @@ export default function DeepDivePage() {
   const { taxonomy, loading: taxonomyLoading, error: taxonomyError } = useTopicTaxonomy();
 
   const resolved = useMemo(
-    () => resolveTopicFromParams(board, subject, grade, unitSlug, topicSlug, level, taxonomy),
-    [board, subject, grade, unitSlug, topicSlug, level, taxonomy]
+    () =>
+      resolveTopicFromParams(
+        board,
+        subject,
+        grade,
+        unitSlug,
+        topicSlug,
+        level,
+        taxonomy,
+        searchParams.get("chapter")
+      ),
+    [board, subject, grade, unitSlug, topicSlug, level, taxonomy, searchParams]
   );
 
   const user = useUserStore((s) => s.user);
@@ -297,7 +307,8 @@ export default function DeepDivePage() {
       node.topic,
       stName,
       diffLevel,
-      fromRandom ? "random" : undefined
+      fromRandom ? "random" : undefined,
+      node.chapterTitle
     );
     const baseCards = getInstaCueCards(node.subject, node.classLevel, node.topic, [stName], sectionIndex, diffLevelStr);
     const userCards = savedCards

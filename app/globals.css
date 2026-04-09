@@ -391,3 +391,29 @@
     font-family: inherit;
   }
 }
+
+/* ══════════════════════════════════════════════════════════════ */
+/* Magic Wall — Topic Rain (EduBlast waterfall / trickle)        */
+/* Matches edublast_randomtopicapp_v2.html: linear fall, fade    */
+/* in/out; --mw-trickle-end = container height + exit slack      */
+/* ══════════════════════════════════════════════════════════════ */
+/* Start at y=0 + opacity 0 so backwards-fill + delay don’t park chips above the clip
+   (translateY(-60px) wasted ~8% of a 20–30s run in overflow:hidden → huge empty top).
+   Quick fade at the top edge; most of the duration crosses the visible canvas. */
+@keyframes magic-trickle {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  0.55% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  92% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(var(--mw-trickle-end, 700px));
+    opacity: 0;
+  }
+}

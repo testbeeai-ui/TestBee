@@ -57,10 +57,10 @@ function isRetryableGeminiError(e: unknown): boolean {
 
 function geminiRetryWaitMs(attemptIndex: number, status: number | undefined): number {
   const quota = status === 429;
-  const base = quota ? 14_000 : 5_000;
+  const base = quota ? 30_000 : 5_000;
   const cap = 120_000;
   const exp = Math.min(cap, base * 2 ** attemptIndex);
-  const jitter = Math.floor(Math.random() * 2_500);
+  const jitter = Math.floor(Math.random() * (quota ? 5_000 : 2_500));
   return exp + jitter;
 }
 
