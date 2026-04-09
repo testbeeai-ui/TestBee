@@ -318,6 +318,12 @@ export default function TopicPage() {
   const difficultyLevel = (resolved?.level ?? "basics") as DifficultyLevel;
   // 3-column subtopic dashboard: left theory nav + main + right InstaCue/Quiz/Numerals/Concepts
   const isSubtopicDashboardLayout = !isOverview;
+  // Investor-only topic-hub layout override (only this topic; do not affect other topics).
+  const normalizedTopicName = (topicNode?.topic ?? "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  const isInvestorTopicHubLayout = isOverview && normalizedTopicName === "ac-circuit-elements";
   const user = useUserStore((s) => s.user);
   const saveRevisionCard = useUserStore((s) => s.saveRevisionCard);
   const { toast } = useToast();
@@ -1325,6 +1331,18 @@ export default function TopicPage() {
     return matches.map((m) => (m[1] ?? "").replace(/\*\*/g, "").trim()).filter(Boolean).slice(0, 10);
   }, [dbTheory]);
 
+  const topicHubSections = useMemo(() => {
+    if (!topicNode) return [] as string[];
+    const source = (topicWhyStudy.trim() || topicIntroMarkdown.trim()).trim();
+    if (source) {
+      const matches = [...source.matchAll(/^#{1,2}\s+(.+)/gm)]
+        .map((m) => (m[1] ?? "").replace(/\*\*/g, "").trim())
+        .filter(Boolean);
+      if (matches.length > 0) return matches.slice(0, 10);
+    }
+    return topicNode.subtopics.slice(0, 8).map((s) => humanReadableSubtopicTitle(s.name));
+  }, [topicNode, topicWhyStudy, topicIntroMarkdown]);
+
   // Concept cards for Concepts tab (concept + formula types)
   const conceptCards = useMemo(
     () => sidebarInstaCueCards.filter((c) => c.type === "concept" || c.type === "formula"),
@@ -1545,6 +1563,63 @@ export default function TopicPage() {
         </div>
 
         <div className="flex flex-col lg:flex-row gap-6 min-w-0 max-w-full">
+
+          {/* ── LEFT SIDEBAR (desktop only, investor topic-hub override) ── */}
+          {isInvestorTopicHubLayout && (
+            <aside className="hidden lg:flex flex-col w-44 shrink-0">
+              <div className="sticky top-24 space-y-5 text-sm">
+                <div>
+                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2 px-1">
+                    Theory Overview
+                  </h4>
+                  <ul className="space-y-0.5">
+                    <li className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-bold bg-primary/10 text-primary">
+                      <span className="text-green-600 shrink-0">✓</span>
+                      Topic Hub
+                    </li>
+                    {topicHubSections.map((title) => (
+                      <li
+                        key={title}
+                        className="px-2 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:bg-muted/60 truncate"
+                        title={title}
+                      >
+                        {title}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div>
+                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2 px-1">
+                    Topic Snapshot
+                  </h4>
+                  <ul className="space-y-2 px-1">
+                    <li className="flex items-center justify-between gap-1">
+                      <span className="text-xs text-muted-foreground">Subtopics</span>
+                      <span className="text-xs font-bold text-foreground">{topicNode.subtopics.length}</span>
+                    </li>
+                    <li className="flex items-center justify-between gap-1">
+                      <span className="text-xs text-muted-foreground">Subject</span>
+                      <span className="text-xs font-bold text-primary capitalize">{topicNode.subject}</span>
+                    </li>
+                    <li className="flex items-center justify-between gap-1">
+                      <span className="text-xs text-muted-foreground">Level</span>
+                      <span className="text-xs font-bold text-primary capitalize">{difficultyLevel}</span>
+                    </li>
+                  </ul>
+                </div>
+
+                <div className="bg-edu-yellow/10 border border-edu-yellow/30 rounded-xl p-3">
+                  <p className="text-[10px] font-extrabold text-edu-orange uppercase mb-1 tracking-wide">
+                    Learning Flow
+                  </p>
+                  <p className="text-[11px] text-foreground/80 leading-snug">
+                    Open a subtopic below to access InstaCue cards, Quiz (Bits), Numerals, and Concepts.
+                  </p>
+                </div>
+              </div>
+            </aside>
+          )}
 
           {/* ── LEFT SIDEBAR (desktop only, subtopic view) ── */}
           {isSubtopicDashboardLayout && (
@@ -2621,6 +2696,89 @@ export default function TopicPage() {
             )}
           </main>
 
+          {isInvestorTopicHubLayout && (
+          <aside className="w-full lg:w-72 xl:w-80 shrink-0 min-w-0 lg:min-w-[18rem]">
+            <div className="lg:sticky lg:top-24 space-y-4">
+              <Tabs defaultValue="instacue" className="w-full">
+                <TabsList className="grid w-full grid-cols-4 mb-3">
+                  <TabsTrigger value="instacue" className="text-xs">+ InstaCue</TabsTrigger>
+                  <TabsTrigger value="quiz" className="text-xs">Quiz (0)</TabsTrigger>
+                  <TabsTrigger value="numerals" className="text-xs">Numerals</TabsTrigger>
+                  <TabsTrigger value="concepts" className="text-xs">Concepts</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="instacue" className="mt-0">
+                  <div className="rounded-xl border border-border bg-muted/20 px-3 py-2">
+                    <p className="text-xs text-muted-foreground">
+                      Go through the subtopic level to see InstaCue cards.
+                    </p>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="quiz" className="mt-0">
+                  <div className="rounded-xl border border-border bg-muted/20 px-3 py-2">
+                    <p className="text-xs text-muted-foreground">
+                      Go through the subtopic level to see Quiz (Bits).
+                    </p>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="numerals" className="mt-0">
+                  <div className="rounded-xl border border-border bg-muted/20 px-3 py-2">
+                    <p className="text-xs text-muted-foreground">
+                      Go through the subtopic level to see Numerals.
+                    </p>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="concepts" className="mt-0">
+                  <div className="rounded-xl border border-border bg-muted/20 px-3 py-2">
+                    <p className="text-xs text-muted-foreground">
+                      Go through the subtopic level to see Concepts.
+                    </p>
+                  </div>
+                </TabsContent>
+              </Tabs>
+
+              {!isRandomMode && (
+                <section className="rounded-2xl border border-border bg-muted/20 p-4 sm:p-5">
+                  <p className="text-sm font-bold text-foreground mb-1">Continue to subtopics</p>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    Open each subtopic to view InstaCue cards, Quiz (Bits), Numerals, and Concepts.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {topicNode.subtopics.map((st, idx) => {
+                      const href = buildTopicPath(
+                        board,
+                        topicNode.subject,
+                        topicNode.classLevel,
+                        topicNode.topic,
+                        st.name,
+                        difficultyLevel,
+                        undefined
+                      );
+                      return (
+                        <Link
+                          key={st.name}
+                          href={href}
+                          className="inline-flex items-center rounded-lg px-3 py-2 text-xs font-semibold transition-colors bg-muted hover:bg-muted/80 text-foreground/90"
+                          title={subtopicNavPreviewLine(st.name)}
+                        >
+                          <span className="mr-1.5 text-[10px] font-bold text-muted-foreground">{idx + 1}.</span>
+                          <MathText className="[&_.katex]:!text-[0.85em]">
+                            {subtopicMathTextLabel(st.name)}
+                          </MathText>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </section>
+              )}
+            </div>
+          </aside>
+          )}
+
+          {!isInvestorTopicHubLayout && (
           <aside className="w-full lg:w-72 xl:w-80 shrink-0 min-w-0 lg:min-w-[18rem]">
             <div className="lg:sticky lg:top-24 space-y-4">
               {isOverview && (
@@ -3541,6 +3699,7 @@ export default function TopicPage() {
               </Dialog>
             </div>
           </aside>
+          )}
         </div>
       </div>
       <SubjectChatbot
