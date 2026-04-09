@@ -143,6 +143,7 @@ function formatTime(date: Date) {
 
 const CHATBOT_POSITION_KEY = 'edublast-chatbot-position';
 const CHATBOT_SIZE_KEY = 'edublast-chatbot-size';
+const CHATBOT_HIDE_UNTIL_KEY = 'edublast-chatbot-hide-until';
 const DEFAULT_SIZE = { width: 390, height: 560 };
 const MIN_SIZE = { width: 300, height: 400 };
 const MAX_SIZE = { width: 600, height: 800 };
@@ -169,6 +170,17 @@ function getStoredSize(): { width: number; height: number } | null {
     return null;
 }
 
+function getStoredHideUntil(): number | null {
+    if (typeof window === 'undefined') return null;
+    try {
+        const raw = localStorage.getItem(CHATBOT_HIDE_UNTIL_KEY);
+        if (!raw) return null;
+        const value = Number(raw);
+        if (Number.isFinite(value) && value > Date.now()) return value;
+    } catch {}
+    return null;
+}
+
 export default function SubjectChatbot({ subject, topic, subtopic, gradeLevel }: Props) {
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState<Message[]>([]);
@@ -182,6 +194,8 @@ export default function SubjectChatbot({ subject, topic, subtopic, gradeLevel }:
     const [isDragging, setIsDragging] = useState(false);
     const [isResizing, setIsResizing] = useState(false);
     const [showScrollBtn, setShowScrollBtn] = useState(false);
+    const [showHideMenu, setShowHideMenu] = useState(false);
+    const [hideUntil, setHideUntil] = useState<number | null>(null);
     const dragRef = useRef<{ startX: number; startY: number; startPos: { x: number; y: number } } | null>(null);
     const resizeRef = useRef<{ startX: number; startY: number; startSize: { width: number; height: number } } | null>(null);
     const justDraggedRef = useRef(false);
@@ -199,7 +213,31 @@ export default function SubjectChatbot({ subject, topic, subtopic, gradeLevel }:
         if (stored) setPosition(stored);
         const storedSize = getStoredSize();
         if (storedSize) setChatSize(storedSize);
+        const storedHideUntil = getStoredHideUntil();
+        if (storedHideUntil) setHideUntil(storedHideUntil);
     }, []);
+
+    useEffect(() => {
+        if (!hideUntil) return;
+        const ms = hideUntil - Date.now();
+        if (ms <= 0) {
+            setHideUntil(null);
+            try { localStorage.removeItem(CHATBOT_HIDE_UNTIL_KEY); } catch {}
+            return;
+        }
+        const timer = window.setTimeout(() => {
+            setHideUntil(null);
+            try { localStorage.removeItem(CHATBOT_HIDE_UNTIL_KEY); } catch {}
+        }, ms + 50);
+        return () => window.clearTimeout(timer);
+    }, [hideUntil]);
+
+    useEffect(() => {
+        if (!showHideMenu) return;
+        const onGlobalPointerDown = () => setShowHideMenu(false);
+        window.addEventListener('pointerdown', onGlobalPointerDown);
+        return () => window.removeEventListener('pointerdown', onGlobalPointerDown);
+    }, [showHideMenu]);
 
     // Auto-scroll to latest message — only when user is already near the bottom
     useEffect(() => {
@@ -308,6 +346,7 @@ export default function SubjectChatbot({ subject, topic, subtopic, gradeLevel }:
     const selectedLang = LANGUAGES.find(l => l.code === language) ?? LANGUAGES[0];
 
     const handlePointerDown = useCallback((e: React.PointerEvent) => {
+        if (e.button !== 0) return;
         e.preventDefault();
         // Do NOT capture pointer here — otherwise the bubble/button never receive click.
         // We'll capture only once a drag is detected in handlePointerMove.
@@ -351,6 +390,14 @@ export default function SubjectChatbot({ subject, topic, subtopic, gradeLevel }:
         setIsOpen(true);
     }, []);
 
+    const hideForMinutes = useCallback((minutes: number) => {
+        const until = Date.now() + minutes * 60 * 1000;
+        setHideUntil(until);
+        setShowHideMenu(false);
+        setIsOpen(false);
+        try { localStorage.setItem(CHATBOT_HIDE_UNTIL_KEY, String(until)); } catch {}
+    }, []);
+
     const handleResizePointerDown = useCallback((e: React.PointerEvent) => {
         e.preventDefault();
         e.stopPropagation();
@@ -383,7 +430,7 @@ export default function SubjectChatbot({ subject, topic, subtopic, gradeLevel }:
         <>
             {/* Floating trigger button - draggable */}
             <AnimatePresence>
-                {!isOpen && (
+                {!isOpen && !hideUntil && (
                     <div
                         className="fixed z-50 flex flex-col items-end gap-3 pointer-events-auto select-none cursor-grab active:cursor-grabbing"
                         style={{
@@ -395,7 +442,36 @@ export default function SubjectChatbot({ subject, topic, subtopic, gradeLevel }:
                         onPointerUp={handlePointerUp}
                         onPointerLeave={handlePointerUp}
                         onPointerCancel={handlePointerUp}
+                        onContextMenu={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setShowHideMenu(true);
+                        }}
                     >
+                        <AnimatePresence>
+                            {showHideMenu && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 6, scale: 0.96 }}
+                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                    exit={{ opacity: 0, y: 6, scale: 0.96 }}
+                                    className="bg-white border border-gray-200 shadow-xl rounded-xl p-2 w-44"
+                                    onPointerDown={(e) => e.stopPropagation()}
+                                >
+                                    <p className="text-[11px] font-semibold text-gray-500 px-2 pb-1">Hide AI helper</p>
+                                    {[2, 5, 10].map((min) => (
+                                        <button
+                                            key={min}
+                                            type="button"
+                                            className="w-full text-left text-sm px-2.5 py-1.5 rounded-lg hover:bg-gray-100 text-gray-700"
+                                            onClick={() => hideForMinutes(min)}
+                                        >
+                                            Hide for {min} min
+                                        </button>
+                                    ))}
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+
                         {/* Tooltip speech bubble */}
                         <motion.div
                             initial={{ opacity: 0, y: 10, scale: 0.9 }}

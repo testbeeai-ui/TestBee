@@ -344,14 +344,18 @@ export default function InstaCue({
         </div>
         <p className="text-xs text-muted-foreground mb-4">Quick revision cards</p>
         <p className="text-sm text-muted-foreground">
-          No cards yet for this subtopic and level. Use + to add one.
+          {onAddCard
+            ? "No cards yet for this subtopic and level. Use + to add one."
+            : "No revision cards for this subtopic and level yet."}
         </p>
-        <div className="mt-4 p-3 rounded-xl bg-muted/50 text-xs text-muted-foreground flex items-start gap-2">
-          <Lightbulb className="w-4 h-4 shrink-0 text-amber-400/80 dark:text-amber-500/80 mt-0.5" />
-          <span>
-            Tip: Cards you add are kept separate per subtopic and level, and are ready for direct Supabase syncing.
-          </span>
-        </div>
+        {onAddCard && (
+          <div className="mt-4 p-3 rounded-xl bg-muted/50 text-xs text-muted-foreground flex items-start gap-2">
+            <Lightbulb className="w-4 h-4 shrink-0 text-amber-400/80 dark:text-amber-500/80 mt-0.5" />
+            <span>
+              Tip: Cards you add are kept separate per subtopic and level, and are ready for direct Supabase syncing.
+            </span>
+          </div>
+        )}
         {onAddCard && (
           <AddCardModal
             open={addModalOpen}
@@ -476,7 +480,7 @@ export default function InstaCue({
         {displayCard ? safeIndex + 1 : 0} of {filteredCards.length} cards
       </p>
 
-      {!compact && (
+      {!compact && onAddCard && (
         <div className="mt-4 p-3 rounded-xl bg-muted/50 text-xs text-muted-foreground flex items-start gap-2">
           <Lightbulb className="w-4 h-4 shrink-0 text-amber-500 mt-0.5" />
           <span>
