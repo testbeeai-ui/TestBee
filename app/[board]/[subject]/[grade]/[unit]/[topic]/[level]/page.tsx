@@ -2147,118 +2147,86 @@ export default function TopicPage() {
                         Theory
                       </h2>
                       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 sm:justify-end">
-                        {loadingDbTheory && !canEditTheory && (
+                        {canEditTheory && topicNode && subtopicName && (
                           <>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="shrink-0 whitespace-nowrap rounded-lg"
-                              disabled
-                            >
-                              <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
-                              Loading actions…
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="shrink-0 whitespace-nowrap rounded-lg"
-                              disabled
-                            >
-                              Generate Subtopic AI
-                            </Button>
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              className="shrink-0 whitespace-nowrap rounded-lg"
-                              disabled
-                            >
-                              Regenerate Deep Dive
-                            </Button>
-                          </>
-                        )}
-                        {topicNode && subtopicName && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="shrink-0 whitespace-nowrap rounded-lg"
-                            disabled={!canEditTheory}
-                            title={canEditTheory ? "Edit theory content" : "Admin only"}
-                            onClick={() => {
-                              if (!canEditTheory) return;
-                              if (!editorOpen) {
-                                setDraftTheory(activeTheory);
-                                setDraftDidYouKnow(dbDidYouKnow);
-                                setDraftReferencesJson(JSON.stringify(dbReferences, null, 2));
-                              }
-                              setEditorOpen((prev) => !prev);
-                            }}
-                          >
-                            {editorOpen ? "Close editor" : "Edit"}
-                          </Button>
-                        )}
-                        {topicNode && subtopicName && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="shrink-0 whitespace-nowrap rounded-lg gap-2 font-bold"
-                            disabled={
-                              !canEditTheory ||
-                              generatingDeepDive ||
-                              generatingInstacue ||
-                              generatingBits ||
-                              generatingFormulas ||
-                              loadingDbTheory ||
-                              completingSubtopicAll
-                            }
-                            title={canEditTheory ? "Generate this subtopic Deep Dive, then InstaCue, Bits, and practice formulas." : "Admin only"}
-                            onClick={() => void runSubtopicAiGeneration()}
-                          >
-                            {generatingInstacue || generatingBits || generatingFormulas ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <Sparkles className="w-4 h-4" />
+                            {loadingDbTheory && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="shrink-0 whitespace-nowrap rounded-lg"
+                                disabled
+                              >
+                                <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+                                Loading…
+                              </Button>
                             )}
-                            {generatingDeepDive || generatingInstacue || generatingBits || generatingFormulas
-                              ? "Generating Subtopic AI…"
-                              : "Generate Subtopic AI"}
-                          </Button>
-                        )}
-                        {topicNode && subtopicName && (
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            className="shrink-0 whitespace-nowrap rounded-lg gap-2 font-bold"
-                            disabled={
-                              !canEditTheory ||
-                              generatingDeepDive ||
-                              loadingDbTheory ||
-                              completingSubtopicAll
-                            }
-                            title={
-                              dbTheoryExists
-                                ? `Regenerate deep dive for ${subtopicName} (${difficultyLevel})`
-                                : `Generate deep dive for ${subtopicName} (${difficultyLevel})`
-                            }
-                            onClick={() => void runDeepDiveGeneration()}
-                          >
-                            <Sparkles className="w-4 h-4" />
-                            {generatingDeepDive
-                              ? dbTheoryExists
-                                ? "Regenerating…"
-                                : "Generating…"
-                              : dbTheoryExists
-                                ? "Regenerate Deep Dive"
-                                : "Generate Deep Dive"}
-                          </Button>
-                        )}
-                        {topicNode && subtopicName && (
-                          <>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="shrink-0 whitespace-nowrap rounded-lg"
+                              disabled={loadingDbTheory}
+                              title="Edit theory content"
+                              onClick={() => {
+                                if (!editorOpen) {
+                                  setDraftTheory(activeTheory);
+                                  setDraftDidYouKnow(dbDidYouKnow);
+                                  setDraftReferencesJson(JSON.stringify(dbReferences, null, 2));
+                                }
+                                setEditorOpen((prev) => !prev);
+                              }}
+                            >
+                              {editorOpen ? "Close editor" : "Edit"}
+                            </Button>
                             <Button
                               variant="outline"
                               size="sm"
                               className="shrink-0 whitespace-nowrap rounded-lg gap-2 font-bold"
                               disabled={
-                                !canEditTheory ||
+                                generatingDeepDive ||
+                                generatingInstacue ||
+                                generatingBits ||
+                                generatingFormulas ||
+                                loadingDbTheory ||
+                                completingSubtopicAll
+                              }
+                              title="Generate this subtopic Deep Dive, then InstaCue, Bits, and practice formulas."
+                              onClick={() => void runSubtopicAiGeneration()}
+                            >
+                              {generatingInstacue || generatingBits || generatingFormulas ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Sparkles className="w-4 h-4" />
+                              )}
+                              {generatingDeepDive || generatingInstacue || generatingBits || generatingFormulas
+                                ? "Generating Subtopic AI…"
+                                : "Generate Subtopic AI"}
+                            </Button>
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              className="shrink-0 whitespace-nowrap rounded-lg gap-2 font-bold"
+                              disabled={generatingDeepDive || loadingDbTheory || completingSubtopicAll}
+                              title={
+                                dbTheoryExists
+                                  ? `Regenerate deep dive for ${subtopicName} (${difficultyLevel})`
+                                  : `Generate deep dive for ${subtopicName} (${difficultyLevel})`
+                              }
+                              onClick={() => void runDeepDiveGeneration()}
+                            >
+                              <Sparkles className="w-4 h-4" />
+                              {generatingDeepDive
+                                ? dbTheoryExists
+                                  ? "Regenerating…"
+                                  : "Generating…"
+                                : dbTheoryExists
+                                  ? "Regenerate Deep Dive"
+                                  : "Generate Deep Dive"}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="shrink-0 whitespace-nowrap rounded-lg gap-2 font-bold"
+                              disabled={
                                 subtopicAiBlockedByTopicHub ||
                                 completingSubtopicAll ||
                                 generatingDeepDive ||
@@ -2281,7 +2249,6 @@ export default function TopicPage() {
                               size="sm"
                               className="shrink-0 whitespace-nowrap rounded-lg text-xs font-bold"
                               disabled={
-                                !canEditTheory ||
                                 completingSubtopicAll ||
                                 generatingDeepDive ||
                                 generatingInstacue ||
@@ -2755,7 +2722,9 @@ export default function TopicPage() {
               {isSubtopicDashboardLayout && (
                 <Tabs defaultValue="instacue" className="w-full">
                   <TabsList className="grid w-full grid-cols-4 mb-3">
-                    <TabsTrigger value="instacue" className="text-xs">+ InstaCue</TabsTrigger>
+                    <TabsTrigger value="instacue" className="text-xs">
+                      {canEditTheory ? "+ InstaCue" : "InstaCue"}
+                    </TabsTrigger>
                     <TabsTrigger value="quiz" className="text-xs">
                       Quiz{dbBitsQuestions.length > 0 ? ` (${dbBitsQuestions.length})` : ""}
                     </TabsTrigger>
@@ -2773,7 +2742,7 @@ export default function TopicPage() {
                       subject={topicNode.subject}
                       classLevel={topicNode.classLevel}
                       onAddCard={
-                        user
+                        user && canEditTheory
                           ? (card) => {
                               const id = `user-${Date.now()}-${Math.random().toString(36).slice(2)}`;
                               saveRevisionCard({
@@ -2916,10 +2885,14 @@ export default function TopicPage() {
                     {dbBitsQuestions.length === 0 ? (
                       <div className="py-6 text-center">
                         <p className="text-sm text-muted-foreground mb-3">No quiz questions yet for this subtopic.</p>
-                        <p className="text-xs text-muted-foreground">
-                          First run <span className="font-semibold text-foreground">Generate Deep Dive</span> so theory is
-                          saved to Supabase, then generate quiz questions.
-                        </p>
+                        {canEditTheory ? (
+                          <p className="text-xs text-muted-foreground">
+                            First run <span className="font-semibold text-foreground">Generate Deep Dive</span> so theory is
+                            saved to Supabase, then generate quiz questions.
+                          </p>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">Check back later — practice questions may be added for this lesson.</p>
+                        )}
                       </div>
                     ) : (
                       <div className="edu-card p-4 rounded-xl border border-border space-y-3">
@@ -3354,11 +3327,15 @@ export default function TopicPage() {
                   {practiceFormulasForUi.length === 0 ? (
                     <div className="py-6 text-center">
                       <p className="text-sm text-muted-foreground mb-3">No formulas generated yet for this subtopic.</p>
-                      <p className="text-xs text-muted-foreground">
-                        First run <span className="font-semibold text-foreground">Generate Deep Dive</span>, then{" "}
-                        <span className="font-semibold text-foreground">Generate Practice Formulas</span> to generate
-                        formula practice.
-                      </p>
+                      {canEditTheory ? (
+                        <p className="text-xs text-muted-foreground">
+                          First run <span className="font-semibold text-foreground">Generate Deep Dive</span>, then{" "}
+                          <span className="font-semibold text-foreground">Generate Practice Formulas</span> to generate
+                          formula practice.
+                        </p>
+                      ) : (
+                        <p className="text-xs text-muted-foreground">Formula practice for this lesson is not available yet.</p>
+                      )}
                     </div>
                   ) : selectedFormulaIdx === null ? (
                     <div className="space-y-4">
