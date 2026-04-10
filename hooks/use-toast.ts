@@ -10,6 +10,8 @@ type ToasterToast = ToastProps & {
   title?: React.ReactNode;
   description?: React.ReactNode;
   action?: ToastActionElement;
+  /** Per-toast vibrant accent color for border/glow styling */
+  accentColor?: string;
   /** Radix: ms until auto-dismiss. Omit or use `Infinity` to stay until dismissed. */
   duration?: number;
   /** Hide the X control (e.g. when using auto-dismiss only). */
@@ -28,6 +30,13 @@ let count = 0;
 function genId() {
   count = (count + 1) % Number.MAX_SAFE_INTEGER;
   return count.toString();
+}
+
+function randomAccentColor(): string {
+  const hue = Math.floor(Math.random() * 360);
+  const sat = 78 + Math.floor(Math.random() * 22); // 78-99%
+  const light = 54 + Math.floor(Math.random() * 18); // 54-71%
+  return `hsl(${hue} ${sat}% ${light}%)`;
 }
 
 type ActionType = typeof actionTypes;
@@ -152,6 +161,7 @@ function toast({ ...props }: Toast) {
     type: "ADD_TOAST",
     toast: {
       ...props,
+      accentColor: props.accentColor ?? randomAccentColor(),
       id,
       open: true,
       onOpenChange: (open) => {
