@@ -43,19 +43,10 @@ type RainTopic = {
   tag: string;
 };
 
-const EXAM_FILTER_OPTIONS: { key: string; label: string; value: ExamType | null }[] = [
-  { key: "cbse", label: "CBSE", value: null },
-  { key: "jee-mains", label: "JEE Mains", value: "JEE_Mains" },
-  { key: "jee-advanced", label: "JEE Advance", value: "JEE_Advance" },
-  { key: "kcet", label: "KCET", value: "KCET" },
-  { key: "other", label: "Other", value: "other" },
-];
-
 const SUBJECT_OPTIONS: { subject: Subject; label: string }[] = [
   { subject: "physics", label: "Physics" },
   { subject: "chemistry", label: "Chemistry" },
   { subject: "math", label: "Maths" },
-  { subject: "biology", label: "Biology" },
 ];
 
 const SUBJECT_TONE: Record<Subject, string> = {
@@ -64,19 +55,6 @@ const SUBJECT_TONE: Record<Subject, string> = {
   math: "border-amber-400/60 text-amber-300",
   biology: "border-emerald-400/60 text-emerald-300",
 };
-
-/**
- * CBSE (null) = full board syllabus. Competitive exam picks require unit-level tags;
- * empty exam_relevance must not match JEE/KCET (otherwise every topic passes — see
- * curriculum guardrails migration that cleared tags).
- */
-function examMatchesFilter(profileExam: ExamType | null, dataExams: ExamType[]): boolean {
-  if (!profileExam) return true;
-  if (profileExam === "other") return true;
-  if (dataExams.length === 0) return false;
-  if (profileExam === "JEE_Mains" || profileExam === "JEE_Advance") return dataExams.includes("JEE");
-  return dataExams.includes(profileExam);
-}
 
 function setsEqual(a: Set<string>, b: Set<string>): boolean {
   if (a.size !== b.size) return false;
@@ -189,7 +167,6 @@ export default function MagicWallPage() {
   const board = (storeUser?.board ?? "CBSE") as Board;
   const initialClass = profile?.class_level === 11 || profile?.class_level === 12 ? (profile.class_level as ClassLevel) : 11;
   const [selectedClass, setSelectedClass] = useState<ClassLevel>(initialClass);
-  const [selectedExam, setSelectedExam] = useState<ExamType | null>(storeUser?.examType ?? null);
   const [activeSubjects, setActiveSubjects] = useState<Set<Subject>>(new Set(["physics", "chemistry", "math"]));
   const [selectedTopicKeys, setSelectedTopicKeys] = useState<Set<string>>(new Set());
   const [basketItems, setBasketItems] = useState<MagicWallBasketItem[]>([]);
@@ -224,12 +201,6 @@ export default function MagicWallPage() {
     };
   }, [loading]);
 
-  useEffect(() => {
-    if (storeUser?.subjectCombo === "PCMB") {
-      setActiveSubjects(new Set(["physics", "chemistry", "math", "biology"]));
-    }
-  }, [storeUser?.subjectCombo]);
-
   const catalog = useMemo(() => {
     return taxonomy.map((node) => {
       const unitName = node.unitTitle ?? node.unitLabel ?? "Unit";
@@ -243,7 +214,7 @@ export default function MagicWallPage() {
         chapterTitle,
         topicName,
       });
-      const examType = selectedExam ?? null;
+      const examType: ExamType | null = null;
       return {
         topicKey,
         board,
@@ -257,7 +228,7 @@ export default function MagicWallPage() {
         examRelevance: node.examRelevance,
       };
     });
-  }, [taxonomy, board, selectedExam]);
+  }, [taxonomy, board]);
 
   const filteredRainTopics = useMemo(() => {
     const seen = new Set<string>();
@@ -266,7 +237,6 @@ export default function MagicWallPage() {
     for (const item of catalog) {
       if (Number(item.classLevel) !== Number(selectedClass)) continue;
       if (!activeSubjects.has(item.subject)) continue;
-      if (!examMatchesFilter(selectedExam, item.examRelevance)) continue;
       if (seen.has(item.topicKey)) continue;
       seen.add(item.topicKey);
       if (!buckets.has(item.subject)) buckets.set(item.subject, []);
@@ -299,7 +269,7 @@ export default function MagicWallPage() {
       row++;
     }
     return out;
-  }, [catalog, selectedClass, activeSubjects, selectedExam]);
+  }, [catalog, selectedClass, activeSubjects]);
 
   const filteredRainLatestRef = useRef(filteredRainTopics);
   filteredRainLatestRef.current = filteredRainTopics;
@@ -313,11 +283,10 @@ export default function MagicWallPage() {
     () =>
       [
         String(selectedClass),
-        selectedExam ?? "",
         [...activeSubjects].sort().join(","),
         topicKeyOrderSig,
       ].join("§"),
-    [selectedClass, selectedExam, activeSubjects, topicKeyOrderSig]
+    [selectedClass, activeSubjects, topicKeyOrderSig]
   );
 
   const rainPool = useMemo(() => {
@@ -619,7 +588,7 @@ export default function MagicWallPage() {
   return (
     <ProtectedRoute>
       <AppLayout>
-        <div className="mx-auto w-full max-w-full space-y-2 pb-20 sm:space-y-3 sm:pb-[4.5rem] lg:pb-24">
+        <div className="mx-auto w-full max-w-full space-y-2 pb-20 sm:space-y-3 sm:pb-[4.5rem] lg:space-y-1.5 lg:pb-20">
           {/*
             Grid: Topic Rain fills all space left of the basket (no justify-between “void”).
             Column 1 = minmax(0,1fr); column 2 = fixed readable basket width.
@@ -643,6 +612,9 @@ export default function MagicWallPage() {
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2 sm:pt-0.5">
+                  <span className="rounded-xl border border-cyan-400/35 bg-cyan-500/15 px-2.5 py-1.5 text-[11px] font-bold text-cyan-100">
+                    CBSE
+                  </span>
                   <button
                     type="button"
                     onClick={() => setFiltersOpen((v) => !v)}
@@ -685,9 +657,7 @@ export default function MagicWallPage() {
                         </button>
                       );
                     })}
-                  </div>
-
-                  <div className="flex flex-wrap gap-3 items-center">
+                    <span className="ml-1 text-[11px] font-bold uppercase tracking-wider text-slate-400">Classes</span>
                     <div className="flex items-center gap-1 bg-black/30 border border-white/10 rounded-xl p-1">
                       {[11, 12].map((lv) => (
                         <button
@@ -699,20 +669,6 @@ export default function MagicWallPage() {
                           }`}
                         >
                           Class {lv}
-                        </button>
-                      ))}
-                    </div>
-                    <div className="flex items-center gap-1 bg-black/30 border border-white/10 rounded-xl p-1 overflow-x-auto">
-                      {EXAM_FILTER_OPTIONS.map((opt) => (
-                        <button
-                          key={opt.key}
-                          type="button"
-                          onClick={() => setSelectedExam(opt.value)}
-                          className={`${classPill} ${
-                            selectedExam === opt.value ? "border-cyan-400 bg-cyan-500/20 text-cyan-200" : "text-slate-300"
-                          }`}
-                        >
-                          {opt.label}
                         </button>
                       ))}
                     </div>
@@ -863,13 +819,10 @@ export default function MagicWallPage() {
                     });
                   })}
               </div>
-                <div className="mt-3 rounded-xl border border-violet-400/40 bg-violet-500/20 px-3 py-2 text-xs font-bold text-violet-100">
-                Add <span className="text-white">{selectedTopicKeys.size}</span> / {MAGIC_WALL_MAX_SELECTED_TOPICS} selected topics to reading basket
-              </div>
             </section>
 
             <aside className="min-w-0 w-full rounded-2xl border-2 border-violet-400/30 bg-gradient-to-b from-[#121425] to-[#0a0c16] p-3 space-y-2.5 shadow-[0_0_28px_rgba(139,92,246,0.1)] ring-1 ring-violet-500/10 sm:rounded-3xl lg:sticky lg:top-24 lg:self-start">
-              <div className="rounded-2xl border border-amber-400/35 bg-amber-500/10 p-3">
+              <div className="rounded-2xl border border-amber-400/35 bg-amber-500/10 p-3 lg:shrink-0">
                 <p className="text-[11px] uppercase tracking-wider font-bold text-amber-200">Live Study Hour</p>
                 <p className="mt-1 text-sm font-extrabold text-white">25 min study · 5 min break</p>
                 <p className="text-xs text-amber-100/80">Syncs with streak rhythm</p>
@@ -889,7 +842,7 @@ export default function MagicWallPage() {
                     No topics selected yet. Tap cards in Topic Rain (max {MAGIC_WALL_MAX_SELECTED_TOPICS}).
                   </p>
                 ) : (
-                  <div className="space-y-1.5 max-h-[min(420px,calc(100svh-18rem))] lg:max-h-[min(455px,calc(100svh-12rem))] overflow-y-auto pr-1">
+                  <div className="space-y-1.5 pr-1">
                     {selectedDetails.map((item) => (
                       <div key={item.topicKey} className="rounded-xl border border-white/10 bg-white/[0.03] px-2.5 py-2">
                         <div className="flex items-start justify-between gap-2">
@@ -939,7 +892,7 @@ export default function MagicWallPage() {
             </aside>
           </div>
 
-          <div className="sticky bottom-2 z-30 px-1 sm:bottom-3 sm:px-0">
+          <div className="sticky bottom-2 z-30 px-1 sm:bottom-3 sm:px-0 lg:bottom-0 lg:px-0">
             <div className="flex flex-col gap-1.5 rounded-xl border border-violet-400/50 bg-violet-500/25 px-2.5 py-1.5 shadow-md shadow-violet-950/25 backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-3 sm:py-2">
               <div className="min-w-0 text-[11px] font-bold leading-tight text-violet-100 sm:pr-2 sm:text-xs">
                 <span className="break-words">
