@@ -112,10 +112,8 @@ const EXAM_TYPES_11_12: ExamType[] = ['JEE_Mains', 'JEE_Advance', 'KCET', 'other
 /** JEE_Mains and JEE_Advance both use content tagged as JEE until we have separate tagging. */
 function examMatchesFilter(profileExam: ExamType | null, dataExams: ExamType[]): boolean {
   if (!profileExam) return true;
-  // CBSE ('other') is the base curriculum — matches everything
   if (profileExam === 'other') return true;
-  // Untagged topics (empty examRelevance) are universal — match any exam
-  if (dataExams.length === 0) return true;
+  if (dataExams.length === 0) return false;
   if (profileExam === 'JEE_Mains' || profileExam === 'JEE_Advance') return dataExams.includes('JEE');
   return dataExams.includes(profileExam);
 }

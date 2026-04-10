@@ -233,6 +233,8 @@ interface InstaCueProps {
   selectedSubtopic?: string;
   onSubtopicChange?: (name: string) => void;
   onAddCard?: (card: Omit<InstaCueCard, "id">) => void;
+  onCardIndexChange?: (index: number, total: number) => void;
+  onCardValidated?: (index: number, total: number) => void;
   compact?: boolean;
 }
 
@@ -247,6 +249,8 @@ export default function InstaCue({
   selectedSubtopic,
   onSubtopicChange,
   onAddCard,
+  onCardIndexChange,
+  onCardValidated,
   compact,
 }: InstaCueProps) {
   const [index, setIndex] = useState(0);
@@ -279,8 +283,6 @@ export default function InstaCue({
     }
   }, [subtopicOptions, localSubtopic]);
 
-  const handleFlip = () => setFlipped((f) => !f);
-
   const goPrev = () => {
     setIndex((i) => (i <= 0 ? total - 1 : i - 1));
     setFlipped(false);
@@ -295,6 +297,13 @@ export default function InstaCue({
   const displayCard = filteredCards[safeIndex];
   const visibleDots = getVisibleDotIndexes(filteredCards.length, safeIndex);
 
+  const handleFlip = () =>
+    setFlipped((f) => {
+      const next = !f;
+      if (next) onCardValidated?.(safeIndex, filteredCards.length);
+      return next;
+    });
+
   useEffect(() => {
     if (index >= filteredCards.length && filteredCards.length > 0) {
       queueMicrotask(() => {
@@ -303,6 +312,11 @@ export default function InstaCue({
       });
     }
   }, [filteredCards.length, index]);
+
+  useEffect(() => {
+    if (filteredCards.length <= 0) return;
+    onCardIndexChange?.(safeIndex, filteredCards.length);
+  }, [safeIndex, filteredCards.length, onCardIndexChange]);
 
   const handleAddCard = () => {
     if (!front.trim() || !back.trim() || !onAddCard) return;

@@ -10,6 +10,10 @@ type ToasterToast = ToastProps & {
   title?: React.ReactNode;
   description?: React.ReactNode;
   action?: ToastActionElement;
+  /** Radix: ms until auto-dismiss. Omit or use `Infinity` to stay until dismissed. */
+  duration?: number;
+  /** Hide the X control (e.g. when using auto-dismiss only). */
+  hideCloseButton?: boolean;
 };
 
 const actionTypes = {

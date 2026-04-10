@@ -5,6 +5,25 @@ import { subtopicSlugForRouting } from '@/lib/subtopicTitles';
 
 export type { DifficultyLevel } from '@/lib/slugs';
 
+/** Lowercase board segment for URLs (Explore uses `cbse`; profile may store `CBSE`). */
+function routeBoardSlug(board: string): string {
+  const b = String(board).toLowerCase();
+  return b === 'icse' ? 'icse' : 'cbse';
+}
+
+/**
+ * Append search params without producing invalid paths like `/overview/basics&source=…`
+ * (which breaks the `[level]` dynamic segment).
+ */
+export function appendQueryParams(path: string, params: Record<string, string>): string {
+  const pairs = Object.entries(params).filter(([, v]) => v !== undefined && v !== '');
+  if (pairs.length === 0) return path;
+  const qs = new URLSearchParams();
+  for (const [k, v] of pairs) qs.set(k, v);
+  const sep = path.includes('?') ? '&' : '?';
+  return `${path}${sep}${qs.toString()}`;
+}
+
 export interface ResolvedTopic {
   topicNode: TopicNode;
   subtopicIndex: number;
@@ -37,7 +56,7 @@ export function resolveTopicFromParams(
   taxonomy: TopicNode[],
   chapterSlug?: string | null
 ): ResolvedTopic | null {
-  if (board !== 'cbse') return null;
+  if (String(board).toLowerCase() !== 'cbse') return null;
   const classLevel = parseGradeSlug(grade);
   if (classLevel === null) return null;
   const sub = subject as Subject;
@@ -101,7 +120,7 @@ export function buildTopicOverviewPath(
   mode?: 'random',
   chapterTitle?: string
 ): string {
-  const base = `/${board}/${subject}/${toGradeSlug(classLevel)}/${slugify(topicName)}/overview/${level}`;
+  const base = `/${routeBoardSlug(board)}/${subject}/${toGradeSlug(classLevel)}/${slugify(topicName)}/overview/${level}`;
   const qs = new URLSearchParams();
   if (mode === 'random') qs.set('mode', 'random');
   if (chapterTitle?.trim()) qs.set('chapter', slugify(chapterTitle));
@@ -122,7 +141,7 @@ export function buildTopicPath(
   mode?: 'random',
   chapterTitle?: string
 ): string {
-  const base = `/${board}/${subject}/${toGradeSlug(classLevel)}/${slugify(unitName)}/${subtopicSlugForRouting(subtopicName)}/${level}`;
+  const base = `/${routeBoardSlug(board)}/${subject}/${toGradeSlug(classLevel)}/${slugify(unitName)}/${subtopicSlugForRouting(subtopicName)}/${level}`;
   const qs = new URLSearchParams();
   if (mode === 'random') qs.set('mode', 'random');
   if (chapterTitle?.trim()) qs.set('chapter', slugify(chapterTitle));

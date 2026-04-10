@@ -28,6 +28,32 @@ export type MagicWallBasketInsert = {
   topicName: string;
 };
 
+export function normalizeKeyPart(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[&]/g, " and ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+export function makeTopicKey(input: {
+  board: Board;
+  subject: Subject;
+  classLevel: ClassLevel;
+  unitName: string;
+  chapterTitle: string;
+  topicName: string;
+}): string {
+  return [
+    normalizeKeyPart(input.board),
+    normalizeKeyPart(input.subject),
+    String(input.classLevel),
+    normalizeKeyPart(input.unitName),
+    normalizeKeyPart(input.chapterTitle),
+    normalizeKeyPart(input.topicName),
+  ].join("||");
+}
+
 function normalizeItems(data: unknown): MagicWallBasketItem[] {
   if (!Array.isArray(data)) return [];
   const out: MagicWallBasketItem[] = [];
