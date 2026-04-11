@@ -12,6 +12,7 @@ import BreakScreen from '@/components/BreakScreen';
 import RecallExercise from '@/components/RecallExercise';
 import { useStreakTimer } from '@/hooks/useStreakTimer';
 import AgentOrchestratorRunner from '@/components/AgentOrchestratorRunner';
+import { cn } from '@/lib/utils';
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -42,6 +43,7 @@ const baseNavItems = [
 
 const AppLayout = ({ children, streakTimer }: AppLayoutProps) => {
   const pathname = usePathname();
+  const isMagicWall = pathname === '/magic-wall';
   const { profile } = useAuth();
   const user = useUserStore((s) => s.user);
   const rdm = profile?.rdm ?? user?.rdm ?? 0;
@@ -142,7 +144,14 @@ const AppLayout = ({ children, streakTimer }: AppLayoutProps) => {
       </header>
 
       {/* Content */}
-      <main className="flex-1 max-w-7xl mx-auto w-full px-6 py-8">{children}</main>
+      <main
+        className={cn(
+          'flex-1 max-w-7xl mx-auto w-full px-6',
+          isMagicWall ? 'flex min-h-0 flex-col pt-2 pb-0 sm:pt-3' : 'py-8',
+        )}
+      >
+        {children}
+      </main>
 
       {/* Overlay screens */}
       {streakTimer?.isActive && streakTimer.phase === 'break' && (

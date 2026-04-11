@@ -29,7 +29,10 @@ import { Filter, Loader2, Sparkles, WandSparkles, X, BookOpen } from "lucide-rea
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { appendQueryParams, buildTopicOverviewPath } from "@/lib/topicRoutes";
+import { appendQueryParams, buildTopicOverviewPath, type DifficultyLevel } from "@/lib/topicRoutes";
+
+/** Topic hub level when opening topics from Magic Wall (Start Reading / basket links). */
+const MAGIC_WALL_READING_LEVEL: DifficultyLevel = "advanced";
 
 type RainTopic = {
   topicKey: string;
@@ -414,7 +417,7 @@ export default function MagicWallPage() {
         first.subject,
         first.classLevel,
         first.topicName,
-        "basics",
+        MAGIC_WALL_READING_LEVEL,
         undefined,
         first.chapterTitle
       ),
@@ -588,12 +591,12 @@ export default function MagicWallPage() {
   return (
     <ProtectedRoute>
       <AppLayout>
-        <div className="mx-auto w-full max-w-full space-y-2 pb-20 sm:space-y-3 sm:pb-[4.5rem] lg:space-y-1.5 lg:pb-20">
+        <div className="mx-auto flex min-h-0 w-full max-w-full flex-1 flex-col space-y-2 pb-2 sm:space-y-3 lg:space-y-1.5">
           {/*
             Grid: Topic Rain fills all space left of the basket (no justify-between “void”).
             Column 1 = minmax(0,1fr); column 2 = fixed readable basket width.
           */}
-          <div className="grid w-full grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_min(100%,380px)] lg:items-start lg:gap-6 xl:grid-cols-[minmax(0,1fr)_min(100%,400px)] xl:gap-6">
+          <div className="grid min-h-0 w-full flex-1 grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_min(100%,380px)] lg:items-start lg:gap-6 xl:grid-cols-[minmax(0,1fr)_min(100%,400px)] xl:gap-6">
             <section className="min-w-0 w-full overflow-hidden rounded-2xl border-2 border-violet-500/35 bg-gradient-to-b from-[#121426] to-[#090b16] p-2 shadow-[0_0_32px_rgba(139,92,246,0.14)] ring-1 ring-violet-400/15 sm:rounded-3xl md:p-3">
               <div className="px-1 pb-2 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
@@ -846,44 +849,54 @@ export default function MagicWallPage() {
                     {selectedDetails.map((item) => (
                       <div key={item.topicKey} className="rounded-xl border border-white/10 bg-white/[0.03] px-2.5 py-2">
                         <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            {item.saved ? (
-                              <Link
-                                href={appendQueryParams(
-                                  buildTopicOverviewPath(
-                                    board,
-                                    item.subject,
-                                    item.classLevel,
-                                    item.topicName,
-                                    "basics",
-                                    undefined,
-                                    item.chapterTitle
-                                  ),
-                                  { source: "magic-wall" }
+                          <div className="min-w-0 flex-1">
+                            <div className="flex min-w-0 items-center gap-1.5">
+                              {item.saved ? (
+                                <Link
+                                  href={appendQueryParams(
+                                    buildTopicOverviewPath(
+                                      board,
+                                      item.subject,
+                                      item.classLevel,
+                                      item.topicName,
+                                      MAGIC_WALL_READING_LEVEL,
+                                      undefined,
+                                      item.chapterTitle
+                                    ),
+                                    { source: "magic-wall" }
+                                  )}
+                                  className="min-w-0 flex-1 truncate text-xs font-bold text-white hover:underline"
+                                >
+                                  {item.topicName}
+                                </Link>
+                              ) : (
+                                <p className="min-w-0 flex-1 truncate text-xs font-bold text-white">{item.topicName}</p>
+                              )}
+                              <span
+                                className={cn(
+                                  "shrink-0 rounded-full border px-1.5 py-0.5 text-[9px] font-extrabold leading-none tracking-wide",
+                                  item.saved
+                                    ? "border-emerald-400/45 bg-emerald-500/20 text-emerald-200"
+                                    : "border-amber-400/45 bg-amber-500/20 text-amber-200"
                                 )}
-                                className="text-xs font-bold text-white truncate hover:underline"
+                                title={item.saved ? "Saved to basket" : "Not saved yet — use Save changes"}
                               >
-                                {item.topicName}
-                              </Link>
-                            ) : (
-                              <p className="text-xs font-bold text-white truncate">{item.topicName}</p>
-                            )}
-                            <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                                {item.saved ? "Saved" : "Pending"}
+                              </span>
+                            </div>
+                            <p className="mt-0.5 truncate text-[10px] text-slate-400">
                               {item.subject.toUpperCase()} · C{item.classLevel} · {item.chapterTitle}
                             </p>
                           </div>
                           <button
                             type="button"
                             onClick={() => toggleTopic(item.topicKey)}
-                            className="p-1 rounded-md border border-white/20 text-slate-300 hover:text-white hover:border-white/40"
+                            className="shrink-0 rounded-md border border-white/20 p-1 text-slate-300 hover:border-white/40 hover:text-white"
                             title="Remove from basket selection"
                           >
                             <X className="h-3 w-3" />
                           </button>
                         </div>
-                        <p className={`mt-1 text-[10px] font-semibold ${item.saved ? "text-emerald-300" : "text-amber-300"}`}>
-                          {item.saved ? "Saved" : "Pending save"}
-                        </p>
                       </div>
                     ))}
                   </div>
@@ -892,7 +905,7 @@ export default function MagicWallPage() {
             </aside>
           </div>
 
-          <div className="sticky bottom-2 z-30 px-1 sm:bottom-3 sm:px-0 lg:bottom-0 lg:px-0">
+          <div className="sticky bottom-0 z-30 shrink-0 px-1 pt-1 sm:px-0">
             <div className="flex flex-col gap-1.5 rounded-xl border border-violet-400/50 bg-violet-500/25 px-2.5 py-1.5 shadow-md shadow-violet-950/25 backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-3 sm:py-2">
               <div className="min-w-0 text-[11px] font-bold leading-tight text-violet-100 sm:pr-2 sm:text-xs">
                 <span className="break-words">
