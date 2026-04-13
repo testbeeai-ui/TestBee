@@ -7,6 +7,8 @@
  * Server-side only (uses process.env).
  */
 
+import { RAG_CONTEXT_MAX_CHARS, truncateForPrompt } from "@/lib/gyanContentPolicy";
+
 // Generic conversational follow-ups that produce garbage retrieval results.
 // Short but SPECIFIC queries like "p-n junction" or "Define capacitance" still pass through.
 const GENERIC_FOLLOW_UPS =
@@ -63,7 +65,7 @@ export function buildRAGRequestTrace(
   gradeLevel: number,
   topic?: string,
   subtopic?: string,
-  matchCount = 8
+  matchCount = 5
 ): {
   baseQuery: string;
   augmentedQuery: string;
@@ -114,6 +116,8 @@ function buildAugmentedRagQuery(
  *
  * @returns RAGContext if relevant passages found, null otherwise.
  *          NEVER throws — all errors are caught and logged.
+ *
+ * @param maxFormattedChars — cap on formatted passage text (default from gyanContentPolicy). Pass a larger value for long-form agents if needed.
  */
 export async function fetchRAGContext(
   query: string,
@@ -121,7 +125,8 @@ export async function fetchRAGContext(
   gradeLevel: number,
   topic?: string,
   subtopic?: string,
-  matchCount = 8,
+  matchCount = 5,
+  maxFormattedChars?: number,
 ): Promise<RAGContext | null> {
   const sidecarUrl = process.env.RAG_SIDECAR_URL;
 
@@ -177,8 +182,17 @@ export async function fetchRAGContext(
 
     console.info(`[RAG] Enriched prompt with ${data.chunk_count} passages`);
 
+    const envCapRaw = process.env.RAG_FORMATTED_CONTEXT_MAX_CHARS?.trim();
+    const envCap =
+      envCapRaw && Number.isFinite(Number.parseInt(envCapRaw, 10)) && Number.parseInt(envCapRaw, 10) > 0
+        ? Number.parseInt(envCapRaw, 10)
+        : undefined;
+    const cap = maxFormattedChars ?? envCap ?? RAG_CONTEXT_MAX_CHARS;
+    const rawFmt = typeof data.formatted_context === "string" ? data.formatted_context : "";
+    const formattedContext = truncateForPrompt(rawFmt, cap);
+
     return {
-      formattedContext: data.formatted_context,
+      formattedContext,
       chunkCount: data.chunk_count,
     };
   } catch (error) {

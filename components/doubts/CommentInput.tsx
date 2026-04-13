@@ -13,9 +13,17 @@ interface CommentInputProps {
   onCommentPosted: () => void;
   avatarUrl?: string | null;
   userName?: string | null;
+  /** Teachers post into the teacher section (same table); copy matches that area. */
+  variant?: "student" | "teacher";
 }
 
-export default function CommentInput({ doubtId, onCommentPosted, avatarUrl, userName }: CommentInputProps) {
+export default function CommentInput({
+  doubtId,
+  onCommentPosted,
+  avatarUrl,
+  userName,
+  variant = "student",
+}: CommentInputProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [text, setText] = useState("");
@@ -40,7 +48,9 @@ export default function CommentInput({ doubtId, onCommentPosted, avatarUrl, user
       if (error) throw error;
       setText("");
       setExpanded(false);
-      toast({ title: "+5 RDM earned for commenting!" });
+      toast({
+        title: variant === "teacher" ? "Teacher note posted!" : "+5 RDM earned for commenting!",
+      });
       onCommentPosted();
     } catch (error: unknown) {
       const description =
@@ -54,7 +64,11 @@ export default function CommentInput({ doubtId, onCommentPosted, avatarUrl, user
   };
 
   return (
-    <div className="flex items-start gap-2 pt-3 border-t border-border/40">
+    <div
+      className={`flex items-start gap-2 pt-3 border-t ${
+        variant === "teacher" ? "border-emerald-500/25" : "border-border/40"
+      }`}
+    >
       <Avatar className="h-7 w-7 rounded-full shrink-0 mt-0.5">
         <AvatarImage src={avatarUrl ?? undefined} />
         <AvatarFallback className="rounded-full text-[10px]">{initials}</AvatarFallback>
@@ -65,7 +79,11 @@ export default function CommentInput({ doubtId, onCommentPosted, avatarUrl, user
           value={text}
           onChange={(e) => setText(e.target.value)}
           onFocus={() => setExpanded(true)}
-          placeholder="Add a comment — earn +5 RDM..."
+          placeholder={
+            variant === "teacher"
+              ? "Add a teacher note (exam tips, corrections)…"
+              : "Add a comment — earn +5 RDM..."
+          }
           className="w-full text-sm bg-transparent border-0 outline-none text-foreground placeholder:text-muted-foreground py-1"
           disabled={posting}
           onKeyDown={(e) => {

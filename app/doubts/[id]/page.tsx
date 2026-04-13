@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
@@ -26,7 +26,25 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ArrowLeft, ChevronUp, ChevronDown, MessageSquare, Check, Loader2, Flag, ClipboardCheck, MoreVertical, Pencil, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  ChevronUp,
+  ChevronDown,
+  MessageSquare,
+  Check,
+  Loader2,
+  Flag,
+  ClipboardCheck,
+  MoreVertical,
+  Pencil,
+  Trash2,
+  GraduationCap,
+} from "lucide-react";
+import DoubtMarkdown from "@/components/doubts/DoubtMarkdown";
+import { ProfPiAvatar } from "@/components/doubts/ProfPiAvatar";
+import { stripHtml, isAiTutorAnswer } from "@/components/doubts/doubtTypes";
+import { canonicalDoubtSubject } from "@/lib/doubtSubject";
+import { PROF_PI_CONFIG } from "@/lib/gyanBotPersonas";
 import { UserHoverCard } from "@/components/UserHoverCard";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
@@ -52,19 +70,46 @@ type Answer = {
   is_accepted: boolean;
   hidden: boolean;
   created_at: string;
-  profiles?: { name: string | null; avatar_url: string | null } | null;
+  profiles?: { name: string | null; avatar_url: string | null; role?: string | null } | null;
 };
 
 type VoteRow = { target_type: string; target_id: string; vote_type: number };
 
-const REPORT_REASONS = ["ai_spam", "plagiarism", "off_topic", "other"] as const;
+function answerAuthorDisplayName(a: Answer): string {
+  return isAiTutorAnswer(a) ? PROF_PI_CONFIG.name : (a.profiles?.name ?? "Someone");
+}
+
+const REPORT_REASONS = [
+  "ai_spam",
+  "plagiarism",
+  "off_topic",
+  "incorrect_formula",
+  "other",
+] as const;
+
+function reportReasonLabel(r: (typeof REPORT_REASONS)[number]): string {
+  switch (r) {
+    case "ai_spam":
+      return "AI spam / low quality";
+    case "plagiarism":
+      return "Plagiarism";
+    case "off_topic":
+      return "Off topic";
+    case "incorrect_formula":
+      return "Incorrect formula or fact";
+    case "other":
+      return "Other";
+    default:
+      return r;
+  }
+}
 const DOUBT_FLAIRS = ["Physics", "Chemistry", "Math", "Biology", "General Question", "Other"] as const;
 
 export default function DoubtDetailPage() {
   const params = useParams();
   const router = useRouter();
   const id = params?.id as string;
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { toast } = useToast();
   const [doubt, setDoubt] = useState<Doubt | null>(null);
   const [answers, setAnswers] = useState<Answer[]>([]);
@@ -90,6 +135,7 @@ export default function DoubtDetailPage() {
   const [deleteAnswerId, setDeleteAnswerId] = useState<string | null>(null);
   const [deleteAnswerLoading, setDeleteAnswerLoading] = useState(false);
   const [similarDoubts, setSimilarDoubts] = useState<{ id: string; title: string; similarity_score: number }[]>([]);
+  const hashScrollDoneKey = useRef<string | null>(null);
 
   const getErrorMessage = (error: unknown, fallback: string) => {
     if (error && typeof error === "object" && "message" in error) {
@@ -113,7 +159,7 @@ export default function DoubtDetailPage() {
     if (!id) return;
     const { data, error } = await supabase
       .from("doubt_answers")
-      .select("*, profiles!doubt_answers_user_id_fkey(name, avatar_url)")
+      .select("*, profiles!doubt_answers_user_id_fkey(name, avatar_url, role)")
       .eq("doubt_id", id)
       .eq("hidden", false)
       .order("is_accepted", { ascending: false })
@@ -180,6 +226,25 @@ export default function DoubtDetailPage() {
       void fetchMyVotes();
     });
   }, [fetchMyVotes]);
+
+  /** Deep-link from feed: #doubt-body, #doubt-answers, #answer-… */
+  useEffect(() => {
+    if (loading || !doubt?.id) return;
+    const raw = typeof window !== "undefined" ? window.location.hash.replace(/^#/, "").trim() : "";
+    if (!raw) return;
+    const key = `${doubt.id}:${raw}`;
+    const el = document.getElementById(raw);
+    if (!el) return;
+    if (hashScrollDoneKey.current === key) return;
+    requestAnimationFrame(() => {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+      hashScrollDoneKey.current = key;
+    });
+  }, [loading, doubt?.id, answers]);
+
+  useEffect(() => {
+    hashScrollDoneKey.current = null;
+  }, [id]);
 
   const refetchAll = useCallback(() => {
     fetchDoubt();
@@ -413,8 +478,141 @@ export default function DoubtDetailPage() {
 
   const isAuthor = user?.id === doubt.user_id;
   const netDoubt = doubt.upvotes - doubt.downvotes;
-  const acceptedAnswer = answers.find((a) => a.is_accepted);
-  const subjectForMock = doubt.subject || "this topic";
+  const subjectChip = canonicalDoubtSubject(doubt.subject) ?? doubt.subject?.trim() ?? null;
+  const subjectForMock = subjectChip || "this topic";
+
+  const aiAnswerList = answers.filter(isAiTutorAnswer);
+  const teacherAnswerList = answers.filter((a) => a.profiles?.role === "teacher");
+  const studentAnswerList = answers.filter((a) => a.profiles?.role !== "teacher" && !isAiTutorAnswer(a));
+  const hasAiThreadLayout = aiAnswerList.length > 0;
+  const showStudentReplyForm = Boolean(user && !(hasAiThreadLayout && profile?.role === "teacher"));
+  const showTeacherReplyForm = Boolean(user && hasAiThreadLayout && profile?.role === "teacher");
+
+  const renderAnswerCard = (a: Answer) => {
+    const netAnswer = a.upvotes - a.downvotes;
+    const myVote = getMyVote("answer", a.id);
+    return (
+      <motion.div
+        key={a.id}
+        id={`answer-${a.id}`}
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        className={`edu-card p-5 rounded-2xl scroll-mt-24 ${a.is_accepted ? "border-edu-green/50 bg-edu-green/5" : ""}`}
+      >
+        <div className="flex gap-4">
+          <div className="flex flex-col items-center shrink-0">
+            <Button
+              variant={myVote === 1 ? "default" : "outline"}
+              size="icon"
+              className="rounded-xl h-8 w-8"
+              disabled={!!votingId}
+              onClick={() => handleVote("answer", a.id, 1)}
+            >
+              {votingId === a.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ChevronUp className="w-3.5 h-3.5" />}
+            </Button>
+            <span className="font-bold text-sm my-0.5">{netAnswer}</span>
+            <Button
+              variant={myVote === -1 ? "default" : "outline"}
+              size="icon"
+              className="rounded-xl h-8 w-8"
+              disabled={!!votingId}
+              onClick={() => handleVote("answer", a.id, -1)}
+            >
+              <ChevronDown className="w-3.5 h-3.5" />
+            </Button>
+          </div>
+          <div className="flex-1 min-w-0">
+            {a.is_accepted && (
+              <span className="inline-flex items-center gap-1 text-edu-green text-sm font-semibold mb-2">
+                <Check className="w-4 h-4" /> Accepted answer
+              </span>
+            )}
+            <div className="text-sm text-foreground">
+              <DoubtMarkdown content={stripHtml(a.body)} />
+            </div>
+            {doubt.is_resolved && a.is_accepted && (
+              <div className="mt-4 p-4 rounded-xl bg-primary/10 border border-primary/20">
+                <p className="text-sm font-medium text-foreground mb-2 flex items-center gap-2">
+                  <ClipboardCheck className="w-4 h-4 text-primary" />
+                  Mastered this? Take a 15-minute mock test on {subjectForMock} to see where you stand.
+                </p>
+                <Button size="sm" className="rounded-xl" asChild>
+                  <Link href={`/mock?subject=${encodeURIComponent(subjectForMock)}`}>Start Test</Link>
+                </Button>
+              </div>
+            )}
+            <div className="flex items-center justify-between mt-2 flex-wrap gap-2">
+              <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                <UserHoverCard userId={a.user_id}>
+                  <span className="flex items-center gap-2 cursor-pointer group">
+                    {isAiTutorAnswer(a) ? (
+                      <ProfPiAvatar size="sm" />
+                    ) : (
+                      <Avatar className="h-7 w-7 rounded-lg shrink-0">
+                        <AvatarImage src={a.profiles?.avatar_url ?? undefined} />
+                        <AvatarFallback className="rounded-lg text-xs">
+                          {(a.profiles?.name ?? "?").slice(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                    )}
+                    <span className="font-medium text-foreground group-hover:text-primary group-hover:underline">
+                      {answerAuthorDisplayName(a)}
+                    </span>
+                  </span>
+                </UserHoverCard>
+                {" · "}
+                {new Date(a.created_at).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" })}
+              </span>
+              <div className="flex items-center gap-1">
+                {user && user.id === a.user_id && !a.is_accepted && !doubt.is_resolved && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <span className="inline-flex items-center justify-center rounded-xl h-8 w-8 text-muted-foreground hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 cursor-pointer">
+                        <MoreVertical className="w-3.5 h-3.5" />
+                      </span>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem className="rounded-lg" onClick={() => handleEditAnswerOpen(a)}>
+                        <Pencil className="w-4 h-4 mr-2" /> Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="rounded-lg text-destructive focus:text-destructive"
+                        onClick={() => setDeleteAnswerId(a.id)}
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" /> Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+                {user && user.id !== a.user_id && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="rounded-xl h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                    onClick={() => handleReportOpen(a.id)}
+                    title="Report"
+                  >
+                    <Flag className="w-3.5 h-3.5" />
+                  </Button>
+                )}
+                {isAuthor && !doubt.is_resolved && !a.is_accepted && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="rounded-xl"
+                    disabled={!!acceptingId}
+                    onClick={() => handleAccept(a.id)}
+                  >
+                    {acceptingId === a.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null} Accept
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    );
+  };
 
   return (
     <ProtectedRoute>
@@ -471,14 +669,18 @@ export default function DoubtDetailPage() {
                     </DropdownMenu>
                   )}
                 </div>
-                {doubt.subject && (
-                  <span className="edu-chip bg-primary/10 text-primary text-xs mt-2 inline-block">{doubt.subject}</span>
-                )}
+                {subjectChip ? (
+                  <span className="edu-chip bg-primary/10 text-primary text-xs mt-2 inline-block">{subjectChip}</span>
+                ) : null}
                 {doubt.is_resolved && (
                   <span className="edu-chip bg-edu-green/10 text-edu-green text-xs ml-2">Resolved</span>
                 )}
-                <div className="mt-3 text-sm text-muted-foreground prose prose-sm dark:prose-invert max-w-none">
-                  {doubt.body ? <p className="whitespace-pre-wrap">{doubt.body}</p> : <p>No additional details.</p>}
+                <div id="doubt-body" className="mt-3 text-sm text-muted-foreground max-w-none scroll-mt-24">
+                  {doubt.body ? (
+                    <DoubtMarkdown content={stripHtml(doubt.body)} className="text-foreground/90" />
+                  ) : (
+                    <p>No additional details.</p>
+                  )}
                 </div>
                 <p className="text-xs text-muted-foreground mt-3">
                   Asked {new Date(doubt.created_at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}
@@ -560,130 +762,73 @@ export default function DoubtDetailPage() {
             <MessageSquare className="w-5 h-5" /> Answers ({answers.length})
           </h3>
 
-          <div className="space-y-4">
-            {answers.map((a) => {
-              const netAnswer = a.upvotes - a.downvotes;
-              const myVote = getMyVote("answer", a.id);
-              return (
-                <motion.div
-                  key={a.id}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className={`edu-card p-5 rounded-2xl ${a.is_accepted ? "border-edu-green/50 bg-edu-green/5" : ""}`}
+          <div id="doubt-answers" className="space-y-4 scroll-mt-24">
+            {hasAiThreadLayout ? (
+              <>
+                {aiAnswerList.map(renderAnswerCard)}
+                <div
+                  id="teacher-section"
+                  className="rounded-2xl border border-emerald-500/30 overflow-hidden scroll-mt-24 bg-emerald-500/[0.03]"
                 >
-                  <div className="flex gap-4">
-                    <div className="flex flex-col items-center shrink-0">
-                      <Button
-                        variant={myVote === 1 ? "default" : "outline"}
-                        size="icon"
-                        className="rounded-xl h-8 w-8"
-                        disabled={!!votingId}
-                        onClick={() => handleVote("answer", a.id, 1)}
-                      >
-                        {votingId === a.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ChevronUp className="w-3.5 h-3.5" />}
-                      </Button>
-                      <span className="font-bold text-sm my-0.5">{netAnswer}</span>
-                      <Button
-                        variant={myVote === -1 ? "default" : "outline"}
-                        size="icon"
-                        className="rounded-xl h-8 w-8"
-                        disabled={!!votingId}
-                        onClick={() => handleVote("answer", a.id, -1)}
-                      >
-                        <ChevronDown className="w-3.5 h-3.5" />
-                      </Button>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      {a.is_accepted && (
-                        <span className="inline-flex items-center gap-1 text-edu-green text-sm font-semibold mb-2">
-                          <Check className="w-4 h-4" /> Accepted answer
-                        </span>
-                      )}
-                      <div className="text-sm text-foreground">
-                        <p className="whitespace-pre-wrap">{a.body}</p>
-                      </div>
-                      {doubt.is_resolved && a.is_accepted && (
-                        <div className="mt-4 p-4 rounded-xl bg-primary/10 border border-primary/20">
-                          <p className="text-sm font-medium text-foreground mb-2 flex items-center gap-2">
-                            <ClipboardCheck className="w-4 h-4 text-primary" />
-                            Mastered this? Take a 15-minute mock test on {subjectForMock} to see where you stand.
-                          </p>
-                          <Button size="sm" className="rounded-xl" asChild>
-                            <Link href={`/mock?subject=${encodeURIComponent(subjectForMock)}`}>Start Test</Link>
-                          </Button>
-                        </div>
-                      )}
-                      <div className="flex items-center justify-between mt-2 flex-wrap gap-2">
-                        <span className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <UserHoverCard userId={a.user_id}>
-                            <span className="flex items-center gap-2 cursor-pointer group">
-                              <Avatar className="h-7 w-7 rounded-lg shrink-0">
-                                <AvatarImage src={a.profiles?.avatar_url ?? undefined} />
-                                <AvatarFallback className="rounded-lg text-xs">
-                                  {(a.profiles?.name ?? "?").slice(0, 2).toUpperCase()}
-                                </AvatarFallback>
-                              </Avatar>
-                              <span className="font-medium text-foreground group-hover:text-primary group-hover:underline">
-                                {a.profiles?.name ?? "Someone"}
-                              </span>
-                            </span>
-                          </UserHoverCard>
-                          {" · "}
-                          {new Date(a.created_at).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" })}
-                        </span>
-                        <div className="flex items-center gap-1">
-                          {user && user.id === a.user_id && !a.is_accepted && !doubt.is_resolved && (
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <span className="inline-flex items-center justify-center rounded-xl h-8 w-8 text-muted-foreground hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 cursor-pointer">
-                                  <MoreVertical className="w-3.5 h-3.5" />
-                                </span>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem className="rounded-lg" onClick={() => handleEditAnswerOpen(a)}>
-                                  <Pencil className="w-4 h-4 mr-2" /> Edit
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  className="rounded-lg text-destructive focus:text-destructive"
-                                  onClick={() => setDeleteAnswerId(a.id)}
-                                >
-                                  <Trash2 className="w-4 h-4 mr-2" /> Delete
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          )}
-                          {user && user.id !== a.user_id && (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="rounded-xl h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
-                              onClick={() => handleReportOpen(a.id)}
-                              title="Report"
-                            >
-                              <Flag className="w-3.5 h-3.5" />
-                            </Button>
-                          )}
-                          {isAuthor && !doubt.is_resolved && !a.is_accepted && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="rounded-xl"
-                              disabled={!!acceptingId}
-                              onClick={() => handleAccept(a.id)}
-                            >
-                              {acceptingId === a.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null} Accept
-                            </Button>
-                          )}
-                        </div>
-                      </div>
+                  <div className="flex items-center justify-between px-4 sm:px-5 py-2 bg-emerald-500/10 border-b border-emerald-500/20">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <GraduationCap className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wide">
+                        Teacher section
+                      </span>
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" aria-hidden />
                     </div>
                   </div>
-                </motion.div>
-              );
-            })}
+                  {teacherAnswerList.length === 0 ? (
+                    <div className="px-4 sm:px-5 py-4">
+                      <p className="text-sm text-muted-foreground">
+                        No teacher note yet. When a teacher adds guidance here, it appears above student comments and stays
+                        separate from the AI answer.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4 p-4 sm:p-5 pt-4">
+                      {teacherAnswerList.map(renderAnswerCard)}
+                    </div>
+                  )}
+                  {showTeacherReplyForm && (
+                    <div className="px-4 sm:px-5 pb-5 pt-0 border-t border-emerald-500/20 bg-emerald-500/5">
+                      <h4 className="font-display text-sm font-bold text-foreground mt-4 mb-2 flex items-center gap-2">
+                        <GraduationCap className="w-4 h-4 text-blue-500" /> Your teacher note
+                      </h4>
+                      <Label className="sr-only">Teacher note</Label>
+                      <textarea
+                        value={answerBody}
+                        onChange={(e) => setAnswerBody(e.target.value)}
+                        placeholder="Add exam tips, corrections, or context for students (posts in teacher section)."
+                        className="w-full min-h-[100px] rounded-xl border border-input bg-transparent px-3 py-2 text-sm resize-y"
+                        rows={4}
+                      />
+                      <Button
+                        className="rounded-xl mt-3"
+                        onClick={handlePostAnswer}
+                        disabled={submitLoading || !answerBody.trim()}
+                      >
+                        {submitLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : null} Post teacher note
+                      </Button>
+                    </div>
+                  )}
+                </div>
+                {studentAnswerList.length > 0 && (
+                  <div className="space-y-4">
+                    <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wide px-0.5">
+                      Student comments ({studentAnswerList.length})
+                    </h4>
+                    {studentAnswerList.map(renderAnswerCard)}
+                  </div>
+                )}
+              </>
+            ) : (
+              answers.map(renderAnswerCard)
+            )}
           </div>
 
-          {user && (
+          {showStudentReplyForm && (
             <div className="edu-card p-6 rounded-2xl mt-8">
               <h3 className="font-display font-bold mb-3">Your answer</h3>
               <Label className="sr-only">Write your answer</Label>
@@ -714,7 +859,7 @@ export default function DoubtDetailPage() {
                 {REPORT_REASONS.map((r) => (
                   <label key={r} className="flex items-center gap-2 cursor-pointer">
                     <input type="radio" name="reportReason" value={r} checked={reportReason === r} onChange={() => setReportReason(r)} className="rounded-full" />
-                    <span className="text-sm capitalize">{r.replace("_", " ")}</span>
+                    <span className="text-sm">{reportReasonLabel(r)}</span>
                   </label>
                 ))}
               </div>

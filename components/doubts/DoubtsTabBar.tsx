@@ -5,7 +5,7 @@ import type { TabFilter } from "./doubtTypes";
 const tabs: { value: TabFilter; label: string }[] = [
   { value: "all", label: "All" },
   { value: "student", label: "Student Qs" },
-  { value: "ai", label: "AI-generated" },
+  { value: "ai", label: "Prof-Pi & AI" },
   { value: "teacher", label: "Teacher tagged" },
   { value: "revision", label: "Revision picks" },
   { value: "bounties", label: "Bounties" },

@@ -7,6 +7,8 @@ import { targetExamToExamType } from '@/lib/targetExam';
 
 interface Profile {
   id: string;
+  /** Profile row creation time from Supabase (ISO). */
+  created_at?: string | null;
   name: string;
   role: 'student' | 'teacher';
   class_level: number | null;

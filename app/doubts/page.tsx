@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import AppLayout from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -16,9 +16,12 @@ import {
   type SortOption,
   type ActivityView,
   type TabFilter,
+  doubtHasAiTutorAnswer,
 } from "@/components/doubts/doubtTypes";
+import { canonicalDoubtSubject } from "@/lib/doubtSubject";
 
 import AskDoubtDialog from "@/components/doubts/AskDoubtDialog";
+import GyanBotAdminPanel from "@/components/doubts/GyanBotAdminPanel";
 import LiveQAHeader from "@/components/doubts/LiveQAHeader";
 import DoubtsTabBar from "@/components/doubts/DoubtsTabBar";
 import DoubtFeedCard from "@/components/doubts/DoubtFeedCard";
@@ -61,45 +64,56 @@ export default function DoubtsPage() {
   const [activityView, setActivityView] = useState<ActivityView>("feed");
   const [activeTab, setActiveTab] = useState<TabFilter>("all");
   const [userRdmToday, setUserRdmToday] = useState(0);
+  const [isAdmin, setIsAdmin] = useState(false);
+  /** Doubt ids we just posted; show Prof-Pi story strip until an AI answer exists or timeout */
+  const [profPiPendingByDoubtId, setProfPiPendingByDoubtId] = useState<Record<string, number>>({});
 
   // ─── Data fetching ───────────────────────────────────────────
 
-  const fetchDoubts = async () => {
-    setLoading(true);
+  const fetchDoubts = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) setLoading(true);
     try {
       const { data, error } = await supabase
         .from("doubts")
         .select("*, doubt_answers(id, body, upvotes, downvotes, is_accepted, created_at, user_id, profiles!doubt_answers_user_id_fkey(name, avatar_url, role)), profiles!doubts_user_id_fkey(name, avatar_url, role)")
         .order("created_at", { ascending: false });
       if (error) {
-        const isNetworkError = error.message?.includes("fetch") || error.message?.includes("Failed to fetch");
-        toast({
-          title: "Could not load Gyan++",
-          description: isNetworkError
-            ? "Network error. Check your connection and that the Supabase project is not paused."
-            : error.message,
-          variant: "destructive",
-        });
+        if (!opts?.silent) {
+          const isNetworkError = error.message?.includes("fetch") || error.message?.includes("Failed to fetch");
+          toast({
+            title: "Could not load Gyan++",
+            description: isNetworkError
+              ? "Network error. Check your connection and that the Supabase project is not paused."
+              : error.message,
+            variant: "destructive",
+          });
+        }
         setDoubts([]);
       } else {
         setDoubts((data as ExpandedDoubtRow[]) || []);
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Network or connection error.";
-      toast({
-        title: "Could not load Gyan++",
-        description: msg.includes("fetch") ? "Network error. Check your connection and that the Supabase project is not paused." : msg,
-        variant: "destructive",
-      });
+      if (!opts?.silent) {
+        toast({
+          title: "Could not load Gyan++",
+          description: msg.includes("fetch") ? "Network error. Check your connection and that the Supabase project is not paused." : msg,
+          variant: "destructive",
+        });
+      }
       setDoubts([]);
     } finally {
-      setLoading(false);
+      if (!opts?.silent) setLoading(false);
     }
-  };
+  }, [toast]);
 
   const fetchProfile = async () => {
     if (!user?.id) return;
-    const { data } = await supabase.from("profiles").select("id, name, avatar_url, rdm, lifetime_answer_rdm").eq("id", user.id).maybeSingle();
+    const { data } = await supabase
+      .from("profiles")
+      .select("id, name, avatar_url, rdm, lifetime_answer_rdm, role")
+      .eq("id", user.id)
+      .maybeSingle();
     setProfile((data as ProfileRow) || null);
   };
 
@@ -216,16 +230,80 @@ export default function DoubtsPage() {
 
   // ─── Effects ─────────────────────────────────────────────────
 
-  useEffect(() => { fetchDoubts(); }, []);
+  useEffect(() => {
+    void fetchDoubts();
+  }, [fetchDoubts]);
+
+  useEffect(() => {
+    setProfPiPendingByDoubtId((p) => {
+      const next = { ...p };
+      let changed = false;
+      for (const id of Object.keys(next)) {
+        const row = doubts.find((d) => d.id === id);
+        if (row && doubtHasAiTutorAnswer(row)) {
+          delete next[id];
+          changed = true;
+        } else if (Date.now() - next[id] > 120_000) {
+          delete next[id];
+          changed = true;
+        }
+      }
+      return changed ? next : p;
+    });
+  }, [doubts]);
+
+  const profPiPendingKey = Object.keys(profPiPendingByDoubtId).sort().join("|");
+
+  /** Background refresh so new answers (Prof-Pi, teachers, comments) appear without manual reload */
+  useEffect(() => {
+    const intervalMs = profPiPendingKey ? 2800 : 20_000;
+    const tick = () => {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+      void fetchDoubts({ silent: true });
+    };
+    const t = window.setInterval(tick, intervalMs);
+    return () => clearInterval(t);
+  }, [profPiPendingKey, fetchDoubts]);
+
+  useEffect(() => {
+    const onVis = () => {
+      if (typeof document !== "undefined" && document.visibilityState === "visible") {
+        void fetchDoubts({ silent: true });
+      }
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, [fetchDoubts]);
+
   useEffect(() => { fetchProfile(); fetchStrikeRate(); fetchSaved(); fetchAnsweredDoubtIds(); fetchMyVotes(); fetchUserRdmToday(); }, [user?.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!user?.id) {
+        setIsAdmin(false);
+        return;
+      }
+      const { data } = await supabase.from("user_roles").select("id").eq("user_id", user.id).eq("role", "admin").maybeSingle();
+      if (!cancelled) setIsAdmin(!!data);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
   useEffect(() => { fetchBountyBoard(); fetchTrending(); fetchTopContributors(); }, []);
 
   // ─── Computed data ───────────────────────────────────────────
 
   const subjectCounts = useMemo(() => {
     const counts: Record<string, number> = {};
-    DOUBT_FLAIRS.forEach((f) => { counts[f] = 0; });
-    doubts.forEach((d) => { if (d.subject && d.subject in counts) counts[d.subject]++; });
+    DOUBT_FLAIRS.forEach((f) => {
+      counts[f] = 0;
+    });
+    doubts.forEach((d) => {
+      const s = canonicalDoubtSubject(d.subject);
+      if (s) counts[s]++;
+    });
     return counts;
   }, [doubts]);
 
@@ -250,8 +328,13 @@ export default function DoubtsPage() {
       );
     }
 
-    // Subject filter
-    if (subjectFilters.length > 0) list = list.filter((d) => d.subject && subjectFilters.includes(d.subject));
+    // Subject filter (canonical strings so "physics" / "Maths" still match chips)
+    if (subjectFilters.length > 0) {
+      list = list.filter((d) => {
+        const s = canonicalDoubtSubject(d.subject);
+        return Boolean(s && subjectFilters.includes(s));
+      });
+    }
     if (unansweredOnly) list = list.filter((d) => !((d.doubt_answers?.length) ?? 0));
 
     // Sort
@@ -284,6 +367,11 @@ export default function DoubtsPage() {
   const teacherTaggedCount = useMemo(() => {
     return doubts.filter((d) => (d.doubt_answers ?? []).some((a) => a.profiles?.role === "teacher")).length;
   }, [doubts]);
+
+  const aiAuthoredDoubtCount = useMemo(
+    () => doubts.filter((d) => d.profiles?.role === "ai").length,
+    [doubts]
+  );
 
   // Compute top teachers from answers data
   const topTeachers = useMemo(() => {
@@ -372,13 +460,16 @@ export default function DoubtsPage() {
     }
   };
 
-  const handleDoubtPosted = () => {
-    fetchDoubts();
-    fetchProfile();
-    fetchBountyBoard();
-    fetchTrending();
-    fetchTopContributors();
-    fetchUserRdmToday();
+  const handleDoubtPosted = (doubtId?: string | null) => {
+    if (doubtId) {
+      setProfPiPendingByDoubtId((p) => ({ ...p, [doubtId]: Date.now() }));
+    }
+    void fetchDoubts();
+    void fetchProfile();
+    void fetchBountyBoard();
+    void fetchTrending();
+    void fetchTopContributors();
+    void fetchUserRdmToday();
   };
 
   // ─── Render ──────────────────────────────────────────────────
@@ -401,7 +492,7 @@ export default function DoubtsPage() {
               askedCount={askedCount}
               answeredCount={answeredCount}
               savedCount={savedCount}
-              aiGeneratedCount={0}
+              aiGeneratedCount={aiAuthoredDoubtCount}
               unansweredOnly={unansweredOnly}
               onToggleSubject={toggleSubject}
               onSelectAllSubjects={() => setSubjectFilters([...DOUBT_FLAIRS])}
@@ -417,6 +508,11 @@ export default function DoubtsPage() {
                 todayCount={todayCount}
                 onAskClick={() => setAskOpen(true)}
               />
+              {isAdmin ? (
+                <div className="mb-4">
+                  <GyanBotAdminPanel />
+                </div>
+              ) : null}
               <DoubtsTabBar activeTab={activeTab} onTabChange={setActiveTab} />
 
               {loading ? (
@@ -440,11 +536,15 @@ export default function DoubtsPage() {
                       index={i}
                       isSaved={savedDoubtIds.has(d.id)}
                       onToggleSave={toggleSave}
-                      onRefresh={fetchDoubts}
+                      onRefresh={() => void fetchDoubts()}
                       profileAvatarUrl={profile?.avatar_url}
                       profileName={profile?.name}
                       myVote={myVotes.get(d.id) ?? 0}
                       onVote={handleVoteFeed}
+                      currentUserId={user?.id ?? null}
+                      isAdmin={isAdmin}
+                      expectProfPiAnswer={Boolean(profPiPendingByDoubtId[d.id])}
+                      currentUserRole={profile?.role ?? null}
                     />
                   ))}
                 </div>
@@ -454,7 +554,7 @@ export default function DoubtsPage() {
             {/* Right sidebar */}
             <DoubtRightSidebar
               todayCount={todayCount}
-              aiGeneratedCount={doubts.filter((d) => d.profiles?.role === "ai").length}
+              aiGeneratedCount={aiAuthoredDoubtCount}
               teacherTaggedCount={teacherTaggedCount}
               userRdmToday={userRdmToday}
               bountyBoard={bountyBoard}
