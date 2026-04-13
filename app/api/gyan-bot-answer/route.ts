@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
       const ctx = await getSupabaseAndUser(req);
       if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-      const { data: gateRow } = await waitForDoubtRow(admin, doubtId, "user_id");
+      const { data: gateRow, error: gateSelectError } = await waitForDoubtRow(admin, doubtId, "user_id");
       const doubt = gateRow as { user_id: string } | null;
       if (!doubt) {
         let supabaseHost = "";
@@ -47,15 +47,13 @@ export async function POST(req: NextRequest) {
           doubtId,
           supabaseHost,
           hasServiceRoleKey: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
+          /** If set, PostgREST failed (key/table/network) — not the same as “row missing”. */
+          supabaseSelectError: gateSelectError?.message ?? null,
         });
-        return NextResponse.json(
-          {
-            error: "Doubt not found",
-            hint:
-              "Usually Vercel is pointed at a different Supabase project than localhost, or the client bundle is stale. Match NEXT_PUBLIC_SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY to one project and redeploy.",
-          },
-          { status: 404 },
-        );
+        const hint = gateSelectError?.message
+          ? "Supabase returned an error while loading the doubt (see Vercel function logs: supabaseSelectError). Fix keys/schema/network; not always a missing row."
+          : "If env vars match one project: check Preview vs Production env on Vercel, redeploy after changing NEXT_PUBLIC_*, confirm migrations ran on this DB (doubts table), and that the request doubtId matches the RPC id (Network → gyan-bot-answer payload).";
+        return NextResponse.json({ error: "Doubt not found", hint }, { status: 404 });
       }
 
       if (doubt.user_id === ctx.user.id) allowed = true;
