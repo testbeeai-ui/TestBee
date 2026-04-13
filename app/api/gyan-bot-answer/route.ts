@@ -36,7 +36,27 @@ export async function POST(req: NextRequest) {
 
       const { data: gateRow } = await waitForDoubtRow(admin, doubtId, "user_id");
       const doubt = gateRow as { user_id: string } | null;
-      if (!doubt) return NextResponse.json({ error: "Doubt not found" }, { status: 404 });
+      if (!doubt) {
+        let supabaseHost = "";
+        try {
+          supabaseHost = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL || "https://invalid").hostname;
+        } catch {
+          supabaseHost = "(invalid URL)";
+        }
+        console.error("[gyan-bot-answer] Doubt not found after retries", {
+          doubtId,
+          supabaseHost,
+          hasServiceRoleKey: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
+        });
+        return NextResponse.json(
+          {
+            error: "Doubt not found",
+            hint:
+              "Usually Vercel is pointed at a different Supabase project than localhost, or the client bundle is stale. Match NEXT_PUBLIC_SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY to one project and redeploy.",
+          },
+          { status: 404 },
+        );
+      }
 
       if (doubt.user_id === ctx.user.id) allowed = true;
       else if (await isAdminUser(ctx.supabase, ctx.user.id)) allowed = true;

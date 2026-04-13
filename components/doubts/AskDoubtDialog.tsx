@@ -155,10 +155,11 @@ export default function AskDoubtDialog({ open, onOpenChange, profile, onDoubtPos
           })
             .then(async (res) => {
               if (res.ok) return;
-              const err = (await res.json().catch(() => ({}))) as { error?: string };
+              const err = (await res.json().catch(() => ({}))) as { error?: string; hint?: string };
+              const extra = err.hint ? `\n\n${err.hint}` : "";
               toast({
                 title: "Prof-Pi could not answer yet",
-                description: err.error ?? `Server returned ${res.status}. Check Vercel logs and SARVAM_API_KEY.`,
+                description: `${err.error ?? `Server returned ${res.status}`}.${extra}`,
                 variant: "destructive",
               });
             })
