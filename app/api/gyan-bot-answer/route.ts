@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAndUser } from "@/lib/apiAuth";
 import { isAdminUser } from "@/lib/admin";
-import { createAdminClient } from "@/integrations/supabase/server";
+import { createAdminClient, normalizeServiceRoleKey } from "@/integrations/supabase/server";
 import { runProfPiAnswerForDoubt, waitForDoubtRow } from "@/lib/gyanBotAnswer";
 
 /** Prof-Pi runs RAG (Modal) + Sarvam + optional verifier — default Vercel timeout is too low. */
@@ -54,12 +54,16 @@ export async function POST(req: NextRequest) {
         console.error("[gyan-bot-answer] Doubt not found after retries", {
           doubtId,
           supabaseHost,
-          hasServiceRoleKey: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
+          hasNormalizedServiceRoleKey: Boolean(normalizeServiceRoleKey(process.env.SUPABASE_SERVICE_ROLE_KEY)),
           /** If set, PostgREST failed (key/table/network) — not the same as “row missing”. */
           supabaseSelectError: gateSelectError?.message ?? null,
         });
+        const errMsg = gateSelectError?.message ?? "";
+        const invalidKey = /invalid api key/i.test(errMsg);
         const hint = gateSelectError?.message
-          ? "Supabase returned an error while loading the doubt. Fix keys/schema/network if this persists."
+          ? invalidKey
+            ? "Invalid API key: the service_role JWT must be from the SAME Supabase project as NEXT_PUBLIC_SUPABASE_URL (copy both from Settings → API). On Vercel remove any wrapping quotes/spaces. Check Production (not only Preview) is selected for the variable."
+            : "Supabase returned an error while loading the doubt. Fix keys/schema/network if this persists."
           : "If env vars match one project: check Preview vs Production env on Vercel, redeploy after changing NEXT_PUBLIC_*, confirm migrations ran on this DB (doubts table), and that the request doubtId matches the RPC id (Network → gyan-bot-answer payload).";
         return NextResponse.json(
           {
