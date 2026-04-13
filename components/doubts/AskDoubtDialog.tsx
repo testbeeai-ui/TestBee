@@ -116,13 +116,19 @@ export default function AskDoubtDialog({ open, onOpenChange, profile, onDoubtPos
       p_cost_rdm: costRdm, p_bounty_rdm: bountyRdm,
     });
     setSubmitLoading(false);
-    const res = data as { ok: boolean; id?: string; error?: string };
+    const res = data as { ok: boolean; id?: unknown; error?: string };
     if (error) { toast({ title: "Could not post doubt", description: error.message, variant: "destructive" }); return; }
     if (res?.ok) {
       clearDraft();
       toast({ title: "Doubt posted!" });
       onOpenChange(false);
-      const doubtId = res.id;
+      const rawId = res.id;
+      const doubtId =
+        typeof rawId === "string"
+          ? rawId.trim()
+          : rawId != null && String(rawId) !== ""
+            ? String(rawId).trim()
+            : null;
       onDoubtPosted?.(doubtId ?? null);
       if (doubtId) {
         let accessToken = (await supabase.auth.getSession()).data.session?.access_token ?? null;
@@ -137,6 +143,7 @@ export default function AskDoubtDialog({ open, onOpenChange, profile, onDoubtPos
             variant: "destructive",
           });
         } else {
+          await new Promise((r) => setTimeout(r, 400));
           const apiUrl = `${window.location.origin}/api/gyan-bot-answer`;
           void fetch(apiUrl, {
             method: "POST",

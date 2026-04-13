@@ -74,7 +74,7 @@ function profPiDiag(ragChunksRetrieved: number | null): ProfPiDiag {
  * After `create_doubt_with_escrow` returns, the service-role client can briefly miss the new row
  * (connection pool / read routing). Retry with backoff before failing "Doubt not found".
  */
-const DOUBT_READ_RETRY_DELAYS_MS = [0, 200, 400, 600, 800, 1000] as const;
+const DOUBT_READ_RETRY_DELAYS_MS = [0, 250, 500, 750, 1000, 1500, 2000] as const;
 
 export async function waitForDoubtRow(
   admin: SupabaseClient<Database>,
