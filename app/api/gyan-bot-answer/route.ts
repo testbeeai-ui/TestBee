@@ -4,6 +4,9 @@ import { isAdminUser } from "@/lib/admin";
 import { createAdminClient } from "@/integrations/supabase/server";
 import { runProfPiAnswerForDoubt } from "@/lib/gyanBotAnswer";
 
+/** Prof-Pi runs RAG (Modal) + Sarvam + optional verifier — default Vercel timeout is too low. */
+export const maxDuration = 120;
+
 /**
  * Trigger ProfPi answer for a doubt (similarity → Sarvam+RAG rephrase, else Sarvam+RAG full answer).
  * Auth: Bearer CRON_SECRET, or doubt author, or admin.

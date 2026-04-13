@@ -134,7 +134,23 @@ export default function AskDoubtDialog({ open, onOpenChange, profile, onDoubtPos
               Authorization: `Bearer ${session.access_token}`,
             },
             body: JSON.stringify({ doubtId }),
-          }).catch(() => {});
+          })
+            .then(async (res) => {
+              if (res.ok) return;
+              const err = (await res.json().catch(() => ({}))) as { error?: string };
+              toast({
+                title: "Prof-Pi could not answer yet",
+                description: err.error ?? `Server returned ${res.status}. Check Vercel logs and SARVAM_API_KEY.`,
+                variant: "destructive",
+              });
+            })
+            .catch(() => {
+              toast({
+                title: "Prof-Pi request failed",
+                description: "Network error calling /api/gyan-bot-answer. Check connection and deployment.",
+                variant: "destructive",
+              });
+            });
         }
       }
     }
