@@ -155,11 +155,16 @@ export default function AskDoubtDialog({ open, onOpenChange, profile, onDoubtPos
           })
             .then(async (res) => {
               if (res.ok) return;
-              const err = (await res.json().catch(() => ({}))) as { error?: string; hint?: string };
+              const err = (await res.json().catch(() => ({}))) as {
+                error?: string;
+                hint?: string;
+                supabaseError?: string;
+              };
+              const supa = err.supabaseError ? `\n\n${err.supabaseError}` : "";
               const extra = err.hint ? `\n\n${err.hint}` : "";
               toast({
                 title: "Prof-Pi could not answer yet",
-                description: `${err.error ?? `Server returned ${res.status}`}.${extra}`,
+                description: `${err.error ?? `Server returned ${res.status}`}${supa}${extra}`,
                 variant: "destructive",
               });
             })

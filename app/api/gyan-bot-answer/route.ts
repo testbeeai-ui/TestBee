@@ -7,6 +7,8 @@ import { runProfPiAnswerForDoubt, waitForDoubtRow } from "@/lib/gyanBotAnswer";
 /** Prof-Pi runs RAG (Modal) + Sarvam + optional verifier — default Vercel timeout is too low. */
 export const maxDuration = 120;
 
+const DOUBT_ID_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /**
  * Trigger ProfPi answer for a doubt (similarity → Sarvam+RAG rephrase, else Sarvam+RAG full answer).
  * Auth: Bearer CRON_SECRET, or doubt author, or admin.
@@ -17,6 +19,12 @@ export async function POST(req: NextRequest) {
     const doubtId = typeof body.doubtId === "string" ? body.doubtId.trim() : "";
     if (!doubtId) {
       return NextResponse.json({ error: "doubtId required" }, { status: 400 });
+    }
+    if (!DOUBT_ID_UUID_RE.test(doubtId)) {
+      return NextResponse.json(
+        { error: "Invalid doubtId", hint: "Expected a UUID from create_doubt_with_escrow." },
+        { status: 400 },
+      );
     }
 
     const cronSecret = process.env.CRON_SECRET;
@@ -51,9 +59,16 @@ export async function POST(req: NextRequest) {
           supabaseSelectError: gateSelectError?.message ?? null,
         });
         const hint = gateSelectError?.message
-          ? "Supabase returned an error while loading the doubt (see Vercel function logs: supabaseSelectError). Fix keys/schema/network; not always a missing row."
+          ? "Supabase returned an error while loading the doubt. Fix keys/schema/network if this persists."
           : "If env vars match one project: check Preview vs Production env on Vercel, redeploy after changing NEXT_PUBLIC_*, confirm migrations ran on this DB (doubts table), and that the request doubtId matches the RPC id (Network → gyan-bot-answer payload).";
-        return NextResponse.json({ error: "Doubt not found", hint }, { status: 404 });
+        return NextResponse.json(
+          {
+            error: "Doubt not found",
+            hint,
+            ...(gateSelectError?.message ? { supabaseError: gateSelectError.message } : {}),
+          },
+          { status: 404 },
+        );
       }
 
       if (doubt.user_id === ctx.user.id) allowed = true;

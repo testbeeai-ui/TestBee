@@ -85,9 +85,20 @@ export async function waitForDoubtRow(
   for (let i = 0; i < DOUBT_READ_RETRY_DELAYS_MS.length; i++) {
     const ms = DOUBT_READ_RETRY_DELAYS_MS[i]!;
     if (ms > 0) await new Promise((r) => setTimeout(r, ms));
-    const { data, error } = await admin.from("doubts").select(selectColumns).eq("id", doubtId).maybeSingle();
-    if (data != null) return { data, error: null };
-    if (error) lastErr = { message: error.message };
+    // Use limit(1) + first row instead of maybeSingle(): PostgREST / client versions can surface
+    // PGRST116-style errors for 0 rows with object+json, which looks like a "Supabase error" in prod.
+    const { data, error } = await admin
+      .from("doubts")
+      .select(selectColumns)
+      .eq("id", doubtId)
+      .limit(1);
+    if (error) {
+      lastErr = { message: error.message };
+      continue;
+    }
+    lastErr = null;
+    const row = data?.[0];
+    if (row != null) return { data: row, error: null };
   }
   return { data: null, error: lastErr };
 }
