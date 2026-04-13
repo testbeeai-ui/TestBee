@@ -70,6 +70,28 @@ function profPiDiag(ragChunksRetrieved: number | null): ProfPiDiag {
   };
 }
 
+/**
+ * After `create_doubt_with_escrow` returns, the service-role client can briefly miss the new row
+ * (connection pool / read routing). Retry with backoff before failing "Doubt not found".
+ */
+const DOUBT_READ_RETRY_DELAYS_MS = [0, 200, 400, 600, 800, 1000] as const;
+
+export async function waitForDoubtRow(
+  admin: SupabaseClient<Database>,
+  doubtId: string,
+  selectColumns: string,
+): Promise<{ data: unknown | null; error: { message: string } | null }> {
+  let lastErr: { message: string } | null = null;
+  for (let i = 0; i < DOUBT_READ_RETRY_DELAYS_MS.length; i++) {
+    const ms = DOUBT_READ_RETRY_DELAYS_MS[i]!;
+    if (ms > 0) await new Promise((r) => setTimeout(r, ms));
+    const { data, error } = await admin.from("doubts").select(selectColumns).eq("id", doubtId).maybeSingle();
+    if (data != null) return { data, error: null };
+    if (error) lastErr = { message: error.message };
+  }
+  return { data: null, error: lastErr };
+}
+
 async function profPiAlreadyAnswered(
   admin: SupabaseClient<Database>,
   doubtId: string
@@ -241,11 +263,18 @@ export async function runProfPiAnswerForDoubt(
   doubtId: string,
   opts?: { gradeLevel?: number }
 ): Promise<ProfPiAnswerResult> {
-  const { data: doubt, error: dErr } = await admin
-    .from("doubts")
-    .select("id, title, body, subject, user_id")
-    .eq("id", doubtId)
-    .maybeSingle();
+  const { data: row, error: dErr } = await waitForDoubtRow(
+    admin,
+    doubtId,
+    "id, title, body, subject, user_id",
+  );
+  const doubt = row as {
+    id: string;
+    title: string;
+    body: string | null;
+    subject: string | null;
+    user_id: string;
+  } | null;
 
   if (dErr || !doubt) {
     return { ok: false, error: dErr?.message ?? "Doubt not found", diag: profPiDiag(null) };

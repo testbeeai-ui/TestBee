@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAndUser } from "@/lib/apiAuth";
 import { isAdminUser } from "@/lib/admin";
 import { createAdminClient } from "@/integrations/supabase/server";
-import { runProfPiAnswerForDoubt } from "@/lib/gyanBotAnswer";
+import { runProfPiAnswerForDoubt, waitForDoubtRow } from "@/lib/gyanBotAnswer";
 
 /** Prof-Pi runs RAG (Modal) + Sarvam + optional verifier — default Vercel timeout is too low. */
 export const maxDuration = 120;
@@ -34,7 +34,8 @@ export async function POST(req: NextRequest) {
       const ctx = await getSupabaseAndUser(req);
       if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-      const { data: doubt } = await admin.from("doubts").select("user_id").eq("id", doubtId).maybeSingle();
+      const { data: gateRow } = await waitForDoubtRow(admin, doubtId, "user_id");
+      const doubt = gateRow as { user_id: string } | null;
       if (!doubt) return NextResponse.json({ error: "Doubt not found" }, { status: 404 });
 
       if (doubt.user_id === ctx.user.id) allowed = true;
