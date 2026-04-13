@@ -1,5 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchRAGContext } from '@/lib/rag';
+import { SUBJECT_CHAT_LENGTH_CONTRACT } from '@/lib/gyanContentPolicy';
+import {
+    getSarvamGyanModel,
+    logSarvamChatMetrics,
+    parseSarvamUsageFromPayload,
+    resolveSarvamMaxTokens,
+} from '@/lib/sarvamGyanClient';
 
 const SUBJECT_BOUNDARIES: Record<string, { allowed: string; forbidden: string[] }> = {
     physics: {
@@ -173,6 +180,8 @@ ${langInstruction}
 If the student asks in a regional language, respond in that language.
 Do NOT use <think> tags or show internal reasoning. Give the answer directly.
 
+${SUBJECT_CHAT_LENGTH_CONTRACT}
+
 FORMATTING RULES:
 - Use markdown: **bold** for key terms, bullet points with -, numbered lists with 1. 2. 3.
 - For ALL math formulas use LaTeX math notation: $inline formula$ or $$display formula$$.
@@ -206,14 +215,14 @@ ${ragBlock}`;
             },
             signal: AbortSignal.timeout(30_000), // 30s timeout — prevent hung requests
             body: JSON.stringify({
-                model: 'sarvam-m',
+                model: getSarvamGyanModel(),
                 messages: [
                     { role: 'system', content: systemPrompt },
                     ...recentHistory,
                     { role: 'user', content: message },
                 ],
                 temperature: 0.7,
-                max_tokens: 4096,
+                max_tokens: resolveSarvamMaxTokens(4096),
             }),
         });
 
@@ -226,6 +235,14 @@ ${ragBlock}`;
         }
 
         const data = await response.json();
+        const historyChars = recentHistory.reduce((acc, m) => acc + String(m.content).length, 0);
+        logSarvamChatMetrics({
+            label: 'subject_chat',
+            model: getSarvamGyanModel(),
+            systemChars: systemPrompt.length,
+            userChars: historyChars + String(message).length,
+            usage: parseSarvamUsageFromPayload(data),
+        });
         let reply = data.choices?.[0]?.message?.content ?? 'Sorry, I could not generate a response. Please try again.';
 
         // Strip <think>…</think> reasoning blocks that Sarvam may emit

@@ -1001,6 +1001,7 @@ export type Database = {
           bounty_escrowed_at: string | null
           views: number
           created_at: string
+          gyan_curriculum_node_id: string | null
         }
         Insert: {
           id?: string
@@ -1016,6 +1017,7 @@ export type Database = {
           bounty_escrowed_at?: string | null
           views?: number
           created_at?: string
+          gyan_curriculum_node_id?: string | null
         }
         Update: {
           id?: string
@@ -1031,8 +1033,18 @@ export type Database = {
           bounty_escrowed_at?: string | null
           views?: number
           created_at?: string
+          gyan_curriculum_node_id?: string | null
         }
-        Relationships: [{ foreignKeyName: "doubts_user_id_fkey"; columns: ["user_id"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] }]
+        Relationships: [
+          { foreignKeyName: "doubts_user_id_fkey"; columns: ["user_id"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+          {
+            foreignKeyName: "doubts_gyan_curriculum_node_id_fkey";
+            columns: ["gyan_curriculum_node_id"];
+            isOneToOne: false;
+            referencedRelation: "gyan_curriculum_nodes";
+            referencedColumns: ["id"];
+          },
+        ]
       }
       doubt_votes: {
         Row: {
@@ -1060,6 +1072,84 @@ export type Database = {
           created_at?: string
         }
         Relationships: [{ foreignKeyName: "doubt_votes_user_id_fkey"; columns: ["user_id"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] }]
+      }
+      gyan_bot_config: {
+        Row: {
+          id: number
+          active: boolean
+          interval_minutes: number
+          current_student_index: number
+          last_post_at: string | null
+          updated_at: string
+          curriculum_sequence_index: number
+          curriculum_batch_slot: number
+        }
+        Insert: {
+          id?: number
+          active?: boolean
+          interval_minutes?: number
+          current_student_index?: number
+          last_post_at?: string | null
+          updated_at?: string
+          curriculum_sequence_index?: number
+          curriculum_batch_slot?: number
+        }
+        Update: {
+          id?: number
+          active?: boolean
+          interval_minutes?: number
+          current_student_index?: number
+          last_post_at?: string | null
+          updated_at?: string
+          curriculum_sequence_index?: number
+          curriculum_batch_slot?: number
+        }
+        Relationships: []
+      }
+      gyan_curriculum_nodes: {
+        Row: {
+          id: string
+          subject: string
+          class_level: number
+          sort_order: number
+          chapter_key: string
+          chapter_label: string
+          topic_key: string
+          topic_label: string
+          subtopic_key: string | null
+          subtopic_label: string | null
+          rag_query_hint: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          subject: string
+          class_level: number
+          sort_order: number
+          chapter_key: string
+          chapter_label: string
+          topic_key: string
+          topic_label: string
+          subtopic_key?: string | null
+          subtopic_label?: string | null
+          rag_query_hint: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          subject?: string
+          class_level?: number
+          sort_order?: number
+          chapter_key?: string
+          chapter_label?: string
+          topic_key?: string
+          topic_label?: string
+          subtopic_key?: string | null
+          subtopic_label?: string | null
+          rag_query_hint?: string
+          created_at?: string
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {
@@ -1293,6 +1383,10 @@ export type Database = {
       search_doubt_duplicates: {
         Args: { p_title: string }
         Returns: { id: string; title: string; similarity_score: number }[]
+      }
+      find_similar_answered_doubt: {
+        Args: { p_title: string; p_min_similarity?: number }
+        Returns: { source_doubt_id: string; answer_body: string; similarity_score: number }[]
       }
       increment_doubt_views: {
         Args: { p_doubt_id: string }

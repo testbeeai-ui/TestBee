@@ -32,6 +32,41 @@ const TAB_ITEMS: { key: ReferTab; label: string; icon: React.ComponentType<{ cla
   { key: "streak", label: "Streak bonus", icon: Droplets },
 ];
 
+/** Per-tab outline + tint so each reads as its own control (minimal, professional). */
+const TAB_STYLE: Record<
+  ReferTab,
+  { idle: string; active: string; iconIdle: string; iconActive: string }
+> = {
+  how: {
+    idle: "border-violet-500/40 bg-violet-500/[0.04] text-slate-600 hover:border-violet-400/55 hover:bg-violet-500/10 dark:border-violet-500/35 dark:bg-violet-500/10 dark:text-slate-300 dark:hover:bg-violet-500/15",
+    active:
+      "border-violet-400/70 bg-violet-500/15 text-violet-950 shadow-sm ring-1 ring-violet-500/20 dark:border-violet-400/55 dark:bg-violet-500/20 dark:text-violet-50 dark:ring-violet-400/25",
+    iconIdle: "text-violet-600/80 dark:text-violet-400/80",
+    iconActive: "text-violet-700 dark:text-violet-200",
+  },
+  tiers: {
+    idle: "border-amber-500/40 bg-amber-500/[0.04] text-slate-600 hover:border-amber-400/55 hover:bg-amber-500/10 dark:border-amber-500/35 dark:bg-amber-500/10 dark:text-slate-300 dark:hover:bg-amber-500/15",
+    active:
+      "border-amber-400/70 bg-amber-500/15 text-amber-950 shadow-sm ring-1 ring-amber-500/20 dark:border-amber-400/55 dark:bg-amber-500/20 dark:text-amber-50 dark:ring-amber-400/25",
+    iconIdle: "text-amber-600/80 dark:text-amber-400/80",
+    iconActive: "text-amber-800 dark:text-amber-200",
+  },
+  leaderboard: {
+    idle: "border-sky-500/40 bg-sky-500/[0.04] text-slate-600 hover:border-sky-400/55 hover:bg-sky-500/10 dark:border-sky-500/35 dark:bg-sky-500/10 dark:text-slate-300 dark:hover:bg-sky-500/15",
+    active:
+      "border-sky-400/70 bg-sky-500/15 text-sky-950 shadow-sm ring-1 ring-sky-500/20 dark:border-sky-400/55 dark:bg-sky-500/20 dark:text-sky-50 dark:ring-sky-400/25",
+    iconIdle: "text-sky-600/80 dark:text-sky-400/80",
+    iconActive: "text-sky-800 dark:text-sky-200",
+  },
+  streak: {
+    idle: "border-teal-500/40 bg-teal-500/[0.04] text-slate-600 hover:border-teal-400/55 hover:bg-teal-500/10 dark:border-teal-500/35 dark:bg-teal-500/10 dark:text-slate-300 dark:hover:bg-teal-500/15",
+    active:
+      "border-teal-400/70 bg-teal-500/15 text-teal-950 shadow-sm ring-1 ring-teal-500/20 dark:border-teal-400/55 dark:bg-teal-500/20 dark:text-teal-50 dark:ring-teal-400/25",
+    iconIdle: "text-teal-600/80 dark:text-teal-400/80",
+    iconActive: "text-teal-800 dark:text-teal-200",
+  },
+};
+
 const FAQ_ITEMS = [
   {
     q: "What uses RDM?",
@@ -160,21 +195,20 @@ export default function ReferEarnPage() {
           </section>
 
           <section className="rounded-2xl border border-border bg-card p-2 md:p-3 dark:border-slate-800 dark:bg-[#0b0e18]">
-            <div className="flex flex-wrap gap-1 md:gap-2">
+            <div className="flex flex-wrap gap-2 md:gap-2.5">
               {TAB_ITEMS.map(({ key, label, icon: Icon }) => {
                 const active = tab === key;
+                const s = TAB_STYLE[key];
                 return (
                   <button
                     key={key}
                     type="button"
                     onClick={() => setTab(key)}
-                    className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-bold transition ${
-                      active
-                        ? "border border-violet-500/40 bg-violet-500/15 text-violet-300"
-                        : "text-muted-foreground hover:bg-muted dark:text-slate-300 dark:hover:bg-slate-800/70"
+                    className={`inline-flex items-center gap-2 rounded-xl border px-3.5 py-2 text-sm font-semibold tracking-tight transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/35 focus-visible:ring-offset-2 focus-visible:ring-offset-background dark:focus-visible:ring-offset-[#0b0e18] ${
+                      active ? s.active : s.idle
                     }`}
                   >
-                    <Icon className="h-4 w-4" />
+                    <Icon className={`h-4 w-4 shrink-0 ${active ? s.iconActive : s.iconIdle}`} aria-hidden />
                     {label}
                   </button>
                 );

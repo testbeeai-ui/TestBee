@@ -20,7 +20,7 @@ const DEMO_IDS = {
 
 const PERSONAS = [
   { id: DEMO_IDS.gyanBot,  email: "gyan-bot@showcase.demo",   name: "Gyan++ Bot",  role: "ai",      rdm: 0,    lifetime_answer_rdm: 0 },
-  { id: DEMO_IDS.gyanAI,   email: "gyan-ai@showcase.demo",    name: "Gyan++ AI",   role: "ai",      rdm: 0,    lifetime_answer_rdm: 0 },
+  { id: DEMO_IDS.gyanAI,   email: "gyan-ai@showcase.demo",    name: "Prof-Pi",     role: "ai",      rdm: 0,    lifetime_answer_rdm: 0 },
   { id: DEMO_IDS.drSuresh, email: "dr-suresh@showcase.demo",  name: "Dr. Suresh",  role: "teacher", rdm: 1200, lifetime_answer_rdm: 1200 },
   { id: DEMO_IDS.profRao,  email: "prof-rao@showcase.demo",   name: "Prof. Rao",   role: "teacher", rdm: 980,  lifetime_answer_rdm: 980 },
   { id: DEMO_IDS.arjunK,   email: "arjun-k@showcase.demo",    name: "Arjun K",     role: "student", rdm: 340,  lifetime_answer_rdm: 120 },

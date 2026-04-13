@@ -12,6 +12,7 @@ export type ProfileRow = {
   avatar_url: string | null;
   rdm: number;
   lifetime_answer_rdm?: number;
+  role?: "student" | "teacher" | string | null;
 };
 
 export type ExpandedAnswer = {
@@ -24,6 +25,19 @@ export type ExpandedAnswer = {
   user_id: string;
   profiles?: { name: string | null; avatar_url: string | null; role?: string | null } | null;
 };
+
+/** Prof-Pi / legacy Gyan AI tutor rows (same logic as feed AI block) */
+export function isAiTutorAnswer(a: ExpandedAnswer): boolean {
+  const role = a.profiles?.role ?? "";
+  const name = (a.profiles?.name ?? "").toLowerCase();
+  return (
+    role === "ai" ||
+    name.includes("gyan++ ai") ||
+    name.includes("ai bot") ||
+    name.includes("prof-pi") ||
+    name.includes("profpi")
+  );
+}
 
 export type ExpandedDoubtRow = {
   id: string;
@@ -41,6 +55,10 @@ export type ExpandedDoubtRow = {
   doubt_answers?: ExpandedAnswer[];
   profiles?: { name: string | null; avatar_url: string | null; role?: string | null } | null;
 };
+
+export function doubtHasAiTutorAnswer(d: ExpandedDoubtRow): boolean {
+  return (d.doubt_answers ?? []).some(isAiTutorAnswer);
+}
 
 /** Subject colors for colored chips — keys are lowercase */
 export const SUBJECT_COLORS: Record<string, { bg: string; text: string; dot: string }> = {
@@ -70,11 +88,18 @@ export function formatTimeAgo(isoDate: string): string {
   return `${Math.floor(days / 7)}w ago`;
 }
 
-export function stripHtml(html: string): string {
-  if (typeof document === "undefined") return html.replace(/<[^>]*>/g, "").slice(0, 300);
-  const div = document.createElement("div");
-  div.innerHTML = html;
-  return (div.textContent || div.innerText || "").slice(0, 300);
+/** Strip tags from stored HTML. Optional `maxChars` for legacy list previews only. */
+export function stripHtml(html: string, maxChars?: number): string {
+  let plain: string;
+  if (typeof document === "undefined") {
+    plain = html.replace(/<[^>]*>/g, "");
+  } else {
+    const div = document.createElement("div");
+    div.innerHTML = html;
+    plain = div.textContent || div.innerText || "";
+  }
+  if (typeof maxChars === "number" && maxChars >= 0) return plain.slice(0, maxChars);
+  return plain;
 }
 
 export function rankFromLifetime(lifetime: number): string {

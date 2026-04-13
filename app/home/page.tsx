@@ -1,6 +1,7 @@
 "use client";
 
 import { type ComponentType, useMemo } from "react";
+import { buildActivityHeatmapModel } from "@/lib/activityHeatmap";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserStore } from "@/store/useUserStore";
@@ -232,7 +233,7 @@ function SubjectBreakdownCard({ stat }: { stat: SubjectStat }) {
 }
 
 export default function HomePage() {
-  const { profile } = useAuth();
+  const { profile, session } = useAuth();
   const user = useUserStore((s) => s.user);
   const allResults = useUserStore((s) => s.allResults);
   const router = useRouter();
@@ -264,13 +265,17 @@ export default function HomePage() {
     totalAnswered > 0 ? Math.round((totalCorrect / totalAnswered) * 100) : 0;
   const totalWrong = totalAnswered - totalCorrect;
   const totalSkipped = subjectStats.reduce((sum, s) => sum + s.skipped, 0);
-  const heatmapCells = useMemo(
-    () =>
-      Array.from({ length: 84 }, (_, i) => {
-        if (i > 84 - Math.min(totalAnswered, 20)) return (i + totalAnswered) % 4;
-        return 0;
-      }),
-    [totalAnswered]
+
+  const accountStartForHeatmap = useMemo(() => {
+    const raw = profile?.created_at ?? session?.user?.created_at;
+    if (!raw || typeof raw !== "string") return null;
+    const d = new Date(raw);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }, [profile?.created_at, session?.user?.created_at]);
+
+  const activityHeatmap = useMemo(
+    () => buildActivityHeatmapModel(allResults, accountStartForHeatmap, new Date()),
+    [allResults, accountStartForHeatmap]
   );
 
   if (profile?.role === "teacher") {
@@ -280,6 +285,23 @@ export default function HomePage() {
       </ProtectedRoute>
     );
   }
+
+  /** GitHub-style fixed squares — avoids 1fr row/column stretch into wide bars. */
+  const HEATMAP_CELL_PX = 14;
+  const HEATMAP_GAP_PX = 4;
+  const heatmapNumWeeks = activityHeatmap.numWeeks;
+  const heatmapColTemplate = `repeat(${heatmapNumWeeks}, ${HEATMAP_CELL_PX}px)`;
+  const heatmapGridW =
+    heatmapNumWeeks * HEATMAP_CELL_PX + Math.max(0, heatmapNumWeeks - 1) * HEATMAP_GAP_PX;
+  const heatmapGridH = 7 * HEATMAP_CELL_PX + 6 * HEATMAP_GAP_PX;
+  const heatmapMonthLabelPositions = useMemo(
+    () =>
+      activityHeatmap.monthTicks.map((tick) => ({
+        ...tick,
+        left: tick.weekIndex * (HEATMAP_CELL_PX + HEATMAP_GAP_PX),
+      })),
+    [activityHeatmap.monthTicks]
+  );
 
   const motivationalTips = [
     "Consistency beats intensity. Solve at least 5 questions daily!",
@@ -477,54 +499,126 @@ export default function HomePage() {
                 <CalendarDays className="h-4.5 w-4.5" />
               </span>
               <h2 className="text-2xl font-bold tracking-tight text-foreground">Activity heatmap</h2>
-              <p className="text-sm text-muted-foreground">Last 10 weeks</p>
             </div>
-            <div className="overflow-x-auto">
-              <div className="inline-grid grid-flow-col grid-rows-7 gap-1 rounded-xl border border-border/70 bg-background/70 p-3 dark:bg-slate-900/45">
-                {heatmapCells.map((intensity, idx) => (
-                  <div
-                    key={idx}
-                    className={`h-3.5 w-3.5 rounded-[4px] ${
-                      intensity === 0
-                        ? "bg-muted/80"
-                        : intensity === 1
-                          ? "bg-violet-300 dark:bg-violet-900"
-                          : intensity === 2
-                            ? "bg-violet-400 dark:bg-violet-700"
-                            : "bg-violet-500 dark:bg-violet-500"
-                    }`}
-                  />
-                ))}
-              </div>
-            </div>
-            <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-              <span>Less</span>
-              <span className="h-2.5 w-2.5 rounded-[3px] bg-muted/80" />
-              <span className="h-2.5 w-2.5 rounded-[3px] bg-violet-300 dark:bg-violet-900" />
-              <span className="h-2.5 w-2.5 rounded-[3px] bg-violet-400 dark:bg-violet-700" />
-              <span className="h-2.5 w-2.5 rounded-[3px] bg-violet-500 dark:bg-violet-500" />
-              <span>More</span>
-            </div>
-          </section>
 
-          <section className="grid gap-4 md:grid-cols-4">
-            <div className="rounded-2xl border border-border bg-card/90 px-4 py-3 dark:bg-slate-950/60">
-              <p className="text-xs text-muted-foreground">Overall Correct</p>
-              <p className="text-2xl font-bold text-emerald-500">{totalCorrect}</p>
-            </div>
-            <div className="rounded-2xl border border-border bg-card/90 px-4 py-3 dark:bg-slate-950/60">
-              <p className="text-xs text-muted-foreground">Overall Wrong</p>
-              <p className="text-2xl font-bold text-rose-500">{totalWrong}</p>
-            </div>
-            <div className="rounded-2xl border border-border bg-card/90 px-4 py-3 dark:bg-slate-950/60">
-              <p className="text-xs text-muted-foreground">Overall Skipped</p>
-              <p className="text-2xl font-bold text-muted-foreground">{totalSkipped}</p>
-            </div>
-            <div className="rounded-2xl border border-border bg-card/90 px-4 py-3 dark:bg-slate-950/60">
-              <p className="text-xs text-muted-foreground">Daily Momentum</p>
-              <p className="text-2xl font-bold text-amber-500">
-                {Math.max(1, Math.min(7, Math.floor(totalAnswered / 5) || 1))}x
-              </p>
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-stretch lg:gap-5">
+              <div className="min-w-0 flex-1 space-y-2">
+                <div className="text-xs text-muted-foreground sm:text-sm">
+                  <p className="font-medium text-foreground/90">
+                    {activityHeatmap.contributionsInRange} contribution
+                    {activityHeatmap.contributionsInRange === 1 ? "" : "s"} in Jan–Jun
+                  </p>
+                  <p className="break-words" title={activityHeatmap.rangeLabel}>
+                    {activityHeatmap.rangeLabel}
+                  </p>
+                </div>
+
+                <div className="max-w-full overflow-x-auto">
+                  <div className="inline-block rounded-xl border border-border/70 bg-background/70 p-3 pb-2 align-middle dark:bg-slate-900/45">
+                    <div className="relative mb-1.5 h-4" style={{ width: heatmapGridW }}>
+                      {heatmapMonthLabelPositions.map((tick) => (
+                        <span
+                          key={`${tick.weekIndex}-${tick.label}`}
+                          className="absolute top-0 text-left text-[10px] font-medium leading-none text-muted-foreground sm:text-[11px]"
+                          style={{ left: tick.left }}
+                        >
+                          {tick.label}
+                        </span>
+                      ))}
+                    </div>
+
+                    <div className="flex gap-2">
+                      <div
+                        className="grid w-7 shrink-0 text-[9px] font-medium leading-none text-muted-foreground select-none sm:w-8 sm:text-[10px]"
+                        style={{
+                          gridTemplateRows: `repeat(7, ${HEATMAP_CELL_PX}px)`,
+                          rowGap: HEATMAP_GAP_PX,
+                          height: heatmapGridH,
+                          alignContent: "start",
+                        }}
+                      >
+                        {(["Sun", "", "Tue", "", "Thu", "", "Sat"] as const).map((label, i) => (
+                          <div key={i} className="flex items-center justify-end pr-0.5">
+                            {label}
+                          </div>
+                        ))}
+                      </div>
+
+                      <div
+                        className="grid shrink-0 grid-flow-col"
+                        style={{
+                          gridTemplateColumns: heatmapColTemplate,
+                          gridTemplateRows: `repeat(7, ${HEATMAP_CELL_PX}px)`,
+                          gap: HEATMAP_GAP_PX,
+                          width: heatmapGridW,
+                          height: heatmapGridH,
+                        }}
+                      >
+                        {activityHeatmap.cells.map((cell, idx) => {
+                          const intensity = cell.intensity;
+                          const title = cell.isFuture
+                            ? `${cell.day.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })} · Upcoming`
+                            : `${cell.day.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })} · ${cell.count} question${cell.count === 1 ? "" : "s"}`;
+                          const base =
+                            "min-h-0 min-w-0 rounded-[2px] outline outline-1 -outline-offset-1 transition-colors";
+                          const tone =
+                            cell.isFuture
+                              ? "bg-muted/30 opacity-45 outline-transparent"
+                              : intensity === 0
+                                ? "bg-muted/80 outline-border/40 dark:bg-slate-800/90 dark:outline-white/10"
+                                : intensity === 1
+                                  ? "bg-violet-300/95 outline-violet-500/25 dark:bg-violet-950 dark:outline-violet-500/20"
+                                  : intensity === 2
+                                    ? "bg-violet-400/95 outline-violet-500/30 dark:bg-violet-800 dark:outline-violet-400/25"
+                                    : intensity === 3
+                                      ? "bg-violet-500/95 outline-violet-400/35 dark:bg-violet-600 dark:outline-violet-300/30"
+                                      : "bg-violet-600 text-white outline-violet-300/40 dark:bg-violet-400 dark:outline-violet-200/35";
+                          return (
+                            <div
+                              key={idx}
+                              className={`${base} ${tone} h-full w-full`}
+                              title={title}
+                              role="img"
+                              aria-label={title}
+                            />
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                  <span>Less</span>
+                  <span className="h-3 w-3 rounded-sm bg-muted/80 outline outline-1 -outline-offset-1 outline-border/40 sm:h-3.5 sm:w-3.5 dark:bg-slate-800/90" />
+                  <span className="h-3 w-3 rounded-sm bg-violet-300/95 outline outline-1 -outline-offset-1 outline-violet-500/25 sm:h-3.5 sm:w-3.5 dark:bg-violet-950" />
+                  <span className="h-3 w-3 rounded-sm bg-violet-400/95 outline outline-1 -outline-offset-1 outline-violet-500/30 sm:h-3.5 sm:w-3.5 dark:bg-violet-800" />
+                  <span className="h-3 w-3 rounded-sm bg-violet-500/95 outline outline-1 -outline-offset-1 outline-violet-400/35 sm:h-3.5 sm:w-3.5 dark:bg-violet-600" />
+                  <span className="h-3 w-3 rounded-sm bg-violet-600 outline outline-1 -outline-offset-1 outline-violet-300/40 sm:h-3.5 sm:w-3.5 dark:bg-violet-400" />
+                  <span>More</span>
+                </div>
+              </div>
+
+              <div className="grid shrink-0 grid-cols-2 gap-2 sm:gap-3 lg:w-[min(100%,280px)] lg:min-w-[220px]">
+                <div className="rounded-xl border border-border bg-background/80 px-3 py-2.5 dark:bg-slate-900/55">
+                  <p className="text-[11px] text-muted-foreground">Overall Correct</p>
+                  <p className="text-xl font-bold tabular-nums text-emerald-500 sm:text-2xl">{totalCorrect}</p>
+                </div>
+                <div className="rounded-xl border border-border bg-background/80 px-3 py-2.5 dark:bg-slate-900/55">
+                  <p className="text-[11px] text-muted-foreground">Overall Wrong</p>
+                  <p className="text-xl font-bold tabular-nums text-rose-500 sm:text-2xl">{totalWrong}</p>
+                </div>
+                <div className="rounded-xl border border-border bg-background/80 px-3 py-2.5 dark:bg-slate-900/55">
+                  <p className="text-[11px] text-muted-foreground">Overall Skipped</p>
+                  <p className="text-xl font-bold tabular-nums text-muted-foreground sm:text-2xl">{totalSkipped}</p>
+                </div>
+                <div className="rounded-xl border border-border bg-background/80 px-3 py-2.5 dark:bg-slate-900/55">
+                  <p className="text-[11px] text-muted-foreground">Daily Momentum</p>
+                  <p className="text-xl font-bold tabular-nums text-amber-500 sm:text-2xl">
+                    {Math.max(1, Math.min(7, Math.floor(totalAnswered / 5) || 1))}x
+                  </p>
+                </div>
+              </div>
             </div>
           </section>
         </div>

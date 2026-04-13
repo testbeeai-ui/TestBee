@@ -12,7 +12,9 @@
     "lint": "eslint",
     "generate:curriculum-seed": "tsx scripts/generate-curriculum-seed.ts",
     "audit:curriculum-cbse": "tsx scripts/audit-cbse-curriculum.ts",
-    "verify:class11-physics": "tsx scripts/verify-class11-physics-curriculum.ts"
+    "verify:class11-physics": "tsx scripts/verify-class11-physics-curriculum.ts",
+    "test": "vitest run",
+    "audit:rag-strings": "tsx scripts/rag-string-audit.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.2.0",
@@ -88,6 +90,7 @@
     "supabase": "^2.83.0",
     "tailwindcss": "^4",
     "tsx": "^4.21.0",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3.0.5"
   }
 }

@@ -22,7 +22,8 @@ interface AskDoubtDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   profile: ProfileRow | null;
-  onDoubtPosted: () => void;
+  /** Called after a successful post; `doubtId` is set when the RPC returns an id (for Prof-Pi pending UI). */
+  onDoubtPosted?: (doubtId?: string | null) => void;
 }
 
 const DRAFT_KEY = "doubts-ask-draft";
@@ -117,7 +118,26 @@ export default function AskDoubtDialog({ open, onOpenChange, profile, onDoubtPos
     setSubmitLoading(false);
     const res = data as { ok: boolean; id?: string; error?: string };
     if (error) { toast({ title: "Could not post doubt", description: error.message, variant: "destructive" }); return; }
-    if (res?.ok) { clearDraft(); toast({ title: "Doubt posted!" }); onOpenChange(false); onDoubtPosted(); }
+    if (res?.ok) {
+      clearDraft();
+      toast({ title: "Doubt posted!" });
+      onOpenChange(false);
+      const doubtId = res.id;
+      onDoubtPosted?.(doubtId ?? null);
+      if (doubtId) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.access_token) {
+          void fetch("/api/gyan-bot-answer", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({ doubtId }),
+          }).catch(() => {});
+        }
+      }
+    }
     else { toast({ title: res?.error ?? "Failed to post", variant: "destructive" }); }
   };
 

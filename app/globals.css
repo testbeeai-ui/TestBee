@@ -129,6 +129,39 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
+/* Radix toasts — layered border + glow; --toast-accent set in Toaster (!important beats Tailwind shadows) */
+.toast-surface-accent {
+  border-color: color-mix(in oklab, var(--toast-accent) 48%, var(--border)) !important;
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--toast-accent) 28%, transparent),
+    0 10px 32px -8px color-mix(in oklab, var(--toast-accent) 14%, transparent),
+    0 2px 10px -2px rgba(0, 0, 0, 0.06) !important;
+}
+.dark .toast-surface-accent {
+  border-color: color-mix(in oklab, var(--toast-accent) 58%, transparent) !important;
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--toast-accent) 42%, transparent),
+    0 1px 0 0 rgba(255, 255, 255, 0.055) inset,
+    0 26px 56px -14px rgba(0, 0, 0, 0.78),
+    0 0 52px -12px color-mix(in oklab, var(--toast-accent) 34%, transparent),
+    0 14px 36px -10px color-mix(in oklab, var(--toast-accent) 20%, transparent) !important;
+}
+.toast-surface-destructive {
+  border-color: color-mix(in oklab, var(--destructive) 42%, var(--border)) !important;
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--destructive) 22%, transparent),
+    0 8px 26px -6px color-mix(in oklab, var(--destructive) 12%, transparent),
+    0 2px 8px -2px rgba(0, 0, 0, 0.06) !important;
+}
+.dark .toast-surface-destructive {
+  border-color: color-mix(in oklab, var(--destructive) 52%, transparent) !important;
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--destructive) 36%, transparent),
+    0 1px 0 0 rgba(255, 255, 255, 0.05) inset,
+    0 20px 48px -12px rgba(0, 0, 0, 0.72),
+    0 0 40px -10px color-mix(in oklab, var(--destructive) 28%, transparent) !important;
+}
+
 /* ── Landing page font scope (Geist only on marketing page) ──── */
 .landing-page { font-family: var(--font-geist-sans), system-ui, sans-serif; }
 
@@ -153,6 +186,29 @@
     text-align: center;
 }
 .chat-markdown .katex-display > .katex { font-size: 1.25em; }
+
+/* Doubt feed + thread: Markdown + KaTeX (light + dark) */
+.doubt-markdown { font-size: 0.9375rem; line-height: 1.65; overflow-x: auto; }
+.doubt-markdown p { margin: 0 0 0.5rem 0; }
+.doubt-markdown p:last-child { margin-bottom: 0; }
+.doubt-markdown strong { font-weight: 700; color: var(--foreground); }
+.doubt-markdown ul { list-style: disc; padding-left: 1.35rem; margin: 0.35rem 0; }
+.doubt-markdown ol { list-style: decimal; padding-left: 1.35rem; margin: 0.35rem 0; }
+.doubt-markdown li { margin: 0.2rem 0; }
+.doubt-markdown code { font-size: 0.85em; padding: 0.1em 0.35em; border-radius: 0.35rem; background: var(--muted); }
+.doubt-markdown pre { margin: 0.5rem 0; padding: 0.75rem; border-radius: 0.75rem; background: var(--muted); overflow-x: auto; font-size: 0.85em; }
+.doubt-markdown pre code { padding: 0; background: transparent; }
+.doubt-markdown .katex { font-size: 1.05em; }
+.doubt-markdown .katex-display {
+  background: color-mix(in oklch, var(--muted) 88%, transparent);
+  border: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
+  border-radius: 0.65rem;
+  padding: 0.65rem 1rem;
+  margin: 0.5rem 0;
+  overflow-x: auto;
+  text-align: center;
+}
+.doubt-markdown .katex-display > .katex { font-size: 1.12em; }
 
 /* Heavier KaTeX in headings (formulas ignore parent font-weight without this) */
 .math-text-katex-heavy .katex,

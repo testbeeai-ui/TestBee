@@ -60,7 +60,7 @@ export default function DoubtRightSidebar({
               <p className="text-lg font-extrabold text-foreground tabular-nums">{todayCount}</p>
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">AI-generated</p>
+              <p className="text-xs text-muted-foreground">Prof-Pi / AI posts</p>
               <p className="text-lg font-extrabold text-muted-foreground tabular-nums">{aiGeneratedCount}</p>
             </div>
             <div>
