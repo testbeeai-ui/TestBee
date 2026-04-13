@@ -3,10 +3,6 @@
     {
       "path": "/api/cron/refund-doubt-bounties",
       "schedule": "0 0 * * *"
-    },
-    {
-      "path": "/api/cron/gyan-bot-post",
-      "schedule": "*/10 * * * *"
     }
   ]
 }
