@@ -159,12 +159,16 @@ export default function AskDoubtDialog({ open, onOpenChange, profile, onDoubtPos
                 error?: string;
                 hint?: string;
                 supabaseError?: string;
+                envDiagSummary?: string;
               };
-              const supa = err.supabaseError ? `\n\n${err.supabaseError}` : "";
+              const hintHasKeyMsg = err.hint?.toLowerCase().includes("invalid api key");
+              const supa =
+                err.supabaseError && !hintHasKeyMsg ? `\n\n${err.supabaseError}` : "";
               const extra = err.hint ? `\n\n${err.hint}` : "";
+              const diag = err.envDiagSummary ? `\n\n${err.envDiagSummary}` : "";
               toast({
                 title: "Prof-Pi could not answer yet",
-                description: `${err.error ?? `Server returned ${res.status}`}${supa}${extra}`,
+                description: `${err.error ?? `Server returned ${res.status}`}${supa}${extra}${diag}`,
                 variant: "destructive",
               });
             })

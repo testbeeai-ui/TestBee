@@ -46,6 +46,40 @@ function jwtPayloadRef(serviceRoleJwt: string): string | null {
 
 let loggedServiceRoleRefMismatch = false;
 
+/** Safe to return in API JSON: no secrets, helps debug “Invalid API key” on Vercel. */
+export type SupabaseAdminEnvDiagnostics = {
+  urlHost: string | null;
+  /** Subdomain of `*.supabase.co`; null if custom domain or bad URL. */
+  urlProjectRef: string | null;
+  /** `ref` claim inside service_role JWT; null if missing/malformed. */
+  jwtProjectRef: string | null;
+  jwtWellFormed: boolean;
+  /** Same project when both refs parsed from standard host + JWT. */
+  refsMatch: boolean | null;
+  note?: string;
+};
+
+export function getSupabaseAdminEnvDiagnostics(): SupabaseAdminEnvDiagnostics {
+  const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ?? "";
+  let urlHost: string | null = null;
+  try {
+    urlHost = rawUrl ? new URL(rawUrl).hostname : null;
+  } catch {
+    urlHost = null;
+  }
+  const urlProjectRef = rawUrl ? supabaseProjectRefFromUrl(rawUrl) : null;
+  const key = normalizeServiceRoleKey(process.env.SUPABASE_SERVICE_ROLE_KEY);
+  const jwtWellFormed = Boolean(key && key.split(".").length === 3);
+  const jwtProjectRef = key && jwtWellFormed ? jwtPayloadRef(key) : null;
+  let refsMatch: boolean | null = null;
+  if (urlProjectRef && jwtProjectRef) refsMatch = urlProjectRef === jwtProjectRef;
+  const note =
+    urlHost && !urlProjectRef
+      ? "URL host is not *.supabase.co — compare Project URL and service_role in the same Supabase Settings → API page; custom domains are not auto-checked."
+      : undefined;
+  return { urlHost, urlProjectRef, jwtProjectRef, jwtWellFormed, refsMatch, note };
+}
+
 export async function createClient() {
   const cookieStore = await cookies();
 
