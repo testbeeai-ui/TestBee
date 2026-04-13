@@ -125,13 +125,24 @@ export default function AskDoubtDialog({ open, onOpenChange, profile, onDoubtPos
       const doubtId = res.id;
       onDoubtPosted?.(doubtId ?? null);
       if (doubtId) {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.access_token) {
-          void fetch("/api/gyan-bot-answer", {
+        let accessToken = (await supabase.auth.getSession()).data.session?.access_token ?? null;
+        if (!accessToken) {
+          await supabase.auth.refreshSession();
+          accessToken = (await supabase.auth.getSession()).data.session?.access_token ?? null;
+        }
+        if (!accessToken) {
+          toast({
+            title: "Prof-Pi was not triggered",
+            description: "No session token after posting. Refresh the page and try again, or check you are signed in.",
+            variant: "destructive",
+          });
+        } else {
+          const apiUrl = `${window.location.origin}/api/gyan-bot-answer`;
+          void fetch(apiUrl, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              Authorization: `Bearer ${session.access_token}`,
+              Authorization: `Bearer ${accessToken}`,
             },
             body: JSON.stringify({ doubtId }),
           })

@@ -52,10 +52,23 @@ export function flairToRagSubject(flair: string | null): "physics" | "chemistry"
   return "physics";
 }
 
+/** Safe to expose to client: confirms RAG sidecar env + whether passages were returned (Modal /retrieve). */
+export type ProfPiDiag = {
+  ragSidecarConfigured: boolean;
+  ragChunksRetrieved: number | null;
+};
+
 export type ProfPiAnswerResult =
-  | { ok: true; skipped: true; reason: string }
-  | { ok: true; skipped: false; answerId: string; source: "rephrase" | "rag_sarvam" }
-  | { ok: false; error: string };
+  | { ok: true; skipped: true; reason: string; diag: ProfPiDiag }
+  | { ok: true; skipped: false; answerId: string; source: "rephrase" | "rag_sarvam"; diag: ProfPiDiag }
+  | { ok: false; error: string; diag: ProfPiDiag };
+
+function profPiDiag(ragChunksRetrieved: number | null): ProfPiDiag {
+  return {
+    ragSidecarConfigured: Boolean(process.env.RAG_SIDECAR_URL?.trim()),
+    ragChunksRetrieved,
+  };
+}
 
 async function profPiAlreadyAnswered(
   admin: SupabaseClient<Database>,
@@ -100,11 +113,12 @@ async function rephraseSimilarAnswerWithSarvamRag(params: {
   body: string;
   subjectFlair: string | null;
   gradeLevel: number;
-}): Promise<string | null> {
+}): Promise<{ text: string | null; ragChunksRetrieved: number | null }> {
   const ragKey = flairToRagSubject(params.subjectFlair) as ProfPiRagKey;
   const boundary = SUBJECT_BOUNDARIES[ragKey] ?? SUBJECT_BOUNDARIES.physics;
   const queryForRag = `${params.title}\n\n${params.body || ""}`.trim().slice(0, PROF_PI_RAG_QUERY_MAX);
   const ragContext = await fetchRAGContext(queryForRag, ragKey, params.gradeLevel, undefined, undefined, RAG_MATCH_COUNT_PROF_PI);
+  const ragChunksRetrieved = ragContext?.chunkCount ?? null;
   const ragBlock = buildRagBlockForProfPi(ragContext, params.gradeLevel, ragKey);
 
   const systemPrompt = `${PROF_PI_CONFIG.personality}
@@ -152,10 +166,10 @@ Produce the final adapted answer as markdown only.`;
   });
   if (!r.ok) {
     console.error("[gyanBotAnswer] Sarvam rephrase", r.error);
-    return null;
+    return { text: null, ragChunksRetrieved };
   }
   const out = formatSarvamAssistantReply(r.text);
-  return out.length > 40 ? out : null;
+  return { text: out.length > 40 ? out : null, ragChunksRetrieved };
 }
 
 async function answerWithSarvamRag(params: {
@@ -164,11 +178,12 @@ async function answerWithSarvamRag(params: {
   subjectFlair: string | null;
   gradeLevel: number;
   temperature?: number;
-}): Promise<string | null> {
+}): Promise<{ text: string | null; ragChunksRetrieved: number | null }> {
   const ragKey = flairToRagSubject(params.subjectFlair) as ProfPiRagKey;
   const boundary = SUBJECT_BOUNDARIES[ragKey] ?? SUBJECT_BOUNDARIES.physics;
   const query = `${params.title}\n\n${params.body || ""}`.trim().slice(0, PROF_PI_RAG_QUERY_MAX);
   const ragContext = await fetchRAGContext(query, ragKey, params.gradeLevel, undefined, undefined, RAG_MATCH_COUNT_PROF_PI);
+  const ragChunksRetrieved = ragContext?.chunkCount ?? null;
   const ragBlock = buildRagBlockForProfPi(ragContext, params.gradeLevel, ragKey);
 
   const systemPrompt = `${PROF_PI_CONFIG.personality}
@@ -213,9 +228,9 @@ Respond in clear English (or match the student's language if they wrote primaril
 
   if (!r.ok) {
     console.error("[gyanBotAnswer] Sarvam RAG answer", r.error);
-    return null;
+    return { text: null, ragChunksRetrieved };
   }
-  return formatSarvamAssistantReply(r.text);
+  return { text: formatSarvamAssistantReply(r.text), ragChunksRetrieved };
 }
 
 /**
@@ -233,11 +248,11 @@ export async function runProfPiAnswerForDoubt(
     .maybeSingle();
 
   if (dErr || !doubt) {
-    return { ok: false, error: dErr?.message ?? "Doubt not found" };
+    return { ok: false, error: dErr?.message ?? "Doubt not found", diag: profPiDiag(null) };
   }
 
   if (await profPiAlreadyAnswered(admin, doubtId)) {
-    return { ok: true, skipped: true, reason: "Prof-Pi already answered" };
+    return { ok: true, skipped: true, reason: "Prof-Pi already answered", diag: profPiDiag(null) };
   }
 
   const { data: simRows, error: simErr } = await admin.rpc("find_similar_answered_doubt", {
@@ -252,6 +267,7 @@ export async function runProfPiAnswerForDoubt(
   const sim = simRows?.[0];
   let bodyOut: string | null = null;
   let source: "rephrase" | "rag_sarvam" = "rag_sarvam";
+  let lastRagChunks: number | null = null;
   const grade = opts?.gradeLevel ?? 11;
   const ragKey = flairToRagSubject(doubt.subject) as ProfPiRagKey;
 
@@ -263,34 +279,43 @@ export async function runProfPiAnswerForDoubt(
       subjectFlair: doubt.subject,
       gradeLevel: grade,
     });
-    if (reph) {
-      bodyOut = reph;
+    lastRagChunks = reph.ragChunksRetrieved;
+    if (reph.text) {
+      bodyOut = reph.text;
       source = "rephrase";
     }
   }
 
   if (!bodyOut) {
-    bodyOut = await answerWithSarvamRag({
+    const ans = await answerWithSarvamRag({
       title: doubt.title,
       body: doubt.body ?? "",
       subjectFlair: doubt.subject,
       gradeLevel: grade,
     });
+    lastRagChunks = ans.ragChunksRetrieved;
+    bodyOut = ans.text;
   }
 
   if (!bodyOut?.trim()) {
     const retryTemp = getProfPiRetryTemperatureForRagKey(ragKey);
-    bodyOut = await answerWithSarvamRag({
+    const retry = await answerWithSarvamRag({
       title: doubt.title,
       body: doubt.body ?? "",
       subjectFlair: doubt.subject,
       gradeLevel: grade,
       temperature: retryTemp,
     });
+    lastRagChunks = retry.ragChunksRetrieved;
+    bodyOut = retry.text;
   }
 
   if (!bodyOut?.trim()) {
-    return { ok: false, error: "Could not generate answer. Set SARVAM_API_KEY and check Sarvam status." };
+    return {
+      ok: false,
+      error: "Could not generate answer. Set SARVAM_API_KEY and check Sarvam status.",
+      diag: profPiDiag(lastRagChunks),
+    };
   }
 
   const verified = await maybeVerifyProfPiDraft({
@@ -320,10 +345,10 @@ export async function runProfPiAnswerForDoubt(
     .single();
 
   if (insErr || !inserted?.id) {
-    return { ok: false, error: insErr?.message ?? "Insert failed" };
+    return { ok: false, error: insErr?.message ?? "Insert failed", diag: profPiDiag(lastRagChunks) };
   }
 
-  return { ok: true, skipped: false, answerId: inserted.id, source };
+  return { ok: true, skipped: false, answerId: inserted.id, source, diag: profPiDiag(lastRagChunks) };
 }
 
 /** True if this user_id is any Gyan bot persona (student or ProfPi). */
