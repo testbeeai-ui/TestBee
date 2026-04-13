@@ -116,25 +116,65 @@ export default function AskDoubtDialog({ open, onOpenChange, profile, onDoubtPos
       p_cost_rdm: costRdm, p_bounty_rdm: bountyRdm,
     });
     setSubmitLoading(false);
-    const res = data as { ok: boolean; id?: string; error?: string };
+    const res = data as { ok: boolean; id?: unknown; error?: string };
     if (error) { toast({ title: "Could not post doubt", description: error.message, variant: "destructive" }); return; }
     if (res?.ok) {
       clearDraft();
       toast({ title: "Doubt posted!" });
       onOpenChange(false);
-      const doubtId = res.id;
+      const rawId = res.id;
+      const doubtId =
+        typeof rawId === "string"
+          ? rawId.trim()
+          : rawId != null && String(rawId) !== ""
+            ? String(rawId).trim()
+            : null;
       onDoubtPosted?.(doubtId ?? null);
       if (doubtId) {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.access_token) {
-          void fetch("/api/gyan-bot-answer", {
+        let accessToken = (await supabase.auth.getSession()).data.session?.access_token ?? null;
+        if (!accessToken) {
+          await supabase.auth.refreshSession();
+          accessToken = (await supabase.auth.getSession()).data.session?.access_token ?? null;
+        }
+        if (!accessToken) {
+          toast({
+            title: "Prof-Pi was not triggered",
+            description: "No session token after posting. Refresh the page and try again, or check you are signed in.",
+            variant: "destructive",
+          });
+        } else {
+          await new Promise((r) => setTimeout(r, 400));
+          const apiUrl = `${window.location.origin}/api/gyan-bot-answer`;
+          void fetch(apiUrl, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              Authorization: `Bearer ${session.access_token}`,
+              Authorization: `Bearer ${accessToken}`,
             },
             body: JSON.stringify({ doubtId }),
-          }).catch(() => {});
+          })
+            .then(async (res) => {
+              if (res.ok) return;
+              const err = (await res.json().catch(() => ({}))) as {
+                error?: string;
+                hint?: string;
+                supabaseError?: string;
+              };
+              const supa = err.supabaseError ? `\n\n${err.supabaseError}` : "";
+              const extra = err.hint ? `\n\n${err.hint}` : "";
+              toast({
+                title: "Prof-Pi could not answer yet",
+                description: `${err.error ?? `Server returned ${res.status}`}${supa}${extra}`,
+                variant: "destructive",
+              });
+            })
+            .catch(() => {
+              toast({
+                title: "Prof-Pi request failed",
+                description: "Network error calling /api/gyan-bot-answer. Check connection and deployment.",
+                variant: "destructive",
+              });
+            });
         }
       }
     }
