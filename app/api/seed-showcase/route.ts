@@ -159,12 +159,12 @@ export async function POST(request: Request) {
       });
     }
 
-    // ── DOUBT 2: Genotype vs Phenotype (posted by logged-in user) ──
+    // ── DOUBT 2: Buffer / pH (posted by logged-in user, PCM) ──
     const { data: d2 } = await admin.from("doubts").insert({
       user_id: uid.me,
-      title: "Difference between genotype and phenotype with an example — can someone give a simple example like peas?",
-      body: "I understand genotype is the genetic code and phenotype is what you observe. But I get confused with dominant/recessive alleles. Can someone explain with pea plant height like Mendel used?",
-      subject: "Biology",
+      title: "Why does adding a small amount of strong acid to a buffer barely change the pH?",
+      body: "I know Henderson–Hasselbalch says pH = pKa + log([A⁻]/[HA]). I get confused at the exam: why doesn't a drop of strong acid swing the pH wildly if the conjugate base is supposed to neutralize it?",
+      subject: "Chemistry",
       upvotes: 12,
       bounty_rdm: 20,
       bounty_escrowed_at: days(13),
@@ -176,14 +176,14 @@ export async function POST(request: Request) {
       await admin.from("doubt_answers").insert({
         doubt_id: d2.id,
         user_id: uid.ai,
-        body: "Genotype is the actual genetic code in an organism's DNA — the instructions. Phenotype is what those instructions produce — the observable trait. In Mendel's pea experiment: a plant with genotype Tt (one dominant, one recessive allele for tall/short) will have the phenotype of being tall, because T is dominant. Two plants can share the same phenotype (both tall) but different genotypes (TT vs Tt). Phenotype is shaped by genotype + environment.",
+        body: "A buffer is a conjugate acid–base pair in appreciable amounts. When you add a small amount of strong acid, the base form (A⁻) consumes most of the added H⁺: HA ⇌ H⁺ + A⁻ shifts to make more HA, so [H⁺] barely moves until the buffer capacity is exhausted. Henderson–Hasselbalch is just the log form of Ka — it assumes you are still in the buffered region (both [HA] and [A⁻] significant). A drop of HCl does lower pH slightly, but not “crash” it because the ratio [A⁻]/[HA] changes only a little until one component is used up.",
         upvotes: 18,
         created_at: days(13),
       });
       await admin.from("doubt_answers").insert({
         doubt_id: d2.id,
         user_id: uid.nidhi,
-        body: "Great example! Does environment affect genotype too or only phenotype?",
+        body: "So buffer capacity is basically how much strong acid or base you can add before the pH swings hard?",
         upvotes: 3,
         created_at: hours(3),
       });

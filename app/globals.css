@@ -295,6 +295,22 @@
   font-size: 0.88em;
 }
 
+/* Topic Quiz (bits) dialog: keep KaTeX inside the modal width; avoid a page-wide horizontal bar */
+.bits-quiz-dialog {
+  min-width: 0;
+}
+.bits-quiz-dialog .bits-quiz-explanation {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+.bits-quiz-dialog .bits-quiz-explanation .katex-display {
+  max-width: 100%;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  box-sizing: border-box;
+}
+
 /* Equivalence class [a]: … — two stacked lines, wrap-friendly, no horizontal scrollbar. */
 .subtopic-equivalence-class-title {
   width: 100%;
@@ -411,13 +427,13 @@
 
 @layer components {
   .edu-card { @apply bg-card rounded-2xl border border-border shadow-sm hover:shadow-md transition-shadow; }
-  .edu-section { @apply py-8; }
-  .edu-page-header { @apply mb-8; }
+  .edu-section { @apply py-5 2xl:py-8; }
+  .edu-page-header { @apply mb-5 2xl:mb-8; }
   .edu-page-title {
-    @apply text-3xl md:text-4xl text-foreground mb-2;
+    @apply text-2xl md:text-3xl 2xl:text-4xl text-foreground mb-1.5 2xl:mb-2;
   }
-  .edu-page-desc { @apply text-muted-foreground text-base md:text-lg; }
-  .edu-stat-card { @apply bg-card rounded-2xl border border-border p-5 text-center hover:shadow-md transition-all hover:-translate-y-0.5; }
+  .edu-page-desc { @apply text-muted-foreground text-sm md:text-base 2xl:text-lg; }
+  .edu-stat-card { @apply bg-card rounded-2xl border border-border p-4 text-center hover:shadow-md transition-all hover:-translate-y-0.5 2xl:p-5; }
   .edu-chip { @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold; }
   .edu-btn-primary {
     @apply rounded-xl font-bold text-primary-foreground border-0 shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all;

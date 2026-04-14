@@ -99,7 +99,7 @@ export async function logAiUsage(params: {
   userId?: string | null;
   actionType: string;
   modelId: string;
-  backend: "api_key" | "vertex";
+  backend: "api_key" | "vertex" | "sarvam" | "modal";
   usage?: GeminiUsageStats;
   metadata?: AiUsageMetadata;
 }): Promise<void> {
@@ -108,6 +108,21 @@ export async function logAiUsage(params: {
   const providedTotal = normalizeTokenCount(params.usage?.totalTokenCount);
   const totalTokens = providedTotal || promptTokens + candidatesTokens;
   const costUsd = estimateGeminiCostUsd(params.modelId, promptTokens, candidatesTokens);
+  const tokenSource =
+    providedTotal > 0
+      ? "provider_total"
+      : promptTokens > 0 || candidatesTokens > 0
+        ? "provider_parts_sum"
+        : "no_usage_reported";
+  const telemetry = {
+    tokenSource,
+    usageReportedByProvider: tokenSource !== "no_usage_reported",
+    backend: params.backend,
+  } as const;
+  const mergedMetadata = {
+    ...(params.metadata ?? {}),
+    telemetry,
+  } as Json;
 
   const { error } = await params.supabase.from("ai_token_logs").insert({
     user_id: params.userId ?? null,
@@ -118,7 +133,7 @@ export async function logAiUsage(params: {
     candidates_tokens: candidatesTokens,
     total_tokens: totalTokens,
     cost_usd: costUsd,
-    metadata: (params.metadata ?? {}) as Json,
+    metadata: mergedMetadata,
   });
 
   if (error) {

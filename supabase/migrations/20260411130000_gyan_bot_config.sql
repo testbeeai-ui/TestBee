@@ -34,6 +34,9 @@ CREATE TRIGGER trg_gyan_bot_config_updated_at
 
 ALTER TABLE public.gyan_bot_config ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS gyan_bot_config_select_admin ON public.gyan_bot_config;
+DROP POLICY IF EXISTS gyan_bot_config_update_admin ON public.gyan_bot_config;
+
 CREATE POLICY gyan_bot_config_select_admin
   ON public.gyan_bot_config
   FOR SELECT

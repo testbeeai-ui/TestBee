@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { useUserStore } from "@/store/useUserStore";
-import type { SavedBit, SavedFormula, SavedRevisionCard } from "@/types";
+import type { SavedBit, SavedFormula, SavedRevisionCard, SavedRevisionUnit } from "@/types";
 
 const API = "/api/user/saved-content";
 
@@ -19,12 +19,13 @@ export async function fetchSavedContent(): Promise<{
   savedBits: SavedBit[];
   savedFormulas: SavedFormula[];
   savedRevisionCards: SavedRevisionCard[];
+  savedRevisionUnits: SavedRevisionUnit[];
 }> {
   const headers = await getAuthHeaders();
   const res = await fetch(API, { headers });
   if (!res.ok) {
     if (res.status === 401) {
-      return { savedBits: [], savedFormulas: [], savedRevisionCards: [] };
+      return { savedBits: [], savedFormulas: [], savedRevisionCards: [], savedRevisionUnits: [] };
     }
     throw new Error("Failed to fetch saved content");
   }
@@ -33,32 +34,35 @@ export async function fetchSavedContent(): Promise<{
     savedBits: Array.isArray(data.savedBits) ? data.savedBits : [],
     savedFormulas: Array.isArray(data.savedFormulas) ? data.savedFormulas : [],
     savedRevisionCards: Array.isArray(data.savedRevisionCards) ? data.savedRevisionCards : [],
+    savedRevisionUnits: Array.isArray(data.savedRevisionUnits) ? data.savedRevisionUnits : [],
   };
 }
 
 export async function syncSavedContent(
   savedBits: SavedBit[],
   savedFormulas: SavedFormula[],
-  savedRevisionCards: SavedRevisionCard[]
+  savedRevisionCards: SavedRevisionCard[],
+  savedRevisionUnits: SavedRevisionUnit[]
 ): Promise<void> {
   const authHeaders = await getAuthHeaders();
   const res = await fetch(API, {
     method: "POST",
     headers: { ...authHeaders, "Content-Type": "application/json" },
-    body: JSON.stringify({ savedBits, savedFormulas, savedRevisionCards }),
+    body: JSON.stringify({ savedBits, savedFormulas, savedRevisionCards, savedRevisionUnits }),
   });
   if (!res.ok && res.status !== 401) {
     throw new Error("Failed to sync saved content");
   }
 }
 
-/** POST current store snapshot (bits, formulas, revision cards) for the signed-in user. */
+/** POST current store snapshot (bits, formulas, revision cards, revision units) for the signed-in user. */
 export async function syncAllSavedContent(): Promise<void> {
   const user = useUserStore.getState().user;
   if (!user) return;
   await syncSavedContent(
     user.savedBits ?? [],
     user.savedFormulas ?? [],
-    user.savedRevisionCards ?? []
+    user.savedRevisionCards ?? [],
+    user.savedRevisionUnits ?? []
   );
 }

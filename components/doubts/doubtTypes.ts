@@ -4,7 +4,7 @@ export type SortOption = "recent" | "upvoted" | "unanswered" | "bounty" | "teach
 export type ActivityView = "feed" | "asked" | "answered" | "saved";
 export type TabFilter = "all" | "student" | "ai" | "teacher" | "revision" | "bounties";
 
-export const DOUBT_FLAIRS = ["Physics", "Chemistry", "Math", "Biology", "General Question", "Other"] as const;
+export const DOUBT_FLAIRS = ["Physics", "Chemistry", "Math", "General Question", "Other"] as const;
 
 export type ProfileRow = {
   id: string;
@@ -28,8 +28,13 @@ export type ExpandedAnswer = {
 
 /** Prof-Pi / legacy Gyan AI tutor rows (same logic as feed AI block) */
 export function isAiTutorAnswer(a: ExpandedAnswer): boolean {
-  const role = a.profiles?.role ?? "";
-  const name = (a.profiles?.name ?? "").toLowerCase();
+  return isAiTutorDoubtAuthor(a.profiles);
+}
+
+/** True when the doubt author profile is the Gyan++ / Prof-Pi AI tutor (not a student). */
+export function isAiTutorDoubtAuthor(p: { name?: string | null; role?: string | null } | null | undefined): boolean {
+  const role = p?.role ?? "";
+  const name = (p?.name ?? "").toLowerCase();
   return (
     role === "ai" ||
     name.includes("gyan++ ai") ||
@@ -52,6 +57,13 @@ export type ExpandedDoubtRow = {
   cost_rdm?: number;
   views?: number;
   created_at: string;
+  /** Set for Gyan / curriculum-linked posts; join labels via feed `select`. */
+  gyan_curriculum_node_id?: string | null;
+  gyan_curriculum_nodes?: {
+    chapter_label: string;
+    topic_label: string;
+    subtopic_label: string | null;
+  } | null;
   doubt_answers?: ExpandedAnswer[];
   profiles?: { name: string | null; avatar_url: string | null; role?: string | null } | null;
 };
@@ -65,7 +77,6 @@ export const SUBJECT_COLORS: Record<string, { bg: string; text: string; dot: str
   physics: { bg: "bg-blue-500/10", text: "text-blue-600", dot: "bg-blue-500" },
   chemistry: { bg: "bg-purple-500/10", text: "text-purple-600", dot: "bg-purple-500" },
   math: { bg: "bg-orange-500/10", text: "text-orange-600", dot: "bg-orange-500" },
-  biology: { bg: "bg-green-500/10", text: "text-green-600", dot: "bg-green-500" },
   "general question": { bg: "bg-gray-500/10", text: "text-gray-600", dot: "bg-gray-400" },
   other: { bg: "bg-gray-500/10", text: "text-gray-600", dot: "bg-gray-400" },
 };

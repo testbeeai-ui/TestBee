@@ -28,7 +28,8 @@ interface UserState {
   setSavedFromServer: (
     savedBits: SavedBit[],
     savedFormulas: SavedFormula[],
-    savedRevisionCards: SavedRevisionCard[]
+    savedRevisionCards: SavedRevisionCard[],
+    savedRevisionUnits: SavedRevisionUnit[]
   ) => void;
   likeQuestion: (questionId: string) => void;
   unlikeQuestion: (questionId: string) => void;
@@ -244,7 +245,7 @@ export const useUserStore = create<UserState>()(
             : null,
         })),
 
-      setSavedFromServer: (savedBits, savedFormulas, savedRevisionCards) =>
+      setSavedFromServer: (savedBits, savedFormulas, savedRevisionCards, savedRevisionUnits) =>
         set((state) =>
           state.user
             ? {
@@ -253,6 +254,7 @@ export const useUserStore = create<UserState>()(
                   savedBits,
                   savedFormulas,
                   savedRevisionCards,
+                  savedRevisionUnits,
                 },
               }
             : state
@@ -307,6 +309,7 @@ export const useUserStore = create<UserState>()(
           if (!Array.isArray(user.savedBits)) user.savedBits = [];
           if (!Array.isArray(user.savedFormulas)) user.savedFormulas = [];
           if (!Array.isArray(user.savedRevisionCards)) user.savedRevisionCards = [];
+          if (!Array.isArray(user.savedRevisionUnits)) user.savedRevisionUnits = [];
         }
         return persistedState;
       },

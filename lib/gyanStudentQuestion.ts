@@ -11,7 +11,7 @@ import {
 } from "@/lib/gyanContentPolicy";
 import { extractJsonObject, sarvamChatCompletion, stripSarvamThinking } from "@/lib/sarvamGyanClient";
 
-const DOUBT_SUBJECTS = ["Physics", "Chemistry", "Math", "Biology", "General Question", "Other"] as const;
+const DOUBT_SUBJECTS = ["Physics", "Chemistry", "Math", "General Question", "Other"] as const;
 
 export type GeneratedStudentDoubt = {
   title: string;

@@ -480,6 +480,38 @@ export type Database = {
           },
         ]
       }
+      episodic_memory: {
+        Row: {
+          id: string
+          user_id: string
+          chunk_text: string
+          embedding: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          chunk_text: string
+          embedding: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          chunk_text?: string
+          embedding?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "episodic_memory_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       explorer_live_joins: {
         Row: {
           id: string
@@ -625,6 +657,7 @@ export type Database = {
           avatar_url: string | null
           bio: string | null
           bits_test_attempts: Json
+          subtopic_engagement: Json
           class_level: number | null
           created_at: string
           exam_tags: string[] | null
@@ -639,6 +672,7 @@ export type Database = {
           saved_bits: Json
           saved_formulas: Json
           saved_revision_cards: Json
+          saved_revision_units: Json
           stream: string | null
           subject_combo: string | null
           subjects: string[] | null
@@ -650,6 +684,7 @@ export type Database = {
           avatar_url?: string | null
           bio?: string | null
           bits_test_attempts?: Json
+          subtopic_engagement?: Json
           class_level?: number | null
           created_at?: string
           exam_tags?: string[] | null
@@ -664,6 +699,7 @@ export type Database = {
           saved_bits?: Json
           saved_formulas?: Json
           saved_revision_cards?: Json
+          saved_revision_units?: Json
           stream?: string | null
           subject_combo?: string | null
           subjects?: string[] | null
@@ -675,6 +711,7 @@ export type Database = {
           avatar_url?: string | null
           bio?: string | null
           bits_test_attempts?: Json
+          subtopic_engagement?: Json
           class_level?: number | null
           created_at?: string
           exam_tags?: string[] | null
@@ -689,6 +726,7 @@ export type Database = {
           saved_bits?: Json
           saved_formulas?: Json
           saved_revision_cards?: Json
+          saved_revision_units?: Json
           stream?: string | null
           subject_combo?: string | null
           subjects?: string[] | null
@@ -1355,6 +1393,32 @@ export type Database = {
         }
         Relationships: [{ foreignKeyName: "profile_achievements_user_id_fkey"; columns: ["user_id"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] }]
       }
+      user_memory_profile: {
+        Row: {
+          user_id: string
+          canonical_profile: Json
+          updated_at: string
+        }
+        Insert: {
+          user_id: string
+          canonical_profile?: Json
+          updated_at?: string
+        }
+        Update: {
+          user_id?: string
+          canonical_profile?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_memory_profile_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -1402,6 +1466,25 @@ export type Database = {
       is_classroom_member: {
         Args: { _classroom_id: string; _user_id: string }
         Returns: boolean
+      }
+      match_episodic_memory: {
+        Args: {
+          query_embedding: string
+          match_threshold: number
+          match_count: number
+          p_user_id: string
+        }
+        Returns: { id: string; chunk_text: string; similarity: number }[]
+      }
+      match_episodic_memory_scoped: {
+        Args: {
+          query_embedding: string
+          match_threshold: number
+          match_count: number
+          p_user_id: string
+          p_context_key: string
+        }
+        Returns: { id: string; chunk_text: string; similarity: number }[]
       }
       users_share_classroom: {
         Args: { _other_user_id: string; _user_id: string }

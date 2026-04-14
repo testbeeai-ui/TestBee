@@ -116,7 +116,7 @@ function BotBubble({ content, accentColor, gradient }: { content: string; accent
             {isLong && (
                 <button
                     onClick={() => setExpanded(p => !p)}
-                    className="mt-1 flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full hover:bg-gray-100 transition-colors"
+                    className="mt-1 flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full hover:bg-gray-100 transition-colors"
                     style={{ color: accentColor }}
                 >
                     {expanded ? <><ChevronUp className="w-3 h-3" />Show less</> : <><ChevronDown className="w-3 h-3" />Show more</>}
@@ -144,9 +144,17 @@ function formatTime(date: Date) {
 const CHATBOT_POSITION_KEY = 'edublast-chatbot-position';
 const CHATBOT_SIZE_KEY = 'edublast-chatbot-size';
 const CHATBOT_HIDE_UNTIL_KEY = 'edublast-chatbot-hide-until';
+const CHATBOT_HISTORY_PREFIX = 'edublast-chatbot-history';
 const DEFAULT_SIZE = { width: 390, height: 560 };
 const MIN_SIZE = { width: 300, height: 400 };
 const MAX_SIZE = { width: 600, height: 800 };
+
+type StoredMessage = {
+    id: string;
+    role: 'user' | 'bot';
+    content: string;
+    timestamp: string;
+};
 
 function getStoredPosition(): { x: number; y: number } | null {
     if (typeof window === 'undefined') return null;
@@ -181,6 +189,26 @@ function getStoredHideUntil(): number | null {
     return null;
 }
 
+function normalizeKeyPart(value: string | number | undefined): string {
+    if (value == null) return 'na';
+    return encodeURIComponent(String(value).trim().toLowerCase());
+}
+
+function buildChatHistoryKey(params: {
+    subject: Subject;
+    topic: string;
+    subtopic?: string;
+    gradeLevel?: number;
+}): string {
+    return [
+        CHATBOT_HISTORY_PREFIX,
+        normalizeKeyPart(params.subject),
+        normalizeKeyPart(params.gradeLevel ?? 11),
+        normalizeKeyPart(params.topic),
+        normalizeKeyPart(params.subtopic ?? ''),
+    ].join(':');
+}
+
 export default function SubjectChatbot({ subject, topic, subtopic, gradeLevel }: Props) {
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState<Message[]>([]);
@@ -196,6 +224,7 @@ export default function SubjectChatbot({ subject, topic, subtopic, gradeLevel }:
     const [showScrollBtn, setShowScrollBtn] = useState(false);
     const [showHideMenu, setShowHideMenu] = useState(false);
     const [hideUntil, setHideUntil] = useState<number | null>(null);
+    const [historyHydrated, setHistoryHydrated] = useState(false);
     const dragRef = useRef<{ startX: number; startY: number; startPos: { x: number; y: number } } | null>(null);
     const resizeRef = useRef<{ startX: number; startY: number; startSize: { width: number; height: number } } | null>(null);
     const justDraggedRef = useRef(false);
@@ -206,6 +235,7 @@ export default function SubjectChatbot({ subject, topic, subtopic, gradeLevel }:
     const [typingPhrase] = useState(() => typingPhrases[Math.floor(Math.random() * typingPhrases.length)]);
     const meta = SUBJECT_META[subject] ?? SUBJECT_META.physics;
     const presets = getPresetQuestions(topic, subtopic);
+    const chatHistoryKey = buildChatHistoryKey({ subject, topic, subtopic, gradeLevel });
 
     // Apply stored position/size after mount to avoid hydration mismatch (localStorage only on client)
     useEffect(() => {
@@ -216,6 +246,61 @@ export default function SubjectChatbot({ subject, topic, subtopic, gradeLevel }:
         const storedHideUntil = getStoredHideUntil();
         if (storedHideUntil) setHideUntil(storedHideUntil);
     }, []);
+
+    // Load context-specific chat history (subject + topic + subtopic + grade).
+    useEffect(() => {
+        setHistoryHydrated(false);
+        if (typeof window === 'undefined') return;
+        try {
+            const raw = localStorage.getItem(chatHistoryKey);
+            if (!raw) {
+                setMessages([]);
+                setHasGreeted(false);
+                setHistoryHydrated(true);
+                return;
+            }
+            const parsed = JSON.parse(raw) as StoredMessage[];
+            if (!Array.isArray(parsed)) {
+                setMessages([]);
+                setHasGreeted(false);
+                setHistoryHydrated(true);
+                return;
+            }
+            const restored = parsed
+                .map((m): Message | null => {
+                    if (!m || (m.role !== 'user' && m.role !== 'bot') || typeof m.content !== 'string') return null;
+                    return {
+                        id: typeof m.id === 'string' && m.id ? m.id : crypto.randomUUID(),
+                        role: m.role,
+                        content: m.content,
+                        timestamp: new Date(m.timestamp || Date.now()),
+                    };
+                })
+                .filter((m): m is Message => m !== null);
+            setMessages(restored);
+            setHasGreeted(restored.length > 0);
+            setHistoryHydrated(true);
+        } catch {
+            setMessages([]);
+            setHasGreeted(false);
+            setHistoryHydrated(true);
+        }
+    }, [chatHistoryKey]);
+
+    // Persist context-specific chat history.
+    useEffect(() => {
+        if (!historyHydrated) return;
+        if (typeof window === 'undefined') return;
+        try {
+            const toStore: StoredMessage[] = messages.map((m) => ({
+                id: m.id,
+                role: m.role,
+                content: m.content,
+                timestamp: m.timestamp.toISOString(),
+            }));
+            localStorage.setItem(chatHistoryKey, JSON.stringify(toStore));
+        } catch {}
+    }, [messages, chatHistoryKey, historyHydrated]);
 
     useEffect(() => {
         if (!hideUntil) return;

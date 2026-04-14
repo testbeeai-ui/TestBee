@@ -1,11 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
 import { useUserStore } from '@/store/useUserStore';
 import { syncAllSavedContent } from '@/lib/savedContentService';
+import MathText from '@/components/MathText';
 import { SavedRevisionCard } from '@/types';
-import { Plus, HelpCircle, Clock, Check, Layers, X, RotateCcw, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, HelpCircle, Clock, Check, Layers, RotateCcw, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface Props {
     cards: SavedRevisionCard[];
@@ -13,6 +13,44 @@ interface Props {
 }
 
 type TabType = 'new' | 'unsure' | 'tomorrow' | 'know_it' | 'all';
+
+function normalizeTrigNotation(raw: string): string {
+    let out = raw;
+    const trigMap: Record<string, string> = {
+        sin: "\\sin",
+        cos: "\\cos",
+        tan: "\\tan",
+        cot: "\\cot",
+        sec: "\\sec",
+        cosec: "\\csc",
+        csc: "\\csc",
+    };
+
+    out = out.replace(/\b(sin|cos|tan|cot|sec|cosec|csc)\s*\^\s*-?1\s*x\b/gi, (_m, fn: string) => {
+        const key = fn.toLowerCase();
+        return `${trigMap[key] ?? `\\${key}`}^{-1}x`;
+    });
+
+    out = out.replace(/\bpi\b/gi, "\\pi");
+    out = out.replace(/\\?ext\{/g, "\\text{");
+    out = out.replace(/\\frac\\pi\{2\}/g, "\\frac{\\pi}{2}");
+    return out;
+}
+
+function normalizeCardMath(raw: string, wrapInlineMath = false): string {
+    let out = raw ?? '';
+    // Handle doubly-escaped delimiters from JSON payloads.
+    out = out
+        .replace(/\\\\\(/g, "\\(")
+        .replace(/\\\\\)/g, "\\)")
+        .replace(/\\\\\[/g, "\\[")
+        .replace(/\\\\\]/g, "\\]");
+    out = normalizeTrigNotation(out);
+    if (wrapInlineMath && !/\\\(|\\\[|\$/.test(out) && /\\(sin|cos|tan|cot|sec|csc)|\\pi|=/.test(out)) {
+        out = `\\(${out}\\)`;
+    }
+    return out;
+}
 
 export default function InstaCuePlayer({ cards, onClose }: Props) {
     const updateRevisionCardStatus = useUserStore((s) => s.updateRevisionCardStatus);
@@ -108,30 +146,30 @@ export default function InstaCuePlayer({ cards, onClose }: Props) {
                             key={tab.id}
                             onClick={() => handleTabChange(tab.id)}
                             className={`flex-1 min-w-[150px] flex flex-col items-center justify-center py-4 rounded-xl border transition-all ${activeTab === tab.id
-                                ? 'bg-[#e2e8f0]/60 border-[#cbd5e1] text-[#0f172a] shadow-sm'
-                                : 'bg-white border-transparent text-[#64748b] hover:border-slate-200 hover:text-slate-700 shadow-sm'
+                                ? 'bg-primary/15 border-primary/40 text-foreground shadow-sm'
+                                : 'bg-card border-border/50 text-muted-foreground hover:border-primary/30 hover:text-foreground shadow-sm'
                                 }`}
                         >
                             <div className="flex items-center gap-2 mb-1">
-                                <span className={`${activeTab === tab.id ? 'text-[#0f172a]' : 'text-slate-400'}`}>
+                                <span className={`${activeTab === tab.id ? 'text-primary' : 'text-muted-foreground'}`}>
                                     {tab.icon}
                                 </span>
                                 <span className="text-[14px] font-semibold">{tab.label}</span>
                             </div>
-                            <span className={`text-[22px] font-extrabold text-[#0f172a]`}>{tab.count}</span>
+                            <span className="text-[22px] font-extrabold text-foreground">{tab.count}</span>
                         </button>
                     ))}
                 </div>
 
                 {/* Progress */}
                 <div className="flex flex-col mb-8">
-                    <div className="flex items-center justify-between text-[13px] font-medium text-[#1e293b] mb-2 px-1">
+                    <div className="flex items-center justify-between text-[13px] font-medium text-muted-foreground mb-2 px-1">
                         <span>Card {activeCards.length > 0 ? currentIndex + 1 : 0} of {activeCards.length}</span>
                         <span>{progressPercentage}% Complete</span>
                     </div>
-                    <div className="h-[6px] w-full bg-[#f1f5f9] rounded-full overflow-hidden">
+                    <div className="h-[6px] w-full bg-muted rounded-full overflow-hidden">
                         <motion.div
-                            className="h-full bg-[#1e3a8a]"
+                            className="h-full bg-primary"
                             style={{ originX: 0 }}
                             initial={{ scaleX: 0 }}
                             animate={{ scaleX: progressPercentage / 100 }}
@@ -150,7 +188,7 @@ export default function InstaCuePlayer({ cards, onClose }: Props) {
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: -20 }}
                                 transition={{ duration: 0.2 }}
-                                className="w-full max-w-2xl bg-white rounded-2xl shadow-sm border p-5 md:p-6 cursor-pointer"
+                                className="w-full max-w-2xl bg-card rounded-2xl shadow-sm border border-border p-5 md:p-6 cursor-pointer"
                                 onClick={() => setIsFlipped(f => !f)}
                             >
                                 {!isFlipped ? (
@@ -158,23 +196,31 @@ export default function InstaCuePlayer({ cards, onClose }: Props) {
                                     <div className="flex flex-col h-full min-h-[230px]">
                                         <div className="flex items-center justify-between mb-4">
                                             <div className="flex items-center gap-2">
-                                                <span className="px-3.5 py-1 bg-[#212b36] text-white text-[11px] font-semibold rounded-full capitalize">
+                                                <span className="px-3.5 py-1 bg-primary/20 text-primary text-[11px] font-semibold rounded-full capitalize">
                                                     {currentCard.type.replace('_', ' ')}
                                                 </span>
-                                                <span className="px-3.5 py-1 bg-[#f1f5f9] text-[#64748b] text-[11px] font-medium rounded-full lowercase">
+                                                <span className="px-3.5 py-1 bg-muted text-muted-foreground text-[11px] font-medium rounded-full lowercase">
                                                     {currentCard.subject}
                                                 </span>
                                             </div>
-                                            <span className="px-3.5 py-1 bg-[#f1f5f9] text-[#64748b] text-[11px] font-bold rounded-full uppercase tracking-wider">
+                                            <span className="px-3.5 py-1 bg-muted text-muted-foreground text-[11px] font-bold rounded-full uppercase tracking-wider">
                                                 {currentCard.status === 'new' ? 'New' : currentCard.status.replace('_', ' ')}
                                             </span>
                                         </div>
 
-                                        <h2 className="text-[19px] font-bold text-[#1a2b4b] mb-3">{currentCard.subtopicName}</h2>
-                                        <p className="text-[15px] text-[#475569] whitespace-pre-wrap flex-1 leading-relaxed">{currentCard.frontContent}</p>
+                                        <h2 className="text-[19px] font-bold text-foreground mb-3">
+                                            <MathText as="span" weight="bold">
+                                                {normalizeCardMath(currentCard.subtopicName, true)}
+                                            </MathText>
+                                        </h2>
+                                        <div className="text-[15px] text-foreground/85 whitespace-pre-wrap flex-1 leading-relaxed">
+                                            <MathText as="div" weight="semibold">
+                                                {normalizeCardMath(currentCard.frontContent)}
+                                            </MathText>
+                                        </div>
 
                                         <div className="mt-6 flex justify-center w-full">
-                                            <p className="text-[#94a3b8] text-[13px] flex items-center gap-2 font-medium">
+                                            <p className="text-muted-foreground text-[13px] flex items-center gap-2 font-medium">
                                                 <RotateCcw className="w-4 h-4" /> Tap to reveal answer
                                             </p>
                                         </div>
@@ -183,25 +229,31 @@ export default function InstaCuePlayer({ cards, onClose }: Props) {
                                     // Back of Card
                                     <div className="flex flex-col h-full min-h-[230px]">
                                         <div className="flex items-center justify-between mb-4">
-                                            <h2 className="text-[19px] font-bold text-[#d97706]">{currentCard.subtopicName}</h2>
-                                            <span className="px-3.5 py-1 text-[#64748b] text-xs font-bold rounded-full border border-slate-200">
+                                            <h2 className="text-[19px] font-bold text-primary">
+                                                <MathText as="span" weight="bold">
+                                                    {normalizeCardMath(currentCard.subtopicName, true)}
+                                                </MathText>
+                                            </h2>
+                                            <span className="px-3.5 py-1 text-muted-foreground text-xs font-bold rounded-full border border-border">
                                                 Answer
                                             </span>
                                         </div>
 
-                                        <div className="text-[15px] text-[#334155] whitespace-pre-wrap flex-1 leading-relaxed">
-                                            {currentCard.backContent}
+                                        <div className="text-[15px] text-foreground/90 whitespace-pre-wrap flex-1 leading-relaxed">
+                                            <MathText as="div" weight="semibold">
+                                                {normalizeCardMath(currentCard.backContent)}
+                                            </MathText>
                                         </div>
                                     </div>
                                 )}
                             </motion.div>
                         ) : (
-                            <div className="text-center p-12 bg-white rounded-2xl border border-dashed border-slate-300 w-full max-w-2xl">
-                                <div className="w-16 h-16 bg-slate-100 text-slate-400 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <div className="text-center p-12 bg-card rounded-2xl border border-dashed border-border w-full max-w-2xl">
+                                <div className="w-16 h-16 bg-muted text-muted-foreground rounded-full flex items-center justify-center mx-auto mb-4">
                                     <Check className="w-8 h-8" />
                                 </div>
-                                <h3 className="text-xl font-bold text-slate-900 mb-2">You&apos;re all caught up!</h3>
-                                <p className="text-slate-500">There are no cards in this section right now.</p>
+                                <h3 className="text-xl font-bold text-foreground mb-2">You&apos;re all caught up!</h3>
+                                <p className="text-muted-foreground">There are no cards in this section right now.</p>
                             </div>
                         )}
                     </AnimatePresence>
@@ -213,7 +265,7 @@ export default function InstaCuePlayer({ cards, onClose }: Props) {
                         <div className="flex flex-wrap items-center justify-center gap-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
                             <Button
                                 variant="outline"
-                                className="border-red-500 text-red-500 hover:bg-red-50 hover:text-red-500 px-7 py-5 rounded-[14px] font-semibold text-[14px] bg-white"
+                                className="border-red-500/50 text-red-400 hover:bg-red-500/10 hover:text-red-300 px-7 py-5 rounded-[14px] font-semibold text-[14px] bg-card"
                                 onClick={() => handleStatusUpdate('unsure')}
                             >
                                 <HelpCircle className="w-[18px] h-[18px] mr-2" />
@@ -221,14 +273,14 @@ export default function InstaCuePlayer({ cards, onClose }: Props) {
                             </Button>
                             <Button
                                 variant="outline"
-                                className="border-amber-500 text-amber-600 hover:bg-amber-50 hover:text-amber-600 px-7 py-5 rounded-[14px] font-semibold text-[14px] bg-white"
+                                className="border-amber-500/50 text-amber-400 hover:bg-amber-500/10 hover:text-amber-300 px-7 py-5 rounded-[14px] font-semibold text-[14px] bg-card"
                                 onClick={() => handleStatusUpdate('tomorrow')}
                             >
                                 <Clock className="w-[18px] h-[18px] mr-2" />
                                 Tomorrow
                             </Button>
                             <Button
-                                className="bg-[#10b981] hover:bg-[#059669] text-white px-7 py-5 rounded-[14px] font-semibold text-[14px] border-none shadow-sm"
+                                className="bg-emerald-600 hover:bg-emerald-500 text-white px-7 py-5 rounded-[14px] font-semibold text-[14px] border-none shadow-sm"
                                 onClick={() => handleStatusUpdate('know_it')}
                             >
                                 <Check className="w-[18px] h-[18px] mr-2" />
@@ -236,17 +288,17 @@ export default function InstaCuePlayer({ cards, onClose }: Props) {
                             </Button>
                         </div>
                     ) : currentCard && !isFlipped ? (
-                        <div className="flex items-center gap-8 text-[#94a3b8] font-semibold text-[15px]">
+                        <div className="flex items-center gap-8 text-muted-foreground font-semibold text-[15px]">
                             <button
-                                className="flex items-center gap-2 hover:text-[#64748b] transition-colors disabled:opacity-40"
+                                className="flex items-center gap-2 hover:text-foreground transition-colors disabled:opacity-40"
                                 onClick={prevCard}
                                 disabled={currentIndex === 0}
                             >
                                 <ChevronLeft className="w-4 h-4" /> Previous
                             </button>
-                            <span className="w-px h-4 bg-slate-200" />
+                            <span className="w-px h-4 bg-border" />
                             <button
-                                className="flex items-center gap-2 text-[#475569] hover:text-[#0f172a] transition-colors disabled:opacity-40"
+                                className="flex items-center gap-2 hover:text-foreground transition-colors disabled:opacity-40"
                                 onClick={nextCard}
                                 disabled={currentIndex === activeCards.length - 1}
                             >

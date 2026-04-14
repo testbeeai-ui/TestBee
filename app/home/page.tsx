@@ -1,7 +1,7 @@
 "use client";
 
-import { type ComponentType, useMemo } from "react";
-import { buildActivityHeatmapModel } from "@/lib/activityHeatmap";
+import { type ComponentType, useEffect, useMemo } from "react";
+import { buildActivityHeatmapModel, contributionDayKeyFromTimestamp } from "@/lib/activityHeatmap";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserStore } from "@/store/useUserStore";
@@ -25,9 +25,14 @@ import {
 } from "lucide-react";
 import { Subject } from "@/types";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { parseBitsTestAttemptsStore } from "@/lib/parseBitsTestAttemptsStore";
+import { parseEngagementDraftDashboardContributions } from "@/lib/parseEngagementDraftDashboardContributions";
 
 type SubjectStat = {
   subject: Subject;
+  /** Topic quizzes (Bits) submitted for this subject — each key is one quiz; retakes count once. */
+  quizCount: number;
+  /** All graded answers: play / Question Gun + topic quiz questions. */
   total: number;
   correct: number;
   wrong: number;
@@ -190,6 +195,7 @@ function RingDial({ label }: { label: string }) {
 
 function SubjectBreakdownCard({ stat }: { stat: SubjectStat }) {
   const meta = SUBJECT_META[stat.subject];
+  const quizLabel = stat.quizCount === 1 ? "quiz" : "quizzes";
   return (
     <div className={`rounded-2xl border bg-card/80 p-4 dark:bg-slate-950/65 ${meta.tones.border}`}>
       <div className="flex items-center justify-between gap-4">
@@ -200,7 +206,9 @@ function SubjectBreakdownCard({ stat }: { stat: SubjectStat }) {
             </span>
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-foreground">{meta.label}</p>
-              <p className="text-xs text-muted-foreground">0 quizzes · {stat.total} questions</p>
+              <p className="text-xs text-muted-foreground">
+                {stat.quizCount} {quizLabel} · {stat.total} questions
+              </p>
             </div>
           </div>
         </div>
@@ -233,11 +241,31 @@ function SubjectBreakdownCard({ stat }: { stat: SubjectStat }) {
 }
 
 export default function HomePage() {
-  const { profile, session } = useAuth();
+  const { profile, session, refreshProfile } = useAuth();
+
+  useEffect(() => {
+    void refreshProfile();
+  }, [refreshProfile]);
   const user = useUserStore((s) => s.user);
   const allResults = useUserStore((s) => s.allResults);
   const router = useRouter();
   const streakTimer = useStreakTimer();
+
+  const bitsAttemptRows = useMemo(
+    () => parseBitsTestAttemptsStore(profile?.bits_test_attempts ?? null),
+    [profile?.bits_test_attempts],
+  );
+
+  const submittedBitsKeys = useMemo(() => {
+    const raw = profile?.bits_test_attempts;
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return new Set<string>();
+    return new Set(Object.keys(raw as Record<string, unknown>));
+  }, [profile?.bits_test_attempts]);
+
+  const engagementDraftRows = useMemo(
+    () => parseEngagementDraftDashboardContributions(profile?.subtopic_engagement ?? null, submittedBitsKeys),
+    [profile?.subtopic_engagement, submittedBitsKeys],
+  );
 
   const subjects: Subject[] = useMemo(() => {
     if (!user) return ["physics", "chemistry", "math"];
@@ -248,23 +276,60 @@ export default function HomePage() {
 
   const subjectStats = useMemo(() => {
     return subjects.map<SubjectStat>((subject) => {
+      const bitsRows = bitsAttemptRows.filter((r) => r.subject === subject);
+      const drafts = engagementDraftRows.filter((r) => r.subject === subject);
+      const quizCount = bitsRows.length + drafts.length;
+      const bitsCorrect = bitsRows.reduce((s, r) => s + r.correctCount, 0);
+      const bitsWrong = bitsRows.reduce((s, r) => s + r.wrongCount, 0);
+      const bitsAnswered = bitsCorrect + bitsWrong;
+      const bitsSkipped = bitsRows.reduce(
+        (s, r) => s + Math.max(0, r.totalQuestions - r.correctCount - r.wrongCount),
+        0,
+      );
+
+      const dAnswered = drafts.reduce((s, d) => s + d.answered, 0);
+      const dCorrect = drafts.reduce((s, d) => s + d.correct, 0);
+      const dWrong = drafts.reduce((s, d) => s + d.wrong, 0);
+      const dSkipped = drafts.reduce((s, d) => s + d.skipped, 0);
+
       const subjectQIds = questions.filter((q) => q.subject === subject).map((q) => q.id);
       const subjectResults = allResults.filter((r) => subjectQIds.includes(r.questionId));
-      const total = subjectResults.length;
-      const correct = subjectResults.filter((r) => r.isCorrect).length;
-      const wrong = total - correct;
-      const skipped = 0;
-      const accuracy = total > 0 ? Math.round((correct / total) * 100) : 0;
-      return { subject, total, correct, wrong, skipped, accuracy };
-    });
-  }, [subjects, allResults]);
+      const playTotal = subjectResults.length;
+      const playCorrect = subjectResults.filter((r) => r.isCorrect).length;
+      const playWrong = playTotal - playCorrect;
 
-  const totalAnswered = allResults.length;
-  const totalCorrect = allResults.filter((r) => r.isCorrect).length;
+      const total = bitsAnswered + dAnswered + playTotal;
+      const correct = bitsCorrect + dCorrect + playCorrect;
+      const wrong = bitsWrong + dWrong + playWrong;
+      const skipped = bitsSkipped + dSkipped;
+      const accuracy = total > 0 ? Math.round((correct / total) * 100) : 0;
+      return { subject, quizCount, total, correct, wrong, skipped, accuracy };
+    });
+  }, [subjects, allResults, bitsAttemptRows, engagementDraftRows]);
+
+  const bitsAnsweredGlobal = useMemo(
+    () =>
+      bitsAttemptRows.reduce((s, r) => s + r.correctCount + r.wrongCount, 0) +
+      engagementDraftRows.reduce((s, d) => s + d.answered, 0),
+    [bitsAttemptRows, engagementDraftRows],
+  );
+  const bitsCorrectGlobal = useMemo(
+    () =>
+      bitsAttemptRows.reduce((s, r) => s + r.correctCount, 0) +
+      engagementDraftRows.reduce((s, d) => s + d.correct, 0),
+    [bitsAttemptRows, engagementDraftRows],
+  );
+
+  const totalAnswered = bitsAnsweredGlobal + allResults.length;
+  const totalCorrect = bitsCorrectGlobal + allResults.filter((r) => r.isCorrect).length;
   const overallAccuracy =
     totalAnswered > 0 ? Math.round((totalCorrect / totalAnswered) * 100) : 0;
   const totalWrong = totalAnswered - totalCorrect;
   const totalSkipped = subjectStats.reduce((sum, s) => sum + s.skipped, 0);
+  const totalTopicQuizzesTaken = useMemo(
+    () => bitsAttemptRows.length + engagementDraftRows.length,
+    [bitsAttemptRows, engagementDraftRows],
+  );
 
   const accountStartForHeatmap = useMemo(() => {
     const raw = profile?.created_at ?? session?.user?.created_at;
@@ -273,9 +338,53 @@ export default function HomePage() {
     return Number.isNaN(d.getTime()) ? null : d;
   }, [profile?.created_at, session?.user?.created_at]);
 
+  const heatmapBitsDayExtras = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const row of bitsAttemptRows) {
+      if (typeof row.submittedAtMs !== "number") continue;
+      const n = row.correctCount + row.wrongCount;
+      if (n <= 0) continue;
+      const key = contributionDayKeyFromTimestamp(row.submittedAtMs);
+      m.set(key, (m.get(key) ?? 0) + n);
+    }
+    return m;
+  }, [bitsAttemptRows]);
+
+  const heatmapEngagementDayExtras = useMemo(() => {
+    const m = new Map<string, number>();
+    const raw = profile?.subtopic_engagement;
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return m;
+    for (const [engKey, value] of Object.entries(raw as Record<string, unknown>)) {
+      if (submittedBitsKeys.has(engKey)) continue;
+      if (!value || typeof value !== "object" || Array.isArray(value)) continue;
+      const row = value as Record<string, unknown>;
+      if (Number(row.v) !== 1) continue;
+      const updatedAt = typeof row.updatedAt === "string" ? row.updatedAt : "";
+      const t = Date.parse(updatedAt);
+      if (!Number.isFinite(t)) continue;
+      const bits = row.bits;
+      if (!bits || typeof bits !== "object" || Array.isArray(bits)) continue;
+      const graded = (bits as Record<string, unknown>).graded;
+      if (!graded || typeof graded !== "object" || Array.isArray(graded)) continue;
+      const answered = Number((graded as Record<string, unknown>).answered);
+      if (!Number.isFinite(answered) || answered <= 0) continue;
+      const key = contributionDayKeyFromTimestamp(t);
+      m.set(key, (m.get(key) ?? 0) + Math.min(Math.trunc(answered), 200));
+    }
+    return m;
+  }, [profile?.subtopic_engagement, submittedBitsKeys]);
+
+  const heatmapMergedDayExtras = useMemo(() => {
+    const out = new Map(heatmapBitsDayExtras);
+    for (const [k, v] of heatmapEngagementDayExtras) {
+      out.set(k, (out.get(k) ?? 0) + v);
+    }
+    return out;
+  }, [heatmapBitsDayExtras, heatmapEngagementDayExtras]);
+
   const activityHeatmap = useMemo(
-    () => buildActivityHeatmapModel(allResults, accountStartForHeatmap, new Date()),
-    [allResults, accountStartForHeatmap]
+    () => buildActivityHeatmapModel(allResults, accountStartForHeatmap, new Date(), heatmapMergedDayExtras),
+    [allResults, accountStartForHeatmap, heatmapMergedDayExtras],
   );
 
   if (profile?.role === "teacher") {
@@ -314,6 +423,15 @@ export default function HomePage() {
   ];
   const dailyTip = motivationalTips[new Date().getDay() % motivationalTips.length];
 
+  const savedItemsCount = useMemo(() => {
+    if (!user) return 0;
+    const sq = user.savedQuestions?.length ?? 0;
+    const sc = user.savedRevisionCards?.length ?? 0;
+    const sb = user.savedBits?.length ?? 0;
+    const sf = user.savedFormulas?.length ?? 0;
+    return sq + sc + sb + sf;
+  }, [user]);
+
   const statCards = [
     {
       icon: Target,
@@ -339,7 +457,7 @@ export default function HomePage() {
     {
       icon: BookOpen,
       label: "Saved",
-      value: user?.savedQuestions.length ?? 0,
+      value: savedItemsCount,
       tone: "border-violet-500/40 dark:border-violet-400/40",
       iconTone: "text-violet-600 dark:text-violet-300",
     },
@@ -348,12 +466,12 @@ export default function HomePage() {
   return (
     <ProtectedRoute>
       <AppLayout streakTimer={streakTimer}>
-        <div className="mx-auto w-full max-w-7xl space-y-6 px-1 pb-6">
-          <section className="relative overflow-hidden rounded-3xl border border-blue-300/35 bg-gradient-to-r from-indigo-600 via-blue-500 to-cyan-400 p-6 text-white shadow-[0_24px_65px_rgba(37,99,235,0.28)] dark:border-white/10 dark:shadow-[0_26px_70px_rgba(37,99,235,0.35)] md:p-8">
+        <div className="mx-auto w-full max-w-7xl space-y-4 px-1 pb-4 2xl:space-y-6 2xl:pb-6">
+          <section className="relative overflow-hidden rounded-2xl border border-blue-300/35 bg-gradient-to-r from-indigo-600 via-blue-500 to-cyan-400 p-4 text-white shadow-[0_24px_65px_rgba(37,99,235,0.28)] dark:border-white/10 dark:shadow-[0_26px_70px_rgba(37,99,235,0.35)] md:p-5 2xl:rounded-3xl 2xl:p-8">
             <div className="relative z-10">
-              <p className="text-sm font-semibold text-white/80">Welcome back 👋</p>
-              <h1 className="mt-1 text-3xl font-extrabold tracking-tight md:text-4xl">{user?.name}!</h1>
-              <div className="mt-4 flex flex-wrap items-center gap-2.5">
+              <p className="text-xs font-semibold text-white/80 2xl:text-sm">Welcome back 👋</p>
+              <h1 className="mt-0.5 text-2xl font-extrabold tracking-tight md:text-3xl 2xl:mt-1 2xl:text-4xl">{user?.name}!</h1>
+              <div className="mt-3 flex flex-wrap items-center gap-2 2xl:mt-4 2xl:gap-2.5">
                 <span className="rounded-full bg-white/18 px-3 py-1 text-xs font-semibold backdrop-blur">🎓 Class {user?.classLevel}</span>
                 <span className="rounded-full bg-white/18 px-3 py-1 text-xs font-semibold backdrop-blur">📚 {user?.subjectCombo}</span>
                 <span className="rounded-full bg-white/18 px-3 py-1 text-xs font-semibold backdrop-blur">🔬 Science</span>
@@ -402,13 +520,13 @@ export default function HomePage() {
             </button>
           </section>
 
-          <section className="grid gap-5 lg:grid-cols-5">
-            <div className="rounded-3xl border border-border bg-card/90 p-4 shadow-sm dark:bg-slate-950/60 lg:col-span-3">
-              <div className="mb-4 flex items-center gap-2">
-                <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/12 text-blue-600 dark:bg-blue-500/20 dark:text-blue-300">
-                  <BookOpen className="h-4 w-4" />
+          <section className="grid gap-4 lg:grid-cols-5 2xl:gap-5">
+            <div className="rounded-2xl border border-border bg-card/90 p-3 shadow-sm dark:bg-slate-950/60 lg:col-span-3 2xl:rounded-3xl 2xl:p-4">
+              <div className="mb-3 flex items-center gap-2 2xl:mb-4">
+                <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-blue-500/12 text-blue-600 dark:bg-blue-500/20 dark:text-blue-300 2xl:h-8 2xl:w-8">
+                  <BookOpen className="h-3.5 w-3.5 2xl:h-4 2xl:w-4" />
                 </span>
-                <h2 className="text-2xl font-bold tracking-tight text-foreground">Quiz breakdown by subject</h2>
+                <h2 className="text-xl font-bold tracking-tight text-foreground 2xl:text-2xl">Quiz breakdown by subject</h2>
               </div>
               <div className="space-y-3">
                 {subjectStats.map((stat) => (
@@ -417,17 +535,18 @@ export default function HomePage() {
               </div>
               <div className="mt-3 rounded-xl border border-border/70 bg-background/70 px-4 py-2.5 dark:bg-slate-900/40">
                 <p className="text-sm text-muted-foreground">
-                  Total quizzes taken <span className="float-right text-lg font-bold text-foreground">0</span>
+                  Total quizzes taken{" "}
+                  <span className="float-right text-lg font-bold text-foreground">{totalTopicQuizzesTaken}</span>
                 </p>
               </div>
             </div>
 
-            <div className="rounded-3xl border border-border bg-card/90 p-4 shadow-sm dark:bg-slate-950/60 lg:col-span-2">
-              <div className="mb-4 flex items-center gap-2">
-                <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-yellow-500/12 text-yellow-600 dark:bg-yellow-500/20 dark:text-yellow-300">
-                  <TrendingUp className="h-4 w-4" />
+            <div className="rounded-2xl border border-border bg-card/90 p-3 shadow-sm dark:bg-slate-950/60 lg:col-span-2 2xl:rounded-3xl 2xl:p-4">
+              <div className="mb-3 flex items-center gap-2 2xl:mb-4">
+                <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-yellow-500/12 text-yellow-600 dark:bg-yellow-500/20 dark:text-yellow-300 2xl:h-8 2xl:w-8">
+                  <TrendingUp className="h-3.5 w-3.5 2xl:h-4 2xl:w-4" />
                 </span>
-                <h2 className="text-2xl font-bold tracking-tight text-foreground">Quick actions</h2>
+                <h2 className="text-xl font-bold tracking-tight text-foreground 2xl:text-2xl">Quick actions</h2>
               </div>
               <div className="space-y-2.5">
                 {QUICK_ACTIONS.map((action) => (
@@ -450,9 +569,9 @@ export default function HomePage() {
             </div>
           </section>
 
-          <section className="rounded-3xl border border-border bg-card/90 p-4 shadow-sm dark:bg-slate-950/60">
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-2xl font-bold tracking-tight text-foreground">Test performance by category</h2>
+          <section className="rounded-2xl border border-border bg-card/90 p-3 shadow-sm dark:bg-slate-950/60 2xl:rounded-3xl 2xl:p-4">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2 2xl:mb-4">
+              <h2 className="text-xl font-bold tracking-tight text-foreground 2xl:text-2xl">Test performance by category</h2>
               <p className="text-sm text-muted-foreground">Speed · Accuracy · Stamina dials</p>
             </div>
             <div className="grid gap-3 md:grid-cols-2">
@@ -493,15 +612,15 @@ export default function HomePage() {
             </div>
           </section>
 
-          <section className="rounded-3xl border border-border bg-card/90 p-4 shadow-sm dark:bg-slate-950/60">
-            <div className="mb-3 flex items-center gap-2">
-              <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-violet-500/12 text-violet-600 dark:bg-violet-500/20 dark:text-violet-300">
-                <CalendarDays className="h-4.5 w-4.5" />
+          <section className="rounded-2xl border border-border bg-card/90 p-3 shadow-sm dark:bg-slate-950/60 2xl:rounded-3xl 2xl:p-4">
+            <div className="mb-2 flex items-center gap-2 2xl:mb-3">
+              <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-violet-500/12 text-violet-600 dark:bg-violet-500/20 dark:text-violet-300 2xl:h-8 2xl:w-8">
+                <CalendarDays className="h-4 w-4 2xl:h-[18px] 2xl:w-[18px]" />
               </span>
-              <h2 className="text-2xl font-bold tracking-tight text-foreground">Activity heatmap</h2>
+              <h2 className="text-xl font-bold tracking-tight text-foreground 2xl:text-2xl">Activity heatmap</h2>
             </div>
 
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-stretch lg:gap-5">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-stretch lg:gap-4 2xl:gap-5">
               <div className="min-w-0 flex-1 space-y-2">
                 <div className="text-xs text-muted-foreground sm:text-sm">
                   <p className="font-medium text-foreground/90">
@@ -558,7 +677,7 @@ export default function HomePage() {
                           const intensity = cell.intensity;
                           const title = cell.isFuture
                             ? `${cell.day.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })} · Upcoming`
-                            : `${cell.day.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })} · ${cell.count} question${cell.count === 1 ? "" : "s"}`;
+                            : `${cell.day.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })} · ${cell.count} activit${cell.count === 1 ? "y" : "ies"}`;
                           const base =
                             "min-h-0 min-w-0 rounded-[2px] outline outline-1 -outline-offset-1 transition-colors";
                           const tone =

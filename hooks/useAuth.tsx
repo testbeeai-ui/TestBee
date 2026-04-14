@@ -1,16 +1,25 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useCallback, useEffect, useRef, useState, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { AuthError, User, Session } from '@supabase/supabase-js';
 import { useUserStore } from '@/store/useUserStore';
-import type { ClassLevel, SubjectCombo, SavedBit, SavedFormula, SavedRevisionCard } from '@/types';
+import type {
+  ClassLevel,
+  SubjectCombo,
+  SavedBit,
+  SavedFormula,
+  SavedRevisionCard,
+  SavedRevisionUnit,
+} from '@/types';
 import { targetExamToExamType } from '@/lib/targetExam';
+import { mergeAllSavedContent } from '@/lib/mergeSavedContent';
+import type { Json } from '@/integrations/supabase/types';
 
 interface Profile {
   id: string;
   /** Profile row creation time from Supabase (ISO). */
   created_at?: string | null;
   name: string;
-  role: 'student' | 'teacher';
+  role: 'student' | 'teacher' | 'admin';
   class_level: number | null;
   target_exam?: string | null;
   stream: string | null;
@@ -27,6 +36,11 @@ interface Profile {
   saved_bits?: SavedBit[];
   saved_formulas?: SavedFormula[];
   saved_revision_cards?: SavedRevisionCard[];
+  saved_revision_units?: SavedRevisionUnit[];
+  /** Submitted topic-quiz (Bits) attempts keyed like bits-attempts API; retakes overwrite same key. */
+  bits_test_attempts?: Json | null;
+  /** Per-lesson engagement snapshots (in-progress quiz draft lives under bits + graded). */
+  subtopic_engagement?: Json | null;
 }
 
 interface AuthContextType {
@@ -157,14 +171,32 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       useUserStore.getState().setExamType(next);
     };
     const syncSavedFromProfile = () => {
+      const u = useUserStore.getState().user;
+      if (!u) return;
       const bits = Array.isArray(profile.saved_bits) ? profile.saved_bits : [];
       const formulas = Array.isArray(profile.saved_formulas) ? profile.saved_formulas : [];
       const revisionCards = Array.isArray(profile.saved_revision_cards)
         ? profile.saved_revision_cards
         : [];
-      if (bits.length > 0 || formulas.length > 0 || revisionCards.length > 0) {
-        useUserStore.getState().setSavedFromServer(bits, formulas, revisionCards);
-      }
+      const revisionUnits = Array.isArray(profile.saved_revision_units)
+        ? profile.saved_revision_units
+        : [];
+      const merged = mergeAllSavedContent(
+        u.savedBits ?? [],
+        u.savedFormulas ?? [],
+        u.savedRevisionCards ?? [],
+        u.savedRevisionUnits ?? [],
+        bits,
+        formulas,
+        revisionCards,
+        revisionUnits
+      );
+      useUserStore.getState().setSavedFromServer(
+        merged.savedBits,
+        merged.savedFormulas,
+        merged.savedRevisionCards,
+        merged.savedRevisionUnits
+      );
     };
     const run = () => {
       maybeSignup();
@@ -190,6 +222,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     profile?.saved_bits,
     profile?.saved_formulas,
     profile?.saved_revision_cards,
+    profile?.saved_revision_units,
   ]);
 
   const signInWithGoogle = async (redirectPath: string = '/onboarding') => {
@@ -229,9 +262,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setProfile(null);
   };
 
-  const refreshProfile = async () => {
-    if (user) await fetchProfile(user.id);
-  };
+  const fetchProfileRef = useRef(fetchProfile);
+  fetchProfileRef.current = fetchProfile;
+
+  const refreshProfile = useCallback(async () => {
+    if (!user?.id) return;
+    await fetchProfileRef.current(user.id);
+  }, [user?.id]);
 
   return (
     <AuthContext.Provider value={{ user, session, profile, loading, signInWithGoogle, signInWithEmail, signUpWithEmail, signOut, refreshProfile }}>

@@ -22,7 +22,14 @@ import {
 } from "@/lib/gyanContentPolicy";
 import { maybeVerifyProfPiDraft } from "@/lib/profPiVerify";
 import type { ProfPiRagKey } from "@/lib/profPiVerify";
-import { formatSarvamAssistantReply, sarvamChatCompletion } from "@/lib/sarvamGyanClient";
+import {
+  formatSarvamAssistantReply,
+  getSarvamGyanModel,
+  type SarvamUsage,
+  sarvamChatCompletion,
+} from "@/lib/sarvamGyanClient";
+import { maybeAttachCurriculumNodeToDoubt } from "@/lib/gyanCurriculum";
+import { logAiUsage } from "@/lib/aiLogger";
 
 const SUBJECT_BOUNDARIES: Record<string, { allowed: string; forbidden: string[] }> = {
   physics: {
@@ -146,7 +153,7 @@ async function rephraseSimilarAnswerWithSarvamRag(params: {
   body: string;
   subjectFlair: string | null;
   gradeLevel: number;
-}): Promise<{ text: string | null; ragChunksRetrieved: number | null }> {
+}): Promise<{ text: string | null; ragChunksRetrieved: number | null; usage?: SarvamUsage }> {
   const ragKey = flairToRagSubject(params.subjectFlair) as ProfPiRagKey;
   const boundary = SUBJECT_BOUNDARIES[ragKey] ?? SUBJECT_BOUNDARIES.physics;
   const queryForRag = `${params.title}\n\n${params.body || ""}`.trim().slice(0, PROF_PI_RAG_QUERY_MAX);
@@ -199,10 +206,10 @@ Produce the final adapted answer as markdown only.`;
   });
   if (!r.ok) {
     console.error("[gyanBotAnswer] Sarvam rephrase", r.error);
-    return { text: null, ragChunksRetrieved };
+    return { text: null, ragChunksRetrieved, usage: undefined };
   }
   const out = formatSarvamAssistantReply(r.text);
-  return { text: out.length > 40 ? out : null, ragChunksRetrieved };
+  return { text: out.length > 40 ? out : null, ragChunksRetrieved, usage: r.usage };
 }
 
 async function answerWithSarvamRag(params: {
@@ -211,7 +218,7 @@ async function answerWithSarvamRag(params: {
   subjectFlair: string | null;
   gradeLevel: number;
   temperature?: number;
-}): Promise<{ text: string | null; ragChunksRetrieved: number | null }> {
+}): Promise<{ text: string | null; ragChunksRetrieved: number | null; usage?: SarvamUsage }> {
   const ragKey = flairToRagSubject(params.subjectFlair) as ProfPiRagKey;
   const boundary = SUBJECT_BOUNDARIES[ragKey] ?? SUBJECT_BOUNDARIES.physics;
   const query = `${params.title}\n\n${params.body || ""}`.trim().slice(0, PROF_PI_RAG_QUERY_MAX);
@@ -261,9 +268,9 @@ Respond in clear English (or match the student's language if they wrote primaril
 
   if (!r.ok) {
     console.error("[gyanBotAnswer] Sarvam RAG answer", r.error);
-    return { text: null, ragChunksRetrieved };
+    return { text: null, ragChunksRetrieved, usage: undefined };
   }
-  return { text: formatSarvamAssistantReply(r.text), ragChunksRetrieved };
+  return { text: formatSarvamAssistantReply(r.text), ragChunksRetrieved, usage: r.usage };
 }
 
 /**
@@ -277,7 +284,7 @@ export async function runProfPiAnswerForDoubt(
   const { data: row, error: dErr } = await waitForDoubtRow(
     admin,
     doubtId,
-    "id, title, body, subject, user_id",
+    "id, title, body, subject, user_id, gyan_curriculum_node_id",
   );
   const doubt = row as {
     id: string;
@@ -285,6 +292,7 @@ export async function runProfPiAnswerForDoubt(
     body: string | null;
     subject: string | null;
     user_id: string;
+    gyan_curriculum_node_id: string | null;
   } | null;
 
   if (dErr || !doubt) {
@@ -320,6 +328,37 @@ export async function runProfPiAnswerForDoubt(
       gradeLevel: grade,
     });
     lastRagChunks = reph.ragChunksRetrieved;
+    await logAiUsage({
+      supabase: admin,
+      userId: doubt.user_id,
+      actionType: "profpi_modal_retrieve",
+      modelId: "modal-rag-retrieve",
+      backend: "modal",
+      metadata: {
+        doubtId,
+        source: "rephrase",
+        ragChunkCount: reph.ragChunksRetrieved ?? 0,
+      },
+    });
+    if (reph.usage) {
+      await logAiUsage({
+        supabase: admin,
+        userId: doubt.user_id,
+        actionType: "profpi_sarvam_rephrase",
+        modelId: getSarvamGyanModel(),
+        backend: "sarvam",
+        usage: {
+          promptTokenCount: reph.usage.prompt_tokens,
+          candidatesTokenCount: reph.usage.completion_tokens,
+          totalTokenCount: reph.usage.total_tokens,
+        },
+        metadata: {
+          doubtId,
+          source: "rephrase",
+          ragChunkCount: reph.ragChunksRetrieved ?? 0,
+        },
+      });
+    }
     if (reph.text) {
       bodyOut = reph.text;
       source = "rephrase";
@@ -334,6 +373,37 @@ export async function runProfPiAnswerForDoubt(
       gradeLevel: grade,
     });
     lastRagChunks = ans.ragChunksRetrieved;
+    await logAiUsage({
+      supabase: admin,
+      userId: doubt.user_id,
+      actionType: "profpi_modal_retrieve",
+      modelId: "modal-rag-retrieve",
+      backend: "modal",
+      metadata: {
+        doubtId,
+        source: "rag_sarvam",
+        ragChunkCount: ans.ragChunksRetrieved ?? 0,
+      },
+    });
+    if (ans.usage) {
+      await logAiUsage({
+        supabase: admin,
+        userId: doubt.user_id,
+        actionType: "profpi_sarvam_answer",
+        modelId: getSarvamGyanModel(),
+        backend: "sarvam",
+        usage: {
+          promptTokenCount: ans.usage.prompt_tokens,
+          candidatesTokenCount: ans.usage.completion_tokens,
+          totalTokenCount: ans.usage.total_tokens,
+        },
+        metadata: {
+          doubtId,
+          source: "rag_sarvam",
+          ragChunkCount: ans.ragChunksRetrieved ?? 0,
+        },
+      });
+    }
     bodyOut = ans.text;
   }
 
@@ -347,6 +417,37 @@ export async function runProfPiAnswerForDoubt(
       temperature: retryTemp,
     });
     lastRagChunks = retry.ragChunksRetrieved;
+    await logAiUsage({
+      supabase: admin,
+      userId: doubt.user_id,
+      actionType: "profpi_modal_retrieve",
+      modelId: "modal-rag-retrieve",
+      backend: "modal",
+      metadata: {
+        doubtId,
+        source: "rag_sarvam_retry",
+        ragChunkCount: retry.ragChunksRetrieved ?? 0,
+      },
+    });
+    if (retry.usage) {
+      await logAiUsage({
+        supabase: admin,
+        userId: doubt.user_id,
+        actionType: "profpi_sarvam_retry",
+        modelId: getSarvamGyanModel(),
+        backend: "sarvam",
+        usage: {
+          promptTokenCount: retry.usage.prompt_tokens,
+          candidatesTokenCount: retry.usage.completion_tokens,
+          totalTokenCount: retry.usage.total_tokens,
+        },
+        metadata: {
+          doubtId,
+          source: "rag_sarvam_retry",
+          ragChunkCount: retry.ragChunksRetrieved ?? 0,
+        },
+      });
+    }
     bodyOut = retry.text;
   }
 
@@ -387,6 +488,15 @@ export async function runProfPiAnswerForDoubt(
   if (insErr || !inserted?.id) {
     return { ok: false, error: insErr?.message ?? "Insert failed", diag: profPiDiag(lastRagChunks) };
   }
+
+  await maybeAttachCurriculumNodeToDoubt({
+    admin,
+    doubtId,
+    subjectFlair: doubt.subject,
+    titleHtml: doubt.title,
+    bodyHtml: doubt.body,
+    existingNodeId: doubt.gyan_curriculum_node_id,
+  });
 
   return { ok: true, skipped: false, answerId: inserted.id, source, diag: profPiDiag(lastRagChunks) };
 }

@@ -22,6 +22,8 @@ const examOptions: { value: ExamType | null; label: string; emoji: string }[] = 
   { value: 'other', label: 'Other', emoji: '📝' },
 ];
 
+const STUDENT_COMING_SOON_EXAMS = new Set<ExamType>(['JEE_Mains', 'JEE_Advance', 'KCET', 'other']);
+
 interface SubjectChipsProps {
   onSelectSubject: (subject: Subject, exam: ExamType | null) => void;
 }
@@ -99,24 +101,45 @@ export default function SubjectChips({ onSelectSubject }: SubjectChipsProps) {
           )}
 
           <div className="grid grid-cols-2 gap-3 mt-2">
-            {examOptions.map((exam) => (
-              <button
-                key={exam.label}
-                type="button"
-                onClick={async () => {
-                  if (!pendingSubject) return;
-                  await persistStudentPrefs(exam.value);
-                  onSelectSubject(pendingSubject, exam.value);
-                  setPendingSubject(null);
-                }}
-                className="flex items-center gap-3 p-3 rounded-xl border border-border hover:border-primary/40 hover:bg-primary/5 hover:shadow-sm transition-all text-left group"
-              >
-                <span className="text-xl">{exam.emoji}</span>
-                <span className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
-                  {exam.label}
-                </span>
-              </button>
-            ))}
+            {examOptions.map((exam) => {
+              const isAdmin = profile?.role === 'admin';
+              const isComingSoonForUser =
+                !isAdmin && exam.value !== null && STUDENT_COMING_SOON_EXAMS.has(exam.value);
+              return (
+                <button
+                  key={exam.label}
+                  type="button"
+                  disabled={isComingSoonForUser}
+                  onClick={async () => {
+                    if (!pendingSubject || isComingSoonForUser) return;
+                    await persistStudentPrefs(exam.value);
+                    onSelectSubject(pendingSubject, exam.value);
+                    setPendingSubject(null);
+                  }}
+                  className={cn(
+                    "flex items-center gap-3 p-3 rounded-xl border transition-all text-left group",
+                    isComingSoonForUser
+                      ? "border-border/60 bg-muted/30 text-muted-foreground cursor-not-allowed opacity-75"
+                      : "border-border hover:border-primary/40 hover:bg-primary/5 hover:shadow-sm"
+                  )}
+                >
+                  <span className="text-xl">{exam.emoji}</span>
+                  <div className="flex min-w-0 flex-col">
+                    <span
+                      className={cn(
+                        "text-sm font-semibold transition-colors",
+                        isComingSoonForUser ? "text-muted-foreground" : "text-foreground group-hover:text-primary"
+                      )}
+                    >
+                      {exam.label}
+                    </span>
+                    {isComingSoonForUser && (
+                      <span className="text-[11px] font-medium text-amber-500">Coming Soon</span>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </DialogContent>
       </Dialog>

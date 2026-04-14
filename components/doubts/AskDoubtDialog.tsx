@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, ChevronLeft, RotateCcw } from "lucide-react";
 import { DOUBT_FLAIRS, type ProfileRow } from "./doubtTypes";
+import { applyNormalizedPasteToField, normalizePastedMathForDoubt } from "@/lib/normalizePastedDoubtMath";
 
 interface AskDoubtDialogProps {
   open: boolean;
@@ -41,64 +42,93 @@ export default function AskDoubtDialog({ open, onOpenChange, profile, onDoubtPos
   const [customBountyInput, setCustomBountyInput] = useState("");
   const [submitLoading, setSubmitLoading] = useState(false);
 
-  const saveDraft = () => {
+  const clearDraft = useCallback(() => {
+    try {
+      sessionStorage.removeItem(DRAFT_KEY);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const handleStartAsNew = useCallback(() => {
+    clearDraft();
+    setAskStep(1);
+    setTitle("");
+    setBody("");
+    setSubject("");
+    setDuplicateMatches([]);
+    setCostRdm(0);
+    setBountyRdm(0);
+    setCustomBountyInput("");
+  }, [clearDraft]);
+
+  const hydrateFromSessionOrReset = useCallback(() => {
     if (typeof window === "undefined") return;
     try {
-      sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ title, body, subject, askStep, costRdm, bountyRdm, customBountyInput, duplicateMatches }));
-    } catch (_) { /* ignore */ }
-  };
-
-  const loadDraft = (): boolean => {
-    if (typeof window === "undefined") return false;
-    try {
       const raw = sessionStorage.getItem(DRAFT_KEY);
-      if (!raw) return false;
-      const d = JSON.parse(raw);
-      if (d.title != null) setTitle(d.title);
-      if (d.body != null) setBody(d.body);
-      if (d.subject != null) setSubject(d.subject);
-      if (d.askStep != null && d.askStep >= 1 && d.askStep <= 4) setAskStep(d.askStep);
-      if (d.costRdm != null) setCostRdm(d.costRdm);
-      if (d.bountyRdm != null) setBountyRdm(d.bountyRdm);
-      if (d.customBountyInput != null) setCustomBountyInput(d.customBountyInput);
-      if (Array.isArray(d.duplicateMatches)) setDuplicateMatches(d.duplicateMatches);
-      return true;
-    } catch (_) {
-      return false;
+      if (!raw) {
+        handleStartAsNew();
+        return;
+      }
+      const d = JSON.parse(raw) as Record<string, unknown>;
+      if (d.title != null) setTitle(String(d.title));
+      if (d.body != null) setBody(String(d.body));
+      if (d.subject != null) setSubject(String(d.subject));
+      if (typeof d.askStep === "number" && d.askStep >= 1 && d.askStep <= 4) setAskStep(d.askStep);
+      if (typeof d.costRdm === "number") setCostRdm(d.costRdm);
+      if (typeof d.bountyRdm === "number") setBountyRdm(d.bountyRdm);
+      if (d.customBountyInput != null) setCustomBountyInput(String(d.customBountyInput));
+      if (Array.isArray(d.duplicateMatches)) setDuplicateMatches(d.duplicateMatches as { id: string; title: string; similarity_score: number }[]);
+    } catch {
+      handleStartAsNew();
     }
-  };
+  }, [handleStartAsNew]);
 
-  const clearDraft = () => {
-    try { sessionStorage.removeItem(DRAFT_KEY); } catch (_) { /* ignore */ }
-  };
+  const saveDraft = useCallback(() => {
+    if (typeof window === "undefined") return;
+    try {
+      sessionStorage.setItem(
+        DRAFT_KEY,
+        JSON.stringify({
+          title,
+          body,
+          subject,
+          askStep,
+          costRdm,
+          bountyRdm,
+          customBountyInput,
+          duplicateMatches,
+        }),
+      );
+    } catch {
+      /* ignore */
+    }
+  }, [title, body, subject, askStep, costRdm, bountyRdm, customBountyInput, duplicateMatches]);
 
-  const handleStartAsNew = () => {
-    clearDraft();
-    setAskStep(1); setTitle(""); setBody(""); setSubject("");
-    setDuplicateMatches([]); setCostRdm(0); setBountyRdm(0); setCustomBountyInput("");
-  };
-
-  // Load draft on first open
+  // Load draft when dialog opens — defer updates so we don't setState synchronously inside the effect body.
   useEffect(() => {
-    if (open) {
-      const hadDraft = loadDraft();
-      if (!hadDraft) handleStartAsNew();
-    }
-  }, [open]);
+    if (!open) return;
+    queueMicrotask(() => {
+      hydrateFromSessionOrReset();
+    });
+  }, [open, hydrateFromSessionOrReset]);
 
-  // Auto-save draft
   useEffect(() => {
     if (open) saveDraft();
-  }, [open, title, body, subject, askStep, costRdm, bountyRdm, customBountyInput]);
+  }, [open, saveDraft]);
 
   const handleStep1Next = () => {
     if (!title.trim() || !subject || !DOUBT_FLAIRS.includes(subject as (typeof DOUBT_FLAIRS)[number])) {
       toast({ title: "Title and subject required", variant: "destructive" });
       return;
     }
+    const nt = normalizePastedMathForDoubt(title.trim());
+    const nb = normalizePastedMathForDoubt(body.trim());
+    setTitle(nt);
+    setBody(nb);
     setDuplicateChecking(true);
     setAskStep(2);
-    supabase.rpc("search_doubt_duplicates", { p_title: title.trim() }).then(({ data, error }) => {
+    supabase.rpc("search_doubt_duplicates", { p_title: nt }).then(({ data, error }) => {
       setDuplicateChecking(false);
       if (error) { setDuplicateMatches([]); setAskStep(4); return; }
       const rows = (data || []) as { id: string; title: string; similarity_score: number }[];
@@ -111,8 +141,14 @@ export default function AskDoubtDialog({ open, onOpenChange, profile, onDoubtPos
   const handleSubmit = async () => {
     if (!title.trim()) return;
     setSubmitLoading(true);
+    const nt = normalizePastedMathForDoubt(title.trim());
+    const nb = normalizePastedMathForDoubt(body.trim());
+    setTitle(nt);
+    setBody(nb);
     const { data, error } = await supabase.rpc("create_doubt_with_escrow", {
-      p_title: title.trim(), p_body: body.trim() || "", p_subject: subject.trim(),
+      p_title: nt,
+      p_body: nb || "",
+      p_subject: subject.trim(),
       p_cost_rdm: costRdm, p_bounty_rdm: bountyRdm,
     });
     setSubmitLoading(false);
@@ -191,7 +227,8 @@ export default function AskDoubtDialog({ open, onOpenChange, profile, onDoubtPos
         <DialogHeader>
           <DialogTitle>Ask a Doubt</DialogTitle>
           <DialogDescription>
-            {askStep === 1 && "Enter title and pick a subject."}
+            {askStep === 1 &&
+              "Ask anything you want — type it in your own words or paste from notes, a textbook, or the web. We tidy common math formats for you. Then pick a subject."}
             {askStep === 2 && "Checking for similar questions..."}
             {askStep === 3 && "We found similar questions. Is yours here?"}
             {askStep === 4 && "Cost and optional bounty (during beta cost is 0)."}
@@ -202,11 +239,58 @@ export default function AskDoubtDialog({ open, onOpenChange, profile, onDoubtPos
             <>
               <div>
                 <Label className="text-sm font-bold">Title</Label>
-                <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. How do I integrate x^2 e^x?" className="rounded-xl mt-1" />
+                <Input
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  onPaste={(e) => {
+                    e.preventDefault();
+                    const pasted = e.clipboardData.getData("text/plain");
+                    const el = e.currentTarget;
+                    const { value, caret } = applyNormalizedPasteToField(
+                      title,
+                      el.selectionStart ?? 0,
+                      el.selectionEnd ?? 0,
+                      pasted,
+                    );
+                    setTitle(value);
+                    queueMicrotask(() => el.setSelectionRange(caret, caret));
+                  }}
+                  placeholder={"Write your question however you like — one clear line"}
+                  className="rounded-xl mt-1"
+                />
+                <p className="text-xs text-muted-foreground mt-1.5">
+                  Longer working or big equations fit best in Details. Math is cleaned up when you paste; you can also use{" "}
+                  <code className="rounded bg-muted px-1 py-0.5 text-[11px]">$…$</code> if you want.
+                </p>
               </div>
               <div>
                 <Label className="text-sm font-bold">Details (optional)</Label>
-                <textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Add more context..." className="w-full min-h-[80px] rounded-xl border border-input bg-transparent px-3 py-2 text-sm mt-1 resize-y" rows={3} />
+                <textarea
+                  value={body}
+                  onChange={(e) => setBody(e.target.value)}
+                  onPaste={(e) => {
+                    e.preventDefault();
+                    const pasted = e.clipboardData.getData("text/plain");
+                    const el = e.currentTarget;
+                    const { value, caret } = applyNormalizedPasteToField(
+                      body,
+                      el.selectionStart ?? 0,
+                      el.selectionEnd ?? 0,
+                      pasted,
+                    );
+                    setBody(value);
+                    queueMicrotask(() => el.setSelectionRange(caret, caret));
+                  }}
+                  placeholder={
+                    "Optional: more context"
+                  }
+                  className="w-full min-h-[100px] rounded-xl border border-input bg-transparent px-3 py-2 text-sm mt-1 resize-y font-mono"
+                  rows={4}
+                />
+                <p className="text-xs text-muted-foreground mt-1.5">
+                  Formats like <code className="rounded bg-muted px-1 py-0.5 text-[11px]">\[ … \]</code> or fenced{" "}
+                  <code className="rounded bg-muted px-1 py-0.5 text-[11px]">```latex</code> are converted when you paste or post.
+                </p>
               </div>
               <div>
                 <Label className="text-sm font-bold">Subject <span className="text-destructive">*</span></Label>

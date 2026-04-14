@@ -7,6 +7,8 @@ import {
     parseSarvamUsageFromPayload,
     resolveSarvamMaxTokens,
 } from '@/lib/sarvamGyanClient';
+import { logAiUsage } from '@/lib/aiLogger';
+import { getSupabaseAndUser } from '@/lib/apiAuth';
 
 const SUBJECT_BOUNDARIES: Record<string, { allowed: string; forbidden: string[] }> = {
     physics: {
@@ -113,6 +115,7 @@ function sanitizeField(value: unknown, maxLen = 200): string {
 
 export async function POST(req: NextRequest) {
     try {
+        const authCtx = await getSupabaseAndUser(req);
         const body = await req.json();
         const rawMessage  = body.message;
         const subject     = typeof body.subject === 'string' && SUBJECT_PERSONAS[body.subject] ? body.subject : 'physics';
@@ -142,6 +145,22 @@ export async function POST(req: NextRequest) {
 
         // Attempt RAG retrieval (returns null on failure — graceful degradation)
         const ragContext = await fetchRAGContext(message, subject, grade, topic, subtopic);
+        if (authCtx) {
+            await logAiUsage({
+                supabase: authCtx.supabase,
+                userId: authCtx.user.id,
+                actionType: 'subject_chat_modal_retrieve',
+                modelId: 'modal-rag-retrieve',
+                backend: 'modal',
+                metadata: {
+                    subject,
+                    gradeLevel: grade,
+                    topic,
+                    subtopic,
+                    ragChunkCount: ragContext?.chunkCount ?? 0,
+                },
+            });
+        }
 
         const ragBlock = ragContext
             ? `\n\nTEXTBOOK CONTEXT (for grounding):
@@ -236,13 +255,38 @@ ${ragBlock}`;
 
         const data = await response.json();
         const historyChars = recentHistory.reduce((acc, m) => acc + String(m.content).length, 0);
+        const usage = parseSarvamUsageFromPayload(data);
         logSarvamChatMetrics({
             label: 'subject_chat',
             model: getSarvamGyanModel(),
             systemChars: systemPrompt.length,
             userChars: historyChars + String(message).length,
-            usage: parseSarvamUsageFromPayload(data),
+            usage,
         });
+        if (authCtx) {
+            await logAiUsage({
+                supabase: authCtx.supabase,
+                userId: authCtx.user.id,
+                actionType: 'subject_chat_sarvam',
+                modelId: getSarvamGyanModel(),
+                backend: 'sarvam',
+                usage: usage
+                    ? {
+                        promptTokenCount: usage.prompt_tokens,
+                        candidatesTokenCount: usage.completion_tokens,
+                        totalTokenCount: usage.total_tokens,
+                    }
+                    : undefined,
+                metadata: {
+                    subject,
+                    gradeLevel: grade,
+                    topic,
+                    subtopic,
+                    historyTurns: recentHistory.length,
+                    ragChunkCount: ragContext?.chunkCount ?? 0,
+                },
+            });
+        }
         let reply = data.choices?.[0]?.message?.content ?? 'Sorry, I could not generate a response. Please try again.';
 
         // Strip <think>…</think> reasoning blocks that Sarvam may emit
