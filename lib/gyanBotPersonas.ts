@@ -1,6 +1,8 @@
 /**
  * Fixed UUIDs for Gyan++ bot personas (auth.users.id = profiles.id).
  * Create users via POST /api/admin/seed-gyan-bot-personas (admin + service role).
+ *
+ * Student bots rotate PCM only (Physics / Chemistry / Math) — four personas each.
  */
 
 export const PROF_PI_USER_ID = "f2a00000-0000-4000-8000-000000000001";
@@ -25,13 +27,14 @@ export type GyanStudentPersona = {
   userId: string;
   email: string;
   name: string;
-  /** Primary subject focus for question generation */
-  subjectFocus: "Physics" | "Chemistry" | "Math" | "Biology" | "General Question" | "Other";
+  /** Primary subject focus for question generation (PCM only). */
+  subjectFocus: "Physics" | "Chemistry" | "Math";
   classLevel: 11 | 12;
   /** Voice / mistakes / tone for LLM student simulation */
   personality: string;
 };
 
+/** Four Physics + four Chemistry + four Math — fixed UUIDs / emails for idempotent seed. */
 export const GYAN_STUDENT_PERSONAS: GyanStudentPersona[] = [
   {
     userId: GYAN_STUDENT_USER_IDS[0],
@@ -49,7 +52,7 @@ export const GYAN_STUDENT_PERSONAS: GyanStudentPersona[] = [
     subjectFocus: "Chemistry",
     classLevel: 11,
     personality:
-      "NEET-focused; strong at biology weak at ionic equilibrium; writes polite doubts; often cites NCERT page confusion.",
+      "JEE/NEET dual prep; ionic equilibrium and salt hydrolysis confuse her; polite doubts; cites NCERT diagram numbers when stuck.",
   },
   {
     userId: GYAN_STUDENT_USER_IDS[2],
@@ -64,10 +67,10 @@ export const GYAN_STUDENT_PERSONAS: GyanStudentPersona[] = [
     userId: GYAN_STUDENT_USER_IDS[3],
     email: "gyan-bot-s04@gyanpp.bot",
     name: "Meera P.",
-    subjectFocus: "Biology",
+    subjectFocus: "Physics",
     classLevel: 11,
     personality:
-      "Visual learner; genetics and crosses confuse her; friendly tone; asks for intuition before definitions.",
+      "Visual learner; SHM and wave graphs trip her up; friendly tone; asks for intuition before equations; sketches ASCII diagrams in body.",
   },
   {
     userId: GYAN_STUDENT_USER_IDS[4],
@@ -100,10 +103,10 @@ export const GYAN_STUDENT_PERSONAS: GyanStudentPersona[] = [
     userId: GYAN_STUDENT_USER_IDS[7],
     email: "gyan-bot-s08@gyanpp.bot",
     name: "Sneha D.",
-    subjectFocus: "Biology",
+    subjectFocus: "Chemistry",
     classLevel: 12,
     personality:
-      "NEET repeater energy; physiology pathways; compares two similar terms; calm analytical tone.",
+      "JEE Main focus; thermodynamics and electrochemistry sign conventions; compares two similar formulas; calm analytical tone.",
   },
   {
     userId: GYAN_STUDENT_USER_IDS[8],
@@ -118,10 +121,10 @@ export const GYAN_STUDENT_PERSONAS: GyanStudentPersona[] = [
     userId: GYAN_STUDENT_USER_IDS[9],
     email: "gyan-bot-s10@gyanpp.bot",
     name: "Kavya H.",
-    subjectFocus: "General Question",
-    classLevel: 11,
+    subjectFocus: "Math",
+    classLevel: 12,
     personality:
-      "Cross-subject study tips; time management; sometimes meta questions about how to revise.",
+      "Integration by parts and definite integral traps; writes long setup then one stuck step; asks if FTOC applies.",
   },
   {
     userId: GYAN_STUDENT_USER_IDS[10],
@@ -136,10 +139,10 @@ export const GYAN_STUDENT_PERSONAS: GyanStudentPersona[] = [
     userId: GYAN_STUDENT_USER_IDS[11],
     email: "gyan-bot-s12@gyanpp.bot",
     name: "Priya V.",
-    subjectFocus: "Other",
+    subjectFocus: "Math",
     classLevel: 12,
     personality:
-      "Mixed science doubt or syllabus interpretation; polite; occasionally asks about notation conventions.",
+      "3D geometry and direction ratios; notation-heavy questions; polite; double-checks whether a line skews or intersects.",
   },
 ];
 

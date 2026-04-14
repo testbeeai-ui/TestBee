@@ -135,37 +135,37 @@ export default function ReferEarnPage() {
   return (
     <ProtectedRoute>
       <AppLayout>
-        <div className="mx-auto w-full max-w-6xl space-y-5">
-          <section className="rounded-3xl border border-violet-300/60 bg-gradient-to-br from-violet-50 via-white to-indigo-50 p-5 md:p-7 shadow-lg dark:border-violet-500/35 dark:from-[#0f1023] dark:via-[#0b0d1a] dark:to-[#0a0c17] dark:shadow-[0_30px_80px_rgba(20,15,50,0.55)]">
+        <div className="mx-auto w-full max-w-6xl space-y-3 2xl:space-y-5">
+          <section className="rounded-2xl border border-violet-300/60 bg-gradient-to-br from-violet-50 via-white to-indigo-50 p-4 shadow-lg md:p-5 2xl:rounded-3xl 2xl:p-7 dark:border-violet-500/35 dark:from-[#0f1023] dark:via-[#0b0d1a] dark:to-[#0a0c17] dark:shadow-[0_30px_80px_rgba(20,15,50,0.55)]">
             <div className="mx-auto max-w-4xl text-center">
-              <div className="inline-flex items-center rounded-full border border-violet-300 bg-violet-100 px-4 py-1 text-sm font-bold text-violet-700 dark:border-violet-400/40 dark:bg-violet-500/15 dark:text-violet-300">
-                <Sparkles className="mr-1.5 h-4 w-4" /> REFER & EARN RDM
+              <div className="inline-flex items-center rounded-full border border-violet-300 bg-violet-100 px-3 py-0.5 text-xs font-bold text-violet-700 dark:border-violet-400/40 dark:bg-violet-500/15 dark:text-violet-300 2xl:px-4 2xl:py-1 2xl:text-sm">
+                <Sparkles className="mr-1 h-3.5 w-3.5 2xl:mr-1.5 2xl:h-4 2xl:w-4" /> REFER & EARN RDM
               </div>
-              <h1 className="mt-4 text-4xl font-black tracking-tight text-foreground md:text-6xl dark:text-white">
+              <h1 className="mt-3 text-3xl font-black tracking-tight text-foreground dark:text-white md:text-4xl xl:text-5xl 2xl:mt-4">
                 <span className="text-amber-600 dark:text-amber-300">{rdm}</span> RDM balance
               </h1>
-              <p className="mt-3 text-lg text-muted-foreground dark:text-slate-300">
+              <p className="mt-2 text-sm text-muted-foreground dark:text-slate-300 2xl:mt-3 2xl:text-base">
                 RDM (Reward Miles) unlock practice packs, mock tests & exclusive study tools.
                 <br className="hidden md:block" />
                 Share EduBlast and earn more with every friend who joins.
               </p>
 
-              <div className="mt-6 grid grid-cols-1 gap-3 md:grid-cols-3">
-                <div className="rounded-2xl border border-border bg-card/90 px-4 py-3 dark:border-slate-700 dark:bg-slate-900/40">
-                  <p className="text-4xl font-black text-amber-600 dark:text-amber-300">{friendsReferred}</p>
-                  <p className="text-sm font-semibold text-muted-foreground dark:text-slate-300">Friends referred</p>
+              <div className="mt-4 grid grid-cols-1 gap-2 md:grid-cols-3 2xl:mt-6 2xl:gap-3">
+                <div className="rounded-xl border border-border bg-card/90 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-900/40 2xl:rounded-2xl 2xl:px-4 2xl:py-3">
+                  <p className="text-2xl font-black text-amber-600 dark:text-amber-300 md:text-3xl 2xl:text-4xl">{friendsReferred}</p>
+                  <p className="text-xs font-semibold text-muted-foreground dark:text-slate-300 2xl:text-sm">Friends referred</p>
                 </div>
-                <div className="rounded-2xl border border-border bg-card/90 px-4 py-3 dark:border-slate-700 dark:bg-slate-900/40">
-                  <p className="text-4xl font-black text-emerald-600 dark:text-emerald-300">+{perReferral}</p>
-                  <p className="text-sm font-semibold text-muted-foreground dark:text-slate-300">RDM per referral</p>
+                <div className="rounded-xl border border-border bg-card/90 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-900/40 2xl:rounded-2xl 2xl:px-4 2xl:py-3">
+                  <p className="text-2xl font-black text-emerald-600 dark:text-emerald-300 md:text-3xl 2xl:text-4xl">+{perReferral}</p>
+                  <p className="text-xs font-semibold text-muted-foreground dark:text-slate-300 2xl:text-sm">RDM per referral</p>
                 </div>
-                <div className="rounded-2xl border border-border bg-card/90 px-4 py-3 dark:border-slate-700 dark:bg-slate-900/40">
-                  <p className="text-4xl font-black text-rose-600 dark:text-rose-300">+{bonusAtFive}</p>
-                  <p className="text-sm font-semibold text-muted-foreground dark:text-slate-300">Bonus at 5 friends</p>
+                <div className="rounded-xl border border-border bg-card/90 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-900/40 2xl:rounded-2xl 2xl:px-4 2xl:py-3">
+                  <p className="text-2xl font-black text-rose-600 dark:text-rose-300 md:text-3xl 2xl:text-4xl">+{bonusAtFive}</p>
+                  <p className="text-xs font-semibold text-muted-foreground dark:text-slate-300 2xl:text-sm">Bonus at 5 friends</p>
                 </div>
               </div>
 
-              <div className="mt-5 rounded-2xl border border-border bg-card/80 p-3 md:p-4 dark:border-slate-700 dark:bg-slate-950/45">
+              <div className="mt-4 rounded-xl border border-border bg-card/80 p-3 dark:border-slate-700 dark:bg-slate-950/45 2xl:mt-5 2xl:rounded-2xl 2xl:p-4">
                 <div className="flex flex-col gap-3 md:flex-row">
                   <div className="flex min-h-12 flex-1 items-center rounded-xl border border-border bg-background/90 px-3 text-left text-foreground dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-200">
                     <Link2 className="mr-2 h-4 w-4 text-muted-foreground dark:text-slate-400" />
@@ -194,8 +194,8 @@ export default function ReferEarnPage() {
             </div>
           </section>
 
-          <section className="rounded-2xl border border-border bg-card p-2 md:p-3 dark:border-slate-800 dark:bg-[#0b0e18]">
-            <div className="flex flex-wrap gap-2 md:gap-2.5">
+          <section className="rounded-xl border border-border bg-card p-1.5 dark:border-slate-800 dark:bg-[#0b0e18] md:p-2 2xl:rounded-2xl 2xl:p-3">
+            <div className="flex flex-wrap gap-1.5 md:gap-2 2xl:gap-2.5">
               {TAB_ITEMS.map(({ key, label, icon: Icon }) => {
                 const active = tab === key;
                 const s = TAB_STYLE[key];
@@ -204,11 +204,11 @@ export default function ReferEarnPage() {
                     key={key}
                     type="button"
                     onClick={() => setTab(key)}
-                    className={`inline-flex items-center gap-2 rounded-xl border px-3.5 py-2 text-sm font-semibold tracking-tight transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/35 focus-visible:ring-offset-2 focus-visible:ring-offset-background dark:focus-visible:ring-offset-[#0b0e18] ${
+                    className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold tracking-tight transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/35 focus-visible:ring-offset-2 focus-visible:ring-offset-background dark:focus-visible:ring-offset-[#0b0e18] 2xl:gap-2 2xl:rounded-xl 2xl:px-3.5 2xl:py-2 2xl:text-sm ${
                       active ? s.active : s.idle
                     }`}
                   >
-                    <Icon className={`h-4 w-4 shrink-0 ${active ? s.iconActive : s.iconIdle}`} aria-hidden />
+                    <Icon className={`h-3.5 w-3.5 shrink-0 2xl:h-4 2xl:w-4 ${active ? s.iconActive : s.iconIdle}`} aria-hidden />
                     {label}
                   </button>
                 );
@@ -217,34 +217,34 @@ export default function ReferEarnPage() {
           </section>
 
           {tab === "how" ? (
-            <section className="space-y-4">
-              <div className="rounded-2xl border border-border bg-card p-4 md:p-5 dark:border-slate-800 dark:bg-[#0b0e18]">
-                <h2 className="mb-4 text-3xl font-black text-foreground dark:text-white">3 steps to earn RDM</h2>
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            <section className="space-y-3 2xl:space-y-4">
+              <div className="rounded-2xl border border-border bg-card p-3 dark:border-slate-800 dark:bg-[#0b0e18] md:p-4 2xl:p-5">
+                <h2 className="mb-3 text-2xl font-black text-foreground dark:text-white 2xl:mb-4 2xl:text-3xl">3 steps to earn RDM</h2>
+                <div className="grid grid-cols-1 gap-2 md:grid-cols-3 2xl:gap-3">
                   {[
                     { title: "Copy your link", body: "Your unique referral link is ready above. Tap copy — it takes 1 second.", icon: Link2 },
                     { title: "Share with friends", body: "Send via WhatsApp, Telegram, or Instagram. Works best in study groups.", icon: Send },
                     { title: "Both of you earn", body: "You get 50 RDM instantly. Your friend gets 25 RDM welcome bonus.", icon: Sparkles },
                   ].map((item, i) => (
-                    <div key={item.title} className="rounded-xl border border-border bg-muted/40 p-4 dark:border-slate-700 dark:bg-slate-900/40">
-                      <div className="mb-3 inline-flex h-8 w-8 items-center justify-center rounded-full bg-violet-500/20 text-sm font-black text-violet-700 dark:text-violet-300">
+                    <div key={item.title} className="rounded-lg border border-border bg-muted/40 p-3 dark:border-slate-700 dark:bg-slate-900/40 2xl:rounded-xl 2xl:p-4">
+                      <div className="mb-2 inline-flex h-7 w-7 items-center justify-center rounded-full bg-violet-500/20 text-xs font-black text-violet-700 dark:text-violet-300 2xl:mb-3 2xl:h-8 2xl:w-8 2xl:text-sm">
                         {i + 1}
                       </div>
-                      <item.icon className="mb-2 h-5 w-5 text-violet-700 dark:text-violet-300" />
-                      <p className="text-2xl font-black text-foreground dark:text-white">{item.title}</p>
-                      <p className="mt-1 text-sm text-muted-foreground dark:text-slate-300">{item.body}</p>
+                      <item.icon className="mb-1.5 h-4 w-4 text-violet-700 dark:text-violet-300 2xl:mb-2 2xl:h-5 2xl:w-5" />
+                      <p className="text-lg font-black text-foreground dark:text-white 2xl:text-2xl">{item.title}</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground dark:text-slate-300 2xl:mt-1 2xl:text-sm">{item.body}</p>
                     </div>
                   ))}
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-border bg-card p-4 md:p-5 dark:border-slate-800 dark:bg-[#0b0e18]">
-                <h2 className="mb-4 text-3xl font-black text-foreground dark:text-white">What can you do with RDM?</h2>
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <div className="rounded-2xl border border-border bg-card p-3 dark:border-slate-800 dark:bg-[#0b0e18] md:p-4 2xl:p-5">
+                <h2 className="mb-3 text-2xl font-black text-foreground dark:text-white 2xl:mb-4 2xl:text-3xl">What can you do with RDM?</h2>
+                <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-4 2xl:gap-3">
                   {REWARD_USES.map((item) => (
-                    <div key={item.title} className={`rounded-xl border bg-muted/40 p-4 dark:bg-slate-900/40 ${item.color}`}>
-                      <Gift className="mb-3 h-5 w-5" />
-                      <p className="text-xl font-black">{item.title}</p>
+                    <div key={item.title} className={`rounded-lg border bg-muted/40 p-3 dark:bg-slate-900/40 2xl:rounded-xl 2xl:p-4 ${item.color}`}>
+                      <Gift className="mb-2 h-4 w-4 2xl:mb-3 2xl:h-5 2xl:w-5" />
+                      <p className="text-lg font-black 2xl:text-xl">{item.title}</p>
                       <p className="text-sm text-muted-foreground dark:text-slate-300">{item.from}</p>
                     </div>
                   ))}
@@ -254,21 +254,21 @@ export default function ReferEarnPage() {
           ) : null}
 
           {tab === "tiers" ? (
-            <section className="rounded-2xl border border-border bg-card p-4 md:p-5 dark:border-slate-800 dark:bg-[#0b0e18]">
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-3xl font-black text-foreground dark:text-white">Referral milestones</h2>
-                <span className="text-sm font-semibold text-muted-foreground dark:text-slate-400">You are at Starter</span>
+            <section className="rounded-2xl border border-border bg-card p-3 dark:border-slate-800 dark:bg-[#0b0e18] md:p-4 2xl:p-5">
+              <div className="mb-3 flex items-center justify-between 2xl:mb-4">
+                <h2 className="text-2xl font-black text-foreground dark:text-white 2xl:text-3xl">Referral milestones</h2>
+                <span className="text-xs font-semibold text-muted-foreground dark:text-slate-400 2xl:text-sm">You are at Starter</span>
               </div>
-              <div className="space-y-3">
+              <div className="space-y-2 2xl:space-y-3">
                 {MILESTONES.map((tier) => (
-                  <div key={tier.name} className={`rounded-xl border bg-muted/40 p-4 dark:bg-slate-900/40 ${tier.color}`}>
-                    <div className="flex items-center justify-between gap-3">
+                  <div key={tier.name} className={`rounded-lg border bg-muted/40 p-3 dark:bg-slate-900/40 2xl:rounded-xl 2xl:p-4 ${tier.color}`}>
+                    <div className="flex items-center justify-between gap-2 2xl:gap-3">
                       <div>
-                        <p className="text-2xl font-black text-foreground dark:text-white">{tier.name}</p>
-                        <p className="text-sm text-muted-foreground dark:text-slate-300">{tier.range}</p>
+                        <p className="text-lg font-black text-foreground dark:text-white 2xl:text-2xl">{tier.name}</p>
+                        <p className="text-xs text-muted-foreground dark:text-slate-300 2xl:text-sm">{tier.range}</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-4xl font-black text-amber-600 dark:text-amber-300">{tier.reward}</p>
+                        <p className="text-2xl font-black text-amber-600 dark:text-amber-300 2xl:text-3xl">{tier.reward}</p>
                         <p className="text-xs font-semibold text-muted-foreground dark:text-slate-400">RDM / referral</p>
                       </div>
                     </div>
@@ -282,43 +282,43 @@ export default function ReferEarnPage() {
           ) : null}
 
           {tab === "leaderboard" ? (
-            <section className="rounded-2xl border border-border bg-card p-4 md:p-5 dark:border-slate-800 dark:bg-[#0b0e18]">
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="flex items-center gap-2 text-3xl font-black text-foreground dark:text-white">
-                  <Trophy className="h-7 w-7 text-amber-600 dark:text-amber-300" /> Top referrers this month
+            <section className="rounded-2xl border border-border bg-card p-3 dark:border-slate-800 dark:bg-[#0b0e18] md:p-4 2xl:p-5">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2 2xl:mb-4">
+                <h2 className="flex items-center gap-1.5 text-xl font-black text-foreground dark:text-white 2xl:gap-2 2xl:text-3xl">
+                  <Trophy className="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-300 2xl:h-7 2xl:w-7" /> Top referrers this month
                 </h2>
-                <span className="text-sm font-semibold text-muted-foreground dark:text-slate-400">Resets Jun 1</span>
+                <span className="text-xs font-semibold text-muted-foreground dark:text-slate-400 2xl:text-sm">Resets Jun 1</span>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1.5 2xl:space-y-2">
                 {LEADERBOARD.map((row) => (
-                  <div key={row.rank} className="rounded-xl border border-border bg-muted/40 px-4 py-3 dark:border-slate-700 dark:bg-slate-900/40">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 text-center text-lg font-black text-muted-foreground dark:text-slate-400">{row.rank}</div>
-                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-500/20 text-xs font-black text-amber-700 dark:text-amber-300">
+                  <div key={row.rank} className="rounded-lg border border-border bg-muted/40 px-3 py-2 dark:border-slate-700 dark:bg-slate-900/40 2xl:rounded-xl 2xl:px-4 2xl:py-3">
+                    <div className="flex items-center justify-between gap-2 2xl:gap-3">
+                      <div className="flex min-w-0 items-center gap-2 2xl:gap-3">
+                        <div className="w-8 shrink-0 text-center text-sm font-black text-muted-foreground dark:text-slate-400 2xl:w-10 2xl:text-lg">{row.rank}</div>
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-500/20 text-[10px] font-black text-amber-700 dark:text-amber-300 2xl:h-9 2xl:w-9 2xl:text-xs">
                           {row.name.split(" ").map((part) => part[0]).join("")}
                         </div>
-                        <p className="text-xl font-black text-foreground dark:text-white">{row.name}</p>
+                        <p className="truncate text-base font-black text-foreground dark:text-white 2xl:text-xl">{row.name}</p>
                       </div>
-                      <div className="text-right">
-                        <p className="text-sm font-semibold text-muted-foreground dark:text-slate-400">{row.refs} refs</p>
-                        <p className="text-3xl font-black text-amber-600 dark:text-amber-300">{row.rdm} RDM</p>
+                      <div className="shrink-0 text-right">
+                        <p className="text-xs font-semibold text-muted-foreground dark:text-slate-400 2xl:text-sm">{row.refs} refs</p>
+                        <p className="text-xl font-black text-amber-600 dark:text-amber-300 2xl:text-3xl">{row.rdm} RDM</p>
                       </div>
                     </div>
                   </div>
                 ))}
-                <div className="rounded-xl border border-violet-500/40 bg-violet-500/10 px-4 py-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 text-center text-lg font-black text-violet-300">—</div>
-                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-violet-500/20 text-xs font-black text-violet-200">
+                <div className="rounded-lg border border-violet-500/40 bg-violet-500/10 px-3 py-2 2xl:rounded-xl 2xl:px-4 2xl:py-3">
+                  <div className="flex items-center justify-between gap-2 2xl:gap-3">
+                    <div className="flex min-w-0 items-center gap-2 2xl:gap-3">
+                      <div className="w-8 shrink-0 text-center text-sm font-black text-violet-300 2xl:w-10 2xl:text-lg">—</div>
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-violet-500/20 text-[10px] font-black text-violet-200 2xl:h-9 2xl:w-9 2xl:text-xs">
                         YOU
                       </div>
-                      <p className="text-xl font-black text-foreground dark:text-white">{profile?.name || user?.name || "You"}</p>
+                      <p className="truncate text-base font-black text-foreground dark:text-white 2xl:text-xl">{profile?.name || user?.name || "You"}</p>
                     </div>
-                    <div className="text-right">
-                      <p className="text-sm font-semibold text-muted-foreground dark:text-slate-400">{friendsReferred} refs</p>
-                      <p className="text-3xl font-black text-violet-300">{rdm} RDM</p>
+                    <div className="shrink-0 text-right">
+                      <p className="text-xs font-semibold text-muted-foreground dark:text-slate-400 2xl:text-sm">{friendsReferred} refs</p>
+                      <p className="text-xl font-black text-violet-300 2xl:text-3xl">{rdm} RDM</p>
                     </div>
                   </div>
                 </div>
@@ -327,16 +327,16 @@ export default function ReferEarnPage() {
           ) : null}
 
           {tab === "streak" ? (
-            <section className="rounded-2xl border border-border bg-card p-4 md:p-5 dark:border-slate-800 dark:bg-[#0b0e18]">
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="flex items-center gap-2 text-3xl font-black text-foreground dark:text-white">
-                  <Flame className="h-6 w-6 text-violet-600 dark:text-violet-300" /> Daily sharing streak
+            <section className="rounded-2xl border border-border bg-card p-3 dark:border-slate-800 dark:bg-[#0b0e18] md:p-4 2xl:p-5">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2 2xl:mb-4">
+                <h2 className="flex items-center gap-1.5 text-xl font-black text-foreground dark:text-white 2xl:gap-2 2xl:text-3xl">
+                  <Flame className="h-5 w-5 shrink-0 text-violet-600 dark:text-violet-300 2xl:h-6 2xl:w-6" /> Daily sharing streak
                 </h2>
-                <span className="rounded-full border border-rose-400/40 bg-rose-500/10 px-3 py-1 text-sm font-bold text-rose-300">
+                <span className="rounded-full border border-rose-400/40 bg-rose-500/10 px-2 py-0.5 text-xs font-bold text-rose-300 2xl:px-3 2xl:py-1 2xl:text-sm">
                   Day 1 of 7
                 </span>
               </div>
-              <p className="mb-4 text-sm text-muted-foreground dark:text-slate-300">
+              <p className="mb-3 text-xs text-muted-foreground dark:text-slate-300 2xl:mb-4 2xl:text-sm">
                 Share your link every day for 7 days to earn a massive streak bonus. Miss a day and the streak resets.
               </p>
               <div className="grid grid-cols-2 gap-2 md:grid-cols-7">
@@ -352,30 +352,30 @@ export default function ReferEarnPage() {
                     }`}
                   >
                     <p className="text-xs font-semibold uppercase text-muted-foreground dark:text-slate-300">{d.day}</p>
-                    <p className={`mt-1 text-xl font-black ${d.active ? "text-emerald-600 dark:text-emerald-300" : d.day === "Sun" ? "text-violet-600 dark:text-violet-300" : "text-foreground dark:text-slate-300"}`}>{d.reward}</p>
+                    <p className={`mt-0.5 text-base font-black 2xl:mt-1 2xl:text-xl ${d.active ? "text-emerald-600 dark:text-emerald-300" : d.day === "Sun" ? "text-violet-600 dark:text-violet-300" : "text-foreground dark:text-slate-300"}`}>{d.reward}</p>
                   </div>
                 ))}
               </div>
-              <div className="mt-3 rounded-xl border border-violet-500/35 bg-violet-500/10 p-3">
-                <p className="text-lg font-black text-violet-300">7-day streak bonus: +195 RDM total</p>
-                <p className="text-sm text-muted-foreground dark:text-slate-300">Complete all 7 days to also unlock a Legend badge on your profile.</p>
+              <div className="mt-2 rounded-lg border border-violet-500/35 bg-violet-500/10 p-2.5 2xl:mt-3 2xl:rounded-xl 2xl:p-3">
+                <p className="text-base font-black text-violet-300 2xl:text-lg">7-day streak bonus: +195 RDM total</p>
+                <p className="text-xs text-muted-foreground dark:text-slate-300 2xl:text-sm">Complete all 7 days to also unlock a Legend badge on your profile.</p>
               </div>
             </section>
           ) : null}
 
-          <section className="rounded-2xl border border-border bg-card p-4 md:p-5 dark:border-slate-800 dark:bg-[#0b0e18]">
-            <h2 className="mb-2 text-3xl font-black text-foreground dark:text-white">Frequently asked questions</h2>
+          <section className="rounded-2xl border border-border bg-card p-3 dark:border-slate-800 dark:bg-[#0b0e18] md:p-4 2xl:p-5">
+            <h2 className="mb-1.5 text-2xl font-black text-foreground dark:text-white 2xl:mb-2 2xl:text-3xl">Frequently asked questions</h2>
             <div className="divide-y divide-border dark:divide-slate-800">
               {FAQ_ITEMS.map((item, idx) => {
                 const open = idx === openFaq;
                 return (
-                  <div key={item.q} className="py-1">
+                  <div key={item.q} className="py-0.5">
                     <button
                       type="button"
                       onClick={() => setOpenFaq(open ? -1 : idx)}
-                      className="flex w-full items-center justify-between py-3 text-left"
+                      className="flex w-full items-center justify-between py-2 text-left 2xl:py-3"
                     >
-                      <span className="text-2xl font-black text-foreground dark:text-white">{item.q}</span>
+                      <span className="pr-2 text-base font-bold text-foreground dark:text-white 2xl:text-lg 2xl:font-black">{item.q}</span>
                       {open ? <ChevronUp className="h-4 w-4 text-muted-foreground dark:text-slate-400" /> : <ChevronDown className="h-4 w-4 text-muted-foreground dark:text-slate-400" />}
                     </button>
                     {open ? <p className="pb-3 text-sm text-muted-foreground dark:text-slate-300">{item.a}</p> : null}

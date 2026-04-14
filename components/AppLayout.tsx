@@ -54,17 +54,17 @@ const AppLayout = ({ children, streakTimer }: AppLayoutProps) => {
     <div className="min-h-screen bg-background flex flex-col">
       {/* Top Navigation Bar */}
       <header className="sticky top-0 z-40 bg-card/80 backdrop-blur-xl border-b border-border/60">
-        <div className="max-w-7xl mx-auto flex items-center justify-between px-6 py-3">
+        <div className="max-w-7xl mx-auto flex items-center justify-between px-4 py-2.5 lg:px-5 lg:py-3 2xl:px-6">
           {/* Logo */}
-          <Link href="/home" className="flex items-center gap-2.5 hover:opacity-80 transition-opacity group">
-            <span className="text-2xl group-hover:scale-110 transition-transform">🎯</span>
-            <h1 className="text-2xl font-display bg-clip-text text-transparent" style={{ background: 'var(--gradient-primary)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+          <Link href="/home" className="flex items-center gap-2 hover:opacity-80 transition-opacity group 2xl:gap-2.5">
+            <span className="text-xl group-hover:scale-110 transition-transform 2xl:text-2xl">🎯</span>
+            <h1 className="text-xl font-display bg-clip-text text-transparent 2xl:text-2xl" style={{ background: 'var(--gradient-primary)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
               EduBlast
             </h1>
           </Link>
 
           {/* Nav Links - Desktop */}
-          <nav className="hidden md:flex items-center gap-0.5 bg-muted/50 rounded-2xl p-1">
+          <nav className="hidden md:flex items-center gap-0.5 bg-muted/50 rounded-xl p-0.5 2xl:rounded-2xl 2xl:p-1">
             {navItems.map(({ path, icon: Icon, label }) => {
               const isActive =
                 pathname === path ||
@@ -74,13 +74,13 @@ const AppLayout = ({ children, streakTimer }: AppLayoutProps) => {
                 <Link
                   key={path}
                   href={path}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${
+                  className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold transition-all 2xl:gap-2 2xl:rounded-xl 2xl:px-4 2xl:py-2 2xl:text-sm ${
                     isActive
                       ? 'bg-card text-primary shadow-sm'
                       : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
-                  <Icon className="w-4 h-4" suppressHydrationWarning />
+                  <Icon className="w-3.5 h-3.5 shrink-0 2xl:w-4 2xl:h-4" suppressHydrationWarning />
                   {label}
                 </Link>
               );
@@ -88,7 +88,7 @@ const AppLayout = ({ children, streakTimer }: AppLayoutProps) => {
           </nav>
 
           {/* Right side */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 2xl:gap-3">
             {streakTimer?.isActive && (
               <StreakTimer
                 phase={streakTimer.phase}
@@ -99,7 +99,7 @@ const AppLayout = ({ children, streakTimer }: AppLayoutProps) => {
             {(user || profile) && (
               <Link
                 href="/pricing"
-                className="flex items-center gap-1.5 bg-edu-yellow/15 hover:bg-edu-yellow/25 px-3.5 py-2 rounded-full transition-colors"
+                className="flex items-center gap-1.5 bg-edu-yellow/15 hover:bg-edu-yellow/25 px-2.5 py-1.5 rounded-full transition-colors 2xl:px-3.5 2xl:py-2"
               >
                 <Coins className="w-4 h-4 text-edu-orange" suppressHydrationWarning />
                 <span className="font-extrabold text-sm text-foreground">{rdm}</span>
@@ -109,9 +109,9 @@ const AppLayout = ({ children, streakTimer }: AppLayoutProps) => {
             <NotificationBell />
             <Link
               href="/profile"
-              className="w-9 h-9 rounded-xl bg-muted/60 hover:bg-muted flex items-center justify-center transition-colors"
+              className="w-8 h-8 rounded-lg bg-muted/60 hover:bg-muted flex items-center justify-center transition-colors 2xl:w-9 2xl:h-9 2xl:rounded-xl"
             >
-              <Settings className="w-4.5 h-4.5 text-muted-foreground" suppressHydrationWarning />
+              <Settings className="w-4 h-4 text-muted-foreground 2xl:w-[18px] 2xl:h-[18px]" suppressHydrationWarning />
             </Link>
           </div>
         </div>
@@ -146,8 +146,8 @@ const AppLayout = ({ children, streakTimer }: AppLayoutProps) => {
       {/* Content */}
       <main
         className={cn(
-          'flex-1 max-w-7xl mx-auto w-full px-6',
-          isMagicWall ? 'flex min-h-0 flex-col pt-2 pb-0 sm:pt-3' : 'py-8',
+          'flex-1 max-w-7xl mx-auto w-full px-4 lg:px-5 2xl:px-6',
+          isMagicWall ? 'flex min-h-0 flex-col pt-2 pb-0 sm:pt-3' : 'py-4 lg:py-5 2xl:py-7',
         )}
       >
         {children}
@@ -163,8 +163,8 @@ const AppLayout = ({ children, streakTimer }: AppLayoutProps) => {
       <AgentOrchestratorRunner />
 
       {/* Footer */}
-      <footer className="border-t border-border/60 bg-card/40 py-5">
-        <div className="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground">
+      <footer className="border-t border-border/60 bg-card/40 py-3 lg:py-4 2xl:py-5">
+        <div className="max-w-7xl mx-auto px-4 lg:px-5 2xl:px-6 flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-3 text-xs text-muted-foreground">
           <span className="font-bold">© 2026 EduBlast — Learn thru Questions 🎯</span>
           <div className="flex gap-6">
             <Link href="/pricing" className="hover:text-foreground transition-colors font-bold">Pricing</Link>

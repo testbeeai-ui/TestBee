@@ -114,7 +114,7 @@ function ProposalCard({
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.08 }}
-      className="edu-card p-5 space-y-4"
+      className="edu-card space-y-3 p-4 2xl:space-y-4 2xl:p-5"
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">{AuthorBlock}</div>
@@ -328,9 +328,9 @@ export default function EduFundPage() {
   return (
     <ProtectedRoute>
       <AppLayout>
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4 2xl:gap-6">
           <div>
-            <div className="edu-page-header mb-6">
+            <div className="edu-page-header mb-4 2xl:mb-6">
               <h1 className="edu-page-title flex items-center gap-2">
                 <span className="text-edu-yellow">💛</span>
                 EduFund
@@ -341,7 +341,7 @@ export default function EduFundPage() {
               </p>
             </div>
 
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 2xl:gap-4 2xl:mb-6">
               <Button
                 onClick={() => setCreateOpen(true)}
                 className="edu-btn-primary flex items-center gap-2"
@@ -354,7 +354,7 @@ export default function EduFundPage() {
               </p>
             </div>
 
-            <div className="space-y-5">
+            <div className="space-y-4 2xl:space-y-5">
               {proposals.map((p, i) => (
                 <ProposalCard
                   key={p.id}
@@ -374,10 +374,10 @@ export default function EduFundPage() {
             </div>
           </div>
 
-          <aside className="space-y-6">
-            <div className="edu-card p-5">
-              <h3 className="font-bold text-foreground flex items-center gap-2 mb-4">
-                <Target className="w-5 h-5 text-edu-orange" />
+          <aside className="space-y-4 2xl:space-y-6">
+            <div className="edu-card p-4 2xl:p-5">
+              <h3 className="mb-3 flex items-center gap-2 text-base font-bold text-foreground 2xl:mb-4">
+                <Target className="h-4 w-4 shrink-0 text-edu-orange 2xl:h-5 2xl:w-5" />
                 How EduFund Works
               </h3>
               <ol className="space-y-3 text-sm text-muted-foreground">
@@ -396,7 +396,7 @@ export default function EduFundPage() {
               </ol>
             </div>
 
-            <div className="edu-card p-5">
+            <div className="edu-card p-4 2xl:p-5">
               <h3 className="font-bold text-foreground mb-4">Top Supported</h3>
               <div className="space-y-3">
                 {topSupported.map((p) => {
@@ -428,7 +428,7 @@ export default function EduFundPage() {
               </div>
             </div>
 
-            <div className="edu-card p-5">
+            <div className="edu-card p-4 2xl:p-5">
               <h3 className="font-bold text-foreground flex items-center gap-2 mb-4">
                 <GraduationCap className="w-5 h-5 text-edu-orange" />
                 Eligibility to Publish

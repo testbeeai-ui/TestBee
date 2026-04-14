@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAndUser } from "@/lib/apiAuth";
 import { isAdminUser } from "@/lib/admin";
-import { createAdminClient, normalizeServiceRoleKey } from "@/integrations/supabase/server";
+import {
+  createAdminClient,
+  getSupabaseAdminEnvDiagnostics,
+  normalizeServiceRoleKey,
+} from "@/integrations/supabase/server";
 import { runProfPiAnswerForDoubt, waitForDoubtRow } from "@/lib/gyanBotAnswer";
 
 /** Prof-Pi runs RAG (Modal) + Sarvam + optional verifier — default Vercel timeout is too low. */
@@ -65,11 +69,30 @@ export async function POST(req: NextRequest) {
             ? "Invalid API key: the service_role JWT must be from the SAME Supabase project as NEXT_PUBLIC_SUPABASE_URL (copy both from Settings → API). On Vercel remove any wrapping quotes/spaces. Check Production (not only Preview) is selected for the variable."
             : "Supabase returned an error while loading the doubt. Fix keys/schema/network if this persists."
           : "If env vars match one project: check Preview vs Production env on Vercel, redeploy after changing NEXT_PUBLIC_*, confirm migrations ran on this DB (doubts table), and that the request doubtId matches the RPC id (Network → gyan-bot-answer payload).";
+        const envDiag = invalidKey ? getSupabaseAdminEnvDiagnostics() : undefined;
+        let envDiagSummary: string | undefined;
+        if (envDiag) {
+          if (envDiag.urlProjectRef && envDiag.jwtProjectRef) {
+            envDiagSummary = `Refs: URL project=${envDiag.urlProjectRef}, JWT project=${envDiag.jwtProjectRef} → ${
+              envDiag.refsMatch ? "match" : "MISMATCH (fix Vercel env)"
+            }`;
+          } else {
+            envDiagSummary = [
+              `urlHost=${envDiag.urlHost ?? "?"}`,
+              `jwtWellFormed=${envDiag.jwtWellFormed}`,
+              envDiag.jwtProjectRef ? `jwtRef=${envDiag.jwtProjectRef}` : "jwtRef=unreadable",
+              envDiag.note,
+            ]
+              .filter(Boolean)
+              .join(" · ");
+          }
+        }
         return NextResponse.json(
           {
             error: "Doubt not found",
             hint,
             ...(gateSelectError?.message ? { supabaseError: gateSelectError.message } : {}),
+            ...(envDiag ? { envDiag, envDiagSummary } : {}),
           },
           { status: 404 },
         );

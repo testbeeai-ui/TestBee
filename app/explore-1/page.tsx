@@ -610,7 +610,7 @@ function UnitRoadmap({ topics, subject, classLevel, onTopicClick, getTopicCount,
     }
     const footerDelay = chapterCards.length * 0.03 + 0.2;
     return (
-      <div className="w-full max-w-6xl mx-auto py-6 sm:py-8 select-none px-2">
+      <div className="w-full max-w-6xl mx-auto py-4 sm:py-5 2xl:py-8 select-none px-2">
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -766,7 +766,7 @@ function UnitRoadmap({ topics, subject, classLevel, onTopicClick, getTopicCount,
     }
     const footerDelay = chapterCards.length * 0.03 + 0.2;
     return (
-      <div className="w-full max-w-6xl mx-auto py-6 sm:py-8 select-none px-2">
+      <div className="w-full max-w-6xl mx-auto py-4 sm:py-5 2xl:py-8 select-none px-2">
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -884,7 +884,7 @@ function UnitRoadmap({ topics, subject, classLevel, onTopicClick, getTopicCount,
     }
     const footerDelay = chapterCards.length * 0.03 + 0.2;
     return (
-      <div className="w-full max-w-6xl mx-auto py-6 sm:py-8 select-none px-2">
+      <div className="w-full max-w-6xl mx-auto py-4 sm:py-5 2xl:py-8 select-none px-2">
         {CLASS12_PHYSICS_SECTIONS.map((sec, secIndex) => (
           <section key={sec.heading} className={secIndex > 0 ? 'mt-10' : ''}>
             <h3 className="text-[11px] sm:text-xs font-extrabold tracking-[0.18em] text-muted-foreground uppercase mb-4">
@@ -934,7 +934,7 @@ function UnitRoadmap({ topics, subject, classLevel, onTopicClick, getTopicCount,
   }
 
   return (
-    <div className="w-full max-w-4xl mx-auto py-6 sm:py-8 select-none px-2">
+    <div className="w-full max-w-4xl mx-auto py-4 sm:py-5 2xl:py-8 select-none px-2">
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-5">
         {/* Intro card: spans full width, sets the tone inside the deck */}
         <motion.div
@@ -1746,7 +1746,7 @@ const Explore = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="w-full max-w-6xl mx-auto px-4 py-8"
+              className="w-full max-w-6xl mx-auto px-4 py-5 2xl:py-8"
             >
               <div className="flex items-center gap-3 mb-6 flex-wrap">
                 <div className="h-9 w-24 rounded-full bg-muted animate-pulse" />
@@ -2014,7 +2014,7 @@ const Explore = () => {
                 <div className="flex flex-col lg:flex-row gap-6">
                   <div className="flex-1 min-w-0">
                     <div className="edu-card p-6 rounded-2xl border border-dashed border-muted-foreground/30 bg-muted/20">
-                      <p className="text-sm text-muted-foreground text-center py-8">
+                      <p className="text-sm text-muted-foreground text-center py-5 2xl:py-8">
                         Content for <strong className="text-foreground">{getExamLabel(profileExamType)}</strong> is not yet available. This page is separate from CBSE. When you add {getExamLabel(profileExamType)}-specific information, it will appear here.
                       </p>
                     </div>
@@ -3030,8 +3030,8 @@ const Explore = () => {
                   }}
                 />
               ) : (
-                <div className="text-center py-16 edu-card p-10">
-                  <span className="text-5xl block mb-4">🔍</span>
+                <div className="text-center py-10 edu-card p-6 2xl:py-16 2xl:p-10">
+                  <span className="mb-3 block text-4xl 2xl:mb-4 2xl:text-5xl">🔍</span>
                   <p className="text-muted-foreground font-bold">No questions match your filters.</p>
                 </div>
               )}

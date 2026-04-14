@@ -75,7 +75,9 @@ export default function DoubtsPage() {
     try {
       const { data, error } = await supabase
         .from("doubts")
-        .select("*, doubt_answers(id, body, upvotes, downvotes, is_accepted, created_at, user_id, profiles!doubt_answers_user_id_fkey(name, avatar_url, role)), profiles!doubts_user_id_fkey(name, avatar_url, role)")
+        .select(
+          "*, doubt_answers(id, body, upvotes, downvotes, is_accepted, created_at, user_id, profiles!doubt_answers_user_id_fkey(name, avatar_url, role)), profiles!doubts_user_id_fkey(name, avatar_url, role), gyan_curriculum_nodes(chapter_label, topic_label, subtopic_label)",
+        )
         .order("created_at", { ascending: false });
       if (error) {
         if (!opts?.silent) {

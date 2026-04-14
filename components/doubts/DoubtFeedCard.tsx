@@ -36,11 +36,17 @@ import {
   formatTimeAgo,
   stripHtml,
   isAiTutorAnswer,
+  isAiTutorDoubtAuthor,
 } from "./doubtTypes";
 import { ProfPiAvatar } from "./ProfPiAvatar";
 import { PROF_PI_CONFIG } from "@/lib/gyanBotPersonas";
+import { AiCurriculumSourceStrip, pickCurriculumNodeFromDoubt } from "@/components/doubts/AiCurriculumSourceStrip";
 
 const PROF_PI_ANSWER_LABEL = PROF_PI_CONFIG.name;
+
+/** Inline-ish markdown+KaTeX for question titles (avoid block margins from a single <p>). */
+const DOUBT_TITLE_MARKDOWN_CLASS =
+  "[&>p]:inline [&>p]:m-0 [&>p]:text-inherit [&>p]:font-bold [&>p]:leading-inherit";
 
 interface DoubtFeedCardProps {
   doubt: ExpandedDoubtRow;
@@ -96,16 +102,17 @@ export default function DoubtFeedCard({
   const net = d.upvotes - d.downvotes;
   const subjectCanon = canonicalDoubtSubject(d.subject);
   const subjectColor = getSubjectColor(subjectCanon ?? d.subject);
+  const titleMd = stripHtml(d.title);
   const bodyMd = stripHtml(d.body);
   const isLongBody = bodyMd.length > FEED_QUESTION_PREVIEW;
   const bodyPreviewMd = isLongBody ? truncatePreservingInlineMath(bodyMd, FEED_QUESTION_PREVIEW) : bodyMd;
 
   const isAuthorTeacher = d.profiles?.role === "teacher";
-  const isAuthorAI = d.profiles?.role === "ai"
-    || (d.profiles?.name ?? "").toLowerCase().includes("gyan++ ai")
-    || (d.profiles?.name ?? "").toLowerCase().includes("ai bot")
-    || (d.profiles?.name ?? "").toLowerCase().includes("prof-pi")
-    || (d.profiles?.name ?? "").toLowerCase().includes("profpi");
+  const isAuthorAI = isAiTutorDoubtAuthor(d.profiles);
+
+  const curriculumNode = pickCurriculumNodeFromDoubt(d);
+  /** Any doubt linked to a curriculum cell (bot or auto-attached after Prof-Pi). */
+  const showCurriculumSource = Boolean(curriculumNode);
 
   const allAnswers = [...(d.doubt_answers ?? [])];
   const aiAnswers = allAnswers.filter(isAiTutorAnswer);
@@ -239,11 +246,19 @@ export default function DoubtFeedCard({
             </div>
           </div>
 
-          {/* Question title */}
+          {/* Question title — same KaTeX rules as body (DoubtMarkdown) */}
           <Link href={`/doubts/${d.id}`} className="block group mb-1">
-            <h3 className="text-base sm:text-lg font-bold text-foreground leading-snug sm:leading-tight group-hover:text-primary transition-colors">
-              {d.title}
-            </h3>
+            <div
+              role="heading"
+              aria-level={3}
+              className="text-base sm:text-lg font-bold text-foreground leading-snug sm:leading-tight group-hover:text-primary transition-colors"
+            >
+              {titleMd ? (
+                <DoubtMarkdown content={titleMd} className={DOUBT_TITLE_MARKDOWN_CLASS} />
+              ) : (
+                <span className="text-muted-foreground">Untitled</span>
+              )}
+            </div>
           </Link>
 
           {/* Body — Markdown + KaTeX; long posts link to full thread (Reddit-style) */}
@@ -261,22 +276,28 @@ export default function DoubtFeedCard({
             </div>
           ) : null}
 
-          {/* Subject chips */}
-          <div className="flex flex-wrap items-center gap-1.5 mb-3 mt-1">
+          {/* Subject chip + syllabus strip on one line (strip sits right after subject) */}
+          <div className="mb-3 mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1.5">
             {subjectCanon ? (
-              <span className={`edu-chip text-xs font-semibold ${subjectColor.bg} ${subjectColor.text}`}>{subjectCanon}</span>
+              <span className={`edu-chip shrink-0 text-xs font-semibold ${subjectColor.bg} ${subjectColor.text}`}>{subjectCanon}</span>
             ) : d.subject?.trim() ? (
-              <span className="edu-chip text-xs font-semibold bg-muted text-muted-foreground" title="Unrecognized subject — tag again to fix filters">
+              <span className="edu-chip shrink-0 text-xs font-semibold bg-muted text-muted-foreground" title="Unrecognized subject — tag again to fix filters">
                 {d.subject.trim()}
               </span>
             ) : canOpenSubjectPicker ? (
-              <span className="edu-chip text-xs font-semibold bg-amber-500/15 text-amber-800 dark:text-amber-200">Untagged</span>
+              <span className="edu-chip shrink-0 text-xs font-semibold bg-amber-500/15 text-amber-800 dark:text-amber-200">Untagged</span>
+            ) : null}
+            {showCurriculumSource && curriculumNode ? (
+              <AiCurriculumSourceStrip
+                node={curriculumNode}
+                className="min-w-0 flex-1 basis-[min(100%,14rem)] sm:basis-auto sm:flex-initial"
+              />
             ) : null}
             {d.is_resolved && (
-              <span className="edu-chip bg-emerald-500/10 text-emerald-600 text-xs font-semibold">Resolved</span>
+              <span className="edu-chip shrink-0 bg-emerald-500/10 text-emerald-600 text-xs font-semibold">Resolved</span>
             )}
             {teacherNames.length > 0 && (
-              <span className="edu-chip bg-blue-500/10 text-blue-600 text-xs font-semibold inline-flex items-center gap-1">
+              <span className="edu-chip shrink-0 bg-blue-500/10 text-blue-600 text-xs font-semibold inline-flex items-center gap-1">
                 <GraduationCap className="w-3 h-3" />
                 Teacher replied{teacherNames.length === 1 ? `: ${teacherNames[0]}` : ` (${teacherNames.length})`}
               </span>

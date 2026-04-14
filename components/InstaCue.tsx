@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Lightbulb, Plus, ChevronLeft, ChevronRight, Check, Bookmark, BookmarkCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -261,6 +261,9 @@ export default function InstaCue({
   const [type, setType] = useState<InstaCueCardType>("concept");
   const [localSubtopic, setLocalSubtopic] = useState(subtopicOptions?.[0] ?? "");
 
+  const onCardIndexChangeRef = useRef(onCardIndexChange);
+  onCardIndexChangeRef.current = onCardIndexChange;
+
   const effectiveSubtopic = selectedSubtopic ?? (localSubtopic || (subtopicOptions?.[0] ?? ""));
   const filteredCards =
     subtopicOptions?.length && effectiveSubtopic
@@ -315,8 +318,8 @@ export default function InstaCue({
 
   useEffect(() => {
     if (filteredCards.length <= 0) return;
-    onCardIndexChange?.(safeIndex, filteredCards.length);
-  }, [safeIndex, filteredCards.length, onCardIndexChange]);
+    onCardIndexChangeRef.current?.(safeIndex, filteredCards.length);
+  }, [safeIndex, filteredCards.length]);
 
   const handleAddCard = () => {
     if (!front.trim() || !back.trim() || !onAddCard) return;

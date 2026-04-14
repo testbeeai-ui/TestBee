@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAndUser } from "@/lib/apiAuth";
 import { isAdminUser } from "@/lib/admin";
-import { estimateGeminiCostUsd, getGeminiPricingUsdPer1M } from "@/lib/aiLogger";
 
 export async function GET(request: Request) {
   try {
@@ -25,22 +24,11 @@ export async function GET(request: Request) {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    const rows = (data ?? []).map((row) => {
-      const prompt = Number(row.prompt_tokens ?? 0);
-      const output = Number(row.candidates_tokens ?? 0);
-      const pricing = getGeminiPricingUsdPer1M(String(row.model_id ?? ""));
-      return {
-        ...row,
-        realtime_cost_usd: estimateGeminiCostUsd(String(row.model_id ?? ""), prompt, output),
-        pricing_input_per_1m: pricing.inputPer1M,
-        pricing_output_per_1m: pricing.outputPer1M,
-      };
-    });
+    const rows = data ?? [];
 
     return NextResponse.json({
       rows,
       calculatedAt: new Date().toISOString(),
-      source: "env-pricing-realtime",
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Server error";

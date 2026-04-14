@@ -42,9 +42,11 @@ import {
 } from "lucide-react";
 import DoubtMarkdown from "@/components/doubts/DoubtMarkdown";
 import { ProfPiAvatar } from "@/components/doubts/ProfPiAvatar";
-import { stripHtml, isAiTutorAnswer } from "@/components/doubts/doubtTypes";
+import { stripHtml, isAiTutorAnswer, getSubjectColor, DOUBT_FLAIRS } from "@/components/doubts/doubtTypes";
+import { AiCurriculumSourceStrip, pickCurriculumNodeFromDoubt } from "@/components/doubts/AiCurriculumSourceStrip";
 import { canonicalDoubtSubject } from "@/lib/doubtSubject";
 import { PROF_PI_CONFIG } from "@/lib/gyanBotPersonas";
+import { applyNormalizedPasteToField, normalizePastedMathForDoubt } from "@/lib/normalizePastedDoubtMath";
 import { UserHoverCard } from "@/components/UserHoverCard";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
@@ -58,6 +60,12 @@ type Doubt = {
   downvotes: number;
   is_resolved: boolean;
   created_at: string;
+  profiles?: { name: string | null; avatar_url: string | null; role?: string | null } | null;
+  gyan_curriculum_nodes?: {
+    chapter_label: string;
+    topic_label: string;
+    subtopic_label: string | null;
+  } | null;
 };
 
 type Answer = {
@@ -103,8 +111,6 @@ function reportReasonLabel(r: (typeof REPORT_REASONS)[number]): string {
       return r;
   }
 }
-const DOUBT_FLAIRS = ["Physics", "Chemistry", "Math", "Biology", "General Question", "Other"] as const;
-
 export default function DoubtDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -147,7 +153,13 @@ export default function DoubtDetailPage() {
 
   const fetchDoubt = useCallback(async () => {
     if (!id) return;
-    const { data, error } = await supabase.from("doubts").select("*").eq("id", id).maybeSingle();
+    const { data, error } = await supabase
+      .from("doubts")
+      .select(
+        "*, profiles!doubts_user_id_fkey(name, avatar_url, role), gyan_curriculum_nodes(chapter_label, topic_label, subtopic_label)",
+      )
+      .eq("id", id)
+      .maybeSingle();
     if (error || !data) {
       setDoubt(null);
       return;
@@ -341,13 +353,17 @@ export default function DoubtDetailPage() {
       toast({ title: "Title required", variant: "destructive" });
       return;
     }
+    const nt = normalizePastedMathForDoubt(editDoubtTitle.trim());
+    const nb = normalizePastedMathForDoubt(editDoubtBody.trim());
+    setEditDoubtTitle(nt);
+    setEditDoubtBody(nb);
     setEditDoubtSaving(true);
     try {
       const { error } = await supabase
         .from("doubts")
         .update({
-          title: editDoubtTitle.trim(),
-          body: editDoubtBody.trim(),
+          title: nt,
+          body: nb,
           subject: editDoubtSubject.trim() || null,
         })
         .eq("id", id);
@@ -480,6 +496,9 @@ export default function DoubtDetailPage() {
   const netDoubt = doubt.upvotes - doubt.downvotes;
   const subjectChip = canonicalDoubtSubject(doubt.subject) ?? doubt.subject?.trim() ?? null;
   const subjectForMock = subjectChip || "this topic";
+  const curriculumNode = pickCurriculumNodeFromDoubt(doubt);
+  const showCurriculumSource = Boolean(curriculumNode);
+  const subjectTone = subjectChip ? getSubjectColor(subjectChip) : null;
 
   const aiAnswerList = answers.filter(isAiTutorAnswer);
   const teacherAnswerList = answers.filter((a) => a.profiles?.role === "teacher");
@@ -647,7 +666,16 @@ export default function DoubtDetailPage() {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between gap-2">
-                  <h1 className="text-xl font-bold text-foreground">{doubt.title}</h1>
+                  <div role="heading" aria-level={1} className="text-xl font-bold text-foreground min-w-0 flex-1">
+                    {stripHtml(doubt.title).trim() ? (
+                      <DoubtMarkdown
+                        content={stripHtml(doubt.title)}
+                        className="[&>p]:inline [&>p]:m-0 [&>p]:text-inherit [&>p]:font-bold [&>p]:text-xl"
+                      />
+                    ) : (
+                      <span className="text-muted-foreground">Untitled</span>
+                    )}
+                  </div>
                   {isAuthor && !doubt.is_resolved && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -669,12 +697,24 @@ export default function DoubtDetailPage() {
                     </DropdownMenu>
                   )}
                 </div>
-                {subjectChip ? (
-                  <span className="edu-chip bg-primary/10 text-primary text-xs mt-2 inline-block">{subjectChip}</span>
-                ) : null}
-                {doubt.is_resolved && (
-                  <span className="edu-chip bg-edu-green/10 text-edu-green text-xs ml-2">Resolved</span>
-                )}
+                <div className="mt-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1.5">
+                  {subjectChip ? (
+                    <span
+                      className={`edu-chip shrink-0 text-xs font-semibold ${subjectTone ? `${subjectTone.bg} ${subjectTone.text}` : "bg-primary/10 text-primary"}`}
+                    >
+                      {subjectChip}
+                    </span>
+                  ) : null}
+                  {showCurriculumSource && curriculumNode ? (
+                    <AiCurriculumSourceStrip
+                      node={curriculumNode}
+                      className="min-w-0 flex-1 basis-[min(100%,14rem)] sm:basis-auto sm:flex-initial"
+                    />
+                  ) : null}
+                  {doubt.is_resolved && (
+                    <span className="edu-chip shrink-0 bg-edu-green/10 text-edu-green text-xs">Resolved</span>
+                  )}
+                </div>
                 <div id="doubt-body" className="mt-3 text-sm text-muted-foreground max-w-none scroll-mt-24">
                   {doubt.body ? (
                     <DoubtMarkdown content={stripHtml(doubt.body)} className="text-foreground/90" />
@@ -698,13 +738,44 @@ export default function DoubtDetailPage() {
               <div className="space-y-4 py-2">
                 <div>
                   <Label className="text-sm font-bold">Title</Label>
-                  <Input value={editDoubtTitle} onChange={(e) => setEditDoubtTitle(e.target.value)} placeholder="Question title" className="rounded-xl mt-1" />
+                  <Input
+                    value={editDoubtTitle}
+                    onChange={(e) => setEditDoubtTitle(e.target.value)}
+                    onPaste={(e) => {
+                      e.preventDefault();
+                      const pasted = e.clipboardData.getData("text/plain");
+                      const el = e.currentTarget;
+                      const { value, caret } = applyNormalizedPasteToField(
+                        editDoubtTitle,
+                        el.selectionStart ?? 0,
+                        el.selectionEnd ?? 0,
+                        pasted,
+                      );
+                      setEditDoubtTitle(value);
+                      queueMicrotask(() => el.setSelectionRange(caret, caret));
+                    }}
+                    placeholder="Question title"
+                    className="rounded-xl mt-1"
+                  />
                 </div>
                 <div>
                   <Label className="text-sm font-bold">Details (optional)</Label>
                   <textarea
                     value={editDoubtBody}
                     onChange={(e) => setEditDoubtBody(e.target.value)}
+                    onPaste={(e) => {
+                      e.preventDefault();
+                      const pasted = e.clipboardData.getData("text/plain");
+                      const el = e.currentTarget;
+                      const { value, caret } = applyNormalizedPasteToField(
+                        editDoubtBody,
+                        el.selectionStart ?? 0,
+                        el.selectionEnd ?? 0,
+                        pasted,
+                      );
+                      setEditDoubtBody(value);
+                      queueMicrotask(() => el.setSelectionRange(caret, caret));
+                    }}
                     placeholder="Add more context..."
                     className="w-full min-h-[80px] rounded-xl border border-input bg-transparent px-3 py-2 text-sm mt-1 resize-y"
                     rows={3}

@@ -43,7 +43,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { ArrowLeft, BookOpen, Zap, ChevronLeft, ChevronRight, Shuffle, Video, FileText, ExternalLink, Lightbulb, Sparkles, CheckCircle2, Loader2, RefreshCw, ListChecks, Play, Pause, RotateCcw } from "lucide-react";
+import { ArrowLeft, BookOpen, Zap, ChevronLeft, ChevronRight, Shuffle, Video, FileText, ExternalLink, Lightbulb, Sparkles, CheckCircle2, Loader2, RefreshCw, ListChecks, Play, Pause, RotateCcw, Bookmark } from "lucide-react";
 import type { DeepDiveReference } from "@/data/deepDiveContent";
 import MathText from "@/components/MathText";
 import { stripFormulaDelimiters } from "@/lib/stripFormulaDelimiters";
@@ -51,7 +51,7 @@ import SubjectChatbot from "@/components/SubjectChatbot";
 import InstaCue from "@/components/InstaCue";
 import { getInstaCueCards, type InstaCueCard } from "@/data/instaCueCards";
 import { useUserStore } from "@/store/useUserStore";
-import type { Board, Subject } from "@/types";
+import type { Board, Subject, SavedBit, SavedFormula, SavedRevisionUnit } from "@/types";
 import { syncAllSavedContent } from "@/lib/savedContentService";
 import {
   fetchSubtopicContent,
@@ -86,6 +86,12 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { fuzzySubtopicKey } from "@/lib/utils";
 import { fetchBitsAttempt, saveBitsAttempt, type BitsAttemptRecord } from "@/lib/bitsAttemptService";
+import {
+  fetchSubtopicEngagement,
+  saveSubtopicEngagement,
+  type SubtopicEngagementScope,
+  type SubtopicEngagementSnapshot,
+} from "@/lib/subtopicEngagementService";
 import SubtopicWheelDialog from "@/components/SubtopicWheelDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -178,6 +184,34 @@ function shouldUseTwoColumnOptions(options: string[]): boolean {
     if (/[\\$^_{}]|->|→|⇌|<=|>=|=|\+|\/|\d[A-Za-z]|[A-Za-z]\d/.test(text)) return false;
     return true;
   });
+}
+
+function getCorrectOptionIndex(question: ArtifactBitsQuestion): number {
+  const idx = question.options.findIndex((o) => o === question.correctAnswer);
+  return idx >= 0 ? idx : 0;
+}
+
+function isBitSaved(question: ArtifactBitsQuestion, savedBits: SavedBit[]): boolean {
+  const correctIdx = getCorrectOptionIndex(question);
+  return savedBits.some(
+    (b) =>
+      b.question === question.question &&
+      b.options.length === question.options.length &&
+      b.options.every((o, i) => o === question.options[i]) &&
+      b.correctAnswer === correctIdx
+  );
+}
+
+function getSavedBitId(question: ArtifactBitsQuestion, savedBits: SavedBit[]): string | null {
+  const correctIdx = getCorrectOptionIndex(question);
+  const hit = savedBits.find(
+    (b) =>
+      b.question === question.question &&
+      b.options.length === question.options.length &&
+      b.options.every((o, i) => o === question.options[i]) &&
+      b.correctAnswer === correctIdx
+  );
+  return hit?.id ?? null;
 }
 
 function getBitsSignature(items: ArtifactBitsQuestion[]): string {
@@ -367,6 +401,12 @@ export default function TopicPage() {
   const [focusTimerRunning, setFocusTimerRunning] = useState(false);
   const [bitsVisitedIndices, setBitsVisitedIndices] = useState<Set<number>>(new Set());
   const [instaCueValidatedIndices, setInstaCueValidatedIndices] = useState<Set<number>>(new Set());
+  /** Cards the learner has landed on in the carousel (scroll / dots), not only flipped. */
+  const [instaCueNavIndices, setInstaCueNavIndices] = useState<Set<number>>(new Set());
+  /** Per-formula numerals draft in the formulas dialog (key = formula index). */
+  const [formulaByIdx, setFormulaByIdx] = useState<Record<number, { qIdx: number; answers: Record<number, number> }>>({});
+  const engagementHydratedRef = useRef<string | null>(null);
+  const engagementSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!isMagicWallSource) return;
@@ -464,6 +504,12 @@ export default function TopicPage() {
   const isInvestorTopicHubLayout = isOverview;
   const user = useUserStore((s) => s.user);
   const saveRevisionCard = useUserStore((s) => s.saveRevisionCard);
+  const saveBit = useUserStore((s) => s.saveBit);
+  const unsaveBit = useUserStore((s) => s.unsaveBit);
+  const saveFormula = useUserStore((s) => s.saveFormula);
+  const unsaveFormula = useUserStore((s) => s.unsaveFormula);
+  const saveRevisionUnit = useUserStore((s) => s.saveRevisionUnit);
+  const unsaveRevisionUnit = useUserStore((s) => s.unsaveRevisionUnit);
   const { toast } = useToast();
   const { loading: authLoading, session } = useAuth();
   const [dbTheory, setDbTheory] = useState<string>("");
@@ -496,6 +542,63 @@ export default function TopicPage() {
   const [generatingDeepDive, setGeneratingDeepDive] = useState(false);
   const [wheelOpen, setWheelOpen] = useState(false);
   const [subtopicAgentTrace, setSubtopicAgentTrace] = useState<TopicAgentTrace | null>(null);
+  const savedBits = user?.savedBits ?? [];
+
+  const persistSavedContent = useCallback(() => {
+    syncAllSavedContent().catch(() => {
+      toast({
+        title: "Sync failed",
+        description: "Saved locally, but Supabase sync failed. Please retry.",
+        variant: "destructive",
+      });
+    });
+  }, [toast]);
+  const revisionUnitId = useMemo(() => {
+    if (!topicNode || isOverview || !subtopicName) return "";
+    return `rev-topic-${board}-${subject}-${topicNode.classLevel}-${unitSlug}-${topicSlug}-${difficultyLevel}-${subtopicIndex}`;
+  }, [board, subject, topicNode, isOverview, subtopicName, unitSlug, topicSlug, difficultyLevel, subtopicIndex]);
+
+  const isSavedForRevision = useMemo(
+    () => (!!revisionUnitId && (user?.savedRevisionUnits ?? []).some((u) => u.id === revisionUnitId)),
+    [revisionUnitId, user?.savedRevisionUnits]
+  );
+
+  const handleToggleRevisionUnit = useCallback(() => {
+    if (!topicNode || isOverview || !subtopicName || !revisionUnitId) return;
+    if (isSavedForRevision) {
+      unsaveRevisionUnit(revisionUnitId);
+      persistSavedContent();
+      toast({ title: "Removed from Revision Units" });
+      return;
+    }
+    const unit: SavedRevisionUnit = {
+      id: revisionUnitId,
+      board: (board === "icse" ? "ICSE" : "CBSE") as Board,
+      subject: topicNode.subject,
+      classLevel: topicNode.classLevel,
+      unitName: topicNode.topic,
+      subtopicName,
+      level: difficultyLevel,
+      sectionIndex: subtopicIndex,
+      sectionTitle: subtopicName,
+    };
+    saveRevisionUnit(unit);
+    persistSavedContent();
+    toast({ title: "Saved to Revision Units" });
+  }, [
+    topicNode,
+    isOverview,
+    subtopicName,
+    revisionUnitId,
+    isSavedForRevision,
+    unsaveRevisionUnit,
+    toast,
+    board,
+    difficultyLevel,
+    subtopicIndex,
+    saveRevisionUnit,
+    persistSavedContent,
+  ]);
 
   // Artifact state (InstaCue AI, Bits, Formulas)
   const [dbInstacueCards, setDbInstacueCards] = useState<ArtifactInstaCueCard[]>([]);
@@ -531,9 +634,22 @@ export default function TopicPage() {
   const [completingSubtopicAll, setCompletingSubtopicAll] = useState(false);
 
   useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7826/ingest/70e4f01b-2a33-46c4-8228-3ea27639475c',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'548b33'},body:JSON.stringify({sessionId:'548b33',runId:'pre-fix',hypothesisId:'H2-H3',location:'page.tsx:620',message:'formula dialog state changed',data:{formulasDialogOpen,selectedFormulaIdx,practiceCount:dbPracticeFormulas.length},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
+  }, [formulasDialogOpen, selectedFormulaIdx, dbPracticeFormulas.length]);
+
+  useEffect(() => {
     if (!topicNode?.topic) return;
     setBitsVisitedIndices(new Set());
+    setBitsCurrentIdx(0);
+    setBitsSelectedAnswers({});
+    setBitsDialogOpen(false);
+    setBitsReviewMode(false);
     setInstaCueValidatedIndices(new Set());
+    setInstaCueNavIndices(new Set());
+    setFormulaByIdx({});
+    engagementHydratedRef.current = null;
     setConceptsPage(0);
     setViewedConceptPages(new Set([0]));
   }, [board, topicNode?.topic, subtopicName, difficultyLevel]);
@@ -581,6 +697,45 @@ export default function TopicPage() {
       subtopicName,
     });
   }, [dbPracticeFormulas, topicNode, subtopicName]);
+
+  const currentFormulaQuestion = useMemo(() => {
+    if (selectedFormulaIdx === null) return null;
+    const formula = practiceFormulasForUi[selectedFormulaIdx];
+    if (!formula) return null;
+    const formulaQuestions = formulaQuestionsOverride[selectedFormulaIdx] ?? formula.bitsQuestions ?? [];
+    if (formulaQuestions.length === 0) return null;
+    const idx = Math.max(0, Math.min(formulaBitsCurrentIdx, formulaQuestions.length - 1));
+    return {
+      formula,
+      question: formulaQuestions[idx]!,
+    };
+  }, [selectedFormulaIdx, practiceFormulasForUi, formulaQuestionsOverride, formulaBitsCurrentIdx]);
+
+  const savedFormulaIdForCurrentQuestion = useMemo(() => {
+    if (!topicNode || !subtopicName || !currentFormulaQuestion) return null;
+    const { formula, question } = currentFormulaQuestion;
+    const hit = (user?.savedFormulas ?? []).find((f) => {
+      if (
+        f.name !== formula.name ||
+        f.subject !== topicNode.subject ||
+        f.topic !== topicNode.topic ||
+        f.subtopicName !== subtopicName ||
+        f.classLevel !== topicNode.classLevel ||
+        f.level !== difficultyLevel
+      ) {
+        return false;
+      }
+      const savedQ = f.bitsQuestions?.[0];
+      return (
+        !!savedQ &&
+        savedQ.question === question.question &&
+        savedQ.correctAnswer === getCorrectOptionIndex(question) &&
+        savedQ.options.length === question.options.length &&
+        savedQ.options.every((o, i) => o === question.options[i])
+      );
+    });
+    return hit?.id ?? null;
+  }, [topicNode, subtopicName, currentFormulaQuestion, user?.savedFormulas, difficultyLevel]);
 
   /** InstaCue / Bits / Formulas need persisted theory unless this subtopic level already has DB artifacts to regenerate from. */
   const hasDeepDiveForAiArtifacts = useMemo(() => {
@@ -1348,6 +1503,18 @@ export default function TopicPage() {
     };
   }, [isOverview, topicNode, board, session?.access_token, canEditTheory]);
 
+  const engagementScope = useMemo((): SubtopicEngagementScope | null => {
+    if (!topicNode || isOverview || !subtopicName) return null;
+    return {
+      board: (board === "icse" ? "ICSE" : "CBSE") as Board,
+      subject: topicNode.subject,
+      classLevel: topicNode.classLevel,
+      topic: topicNode.topic,
+      subtopicName,
+      level: difficultyLevel,
+    };
+  }, [topicNode, isOverview, subtopicName, difficultyLevel, board]);
+
   useEffect(() => {
     if (!topicNode || isOverview || !subtopicName || dbBitsQuestions.length === 0) {
       setBitsAttempt(null);
@@ -1363,10 +1530,54 @@ export default function TopicPage() {
       subtopicName,
       level: difficultyLevel,
     })
-      .then((attempt) => {
+      .then(async (attempt) => {
         if (cancelled) return;
-        if (attempt && attempt.bitsSignature === bitsSignature) setBitsAttempt(attempt);
-        else setBitsAttempt(null);
+        if (attempt && attempt.bitsSignature === bitsSignature) {
+          setBitsAttempt(attempt);
+          engagementHydratedRef.current = bitsSignature;
+          return;
+        }
+        setBitsAttempt(null);
+        if (!engagementScope || !session?.access_token) return;
+        try {
+          const e = await fetchSubtopicEngagement(engagementScope);
+          if (cancelled || !e || e.bitsSignature !== bitsSignature) return;
+          if (engagementHydratedRef.current === bitsSignature) return;
+          engagementHydratedRef.current = bitsSignature;
+          if (e.bits) {
+            setBitsCurrentIdx(Math.min(e.bits.currentIdx, Math.max(0, dbBitsQuestions.length - 1)));
+            const sa: Record<number, number> = {};
+            for (const [k, v] of Object.entries(e.bits.selectedAnswers)) {
+              const nk = Number(k);
+              if (Number.isInteger(nk)) sa[nk] = v;
+            }
+            setBitsSelectedAnswers(sa);
+            setBitsVisitedIndices(new Set(e.bits.visitedIndices));
+          }
+          if (e.formulaByIdx) {
+            const m: Record<number, { qIdx: number; answers: Record<number, number> }> = {};
+            for (const [k, v] of Object.entries(e.formulaByIdx)) {
+              const nk = Number(k);
+              if (!Number.isInteger(nk)) continue;
+              const answers: Record<number, number> = {};
+              for (const [qk, qv] of Object.entries(v.answers)) {
+                const nqk = Number(qk);
+                if (Number.isInteger(nqk)) answers[nqk] = qv;
+              }
+              m[nk] = { qIdx: v.qIdx, answers };
+            }
+            setFormulaByIdx(m);
+          }
+          if (e.instaCue) {
+            setInstaCueNavIndices(new Set(e.instaCue.navVisited));
+            setInstaCueValidatedIndices(new Set(e.instaCue.flipped));
+          }
+          if (e.conceptsPages?.length) {
+            setViewedConceptPages(new Set(e.conceptsPages));
+          }
+        } catch {
+          /* column may be missing on older DBs */
+        }
       })
       .catch(() => {
         if (!cancelled) setBitsAttempt(null);
@@ -1374,7 +1585,17 @@ export default function TopicPage() {
     return () => {
       cancelled = true;
     };
-  }, [topicNode, isOverview, subtopicName, difficultyLevel, board, bitsSignature, dbBitsQuestions.length]);
+  }, [
+    topicNode,
+    isOverview,
+    subtopicName,
+    difficultyLevel,
+    board,
+    bitsSignature,
+    dbBitsQuestions.length,
+    engagementScope,
+    session?.access_token,
+  ]);
 
   useEffect(() => {
     if (!topicNode || !isOverview) {
@@ -1487,18 +1708,67 @@ export default function TopicPage() {
       next.add(index);
       return next;
     });
+    setInstaCueNavIndices((prev) => {
+      const next = new Set(prev);
+      next.add(index);
+      return next;
+    });
+  }, []);
+
+  const handleInstaCueNav = useCallback((index: number) => {
+    setInstaCueNavIndices((prev) => {
+      const next = new Set(prev);
+      next.add(index);
+      return next;
+    });
   }, []);
 
   const bitsChecklistTotal = dbBitsQuestions.length;
-  const bitsChecklistProgress = Math.min(bitsVisitedIndices.size, bitsChecklistTotal);
+  /** Count answers tied to valid question indices only (avoids orphan keys; matches submit eligibility). */
+  const bitsFilledQuestionCount = useMemo(() => {
+    const n = dbBitsQuestions.length;
+    let c = 0;
+    for (let i = 0; i < n; i++) {
+      if (typeof bitsSelectedAnswers[i] === "number") c++;
+    }
+    return c;
+  }, [bitsSelectedAnswers, dbBitsQuestions.length]);
+  const bitsChecklistProgress = bitsAttempt
+    ? bitsChecklistTotal
+    : Math.min(bitsChecklistTotal, Math.max(bitsVisitedIndices.size, bitsFilledQuestionCount));
   const instaCueChecklistTotal = sidebarInstaCueCards.length;
-  const instaCueChecklistProgress = Math.min(instaCueValidatedIndices.size, instaCueChecklistTotal);
-  const selectedFormulaQuestionsForChecklist =
-    selectedFormulaIdx !== null
-      ? (formulaQuestionsOverride[selectedFormulaIdx] ?? practiceFormulasForUi[selectedFormulaIdx]?.bitsQuestions ?? [])
-      : [];
-  const formulaChecklistTotal = selectedFormulaQuestionsForChecklist.length > 0 ? selectedFormulaQuestionsForChecklist.length : 5;
-  const formulaChecklistProgress = Math.min(Object.keys(formulaBitsSelectedAnswers).length, formulaChecklistTotal);
+  const instaCueCoverageCount = useMemo(() => {
+    const u = new Set<number>();
+    instaCueValidatedIndices.forEach((i) => u.add(i));
+    instaCueNavIndices.forEach((i) => u.add(i));
+    return u.size;
+  }, [instaCueValidatedIndices, instaCueNavIndices]);
+  const instaCueChecklistProgress = Math.min(instaCueCoverageCount, instaCueChecklistTotal);
+
+  const formulaProgressAggregate = useMemo(() => {
+    if (practiceFormulasForUi.length === 0) return { answered: 0, total: 5 };
+    let answered = 0;
+    let total = 0;
+    practiceFormulasForUi.forEach((f, fi) => {
+      const qs = formulaQuestionsOverride[fi] ?? f.bitsQuestions ?? [];
+      const t = qs.length;
+      if (t <= 0) return;
+      total += t;
+      const pack = formulaByIdx[fi];
+      const n = pack ? Object.keys(pack.answers).length : 0;
+      answered += Math.min(n, t);
+    });
+    if (total === 0) {
+      return {
+        answered: Object.keys(formulaBitsSelectedAnswers).length,
+        total: 5,
+      };
+    }
+    return { answered, total };
+  }, [practiceFormulasForUi, formulaQuestionsOverride, formulaByIdx, formulaBitsSelectedAnswers]);
+
+  const formulaChecklistTotal = formulaProgressAggregate.total;
+  const formulaChecklistProgress = Math.min(formulaProgressAggregate.answered, formulaChecklistTotal);
 
   // Extract section headings from theory markdown for left sidebar
   const dbTheorySections = useMemo(() => {
@@ -1541,6 +1811,106 @@ export default function TopicPage() {
     instaCueChecklistProgress >= instaCueChecklistTotal &&
     formulaChecklistProgress >= formulaChecklistTotal &&
     conceptsChecklistProgress >= conceptsChecklistTotal;
+
+  const buildEngagementSnapshot = useCallback((): SubtopicEngagementSnapshot | null => {
+    if (!engagementScope || dbBitsQuestions.length === 0) return null;
+    const bitsDraft =
+      bitsAttempt || bitsChecklistTotal === 0
+        ? null
+        : (() => {
+            const selectedAnswers = Object.fromEntries(
+              Object.entries(bitsSelectedAnswers).map(([k, v]) => [String(k), v])
+            );
+            let answered = 0;
+            let correct = 0;
+            let wrong = 0;
+            for (let idx = 0; idx < dbBitsQuestions.length; idx++) {
+              const si = bitsSelectedAnswers[idx];
+              if (typeof si !== "number") continue;
+              answered++;
+              const item = dbBitsQuestions[idx];
+              if (item.options[si] === item.correctAnswer) correct++;
+              else wrong++;
+            }
+            const graded =
+              answered > 0
+                ? { answered, correct, wrong, totalQuestions: bitsChecklistTotal }
+                : undefined;
+            return {
+              currentIdx: Math.min(bitsCurrentIdx, Math.max(0, bitsChecklistTotal - 1)),
+              selectedAnswers,
+              visitedIndices: Array.from(bitsVisitedIndices.values()).sort((a, b) => a - b),
+              ...(graded ? { graded } : {}),
+            };
+          })();
+    const mergedFormulas = { ...formulaByIdx };
+    if (formulasDialogOpen && selectedFormulaIdx !== null) {
+      mergedFormulas[selectedFormulaIdx] = {
+        qIdx: formulaBitsCurrentIdx,
+        answers: { ...formulaBitsSelectedAnswers },
+      };
+    }
+    const formulaSnap: Record<string, { qIdx: number; answers: Record<string, number> }> = {};
+    for (const [k, v] of Object.entries(mergedFormulas)) {
+      formulaSnap[String(k)] = {
+        qIdx: v.qIdx,
+        answers: Object.fromEntries(Object.entries(v.answers).map(([a, b]) => [String(a), b])),
+      };
+    }
+    const nav = Array.from(instaCueNavIndices.values()).sort((a, b) => a - b);
+    const flipped = Array.from(instaCueValidatedIndices.values()).sort((a, b) => a - b);
+    const conceptsPages = Array.from(viewedConceptPages.values()).sort((a, b) => a - b);
+    return {
+      v: 1,
+      bitsSignature,
+      updatedAt: new Date().toISOString(),
+      bits: bitsDraft,
+      formulaByIdx: Object.keys(formulaSnap).length ? formulaSnap : undefined,
+      instaCue: nav.length || flipped.length ? { navVisited: nav, flipped } : undefined,
+      conceptsPages: conceptsPages.length ? conceptsPages : undefined,
+    };
+  }, [
+    engagementScope,
+    dbBitsQuestions,
+    bitsAttempt,
+    bitsChecklistTotal,
+    bitsCurrentIdx,
+    bitsSelectedAnswers,
+    bitsVisitedIndices,
+    formulaByIdx,
+    formulasDialogOpen,
+    selectedFormulaIdx,
+    formulaBitsCurrentIdx,
+    formulaBitsSelectedAnswers,
+    instaCueNavIndices,
+    instaCueValidatedIndices,
+    viewedConceptPages,
+    bitsSignature,
+  ]);
+
+  const flushSubtopicEngagementNow = useCallback(() => {
+    if (engagementSaveTimerRef.current) {
+      clearTimeout(engagementSaveTimerRef.current);
+      engagementSaveTimerRef.current = null;
+    }
+    if (!engagementScope || !session?.access_token || isOverview) return;
+    const snap = buildEngagementSnapshot();
+    if (!snap) return;
+    void saveSubtopicEngagement(engagementScope, snap).catch(() => {});
+  }, [buildEngagementSnapshot, engagementScope, session?.access_token, isOverview]);
+
+  useEffect(() => {
+    if (!engagementScope || !session?.access_token || isOverview) return;
+    if (engagementSaveTimerRef.current) clearTimeout(engagementSaveTimerRef.current);
+    engagementSaveTimerRef.current = setTimeout(() => {
+      const snap = buildEngagementSnapshot();
+      if (!snap) return;
+      void saveSubtopicEngagement(engagementScope, snap).catch(() => {});
+    }, 900);
+    return () => {
+      if (engagementSaveTimerRef.current) clearTimeout(engagementSaveTimerRef.current);
+    };
+  }, [buildEngagementSnapshot, engagementScope, session?.access_token, isOverview]);
 
   // Refs for scroll-sync between theory and concepts panel
   const conceptsScrollRef = useRef<HTMLDivElement>(null);
@@ -2097,10 +2467,24 @@ export default function TopicPage() {
                           setFocusTimerRunning(false);
                           setBitsVisitedIndices(new Set());
                           setInstaCueValidatedIndices(new Set());
+                          setInstaCueNavIndices(new Set());
                           setFormulaBitsSelectedAnswers({});
+                          setFormulaByIdx({});
                           setViewedConceptPages(new Set([0]));
                           setConceptsPage(0);
                           setBitsAttempt(null);
+                          engagementHydratedRef.current = null;
+                          if (engagementScope && session?.access_token && bitsSignature) {
+                            void saveSubtopicEngagement(engagementScope, {
+                              v: 1,
+                              bitsSignature,
+                              updatedAt: new Date().toISOString(),
+                              bits: null,
+                              formulaByIdx: {},
+                              instaCue: null,
+                              conceptsPages: [0],
+                            }).catch(() => {});
+                          }
                         }}
                       >
                         Reset
@@ -2151,6 +2535,19 @@ export default function TopicPage() {
             </span>
             <span className="truncate">{topicNode.topic}</span>
           </span>
+          {!isOverview && (
+            <Button
+              variant={isSavedForRevision ? "secondary" : "outline"}
+              size="sm"
+              onClick={handleToggleRevisionUnit}
+              className="rounded-full font-bold border-primary/30 text-primary hover:bg-primary/10 sm:ml-auto"
+            >
+              <Bookmark
+                className={`w-4 h-4 mr-1.5 shrink-0 ${isSavedForRevision ? "fill-current" : ""}`}
+              />
+              {isSavedForRevision ? "Saved for revision" : "Save revision"}
+            </Button>
+          )}
         </div>
 
         <div className="flex flex-col lg:flex-row gap-6 min-w-0 max-w-full">
@@ -3517,6 +3914,7 @@ export default function TopicPage() {
                     level={difficultyLevel as "basics" | "intermediate" | "advanced"}
                     subject={topicNode.subject}
                     classLevel={topicNode.classLevel}
+                    onCardIndexChange={handleInstaCueNav}
                       onCardValidated={handleInstaCueValidated}
                     onAddCard={
                         user && canEditTheory
@@ -3706,13 +4104,21 @@ export default function TopicPage() {
                         <Button
                           className="w-full rounded-xl edu-btn-primary text-sm font-bold"
                           onClick={() => {
-                            setBitsCurrentIdx(0);
-                            setBitsSelectedAnswers({});
-                            setBitsReviewMode(false);
+                            if (bitsAttempt) {
+                              setBitsCurrentIdx(0);
+                              setBitsSelectedAnswers({});
+                              setBitsReviewMode(false);
+                            } else {
+                              setBitsReviewMode(false);
+                            }
                             setBitsDialogOpen(true);
                           }}
                         >
-                          Start Quiz →
+                          {bitsAttempt
+                            ? "Open quiz →"
+                            : bitsCurrentIdx > 0 || bitsFilledQuestionCount > 0
+                              ? "Continue quiz →"
+                              : "Start Quiz →"}
                         </Button>
                         {bitsAttempt && (
                           <button
@@ -3742,23 +4148,22 @@ export default function TopicPage() {
                         onOpenChange={(open) => {
                           setBitsDialogOpen(open);
                           if (!open) {
-                            setBitsCurrentIdx(0);
-                            setBitsSelectedAnswers({});
+                            flushSubtopicEngagementNow();
                             setBitsReviewMode(false);
                           }
                         }}
                       >
-                        <DialogContent className="max-w-2xl max-h-[82vh] overflow-y-auto">
-                          <DialogHeader className="space-y-1">
-                            <DialogTitle className="text-[1.05rem] font-bold tracking-tight leading-snug text-foreground pr-8">
+                        <DialogContent className="bits-quiz-dialog w-[min(42rem,calc(100vw-1.5rem))] max-w-2xl min-w-0 max-h-[min(88vh,52rem)] overflow-y-auto overflow-x-hidden p-4 sm:p-6 gap-3">
+                          <DialogHeader className="min-w-0 shrink-0 space-y-1 text-left">
+                            <DialogTitle className="min-w-0 max-w-full break-words text-[1.05rem] font-bold tracking-tight leading-snug text-foreground pr-10 text-left">
                             Topic Quiz —{" "}
-                              <MathText as="span" weight="semibold" className="font-semibold">
+                              <MathText as="span" weight="semibold" className="font-semibold [overflow-wrap:anywhere]">
                                 {displaySubtopicTitle}
                               </MathText>
                             </DialogTitle>
                             <DialogDescription className="text-xs">Test your understanding</DialogDescription>
                           </DialogHeader>
-                            <div className="space-y-3">
+                            <div className="min-w-0 max-w-full space-y-3">
                               {!bitsReviewMode && bitsAttempt ? (
                                 <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
                                   <p className="text-lg font-bold text-foreground">Previous submission found</p>
@@ -3820,7 +4225,9 @@ export default function TopicPage() {
                                 if (!q) return null;
                                 const selected = bitsSelectedAnswers[bitsCurrentIdx];
                                 const answered = typeof selected === "number";
-                            const isCorrectSelection = answered && q.options[selected] === q.correctAnswer;
+                                const isCorrectSelection = answered && q.options[selected] === q.correctAnswer;
+                                const isCurrentQuizBitSaved = isBitSaved(q, savedBits);
+                                const currentQuizSavedBitId = getSavedBitId(q, savedBits);
                                 const useTwoColumns = shouldUseTwoColumnOptions(q.options);
                                 return (
                                   <>
@@ -3829,20 +4236,64 @@ export default function TopicPage() {
                                         Question {bitsCurrentIdx + 1} of {dbBitsQuestions.length}
                                       </span>
                                     </div>
-                                    <div className="flex items-center gap-1.5">
-                                      <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-blue-500/15 text-blue-700 dark:text-blue-300">
+                                    <div className="flex min-w-0 max-w-full flex-wrap items-center gap-1.5">
+                                      <span className="inline-flex shrink-0 items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-blue-500/15 text-blue-700 dark:text-blue-300">
                                         {topicNode?.subject ?? "Subject"}
                                       </span>
-                                      <span className="text-xs font-medium text-foreground/80">
+                                      <span className="min-w-0 break-words text-xs font-medium text-foreground/80">
                                         {topicNode?.topic ?? "Topic"}
                                       </span>
                                     </div>
-                                    <div className="rounded-2xl border border-border p-4 space-y-3 bg-card">
-                                      <h3 className="text-[1.05rem] font-bold leading-snug text-foreground">
-                                        <MathText>{q.question}</MathText>
-                                      </h3>
+                                    <div className="min-w-0 max-w-full rounded-2xl border border-border p-4 space-y-3 bg-card">
+                                      <div className="flex items-start justify-between gap-3">
+                                        <h3 className="min-w-0 max-w-full flex-1 text-[1.05rem] font-bold leading-snug text-foreground [overflow-wrap:anywhere] break-words">
+                                          <MathText>{q.question}</MathText>
+                                        </h3>
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          className={`shrink-0 rounded-xl h-8 px-2.5 gap-1.5 text-xs font-semibold ${
+                                            isCurrentQuizBitSaved
+                                              ? "border-primary/40 bg-primary/10 text-primary"
+                                              : "border-border text-muted-foreground hover:text-primary hover:border-primary/40 hover:bg-primary/10"
+                                          }`}
+                                          onClick={() => {
+                                            if (!topicNode || !subtopicName) return;
+                                            if (isCurrentQuizBitSaved) {
+                                              if (currentQuizSavedBitId) {
+                                                unsaveBit(currentQuizSavedBitId);
+                                                persistSavedContent();
+                                                toast({ title: "Removed from Saved Bits" });
+                                              }
+                                              return;
+                                            }
+                                            const bit: SavedBit = {
+                                              id: `bit-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+                                              question: q.question,
+                                              options: q.options,
+                                              correctAnswer: getCorrectOptionIndex(q),
+                                              solution: q.solution,
+                                              subject: topicNode.subject,
+                                              topic: topicNode.topic,
+                                              subtopicName,
+                                              classLevel: topicNode.classLevel,
+                                              unitName: topicNode.topic,
+                                              level: difficultyLevel,
+                                              board: (board === "icse" ? "ICSE" : "CBSE") as Board,
+                                              sectionIndex: subtopicIndex,
+                                            };
+                                            saveBit(bit);
+                                            persistSavedContent();
+                                            toast({ title: "Saved to Saved Bits" });
+                                          }}
+                                          title={isCurrentQuizBitSaved ? "Remove saved Bit" : "Save this Bit"}
+                                        >
+                                          <Bookmark className={`w-3.5 h-3.5 ${isCurrentQuizBitSaved ? "fill-current" : ""}`} />
+                                          {isCurrentQuizBitSaved ? "Saved bit" : "Save this bit"}
+                                        </Button>
+                                      </div>
                                       <div
-                                        className={useTwoColumns ? "grid grid-cols-1 sm:grid-cols-2 gap-2" : "space-y-2"}
+                                        className={useTwoColumns ? "grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2" : "min-w-0 space-y-2"}
                                         role="radiogroup"
                                         aria-label={`Answers for question ${bitsCurrentIdx + 1}`}
                                       >
@@ -3862,12 +4313,14 @@ export default function TopicPage() {
                                           onClick={() => setBitsSelectedAnswers((prev) => ({ ...prev, [bitsCurrentIdx]: oi }))}
                                               role="radio"
                                               aria-checked={selected === oi}
-                                              className={`w-full text-left px-3 py-2 rounded-xl text-sm border transition-colors flex items-center gap-2.5 ${cls}`}
+                                              className={`flex min-w-0 w-full max-w-full items-center gap-2.5 rounded-xl border px-3 py-2 text-left text-sm transition-colors ${cls}`}
                                             >
-                                              <span className="w-7 h-7 rounded-full bg-background/90 flex items-center justify-center text-sm shrink-0 font-bold">
+                                              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-background/90 text-sm font-bold">
                                                 {String.fromCharCode(65 + oi)}
                                               </span>
-                                              <MathText>{opt}</MathText>
+                                              <span className="min-w-0 flex-1 [overflow-wrap:anywhere] break-words">
+                                                <MathText>{opt}</MathText>
+                                              </span>
                                           {answered && isCorrect && <CheckCircle2 className="inline w-4 h-4 ml-auto text-green-600" />}
                                             </button>
                                           );
@@ -3892,7 +4345,10 @@ export default function TopicPage() {
                                               return;
                                             }
                                             const total = dbBitsQuestions.length;
-                                            const answeredCount = Object.keys(bitsSelectedAnswers).length;
+                                            let answeredCount = 0;
+                                            for (let i = 0; i < total; i++) {
+                                              if (typeof bitsSelectedAnswers[i] === "number") answeredCount++;
+                                            }
                                             if (answeredCount < total) {
                                           toast({ title: "Answer all questions before submit", description: `${answeredCount}/${total} answered` });
                                               return;
@@ -3917,6 +4373,9 @@ export default function TopicPage() {
                                               const persisted = await saveBitsAttempt(payload);
                                               setBitsAttempt(persisted);
                                               setBitsReviewMode(false);
+                                              setBitsCurrentIdx(0);
+                                              setBitsSelectedAnswers({});
+                                              window.setTimeout(() => flushSubtopicEngagementNow(), 0);
                                           toast({ title: "Quiz submitted", description: `Correct: ${correctCount}, Wrong: ${wrongCount}` });
                                             } catch {
                                           toast({ title: "Failed to save result", description: "Please retry submit.", variant: "destructive" });
@@ -3924,17 +4383,33 @@ export default function TopicPage() {
                                               setSubmittingBits(false);
                                             }
                                           }}
-                                      disabled={submittingBits || (bitsCurrentIdx === dbBitsQuestions.length - 1 && Object.keys(bitsSelectedAnswers).length < dbBitsQuestions.length)}
+                                      disabled={
+                                        submittingBits ||
+                                        (bitsCurrentIdx < dbBitsQuestions.length - 1 &&
+                                          typeof bitsSelectedAnswers[bitsCurrentIdx] !== "number") ||
+                                        (bitsCurrentIdx === dbBitsQuestions.length - 1 &&
+                                          bitsFilledQuestionCount < dbBitsQuestions.length)
+                                      }
                                     >
                                       {bitsCurrentIdx === dbBitsQuestions.length - 1
                                         ? submittingBits ? <><Loader2 className="w-4 h-4 mr-1 animate-spin" /> Submitting</> : "Submit"
                                         : <>Next <ChevronRight className="w-4 h-4 ml-1" /></>}
                                         </Button>
                                       </div>
+                                      {bitsCurrentIdx === dbBitsQuestions.length - 1 &&
+                                        bitsFilledQuestionCount < dbBitsQuestions.length &&
+                                        dbBitsQuestions.length > 0 && (
+                                          <p className="text-center text-xs text-amber-600 dark:text-amber-500">
+                                            {bitsFilledQuestionCount}/{dbBitsQuestions.length} questions have an answer. Use{" "}
+                                            <span className="font-semibold">Previous</span> to find any you skipped.
+                                          </p>
+                                        )}
                                       {answered && q.solution && (
-                                        <div className="mt-2 p-3 rounded-xl bg-muted/50 text-sm text-muted-foreground">
-                                          <p className="font-bold text-foreground mb-1">Explanation</p>
-                                          <MathText>{q.solution}</MathText>
+                                        <div className="bits-quiz-explanation mt-2 rounded-xl bg-muted/50 p-3 text-sm text-muted-foreground">
+                                          <p className="mb-1 font-bold text-foreground">Explanation</p>
+                                          <div className="min-w-0 max-w-full text-foreground/90">
+                                            <MathText as="div">{q.solution}</MathText>
+                                          </div>
                                         </div>
                                       )}
                                     </div>
@@ -3985,23 +4460,28 @@ export default function TopicPage() {
                     ) : (
                       <div className="space-y-2">
                         {dbPracticeFormulas.map((formula, i) => (
-                          <div key={i} className="edu-card p-3 rounded-xl border border-border/60">
+                          <button
+                            key={i}
+                            type="button"
+                            onClick={() => {
+                              // #region agent log
+                              fetch('http://127.0.0.1:7826/ingest/70e4f01b-2a33-46c4-8228-3ea27639475c',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'548b33'},body:JSON.stringify({sessionId:'548b33',runId:'pre-fix',hypothesisId:'H1',location:'page.tsx:4460',message:'numeral card clicked',data:{formulaIdx:i,formulaName:formula.name,formulasDialogOpenBefore:formulasDialogOpen,selectedFormulaIdxBefore:selectedFormulaIdx},timestamp:Date.now()})}).catch(()=>{});
+                              // #endregion
+                              setSelectedFormulaIdx(i);
+                              setFormulasDialogOpen(true);
+                            }}
+                            className="edu-card w-full p-3 rounded-xl border border-border/60 text-left transition-colors hover:border-primary/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                            aria-label={`Open numeral ${i + 1}: ${formula.name}`}
+                          >
                             <p className="text-[10px] font-extrabold text-primary uppercase mb-1">
                               Numeral {i + 1}
                             </p>
                             <p className="font-bold text-sm mb-1">{formula.name}</p>
                             <p className="text-xs text-muted-foreground mb-2 line-clamp-2">{formula.description}</p>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelectedFormulaIdx(i);
-                                setFormulasDialogOpen(true);
-                              }}
-                              className="text-primary text-xs font-bold hover:underline"
-                            >
+                            <span className="text-primary text-xs font-bold hover:underline">
                               Try this →
-                            </button>
-                          </div>
+                            </span>
+                          </button>
                         ))}
                       </div>
                     )}
@@ -4082,8 +4562,20 @@ export default function TopicPage() {
                       <Dialog
                         open={formulasDialogOpen}
                         onOpenChange={(open) => {
+                          // #region agent log
+                          fetch('http://127.0.0.1:7826/ingest/70e4f01b-2a33-46c4-8228-3ea27639475c',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'548b33'},body:JSON.stringify({sessionId:'548b33',runId:'pre-fix',hypothesisId:'H2',location:'page.tsx:4555',message:'formula dialog onOpenChange',data:{open,selectedFormulaIdx,formulasDialogOpenBefore:formulasDialogOpen},timestamp:Date.now()})}).catch(()=>{});
+                          // #endregion
                           setFormulasDialogOpen(open);
                           if (!open) {
+                            if (selectedFormulaIdx !== null) {
+                              setFormulaByIdx((prev) => ({
+                                ...prev,
+                                [selectedFormulaIdx]: {
+                                  qIdx: formulaBitsCurrentIdx,
+                                  answers: { ...formulaBitsSelectedAnswers },
+                                },
+                              }));
+                            }
                             setSelectedFormulaIdx(null);
                             setFormulaBitsCurrentIdx(0);
                             setFormulaBitsSelectedAnswers({});
@@ -4134,9 +4626,23 @@ export default function TopicPage() {
                                   type="button"
                                   className="w-full text-left rounded-2xl border border-border p-4 space-y-2 hover:border-primary/50 hover:bg-muted/20 transition-colors"
                                   onClick={() => {
+                                    // #region agent log
+                                    fetch('http://127.0.0.1:7826/ingest/70e4f01b-2a33-46c4-8228-3ea27639475c',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'548b33'},body:JSON.stringify({sessionId:'548b33',runId:'pre-fix',hypothesisId:'H4',location:'page.tsx:4616',message:'formula chooser option clicked',data:{formulaIdx:fi,formulaName:f.name},timestamp:Date.now()})}).catch(()=>{});
+                                    // #endregion
+                                    const merged: Record<number, { qIdx: number; answers: Record<number, number> }> = {
+                                      ...formulaByIdx,
+                                    };
+                                    if (selectedFormulaIdx !== null) {
+                                      merged[selectedFormulaIdx] = {
+                                        qIdx: formulaBitsCurrentIdx,
+                                        answers: { ...formulaBitsSelectedAnswers },
+                                      };
+                                    }
+                                    const d = merged[fi];
+                                    setFormulaByIdx(merged);
                                     setSelectedFormulaIdx(fi);
-                                    setFormulaBitsCurrentIdx(0);
-                                    setFormulaBitsSelectedAnswers({});
+                                    setFormulaBitsCurrentIdx(d?.qIdx ?? 0);
+                                    setFormulaBitsSelectedAnswers(d?.answers ? { ...d.answers } : {});
                                   }}
                                 >
                                   <p className="text-lg font-bold text-foreground">{f.name}</p>
@@ -4176,6 +4682,15 @@ export default function TopicPage() {
                                     type="button"
                                     className="inline-flex items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-foreground"
                                     onClick={() => {
+                                      if (selectedFormulaIdx !== null) {
+                                        setFormulaByIdx((prev) => ({
+                                          ...prev,
+                                          [selectedFormulaIdx]: {
+                                            qIdx: formulaBitsCurrentIdx,
+                                            answers: { ...formulaBitsSelectedAnswers },
+                                          },
+                                        }));
+                                      }
                                       setSelectedFormulaIdx(null);
                                       setFormulaBitsCurrentIdx(0);
                                       setFormulaBitsSelectedAnswers({});
@@ -4271,55 +4786,98 @@ export default function TopicPage() {
                                           Next <ChevronRight className="w-4 h-4 ml-1" />
                                         </Button>
                                       </div>
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="w-full max-w-[620px] mx-auto rounded-full h-10 gap-2 font-semibold border-primary/40 text-primary hover:bg-primary/10"
-                                        onClick={async () => {
-                                          const next = regenerateFormulaBitsAlgorithmic(
-                                            formula.name,
-                                            formula.bitsQuestions ?? []
-                                          );
-                                          if (next.length > 0) {
-                                            const updatedFormulas = practiceFormulasForUi.map((f, i) =>
-                                              i === selectedFormulaIdx ? { ...f, bitsQuestions: next } : f
+                                      <div className="mx-auto grid w-full max-w-[620px] grid-cols-1 gap-2 sm:grid-cols-2">
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          className="rounded-full h-10 gap-2 font-semibold border-primary/40 text-primary hover:bg-primary/10"
+                                          onClick={() => {
+                                            if (!topicNode || !subtopicName || !currentFormulaQuestion) return;
+                                            if (savedFormulaIdForCurrentQuestion) {
+                                              unsaveFormula(savedFormulaIdForCurrentQuestion);
+                                              persistSavedContent();
+                                              toast({ title: "Removed from Saved Formulas" });
+                                              return;
+                                            }
+                                            const { formula: activeFormula, question: activeQuestion } = currentFormulaQuestion;
+                                            const payload: SavedFormula = {
+                                              id: `formula-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+                                              name: activeFormula.name,
+                                              formulaLatex: activeFormula.formulaLatex,
+                                              description: activeFormula.description,
+                                              bitsQuestions: [{
+                                                question: activeQuestion.question,
+                                                options: activeQuestion.options,
+                                                correctAnswer: getCorrectOptionIndex(activeQuestion),
+                                                solution: activeQuestion.solution,
+                                              }],
+                                              subject: topicNode.subject,
+                                              topic: topicNode.topic,
+                                              subtopicName,
+                                              classLevel: topicNode.classLevel,
+                                              unitName: topicNode.topic,
+                                              level: difficultyLevel,
+                                              board: (board === "icse" ? "ICSE" : "CBSE") as Board,
+                                              sectionIndex: subtopicIndex,
+                                            };
+                                            saveFormula(payload);
+                                            persistSavedContent();
+                                            toast({ title: "Saved to Saved Formulas" });
+                                          }}
+                                        >
+                                          <Bookmark className={`w-4 h-4 ${savedFormulaIdForCurrentQuestion ? "fill-current" : ""}`} />
+                                          {savedFormulaIdForCurrentQuestion ? "Saved" : "Save"}
+                                        </Button>
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          className="rounded-full h-10 gap-2 font-semibold border-primary/40 text-primary hover:bg-primary/10"
+                                          onClick={async () => {
+                                            const next = regenerateFormulaBitsAlgorithmic(
+                                              formula.name,
+                                              formula.bitsQuestions ?? []
                                             );
-                                            setFormulaQuestionsOverride((prev) => ({
-                                              ...prev,
-                                              [selectedFormulaIdx]: next,
-                                            }));
-                                            setDbPracticeFormulas(updatedFormulas);
-                                            setFormulaBitsCurrentIdx(0);
-                                            setFormulaBitsSelectedAnswers({});
-                                            try {
-                                              if (topicNode && subtopicName) {
-                                                await saveFormulaPractice({
-                                                  board: (board === "icse" ? "ICSE" : "CBSE") as Board,
-                                                  subject: topicNode.subject as Subject,
-                                                  classLevel: topicNode.classLevel as 11 | 12,
-                                                  topic: topicNode.topic,
-                                                  subtopicName,
-                                                  level: difficultyLevel,
-                                                  practiceFormulas: updatedFormulas,
+                                            if (next.length > 0) {
+                                              const updatedFormulas = practiceFormulasForUi.map((f, i) =>
+                                                i === selectedFormulaIdx ? { ...f, bitsQuestions: next } : f
+                                              );
+                                              setFormulaQuestionsOverride((prev) => ({
+                                                ...prev,
+                                                [selectedFormulaIdx]: next,
+                                              }));
+                                              setDbPracticeFormulas(updatedFormulas);
+                                              setFormulaBitsCurrentIdx(0);
+                                              setFormulaBitsSelectedAnswers({});
+                                              try {
+                                                if (topicNode && subtopicName) {
+                                                  await saveFormulaPractice({
+                                                    board: (board === "icse" ? "ICSE" : "CBSE") as Board,
+                                                    subject: topicNode.subject as Subject,
+                                                    classLevel: topicNode.classLevel as 11 | 12,
+                                                    topic: topicNode.topic,
+                                                    subtopicName,
+                                                    level: difficultyLevel,
+                                                    practiceFormulas: updatedFormulas,
+                                                  });
+                                                }
+                                                toast({
+                                                  title: "Regenerated and saved",
+                                                  description: "Stored in Supabase. Reopening will show this updated set.",
+                                                });
+                                              } catch (e) {
+                                                toast({
+                                                  title: e instanceof Error ? e.message : "Save failed",
+                                                  description: "Regenerated locally, but Supabase save failed.",
+                                                  variant: "destructive",
                                                 });
                                               }
-                                              toast({
-                                                title: "Regenerated and saved",
-                                                description: "Stored in Supabase. Reopening will show this updated set.",
-                                              });
-                                            } catch (e) {
-                                              toast({
-                                                title: e instanceof Error ? e.message : "Save failed",
-                                                description: "Regenerated locally, but Supabase save failed.",
-                                                variant: "destructive",
-                                              });
                                             }
-                                          }
-                                        }}
-                                      >
-                                        <RefreshCw className="w-4 h-4" />
-                                        Regenerate
-                                      </Button>
+                                          }}
+                                        >
+                                          <RefreshCw className="w-4 h-4" />
+                                          Regenerate
+                                        </Button>
+                                      </div>
                                     </div>
                                   </div>
                                 </div>

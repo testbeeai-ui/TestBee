@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, XCircle } from "lucide-react";
 import type { PlayQuestionRow } from "@/types";
+import { cn } from "@/lib/utils";
 
 const STRIKE_COLOR = "bg-destructive/20 border-2 border-destructive text-foreground";
 const CORRECT_COLOR = "bg-accent/20 border-2 border-accent text-foreground";
@@ -20,6 +21,12 @@ interface PlayQuestionCardProps {
   onTimeout?: () => void;
   /** Hide explanation after answer */
   showExplanation?: boolean;
+  /** Parent can mirror the countdown (e.g. arena header clock). */
+  onTimerTick?: (secondsLeft: number) => void;
+  /** Hide the small "Time / Ns" row when the parent shows the clock. */
+  hideInlineTimer?: boolean;
+  /** "grid" matches investor mock 2×2 options. */
+  optionLayout?: "stack" | "grid";
 }
 
 export default function PlayQuestionCard({
@@ -29,12 +36,16 @@ export default function PlayQuestionCard({
   timerSeconds = 0,
   onTimeout,
   showExplanation = true,
+  onTimerTick,
+  hideInlineTimer = false,
+  optionLayout = "stack",
 }: PlayQuestionCardProps) {
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [answered, setAnswered] = useState(false);
   const [timeLeft, setTimeLeft] = useState(timerSeconds);
   const startTime = useRef<number>(Date.now());
   const autoAdvanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const timeoutFiredRef = useRef(false);
 
   // Clear auto-advance timer on unmount to prevent stale onNext calls
   useEffect(() => {
@@ -47,6 +58,7 @@ export default function PlayQuestionCard({
   }, []);
 
   useEffect(() => {
+    timeoutFiredRef.current = false;
     startTime.current = Date.now();
     setTimeLeft(timerSeconds);
     setSelectedOption(null);
@@ -56,12 +68,19 @@ export default function PlayQuestionCard({
   useEffect(() => {
     if (answered || timerSeconds <= 0) return;
     if (timeLeft <= 0) {
-      onTimeout?.();
+      if (!timeoutFiredRef.current) {
+        timeoutFiredRef.current = true;
+        onTimeout?.();
+      }
       return;
     }
     const t = setInterval(() => setTimeLeft((s) => s - 1), 1000);
     return () => clearInterval(t);
   }, [timeLeft, answered, timerSeconds, onTimeout]);
+
+  useEffect(() => {
+    if (timerSeconds > 0) onTimerTick?.(timeLeft);
+  }, [timeLeft, timerSeconds, onTimerTick]);
 
   const text = (question.content && typeof question.content === "object" && "text" in question.content)
     ? (question.content as { text: string }).text
@@ -101,9 +120,11 @@ export default function PlayQuestionCard({
     onNext?.();
   };
 
+  const optGrid = optionLayout === "grid";
+
   return (
     <div className="space-y-3">
-      {timerSeconds > 0 && !answered && (
+      {timerSeconds > 0 && !answered && !hideInlineTimer && (
         <div className="flex justify-between items-center">
           <span className="text-sm font-bold text-muted-foreground">Time</span>
           <span className={`text-lg font-mono font-bold ${timeLeft <= 5 ? "text-destructive" : "text-foreground"}`}>
@@ -111,9 +132,9 @@ export default function PlayQuestionCard({
           </span>
         </div>
       )}
-      <div className="bg-card rounded-2xl p-5 shadow-lg border border-border">
-        <h3 className="text-lg font-bold text-foreground leading-snug mb-4">{text}</h3>
-        <div className="space-y-2">
+      <div className={cn("bg-card rounded-2xl p-5 shadow-lg border border-border", optGrid && "p-4 sm:p-5")}>
+        <h3 className={cn("font-bold text-foreground leading-snug mb-4", optGrid ? "text-base sm:text-lg" : "text-lg")}>{text}</h3>
+        <div className={cn(optGrid ? "grid grid-cols-1 sm:grid-cols-2 gap-2" : "space-y-2")}>
           {options.map((option, i) => {
             let optionClass = "bg-muted hover:bg-muted/80 text-foreground";
             if (answered) {
@@ -129,7 +150,11 @@ export default function PlayQuestionCard({
                 onClick={() => handleAnswer(i)}
                 disabled={answered}
                 whileTap={!answered ? { scale: 0.98 } : undefined}
-                className={`w-full text-left p-3 rounded-xl font-semibold text-sm transition-all flex items-center gap-2 ${optionClass}`}
+                className={cn(
+                  "w-full text-left rounded-xl font-semibold text-sm transition-all flex items-center gap-2",
+                  optGrid ? "p-2.5 sm:p-3 min-h-[3rem]" : "p-3",
+                  optionClass
+                )}
               >
                 <span className="w-7 h-7 rounded-full bg-background/50 flex items-center justify-center text-xs font-bold shrink-0">
                   {String.fromCharCode(65 + i)}

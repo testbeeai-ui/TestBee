@@ -4,10 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 
-function fmtMoney(v: number) {
-  return `$${v.toFixed(6)}`;
-}
-
 function getErrorMessage(e: unknown): string {
   if (e instanceof Error && e.message) return e.message;
   if (e && typeof e === "object") {
@@ -27,12 +23,8 @@ export default function TokenLogsPage() {
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<"ready" | "unauthorized" | "forbidden" | "error">("ready");
   const [errorMsg, setErrorMsg] = useState("");
-  type TokenLogRowRealtime = Database["public"]["Tables"]["ai_token_logs"]["Row"] & {
-    realtime_cost_usd: number;
-    pricing_input_per_1m: number;
-    pricing_output_per_1m: number;
-  };
-  const [rows, setRows] = useState<TokenLogRowRealtime[]>([]);
+  type TokenLogRow = Database["public"]["Tables"]["ai_token_logs"]["Row"];
+  const [rows, setRows] = useState<TokenLogRow[]>([]);
   const [search, setSearch] = useState("");
   const [actionFilter, setActionFilter] = useState("all");
   const [modelFilter, setModelFilter] = useState("all");
@@ -83,7 +75,7 @@ export default function TokenLogsPage() {
           cache: "no-store",
         });
         const body = (await res.json()) as {
-          rows?: TokenLogRowRealtime[];
+          rows?: TokenLogRow[];
           error?: string;
         };
         if (!res.ok) throw new Error(body?.error || `Failed to load logs (${res.status})`);
@@ -134,6 +126,10 @@ export default function TokenLogsPage() {
         row.model_id,
         row.backend,
         row.user_id ?? "system",
+        String(
+          (row.metadata as { telemetry?: { tokenSource?: string } } | null | undefined)?.telemetry
+            ?.tokenSource ?? ""
+        ),
         JSON.stringify(row.metadata ?? {}),
       ]
         .join(" ")
@@ -143,23 +139,21 @@ export default function TokenLogsPage() {
   }, [rows, search, actionFilter, modelFilter, backendFilter, userFilter, monthFilter]);
 
   const totals = useMemo(() => {
-    const cost = filteredRows.reduce((sum, row) => sum + Number(row.realtime_cost_usd ?? 0), 0);
     const prompt = filteredRows.reduce((sum, row) => sum + Number(row.prompt_tokens ?? 0), 0);
     const output = filteredRows.reduce((sum, row) => sum + Number(row.candidates_tokens ?? 0), 0);
     const total = filteredRows.reduce((sum, row) => sum + Number(row.total_tokens ?? 0), 0);
-    return { cost, prompt, output, total };
+    return { prompt, output, total };
   }, [filteredRows]);
 
   const monthlyStats = useMemo(() => {
     const byMonth = new Map<
       string,
-      { entries: number; cost: number; prompt: number; output: number; total: number }
+      { entries: number; prompt: number; output: number; total: number }
     >();
     for (const row of filteredRows) {
       const month = new Date(row.created_at).toISOString().slice(0, 7);
-      const cur = byMonth.get(month) ?? { entries: 0, cost: 0, prompt: 0, output: 0, total: 0 };
+      const cur = byMonth.get(month) ?? { entries: 0, prompt: 0, output: 0, total: 0 };
       cur.entries += 1;
-      cur.cost += Number(row.realtime_cost_usd ?? 0);
       cur.prompt += Number(row.prompt_tokens ?? 0);
       cur.output += Number(row.candidates_tokens ?? 0);
       cur.total += Number(row.total_tokens ?? 0);
@@ -176,7 +170,6 @@ export default function TokenLogsPage() {
       monthlyStats.find((m) => m.month === currentMonth) ?? {
         month: currentMonth,
         entries: 0,
-        cost: 0,
         prompt: 0,
         output: 0,
         total: 0,
@@ -202,28 +195,21 @@ export default function TokenLogsPage() {
       <div>
         <h1 className="text-xl font-semibold">AI Token Logs</h1>
         <p className="text-sm text-muted-foreground">
-          Persistent telemetry for AI calls (model, tokens, backend, cost, and metadata).
-        </p>
-        <p className="text-xs text-muted-foreground mt-2 max-w-3xl">
-          Token counts come from the API response. Dollar amounts are{" "}
-          <span className="font-medium text-foreground">estimated in realtime</span> using your current server{" "}
-          <code className="text-[11px]">AI_COST_*</code> env vars (recomputed on each page load). They are not your GCP billing invoice; reconcile
-          with Google Cloud Billing export if you need exact charges.
+          Persistent telemetry for AI calls (model, tokens, backend, and metadata).
         </p>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div className="rounded border p-3 text-sm"><p className="text-muted-foreground">Entries</p><p className="font-semibold">{filteredRows.length.toLocaleString()}</p></div>
         <div className="rounded border p-3 text-sm"><p className="text-muted-foreground">Prompt Tokens</p><p className="font-semibold">{totals.prompt.toLocaleString()}</p></div>
         <div className="rounded border p-3 text-sm"><p className="text-muted-foreground">Output Tokens</p><p className="font-semibold">{totals.output.toLocaleString()}</p></div>
         <div className="rounded border p-3 text-sm"><p className="text-muted-foreground">Total Tokens</p><p className="font-semibold">{totals.total.toLocaleString()}</p></div>
-        <div className="rounded border p-3 text-sm"><p className="text-muted-foreground">Est. total (USD)</p><p className="font-semibold">{fmtMoney(totals.cost)}</p></div>
       </div>
 
       <div className="rounded border p-3 text-sm bg-muted/20">
         <p className="font-semibold">Current Month ({currentMonthStats.month})</p>
         <p className="text-muted-foreground">
-          Entries: {currentMonthStats.entries.toLocaleString()} | Tokens: {currentMonthStats.total.toLocaleString()} | Est. cost: {fmtMoney(currentMonthStats.cost)}
+          Entries: {currentMonthStats.entries.toLocaleString()} | Tokens: {currentMonthStats.total.toLocaleString()}
         </p>
       </div>
 
@@ -278,7 +264,6 @@ export default function TokenLogsPage() {
               <th className="p-2 text-right">Prompt</th>
               <th className="p-2 text-right">Output</th>
               <th className="p-2 text-right">Total</th>
-              <th className="p-2 text-right">Est. cost (USD)</th>
             </tr>
           </thead>
           <tbody>
@@ -289,7 +274,6 @@ export default function TokenLogsPage() {
                 <td className="p-2 text-right">{m.prompt.toLocaleString()}</td>
                 <td className="p-2 text-right">{m.output.toLocaleString()}</td>
                 <td className="p-2 text-right">{m.total.toLocaleString()}</td>
-                <td className="p-2 text-right">{fmtMoney(m.cost)}</td>
               </tr>
             ))}
           </tbody>
@@ -305,10 +289,10 @@ export default function TokenLogsPage() {
               <th className="p-2 text-left">Action</th>
               <th className="p-2 text-left">Model</th>
               <th className="p-2 text-left">Backend</th>
+              <th className="p-2 text-left">Token Source</th>
               <th className="p-2 text-right">Prompt</th>
               <th className="p-2 text-right">Output</th>
               <th className="p-2 text-right">Total</th>
-              <th className="p-2 text-right">Est. cost (USD)</th>
               <th className="p-2 text-left">Metadata</th>
             </tr>
           </thead>
@@ -320,10 +304,15 @@ export default function TokenLogsPage() {
                 <td className="p-2 whitespace-nowrap">{row.action_type}</td>
                 <td className="p-2 whitespace-nowrap">{row.model_id}</td>
                 <td className="p-2 whitespace-nowrap">{row.backend}</td>
+                <td className="p-2 whitespace-nowrap">
+                  {(
+                    (row.metadata as { telemetry?: { tokenSource?: string } } | null | undefined)
+                      ?.telemetry?.tokenSource
+                  ) ?? "legacy"}
+                </td>
                 <td className="p-2 text-right">{row.prompt_tokens.toLocaleString()}</td>
                 <td className="p-2 text-right">{row.candidates_tokens.toLocaleString()}</td>
                 <td className="p-2 text-right">{row.total_tokens.toLocaleString()}</td>
-                <td className="p-2 text-right">{fmtMoney(Number(row.realtime_cost_usd ?? 0))}</td>
                 <td className="p-2">
                   <details>
                     <summary className="cursor-pointer select-none">View</summary>

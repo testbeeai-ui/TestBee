@@ -75,17 +75,17 @@ export default function Profile() {
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="rounded-3xl border border-border bg-card p-5 md:p-7 text-foreground shadow-lg dark:border-white/10 dark:bg-[#070b14] dark:text-slate-100 dark:shadow-[0_24px_60px_rgba(2,8,23,0.65)]"
+            className="rounded-2xl border border-border bg-card p-4 text-foreground shadow-lg md:p-5 2xl:rounded-3xl 2xl:p-7 dark:border-white/10 dark:bg-[#070b14] dark:text-slate-100 dark:shadow-[0_24px_60px_rgba(2,8,23,0.65)]"
           >
-            <div className="space-y-5">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-start gap-4">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-blue-500 text-xl font-black text-white shadow-lg shadow-violet-500/30">
+            <div className="space-y-4 2xl:space-y-5">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between 2xl:gap-4">
+                <div className="flex items-start gap-3 2xl:gap-4">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-blue-500 text-lg font-black text-white shadow-lg shadow-violet-500/30 2xl:h-14 2xl:w-14 2xl:text-xl">
                     {(displayName?.[0] ?? "S").toUpperCase()}
                   </div>
                   <div>
-                    <h2 className="text-2xl font-black leading-tight text-foreground dark:text-white">{displayName}</h2>
-                    <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground dark:text-slate-400">
+                    <h2 className="text-xl font-black leading-tight text-foreground dark:text-white 2xl:text-2xl">{displayName}</h2>
+                    <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground dark:text-slate-400 2xl:gap-2 2xl:text-sm">
                       <span>{classLevelDisplay}</span>
                       {examLabel ? <span>· {examLabel}</span> : null}
                       <span>· {subjectCombo}</span>
@@ -95,13 +95,14 @@ export default function Profile() {
                 </div>
                 <Button
                   variant="outline"
+                  size="sm"
                   onClick={() => router.push(`/user/${profile.id}`)}
-                  className="rounded-xl border-violet-300/60 bg-violet-50 px-4 text-foreground hover:bg-violet-100 dark:border-violet-400/30 dark:bg-violet-500/10 dark:text-violet-100 dark:hover:bg-violet-500/20 dark:hover:text-white"
+                  className="rounded-lg border-violet-300/60 bg-violet-50 px-3 text-foreground hover:bg-violet-100 dark:border-violet-400/30 dark:bg-violet-500/10 dark:text-violet-100 dark:hover:bg-violet-500/20 dark:hover:text-white 2xl:rounded-xl 2xl:px-4"
                 >
-                  <Bookmark className="mr-2 h-4 w-4" /> View public profile
+                  <Bookmark className="mr-1.5 h-3.5 w-3.5 2xl:mr-2 2xl:h-4 2xl:w-4" /> View public profile
                 </Button>
               </div>
-              <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+              <div className="grid grid-cols-2 gap-2 md:grid-cols-4 2xl:gap-3">
                 {[
                   {
                     icon: Coins,
@@ -134,29 +135,29 @@ export default function Profile() {
                 ].map((stat) => (
                   <div
                     key={stat.label}
-                    className={`rounded-2xl border ${stat.border} bg-muted/40 px-4 py-3 text-center dark:bg-slate-900/60`}
+                    className={`rounded-xl border ${stat.border} bg-muted/40 px-3 py-2.5 text-center dark:bg-slate-900/60 2xl:rounded-2xl 2xl:px-4 2xl:py-3`}
                   >
-                    <stat.icon className={`mx-auto mb-2 h-4 w-4 ${stat.iconColor}`} />
-                    <p className="text-4xl font-black leading-none text-foreground dark:text-white">{stat.value}</p>
-                    <p className="mt-1 text-sm font-semibold text-muted-foreground dark:text-slate-400">{stat.label}</p>
+                    <stat.icon className={`mx-auto mb-1 h-3.5 w-3.5 ${stat.iconColor} 2xl:mb-2 2xl:h-4 2xl:w-4`} />
+                    <p className="text-2xl font-black leading-none text-foreground dark:text-white 2xl:text-3xl">{stat.value}</p>
+                    <p className="mt-0.5 text-xs font-semibold text-muted-foreground dark:text-slate-400 2xl:mt-1 2xl:text-sm">{stat.label}</p>
                   </div>
                 ))}
               </div>
             </div>
           </motion.div>
 
-          <div className="mt-6 space-y-4">
+          <div className="mt-4 space-y-3 2xl:mt-6 2xl:space-y-4">
             <ProfileAcademicsAchievements userId={profile.id} />
 
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
-              className="rounded-2xl border border-border bg-card p-5 dark:border-white/10 dark:bg-slate-950/80"
+              className="rounded-2xl border border-border bg-card p-4 dark:border-white/10 dark:bg-slate-950/80 2xl:p-5"
             >
-              <div className="mb-3 flex items-center justify-between">
-                <h3 className="flex items-center gap-2 text-xl font-black text-foreground dark:text-white">
-                  <Activity className="h-5 w-5 text-emerald-400" /> Performance
+              <div className="mb-2 flex items-center justify-between 2xl:mb-3">
+                <h3 className="flex items-center gap-1.5 text-lg font-black text-foreground dark:text-white 2xl:gap-2 2xl:text-xl">
+                  <Activity className="h-4 w-4 shrink-0 text-emerald-400 2xl:h-5 2xl:w-5" /> Performance
                 </h3>
                 <span className="text-sm font-semibold text-muted-foreground dark:text-slate-400">All time</span>
               </div>
@@ -166,27 +167,27 @@ export default function Profile() {
                 <span className="font-extrabold text-rose-400">✗ {totalWrong} Wrong</span>
                 <span className="font-extrabold text-foreground dark:text-slate-200">{accuracy}% Accuracy</span>
               </div>
-              <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
-                <div className="rounded-xl border border-emerald-400/20 bg-muted/40 p-3 dark:bg-slate-900/70">
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground dark:text-slate-400">Correct</p>
-                  <p className="text-3xl font-black text-emerald-400">{totalCorrect}</p>
+              <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-3 2xl:mt-4 2xl:gap-3">
+                <div className="rounded-lg border border-emerald-400/20 bg-muted/40 p-2.5 dark:bg-slate-900/70 2xl:rounded-xl 2xl:p-3">
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground dark:text-slate-400 2xl:text-xs">Correct</p>
+                  <p className="text-2xl font-black text-emerald-400 2xl:text-3xl">{totalCorrect}</p>
                 </div>
-                <div className="rounded-xl border border-rose-400/20 bg-muted/40 p-3 dark:bg-slate-900/70">
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground dark:text-slate-400">Wrong</p>
-                  <p className="text-3xl font-black text-rose-400">{totalWrong}</p>
+                <div className="rounded-lg border border-rose-400/20 bg-muted/40 p-2.5 dark:bg-slate-900/70 2xl:rounded-xl 2xl:p-3">
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground dark:text-slate-400 2xl:text-xs">Wrong</p>
+                  <p className="text-2xl font-black text-rose-400 2xl:text-3xl">{totalWrong}</p>
                 </div>
-                <div className="rounded-xl border border-border bg-muted/40 p-3 dark:border-slate-700 dark:bg-slate-900/70">
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground dark:text-slate-400">Skipped</p>
-                  <p className="text-3xl font-black text-foreground dark:text-white">0</p>
+                <div className="rounded-lg border border-border bg-muted/40 p-2.5 dark:border-slate-700 dark:bg-slate-900/70 2xl:rounded-xl 2xl:p-3">
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground dark:text-slate-400 2xl:text-xs">Skipped</p>
+                  <p className="text-2xl font-black text-foreground dark:text-white 2xl:text-3xl">0</p>
                 </div>
               </div>
             </motion.div>
 
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              <div className="rounded-2xl border border-border bg-card p-5 dark:border-white/10 dark:bg-slate-950/80">
-                <h3 className="mb-1 text-xl font-black text-foreground dark:text-white">Settings</h3>
-                <p className="mb-4 text-sm text-muted-foreground dark:text-slate-400">Appearance & notifications</p>
-                <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 2xl:gap-4">
+              <div className="rounded-2xl border border-border bg-card p-4 dark:border-white/10 dark:bg-slate-950/80 2xl:p-5">
+                <h3 className="mb-0.5 text-lg font-black text-foreground dark:text-white 2xl:mb-1 2xl:text-xl">Settings</h3>
+                <p className="mb-3 text-xs text-muted-foreground dark:text-slate-400 2xl:mb-4 2xl:text-sm">Appearance & notifications</p>
+                <div className="space-y-3 2xl:space-y-4">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground dark:text-slate-400">Appearance</p>
                     <div className="mt-2 flex flex-wrap gap-2">
@@ -229,11 +230,11 @@ export default function Profile() {
                   </div>
                 </div>
               </div>
-              <div className="space-y-4">
-                <div className="rounded-2xl border border-border bg-card p-5 dark:border-white/10 dark:bg-slate-950/80">
-                  <div className="mb-1 flex items-center justify-between">
-                    <h3 className="flex items-center gap-2 text-xl font-black text-foreground dark:text-white">
-                      <Heart className="h-5 w-5 text-rose-400" /> EduFund
+              <div className="space-y-3 2xl:space-y-4">
+                <div className="rounded-2xl border border-border bg-card p-4 dark:border-white/10 dark:bg-slate-950/80 2xl:p-5">
+                  <div className="mb-0.5 flex items-center justify-between 2xl:mb-1">
+                    <h3 className="flex items-center gap-1.5 text-lg font-black text-foreground dark:text-white 2xl:gap-2 2xl:text-xl">
+                      <Heart className="h-4 w-4 shrink-0 text-rose-400 2xl:h-5 2xl:w-5" /> EduFund
                     </h3>
                     <span className="rounded-full bg-rose-500/20 px-2 py-0.5 text-xs font-bold text-rose-300">New</span>
                   </div>

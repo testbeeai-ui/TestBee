@@ -36,6 +36,11 @@ function localDayKey(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
+/** Bucketing key for merging non–AnswerResult activity (e.g. topic quiz submits). */
+export function contributionDayKeyFromTimestamp(timestampMs: number): string {
+  return localDayKey(startOfLocalDay(new Date(timestampMs)));
+}
+
 function intensityFromCount(n: number): HeatmapIntensity {
   if (n <= 0) return 0;
   if (n <= 2) return 1;
@@ -66,7 +71,9 @@ const DISPLAY_MONTH_COUNT = 6; // Jan..Jun
 export function buildActivityHeatmapModel(
   results: AnswerResult[],
   accountStartInput: Date | null,
-  now: Date = new Date()
+  now: Date = new Date(),
+  /** Per-day extra counts (e.g. topic-quiz questions submitted that day). Keys `YYYY-MM-DD` local. */
+  extraDayCounts?: ReadonlyMap<string, number> | Record<string, number> | null
 ): ActivityHeatmapModel {
   const today = startOfLocalDay(now);
 
@@ -99,6 +106,16 @@ export function buildActivityHeatmapModel(
     const k = localDayKey(startOfLocalDay(new Date(r.timestamp)));
     counts.set(k, (counts.get(k) ?? 0) + 1);
   }
+  if (extraDayCounts) {
+    const entries =
+      extraDayCounts instanceof Map ? [...extraDayCounts.entries()] : Object.entries(extraDayCounts);
+    for (const [k, raw] of entries) {
+      const add = Number(raw);
+      if (!Number.isFinite(add) || add <= 0) continue;
+      const capped = Math.min(Math.trunc(add), 500);
+      counts.set(k, (counts.get(k) ?? 0) + capped);
+    }
+  }
 
   const cells: HeatmapDayCell[] = [];
   const totalCells = numWeeks * 7;
@@ -117,19 +134,25 @@ export function buildActivityHeatmapModel(
     cells.push({ intensity, isFuture, day: dayStart, count });
   }
 
+  const firstTickDayInWeek = (w: number): Date | null => {
+    const weekSunday = addDays(startSunday, w * 7);
+    const weekEnd = addDays(weekSunday, 6);
+    if (weekEnd < windowStartDay || weekSunday > windowEndDay) return null;
+    return weekSunday < windowStartDay ? windowStartDay : weekSunday;
+  };
+
   const monthTicks: HeatmapMonthTick[] = [];
   for (let w = 0; w < numWeeks; w++) {
-    const weekSunday = addDays(startSunday, w * 7);
-    const prevSunday = w > 0 ? addDays(startSunday, (w - 1) * 7) : null;
-    const m = weekSunday.getMonth();
-    const y = weekSunday.getFullYear();
+    const tickDay = firstTickDayInWeek(w);
+    if (!tickDay) continue;
+    const prevTickDay = w > 0 ? firstTickDayInWeek(w - 1) : null;
     const show =
-      w === 0 ||
-      !prevSunday ||
-      prevSunday.getMonth() !== m ||
-      prevSunday.getFullYear() !== y;
+      !prevTickDay ||
+      prevTickDay.getMonth() !== tickDay.getMonth() ||
+      prevTickDay.getFullYear() !== tickDay.getFullYear();
     if (show) {
-      const label = weekSunday.toLocaleDateString(undefined, {
+      const y = tickDay.getFullYear();
+      const label = tickDay.toLocaleDateString(undefined, {
         month: "short",
         ...(y !== displayYear ? { year: "numeric" } : {}),
       });

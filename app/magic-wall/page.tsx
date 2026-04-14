@@ -482,8 +482,8 @@ export default function MagicWallPage() {
       setSelectedTopicKeys(new Set(rows.map((r) => r.topicKey)));
       if (rows.length > MAGIC_WALL_MAX_SELECTED_TOPICS) {
         toast({
-          title: "Reading basket exceeds limit",
-          description: `You can keep up to ${MAGIC_WALL_MAX_SELECTED_TOPICS} topics. Remove extras, then save.`,
+          title: `More than ${MAGIC_WALL_MAX_SELECTED_TOPICS} topics in basket`,
+          description: `Keep up to ${MAGIC_WALL_MAX_SELECTED_TOPICS}. Remove extras, then save.`,
         });
       }
     } catch (e) {
@@ -532,8 +532,8 @@ export default function MagicWallPage() {
     if (blockedAtLimit) {
       queueMicrotask(() => {
         toast({
-          title: `Up to ${MAGIC_WALL_MAX_SELECTED_TOPICS} topics`,
-          description: "Remove one from your reading basket to add another.",
+          title: `Maximum ${MAGIC_WALL_MAX_SELECTED_TOPICS} topics`,
+          description: `You already have ${MAGIC_WALL_MAX_SELECTED_TOPICS} selected. Remove one from the list to add another.`,
         });
       });
     }
@@ -606,9 +606,9 @@ export default function MagicWallPage() {
                   </p>
                   <p className="text-xs text-slate-400 mt-0.5 break-words">
                     {loading
-                      ? "Loading curriculum from Supabase…"
+                      ? "Loading…"
                       : error && taxonomy.length === 0
-                        ? "Curriculum could not be loaded from Supabase."
+                        ? "Curriculum could not be loaded."
                         : filteredRainTopics.length === 0
                           ? "No topics match your filters."
                           : `${filteredRainTopics.length} topics loaded · ${rainSlots.length} columns (${rainSlots.length * 2} drops) · class ${selectedClass} · max ${MAGIC_WALL_MAX_SELECTED_TOPICS} picks — hover or touch-hold to pause`}
@@ -700,7 +700,7 @@ export default function MagicWallPage() {
                 {loading && (
                   <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-2 px-4 text-center text-slate-300">
                     <Loader2 className="h-6 w-6 animate-spin" />
-                    <span className="text-sm font-medium">Loading curriculum from Supabase…</span>
+                    <span className="text-sm font-medium">Loading…</span>
                     <span className="max-w-sm text-xs text-slate-500">
                       Topic Rain starts after your syllabus is loaded — hover or touch a topic to pause it, then tap to select.
                     </span>
@@ -710,7 +710,7 @@ export default function MagicWallPage() {
                   <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-2 px-4 text-center text-sm text-slate-300">
                     {error && taxonomy.length === 0 ? (
                       <>
-                        <span className="font-semibold text-slate-200">Supabase curriculum unavailable</span>
+                        <span className="font-semibold text-slate-200">Curriculum unavailable</span>
                         <span className="max-w-md text-xs text-slate-500">{error}</span>
                       </>
                     ) : (
@@ -839,7 +839,7 @@ export default function MagicWallPage() {
                   </span>
                 </div>
                 {loadingBasket ? (
-                  <p className="text-xs text-slate-400">Loading basket...</p>
+                  <p className="text-xs text-slate-400">Loading…</p>
                 ) : selectedDetails.length === 0 ? (
                   <p className="text-xs text-slate-400">
                     No topics selected yet. Tap cards in Topic Rain (max {MAGIC_WALL_MAX_SELECTED_TOPICS}).

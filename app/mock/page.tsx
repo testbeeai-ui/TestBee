@@ -41,6 +41,8 @@ import ClassesSection from "@/components/prep-mock/ClassesSection";
 import MockTestsSection from "@/components/prep-mock/MockTestsSection";
 import StreakCalendar from "@/components/prep-mock/StreakCalendar";
 import RevisionInstaCueSection from "@/components/prep-mock/RevisionInstaCueSection";
+import { fetchSavedContent } from "@/lib/savedContentService";
+import { mergeAllSavedContent } from "@/lib/mergeSavedContent";
 
 const DURATIONS = [60, 90, 180] as const;
 type Duration = (typeof DURATIONS)[number];
@@ -172,6 +174,37 @@ export default function MockPage() {
     () => allResults.map((r) => new Date(r.timestamp)),
     [allResults]
   );
+
+  useEffect(() => {
+    if (!authUser?.id) return;
+    let cancelled = false;
+    fetchSavedContent()
+      .then((data) => {
+        if (cancelled) return;
+        const u = useUserStore.getState().user;
+        if (!u) return;
+        const merged = mergeAllSavedContent(
+          u.savedBits ?? [],
+          u.savedFormulas ?? [],
+          u.savedRevisionCards ?? [],
+          u.savedRevisionUnits ?? [],
+          data.savedBits,
+          data.savedFormulas,
+          data.savedRevisionCards,
+          data.savedRevisionUnits
+        );
+        useUserStore.getState().setSavedFromServer(
+          merged.savedBits,
+          merged.savedFormulas,
+          merged.savedRevisionCards,
+          merged.savedRevisionUnits
+        );
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [authUser?.id]);
 
   const revisionCards = user?.savedRevisionCards ?? [];
 

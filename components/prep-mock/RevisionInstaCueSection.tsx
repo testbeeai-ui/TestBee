@@ -3,21 +3,45 @@
 import Link from 'next/link';
 import { RotateCcw, Plus, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import MathText from '@/components/MathText';
 import type { SavedRevisionCard } from '@/types';
 
 const subjectColors: Record<string, string> = {
-  physics: 'text-blue-600',
-  chemistry: 'text-purple-600',
-  math: 'text-orange-600',
-  biology: 'text-green-600',
+  physics: 'text-blue-500 dark:text-blue-400',
+  chemistry: 'text-purple-500 dark:text-purple-400',
+  math: 'text-orange-500 dark:text-orange-400',
+  biology: 'text-green-500 dark:text-green-400',
+};
+
+const typeLabels: Record<string, string> = {
+  concept: 'Concept',
+  formula: 'Formula',
+  common_mistake: 'Mistake',
+  trap: 'Trap',
 };
 
 interface RevisionInstaCueSectionProps {
   cards: SavedRevisionCard[];
 }
 
+function previewLine(card: SavedRevisionCard): string {
+  const front = (card.frontContent ?? '').trim();
+  if (front) return front;
+  return (card.backContent ?? '').trim();
+}
+
+/** Turn syllabus-style ALL CAPS topics into title case for the preview row. */
+function formatTopicLabel(topic: string): string {
+  const t = topic.replace(/\s+/g, ' ').trim();
+  if (!t) return '';
+  return t
+    .split(' ')
+    .map((w) => (w.length <= 1 ? w.toUpperCase() : w.charAt(0) + w.slice(1).toLowerCase()))
+    .join(' ');
+}
+
 export default function RevisionInstaCueSection({ cards }: RevisionInstaCueSectionProps) {
-  const preview = cards.slice(0, 3);
+  const preview = cards.slice(0, 6);
 
   return (
     <section className="space-y-3">
@@ -48,27 +72,48 @@ export default function RevisionInstaCueSection({ cards }: RevisionInstaCueSecti
           </Link>
         </div>
       ) : (
-        <div className="space-y-2">
-          {preview.map((card) => {
-            const subjectColor = subjectColors[card.subject] ?? 'text-primary';
-            return (
-              <div
-                key={card.id}
-                className="edu-card p-3 rounded-xl border border-border/50 border-l-4 border-l-[#1D9E75]"
+        <div className="edu-card rounded-xl border border-border/50 overflow-hidden flex flex-col max-h-[220px]">
+          <div className="overflow-y-auto p-2 space-y-2">
+            {preview.map((card) => {
+              const subjectColor = subjectColors[card.subject] ?? 'text-primary';
+              const subj = card.subject.charAt(0).toUpperCase() + card.subject.slice(1);
+              const typeLabel = typeLabels[card.type] ?? card.type;
+              return (
+                <div
+                  key={card.id}
+                  className="rounded-lg border border-border/50 border-l-[3px] border-l-[#1D9E75] bg-muted/20 px-2.5 py-2 min-w-0 shadow-sm"
+                >
+                  <div className="flex items-center gap-1.5 mb-1 min-w-0">
+                    <p
+                      className={`text-[10px] font-bold leading-tight truncate ${subjectColor}`}
+                      title={`${subj} · ${card.topic}`}
+                    >
+                      {subj} · {formatTopicLabel(card.topic)}
+                    </p>
+                    <span className="shrink-0 rounded px-1 py-px text-[9px] font-semibold uppercase tracking-wide bg-muted text-muted-foreground">
+                      {typeLabel}
+                    </span>
+                  </div>
+                  <div className="min-w-0 max-h-[2.75rem] overflow-hidden">
+                    <MathText
+                      as="div"
+                      weight="semibold"
+                      className="text-[11px] text-foreground leading-snug line-clamp-2 [&_.katex]:text-[0.95em]"
+                    >
+                      {previewLine(card)}
+                    </MathText>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {cards.length > 6 && (
+            <Link href="/revision" className="shrink-0 border-t border-border/50">
+              <button
+                type="button"
+                className="w-full text-[10px] text-muted-foreground hover:text-foreground py-1.5 font-semibold hover:bg-muted/30 transition-colors"
               >
-                <p className={`text-xs font-bold mb-1 ${subjectColor}`}>
-                  {card.subject.charAt(0).toUpperCase() + card.subject.slice(1)} · {card.topic}
-                </p>
-                <p className="text-sm text-foreground line-clamp-2 font-medium leading-snug">
-                  {card.backContent || card.frontContent}
-                </p>
-              </div>
-            );
-          })}
-          {cards.length > 3 && (
-            <Link href="/revision">
-              <button className="w-full text-xs text-muted-foreground hover:text-foreground border border-border/50 rounded-xl py-2 font-medium hover:bg-muted/30 transition-colors">
-                Load more InstaCues (+{cards.length - 3})
+                +{cards.length - 6} more on Revision
               </button>
             </Link>
           )}

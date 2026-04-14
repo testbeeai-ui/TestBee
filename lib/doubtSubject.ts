@@ -9,8 +9,9 @@ const SUBJECT_SYNONYMS: Record<string, CanonicalDoubtSubject> = {
   math: "Math",
   maths: "Math",
   mathematics: "Math",
-  biology: "Biology",
-  bio: "Biology",
+  /** Legacy rows: normalize to Other (product is PCM-only for tagging). */
+  biology: "Other",
+  bio: "Other",
   "general question": "General Question",
   general: "General Question",
   other: "Other",

@@ -63,6 +63,39 @@ const exams: { value: ExamType; label: string; emoji: string }[] = [
 
 const EXAM_TYPES_11_12: ExamType[] = ['JEE', 'NEET', 'KCET', 'other'];
 
+/** Preserves curriculum order from Supabase (unit → chapter → topic). */
+type ExploreChapterGroup = { chapterTitle: string; topics: TopicNode[] };
+type ExploreUnitGroup = { unitLabel: string; unitTitle: string; chapters: ExploreChapterGroup[] };
+
+function groupTopicsIntoUnitsAndChapters(sortedTopics: TopicNode[]): ExploreUnitGroup[] {
+  const units: ExploreUnitGroup[] = [];
+  let currentUnit: ExploreUnitGroup | null = null;
+  let currentChapter: ExploreChapterGroup | null = null;
+
+  const unitKey = (t: TopicNode) => `${t.unitLabel ?? ""}\0${t.unitTitle ?? ""}`;
+  const chapterTitleOf = (t: TopicNode) => (t.chapterTitle?.trim() ? t.chapterTitle.trim() : t.topic);
+
+  for (const t of sortedTopics) {
+    const uk = unitKey(t);
+    if (!currentUnit || `${currentUnit.unitLabel}\0${currentUnit.unitTitle}` !== uk) {
+      currentUnit = {
+        unitLabel: t.unitLabel ?? "",
+        unitTitle: t.unitTitle ?? "",
+        chapters: [],
+      };
+      units.push(currentUnit);
+      currentChapter = null;
+    }
+    const chTitle = chapterTitleOf(t);
+    if (!currentChapter || currentChapter.chapterTitle !== chTitle) {
+      currentChapter = { chapterTitle: chTitle, topics: [] };
+      currentUnit.chapters.push(currentChapter);
+    }
+    currentChapter.topics.push(t);
+  }
+  return units;
+}
+
 function getVisibleExamTypes(_classLevel: ClassLevel | null): ExamType[] {
   return EXAM_TYPES_11_12;
 }
@@ -366,6 +399,15 @@ const Explore = () => {
     return grouped;
   }, [selectedSubject, selectedExam, classLevel, topicTaxonomy]);
 
+  const groupedTopicsByClass = useMemo(() => {
+    const out: Partial<Record<ClassLevel, ExploreUnitGroup[]>> = {};
+    for (const cl of [11, 12] as ClassLevel[]) {
+      const list = topicsByClass[cl];
+      if (list?.length) out[cl] = groupTopicsIntoUnitsAndChapters(list);
+    }
+    return out;
+  }, [topicsByClass]);
+
   const handleSubjectSelect = (subject: Subject) => {
     setSelectedSubject(subject);
     setView('topics');
@@ -630,49 +672,88 @@ const Explore = () => {
                         </div>
                       </AccordionTrigger>
                       <AccordionContent className="px-2 pb-3">
-                        <div className="space-y-2">
-                          {topicsByClass[classLevel].map((topicNode) => {
-                            const qCount = getTopicCount(selectedSubject, topicNode.topic);
-                            const hasQuestions = qCount > 0;
-                            return (
-                              <motion.button
-                                key={topicNode.topic}
-                                whileHover={{ scale: 1.01 }}
-                                whileTap={{ scale: 0.99 }}
-                                onClick={() => handleTopicClick(topicNode, classLevel)}
-                                className="w-full text-left p-4 rounded-xl border transition-all bg-card hover:bg-muted/50 border-border cursor-pointer hover:shadow-sm"
-                              >
-                                <div className="flex items-center justify-between mb-2">
-                                  <span className="font-bold text-sm text-foreground">
-                                    {topicNode.unitLabel && topicNode.totalPeriods != null
-                                      ? `${topicNode.unitLabel}: ${topicNode.topic} (Total Periods: ${topicNode.totalPeriods})`
-                                      : topicNode.totalPeriods != null
-                                        ? `${topicNode.topic} (Total Periods: ${topicNode.totalPeriods})`
-                                        : topicNode.topic}
-                                  </span>
-                                  {hasQuestions ? (
-                                    <Badge className="text-xs font-bold bg-primary/10 text-primary border-0">
-                                      {qCount} Q{qCount !== 1 ? 's' : ''}
-                                    </Badge>
-                                  ) : (
-                                    <Badge variant="outline" className="text-xs font-bold text-muted-foreground">
-                                      Read theory
-                                    </Badge>
-                                  )}
+                        <div className="space-y-5">
+                          {(groupedTopicsByClass[classLevel] ?? []).map((unit, ui) => (
+                            <div
+                              key={`${classLevel}-u-${ui}-${unit.unitLabel}-${unit.unitTitle}`}
+                              className="rounded-xl border border-border/70 bg-muted/15 overflow-hidden"
+                            >
+                              <div className="flex items-start gap-2.5 px-3 py-2.5 bg-muted/30 border-b border-border/50">
+                                <Box className="w-4 h-4 text-primary shrink-0 mt-0.5" aria-hidden />
+                                <div className="min-w-0">
+                                  <p className="text-[10px] font-extrabold uppercase tracking-widest text-muted-foreground">
+                                    Unit / Block
+                                  </p>
+                                  <h3 className="text-sm font-extrabold text-foreground leading-snug">
+                                    {unit.unitLabel ? `${unit.unitLabel}. ` : ''}
+                                    {unit.unitTitle || 'Syllabus unit'}
+                                  </h3>
                                 </div>
-                                <div className="flex flex-wrap gap-1.5">
-                                  {topicNode.subtopics.map((st) => (
-                                    <span
-                                      key={st.name}
-                                      className="edu-chip bg-muted/60 text-muted-foreground text-[10px]"
-                                    >
-                                      {prettifySubtopicTitle(st.name)}
-                                    </span>
-                                  ))}
-                                </div>
-                              </motion.button>
-                            );
-                          })}
+                              </div>
+                              <div className="p-2 space-y-4">
+                                {unit.chapters.map((chapter, ci) => (
+                                  <div
+                                    key={`${classLevel}-u${ui}-c${ci}-${chapter.chapterTitle}`}
+                                    className="space-y-2"
+                                  >
+                                    <div className="flex items-center gap-2 px-1 pt-1">
+                                      <Crosshair className="w-3.5 h-3.5 text-primary/90 shrink-0" aria-hidden />
+                                      <p className="text-[10px] font-extrabold uppercase tracking-widest text-muted-foreground shrink-0">
+                                        Chapter
+                                      </p>
+                                      <span className="text-xs font-bold text-foreground line-clamp-2">
+                                        {chapter.chapterTitle}
+                                      </span>
+                                    </div>
+                                    <div className="space-y-2 pl-1 sm:pl-2 border-l-2 border-primary/25 ml-2">
+                                      {chapter.topics.map((topicNode, ti) => {
+                                        const qCount = getTopicCount(selectedSubject, topicNode.topic);
+                                        const hasQuestions = qCount > 0;
+                                        return (
+                                          <motion.button
+                                            key={`${classLevel}-${ui}-${ci}-${ti}-${topicNode.topic}`}
+                                            whileHover={{ scale: 1.01 }}
+                                            whileTap={{ scale: 0.99 }}
+                                            onClick={() => handleTopicClick(topicNode, classLevel)}
+                                            className="w-full text-left p-3 sm:p-4 rounded-xl border transition-all bg-card hover:bg-muted/50 border-border cursor-pointer hover:shadow-sm"
+                                          >
+                                            <div className="flex items-center justify-between gap-2 mb-2">
+                                              <span className="font-bold text-sm text-foreground min-w-0">
+                                                {topicNode.unitLabel && topicNode.totalPeriods != null
+                                                  ? `${topicNode.unitLabel}: ${topicNode.topic} (Total Periods: ${topicNode.totalPeriods})`
+                                                  : topicNode.totalPeriods != null
+                                                    ? `${topicNode.topic} (Total Periods: ${topicNode.totalPeriods})`
+                                                    : topicNode.topic}
+                                              </span>
+                                              {hasQuestions ? (
+                                                <Badge className="text-xs font-bold bg-primary/10 text-primary border-0 shrink-0">
+                                                  {qCount} Q{qCount !== 1 ? 's' : ''}
+                                                </Badge>
+                                              ) : (
+                                                <Badge variant="outline" className="text-xs font-bold text-muted-foreground shrink-0">
+                                                  Read theory
+                                                </Badge>
+                                              )}
+                                            </div>
+                                            <div className="flex flex-wrap gap-1.5">
+                                              {topicNode.subtopics.map((st) => (
+                                                <span
+                                                  key={st.name}
+                                                  className="edu-chip bg-muted/60 text-muted-foreground text-[10px]"
+                                                >
+                                                  {prettifySubtopicTitle(st.name)}
+                                                </span>
+                                              ))}
+                                            </div>
+                                          </motion.button>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       </AccordionContent>
                     </AccordionItem>

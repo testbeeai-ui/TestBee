@@ -23,6 +23,8 @@ import InstaCuePlayer from '@/components/InstaCuePlayer';
 import AddRevisionCardModal from '@/components/AddRevisionCardModal';
 import { buildDeepDivePath } from '@/lib/topicRoutes';
 import { fetchSavedContent, syncAllSavedContent } from '@/lib/savedContentService';
+import { mergeAllSavedContent } from '@/lib/mergeSavedContent';
+import { useAuth } from '@/hooks/useAuth';
 
 const DEMO_CARDS: SavedRevisionCard[] = [
   {
@@ -71,6 +73,7 @@ function subtopicDisplayName(sectionTitle: string): string {
 }
 
 const Revision = () => {
+  const { user: authUser } = useAuth();
   const user = useUserStore((s) => s.user);
   const unsaveQuestion = useUserStore((s) => s.unsaveQuestion);
   const unsaveRevisionUnit = useUserStore((s) => s.unsaveRevisionUnit);
@@ -82,11 +85,53 @@ const Revision = () => {
 
   const savedQuestions = questions.filter((q) => user?.savedQuestions.includes(q.id));
   const savedCards = user?.savedRevisionCards ?? [];
-  const displayCards = savedCards.length > 0 ? savedCards : DEMO_CARDS;
+  const signedIn = Boolean(authUser);
+  const displayCards = signedIn ? savedCards : savedCards.length > 0 ? savedCards : DEMO_CARDS;
   const savedRevisionUnits = user?.savedRevisionUnits ?? [];
+  const savedBitsStoreCount = user?.savedBits?.length ?? 0;
+  const savedFormulasStoreCount = user?.savedFormulas?.length ?? 0;
+  const savedTabBadgeCount = savedBitsStoreCount + savedFormulasStoreCount;
   const [savedBits, setSavedBits] = useState<SavedBit[]>([]);
   const [savedFormulas, setSavedFormulas] = useState<SavedFormula[]>([]);
   const [savedContentLoading, setSavedContentLoading] = useState(false);
+
+  useEffect(() => {
+    setSavedBits(user?.savedBits ?? []);
+    setSavedFormulas(user?.savedFormulas ?? []);
+  }, [user?.savedBits, user?.savedFormulas]);
+
+  useEffect(() => {
+    if (!authUser?.id) return;
+    let cancelled = false;
+    fetchSavedContent()
+      .then((data) => {
+        if (cancelled) return;
+        const u = useUserStore.getState().user;
+        if (!u) return;
+        const merged = mergeAllSavedContent(
+          u.savedBits ?? [],
+          u.savedFormulas ?? [],
+          u.savedRevisionCards ?? [],
+          u.savedRevisionUnits ?? [],
+          data.savedBits,
+          data.savedFormulas,
+          data.savedRevisionCards,
+          data.savedRevisionUnits
+        );
+        useUserStore.getState().setSavedFromServer(
+          merged.savedBits,
+          merged.savedFormulas,
+          merged.savedRevisionCards,
+          merged.savedRevisionUnits
+        );
+        setSavedBits(merged.savedBits);
+        setSavedFormulas(merged.savedFormulas);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [authUser?.id]);
 
   useEffect(() => {
     if (activeTab !== 'saved') return;
@@ -94,20 +139,39 @@ const Revision = () => {
     const storeFormulas = useUserStore.getState().user?.savedFormulas ?? [];
     queueMicrotask(() => setSavedContentLoading(true));
     fetchSavedContent()
-      .then(({ savedBits: bits, savedFormulas: formulas, savedRevisionCards: revisionCards }) => {
-        // API is source of truth when it returns data
-        if (bits.length > 0 || formulas.length > 0 || revisionCards.length > 0) {
-          setSavedBits(bits);
-          setSavedFormulas(formulas);
-          useUserStore.getState().setSavedFromServer(bits, formulas, revisionCards);
-        } else {
-          // API empty: fallback to local store (bits saved before Supabase sync)
+      .then(
+        ({
+          savedBits: bits,
+          savedFormulas: formulas,
+          savedRevisionCards: revisionCards,
+          savedRevisionUnits: revisionUnits,
+        }) => {
+        const u = useUserStore.getState().user;
+        if (!u) {
           setSavedBits(storeBits);
           setSavedFormulas(storeFormulas);
+          return;
         }
+        const merged = mergeAllSavedContent(
+          u.savedBits ?? [],
+          u.savedFormulas ?? [],
+          u.savedRevisionCards ?? [],
+          u.savedRevisionUnits ?? [],
+          bits,
+          formulas,
+          revisionCards,
+          revisionUnits
+        );
+        useUserStore.getState().setSavedFromServer(
+          merged.savedBits,
+          merged.savedFormulas,
+          merged.savedRevisionCards,
+          merged.savedRevisionUnits
+        );
+        setSavedBits(merged.savedBits);
+        setSavedFormulas(merged.savedFormulas);
       })
       .catch(() => {
-        // API failed (401, network, etc.): use local store
         setSavedBits(storeBits);
         setSavedFormulas(storeFormulas);
       })
@@ -179,23 +243,38 @@ const Revision = () => {
                 <button
                   type="button"
                   onClick={() => setActiveTab('instacue')}
-                  className={`rounded-full px-4 py-1.5 text-sm font-bold transition-colors ${activeTab === 'instacue' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                  className={`rounded-full px-4 py-1.5 text-sm font-bold transition-colors inline-flex items-center gap-1.5 ${activeTab === 'instacue' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
                 >
                   InstaCue Cards
+                  <span
+                    className={`tabular-nums rounded-full px-1.5 py-0.5 text-[11px] font-extrabold ${activeTab === 'instacue' ? 'bg-primary-foreground/20' : 'bg-muted'}`}
+                  >
+                    {savedCards.length}
+                  </span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setActiveTab('units')}
-                  className={`rounded-full px-4 py-1.5 text-sm font-bold transition-colors ${activeTab === 'units' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                  className={`rounded-full px-4 py-1.5 text-sm font-bold transition-colors inline-flex items-center gap-1.5 ${activeTab === 'units' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
                 >
                   Unit Revision
+                  <span
+                    className={`tabular-nums rounded-full px-1.5 py-0.5 text-[11px] font-extrabold ${activeTab === 'units' ? 'bg-primary-foreground/20' : 'bg-muted'}`}
+                  >
+                    {savedRevisionUnits.length}
+                  </span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setActiveTab('saved')}
-                  className={`rounded-full px-4 py-1.5 text-sm font-bold transition-colors ${activeTab === 'saved' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                  className={`rounded-full px-4 py-1.5 text-sm font-bold transition-colors inline-flex items-center gap-1.5 ${activeTab === 'saved' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
                 >
                   Saved Bits & Formulas
+                  <span
+                    className={`tabular-nums rounded-full px-1.5 py-0.5 text-[11px] font-extrabold ${activeTab === 'saved' ? 'bg-primary-foreground/20' : 'bg-muted'}`}
+                  >
+                    {savedTabBadgeCount}
+                  </span>
                 </button>
               </div>
             </div>
@@ -210,11 +289,25 @@ const Revision = () => {
 
           {activeTab === 'instacue' && (
             <>
-              {/* InstaCue Player rendered inline */}
-              <InstaCuePlayer
-                cards={displayCards}
-                onClose={() => { }}
-              />
+              {signedIn && displayCards.length === 0 ? (
+                <div className="edu-card p-10 text-center rounded-2xl border-2 border-dashed border-border">
+                  <BookMarked className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+                  <p className="text-muted-foreground font-medium">No InstaCue cards yet</p>
+                  <p className="text-sm text-muted-foreground mt-1 mb-4">
+                    Add flashcards while studying from any Deep Dive (bookmark on a card) to build your revision deck.
+                  </p>
+                  <Button variant="outline" className="rounded-xl" asChild>
+                    <Link href="/explore-1">
+                      Go to Explore <ChevronRight className="w-4 h-4 ml-1" />
+                    </Link>
+                  </Button>
+                </div>
+              ) : (
+                <InstaCuePlayer
+                  cards={displayCards}
+                  onClose={() => { }}
+                />
+              )}
 
               {/* Saved Questions section below if any */}
               {savedQuestions.length > 0 && (
@@ -409,15 +502,24 @@ const Revision = () => {
                           {subtopicDisplayName(unit.sectionTitle)}
                         </p>
                         <div className="flex items-center gap-2 mt-auto pt-1">
-                          <Button variant="outline" size="sm" className="rounded-xl flex-1" asChild>
-                            <Link href={deepDiveHref}>
-                              Open <ChevronRight className="w-4 h-4 ml-0.5" />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="rounded-xl flex-1 h-9 px-3"
+                            asChild
+                          >
+                            <Link href={deepDiveHref} className="inline-flex items-center justify-center gap-1 font-bold whitespace-nowrap">
+                              <span>Open</span>
+                              <ChevronRight className="w-4 h-4 shrink-0" />
                             </Link>
                           </Button>
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => unsaveRevisionUnit(unit.id)}
+                            onClick={() => {
+                              unsaveRevisionUnit(unit.id);
+                              syncAllSavedContent().catch(() => {});
+                            }}
                             className="rounded-xl shrink-0 hover:bg-destructive/10 hover:text-destructive"
                           >
                             <Trash2 className="w-4 h-4" />

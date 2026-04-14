@@ -113,11 +113,11 @@ export default function ProfileAcademicsAchievements({ userId }: { userId: strin
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="rounded-2xl border border-border bg-card p-5 dark:border-white/10 dark:bg-slate-950/80"
+        className="rounded-2xl border border-border bg-card p-4 dark:border-white/10 dark:bg-slate-950/80 2xl:p-5"
       >
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-xl font-black text-foreground dark:text-white flex items-center gap-2">
-            <GraduationCap className="w-5 h-5 text-indigo-300" /> Academic Record
+        <div className="flex items-center justify-between mb-3 2xl:mb-4">
+          <h3 className="text-lg font-black text-foreground dark:text-white flex items-center gap-1.5 2xl:text-xl 2xl:gap-2">
+            <GraduationCap className="w-4 h-4 shrink-0 text-indigo-300 2xl:w-5 2xl:h-5" /> Academic Record
           </h3>
           <Button
             size="sm"
@@ -159,11 +159,11 @@ export default function ProfileAcademicsAchievements({ userId }: { userId: strin
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.25 }}
-        className="rounded-2xl border border-border bg-card p-5 dark:border-white/10 dark:bg-slate-950/80"
+        className="rounded-2xl border border-border bg-card p-4 dark:border-white/10 dark:bg-slate-950/80 2xl:p-5"
       >
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-xl font-black text-foreground dark:text-white flex items-center gap-2">
-            <Medal className="w-5 h-5 text-amber-300" /> Achievements & Competitions
+        <div className="flex items-center justify-between mb-3 2xl:mb-4">
+          <h3 className="text-lg font-black text-foreground dark:text-white flex items-center gap-1.5 2xl:text-xl 2xl:gap-2">
+            <Medal className="w-4 h-4 shrink-0 text-amber-300 2xl:w-5 2xl:h-5" /> Achievements & Competitions
           </h3>
           <Button
             size="sm"

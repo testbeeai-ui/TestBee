@@ -18,9 +18,9 @@ const DEMO_DOUBTS = [
     subject: "Chemistry",
   },
   {
-    title: "Difference between genotype and phenotype with an example?",
-    body: "I understand genotype is the genetic makeup and phenotype is what we see. Can someone give a simple example like pea plant height?",
-    subject: "Biology",
+    title: "Why does adding a small amount of strong acid to a buffer barely change the pH?",
+    body: "I know Henderson–Hasselbalch says pH = pKa + log([A⁻]/[HA]). But intuitively why doesn't a drop of HCl crash the pH if it's strong acid?",
+    subject: "Chemistry",
   },
 ];
 

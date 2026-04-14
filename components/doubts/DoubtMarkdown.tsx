@@ -10,7 +10,8 @@ type DoubtMarkdownProps = {
 };
 
 /**
- * Renders doubt / answer text as Markdown with KaTeX (inline `$…$`, display `$$…$$`, `\(...\)`, `\[...\]`).
+ * Renders doubt / answer text as Markdown with KaTeX (inline `$…$`, display `$$…$$`).
+ * Ask / edit flows run {@link normalizePastedMathForDoubt} so pasted LaTeX delimiters and fenced code become `$` / `$$`.
  * KaTeX CSS is loaded globally from `app/layout.tsx`.
  */
 export default function DoubtMarkdown({ content, className = "" }: DoubtMarkdownProps) {
