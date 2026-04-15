@@ -653,7 +653,7 @@ export default function EduBlastInvestorLanding() {
               <span className="text-balance">
                 {persona === "teacher"
                   ? "For PCM teachers · PUC 1 & 2 Karnataka"
-                  : "India&apos;s first AI-powered learning social network"}
+                  : "India's first AI-powered learning social network"}
               </span>
             </span>
           </div>
