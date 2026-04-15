@@ -82,18 +82,12 @@ function AuthContent() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <div className="absolute inset-0 gradient-hero opacity-95" />
-      <div className="absolute inset-0">
-        <div className="absolute top-20 left-10 w-72 h-72 bg-primary-foreground/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-20 right-10 w-96 h-96 bg-primary-foreground/5 rounded-full blur-3xl" />
-      </div>
-
+    <div className="auth-glass-page flex min-h-screen flex-col">
       <div className="relative flex-1 flex items-center justify-center p-6">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-card rounded-3xl p-8 shadow-2xl w-full max-w-md border border-border/50"
+          className="auth-glass-card w-full max-w-md rounded-3xl p-8"
         >
           <div className="text-center mb-6">
             <span className="text-5xl mb-3 block">🎯</span>
@@ -106,7 +100,7 @@ function AuthContent() {
           <Button
             onClick={() => signInWithGoogle(roleParam === "student" ? "/onboarding?role=student" : roleParam === "teacher" ? "/onboarding?role=teacher" : "/onboarding")}
             variant="outline"
-            className="w-full rounded-xl h-12 text-base font-bold mb-4 gap-3"
+            className="auth-glass-outline-btn w-full rounded-xl h-12 text-base font-bold mb-4 gap-3"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" />
@@ -118,9 +112,9 @@ function AuthContent() {
           </Button>
 
           <div className="flex items-center gap-3 my-4">
-            <div className="flex-1 h-px bg-border" />
+            <div className="auth-glass-divider flex-1" />
             <span className="text-xs text-muted-foreground font-bold">OR</span>
-            <div className="flex-1 h-px bg-border" />
+            <div className="auth-glass-divider flex-1" />
           </div>
 
           <div className="space-y-4">
@@ -131,7 +125,7 @@ function AuthContent() {
                   placeholder="Your name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="pl-10 rounded-xl h-12"
+                  className="auth-glass-input pl-10 rounded-xl h-12"
                 />
               </div>
             )}
@@ -142,7 +136,7 @@ function AuthContent() {
                 placeholder="Email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="pl-10 rounded-xl h-12"
+                className="auth-glass-input pl-10 rounded-xl h-12"
               />
             </div>
             <div className="relative">
@@ -152,7 +146,7 @@ function AuthContent() {
                 placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="pl-10 rounded-xl h-12"
+                className="auth-glass-input pl-10 rounded-xl h-12"
                 onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
               />
             </div>

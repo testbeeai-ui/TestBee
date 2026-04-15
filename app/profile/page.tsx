@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import AppLayout from "@/components/AppLayout";
@@ -30,9 +30,11 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import TeacherProfile from "@/components/TeacherProfile";
 import ProfileAcademicsAchievements from "@/components/ProfileAcademicsAchievements";
 import { targetExamLabel } from "@/lib/targetExam";
+import { parseBitsTestAttemptsStore } from "@/lib/parseBitsTestAttemptsStore";
+import { parseEngagementDraftDashboardContributions } from "@/lib/parseEngagementDraftDashboardContributions";
 
 export default function Profile() {
-  const { user: authUser, profile, signOut, signInWithGoogle } = useAuth();
+  const { user: authUser, profile, signOut, signInWithGoogle, refreshProfile } = useAuth();
   const storeUser = useUserStore((s) => s.user);
   const storeLogout = useUserStore((s) => s.logout);
   const allResults = useUserStore((s) => s.allResults);
@@ -41,11 +43,27 @@ export default function Profile() {
   const [dailyReminders, setDailyReminders] = useState(true);
   const [examAlerts, setExamAlerts] = useState(false);
 
-  if (profile?.role === "teacher") {
-    return <TeacherProfile />;
+  useEffect(() => {
+    void refreshProfile();
+  }, [refreshProfile]);
+
+  if (!profile) {
+    return (
+      <ProtectedRoute>
+        <div className="min-h-screen flex items-center justify-center">
+          <span className="text-4xl animate-pulse">🎯</span>
+        </div>
+      </ProtectedRoute>
+    );
   }
 
-  if (!profile) return null;
+  if (profile.role === "teacher") {
+    return (
+      <ProtectedRoute>
+        <TeacherProfile />
+      </ProtectedRoute>
+    );
+  }
 
   const displayName = profile.name || authUser?.email?.split("@")[0] || "Student";
   const examLabel = targetExamLabel(profile.target_exam);
@@ -55,12 +73,70 @@ export default function Profile() {
       : "Classes 11 & 12";
   const subjectCombo = profile.subject_combo || storeUser?.subjectCombo || "—";
 
-  const totalCorrect = allResults.filter((r) => r.isCorrect).length;
-  const totalWrong = allResults.filter((r) => !r.isCorrect).length;
-  const accuracy = allResults.length > 0 ? Math.round((totalCorrect / allResults.length) * 100) : 0;
+  const bitsAttemptRows = useMemo(
+    () => parseBitsTestAttemptsStore(profile?.bits_test_attempts ?? null),
+    [profile?.bits_test_attempts],
+  );
+
+  const submittedBitsKeys = useMemo(() => {
+    const raw = profile?.bits_test_attempts;
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return new Set<string>();
+    return new Set(Object.keys(raw as Record<string, unknown>));
+  }, [profile?.bits_test_attempts]);
+
+  const engagementDraftRows = useMemo(
+    () => parseEngagementDraftDashboardContributions(profile?.subtopic_engagement ?? null, submittedBitsKeys),
+    [profile?.subtopic_engagement, submittedBitsKeys],
+  );
+
+  const {
+    totalAnswered,
+    totalCorrect,
+    totalWrong,
+    totalSkipped,
+    accuracy,
+  } = useMemo(() => {
+    const bitsCorrect = bitsAttemptRows.reduce((s, r) => s + r.correctCount, 0);
+    const bitsWrong = bitsAttemptRows.reduce((s, r) => s + r.wrongCount, 0);
+    const bitsAnswered = bitsCorrect + bitsWrong;
+    const bitsSkipped = bitsAttemptRows.reduce(
+      (s, r) => s + Math.max(0, r.totalQuestions - r.correctCount - r.wrongCount),
+      0,
+    );
+
+    const dAnswered = engagementDraftRows.reduce((s, d) => s + d.answered, 0);
+    const dCorrect = engagementDraftRows.reduce((s, d) => s + d.correct, 0);
+    const dWrong = engagementDraftRows.reduce((s, d) => s + d.wrong, 0);
+    const dSkipped = engagementDraftRows.reduce((s, d) => s + d.skipped, 0);
+
+    const playTotal = allResults.length;
+    const playCorrect = allResults.filter((r) => r.isCorrect).length;
+    const playWrong = playTotal - playCorrect;
+
+    const answered = bitsAnswered + dAnswered + playTotal;
+    const correct = bitsCorrect + dCorrect + playCorrect;
+    const wrong = bitsWrong + dWrong + playWrong;
+    const skipped = bitsSkipped + dSkipped;
+    const acc = answered > 0 ? Math.round((correct / answered) * 100) : 0;
+    return {
+      totalAnswered: answered,
+      totalCorrect: correct,
+      totalWrong: wrong,
+      totalSkipped: skipped,
+      accuracy: acc,
+    };
+  }, [bitsAttemptRows, engagementDraftRows, allResults]);
 
   const rdm = profile?.rdm ?? storeUser?.rdm ?? 0;
-  const savedCount = storeUser?.savedQuestions?.length ?? 0;
+  const savedCount = useMemo(() => {
+    const n = (x: unknown) => (Array.isArray(x) ? x.length : 0);
+    return (
+      n(profile.saved_bits) +
+      n(profile.saved_formulas) +
+      n(profile.saved_revision_cards) +
+      n(profile.saved_revision_units)
+    );
+  }, [profile.saved_bits, profile.saved_formulas, profile.saved_revision_cards, profile.saved_revision_units]);
 
   const handleLogout = async () => {
     await signOut();
@@ -123,7 +199,7 @@ export default function Profile() {
                     iconColor: "text-sky-400",
                     border: "border-sky-400/30",
                     label: "Answered",
-                    value: allResults.length,
+                    value: totalAnswered,
                   },
                   {
                     icon: Bookmark,
@@ -178,7 +254,7 @@ export default function Profile() {
                 </div>
                 <div className="rounded-lg border border-border bg-muted/40 p-2.5 dark:border-slate-700 dark:bg-slate-900/70 2xl:rounded-xl 2xl:p-3">
                   <p className="text-[10px] uppercase tracking-wide text-muted-foreground dark:text-slate-400 2xl:text-xs">Skipped</p>
-                  <p className="text-2xl font-black text-foreground dark:text-white 2xl:text-3xl">0</p>
+                  <p className="text-2xl font-black text-foreground dark:text-white 2xl:text-3xl">{totalSkipped}</p>
                 </div>
               </div>
             </motion.div>

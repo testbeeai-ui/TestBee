@@ -194,12 +194,7 @@ function OnboardingContent() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <div className="absolute inset-0 gradient-hero opacity-95" />
-      <div className="absolute inset-0">
-        <div className="absolute top-20 left-10 w-72 h-72 bg-primary-foreground/5 rounded-full blur-3xl" />
-      </div>
-
+    <div className="auth-glass-page flex min-h-screen flex-col">
       <div className="relative flex-1 flex items-center justify-center p-6">
         {step === "role" && (
           <motion.div
@@ -209,8 +204,8 @@ function OnboardingContent() {
           >
             <div className="text-center mb-8">
               <span className="text-5xl block mb-3">👋</span>
-              <h1 className="text-3xl font-display text-primary-foreground">Who are you?</h1>
-              <p className="text-primary-foreground/70 mt-2">
+              <h1 className="text-3xl font-display text-white">Who are you?</h1>
+              <p className="text-zinc-300 mt-2">
                 Choose your role to personalize your experience
               </p>
             </div>
@@ -225,11 +220,11 @@ function OnboardingContent() {
                     setRole(r);
                     setStep("details");
                   }}
-                  className={`bg-card rounded-3xl p-6 text-center border-2 transition-all hover:scale-105 hover:shadow-xl ${role === r ? "border-primary shadow-lg" : "border-border/50"}`}
+                  className={`auth-glass-card rounded-3xl p-6 text-center border transition-all hover:scale-[1.015] ${role === r ? "border-primary/70 shadow-[0_20px_40px_-20px_rgba(59,130,246,0.5)]" : "border-white/10"}`}
                 >
                   <span className="text-5xl block mb-3">{emoji}</span>
-                  <h3 className="font-display text-xl text-foreground">{title}</h3>
-                  <p className="text-sm text-muted-foreground mt-1">{desc}</p>
+                  <h3 className="font-display text-xl text-white">{title}</h3>
+                  <p className="text-sm text-zinc-300 mt-1">{desc}</p>
                 </button>
               ))}
             </div>
@@ -240,7 +235,7 @@ function OnboardingContent() {
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-card rounded-3xl p-6 sm:p-8 shadow-2xl w-full max-w-5xl border border-border/50"
+            className="auth-glass-card rounded-3xl p-6 sm:p-7 w-full max-w-6xl border border-white/12"
           >
             <div className="mb-6">
               <div className="mb-4 grid grid-cols-2 gap-2">
@@ -248,12 +243,12 @@ function OnboardingContent() {
                 <div className="h-1.5 rounded-full bg-primary/35" />
               </div>
               <div className="flex items-start gap-3">
-                <div className="rounded-xl bg-primary/10 p-2.5 text-primary">
+                <div className="rounded-xl bg-primary/16 p-2.5 text-primary shadow-[0_0_0_1px_rgba(255,255,255,0.05)]">
                   <UserCircle2 className="h-5 w-5" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-extrabold text-foreground">Set up your profile</h2>
-                  <p className="text-sm text-muted-foreground mt-1">
+                  <h2 className="text-[2rem] sm:text-[2.15rem] font-extrabold leading-tight text-white">Set up your profile</h2>
+                  <p className="text-sm sm:text-[15px] text-zinc-200 mt-1">
                     Personalises learning and verifies you for scholarships, awards & rewards
                   </p>
                 </div>
@@ -261,19 +256,19 @@ function OnboardingContent() {
             </div>
             <div className="space-y-6">
               <div>
-                <label className="text-sm font-extrabold text-foreground mb-1.5 block">Full name</label>
-                <p className="text-sm text-muted-foreground mb-2">As per govt ID (Aadhaar / PAN)</p>
+                <label className="text-sm font-extrabold text-white mb-1.5 block">Full name</label>
+                <p className="text-sm text-zinc-200/95 mb-2">As per govt ID (Aadhaar / PAN)</p>
                 <Input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="rounded-xl h-12"
+                  className="auth-glass-input rounded-xl h-12 text-base font-semibold text-white placeholder:text-zinc-500"
                   placeholder="e.g. Sanjana Lakshmi"
                 />
               </div>
 
               <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                 <div>
-                  <label className="text-sm font-extrabold text-foreground mb-2 block">Class</label>
+                  <label className="text-sm font-extrabold text-white mb-2 block">Class</label>
                   <div className="grid grid-cols-2 gap-3">
                     {([
                       { value: 11 as const, label: "11", subtitle: "First year" },
@@ -283,21 +278,21 @@ function OnboardingContent() {
                         key={cl.value}
                         type="button"
                         onClick={() => setStudentClassLevel(cl.value)}
-                        className={`rounded-2xl border px-4 py-3 text-left transition ${
+                        className={`rounded-2xl border px-4 py-3 text-left transition-all duration-200 ${
                           studentClassLevel === cl.value
-                            ? "border-primary bg-primary/10 shadow-sm"
-                            : "border-border/60 bg-muted/20 hover:bg-muted/40"
+                            ? "border-primary/75 bg-primary/16 shadow-[0_0_0_1px_rgba(59,130,246,0.26)]"
+                            : "border-white/14 bg-white/[0.025] hover:bg-white/[0.05]"
                         }`}
                       >
-                        <div className="text-4xl font-black leading-none text-foreground">{cl.label}</div>
-                        <div className="mt-1 text-sm font-semibold text-muted-foreground">{cl.subtitle}</div>
+                        <div className="text-4xl font-black leading-none text-white">{cl.label}</div>
+                        <div className="mt-1 text-sm font-semibold text-zinc-200">{cl.subtitle}</div>
                       </button>
                     ))}
                   </div>
                 </div>
 
                 <div>
-                  <label className="text-sm font-extrabold text-foreground mb-2 block">Exam targets — multi-select</label>
+                  <label className="text-sm font-extrabold text-white mb-2 block">Exam targets — multi-select</label>
                   <div className="grid grid-cols-2 gap-3">
                     {studentExamTargets.map((exam) => {
                       const active = studentTargetExams.includes(exam.key);
@@ -306,8 +301,8 @@ function OnboardingContent() {
                           key={exam.key}
                           type="button"
                           onClick={() => toggleStudentExam(exam.key, exam.locked)}
-                          className={`rounded-2xl border px-4 py-3 text-left transition ${
-                            active ? "border-primary bg-primary/10" : "border-border/60 bg-muted/20 hover:bg-muted/40"
+                          className={`rounded-2xl border px-4 py-3 text-left transition-all duration-200 ${
+                            active ? "border-primary/75 bg-primary/16 shadow-[0_0_0_1px_rgba(59,130,246,0.24)]" : "border-white/14 bg-white/[0.025] hover:bg-white/[0.05]"
                           } ${exam.locked ? "cursor-default" : ""}`}
                         >
                           <div className="flex items-center justify-between gap-3">
@@ -316,12 +311,12 @@ function OnboardingContent() {
                                 className={`inline-flex h-7 w-7 items-center justify-center rounded-md border ${
                                   active
                                     ? "border-primary bg-primary text-primary-foreground"
-                                    : "border-border/70 bg-background"
+                                    : "border-white/15 bg-black/40"
                                 }`}
                               >
                                 {active ? <Check className="h-4 w-4" /> : null}
                               </span>
-                              <span className="text-lg font-extrabold text-foreground leading-tight">{exam.label}</span>
+                              <span className="text-lg leading-tight font-extrabold text-white tracking-tight">{exam.label}</span>
                             </div>
                           </div>
                         </button>
@@ -332,22 +327,28 @@ function OnboardingContent() {
               </div>
 
               <div>
-                <label className="text-sm font-extrabold text-foreground mb-2 block">Subjects — pick what you study</label>
+                <label className="text-sm font-extrabold text-white mb-2 block">Subjects — pick what you study</label>
                 <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
                   <div className="space-y-3">
                     {mandatoryStudentSubjects.map((item) => (
                       <div
                         key={item.key}
-                        className="rounded-2xl border border-emerald-200/70 bg-emerald-50/60 px-4 py-3"
+                        className="group relative overflow-hidden rounded-2xl border border-emerald-100/85 bg-gradient-to-r from-[#f1fffa] via-[#ebfff7] to-[#e4fbf3] px-4 py-3 shadow-[0_10px_24px_-18px_rgba(16,185,129,0.45)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_18px_34px_-20px_rgba(16,185,129,0.55)]"
                       >
-                        <div className="flex items-center gap-3">
-                          <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-emerald-500 text-white">
+                        <div className="pointer-events-none absolute right-0 top-0 h-16 w-24 bg-gradient-to-bl from-emerald-200/35 to-transparent opacity-80" />
+                        <div className="relative flex items-center gap-3">
+                          <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-emerald-500 text-white shadow-[0_4px_10px_-6px_rgba(5,150,105,0.8)]">
                             <Check className="h-4 w-4" />
                           </span>
-                          <div>
-                            <p className="text-2xl font-black text-foreground leading-tight">{item.label}</p>
-                            <p className="text-sm text-muted-foreground">{item.subtitle}</p>
+                          <div className="min-w-0">
+                            <p className="truncate text-[2rem] font-black leading-none tracking-tight text-zinc-900">
+                              {item.label}
+                            </p>
+                            <p className="mt-0.5 truncate text-sm font-medium text-zinc-500">{item.subtitle}</p>
                           </div>
+                          <span className="ml-auto hidden rounded-full border border-emerald-300/80 bg-emerald-100/80 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-emerald-700 sm:inline-flex">
+                            Core
+                          </span>
                         </div>
                       </div>
                     ))}
@@ -356,28 +357,28 @@ function OnboardingContent() {
                     {comingSoonStudentSubjects.map((item) => (
                       <div
                         key={item.key}
-                        className="rounded-2xl border border-border/60 bg-muted/20 px-4 py-3 opacity-60"
+                        className="rounded-2xl border border-white/14 bg-white/[0.025] px-4 py-3 opacity-70"
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div>
-                            <p className="text-2xl font-black text-foreground leading-tight">{item.label}</p>
-                            <p className="text-sm text-muted-foreground">{item.subtitle}</p>
+                            <p className="text-[2.1rem] font-black text-zinc-200 leading-none">{item.label}</p>
+                            <p className="mt-0.5 text-sm text-zinc-400">{item.subtitle}</p>
                           </div>
-                          <span className="text-sm font-bold text-muted-foreground">Soon</span>
+                          <span className="text-sm font-bold text-zinc-500">Soon</span>
                         </div>
                       </div>
                     ))}
-                    <p className="px-1 text-sm text-muted-foreground">
+                    <p className="px-1 text-sm text-zinc-300">
                       Specify other subject
                       <br />
-                      <span className="font-semibold text-base">Unlocks soon…</span>
+                      <span className="font-semibold text-base text-zinc-200">Unlocks soon…</span>
                     </p>
                   </div>
                 </div>
               </div>
 
               <div className="flex gap-3 pt-3">
-                <Button variant="outline" onClick={() => setStep("role")} className="rounded-xl min-w-24">
+                <Button variant="outline" onClick={() => setStep("role")} className="auth-glass-outline-btn rounded-xl min-w-24">
                   Back
                 </Button>
                 <Button
@@ -397,25 +398,25 @@ function OnboardingContent() {
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
-            className="bg-card/95 backdrop-blur-sm rounded-3xl shadow-2xl w-full max-w-lg border border-border/60 max-h-[90vh] overflow-y-auto"
+            className="auth-glass-card rounded-3xl w-full max-w-lg border border-white/10 max-h-[90vh] overflow-y-auto"
           >
-            <div className="sticky top-0 z-10 bg-card/95 backdrop-blur-md border-b border-border/50 px-8 pt-8 pb-5 rounded-t-3xl">
+            <div className="sticky top-0 z-10 rounded-t-3xl border-b border-white/10 bg-[#121726]/95 px-8 pt-8 pb-5 backdrop-blur-md">
               <div className="flex items-center justify-center gap-3 mb-1">
-                <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
+                <div className="w-12 h-12 rounded-2xl bg-primary/15 flex items-center justify-center">
                   <BookOpen className="w-6 h-6 text-primary" />
                 </div>
-                <h2 className="text-2xl font-display font-bold text-foreground">Teacher Profile</h2>
+                <h2 className="text-2xl font-display font-bold text-white">Teacher Profile</h2>
               </div>
-              <p className="text-center text-sm text-muted-foreground">Set up your teaching profile so students can find you</p>
+              <p className="text-center text-sm text-zinc-300">Set up your teaching profile so students can find you</p>
             </div>
 
             <div className="p-8 space-y-7">
               <div>
-                <label className="text-sm font-bold text-foreground mb-2 block">Your Name</label>
+                <label className="text-sm font-bold text-white mb-2 block">Your Name</label>
                 <Input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="rounded-xl h-12 border-border/60 bg-muted/30 focus:bg-background"
+                  className="auth-glass-input rounded-xl h-12 text-white"
                   placeholder="Enter your name"
                 />
               </div>
@@ -423,7 +424,7 @@ function OnboardingContent() {
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
                   <GraduationCap className="w-4 h-4 text-primary" />
-                  <label className="text-sm font-bold text-foreground">Teaching Levels</label>
+                  <label className="text-sm font-bold text-white">Teaching Levels</label>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {teachingLevels.map((l) => (
@@ -431,7 +432,7 @@ function OnboardingContent() {
                       key={l}
                       type="button"
                       onClick={() => toggle(selectedLevels, l, setSelectedLevels)}
-                      className={`px-4 py-2.5 rounded-full font-semibold text-sm transition-all duration-200 ${selectedLevels.includes(l) ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25 scale-[1.02]" : "bg-muted/80 text-muted-foreground hover:bg-muted border border-transparent hover:border-border/60"}`}
+                      className={`px-4 py-2.5 rounded-full font-semibold text-sm transition-all duration-200 ${selectedLevels.includes(l) ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25 scale-[1.02]" : "bg-white/[0.05] text-zinc-300 hover:bg-white/[0.08] border border-white/12"}`}
                     >
                       {l}
                     </button>
@@ -442,7 +443,7 @@ function OnboardingContent() {
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
                   <BookOpen className="w-4 h-4 text-primary" />
-                  <label className="text-sm font-bold text-foreground">Subjects You Teach</label>
+                  <label className="text-sm font-bold text-white">Subjects You Teach</label>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   {subjects.map((s) => (
@@ -450,7 +451,7 @@ function OnboardingContent() {
                       key={s}
                       type="button"
                       onClick={() => toggle(teachingSubjects, s, setTeachingSubjects)}
-                      className={`py-3 rounded-xl font-semibold text-sm transition-all duration-200 ${teachingSubjects.includes(s) ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25" : "bg-muted/80 text-muted-foreground hover:bg-muted border border-transparent hover:border-border/60"}`}
+                      className={`py-3 rounded-xl font-semibold text-sm transition-all duration-200 ${teachingSubjects.includes(s) ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25" : "bg-white/[0.05] text-zinc-300 hover:bg-white/[0.08] border border-white/12"}`}
                     >
                       {s}
                     </button>
@@ -461,7 +462,7 @@ function OnboardingContent() {
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
                   <Award className="w-4 h-4 text-primary" />
-                  <label className="text-sm font-bold text-foreground">Exam Specializations</label>
+                  <label className="text-sm font-bold text-white">Exam Specializations</label>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {examTags.map((e) => (
@@ -469,7 +470,7 @@ function OnboardingContent() {
                       key={e}
                       type="button"
                       onClick={() => toggle(selectedExams, e, setSelectedExams)}
-                      className={`px-4 py-2.5 rounded-full font-semibold text-sm transition-all duration-200 ${selectedExams.includes(e) ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25 scale-[1.02]" : "bg-muted/80 text-muted-foreground hover:bg-muted border border-transparent hover:border-border/60"}`}
+                      className={`px-4 py-2.5 rounded-full font-semibold text-sm transition-all duration-200 ${selectedExams.includes(e) ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25 scale-[1.02]" : "bg-white/[0.05] text-zinc-300 hover:bg-white/[0.08] border border-white/12"}`}
                     >
                       {e}
                     </button>
@@ -478,14 +479,14 @@ function OnboardingContent() {
               </div>
 
               <div className="space-y-3">
-                <label className="text-sm font-bold text-foreground block">Visibility</label>
+                <label className="text-sm font-bold text-white block">Visibility</label>
                 <div className="grid grid-cols-2 gap-3">
                   {visibilityOptions.map(({ value, label, desc, Icon }) => (
                     <button
                       key={value}
                       type="button"
                       onClick={() => setVisibility(value)}
-                      className={`flex flex-col items-center gap-1.5 py-4 px-3 rounded-2xl font-semibold text-sm transition-all duration-200 ${visibility === value ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25 ring-2 ring-primary ring-offset-2 ring-offset-card" : "bg-muted/80 text-muted-foreground hover:bg-muted border border-transparent hover:border-border/60"}`}
+                      className={`flex flex-col items-center gap-1.5 py-4 px-3 rounded-2xl font-semibold text-sm transition-all duration-200 ${visibility === value ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25 ring-2 ring-primary ring-offset-2 ring-offset-[#121726]" : "bg-white/[0.05] text-zinc-300 hover:bg-white/[0.08] border border-white/12"}`}
                     >
                       <Icon className="w-5 h-5" />
                       <span>{label}</span>
@@ -496,7 +497,7 @@ function OnboardingContent() {
               </div>
 
               <div className="flex gap-3 pt-2">
-                <Button variant="outline" onClick={() => setStep("role")} className="rounded-xl font-semibold shrink-0">
+                <Button variant="outline" onClick={() => setStep("role")} className="auth-glass-outline-btn rounded-xl font-semibold shrink-0">
                   Back
                 </Button>
                 <Button

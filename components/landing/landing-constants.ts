@@ -9,6 +9,14 @@ export const NAV_LINKS = [
   { label: "Testbee", href: "/play" },
 ];
 
+/** Dark investor landing (matches marketing shell in product screenshots). */
+export const INVESTOR_NAV_LINKS = [
+  { label: "Home", href: "/auth?role=student" },
+  { label: "Features", href: "/auth?role=student" },
+  { label: "For Teachers", href: "/auth?role=teacher" },
+  { label: "EduFund", href: "/auth?role=student" },
+];
+
 export const FOOTER_LINKS = [
   { label: "About", href: "#" },
   { label: "Features", href: "#features" },
@@ -49,6 +57,23 @@ export const PROBLEM_EDUBLAST = [
   "Every action \u2014 answering, tagging, upvoting, attending class \u2014 earns RDM tokens that build toward real financial aid (EduFund).",
   "AI sharpens your native speed, accuracy, and stamina \u2014 it never replaces your thinking, it challenges it.",
   "Adaptive \u2014 solo learner, coaching student, or advanced topper \u2014 EduBlast meets you where you are.",
+];
+
+/** Investor dark landing — short comparison lines (deck / screenshot spec). */
+export const INVESTOR_PROBLEM_OTHER = [
+  "Read chapter. Do MCQs. Fall asleep.",
+  "No idea what your competition is studying.",
+  "Doubts require booking a tutor slot.",
+  "No reward for effort. Nobody notices.",
+  "Same mock for 200 students. Zero adaptation.",
+];
+
+export const INVESTOR_PROBLEM_EDUBLAST = [
+  "Live social Q&A wall — refreshing, competitive.",
+  "Live state-wide leaderboard — 38,000 students.",
+  "Prof-Pi AI — any doubt in under 2 seconds.",
+  "Every action earns RDM — real financial aid.",
+  "Testbee adapts to your exact weak areas only.",
 ];
 
 /* ─── Persona Tab: Student ──────────────────────────────────────────────── */
@@ -299,7 +324,7 @@ export const PRICING_PLANS = [
       "Testbee \u2014 unlimited adaptive mocks",
       "MentaMill quant training",
       "Full Instacue library (unlimited)",
-      "AI Calendar \u2014 smart study planner",
+      "Calendar \u2014 smart study planner",
       "Live classes + recorded library",
       "EduFund Scholar tier eligibility",
     ],
