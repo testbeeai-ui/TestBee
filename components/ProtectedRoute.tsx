@@ -11,7 +11,7 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (loading) return;
     if (!user) {
-      router.replace("/auth");
+      router.replace("/");
       return;
     }
     if (profile !== null && !profile?.onboarding_complete) {
