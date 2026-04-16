@@ -4655,9 +4655,14 @@ export default function TopicPage() {
                                             try {
                                               const persisted = await saveBitsAttempt(payload);
                                               setBitsAttempt(persisted);
-                                              setBitsReviewMode(false);
+                                              const selectedFromAttempt: Record<number, number> = {};
+                                              for (const [k, v] of Object.entries(persisted.selectedAnswers)) {
+                                                const idx = Number(k);
+                                                if (Number.isInteger(idx)) selectedFromAttempt[idx] = v;
+                                              }
+                                              setBitsSelectedAnswers(selectedFromAttempt);
                                               setBitsCurrentIdx(0);
-                                              setBitsSelectedAnswers({});
+                                              setBitsReviewMode(true);
                                               window.setTimeout(() => flushSubtopicEngagementNow(), 0);
                                           toast({ title: "Quiz submitted", description: `Correct: ${correctCount}, Wrong: ${wrongCount}` });
                                             } catch {
