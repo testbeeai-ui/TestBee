@@ -22,12 +22,15 @@ export default function LandingFooter({ variant = "light" }: { variant?: "light"
           <p
             className={
               isDark
-                ? "text-xs text-zinc-500 max-w-[320px] leading-relaxed mt-1"
-                : "text-xs text-gray-400 max-w-[300px] leading-relaxed mt-1"
+                ? "text-xs text-zinc-500 max-w-xl leading-relaxed mt-1"
+                : "text-xs text-gray-400 max-w-xl leading-relaxed mt-1"
             }
           >
-            EduFund is a genuine financial aid programme. Grants are disbursed to eligible need-based
-            students who meet RDM and activity thresholds.
+            Edufund is a genuine financial aid programme wherein need-based students can apply for grants
+            and donations from charities and philanthropists who support the bright and diligent,
+            hardworking students to help them on a level-playing field. Eligibility is based on achieving
+            certain RDM earnings from the site which can be obtained through high activity thresholds which
+            signifies regular learning, revisions and mock tests.
           </p>
         </div>
 

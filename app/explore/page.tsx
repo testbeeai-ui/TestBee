@@ -1123,6 +1123,9 @@ const Explore = () => {
               subject={selectedSubject}
               topic={selectedTopicNode.topic}
               subtopic={selectedTopicNode.subtopics[0]?.name}
+              gradeLevel={selectedTopicClassLevel ?? undefined}
+              unitLabel={selectedTopicNode.unitLabel}
+              chapterTitle={selectedTopicNode.chapterTitle}
             />
           )}
 

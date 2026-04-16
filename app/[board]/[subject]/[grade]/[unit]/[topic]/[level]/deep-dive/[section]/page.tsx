@@ -759,7 +759,7 @@ export default function DeepDivePage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="w-full rounded-2xl gap-2 font-semibold border-primary/40 text-primary hover:bg-primary/10 h-11 text-[25px]"
+                    className="w-full rounded-2xl gap-2 font-semibold border-emerald-600/45 bg-emerald-500/12 text-emerald-950 ring-2 ring-emerald-500/35 shadow-[0_0_18px_rgba(16,185,129,0.18)] hover:bg-emerald-500/20 hover:border-emerald-600/60 dark:border-emerald-400/60 dark:text-emerald-50 dark:ring-emerald-400/40 dark:hover:border-emerald-400/80 h-11 text-[25px]"
                     onClick={() => {
                       if (savedFormulaIdForCurrentQuestion) {
                         unsaveFormula(savedFormulaIdForCurrentQuestion);
@@ -775,11 +775,13 @@ export default function DeepDivePage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="w-full rounded-2xl gap-2 font-semibold border-primary/40 text-primary hover:bg-primary/10 h-11 text-[25px]"
+                    disabled
+                    title="Regenerate is coming soon"
+                    className="w-full rounded-2xl gap-2 font-semibold border-amber-400/70 text-amber-100 bg-amber-500/15 ring-2 ring-amber-400/45 shadow-[0_0_18px_rgba(251,191,36,0.2)] hover:bg-amber-500/15 h-11 text-[25px] disabled:opacity-100 disabled:pointer-events-none cursor-not-allowed"
                     onClick={() => setFormulaRegenDialogOpen(true)}
                   >
-                    <RefreshCw className="w-4 h-4" />
-                    Regenerate
+                    <RefreshCw className="w-4 h-4 opacity-80" />
+                    Regenerate (coming soon)
                   </Button>
                 </div>
               </div>
@@ -832,6 +834,12 @@ export default function DeepDivePage() {
           subject={topicNode.subject}
           topic={topicNode.topic}
           subtopic={subtopicName}
+          gradeLevel={topicNode.classLevel}
+          board={board}
+          unitSlug={unitSlug}
+          topicSlug={topicSlug}
+          levelSlug={level}
+          sectionSlug={String(sectionParam ?? '')}
         />
       </div>
     </AppLayout>

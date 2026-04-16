@@ -4252,10 +4252,10 @@ export default function TopicPage() {
                                         <Button
                                           variant="outline"
                                           size="sm"
-                                          className={`shrink-0 rounded-xl h-8 px-2.5 gap-1.5 text-xs font-semibold ${
+                                          className={`shrink-0 rounded-xl h-8 px-2.5 gap-1.5 text-xs font-semibold shadow-sm ring-1 transition-colors ${
                                             isCurrentQuizBitSaved
-                                              ? "border-primary/40 bg-primary/10 text-primary"
-                                              : "border-border text-muted-foreground hover:text-primary hover:border-primary/40 hover:bg-primary/10"
+                                              ? "border-emerald-500/45 bg-emerald-500/12 text-emerald-900 ring-emerald-500/20 dark:text-emerald-100 dark:ring-emerald-400/25"
+                                              : "border-emerald-600/35 bg-emerald-500/[0.07] text-foreground ring-emerald-500/12 hover:border-emerald-500/50 hover:bg-emerald-500/12 hover:ring-emerald-500/20 dark:text-zinc-100"
                                           }`}
                                           onClick={() => {
                                             if (!topicNode || !subtopicName) return;
@@ -4329,7 +4329,7 @@ export default function TopicPage() {
                                       <div className="flex items-center justify-between gap-2 pt-1">
                                         <Button
                                       variant="outline" size="sm"
-                                          className="rounded-xl h-8 px-3 text-xs min-w-24"
+                                          className="rounded-xl h-8 px-3 text-xs min-w-24 font-semibold border-primary/35 bg-primary/[0.06] text-foreground shadow-sm ring-1 ring-primary/10 hover:bg-primary/10 hover:border-primary/50 hover:ring-primary/18 disabled:border-border/40 disabled:bg-muted/40 disabled:text-muted-foreground disabled:ring-0 dark:bg-primary/10 dark:ring-primary/15"
                                           onClick={() => setBitsCurrentIdx((i) => Math.max(0, i - 1))}
                                           disabled={bitsCurrentIdx === 0}
                                         >
@@ -4338,7 +4338,11 @@ export default function TopicPage() {
                                         <Button
                                           variant={bitsCurrentIdx === dbBitsQuestions.length - 1 ? "default" : "outline"}
                                           size="sm"
-                                          className="rounded-xl h-8 px-3 text-xs min-w-24"
+                                          className={
+                                            bitsCurrentIdx === dbBitsQuestions.length - 1
+                                              ? "rounded-xl h-8 px-3 text-xs min-w-24 font-semibold shadow-sm ring-1 ring-primary/25"
+                                              : "rounded-xl h-8 px-3 text-xs min-w-24 font-semibold border-primary/35 bg-primary/[0.06] text-foreground shadow-sm ring-1 ring-primary/10 hover:bg-primary/10 hover:border-primary/50 hover:ring-primary/18 disabled:border-border/40 disabled:bg-muted/40 disabled:text-muted-foreground disabled:ring-0 dark:bg-primary/10 dark:ring-primary/15"
+                                          }
                                           onClick={async () => {
                                             if (bitsCurrentIdx < dbBitsQuestions.length - 1) {
                                               setBitsCurrentIdx((i) => Math.min(dbBitsQuestions.length - 1, i + 1));
@@ -4790,7 +4794,7 @@ export default function TopicPage() {
                                         <Button
                                           variant="outline"
                                           size="sm"
-                                          className="rounded-full h-10 gap-2 font-semibold border-primary/40 text-primary hover:bg-primary/10"
+                                          className="rounded-full h-10 gap-2 font-semibold border-emerald-600/45 bg-emerald-500/12 text-emerald-950 ring-2 ring-emerald-500/35 shadow-[0_0_18px_rgba(16,185,129,0.18)] hover:bg-emerald-500/20 hover:border-emerald-600/60 dark:border-emerald-400/60 dark:text-emerald-50 dark:ring-emerald-400/40 dark:hover:border-emerald-400/80"
                                           onClick={() => {
                                             if (!topicNode || !subtopicName || !currentFormulaQuestion) return;
                                             if (savedFormulaIdForCurrentQuestion) {
@@ -4831,7 +4835,9 @@ export default function TopicPage() {
                                         <Button
                                           variant="outline"
                                           size="sm"
-                                          className="rounded-full h-10 gap-2 font-semibold border-primary/40 text-primary hover:bg-primary/10"
+                                          disabled
+                                          title="Regenerate is coming soon"
+                                          className="rounded-full h-10 gap-2 font-semibold border-amber-400/70 text-amber-100 bg-amber-500/15 ring-2 ring-amber-400/45 shadow-[0_0_18px_rgba(251,191,36,0.2)] hover:bg-amber-500/15 disabled:opacity-100 disabled:pointer-events-none cursor-not-allowed"
                                           onClick={async () => {
                                             const next = regenerateFormulaBitsAlgorithmic(
                                               formula.name,
@@ -4874,8 +4880,8 @@ export default function TopicPage() {
                                             }
                                           }}
                                         >
-                                          <RefreshCw className="w-4 h-4" />
-                                          Regenerate
+                                          <RefreshCw className="w-4 h-4 opacity-80" />
+                                          Regenerate (coming soon)
                                         </Button>
                                       </div>
                                     </div>
@@ -4896,6 +4902,10 @@ export default function TopicPage() {
         topic={topicNode.topic}
         subtopic={!isOverview ? subtopicName : undefined}
         gradeLevel={topicNode.classLevel}
+        board={board}
+        unitSlug={unitSlug}
+        topicSlug={topicSlug}
+        levelSlug={level}
       />
       <SubtopicWheelDialog
         open={wheelOpen}

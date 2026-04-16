@@ -28,7 +28,7 @@ import {
 
 /** Order: ends segment with RIGHT NOW so wrap reads …HT NOW ✦ EARN RDM… then exams. */
 const HORIZONTAL_TICKER = [
-  "38,000 STUDENTS GRINDING RIGHT NOW",
+  "1000+ Sessions Open right now",
   "EARN RDM WHILE YOU STUDY",
   "JEE MAIN 2026",
   "JEE ADVANCED",
@@ -94,8 +94,9 @@ type SixSystemCard = {
   cat: string;
   catClass: string;
   title: string;
-  rdm: string;
-  rdmPillClass: string;
+  /** Omit to hide the top-right RDM pill (e.g. Instacue). */
+  rdm?: string;
+  rdmPillClass?: string;
   desc: string;
   tags: readonly FeatureTag[];
   icon: LucideIcon;
@@ -107,13 +108,13 @@ const SIX_SYSTEMS: readonly SixSystemCard[] = [
   {
     cat: "Prof-Pi",
     catClass: "text-violet-400",
-    title: "AI Q&A Wall",
-    rdm: "+25 RDM / ask",
+    title: "AI Q&A Wall – Gyan++",
+    rdm: "+5 RDM",
     rdmPillClass: "bg-orange-500/15 text-orange-200 ring-1 ring-orange-400/35",
-    desc: "Ask any doubt. AI answers in 2 seconds. Teachers add expert commentary.",
+    desc: "Ask any doubt and get answers in seconds. Teachers add expert commentary.",
     tags: [
-      { label: "2s response", className: "text-sky-300 ring-sky-400/25" },
-      { label: "38k peers", className: "text-violet-300 ring-violet-400/20" },
+      { label: "Quick Response", className: "text-sky-300 ring-sky-400/25" },
+      { label: "Peers Study", className: "text-violet-300 ring-violet-400/20" },
       { label: "AI + Teacher", className: "text-violet-200 ring-violet-400/25" },
     ],
     icon: Clock,
@@ -140,9 +141,7 @@ const SIX_SYSTEMS: readonly SixSystemCard[] = [
     cat: "INSTACUE",
     catClass: "text-rose-400",
     title: "Spaced Revision",
-    rdm: "+40 RDM / session",
-    rdmPillClass: "bg-rose-500/15 text-rose-100 ring-1 ring-rose-400/35",
-    desc: "AI-scheduled flashcards. Retention from 40% to 81%. Never forget Chapter 2.",
+    desc: "Easy to Use Flash cards. Retention from 40% to 81%. Never forget your concepts or formulae.",
     tags: [
       { label: "Memory science", className: "text-rose-300 ring-rose-400/25" },
       { label: "Auto-scheduled", className: "text-rose-200/90 ring-rose-400/20" },
@@ -155,7 +154,7 @@ const SIX_SYSTEMS: readonly SixSystemCard[] = [
     cat: "MENTAMILL",
     catClass: "text-amber-400",
     title: "Quant Speed Drill",
-    rdm: "+5 RDM / correct",
+    rdm: "+5 RDM per set",
     rdmPillClass: "bg-amber-500/15 text-amber-100 ring-1 ring-amber-400/35",
     desc: "60-second blitzes. Builds the calculation reflex that separates JEE ranks.",
     tags: [
@@ -169,13 +168,13 @@ const SIX_SYSTEMS: readonly SixSystemCard[] = [
   {
     cat: "DAILYDOSE",
     catClass: "text-purple-400",
-    title: "5 Questions / Day",
-    rdm: "+15 RDM / day",
+    title: "15 Questions / Day",
+    rdm: "+5 RDM / Day",
     rdmPillClass: "bg-purple-500/15 text-purple-100 ring-1 ring-purple-400/35",
-    desc: "Five curated questions. 8 minutes. Builds an unbreakable study habit.",
+    desc: "Fifteen curated questions. 5 minutes. Builds an unbreakable study habit.",
     tags: [
       { label: "Streak system", className: "text-purple-300 ring-purple-400/25" },
-      { label: "8 min / day", className: "text-purple-200/90 ring-purple-400/20" },
+      { label: "5 min / day", className: "text-purple-200/90 ring-purple-400/20" },
     ],
     icon: Timer,
     iconWrapClass: "bg-purple-500/20 ring-1 ring-purple-400/40",
@@ -202,9 +201,9 @@ const SIX_SYSTEMS: readonly SixSystemCard[] = [
 const RDM_WAYS = [
   {
     icon: "?",
-    title: "Ask a question",
-    desc: "Post a doubt on the Magic Wall. AI answers instantly.",
-    rdm: "+25 RDM",
+    title: "Ask/Upload a question",
+    desc: "Post a doubt on the Gyan ++ Wall. AI answers instantly.",
+    rdm: "+5 RDM",
   },
   {
     icon: "👍",
@@ -214,27 +213,27 @@ const RDM_WAYS = [
   },
   {
     icon: "📝",
-    title: "Complete a mock",
-    desc: "Finish a full Testbee adaptive mock test.",
+    title: "Complete a mock & post",
+    desc: "Finish a full Testbee mock test.",
     rdm: "+50 RDM",
   },
   {
     icon: "★",
     title: "DailyDose streak",
-    desc: "Answer all 5 daily questions. Every streak milestone — bonus.",
-    rdm: "+15 RDM / day",
+    desc: "Answer all 15 daily questions. Every streak milestone — bonus.",
+    rdm: "+15 RDM/ Streak",
   },
   {
     icon: "🔥",
     title: "Instacue revision",
     desc: "Complete a spaced revision session on your saved cards.",
-    rdm: "+40 RDM",
+    rdm: "+5 RDM",
   },
   {
     icon: "⚡",
     title: "MentaMill blitz",
     desc: "Correct answer in quant speed drill session.",
-    rdm: "+5 RDM / answer",
+    rdm: "+5 RDM / Set",
   },
   {
     icon: "👥",
@@ -275,9 +274,9 @@ function ExamCoverageStrip() {
       <div className="mx-auto max-w-6xl">
         <p
           id="exam-coverage-heading"
-          className="text-center text-[10px] font-bold uppercase tracking-[0.32em] text-slate-500"
+          className="text-center text-sm font-semibold tracking-tight text-slate-400 sm:text-base"
         >
-          Covers every exam you are preparing for
+          Covers Exams you are preparing for
         </p>
         <div className="mt-5 flex flex-wrap justify-center gap-2.5 sm:mt-6 sm:gap-3">
           {EXAM_COVERAGE_PILLS.map((e) => (
@@ -306,18 +305,18 @@ const TEACHER_STEPS = [
     step: "2",
     title: "Add Teacher Sections",
     desc: "Comment on any Gyan+ Q&A with exam tips and insight. Every upvoted comment earns you RDM instantly.",
-    reward: "+30 RDM / upvoted comment",
+    reward: "+10 RDM / upvoted comment",
   },
   {
     step: "3",
     title: "Run live classes",
-    desc: "List a session — students across Karnataka join. Recordings earn views and RDM long after you finish.",
-    reward: "+30 RDM / attendee",
+    desc: "List a session — students across India join. Recordings earn views and RDM long after you finish.",
+    reward: "+10 RDM / attendee",
   },
   {
     step: "4",
     title: "Earn and grow",
-    desc: "RDM converts to real income. Your profile builds national reputation beyond your home institute.",
+    desc: "RDM converts to Real Rewards. Your profile builds national reputation beyond your home institute.",
     reward: "",
   },
 ] as const;
@@ -329,15 +328,15 @@ const TEACHER_TOOLKIT = [
     iconClass: "text-indigo-200",
     title: "Teacher Sections",
     desc: "Comment on any live Gyan+ Q&A. Your answer appears as a verified Teacher Section — clearly distinguished from AI and peer responses. Students upvote, you earn.",
-    point: "+30 RDM per upvoted comment",
+    point: "+10 RDM per upvoted comment",
   },
   {
     icon: CalendarDays,
     iconWrap: "bg-sky-500/16 ring-sky-400/30",
     iconClass: "text-sky-200",
     title: "Live and Recorded Classes",
-    desc: "Schedule and broadcast live topic sessions. Students across PUC Karnataka join. Every session is recorded and earns views permanently in your class library.",
-    point: "+30 RDM per attendee",
+    desc: "Schedule and broadcast live topic sessions. Students across PUC India join. Every session is recorded and earns views permanently in your class library.",
+    point: "+10 RDM per attendee",
   },
   {
     icon: Mic2,
@@ -352,7 +351,7 @@ const TEACHER_TOOLKIT = [
     iconWrap: "bg-emerald-500/16 ring-emerald-400/30",
     iconClass: "text-emerald-200",
     title: "Earnings Dashboard",
-    desc: "Track RDM in real time. See which comments resonated, which topic students struggle with most, and monitor your payout history and upcoming milestones.",
+    desc: "Track RDM in real time. See which comments resonated, which topic students struggle with most, and monitor your history and upcoming milestones.",
     point: "Live earnings analytics",
   },
   {
@@ -367,7 +366,7 @@ const TEACHER_TOOLKIT = [
     icon: BadgeCheck,
     iconWrap: "bg-fuchsia-500/16 ring-fuchsia-400/30",
     iconClass: "text-fuchsia-200",
-    title: "Faculty Profile",
+    title: "Selected Faculty Profile",
     desc: "Your verified profile appears on the EduBlast platform, brochures and marketing. Students see your ratings, classes and commentary reputation — nationwide.",
     point: "National visibility",
   },
@@ -464,12 +463,12 @@ function TeacherInvestorSections() {
               className="mt-3 text-[1.48rem] font-semibold leading-[1.15] text-white sm:text-[1.72rem] lg:text-[1.86rem]"
               style={{ fontFamily: "var(--font-landing-serif), ui-serif, Georgia, serif" }}
             >
-              AI does the grunt work. <br />
+              We do the grunt work. <br />
               You add the <span className="text-[#34f5a4] italic">wisdom.</span>
             </h2>
             <p className="mt-4 max-w-lg text-[13px] leading-relaxed text-zinc-400 sm:text-[13px]">
-              Gyan+ AI handles repetitive student doubts instantly. You step in with
-              exam insight, strategy and mentorship where it matters.
+              On Gyan+, we handle repetitive student doubts instantly. You step in with exam insight,
+              strategy and mentorship where it matters.
             </p>
             <ul className="mt-5 space-y-2.5 text-[14px] text-zinc-300">
               {[
@@ -563,7 +562,7 @@ function TeacherInvestorSections() {
           <div className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-center">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-[0.35em] text-indigo-300">
-                Ready to reach 38,000 students?
+                Ready to reach students all over India?
               </p>
               <h3
                 className="mt-3 text-[1.7rem] font-semibold leading-[1.1] text-white sm:text-[2rem]"
@@ -574,7 +573,7 @@ function TeacherInvestorSections() {
                 you already have.
               </h3>
               <p className="mt-3 text-sm text-zinc-300">
-                Paid role · National reach · Content revenue share · Featured faculty profile.
+                Paid role · National reach · Content revenue share · Selected Faculty Profile.
               </p>
             </div>
             <div className="flex flex-wrap gap-3">
@@ -617,7 +616,7 @@ export default function EduBlastInvestorLanding() {
                     : "text-zinc-500 hover:text-zinc-200"
                 }`}
               >
-                Student / Home
+                For Students
               </button>
               <button
                 type="button"
@@ -633,8 +632,7 @@ export default function EduBlastInvestorLanding() {
             </div>
             {persona === "teacher" && (
               <p className="max-w-md text-center text-xs text-zinc-500">
-                Teacher tools, live cohorts, and paid ambassador tracks — same
-                wall, national reach.
+                Teacher tools, live cohorts, and paid ambassador tracks — same wall, national reach.
               </p>
             )}
           </div>
@@ -652,8 +650,8 @@ export default function EduBlastInvestorLanding() {
               </span>
               <span className="text-balance">
                 {persona === "teacher"
-                  ? "For PCM teachers · PUC 1 & 2 Karnataka"
-                  : "India's first AI-powered learning social network"}
+                  ? "For PCM teachers · PUC 1 & 2"
+                  : "India&apos;s first AI-powered learning social network"}
               </span>
             </span>
           </div>
@@ -665,16 +663,12 @@ export default function EduBlastInvestorLanding() {
             {persona === "teacher" ? (
               <>
                 <span className="block font-semibold text-white">Your expertise should earn you</span>
-                <span
-                  className="mt-1 block text-[2.25rem] font-semibold italic leading-[0.9] text-[#6f71ff] sm:text-[2.8rem] md:text-[3.2rem] lg:text-[3.45rem] xl:text-[3.8rem]"
-                >
+                <span className="mt-1 block text-[2.25rem] font-semibold italic leading-[0.9] text-[#6f71ff] sm:text-[2.8rem] md:text-[3.2rem] lg:text-[3.45rem] xl:text-[3.8rem]">
                   income,
                 </span>
                 <span className="block font-semibold text-white">
                   not just{" "}
-                  <span
-                    className="inline-block text-[2.25rem] font-semibold italic leading-[0.9] text-[#34f5a4] sm:text-[2.8rem] md:text-[3.2rem] lg:text-[3.45rem] xl:text-[3.8rem]"
-                  >
+                  <span className="inline-block text-[2.25rem] font-semibold italic leading-[0.9] text-[#34f5a4] sm:text-[2.8rem] md:text-[3.2rem] lg:text-[3.45rem] xl:text-[3.8rem]">
                     respect.
                   </span>
                 </span>
@@ -701,7 +695,7 @@ export default function EduBlastInvestorLanding() {
 
           <p className="mx-auto mt-6 max-w-lg text-center text-sm leading-relaxed text-zinc-500 sm:text-[15px]">
             {persona === "teacher"
-              ? "Stop limiting your impact to 30 students in a room. EduBlast puts your knowledge in front of 38,000 students across Karnataka — and pays you for every insight you share."
+              ? "Stop limiting your impact to 30 students in a room. EduBlast puts your knowledge in front of 1000's of students across India — and pays you for every insight you share."
               : "Ask. Earn. Rank. Repeat. The social feed that makes you sharper — every single day."}
           </p>
 
@@ -731,26 +725,23 @@ export default function EduBlastInvestorLanding() {
                 { v: "420+", l: "TOP TEACHER RDM / WEEK", c: "text-amber-300" },
                 { v: "312", l: "STUDENTS HELPED / MONTH", c: "text-[#34f5a4]" },
                 { v: "4.9★", l: "AVG LIVE CLASS RATING", c: "text-white" },
-                { v: "+30", l: "RDM PER EXPERT COMMENT", c: "text-[#6f71ff]" },
+                { v: "+10", l: "RDM PER UPVOTED COMMENT", c: "text-[#6f71ff]" },
               ].map((s) => (
                 <div key={s.l} className="min-w-0">
                   <p className={`text-[1.55rem] font-semibold leading-none sm:text-[1.8rem] ${s.c}`}>{s.v}</p>
-                  <p className="mt-1 text-[8.5px] uppercase tracking-[0.12em] text-zinc-600 sm:text-[9px]">
-                    {s.l}
-                  </p>
+                  <p className="mt-1 text-[8.5px] uppercase tracking-[0.12em] text-zinc-600 sm:text-[9px]">{s.l}</p>
                 </div>
               ))}
             </div>
           ) : (
             <>
-              <p className="mx-auto mt-6 max-w-2xl px-2 text-center text-balance text-[10px] font-medium leading-snug tracking-wide text-zinc-600 sm:text-[11px]">
-                38,000+ active students · PUC 1 &amp; 2 - Karnataka · PCM full syllabus · Free to
-                start
+              <p className="mx-auto mt-6 max-w-2xl px-2 text-center text-balance text-sm font-medium leading-snug tracking-wide text-zinc-400 sm:text-[15px]">
+                1000+ Sessions Open right now
               </p>
 
               <div className="mx-auto mt-8 grid max-w-4xl grid-cols-2 gap-3 sm:mt-10 sm:grid-cols-4 lg:mt-11">
                 {[
-                  { v: "4,200+", l: "AI ANSWERS TODAY" },
+                  { v: "150+", l: "Q & A on the Gyan ++ Wall" },
                   { v: "94%", l: "MORE FUN THAN TEXTBOOKS" },
                   { v: "2.8x", l: "FASTER RETENTION" },
                   { v: "₹50k", l: "MAX EDUFUND GRANT" },
@@ -773,7 +764,7 @@ export default function EduBlastInvestorLanding() {
         </div>
       </section>
       {persona === "student" ? (
-        <>
+      <>
           <TickerStrip />
 
           <ExamCoverageStrip />
@@ -828,11 +819,13 @@ export default function EduBlastInvestorLanding() {
                       >
                         <Icon className={`h-5 w-5 ${c.iconClass}`} strokeWidth={2} />
                       </div>
-                      <span
-                        className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold tracking-wide ${c.rdmPillClass}`}
-                      >
-                        {c.rdm}
-                      </span>
+                      {c.rdm != null && c.rdm !== "" && c.rdmPillClass ? (
+                        <span
+                          className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold tracking-wide ${c.rdmPillClass}`}
+                        >
+                          {c.rdm}
+                        </span>
+                      ) : null}
                     </div>
 
                     <p
@@ -872,30 +865,30 @@ export default function EduBlastInvestorLanding() {
         <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-2 lg:items-start lg:gap-10 xl:gap-12 2xl:gap-14">
           <div className="min-w-0">
             <span className="inline-flex items-center gap-2 rounded-full border border-violet-500/50 bg-violet-500/10 px-3.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-violet-200">
-              ⭐ New · Magic Wall
+              ⭐ New · Prof-Pi Gyan++ Wall
             </span>
             <h2
               className="mt-5 text-2xl font-semibold leading-[1.15] tracking-tight text-white sm:text-[1.65rem] md:text-[1.8rem] lg:text-[1.95rem] lg:leading-tight xl:text-[2.1rem] 2xl:text-[2.35rem]"
               style={{ fontFamily: "var(--font-landing-serif), ui-serif, Georgia, serif" }}
             >
-              Where 38,000 minds ask, answer and{" "}
+              Where multiple minds ask, answer and{" "}
               <span className="bg-gradient-to-r from-violet-300 via-fuchsia-300 to-indigo-300 bg-clip-text font-semibold italic text-transparent">
                 accelerate
               </span>{" "}
               together.
             </h2>
             <p className="mt-5 text-[15px] leading-relaxed text-zinc-300 sm:text-base">
-              The <span className="font-semibold text-white">Prof-Pi Magic Wall</span> is
+              The <span className="font-semibold text-white">Prof-Pi Gyan++ Wall</span> is
               EduBlast&apos;s live social feed — a constantly refreshing river of questions,
               AI answers, teacher commentary, peer insights and revision cards. Every time
-              you open it, something new has been added. Every interaction earns you RDM.
+              you open it, something new has been added. Interactions earn you RDM.
             </p>
             <div className="mt-6 grid grid-cols-2 gap-2.5 sm:max-w-md">
               {(
                 [
-                  { Icon: Clock, label: "AI answers in 2 seconds" },
+                  { Icon: Clock, label: "Quick answers" },
                   { Icon: LineChart, label: "Live leaderboard" },
-                  { Icon: Star, label: "Teacher-verified answers" },
+                  { Icon: Star, label: "Teacher value-adds" },
                   { Icon: Menu, label: "Trending by subject" },
                 ] as const
               ).map(({ Icon, label }) => (
@@ -912,7 +905,7 @@ export default function EduBlastInvestorLanding() {
               href="/magic-wall"
               className="mt-9 inline-flex items-center gap-2 rounded-full bg-[#34f5a4] px-7 py-3.5 text-sm font-bold text-neutral-950 shadow-[0_0_28px_rgba(52,245,164,0.25)] transition hover:bg-[#2ee89a]"
             >
-              Enter the Magic Wall <span aria-hidden>→</span>
+              Enter the Gyan ++ Wall <span aria-hidden>→</span>
             </Link>
           </div>
 
@@ -921,10 +914,10 @@ export default function EduBlastInvestorLanding() {
               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-3">
                 <span className="flex items-center gap-2 text-[11px] font-bold text-white sm:text-xs">
                   <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.7)]" />
-                  Prof-Pi Magic Wall · Physics
+                  Prof-Pi Gyan++ Wall · Physics
                 </span>
                 <span className="text-[10px] font-medium text-zinc-500 sm:text-[11px]">
-                  4,218 questions today
+                  150+ Q&A on the Gyan ++ Wall today
                 </span>
               </div>
 
@@ -947,7 +940,7 @@ export default function EduBlastInvestorLanding() {
                       <span className="text-zinc-500">3 min ago</span>
                     </p>
                     <span className="rounded-full bg-orange-500/15 px-2 py-0.5 text-[10px] font-bold text-orange-300 ring-1 ring-orange-400/30">
-                      +25 RDM earned
+                      +5 RDM earned
                     </span>
                   </div>
                   <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px]">
@@ -1009,9 +1002,8 @@ export default function EduBlastInvestorLanding() {
             </span>
           </h2>
           <p className="mx-auto mt-5 max-w-2xl text-center text-[15px] leading-relaxed text-zinc-300 sm:text-base">
-            Reward Miles (RDM) are the currency of EduBlast. Every meaningful action on the
-            platform earns you RDM — and enough RDM unlocks real financial grants through
-            EduFund.
+            RDM is the currency of EduBlast. Every meaningful action on the platform earns
+            you RDM — and enough RDM unlocks real financial grants through EduFund.
           </p>
 
           <div className="mt-8 grid grid-cols-1 gap-4 sm:mt-10 sm:grid-cols-2 xl:grid-cols-4 xl:gap-5">
@@ -1071,7 +1063,7 @@ export default function EduBlastInvestorLanding() {
               {
                 title: "Sprout",
                 icon: "🌱",
-                pts: "1,000 RDM",
+                pts: "Earn 1000 RDM to unlock",
                 amt: "₹3,000",
                 amtClass: "text-emerald-400",
                 desc: "Device funding, study material grants, mock pack access. For students who show up consistently.",
@@ -1080,7 +1072,7 @@ export default function EduBlastInvestorLanding() {
               {
                 title: "Scholar",
                 icon: "📚",
-                pts: "3,000 RDM",
+                pts: "Earn 3000 RDM to unlock",
                 amt: "₹12,000",
                 amtClass: "text-violet-300",
                 desc: "College fee support, coaching fee grants, education loan pathway, JEE-linked scholarship nominations.",
@@ -1089,7 +1081,7 @@ export default function EduBlastInvestorLanding() {
               {
                 title: "Champion",
                 icon: "🏆",
-                pts: "8,000 RDM",
+                pts: "Earn 8000 RDM to unlock",
                 amt: "₹50,000",
                 amtClass: "text-orange-400",
                 desc: "Full education grants, abroad pathways, startup seed funding, personal EduFund advisor. Elite achievers only.",
@@ -1106,7 +1098,7 @@ export default function EduBlastInvestorLanding() {
                     {tier.title}
                   </h3>
                 </div>
-                <span className="mt-3 inline-flex w-fit rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-zinc-200">
+                <span className="mt-3 inline-flex w-fit max-w-full rounded-full bg-white/10 px-2.5 py-1 text-[9px] font-bold leading-snug tracking-wide text-zinc-200 sm:text-[10px]">
                   {tier.pts}
                 </span>
                 <p className={`mt-4 text-2xl font-bold sm:text-3xl ${tier.amtClass}`}>
@@ -1146,7 +1138,7 @@ export default function EduBlastInvestorLanding() {
               className="mt-4 text-2xl font-bold leading-[1.15] tracking-tight text-white sm:text-[1.65rem] md:text-[1.8rem] lg:text-[1.95rem] lg:leading-[1.12] xl:text-[2.1rem] 2xl:text-[2.35rem]"
               style={{ fontFamily: "var(--font-landing-serif), ui-serif, Georgia, serif" }}
             >
-              38,000 students are on the wall.{" "}
+              Multiple Students are on the wall.{" "}
               <span className="text-[#34f5a4] italic">Are you?</span>
             </h2>
             <p className="mt-5 max-w-lg text-[15px] leading-relaxed text-zinc-200 sm:text-base">
@@ -1199,7 +1191,7 @@ export default function EduBlastInvestorLanding() {
                         Comment +5
                       </span>
                       <span className="rounded-full border border-orange-400/40 bg-gradient-to-b from-orange-500/25 to-amber-900/30 px-2.5 py-1 text-[10px] font-bold leading-none text-orange-200 shadow-[0_0_12px_rgba(251,146,60,0.18)]">
-                        +25
+                        +5
                       </span>
                     </div>
                   </div>
@@ -1424,10 +1416,7 @@ export default function EduBlastInvestorLanding() {
             className="mt-4 text-center text-[1.45rem] font-semibold leading-[1.14] tracking-tight text-white [font-variant-numeric:lining-nums] sm:mt-5 sm:text-[1.6rem] md:text-[1.75rem] lg:text-[1.85rem] xl:text-[2.05rem] 2xl:text-[2.35rem]"
             style={{ fontFamily: "var(--font-landing-serif), ui-serif, Georgia, serif" }}
           >
-            <span className="block">
-              <span className="whitespace-nowrap">38,000</span> students are on
-            </span>
-            <span className="block">the wall right now.</span>
+            <span className="block">Multiple Students are on the wall right now.</span>
             <span
               className="mt-1.5 block text-[1.85rem] font-bold leading-[0.95] text-[#34f5a4] sm:mt-2 sm:text-[2.05rem] md:text-[2.2rem] lg:text-[2.35rem] xl:text-[2.55rem] 2xl:text-[2.85rem]"
               style={{ fontFamily: "var(--font-landing-script), cursive" }}
@@ -1436,9 +1425,8 @@ export default function EduBlastInvestorLanding() {
             </span>
           </h2>
           <p className="mx-auto mt-5 max-w-xl text-[14px] leading-relaxed text-zinc-400 sm:mt-6 sm:text-[15px]">
-            The rank you want comes from doing this every day — with{" "}
-            <span className="whitespace-nowrap">38,000 students</span> pushing you
-            from behind.
+            The rank you want comes from doing this every day — with other students pushing you from
+            behind.
           </p>
           <div className="mt-10 flex flex-wrap justify-center gap-3">
             <Link
@@ -1462,7 +1450,7 @@ export default function EduBlastInvestorLanding() {
       </section>
 
           <TickerStrip />
-        </>
+      </>
       ) : (
         <TeacherInvestorSections />
       )}

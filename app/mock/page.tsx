@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import AppLayout from "@/components/AppLayout";
 import { useUserStore } from "@/store/useUserStore";
@@ -43,6 +43,7 @@ import StreakCalendar from "@/components/prep-mock/StreakCalendar";
 import RevisionInstaCueSection from "@/components/prep-mock/RevisionInstaCueSection";
 import { fetchSavedContent } from "@/lib/savedContentService";
 import { mergeAllSavedContent } from "@/lib/mergeSavedContent";
+import { incrementPrepCalendarDay, localDayISO } from "@/lib/prepCalendarClient";
 
 const DURATIONS = [60, 90, 180] as const;
 type Duration = (typeof DURATIONS)[number];
@@ -63,11 +64,13 @@ function formatTime(seconds: number): string {
 }
 
 export default function MockPage() {
-  const { user: authUser } = useAuth();
+  const { user: authUser, session } = useAuth();
   const user = useUserStore((s) => s.user);
   const allResults = useUserStore((s) => s.allResults);
 
   const [nextClassInfo, setNextClassInfo] = useState<{ name: string; time: string } | null>(null);
+  const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
+  const mockCalendarLoggedRef = useRef(false);
 
   const subjects: Subject[] = useMemo(() => {
     if (!user) return ["physics", "chemistry", "math"];
@@ -96,7 +99,14 @@ export default function MockPage() {
     setEndTime(Date.now());
     setView("results");
     setSubmitDialogOpen(false);
-  }, []);
+    if (!mockCalendarLoggedRef.current && authUser?.id) {
+      mockCalendarLoggedRef.current = true;
+      const day = localDayISO(new Date());
+      void incrementPrepCalendarDay(session?.access_token, "mock", day).then((ok) => {
+        if (ok) setCalendarRefreshKey((k) => k + 1);
+      });
+    }
+  }, [authUser?.id, session?.access_token]);
 
   useEffect(() => {
     if (view !== "test" || startTime == null) return;
@@ -114,6 +124,7 @@ export default function MockPage() {
 
   const startTest = useCallback(() => {
     if (!user) return;
+    mockCalendarLoggedRef.current = false;
     const chosenSubjects = effectiveSubject ? [effectiveSubject] : subjects;
     const qs = getMockQuestions(chosenSubjects, user.classLevel ?? 11, duration);
     setQuestions(qs);
@@ -169,11 +180,6 @@ export default function MockPage() {
     const correct = allResults.filter((r) => r.isCorrect).length;
     return Math.round((correct / allResults.length) * 100);
   }, [allResults]);
-
-  const activityDates = useMemo(
-    () => allResults.map((r) => new Date(r.timestamp)),
-    [allResults]
-  );
 
   useEffect(() => {
     if (!authUser?.id) return;
@@ -258,14 +264,27 @@ export default function MockPage() {
                     <ClassesSection
                       userId={authUser?.id ?? ""}
                       onNextClass={setNextClassInfo}
+                      accessToken={session?.access_token}
+                      onClassCalendar={() => setCalendarRefreshKey((k) => k + 1)}
                     />
-                    <StreakCalendar activityDates={activityDates} />
+                    <div id="calendar" className="scroll-mt-24">
+                      <StreakCalendar
+                        userId={authUser?.id ?? null}
+                        accessToken={session?.access_token}
+                        refreshKey={calendarRefreshKey}
+                      />
+                    </div>
                   </div>
 
                   {/* Right column */}
                   <div className="space-y-6">
                     <MockTestsSection subjects={subjects} onStartMock={handleQuickStartMock} onViewAll={() => setView("setup")} />
-                    <RevisionInstaCueSection cards={revisionCards} />
+                    <RevisionInstaCueSection
+                      cards={revisionCards}
+                      accessToken={session?.access_token}
+                      userId={authUser?.id ?? null}
+                      onCalendarActivity={() => setCalendarRefreshKey((k) => k + 1)}
+                    />
                   </div>
                 </div>
               </div>

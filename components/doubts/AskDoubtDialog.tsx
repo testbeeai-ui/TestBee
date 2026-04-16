@@ -18,6 +18,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, ChevronLeft, RotateCcw } from "lucide-react";
 import { DOUBT_FLAIRS, type ProfileRow } from "./doubtTypes";
 import { applyNormalizedPasteToField, normalizePastedMathForDoubt } from "@/lib/normalizePastedDoubtMath";
+import { incrementPrepCalendarDay, localDayISO } from "@/lib/prepCalendarClient";
 
 interface AskDoubtDialogProps {
   open: boolean;
@@ -157,6 +158,10 @@ export default function AskDoubtDialog({ open, onOpenChange, profile, onDoubtPos
     if (res?.ok) {
       clearDraft();
       toast({ title: "Doubt posted!" });
+      void (async () => {
+        const at = (await supabase.auth.getSession()).data.session?.access_token;
+        await incrementPrepCalendarDay(at ?? undefined, "doubt", localDayISO());
+      })();
       onOpenChange(false);
       const rawId = res.id;
       const doubtId =

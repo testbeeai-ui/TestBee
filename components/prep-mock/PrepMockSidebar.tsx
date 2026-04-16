@@ -43,7 +43,7 @@ const sections: SidebarSection[] = [
     title: 'PREP + MOCK',
     items: [
       { label: 'Classes', icon: GraduationCap, href: '/classrooms' },
-      { label: 'AI Calendar', icon: CalendarDays, href: '#calendar' },
+      { label: 'Calendar', icon: CalendarDays, href: '#calendar' },
       { label: 'Mock Tests', icon: ClipboardList, href: '#mock-tests' },
       { label: 'Revision', icon: RotateCcw, href: '/revision' },
     ],

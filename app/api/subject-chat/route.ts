@@ -9,6 +9,13 @@ import {
 } from '@/lib/sarvamGyanClient';
 import { logAiUsage } from '@/lib/aiLogger';
 import { getSupabaseAndUser } from '@/lib/apiAuth';
+import {
+    appendUserAndAssistantMessages,
+    buildSubjectChatContextKey,
+    loadThreadMessages,
+    normalizeAnonClientHistory,
+    type SubjectChatScope,
+} from '@/lib/subjectChatMessages';
 
 const SUBJECT_BOUNDARIES: Record<string, { allowed: string; forbidden: string[] }> = {
     physics: {
@@ -125,6 +132,13 @@ export async function POST(req: NextRequest) {
         const gradeLevel  = body.gradeLevel;
         const history: { role: string; content: string }[] = Array.isArray(body.history) ? body.history : [];
         const grade       = typeof gradeLevel === 'number' && [11, 12].includes(gradeLevel) ? gradeLevel : 11;
+        const board         = sanitizeField(body.board, 80);
+        const unitSlug      = sanitizeField(body.unitSlug, 120);
+        const topicSlug     = sanitizeField(body.topicSlug, 120);
+        const levelSlug     = sanitizeField(body.levelSlug, 80);
+        const sectionSlug   = sanitizeField(body.sectionSlug, 80);
+        const unitLabel     = sanitizeField(body.unitLabel, 200);
+        const chapterTitle  = sanitizeField(body.chapterTitle, 200);
 
         if (typeof rawMessage !== 'string' || !rawMessage.trim()) {
             return NextResponse.json({ error: 'message is required' }, { status: 400 });
@@ -143,8 +157,23 @@ export async function POST(req: NextRequest) {
         const persona = SUBJECT_PERSONAS[subject] ?? SUBJECT_PERSONAS.physics;
         const langInstruction = LANGUAGE_INSTRUCTIONS[language] ?? LANGUAGE_INSTRUCTIONS.en;
 
-        // Attempt RAG retrieval (returns null on failure — graceful degradation)
+        const chatScope: SubjectChatScope = {
+            subject,
+            topic: topic.trim() ? topic : 'general',
+            subtopic: subtopic.trim() ? subtopic : undefined,
+            gradeLevel: grade,
+        };
+        if (board) chatScope.board = board;
+        if (unitSlug) chatScope.unitSlug = unitSlug;
+        if (topicSlug) chatScope.topicSlug = topicSlug;
+        if (levelSlug) chatScope.levelSlug = levelSlug;
+        if (sectionSlug) chatScope.sectionSlug = sectionSlug;
+        if (unitLabel) chatScope.unitLabel = unitLabel;
+        if (chapterTitle) chatScope.chapterTitle = chapterTitle;
+        const contextKey = buildSubjectChatContextKey(chatScope);
+
         const ragContext = await fetchRAGContext(message, subject, grade, topic, subtopic);
+
         if (authCtx) {
             await logAiUsage({
                 supabase: authCtx.supabase,
@@ -213,15 +242,25 @@ FORMATTING RULES:
 - Use \text{...} only for short natural-language labels (e.g. \text{if } x > 0), never for chemical species/math tokens.
 ${ragBlock}`;
 
-        // Build conversation history (last 6 turns max to stay within token budget).
-        // Drop any leading assistant messages — Sarvam requires the first message
-        // after [system] to be from user, but our history may start with the bot greeting.
-        const recentHistory = history
-            .slice(-6)
-            .map(m => ({
-                role: m.role === 'bot' ? 'assistant' : 'user',
-                content: String(m.content).slice(0, 1000),
+        // Authenticated: history from Supabase for this thread (server source of truth).
+        // Anonymous: last 6 turns from client body only.
+        let recentHistory: { role: 'user' | 'assistant'; content: string }[] = [];
+        if (authCtx) {
+            const fromDb = await loadThreadMessages(authCtx.supabase, {
+                userId: authCtx.user.id,
+                contextKey,
+                limit: 40,
+            });
+            recentHistory = fromDb.slice(-12).map((m) => ({
+                role: m.role,
+                content: m.content.slice(0, 1000),
             }));
+        } else {
+            recentHistory = normalizeAnonClientHistory(history, 6).map((m) => ({
+                role: m.role,
+                content: m.content.slice(0, 1000),
+            }));
+        }
         while (recentHistory.length > 0 && recentHistory[0].role !== 'user') {
             recentHistory.shift();
         }
@@ -284,6 +323,8 @@ ${ragBlock}`;
                     subtopic,
                     historyTurns: recentHistory.length,
                     ragChunkCount: ragContext?.chunkCount ?? 0,
+                    contextKey,
+                    dbHistoryTurns: recentHistory.length,
                 },
             });
         }
@@ -296,6 +337,18 @@ ${ragBlock}`;
         reply = normalizeLatex(reply);
         // Remove bad \text{token} wrappers that break chemistry/math rendering
         reply = normalizeTextWrappedFormulaTokens(reply);
+
+        if (authCtx) {
+            const persist = await appendUserAndAssistantMessages(authCtx.supabase, {
+                userId: authCtx.user.id,
+                contextKey,
+                userText: message,
+                assistantText: reply,
+            });
+            if (!persist.ok) {
+                console.warn('[api/subject-chat] failed to persist chat messages:', persist.error);
+            }
+        }
 
         return NextResponse.json({ reply });
     } catch (err) {

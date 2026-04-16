@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { supabase } from '@/integrations/supabase/client';
 import { GraduationCap, ExternalLink, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { incrementPrepCalendarDay, localDayISO } from '@/lib/prepCalendarClient';
 
 interface ClassInfo {
   id: string;
@@ -27,6 +28,8 @@ interface SessionInfo {
 interface ClassesSectionProps {
   userId: string;
   onNextClass?: (info: { name: string; time: string } | null) => void;
+  accessToken?: string | null;
+  onClassCalendar?: () => void;
 }
 
 const classGradients = [
@@ -35,7 +38,7 @@ const classGradients = [
   'from-orange-500 to-amber-500',
 ];
 
-export default function ClassesSection({ userId, onNextClass }: ClassesSectionProps) {
+export default function ClassesSection({ userId, onNextClass, accessToken, onClassCalendar }: ClassesSectionProps) {
   const [classes, setClasses] = useState<ClassInfo[]>([]);
   const [sessions, setSessions] = useState<SessionInfo[]>([]);
   const [teacherMap, setTeacherMap] = useState<Map<string, string>>(new Map());
@@ -215,7 +218,17 @@ export default function ClassesSection({ userId, onNextClass }: ClassesSectionPr
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-primary hover:text-primary/80 shrink-0"
-                      onClick={(e) => e.stopPropagation()}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (!userId) return;
+                        const day = localDayISO();
+                        const k = `prep_cal_class_${userId}_${day}`;
+                        if (typeof window !== 'undefined' && sessionStorage.getItem(k)) return;
+                        void incrementPrepCalendarDay(accessToken ?? undefined, 'class', day).then((ok) => {
+                          if (ok && typeof window !== 'undefined') sessionStorage.setItem(k, '1');
+                          if (ok) onClassCalendar?.();
+                        });
+                      }}
                     >
                       <ExternalLink className="w-4 h-4" />
                     </a>

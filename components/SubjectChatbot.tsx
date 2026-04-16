@@ -7,6 +7,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import type { Subject } from '@/types';
+import { useAuth } from '@/hooks/useAuth';
 
 interface Message {
     id: string;
@@ -20,6 +21,14 @@ interface Props {
     topic: string;
     subtopic?: string;
     gradeLevel?: number;
+    /** Scope chat storage to URL / taxonomy so colliding topic labels stay separate. */
+    board?: string;
+    unitSlug?: string;
+    topicSlug?: string;
+    levelSlug?: string;
+    sectionSlug?: string;
+    unitLabel?: string;
+    chapterTitle?: string;
 }
 
 const SUBJECT_META: Record<Subject, { label: string; emoji: string; gradient: string; accentColor: string; lightBg: string }> = {
@@ -84,8 +93,10 @@ function BotBubble({ content, accentColor, gradient }: { content: string; accent
     };
 
     return (
-        <div className="group relative">
-            <div className={`px-3.5 py-2.5 rounded-2xl rounded-bl-md shadow-sm border border-gray-100 bg-white text-gray-800 chat-markdown text-[15px] leading-relaxed ${!expanded ? 'overflow-hidden' : ''}`}>
+        <div className="group relative min-w-0 max-w-full w-full">
+            <div
+                className={`min-w-0 max-w-full px-3.5 py-2.5 rounded-2xl rounded-bl-md shadow-sm border border-gray-100 bg-white text-gray-800 chat-markdown text-[15px] leading-relaxed ${!expanded ? 'overflow-hidden' : 'overflow-x-hidden'}`}
+            >
                 <ReactMarkdown
                     remarkPlugins={[remarkMath]}
                     rehypePlugins={[rehypeKatex]}
@@ -199,17 +210,51 @@ function buildChatHistoryKey(params: {
     topic: string;
     subtopic?: string;
     gradeLevel?: number;
+    board?: string;
+    unitSlug?: string;
+    topicSlug?: string;
+    levelSlug?: string;
+    sectionSlug?: string;
+    unitLabel?: string;
+    chapterTitle?: string;
 }): string {
-    return [
+    const parts = [
         CHATBOT_HISTORY_PREFIX,
         normalizeKeyPart(params.subject),
         normalizeKeyPart(params.gradeLevel ?? 11),
         normalizeKeyPart(params.topic),
         normalizeKeyPart(params.subtopic ?? ''),
-    ].join(':');
+    ];
+    const push = (v: string | undefined) => {
+        if (v == null) return;
+        const t = String(v).trim();
+        if (!t) return;
+        parts.push(normalizeKeyPart(t));
+    };
+    push(params.board);
+    push(params.unitSlug);
+    push(params.topicSlug);
+    push(params.levelSlug);
+    push(params.sectionSlug);
+    push(params.unitLabel);
+    push(params.chapterTitle);
+    return parts.join(':');
 }
 
-export default function SubjectChatbot({ subject, topic, subtopic, gradeLevel }: Props) {
+export default function SubjectChatbot({
+    subject,
+    topic,
+    subtopic,
+    gradeLevel,
+    board,
+    unitSlug,
+    topicSlug,
+    levelSlug,
+    sectionSlug,
+    unitLabel,
+    chapterTitle,
+}: Props) {
+    const { session } = useAuth();
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState('');
@@ -235,7 +280,19 @@ export default function SubjectChatbot({ subject, topic, subtopic, gradeLevel }:
     const [typingPhrase] = useState(() => typingPhrases[Math.floor(Math.random() * typingPhrases.length)]);
     const meta = SUBJECT_META[subject] ?? SUBJECT_META.physics;
     const presets = getPresetQuestions(topic, subtopic);
-    const chatHistoryKey = buildChatHistoryKey({ subject, topic, subtopic, gradeLevel });
+    const chatHistoryKey = buildChatHistoryKey({
+        subject,
+        topic,
+        subtopic,
+        gradeLevel,
+        board,
+        unitSlug,
+        topicSlug,
+        levelSlug,
+        sectionSlug,
+        unitLabel,
+        chapterTitle,
+    });
 
     // Apply stored position/size after mount to avoid hydration mismatch (localStorage only on client)
     useEffect(() => {
@@ -385,18 +442,36 @@ export default function SubjectChatbot({ subject, topic, subtopic, gradeLevel }:
             // Send last 6 messages as history for follow-up context
             const historyToSend = messages.slice(-6).map(m => ({ role: m.role, content: m.content }));
 
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            if (session?.access_token) {
+                headers.Authorization = `Bearer ${session.access_token}`;
+            }
+
+            // Logged-in: server loads thread from Supabase; omit history to reduce payload.
+            const body: Record<string, unknown> = {
+                message: trimmed,
+                subject,
+                topic,
+                subtopic,
+                language,
+                gradeLevel: gradeLevel ?? 11,
+            };
+            if (board) body.board = board;
+            if (unitSlug) body.unitSlug = unitSlug;
+            if (topicSlug) body.topicSlug = topicSlug;
+            if (levelSlug) body.levelSlug = levelSlug;
+            if (sectionSlug) body.sectionSlug = sectionSlug;
+            if (unitLabel) body.unitLabel = unitLabel;
+            if (chapterTitle) body.chapterTitle = chapterTitle;
+            if (!session?.access_token) {
+                body.history = historyToSend;
+            }
+
             const res = await fetch('/api/subject-chat', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    message: trimmed,
-                    subject,
-                    topic,
-                    subtopic,
-                    language,
-                    gradeLevel: gradeLevel ?? 11,
-                    history: historyToSend,
-                }),
+                headers,
+                credentials: 'include',
+                body: JSON.stringify(body),
             });
 
             const data = await res.json();
@@ -419,7 +494,23 @@ export default function SubjectChatbot({ subject, topic, subtopic, gradeLevel }:
         } finally {
             setIsLoading(false);
         }
-    }, [isLoading, subject, topic, subtopic, language]);
+    }, [
+        isLoading,
+        subject,
+        topic,
+        subtopic,
+        language,
+        gradeLevel,
+        session?.access_token,
+        messages,
+        board,
+        unitSlug,
+        topicSlug,
+        levelSlug,
+        sectionSlug,
+        unitLabel,
+        chapterTitle,
+    ]);
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (e.key === 'Enter' && !e.shiftKey) {
@@ -648,7 +739,7 @@ export default function SubjectChatbot({ subject, topic, subtopic, gradeLevel }:
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 60, scale: 0.9 }}
                         transition={{ type: 'spring', stiffness: 280, damping: 26 }}
-                        className="fixed bottom-6 right-6 z-50 flex flex-col rounded-3xl overflow-hidden shadow-2xl"
+                            className="fixed bottom-6 right-6 z-50 flex min-h-0 min-w-0 flex-col rounded-3xl overflow-hidden shadow-2xl"
                         style={{
                             width: `min(${chatSize.width}px, calc(100vw - 24px))`,
                             height: `min(${chatSize.height}px, calc(100vh - 80px))`,
@@ -729,8 +820,13 @@ export default function SubjectChatbot({ subject, topic, subtopic, gradeLevel }:
                         </div>
 
                         {/* Messages */}
-                        <div className="relative flex-1 overflow-hidden">
-                        <div ref={scrollContainerRef} onScroll={handleScroll} className="h-full overflow-y-auto bg-[#f8f9fc] px-4 py-3 space-y-3" onClick={() => setShowLangMenu(false)}>
+                        <div className="relative flex-1 min-h-0 min-w-0 overflow-hidden">
+                        <div
+                            ref={scrollContainerRef}
+                            onScroll={handleScroll}
+                            className="h-full min-h-0 min-w-0 overflow-y-auto overflow-x-hidden overscroll-contain bg-[#f8f9fc] px-4 py-3 space-y-3"
+                            onClick={() => setShowLangMenu(false)}
+                        >
                             <AnimatePresence initial={false}>
                                 {messages.map(msg => (
                                     <motion.div
@@ -738,7 +834,7 @@ export default function SubjectChatbot({ subject, topic, subtopic, gradeLevel }:
                                         initial={{ opacity: 0, y: 10 }}
                                         animate={{ opacity: 1, y: 0 }}
                                         transition={{ duration: 0.2 }}
-                                        className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} gap-2`}
+                                        className={`flex min-w-0 ${msg.role === 'user' ? 'justify-end' : 'justify-start'} gap-2`}
                                     >
                                         {msg.role === 'bot' && (
                                             <div
@@ -747,7 +843,7 @@ export default function SubjectChatbot({ subject, topic, subtopic, gradeLevel }:
                                                 {meta.emoji}
                                             </div>
                                         )}
-                                        <div className={`max-w-[82%] ${msg.role === 'user' ? 'items-end' : 'items-start'} flex flex-col gap-1 group/msg`}>
+                                        <div className={`min-w-0 max-w-[82%] ${msg.role === 'user' ? 'items-end' : 'items-start'} flex flex-col gap-1 group/msg`}>
                                             {msg.role === 'user' ? (
                                                 <div
                                                     className="px-3.5 py-2.5 rounded-2xl text-[15px] leading-relaxed text-white rounded-br-md whitespace-pre-wrap"
