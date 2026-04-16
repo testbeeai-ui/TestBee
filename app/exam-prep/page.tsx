@@ -40,12 +40,12 @@ const cards = [
     available: true,
   },
   {
-    href: "#",
+    href: "/mock#calendar",
     icon: Calendar,
-    title: "AI-driven Calendar",
-    description: "Smart scheduling for revision and mocks (next phase – optional).",
+    title: "Calendar",
+    description: "Prep + Mock calendar tracks class, revision, mock, and doubt activity by day.",
     gradient: "from-purple-500 to-violet-500",
-    available: false,
+    available: true,
   },
 ];
 

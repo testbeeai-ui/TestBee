@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { Compass } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useTopicTaxonomy } from '@/hooks/useTopicTaxonomy';
@@ -9,9 +10,9 @@ import type { TopicNode } from '@/data/topicTaxonomy';
 
 import ExploreHubSidebar from './ExploreHubSidebar';
 import ExploreStatsBar from './ExploreStatsBar';
-import ExploreSearchBar from './ExploreSearchBar';
 import SubjectChips from './SubjectChips';
-import CommunityFeed from './CommunityFeed';
+import RawPostComposer from './RawPostComposer';
+import RawCommunityFeed from './RawCommunityFeed';
 import RandomTopicExplorer from './RandomTopicExplorer';
 import TrendingTopics from './TrendingTopics';
 
@@ -30,14 +31,8 @@ export default function ExploreHubDashboard({
 }: ExploreHubDashboardProps) {
   const { user, profile } = useAuth();
   const { taxonomy } = useTopicTaxonomy();
-  const { stats, feedPosts, loading } = useExploreHubData(
-    user?.id,
-    profile?.rdm ?? 0
-  );
-
-  const handleSelectTopic = (subject: Subject, _topic: string) => {
-    onNavigateToSubject(subject);
-  };
+  const [rawFeedRefresh, setRawFeedRefresh] = useState(0);
+  const { stats, loading } = useExploreHubData(user?.id, profile?.rdm ?? 0);
 
   const handleDirectTopic = (node: TopicNode) => {
     if (onNavigateToTopic) {
@@ -67,7 +62,7 @@ export default function ExploreHubDashboard({
         {/* Main content */}
         <div className="flex-1 min-w-0 space-y-6">
           <ExploreStatsBar stats={stats} loading={loading} />
-          <ExploreSearchBar taxonomy={taxonomy} onSelectTopic={handleSelectTopic} />
+          <RawPostComposer onPosted={() => setRawFeedRefresh((k) => k + 1)} />
           <SubjectChips onSelectSubject={(subject, exam) => {
             if (onNavigateToSubjectWithExam) {
               onNavigateToSubjectWithExam(subject, exam);
@@ -79,7 +74,7 @@ export default function ExploreHubDashboard({
           {/* Two-column: feed + sidebar widgets */}
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
             <div className="lg:col-span-3">
-              <CommunityFeed taxonomy={taxonomy} onExploreTopic={handleDirectTopic} livePosts={feedPosts} />
+              <RawCommunityFeed refreshKey={rawFeedRefresh} />
             </div>
             <div className="lg:col-span-2 space-y-4">
               <RandomTopicExplorer taxonomy={taxonomy} onExploreTopic={handleDirectTopic} />

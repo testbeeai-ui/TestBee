@@ -338,6 +338,179 @@ export type Database = {
           },
         ]
       }
+      lessons_raw_post_boosts: {
+        Row: {
+          id: string
+          post_id: string
+          user_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          post_id: string
+          user_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          post_id?: string
+          user_id?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lessons_raw_post_boosts_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "lessons_raw_posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lessons_raw_post_boosts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lessons_raw_post_comments: {
+        Row: {
+          id: string
+          post_id: string
+          user_id: string
+          parent_id: string | null
+          body: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          post_id: string
+          user_id: string
+          parent_id?: string | null
+          body: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          post_id?: string
+          user_id?: string
+          parent_id?: string | null
+          body?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lessons_raw_post_comments_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "lessons_raw_posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lessons_raw_post_comments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lessons_raw_post_votes: {
+        Row: {
+          post_id: string
+          user_id: string
+          vote: number
+          created_at: string
+        }
+        Insert: {
+          post_id: string
+          user_id: string
+          vote: number
+          created_at?: string
+        }
+        Update: {
+          post_id?: string
+          user_id?: string
+          vote?: number
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lessons_raw_post_votes_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "lessons_raw_posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lessons_raw_post_votes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lessons_raw_posts: {
+        Row: {
+          id: string
+          user_id: string
+          kind: string
+          title: string
+          content: string
+          tags: string[]
+          subject: string | null
+          chapter_ref: string | null
+          boost_count: number
+          upvote_count: number
+          downvote_count: number
+          comment_count: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          kind: string
+          title: string
+          content: string
+          tags?: string[]
+          subject?: string | null
+          chapter_ref?: string | null
+          boost_count?: number
+          upvote_count?: number
+          downvote_count?: number
+          comment_count?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          kind?: string
+          title?: string
+          content?: string
+          tags?: string[]
+          subject?: string | null
+          chapter_ref?: string | null
+          boost_count?: number
+          upvote_count?: number
+          downvote_count?: number
+          comment_count?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lessons_raw_posts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       live_sessions: {
         Row: {
           attendance_code: string | null
@@ -589,6 +762,44 @@ export type Database = {
           },
         ]
       }
+      prep_calendar_day_activity: {
+        Row: {
+          user_id: string
+          day: string
+          class_count: number
+          revision_count: number
+          mock_count: number
+          doubt_count: number
+          updated_at: string
+        }
+        Insert: {
+          user_id: string
+          day: string
+          class_count?: number
+          revision_count?: number
+          mock_count?: number
+          doubt_count?: number
+          updated_at?: string
+        }
+        Update: {
+          user_id?: string
+          day?: string
+          class_count?: number
+          revision_count?: number
+          mock_count?: number
+          doubt_count?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prep_calendar_day_activity_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       posts: {
         Row: {
           classroom_id: string
@@ -735,6 +946,41 @@ export type Database = {
           visibility?: string
         }
         Relationships: []
+      }
+      subject_topic_chat_messages: {
+        Row: {
+          id: string
+          user_id: string
+          context_key: string
+          role: string
+          content: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          context_key: string
+          role: string
+          content: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          context_key?: string
+          role?: string
+          content?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subject_topic_chat_messages_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       subtopic_content: {
         Row: {
@@ -1510,9 +1756,25 @@ export type Database = {
         Args: { p_gauntlet_date: string; p_results: Json }
         Returns: Json
       }
+      toggle_lessons_raw_post_boost: {
+        Args: { p_post_id: string }
+        Returns: { boosted: boolean; boost_count: number }[]
+      }
+      vote_lessons_raw_post: {
+        Args: { p_post_id: string; p_click: number }
+        Returns: { score: number; up_count: number; down_count: number; my_vote: number }[]
+      }
       get_daily_gauntlet_leaderboard: {
         Args: { p_gauntlet_date: string }
         Returns: { rank: number; user_id: string; display_name: string | null; correct_count: number; total_time_ms: number; completed_at: string }[]
+      }
+      increment_prep_calendar_day: {
+        Args: { p_day: string; p_field: string }
+        Returns: undefined
+      }
+      get_prep_calendar_summary: {
+        Args: { p_today: string }
+        Returns: Json
       }
     }
     Enums: {

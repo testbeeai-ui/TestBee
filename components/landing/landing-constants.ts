@@ -70,8 +70,8 @@ export const INVESTOR_PROBLEM_OTHER = [
 
 export const INVESTOR_PROBLEM_EDUBLAST = [
   "Live social Q&A wall — refreshing, competitive.",
-  "Live state-wide leaderboard — 38,000 students.",
-  "Prof-Pi AI — any doubt in under 2 seconds.",
+  "Live Leaderboard",
+  "Prof-Pi - doubts answered instantly",
   "Every action earns RDM — real financial aid.",
   "Testbee adapts to your exact weak areas only.",
 ];

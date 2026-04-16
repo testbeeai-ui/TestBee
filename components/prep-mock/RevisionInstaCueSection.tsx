@@ -1,10 +1,12 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { RotateCcw, Plus, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import MathText from '@/components/MathText';
 import type { SavedRevisionCard } from '@/types';
+import { incrementPrepCalendarDay, localDayISO } from '@/lib/prepCalendarClient';
 
 const subjectColors: Record<string, string> = {
   physics: 'text-blue-500 dark:text-blue-400',
@@ -22,6 +24,9 @@ const typeLabels: Record<string, string> = {
 
 interface RevisionInstaCueSectionProps {
   cards: SavedRevisionCard[];
+  accessToken?: string | null;
+  userId?: string | null;
+  onCalendarActivity?: () => void;
 }
 
 function previewLine(card: SavedRevisionCard): string {
@@ -40,8 +45,31 @@ function formatTopicLabel(topic: string): string {
     .join(' ');
 }
 
-export default function RevisionInstaCueSection({ cards }: RevisionInstaCueSectionProps) {
+export default function RevisionInstaCueSection({
+  cards,
+  accessToken,
+  userId,
+  onCalendarActivity,
+}: RevisionInstaCueSectionProps) {
   const preview = cards.slice(0, 6);
+  const revisionLoggedRef = useRef(false);
+
+  useEffect(() => {
+    if (cards.length === 0) {
+      revisionLoggedRef.current = false;
+      return;
+    }
+    if (!userId || revisionLoggedRef.current) return;
+    const day = localDayISO();
+    const k = `prep_cal_revision_${userId}_${day}`;
+    if (typeof window !== 'undefined' && sessionStorage.getItem(k)) return;
+    revisionLoggedRef.current = true;
+    void incrementPrepCalendarDay(accessToken ?? undefined, 'revision', day).then((ok) => {
+      if (ok && typeof window !== 'undefined') sessionStorage.setItem(k, '1');
+      if (ok) onCalendarActivity?.();
+    });
+  }, [userId, cards.length, accessToken, onCalendarActivity]);
+
 
   return (
     <section className="space-y-3">

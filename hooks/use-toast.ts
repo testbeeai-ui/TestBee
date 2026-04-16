@@ -10,6 +10,8 @@ type ToasterToast = ToastProps & {
   title?: React.ReactNode;
   description?: React.ReactNode;
   action?: ToastActionElement;
+  /** Optional left icon; omit for default (success-style vs destructive). */
+  icon?: React.ReactNode;
   /** Per-toast vibrant accent color for border/glow styling */
   accentColor?: string;
   /** Radix: ms until auto-dismiss. Omit or use `Infinity` to stay until dismissed. */

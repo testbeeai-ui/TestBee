@@ -2990,9 +2990,20 @@ const Explore = () => {
           {view === 'topic-detail' && selectedSubject && selectedTopicNode && (
             <SubjectChatbot
               subject={selectedSubject}
-              topic={selectedTopicNode.topic}
-              subtopic={selectedTopicNode.subtopics[0]?.name}
+              topic={topicForHub}
+              subtopic={
+                hubScopeForHub === 'chapter'
+                  ? undefined
+                  : activeTopicForAgent?.subtopics[0]?.name ?? selectedTopicNode.subtopics[0]?.name
+              }
               gradeLevel={selectedTopicClassLevel ?? undefined}
+              board={boardSlug}
+              unitLabel={activeTopicForAgent?.unitLabel ?? selectedTopicNode.unitLabel}
+              chapterTitle={
+                hubScopeForHub === 'chapter' && selectedChapterGroup
+                  ? selectedChapterGroup.chapter
+                  : activeTopicForAgent?.chapterTitle ?? selectedTopicNode.chapterTitle
+              }
             />
           )}
           </Fragment>
