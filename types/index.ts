@@ -105,6 +105,20 @@ export interface SavedRevisionUnit {
   sectionTitle: string;
 }
 
+/** Saved community feed post for revision review. */
+export interface SavedCommunityPost {
+  id: string;
+  postId: string;
+  title: string;
+  content: string;
+  subject: string | null;
+  chapterRef?: string | null;
+  topicRef?: string | null;
+  subtopicRef?: string | null;
+  createdAt: string;
+  savedAt: string;
+}
+
 export interface UserProfile {
   name: string;
   classLevel: ClassLevel;
@@ -124,6 +138,8 @@ export interface UserProfile {
   savedBits?: SavedBit[];
   /** Saved formula practice from Deep Dive. */
   savedFormulas?: SavedFormula[];
+  /** Saved community posts from Lessons feed. */
+  savedCommunityPosts?: SavedCommunityPost[];
   likedQuestions: string[];
   streakMinutes: number;
   isOnBreak: boolean;

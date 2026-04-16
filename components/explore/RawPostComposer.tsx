@@ -17,36 +17,10 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils";
 import { applyNormalizedPasteToField, normalizePastedMathForDoubt } from "@/lib/normalizePastedDoubtMath";
-
-/** Shown on the card (matches reference: All + three sciences). */
-type MainChipId = "all" | "physics" | "chemistry" | "math";
 
 /** Stored on post — only these three (no life-science option in this composer). */
 type PostSubjectSlug = "physics" | "chemistry" | "math";
-
-const MAIN_CHIPS: { id: MainChipId; label: string; activeClass: string; idleClass: string }[] = [
-  { id: "all", label: "All", activeClass: "bg-foreground text-background", idleClass: "bg-muted/80 text-foreground hover:bg-muted" },
-  {
-    id: "physics",
-    label: "Physics",
-    activeClass: "bg-sky-600 text-white shadow-sm",
-    idleClass: "bg-sky-500/15 text-sky-100 border border-sky-500/25 hover:bg-sky-500/25",
-  },
-  {
-    id: "chemistry",
-    label: "Chemistry",
-    activeClass: "bg-amber-600 text-white shadow-sm",
-    idleClass: "bg-amber-500/15 text-amber-100 border border-amber-500/25 hover:bg-amber-500/25",
-  },
-  {
-    id: "math",
-    label: "Math",
-    activeClass: "bg-violet-600 text-white shadow-sm",
-    idleClass: "bg-violet-500/15 text-violet-100 border border-violet-500/25 hover:bg-violet-500/25",
-  },
-];
 
 const DIALOG_SUBJECTS: { slug: PostSubjectSlug; label: string }[] = [
   { slug: "physics", label: "Physics" },
@@ -58,17 +32,11 @@ export interface RawPostComposerProps {
   onPosted?: () => void;
 }
 
-function mainChipToSubject(chip: MainChipId): PostSubjectSlug | null {
-  if (chip === "all") return null;
-  return chip;
-}
-
 export default function RawPostComposer({ onPosted }: RawPostComposerProps) {
   const { user, profile } = useAuth();
   const { toast } = useToast();
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
-  const [mainChip, setMainChip] = useState<MainChipId>("all");
   const [subjectPickerOpen, setSubjectPickerOpen] = useState(false);
   const [dialogSubject, setDialogSubject] = useState<PostSubjectSlug | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -111,7 +79,6 @@ export default function RawPostComposer({ onPosted }: RawPostComposerProps) {
         }
         setTitle("");
         setBody("");
-        setMainChip("all");
         setDialogSubject(null);
         setSubjectPickerOpen(false);
         toast({ title: "Posted", description: "Your update is live on the feed." });
@@ -136,10 +103,9 @@ export default function RawPostComposer({ onPosted }: RawPostComposerProps) {
       toast({ title: "Too short", description: "Write a little more in the line above (at least 3 characters).", variant: "destructive" });
       return;
     }
-    const pre = mainChipToSubject(mainChip);
-    setDialogSubject(pre);
+    setDialogSubject(null);
     setSubjectPickerOpen(true);
-  }, [user?.id, title, mainChip, toast]);
+  }, [user?.id, title, toast]);
 
   const handlePublishFromDialog = useCallback(() => {
     if (!dialogSubject) {
@@ -155,9 +121,6 @@ export default function RawPostComposer({ onPosted }: RawPostComposerProps) {
 
   const normalizedTitle = normalizePastedMathForDoubt(title.trim());
   const titlePreview = normalizedTitle.length > 120 ? `${normalizedTitle.slice(0, 120)}…` : normalizedTitle;
-
-  /** Indent chip row under the title field (avatar 2rem + row gap 0.625rem). */
-  const chipRowPad = "pl-[calc(2rem+0.625rem)]";
 
   return (
     <div className="rounded-2xl border border-border bg-card px-3 py-2.5 dark:border-white/10 dark:bg-slate-950/80 sm:px-4 sm:py-3">
@@ -195,22 +158,6 @@ export default function RawPostComposer({ onPosted }: RawPostComposerProps) {
         >
           Post
         </Button>
-      </div>
-
-      <div className={cn("mt-2 flex flex-wrap gap-1.5", chipRowPad)}>
-        {MAIN_CHIPS.map(({ id, label, activeClass, idleClass }) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => setMainChip(id)}
-            className={cn(
-              "rounded-full px-3 py-0.5 text-xs font-bold transition-colors",
-              mainChip === id ? activeClass : idleClass
-            )}
-          >
-            {label}
-          </button>
-        ))}
       </div>
 
       <Dialog

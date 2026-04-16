@@ -1,4 +1,10 @@
-import type { SavedBit, SavedFormula, SavedRevisionCard, SavedRevisionUnit } from "@/types";
+import type {
+  SavedBit,
+  SavedFormula,
+  SavedRevisionCard,
+  SavedRevisionUnit,
+  SavedCommunityPost,
+} from "@/types";
 
 /**
  * Merge local and server saved arrays by `id`. Server entries win on conflict;
@@ -15,20 +21,24 @@ export function mergeAllSavedContent(
   localFormulas: SavedFormula[],
   localRevisionCards: SavedRevisionCard[],
   localRevisionUnits: SavedRevisionUnit[],
+  localCommunityPosts: SavedCommunityPost[],
   serverBits: SavedBit[],
   serverFormulas: SavedFormula[],
   serverRevisionCards: SavedRevisionCard[],
-  serverRevisionUnits: SavedRevisionUnit[]
+  serverRevisionUnits: SavedRevisionUnit[],
+  serverCommunityPosts: SavedCommunityPost[]
 ): {
   savedBits: SavedBit[];
   savedFormulas: SavedFormula[];
   savedRevisionCards: SavedRevisionCard[];
   savedRevisionUnits: SavedRevisionUnit[];
+  savedCommunityPosts: SavedCommunityPost[];
 } {
   return {
     savedBits: mergeSavedById(localBits, serverBits),
     savedFormulas: mergeSavedById(localFormulas, serverFormulas),
     savedRevisionCards: mergeSavedById(localRevisionCards, serverRevisionCards),
     savedRevisionUnits: mergeSavedById(localRevisionUnits, serverRevisionUnits),
+    savedCommunityPosts: mergeSavedById(localCommunityPosts, serverCommunityPosts),
   };
 }

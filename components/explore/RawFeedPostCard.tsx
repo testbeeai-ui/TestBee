@@ -1,8 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import { motion } from "framer-motion";
-import { Bookmark, ChevronDown, ChevronUp, MessageSquare, Tag } from "lucide-react";
+import { Bookmark, ChevronDown, ChevronUp, Link2, MessageSquare, Tag } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -44,6 +43,7 @@ function formatTimeAgo(iso: string): string {
 export interface RawFeedPostCardProps {
   post: RawPostRow;
   index: number;
+  isSavedForRevision?: boolean;
   myVote: -1 | 0 | 1;
   threadOpen: boolean;
   comments: CommentRow[];
@@ -57,11 +57,14 @@ export interface RawFeedPostCardProps {
   onSubmitComment: () => void;
   onReplyTo: (commentId: string | null) => void;
   onSaveForRevision: () => void;
+  onOpenSourceLink?: () => void;
+  canOpenSourceLink?: boolean;
 }
 
 export default function RawFeedPostCard({
   post,
   index,
+  isSavedForRevision = false,
   myVote,
   threadOpen,
   comments,
@@ -75,6 +78,8 @@ export default function RawFeedPostCard({
   onSubmitComment,
   onReplyTo,
   onSaveForRevision,
+  onOpenSourceLink,
+  canOpenSourceLink = false,
 }: RawFeedPostCardProps) {
   const name = post.profiles?.name || "Learner";
   const initials = name
@@ -89,6 +94,40 @@ export default function RawFeedPostCard({
   const score = post.upvote_count - post.downvote_count;
   const n = post.comment_count ?? 0;
   const threadLabel = n === 0 ? "Thread" : n === 1 ? "Thread (1 reply)" : `Thread (${n} replies)`;
+  const isQuizPost = post.source_type === "quiz_post";
+  const contextChips: { key: string; label: string; value: string; tone: string }[] = [];
+  if (post.subject) {
+    contextChips.push({
+      key: "subject",
+      label: "",
+      value: subjName,
+      tone: "bg-blue-500/15 text-blue-300 ring-blue-400/30",
+    });
+  }
+  if (post.chapter_ref && post.chapter_ref.trim().length > 0) {
+    contextChips.push({
+      key: "chapter",
+      label: "CH",
+      value: post.chapter_ref,
+      tone: "bg-cyan-500/15 text-cyan-200 ring-cyan-400/30",
+    });
+  }
+  if (post.topic_ref && post.topic_ref.trim().length > 0) {
+    contextChips.push({
+      key: "topic",
+      label: "TP",
+      value: post.topic_ref,
+      tone: "bg-violet-500/15 text-violet-200 ring-violet-400/30",
+    });
+  }
+  if (post.subtopic_ref && post.subtopic_ref.trim().length > 0) {
+    contextChips.push({
+      key: "subtopic",
+      label: "SUB",
+      value: post.subtopic_ref,
+      tone: "bg-amber-500/15 text-amber-200 ring-amber-400/35",
+    });
+  }
 
   const openThread = () => {
     if (!threadOpen) {
@@ -119,8 +158,7 @@ export default function RawFeedPostCard({
             <span className="text-muted-foreground">·</span>
             <span className="text-xs text-muted-foreground">{formatTimeAgo(post.created_at)}</span>
           </div>
-          {post.chapter_ref ? <p className="mt-1 text-xs font-medium text-primary">{post.chapter_ref}</p> : null}
-          {post.tags && post.tags.length > 0 ? (
+          {!isQuizPost && post.tags && post.tags.length > 0 ? (
             <div className="mt-1 flex flex-wrap gap-1">
               {post.tags.map((t) => (
                 <span
@@ -142,6 +180,27 @@ export default function RawFeedPostCard({
           ) : (
             <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-foreground">{post.content}</p>
           )}
+          {contextChips.length > 0 ? (
+            <div className="mt-2.5 flex items-center gap-2 overflow-hidden whitespace-nowrap">
+              {contextChips.map((chip) => (
+                <span
+                  key={chip.key}
+                  className={cn(
+                    "inline-flex min-w-0 items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ring-inset",
+                    chip.key === "subject" && "max-w-[120px]",
+                    chip.key === "chapter" && "max-w-[170px]",
+                    chip.key === "topic" && "max-w-[160px]",
+                    chip.key === "subtopic" && "max-w-[130px]",
+                    chip.tone
+                  )}
+                  title={chip.value}
+                >
+                  {chip.label ? <span className="shrink-0 opacity-85">{chip.label}</span> : null}
+                  <span className="truncate">{chip.value}</span>
+                </span>
+              ))}
+            </div>
+          ) : null}
 
           <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
             <div
@@ -179,10 +238,17 @@ export default function RawFeedPostCard({
             <button
               type="button"
               onClick={onSaveForRevision}
-              className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-xs font-medium transition-colors",
+                isSavedForRevision
+                  ? "bg-primary/15 text-primary ring-1 ring-primary/35"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
             >
-              <Bookmark className="h-4 w-4 shrink-0" />
-              Save for revision
+              <Bookmark
+                className={cn("h-4 w-4 shrink-0", isSavedForRevision && "fill-current")}
+              />
+              {isSavedForRevision ? "Saved for revision" : "Save for revision"}
             </button>
 
             <span
@@ -201,6 +267,23 @@ export default function RawFeedPostCard({
               <MessageSquare className="h-4 w-4 shrink-0" />
               {threadLabel}
             </button>
+            {canOpenSourceLink ? (
+              <button
+                type="button"
+                onClick={onOpenSourceLink}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold transition-all",
+                  "border-primary/45 bg-primary/12 text-primary shadow-[0_0_0_1px_rgba(59,130,246,0.18)]",
+                  "hover:bg-primary/20 hover:border-primary/60 hover:shadow-[0_0_0_1px_rgba(59,130,246,0.28)]",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background"
+                )}
+                title="Open source topic"
+                aria-label="Open source topic link"
+              >
+                <Link2 className="h-4 w-4 shrink-0" />
+                Link
+              </button>
+            ) : null}
           </div>
 
           {threadOpen ? (

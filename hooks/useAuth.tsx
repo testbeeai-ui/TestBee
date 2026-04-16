@@ -9,6 +9,7 @@ import type {
   SavedFormula,
   SavedRevisionCard,
   SavedRevisionUnit,
+  SavedCommunityPost,
 } from '@/types';
 import { targetExamToExamType } from '@/lib/targetExam';
 import { mergeAllSavedContent } from '@/lib/mergeSavedContent';
@@ -37,6 +38,7 @@ interface Profile {
   saved_formulas?: SavedFormula[];
   saved_revision_cards?: SavedRevisionCard[];
   saved_revision_units?: SavedRevisionUnit[];
+  saved_community_posts?: SavedCommunityPost[];
   /** Submitted topic-quiz (Bits) attempts keyed like bits-attempts API; retakes overwrite same key. */
   bits_test_attempts?: Json | null;
   /** Per-lesson engagement snapshots (in-progress quiz draft lives under bits + graded). */
@@ -181,21 +183,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const revisionUnits = Array.isArray(profile.saved_revision_units)
         ? profile.saved_revision_units
         : [];
+      const communityPosts = Array.isArray(profile.saved_community_posts)
+        ? profile.saved_community_posts
+        : [];
       const merged = mergeAllSavedContent(
         u.savedBits ?? [],
         u.savedFormulas ?? [],
         u.savedRevisionCards ?? [],
         u.savedRevisionUnits ?? [],
+        u.savedCommunityPosts ?? [],
         bits,
         formulas,
         revisionCards,
-        revisionUnits
+        revisionUnits,
+        communityPosts
       );
       useUserStore.getState().setSavedFromServer(
         merged.savedBits,
         merged.savedFormulas,
         merged.savedRevisionCards,
-        merged.savedRevisionUnits
+        merged.savedRevisionUnits,
+        merged.savedCommunityPosts
       );
     };
     const run = () => {
@@ -223,6 +231,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     profile?.saved_formulas,
     profile?.saved_revision_cards,
     profile?.saved_revision_units,
+    profile?.saved_community_posts,
   ]);
 
   const signInWithGoogle = async (redirectPath: string = '/onboarding') => {

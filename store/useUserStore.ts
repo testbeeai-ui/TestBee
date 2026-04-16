@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { UserProfile, AnswerResult, ClassLevel, Stream, SubjectCombo, SavedRevisionCard, SavedRevisionUnit, SavedBit, SavedFormula, Board, ExamType } from '@/types';
+import { UserProfile, AnswerResult, ClassLevel, Stream, SubjectCombo, SavedRevisionCard, SavedRevisionUnit, SavedBit, SavedFormula, SavedCommunityPost, Board, ExamType } from '@/types';
 
 interface UserState {
   user: UserProfile | null;
@@ -25,11 +25,14 @@ interface UserState {
   unsaveBit: (bitId: string) => void;
   saveFormula: (formula: SavedFormula) => void;
   unsaveFormula: (formulaId: string) => void;
+  saveCommunityPost: (post: SavedCommunityPost) => void;
+  unsaveCommunityPost: (postId: string) => void;
   setSavedFromServer: (
     savedBits: SavedBit[],
     savedFormulas: SavedFormula[],
     savedRevisionCards: SavedRevisionCard[],
-    savedRevisionUnits: SavedRevisionUnit[]
+    savedRevisionUnits: SavedRevisionUnit[],
+    savedCommunityPosts: SavedCommunityPost[]
   ) => void;
   likeQuestion: (questionId: string) => void;
   unlikeQuestion: (questionId: string) => void;
@@ -63,6 +66,7 @@ export const useUserStore = create<UserState>()(
             savedRevisionUnits: [],
             savedBits: [],
             savedFormulas: [],
+            savedCommunityPosts: [],
             likedQuestions: [],
             streakMinutes: 0,
             isOnBreak: false,
@@ -245,7 +249,28 @@ export const useUserStore = create<UserState>()(
             : null,
         })),
 
-      setSavedFromServer: (savedBits, savedFormulas, savedRevisionCards, savedRevisionUnits) =>
+      saveCommunityPost: (post) =>
+        set((state) => {
+          const list = state.user?.savedCommunityPosts ?? [];
+          if (list.some((p) => p.postId === post.postId)) return state;
+          return {
+            user: state.user
+              ? { ...state.user, savedCommunityPosts: [post, ...list] }
+              : null,
+          };
+        }),
+
+      unsaveCommunityPost: (postId) =>
+        set((state) => ({
+          user: state.user
+            ? {
+              ...state.user,
+              savedCommunityPosts: (state.user.savedCommunityPosts ?? []).filter((p) => p.postId !== postId),
+            }
+            : null,
+        })),
+
+      setSavedFromServer: (savedBits, savedFormulas, savedRevisionCards, savedRevisionUnits, savedCommunityPosts) =>
         set((state) =>
           state.user
             ? {
@@ -255,6 +280,7 @@ export const useUserStore = create<UserState>()(
                   savedFormulas,
                   savedRevisionCards,
                   savedRevisionUnits,
+                  savedCommunityPosts,
                 },
               }
             : state
@@ -310,6 +336,7 @@ export const useUserStore = create<UserState>()(
           if (!Array.isArray(user.savedFormulas)) user.savedFormulas = [];
           if (!Array.isArray(user.savedRevisionCards)) user.savedRevisionCards = [];
           if (!Array.isArray(user.savedRevisionUnits)) user.savedRevisionUnits = [];
+          if (!Array.isArray(user.savedCommunityPosts)) user.savedCommunityPosts = [];
         }
         return persistedState;
       },

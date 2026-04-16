@@ -194,16 +194,19 @@ export default function MockPage() {
           u.savedFormulas ?? [],
           u.savedRevisionCards ?? [],
           u.savedRevisionUnits ?? [],
+          u.savedCommunityPosts ?? [],
           data.savedBits,
           data.savedFormulas,
           data.savedRevisionCards,
-          data.savedRevisionUnits
+          data.savedRevisionUnits,
+          data.savedCommunityPosts
         );
         useUserStore.getState().setSavedFromServer(
           merged.savedBits,
           merged.savedFormulas,
           merged.savedRevisionCards,
-          merged.savedRevisionUnits
+          merged.savedRevisionUnits,
+          merged.savedCommunityPosts
         );
       })
       .catch(() => {});

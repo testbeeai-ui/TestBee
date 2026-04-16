@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
 import { createClient, createClientWithToken } from "@/integrations/supabase/server";
-import type { SavedBit, SavedFormula, SavedRevisionCard, SavedRevisionUnit } from "@/types";
+import type {
+  SavedBit,
+  SavedFormula,
+  SavedRevisionCard,
+  SavedRevisionUnit,
+  SavedCommunityPost,
+} from "@/types";
 
 async function getSupabaseAndUser(request: Request) {
   const cookieClient = await createClient();
@@ -27,7 +33,7 @@ export async function GET(request: Request) {
     const { supabase, user } = ctx;
     const { data: profile, error } = await supabase
       .from("profiles")
-      .select("saved_bits, saved_formulas, saved_revision_cards, saved_revision_units")
+      .select("saved_bits, saved_formulas, saved_revision_cards, saved_revision_units, saved_community_posts")
       .eq("id", user.id)
       .maybeSingle();
     if (error) {
@@ -39,7 +45,15 @@ export async function GET(request: Request) {
     const savedRevisionCards = (profile?.saved_revision_cards ?? []) as unknown as SavedRevisionCard[];
     const savedRevisionUnits =
       (profile?.saved_revision_units ?? []) as unknown as SavedRevisionUnit[];
-    return NextResponse.json({ savedBits, savedFormulas, savedRevisionCards, savedRevisionUnits });
+    const savedCommunityPosts =
+      (profile?.saved_community_posts ?? []) as unknown as SavedCommunityPost[];
+    return NextResponse.json({
+      savedBits,
+      savedFormulas,
+      savedRevisionCards,
+      savedRevisionUnits,
+      savedCommunityPosts,
+    });
   } catch (e) {
     console.error("saved-content GET error", e);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
@@ -62,16 +76,20 @@ export async function POST(request: Request) {
     const savedRevisionUnits = Array.isArray(body?.savedRevisionUnits)
       ? body.savedRevisionUnits
       : undefined;
+    const savedCommunityPosts = Array.isArray(body?.savedCommunityPosts)
+      ? body.savedCommunityPosts
+      : undefined;
     if (
       savedBits === undefined &&
       savedFormulas === undefined &&
       savedRevisionCards === undefined &&
-      savedRevisionUnits === undefined
+      savedRevisionUnits === undefined &&
+      savedCommunityPosts === undefined
     ) {
       return NextResponse.json(
         {
           error:
-            "savedBits, savedFormulas, savedRevisionCards, or savedRevisionUnits required",
+            "savedBits, savedFormulas, savedRevisionCards, savedRevisionUnits, or savedCommunityPosts required",
         },
         { status: 400 }
       );
@@ -81,6 +99,7 @@ export async function POST(request: Request) {
     if (savedFormulas !== undefined) updates.saved_formulas = savedFormulas;
     if (savedRevisionCards !== undefined) updates.saved_revision_cards = savedRevisionCards;
     if (savedRevisionUnits !== undefined) updates.saved_revision_units = savedRevisionUnits;
+    if (savedCommunityPosts !== undefined) updates.saved_community_posts = savedCommunityPosts;
     const { error } = await supabase
       .from("profiles")
       .update(updates)

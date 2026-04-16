@@ -28,7 +28,7 @@ const sections: SidebarSection[] = [
     items: [
       { label: 'Feed', icon: Newspaper, href: '#community-feed' },
       { label: 'Trending', icon: TrendingUp, href: '#trending-topics' },
-      { label: 'Saved', icon: Bookmark, href: '/doubts?tab=saved' },
+      { label: 'Saved', icon: Bookmark, href: '/revision' },
       { label: 'My Network', icon: Users, href: '/profile' },
     ],
   },

@@ -1,6 +1,12 @@
 import { supabase } from "@/integrations/supabase/client";
 import { useUserStore } from "@/store/useUserStore";
-import type { SavedBit, SavedFormula, SavedRevisionCard, SavedRevisionUnit } from "@/types";
+import type {
+  SavedBit,
+  SavedFormula,
+  SavedRevisionCard,
+  SavedRevisionUnit,
+  SavedCommunityPost,
+} from "@/types";
 
 const API = "/api/user/saved-content";
 
@@ -20,12 +26,19 @@ export async function fetchSavedContent(): Promise<{
   savedFormulas: SavedFormula[];
   savedRevisionCards: SavedRevisionCard[];
   savedRevisionUnits: SavedRevisionUnit[];
+  savedCommunityPosts: SavedCommunityPost[];
 }> {
   const headers = await getAuthHeaders();
   const res = await fetch(API, { headers });
   if (!res.ok) {
     if (res.status === 401) {
-      return { savedBits: [], savedFormulas: [], savedRevisionCards: [], savedRevisionUnits: [] };
+      return {
+        savedBits: [],
+        savedFormulas: [],
+        savedRevisionCards: [],
+        savedRevisionUnits: [],
+        savedCommunityPosts: [],
+      };
     }
     throw new Error("Failed to fetch saved content");
   }
@@ -35,6 +48,7 @@ export async function fetchSavedContent(): Promise<{
     savedFormulas: Array.isArray(data.savedFormulas) ? data.savedFormulas : [],
     savedRevisionCards: Array.isArray(data.savedRevisionCards) ? data.savedRevisionCards : [],
     savedRevisionUnits: Array.isArray(data.savedRevisionUnits) ? data.savedRevisionUnits : [],
+    savedCommunityPosts: Array.isArray(data.savedCommunityPosts) ? data.savedCommunityPosts : [],
   };
 }
 
@@ -42,13 +56,20 @@ export async function syncSavedContent(
   savedBits: SavedBit[],
   savedFormulas: SavedFormula[],
   savedRevisionCards: SavedRevisionCard[],
-  savedRevisionUnits: SavedRevisionUnit[]
+  savedRevisionUnits: SavedRevisionUnit[],
+  savedCommunityPosts: SavedCommunityPost[]
 ): Promise<void> {
   const authHeaders = await getAuthHeaders();
   const res = await fetch(API, {
     method: "POST",
     headers: { ...authHeaders, "Content-Type": "application/json" },
-    body: JSON.stringify({ savedBits, savedFormulas, savedRevisionCards, savedRevisionUnits }),
+    body: JSON.stringify({
+      savedBits,
+      savedFormulas,
+      savedRevisionCards,
+      savedRevisionUnits,
+      savedCommunityPosts,
+    }),
   });
   if (!res.ok && res.status !== 401) {
     throw new Error("Failed to sync saved content");
@@ -63,6 +84,7 @@ export async function syncAllSavedContent(): Promise<void> {
     user.savedBits ?? [],
     user.savedFormulas ?? [],
     user.savedRevisionCards ?? [],
-    user.savedRevisionUnits ?? []
+    user.savedRevisionUnits ?? [],
+    user.savedCommunityPosts ?? []
   );
 }

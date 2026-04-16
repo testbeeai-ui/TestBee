@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import AppLayout from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { getTheoryOrPlaceholder, getTopicOverviewOrPlaceholder } from "@/data/topicTheory";
 import TheoryContent from "@/components/TheoryContent";
 import TopicAgentTracePanel from "@/components/TopicAgentTracePanel";
@@ -85,7 +87,13 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { fuzzySubtopicKey } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 import { fetchBitsAttempt, saveBitsAttempt, type BitsAttemptRecord } from "@/lib/bitsAttemptService";
+import {
+  buildQuizPostDrafts,
+  pickRandomQuizPostDraft,
+  type QuizPostDraft,
+} from "@/lib/quizPostTemplates";
 import {
   fetchSubtopicEngagement,
   saveSubtopicEngagement,
@@ -378,12 +386,29 @@ function formatFocusTimer(totalSeconds: number): string {
   return `${mins}:${secs}`;
 }
 
+/**
+ * Quiz payloads sometimes include malformed micro-unit latex like "\muC" that KaTeX
+ * can render as red error text in mixed prose. Normalize to plain UTF units for stable UI.
+ */
+function normalizeQuizDisplayMath(text: string): string {
+  return String(text ?? "")
+    .replace(/\\mu\s*([A-Za-z]+)/g, "μ$1")
+    .replace(/\\Omega/g, "Ω");
+}
+
 export default function TopicPage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
   const isRandomMode = searchParams.get("mode") === "random";
   const isMagicWallSource = searchParams.get("source") === "magic-wall";
+  const isFreshQuizLink = searchParams.get("freshQuiz") === "1";
+  const panelParam = searchParams.get("panel");
+  type PanelTab = "instacue" | "quiz" | "numerals" | "concepts";
+  const initialPanelTab: PanelTab =
+    panelParam === "quiz" || panelParam === "numerals" || panelParam === "concepts"
+      ? panelParam
+      : "instacue";
   const mode = isRandomMode ? "random" : "linear";
 
   const board = params.board as string;
@@ -401,12 +426,17 @@ export default function TopicPage() {
   const [focusTimerRunning, setFocusTimerRunning] = useState(false);
   const [bitsVisitedIndices, setBitsVisitedIndices] = useState<Set<number>>(new Set());
   const [instaCueValidatedIndices, setInstaCueValidatedIndices] = useState<Set<number>>(new Set());
+  const [rightPanelTab, setRightPanelTab] = useState<PanelTab>(initialPanelTab);
   /** Cards the learner has landed on in the carousel (scroll / dots), not only flipped. */
   const [instaCueNavIndices, setInstaCueNavIndices] = useState<Set<number>>(new Set());
   /** Per-formula numerals draft in the formulas dialog (key = formula index). */
   const [formulaByIdx, setFormulaByIdx] = useState<Record<number, { qIdx: number; answers: Record<number, number> }>>({});
   const engagementHydratedRef = useRef<string | null>(null);
   const engagementSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setRightPanelTab(initialPanelTab);
+  }, [initialPanelTab, board, subject, grade, unitSlug, topicSlug, level]);
 
   useEffect(() => {
     if (!isMagicWallSource) return;
@@ -619,6 +649,14 @@ export default function TopicPage() {
   const [submittingBits, setSubmittingBits] = useState(false);
   const [bitsReviewMode, setBitsReviewMode] = useState(false);
   const [bitsAttempt, setBitsAttempt] = useState<BitsAttemptRecord | null>(null);
+  const [quizPostDialogOpen, setQuizPostDialogOpen] = useState(false);
+  const [quizPostDrafts, setQuizPostDrafts] = useState<QuizPostDraft[]>([]);
+  const [quizPostUsedTemplateIds, setQuizPostUsedTemplateIds] = useState<Set<string>>(new Set());
+  const [quizPostTemplateId, setQuizPostTemplateId] = useState<string>("");
+  const [quizPostTitle, setQuizPostTitle] = useState("");
+  const [quizPostDetails, setQuizPostDetails] = useState("");
+  const [publishingQuizPost, setPublishingQuizPost] = useState(false);
+  const showPreviousQuizAttempt = Boolean(bitsAttempt) && !isFreshQuizLink;
   const [selectedFormulaIdx, setSelectedFormulaIdx] = useState<number | null>(null);
   const [formulaBitsCurrentIdx, setFormulaBitsCurrentIdx] = useState(0);
   const [formulaBitsSelectedAnswers, setFormulaBitsSelectedAnswers] = useState<Record<number, number>>({});
@@ -688,6 +726,166 @@ export default function TopicPage() {
   const bitsSignature = useMemo(() => getBitsSignature(dbBitsQuestions), [dbBitsQuestions]);
   /** Full "Standard areas: …" string must reach MathText so KaTeX can format circle/parabola rows. */
   const displaySubtopicTitle = useMemo(() => subtopicMathTextLabel(subtopicName), [subtopicName]);
+  const quizContextChips = useMemo(() => {
+    const items: string[] = [];
+    if (topicNode?.subject) items.push(topicNode.subject);
+    if (topicNode?.topic) items.push(topicNode.topic);
+    if (subtopicName) items.push(subtopicName);
+    return items;
+  }, [topicNode?.subject, topicNode?.topic, subtopicName]);
+
+  const buildInitialQuizDraft = useCallback(() => {
+    if (!bitsAttempt) return null;
+    const scorePercent =
+      bitsAttempt.totalQuestions > 0
+        ? Math.round((bitsAttempt.correctCount / bitsAttempt.totalQuestions) * 100)
+        : 0;
+    const drafts = buildQuizPostDrafts({
+      subject: topicNode?.subject ?? subject,
+      chapter: topicNode?.topic ?? unitSlug,
+      topic: topicNode?.topic ?? topicSlug,
+      subtopic: subtopicName,
+      scorePercent,
+      correctCount: bitsAttempt.correctCount,
+      wrongCount: bitsAttempt.wrongCount,
+      totalQuestions: bitsAttempt.totalQuestions,
+      hadPreviousAttempt: true,
+    });
+    const first = pickRandomQuizPostDraft(drafts, new Set());
+    return { drafts, first };
+  }, [bitsAttempt, topicNode?.subject, topicNode?.topic, subject, unitSlug, topicSlug, subtopicName]);
+
+  const handleOpenQuizPostDialog = useCallback(() => {
+    if (!bitsAttempt) {
+      toast({ title: "No quiz result found", description: "Submit the quiz once before posting.", variant: "destructive" });
+      return;
+    }
+    if (!session?.user?.id) {
+      toast({ title: "Sign in required", description: "Please sign in to post your quiz result.", variant: "destructive" });
+      return;
+    }
+    const seeded = buildInitialQuizDraft();
+    if (!seeded) return;
+    setQuizPostDrafts(seeded.drafts);
+    setQuizPostUsedTemplateIds(new Set([seeded.first.templateId]));
+    setQuizPostTemplateId(seeded.first.templateId);
+    setQuizPostTitle(seeded.first.title);
+    setQuizPostDetails(seeded.first.details);
+    setQuizPostDialogOpen(true);
+  }, [bitsAttempt, session?.user?.id, toast, buildInitialQuizDraft]);
+
+  const handleShuffleQuizTemplate = useCallback(() => {
+    if (!quizPostDrafts.length) return;
+    const next = pickRandomQuizPostDraft(quizPostDrafts, quizPostUsedTemplateIds);
+    setQuizPostTemplateId(next.templateId);
+    setQuizPostTitle(next.title);
+    setQuizPostDetails(next.details);
+    setQuizPostUsedTemplateIds((prev) => {
+      const updated = new Set(prev);
+      updated.add(next.templateId);
+      return updated;
+    });
+  }, [quizPostDrafts, quizPostUsedTemplateIds]);
+
+  const handlePublishQuizPost = useCallback(async () => {
+    if (!session?.user?.id || !bitsAttempt) return;
+    const scorePercent =
+      bitsAttempt.totalQuestions > 0
+        ? Math.round((bitsAttempt.correctCount / bitsAttempt.totalQuestions) * 100)
+        : 0;
+    const correctTotalLine = `${bitsAttempt.correctCount}/${bitsAttempt.totalQuestions}`;
+    const titleWithMetrics = /\d{1,3}%/.test(quizPostTitle)
+      ? quizPostTitle.trim()
+      : `${quizPostTitle.trim()} | ${scorePercent}%`;
+    const detailsWithScorePercent = /\d{1,3}%/.test(quizPostDetails)
+      ? quizPostDetails.trim()
+      : `${quizPostDetails.trim()} Score: ${scorePercent}%.`;
+    const detailsWithMetrics = /\b\d+\s*\/\s*\d+\b/.test(detailsWithScorePercent)
+      ? detailsWithScorePercent
+      : `${detailsWithScorePercent} Correct/Total: ${correctTotalLine}.`;
+    const cleanTitle = titleWithMetrics.trim();
+    const cleanDetails = detailsWithMetrics.trim();
+    if (cleanTitle.length < 3) {
+      toast({ title: "Title too short", description: "Use at least 3 characters in your post title.", variant: "destructive" });
+      return;
+    }
+    setPublishingQuizPost(true);
+    const sourceSubject = (topicNode?.subject ?? subject ?? "physics").toLowerCase();
+    const selectedTemplate = quizPostDrafts.find((d) => d.templateId === quizPostTemplateId);
+    const tags = selectedTemplate?.tags ?? [];
+    const payload = {
+      templateId: quizPostTemplateId,
+      level,
+      scorePercent,
+      correctCount: bitsAttempt.correctCount,
+      wrongCount: bitsAttempt.wrongCount,
+      totalQuestions: bitsAttempt.totalQuestions,
+      submittedAt: bitsAttempt.submittedAt,
+    };
+
+    const { data, error } = await supabase
+      .from("lessons_raw_posts")
+      .insert({
+        user_id: session.user.id,
+        kind: "post",
+        title: cleanTitle,
+        content: cleanDetails,
+        tags,
+        subject: sourceSubject,
+        chapter_ref: topicNode?.topic ?? null,
+        board_ref: board,
+        grade_ref: grade,
+        unit_ref: unitSlug,
+        topic_ref: topicNode?.topic ?? topicSlug,
+        subtopic_ref: subtopicName || null,
+        source_type: "quiz_post",
+        source_payload: payload,
+      })
+      .select("id")
+      .single();
+
+    setPublishingQuizPost(false);
+    if (error) {
+      toast({ title: "Could not publish", description: error.message, variant: "destructive" });
+      return;
+    }
+    const postId = data?.id;
+    setQuizPostDialogOpen(false);
+    toast({
+      title: "Quiz post published",
+      description: (
+        <div className="mt-1 space-y-2">
+          <p>Your quiz result is now live in Lessons.</p>
+          <button
+            type="button"
+            className="inline-flex items-center rounded-md border border-primary/55 bg-primary/20 px-3.5 py-1.5 text-sm font-semibold text-primary shadow-[0_0_0_1px_rgba(59,130,246,0.2)] transition-all hover:border-primary/70 hover:bg-primary/30 hover:text-primary"
+            onClick={() => router.push(`/explore-1?focusPost=${postId ?? ""}#raw-community-feed`)}
+          >
+            See your post
+          </button>
+        </div>
+      ),
+    });
+  }, [
+    session?.user?.id,
+    bitsAttempt,
+    quizPostTitle,
+    quizPostDetails,
+    quizPostDrafts,
+    quizPostTemplateId,
+    topicNode?.subject,
+    topicNode?.topic,
+    subject,
+    subtopicName,
+    board,
+    grade,
+    unitSlug,
+    topicSlug,
+    level,
+    toast,
+    router,
+  ]);
+
   const practiceFormulasForUi = useMemo(() => {
     if (dbPracticeFormulas.length > 0) return dbPracticeFormulas;
     if (!topicNode || !subtopicName) return [];
@@ -3708,7 +3906,7 @@ export default function TopicPage() {
           {isInvestorTopicHubLayout && (
           <aside className="w-full lg:w-72 xl:w-80 shrink-0 min-w-0 lg:min-w-[18rem]">
             <div className="lg:sticky lg:top-24 space-y-4">
-              <Tabs defaultValue="instacue" className="w-full">
+              <Tabs value={rightPanelTab} onValueChange={(v) => setRightPanelTab(v as PanelTab)} className="w-full">
                 <TabsList className="grid w-full grid-cols-4 mb-3">
                   <TabsTrigger value="instacue" className="text-xs">+ InstaCue</TabsTrigger>
                   <TabsTrigger value="quiz" className="text-xs">Quiz (0)</TabsTrigger>
@@ -3893,7 +4091,7 @@ export default function TopicPage() {
 
               {/* Right column: InstaCue / Quiz / Numerals / Concepts */}
               {isSubtopicDashboardLayout && (
-                <Tabs defaultValue="instacue" className="w-full">
+                <Tabs value={rightPanelTab} onValueChange={(v) => setRightPanelTab(v as PanelTab)} className="w-full">
                   <TabsList className="grid w-full grid-cols-4 mb-3">
                     <TabsTrigger value="instacue" className="text-xs">
                       {canEditTheory ? "+ InstaCue" : "InstaCue"}
@@ -4092,7 +4290,7 @@ export default function TopicPage() {
                             <span className="text-muted-foreground">Level</span>
                             <span className="font-bold text-foreground capitalize">{difficultyLevel}</span>
                           </li>
-                          {bitsAttempt && (
+                          {showPreviousQuizAttempt && bitsAttempt && (
                             <li className="flex justify-between py-1">
                               <span className="text-muted-foreground">Last score</span>
                               <span className="font-bold text-green-700 dark:text-green-300">
@@ -4104,7 +4302,7 @@ export default function TopicPage() {
                         <Button
                           className="w-full rounded-xl edu-btn-primary text-sm font-bold"
                           onClick={() => {
-                            if (bitsAttempt) {
+                            if (showPreviousQuizAttempt && bitsAttempt) {
                               setBitsCurrentIdx(0);
                               setBitsSelectedAnswers({});
                               setBitsReviewMode(false);
@@ -4114,13 +4312,13 @@ export default function TopicPage() {
                             setBitsDialogOpen(true);
                           }}
                         >
-                          {bitsAttempt
+                          {showPreviousQuizAttempt
                             ? "Open quiz →"
                             : bitsCurrentIdx > 0 || bitsFilledQuestionCount > 0
                               ? "Continue quiz →"
                               : "Start Quiz →"}
                         </Button>
-                        {bitsAttempt && (
+                        {showPreviousQuizAttempt && bitsAttempt && (
                           <button
                             type="button"
                             className="w-full text-xs text-primary hover:underline text-center"
@@ -4164,7 +4362,7 @@ export default function TopicPage() {
                             <DialogDescription className="text-xs">Test your understanding</DialogDescription>
                           </DialogHeader>
                             <div className="min-w-0 max-w-full space-y-3">
-                              {!bitsReviewMode && bitsAttempt ? (
+                              {!bitsReviewMode && showPreviousQuizAttempt && bitsAttempt ? (
                                 <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
                                   <p className="text-lg font-bold text-foreground">Previous submission found</p>
                                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -4188,11 +4386,11 @@ export default function TopicPage() {
                                   <p className="text-xs text-muted-foreground">
                                     Submitted on {new Date(bitsAttempt.submittedAt).toLocaleString()}
                                   </p>
-                                  <div className="flex items-center justify-between gap-2 pt-1">
+                                  <div className="grid grid-cols-1 gap-2 pt-1 sm:grid-cols-3 sm:items-center">
                                     <Button
                                       variant="outline"
                                       size="sm"
-                                      className="rounded-xl h-8 px-3 text-xs"
+                                      className="rounded-xl h-8 px-3 text-xs sm:justify-self-start"
                                       onClick={() => {
                                         const selected: Record<number, number> = {};
                                         for (const [k, v] of Object.entries(bitsAttempt.selectedAnswers)) {
@@ -4209,7 +4407,7 @@ export default function TopicPage() {
                                     <Button
                                       variant="default"
                                       size="sm"
-                                      className="rounded-xl h-8 px-3 text-xs"
+                                      className="rounded-xl h-8 px-3 text-xs sm:justify-self-center"
                                       onClick={() => {
                                         setBitsSelectedAnswers({});
                                         setBitsCurrentIdx(0);
@@ -4218,7 +4416,88 @@ export default function TopicPage() {
                                     >
                                       Take test another time
                                     </Button>
+                                    <Button
+                                      variant="secondary"
+                                      size="sm"
+                                      className="h-9 rounded-xl border border-primary/35 bg-primary/12 px-5 text-sm font-semibold text-primary shadow-[0_0_0_1px_rgba(59,130,246,0.18)] transition hover:bg-primary/18 sm:justify-self-end"
+                                      onClick={handleOpenQuizPostDialog}
+                                    >
+                                      Post quiz
+                                    </Button>
                                   </div>
+
+                                  <Dialog open={quizPostDialogOpen} onOpenChange={setQuizPostDialogOpen}>
+                                    <DialogContent className="w-[min(42rem,calc(100vw-1.5rem))] max-w-2xl rounded-2xl p-4 sm:p-6">
+                                      <DialogHeader>
+                                        <DialogTitle>Post quiz result</DialogTitle>
+                                        <DialogDescription>
+                                          Pick a ready format, edit if needed, then publish to Lessons.
+                                        </DialogDescription>
+                                      </DialogHeader>
+
+                                      <div className="rounded-xl border border-border bg-muted/25 p-3 text-xs text-muted-foreground">
+                                        <p className="font-semibold text-foreground">Context</p>
+                                        <div className="mt-2 flex flex-wrap gap-1.5">
+                                          {quizContextChips.map((chip) => (
+                                            <span key={chip} className="rounded-full border border-border bg-background px-2 py-0.5 text-[11px]">
+                                              {chip}
+                                            </span>
+                                          ))}
+                                        </div>
+                                      </div>
+
+                                      <div className="space-y-2">
+                                        <div className="flex items-center justify-between gap-2">
+                                          <Label className="text-xs font-semibold">Template preview</Label>
+                                          <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            className="h-8 rounded-lg"
+                                            onClick={handleShuffleQuizTemplate}
+                                            disabled={publishingQuizPost}
+                                          >
+                                            <Shuffle className="mr-1 h-3.5 w-3.5" />
+                                            Shuffle template
+                                          </Button>
+                                        </div>
+                                        <input
+                                          value={quizPostTitle}
+                                          onChange={(e) => setQuizPostTitle(e.target.value)}
+                                          className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+                                          placeholder="Post title"
+                                          disabled={publishingQuizPost}
+                                        />
+                                        <Textarea
+                                          value={quizPostDetails}
+                                          onChange={(e) => setQuizPostDetails(e.target.value)}
+                                          className="min-h-[120px] rounded-xl"
+                                          placeholder="Details (optional)"
+                                          disabled={publishingQuizPost}
+                                        />
+                                      </div>
+
+                                      <DialogFooter className="gap-2 sm:gap-0">
+                                        <Button
+                                          type="button"
+                                          variant="outline"
+                                          className="rounded-xl"
+                                          disabled={publishingQuizPost}
+                                          onClick={() => setQuizPostDialogOpen(false)}
+                                        >
+                                          Cancel
+                                        </Button>
+                                        <Button
+                                          type="button"
+                                          className="rounded-xl"
+                                          disabled={publishingQuizPost}
+                                          onClick={() => void handlePublishQuizPost()}
+                                        >
+                                          {publishingQuizPost ? "Publishing..." : "Post"}
+                                        </Button>
+                                      </DialogFooter>
+                                    </DialogContent>
+                                  </Dialog>
                                 </div>
                               ) : (() => {
                                 const q = dbBitsQuestions[bitsCurrentIdx];
@@ -4247,7 +4526,7 @@ export default function TopicPage() {
                                     <div className="min-w-0 max-w-full rounded-2xl border border-border p-4 space-y-3 bg-card">
                                       <div className="flex items-start justify-between gap-3">
                                         <h3 className="min-w-0 max-w-full flex-1 text-[1.05rem] font-bold leading-snug text-foreground [overflow-wrap:anywhere] break-words">
-                                          <MathText>{q.question}</MathText>
+                                          <MathText>{normalizeQuizDisplayMath(q.question)}</MathText>
                                         </h3>
                                         <Button
                                           variant="outline"
@@ -4319,7 +4598,7 @@ export default function TopicPage() {
                                                 {String.fromCharCode(65 + oi)}
                                               </span>
                                               <span className="min-w-0 flex-1 [overflow-wrap:anywhere] break-words">
-                                                <MathText>{opt}</MathText>
+                                                <MathText>{normalizeQuizDisplayMath(opt)}</MathText>
                                               </span>
                                           {answered && isCorrect && <CheckCircle2 className="inline w-4 h-4 ml-auto text-green-600" />}
                                             </button>
@@ -4412,7 +4691,7 @@ export default function TopicPage() {
                                         <div className="bits-quiz-explanation mt-2 rounded-xl bg-muted/50 p-3 text-sm text-muted-foreground">
                                           <p className="mb-1 font-bold text-foreground">Explanation</p>
                                           <div className="min-w-0 max-w-full text-foreground/90">
-                                            <MathText as="div">{q.solution}</MathText>
+                                            <MathText as="div">{normalizeQuizDisplayMath(q.solution)}</MathText>
                                           </div>
                                         </div>
                                       )}
@@ -4721,7 +5000,7 @@ export default function TopicPage() {
 
                                   <div className="rounded-2xl border border-border p-4 space-y-3 bg-card">
                                     <h3 className="text-[1.05rem] font-bold leading-snug text-foreground">
-                                      <MathText>{q.question}</MathText>
+                                      <MathText>{normalizeQuizDisplayMath(q.question)}</MathText>
                                     </h3>
                                     <div
                                       className={useTwoColumns ? "grid grid-cols-1 sm:grid-cols-2 gap-2" : "space-y-2"}
@@ -4752,7 +5031,7 @@ export default function TopicPage() {
                                             <span className="w-7 h-7 rounded-full bg-background/90 flex items-center justify-center text-sm shrink-0 font-bold">
                                               {String.fromCharCode(65 + oi)}
                                             </span>
-                                            <MathText>{opt}</MathText>
+                                            <MathText>{normalizeQuizDisplayMath(opt)}</MathText>
                                             {answered && isCorrect && (
                                               <CheckCircle2 className="inline w-4 h-4 ml-auto text-green-600" />
                                             )}
@@ -4763,7 +5042,7 @@ export default function TopicPage() {
                                     {answered && q.solution && (
                                       <div className="mt-2 p-3 rounded-xl bg-muted/50 text-sm text-muted-foreground">
                                         <p className="font-bold text-foreground mb-1">Explanation</p>
-                                        <MathText>{q.solution}</MathText>
+                                        <MathText>{normalizeQuizDisplayMath(q.solution)}</MathText>
                                       </div>
                                     )}
                                     <div className="space-y-2 pt-1">
