@@ -37,6 +37,10 @@ function isMissingVoteCountColumns(msg: string): boolean {
   return m.includes("upvote_count") || m.includes("downvote_count") || m.includes("comment_count");
 }
 
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
 export interface RawCommunityFeedProps {
   refreshKey?: number;
 }
@@ -76,12 +80,15 @@ export default function RawCommunityFeed({ refreshKey = 0 }: RawCommunityFeedPro
         data = second.data;
         error = second.error;
         if (!error && data) {
-          data = data.map((r) => ({
-            ...r,
-            upvote_count: 0,
-            downvote_count: 0,
-            comment_count: 0,
-          }));
+          data = data.map((r) =>
+            isObjectRecord(r)
+              ? Object.assign({}, r, {
+                  upvote_count: 0,
+                  downvote_count: 0,
+                  comment_count: 0,
+                })
+              : r
+          );
         }
       }
 
@@ -90,7 +97,7 @@ export default function RawCommunityFeed({ refreshKey = 0 }: RawCommunityFeedPro
         setPosts([]);
         return;
       }
-      const rows = (data ?? []) as RawPostRow[];
+      const rows = ((data ?? []) as unknown) as RawPostRow[];
       setPosts(rows);
 
       const voteMap: Record<string, -1 | 0 | 1> = {};

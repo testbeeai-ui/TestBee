@@ -13,7 +13,7 @@
 
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 const SEED_TAG = "lessons-seed-v1";
 
@@ -37,7 +37,7 @@ function tryLoadEnv(...names: string[]) {
 tryLoadEnv(".env.local", ".env");
 
 async function pickStudentIds(
-  admin: ReturnType<typeof createClient>,
+  admin: SupabaseClient,
   preferredFirstNames: string[]
 ): Promise<string[]> {
   const picked: string[] = [];
@@ -52,7 +52,7 @@ async function pickStudentIds(
       .order("created_at", { ascending: true })
       .limit(1);
     if (error) continue;
-    const id = data?.[0]?.id;
+    const id = (data as Array<{ id: string }> | null)?.[0]?.id;
     if (id && !used.has(id)) {
       used.add(id);
       picked.push(id);
@@ -69,7 +69,7 @@ async function pickStudentIds(
       .limit(need + used.size);
 
     if (!error && rest) {
-      for (const row of rest) {
+      for (const row of rest as Array<{ id: string }>) {
         if (picked.length >= 4) break;
         if (row.id && !used.has(row.id)) {
           used.add(row.id);
