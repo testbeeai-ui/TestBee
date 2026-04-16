@@ -402,7 +402,6 @@ export default function TopicPage() {
   const router = useRouter();
   const isRandomMode = searchParams.get("mode") === "random";
   const isMagicWallSource = searchParams.get("source") === "magic-wall";
-  const isFreshQuizLink = searchParams.get("freshQuiz") === "1";
   const panelParam = searchParams.get("panel");
   type PanelTab = "instacue" | "quiz" | "numerals" | "concepts";
   const initialPanelTab: PanelTab =
@@ -656,7 +655,7 @@ export default function TopicPage() {
   const [quizPostTitle, setQuizPostTitle] = useState("");
   const [quizPostDetails, setQuizPostDetails] = useState("");
   const [publishingQuizPost, setPublishingQuizPost] = useState(false);
-  const showPreviousQuizAttempt = Boolean(bitsAttempt) && !isFreshQuizLink;
+  const showPreviousQuizAttempt = Boolean(bitsAttempt);
   const [selectedFormulaIdx, setSelectedFormulaIdx] = useState<number | null>(null);
   const [formulaBitsCurrentIdx, setFormulaBitsCurrentIdx] = useState(0);
   const [formulaBitsSelectedAnswers, setFormulaBitsSelectedAnswers] = useState<Record<number, number>>({});
@@ -4655,14 +4654,9 @@ export default function TopicPage() {
                                             try {
                                               const persisted = await saveBitsAttempt(payload);
                                               setBitsAttempt(persisted);
-                                              const selectedFromAttempt: Record<number, number> = {};
-                                              for (const [k, v] of Object.entries(persisted.selectedAnswers)) {
-                                                const idx = Number(k);
-                                                if (Number.isInteger(idx)) selectedFromAttempt[idx] = v;
-                                              }
-                                              setBitsSelectedAnswers(selectedFromAttempt);
+                                              setBitsReviewMode(false);
                                               setBitsCurrentIdx(0);
-                                              setBitsReviewMode(true);
+                                              setBitsSelectedAnswers({});
                                               window.setTimeout(() => flushSubtopicEngagementNow(), 0);
                                           toast({ title: "Quiz submitted", description: `Correct: ${correctCount}, Wrong: ${wrongCount}` });
                                             } catch {
