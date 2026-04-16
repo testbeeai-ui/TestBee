@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useMemo } from 'react';
+import { Suspense, useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import AppLayout from '@/components/AppLayout';
 import { useUserStore } from '@/store/useUserStore';
@@ -17,7 +18,7 @@ import {
 } from '@/components/ui/accordion';
 import { BitsCarousel } from '@/components/BitsCarousel';
 import { FormulaMcqCarousel } from '@/components/FormulaMcqCarousel';
-import type { SavedRevisionCard, SavedRevisionUnit, SavedBit, SavedFormula } from '@/types';
+import type { SavedRevisionCard, SavedRevisionUnit, SavedBit, SavedFormula, SavedCommunityPost } from '@/types';
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import InstaCuePlayer from '@/components/InstaCuePlayer';
 import AddRevisionCardModal from '@/components/AddRevisionCardModal';
@@ -62,7 +63,7 @@ const DEMO_CARDS: SavedRevisionCard[] = [
   },
 ];
 
-type RevisionTab = 'instacue' | 'units' | 'saved';
+type RevisionTab = 'instacue' | 'units' | 'saved' | 'community';
 
 /** Show only the subtopic name: strip "Subtopic 1.1:" prefix and " (Level: ...)" suffix. */
 function subtopicDisplayName(sectionTitle: string): string {
@@ -72,7 +73,8 @@ function subtopicDisplayName(sectionTitle: string): string {
     .trim() || sectionTitle;
 }
 
-const Revision = () => {
+const RevisionContent = () => {
+  const searchParams = useSearchParams();
   const { user: authUser } = useAuth();
   const user = useUserStore((s) => s.user);
   const unsaveQuestion = useUserStore((s) => s.unsaveQuestion);
@@ -82,6 +84,16 @@ const Revision = () => {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<RevisionTab>('instacue');
+  const deepLinkTabAppliedRef = useRef(false);
+
+  useEffect(() => {
+    if (deepLinkTabAppliedRef.current) return;
+    deepLinkTabAppliedRef.current = true;
+    const tab = searchParams.get("tab");
+    if (tab === "community") {
+      setActiveTab("community");
+    }
+  }, [searchParams]);
 
   const savedQuestions = questions.filter((q) => user?.savedQuestions.includes(q.id));
   const savedCards = user?.savedRevisionCards ?? [];
@@ -90,15 +102,18 @@ const Revision = () => {
   const savedRevisionUnits = user?.savedRevisionUnits ?? [];
   const savedBitsStoreCount = user?.savedBits?.length ?? 0;
   const savedFormulasStoreCount = user?.savedFormulas?.length ?? 0;
+  const savedCommunityPostsStoreCount = user?.savedCommunityPosts?.length ?? 0;
   const savedTabBadgeCount = savedBitsStoreCount + savedFormulasStoreCount;
   const [savedBits, setSavedBits] = useState<SavedBit[]>([]);
   const [savedFormulas, setSavedFormulas] = useState<SavedFormula[]>([]);
+  const [savedCommunityPosts, setSavedCommunityPosts] = useState<SavedCommunityPost[]>([]);
   const [savedContentLoading, setSavedContentLoading] = useState(false);
 
   useEffect(() => {
     setSavedBits(user?.savedBits ?? []);
     setSavedFormulas(user?.savedFormulas ?? []);
-  }, [user?.savedBits, user?.savedFormulas]);
+    setSavedCommunityPosts(user?.savedCommunityPosts ?? []);
+  }, [user?.savedBits, user?.savedFormulas, user?.savedCommunityPosts]);
 
   useEffect(() => {
     if (!authUser?.id) return;
@@ -113,19 +128,23 @@ const Revision = () => {
           u.savedFormulas ?? [],
           u.savedRevisionCards ?? [],
           u.savedRevisionUnits ?? [],
+          u.savedCommunityPosts ?? [],
           data.savedBits,
           data.savedFormulas,
           data.savedRevisionCards,
-          data.savedRevisionUnits
+          data.savedRevisionUnits,
+          data.savedCommunityPosts
         );
         useUserStore.getState().setSavedFromServer(
           merged.savedBits,
           merged.savedFormulas,
           merged.savedRevisionCards,
-          merged.savedRevisionUnits
+          merged.savedRevisionUnits,
+          merged.savedCommunityPosts
         );
         setSavedBits(merged.savedBits);
         setSavedFormulas(merged.savedFormulas);
+        setSavedCommunityPosts(merged.savedCommunityPosts);
       })
       .catch(() => {});
     return () => {
@@ -134,9 +153,10 @@ const Revision = () => {
   }, [authUser?.id]);
 
   useEffect(() => {
-    if (activeTab !== 'saved') return;
+    if (activeTab !== 'saved' && activeTab !== 'community') return;
     const storeBits = useUserStore.getState().user?.savedBits ?? [];
     const storeFormulas = useUserStore.getState().user?.savedFormulas ?? [];
+    const storeCommunityPosts = useUserStore.getState().user?.savedCommunityPosts ?? [];
     queueMicrotask(() => setSavedContentLoading(true));
     fetchSavedContent()
       .then(
@@ -145,6 +165,7 @@ const Revision = () => {
           savedFormulas: formulas,
           savedRevisionCards: revisionCards,
           savedRevisionUnits: revisionUnits,
+          savedCommunityPosts: communityPosts,
         }) => {
         const u = useUserStore.getState().user;
         if (!u) {
@@ -157,23 +178,28 @@ const Revision = () => {
           u.savedFormulas ?? [],
           u.savedRevisionCards ?? [],
           u.savedRevisionUnits ?? [],
+          u.savedCommunityPosts ?? [],
           bits,
           formulas,
           revisionCards,
-          revisionUnits
+          revisionUnits,
+          communityPosts
         );
         useUserStore.getState().setSavedFromServer(
           merged.savedBits,
           merged.savedFormulas,
           merged.savedRevisionCards,
-          merged.savedRevisionUnits
+          merged.savedRevisionUnits,
+          merged.savedCommunityPosts
         );
         setSavedBits(merged.savedBits);
         setSavedFormulas(merged.savedFormulas);
+        setSavedCommunityPosts(merged.savedCommunityPosts);
       })
       .catch(() => {
         setSavedBits(storeBits);
         setSavedFormulas(storeFormulas);
+        setSavedCommunityPosts(storeCommunityPosts);
       })
       .finally(() => setSavedContentLoading(false));
   }, [activeTab]);
@@ -216,6 +242,13 @@ const Revision = () => {
     syncAllSavedContent().catch(() => {});
   };
 
+  const handleUnsaveCommunityPost = (postId: string) => {
+    useUserStore.getState().unsaveCommunityPost(postId);
+    const u = useUserStore.getState().user;
+    setSavedCommunityPosts(u?.savedCommunityPosts ?? []);
+    syncAllSavedContent().catch(() => {});
+  };
+
   return (
     <ProtectedRoute>
       <AppLayout>
@@ -234,9 +267,13 @@ const Revision = () => {
                 <h1 className="text-[24px] font-bold text-[#1e293b] tracking-tight">
                   <span className="text-[#1e293b] font-extrabold">Unit Revision</span>
                 </h1>
-              ) : (
+              ) : activeTab === 'saved' ? (
                 <h1 className="text-[24px] font-bold text-[#1e293b] tracking-tight">
                   <span className="text-[#1e293b] font-extrabold">Saved Bits & Formulas</span>
+                </h1>
+              ) : (
+                <h1 className="text-[24px] font-bold text-[#1e293b] tracking-tight">
+                  <span className="text-[#1e293b] font-extrabold">Community Posts</span>
                 </h1>
               )}
               <div className="inline-flex rounded-full border-2 border-border bg-muted/30 p-0.5 flex-wrap">
@@ -276,6 +313,18 @@ const Revision = () => {
                     {savedTabBadgeCount}
                   </span>
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('community')}
+                  className={`rounded-full px-4 py-1.5 text-sm font-bold transition-colors inline-flex items-center gap-1.5 ${activeTab === 'community' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                >
+                  Community Posts
+                  <span
+                    className={`tabular-nums rounded-full px-1.5 py-0.5 text-[11px] font-extrabold ${activeTab === 'community' ? 'bg-primary-foreground/20' : 'bg-muted'}`}
+                  >
+                    {savedCommunityPostsStoreCount}
+                  </span>
+                </button>
               </div>
             </div>
             <p className="text-[#64748b] text-[13px] mt-0.5 font-medium">
@@ -283,7 +332,9 @@ const Revision = () => {
                 ? 'Quick revision flashcards with active recall and spaced repetition'
                 : activeTab === 'units'
                   ? 'Deep Dive sections you marked for revision'
-                  : 'Bits and formula practice you saved from Deep Dive'}
+                  : activeTab === 'saved'
+                    ? 'Bits and formula practice you saved from Deep Dive'
+                    : 'Community feed posts you saved for revision'}
             </p>
           </div>
 
@@ -450,6 +501,78 @@ const Revision = () => {
             </section>
           )}
 
+          {activeTab === 'community' && (
+            <section>
+              {savedContentLoading ? (
+                <div className="edu-card p-10 text-center rounded-2xl border-2 border-dashed border-border">
+                  <div className="animate-pulse flex flex-col items-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-muted" />
+                    <div className="h-4 w-48 bg-muted rounded" />
+                    <div className="h-3 w-64 bg-muted rounded" />
+                  </div>
+                </div>
+              ) : savedCommunityPosts.length === 0 ? (
+                <div className="edu-card p-10 text-center rounded-2xl border-2 border-dashed border-border">
+                  <BookMarked className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+                  <p className="text-muted-foreground font-medium">No saved community posts yet</p>
+                  <p className="text-sm text-muted-foreground mt-1 mb-4">Use &quot;Save for revision&quot; on any community post in Lessons to keep it here.</p>
+                  <Button variant="outline" className="rounded-xl" asChild>
+                    <Link href="/explore-1">
+                      Go to Lessons <ChevronRight className="w-4 h-4 ml-1" />
+                    </Link>
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {savedCommunityPosts.map((post, i) => (
+                    <motion.div
+                      key={post.id}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.03 }}
+                      className="rounded-xl border border-border bg-card/70 p-4"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          {post.subject ? (
+                            <span className="inline-flex items-center rounded-full bg-blue-500/15 px-2 py-0.5 text-xs font-semibold text-blue-300 ring-1 ring-inset ring-blue-400/30">
+                              {post.subject}
+                            </span>
+                          ) : null}
+                          {post.chapterRef ? (
+                            <span className="inline-flex items-center rounded-full bg-cyan-500/15 px-2 py-0.5 text-xs font-semibold text-cyan-200 ring-1 ring-inset ring-cyan-400/30">
+                              CH {post.chapterRef}
+                            </span>
+                          ) : null}
+                          {post.topicRef ? (
+                            <span className="inline-flex items-center rounded-full bg-violet-500/15 px-2 py-0.5 text-xs font-semibold text-violet-200 ring-1 ring-inset ring-violet-400/30">
+                              TP {post.topicRef}
+                            </span>
+                          ) : null}
+                          {post.subtopicRef ? (
+                            <span className="inline-flex items-center rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-semibold text-amber-200 ring-1 ring-inset ring-amber-400/35">
+                              SUB {post.subtopicRef}
+                            </span>
+                          ) : null}
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleUnsaveCommunityPost(post.postId)}
+                          className="rounded-xl shrink-0 hover:bg-destructive/10 hover:text-destructive"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                      {post.title ? <p className="mt-2 text-sm font-bold text-foreground">{post.title}</p> : null}
+                      <p className="mt-1 text-sm text-foreground/90 whitespace-pre-wrap">{post.content}</p>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
+
           {activeTab === 'units' && (
             <section>
               {savedRevisionUnits.length === 0 ? (
@@ -558,4 +681,10 @@ const Revision = () => {
   );
 }
 
-export default Revision;
+export default function Revision() {
+  return (
+    <Suspense fallback={<div className="min-h-[40vh]" />}>
+      <RevisionContent />
+    </Suspense>
+  );
+}
