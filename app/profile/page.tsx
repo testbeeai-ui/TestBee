@@ -34,7 +34,7 @@ import { parseBitsTestAttemptsStore } from "@/lib/parseBitsTestAttemptsStore";
 import { parseEngagementDraftDashboardContributions } from "@/lib/parseEngagementDraftDashboardContributions";
 
 export default function Profile() {
-  const { user: authUser, profile, signOut, signInWithGoogle, refreshProfile } = useAuth();
+  const { user: authUser, profile, loading: authLoading, signOut, signInWithGoogle, refreshProfile } = useAuth();
   const storeUser = useUserStore((s) => s.user);
   const storeLogout = useUserStore((s) => s.logout);
   const allResults = useUserStore((s) => s.allResults);
@@ -44,10 +44,12 @@ export default function Profile() {
   const [examAlerts, setExamAlerts] = useState(false);
 
   useEffect(() => {
+    if (authLoading) return;
+    if (!authUser) return;
     void refreshProfile();
-  }, [refreshProfile]);
+  }, [authLoading, authUser, refreshProfile]);
 
-  if (!profile) {
+  if (authLoading || (authUser && !profile)) {
     return (
       <ProtectedRoute>
         <div className="min-h-screen flex items-center justify-center">
@@ -57,10 +59,20 @@ export default function Profile() {
     );
   }
 
-  if (profile.role === "teacher") {
+  if (profile?.role === "teacher") {
     return (
       <ProtectedRoute>
         <TeacherProfile />
+      </ProtectedRoute>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <ProtectedRoute>
+        <div className="min-h-screen flex items-center justify-center">
+          <span className="text-4xl animate-pulse">🎯</span>
+        </div>
       </ProtectedRoute>
     );
   }
@@ -139,9 +151,14 @@ export default function Profile() {
   }, [profile.saved_bits, profile.saved_formulas, profile.saved_revision_cards, profile.saved_revision_units]);
 
   const handleLogout = async () => {
-    await signOut();
-    storeLogout();
-    router.push("/");
+    try {
+      storeLogout();
+      await signOut();
+    } catch {
+      /* still navigate away even if signOut throws */
+    } finally {
+      router.replace("/");
+    }
   };
 
   return (

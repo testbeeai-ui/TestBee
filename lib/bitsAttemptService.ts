@@ -26,6 +26,8 @@ type BitsAttemptScope = {
   topic: string;
   subtopicName: string;
   level: DifficultyLevel;
+  /** Required for advanced (1–3); omitted for basics/intermediate. */
+  set?: 1 | 2 | 3;
 };
 
 async function getAuthHeaders(): Promise<HeadersInit> {
@@ -49,6 +51,9 @@ export async function fetchBitsAttempt(scope: BitsAttemptScope): Promise<BitsAtt
     subtopicName: scope.subtopicName,
     level: scope.level,
   });
+  if (scope.level === "advanced") {
+    search.set("set", String(scope.set ?? 1));
+  }
   const res = await fetch(`${API}?${search.toString()}`, { headers });
   if (!res.ok) {
     if (res.status === 401) return null;
@@ -58,16 +63,48 @@ export async function fetchBitsAttempt(scope: BitsAttemptScope): Promise<BitsAtt
   return data.attempt ?? null;
 }
 
-export async function saveBitsAttempt(attempt: BitsAttemptRecord): Promise<BitsAttemptRecord> {
+export async function saveBitsAttempt(
+  attempt: BitsAttemptRecord,
+  options?: { set?: 1 | 2 | 3 }
+): Promise<BitsAttemptRecord> {
   const authHeaders = await getAuthHeaders();
+  const body =
+    attempt.level === "advanced" && options?.set != null
+      ? { ...attempt, set: options.set }
+      : attempt;
   const res = await fetch(API, {
     method: "POST",
     headers: { ...authHeaders, "Content-Type": "application/json" },
-    body: JSON.stringify(attempt),
+    body: JSON.stringify(body),
   });
   const data = (await res.json()) as { attempt?: BitsAttemptRecord; error?: string };
   if (!res.ok) {
     throw new Error(data.error || "Failed to save Bits attempt");
   }
   return data.attempt ?? attempt;
+}
+
+export async function clearBitsAttemptSet(
+  scope: BitsAttemptScope & { set: 1 | 2 | 3 }
+): Promise<void> {
+  if (scope.level !== "advanced") return;
+  const authHeaders = await getAuthHeaders();
+  const res = await fetch(API, {
+    method: "POST",
+    headers: { ...authHeaders, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      board: scope.board,
+      subject: scope.subject,
+      classLevel: scope.classLevel,
+      topic: scope.topic,
+      subtopicName: scope.subtopicName,
+      level: scope.level,
+      clearAttempt: true,
+      set: scope.set,
+    }),
+  });
+  const data = (await res.json()) as { ok?: boolean; error?: string };
+  if (!res.ok) {
+    throw new Error(data.error || "Failed to clear Bits attempt");
+  }
 }

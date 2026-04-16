@@ -272,9 +272,9 @@ export default function RawFeedPostCard({
                 type="button"
                 onClick={onOpenSourceLink}
                 className={cn(
-                  "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold transition-all",
-                  "border-primary/45 bg-primary/12 text-primary shadow-[0_0_0_1px_rgba(59,130,246,0.18)]",
-                  "hover:bg-primary/20 hover:border-primary/60 hover:shadow-[0_0_0_1px_rgba(59,130,246,0.28)]",
+                  "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold text-white transition-all",
+                  "border-primary/45 bg-primary/12 shadow-[0_0_0_1px_rgba(59,130,246,0.18)]",
+                  "hover:bg-primary/20 hover:border-primary/60 hover:text-white hover:shadow-[0_0_0_1px_rgba(59,130,246,0.28)]",
                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background"
                 )}
                 title="Open source topic"

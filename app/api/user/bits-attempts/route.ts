@@ -39,8 +39,10 @@ function makeAttemptKey(params: {
   topic: string;
   subtopicName: string;
   level: string;
+  /** Advanced-only: per-set attempts (1–3) use a distinct storage key. */
+  set?: 1 | 2 | 3;
 }) {
-  return [
+  const base = [
     normalizeKeyPart(params.board, 40),
     normalizeKeyPart(params.subject, 80),
     String(params.classLevel),
@@ -48,6 +50,10 @@ function makeAttemptKey(params: {
     normalizeKeyPart(params.subtopicName, 300),
     normalizeKeyPart(params.level, 30),
   ].join("||");
+  if (params.level === "advanced" && params.set != null && [1, 2, 3].includes(params.set)) {
+    return `${base}||set:${params.set}`;
+  }
+  return base;
 }
 
 function parseAttemptsStore(raw: unknown): Record<string, BitsAttemptRecord> {
@@ -114,6 +120,18 @@ export async function GET(request: Request) {
     const topic = sanitize(searchParams.get("topic"), 300);
     const subtopicName = sanitize(searchParams.get("subtopicName"), 300);
     const level = sanitize(searchParams.get("level"), 30).toLowerCase();
+    const setRaw = searchParams.get("set");
+    let set: 1 | 2 | 3 | undefined;
+    if (setRaw != null && setRaw !== "") {
+      const n = Number(setRaw);
+      if (![1, 2, 3].includes(n)) {
+        return NextResponse.json({ error: "Invalid set (use 1, 2, or 3)" }, { status: 400 });
+      }
+      if (level !== "advanced") {
+        return NextResponse.json({ error: "set is only valid for advanced level" }, { status: 400 });
+      }
+      set = n as 1 | 2 | 3;
+    }
 
     if (
       !board ||
@@ -134,10 +152,17 @@ export async function GET(request: Request) {
       .maybeSingle();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    const key = makeAttemptKey({ board, subject, classLevel, topic, subtopicName, level });
     const row = data as ProfileBitsRow | null;
     const store = parseAttemptsStore(row?.bits_test_attempts);
-    return NextResponse.json({ attempt: store[key] ?? null });
+    const baseKey = makeAttemptKey({ board, subject, classLevel, topic, subtopicName, level });
+    if (level === "advanced" && set != null) {
+      const keyed = makeAttemptKey({ board, subject, classLevel, topic, subtopicName, level, set });
+      if (store[keyed]) return NextResponse.json({ attempt: store[keyed] });
+      // Legacy single-key advanced attempt (pre–3-set) maps to set 1 only.
+      if (set === 1 && store[baseKey]) return NextResponse.json({ attempt: store[baseKey] });
+      return NextResponse.json({ attempt: null });
+    }
+    return NextResponse.json({ attempt: store[baseKey] ?? null });
   } catch (e) {
     console.error("bits-attempts GET error", e);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
@@ -157,6 +182,64 @@ export async function POST(request: Request) {
     const topic = sanitize(body?.topic, 300);
     const subtopicName = sanitize(body?.subtopicName, 300);
     const level = sanitize(body?.level, 30).toLowerCase();
+
+    /** Remove one advanced per-set attempt (used for “Take test another time”). */
+    if (body?.clearAttempt === true) {
+      const setClear = Number(body?.set);
+      if (![1, 2, 3].includes(setClear)) {
+        return NextResponse.json({ error: "set is required (1, 2, or 3) to clear an attempt" }, { status: 400 });
+      }
+      if (level !== "advanced" || !ALLOWED_LEVELS.has(level)) {
+        return NextResponse.json({ error: "clearAttempt is only valid for advanced level" }, { status: 400 });
+      }
+      if (
+        !board ||
+        !subject ||
+        !topic ||
+        !subtopicName ||
+        Number.isNaN(classLevel) ||
+        ![11, 12].includes(classLevel)
+      ) {
+        return NextResponse.json({ error: "Missing or invalid fields" }, { status: 400 });
+      }
+      const set = setClear as 1 | 2 | 3;
+      const baseKey = makeAttemptKey({
+        board,
+        subject,
+        classLevel,
+        topic,
+        subtopicName,
+        level,
+      });
+      const keyed = makeAttemptKey({
+        board,
+        subject,
+        classLevel,
+        topic,
+        subtopicName,
+        level,
+        set,
+      });
+      const { data: profile, error: readErr } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (readErr) return NextResponse.json({ error: readErr.message }, { status: 500 });
+      const profileRow = profile as ProfileBitsRow | null;
+      const current = parseAttemptsStore(profileRow?.bits_test_attempts);
+      const next = { ...current };
+      delete next[keyed];
+      if (set === 1) delete next[baseKey];
+      const trimmed = trimAttemptStore(next);
+      const { error: writeErr } = await supabase
+        .from("profiles")
+        .update({ bits_test_attempts: trimmed } as never)
+        .eq("id", user.id);
+      if (writeErr) return NextResponse.json({ error: writeErr.message }, { status: 500 });
+      return NextResponse.json({ ok: true });
+    }
+
     const bitsSignature = sanitize(body?.bitsSignature, 200);
     const totalQuestions = Number(body?.totalQuestions);
     const correctCount = Number(body?.correctCount);
@@ -171,6 +254,19 @@ export async function POST(request: Request) {
       const idx = Number(v);
       if (!Number.isInteger(idx) || idx < 0 || idx > 3) continue;
       selectedAnswers[String(k)] = idx;
+    }
+
+    const setBody = body?.set;
+    let set: 1 | 2 | 3 | undefined;
+    if (setBody != null && setBody !== "") {
+      const n = Number(setBody);
+      if (![1, 2, 3].includes(n)) {
+        return NextResponse.json({ error: "Invalid set (use 1, 2, or 3)" }, { status: 400 });
+      }
+      if (level !== "advanced") {
+        return NextResponse.json({ error: "set is only valid for advanced level" }, { status: 400 });
+      }
+      set = n as 1 | 2 | 3;
     }
 
     if (
@@ -189,6 +285,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Missing or invalid fields" }, { status: 400 });
     }
 
+    if (level === "advanced" && set == null) {
+      return NextResponse.json({ error: "set is required for advanced level attempts" }, { status: 400 });
+    }
+
     const attempt: BitsAttemptRecord = {
       board,
       subject,
@@ -204,7 +304,7 @@ export async function POST(request: Request) {
       submittedAt: new Date().toISOString(),
     };
 
-    const key = makeAttemptKey({ board, subject, classLevel, topic, subtopicName, level });
+    const key = makeAttemptKey({ board, subject, classLevel, topic, subtopicName, level, set });
     const { data: profile, error: readErr } = await supabase
       .from("profiles")
       .select("*")
