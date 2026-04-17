@@ -2101,13 +2101,14 @@ const Explore = () => {
                         <>
                           {selectedChapterGroup && (
                             <div className="space-y-4">
-                              <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-                                <h3 className="font-extrabold text-lg text-foreground flex items-center gap-2">
+                              <div className="flex flex-wrap items-start gap-2 mb-3">
+                                <h3 className="font-extrabold text-lg text-foreground flex items-center gap-2 min-w-0">
                                   <Sparkles className="w-5 h-5 text-primary" />
-                                  Let&apos;s take a look at {agentHeading}
+                                  <span className="truncate">Let&apos;s take a look at {agentHeading}</span>
                                 </h3>
+                                <div className="ml-auto flex items-center gap-2">
                                 {canEditTopicContent ? (
-                                  <div className="flex items-center gap-2">
+                                  <>
                                     <span className="text-[11px] font-bold px-2 py-1 rounded-full bg-muted text-muted-foreground">
                                       Admin
                                     </span>
@@ -2181,8 +2182,17 @@ const Explore = () => {
                                       {new Date(existingScheduledChapterJob.originalScheduledAt).toLocaleString()}.
                                     </p>
                                   ) : null}
-                                  </div>
+                                  </>
                                 ) : null}
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    onClick={() => setPracticeModePopupOpen(true)}
+                                    className="rounded-xl gap-2 edu-btn-primary shrink-0"
+                                  >
+                                    <Play className="w-4 h-4" /> Start Chapter
+                                  </Button>
+                                  </div>
                               </div>
                               {canEditTopicContent ? (
                                 <TopicAgentTracePanel trace={topicAgentTrace} onClear={() => setTopicAgentTrace(null)} />
@@ -2315,10 +2325,21 @@ const Explore = () => {
                         </>
                       ) : selectedTopicNode.topic === 'Thermodynamics' ? (
                         <>
-                          <h3 className="font-extrabold text-lg text-foreground mb-3 flex items-center gap-2">
-                            <span className="text-xl">⚙️</span>
-                            Thermodynamics: The Physics of Absolute Limits
-                          </h3>
+                          <div className="mb-3 flex items-start justify-between gap-3">
+                            <h3 className="font-extrabold text-lg text-foreground flex items-center gap-2 min-w-0">
+                              <span className="text-xl">⚙️</span>
+                              <span className="truncate">Thermodynamics: The Physics of Absolute Limits</span>
+                            </h3>
+                            {isDetailedUnitView ? (
+                              <Button
+                                size="sm"
+                                onClick={() => setPracticeModePopupOpen(true)}
+                                className="rounded-xl gap-2 edu-btn-primary shrink-0"
+                              >
+                                <Play className="w-4 h-4" /> Start Chapter
+                              </Button>
+                            ) : null}
+                          </div>
                           <div className="space-y-4 text-sm text-muted-foreground leading-relaxed">
                             <div>
                               <h4 className="font-bold text-foreground text-sm mb-1">Why study this topic? (The Strategic View)</h4>
@@ -2347,10 +2368,21 @@ const Explore = () => {
                         </>
                       ) : (
                         <>
-                          <h3 className="font-extrabold text-lg text-foreground mb-3 flex items-center gap-2">
-                            <Sparkles className="w-5 h-5 text-primary" />
-                            Let&apos;s take a look at {selectedTopicNode.topic}
-                          </h3>
+                          <div className="mb-3 flex items-start justify-between gap-3">
+                            <h3 className="font-extrabold text-lg text-foreground flex items-center gap-2 min-w-0">
+                              <Sparkles className="w-5 h-5 text-primary shrink-0" />
+                              <span className="truncate">Let&apos;s take a look at {selectedTopicNode.topic}</span>
+                            </h3>
+                            {isDetailedUnitView ? (
+                              <Button
+                                size="sm"
+                                onClick={() => setPracticeModePopupOpen(true)}
+                                className="rounded-xl gap-2 edu-btn-primary shrink-0"
+                              >
+                                <Play className="w-4 h-4" /> Start Chapter
+                              </Button>
+                            ) : null}
+                          </div>
                           <div className="space-y-4 text-sm text-muted-foreground leading-relaxed">
                             <div>
                               <h4 className="font-bold text-foreground text-sm mb-1">Why study this topic?</h4>
@@ -2374,13 +2406,15 @@ const Explore = () => {
                         </>
                       )}
                       <div className="mt-6 pt-4 border-t border-border flex flex-wrap items-center gap-3">
-                        <Button
-                          size="lg"
-                          onClick={() => setPracticeModePopupOpen(true)}
-                          className="rounded-xl gap-2 edu-btn-primary w-full sm:w-auto"
-                        >
-                          <Play className="w-4 h-4" /> {isDetailedUnitView ? 'Start Chapter' : 'Start'}
-                        </Button>
+                        {!isDetailedUnitView && (
+                          <Button
+                            size="lg"
+                            onClick={() => setPracticeModePopupOpen(true)}
+                            className="rounded-xl gap-2 edu-btn-primary w-full sm:w-auto"
+                          >
+                            <Play className="w-4 h-4" /> Start
+                          </Button>
+                        )}
                         {(isDetailedUnitView
                           ? Boolean(selectedChapterTopic && getTopicCount(selectedSubject, selectedChapterTopic.topic) > 0)
                           : getTopicCount(selectedSubject, selectedTopicNode.topic) > 0) && (
@@ -2537,7 +2571,7 @@ const Explore = () => {
                     <div className="edu-card p-5 rounded-2xl border border-border">
                       <h4 className="font-bold text-foreground text-sm mb-3 flex items-center gap-2">
                         <BookOpen className="w-4 h-4 text-primary" />
-                        {isDetailedUnitView ? 'Chapter syllabus' : 'Current topic subtopics'}
+                        {isDetailedUnitView ? 'Chapter-Syallabus-Topics' : 'Current topic subtopics'}
                       </h4>
                       {isDetailedUnitView ? (
                         <div className="space-y-2">
@@ -2557,7 +2591,7 @@ const Explore = () => {
                                         selectedSubject,
                                         selectedTopicClassLevel,
                                         topic.topic,
-                                        'basics',
+                                        'advanced',
                                         undefined,
                                         topic.chapterTitle
                                       )

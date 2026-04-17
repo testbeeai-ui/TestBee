@@ -26,6 +26,8 @@ export type SubtopicEngagementBitsDraft = {
   selectedAnswers: Record<string, number>;
   visitedIndices: number[];
   graded?: SubtopicEngagementBitsGraded;
+  /** Advanced 3-set flow: which set the in-progress state refers to (indices are global). */
+  activeQuizSet?: 1 | 2 | 3;
 };
 
 export type SubtopicEngagementFormulaDraft = {

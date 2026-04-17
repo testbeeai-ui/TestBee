@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import AppLayout from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { getTheoryOrPlaceholder, getTopicOverviewOrPlaceholder } from "@/data/topicTheory";
 import TheoryContent from "@/components/TheoryContent";
 import TopicAgentTracePanel from "@/components/TopicAgentTracePanel";
@@ -43,7 +45,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { ArrowLeft, BookOpen, Zap, ChevronLeft, ChevronRight, Shuffle, Video, FileText, ExternalLink, Lightbulb, Sparkles, CheckCircle2, Loader2, RefreshCw, ListChecks, Play, Pause, RotateCcw, Bookmark } from "lucide-react";
+import { ArrowLeft, BookOpen, Zap, ChevronLeft, ChevronRight, Shuffle, Video, FileText, ExternalLink, Lightbulb, Sparkles, CheckCircle2, Loader2, RefreshCw, ListChecks, Play, Pause, RotateCcw, Bookmark, Lock } from "lucide-react";
 import type { DeepDiveReference } from "@/data/deepDiveContent";
 import MathText from "@/components/MathText";
 import { stripFormulaDelimiters } from "@/lib/stripFormulaDelimiters";
@@ -85,7 +87,14 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { fuzzySubtopicKey } from "@/lib/utils";
-import { fetchBitsAttempt, saveBitsAttempt, type BitsAttemptRecord } from "@/lib/bitsAttemptService";
+import { supabase } from "@/integrations/supabase/client";
+import { fetchBitsAttempt, saveBitsAttempt, clearBitsAttemptSet, type BitsAttemptRecord } from "@/lib/bitsAttemptService";
+import { getAdvancedSetBounds, isAdvancedMultiSet, type AdvancedQuizSetIndex } from "@/lib/advancedQuizSets";
+import {
+  buildQuizPostDrafts,
+  pickRandomQuizPostDraft,
+  type QuizPostDraft,
+} from "@/lib/quizPostTemplates";
 import {
   fetchSubtopicEngagement,
   saveSubtopicEngagement,
@@ -378,12 +387,28 @@ function formatFocusTimer(totalSeconds: number): string {
   return `${mins}:${secs}`;
 }
 
+/**
+ * Quiz payloads sometimes include malformed micro-unit latex like "\muC" that KaTeX
+ * can render as red error text in mixed prose. Normalize to plain UTF units for stable UI.
+ */
+function normalizeQuizDisplayMath(text: string): string {
+  return String(text ?? "")
+    .replace(/\\mu\s*([A-Za-z]+)/g, "μ$1")
+    .replace(/\\Omega/g, "Ω");
+}
+
 export default function TopicPage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
   const isRandomMode = searchParams.get("mode") === "random";
   const isMagicWallSource = searchParams.get("source") === "magic-wall";
+  const panelParam = searchParams.get("panel");
+  type PanelTab = "instacue" | "quiz" | "numerals" | "concepts";
+  const initialPanelTab: PanelTab =
+    panelParam === "quiz" || panelParam === "numerals" || panelParam === "concepts"
+      ? panelParam
+      : "instacue";
   const mode = isRandomMode ? "random" : "linear";
 
   const board = params.board as string;
@@ -401,12 +426,17 @@ export default function TopicPage() {
   const [focusTimerRunning, setFocusTimerRunning] = useState(false);
   const [bitsVisitedIndices, setBitsVisitedIndices] = useState<Set<number>>(new Set());
   const [instaCueValidatedIndices, setInstaCueValidatedIndices] = useState<Set<number>>(new Set());
+  const [rightPanelTab, setRightPanelTab] = useState<PanelTab>(initialPanelTab);
   /** Cards the learner has landed on in the carousel (scroll / dots), not only flipped. */
   const [instaCueNavIndices, setInstaCueNavIndices] = useState<Set<number>>(new Set());
   /** Per-formula numerals draft in the formulas dialog (key = formula index). */
   const [formulaByIdx, setFormulaByIdx] = useState<Record<number, { qIdx: number; answers: Record<number, number> }>>({});
   const engagementHydratedRef = useRef<string | null>(null);
   const engagementSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setRightPanelTab(initialPanelTab);
+  }, [initialPanelTab, board, subject, grade, unitSlug, topicSlug, level]);
 
   useEffect(() => {
     if (!isMagicWallSource) return;
@@ -619,6 +649,32 @@ export default function TopicPage() {
   const [submittingBits, setSubmittingBits] = useState(false);
   const [bitsReviewMode, setBitsReviewMode] = useState(false);
   const [bitsAttempt, setBitsAttempt] = useState<BitsAttemptRecord | null>(null);
+  /** Advanced (>10 Q): one stored attempt per set (1–3). */
+  const [bitsAttemptBySet, setBitsAttemptBySet] = useState<Partial<Record<AdvancedQuizSetIndex, BitsAttemptRecord | null>>>({});
+  const [activeQuizSet, setActiveQuizSet] = useState<AdvancedQuizSetIndex>(1);
+  const [quizPostDialogOpen, setQuizPostDialogOpen] = useState(false);
+  const [quizPostDrafts, setQuizPostDrafts] = useState<QuizPostDraft[]>([]);
+  const [quizPostUsedTemplateIds, setQuizPostUsedTemplateIds] = useState<Set<string>>(new Set());
+  const [quizPostTemplateId, setQuizPostTemplateId] = useState<string>("");
+  const [quizPostTitle, setQuizPostTitle] = useState("");
+  const [quizPostDetails, setQuizPostDetails] = useState("");
+  const [publishingQuizPost, setPublishingQuizPost] = useState(false);
+  const useAdvancedSetsUi = useMemo(
+    () => isAdvancedMultiSet(difficultyLevel, dbBitsQuestions.length),
+    [difficultyLevel, dbBitsQuestions.length]
+  );
+  const activeSetBounds = useMemo(() => {
+    const n = dbBitsQuestions.length;
+    if (!useAdvancedSetsUi) return { start: 0, end: n, length: n };
+    return getAdvancedSetBounds(n, activeQuizSet);
+  }, [useAdvancedSetsUi, dbBitsQuestions.length, activeQuizSet]);
+
+  const displayBitsAttempt = useMemo((): BitsAttemptRecord | null => {
+    if (!useAdvancedSetsUi) return bitsAttempt;
+    return bitsAttemptBySet[activeQuizSet] ?? null;
+  }, [useAdvancedSetsUi, bitsAttempt, bitsAttemptBySet, activeQuizSet]);
+
+  const showPreviousQuizAttempt = Boolean(displayBitsAttempt);
   const [selectedFormulaIdx, setSelectedFormulaIdx] = useState<number | null>(null);
   const [formulaBitsCurrentIdx, setFormulaBitsCurrentIdx] = useState(0);
   const [formulaBitsSelectedAnswers, setFormulaBitsSelectedAnswers] = useState<Record<number, number>>({});
@@ -646,6 +702,8 @@ export default function TopicPage() {
     setBitsSelectedAnswers({});
     setBitsDialogOpen(false);
     setBitsReviewMode(false);
+    setBitsAttemptBySet({});
+    setActiveQuizSet(1);
     setInstaCueValidatedIndices(new Set());
     setInstaCueNavIndices(new Set());
     setFormulaByIdx({});
@@ -688,6 +746,166 @@ export default function TopicPage() {
   const bitsSignature = useMemo(() => getBitsSignature(dbBitsQuestions), [dbBitsQuestions]);
   /** Full "Standard areas: …" string must reach MathText so KaTeX can format circle/parabola rows. */
   const displaySubtopicTitle = useMemo(() => subtopicMathTextLabel(subtopicName), [subtopicName]);
+  const quizContextChips = useMemo(() => {
+    const items: string[] = [];
+    if (topicNode?.subject) items.push(topicNode.subject);
+    if (topicNode?.topic) items.push(topicNode.topic);
+    if (subtopicName) items.push(subtopicName);
+    return items;
+  }, [topicNode?.subject, topicNode?.topic, subtopicName]);
+
+  const buildInitialQuizDraft = useCallback(() => {
+    if (!displayBitsAttempt) return null;
+    const scorePercent =
+      displayBitsAttempt.totalQuestions > 0
+        ? Math.round((displayBitsAttempt.correctCount / displayBitsAttempt.totalQuestions) * 100)
+        : 0;
+    const drafts = buildQuizPostDrafts({
+      subject: topicNode?.subject ?? subject,
+      chapter: topicNode?.topic ?? unitSlug,
+      topic: topicNode?.topic ?? topicSlug,
+      subtopic: subtopicName,
+      scorePercent,
+      correctCount: displayBitsAttempt.correctCount,
+      wrongCount: displayBitsAttempt.wrongCount,
+      totalQuestions: displayBitsAttempt.totalQuestions,
+      hadPreviousAttempt: true,
+    });
+    const first = pickRandomQuizPostDraft(drafts, new Set());
+    return { drafts, first };
+  }, [displayBitsAttempt, topicNode?.subject, topicNode?.topic, subject, unitSlug, topicSlug, subtopicName]);
+
+  const handleOpenQuizPostDialog = useCallback(() => {
+    if (!displayBitsAttempt) {
+      toast({ title: "No quiz result found", description: "Submit the quiz once before posting.", variant: "destructive" });
+      return;
+    }
+    if (!session?.user?.id) {
+      toast({ title: "Sign in required", description: "Please sign in to post your quiz result.", variant: "destructive" });
+      return;
+    }
+    const seeded = buildInitialQuizDraft();
+    if (!seeded) return;
+    setQuizPostDrafts(seeded.drafts);
+    setQuizPostUsedTemplateIds(new Set([seeded.first.templateId]));
+    setQuizPostTemplateId(seeded.first.templateId);
+    setQuizPostTitle(seeded.first.title);
+    setQuizPostDetails(seeded.first.details);
+    setQuizPostDialogOpen(true);
+  }, [displayBitsAttempt, session?.user?.id, toast, buildInitialQuizDraft]);
+
+  const handleShuffleQuizTemplate = useCallback(() => {
+    if (!quizPostDrafts.length) return;
+    const next = pickRandomQuizPostDraft(quizPostDrafts, quizPostUsedTemplateIds);
+    setQuizPostTemplateId(next.templateId);
+    setQuizPostTitle(next.title);
+    setQuizPostDetails(next.details);
+    setQuizPostUsedTemplateIds((prev) => {
+      const updated = new Set(prev);
+      updated.add(next.templateId);
+      return updated;
+    });
+  }, [quizPostDrafts, quizPostUsedTemplateIds]);
+
+  const handlePublishQuizPost = useCallback(async () => {
+    if (!session?.user?.id || !displayBitsAttempt) return;
+    const scorePercent =
+      displayBitsAttempt.totalQuestions > 0
+        ? Math.round((displayBitsAttempt.correctCount / displayBitsAttempt.totalQuestions) * 100)
+        : 0;
+    const correctTotalLine = `${displayBitsAttempt.correctCount}/${displayBitsAttempt.totalQuestions}`;
+    const titleWithMetrics = /\d{1,3}%/.test(quizPostTitle)
+      ? quizPostTitle.trim()
+      : `${quizPostTitle.trim()} | ${scorePercent}%`;
+    const detailsWithScorePercent = /\d{1,3}%/.test(quizPostDetails)
+      ? quizPostDetails.trim()
+      : `${quizPostDetails.trim()} Score: ${scorePercent}%.`;
+    const detailsWithMetrics = /\b\d+\s*\/\s*\d+\b/.test(detailsWithScorePercent)
+      ? detailsWithScorePercent
+      : `${detailsWithScorePercent} Correct/Total: ${correctTotalLine}.`;
+    const cleanTitle = titleWithMetrics.trim();
+    const cleanDetails = detailsWithMetrics.trim();
+    if (cleanTitle.length < 3) {
+      toast({ title: "Title too short", description: "Use at least 3 characters in your post title.", variant: "destructive" });
+      return;
+    }
+    setPublishingQuizPost(true);
+    const sourceSubject = (topicNode?.subject ?? subject ?? "physics").toLowerCase();
+    const selectedTemplate = quizPostDrafts.find((d) => d.templateId === quizPostTemplateId);
+    const tags = selectedTemplate?.tags ?? [];
+    const payload = {
+      templateId: quizPostTemplateId,
+      level,
+      scorePercent,
+      correctCount: displayBitsAttempt.correctCount,
+      wrongCount: displayBitsAttempt.wrongCount,
+      totalQuestions: displayBitsAttempt.totalQuestions,
+      submittedAt: displayBitsAttempt.submittedAt,
+    };
+
+    const { data, error } = await supabase
+      .from("lessons_raw_posts")
+      .insert({
+        user_id: session.user.id,
+        kind: "post",
+        title: cleanTitle,
+        content: cleanDetails,
+        tags,
+        subject: sourceSubject,
+        chapter_ref: topicNode?.topic ?? null,
+        board_ref: board,
+        grade_ref: grade,
+        unit_ref: unitSlug,
+        topic_ref: topicNode?.topic ?? topicSlug,
+        subtopic_ref: subtopicName || null,
+        source_type: "quiz_post",
+        source_payload: payload,
+      })
+      .select("id")
+      .single();
+
+    setPublishingQuizPost(false);
+    if (error) {
+      toast({ title: "Could not publish", description: error.message, variant: "destructive" });
+      return;
+    }
+    const postId = data?.id;
+    setQuizPostDialogOpen(false);
+    toast({
+      title: "Quiz post published",
+      description: (
+        <div className="mt-1 space-y-2">
+          <p>Your quiz result is now live in Lessons.</p>
+          <button
+            type="button"
+            className="inline-flex items-center rounded-md border border-primary/55 bg-primary/25 px-3.5 py-1.5 text-sm font-semibold text-white shadow-[0_0_0_1px_rgba(59,130,246,0.25)] transition-all hover:border-primary/80 hover:bg-primary/40 hover:text-white"
+            onClick={() => router.push(`/explore-1?focusPost=${postId ?? ""}#raw-community-feed`)}
+          >
+            See your post
+          </button>
+        </div>
+      ),
+    });
+  }, [
+    session?.user?.id,
+    displayBitsAttempt,
+    quizPostTitle,
+    quizPostDetails,
+    quizPostDrafts,
+    quizPostTemplateId,
+    topicNode?.subject,
+    topicNode?.topic,
+    subject,
+    subtopicName,
+    board,
+    grade,
+    unitSlug,
+    topicSlug,
+    level,
+    toast,
+    router,
+  ]);
+
   const practiceFormulasForUi = useMemo(() => {
     if (dbPracticeFormulas.length > 0) return dbPracticeFormulas;
     if (!topicNode || !subtopicName) return [];
@@ -1518,33 +1736,70 @@ export default function TopicPage() {
   useEffect(() => {
     if (!topicNode || isOverview || !subtopicName || dbBitsQuestions.length === 0) {
       setBitsAttempt(null);
+      setBitsAttemptBySet({});
       return;
     }
     const boardName = (board === "icse" ? "ICSE" : "CBSE") as Board;
+    const total = dbBitsQuestions.length;
+    const multi = isAdvancedMultiSet(difficultyLevel, total);
     let cancelled = false;
-    fetchBitsAttempt({
+
+    const scopeBase = {
       board: boardName,
       subject: topicNode.subject,
       classLevel: topicNode.classLevel,
       topic: topicNode.topic,
       subtopicName,
       level: difficultyLevel,
-    })
-      .then(async (attempt) => {
-        if (cancelled) return;
-        if (attempt && attempt.bitsSignature === bitsSignature) {
-          setBitsAttempt(attempt);
-          engagementHydratedRef.current = bitsSignature;
-          return;
+    } as const;
+
+    void (async () => {
+      try {
+        if (!multi) {
+          const attempt = await fetchBitsAttempt(
+            difficultyLevel === "advanced" ? { ...scopeBase, set: 1 as const } : scopeBase
+          );
+          if (cancelled) return;
+          if (attempt && attempt.bitsSignature === bitsSignature) {
+            setBitsAttempt(attempt);
+            setBitsAttemptBySet({});
+            engagementHydratedRef.current = bitsSignature;
+            return;
+          }
+          setBitsAttempt(null);
+          setBitsAttemptBySet({});
+        } else {
+          const attempts = await Promise.all(
+            ([1, 2, 3] as const).map((set) => fetchBitsAttempt({ ...scopeBase, set }))
+          );
+          if (cancelled) return;
+          const next: Partial<Record<AdvancedQuizSetIndex, BitsAttemptRecord | null>> = {};
+          let allSetsDone = true;
+          ([1, 2, 3] as const).forEach((s, i) => {
+            const a = attempts[i];
+            if (a && a.bitsSignature === bitsSignature) {
+              next[s] = a;
+            } else if (getAdvancedSetBounds(total, s).length > 0) {
+              allSetsDone = false;
+            }
+          });
+          setBitsAttemptBySet(next);
+          setBitsAttempt(null);
+          if (allSetsDone) engagementHydratedRef.current = bitsSignature;
         }
-        setBitsAttempt(null);
+
         if (!engagementScope || !session?.access_token) return;
+        if (engagementHydratedRef.current === bitsSignature) return;
+
         try {
           const e = await fetchSubtopicEngagement(engagementScope);
           if (cancelled || !e || e.bitsSignature !== bitsSignature) return;
           if (engagementHydratedRef.current === bitsSignature) return;
           engagementHydratedRef.current = bitsSignature;
           if (e.bits) {
+            if (multi && e.bits.activeQuizSet) {
+              setActiveQuizSet(e.bits.activeQuizSet);
+            }
             setBitsCurrentIdx(Math.min(e.bits.currentIdx, Math.max(0, dbBitsQuestions.length - 1)));
             const sa: Record<number, number> = {};
             for (const [k, v] of Object.entries(e.bits.selectedAnswers)) {
@@ -1578,10 +1833,14 @@ export default function TopicPage() {
         } catch {
           /* column may be missing on older DBs */
         }
-      })
-      .catch(() => {
-        if (!cancelled) setBitsAttempt(null);
-      });
+      } catch {
+        if (!cancelled) {
+          setBitsAttempt(null);
+          setBitsAttemptBySet({});
+        }
+      }
+    })();
+
     return () => {
       cancelled = true;
     };
@@ -1733,9 +1992,50 @@ export default function TopicPage() {
     }
     return c;
   }, [bitsSelectedAnswers, dbBitsQuestions.length]);
-  const bitsChecklistProgress = bitsAttempt
-    ? bitsChecklistTotal
-    : Math.min(bitsChecklistTotal, Math.max(bitsVisitedIndices.size, bitsFilledQuestionCount));
+
+  const bitsFilledInActiveSet = useMemo(() => {
+    if (!useAdvancedSetsUi) return bitsFilledQuestionCount;
+    const { start, end } = activeSetBounds;
+    let c = 0;
+    for (let i = start; i < end; i++) {
+      if (typeof bitsSelectedAnswers[i] === "number") c++;
+    }
+    return c;
+  }, [useAdvancedSetsUi, activeSetBounds, bitsFilledQuestionCount, bitsSelectedAnswers]);
+
+  const bitsChecklistProgress = useMemo(() => {
+    const total = bitsChecklistTotal;
+    if (total === 0) return 0;
+    if (!useAdvancedSetsUi) {
+      return bitsAttempt
+        ? total
+        : Math.min(total, Math.max(bitsVisitedIndices.size, bitsFilledQuestionCount));
+    }
+    let done = 0;
+    for (const s of [1, 2, 3] as const) {
+      const { start, end, length: len } = getAdvancedSetBounds(total, s);
+      if (len === 0) continue;
+      const att = bitsAttemptBySet[s];
+      if (att) {
+        done += len;
+      } else {
+        let filled = 0;
+        for (let i = start; i < end; i++) {
+          if (typeof bitsSelectedAnswers[i] === "number") filled++;
+        }
+        done += filled;
+      }
+    }
+    return Math.min(total, done);
+  }, [
+    bitsChecklistTotal,
+    useAdvancedSetsUi,
+    bitsAttempt,
+    bitsAttemptBySet,
+    bitsVisitedIndices,
+    bitsFilledQuestionCount,
+    bitsSelectedAnswers,
+  ]);
   const instaCueChecklistTotal = sidebarInstaCueCards.length;
   const instaCueCoverageCount = useMemo(() => {
     const u = new Set<number>();
@@ -1812,10 +2112,59 @@ export default function TopicPage() {
     formulaChecklistProgress >= formulaChecklistTotal &&
     conceptsChecklistProgress >= conceptsChecklistTotal;
 
+  const bitsAllSetsSubmitted = useMemo(() => {
+    if (!useAdvancedSetsUi) return Boolean(bitsAttempt);
+    const n = dbBitsQuestions.length;
+    for (const s of [1, 2, 3] as const) {
+      const { length: len } = getAdvancedSetBounds(n, s);
+      if (len === 0) continue;
+      if (!bitsAttemptBySet[s]) return false;
+    }
+    return true;
+  }, [useAdvancedSetsUi, bitsAttempt, bitsAttemptBySet, dbBitsQuestions.length]);
+
+  const bitsQuizAggregate = useMemo(() => {
+    if (!useAdvancedSetsUi) {
+      if (!bitsAttempt) return null;
+      return {
+        correct: bitsAttempt.correctCount,
+        total: bitsAttempt.totalQuestions,
+        pct:
+          bitsAttempt.totalQuestions > 0
+            ? Math.round((bitsAttempt.correctCount / bitsAttempt.totalQuestions) * 100)
+            : 0,
+      };
+    }
+    let c = 0;
+    let t = 0;
+    for (const s of [1, 2, 3] as const) {
+      const a = bitsAttemptBySet[s];
+      if (a) {
+        c += a.correctCount;
+        t += a.totalQuestions;
+      }
+    }
+    if (t === 0) return null;
+    return { correct: c, total: t, pct: Math.round((c / t) * 100) };
+  }, [useAdvancedSetsUi, bitsAttempt, bitsAttemptBySet]);
+
+  const setResultsHeading = useMemo(() => {
+    if (!useAdvancedSetsUi) return "Previous submission found";
+    return `Set -${activeQuizSet} Results`;
+  }, [useAdvancedSetsUi, activeQuizSet]);
+
+  const nextQuizSetNumber = useMemo((): AdvancedQuizSetIndex | null => {
+    if (!useAdvancedSetsUi || !displayBitsAttempt) return null;
+    const n = dbBitsQuestions.length;
+    if (activeQuizSet >= 3) return null;
+    const next = (activeQuizSet + 1) as AdvancedQuizSetIndex;
+    return getAdvancedSetBounds(n, next).length > 0 ? next : null;
+  }, [useAdvancedSetsUi, displayBitsAttempt, activeQuizSet, dbBitsQuestions.length]);
+
   const buildEngagementSnapshot = useCallback((): SubtopicEngagementSnapshot | null => {
     if (!engagementScope || dbBitsQuestions.length === 0) return null;
     const bitsDraft =
-      bitsAttempt || bitsChecklistTotal === 0
+      bitsAllSetsSubmitted || bitsChecklistTotal === 0
         ? null
         : (() => {
             const selectedAnswers = Object.fromEntries(
@@ -1840,6 +2189,7 @@ export default function TopicPage() {
               currentIdx: Math.min(bitsCurrentIdx, Math.max(0, bitsChecklistTotal - 1)),
               selectedAnswers,
               visitedIndices: Array.from(bitsVisitedIndices.values()).sort((a, b) => a - b),
+              ...(useAdvancedSetsUi ? { activeQuizSet } : {}),
               ...(graded ? { graded } : {}),
             };
           })();
@@ -1872,7 +2222,7 @@ export default function TopicPage() {
   }, [
     engagementScope,
     dbBitsQuestions,
-    bitsAttempt,
+    bitsAllSetsSubmitted,
     bitsChecklistTotal,
     bitsCurrentIdx,
     bitsSelectedAnswers,
@@ -1886,6 +2236,8 @@ export default function TopicPage() {
     instaCueValidatedIndices,
     viewedConceptPages,
     bitsSignature,
+    useAdvancedSetsUi,
+    activeQuizSet,
   ]);
 
   const flushSubtopicEngagementNow = useCallback(() => {
@@ -2405,10 +2757,10 @@ export default function TopicPage() {
                                 <span className="rounded-md border border-cyan-400/40 bg-cyan-500/10 px-2 py-1 text-[11px] font-bold text-cyan-300 tabular-nums">
                                   {bitsChecklistProgress}/{bitsChecklistTotal}
                                 </span>
-                                {bitsAttempt ? (
+                                {bitsQuizAggregate ? (
                                   <span className="inline-flex items-center gap-0.5 rounded-md border border-emerald-400/50 bg-emerald-500/15 px-2 py-1 text-[11px] font-bold text-emerald-300 tabular-nums">
                                     <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-400" aria-hidden />
-                                    {bitsAttempt.correctCount}
+                                    {bitsQuizAggregate.correct}
                                   </span>
                                 ) : null}
                               </div>
@@ -2473,6 +2825,8 @@ export default function TopicPage() {
                           setViewedConceptPages(new Set([0]));
                           setConceptsPage(0);
                           setBitsAttempt(null);
+                          setBitsAttemptBySet({});
+                          setActiveQuizSet(1);
                           engagementHydratedRef.current = null;
                           if (engagementScope && session?.access_token && bitsSignature) {
                             void saveSubtopicEngagement(engagementScope, {
@@ -2664,7 +3018,7 @@ export default function TopicPage() {
                 </div>
 
                 {/* Quiz progress */}
-                {bitsAttempt && (
+                {bitsQuizAggregate && (
                   <div>
                     <h4 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2 px-1">
                       Your Progress
@@ -2674,18 +3028,14 @@ export default function TopicPage() {
                         <div className="flex justify-between text-xs mb-1">
                           <span className="text-muted-foreground">Quiz score</span>
                           <span className="font-bold text-foreground">
-                            {bitsAttempt.totalQuestions > 0
-                              ? `${Math.round((bitsAttempt.correctCount / bitsAttempt.totalQuestions) * 100)}%`
-                              : "0%"}
+                            {bitsQuizAggregate.total > 0 ? `${bitsQuizAggregate.pct}%` : "0%"}
                           </span>
                         </div>
                         <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                           <div
                             className="h-full bg-primary rounded-full"
                             style={{
-                              width: bitsAttempt.totalQuestions > 0
-                                ? `${Math.round((bitsAttempt.correctCount / bitsAttempt.totalQuestions) * 100)}%`
-                                : "0%",
+                              width: bitsQuizAggregate.total > 0 ? `${bitsQuizAggregate.pct}%` : "0%",
                             }}
                           />
                         </div>
@@ -3708,7 +4058,7 @@ export default function TopicPage() {
           {isInvestorTopicHubLayout && (
           <aside className="w-full lg:w-72 xl:w-80 shrink-0 min-w-0 lg:min-w-[18rem]">
             <div className="lg:sticky lg:top-24 space-y-4">
-              <Tabs defaultValue="instacue" className="w-full">
+              <Tabs value={rightPanelTab} onValueChange={(v) => setRightPanelTab(v as PanelTab)} className="w-full">
                 <TabsList className="grid w-full grid-cols-4 mb-3">
                   <TabsTrigger value="instacue" className="text-xs">+ InstaCue</TabsTrigger>
                   <TabsTrigger value="quiz" className="text-xs">Quiz (0)</TabsTrigger>
@@ -3893,7 +4243,7 @@ export default function TopicPage() {
 
               {/* Right column: InstaCue / Quiz / Numerals / Concepts */}
               {isSubtopicDashboardLayout && (
-                <Tabs defaultValue="instacue" className="w-full">
+                <Tabs value={rightPanelTab} onValueChange={(v) => setRightPanelTab(v as PanelTab)} className="w-full">
                   <TabsList className="grid w-full grid-cols-4 mb-3">
                     <TabsTrigger value="instacue" className="text-xs">
                       {canEditTheory ? "+ InstaCue" : "InstaCue"}
@@ -4084,19 +4434,58 @@ export default function TopicPage() {
                           <span className="text-xs text-muted-foreground">{topicNode?.topic ?? "Topic"}</span>
                         </div>
                         <ul className="space-y-1.5 text-xs divide-y divide-border/40">
-                          <li className="flex justify-between py-1">
-                            <span className="text-muted-foreground">Questions</span>
-                            <span className="font-bold text-foreground">{dbBitsQuestions.length} MCQs</span>
-                          </li>
-                          <li className="flex justify-between py-1">
-                            <span className="text-muted-foreground">Level</span>
-                            <span className="font-bold text-foreground capitalize">{difficultyLevel}</span>
-                          </li>
-                          {bitsAttempt && (
+                          {!useAdvancedSetsUi ? (
+                            <>
+                              <li className="flex justify-between py-1">
+                                <span className="text-muted-foreground">Questions</span>
+                                <span className="font-bold text-foreground">{dbBitsQuestions.length} MCQs</span>
+                              </li>
+                              <li className="flex justify-between py-1">
+                                <span className="text-muted-foreground">Level</span>
+                                <span className="font-bold text-foreground capitalize">{difficultyLevel}</span>
+                              </li>
+                            </>
+                          ) : (
+                            <>
+                              <li className="py-1.5">
+                                <span className="text-muted-foreground block mb-1.5">Sets (10 + 10 + remainder)</span>
+                                <div className="flex flex-col gap-1">
+                                  {([1, 2, 3] as const).map((s) => {
+                                    const len = getAdvancedSetBounds(dbBitsQuestions.length, s).length;
+                                    if (len === 0) return null;
+                                    const locked =
+                                      s === 2 ? !bitsAttemptBySet[1] : s === 3 ? !bitsAttemptBySet[2] : false;
+                                    const att = bitsAttemptBySet[s];
+                                    return (
+                                      <div
+                                        key={s}
+                                        className="flex items-center justify-between gap-2 rounded-md border border-border/60 bg-muted/30 px-2 py-1"
+                                      >
+                                        <span className="font-semibold text-foreground">
+                                          Set {s}{locked ? <Lock className="inline h-3 w-3 ml-1 text-muted-foreground" /> : null}
+                                        </span>
+                                        <span className="text-muted-foreground">
+                                          {len} Q
+                                          {att && att.totalQuestions > 0
+                                            ? ` · ${Math.round((att.correctCount / att.totalQuestions) * 100)}%`
+                                            : ""}
+                                        </span>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </li>
+                              <li className="flex justify-between py-1">
+                                <span className="text-muted-foreground">Level</span>
+                                <span className="font-bold text-foreground capitalize">{difficultyLevel}</span>
+                              </li>
+                            </>
+                          )}
+                          {bitsQuizAggregate && (
                             <li className="flex justify-between py-1">
-                              <span className="text-muted-foreground">Last score</span>
+                              <span className="text-muted-foreground">{useAdvancedSetsUi ? "Overall score" : "Last score"}</span>
                               <span className="font-bold text-green-700 dark:text-green-300">
-                                {Math.round((bitsAttempt.correctCount / bitsAttempt.totalQuestions) * 100)}% · {bitsAttempt.correctCount}/{bitsAttempt.totalQuestions}
+                                {bitsQuizAggregate.pct}% · {bitsQuizAggregate.correct}/{bitsQuizAggregate.total}
                               </span>
                             </li>
                           )}
@@ -4104,29 +4493,88 @@ export default function TopicPage() {
                         <Button
                           className="w-full rounded-xl edu-btn-primary text-sm font-bold"
                           onClick={() => {
-                            if (bitsAttempt) {
-                              setBitsCurrentIdx(0);
-                              setBitsSelectedAnswers({});
-                              setBitsReviewMode(false);
-                            } else {
-                              setBitsReviewMode(false);
+                            if (!useAdvancedSetsUi) {
+                              if (showPreviousQuizAttempt && bitsAttempt) {
+                                setBitsCurrentIdx(0);
+                                setBitsSelectedAnswers({});
+                                setBitsReviewMode(false);
+                              } else {
+                                setBitsReviewMode(false);
+                              }
+                              setBitsDialogOpen(true);
+                              return;
                             }
+                            setActiveQuizSet(1);
+                            const b1 = getAdvancedSetBounds(dbBitsQuestions.length, 1);
+                            setBitsCurrentIdx(b1.start);
+                            setBitsReviewMode(false);
                             setBitsDialogOpen(true);
                           }}
                         >
-                          {bitsAttempt
-                            ? "Open quiz →"
-                            : bitsCurrentIdx > 0 || bitsFilledQuestionCount > 0
-                              ? "Continue quiz →"
+                          {!useAdvancedSetsUi
+                            ? showPreviousQuizAttempt
+                              ? "Open quiz →"
+                              : bitsCurrentIdx > 0 || bitsFilledQuestionCount > 0
+                                ? "Continue quiz →"
+                                : "Start Quiz →"
+                            : Object.values(bitsAttemptBySet).some(Boolean) || bitsFilledQuestionCount > 0
+                              ? "Open quiz →"
                               : "Start Quiz →"}
                         </Button>
-                        {bitsAttempt && (
+                        <div className="flex flex-col gap-1.5">
+                          {useAdvancedSetsUi
+                            ? ([1, 2, 3] as const).map((s) => {
+                                const len = getAdvancedSetBounds(dbBitsQuestions.length, s).length;
+                                if (len === 0) return null;
+                                const locked = s === 2 ? !bitsAttemptBySet[1] : s === 3 ? !bitsAttemptBySet[2] : false;
+                                const att = bitsAttemptBySet[s];
+                                const b = getAdvancedSetBounds(dbBitsQuestions.length, s);
+                                const inProgress =
+                                  !att &&
+                                  Array.from({ length: b.end - b.start }, (_, i) => b.start + i).some(
+                                    (idx) => typeof bitsSelectedAnswers[idx] === "number"
+                                  );
+                                return (
+                                  <Button
+                                    key={s}
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={locked}
+                                    title={locked ? "Complete the previous set first" : undefined}
+                                    className="w-full rounded-lg text-xs font-bold"
+                                    onClick={() => {
+                                      if (locked) return;
+                                      setActiveQuizSet(s);
+                                      setBitsCurrentIdx(b.start);
+                                      setBitsReviewMode(att ? false : false);
+                                      setBitsDialogOpen(true);
+                                    }}
+                                  >
+                                    {locked ? (
+                                      <>
+                                        <Lock className="h-3.5 w-3.5 mr-1" />
+                                        Set {s} (locked)
+                                      </>
+                                    ) : att ? (
+                                      `Set ${s} — results`
+                                    ) : inProgress ? (
+                                      `Continue set ${s} →`
+                                    ) : (
+                                      `Start set ${s} →`
+                                    )}
+                                  </Button>
+                                );
+                              })
+                            : null}
+                        </div>
+                        {showPreviousQuizAttempt && displayBitsAttempt && !useAdvancedSetsUi && (
                           <button
                             type="button"
                             className="w-full text-xs text-primary hover:underline text-center"
                             onClick={() => {
                               const selected: Record<number, number> = {};
-                              for (const [k, v] of Object.entries(bitsAttempt.selectedAnswers)) {
+                              for (const [k, v] of Object.entries(displayBitsAttempt.selectedAnswers)) {
                                 const idx = Number(k);
                                 if (Number.isInteger(idx)) selected[idx] = v;
                               }
@@ -4164,43 +4612,46 @@ export default function TopicPage() {
                             <DialogDescription className="text-xs">Test your understanding</DialogDescription>
                           </DialogHeader>
                             <div className="min-w-0 max-w-full space-y-3">
-                              {!bitsReviewMode && bitsAttempt ? (
+                              {!bitsReviewMode && showPreviousQuizAttempt && displayBitsAttempt ? (
                                 <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
-                                  <p className="text-lg font-bold text-foreground">Previous submission found</p>
+                                  <p className="text-lg font-bold text-foreground">{setResultsHeading}</p>
                                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                                     <div className="rounded-xl bg-green-500/10 border border-green-500/30 p-3">
                                       <p className="text-xs text-muted-foreground">Correct</p>
-                                      <p className="text-xl font-bold text-green-700 dark:text-green-300">{bitsAttempt.correctCount}</p>
+                                      <p className="text-xl font-bold text-green-700 dark:text-green-300">{displayBitsAttempt.correctCount}</p>
                                     </div>
                                     <div className="rounded-xl bg-destructive/10 border border-destructive/30 p-3">
                                       <p className="text-xs text-muted-foreground">Wrong</p>
-                                      <p className="text-xl font-bold text-destructive">{bitsAttempt.wrongCount}</p>
+                                      <p className="text-xl font-bold text-destructive">{displayBitsAttempt.wrongCount}</p>
                                     </div>
                                     <div className="rounded-xl bg-muted border border-border p-3">
                                       <p className="text-xs text-muted-foreground">Score</p>
                                       <p className="text-xl font-bold text-foreground">
-                                        {bitsAttempt.totalQuestions > 0
-                                          ? `${Math.round((bitsAttempt.correctCount / bitsAttempt.totalQuestions) * 100)}%`
+                                        {displayBitsAttempt.totalQuestions > 0
+                                          ? `${Math.round((displayBitsAttempt.correctCount / displayBitsAttempt.totalQuestions) * 100)}%`
                                           : "0%"}
                                       </p>
                                     </div>
                                   </div>
                                   <p className="text-xs text-muted-foreground">
-                                    Submitted on {new Date(bitsAttempt.submittedAt).toLocaleString()}
+                                    Submitted on {new Date(displayBitsAttempt.submittedAt).toLocaleString()}
                                   </p>
-                                  <div className="flex items-center justify-between gap-2 pt-1">
+                                  <div className="grid grid-cols-1 gap-2 pt-1 sm:grid-cols-3 sm:items-center">
                                     <Button
                                       variant="outline"
                                       size="sm"
-                                      className="rounded-xl h-8 px-3 text-xs"
+                                      className="rounded-xl h-8 px-3 text-xs sm:justify-self-start"
                                       onClick={() => {
                                         const selected: Record<number, number> = {};
-                                        for (const [k, v] of Object.entries(bitsAttempt.selectedAnswers)) {
+                                        for (const [k, v] of Object.entries(displayBitsAttempt.selectedAnswers)) {
                                           const idx = Number(k);
                                           if (Number.isInteger(idx)) selected[idx] = v;
                                         }
                                         setBitsSelectedAnswers(selected);
-                                        setBitsCurrentIdx(0);
+                                        const b = useAdvancedSetsUi
+                                          ? getAdvancedSetBounds(dbBitsQuestions.length, activeQuizSet)
+                                          : { start: 0, end: dbBitsQuestions.length, length: dbBitsQuestions.length };
+                                        setBitsCurrentIdx(b.start);
                                         setBitsReviewMode(true);
                                       }}
                                     >
@@ -4209,8 +4660,44 @@ export default function TopicPage() {
                                     <Button
                                       variant="default"
                                       size="sm"
-                                      className="rounded-xl h-8 px-3 text-xs"
-                                      onClick={() => {
+                                      className="rounded-xl h-8 px-3 text-xs sm:justify-self-center"
+                                      onClick={async () => {
+                                        if (!topicNode || !subtopicName) return;
+                                        if (useAdvancedSetsUi) {
+                                          const boardName = (board === "icse" ? "ICSE" : "CBSE") as Board;
+                                          try {
+                                            await clearBitsAttemptSet({
+                                              board: boardName,
+                                              subject: topicNode.subject,
+                                              classLevel: topicNode.classLevel,
+                                              topic: topicNode.topic,
+                                              subtopicName,
+                                              level: difficultyLevel,
+                                              set: activeQuizSet,
+                                            });
+                                            const b = getAdvancedSetBounds(dbBitsQuestions.length, activeQuizSet);
+                                            setBitsAttemptBySet((prev) => {
+                                              const n = { ...prev };
+                                              delete n[activeQuizSet];
+                                              return n;
+                                            });
+                                            setBitsSelectedAnswers((prev) => {
+                                              const n = { ...prev };
+                                              for (let i = b.start; i < b.end; i++) delete n[i];
+                                              return n;
+                                            });
+                                            setBitsCurrentIdx(b.start);
+                                            setBitsReviewMode(false);
+                                            window.setTimeout(() => flushSubtopicEngagementNow(), 0);
+                                          } catch {
+                                            toast({
+                                              title: "Could not reset attempt",
+                                              description: "Please try again.",
+                                              variant: "destructive",
+                                            });
+                                          }
+                                          return;
+                                        }
                                         setBitsSelectedAnswers({});
                                         setBitsCurrentIdx(0);
                                         setBitsReviewMode(true);
@@ -4218,9 +4705,132 @@ export default function TopicPage() {
                                     >
                                       Take test another time
                                     </Button>
+                                    <Button
+                                      variant="secondary"
+                                      size="sm"
+                                      className="h-9 rounded-xl border border-primary/35 bg-primary/12 px-5 text-sm font-semibold text-primary shadow-[0_0_0_1px_rgba(59,130,246,0.18)] transition hover:bg-primary/18 sm:justify-self-end"
+                                      onClick={handleOpenQuizPostDialog}
+                                    >
+                                      Post quiz
+                                    </Button>
                                   </div>
+                                  {useAdvancedSetsUi &&
+                                  (activeQuizSet > 1 || nextQuizSetNumber !== null) ? (
+                                    <div className="flex w-full flex-row gap-2 pt-1">
+                                      {activeQuizSet > 1 ? (
+                                        <Button
+                                          type="button"
+                                          variant="outline"
+                                          size="sm"
+                                          className="min-h-9 flex-1 rounded-xl text-xs font-semibold border-dashed"
+                                          onClick={() => {
+                                            const prev = (activeQuizSet - 1) as AdvancedQuizSetIndex;
+                                            setActiveQuizSet(prev);
+                                            setBitsReviewMode(false);
+                                          }}
+                                        >
+                                          Previous Set
+                                        </Button>
+                                      ) : null}
+                                      {nextQuizSetNumber !== null ? (
+                                        <Button
+                                          type="button"
+                                          className="min-h-9 flex-1 rounded-xl text-sm font-bold"
+                                          onClick={() => {
+                                            const next = nextQuizSetNumber;
+                                            const b = getAdvancedSetBounds(dbBitsQuestions.length, next);
+                                            setActiveQuizSet(next);
+                                            setBitsReviewMode(false);
+                                            setBitsCurrentIdx(b.start);
+                                          }}
+                                        >
+                                          Next Set →
+                                        </Button>
+                                      ) : null}
+                                    </div>
+                                  ) : null}
+
+                                  <Dialog open={quizPostDialogOpen} onOpenChange={setQuizPostDialogOpen}>
+                                    <DialogContent className="w-[min(42rem,calc(100vw-1.5rem))] max-w-2xl rounded-2xl p-4 sm:p-6">
+                                      <DialogHeader>
+                                        <DialogTitle>Post quiz result</DialogTitle>
+                                        <DialogDescription>
+                                          Pick a ready format, edit if needed, then publish to Lessons.
+                                        </DialogDescription>
+                                      </DialogHeader>
+
+                                      <div className="rounded-xl border border-border bg-muted/25 p-3 text-xs text-muted-foreground">
+                                        <p className="font-semibold text-foreground">Context</p>
+                                        <div className="mt-2 flex flex-wrap gap-1.5">
+                                          {quizContextChips.map((chip) => (
+                                            <span key={chip} className="rounded-full border border-border bg-background px-2 py-0.5 text-[11px]">
+                                              {chip}
+                                            </span>
+                                          ))}
+                                        </div>
+                                      </div>
+
+                                      <div className="space-y-2">
+                                        <div className="flex items-center justify-between gap-2">
+                                          <Label className="text-xs font-semibold">Template preview</Label>
+                                          <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            className="h-8 rounded-lg"
+                                            onClick={handleShuffleQuizTemplate}
+                                            disabled={publishingQuizPost}
+                                          >
+                                            <Shuffle className="mr-1 h-3.5 w-3.5" />
+                                            Shuffle template
+                                          </Button>
+                                        </div>
+                                        <input
+                                          value={quizPostTitle}
+                                          onChange={(e) => setQuizPostTitle(e.target.value)}
+                                          className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+                                          placeholder="Post title"
+                                          disabled={publishingQuizPost}
+                                        />
+                                        <Textarea
+                                          value={quizPostDetails}
+                                          onChange={(e) => setQuizPostDetails(e.target.value)}
+                                          className="min-h-[120px] rounded-xl"
+                                          placeholder="Details (optional)"
+                                          disabled={publishingQuizPost}
+                                        />
+                                      </div>
+
+                                      <DialogFooter className="gap-2 sm:gap-0">
+                                        <Button
+                                          type="button"
+                                          variant="outline"
+                                          className="rounded-xl"
+                                          disabled={publishingQuizPost}
+                                          onClick={() => setQuizPostDialogOpen(false)}
+                                        >
+                                          Cancel
+                                        </Button>
+                                        <Button
+                                          type="button"
+                                          className="rounded-xl"
+                                          disabled={publishingQuizPost}
+                                          onClick={() => void handlePublishQuizPost()}
+                                        >
+                                          {publishingQuizPost ? "Publishing..." : "Post"}
+                                        </Button>
+                                      </DialogFooter>
+                                    </DialogContent>
+                                  </Dialog>
                                 </div>
                               ) : (() => {
+                                const navStart = useAdvancedSetsUi ? activeSetBounds.start : 0;
+                                const navEndExcl = useAdvancedSetsUi ? activeSetBounds.end : dbBitsQuestions.length;
+                                const setLen = useAdvancedSetsUi ? activeSetBounds.length : dbBitsQuestions.length;
+                                const qInSet = bitsCurrentIdx - navStart + 1;
+                                const isLastInWindow = useAdvancedSetsUi
+                                  ? bitsCurrentIdx >= activeSetBounds.end - 1
+                                  : bitsCurrentIdx >= dbBitsQuestions.length - 1;
                                 const q = dbBitsQuestions[bitsCurrentIdx];
                                 if (!q) return null;
                                 const selected = bitsSelectedAnswers[bitsCurrentIdx];
@@ -4233,7 +4843,10 @@ export default function TopicPage() {
                                   <>
                                     <div className="flex items-center justify-center">
                                   <span className="text-xs font-semibold text-muted-foreground" aria-live="polite">
-                                        Question {bitsCurrentIdx + 1} of {dbBitsQuestions.length}
+                                        Question {qInSet} of {setLen}
+                                        {useAdvancedSetsUi ? (
+                                          <span className="text-muted-foreground/80"> · Set {activeQuizSet}</span>
+                                        ) : null}
                                       </span>
                                     </div>
                                     <div className="flex min-w-0 max-w-full flex-wrap items-center gap-1.5">
@@ -4247,7 +4860,7 @@ export default function TopicPage() {
                                     <div className="min-w-0 max-w-full rounded-2xl border border-border p-4 space-y-3 bg-card">
                                       <div className="flex items-start justify-between gap-3">
                                         <h3 className="min-w-0 max-w-full flex-1 text-[1.05rem] font-bold leading-snug text-foreground [overflow-wrap:anywhere] break-words">
-                                          <MathText>{q.question}</MathText>
+                                          <MathText>{normalizeQuizDisplayMath(q.question)}</MathText>
                                         </h3>
                                         <Button
                                           variant="outline"
@@ -4319,7 +4932,7 @@ export default function TopicPage() {
                                                 {String.fromCharCode(65 + oi)}
                                               </span>
                                               <span className="min-w-0 flex-1 [overflow-wrap:anywhere] break-words">
-                                                <MathText>{opt}</MathText>
+                                                <MathText>{normalizeQuizDisplayMath(opt)}</MathText>
                                               </span>
                                           {answered && isCorrect && <CheckCircle2 className="inline w-4 h-4 ml-auto text-green-600" />}
                                             </button>
@@ -4330,24 +4943,27 @@ export default function TopicPage() {
                                         <Button
                                       variant="outline" size="sm"
                                           className="rounded-xl h-8 px-3 text-xs min-w-24 font-semibold border-primary/35 bg-primary/[0.06] text-foreground shadow-sm ring-1 ring-primary/10 hover:bg-primary/10 hover:border-primary/50 hover:ring-primary/18 disabled:border-border/40 disabled:bg-muted/40 disabled:text-muted-foreground disabled:ring-0 dark:bg-primary/10 dark:ring-primary/15"
-                                          onClick={() => setBitsCurrentIdx((i) => Math.max(0, i - 1))}
-                                          disabled={bitsCurrentIdx === 0}
+                                          onClick={() =>
+                                            setBitsCurrentIdx((i) => Math.max(navStart, i - 1))
+                                          }
+                                          disabled={bitsCurrentIdx <= navStart}
                                         >
                                           <ChevronLeft className="w-4 h-4 mr-1" /> Previous
                                         </Button>
                                         <Button
-                                          variant={bitsCurrentIdx === dbBitsQuestions.length - 1 ? "default" : "outline"}
+                                          variant={isLastInWindow ? "default" : "outline"}
                                           size="sm"
                                           className={
-                                            bitsCurrentIdx === dbBitsQuestions.length - 1
+                                            isLastInWindow
                                               ? "rounded-xl h-8 px-3 text-xs min-w-24 font-semibold shadow-sm ring-1 ring-primary/25"
                                               : "rounded-xl h-8 px-3 text-xs min-w-24 font-semibold border-primary/35 bg-primary/[0.06] text-foreground shadow-sm ring-1 ring-primary/10 hover:bg-primary/10 hover:border-primary/50 hover:ring-primary/18 disabled:border-border/40 disabled:bg-muted/40 disabled:text-muted-foreground disabled:ring-0 dark:bg-primary/10 dark:ring-primary/15"
                                           }
                                           onClick={async () => {
-                                            if (bitsCurrentIdx < dbBitsQuestions.length - 1) {
-                                              setBitsCurrentIdx((i) => Math.min(dbBitsQuestions.length - 1, i + 1));
+                                            if (!isLastInWindow) {
+                                              setBitsCurrentIdx((i) => Math.min(navEndExcl - 1, i + 1));
                                               return;
                                             }
+                                            if (!useAdvancedSetsUi) {
                                             const total = dbBitsQuestions.length;
                                             let answeredCount = 0;
                                             for (let i = 0; i < total; i++) {
@@ -4374,7 +4990,10 @@ export default function TopicPage() {
                                             };
                                             setSubmittingBits(true);
                                             try {
-                                              const persisted = await saveBitsAttempt(payload);
+                                              const persisted =
+                                                difficultyLevel === "advanced"
+                                                  ? await saveBitsAttempt(payload, { set: 1 })
+                                                  : await saveBitsAttempt(payload);
                                               setBitsAttempt(persisted);
                                               setBitsReviewMode(false);
                                               setBitsCurrentIdx(0);
@@ -4386,25 +5005,102 @@ export default function TopicPage() {
                                             } finally {
                                               setSubmittingBits(false);
                                             }
+                                              return;
+                                            }
+                                            const { start, end } = activeSetBounds;
+                                            const sliceLen = end - start;
+                                            let answeredInSet = 0;
+                                            for (let i = start; i < end; i++) {
+                                              if (typeof bitsSelectedAnswers[i] === "number") answeredInSet++;
+                                            }
+                                            if (answeredInSet < sliceLen) {
+                                              toast({
+                                                title: "Answer all questions in this set",
+                                                description: `${answeredInSet}/${sliceLen} answered`,
+                                              });
+                                              return;
+                                            }
+                                            let correctCount = 0;
+                                            for (let i = start; i < end; i++) {
+                                              const item = dbBitsQuestions[i];
+                                              const si = bitsSelectedAnswers[i];
+                                              if (typeof si !== "number") continue;
+                                              if (item.options[si] === item.correctAnswer) correctCount++;
+                                            }
+                                            const wrongCount = sliceLen - correctCount;
+                                            if (!topicNode || !subtopicName) return;
+                                            const boardName = (board === "icse" ? "ICSE" : "CBSE") as Board;
+                                            const selectedSlice: Record<string, number> = {};
+                                            for (let i = start; i < end; i++) {
+                                              if (typeof bitsSelectedAnswers[i] === "number") {
+                                                selectedSlice[String(i)] = bitsSelectedAnswers[i]!;
+                                              }
+                                            }
+                                            const payload: BitsAttemptRecord = {
+                                              board: boardName,
+                                              subject: topicNode.subject,
+                                              classLevel: topicNode.classLevel,
+                                              topic: topicNode.topic,
+                                              subtopicName,
+                                              level: difficultyLevel,
+                                              bitsSignature,
+                                              totalQuestions: sliceLen,
+                                              correctCount,
+                                              wrongCount,
+                                              selectedAnswers: selectedSlice,
+                                              submittedAt: new Date().toISOString(),
+                                            };
+                                            setSubmittingBits(true);
+                                            try {
+                                              const persisted = await saveBitsAttempt(payload, { set: activeQuizSet });
+                                              setBitsAttemptBySet((prev) => ({ ...prev, [activeQuizSet]: persisted }));
+                                              setBitsReviewMode(false);
+                                              setBitsSelectedAnswers((prev) => {
+                                                const n = { ...prev };
+                                                for (let i = start; i < end; i++) delete n[i];
+                                                return n;
+                                              });
+                                              setBitsCurrentIdx(start);
+                                              window.setTimeout(() => flushSubtopicEngagementNow(), 0);
+                                              toast({
+                                                title: "Set submitted",
+                                                description: `Correct: ${correctCount}, Wrong: ${wrongCount}`,
+                                              });
+                                            } catch {
+                                              toast({
+                                                title: "Failed to save result",
+                                                description: "Please retry submit.",
+                                                variant: "destructive",
+                                              });
+                                            } finally {
+                                              setSubmittingBits(false);
+                                            }
                                           }}
                                       disabled={
                                         submittingBits ||
-                                        (bitsCurrentIdx < dbBitsQuestions.length - 1 &&
+                                        (!isLastInWindow &&
                                           typeof bitsSelectedAnswers[bitsCurrentIdx] !== "number") ||
-                                        (bitsCurrentIdx === dbBitsQuestions.length - 1 &&
-                                          bitsFilledQuestionCount < dbBitsQuestions.length)
+                                        (isLastInWindow &&
+                                          (useAdvancedSetsUi
+                                            ? bitsFilledInActiveSet < activeSetBounds.length
+                                            : bitsFilledQuestionCount < dbBitsQuestions.length))
                                       }
                                     >
-                                      {bitsCurrentIdx === dbBitsQuestions.length - 1
+                                      {isLastInWindow
                                         ? submittingBits ? <><Loader2 className="w-4 h-4 mr-1 animate-spin" /> Submitting</> : "Submit"
                                         : <>Next <ChevronRight className="w-4 h-4 ml-1" /></>}
                                         </Button>
                                       </div>
-                                      {bitsCurrentIdx === dbBitsQuestions.length - 1 &&
-                                        bitsFilledQuestionCount < dbBitsQuestions.length &&
+                                      {isLastInWindow &&
+                                        (useAdvancedSetsUi
+                                          ? bitsFilledInActiveSet < activeSetBounds.length
+                                          : bitsFilledQuestionCount < dbBitsQuestions.length) &&
                                         dbBitsQuestions.length > 0 && (
                                           <p className="text-center text-xs text-amber-600 dark:text-amber-500">
-                                            {bitsFilledQuestionCount}/{dbBitsQuestions.length} questions have an answer. Use{" "}
+                                            {useAdvancedSetsUi
+                                              ? `${bitsFilledInActiveSet}/${activeSetBounds.length}`
+                                              : `${bitsFilledQuestionCount}/${dbBitsQuestions.length}`}{" "}
+                                            questions have an answer in this set. Use{" "}
                                             <span className="font-semibold">Previous</span> to find any you skipped.
                                           </p>
                                         )}
@@ -4412,7 +5108,7 @@ export default function TopicPage() {
                                         <div className="bits-quiz-explanation mt-2 rounded-xl bg-muted/50 p-3 text-sm text-muted-foreground">
                                           <p className="mb-1 font-bold text-foreground">Explanation</p>
                                           <div className="min-w-0 max-w-full text-foreground/90">
-                                            <MathText as="div">{q.solution}</MathText>
+                                            <MathText as="div">{normalizeQuizDisplayMath(q.solution)}</MathText>
                                           </div>
                                         </div>
                                       )}
@@ -4721,7 +5417,7 @@ export default function TopicPage() {
 
                                   <div className="rounded-2xl border border-border p-4 space-y-3 bg-card">
                                     <h3 className="text-[1.05rem] font-bold leading-snug text-foreground">
-                                      <MathText>{q.question}</MathText>
+                                      <MathText>{normalizeQuizDisplayMath(q.question)}</MathText>
                                     </h3>
                                     <div
                                       className={useTwoColumns ? "grid grid-cols-1 sm:grid-cols-2 gap-2" : "space-y-2"}
@@ -4752,7 +5448,7 @@ export default function TopicPage() {
                                             <span className="w-7 h-7 rounded-full bg-background/90 flex items-center justify-center text-sm shrink-0 font-bold">
                                               {String.fromCharCode(65 + oi)}
                                             </span>
-                                            <MathText>{opt}</MathText>
+                                            <MathText>{normalizeQuizDisplayMath(opt)}</MathText>
                                             {answered && isCorrect && (
                                               <CheckCircle2 className="inline w-4 h-4 ml-auto text-green-600" />
                                             )}
@@ -4763,7 +5459,7 @@ export default function TopicPage() {
                                     {answered && q.solution && (
                                       <div className="mt-2 p-3 rounded-xl bg-muted/50 text-sm text-muted-foreground">
                                         <p className="font-bold text-foreground mb-1">Explanation</p>
-                                        <MathText>{q.solution}</MathText>
+                                        <MathText>{normalizeQuizDisplayMath(q.solution)}</MathText>
                                       </div>
                                     )}
                                     <div className="space-y-2 pt-1">

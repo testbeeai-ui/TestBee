@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   ArrowUpRight,
   BadgeCheck,
@@ -598,7 +599,9 @@ function TeacherInvestorSections() {
 }
 
 export default function EduBlastInvestorLanding() {
-  const [persona, setPersona] = useState<"student" | "teacher">("student");
+  const searchParams = useSearchParams();
+  const initialPersona = searchParams.get("persona") === "teacher" ? "teacher" : "student";
+  const [persona, setPersona] = useState<"student" | "teacher">(initialPersona);
 
   return (
     <div className="overflow-x-hidden bg-[#050505] text-zinc-100">

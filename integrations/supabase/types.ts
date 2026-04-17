@@ -462,6 +462,13 @@ export type Database = {
           tags: string[]
           subject: string | null
           chapter_ref: string | null
+          board_ref: string | null
+          grade_ref: string | null
+          unit_ref: string | null
+          topic_ref: string | null
+          subtopic_ref: string | null
+          source_type: string | null
+          source_payload: Json | null
           boost_count: number
           upvote_count: number
           downvote_count: number
@@ -478,6 +485,13 @@ export type Database = {
           tags?: string[]
           subject?: string | null
           chapter_ref?: string | null
+          board_ref?: string | null
+          grade_ref?: string | null
+          unit_ref?: string | null
+          topic_ref?: string | null
+          subtopic_ref?: string | null
+          source_type?: string | null
+          source_payload?: Json | null
           boost_count?: number
           upvote_count?: number
           downvote_count?: number
@@ -494,6 +508,13 @@ export type Database = {
           tags?: string[]
           subject?: string | null
           chapter_ref?: string | null
+          board_ref?: string | null
+          grade_ref?: string | null
+          unit_ref?: string | null
+          topic_ref?: string | null
+          subtopic_ref?: string | null
+          source_type?: string | null
+          source_payload?: Json | null
           boost_count?: number
           upvote_count?: number
           downvote_count?: number
@@ -881,6 +902,7 @@ export type Database = {
           rdm: number
           role: string
           saved_bits: Json
+          saved_community_posts: Json
           saved_formulas: Json
           saved_revision_cards: Json
           saved_revision_units: Json
@@ -908,6 +930,7 @@ export type Database = {
           rdm?: number
           role?: string
           saved_bits?: Json
+          saved_community_posts?: Json
           saved_formulas?: Json
           saved_revision_cards?: Json
           saved_revision_units?: Json
@@ -935,6 +958,7 @@ export type Database = {
           rdm?: number
           role?: string
           saved_bits?: Json
+          saved_community_posts?: Json
           saved_formulas?: Json
           saved_revision_cards?: Json
           saved_revision_units?: Json
