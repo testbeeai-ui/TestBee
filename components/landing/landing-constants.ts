@@ -11,10 +11,11 @@ export const NAV_LINKS = [
 
 /** Dark investor landing (matches marketing shell in product screenshots). */
 export const INVESTOR_NAV_LINKS = [
-  { label: "Home", href: "/auth?role=student" },
+  { label: "Home", href: "/" },
   { label: "Features", href: "/auth?role=student" },
-  { label: "For Teachers", href: "/auth?role=teacher" },
+  { label: "For Teachers", href: "/?persona=teacher" },
   { label: "EduFund", href: "/auth?role=student" },
+  { label: "Contact Us", href: "/contact" },
 ];
 
 export const FOOTER_LINKS = [

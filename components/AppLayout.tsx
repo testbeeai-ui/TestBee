@@ -170,6 +170,12 @@ const AppLayout = ({ children, streakTimer }: AppLayoutProps) => {
             <Link href="/pricing" className="hover:text-foreground transition-colors font-bold">Pricing</Link>
             <Link href="/profile" className="hover:text-foreground transition-colors font-bold">Profile</Link>
             <Link href={EXPLORE_APP_PATH} className="hover:text-foreground transition-colors font-bold">Lessons</Link>
+            <Link
+              href={`/contact?from=${encodeURIComponent(pathname || "/home")}`}
+              className="hover:text-foreground transition-colors font-bold"
+            >
+              Contact Us
+            </Link>
           </div>
         </div>
       </footer>

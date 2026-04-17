@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useState, useMemo, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
@@ -11,16 +10,14 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useTheme } from "next-themes";
 import {
-  User,
   LogOut,
   BookOpen,
-  Trophy,
   Coins,
-  Target,
   Bookmark,
   CheckCircle2,
   Activity,
   Heart,
+  MessageSquare,
   Sun,
   Moon,
   Monitor,
@@ -49,41 +46,13 @@ export default function Profile() {
     void refreshProfile();
   }, [authLoading, authUser, refreshProfile]);
 
-  if (authLoading || (authUser && !profile)) {
-    return (
-      <ProtectedRoute>
-        <div className="min-h-screen flex items-center justify-center">
-          <span className="text-4xl animate-pulse">🎯</span>
-        </div>
-      </ProtectedRoute>
-    );
-  }
-
-  if (profile?.role === "teacher") {
-    return (
-      <ProtectedRoute>
-        <TeacherProfile />
-      </ProtectedRoute>
-    );
-  }
-
-  if (!profile) {
-    return (
-      <ProtectedRoute>
-        <div className="min-h-screen flex items-center justify-center">
-          <span className="text-4xl animate-pulse">🎯</span>
-        </div>
-      </ProtectedRoute>
-    );
-  }
-
-  const displayName = profile.name || authUser?.email?.split("@")[0] || "Student";
-  const examLabel = targetExamLabel(profile.target_exam);
+  const displayName = profile?.name || authUser?.email?.split("@")[0] || "Student";
+  const examLabel = targetExamLabel(profile?.target_exam ?? null);
   const classLevelDisplay =
-    profile.class_level != null
+    profile?.class_level != null
       ? `Class ${profile.class_level}`
       : "Classes 11 & 12";
-  const subjectCombo = profile.subject_combo || storeUser?.subjectCombo || "—";
+  const subjectCombo = profile?.subject_combo || storeUser?.subjectCombo || "—";
 
   const bitsAttemptRows = useMemo(
     () => parseBitsTestAttemptsStore(profile?.bits_test_attempts ?? null),
@@ -143,12 +112,12 @@ export default function Profile() {
   const savedCount = useMemo(() => {
     const n = (x: unknown) => (Array.isArray(x) ? x.length : 0);
     return (
-      n(profile.saved_bits) +
-      n(profile.saved_formulas) +
-      n(profile.saved_revision_cards) +
-      n(profile.saved_revision_units)
+      n(profile?.saved_bits) +
+      n(profile?.saved_formulas) +
+      n(profile?.saved_revision_cards) +
+      n(profile?.saved_revision_units)
     );
-  }, [profile.saved_bits, profile.saved_formulas, profile.saved_revision_cards, profile.saved_revision_units]);
+  }, [profile?.saved_bits, profile?.saved_formulas, profile?.saved_revision_cards, profile?.saved_revision_units]);
 
   const handleLogout = async () => {
     try {
@@ -160,6 +129,34 @@ export default function Profile() {
       router.replace("/");
     }
   };
+
+  if (authLoading || (authUser && !profile)) {
+    return (
+      <ProtectedRoute>
+        <div className="min-h-screen flex items-center justify-center">
+          <span className="text-4xl animate-pulse">🎯</span>
+        </div>
+      </ProtectedRoute>
+    );
+  }
+
+  if (profile?.role === "teacher") {
+    return (
+      <ProtectedRoute>
+        <TeacherProfile />
+      </ProtectedRoute>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <ProtectedRoute>
+        <div className="min-h-screen flex items-center justify-center">
+          <span className="text-4xl animate-pulse">🎯</span>
+        </div>
+      </ProtectedRoute>
+    );
+  }
 
   return (
     <ProtectedRoute>
@@ -338,6 +335,24 @@ export default function Profile() {
                     onClick={() => router.push("/funding")}
                   >
                     Explore funding →
+                  </Button>
+                </div>
+                <div className="rounded-2xl border border-cyan-400/25 bg-gradient-to-br from-cyan-500/10 via-transparent to-violet-500/10 p-4 dark:border-cyan-300/20 dark:bg-[radial-gradient(circle_at_top_right,rgba(45,212,191,0.16),transparent_55%),radial-gradient(circle_at_bottom_left,rgba(139,92,246,0.14),transparent_55%),rgba(2,6,23,0.86)] 2xl:p-5">
+                  <div className="mb-0.5 flex items-center justify-between 2xl:mb-1">
+                    <h3 className="flex items-center gap-1.5 text-lg font-black text-foreground dark:text-white 2xl:gap-2 2xl:text-xl">
+                      <MessageSquare className="h-4 w-4 shrink-0 text-cyan-300 2xl:h-5 2xl:w-5" /> Contact Us
+                    </h3>
+                    <span className="rounded-full bg-cyan-500/20 px-2 py-0.5 text-xs font-bold text-cyan-200">Help</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground dark:text-slate-300/90">
+                    Report an issue, ask for partnerships, or share suggestions. We usually reply within 24–48 hours.
+                  </p>
+                  <Button
+                    variant="link"
+                    className="mt-2 h-auto p-0 text-cyan-300 hover:text-cyan-200"
+                    onClick={() => router.push("/contact?from=/profile")}
+                  >
+                    Open contact desk →
                   </Button>
                 </div>
               </div>
