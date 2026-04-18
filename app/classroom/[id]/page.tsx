@@ -6,6 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { safeGetSession } from '@/lib/safeSession';
 import AppLayout from '@/components/AppLayout';
 import { Copy, Users, BookOpen, Settings, Home, MessageSquare, Video, Plus, Calendar, Clock, UserPlus, Check, X, Loader2, UserMinus, Star } from 'lucide-react';
 import ClassroomReviews from '@/components/ClassroomReviews';
@@ -182,7 +183,7 @@ const ClassroomDetail = () => {
     if (!id || classroom?.teacher_id !== user?.id) return;
     try {
       const headers: HeadersInit = {};
-      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      const currentSession = (await safeGetSession()).session;
       if (currentSession?.access_token) headers['Authorization'] = `Bearer ${currentSession.access_token}`;
       const res = await fetch(`/api/classroom/${id}/join-requests`, { headers, credentials: 'include' });
       const data = await res.json();
@@ -214,7 +215,7 @@ const ClassroomDetail = () => {
     if (!id) return;
     if (useExplorerApi) {
       const headers: HeadersInit = {};
-      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      const currentSession = (await safeGetSession()).session;
       if (currentSession?.access_token) headers['Authorization'] = `Bearer ${currentSession.access_token}`;
       const res = await fetch(`/api/classroom/${id}/explorer-content`, { credentials: 'include', headers });
       if (!res.ok) {
@@ -240,7 +241,7 @@ const ClassroomDetail = () => {
     if (!id || !user || !classroom || isOwner) return;
     const doFetch = async () => {
       const headers: HeadersInit = {};
-      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      const currentSession = (await safeGetSession()).session;
       if (currentSession?.access_token) headers['Authorization'] = `Bearer ${currentSession.access_token}`;
       const res = await fetch(`/api/classroom/${id}/exploration-status`, { credentials: 'include', headers });
       const data = (await res.json()) as { allowed?: boolean; expiresAt?: number | null; startedAt?: number };

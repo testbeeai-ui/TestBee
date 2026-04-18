@@ -34,12 +34,8 @@ function genId() {
   return count.toString();
 }
 
-function randomAccentColor(): string {
-  const hue = Math.floor(Math.random() * 360);
-  const sat = 78 + Math.floor(Math.random() * 22); // 78-99%
-  const light = 54 + Math.floor(Math.random() * 18); // 54-71%
-  return `hsl(${hue} ${sat}% ${light}%)`;
-}
+/** EduBlast default toast accent (cyan-teal ring); matches product notifications across the app. */
+export const DEFAULT_TOAST_ACCENT = "hsl(175 78% 46%)";
 
 type ActionType = typeof actionTypes;
 
@@ -163,7 +159,7 @@ function toast({ ...props }: Toast) {
     type: "ADD_TOAST",
     toast: {
       ...props,
-      accentColor: props.accentColor ?? randomAccentColor(),
+      accentColor: props.accentColor ?? DEFAULT_TOAST_ACCENT,
       id,
       open: true,
       onOpenChange: (open) => {

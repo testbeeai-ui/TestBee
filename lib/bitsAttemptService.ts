@@ -1,6 +1,9 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { DifficultyLevel } from "@/lib/slugs";
 import type { Board, Subject } from "@/types";
+import { safeGetSession } from "@/lib/safeSession";
+import { localStudyCalendarDay } from "@/lib/studyDayBump";
+import { dispatchStudyDayBumped } from "@/lib/studyDayBumpEvents";
 
 const API = "/api/user/bits-attempts";
 
@@ -33,7 +36,7 @@ type BitsAttemptScope = {
 async function getAuthHeaders(): Promise<HeadersInit> {
   const headers: Record<string, string> = {};
   if (typeof window !== "undefined") {
-    const { data: { session } } = await supabase.auth.getSession();
+    const { session } = await safeGetSession();
     if (session?.access_token) {
       headers.Authorization = `Bearer ${session.access_token}`;
     }
@@ -70,8 +73,8 @@ export async function saveBitsAttempt(
   const authHeaders = await getAuthHeaders();
   const body =
     attempt.level === "advanced" && options?.set != null
-      ? { ...attempt, set: options.set }
-      : attempt;
+      ? { ...attempt, set: options.set, studyDay: localStudyCalendarDay() }
+      : { ...attempt, studyDay: localStudyCalendarDay() };
   const res = await fetch(API, {
     method: "POST",
     headers: { ...authHeaders, "Content-Type": "application/json" },

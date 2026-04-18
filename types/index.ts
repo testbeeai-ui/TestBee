@@ -33,6 +33,8 @@ export interface SavedRevisionCard {
   type: RevisionCardType;
   frontContent: string;
   backContent: string;
+  /** ISO time when the learner saved this card (used for daily checklist (d) counts). */
+  savedAt?: string;
   /** Topic (lesson) within the unit */
   subtopicName: string;
   /** Unit name */

@@ -14,8 +14,11 @@ const ToastViewport = React.forwardRef<
   <ToastPrimitives.Viewport
     ref={ref}
     className={cn(
-      // Mobile: top stack. sm+: bottom-right corner, low on screen (small inset from edges only).
-      "fixed top-0 z-[100] flex max-h-screen w-full flex-col-reverse gap-3 p-3 pb-4 sm:bottom-4 sm:right-4 sm:top-auto sm:left-auto sm:w-[min(420px,calc(100vw-2rem))] sm:max-w-[420px] sm:flex-col sm:items-end sm:justify-end sm:p-0 sm:pb-0",
+      // Body-portal + high z-index: never clipped by page overflow/transform (e.g. Magic Wall / 14" laptops).
+      // Bottom stack with safe-area; md+ bottom-right. pointer-events-none on viewport; toasts are pointer-events-auto.
+      "fixed z-[9999] flex max-h-[min(85dvh,720px)] w-full flex-col-reverse gap-3 overflow-x-hidden overflow-y-auto pointer-events-none",
+      "inset-x-0 bottom-0 px-3 pb-[max(12px,env(safe-area-inset-bottom,0px))] pt-2 items-stretch justify-end",
+      "md:inset-x-auto md:left-auto md:right-[max(12px,env(safe-area-inset-right,0px))] md:top-auto md:w-[min(420px,calc(100dvw-24px))] md:max-w-[min(420px,calc(100%-24px))] md:flex-col md:items-end md:px-0 md:pb-[max(12px,env(safe-area-inset-bottom,0px))]",
       className,
     )}
     {...props}
@@ -24,7 +27,7 @@ const ToastViewport = React.forwardRef<
 ToastViewport.displayName = ToastPrimitives.Viewport.displayName;
 
 const toastVariants = cva(
-  "group pointer-events-auto relative flex w-full items-center justify-between gap-4 overflow-hidden rounded-2xl border px-5 py-4 pr-11 shadow-lg transition-all duration-300 data-[swipe=cancel]:translate-x-0 data-[swipe=end]:translate-x-[var(--radix-toast-swipe-end-x)] data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)] data-[swipe=move]:transition-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[swipe=end]:animate-out data-[state=closed]:fade-out-80 data-[state=closed]:slide-out-to-right-full data-[state=open]:slide-in-from-top-full data-[state=open]:sm:slide-in-from-bottom-full",
+  "group pointer-events-auto relative mx-auto flex w-full max-w-md items-center justify-between gap-4 overflow-hidden rounded-2xl border px-5 py-4 pr-11 shadow-lg transition-all duration-300 data-[swipe=cancel]:translate-x-0 data-[swipe=end]:translate-x-[var(--radix-toast-swipe-end-x)] data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)] data-[swipe=move]:transition-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[swipe=end]:animate-out data-[state=closed]:fade-out-80 data-[state=closed]:slide-out-to-right-full data-[state=open]:slide-in-from-bottom-full md:mx-0 md:max-w-none",
   {
     variants: {
       variant: {

@@ -14,6 +14,7 @@ import type {
 import { targetExamToExamType } from '@/lib/targetExam';
 import { mergeAllSavedContent } from '@/lib/mergeSavedContent';
 import type { Json } from '@/integrations/supabase/types';
+import { safeGetSession } from '@/lib/safeSession';
 
 interface Profile {
   id: string;
@@ -43,6 +44,8 @@ interface Profile {
   bits_test_attempts?: Json | null;
   /** Per-lesson engagement snapshots (in-progress quiz draft lives under bits + graded). */
   subtopic_engagement?: Json | null;
+  /** Dashboard daily checklist acks / Gyan++ focus ms by local date key. */
+  daily_checklist_state?: Json | null;
 }
 
 interface AuthContextType {
@@ -140,7 +143,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     );
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    safeGetSession().then(({ session }) => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
@@ -239,7 +242,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       sessionStorage.setItem('auth_redirect_after_login', normalized);
     } catch (_) {}
-    await supabase.auth.getSession();
+    await safeGetSession();
     const redirectTo = `${window.location.origin}/auth/callback`;
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',

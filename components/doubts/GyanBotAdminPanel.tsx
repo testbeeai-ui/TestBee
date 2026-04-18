@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { safeGetSession } from "@/lib/safeSession";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Bot, RefreshCw, PlayCircle } from "lucide-react";
@@ -47,9 +48,7 @@ export default function GyanBotAdminPanel() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      const { session } = await safeGetSession();
       if (!session?.access_token) return;
       const res = await fetch("/api/admin/gyan-bot", {
         headers: { Authorization: `Bearer ${session.access_token}` },
@@ -90,9 +89,7 @@ export default function GyanBotAdminPanel() {
   }, [load]);
 
   const authHeaders = async () => {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+    const { session } = await safeGetSession();
     if (!session?.access_token) throw new Error("Not signed in");
     return { Authorization: `Bearer ${session.access_token}` };
   };

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { ResponsiveContainer, AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip, PieChart, Pie, Cell } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
+import { safeGetSession } from "@/lib/safeSession";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -65,9 +66,7 @@ export default function AdminUserDetailPage() {
     setLoading(true);
     setError("");
     try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      const { session } = await safeGetSession();
       if (!session?.access_token) throw new Error("Missing access token");
 
       const [aRes, actRes] = await Promise.all([

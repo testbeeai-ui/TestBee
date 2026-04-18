@@ -16,6 +16,7 @@ import {
   YAxis,
 } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
+import { safeGetSession } from "@/lib/safeSession";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -64,9 +65,7 @@ export default function AdminDashboardPage() {
     if (!silent) setLoading(true);
     setError("");
     try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      const { session } = await safeGetSession();
       if (!session?.access_token) throw new Error("Missing access token");
 
       const res = await fetch("/api/admin/analytics", {

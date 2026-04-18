@@ -1,392 +1,715 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import AppLayout from "@/components/AppLayout";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserStore } from "@/store/useUserStore";
 import { Button } from "@/components/ui/button";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { supabase } from "@/integrations/supabase/client";
+import { computeStreakDays } from "@/lib/gauntletStreak";
+import { cn } from "@/lib/utils";
+import type { PlayDomain } from "@/types";
+import {
   BarChart3,
+  Check,
   ChevronDown,
   ChevronUp,
+  Clock,
   Copy,
-  Droplets,
-  Flame,
-  Gift,
   Info,
   Link2,
-  Mail,
   Send,
   Sparkles,
   Star,
-  Trophy,
+  Zap,
 } from "lucide-react";
 
-type ReferTab = "how" | "tiers" | "leaderboard" | "streak";
+type ReferTab = "how" | "tiers" | "leaderboard" | "faq";
 
 const TAB_ITEMS: { key: ReferTab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
-  { key: "how", label: "How it works", icon: Info },
+  { key: "how", label: "How it works", icon: Clock },
   { key: "tiers", label: "Reward tiers", icon: Star },
   { key: "leaderboard", label: "Leaderboard", icon: BarChart3 },
-  { key: "streak", label: "Streak bonus", icon: Droplets },
+  { key: "faq", label: "FAQ", icon: Info },
 ];
-
-/** Per-tab outline + tint so each reads as its own control (minimal, professional). */
-const TAB_STYLE: Record<
-  ReferTab,
-  { idle: string; active: string; iconIdle: string; iconActive: string }
-> = {
-  how: {
-    idle: "border-violet-500/40 bg-violet-500/[0.04] text-slate-600 hover:border-violet-400/55 hover:bg-violet-500/10 dark:border-violet-500/35 dark:bg-violet-500/10 dark:text-slate-300 dark:hover:bg-violet-500/15",
-    active:
-      "border-violet-400/70 bg-violet-500/15 text-violet-950 shadow-sm ring-1 ring-violet-500/20 dark:border-violet-400/55 dark:bg-violet-500/20 dark:text-violet-50 dark:ring-violet-400/25",
-    iconIdle: "text-violet-600/80 dark:text-violet-400/80",
-    iconActive: "text-violet-700 dark:text-violet-200",
-  },
-  tiers: {
-    idle: "border-amber-500/40 bg-amber-500/[0.04] text-slate-600 hover:border-amber-400/55 hover:bg-amber-500/10 dark:border-amber-500/35 dark:bg-amber-500/10 dark:text-slate-300 dark:hover:bg-amber-500/15",
-    active:
-      "border-amber-400/70 bg-amber-500/15 text-amber-950 shadow-sm ring-1 ring-amber-500/20 dark:border-amber-400/55 dark:bg-amber-500/20 dark:text-amber-50 dark:ring-amber-400/25",
-    iconIdle: "text-amber-600/80 dark:text-amber-400/80",
-    iconActive: "text-amber-800 dark:text-amber-200",
-  },
-  leaderboard: {
-    idle: "border-sky-500/40 bg-sky-500/[0.04] text-slate-600 hover:border-sky-400/55 hover:bg-sky-500/10 dark:border-sky-500/35 dark:bg-sky-500/10 dark:text-slate-300 dark:hover:bg-sky-500/15",
-    active:
-      "border-sky-400/70 bg-sky-500/15 text-sky-950 shadow-sm ring-1 ring-sky-500/20 dark:border-sky-400/55 dark:bg-sky-500/20 dark:text-sky-50 dark:ring-sky-400/25",
-    iconIdle: "text-sky-600/80 dark:text-sky-400/80",
-    iconActive: "text-sky-800 dark:text-sky-200",
-  },
-  streak: {
-    idle: "border-teal-500/40 bg-teal-500/[0.04] text-slate-600 hover:border-teal-400/55 hover:bg-teal-500/10 dark:border-teal-500/35 dark:bg-teal-500/10 dark:text-slate-300 dark:hover:bg-teal-500/15",
-    active:
-      "border-teal-400/70 bg-teal-500/15 text-teal-950 shadow-sm ring-1 ring-teal-500/20 dark:border-teal-400/55 dark:bg-teal-500/20 dark:text-teal-50 dark:ring-teal-400/25",
-    iconIdle: "text-teal-600/80 dark:text-teal-400/80",
-    iconActive: "text-teal-800 dark:text-teal-200",
-  },
-};
 
 const FAQ_ITEMS = [
   {
     q: "What uses RDM?",
     a: "RDM can be redeemed for Practice Packs, Full Mock Tests, Analytics Pro, and EduFund scholarship entries. More rewards are added regularly.",
   },
-  { q: "How many RDM do I get per referral?", a: "Base reward starts at 50 RDM per referral and increases with milestone tiers." },
-  { q: "Does my friend also get RDM?", a: "Yes. When your friend joins through your link and completes onboarding, both of you earn RDM." },
-  { q: "When does the leaderboard reset?", a: "Leaderboard resets monthly. Next reset is shown in the leaderboard header." },
+  {
+    q: "How many RDM do I get per referral?",
+    a: "You earn 50 RDM when your friend signs up using your link. You get an additional 100 RDM bonus when you hit 5 referrals in a week.",
+  },
+  {
+    q: "Does my friend also get RDM?",
+    a: "Yes! Your friend gets 25 RDM as a welcome bonus when they sign up through your link. It appears in their balance after onboarding.",
+  },
+  {
+    q: "When does the leaderboard reset?",
+    a: "The referral leaderboard resets every Monday at 12:00 AM IST. Your total RDM balance never resets — only the weekly ranking does.",
+  },
 ];
 
 const REWARD_USES = [
-  { title: "Practice Packs", from: "from 50 RDM", color: "border-violet-500/40 text-violet-700 dark:text-violet-300" },
-  { title: "Mock Tests", from: "from 100 RDM", color: "border-amber-500/40 text-amber-700 dark:text-amber-300" },
-  { title: "Analytics Pro", from: "from 200 RDM", color: "border-emerald-500/40 text-emerald-700 dark:text-emerald-300" },
-  { title: "EduFund Entry", from: "from 500 RDM", color: "border-rose-500/40 text-rose-700 dark:text-rose-300" },
+  { title: "Practice Packs", from: "from 50 RDM", emoji: "🎁", titleClass: "text-violet-300", borderClass: "border-violet-500/30" },
+  { title: "Mock Tests", from: "from 100 RDM", emoji: "📝", titleClass: "text-amber-300", borderClass: "border-amber-500/30" },
+  { title: "Analytics Pro", from: "from 200 RDM", emoji: "📊", titleClass: "text-teal-300", borderClass: "border-teal-500/30" },
+  { title: "EduFund Entry", from: "from 500 RDM", emoji: "🏆", titleClass: "text-rose-300", borderClass: "border-rose-500/30" },
 ];
 
-const MILESTONES = [
-  { name: "Starter", range: "0–4 friends · Base reward per referral", reward: "+50", color: "border-slate-500/30" },
-  { name: "Bronze", range: "5–14 friends · Unlock mock test credits", reward: "+75", color: "border-orange-500/30" },
-  { name: "Silver", range: "15–29 friends · Analytics Pro unlocked", reward: "+100", color: "border-cyan-500/30" },
-  { name: "Gold", range: "30–49 friends · EduFund entry + profile badge", reward: "+150", color: "border-amber-500/30" },
-  { name: "Legend", range: "50+ friends · Scholarship nomination + swag kit", reward: "+250", color: "border-fuchsia-500/30" },
+/** EduFund-style grant tiers (RDM thresholds); ₹ copy matches investor mock. */
+const GRANT_TIERS = [
+  { key: "sprout", name: "Sprout", threshold: 1000, grant: "₹3,000", icon: "🌱" },
+  { key: "scholar", name: "Scholar", threshold: 3000, grant: "₹12,000", icon: "📚" },
+  { key: "champion", name: "Champion", threshold: 8000, grant: "₹50,000", icon: "🏆" },
+] as const;
+
+type ClaimKey = "5" | "10" | "20" | "50";
+
+const CLAIM_CARDS: {
+  key: ClaimKey;
+  rdm: number;
+  domain: PlayDomain;
+  typeLabel: string;
+  name: string;
+  desc: string;
+  accent: string;
+  selClass: string;
+}[] = [
+  {
+    key: "5",
+    rdm: 5,
+    domain: "funbrain",
+    typeLabel: "Non-Academic",
+    name: "MentaMill Blitz",
+    desc: "Mental math · 10 questions · 5 min session · Daily Gauntlet on Play",
+    accent: "text-sky-400",
+    selClass: "ring-sky-500/50 after:bg-sky-500/20",
+  },
+  {
+    key: "10",
+    rdm: 10,
+    domain: "funbrain",
+    typeLabel: "Non-Academic",
+    name: "FunBrain Quiz",
+    desc: "Vocab · Quant · Reasoning · Puzzles · Daily Gauntlet on Play",
+    accent: "text-emerald-400",
+    selClass: "ring-emerald-500/50 after:bg-emerald-500/20",
+  },
+  {
+    key: "20",
+    rdm: 20,
+    domain: "academic",
+    typeLabel: "Academic",
+    name: "Academic Arena",
+    desc: "PCM assorted · 10 questions · Medium · Daily Gauntlet on Play",
+    accent: "text-violet-400",
+    selClass: "ring-violet-500/50 after:bg-violet-500/20",
+  },
+  {
+    key: "50",
+    rdm: 50,
+    domain: "academic",
+    typeLabel: "Academic",
+    name: "Academic Arena Pro",
+    desc: "PCM assorted · 25 questions · Medium + tough · Daily Gauntlet on Play",
+    accent: "text-amber-400",
+    selClass: "ring-amber-500/50 after:bg-amber-500/20",
+  },
 ];
 
-const LEADERBOARD = [
-  { rank: 1, name: "Arjun K.", refs: 47, rdm: "2,350" },
-  { rank: 2, name: "Priya R.", refs: 38, rdm: "1,900" },
-  { rank: 3, name: "Sneha M.", refs: 31, rdm: "1,550" },
-  { rank: 4, name: "Vikram B.", refs: 24, rdm: "1,200" },
-  { rank: 5, name: "Nisha D.", refs: 19, rdm: "950" },
-];
+const DAILY_CHALLENGE_RDM_CAP = 50;
 
-const STREAK_DAYS = [
-  { day: "Mon", reward: "+10", active: true },
-  { day: "Tue", reward: "+10", active: true },
-  { day: "Wed", reward: "+15", active: false },
-  { day: "Thu", reward: "+15", active: false },
-  { day: "Fri", reward: "+20", active: false },
-  { day: "Sat", reward: "+25", active: false },
-  { day: "Sun", reward: "+100", active: false },
-];
+function todayUtc(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function formatInt(n: number): string {
+  return n.toLocaleString("en-IN");
+}
 
 export default function ReferEarnPage() {
-  const { profile } = useAuth();
+  const { profile, user: authUser } = useAuth();
   const user = useUserStore((s) => s.user);
   const [tab, setTab] = useState<ReferTab>("how");
-  const [openFaq, setOpenFaq] = useState(0);
+  const [openFaq, setOpenFaq] = useState<number | null>(0);
+  const [copied, setCopied] = useState(false);
+  const [selectedClaim, setSelectedClaim] = useState<ClaimKey | null>(null);
+  const [streakDays, setStreakDays] = useState(0);
+  const [playedToday, setPlayedToday] = useState<{ academic: boolean; funbrain: boolean }>({
+    academic: false,
+    funbrain: false,
+  });
 
   const rdm = profile?.rdm ?? user?.rdm ?? 0;
   const friendsReferred = 0;
   const perReferral = 50;
   const bonusAtFive = 100;
 
-  const referralCode = useMemo(() => {
-    const fallbackHandle = (user?.name || "sanlit7x").replace(/\s+/g, "").slice(0, 7);
+  const refCode = useMemo(() => {
+    const fallbackHandle = (user?.name || "guest").replace(/\s+/g, "").slice(0, 7);
     const seed = (profile?.id || fallbackHandle).replace(/-/g, "").slice(0, 7).toUpperCase();
-    return `edublast.in/join?ref=${seed}`;
+    return seed;
   }, [profile?.id, user?.name]);
 
+  const shareUrl = useMemo(() => {
+    if (typeof window === "undefined") return "";
+    return `${window.location.origin}/join?ref=${refCode}`;
+  }, [refCode]);
+
+  const displayHost = useMemo(() => {
+    if (typeof window === "undefined") return `edublast.in/join?ref=${refCode}`;
+    try {
+      const host = window.location.host;
+      return `${host}/join?ref=${refCode}`;
+    } catch {
+      return `edublast.in/join?ref=${refCode}`;
+    }
+  }, [refCode]);
+
+  const loadGauntletMeta = useCallback(async () => {
+    const uid = profile?.id;
+    if (!uid) {
+      setStreakDays(0);
+      setPlayedToday({ academic: false, funbrain: false });
+      return;
+    }
+    const today = todayUtc();
+    const { data: rows } = await supabase
+      .from("daily_gauntlet_attempts")
+      .select("gauntlet_date")
+      .eq("user_id", uid)
+      .order("gauntlet_date", { ascending: false })
+      .limit(120);
+
+    const dates = [...new Set((rows ?? []).map((r) => r.gauntlet_date))];
+    setStreakDays(computeStreakDays(dates));
+
+    const played = { academic: false, funbrain: false };
+    for (const domain of ["academic", "funbrain"] as PlayDomain[]) {
+      const { data: lb } = await supabase.rpc("get_daily_gauntlet_leaderboard", {
+        p_gauntlet_date: today,
+        p_domain: domain,
+      });
+      const lbRows = (lb as { user_id?: string }[]) || [];
+      if (lbRows.some((r) => r.user_id === uid)) played[domain] = true;
+    }
+    setPlayedToday(played);
+  }, [profile?.id]);
+
+  useEffect(() => {
+    void loadGauntletMeta();
+  }, [loadGauntletMeta]);
+
   const copyReferralLink = async () => {
-    const link = typeof window !== "undefined" ? `${window.location.origin}/join?ref=${referralCode.split("=").pop()}` : referralCode;
+    const link = shareUrl || `${typeof window !== "undefined" ? window.location.origin : ""}/join?ref=${refCode}`;
     await navigator.clipboard.writeText(link);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
+
+  const shareText = encodeURIComponent(`Join me on EduBlast — learn through questions. ${shareUrl || ""}`);
+  const waHref = `https://wa.me/?text=${shareText}`;
+  const tgHref = `https://t.me/share/url?url=${encodeURIComponent(shareUrl || "")}&text=${encodeURIComponent("Join me on EduBlast")}`;
+  const xHref = `https://twitter.com/intent/tweet?text=${shareText}`;
+
+  const selectedCard = selectedClaim ? CLAIM_CARDS.find((c) => c.key === selectedClaim) : null;
+  const playedForSelected =
+    selectedCard?.domain === "academic" ? playedToday.academic : selectedCard?.domain === "funbrain" ? playedToday.funbrain : false;
+
+  const tierBanner = useMemo(() => {
+    const next = GRANT_TIERS.find((t) => rdm < t.threshold);
+    if (!next) return null;
+    const more = Math.max(0, next.threshold - rdm);
+    const refs = Math.ceil(more / perReferral);
+    return `Each referral adds +${perReferral} RDM. You need ${formatInt(more)} more RDM for ${next.name} tier — about ${refs} referral${refs === 1 ? "" : "s"} at base reward.`;
+  }, [rdm, perReferral]);
+
+  const userDisplayName = profile?.name || user?.name || "You";
 
   return (
     <ProtectedRoute>
       <AppLayout>
-        <div className="mx-auto w-full max-w-6xl space-y-3 2xl:space-y-5">
-          <section className="rounded-2xl border border-violet-300/60 bg-gradient-to-br from-violet-50 via-white to-indigo-50 p-4 shadow-lg md:p-5 2xl:rounded-3xl 2xl:p-7 dark:border-violet-500/35 dark:from-[#0f1023] dark:via-[#0b0d1a] dark:to-[#0a0c17] dark:shadow-[0_30px_80px_rgba(20,15,50,0.55)]">
-            <div className="mx-auto max-w-4xl text-center">
-              <div className="inline-flex items-center rounded-full border border-violet-300 bg-violet-100 px-3 py-0.5 text-xs font-bold text-violet-700 dark:border-violet-400/40 dark:bg-violet-500/15 dark:text-violet-300 2xl:px-4 2xl:py-1 2xl:text-sm">
-                <Sparkles className="mr-1 h-3.5 w-3.5 2xl:mr-1.5 2xl:h-4 2xl:w-4" /> REFER & EARN RDM
-              </div>
-              <h1 className="mt-3 text-3xl font-black tracking-tight text-foreground dark:text-white md:text-4xl xl:text-5xl 2xl:mt-4">
-                <span className="text-amber-600 dark:text-amber-300">{rdm}</span> RDM balance
-              </h1>
-              <p className="mt-2 text-sm text-muted-foreground dark:text-slate-300 2xl:mt-3 2xl:text-base">
-                RDM (Reward Miles) unlock practice packs, mock tests & exclusive study tools.
-                <br className="hidden md:block" />
-                Share EduBlast and earn more with every friend who joins.
-              </p>
+        <div
+          className={cn(
+            "mx-auto w-full max-w-6xl space-y-6 pb-10 font-sans text-slate-200",
+            "[--re-bg:#070714] [--re-card:#12122a] [--re-border:rgba(124,107,255,0.18)] [--re-purple:#7c6bff] [--re-amber:#f5a623]",
+          )}
+        >
+          {/* Page hero */}
+          <header className="text-center">
+            <div className="mx-auto mb-3 inline-flex items-center gap-2 rounded-full border border-cyan-500/25 bg-cyan-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-cyan-300/95">
+              <span className="h-1.5 w-1.5 rounded-full bg-cyan-400" />
+              Earn more · Rise faster
+            </div>
+            <h1 className="text-balance font-sans text-3xl font-bold tracking-tight text-white md:text-[2.35rem] md:leading-tight">
+              Refer friends & challenge yourself
+            </h1>
+            <p className="mx-auto mt-3 max-w-2xl text-sm leading-relaxed text-slate-400 md:text-[15px]">
+              Share EduBlast with classmates and earn RDM every time someone joins. Or challenge yourself right now — complete
+              the Daily Gauntlet on Play and track your streak here.
+            </p>
+          </header>
 
-              <div className="mt-4 grid grid-cols-1 gap-2 md:grid-cols-3 2xl:mt-6 2xl:gap-3">
-                <div className="rounded-xl border border-border bg-card/90 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-900/40 2xl:rounded-2xl 2xl:px-4 2xl:py-3">
-                  <p className="text-2xl font-black text-amber-600 dark:text-amber-300 md:text-3xl 2xl:text-4xl">{friendsReferred}</p>
-                  <p className="text-xs font-semibold text-muted-foreground dark:text-slate-300 2xl:text-sm">Friends referred</p>
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-start">
+            {/* LEFT */}
+            <div className="space-y-5">
+              <section
+                className="rounded-[14px] border p-5 shadow-[0_24px_60px_rgba(8,6,24,0.45)]"
+                style={{ background: "var(--re-card)", borderColor: "var(--re-border)" }}
+              >
+                <div className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-violet-500/35 bg-violet-500/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-violet-300">
+                  <Sparkles className="h-3 w-3" />
+                  Refer &amp; Earn RDM
                 </div>
-                <div className="rounded-xl border border-border bg-card/90 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-900/40 2xl:rounded-2xl 2xl:px-4 2xl:py-3">
-                  <p className="text-2xl font-black text-emerald-600 dark:text-emerald-300 md:text-3xl 2xl:text-4xl">+{perReferral}</p>
-                  <p className="text-xs font-semibold text-muted-foreground dark:text-slate-300 2xl:text-sm">RDM per referral</p>
+                <div className="flex flex-wrap items-baseline justify-center gap-2 sm:justify-start">
+                  <span
+                    className="text-4xl font-normal text-[var(--re-amber)] md:text-5xl"
+                    style={{ fontFamily: "var(--font-landing-serif), ui-serif, Georgia, serif" }}
+                  >
+                    {formatInt(rdm)}
+                  </span>
+                  <span className="text-lg text-slate-400">RDM balance</span>
                 </div>
-                <div className="rounded-xl border border-border bg-card/90 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-900/40 2xl:rounded-2xl 2xl:px-4 2xl:py-3">
-                  <p className="text-2xl font-black text-rose-600 dark:text-rose-300 md:text-3xl 2xl:text-4xl">+{bonusAtFive}</p>
-                  <p className="text-xs font-semibold text-muted-foreground dark:text-slate-300 2xl:text-sm">Bonus at 5 friends</p>
+                <p className="mt-2 text-center text-sm text-slate-400 sm:text-left">
+                  RDM (Reward Miles) unlock practice packs, mock tests &amp; exclusive study tools. Share EduBlast and earn more
+                  with every friend who joins.
+                </p>
+                <div className="mt-4 grid grid-cols-3 gap-2">
+                  <div className="rounded-lg border border-white/10 bg-black/20 px-2 py-3 text-center">
+                    <p className="text-2xl font-bold text-slate-300">{friendsReferred}</p>
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Friends referred</p>
+                  </div>
+                  <div className="rounded-lg border border-white/10 bg-black/20 px-2 py-3 text-center">
+                    <p className="text-2xl font-bold text-teal-400">+{perReferral}</p>
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">RDM per referral</p>
+                  </div>
+                  <div className="rounded-lg border border-white/10 bg-black/20 px-2 py-3 text-center">
+                    <p className="text-2xl font-bold text-amber-400">+{bonusAtFive}</p>
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Bonus at 5 friends</p>
+                  </div>
                 </div>
-              </div>
+              </section>
 
-              <div className="mt-4 rounded-xl border border-border bg-card/80 p-3 dark:border-slate-700 dark:bg-slate-950/45 2xl:mt-5 2xl:rounded-2xl 2xl:p-4">
-                <div className="flex flex-col gap-3 md:flex-row">
-                  <div className="flex min-h-12 flex-1 items-center rounded-xl border border-border bg-background/90 px-3 text-left text-foreground dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-200">
-                    <Link2 className="mr-2 h-4 w-4 text-muted-foreground dark:text-slate-400" />
-                    <span className="truncate font-bold">{referralCode}</span>
+              <div>
+                <p className="mb-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">
+                  <span>Your unique referral link</span>
+                  <span className="h-px flex-1 bg-white/10" />
+                </p>
+                <div className="flex flex-col gap-2 rounded-[12px] border border-white/10 bg-[var(--re-card)] p-1.5 sm:flex-row sm:items-stretch">
+                  <div className="flex min-h-11 flex-1 items-center gap-2 rounded-lg border border-white/10 bg-black/25 px-3 py-2 text-sm">
+                    <Link2 className="h-4 w-4 shrink-0 text-slate-500" />
+                    <span className="truncate font-mono text-[13px] text-slate-200">{displayHost}</span>
                   </div>
                   <Button
-                    onClick={copyReferralLink}
-                    className="rounded-xl bg-violet-600 px-5 font-bold text-white hover:bg-violet-500"
+                    type="button"
+                    onClick={() => void copyReferralLink()}
+                    className="h-11 shrink-0 rounded-lg bg-[var(--re-purple)] px-5 font-semibold text-white hover:opacity-95"
                   >
-                    <Copy className="mr-2 h-4 w-4" /> Copy link
+                    {copied ? (
+                      <>
+                        <Check className="mr-2 h-4 w-4" /> Copied
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="mr-2 h-4 w-4" /> Copy link
+                      </>
+                    )}
                   </Button>
                 </div>
-                <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-sm text-muted-foreground dark:text-slate-300">
-                  <span className="mr-1">Share via</span>
-                  <button className="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 font-semibold text-emerald-700 dark:text-emerald-300">
-                    WhatsApp
-                  </button>
-                  <button className="rounded-full border border-sky-500/40 bg-sky-500/10 px-3 py-1 font-semibold text-sky-700 dark:text-sky-300">
-                    <Send className="mr-1 inline h-3.5 w-3.5" /> Telegram
-                  </button>
-                  <button className="rounded-full border border-cyan-500/40 bg-cyan-500/10 px-3 py-1 font-semibold text-cyan-700 dark:text-cyan-300">
-                    <Mail className="mr-1 inline h-3.5 w-3.5" /> Twitter / X
-                  </button>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <section className="rounded-xl border border-border bg-card p-1.5 dark:border-slate-800 dark:bg-[#0b0e18] md:p-2 2xl:rounded-2xl 2xl:p-3">
-            <div className="flex flex-wrap gap-1.5 md:gap-2 2xl:gap-2.5">
-              {TAB_ITEMS.map(({ key, label, icon: Icon }) => {
-                const active = tab === key;
-                const s = TAB_STYLE[key];
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => setTab(key)}
-                    className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold tracking-tight transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/35 focus-visible:ring-offset-2 focus-visible:ring-offset-background dark:focus-visible:ring-offset-[#0b0e18] 2xl:gap-2 2xl:rounded-xl 2xl:px-3.5 2xl:py-2 2xl:text-sm ${
-                      active ? s.active : s.idle
-                    }`}
-                  >
-                    <Icon className={`h-3.5 w-3.5 shrink-0 2xl:h-4 2xl:w-4 ${active ? s.iconActive : s.iconIdle}`} aria-hidden />
-                    {label}
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-
-          {tab === "how" ? (
-            <section className="space-y-3 2xl:space-y-4">
-              <div className="rounded-2xl border border-border bg-card p-3 dark:border-slate-800 dark:bg-[#0b0e18] md:p-4 2xl:p-5">
-                <h2 className="mb-3 text-2xl font-black text-foreground dark:text-white 2xl:mb-4 2xl:text-3xl">3 steps to earn RDM</h2>
-                <div className="grid grid-cols-1 gap-2 md:grid-cols-3 2xl:gap-3">
-                  {[
-                    { title: "Copy your link", body: "Your unique referral link is ready above. Tap copy — it takes 1 second.", icon: Link2 },
-                    { title: "Share with friends", body: "Send via WhatsApp, Telegram, or Instagram. Works best in study groups.", icon: Send },
-                    { title: "Both of you earn", body: "You get 50 RDM instantly. Your friend gets 25 RDM welcome bonus.", icon: Sparkles },
-                  ].map((item, i) => (
-                    <div key={item.title} className="rounded-lg border border-border bg-muted/40 p-3 dark:border-slate-700 dark:bg-slate-900/40 2xl:rounded-xl 2xl:p-4">
-                      <div className="mb-2 inline-flex h-7 w-7 items-center justify-center rounded-full bg-violet-500/20 text-xs font-black text-violet-700 dark:text-violet-300 2xl:mb-3 2xl:h-8 2xl:w-8 2xl:text-sm">
-                        {i + 1}
-                      </div>
-                      <item.icon className="mb-1.5 h-4 w-4 text-violet-700 dark:text-violet-300 2xl:mb-2 2xl:h-5 2xl:w-5" />
-                      <p className="text-lg font-black text-foreground dark:text-white 2xl:text-2xl">{item.title}</p>
-                      <p className="mt-0.5 text-xs text-muted-foreground dark:text-slate-300 2xl:mt-1 2xl:text-sm">{item.body}</p>
-                    </div>
-                  ))}
-                </div>
               </div>
 
-              <div className="rounded-2xl border border-border bg-card p-3 dark:border-slate-800 dark:bg-[#0b0e18] md:p-4 2xl:p-5">
-                <h2 className="mb-3 text-2xl font-black text-foreground dark:text-white 2xl:mb-4 2xl:text-3xl">What can you do with RDM?</h2>
-                <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-4 2xl:gap-3">
-                  {REWARD_USES.map((item) => (
-                    <div key={item.title} className={`rounded-lg border bg-muted/40 p-3 dark:bg-slate-900/40 2xl:rounded-xl 2xl:p-4 ${item.color}`}>
-                      <Gift className="mb-2 h-4 w-4 2xl:mb-3 2xl:h-5 2xl:w-5" />
-                      <p className="text-lg font-black 2xl:text-xl">{item.title}</p>
-                      <p className="text-sm text-muted-foreground dark:text-slate-300">{item.from}</p>
-                    </div>
-                  ))}
-                </div>
+              <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
+                <span className="font-medium text-slate-500">Share via</span>
+                <a
+                  href={shareUrl ? waHref : undefined}
+                  className="inline-flex items-center rounded-full border border-emerald-500/35 bg-emerald-500/10 px-3 py-1.5 font-semibold text-emerald-300 hover:bg-emerald-500/15"
+                >
+                  WhatsApp
+                </a>
+                <a
+                  href={shareUrl ? tgHref : undefined}
+                  className="inline-flex items-center rounded-full border border-sky-500/35 bg-sky-500/10 px-3 py-1.5 font-semibold text-sky-300 hover:bg-sky-500/15"
+                >
+                  <Send className="mr-1 h-3 w-3" /> Telegram
+                </a>
+                <a
+                  href={shareUrl ? xHref : undefined}
+                  className="inline-flex items-center rounded-full border border-slate-600/50 bg-slate-800/50 px-3 py-1.5 font-semibold text-slate-200 hover:bg-slate-800"
+                >
+                  Twitter / X
+                </a>
               </div>
-            </section>
-          ) : null}
 
-          {tab === "tiers" ? (
-            <section className="rounded-2xl border border-border bg-card p-3 dark:border-slate-800 dark:bg-[#0b0e18] md:p-4 2xl:p-5">
-              <div className="mb-3 flex items-center justify-between 2xl:mb-4">
-                <h2 className="text-2xl font-black text-foreground dark:text-white 2xl:text-3xl">Referral milestones</h2>
-                <span className="text-xs font-semibold text-muted-foreground dark:text-slate-400 2xl:text-sm">You are at Starter</span>
-              </div>
-              <div className="space-y-2 2xl:space-y-3">
-                {MILESTONES.map((tier) => (
-                  <div key={tier.name} className={`rounded-lg border bg-muted/40 p-3 dark:bg-slate-900/40 2xl:rounded-xl 2xl:p-4 ${tier.color}`}>
-                    <div className="flex items-center justify-between gap-2 2xl:gap-3">
-                      <div>
-                        <p className="text-lg font-black text-foreground dark:text-white 2xl:text-2xl">{tier.name}</p>
-                        <p className="text-xs text-muted-foreground dark:text-slate-300 2xl:text-sm">{tier.range}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-2xl font-black text-amber-600 dark:text-amber-300 2xl:text-3xl">{tier.reward}</p>
-                        <p className="text-xs font-semibold text-muted-foreground dark:text-slate-400">RDM / referral</p>
-                      </div>
-                    </div>
-                    <div className="mt-3 h-1.5 rounded-full bg-muted dark:bg-slate-800">
-                      <div className="h-1.5 rounded-full bg-muted-foreground/60 dark:bg-slate-500" style={{ width: tier.name === "Starter" ? "10%" : "0%" }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          ) : null}
-
-          {tab === "leaderboard" ? (
-            <section className="rounded-2xl border border-border bg-card p-3 dark:border-slate-800 dark:bg-[#0b0e18] md:p-4 2xl:p-5">
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-2 2xl:mb-4">
-                <h2 className="flex items-center gap-1.5 text-xl font-black text-foreground dark:text-white 2xl:gap-2 2xl:text-3xl">
-                  <Trophy className="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-300 2xl:h-7 2xl:w-7" /> Top referrers this month
-                </h2>
-                <span className="text-xs font-semibold text-muted-foreground dark:text-slate-400 2xl:text-sm">Resets Jun 1</span>
-              </div>
-              <div className="space-y-1.5 2xl:space-y-2">
-                {LEADERBOARD.map((row) => (
-                  <div key={row.rank} className="rounded-lg border border-border bg-muted/40 px-3 py-2 dark:border-slate-700 dark:bg-slate-900/40 2xl:rounded-xl 2xl:px-4 2xl:py-3">
-                    <div className="flex items-center justify-between gap-2 2xl:gap-3">
-                      <div className="flex min-w-0 items-center gap-2 2xl:gap-3">
-                        <div className="w-8 shrink-0 text-center text-sm font-black text-muted-foreground dark:text-slate-400 2xl:w-10 2xl:text-lg">{row.rank}</div>
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-500/20 text-[10px] font-black text-amber-700 dark:text-amber-300 2xl:h-9 2xl:w-9 2xl:text-xs">
-                          {row.name.split(" ").map((part) => part[0]).join("")}
-                        </div>
-                        <p className="truncate text-base font-black text-foreground dark:text-white 2xl:text-xl">{row.name}</p>
-                      </div>
-                      <div className="shrink-0 text-right">
-                        <p className="text-xs font-semibold text-muted-foreground dark:text-slate-400 2xl:text-sm">{row.refs} refs</p>
-                        <p className="text-xl font-black text-amber-600 dark:text-amber-300 2xl:text-3xl">{row.rdm} RDM</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-                <div className="rounded-lg border border-violet-500/40 bg-violet-500/10 px-3 py-2 2xl:rounded-xl 2xl:px-4 2xl:py-3">
-                  <div className="flex items-center justify-between gap-2 2xl:gap-3">
-                    <div className="flex min-w-0 items-center gap-2 2xl:gap-3">
-                      <div className="w-8 shrink-0 text-center text-sm font-black text-violet-300 2xl:w-10 2xl:text-lg">—</div>
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-violet-500/20 text-[10px] font-black text-violet-200 2xl:h-9 2xl:w-9 2xl:text-xs">
-                        YOU
-                      </div>
-                      <p className="truncate text-base font-black text-foreground dark:text-white 2xl:text-xl">{profile?.name || user?.name || "You"}</p>
-                    </div>
-                    <div className="shrink-0 text-right">
-                      <p className="text-xs font-semibold text-muted-foreground dark:text-slate-400 2xl:text-sm">{friendsReferred} refs</p>
-                      <p className="text-xl font-black text-violet-300 2xl:text-3xl">{rdm} RDM</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </section>
-          ) : null}
-
-          {tab === "streak" ? (
-            <section className="rounded-2xl border border-border bg-card p-3 dark:border-slate-800 dark:bg-[#0b0e18] md:p-4 2xl:p-5">
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-2 2xl:mb-4">
-                <h2 className="flex items-center gap-1.5 text-xl font-black text-foreground dark:text-white 2xl:gap-2 2xl:text-3xl">
-                  <Flame className="h-5 w-5 shrink-0 text-violet-600 dark:text-violet-300 2xl:h-6 2xl:w-6" /> Daily sharing streak
-                </h2>
-                <span className="rounded-full border border-rose-400/40 bg-rose-500/10 px-2 py-0.5 text-xs font-bold text-rose-300 2xl:px-3 2xl:py-1 2xl:text-sm">
-                  Day 1 of 7
-                </span>
-              </div>
-              <p className="mb-3 text-xs text-muted-foreground dark:text-slate-300 2xl:mb-4 2xl:text-sm">
-                Share your link every day for 7 days to earn a massive streak bonus. Miss a day and the streak resets.
-              </p>
-              <div className="grid grid-cols-2 gap-2 md:grid-cols-7">
-                {STREAK_DAYS.map((d) => (
-                  <div
-                    key={d.day}
-                    className={`rounded-xl border px-3 py-2 text-center ${
-                      d.active
-                        ? "border-emerald-400/40 bg-emerald-500/10"
-                        : d.day === "Sun"
-                        ? "border-violet-500/40 bg-violet-500/10"
-                        : "border-border bg-muted/40 dark:border-slate-700 dark:bg-slate-900/40"
-                    }`}
-                  >
-                    <p className="text-xs font-semibold uppercase text-muted-foreground dark:text-slate-300">{d.day}</p>
-                    <p className={`mt-0.5 text-base font-black 2xl:mt-1 2xl:text-xl ${d.active ? "text-emerald-600 dark:text-emerald-300" : d.day === "Sun" ? "text-violet-600 dark:text-violet-300" : "text-foreground dark:text-slate-300"}`}>{d.reward}</p>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-2 rounded-lg border border-violet-500/35 bg-violet-500/10 p-2.5 2xl:mt-3 2xl:rounded-xl 2xl:p-3">
-                <p className="text-base font-black text-violet-300 2xl:text-lg">7-day streak bonus: +195 RDM total</p>
-                <p className="text-xs text-muted-foreground dark:text-slate-300 2xl:text-sm">Complete all 7 days to also unlock a Legend badge on your profile.</p>
-              </div>
-            </section>
-          ) : null}
-
-          <section className="rounded-2xl border border-border bg-card p-3 dark:border-slate-800 dark:bg-[#0b0e18] md:p-4 2xl:p-5">
-            <h2 className="mb-1.5 text-2xl font-black text-foreground dark:text-white 2xl:mb-2 2xl:text-3xl">Frequently asked questions</h2>
-            <div className="divide-y divide-border dark:divide-slate-800">
-              {FAQ_ITEMS.map((item, idx) => {
-                const open = idx === openFaq;
-                return (
-                  <div key={item.q} className="py-0.5">
+              <div className="flex flex-wrap gap-2">
+                {TAB_ITEMS.map(({ key, label, icon: Icon }) => {
+                  const active = tab === key;
+                  return (
                     <button
+                      key={key}
                       type="button"
-                      onClick={() => setOpenFaq(open ? -1 : idx)}
-                      className="flex w-full items-center justify-between py-2 text-left 2xl:py-3"
+                      onClick={() => setTab(key)}
+                      className={cn(
+                        "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition",
+                        active
+                          ? "border-violet-500/45 bg-violet-500/15 text-violet-100"
+                          : "border-white/10 bg-transparent text-slate-400 hover:border-white/20 hover:text-slate-200",
+                      )}
                     >
-                      <span className="pr-2 text-base font-bold text-foreground dark:text-white 2xl:text-lg 2xl:font-black">{item.q}</span>
-                      {open ? <ChevronUp className="h-4 w-4 text-muted-foreground dark:text-slate-400" /> : <ChevronDown className="h-4 w-4 text-muted-foreground dark:text-slate-400" />}
+                      <Icon className="h-3.5 w-3.5" />
+                      {label}
                     </button>
-                    {open ? <p className="pb-3 text-sm text-muted-foreground dark:text-slate-300">{item.a}</p> : null}
+                  );
+                })}
+              </div>
+
+              {tab === "how" ? (
+                <div className="space-y-5">
+                  <p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">
+                    <span>3 steps to earn RDM</span>
+                    <span className="h-px flex-1 bg-white/10" />
+                  </p>
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    {[
+                      {
+                        n: 1,
+                        title: "Copy your link",
+                        body: "Your unique referral link is ready above. Tap copy — it takes 1 second.",
+                        icon: Link2,
+                        ring: "text-violet-400",
+                      },
+                      {
+                        n: 2,
+                        title: "Share with friends",
+                        body: "Send via WhatsApp, Telegram, or study groups. Works best when it’s personal.",
+                        icon: Send,
+                        ring: "text-teal-400",
+                      },
+                      {
+                        n: 3,
+                        title: "Both of you earn",
+                        body: "You get 50 RDM when referrals are tracked. Your friend gets a welcome bonus after onboarding.",
+                        icon: Sparkles,
+                        ring: "text-amber-400",
+                      },
+                    ].map((s) => (
+                      <div
+                        key={s.n}
+                        className="rounded-[12px] border border-white/10 bg-[var(--re-card)] p-4"
+                        style={{ background: "var(--re-card)" }}
+                      >
+                        <div className="mb-2 flex h-7 w-7 items-center justify-center rounded-full bg-violet-500/20 text-xs font-bold text-violet-200">
+                          {s.n}
+                        </div>
+                        <s.icon className={cn("mb-2 h-5 w-5", s.ring)} />
+                        <p className="font-semibold text-white">{s.title}</p>
+                        <p className="mt-1 text-xs leading-relaxed text-slate-400">{s.body}</p>
+                      </div>
+                    ))}
                   </div>
-                );
-              })}
+                  <p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">
+                    <span>What can you do with RDM?</span>
+                    <span className="h-px flex-1 bg-white/10" />
+                  </p>
+                  <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+                    {REWARD_USES.map((item) => (
+                      <div
+                        key={item.title}
+                        className={cn("rounded-[11px] border bg-black/20 p-3 text-center", item.borderClass)}
+                      >
+                        <div className="mb-1 text-lg">{item.emoji}</div>
+                        <p className={cn("text-sm font-semibold", item.titleClass)}>{item.title}</p>
+                        <p className="text-[11px] text-slate-500">{item.from}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              {tab === "tiers" ? (
+                <div className="space-y-3">
+                  <p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">
+                    <span>EduFund grant tiers</span>
+                    <span className="h-px flex-1 bg-white/10" />
+                  </p>
+                  <div className="space-y-2">
+                    {GRANT_TIERS.map((tier) => {
+                      const pct = Math.min(100, Math.round((rdm / tier.threshold) * 100));
+                      const more = Math.max(0, tier.threshold - rdm);
+                      let unlocked = false;
+                      let inProgress = false;
+                      if (tier.key === "sprout") {
+                        unlocked = rdm >= tier.threshold;
+                        inProgress = !unlocked;
+                      } else if (tier.key === "scholar") {
+                        unlocked = rdm >= tier.threshold;
+                        inProgress = !unlocked && rdm >= 1000;
+                      } else {
+                        unlocked = rdm >= tier.threshold;
+                        inProgress = !unlocked && rdm >= 3000;
+                      }
+                      const badge = unlocked ? "Unlocked" : inProgress ? "In progress" : "Locked";
+                      const fill =
+                        tier.key === "sprout"
+                          ? "bg-teal-500"
+                          : tier.key === "scholar"
+                            ? "bg-[var(--re-purple)]"
+                            : "bg-[var(--re-amber)]";
+                      return (
+                        <div
+                          key={tier.key}
+                          className="flex gap-3 rounded-[12px] border border-white/10 bg-[var(--re-card)] p-3"
+                          style={{ background: "var(--re-card)" }}
+                        >
+                          <div className="text-2xl">{tier.icon}</div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="font-semibold text-white">{tier.name}</span>
+                              <span
+                                className={cn(
+                                  "rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                                  unlocked && "bg-teal-500/15 text-teal-300",
+                                  inProgress && "bg-violet-500/15 text-violet-200",
+                                  !unlocked && !inProgress && "bg-amber-500/10 text-amber-200/80",
+                                )}
+                              >
+                                {badge}
+                              </span>
+                            </div>
+                            <p className="mt-0.5 text-xs text-slate-400">
+                              {formatInt(tier.threshold)} RDM threshold
+                              {unlocked ? ` · You have ${formatInt(rdm)} RDM` : more > 0 ? ` · ${formatInt(more)} more to go` : ""}
+                            </p>
+                            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-black/40">
+                              <div className={cn("h-full rounded-full transition-all", fill)} style={{ width: `${pct}%` }} />
+                            </div>
+                          </div>
+                          <div
+                            className={cn(
+                              "shrink-0 self-center text-sm font-bold",
+                              tier.key === "sprout" && "text-teal-400",
+                              tier.key === "scholar" && "text-violet-300",
+                              tier.key === "champion" && "text-amber-400",
+                            )}
+                          >
+                            {tier.grant}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {tierBanner ? (
+                    <div className="rounded-[10px] border border-amber-500/25 bg-amber-500/10 px-3 py-2.5 text-xs leading-relaxed text-amber-100/90">
+                      {tierBanner}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+
+              {tab === "leaderboard" ? (
+                <div className="space-y-3">
+                  <p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">
+                    <span>Top referrers this week</span>
+                    <span className="h-px flex-1 bg-white/10" />
+                  </p>
+                  <p className="rounded-lg border border-dashed border-white/15 bg-black/20 px-3 py-6 text-center text-sm text-slate-400">
+                    Referral rankings will appear here once referral events are stored. Your invites still help friends join —
+                    share your link above.
+                  </p>
+                  <div className="rounded-[12px] border border-teal-500/35 bg-teal-500/10 p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span className="w-8 text-center text-sm font-bold text-teal-400">—</span>
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-teal-500/20 text-[10px] font-bold text-teal-200">
+                          {userDisplayName
+                            .split(/\s+/)
+                            .filter(Boolean)
+                            .map((p) => p[0])
+                            .join("")
+                            .slice(0, 2)
+                            .toUpperCase() || "YOU"}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="truncate font-semibold text-white">
+                            You — {userDisplayName}{" "}
+                            <span className="ml-1 rounded bg-teal-500/25 px-1.5 py-0.5 text-[10px] text-teal-200">YOU</span>
+                          </p>
+                          <p className="text-[11px] text-slate-400">{friendsReferred} friends · {formatInt(rdm)} RDM balance</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="border-t border-white/10 pt-3 text-center text-[11px] text-slate-500">
+                    Refer 5 friends to jump into the top 5 · Leaderboard resets every Monday
+                  </p>
+                </div>
+              ) : null}
+
+              {tab === "faq" ? (
+                <div className="divide-y divide-white/10 rounded-[12px] border border-white/10 bg-[var(--re-card)]">
+                  {FAQ_ITEMS.map((item, idx) => {
+                    const open = openFaq === idx;
+                    return (
+                      <div key={item.q} className="px-3">
+                        <button
+                          type="button"
+                          onClick={() => setOpenFaq(open ? null : idx)}
+                          className="flex w-full items-center justify-between gap-2 py-3 text-left"
+                        >
+                          <span className="text-sm font-semibold text-white">{item.q}</span>
+                          <span className="text-slate-500">{open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}</span>
+                        </button>
+                        {open ? <p className="pb-3 text-sm leading-relaxed text-slate-400">{item.a}</p> : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : null}
             </div>
-          </section>
+
+            {/* RIGHT — Challenges */}
+            <section
+              className="rounded-[14px] border p-4 shadow-[0_24px_60px_rgba(8,6,24,0.45)] md:p-5"
+              style={{ background: "var(--re-card)", borderColor: "var(--re-border)" }}
+            >
+              <div className="mb-4 flex flex-col gap-3 rounded-[12px] border border-violet-500/20 bg-gradient-to-br from-[#0d0d22] to-[#12102e] p-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-white">
+                    <Zap className="h-4 w-4 text-violet-400" />
+                    Challenge yourself — Earn more RDM
+                  </div>
+                  <p className="mt-1 text-[11px] leading-relaxed text-slate-400">
+                    Complete the Daily Gauntlet on Play. Max <strong className="text-[var(--re-amber)]">{DAILY_CHALLENGE_RDM_CAP} RDM</strong>{" "}
+                    per day from challenges once RDM tracking is enabled.
+                  </p>
+                </div>
+                <div className="inline-flex shrink-0 items-center gap-1.5 self-start rounded-full border border-amber-500/25 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-200 sm:self-center">
+                  <span className="text-orange-400">🔥</span> {streakDays} day streak
+                </div>
+              </div>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="mb-4 flex cursor-help items-center gap-2 rounded-[10px] border border-white/10 bg-black/25 px-3 py-2">
+                    <span className="text-lg">⚡</span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[11px] text-slate-400">Daily RDM earned from challenges</p>
+                      <div className="mt-1 h-2 overflow-hidden rounded-full bg-black/50">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-[var(--re-amber)] to-fuchsia-500"
+                          style={{ width: `${Math.min(100, (0 / DAILY_CHALLENGE_RDM_CAP) * 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                    <span className="text-xs font-bold text-[var(--re-amber)]">
+                      0 / {DAILY_CHALLENGE_RDM_CAP} RDM
+                    </span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-xs text-xs">
+                  Challenge RDM is not written to the database yet. Your streak and Daily Gauntlet completions on Play are real;
+                  this bar will fill automatically when tracking ships.
+                </TooltipContent>
+              </Tooltip>
+
+              <p className="mb-3 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">
+                <span>Step 1 · Choose your RDM claim target</span>
+                <span className="h-px flex-1 bg-white/10" />
+              </p>
+
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {CLAIM_CARDS.map((c) => {
+                  const sel = selectedClaim === c.key;
+                  const done =
+                    c.domain === "academic" ? playedToday.academic : playedToday.funbrain;
+                  return (
+                    <button
+                      key={c.key}
+                      type="button"
+                      onClick={() => setSelectedClaim(c.key)}
+                      className={cn(
+                        "relative rounded-[12px] border p-3 text-left transition",
+                        "border-white/10 bg-black/20 hover:border-white/20",
+                        sel && cn("ring-2 ring-offset-0 ring-offset-transparent", c.selClass),
+                      )}
+                    >
+                      <div className={cn("font-[family-name:var(--font-landing-serif)] text-3xl", c.accent)} style={{ fontFamily: "var(--font-landing-serif), serif" }}>
+                        {c.rdm}
+                      </div>
+                      <p className="text-[11px] text-slate-500">RDM</p>
+                      <span
+                        className={cn(
+                          "mt-1 inline-block rounded px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
+                          c.domain === "funbrain" ? "bg-sky-500/15 text-sky-300" : "bg-violet-500/15 text-violet-200",
+                        )}
+                      >
+                        {c.typeLabel}
+                      </span>
+                      <p className="mt-2 text-sm font-semibold text-white">{c.name}</p>
+                      <p className="mt-1 text-[11px] leading-relaxed text-slate-400">{c.desc}</p>
+                      <span className="mt-2 inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-semibold text-slate-300">
+                        <Check className="h-3 w-3 text-emerald-400" />
+                        Min 60% to win
+                      </span>
+                      {done ? (
+                        <span className="absolute right-2 top-2 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
+                          Played today
+                        </span>
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="mt-4 min-h-[120px] rounded-[12px] border border-dashed border-white/15 bg-black/20 p-4">
+                {!selectedCard ? (
+                  <div className="flex h-full min-h-[100px] flex-col items-center justify-center gap-2 text-center text-sm text-slate-500">
+                    <Clock className="h-8 w-8 opacity-40" />
+                    <span>Select a challenge above to see details</span>
+                  </div>
+                ) : (
+                  <div>
+                    <p className="text-sm font-semibold text-white">{selectedCard.name}</p>
+                    <p className="mt-1 text-xs text-slate-400">{selectedCard.desc}</p>
+                    <ul className="mt-3 space-y-1.5 text-xs text-slate-300">
+                      <li className="flex gap-2">
+                        <span className="text-violet-400">●</span>
+                        Opens the Play hub with <strong className="text-white">{selectedCard.domain}</strong> Daily Gauntlet
+                        pre-selected.
+                      </li>
+                      <li className="flex gap-2">
+                        <span className="text-violet-400">●</span>
+                        Session: 5 minutes · one attempt per domain per day (same as Play).
+                      </li>
+                      <li className="flex gap-2">
+                        <span className="text-violet-400">●</span>
+                        {playedForSelected ? "You already have a score today — view results on Play." : "Start when you are ready — timer begins on Play."}
+                      </li>
+                    </ul>
+                    <div className="mt-4 flex flex-wrap justify-end gap-2">
+                      <Button type="button" variant="outline" className="border-white/15 bg-transparent text-slate-200" onClick={() => setSelectedClaim(null)}>
+                        Clear
+                      </Button>
+                      <Button asChild className="bg-[var(--re-purple)] font-semibold text-white hover:opacity-95">
+                        <Link href={`/play?domain=${selectedCard.domain}`}>Start on Play</Link>
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </section>
+          </div>
         </div>
       </AppLayout>
     </ProtectedRoute>
   );
 }
-

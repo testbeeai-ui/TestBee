@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { Suspense, useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import AppLayout from "@/components/AppLayout";
 import { useAuth } from "@/hooks/useAuth";
@@ -30,6 +31,7 @@ import {
   Crosshair,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { bumpUserStudyDayMs } from "@/lib/studyDayBump";
 
 /** PCM only — matches Gyan++ / investor spec. */
 const PCM_CATEGORIES: { id: AcademicCategory; label: string }[] = [
@@ -70,8 +72,9 @@ const RATING_TO_NEXT = (rating: number) => {
 
 type View = "dashboard" | "streak" | "gauntlet" | "gauntlet_result" | "streak_gameover";
 
-export default function PlayPage() {
+function PlayPageContent() {
   const { user, profile } = useAuth();
+  const searchParams = useSearchParams();
   const streakTimer = useStreakTimer();
 
   const [view, setView] = useState<View>("dashboard");
@@ -161,12 +164,24 @@ export default function PlayPage() {
   }, [user?.id, view]);
 
   useEffect(() => {
+    if (!user?.id) return;
+    const d = searchParams.get("domain");
+    if (d === "academic" || d === "funbrain") {
+      setSelectedDomain(d);
+      setSelectedCategory(d === "academic" ? "physics" : "verbal");
+      if (d === "funbrain") setFunbrainPillKey("verbal");
+    }
+  }, [user?.id, searchParams]);
+
+  useEffect(() => {
     if (view !== "dashboard" || !user) return;
+    const d = searchParams.get("domain");
+    if (d === "academic" || d === "funbrain") return;
     if (selectedDomain === null && selectedCategory === null) {
       setSelectedDomain("academic");
       setSelectedCategory("physics");
     }
-  }, [view, user, selectedDomain, selectedCategory]);
+  }, [view, user, selectedDomain, selectedCategory, searchParams]);
 
   const getRatingForCategory = (category: string) =>
     userStats.find((s) => s.category === category)?.current_rating ?? 1000;
@@ -222,6 +237,7 @@ export default function PlayPage() {
       p_time_taken_ms: timeTakenMs,
       p_category: null,
     });
+    void bumpUserStudyDayMs(timeTakenMs);
     if (isCorrect) {
       setStreakCount((c) => c + 1);
       const next = selectedCategory === "mixed"
@@ -250,6 +266,7 @@ export default function PlayPage() {
       p_time_taken_ms: STREAK_TIMER_SEC * 1000,
       p_category: null,
     });
+    void bumpUserStudyDayMs(STREAK_TIMER_SEC * 1000);
     const newStrikes = strikesRef.current + 1;
     setStrikes(newStrikes);
     if (newStrikes >= STREAK_MAX_STRIKES) {
@@ -337,6 +354,7 @@ export default function PlayPage() {
         p_results: results,
         p_domain: currentDomain,
       });
+      void bumpUserStudyDayMs(localTimeMs);
     },
     [selectedDomain]
   );
@@ -1232,5 +1250,23 @@ export default function PlayPage() {
         </div>
       </AppLayout>
     </ProtectedRoute>
+  );
+}
+
+export default function PlayPage() {
+  return (
+    <Suspense
+      fallback={
+        <ProtectedRoute>
+          <AppLayout>
+            <div className="flex min-h-[50vh] items-center justify-center">
+              <Loader2 className="h-10 w-10 animate-spin text-violet-500" aria-hidden />
+            </div>
+          </AppLayout>
+        </ProtectedRoute>
+      }
+    >
+      <PlayPageContent />
+    </Suspense>
   );
 }

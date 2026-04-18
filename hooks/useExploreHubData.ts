@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { computeStreakDays } from '@/lib/gauntletStreak';
 
 export interface ExploreStats {
   streakDays: number;
@@ -66,29 +67,6 @@ type DoubtTrendingRow = {
   upvotes: number | null;
 };
 
-function prevDay(d: string): string {
-  const dt = new Date(d);
-  dt.setDate(dt.getDate() - 1);
-  return dt.toISOString().slice(0, 10);
-}
-
-function computeStreakDays(dates: string[]): number {
-  if (dates.length === 0) return 0;
-  const today = new Date().toISOString().slice(0, 10);
-  const sorted = [...new Set(dates)].sort((a, b) => b.localeCompare(a));
-  const mostRecent = sorted[0];
-  const oneDayAgo = prevDay(today);
-  if (mostRecent !== today && mostRecent !== oneDayAgo) return 0;
-  let count = 0;
-  let expect = mostRecent;
-  for (const d of sorted) {
-    if (d !== expect) break;
-    count++;
-    expect = prevDay(expect);
-  }
-  return count;
-}
-
 export function useExploreHubData(userId: string | undefined, rdm: number): ExploreHubData {
   const [stats, setStats] = useState<ExploreStats>({
     streakDays: 0,
@@ -133,11 +111,11 @@ export function useExploreHubData(userId: string | undefined, rdm: number): Expl
       const streakPromise = userId
         ? supabase
             .from('daily_gauntlet_attempts')
-            .select('played_date')
+            .select('gauntlet_date')
             .eq('user_id', userId)
-            .order('played_date', { ascending: false })
+            .order('gauntlet_date', { ascending: false })
             .limit(60)
-        : Promise.resolve({ data: [] as { played_date: string }[] });
+        : Promise.resolve({ data: [] as { gauntlet_date: string }[] });
 
       // Topics explored: distinct categories from user_play_stats
       const topicsPromise = userId
@@ -191,7 +169,7 @@ export function useExploreHubData(userId: string | undefined, rdm: number): Expl
       const accepted = answerList.filter((a) => a.is_accepted).length;
 
       // Compute streak from daily_gauntlet_attempts dates
-      const gauntletDates = ((streakRes.data || []) as { played_date: string }[]).map((r) => r.played_date);
+      const gauntletDates = ((streakRes.data || []) as { gauntlet_date: string }[]).map((r) => r.gauntlet_date);
       const streakDays = computeStreakDays(gauntletDates);
 
       // Count distinct categories from user_play_stats

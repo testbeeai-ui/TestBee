@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { computeStreakDays } from "@/lib/gauntletStreak";
 
 export type ProfileRank = "Novice" | "Scholar" | "Expert" | "Master";
 
@@ -102,29 +103,6 @@ export function getAvatarColor(userId: string): string {
   let hash = 0;
   for (let i = 0; i < userId.length; i++) hash = (hash << 5) - hash + userId.charCodeAt(i);
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
-}
-
-/** Compute consecutive streak days from gauntlet dates (most recent first) */
-function computeStreakDays(dates: string[]): number {
-  if (dates.length === 0) return 0;
-  const today = new Date().toISOString().slice(0, 10);
-  const sorted = [...new Set(dates)].sort((a, b) => b.localeCompare(a));
-  const mostRecent = sorted[0];
-  const oneDayAgo = prevDay(today);
-  if (mostRecent !== today && mostRecent !== oneDayAgo) return 0;
-  let count = 0;
-  let expect = mostRecent;
-  for (const d of sorted) {
-    if (d !== expect) break;
-    count++;
-    expect = prevDay(expect);
-  }
-  return count;
-}
-function prevDay(d: string): string {
-  const dt = new Date(d);
-  dt.setDate(dt.getDate() - 1);
-  return dt.toISOString().slice(0, 10);
 }
 
 /** Derive badges from real profile stats */

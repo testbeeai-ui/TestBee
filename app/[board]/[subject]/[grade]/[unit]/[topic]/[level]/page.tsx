@@ -101,6 +101,9 @@ import {
   type SubtopicEngagementScope,
   type SubtopicEngagementSnapshot,
 } from "@/lib/subtopicEngagementService";
+import { getClientApiAuthHeaders } from "@/lib/clientApiAuth";
+import { localDayKeyFromDate, startOfLocalDay } from "@/lib/dashboardDayActivity";
+import { makeSubtopicEngagementStorageKey } from "@/lib/subtopicEngagementStorageKey";
 import SubtopicWheelDialog from "@/components/SubtopicWheelDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -433,6 +436,14 @@ export default function TopicPage() {
   const [formulaByIdx, setFormulaByIdx] = useState<Record<number, { qIdx: number; answers: Record<number, number> }>>({});
   const engagementHydratedRef = useRef<string | null>(null);
   const engagementSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Persisted in Supabase (`lessonChecklistMarkedCompleteAt`); state drives UI so refresh shows "Marked completed". */
+  const [lessonChecklistMarkedCompleteAt, setLessonChecklistMarkedCompleteAt] = useState<string | null>(null);
+  /** When this changes (subtopic / level / quiz set), lesson timer resets until Supabase hydration applies. */
+  const lastLessonTimerScopeRef = useRef<string>("");
+  const focusTimerSecondsRef = useRef(focusTimerSeconds);
+  const focusTimerRunningRef = useRef(focusTimerRunning);
+  /** Remember if countdown was running before tab blur so we can resume on focus. */
+  const lessonTimerRunningBeforeHideRef = useRef(false);
 
   useEffect(() => {
     setRightPanelTab(initialPanelTab);
@@ -507,6 +518,11 @@ export default function TopicPage() {
   const subtopicIndex = resolved?.subtopicIndex ?? 0;
   const subtopicName = resolved?.subtopicName ?? "";
   const difficultyLevel = (resolved?.level ?? "basics") as DifficultyLevel;
+
+  useEffect(() => {
+    focusTimerSecondsRef.current = focusTimerSeconds;
+    focusTimerRunningRef.current = focusTimerRunning;
+  }, [focusTimerSeconds, focusTimerRunning]);
 
   useEffect(() => {
     if (isOverview || !focusTimerRunning) return;
@@ -1733,6 +1749,51 @@ export default function TopicPage() {
     };
   }, [topicNode, isOverview, subtopicName, difficultyLevel, board]);
 
+  /** Per subtopic + level only; omit bitsSignature so loading quiz rows does not wipe a saved countdown. */
+  const lessonTimerScopeKey = useMemo(
+    () => (engagementScope ? makeSubtopicEngagementStorageKey(engagementScope) : ""),
+    [engagementScope]
+  );
+
+  useEffect(() => {
+    if (isOverview || !lessonTimerScopeKey) {
+      if (isOverview) lastLessonTimerScopeRef.current = "";
+      return;
+    }
+    if (lastLessonTimerScopeRef.current === lessonTimerScopeKey) return;
+    lastLessonTimerScopeRef.current = lessonTimerScopeKey;
+    setFocusTimerSeconds(FOCUS_TIMER_INITIAL_SECONDS);
+    setFocusTimerRunning(false);
+    setLessonChecklistMarkedCompleteAt(null);
+  }, [lessonTimerScopeKey, isOverview]);
+
+  /** One deduped daily checklist (b) credit per subtopic key; revoked on Reset so it cannot stack. */
+  const syncDailyChecklistLessonBCredit = useCallback(
+    async (mode: "credit" | "revoke") => {
+      if (!engagementScope) return;
+      try {
+        const today = localDayKeyFromDate(startOfLocalDay(new Date()));
+        const headers = await getClientApiAuthHeaders();
+        const engagementKey = makeSubtopicEngagementStorageKey(engagementScope);
+        const res = await fetch("/api/user/daily-checklist", {
+          method: "PATCH",
+          headers: { ...headers, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: mode === "credit" ? "subtopic_b_credit" : "subtopic_b_revoke",
+            today,
+            engagementKey,
+          }),
+        });
+        if (!res.ok) {
+          console.warn("[daily-checklist]", mode, await res.text().catch(() => ""));
+        }
+      } catch (e) {
+        console.warn("[daily-checklist]", mode, e);
+      }
+    },
+    [engagementScope]
+  );
+
   useEffect(() => {
     if (!topicNode || isOverview || !subtopicName || dbBitsQuestions.length === 0) {
       setBitsAttempt(null);
@@ -1763,29 +1824,24 @@ export default function TopicPage() {
           if (attempt && attempt.bitsSignature === bitsSignature) {
             setBitsAttempt(attempt);
             setBitsAttemptBySet({});
-            engagementHydratedRef.current = bitsSignature;
-            return;
+          } else {
+            setBitsAttempt(null);
+            setBitsAttemptBySet({});
           }
-          setBitsAttempt(null);
-          setBitsAttemptBySet({});
         } else {
           const attempts = await Promise.all(
             ([1, 2, 3] as const).map((set) => fetchBitsAttempt({ ...scopeBase, set }))
           );
           if (cancelled) return;
           const next: Partial<Record<AdvancedQuizSetIndex, BitsAttemptRecord | null>> = {};
-          let allSetsDone = true;
           ([1, 2, 3] as const).forEach((s, i) => {
             const a = attempts[i];
             if (a && a.bitsSignature === bitsSignature) {
               next[s] = a;
-            } else if (getAdvancedSetBounds(total, s).length > 0) {
-              allSetsDone = false;
             }
           });
           setBitsAttemptBySet(next);
           setBitsAttempt(null);
-          if (allSetsDone) engagementHydratedRef.current = bitsSignature;
         }
 
         if (!engagementScope || !session?.access_token) return;
@@ -1830,6 +1886,17 @@ export default function TopicPage() {
           if (e.conceptsPages?.length) {
             setViewedConceptPages(new Set(e.conceptsPages));
           }
+          setLessonChecklistMarkedCompleteAt(
+            e.lessonChecklistMarkedCompleteAt?.trim() ? e.lessonChecklistMarkedCompleteAt : null
+          );
+          if (e.lessonFocusTimer && typeof e.lessonFocusTimer.secondsRemaining === "number") {
+            const sec = Math.max(
+              0,
+              Math.min(FOCUS_TIMER_INITIAL_SECONDS, Math.round(e.lessonFocusTimer.secondsRemaining))
+            );
+            setFocusTimerSeconds(sec);
+            setFocusTimerRunning(Boolean(e.lessonFocusTimer.running) && sec > 0);
+          }
         } catch {
           /* column may be missing on older DBs */
         }
@@ -1843,6 +1910,7 @@ export default function TopicPage() {
 
     return () => {
       cancelled = true;
+      engagementHydratedRef.current = null;
     };
   }, [
     topicNode,
@@ -2105,6 +2173,8 @@ export default function TopicPage() {
   const conceptsChecklistTotal = totalConceptPages;
   const conceptsChecklistProgress = Math.min(viewedConceptPages.size, conceptsChecklistTotal);
 
+  const lessonProgressMarkedDone = Boolean(lessonChecklistMarkedCompleteAt);
+
   const allChecklistComplete =
     focusTimerSeconds === 0 &&
     bitsChecklistProgress >= bitsChecklistTotal &&
@@ -2210,6 +2280,14 @@ export default function TopicPage() {
     const nav = Array.from(instaCueNavIndices.values()).sort((a, b) => a - b);
     const flipped = Array.from(instaCueValidatedIndices.values()).sort((a, b) => a - b);
     const conceptsPages = Array.from(viewedConceptPages.values()).sort((a, b) => a - b);
+    const lessonAt = lessonChecklistMarkedCompleteAt;
+    const lessonFocusTimerSnap =
+      focusTimerRunning || focusTimerSeconds !== FOCUS_TIMER_INITIAL_SECONDS
+        ? {
+            secondsRemaining: Math.max(0, Math.min(FOCUS_TIMER_INITIAL_SECONDS, focusTimerSeconds)),
+            running: focusTimerRunning,
+          }
+        : undefined;
     return {
       v: 1,
       bitsSignature,
@@ -2218,6 +2296,8 @@ export default function TopicPage() {
       formulaByIdx: Object.keys(formulaSnap).length ? formulaSnap : undefined,
       instaCue: nav.length || flipped.length ? { navVisited: nav, flipped } : undefined,
       conceptsPages: conceptsPages.length ? conceptsPages : undefined,
+      ...(lessonAt ? { lessonChecklistMarkedCompleteAt: lessonAt } : {}),
+      ...(lessonFocusTimerSnap ? { lessonFocusTimer: lessonFocusTimerSnap } : {}),
     };
   }, [
     engagementScope,
@@ -2238,6 +2318,9 @@ export default function TopicPage() {
     bitsSignature,
     useAdvancedSetsUi,
     activeQuizSet,
+    focusTimerSeconds,
+    focusTimerRunning,
+    lessonChecklistMarkedCompleteAt,
   ]);
 
   const flushSubtopicEngagementNow = useCallback(() => {
@@ -2258,11 +2341,50 @@ export default function TopicPage() {
       const snap = buildEngagementSnapshot();
       if (!snap) return;
       void saveSubtopicEngagement(engagementScope, snap).catch(() => {});
-    }, 900);
+    }, 400);
     return () => {
       if (engagementSaveTimerRef.current) clearTimeout(engagementSaveTimerRef.current);
     };
   }, [buildEngagementSnapshot, engagementScope, session?.access_token, isOverview]);
+
+  /** Other browser tab: pause countdown and persist remaining seconds; return to tab: resume if it was running. */
+  useEffect(() => {
+    if (isOverview) return;
+    const persistPausedTimer = () => {
+      if (!engagementScope || !session?.access_token) return;
+      const snap = buildEngagementSnapshot();
+      if (!snap) return;
+      const sec = Math.max(0, Math.min(FOCUS_TIMER_INITIAL_SECONDS, focusTimerSecondsRef.current));
+      void saveSubtopicEngagement(engagementScope, {
+        ...snap,
+        lessonFocusTimer: { secondsRemaining: sec, running: false },
+        updatedAt: new Date().toISOString(),
+      }).catch(() => {});
+    };
+    const onVis = () => {
+      if (document.visibilityState === "hidden") {
+        lessonTimerRunningBeforeHideRef.current = focusTimerRunningRef.current;
+        setFocusTimerRunning(false);
+        persistPausedTimer();
+        return;
+      }
+      if (document.visibilityState === "visible") {
+        if (lessonTimerRunningBeforeHideRef.current && focusTimerSecondsRef.current > 0) {
+          setFocusTimerRunning(true);
+        }
+        lessonTimerRunningBeforeHideRef.current = false;
+      }
+    };
+    const onPageHide = () => {
+      persistPausedTimer();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("pagehide", onPageHide);
+    return () => {
+      document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("pagehide", onPageHide);
+    };
+  }, [isOverview, engagementScope, session?.access_token, buildEngagementSnapshot]);
 
   // Refs for scroll-sync between theory and concepts panel
   const conceptsScrollRef = useRef<HTMLDivElement>(null);
@@ -2786,12 +2908,17 @@ export default function TopicPage() {
                         type="button"
                         size="sm"
                         className="rounded-xl font-bold"
+                        disabled={lessonProgressMarkedDone}
+                        variant={lessonProgressMarkedDone ? "secondary" : "default"}
                         title={
-                          allChecklistComplete
-                            ? undefined
-                            : "Complete every checklist item above first — then you can mark as complete."
+                          lessonProgressMarkedDone
+                            ? "Already marked complete for this subtopic. Tap Reset if you want to clear saved progress and start again."
+                            : allChecklistComplete
+                              ? undefined
+                              : "Complete every checklist item above first — then you can mark as complete."
                         }
                         onClick={() => {
+                          if (lessonProgressMarkedDone) return;
                           if (!allChecklistComplete) {
                             toast({
                               title: "Complete all progress first",
@@ -2804,10 +2931,55 @@ export default function TopicPage() {
                             });
                             return;
                           }
-                          toast({ title: "Topic marked as complete!" });
+                          if (!engagementScope || !session?.access_token) {
+                            toast({
+                              title: "Sign in required",
+                              description: "Sign in to save this completion to your account.",
+                              variant: "destructive",
+                            });
+                            return;
+                          }
+                          const markedAt = new Date().toISOString();
+                          const snap = buildEngagementSnapshot();
+                          if (!snap) {
+                            toast({
+                              title: "Could not save yet",
+                              description: "Wait for the quiz to finish loading, then try again.",
+                              variant: "destructive",
+                            });
+                            return;
+                          }
+                          setLessonChecklistMarkedCompleteAt(markedAt);
+                          void (async () => {
+                            try {
+                              await saveSubtopicEngagement(engagementScope, {
+                                ...snap,
+                                lessonChecklistMarkedCompleteAt: markedAt,
+                              });
+                              await syncDailyChecklistLessonBCredit("credit");
+                              toast({
+                                title: "Topic marked as complete!",
+                                description: "Saved to your progress for today’s checklist.",
+                              });
+                            } catch {
+                              setLessonChecklistMarkedCompleteAt(null);
+                              toast({
+                                title: "Save failed",
+                                description: "Could not save completion. Check your connection and try again.",
+                                variant: "destructive",
+                              });
+                            }
+                          })();
                         }}
                       >
-                        Mark as complete
+                        {lessonProgressMarkedDone ? (
+                          <span className="inline-flex items-center gap-1.5">
+                            <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" aria-hidden />
+                            Marked completed
+                          </span>
+                        ) : (
+                          "Mark as complete"
+                        )}
                       </Button>
                       <Button
                         type="button"
@@ -2828,6 +3000,7 @@ export default function TopicPage() {
                           setBitsAttemptBySet({});
                           setActiveQuizSet(1);
                           engagementHydratedRef.current = null;
+                          setLessonChecklistMarkedCompleteAt(null);
                           if (engagementScope && session?.access_token && bitsSignature) {
                             void saveSubtopicEngagement(engagementScope, {
                               v: 1,
@@ -2837,7 +3010,9 @@ export default function TopicPage() {
                               formulaByIdx: {},
                               instaCue: null,
                               conceptsPages: [0],
-                            }).catch(() => {});
+                            })
+                              .then(() => syncDailyChecklistLessonBCredit("revoke"))
+                              .catch(() => {});
                           }
                         }}
                       >

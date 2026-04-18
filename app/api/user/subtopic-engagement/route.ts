@@ -6,6 +6,9 @@ import type {
   SubtopicEngagementFormulaDraft,
   SubtopicEngagementSnapshot,
 } from "@/lib/subtopicEngagementService";
+import { makeSubtopicEngagementStorageKey } from "@/lib/subtopicEngagementStorageKey";
+import type { Board, Subject } from "@/types";
+import type { DifficultyLevel } from "@/lib/slugs";
 
 type ProfileEngagementRow = { subtopic_engagement?: Json | null };
 
@@ -19,24 +22,6 @@ function sanitize(value: unknown, maxLen = 300): string {
 
 function normalizeKeyPart(value: unknown, maxLen = 300): string {
   return sanitize(value, maxLen).toLowerCase();
-}
-
-function makeEngagementKey(params: {
-  board: string;
-  subject: string;
-  classLevel: number;
-  topic: string;
-  subtopicName: string;
-  level: string;
-}) {
-  return [
-    normalizeKeyPart(params.board, 40),
-    normalizeKeyPart(params.subject, 80),
-    String(params.classLevel),
-    normalizeKeyPart(params.topic, 300),
-    normalizeKeyPart(params.subtopicName, 300),
-    normalizeKeyPart(params.level, 30),
-  ].join("||");
 }
 
 function parseEngagementStore(raw: unknown): Record<string, SubtopicEngagementSnapshot> {
@@ -130,6 +115,21 @@ function parseEngagementStore(raw: unknown): Record<string, SubtopicEngagementSn
         .map((x) => Number(x))
         .filter((n) => Number.isInteger(n) && n >= 0);
     }
+    const lessonDone = sanitize(row.lessonChecklistMarkedCompleteAt, 100);
+    if (lessonDone) snap.lessonChecklistMarkedCompleteAt = lessonDone;
+    if (row.lessonFocusTimer === null) {
+      snap.lessonFocusTimer = null;
+    } else if (row.lessonFocusTimer && typeof row.lessonFocusTimer === "object" && !Array.isArray(row.lessonFocusTimer)) {
+      const lt = row.lessonFocusTimer as Record<string, unknown>;
+      const sec = Number(lt.secondsRemaining);
+      const running = Boolean(lt.running);
+      if (Number.isFinite(sec)) {
+        snap.lessonFocusTimer = {
+          secondsRemaining: Math.max(0, Math.min(60 * 60, Math.round(sec))),
+          running,
+        };
+      }
+    }
     out[key] = snap;
   }
   return out;
@@ -175,7 +175,14 @@ export async function GET(request: Request) {
     const { data, error } = await supabase.from("profiles").select("*").eq("id", user.id).maybeSingle();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    const key = makeEngagementKey({ board, subject, classLevel, topic, subtopicName, level });
+    const key = makeSubtopicEngagementStorageKey({
+      board: board as Board,
+      subject: subject as Subject,
+      classLevel: classLevel as 11 | 12,
+      topic,
+      subtopicName,
+      level: level as DifficultyLevel,
+    });
     const row = data as ProfileEngagementRow | null;
     const store = parseEngagementStore(row?.subtopic_engagement);
     return NextResponse.json({ engagement: store[key] ?? null });
@@ -216,7 +223,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Missing or invalid fields" }, { status: 400 });
     }
 
-    const key = makeEngagementKey({ board, subject, classLevel, topic, subtopicName, level });
+    const key = makeSubtopicEngagementStorageKey({
+      board: board as Board,
+      subject: subject as Subject,
+      classLevel: classLevel as 11 | 12,
+      topic,
+      subtopicName,
+      level: level as DifficultyLevel,
+    });
     const { data: profile, error: readErr } = await supabase.from("profiles").select("*").eq("id", user.id).maybeSingle();
     if (readErr) return NextResponse.json({ error: readErr.message }, { status: 500 });
 

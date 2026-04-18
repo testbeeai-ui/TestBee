@@ -8,11 +8,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { safeGetSession } from "@/lib/safeSession";
 
 async function readClientSession() {
   try {
-    const res = await supabase.auth.getSession();
-    return res?.data?.session ?? null;
+    const { session } = await safeGetSession();
+    return session;
   } catch {
     return null;
   }

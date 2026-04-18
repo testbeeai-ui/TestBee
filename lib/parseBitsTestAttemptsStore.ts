@@ -3,6 +3,12 @@ import type { Subject } from "@/types";
 /** One row from profiles.bits_test_attempts (same shape as API route). */
 export type ParsedBitsAttemptRow = {
   subject: Subject;
+  /** PUC / board class (from attempt JSON; defaults to 11 when missing for legacy rows). */
+  classLevel: 11 | 12;
+  /** Chapter / unit title from stored attempt (for dashboards). */
+  topic: string;
+  /** Subtopic title from stored attempt (matches curriculum subtopic names). */
+  subtopicName: string;
   totalQuestions: number;
   correctCount: number;
   wrongCount: number;
@@ -38,6 +44,9 @@ export function parseBitsTestAttemptsStore(raw: unknown): ParsedBitsAttemptRow[]
     const submittedAt = sanitize(row.submittedAt, 80);
     if (!topic || !subtopicName || !bitsSignature || !submittedAt) continue;
 
+    const clRaw = Number(row.classLevel);
+    const classLevel: 11 | 12 = clRaw === 12 ? 12 : 11;
+
     const totalQuestions = Number(row.totalQuestions);
     const correctCount = Number(row.correctCount);
     const wrongCount = Number(row.wrongCount);
@@ -49,6 +58,9 @@ export function parseBitsTestAttemptsStore(raw: unknown): ParsedBitsAttemptRow[]
 
     out.push({
       subject: subjectRaw as Subject,
+      classLevel,
+      topic,
+      subtopicName,
       totalQuestions: tq,
       correctCount: cc,
       wrongCount: wc,

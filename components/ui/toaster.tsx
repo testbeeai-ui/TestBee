@@ -1,4 +1,5 @@
 import * as React from "react";
+import { createPortal } from "react-dom";
 import { useToast } from "@/hooks/use-toast";
 import { Toast, ToastClose, ToastDescription, ToastProvider, ToastTitle, ToastViewport } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
@@ -171,4 +172,15 @@ export function Toaster() {
       <ToastViewport />
     </ToastProvider>
   );
+}
+
+/**
+ * Renders the same Radix toasts but under `document.body`, so `position:fixed` is never
+ * clipped by a parent `overflow` / `transform` (common on dense layouts e.g. Magic Wall, 14" laptops).
+ */
+export function ToasterPortal() {
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => setMounted(true), []);
+  if (!mounted || typeof document === "undefined") return null;
+  return createPortal(<Toaster />, document.body);
 }

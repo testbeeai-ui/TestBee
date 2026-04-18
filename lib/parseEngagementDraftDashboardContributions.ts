@@ -4,6 +4,8 @@ const ALLOWED_SUBJECTS = new Set<string>(["physics", "chemistry", "math", "biolo
 
 export type EngagementDraftDashboardRow = {
   subject: Subject;
+  /** Topic/chapter segment from engagement storage key (index 3). */
+  topic: string | null;
   answered: number;
   correct: number;
   wrong: number;
@@ -23,6 +25,13 @@ function subjectFromEngagementKey(key: string): Subject | null {
   return subj as Subject;
 }
 
+function topicFromEngagementKey(key: string): string | null {
+  const parts = key.split("||");
+  if (parts.length < 4) return null;
+  const t = parts[3]?.trim();
+  return t ? t : null;
+}
+
 /**
  * In-progress topic quiz rows from profiles.subtopic_engagement for home stats.
  * Skips keys that already have a submitted row in bits_test_attempts (same key shape).
@@ -40,6 +49,7 @@ export function parseEngagementDraftDashboardContributions(
     if (Number(row.v) !== 1) continue;
     const subject = subjectFromEngagementKey(key);
     if (!subject) continue;
+    const topic = topicFromEngagementKey(key);
     if (row.bits === null || row.bits === undefined) continue;
     if (typeof row.bits !== "object" || Array.isArray(row.bits)) continue;
     const b = row.bits as Record<string, unknown>;
@@ -52,7 +62,7 @@ export function parseEngagementDraftDashboardContributions(
     const totalQuestions = clampInt(gr.totalQuestions);
     if (answered <= 0 && correct <= 0 && wrong <= 0) continue;
     const skipped = totalQuestions > 0 ? Math.max(0, totalQuestions - answered) : 0;
-    out.push({ subject, answered, correct, wrong, skipped });
+    out.push({ subject, topic, answered, correct, wrong, skipped });
   }
   return out;
 }

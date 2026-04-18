@@ -27,6 +27,9 @@ import DoubtsTabBar from "@/components/doubts/DoubtsTabBar";
 import DoubtFeedCard from "@/components/doubts/DoubtFeedCard";
 import DoubtLeftSidebar from "@/components/doubts/DoubtLeftSidebar";
 import DoubtRightSidebar from "@/components/doubts/DoubtRightSidebar";
+import { GyanDoubtsFocusTracker } from "@/components/doubts/GyanDoubtsFocusTracker";
+import { GyanDailyChecklistTracker } from "@/components/doubts/GyanDailyChecklistTracker";
+import { dispatchStudyDayBumped } from "@/lib/studyDayBumpEvents";
 
 type SimpleDoubtRow = {
   id: string;
@@ -439,6 +442,7 @@ export default function DoubtsPage() {
           d.id === doubtId ? { ...d, upvotes: res.upvotes!, downvotes: res.downvotes! } : d
         ));
       }
+      dispatchStudyDayBumped({ day: "", deltaMs: 0 });
     }
   };
 
@@ -455,10 +459,12 @@ export default function DoubtsPage() {
       await supabase.from("doubt_saves").delete().eq("user_id", user.id).eq("doubt_id", doubtId);
       setSavedDoubtIds((prev) => { const next = new Set(prev); next.delete(doubtId); return next; });
       toast({ title: "Removed from saved" });
+      dispatchStudyDayBumped({ day: "", deltaMs: 0 });
     } else {
       await supabase.from("doubt_saves").insert({ user_id: user.id, doubt_id: doubtId });
       setSavedDoubtIds((prev) => new Set(prev).add(doubtId));
       toast({ title: "Saved!" });
+      dispatchStudyDayBumped({ day: "", deltaMs: 0 });
     }
   };
 
@@ -479,7 +485,9 @@ export default function DoubtsPage() {
   return (
     <ProtectedRoute>
       <AppLayout>
-        <div className="max-w-[1680px] mx-auto px-4 sm:px-5 py-6">
+        <GyanDoubtsFocusTracker>
+          <GyanDailyChecklistTracker />
+          <div className="max-w-[1680px] mx-auto px-4 sm:px-5 py-6">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 xl:gap-7">
 
             {/* Left sidebar */}
@@ -568,12 +576,13 @@ export default function DoubtsPage() {
           </div>
         </div>
 
-        <AskDoubtDialog
-          open={askOpen}
-          onOpenChange={setAskOpen}
-          profile={profile}
-          onDoubtPosted={handleDoubtPosted}
-        />
+          <AskDoubtDialog
+            open={askOpen}
+            onOpenChange={setAskOpen}
+            profile={profile}
+            onDoubtPosted={handleDoubtPosted}
+          />
+        </GyanDoubtsFocusTracker>
       </AppLayout>
     </ProtectedRoute>
   );

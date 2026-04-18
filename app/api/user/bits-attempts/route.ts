@@ -321,6 +321,21 @@ export async function POST(request: Request) {
       .eq("id", user.id);
     if (writeErr) return NextResponse.json({ error: writeErr.message }, { status: 500 });
 
+    const studyDayRaw = typeof body?.studyDay === "string" ? body.studyDay.trim() : "";
+    const studyDay =
+      /^\d{4}-\d{2}-\d{2}$/.test(studyDayRaw) ? studyDayRaw : String(attempt.submittedAt).slice(0, 10);
+    const answered = Math.max(0, attempt.correctCount + attempt.wrongCount);
+    const deltaMs = answered * 3 * 60 * 1000;
+    if (deltaMs > 0) {
+      const { error: bumpErr } = await (supabase as any).rpc("add_user_study_day_ms", {
+        p_day: studyDay,
+        p_delta_ms: deltaMs,
+      });
+      if (bumpErr) {
+        console.warn("[bits-attempts] add_user_study_day_ms:", bumpErr.message);
+      }
+    }
+
     return NextResponse.json({ ok: true, attempt });
   } catch (e) {
     console.error("bits-attempts POST error", e);

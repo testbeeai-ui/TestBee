@@ -5,6 +5,9 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import AppLayout from "@/components/AppLayout";
+import { GyanDoubtsFocusTracker } from "@/components/doubts/GyanDoubtsFocusTracker";
+import { GyanDailyChecklistTracker } from "@/components/doubts/GyanDailyChecklistTracker";
+import { dispatchStudyDayBumped } from "@/lib/studyDayBumpEvents";
 import { supabase } from "@/integrations/supabase/client";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { useAuth } from "@/hooks/useAuth";
@@ -282,6 +285,7 @@ export default function DoubtDetailPage() {
       const res = data as { ok: boolean; upvotes?: number; downvotes?: number; error?: string };
       if (res?.ok) {
         refetchAll();
+        dispatchStudyDayBumped({ day: "", deltaMs: 0 });
       } else {
         toast({ title: "Vote failed", description: res?.error ?? "Unable to process vote.", variant: "destructive" });
       }
@@ -636,7 +640,9 @@ export default function DoubtDetailPage() {
   return (
     <ProtectedRoute>
       <AppLayout>
-        <div className="max-w-3xl mx-auto px-4 py-6">
+        <GyanDoubtsFocusTracker>
+          <GyanDailyChecklistTracker />
+          <div className="max-w-3xl mx-auto px-4 py-6">
           <Link href="/doubts" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4">
             <ArrowLeft className="w-4 h-4" /> Back to Gyan++
           </Link>
@@ -982,7 +988,8 @@ export default function DoubtDetailPage() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
-        </div>
+          </div>
+        </GyanDoubtsFocusTracker>
       </AppLayout>
     </ProtectedRoute>
   );
