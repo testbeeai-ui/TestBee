@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
+import { safeGetSession } from "@/lib/safeSession";
 
 function getErrorMessage(e: unknown): string {
   if (e instanceof Error && e.message) return e.message;
@@ -61,11 +62,7 @@ export default function TokenLogsPage() {
           return;
         }
 
-        const {
-          data: { session },
-          error: sessionErr,
-        } = await supabase.auth.getSession();
-        if (sessionErr) throw sessionErr;
+        const { session } = await safeGetSession();
         if (!session?.access_token) throw new Error("Missing access token");
 
         const res = await fetch("/api/admin/token-logs?limit=1000", {

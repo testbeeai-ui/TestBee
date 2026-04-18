@@ -1,5 +1,6 @@
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { safeGetSession } from "@/lib/safeSession";
 
 /** Refresh access token before it expires (long orchestrator runs). */
 const EXPIRY_BUFFER_MS = 120_000;
@@ -11,7 +12,13 @@ async function refreshSessionDeduped(): Promise<Session | null> {
     refreshInFlight = supabase.auth
       .refreshSession()
       .then(({ data, error }) => {
-        if (error) return null;
+        if (error) {
+          const msg = (error.message || "").toLowerCase();
+          if (msg.includes("invalid refresh token") || msg.includes("refresh token not found")) {
+            void supabase.auth.signOut({ scope: "local" }).catch(() => {});
+          }
+          return null;
+        }
         return data.session ?? null;
       })
       .finally(() => {
@@ -34,9 +41,8 @@ export async function getClientApiAuthHeaders(): Promise<Record<string, string>>
   const out: Record<string, string> = {};
   if (typeof window === "undefined") return out;
 
-  let {
-    data: { session },
-  } = await supabase.auth.getSession();
+  const { session: initialSession } = await safeGetSession();
+  let session = initialSession;
 
   const exp = session?.expires_at;
   const expMs = typeof exp === "number" ? exp * 1000 : 0;

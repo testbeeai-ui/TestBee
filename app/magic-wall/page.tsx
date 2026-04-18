@@ -172,6 +172,8 @@ export default function MagicWallPage() {
   const [selectedClass, setSelectedClass] = useState<ClassLevel>(initialClass);
   const [activeSubjects, setActiveSubjects] = useState<Set<Subject>>(new Set(["physics", "chemistry", "math"]));
   const [selectedTopicKeys, setSelectedTopicKeys] = useState<Set<string>>(new Set());
+  const selectedTopicKeysRef = useRef(selectedTopicKeys);
+  selectedTopicKeysRef.current = selectedTopicKeys;
   const [basketItems, setBasketItems] = useState<MagicWallBasketItem[]>([]);
   const [loadingBasket, setLoadingBasket] = useState(false);
   const [savingBasket, setSavingBasket] = useState(false);
@@ -514,29 +516,29 @@ export default function MagicWallPage() {
   };
 
   const toggleTopic = (topicKey: string) => {
-    let blockedAtLimit = false;
-    setSelectedTopicKeys((prev) => {
-      if (prev.has(topicKey)) {
-        const next = new Set(prev);
+    const prev = selectedTopicKeysRef.current;
+    if (prev.has(topicKey)) {
+      setSelectedTopicKeys((s) => {
+        const next = new Set(s);
         next.delete(topicKey);
+        selectedTopicKeysRef.current = next;
         return next;
-      }
-      if (prev.size >= MAGIC_WALL_MAX_SELECTED_TOPICS) {
-        blockedAtLimit = true;
-        return prev;
-      }
-      const next = new Set(prev);
+      });
+      return;
+    }
+    if (prev.size >= MAGIC_WALL_MAX_SELECTED_TOPICS) {
+      toast({
+        title: `Maximum ${MAGIC_WALL_MAX_SELECTED_TOPICS} topics`,
+        description: `You already have ${MAGIC_WALL_MAX_SELECTED_TOPICS} selected. Remove one from the list to add another.`,
+      });
+      return;
+    }
+    setSelectedTopicKeys((s) => {
+      const next = new Set(s);
       next.add(topicKey);
+      selectedTopicKeysRef.current = next;
       return next;
     });
-    if (blockedAtLimit) {
-      queueMicrotask(() => {
-        toast({
-          title: `Maximum ${MAGIC_WALL_MAX_SELECTED_TOPICS} topics`,
-          description: `You already have ${MAGIC_WALL_MAX_SELECTED_TOPICS} selected. Remove one from the list to add another.`,
-        });
-      });
-    }
   };
 
   const persistSelection = async () => {
@@ -597,7 +599,7 @@ export default function MagicWallPage() {
             Column 1 = minmax(0,1fr); column 2 = fixed readable basket width.
           */}
           <div className="grid min-h-0 w-full flex-1 grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_min(100%,380px)] lg:items-start lg:gap-6 xl:grid-cols-[minmax(0,1fr)_min(100%,400px)] xl:gap-6">
-            <section className="min-w-0 w-full overflow-hidden rounded-2xl border-2 border-violet-500/35 bg-gradient-to-b from-[#121426] to-[#090b16] p-2 shadow-[0_0_32px_rgba(139,92,246,0.14)] ring-1 ring-violet-400/15 sm:rounded-3xl md:p-3">
+            <section className="min-w-0 w-full rounded-2xl border-2 border-violet-500/35 bg-gradient-to-b from-[#121426] to-[#090b16] p-2 shadow-[0_0_32px_rgba(139,92,246,0.14)] ring-1 ring-violet-400/15 sm:rounded-3xl md:p-3">
               <div className="px-1 pb-2 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
                   <p className="text-sm md:text-base font-extrabold text-white flex flex-wrap items-center gap-2">
@@ -822,6 +824,48 @@ export default function MagicWallPage() {
                     });
                   })}
               </div>
+
+              {/* Actions stay under Topic Rain only (not full grid width beside basket). */}
+              <div className="sticky bottom-0 z-30 mt-2 shrink-0">
+                <div className="flex flex-col gap-1.5 rounded-xl border border-violet-400/50 bg-violet-500/25 px-2.5 py-1.5 shadow-md shadow-violet-950/25 backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-3 sm:py-2">
+                  <div className="min-w-0 text-[11px] font-bold leading-tight text-violet-100 sm:pr-2 sm:text-xs">
+                    <span className="break-words">
+                      Reading Basket: {selectedTopicKeys.size}/{MAGIC_WALL_MAX_SELECTED_TOPICS} selected · {basketItems.length}{" "}
+                      saved
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-end gap-1.5 sm:shrink-0">
+                    {basketItems.length > 0 && (
+                      <Button
+                        type="button"
+                        variant="default"
+                        size="sm"
+                        className="h-8 shrink-0 rounded-lg bg-emerald-500 px-3 text-[11px] font-extrabold text-white hover:bg-emerald-600 sm:whitespace-nowrap"
+                        onClick={handleStartReading}
+                      >
+                        <BookOpen className="mr-1 h-3.5 w-3.5 shrink-0" /> Start Reading
+                      </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      onClick={persistSelection}
+                      disabled={savingBasket || !hasUnsavedChanges}
+                      className="h-8 shrink-0 rounded-lg bg-violet-500 px-2.5 text-[11px] font-extrabold text-white hover:bg-violet-600 disabled:opacity-60 sm:whitespace-nowrap"
+                    >
+                      {savingBasket ? (
+                        <>
+                          <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> Saving...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="mr-1 h-3.5 w-3.5" />
+                          Save changes
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </div>
             </section>
 
             <aside className="min-w-0 w-full rounded-2xl border-2 border-violet-400/30 bg-gradient-to-b from-[#121425] to-[#0a0c16] p-3 space-y-2.5 shadow-[0_0_28px_rgba(139,92,246,0.1)] ring-1 ring-violet-500/10 sm:rounded-3xl lg:sticky lg:top-24 lg:self-start">
@@ -905,47 +949,11 @@ export default function MagicWallPage() {
             </aside>
           </div>
 
-          <div className="sticky bottom-0 z-30 shrink-0 px-1 pt-1 sm:px-0">
-            <div className="flex flex-col gap-1.5 rounded-xl border border-violet-400/50 bg-violet-500/25 px-2.5 py-1.5 shadow-md shadow-violet-950/25 backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-3 sm:py-2">
-              <div className="min-w-0 text-[11px] font-bold leading-tight text-violet-100 sm:pr-2 sm:text-xs">
-                <span className="break-words">
-                  Reading Basket: {selectedTopicKeys.size}/{MAGIC_WALL_MAX_SELECTED_TOPICS} selected · {basketItems.length}{" "}
-                  saved
-                </span>
-              </div>
-              <div className="flex items-center gap-1.5 sm:shrink-0">
-                {basketItems.length > 0 && (
-                  <Button
-                    type="button"
-                    variant="default"
-                    size="sm"
-                    className="h-8 shrink-0 rounded-lg bg-emerald-500 px-3 text-[11px] font-extrabold text-white hover:bg-emerald-600 sm:whitespace-nowrap"
-                    onClick={handleStartReading}
-                  >
-                    <BookOpen className="mr-1 h-3.5 w-3.5 shrink-0" /> Start Reading
-                  </Button>
-                )}
-                <Button
-                  size="sm"
-                  onClick={persistSelection}
-                  disabled={savingBasket || !hasUnsavedChanges}
-                  className="h-8 shrink-0 rounded-lg bg-violet-500 px-2.5 text-[11px] font-extrabold text-white hover:bg-violet-600 disabled:opacity-60 sm:whitespace-nowrap"
-                >
-                  {savingBasket ? (
-                    <>
-                      <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> Saving...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="mr-1 h-3.5 w-3.5" />
-                      Save changes
-                    </>
-                  )}
-                </Button>
-              </div>
+          {error ? (
+            <div className="px-1 sm:px-0">
+              <p className="mt-2 text-xs text-destructive">{error}</p>
             </div>
-            {error ? <p className="mt-2 text-xs text-destructive">{error}</p> : null}
-          </div>
+          ) : null}
         </div>
       </AppLayout>
     </ProtectedRoute>

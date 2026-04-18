@@ -890,6 +890,7 @@ export type Database = {
           bio: string | null
           bits_test_attempts: Json
           subtopic_engagement: Json
+          daily_checklist_state: Json
           class_level: number | null
           created_at: string
           exam_tags: string[] | null
@@ -918,6 +919,7 @@ export type Database = {
           bio?: string | null
           bits_test_attempts?: Json
           subtopic_engagement?: Json
+          daily_checklist_state?: Json
           class_level?: number | null
           created_at?: string
           exam_tags?: string[] | null
@@ -946,6 +948,7 @@ export type Database = {
           bio?: string | null
           bits_test_attempts?: Json
           subtopic_engagement?: Json
+          daily_checklist_state?: Json
           class_level?: number | null
           created_at?: string
           exam_tags?: string[] | null

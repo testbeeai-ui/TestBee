@@ -12,11 +12,16 @@ import BreakScreen from '@/components/BreakScreen';
 import RecallExercise from '@/components/RecallExercise';
 import { useStreakTimer } from '@/hooks/useStreakTimer';
 import AgentOrchestratorRunner from '@/components/AgentOrchestratorRunner';
+import { SitePresenceProvider } from '@/components/providers/SitePresenceProvider';
 import { cn } from '@/lib/utils';
 
 interface AppLayoutProps {
   children: ReactNode;
   streakTimer?: ReturnType<typeof useStreakTimer>;
+  /** When true, hides the global top nav (legacy; prefer showing nav + wideMain for dashboards). */
+  hideTopNav?: boolean;
+  /** Wide main column (e.g. dashboard + sidebar) while top nav stays visible. */
+  wideMain?: boolean;
 }
 
 /** Curriculum browser: URL stays `/explore-1`; UI label is "Lessons". */
@@ -41,7 +46,7 @@ const baseNavItems = [
   { path: "/profile", icon: User, label: "Profile", emoji: "👤" },
 ];
 
-const AppLayout = ({ children, streakTimer }: AppLayoutProps) => {
+const AppLayout = ({ children, streakTimer, hideTopNav = false, wideMain = false }: AppLayoutProps) => {
   const pathname = usePathname();
   const isMagicWall = pathname === '/magic-wall';
   const { profile } = useAuth();
@@ -51,8 +56,10 @@ const AppLayout = ({ children, streakTimer }: AppLayoutProps) => {
   const navItems = baseNavItems;
 
   return (
+    <SitePresenceProvider userId={profile?.id ?? null}>
     <div className="min-h-screen bg-background flex flex-col">
       {/* Top Navigation Bar */}
+      {!hideTopNav && (
       <header className="sticky top-0 z-40 bg-card/80 backdrop-blur-xl border-b border-border/60">
         <div className="max-w-7xl mx-auto flex items-center justify-between px-4 py-2.5 lg:px-5 lg:py-3 2xl:px-6">
           {/* Logo */}
@@ -142,12 +149,20 @@ const AppLayout = ({ children, streakTimer }: AppLayoutProps) => {
           </div>
         </div>
       </header>
+      )}
 
       {/* Content */}
       <main
         className={cn(
-          'flex-1 max-w-7xl mx-auto w-full px-4 lg:px-5 2xl:px-6',
-          isMagicWall ? 'flex min-h-0 flex-col pt-2 pb-0 sm:pt-3' : 'py-4 lg:py-5 2xl:py-7',
+          'flex-1 mx-auto w-full',
+          hideTopNav || wideMain
+            ? 'max-w-[1920px] px-3 py-3 sm:px-4 sm:py-4 lg:px-5 lg:py-5'
+            : 'max-w-7xl px-4 lg:px-5 2xl:px-6',
+          !hideTopNav &&
+            !wideMain &&
+            (isMagicWall ? 'flex min-h-0 flex-col pt-2 pb-0 sm:pt-3' : 'py-4 lg:py-5 2xl:py-7'),
+          !hideTopNav && wideMain && (isMagicWall ? 'flex min-h-0 flex-col pt-2 pb-0 sm:pt-3' : ''),
+          hideTopNav && isMagicWall && 'flex min-h-0 flex-col pt-2 pb-0 sm:pt-3',
         )}
       >
         {children}
@@ -180,6 +195,7 @@ const AppLayout = ({ children, streakTimer }: AppLayoutProps) => {
         </div>
       </footer>
     </div>
+    </SitePresenceProvider>
   );
 };
 

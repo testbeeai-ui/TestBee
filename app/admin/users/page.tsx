@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/integrations/supabase/client";
+import { safeGetSession } from "@/lib/safeSession";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -64,9 +65,7 @@ export default function AdminUsersPage() {
     setLoading(true);
     setError("");
     try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      const { session } = await safeGetSession();
       if (!session?.access_token) {
         setError("Missing session token");
         return;
@@ -108,9 +107,7 @@ export default function AdminUsersPage() {
       setActingUserId(user.id);
       setError("");
       try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
+        const { session } = await safeGetSession();
         if (!session?.access_token) throw new Error("Missing session token");
 
         const suspendDays = suspendDaysByUser[user.id] ?? 7;

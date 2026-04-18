@@ -138,11 +138,15 @@ export const useUserStore = create<UserState>()(
         set((state) => {
           const list = state.user?.savedRevisionCards ?? [];
           if (list.some((c) => c.id === card.id)) return state;
+          const stamped: SavedRevisionCard = {
+            ...card,
+            savedAt: card.savedAt ?? new Date().toISOString(),
+          };
           return {
             user: state.user
               ? {
                 ...state.user,
-                savedRevisionCards: [...list, card],
+                savedRevisionCards: [...list, stamped],
                 rdm: state.user.rdm + 2,
               }
               : null,

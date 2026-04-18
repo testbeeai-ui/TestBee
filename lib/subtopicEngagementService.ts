@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { DifficultyLevel } from "@/lib/slugs";
 import type { Board, Subject } from "@/types";
+import { safeGetSession } from "@/lib/safeSession";
 
 const API = "/api/user/subtopic-engagement";
 
@@ -46,14 +47,22 @@ export type SubtopicEngagementSnapshot = {
     flipped: number[];
   } | null;
   conceptsPages?: number[];
+  /** ISO timestamp when user marked Lessons/Progress checklist complete for this subtopic. */
+  lessonChecklistMarkedCompleteAt?: string;
+  /**
+   * Lessons/Progress item 1 (10 min focus): persisted so refresh keeps countdown.
+   * Reset when the learner hides the tab or switches subtopic/level (see topic page).
+   */
+  lessonFocusTimer?: {
+    secondsRemaining: number;
+    running: boolean;
+  } | null;
 };
 
 async function getAuthHeaders(): Promise<HeadersInit> {
   const headers: Record<string, string> = {};
   if (typeof window !== "undefined") {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+    const { session } = await safeGetSession();
     if (session?.access_token) {
       headers.Authorization = `Bearer ${session.access_token}`;
     }

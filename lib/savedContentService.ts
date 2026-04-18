@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { useUserStore } from "@/store/useUserStore";
+import { safeGetSession } from "@/lib/safeSession";
 import type {
   SavedBit,
   SavedFormula,
@@ -13,7 +14,7 @@ const API = "/api/user/saved-content";
 async function getAuthHeaders(): Promise<HeadersInit> {
   const headers: Record<string, string> = {};
   if (typeof window !== "undefined") {
-    const { data: { session } } = await supabase.auth.getSession();
+    const { session } = await safeGetSession();
     if (session?.access_token) {
       headers["Authorization"] = `Bearer ${session.access_token}`;
     }

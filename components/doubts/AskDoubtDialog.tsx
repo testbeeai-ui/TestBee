@@ -19,6 +19,7 @@ import { Loader2, ChevronLeft, RotateCcw } from "lucide-react";
 import { DOUBT_FLAIRS, type ProfileRow } from "./doubtTypes";
 import { applyNormalizedPasteToField, normalizePastedMathForDoubt } from "@/lib/normalizePastedDoubtMath";
 import { incrementPrepCalendarDay, localDayISO } from "@/lib/prepCalendarClient";
+import { safeGetSession } from "@/lib/safeSession";
 
 interface AskDoubtDialogProps {
   open: boolean;
@@ -159,7 +160,7 @@ export default function AskDoubtDialog({ open, onOpenChange, profile, onDoubtPos
       clearDraft();
       toast({ title: "Doubt posted!" });
       void (async () => {
-        const at = (await supabase.auth.getSession()).data.session?.access_token;
+        const at = (await safeGetSession()).session?.access_token;
         await incrementPrepCalendarDay(at ?? undefined, "doubt", localDayISO());
       })();
       onOpenChange(false);
@@ -172,10 +173,10 @@ export default function AskDoubtDialog({ open, onOpenChange, profile, onDoubtPos
             : null;
       onDoubtPosted?.(doubtId ?? null);
       if (doubtId) {
-        let accessToken = (await supabase.auth.getSession()).data.session?.access_token ?? null;
+        let accessToken = (await safeGetSession()).session?.access_token ?? null;
         if (!accessToken) {
           await supabase.auth.refreshSession();
-          accessToken = (await supabase.auth.getSession()).data.session?.access_token ?? null;
+          accessToken = (await safeGetSession()).session?.access_token ?? null;
         }
         if (!accessToken) {
           toast({

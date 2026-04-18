@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { safeGetSession } from '@/lib/safeSession';
 import AppLayout from '@/components/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -242,8 +243,7 @@ const Classrooms = () => {
 
       let accessToken = session?.access_token;
       if (!accessToken) {
-        const { data: { session: s } } = await supabase.auth.getSession();
-        accessToken = s?.access_token;
+        accessToken = (await safeGetSession()).session?.access_token;
       }
       const res = await fetch('/api/classrooms/explore', {
         credentials: 'include',

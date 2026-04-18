@@ -5,6 +5,7 @@ import Link from "next/link";
 import DoubtMarkdown from "./DoubtMarkdown";
 import { truncatePreservingInlineMath } from "@/lib/doubtMarkdownUtils";
 import { supabase } from "@/integrations/supabase/client";
+import { safeGetSession } from "@/lib/safeSession";
 import { canonicalDoubtSubject } from "@/lib/doubtSubject";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { motion } from "framer-motion";
@@ -162,9 +163,7 @@ export default function DoubtFeedCard({
         const { error } = await supabase.from("doubts").update({ subject: flair }).eq("id", d.id);
         if (error) throw error;
       } else {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
+        const { session } = await safeGetSession();
         if (!session?.access_token) throw new Error("Not signed in");
         const res = await fetch("/api/admin/doubt-subject", {
           method: "POST",
