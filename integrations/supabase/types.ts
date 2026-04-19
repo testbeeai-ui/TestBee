@@ -1524,6 +1524,7 @@ export type Database = {
           questions_answered: number
           win_streak: number
           updated_at: string
+          question_pool_reset_at: string
         }
         Insert: {
           user_id: string
@@ -1532,6 +1533,7 @@ export type Database = {
           questions_answered?: number
           win_streak?: number
           updated_at?: string
+          question_pool_reset_at?: string
         }
         Update: {
           user_id?: string
@@ -1540,6 +1542,7 @@ export type Database = {
           questions_answered?: number
           win_streak?: number
           updated_at?: string
+          question_pool_reset_at?: string
         }
         Relationships: [{ foreignKeyName: "user_play_stats_user_id_fkey"; columns: ["user_id"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] }]
       }
@@ -1769,15 +1772,37 @@ export type Database = {
       }
       get_adaptive_play_questions: {
         Args: { p_domain: string; p_category: string; p_count?: number }
-        Returns: { id: string; content: Json; options: Json; correct_answer_index: number; explanation: string | null; difficulty_rating: number }[]
+        Returns: {
+          id: string
+          content: Json
+          options: Json
+          correct_answer_index: number
+          explanation: string | null
+          difficulty_rating: number
+          category: string
+        }[]
       }
       record_play_result: {
-        Args: { p_question_id: string; p_is_correct: boolean; p_time_taken_ms?: number | null; p_category?: string | null }
+        Args: {
+          p_question_id: string
+          p_is_correct: boolean
+          p_time_taken_ms?: number | null
+          p_category?: string | null
+          p_pool_key?: string | null
+        }
         Returns: undefined
       }
       get_daily_gauntlet_questions: {
-        Args: { p_date: string }
-        Returns: { id: string; content: Json; options: Json; correct_answer_index: number; explanation: string | null; difficulty_rating: number }[]
+        Args: { p_date: string; p_domain?: string }
+        Returns: {
+          id: string
+          content: Json
+          options: Json
+          correct_answer_index: number
+          explanation: string | null
+          difficulty_rating: number
+          category: string
+        }[]
       }
       submit_daily_gauntlet: {
         Args: { p_gauntlet_date: string; p_results: Json }
