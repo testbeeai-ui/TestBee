@@ -2,12 +2,16 @@
 
 import React from "react";
 import katex from "katex";
+import { repairPlayQuestionDollarSegments } from "@/lib/playQuestionMathDisplay";
 
 /** Preprocess curriculum-style formula text to valid LaTeX. */
 function toLatex(text: string): string {
   let s = text;
   // Remove hidden control chars that can break KaTeX command parsing.
   s = s.replace(/[\u0000-\u0008\u000B-\u001F\u007F]/g, "");
+  // Explanations often use Unicode arrows; KaTeX needs TeX commands.
+  s = s.replace(/→|⇒|⟹/g, "\\rightarrow ");
+  s = s.replace(/\s+->\s+/g, " \\rightarrow ");
   s = s.replace(/&times;/gi, "\\times ");
   s = s.replace(/&middot;/gi, "\\cdot ");
   s = s.replace(/&minus;/gi, "-");
@@ -68,6 +72,27 @@ function toLatex(text: string): string {
   s = s.replace(/^\\\[([\s\S]*)\\\]$/, "$1");
   s = s.replace(/^\$\$([\s\S]*)\$\$$/, "$1");
   s = s.replace(/^\$([\s\S]*)\$$/, "$1");
+  return s;
+}
+
+/**
+ * Partnership / quant-style ratios: bare "A:B:C = 1:2:3" has no ^/_ so MathText
+ * skipped KaTeX; colons are also wrong in math mode unless written as {:}.
+ */
+function preprocessPartnershipRatios(text: string): string {
+  let s = text;
+  s = s.replace(
+    /\b([A-Za-z](?::[A-Za-z])+)\s*=\s*(\d+(?::\d+)+)\b/g,
+    (_whole, letters: string, nums: string) => {
+      const l = letters.replace(/:/g, "{:}");
+      const n = nums.replace(/:/g, "{:}");
+      return `\\(${l} = ${n}\\)`;
+    },
+  );
+  s = s.replace(
+    /\b(?:ratio|Ratio)\s+(\d+(?::\d+){2,})\b/g,
+    (_m, nums: string) => `\\(\\mathrm{${nums.replace(/:/g, "{:}")}}\\)`,
+  );
   return s;
 }
 
@@ -784,6 +809,8 @@ function renderLatex(latex: string, displayMode: boolean): string | null {
 function hasMathNotation(text: string): boolean {
   return (
     /[_^\\]|\d+\s*x\s+\d|piepsilon|lambda|\$|\\\(|\\\[/.test(text) ||
+    /\b[A-Za-z](?::[A-Za-z])+\s*=\s*\d+(?::\d+)+/.test(text) ||
+    /→|⇒|⟹/.test(text) ||
     /[\u00B2\u00B3\u2070-\u209F\u03C0\u2205\u2286\u00D7]/.test(text) ||
     /\bpir\d|\bpir\^|\bstandard\s+areas\s*:/i.test(text) ||
     /;\s*R\s*=/i.test(text) ||
@@ -900,7 +927,7 @@ export default function MathText({
   weight = "normal",
 }: MathTextProps) {
   const w = WEIGHT_CLASS[weight];
-  const rawBase = String(children).trim();
+  const rawBase = preprocessPartnershipRatios(repairPlayQuestionDollarSegments(String(children).trim()));
   if (!rawBase) return <Tag className={`${w} ${className}`.trim()} />;
 
   const equivParts = parseEquivalenceClassCurriculumParts(rawBase);
@@ -1349,7 +1376,10 @@ export default function MathText({
   if (mixed) {
     const formulaLooksLikeProse =
       wordTokenCount(mixed.formula) > 5 &&
-      /\b(and|from|to|axis|curve|between)\b/i.test(mixed.formula);
+      (/\b(and|from|to|axis|curve|between|has|slope|normal|point|tangent|what|which|when|where|why|the|this|that|these|those)\b/i.test(
+        mixed.formula,
+      ) ||
+        /[a-z]{7,}[A-Z]|[a-z]{12,}/.test(mixed.formula.replace(/\s+/g, " ")));
     if (formulaLooksLikeProse) {
       return (
         <Tag className={`${w} ${className}`.trim()} title={title}>

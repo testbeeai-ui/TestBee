@@ -167,7 +167,7 @@ export interface PricingPlan {
 // Play (adaptive / gamified)
 export type PlayDomain = 'academic' | 'funbrain';
 export type AcademicCategory = 'physics' | 'chemistry' | 'math' | 'biology' | 'cs';
-export type FunbrainCategory = 'puzzles' | 'verbal' | 'quantitative' | 'analytical';
+export type FunbrainCategory = 'puzzles' | 'verbal' | 'quantitative' | 'analytical' | 'gk' | 'mental_math';
 export type PlayCategory = AcademicCategory | FunbrainCategory | 'mixed';
 
 export interface PlayQuestionContent {
@@ -183,6 +183,8 @@ export interface PlayQuestionRow {
   correct_answer_index: number;
   explanation: string | null;
   difficulty_rating: number;
+  /** Real play_questions.category from RPC (e.g. verbal, mental_math) for mixed-pool UI. */
+  category?: string;
 }
 
 export interface UserPlayStatRow {

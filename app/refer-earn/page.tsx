@@ -1,10 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import AppLayout from "@/components/AppLayout";
+import InlineRdmChallenge from "@/components/play/InlineRdmChallenge";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { useAuth } from "@/hooks/useAuth";
+import { useIsAppAdmin } from "@/hooks/useIsAppAdmin";
 import { useUserStore } from "@/store/useUserStore";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,6 +16,14 @@ import {
 } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
 import { computeStreakDays } from "@/lib/gauntletStreak";
+import {
+  markReferChallengeDone,
+  readReferChallengesDone,
+  REFER_CHALLENGE_SPECS,
+  referChallengeSpec,
+  type ReferChallengePublicSpec,
+  type ReferClaimKey,
+} from "@/lib/referEarnChallenges";
 import { cn } from "@/lib/utils";
 import type { PlayDomain } from "@/types";
 import {
@@ -23,12 +33,14 @@ import {
   ChevronUp,
   Clock,
   Copy,
+  FileText,
   Info,
   Link2,
+  Play,
   Send,
   Sparkles,
   Star,
-  Zap,
+  Timer,
 } from "lucide-react";
 
 type ReferTab = "how" | "tiers" | "leaderboard" | "faq";
@@ -73,61 +85,16 @@ const GRANT_TIERS = [
   { key: "champion", name: "Champion", threshold: 8000, grant: "₹50,000", icon: "🏆" },
 ] as const;
 
-type ClaimKey = "5" | "10" | "20" | "50";
-
-const CLAIM_CARDS: {
-  key: ClaimKey;
-  rdm: number;
-  domain: PlayDomain;
-  typeLabel: string;
-  name: string;
-  desc: string;
-  accent: string;
-  selClass: string;
-}[] = [
-  {
-    key: "5",
-    rdm: 5,
-    domain: "funbrain",
-    typeLabel: "Non-Academic",
-    name: "MentaMill Blitz",
-    desc: "Mental math · 10 questions · 5 min session · Daily Gauntlet on Play",
-    accent: "text-sky-400",
-    selClass: "ring-sky-500/50 after:bg-sky-500/20",
-  },
-  {
-    key: "10",
-    rdm: 10,
-    domain: "funbrain",
-    typeLabel: "Non-Academic",
-    name: "FunBrain Quiz",
-    desc: "Vocab · Quant · Reasoning · Puzzles · Daily Gauntlet on Play",
-    accent: "text-emerald-400",
-    selClass: "ring-emerald-500/50 after:bg-emerald-500/20",
-  },
-  {
-    key: "20",
-    rdm: 20,
-    domain: "academic",
-    typeLabel: "Academic",
-    name: "Academic Arena",
-    desc: "PCM assorted · 10 questions · Medium · Daily Gauntlet on Play",
-    accent: "text-violet-400",
-    selClass: "ring-violet-500/50 after:bg-violet-500/20",
-  },
-  {
-    key: "50",
-    rdm: 50,
-    domain: "academic",
-    typeLabel: "Academic",
-    name: "Academic Arena Pro",
-    desc: "PCM assorted · 25 questions · Medium + tough · Daily Gauntlet on Play",
-    accent: "text-amber-400",
-    selClass: "ring-amber-500/50 after:bg-amber-500/20",
-  },
-];
-
 const DAILY_CHALLENGE_RDM_CAP = 50;
+
+function referMinPct(spec: ReferChallengePublicSpec): number {
+  return Math.round((spec.minCorrect / spec.questionCount) * 100);
+}
+
+/** Refer & Earn page typography (single sans scale). */
+const reLabel = "text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500";
+const reBody = "text-xs leading-relaxed text-slate-400";
+const reTitle = "text-sm font-semibold text-white";
 
 function todayUtc(): string {
   return new Date().toISOString().slice(0, 10);
@@ -138,17 +105,22 @@ function formatInt(n: number): string {
 }
 
 export default function ReferEarnPage() {
-  const { profile, user: authUser } = useAuth();
+  const { profile } = useAuth();
   const user = useUserStore((s) => s.user);
+  const isReferAdmin = useIsAppAdmin();
   const [tab, setTab] = useState<ReferTab>("how");
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [copied, setCopied] = useState(false);
-  const [selectedClaim, setSelectedClaim] = useState<ClaimKey | null>(null);
+  const [selectedClaim, setSelectedClaim] = useState<ReferClaimKey | null>(null);
   const [streakDays, setStreakDays] = useState(0);
   const [playedToday, setPlayedToday] = useState<{ academic: boolean; funbrain: boolean }>({
     academic: false,
     funbrain: false,
   });
+  const [referDone, setReferDone] = useState<Partial<Record<ReferClaimKey, boolean>>>({});
+  const detailPanelRef = useRef<HTMLDivElement>(null);
+  const inlineChallengeRef = useRef<HTMLDivElement>(null);
+  const [activeReferClaim, setActiveReferClaim] = useState<ReferClaimKey | null>(null);
 
   const rdm = profile?.rdm ?? user?.rdm ?? 0;
   const friendsReferred = 0;
@@ -181,6 +153,7 @@ export default function ReferEarnPage() {
     if (!uid) {
       setStreakDays(0);
       setPlayedToday({ academic: false, funbrain: false });
+      setReferDone({});
       return;
     }
     const today = todayUtc();
@@ -204,11 +177,21 @@ export default function ReferEarnPage() {
       if (lbRows.some((r) => r.user_id === uid)) played[domain] = true;
     }
     setPlayedToday(played);
+    setReferDone(readReferChallengesDone(uid, today));
   }, [profile?.id]);
 
   useEffect(() => {
     void loadGauntletMeta();
   }, [loadGauntletMeta]);
+
+  useLayoutEffect(() => {
+    if (!activeReferClaim) return;
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        inlineChallengeRef.current?.scrollIntoView({ behavior: "smooth", block: "start", inline: "nearest" });
+      });
+    });
+  }, [activeReferClaim]);
 
   const copyReferralLink = async () => {
     const link = shareUrl || `${typeof window !== "undefined" ? window.location.origin : ""}/join?ref=${refCode}`;
@@ -222,9 +205,20 @@ export default function ReferEarnPage() {
   const tgHref = `https://t.me/share/url?url=${encodeURIComponent(shareUrl || "")}&text=${encodeURIComponent("Join me on EduBlast")}`;
   const xHref = `https://twitter.com/intent/tweet?text=${shareText}`;
 
-  const selectedCard = selectedClaim ? CLAIM_CARDS.find((c) => c.key === selectedClaim) : null;
-  const playedForSelected =
-    selectedCard?.domain === "academic" ? playedToday.academic : selectedCard?.domain === "funbrain" ? playedToday.funbrain : false;
+  const selectedCard: ReferChallengePublicSpec | null = selectedClaim ? referChallengeSpec(selectedClaim) ?? null : null;
+  const playedForSelected = selectedClaim ? referDone[selectedClaim] === true : false;
+  /** Learners: one completion per claim per day. Admins: unlimited starts (no daily lock). */
+  const startChallengeLocked = playedForSelected && !isReferAdmin;
+
+  const handleReferChallengeTerminal = useCallback(
+    (info: { claimKey: ReferClaimKey; outcome: "won" | "lost" }) => {
+      const uid = profile?.id;
+      if (uid && !isReferAdmin) markReferChallengeDone(uid, todayUtc(), info.claimKey);
+      if (uid) setReferDone(readReferChallengesDone(uid, todayUtc()));
+      void loadGauntletMeta();
+    },
+    [profile?.id, isReferAdmin, loadGauntletMeta],
+  );
 
   const tierBanner = useMemo(() => {
     const next = GRANT_TIERS.find((t) => rdm < t.threshold);
@@ -241,67 +235,64 @@ export default function ReferEarnPage() {
       <AppLayout>
         <div
           className={cn(
-            "mx-auto w-full max-w-6xl space-y-6 pb-10 font-sans text-slate-200",
+            "mx-auto w-full max-w-6xl space-y-4 pb-8 font-sans text-slate-200",
             "[--re-bg:#070714] [--re-card:#12122a] [--re-border:rgba(124,107,255,0.18)] [--re-purple:#7c6bff] [--re-amber:#f5a623]",
           )}
         >
           {/* Page hero */}
           <header className="text-center">
-            <div className="mx-auto mb-3 inline-flex items-center gap-2 rounded-full border border-cyan-500/25 bg-cyan-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-cyan-300/95">
+            <div className="mx-auto mb-2 inline-flex items-center gap-2 rounded-full border border-cyan-500/25 bg-cyan-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-cyan-300/95">
               <span className="h-1.5 w-1.5 rounded-full bg-cyan-400" />
               Earn more · Rise faster
             </div>
-            <h1 className="text-balance font-sans text-3xl font-bold tracking-tight text-white md:text-[2.35rem] md:leading-tight">
+            <h1 className="text-balance font-sans text-2xl font-bold tracking-tight text-white md:text-3xl md:leading-tight">
               Refer friends & challenge yourself
             </h1>
-            <p className="mx-auto mt-3 max-w-2xl text-sm leading-relaxed text-slate-400 md:text-[15px]">
+            <p className={cn("mx-auto mt-2 max-w-2xl", reBody)}>
               Share EduBlast with classmates and earn RDM every time someone joins. Or challenge yourself right now — complete
               the Daily Gauntlet on Play and track your streak here.
             </p>
           </header>
 
-          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-start">
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-start">
             {/* LEFT */}
-            <div className="space-y-5">
+            <div className="space-y-4">
               <section
-                className="rounded-[14px] border p-5 shadow-[0_24px_60px_rgba(8,6,24,0.45)]"
+                className="rounded-[14px] border p-4 shadow-[0_24px_60px_rgba(8,6,24,0.45)]"
                 style={{ background: "var(--re-card)", borderColor: "var(--re-border)" }}
               >
-                <div className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-violet-500/35 bg-violet-500/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-violet-300">
+                <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-violet-500/35 bg-violet-500/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-violet-300">
                   <Sparkles className="h-3 w-3" />
                   Refer &amp; Earn RDM
                 </div>
                 <div className="flex flex-wrap items-baseline justify-center gap-2 sm:justify-start">
-                  <span
-                    className="text-4xl font-normal text-[var(--re-amber)] md:text-5xl"
-                    style={{ fontFamily: "var(--font-landing-serif), ui-serif, Georgia, serif" }}
-                  >
+                  <span className="font-sans text-3xl font-semibold tabular-nums text-[var(--re-amber)] md:text-4xl">
                     {formatInt(rdm)}
                   </span>
-                  <span className="text-lg text-slate-400">RDM balance</span>
+                  <span className="text-base text-slate-400">RDM balance</span>
                 </div>
-                <p className="mt-2 text-center text-sm text-slate-400 sm:text-left">
+                <p className={cn("mt-2 text-center sm:text-left", reBody)}>
                   RDM (Reward Miles) unlock practice packs, mock tests &amp; exclusive study tools. Share EduBlast and earn more
                   with every friend who joins.
                 </p>
-                <div className="mt-4 grid grid-cols-3 gap-2">
-                  <div className="rounded-lg border border-white/10 bg-black/20 px-2 py-3 text-center">
-                    <p className="text-2xl font-bold text-slate-300">{friendsReferred}</p>
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Friends referred</p>
+                <div className="mt-3 grid grid-cols-3 gap-2">
+                  <div className="rounded-lg border border-white/10 bg-black/20 px-2 py-2.5 text-center">
+                    <p className="text-xl font-bold tabular-nums text-slate-300">{friendsReferred}</p>
+                    <p className={reLabel}>Friends referred</p>
                   </div>
-                  <div className="rounded-lg border border-white/10 bg-black/20 px-2 py-3 text-center">
-                    <p className="text-2xl font-bold text-teal-400">+{perReferral}</p>
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">RDM per referral</p>
+                  <div className="rounded-lg border border-white/10 bg-black/20 px-2 py-2.5 text-center">
+                    <p className="text-xl font-bold tabular-nums text-teal-400">+{perReferral}</p>
+                    <p className={reLabel}>RDM per referral</p>
                   </div>
-                  <div className="rounded-lg border border-white/10 bg-black/20 px-2 py-3 text-center">
-                    <p className="text-2xl font-bold text-amber-400">+{bonusAtFive}</p>
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Bonus at 5 friends</p>
+                  <div className="rounded-lg border border-white/10 bg-black/20 px-2 py-2.5 text-center">
+                    <p className="text-xl font-bold tabular-nums text-amber-400">+{bonusAtFive}</p>
+                    <p className={reLabel}>Bonus at 5 friends</p>
                   </div>
                 </div>
               </section>
 
               <div>
-                <p className="mb-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">
+                <p className={cn("mb-2 flex items-center gap-2", reLabel)}>
                   <span>Your unique referral link</span>
                   <span className="h-px flex-1 bg-white/10" />
                 </p>
@@ -373,8 +364,8 @@ export default function ReferEarnPage() {
               </div>
 
               {tab === "how" ? (
-                <div className="space-y-5">
-                  <p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">
+                <div className="space-y-4">
+                  <p className={cn("flex items-center gap-2", reLabel)}>
                     <span>3 steps to earn RDM</span>
                     <span className="h-px flex-1 bg-white/10" />
                   </p>
@@ -411,12 +402,12 @@ export default function ReferEarnPage() {
                           {s.n}
                         </div>
                         <s.icon className={cn("mb-2 h-5 w-5", s.ring)} />
-                        <p className="font-semibold text-white">{s.title}</p>
-                        <p className="mt-1 text-xs leading-relaxed text-slate-400">{s.body}</p>
+                        <p className={reTitle}>{s.title}</p>
+                        <p className={cn("mt-1", reBody)}>{s.body}</p>
                       </div>
                     ))}
                   </div>
-                  <p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">
+                  <p className={cn("flex items-center gap-2", reLabel)}>
                     <span>What can you do with RDM?</span>
                     <span className="h-px flex-1 bg-white/10" />
                   </p>
@@ -427,8 +418,8 @@ export default function ReferEarnPage() {
                         className={cn("rounded-[11px] border bg-black/20 p-3 text-center", item.borderClass)}
                       >
                         <div className="mb-1 text-lg">{item.emoji}</div>
-                        <p className={cn("text-sm font-semibold", item.titleClass)}>{item.title}</p>
-                        <p className="text-[11px] text-slate-500">{item.from}</p>
+                        <p className={cn(reTitle, item.titleClass)}>{item.title}</p>
+                        <p className={cn(reBody, "text-center text-slate-500")}>{item.from}</p>
                       </div>
                     ))}
                   </div>
@@ -437,7 +428,7 @@ export default function ReferEarnPage() {
 
               {tab === "tiers" ? (
                 <div className="space-y-3">
-                  <p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">
+                  <p className={cn("flex items-center gap-2", reLabel)}>
                     <span>EduFund grant tiers</span>
                     <span className="h-px flex-1 bg-white/10" />
                   </p>
@@ -473,7 +464,7 @@ export default function ReferEarnPage() {
                           <div className="text-2xl">{tier.icon}</div>
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-2">
-                              <span className="font-semibold text-white">{tier.name}</span>
+                              <span className={reTitle}>{tier.name}</span>
                               <span
                                 className={cn(
                                   "rounded-full px-2 py-0.5 text-[10px] font-semibold",
@@ -485,7 +476,7 @@ export default function ReferEarnPage() {
                                 {badge}
                               </span>
                             </div>
-                            <p className="mt-0.5 text-xs text-slate-400">
+                            <p className={cn("mt-0.5", reBody)}>
                               {formatInt(tier.threshold)} RDM threshold
                               {unlocked ? ` · You have ${formatInt(rdm)} RDM` : more > 0 ? ` · ${formatInt(more)} more to go` : ""}
                             </p>
@@ -517,11 +508,11 @@ export default function ReferEarnPage() {
 
               {tab === "leaderboard" ? (
                 <div className="space-y-3">
-                  <p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">
+                  <p className={cn("flex items-center gap-2", reLabel)}>
                     <span>Top referrers this week</span>
                     <span className="h-px flex-1 bg-white/10" />
                   </p>
-                  <p className="rounded-lg border border-dashed border-white/15 bg-black/20 px-3 py-6 text-center text-sm text-slate-400">
+                  <p className={cn("rounded-lg border border-dashed border-white/15 bg-black/20 px-3 py-5 text-center", reBody)}>
                     Referral rankings will appear here once referral events are stored. Your invites still help friends join —
                     share your link above.
                   </p>
@@ -539,11 +530,11 @@ export default function ReferEarnPage() {
                             .toUpperCase() || "YOU"}
                         </div>
                         <div className="min-w-0">
-                          <p className="truncate font-semibold text-white">
+                          <p className={cn("truncate", reTitle)}>
                             You — {userDisplayName}{" "}
                             <span className="ml-1 rounded bg-teal-500/25 px-1.5 py-0.5 text-[10px] text-teal-200">YOU</span>
                           </p>
-                          <p className="text-[11px] text-slate-400">{friendsReferred} friends · {formatInt(rdm)} RDM balance</p>
+                          <p className={cn(reBody, "text-[11px]")}>{friendsReferred} friends · {formatInt(rdm)} RDM balance</p>
                         </div>
                       </div>
                     </div>
@@ -565,10 +556,10 @@ export default function ReferEarnPage() {
                           onClick={() => setOpenFaq(open ? null : idx)}
                           className="flex w-full items-center justify-between gap-2 py-3 text-left"
                         >
-                          <span className="text-sm font-semibold text-white">{item.q}</span>
+                          <span className={reTitle}>{item.q}</span>
                           <span className="text-slate-500">{open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}</span>
                         </button>
-                        {open ? <p className="pb-3 text-sm leading-relaxed text-slate-400">{item.a}</p> : null}
+                        {open ? <p className={cn("pb-3", reBody)}>{item.a}</p> : null}
                       </div>
                     );
                   })}
@@ -578,18 +569,21 @@ export default function ReferEarnPage() {
 
             {/* RIGHT — Challenges */}
             <section
-              className="rounded-[14px] border p-4 shadow-[0_24px_60px_rgba(8,6,24,0.45)] md:p-5"
+              className="rounded-[14px] border p-4 shadow-[0_24px_60px_rgba(8,6,24,0.45)]"
               style={{ background: "var(--re-card)", borderColor: "var(--re-border)" }}
             >
-              <div className="mb-4 flex flex-col gap-3 rounded-[12px] border border-violet-500/20 bg-gradient-to-br from-[#0d0d22] to-[#12102e] p-3 sm:flex-row sm:items-center sm:justify-between">
+              {!activeReferClaim ? (
+                <>
+              <div className="mb-3 flex flex-col gap-2 rounded-[12px] border border-violet-500/20 bg-gradient-to-br from-[#0d0d22] to-[#12102e] p-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
-                  <div className="flex items-center gap-2 text-sm font-semibold text-white">
-                    <Zap className="h-4 w-4 text-violet-400" />
+                  <div className={cn("flex items-center gap-2", reTitle)}>
+                    <Star className="h-4 w-4 text-amber-300/90" />
                     Challenge yourself — Earn more RDM
                   </div>
-                  <p className="mt-1 text-[11px] leading-relaxed text-slate-400">
-                    Complete the Daily Gauntlet on Play. Max <strong className="text-[var(--re-amber)]">{DAILY_CHALLENGE_RDM_CAP} RDM</strong>{" "}
-                    per day from challenges once RDM tracking is enabled.
+                  <p className={cn("mt-1", reBody)}>
+                    Start a challenge below (separate from the <strong className="text-white">Play</strong> hub). Max{" "}
+                    <strong className="text-[var(--re-amber)]">{DAILY_CHALLENGE_RDM_CAP} RDM</strong> per day from challenges once RDM
+                    tracking is enabled.
                   </p>
                 </div>
                 <div className="inline-flex shrink-0 items-center gap-1.5 self-start rounded-full border border-amber-500/25 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-200 sm:self-center">
@@ -599,10 +593,10 @@ export default function ReferEarnPage() {
 
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <div className="mb-4 flex cursor-help items-center gap-2 rounded-[10px] border border-white/10 bg-black/25 px-3 py-2">
+                  <div className="mb-3 flex cursor-help items-center gap-2 rounded-[10px] border border-white/10 bg-black/25 px-3 py-2">
                     <span className="text-lg">⚡</span>
                     <div className="min-w-0 flex-1">
-                      <p className="text-[11px] text-slate-400">Daily RDM earned from challenges</p>
+                      <p className={cn(reBody, "text-[11px]")}>Daily RDM earned from challenges</p>
                       <div className="mt-1 h-2 overflow-hidden rounded-full bg-black/50">
                         <div
                           className="h-full rounded-full bg-gradient-to-r from-[var(--re-amber)] to-fuchsia-500"
@@ -616,53 +610,69 @@ export default function ReferEarnPage() {
                   </div>
                 </TooltipTrigger>
                 <TooltipContent side="bottom" className="max-w-xs text-xs">
-                  Challenge RDM is not written to the database yet. Your streak and Daily Gauntlet completions on Play are real;
-                  this bar will fill automatically when tracking ships.
+                  Challenge RDM is not written to the database yet. Refer challenges use their own timers, strikes, and Supabase question
+                  fetch — separate from /play DailyDose or streak. This bar will fill when tracking ships.
                 </TooltipContent>
               </Tooltip>
 
-              <p className="mb-3 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">
-                <span>Step 1 · Choose your RDM claim target</span>
+              <p className={cn("mb-2 flex items-center gap-2 font-bold tracking-[0.08em] text-slate-400", reLabel)}>
+                <span className="text-slate-300">STEP 1 · CHOOSE YOUR RDM CLAIM TARGET</span>
                 <span className="h-px flex-1 bg-white/10" />
               </p>
+              {isReferAdmin ? (
+                <p className="mb-2 rounded-lg border border-violet-500/30 bg-violet-500/10 px-3 py-2 text-[11px] font-medium text-violet-100/95">
+                  Admin mode: challenge starts are unlimited today (daily lock does not apply).
+                </p>
+              ) : null}
 
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                {CLAIM_CARDS.map((c) => {
+                {REFER_CHALLENGE_SPECS.map((c) => {
                   const sel = selectedClaim === c.key;
-                  const done =
-                    c.domain === "academic" ? playedToday.academic : playedToday.funbrain;
+                  const done = referDone[c.key] === true;
+                  const minPct = referMinPct(c);
                   return (
                     <button
                       key={c.key}
                       type="button"
-                      onClick={() => setSelectedClaim(c.key)}
+                      onClick={() => {
+                        setSelectedClaim(c.key);
+                        window.setTimeout(() => {
+                          detailPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                        }, 80);
+                      }}
                       className={cn(
-                        "relative rounded-[12px] border p-3 text-left transition",
-                        "border-white/10 bg-black/20 hover:border-white/20",
-                        sel && cn("ring-2 ring-offset-0 ring-offset-transparent", c.selClass),
+                        "relative flex w-full flex-col items-center overflow-hidden rounded-[12px] border px-3 pb-3 pt-3 text-center transition",
+                        "border-white/10 bg-black/20",
+                        "hover:bg-white/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/40",
+                        sel &&
+                          cn(
+                            "z-[1] border-transparent ring-2 ring-offset-2 ring-offset-[var(--re-card)]",
+                            c.selClass,
+                            c.key === "50" && "shadow-[0_0_32px_rgba(245,166,35,0.28)]",
+                            c.key !== "50" && "shadow-[0_0_28px_rgba(124,107,255,0.2)]",
+                          ),
                       )}
                     >
-                      <div className={cn("font-[family-name:var(--font-landing-serif)] text-3xl", c.accent)} style={{ fontFamily: "var(--font-landing-serif), serif" }}>
-                        {c.rdm}
-                      </div>
-                      <p className="text-[11px] text-slate-500">RDM</p>
+                      <div className={cn("font-sans text-2xl font-semibold tabular-nums", c.accent)}>{c.rdm}</div>
+                      <p className={cn(reBody, "text-[11px] text-slate-500")}>RDM</p>
                       <span
                         className={cn(
-                          "mt-1 inline-block rounded px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
+                          "mt-1 rounded px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
                           c.domain === "funbrain" ? "bg-sky-500/15 text-sky-300" : "bg-violet-500/15 text-violet-200",
                         )}
                       >
                         {c.typeLabel}
                       </span>
-                      <p className="mt-2 text-sm font-semibold text-white">{c.name}</p>
-                      <p className="mt-1 text-[11px] leading-relaxed text-slate-400">{c.desc}</p>
-                      <span className="mt-2 inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-semibold text-slate-300">
+                      <p className={cn("mt-2 max-w-full", reTitle)}>{c.name}</p>
+                      <p className={cn("mt-1 max-w-full", reBody, "text-[11px]")}>{c.cardDesc}</p>
+                      <p className={cn("mt-0.5 max-w-full", reBody, "text-[10px] text-slate-500")}>{c.cardSubline}</p>
+                      <span className="mt-2 inline-flex items-center justify-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-semibold text-slate-300">
                         <Check className="h-3 w-3 text-emerald-400" />
-                        Min 60% to win
+                        Min {minPct}% to win
                       </span>
-                      {done ? (
+                      {done && !isReferAdmin ? (
                         <span className="absolute right-2 top-2 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
-                          Played today
+                          Done today
                         </span>
                       ) : null}
                     </button>
@@ -670,42 +680,150 @@ export default function ReferEarnPage() {
                 })}
               </div>
 
-              <div className="mt-4 min-h-[120px] rounded-[12px] border border-dashed border-white/15 bg-black/20 p-4">
+              <div
+                ref={detailPanelRef}
+                className={cn(
+                  "mt-3 min-h-[88px] scroll-mt-24 rounded-[14px] border bg-black/25 p-3 md:scroll-mt-28",
+                  selectedCard
+                    ? "border-violet-500/25 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
+                    : "border-dashed border-white/15",
+                )}
+              >
                 {!selectedCard ? (
-                  <div className="flex h-full min-h-[100px] flex-col items-center justify-center gap-2 text-center text-sm text-slate-500">
+                  <div className="flex h-full min-h-[72px] flex-col items-center justify-center gap-2 text-center text-sm text-slate-500">
                     <Clock className="h-8 w-8 opacity-40" />
                     <span>Select a challenge above to see details</span>
                   </div>
                 ) : (
                   <div>
-                    <p className="text-sm font-semibold text-white">{selectedCard.name}</p>
-                    <p className="mt-1 text-xs text-slate-400">{selectedCard.desc}</p>
-                    <ul className="mt-3 space-y-1.5 text-xs text-slate-300">
-                      <li className="flex gap-2">
-                        <span className="text-violet-400">●</span>
-                        Opens the Play hub with <strong className="text-white">{selectedCard.domain}</strong> Daily Gauntlet
-                        pre-selected.
+                    <div className="flex flex-wrap items-start justify-between gap-2 border-b border-white/10 pb-3">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span className="text-2xl" aria-hidden>
+                          🏆
+                        </span>
+                        <div>
+                          <p className={cn(reTitle, "text-base")}>{selectedCard.name}</p>
+                          <p className="mt-0.5 text-[10px] font-medium uppercase tracking-wider text-slate-500">
+                            {selectedCard.headerEmoji} Claim details
+                          </p>
+                        </div>
+                      </div>
+                      <span className={cn("shrink-0 text-sm font-bold tabular-nums", selectedCard.accent)}>
+                        +{selectedCard.rdm} RDM on win
+                      </span>
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <span className="inline-flex items-center gap-1.5 rounded-full border border-white/12 bg-black/35 px-2.5 py-1 text-[11px] font-semibold text-slate-200">
+                        <Clock className="h-3.5 w-3.5 shrink-0 text-amber-400" />
+                        {selectedCard.sessionMinutes} minutes
+                      </span>
+                      <span className="inline-flex items-center gap-1.5 rounded-full border border-white/12 bg-black/35 px-2.5 py-1 text-[11px] font-semibold text-slate-200">
+                        <FileText className="h-3.5 w-3.5 shrink-0 text-sky-400" />
+                        {selectedCard.questionCount} questions
+                      </span>
+                      <span
+                        className={cn(
+                          "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-bold",
+                          selectedCard.domain === "funbrain"
+                            ? "border-emerald-500/35 bg-emerald-500/10 text-emerald-200"
+                            : "border-violet-500/35 bg-violet-500/10 text-violet-100",
+                        )}
+                      >
+                        Min {referMinPct(selectedCard)}% correct
+                      </span>
+                      <span
+                        className={cn(
+                          "inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold",
+                          selectedCard.domain === "funbrain"
+                            ? "border-sky-500/35 bg-sky-500/10 text-sky-200"
+                            : "border-violet-500/35 bg-violet-500/12 text-violet-100",
+                        )}
+                      >
+                        {selectedCard.categoryPill}
+                      </span>
+                    </div>
+
+                    <ul className="mt-4 space-y-2.5 text-[13px] leading-snug text-slate-300">
+                      <li className="flex gap-2.5">
+                        <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" strokeWidth={2.5} />
+                        <span>
+                          Answer at least <strong className="text-white">{selectedCard.minCorrect}</strong> out of{" "}
+                          <strong className="text-white">{selectedCard.questionCount}</strong> correctly to earn RDM
+                        </span>
                       </li>
-                      <li className="flex gap-2">
-                        <span className="text-violet-400">●</span>
-                        Session: 5 minutes · one attempt per domain per day (same as Play).
+                      <li className="flex gap-2.5">
+                        <Timer className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" strokeWidth={2.25} />
+                        <span>
+                          Complete within <strong className="text-white">{selectedCard.sessionMinutes} minutes</strong> — time runs
+                          out, quiz ends
+                        </span>
                       </li>
-                      <li className="flex gap-2">
-                        <span className="text-violet-400">●</span>
-                        {playedForSelected ? "You already have a score today — view results on Play." : "Start when you are ready — timer begins on Play."}
+                      <li className="flex gap-2.5">
+                        <Star className="mt-0.5 h-4 w-4 shrink-0 text-violet-400" strokeWidth={2.25} />
+                        <span>RDM credited instantly to your balance on passing (when RDM tracking is enabled)</span>
+                      </li>
+                      <li className="flex gap-2.5">
+                        <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center text-[11px] font-bold text-rose-400">
+                          3
+                        </span>
+                        <span>
+                          <strong className="text-white">Strikes 3/3</strong> — three wrong answers end the run. No auto-next: tap{" "}
+                          <strong className="text-white">Next</strong> after each answer.
+                        </span>
                       </li>
                     </ul>
-                    <div className="mt-4 flex flex-wrap justify-end gap-2">
-                      <Button type="button" variant="outline" className="border-white/15 bg-transparent text-slate-200" onClick={() => setSelectedClaim(null)}>
-                        Clear
+
+                    <div className="mt-4 flex flex-wrap items-center justify-end gap-2 border-t border-white/10 pt-3">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="border-white/15 bg-transparent text-slate-200"
+                        onClick={() => setSelectedClaim(null)}
+                      >
+                        Clear selection
                       </Button>
-                      <Button asChild className="bg-[var(--re-purple)] font-semibold text-white hover:opacity-95">
-                        <Link href={`/play?domain=${selectedCard.domain}`}>Start on Play</Link>
+                      <Button
+                        type="button"
+                        disabled={startChallengeLocked}
+                        className={cn(
+                          "inline-flex items-center gap-2 bg-[var(--re-purple)] font-semibold text-white shadow-sm hover:opacity-95 disabled:opacity-45",
+                          "ring-2 ring-violet-300/45 ring-offset-2 ring-offset-[var(--re-card)]",
+                        )}
+                        onClick={() => {
+                          setActiveReferClaim(selectedCard.key);
+                        }}
+                      >
+                        <Play className="h-4 w-4 fill-current" />
+                        Start challenge
                       </Button>
                     </div>
+                    {startChallengeLocked ? (
+                      <p className="mt-2 text-center text-[11px] text-slate-500">You already finished this challenge today.</p>
+                    ) : isReferAdmin && playedForSelected ? (
+                      <p className="mt-2 text-center text-[11px] text-violet-300/90">
+                        You completed this earlier today — as admin you can replay anytime.
+                      </p>
+                    ) : null}
                   </div>
                 )}
               </div>
+                </>
+              ) : null}
+
+              {activeReferClaim && referChallengeSpec(activeReferClaim) ? (
+                <div ref={inlineChallengeRef} className="scroll-mt-28">
+                  <InlineRdmChallenge
+                    key={activeReferClaim}
+                    spec={referChallengeSpec(activeReferClaim)!}
+                    onClose={() => setActiveReferClaim(null)}
+                    onTerminal={handleReferChallengeTerminal}
+                    streakDays={streakDays}
+                    dailyRdmEarned={0}
+                    dailyRdmCap={DAILY_CHALLENGE_RDM_CAP}
+                  />
+                </div>
+              ) : null}
             </section>
           </div>
         </div>

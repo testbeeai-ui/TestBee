@@ -22,7 +22,7 @@ import {
   parseClassLevelsFromLessonMarkedEngagementRaw,
 } from "@/lib/dashboardChapterCompletion";
 import type { DailyChecklistApiResponse } from "@/lib/dailyChecklistState";
-import { getClientApiAuthHeaders } from "@/lib/clientApiAuth";
+import { fetchWithClientAuth, getClientApiAuthHeaders } from "@/lib/clientApiAuth";
 import { EDUBLAST_STUDY_DAYS_REFRESH } from "@/lib/studyDayBumpEvents";
 import { supabase } from "@/integrations/supabase/client";
 import { useTopicTaxonomy } from "@/hooks/useTopicTaxonomy";
@@ -43,6 +43,14 @@ const TOPIC_BAR_TONES = [
 ];
 
 type HeatmapMode = "7" | "30";
+
+/** Human-readable names for checklist items a–d (matches API flags). */
+function formatRemainingChecklistLabels(labels: string[]): string {
+  if (labels.length === 0) return "";
+  if (labels.length === 1) return labels[0]!;
+  if (labels.length === 2) return `${labels[0]!} and ${labels[1]!}`;
+  return `${labels.slice(0, -1).join(", ")}, and ${labels[labels.length - 1]!}`;
+}
 
 const MOCK_LEADERBOARD = [
   { rank: 1, name: "Nidhi K", city: "Bengaluru", pts: 4820 },
@@ -305,7 +313,7 @@ export default function StudentHomeDashboard() {
         dayEnd,
         subjects,
       });
-      const res = await fetch(`/api/user/daily-checklist?${q.toString()}`, { headers });
+      const res = await fetchWithClientAuth(`/api/user/daily-checklist?${q.toString()}`, { headers });
       if (!res.ok) {
         if (!silent) setDailyChecklistStatus("error");
         return;
@@ -355,13 +363,51 @@ export default function StudentHomeDashboard() {
     return n;
   }, [dailyChecklist]);
 
+  /** Single-line checklist hint for the greeting strip (items a–d from GET /api/user/daily-checklist). */
+  const greetingChecklistLine = useMemo(() => {
+    if (!profile?.id) {
+      return { tone: "muted" as const, text: "Sign in to see your daily checklist and study streak." };
+    }
+    if (dailyChecklistStatus === "error") {
+      return {
+        tone: "warn" as const,
+        text: "We could not load today's checklist. Refresh the page to see what's left.",
+      };
+    }
+    if (dailyChecklistStatus === "loading" || dailyChecklist == null) {
+      return { tone: "muted" as const, text: "Loading today's checklist…" };
+    }
+    if (checklistDoneCount === 0) {
+      return {
+        tone: "muted" as const,
+        text: "Please go through and complete the checklist below.",
+      };
+    }
+    if (checklistDoneCount < 4) {
+      const labels: string[] = [];
+      if (!dailyChecklist.dailyDoseDone) labels.push("DailyDose");
+      if (!dailyChecklist.subtopicRoutineDone) labels.push("Subtopic routine");
+      if (!dailyChecklist.gyanPlusDone) labels.push("Gyan++");
+      if (!dailyChecklist.instacueSessionDone) labels.push("Instacue");
+      const rest = formatRemainingChecklistLabels(labels);
+      return {
+        tone: "muted" as const,
+        text: labels.length ? `Remaining: ${rest}.` : "Almost there — finish the last items in the checklist below.",
+      };
+    }
+    return {
+      tone: "muted" as const,
+      text: "You've completed today's checklist — great work. Keep your streak going.",
+    };
+  }, [profile?.id, dailyChecklistStatus, dailyChecklist, checklistDoneCount]);
+
   const acknowledgeInstacueSession = useCallback(async () => {
     if (!profile?.id || instacueAckLoading) return;
     const { today } = localDayBoundsIso(now);
     setInstacueAckLoading(true);
     try {
       const headers = await getClientApiAuthHeaders();
-      const res = await fetch("/api/user/daily-checklist", {
+      const res = await fetchWithClientAuth("/api/user/daily-checklist", {
         method: "PATCH",
         headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify({ action: "instacue_ack", today }),
@@ -470,7 +516,13 @@ export default function StudentHomeDashboard() {
     return "Good evening";
   }, [now]);
 
-  const displayName = (storeUser?.name ?? profile?.name ?? "there").split(" ")[0];
+  const displayName = useMemo(() => {
+    const raw = (storeUser?.name ?? profile?.name ?? "there").trim() || "there";
+    const first = raw.split(/\s+/)[0] ?? "there";
+    const at = first.indexOf("@");
+    const cleaned = at > 0 ? first.slice(0, at) : first;
+    return cleaned || "there";
+  }, [storeUser?.name, profile?.name]);
   const classLevel = classLevelNum;
   const dateStr = now.toLocaleDateString("en-US", {
     weekday: "long",
@@ -491,18 +543,22 @@ export default function StudentHomeDashboard() {
       {/* Greeting strip */}
       <div className="rounded-2xl border border-border/60 bg-card/60 px-4 py-3 dark:bg-slate-950/50">
         <p className="text-sm text-foreground">
-          <span className="font-semibold">{greeting}, {displayName}!</span>{" "}
-          <span className="text-muted-foreground">
-            You have 3 DailyDose questions and 8 Instacue cards due today.{" "}
-            {studyStreakReady ? (
-              <>Your streak is at {streakDays} days — don&apos;t break it.</>
-            ) : studyStreakPending ? (
+          <span className="font-bold">{greeting}, {displayName}!</span>{" "}
+          <span
+            className={
+              greetingChecklistLine.tone === "warn" ? "text-amber-200/90" : "text-muted-foreground"
+            }
+          >
+            {greetingChecklistLine.text}{" "}
+            {profile?.id && studyStreakReady ? (
+              <>Your study streak is {streakDays} {streakDays === 1 ? "day" : "days"} — don&apos;t break it.</>
+            ) : profile?.id && studyStreakPending ? (
               <>Loading your saved study streak…</>
-            ) : studyDaysStatus === "error" && profile?.id ? (
-              <>Study streak couldn&apos;t load — refresh or try again in a moment.</>
-            ) : (
+            ) : profile?.id && studyDaysStatus === "error" ? (
+              <>Study streak couldn&apos;t load — try again in a moment.</>
+            ) : !profile?.id ? (
               <>Sign in to track your study streak from saved play and quiz time.</>
-            )}
+            ) : null}
           </span>
         </p>
       </div>

@@ -14,7 +14,8 @@
     "audit:curriculum-cbse": "tsx scripts/audit-cbse-curriculum.ts",
     "verify:class11-physics": "tsx scripts/verify-class11-physics-curriculum.ts",
     "test": "vitest run",
-    "audit:rag-strings": "tsx scripts/rag-string-audit.ts"
+    "audit:rag-strings": "tsx scripts/rag-string-audit.ts",
+    "supabase:push": "npx supabase db push"
   },
   "dependencies": {
     "@base-ui/react": "^1.2.0",
