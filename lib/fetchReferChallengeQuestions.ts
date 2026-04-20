@@ -63,7 +63,28 @@ async function fetchReferQuestionsWithStratifiedFallback(
   count: number,
 ): Promise<PlayQuestionRow[]> {
   const adaptive = await fetchPlayQuestionsAdaptiveWithFallback(sb, { domain, category, count });
-  if (adaptive.length > 0) return adaptive;
+  if (adaptive.length > 0) {
+    // Hard guard: MentaMill must never surface non-mental-math rows even if RPC output drifts.
+    if (domain === "funbrain" && category === "mental_math") {
+      const onlyMental = adaptive.filter((q) => q.category === "mental_math");
+      if (onlyMental.length >= count) return onlyMental.slice(0, count);
+      // Top-up strictly from the mental_math bank to hit requested count.
+      const topUp = await sb
+        .from("play_questions")
+        .select("id, content, options, correct_answer_index, explanation, difficulty_rating, category")
+        .eq("domain", "funbrain")
+        .eq("category", "mental_math")
+        .limit(Math.max(count * 6, 36));
+      const direct = (topUp.data as PqRow[] | null) ?? [];
+      if (direct.length === 0) return onlyMental;
+      const seen = new Set(onlyMental.map((q) => q.id));
+      const fresh = shuffleCopy(direct)
+        .filter((r) => !seen.has(r.id))
+        .map(toPlayQuestionRow);
+      return [...onlyMental, ...fresh].slice(0, count);
+    }
+    return adaptive;
+  }
 
   if (DOMAIN_WIDE_SENTINELS.has(category) && (domain === "academic" || domain === "funbrain")) {
     return fetchPlayQuestionsDomainRandom(sb, { domain, count });

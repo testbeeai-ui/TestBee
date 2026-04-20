@@ -1,4 +1,28 @@
 export type Subject = 'physics' | 'chemistry' | 'math' | 'biology';
+
+/** Category for curated mock papers (library); maps to Supabase later. */
+export type MockPaperType = 'pyq' | 'ncert' | 'chapter' | 'full';
+
+/** Catalog entry for institute-style mock tests. */
+export interface MockPaper {
+  id: string;
+  /** Stable catalog key from Supabase (optional for legacy rows). */
+  slug?: string;
+  title: string;
+  type: MockPaperType;
+  /** Primary subject for display; use subjectsCovered when the paper is multi-subject. */
+  subject: Subject;
+  /** JEE-style shifts: filter matches if user picked any of these subjects. */
+  subjectsCovered?: Subject[];
+  durationMinutes: number;
+  questionsCount: number;
+  totalMarks: number;
+  difficulty: 'Easy' | 'Moderate' | 'Hard';
+  tags: string[];
+  classLevel: ClassLevel;
+  /** Short line for instructions modal, e.g. "+4 for correct, −1 for incorrect" */
+  markingScheme: string;
+}
 export type Stream = 'science' | 'commerce' | 'arts';
 export type SubjectCombo = 'PCM' | 'PCMB';
 export type ExamType = 'JEE' | 'JEE_Mains' | 'JEE_Advance' | 'NEET' | 'KCET' | 'other';
@@ -12,6 +36,10 @@ export interface Question {
   classLevel: ClassLevel;
   examType: ExamType[];
   question: string;
+  /** When set (e.g. Supabase mock import), stem is rendered as sanitized HTML instead of plain question. */
+  questionHtml?: string | null;
+  /** Optional HTML solution for mock review. */
+  solutionHtml?: string | null;
   options: string[];
   correctAnswer: number; // index
   hint: string;

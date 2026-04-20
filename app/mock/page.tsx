@@ -5,8 +5,13 @@ import { motion, AnimatePresence } from "framer-motion";
 import AppLayout from "@/components/AppLayout";
 import { useUserStore } from "@/store/useUserStore";
 import { useAuth } from "@/hooks/useAuth";
-import { getMockQuestions } from "@/data/questions";
-import QuestionCard from "@/components/QuestionCard";
+import { getMockQuestions, questions as questionBank } from "@/data/questions";
+import { useTheme } from "next-themes";
+import { NtaMockTokens, type NtaSkin } from "@/components/prep-mock/nta/NtaMockTokens";
+import { NtaGeneralInstructions, type NtaInstructionsExamMeta } from "@/components/prep-mock/nta/NtaGeneralInstructions";
+import { NtaProceedWarningDialog } from "@/components/prep-mock/nta/NtaProceedWarningDialog";
+import { NtaExamShell } from "@/components/prep-mock/nta/NtaExamShell";
+import { NtaSubmitModal } from "@/components/prep-mock/nta/NtaSubmitModal";
 import { Button } from "@/components/ui/button";
 import {
   ClipboardList,
@@ -14,26 +19,27 @@ import {
   BookOpen,
   Target,
   Lightbulb,
-  ChevronLeft,
-  ChevronRight,
-  Flag,
   CheckCircle2,
   XCircle,
   RotateCcw,
   ChevronDown,
   ChevronUp,
   ArrowLeft,
+  Search,
+  FileQuestion,
+  Award,
+  GraduationCap,
+  ShieldCheck,
+  ListOrdered,
 } from "lucide-react";
-import { Subject } from "@/types";
+import type { MockPaper, Question, Subject } from "@/types";
+import { filterMockPapers, mockPaperTypeLabel, type LibraryCategoryFilter } from "@/lib/mockPapersCatalog";
+import { fetchMockPapersFromSupabase, fetchMockQuestionsForPaper } from "@/lib/mockPapersFromSupabase";
+import { useToast } from "@/hooks/use-toast";
+import { sanitizeMockHtml } from "@/lib/mockHtml";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogDescription,
-} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 
 import PrepMockSidebar from "@/components/prep-mock/PrepMockSidebar";
 import PrepMockStatCards from "@/components/prep-mock/PrepMockStatCards";
@@ -44,11 +50,38 @@ import RevisionInstaCueSection from "@/components/prep-mock/RevisionInstaCueSect
 import { fetchSavedContent } from "@/lib/savedContentService";
 import { mergeAllSavedContent } from "@/lib/mergeSavedContent";
 import { incrementPrepCalendarDay, localDayISO } from "@/lib/prepCalendarClient";
+import { cn } from "@/lib/utils";
 
-const DURATIONS = [60, 90, 180] as const;
-type Duration = (typeof DURATIONS)[number];
+const QUICK_DURATIONS = [60, 90, 180] as const;
 
-type View = "landing" | "setup" | "test" | "results";
+/** Dashboard “Investor” spotlight — matches `scripts/import-jee-main-mock-csv.ts` slug. */
+const FEATURED_DASHBOARD_PYQ_SLUG = "jee-main-2019-01-10-shift-1";
+
+type View = "landing" | "setup" | "nta_instructions" | "test" | "results";
+
+type NtaExamKind = "paper" | "quick";
+
+type NtaPendingExamMeta = {
+  kind: NtaExamKind;
+  paper: MockPaper | null;
+  durationMin: number;
+  questionCount: number;
+  titleLine: string;
+  subjectLine: string;
+  markingScheme: string;
+  /** Quick mock only: subjects used after proceed */
+  quickSubjects?: Subject[];
+};
+
+function estimateQuickQuestionCount(subjects: Subject[], classLevel: number, durationMin: number): number {
+  const eligible = questionBank.filter(
+    (q) => subjects.includes(q.subject) && q.classLevel <= classLevel,
+  ).length;
+  return Math.max(1, Math.min(Math.ceil(durationMin / 2.5), eligible || 1));
+}
+
+/** Library category tabs + dedicated Quick Mock tab */
+type SetupLibraryTab = LibraryCategoryFilter | "quick";
 
 const subjectEmojis: Record<Subject, string> = {
   physics: "⚡",
@@ -57,6 +90,20 @@ const subjectEmojis: Record<Subject, string> = {
   biology: "🧬",
 };
 
+function ReviewInlineHtml({ text }: { text: string }) {
+  const t = text.trim();
+  if (t.includes("<")) {
+    return (
+      <span
+        className="prose prose-sm inline max-w-none align-top dark:prose-invert"
+        // eslint-disable-next-line react/no-danger
+        dangerouslySetInnerHTML={{ __html: sanitizeMockHtml(t) }}
+      />
+    );
+  }
+  return <span>{t}</span>;
+}
+
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
@@ -64,7 +111,10 @@ function formatTime(seconds: number): string {
 }
 
 export default function MockPage() {
-  const { user: authUser, session } = useAuth();
+  const { toast } = useToast();
+  const { user: authUser, session, profile } = useAuth();
+  const { resolvedTheme } = useTheme();
+  const ntaSkin: NtaSkin = resolvedTheme === "dark" ? "dark" : "light";
   const user = useUserStore((s) => s.user);
   const allResults = useUserStore((s) => s.allResults);
 
@@ -80,9 +130,22 @@ export default function MockPage() {
   }, [user]);
 
   const [view, setView] = useState<View>("landing");
-  const [duration, setDuration] = useState<Duration>(90);
+  const [duration, setDuration] = useState<number>(90);
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
-  const [questions, setQuestions] = useState<ReturnType<typeof getMockQuestions>>([]);
+  const [libraryTab, setLibraryTab] = useState<SetupLibraryTab>("all");
+  const [librarySearch, setLibrarySearch] = useState("");
+  const [librarySubjectFilter, setLibrarySubjectFilter] = useState<Subject | "all">("all");
+  const [catalogPapers, setCatalogPapers] = useState<MockPaper[]>([]);
+  const [catalogLoading, setCatalogLoading] = useState(false);
+  const [catalogError, setCatalogError] = useState<string | null>(null);
+  const [ntaProceedBusy, setNtaProceedBusy] = useState(false);
+  const [ntaPendingMeta, setNtaPendingMeta] = useState<NtaPendingExamMeta | null>(null);
+  const [ntaInstructionBackView, setNtaInstructionBackView] = useState<"landing" | "setup">("setup");
+  const [featuredCatalogLoading, setFeaturedCatalogLoading] = useState(false);
+  const [ntaWarningOpen, setNtaWarningOpen] = useState(false);
+  const [visitedQuestionIds, setVisitedQuestionIds] = useState<Set<string>>(() => new Set());
+  const [activeExamTitle, setActiveExamTitle] = useState<string | null>(null);
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, number>>({});
   const [flagged, setFlagged] = useState<Set<string>>(new Set());
@@ -122,39 +185,212 @@ export default function MockPage() {
     return () => clearInterval(interval);
   }, [view, startTime, totalSeconds, handleFinishTest]);
 
-  const startTest = useCallback(() => {
+  useEffect(() => {
+    if (view !== "test" || questions.length === 0) return;
+    const id = questions[currentIndex]?.id;
+    if (!id) return;
+    setVisitedQuestionIds((prev) => new Set(prev).add(id));
+  }, [view, currentIndex, questions]);
+
+  const startQuickTest = useCallback(() => {
     if (!user) return;
-    mockCalendarLoggedRef.current = false;
     const chosenSubjects = effectiveSubject ? [effectiveSubject] : subjects;
-    const qs = getMockQuestions(chosenSubjects, user.classLevel ?? 11, duration);
-    setQuestions(qs);
-    setCurrentIndex(0);
-    setAnswers({});
-    setFlagged(new Set());
-    setStartTime(Date.now());
-    setEndTime(null);
-    setSecondsLeft(duration * 60);
-    setView("test");
-  }, [user, effectiveSubject, subjects, duration]);
+    const qc = estimateQuickQuestionCount(chosenSubjects, user.classLevel ?? 11, duration);
+    setNtaPendingMeta({
+      kind: "quick",
+      paper: null,
+      durationMin: duration,
+      questionCount: qc,
+      titleLine: "Quick mock",
+      subjectLine: `${chosenSubjects.map((s) => s.charAt(0).toUpperCase() + s.slice(1)).join(", ")} · ${duration} min timed practice`,
+      markingScheme: "Adaptive question pool; scoring shown after submit.",
+      quickSubjects: chosenSubjects,
+    });
+    setView("nta_instructions");
+  }, [duration, effectiveSubject, subjects, user]);
+
+  const handleNtaProceed = useCallback(
+    async (declarationAccepted: boolean) => {
+      if (!declarationAccepted) {
+        setNtaWarningOpen(true);
+        return;
+      }
+      if (!user) return;
+      const meta = ntaPendingMeta;
+      if (!meta) return;
+      setNtaWarningOpen(false);
+      setNtaProceedBusy(true);
+      try {
+        let qs: Question[];
+        let examTitle: string | null;
+        const durationMin = meta.durationMin;
+        let subjectsForSession: Subject[];
+
+        if (meta.kind === "paper" && meta.paper) {
+          qs = await fetchMockQuestionsForPaper(meta.paper.id);
+          if (qs.length === 0) {
+            toast({
+              title: "No questions for this paper",
+              description: "Run the JEE CSV import or pick another paper.",
+              variant: "destructive",
+            });
+            return;
+          }
+          subjectsForSession = meta.paper.subjectsCovered?.length
+            ? meta.paper.subjectsCovered
+            : [meta.paper.subject];
+          examTitle = meta.paper.title;
+        } else {
+          subjectsForSession = meta.quickSubjects ?? subjects;
+          qs = getMockQuestions(subjectsForSession, user.classLevel ?? 11, durationMin);
+          examTitle = null;
+        }
+
+        mockCalendarLoggedRef.current = false;
+        setDuration(durationMin);
+        if (subjectsForSession.length === 1) setSelectedSubject(subjectsForSession[0]!);
+        setQuestions(qs);
+        setCurrentIndex(0);
+        setAnswers({});
+        setFlagged(new Set());
+        setVisitedQuestionIds(new Set());
+        setStartTime(Date.now());
+        setEndTime(null);
+        setSecondsLeft(durationMin * 60);
+        setActiveExamTitle(examTitle);
+        setNtaPendingMeta(null);
+        setView("test");
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Could not load questions";
+        toast({ title: "Could not start", description: message, variant: "destructive" });
+      } finally {
+        setNtaProceedBusy(false);
+      }
+    },
+    [user, ntaPendingMeta, subjects, toast],
+  );
+
+  const openNtaInstructionsForPaper = useCallback((paper: MockPaper, back: "landing" | "setup" = "setup") => {
+    setNtaInstructionBackView(back);
+    setNtaPendingMeta({
+      kind: "paper",
+      paper,
+      durationMin: paper.durationMinutes,
+      questionCount: paper.questionsCount,
+      titleLine: paper.title,
+      subjectLine: paper.title,
+      markingScheme: paper.markingScheme,
+    });
+    setView("nta_instructions");
+  }, []);
 
   const handleQuickStartMock = useCallback((subject: Subject) => {
     setSelectedSubject(subject);
     setDuration(90);
+    setLibraryTab("quick");
     setView("setup");
   }, []);
+
+  const papersByClassLevel = useMemo(() => {
+    const userLevel = user?.classLevel ?? 12;
+    return catalogPapers.filter((p) => p.classLevel <= userLevel);
+  }, [catalogPapers, user?.classLevel]);
+
+  const featuredDashboardPaper = useMemo(() => {
+    const bySlug = catalogPapers.find((p) => p.slug === FEATURED_DASHBOARD_PYQ_SLUG);
+    if (bySlug) return bySlug;
+    return catalogPapers.find(
+      (p) =>
+        p.type === "pyq" &&
+        (/10\s*th?\s*January\s*2019/i.test(p.title) || /10\s+January\s*2019/i.test(p.title)) &&
+        /shift\s*1/i.test(p.title),
+    );
+  }, [catalogPapers]);
+
+  const filteredCatalogPapers = useMemo(() => {
+    if (libraryTab === "quick") return [];
+    return filterMockPapers(papersByClassLevel, libraryTab, librarySearch, librarySubjectFilter, subjects);
+  }, [papersByClassLevel, libraryTab, librarySearch, librarySubjectFilter, subjects]);
+
+  useEffect(() => {
+    if (view !== "landing") return;
+    if (catalogPapers.length > 0) {
+      setFeaturedCatalogLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setFeaturedCatalogLoading(true);
+    void fetchMockPapersFromSupabase()
+      .then((rows) => {
+        if (!cancelled) setCatalogPapers(rows);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setFeaturedCatalogLoading(false);
+      });
+    return () => {
+      cancelled = true;
+      setFeaturedCatalogLoading(false);
+    };
+  }, [view, catalogPapers.length]);
+
+  useEffect(() => {
+    if (view !== "setup" || libraryTab === "quick") return;
+    let cancelled = false;
+    setCatalogLoading(true);
+    setCatalogError(null);
+    void fetchMockPapersFromSupabase()
+      .then((rows) => {
+        if (!cancelled) {
+          setCatalogPapers(rows);
+          setCatalogLoading(false);
+        }
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          setCatalogError(err instanceof Error ? err.message : "Failed to load mock papers");
+          setCatalogLoading(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [view, libraryTab]);
 
   const handleAnswerSelect = useCallback((questionId: string, idx: number) => {
     setAnswers((prev) => ({ ...prev, [questionId]: idx }));
   }, []);
 
-  const toggleFlag = (questionId: string) => {
-    setFlagged((prev) => {
-      const next = new Set(prev);
-      if (next.has(questionId)) next.delete(questionId);
-      else next.add(questionId);
+  const candidateDisplayName = profile?.name ?? user?.name ?? "Candidate";
+  const candidateAvatarUrl = profile?.avatar_url ?? null;
+
+  const handleNtaSaveAndNext = useCallback(() => {
+    setCurrentIndex((i) => Math.min(questions.length - 1, i + 1));
+  }, [questions.length]);
+
+  const handleNtaClearResponse = useCallback(() => {
+    const id = questions[currentIndex]?.id;
+    if (!id) return;
+    setAnswers((prev) => {
+      const next = { ...prev };
+      delete next[id];
       return next;
     });
-  };
+  }, [questions, currentIndex]);
+
+  const handleNtaMarkReviewNext = useCallback(() => {
+    const id = questions[currentIndex]?.id;
+    if (!id) return;
+    setFlagged((prev) => new Set(prev).add(id));
+    setCurrentIndex((i) => Math.min(questions.length - 1, i + 1));
+  }, [questions, currentIndex]);
+
+  const handleNtaSaveMarkReviewNext = useCallback(() => {
+    const id = questions[currentIndex]?.id;
+    if (!id) return;
+    setFlagged((prev) => new Set(prev).add(id));
+    setCurrentIndex((i) => Math.min(questions.length - 1, i + 1));
+  }, [questions, currentIndex]);
 
   const correctCount = useMemo(
     () => questions.filter((q) => answers[q.id] === q.correctAnswer).length,
@@ -217,9 +453,13 @@ export default function MockPage() {
 
   const revisionCards = user?.savedRevisionCards ?? [];
 
+  const immersiveNta = view === "nta_instructions" || (view === "test" && questions.length > 0);
+  const ntaExamNameLine = activeExamTitle ? "JEE-Main" : "Testbee Quick";
+  const ntaSubjectPaperLine = activeExamTitle ?? "Quick mock — timed practice";
+
   return (
     <ProtectedRoute>
-      <AppLayout>
+      <AppLayout hideTopNav={immersiveNta} wideMain={immersiveNta}>
         <AnimatePresence mode="wait">
           {/* ── DASHBOARD (landing) ── */}
           {view === "landing" && (
@@ -281,7 +521,20 @@ export default function MockPage() {
 
                   {/* Right column */}
                   <div className="space-y-6">
-                    <MockTestsSection subjects={subjects} onStartMock={handleQuickStartMock} onViewAll={() => setView("setup")} />
+                    <MockTestsSection
+                      subjects={subjects}
+                      onStartMock={handleQuickStartMock}
+                      onViewAll={() => {
+                        setLibraryTab("all");
+                        setView("setup");
+                      }}
+                      featuredPaper={featuredDashboardPaper ?? null}
+                      featuredLoading={featuredCatalogLoading}
+                      onStartFeaturedPaper={() => {
+                        const p = featuredDashboardPaper;
+                        if (p) openNtaInstructionsForPaper(p, "landing");
+                      }}
+                    />
                     <RevisionInstaCueSection
                       cards={revisionCards}
                       accessToken={session?.access_token}
@@ -294,253 +547,352 @@ export default function MockPage() {
             </motion.div>
           )}
 
-          {/* ── SETUP VIEW (configure mock before starting) ── */}
+          {/* ── SETUP VIEW (mock test library + quick mock) ── */}
           {view === "setup" && (
             <motion.div
               key="setup"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="max-w-2xl mx-auto space-y-6"
+              className="mx-auto max-w-6xl space-y-6"
             >
               <button
+                type="button"
                 onClick={() => setView("landing")}
-                className="flex items-center gap-2 text-sm font-bold text-muted-foreground hover:text-foreground transition-colors"
+                className="flex items-center gap-2 text-sm font-bold text-muted-foreground transition-colors hover:text-foreground"
               >
-                <ArrowLeft className="w-4 h-4" /> Back to dashboard
+                <ArrowLeft className="h-4 w-4" /> Back to dashboard
               </button>
 
-              <div className="edu-page-header text-center">
-                <div className="w-16 h-16 rounded-2xl gradient-primary flex items-center justify-center mx-auto mb-4">
-                  <ClipboardList className="w-8 h-8 text-primary-foreground" />
+              <div className="rounded-2xl border border-border bg-card/80 px-4 py-6 shadow-sm sm:px-8">
+                <div className="flex flex-col gap-4 border-b border-border pb-6 md:flex-row md:items-end md:justify-between">
+                  <div className="flex gap-4">
+                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-primary/30 bg-primary/10">
+                      <GraduationCap className="h-7 w-7 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                        Institute-style mock portal
+                      </p>
+                      <h1 className="edu-page-title mt-1 text-2xl md:text-3xl">Mock test library</h1>
+                      <p className="edu-page-desc mt-1 max-w-2xl text-sm md:text-base">
+                        Browse published papers from the institute bank (Supabase) or start a timed quick mock from
+                        the adaptive pool.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    <ShieldCheck className="h-4 w-4 shrink-0 text-primary" />
+                    <span>Timer · flagged review · submit when ready</span>
+                  </div>
                 </div>
-                <h1 className="edu-page-title text-2xl md:text-3xl">Configure Mock Test</h1>
-                <p className="edu-page-desc max-w-xl mx-auto">
-                  Exam-style test — 60, 90 or 180 minutes. Build stamina and find weak spots.
-                </p>
-              </div>
 
-              {/* Duration picker */}
-              <div className="edu-card p-6 rounded-2xl">
-                <h3 className="font-display font-bold text-foreground mb-4 flex items-center gap-2">
-                  <Clock className="w-5 h-5 text-primary" /> Choose duration
-                </h3>
-                <div className="flex flex-wrap gap-3">
-                  {DURATIONS.map((d) => (
+                <div className="mt-6 flex gap-2 overflow-x-auto pb-1">
+                  {(
+                    [
+                      { id: "all" as const, label: "All papers" },
+                      { id: "pyq" as const, label: "Previous Year (PYQ)" },
+                      { id: "ncert" as const, label: "NCERT Exemplar" },
+                      { id: "chapter" as const, label: "Chapter-wise" },
+                      { id: "full" as const, label: "Full syllabus" },
+                      { id: "quick" as const, label: "Quick mock" },
+                    ] satisfies { id: SetupLibraryTab; label: string }[]
+                  ).map((tab) => (
                     <button
-                      key={d}
-                      onClick={() => setDuration(d)}
-                      className={`flex-1 min-w-[100px] py-4 px-4 rounded-xl font-bold text-sm transition-all border-2 ${
-                        duration === d
-                          ? "border-primary bg-primary/10 text-primary"
-                          : "border-border bg-muted/30 text-muted-foreground hover:border-primary/50"
-                      }`}
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setLibraryTab(tab.id)}
+                      className={cn(
+                        "shrink-0 rounded-full border px-4 py-2 text-xs font-bold transition-all sm:text-sm",
+                        libraryTab === tab.id
+                          ? "border-primary bg-primary/15 text-primary"
+                          : "border-border bg-muted/30 text-muted-foreground hover:border-primary/40 hover:text-foreground",
+                      )}
                     >
-                      {d} min
+                      {tab.label}
                     </button>
                   ))}
                 </div>
-                <p className="text-xs text-muted-foreground mt-2">
-                  ~{Math.ceil(duration / 2.5)} questions · ~2–3 min per question
-                </p>
+
+                {libraryTab === "quick" ? (
+                  <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_280px]">
+                    <div className="edu-card space-y-6 rounded-2xl p-6">
+                      <h2 className="font-display flex items-center gap-2 text-lg font-bold text-foreground">
+                        <Clock className="h-5 w-5 text-primary" />
+                        Quick mock (adaptive pool)
+                      </h2>
+                      <p className="text-sm text-muted-foreground">
+                        Same engine as before: mixed questions from your syllabus level, timed like exam day.
+                      </p>
+                      <div>
+                        <h3 className="mb-3 text-sm font-bold text-foreground">Duration</h3>
+                        <div className="flex flex-wrap gap-3">
+                          {QUICK_DURATIONS.map((d) => (
+                            <button
+                              key={d}
+                              type="button"
+                              onClick={() => setDuration(d)}
+                              className={cn(
+                                "min-w-[100px] flex-1 rounded-xl border-2 px-4 py-3 text-sm font-bold transition-all",
+                                duration === d
+                                  ? "border-primary bg-primary/10 text-primary"
+                                  : "border-border bg-muted/30 text-muted-foreground hover:border-primary/50",
+                              )}
+                            >
+                              {d} min
+                            </button>
+                          ))}
+                        </div>
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          ~{Math.ceil(duration / 2.5)} questions · ~2–3 min per question
+                        </p>
+                      </div>
+                      <div>
+                        <h3 className="mb-3 flex items-center gap-2 text-sm font-bold text-foreground">
+                          <BookOpen className="h-4 w-4 text-primary" />
+                          Subject focus
+                        </h3>
+                        <div className="flex flex-wrap gap-3">
+                          {subjects.map((subj) => (
+                            <button
+                              key={subj}
+                              type="button"
+                              onClick={() => setSelectedSubject(subj)}
+                              className={cn(
+                                "flex items-center gap-2 rounded-xl border-2 px-4 py-2 text-sm font-bold transition-all",
+                                effectiveSubject === subj
+                                  ? "border-primary bg-primary/10 text-primary"
+                                  : "border-border bg-muted/30 text-muted-foreground hover:border-primary/50",
+                              )}
+                            >
+                              <span>{subjectEmojis[subj]}</span>
+                              <span className="capitalize">{subj}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="text-center sm:text-left">
+                        <Button
+                          size="lg"
+                          className="edu-btn-primary rounded-xl px-10 py-6 text-lg font-bold"
+                          onClick={startQuickTest}
+                        >
+                          <ClipboardList className="mr-2 h-5 w-5" />
+                          Start mock test
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="space-y-4">
+                      <div className="edu-card rounded-2xl border border-primary/20 bg-primary/5 p-5">
+                        <Target className="mb-2 h-8 w-8 text-primary" />
+                        <h4 className="mb-1 font-bold text-foreground">Stamina</h4>
+                        <p className="text-sm text-muted-foreground">Long sits train focus for boards and entrances.</p>
+                      </div>
+                      <div className="edu-card rounded-2xl border border-border p-5">
+                        <Lightbulb className="mb-2 h-8 w-8 text-primary" />
+                        <h4 className="mb-1 font-bold text-foreground">Strategy</h4>
+                        <p className="text-sm text-muted-foreground">Flag hard items; review after submit.</p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-8 space-y-6">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="relative max-w-md flex-1">
+                        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                          value={librarySearch}
+                          onChange={(e) => setLibrarySearch(e.target.value)}
+                          placeholder="Search by paper name or tag…"
+                          className="h-11 rounded-xl border-border pl-10"
+                          aria-label="Search mock papers"
+                        />
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                          Subject
+                        </span>
+                        {(["all", ...subjects] as const).map((s) => (
+                          <button
+                            key={s}
+                            type="button"
+                            onClick={() => setLibrarySubjectFilter(s)}
+                            className={cn(
+                              "rounded-lg border px-3 py-1.5 text-xs font-bold transition-all",
+                              librarySubjectFilter === s
+                                ? "border-primary bg-primary/10 text-primary"
+                                : "border-border bg-muted/30 text-muted-foreground hover:border-primary/40",
+                            )}
+                          >
+                            {s === "all" ? "All" : subjectEmojis[s]}
+                            {s !== "all" ? <span className="ml-1 capitalize">{s}</span> : null}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <p className="text-xs text-muted-foreground">
+                      Showing <span className="font-semibold text-foreground">{filteredCatalogPapers.length}</span>{" "}
+                      paper{filteredCatalogPapers.length === 1 ? "" : "s"} in this view
+                      {catalogLoading ? " · loading…" : ""}.
+                    </p>
+
+                    {catalogError ? (
+                      <div className="edu-card rounded-2xl border border-destructive/30 bg-destructive/5 p-8 text-center text-sm text-destructive">
+                        {catalogError}
+                      </div>
+                    ) : catalogLoading ? (
+                      <div className="edu-card rounded-2xl border border-dashed border-border p-12 text-center text-sm text-muted-foreground">
+                        Loading mock papers…
+                      </div>
+                    ) : filteredCatalogPapers.length === 0 ? (
+                      <div className="edu-card rounded-2xl border border-dashed border-border p-12 text-center">
+                        <ListOrdered className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
+                        <p className="font-semibold text-foreground">
+                          {papersByClassLevel.length === 0
+                            ? "No papers published for your class yet"
+                            : "No papers match your filters"}
+                        </p>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {papersByClassLevel.length === 0
+                            ? "Ask your admin to publish mock papers or run the seed import."
+                            : "Try another subject or clear the search."}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                        {filteredCatalogPapers.map((paper) => (
+                          <div
+                            key={paper.id}
+                            className="edu-card flex flex-col rounded-2xl border border-border p-5 transition-shadow hover:shadow-md"
+                          >
+                            <div className="mb-3 flex flex-wrap items-center gap-2">
+                              <Badge variant="secondary" className="text-[10px] font-semibold uppercase tracking-wide">
+                                {mockPaperTypeLabel(paper.type)}
+                              </Badge>
+                              <Badge variant="outline" className="text-[10px]">
+                                {paper.difficulty}
+                              </Badge>
+                              <span className="text-[10px] font-medium text-muted-foreground">
+                                Class {paper.classLevel}
+                              </span>
+                            </div>
+                            <h3 className="line-clamp-2 min-h-[2.75rem] text-base font-bold leading-snug text-foreground">
+                              {paper.title}
+                            </h3>
+                            <div className="mt-4 grid grid-cols-3 gap-2 text-center text-[11px]">
+                              <div className="rounded-lg bg-muted/50 px-2 py-2">
+                                <FileQuestion className="mx-auto mb-1 h-4 w-4 text-primary" />
+                                <span className="font-bold tabular-nums text-foreground">{paper.questionsCount}</span>
+                                <span className="block text-muted-foreground">Qs</span>
+                              </div>
+                              <div className="rounded-lg bg-muted/50 px-2 py-2">
+                                <Clock className="mx-auto mb-1 h-4 w-4 text-primary" />
+                                <span className="font-bold tabular-nums text-foreground">{paper.durationMinutes}</span>
+                                <span className="block text-muted-foreground">Min</span>
+                              </div>
+                              <div className="rounded-lg bg-muted/50 px-2 py-2">
+                                <Award className="mx-auto mb-1 h-4 w-4 text-primary" />
+                                <span className="font-bold tabular-nums text-foreground">{paper.totalMarks}</span>
+                                <span className="block text-muted-foreground">Marks</span>
+                              </div>
+                            </div>
+                            <p className="mt-3 line-clamp-1 text-xs text-muted-foreground">
+                              {paper.tags.length > 0 ? `${paper.tags.join(" · ")} · ` : null}
+                              <span className="capitalize text-foreground/80">
+                                {(paper.subjectsCovered ?? [paper.subject]).join(", ")}
+                              </span>
+                            </p>
+                            <div className="mt-4 flex flex-wrap gap-2">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="flex-1 rounded-xl"
+                                onClick={() => openNtaInstructionsForPaper(paper)}
+                              >
+                                Instructions
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                className="edu-btn-primary flex-1 rounded-xl font-bold"
+                                onClick={() => openNtaInstructionsForPaper(paper)}
+                              >
+                                Start exam
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
-              {/* Subject picker */}
-              <div className="edu-card p-6 rounded-2xl">
-                <h3 className="font-display font-bold text-foreground mb-4 flex items-center gap-2">
-                  <BookOpen className="w-5 h-5 text-primary" /> Choose subject
-                </h3>
-                <div className="flex flex-wrap gap-3">
-                  {subjects.map((subj) => (
-                    <button
-                      key={subj}
-                      onClick={() => setSelectedSubject(subj)}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold border-2 transition-all ${
-                        effectiveSubject === subj
-                          ? "border-primary bg-primary/10 text-primary"
-                          : "border-border bg-muted/30 text-muted-foreground hover:border-primary/50"
-                      }`}
-                    >
-                      <span>{subjectEmojis[subj]}</span>
-                      <span className="capitalize">{subj}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Info cards */}
-              <div className="grid gap-4 sm:grid-cols-3">
-                <div className="edu-card p-5 rounded-2xl border border-primary/20 bg-primary/5">
-                  <Target className="w-8 h-8 text-primary mb-2" />
-                  <h4 className="font-bold text-foreground mb-1">Why long mocks?</h4>
-                  <p className="text-sm text-muted-foreground">Time pressure and stamina match the real exam.</p>
-                </div>
-                <div className="edu-card p-5 rounded-2xl border border-border">
-                  <BookOpen className="w-8 h-8 text-primary mb-2" />
-                  <h4 className="font-bold text-foreground mb-1">What to expect</h4>
-                  <p className="text-sm text-muted-foreground capitalize">
-                    {effectiveSubject} chapters aligned with your class level.
-                  </p>
-                </div>
-                <div className="edu-card p-5 rounded-2xl border border-border">
-                  <Lightbulb className="w-8 h-8 text-primary mb-2" />
-                  <h4 className="font-bold text-foreground mb-1">Strategy</h4>
-                  <p className="text-sm text-muted-foreground">Flag tough ones and revisit. Use the timer like exam day.</p>
-                </div>
-              </div>
-
-              <div className="text-center">
-                <Button
-                  size="lg"
-                  className="edu-btn-primary rounded-xl font-bold px-10 py-6 text-lg"
-                  onClick={startTest}
-                >
-                  <ClipboardList className="w-5 h-5 mr-2" />
-                  Start mock test
-                </Button>
-              </div>
             </motion.div>
           )}
 
-          {/* ── TEST VIEW ── */}
-          {view === "test" && questions.length > 0 && (
-            <motion.div
-              key="test"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="max-w-4xl mx-auto space-y-4"
+          {/* ── NTA GENERAL INSTRUCTIONS (fullscreen) ── */}
+          {view === "nta_instructions" && ntaPendingMeta ? (
+            <div
+              key="nta-instructions"
+              className="fixed inset-0 z-[100] flex flex-col"
+              style={{ top: 0 }}
             >
-              <div className="sticky top-16 z-30 bg-card/95 backdrop-blur border-b border-border rounded-xl px-4 py-3 flex items-center justify-between gap-4">
-                <div className="flex items-center gap-2 font-mono text-lg font-bold">
-                  <Clock className="w-5 h-5 text-primary" />
-                  <span className={secondsLeft <= 300 ? "text-destructive" : ""}>
-                    {formatTime(secondsLeft)}
-                  </span>
-                </div>
-                <div className="flex flex-wrap gap-1.5 justify-end max-w-[70%]">
-                  {questions.map((q, i) => (
-                    <button
-                      key={q.id}
-                      onClick={() => setCurrentIndex(i)}
-                      className={`w-8 h-8 rounded-lg text-xs font-bold flex items-center justify-center transition-all ${
-                        i === currentIndex
-                          ? "bg-primary text-primary-foreground ring-2 ring-primary/40"
-                          : q.id in answers
-                            ? "bg-muted text-foreground"
-                            : flagged.has(q.id)
-                              ? "bg-amber-500/20 text-amber-700 dark:text-amber-400"
-                              : "bg-muted/60 text-muted-foreground hover:bg-muted"
-                      }`}
-                    >
-                      {flagged.has(q.id) ? <Flag className="w-3.5 h-3.5" /> : i + 1}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between mb-4">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="rounded-xl"
-                  onClick={() => setCurrentIndex((i) => Math.max(0, i - 1))}
-                  disabled={currentIndex === 0}
-                >
-                  <ChevronLeft className="w-4 h-4 mr-1" /> Previous
-                </Button>
-                <span className="text-sm font-bold text-muted-foreground">
-                  Question {currentIndex + 1} of {questions.length}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="rounded-xl"
-                  onClick={() => setCurrentIndex((i) => Math.min(questions.length - 1, i + 1))}
-                  disabled={currentIndex === questions.length - 1}
-                >
-                  Next <ChevronRight className="w-4 h-4 ml-1" />
-                </Button>
-              </div>
-
-              <div className="flex gap-2 mb-4">
-                <Button
-                  variant={flagged.has(questions[currentIndex]?.id) ? "secondary" : "outline"}
-                  size="sm"
-                  className="rounded-xl"
-                  onClick={() => questions[currentIndex] && toggleFlag(questions[currentIndex].id)}
-                >
-                  <Flag
-                    className={`w-4 h-4 mr-1 ${
-                      flagged.has(questions[currentIndex]?.id) ? "fill-amber-500" : ""
-                    }`}
-                  />
-                  {flagged.has(questions[currentIndex]?.id) ? "Flagged" : "Flag"}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="rounded-xl ml-auto"
-                  onClick={() => setSubmitDialogOpen(true)}
-                >
-                  Submit test
-                </Button>
-              </div>
-
-              <motion.div
-                key={questions[currentIndex]?.id}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.2 }}
-              >
-                <QuestionCard
-                  question={questions[currentIndex]}
-                  onNext={() => setCurrentIndex((i) => Math.min(questions.length - 1, i + 1))}
-                  mockMode
-                  onAnswerSelect={(idx) => handleAnswerSelect(questions[currentIndex].id, idx)}
+              <NtaMockTokens skin={ntaSkin} className="flex min-h-0 flex-1 flex-col">
+                <NtaGeneralInstructions
+                  meta={{
+                    durationMinutes: ntaPendingMeta.durationMin,
+                    questionCount: ntaPendingMeta.questionCount,
+                    markingScheme: ntaPendingMeta.markingScheme,
+                    paperTitle: ntaPendingMeta.titleLine,
+                  }}
+                  proceedBusy={ntaProceedBusy}
+                  onBack={() => {
+                    setNtaPendingMeta(null);
+                    setView(ntaInstructionBackView);
+                  }}
+                  onProceed={handleNtaProceed}
                 />
-              </motion.div>
+                <NtaProceedWarningDialog open={ntaWarningOpen} onOk={() => setNtaWarningOpen(false)} />
+              </NtaMockTokens>
+            </div>
+          ) : null}
 
-              {currentIndex === questions.length - 1 && questions.length > 0 && (
-                <div className="mt-6 p-4 rounded-2xl border-2 border-primary/30 bg-primary/5">
-                  <p className="text-sm font-semibold text-foreground mb-2">
-                    Last question — ready to submit?
-                  </p>
-                  <Button
-                    size="lg"
-                    className="w-full sm:w-auto rounded-xl edu-btn-primary"
-                    onClick={() => setSubmitDialogOpen(true)}
-                  >
-                    Submit test
-                  </Button>
-                </div>
-              )}
-
-              <Dialog open={submitDialogOpen} onOpenChange={setSubmitDialogOpen}>
-                <DialogContent className="rounded-2xl max-w-sm">
-                  <DialogHeader>
-                    <DialogTitle>Submit and see results?</DialogTitle>
-                    <DialogDescription>
-                      You can't change answers after submitting. Your score and time will be shown.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <DialogFooter className="gap-2 sm:gap-0">
-                    <Button
-                      variant="outline"
-                      onClick={() => setSubmitDialogOpen(false)}
-                      className="rounded-xl"
-                    >
-                      Cancel
-                    </Button>
-                    <Button onClick={handleFinishTest} className="rounded-xl edu-btn-primary">
-                      Submit
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            </motion.div>
-          )}
+          {/* ── NTA EXAM SHELL (fullscreen) ── */}
+          {view === "test" && questions.length > 0 ? (
+            <div key="nta-test" className="fixed inset-0 z-[100] flex flex-col">
+              <NtaMockTokens skin={ntaSkin} className="flex min-h-0 flex-1 flex-col">
+                <NtaExamShell
+                  candidateName={candidateDisplayName}
+                  avatarUrl={candidateAvatarUrl}
+                  examNameLine={ntaExamNameLine}
+                  subjectPaperLine={ntaSubjectPaperLine}
+                  secondsLeft={secondsLeft}
+                  questions={questions}
+                  currentIndex={currentIndex}
+                  onSelectIndex={setCurrentIndex}
+                  answers={answers}
+                  flagged={flagged}
+                  visitedIds={visitedQuestionIds}
+                  onAnswerSelect={handleAnswerSelect}
+                  onSaveAndNext={handleNtaSaveAndNext}
+                  onClearResponse={handleNtaClearResponse}
+                  onSaveMarkReviewNext={handleNtaSaveMarkReviewNext}
+                  onMarkReviewNext={handleNtaMarkReviewNext}
+                  onBackNav={() => setCurrentIndex((i) => Math.max(0, i - 1))}
+                  onNextNav={() => setCurrentIndex((i) => Math.min(questions.length - 1, i + 1))}
+                  onSubmitClick={() => setSubmitDialogOpen(true)}
+                />
+                <NtaSubmitModal
+                  open={submitDialogOpen}
+                  onCancel={() => setSubmitDialogOpen(false)}
+                  onConfirm={handleFinishTest}
+                />
+              </NtaMockTokens>
+            </div>
+          ) : null}
 
           {/* ── RESULTS VIEW ── */}
           {view === "results" && (
@@ -560,6 +912,9 @@ export default function MockPage() {
                       : "💪"}
                 </div>
                 <h1 className="edu-page-title text-3xl">Mock test complete</h1>
+                {activeExamTitle ? (
+                  <p className="edu-page-desc mt-1 line-clamp-2 text-sm font-medium text-primary">{activeExamTitle}</p>
+                ) : null}
                 <p className="edu-page-desc">
                   {correctCount} / {questions.length} correct
                   {timeTakenSeconds > 0 && ` · ${formatTime(timeTakenSeconds)} taken`}
@@ -655,14 +1010,22 @@ export default function MockPage() {
                           >
                             <p className="text-muted-foreground">
                               Your answer:{" "}
-                              {selected != null ? q.options[selected] : "—"}
+                              {selected != null ? <ReviewInlineHtml text={q.options[selected] ?? ""} /> : "—"}
                             </p>
                             {!correct && (
                               <p className="text-edu-green font-medium">
-                                Correct: {q.options[q.correctAnswer]}
+                                Correct: <ReviewInlineHtml text={q.options[q.correctAnswer] ?? ""} />
                               </p>
                             )}
-                            <p className="text-foreground/90">{q.solution}</p>
+                            {q.solutionHtml ? (
+                              <div
+                                className="prose prose-sm max-w-none text-foreground/90 dark:prose-invert [&_img]:max-h-48"
+                                // eslint-disable-next-line react/no-danger
+                                dangerouslySetInnerHTML={{ __html: sanitizeMockHtml(q.solutionHtml) }}
+                              />
+                            ) : (
+                              <p className="text-foreground/90">{q.solution}</p>
+                            )}
                           </motion.div>
                         )}
                       </div>
@@ -680,6 +1043,8 @@ export default function MockPage() {
                     setView("landing");
                     setQuestions([]);
                     setAnswers({});
+                    setActiveExamTitle(null);
+                    setVisitedQuestionIds(new Set());
                   }}
                 >
                   <RotateCcw className="w-5 h-5 mr-2" />

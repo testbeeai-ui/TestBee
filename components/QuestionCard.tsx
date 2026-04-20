@@ -15,6 +15,7 @@ import {
   CheckCircle2,
   XCircle,
 } from 'lucide-react';
+import { sanitizeMockHtml } from '@/lib/mockHtml';
 
 const subjectColors: Record<string, string> = {
   physics: 'bg-edu-blue',
@@ -29,6 +30,20 @@ const subjectEmoji: Record<string, string> = {
   math: '📐',
   biology: '🧬',
 };
+
+function OptionBody({ text }: { text: string }) {
+  const t = text.trim();
+  if (t.includes('<')) {
+    return (
+      <span
+        className="prose prose-sm max-w-none flex-1 text-foreground dark:prose-invert [&_.math-tex]:text-inherit"
+        // eslint-disable-next-line react/no-danger -- sanitized server/mock HTML
+        dangerouslySetInnerHTML={{ __html: sanitizeMockHtml(t) }}
+      />
+    );
+  }
+  return <span className="flex-1">{t}</span>;
+}
 
 interface Props {
   question: Question;
@@ -86,9 +101,15 @@ const QuestionCard = ({ question, onNext, mockMode, onAnswerSelect }: Props) => 
 
       {/* Question */}
       <div className="bg-card rounded-2xl p-5 shadow-lg border border-border">
-        <h3 className="text-lg font-bold text-foreground leading-snug mb-4">
-          {question.question}
-        </h3>
+        {question.questionHtml ? (
+          <div
+            className="prose prose-lg mb-4 max-w-none font-bold leading-snug text-foreground dark:prose-invert [&_p]:my-2 [&_strong]:text-foreground"
+            // eslint-disable-next-line react/no-danger -- sanitized mock bank HTML
+            dangerouslySetInnerHTML={{ __html: sanitizeMockHtml(question.questionHtml) }}
+          />
+        ) : (
+          <h3 className="mb-4 text-lg font-bold leading-snug text-foreground">{question.question}</h3>
+        )}
 
         {/* Options */}
         <div className="space-y-2">
@@ -117,7 +138,7 @@ const QuestionCard = ({ question, onNext, mockMode, onAnswerSelect }: Props) => 
                 <span className="w-7 h-7 rounded-full bg-background/50 flex items-center justify-center text-xs font-bold shrink-0">
                   {String.fromCharCode(65 + i)}
                 </span>
-                <span className="flex-1">{option}</span>
+                <OptionBody text={option} />
                 {answered && i === question.correctAnswer && (
                   <CheckCircle2 className="w-5 h-5 text-accent shrink-0" />
                 )}
@@ -238,7 +259,15 @@ const QuestionCard = ({ question, onNext, mockMode, onAnswerSelect }: Props) => 
             className="bg-accent/10 rounded-xl p-4 border border-accent/30"
           >
             <h4 className="font-bold text-sm text-foreground mb-1">📝 Solution</h4>
-            <p className="text-sm text-foreground/80">{question.solution}</p>
+            {question.solutionHtml ? (
+              <div
+                className="prose prose-sm max-w-none text-foreground/90 dark:prose-invert [&_img]:max-h-48 [&_img]:w-auto"
+                // eslint-disable-next-line react/no-danger
+                dangerouslySetInnerHTML={{ __html: sanitizeMockHtml(question.solutionHtml) }}
+              />
+            ) : (
+              <p className="text-sm text-foreground/80">{question.solution}</p>
+            )}
           </motion.div>
         )}
         {showReference && (
