@@ -1,7 +1,10 @@
 import { createServerClient } from '@supabase/ssr';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
+import { supabaseNodeFetch } from '@/lib/supabaseNodeFetch';
 import type { Database } from './types';
+
+const supabaseGlobal = { fetch: supabaseNodeFetch };
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -84,6 +87,7 @@ export async function createClient() {
   const cookieStore = await cookies();
 
   return createServerClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    global: supabaseGlobal,
     cookies: {
       getAll() {
         return cookieStore.getAll();
@@ -118,13 +122,19 @@ export function createAdminClient() {
       );
     }
   }
-  return createSupabaseClient<Database>(SUPABASE_URL, key, { auth: { persistSession: false } });
+  return createSupabaseClient<Database>(SUPABASE_URL, key, {
+    auth: { persistSession: false },
+    global: supabaseGlobal,
+  });
 }
 
 /** Server-only. Use in API routes when auth is from Authorization header so RLS sees the user. */
 export function createClientWithToken(accessToken: string) {
   return createSupabaseClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
     auth: { persistSession: false },
-    global: { headers: { Authorization: `Bearer ${accessToken}` } },
+    global: {
+      ...supabaseGlobal,
+      headers: { Authorization: `Bearer ${accessToken}` },
+    },
   });
 }

@@ -12,7 +12,7 @@ export type DailyChecklistApiResponse = {
   };
   /**
    * Cards counted toward checklist (d) vs MIN_SAVED_CARDS_INSTACUE.
-   * After any card has `savedAt`, this is saves **today** (local day window); otherwise legacy = full deck size.
+   * After any card has `savedAt`, this is saves **today** (local day window); otherwise legacy = total card count.
    */
   savedRevisionCardCount: number;
   /** Total revision cards stored on the profile (not day-scoped). */

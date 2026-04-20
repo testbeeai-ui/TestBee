@@ -201,14 +201,14 @@ export default function ReferEarnPage() {
   };
 
   const shareText = encodeURIComponent(`Join me on EduBlast — learn through questions. ${shareUrl || ""}`);
-  const waHref = `https://wa.me/?text=${shareText}`;
+  const waHref = `https://api.whatsapp.com/send?text=${shareText}`;
   const tgHref = `https://t.me/share/url?url=${encodeURIComponent(shareUrl || "")}&text=${encodeURIComponent("Join me on EduBlast")}`;
   const xHref = `https://twitter.com/intent/tweet?text=${shareText}`;
 
   const selectedCard: ReferChallengePublicSpec | null = selectedClaim ? referChallengeSpec(selectedClaim) ?? null : null;
   const playedForSelected = selectedClaim ? referDone[selectedClaim] === true : false;
-  /** Learners: one completion per claim per day. Admins: unlimited starts (no daily lock). */
-  const startChallengeLocked = playedForSelected && !isReferAdmin;
+  /** Testing mode: no per-day start lock for any claim (5/10/20/50). */
+  const startChallengeLocked = false;
 
   const handleReferChallengeTerminal = useCallback(
     (info: { claimKey: ReferClaimKey; outcome: "won" | "lost" }) => {
@@ -670,7 +670,7 @@ export default function ReferEarnPage() {
                         <Check className="h-3 w-3 text-emerald-400" />
                         Min {minPct}% to win
                       </span>
-                      {done && !isReferAdmin ? (
+                      {done ? (
                         <span className="absolute right-2 top-2 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
                           Done today
                         </span>
@@ -798,11 +798,13 @@ export default function ReferEarnPage() {
                         Start challenge
                       </Button>
                     </div>
-                    {startChallengeLocked ? (
-                      <p className="mt-2 text-center text-[11px] text-slate-500">You already finished this challenge today.</p>
-                    ) : isReferAdmin && playedForSelected ? (
+                    {isReferAdmin && playedForSelected ? (
                       <p className="mt-2 text-center text-[11px] text-violet-300/90">
                         You completed this earlier today — as admin you can replay anytime.
+                      </p>
+                    ) : playedForSelected ? (
+                      <p className="mt-2 text-center text-[11px] text-slate-400">
+                        Testing mode: you can replay this challenge unlimited times today.
                       </p>
                     ) : null}
                   </div>

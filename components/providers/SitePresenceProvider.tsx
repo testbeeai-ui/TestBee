@@ -38,19 +38,27 @@ export function SitePresenceProvider({ userId, children }: { userId: string | nu
   const unsentMsRef = useRef(0);
   const lastTickRef = useRef<number | null>(null);
   const dayKeyRef = useRef(localStudyCalendarDay());
+  /** Avoid overlapping POSTs (interval + visibility + unmount can fire together). */
+  const flushInFlightRef = useRef(false);
 
   const tryFlush = useCallback(async () => {
-    const day = dayKeyRef.current;
-    let remain = unsentMsRef.current;
-    if (remain < 2000) return;
-    while (remain >= 2000) {
-      const chunk = Math.min(remain, 5 * 60 * 1000);
-      const ok = await postPresenceDelta(day, chunk);
-      if (!ok) break;
-      remain -= chunk;
+    if (flushInFlightRef.current) return;
+    flushInFlightRef.current = true;
+    try {
+      const day = dayKeyRef.current;
+      let remain = unsentMsRef.current;
+      if (remain < 2000) return;
+      while (remain >= 2000) {
+        const chunk = Math.min(remain, 5 * 60 * 1000);
+        const ok = await postPresenceDelta(day, chunk);
+        if (!ok) break;
+        remain -= chunk;
+      }
+      unsentMsRef.current = remain;
+      setLiveMs(Math.floor(remain));
+    } finally {
+      flushInFlightRef.current = false;
     }
-    unsentMsRef.current = remain;
-    setLiveMs(Math.floor(remain));
   }, []);
 
   useEffect(() => {

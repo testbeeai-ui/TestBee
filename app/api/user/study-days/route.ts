@@ -2,6 +2,21 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAndUser } from "@/lib/apiAuth";
 import { computeStudyStreakFromDayMs } from "@/lib/studyStreakClient";
 
+function isUpstreamNetworkFailure(message: string): boolean {
+  const m = message.toLowerCase();
+  return (
+    m.includes("fetch failed") ||
+    m.includes("connect timeout") ||
+    m.includes("headers timeout") ||
+    m.includes("body timeout") ||
+    m.includes("network") ||
+    m.includes("econnreset") ||
+    m.includes("etimedout") ||
+    m.includes("eai_again") ||
+    m.includes("enotfound")
+  );
+}
+
 function parseIsoDate(s: string | null): string | null {
   if (!s || typeof s !== "string") return null;
   const t = s.trim();
@@ -37,13 +52,26 @@ export async function GET(req: NextRequest) {
   ]);
 
   if (error) {
-    console.error("[study-days GET]", error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const msg = error.message;
+    if (isUpstreamNetworkFailure(msg)) {
+      console.warn("[study-days GET] upstream:", msg.slice(0, 240));
+      return NextResponse.json(
+        { error: "Database temporarily unavailable", retryable: true },
+        { status: 503 },
+      );
+    }
+    console.error("[study-days GET]", msg);
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 
   let summary: { streak: number; activeDaysThisMonth: number } | null = null;
   if (today && summaryRes.error) {
-    console.error("[study-days summary]", summaryRes.error.message);
+    const sm = summaryRes.error.message;
+    if (isUpstreamNetworkFailure(sm)) {
+      console.warn("[study-days summary] upstream:", sm.slice(0, 240));
+    } else {
+      console.error("[study-days summary]", sm);
+    }
   } else if (today && summaryRes.data != null && typeof summaryRes.data === "object") {
     const s = summaryRes.data as { streak?: unknown; activeDaysThisMonth?: unknown };
     summary = {
@@ -100,8 +128,16 @@ export async function POST(req: NextRequest) {
       p_delta_ms: Math.trunc(deltaPresenceMs),
     });
     if (error) {
-      console.error("[study-days POST presence]", error.message);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      const msg = error.message;
+      if (isUpstreamNetworkFailure(msg)) {
+        console.warn("[study-days POST presence] upstream:", msg.slice(0, 240));
+        return NextResponse.json(
+          { error: "Database temporarily unavailable", retryable: true },
+          { status: 503 },
+        );
+      }
+      console.error("[study-days POST presence]", msg);
+      return NextResponse.json({ error: msg }, { status: 500 });
     }
     return NextResponse.json({ ok: true, kind: "presence" });
   }
@@ -120,8 +156,16 @@ export async function POST(req: NextRequest) {
   });
 
   if (error) {
-    console.error("[study-days POST rpc]", error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const msg = error.message;
+    if (isUpstreamNetworkFailure(msg)) {
+      console.warn("[study-days POST rpc] upstream:", msg.slice(0, 240));
+      return NextResponse.json(
+        { error: "Database temporarily unavailable", retryable: true },
+        { status: 503 },
+      );
+    }
+    console.error("[study-days POST rpc]", msg);
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true, kind: "study" });
