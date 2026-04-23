@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import AppLayout from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
@@ -40,7 +41,7 @@ type SimpleDoubtRow = {
   subject?: string | null;
 };
 
-export default function DoubtsPage() {
+function DoubtsPageContent() {
   const { user } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
@@ -695,5 +696,19 @@ export default function DoubtsPage() {
         </GyanDoubtsFocusTracker>
       </AppLayout>
     </ProtectedRoute>
+  );
+}
+
+export default function DoubtsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-[40vh] flex items-center justify-center text-sm text-muted-foreground">
+          Loading doubts...
+        </div>
+      }
+    >
+      <DoubtsPageContent />
+    </Suspense>
   );
 }
