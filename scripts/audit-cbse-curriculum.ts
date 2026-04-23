@@ -108,7 +108,7 @@ async function main() {
     `
     )
     .in("class_level", [11, 12])
-    .in("subject", ["physics", "chemistry", "math", "biology"]);
+    .in("subject", ["physics", "chemistry", "math"]);
 
   if (error) throw new Error(`Failed to load curriculum: ${error.message}`);
   const units = (data ?? []) as UnitRow[];
@@ -129,7 +129,9 @@ async function main() {
     const unitLabel = normalize(unit.unit_label);
     const unitTitle = normalize(unit.unit_title);
     if (!unitLabel || !unitTitle) {
-      badUnits.push(`${unit.subject} class ${unit.class_level} :: "${unit.unit_label}" -> "${unit.unit_title}"`);
+      badUnits.push(
+        `${unit.subject} class ${unit.class_level} :: "${unit.unit_label}" -> "${unit.unit_title}"`
+      );
     }
 
     const examTags = unit.exam_relevance ?? [];
@@ -206,9 +208,7 @@ async function main() {
   summarizeSet("Units with invalid exam tags", invalidExamTags);
 
   if (clearExamTags) {
-    const idsToClear = units
-      .filter((u) => (u.exam_relevance ?? []).length > 0)
-      .map((u) => u.id);
+    const idsToClear = units.filter((u) => (u.exam_relevance ?? []).length > 0).map((u) => u.id);
 
     if (idsToClear.length === 0) {
       console.log("\nNo exam tags found; nothing to clear.");
@@ -231,4 +231,3 @@ main().catch((err) => {
   console.error(err instanceof Error ? err.message : String(err));
   process.exit(1);
 });
-

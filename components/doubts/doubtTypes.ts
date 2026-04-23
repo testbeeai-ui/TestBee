@@ -1,6 +1,12 @@
 /** Shared types for the Gyan++ doubts system */
 
-export type SortOption = "recent" | "upvoted" | "unanswered" | "bounty" | "teacher_tagged" | "saved";
+export type SortOption =
+  | "recent"
+  | "upvoted"
+  | "unanswered"
+  | "bounty"
+  | "teacher_tagged"
+  | "saved";
 export type ActivityView = "feed" | "asked" | "answered" | "saved";
 export type TabFilter = "all" | "student" | "ai" | "teacher" | "revision" | "bounties";
 
@@ -32,7 +38,9 @@ export function isAiTutorAnswer(a: ExpandedAnswer): boolean {
 }
 
 /** True when the doubt author profile is the Gyan++ / Prof-Pi AI tutor (not a student). */
-export function isAiTutorDoubtAuthor(p: { name?: string | null; role?: string | null } | null | undefined): boolean {
+export function isAiTutorDoubtAuthor(
+  p: { name?: string | null; role?: string | null } | null | undefined
+): boolean {
   const role = p?.role ?? "";
   const name = (p?.name ?? "").toLowerCase();
   return (

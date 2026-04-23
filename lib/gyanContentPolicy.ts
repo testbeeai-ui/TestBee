@@ -7,9 +7,11 @@
  * - `RAG_FORMATTED_CONTEXT_MAX_CHARS` — override RAG passage char cap after retrieve (default from `RAG_CONTEXT_MAX_CHARS`).
  * - `DEBUG_GYAN_PROMPT_SIZES=1` — enables `[sarvamMetrics]` logs (chars + Sarvam `usage` tokens) from `sarvamGyanClient` after each call.
  * - `GYAN_LOG_SARVAM_USAGE=1` — same metrics line without tying to generic “prompt sizes” naming.
- * - `PROF_PI_VERIFY=1` — optional second Sarvam pass to sanity-check / repair drafts (rephrase always when enabled; full-RAG when draft looks chemistry-heavy, physics/math-heavy LaTeX, or technical biology); see `lib/profPiVerify.ts`.
+ * - `PROF_PI_VERIFY=1` — optional second Sarvam pass to sanity-check / repair drafts (rephrase always when enabled; full-RAG when draft looks chemistry-heavy or physics/math-heavy LaTeX); see `lib/profPiVerify.ts`.
  * - `PROF_PI_VERIFY_MAX_TOKENS` — completion cap for verifier (default 640).
  */
+
+import type { Subject } from "@/types";
 
 /** Max passages-sidecar text injected into Sarvam (chars) — caps input token spend */
 export const RAG_CONTEXT_MAX_CHARS = 6000;
@@ -64,24 +66,15 @@ Mathematics:
 - For calculus: note **differentiability / continuity** when invoking theorems (Rolle’s, MVT, IVT).
 - Do not skip algebraic steps that would change an equality; recheck **limits** at boundaries.
 
-Biology:
-- Use **precise process and structure names** (mitosis vs meiosis, transcription vs translation, organelles); do not swap similar terms.
-- For genetics: keep **Punnett / cross** logic consistent with stated dominance and parental genotypes.
-- Avoid overstating **causation** from correlation; stick to NCERT-level mechanism descriptions.
-
 General:
 - **Retrieved textbook / RAG passages are reference only** — they can be incomplete or wrong; prefer CBSE/NCERT-correct content even if a passage disagrees.`;
 
 /** Default sampling temperature for Prof-Pi full-RAG answer by tutoring domain (lower = more deterministic). */
-export function getProfPiDefaultTemperatureForRagKey(
-  ragKey: "physics" | "chemistry" | "math" | "biology"
-): number {
+export function getProfPiDefaultTemperatureForRagKey(ragKey: Subject): number {
   switch (ragKey) {
     case "chemistry":
       return 0.5;
     case "math":
-      return 0.52;
-    case "biology":
       return 0.52;
     case "physics":
       return 0.54;
@@ -91,16 +84,12 @@ export function getProfPiDefaultTemperatureForRagKey(
 }
 
 /** Slightly lower temperature for Prof-Pi rephrase path (similar-answer adaptation), by domain. */
-export function getProfPiRephraseTemperatureForRagKey(
-  ragKey: "physics" | "chemistry" | "math" | "biology"
-): number {
+export function getProfPiRephraseTemperatureForRagKey(ragKey: Subject): number {
   switch (ragKey) {
     case "chemistry":
       return 0.35;
     case "math":
       return 0.36;
-    case "biology":
-      return 0.37;
     case "physics":
       return 0.37;
     default:
@@ -109,15 +98,11 @@ export function getProfPiRephraseTemperatureForRagKey(
 }
 
 /** Second-chance full-RAG call when the first returns empty — keep below default for stability. */
-export function getProfPiRetryTemperatureForRagKey(
-  ragKey: "physics" | "chemistry" | "math" | "biology"
-): number {
+export function getProfPiRetryTemperatureForRagKey(ragKey: Subject): number {
   switch (ragKey) {
     case "chemistry":
       return 0.42;
     case "math":
-      return 0.44;
-    case "biology":
       return 0.44;
     case "physics":
       return 0.45;
@@ -191,5 +176,7 @@ export function logGyanPromptSizes(label: string, systemPrompt: string, userCont
   if (process.env.DEBUG_GYAN_PROMPT_SIZES !== "1") return;
   const sysLen = systemPrompt?.length ?? 0;
   const usrLen = userContent?.length ?? 0;
-  console.info(`[gyanPromptSizes] ${label} systemChars=${sysLen} userChars=${usrLen} total=${sysLen + usrLen}`);
+  console.info(
+    `[gyanPromptSizes] ${label} systemChars=${sysLen} userChars=${usrLen} total=${sysLen + usrLen}`
+  );
 }

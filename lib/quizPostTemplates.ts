@@ -44,7 +44,9 @@ function compact(value?: string | null): string | null {
 }
 
 function areaLabel(ctx: QuizPostTemplateInput): string {
-  return compact(ctx.subtopic) ?? compact(ctx.topic) ?? compact(ctx.chapter) ?? `${ctx.subject} quiz`;
+  return (
+    compact(ctx.subtopic) ?? compact(ctx.topic) ?? compact(ctx.chapter) ?? `${ctx.subject} quiz`
+  );
 }
 
 function momentumLine(ctx: QuizPostTemplateInput): string {
@@ -68,7 +70,11 @@ function hasCorrectTotal(text: string): boolean {
   return /\b\d+\s*\/\s*\d+\b/.test(text);
 }
 
-function withRequiredMetrics(title: string, details: string, ctx: QuizPostTemplateInput): { title: string; details: string } {
+function withRequiredMetrics(
+  title: string,
+  details: string,
+  ctx: QuizPostTemplateInput
+): { title: string; details: string } {
   const normalizedTitle = hasPercent(title) ? title : `${title} | ${ctx.scorePercent}%`;
   const detailsWithPct = hasPercent(details) ? details : `${details} Score: ${ctx.scorePercent}%.`;
   const normalizedDetails = hasCorrectTotal(detailsWithPct)
@@ -206,10 +212,7 @@ const lowDetailLeads = [
   "The only way out is through deliberate practice.",
 ];
 
-const mixedTitleLeads = [
-  "Public accountability check",
-  "Competitive learning log",
-];
+const mixedTitleLeads = ["Public accountability check", "Competitive learning log"];
 
 const mixedDetailLeads = [
   "Sharing this run so the process stays visible.",
@@ -217,9 +220,15 @@ const mixedDetailLeads = [
 ];
 
 const TEMPLATE_BANK: TemplateDef[] = [
-  ...highTitleLeads.map((lead, idx) => createTemplate(`high-${idx + 1}`, ["high"], lead, highDetailLeads[idx]!)),
-  ...midTitleLeads.map((lead, idx) => createTemplate(`mid-${idx + 1}`, ["mid"], lead, midDetailLeads[idx]!)),
-  ...lowTitleLeads.map((lead, idx) => createTemplate(`low-${idx + 1}`, ["low"], lead, lowDetailLeads[idx]!)),
+  ...highTitleLeads.map((lead, idx) =>
+    createTemplate(`high-${idx + 1}`, ["high"], lead, highDetailLeads[idx]!)
+  ),
+  ...midTitleLeads.map((lead, idx) =>
+    createTemplate(`mid-${idx + 1}`, ["mid"], lead, midDetailLeads[idx]!)
+  ),
+  ...lowTitleLeads.map((lead, idx) =>
+    createTemplate(`low-${idx + 1}`, ["low"], lead, lowDetailLeads[idx]!)
+  ),
   ...mixedTitleLeads.map((lead, idx) =>
     createTemplate(`mixed-${idx + 1}`, ["high", "mid", "low"], lead, mixedDetailLeads[idx]!)
   ),
@@ -250,7 +259,11 @@ export function buildQuizPostDrafts(input: QuizPostTemplateInput): QuizPostDraft
   };
   const band = toBand(normalized.scorePercent);
   const drafts = TEMPLATE_BANK.filter((tpl) => tpl.bands.includes(band)).map((tpl) => {
-    const rendered = withRequiredMetrics(tpl.title(normalized), tpl.details(normalized), normalized);
+    const rendered = withRequiredMetrics(
+      tpl.title(normalized),
+      tpl.details(normalized),
+      normalized
+    );
     return {
       templateId: tpl.id,
       title: rendered.title,
@@ -261,7 +274,11 @@ export function buildQuizPostDrafts(input: QuizPostTemplateInput): QuizPostDraft
   return drafts.length
     ? drafts
     : TEMPLATE_BANK.slice(0, 5).map((tpl) => {
-        const rendered = withRequiredMetrics(tpl.title(normalized), tpl.details(normalized), normalized);
+        const rendered = withRequiredMetrics(
+          tpl.title(normalized),
+          tpl.details(normalized),
+          normalized
+        );
         return {
           templateId: tpl.id,
           title: rendered.title,
@@ -280,4 +297,3 @@ export function pickRandomQuizPostDraft(
   const index = Math.floor(Math.random() * pool.length);
   return pool[index]!;
 }
-

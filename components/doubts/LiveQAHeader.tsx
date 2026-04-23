@@ -33,7 +33,10 @@ export default function LiveQAHeader({ todayCount, onAskClick }: LiveQAHeaderPro
           readOnly
         />
         <div className="flex gap-2 shrink-0">
-          <Button className="rounded-xl h-11 flex-1 sm:flex-initial font-bold px-5" onClick={onAskClick}>
+          <Button
+            className="rounded-xl h-11 flex-1 sm:flex-initial font-bold px-5"
+            onClick={onAskClick}
+          >
             <Plus className="w-4 h-4 mr-1.5" /> Ask
           </Button>
           <Button

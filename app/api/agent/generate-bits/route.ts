@@ -36,7 +36,10 @@ function normalizeBits(value: unknown): Array<{
       const o = row as Record<string, unknown>;
       const question = typeof o.question === "string" ? o.question.trim() : "";
       const options = Array.isArray(o.options)
-        ? o.options.filter((x): x is string => typeof x === "string").map((x) => x.trim()).filter(Boolean)
+        ? o.options
+            .filter((x): x is string => typeof x === "string")
+            .map((x) => x.trim())
+            .filter(Boolean)
         : [];
       let correctAnswer = typeof o.correctAnswer === "string" ? o.correctAnswer.trim() : "";
       const solution = typeof o.solution === "string" ? o.solution.trim() : "";
@@ -44,7 +47,9 @@ function normalizeBits(value: unknown): Array<{
 
       if (!options.includes(correctAnswer)) {
         const fuzzyAns = correctAnswer.replace(/\s+/g, "").toLowerCase();
-        const matchedOpt = options.find((opt) => opt.replace(/\s+/g, "").toLowerCase() === fuzzyAns);
+        const matchedOpt = options.find(
+          (opt) => opt.replace(/\s+/g, "").toLowerCase() === fuzzyAns
+        );
         if (matchedOpt) {
           correctAnswer = matchedOpt;
         } else {
@@ -54,7 +59,10 @@ function normalizeBits(value: unknown): Array<{
 
       return { question, options, correctAnswer, solution };
     })
-    .filter((x): x is { question: string; options: string[]; correctAnswer: string; solution: string } => Boolean(x));
+    .filter(
+      (x): x is { question: string; options: string[]; correctAnswer: string; solution: string } =>
+        Boolean(x)
+    );
 }
 
 export async function POST(request: Request) {
@@ -70,7 +78,7 @@ export async function POST(request: Request) {
     if (!isVertexForTopicAgentEnabled() && !apiKey?.trim()) {
       return NextResponse.json(
         { error: "GEMINI_API_KEY or GOOGLE_GENERATIVE_AI_API_KEY is not configured." },
-        { status: 503 },
+        { status: 503 }
       );
     }
 
@@ -84,8 +92,13 @@ export async function POST(request: Request) {
     const includeTrace = body?.includeTrace === true;
 
     if (
-      !board || !subject || !topic || !subtopicName ||
-      !ALLOWED_LEVELS.has(level) || Number.isNaN(classLevel) || ![11, 12].includes(classLevel)
+      !board ||
+      !subject ||
+      !topic ||
+      !subtopicName ||
+      !ALLOWED_LEVELS.has(level) ||
+      Number.isNaN(classLevel) ||
+      ![11, 12].includes(classLevel)
     ) {
       return NextResponse.json({ error: "Missing or invalid fields" }, { status: 400 });
     }
@@ -94,8 +107,12 @@ export async function POST(request: Request) {
     const { data: existing, error: fetchErr } = await supabase
       .from("subtopic_content")
       .select("theory")
-      .eq("board", board).eq("subject", subject).eq("class_level", classLevel)
-      .eq("topic", topic).eq("subtopic_name", subtopicName).eq("level", level)
+      .eq("board", board)
+      .eq("subject", subject)
+      .eq("class_level", classLevel)
+      .eq("topic", topic)
+      .eq("subtopic_name", subtopicName)
+      .eq("level", level)
       .maybeSingle();
 
     if (fetchErr || !existing?.theory?.trim()) {
@@ -109,7 +126,14 @@ export async function POST(request: Request) {
     const targetBits = level === "advanced" ? 32 : level === "intermediate" ? 20 : 14;
     const ragMatchCount = level === "advanced" ? 24 : level === "intermediate" ? 16 : 10;
     const ragQuery = `${topic} ${subtopicName} CBSE Class ${classLevel} ${subject} exam MCQ numerical conceptual`;
-    const rag = await fetchRAGContext(ragQuery, subject, classLevel, topic, subtopicName, ragMatchCount);
+    const rag = await fetchRAGContext(
+      ragQuery,
+      subject,
+      classLevel,
+      topic,
+      subtopicName,
+      ragMatchCount
+    );
     const ragBlock = rag?.formattedContext
       ? `\n\nRAG CONTEXT (trusted textbook snippets):\n${rag.formattedContext}`
       : "";
@@ -142,7 +166,12 @@ ${existing.theory.slice(0, 16000)}${ragBlock}`;
     const modelId = vertexEnabled ? vertexResolvedId : studioModelId;
 
     let backend = vertexEnabled ? "vertex" : "api_key";
-    let items: Array<{ question: string; options: string[]; correctAnswer: string; solution: string }> = [];
+    let items: Array<{
+      question: string;
+      options: string[];
+      correctAnswer: string;
+      solution: string;
+    }> = [];
     let raw = "";
 
     for (let attempt = 1; attempt <= 3; attempt++) {
@@ -194,7 +223,9 @@ ${existing.theory.slice(0, 16000)}${ragBlock}`;
       if (items.length >= minBits) break;
     }
 
-    console.log(`[generate-bits] backend=${backend} model=${modelId} topic=${topic} subtopic=${subtopicName} level=${level}`);
+    console.log(
+      `[generate-bits] backend=${backend} model=${modelId} topic=${topic} subtopic=${subtopicName} level=${level}`
+    );
     if (items.length < minBits) {
       return NextResponse.json(
         {
@@ -209,12 +240,19 @@ ${existing.theory.slice(0, 16000)}${ragBlock}`;
 
     const persistDb = supabaseForLongJobPersist(supabase);
     const safeItems = sanitizeJsonForDb(items);
-    const { error: upsertError } = await persistDb.from("subtopic_content").update({
-      bits_questions: safeItems,
-      updated_by: user.id,
-      updated_at: new Date().toISOString(),
-    }).eq("board", board).eq("subject", subject).eq("class_level", classLevel)
-      .eq("topic", topic).eq("subtopic_name", subtopicName).eq("level", level);
+    const { error: upsertError } = await persistDb
+      .from("subtopic_content")
+      .update({
+        bits_questions: safeItems,
+        updated_by: user.id,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("board", board)
+      .eq("subject", subject)
+      .eq("class_level", classLevel)
+      .eq("topic", topic)
+      .eq("subtopic_name", subtopicName)
+      .eq("level", level);
 
     if (upsertError) {
       console.error("bits_questions update error", upsertError);
@@ -228,7 +266,9 @@ ${existing.theory.slice(0, 16000)}${ragBlock}`;
         pipelineSteps: [
           "Verify admin user.",
           "Fetch existing theory from subtopic_content.",
-          rag?.formattedContext ? `Fetch RAG context (${rag?.chunkCount ?? 0} chunks).` : "RAG returned no context.",
+          rag?.formattedContext
+            ? `Fetch RAG context (${rag?.chunkCount ?? 0} chunks).`
+            : "RAG returned no context.",
           `Call Gemini "${modelId}" with Bits MCQ schema.`,
           `Generated ${items.length} questions. Saved to subtopic_content.bits_questions.`,
         ],

@@ -1,15 +1,20 @@
-import type { Subject } from '@/types';
-import type { ClassLevel } from '@/types';
+import type { Subject } from "@/types";
+import type { ClassLevel } from "@/types";
 
 export type InteractiveBlock =
   | {
-      type: 'active-reading';
+      type: "active-reading";
       id: string;
-      preQuestion: { question: string; options: string[]; correctAnswer: number; explanation: string };
+      preQuestion: {
+        question: string;
+        options: string[];
+        correctAnswer: number;
+        explanation: string;
+      };
       content: string;
     }
   | {
-      type: 'formula-variations';
+      type: "formula-variations";
       id: string;
       title: string;
       formula: string;
@@ -23,14 +28,14 @@ export type InteractiveBlock =
       }[];
     }
   | {
-      type: 'fill-in-blanks';
+      type: "fill-in-blanks";
       id: string;
       content: string;
       textWithBlanks: string;
       blanks: { options: string[]; correctAnswer: string }[];
     }
   | {
-      type: 'text';
+      type: "text";
       id: string;
       content: string;
     };
@@ -49,9 +54,14 @@ export interface SubtopicTheory {
   theorySectionsWithPractice?: TheorySectionWithPractice[];
 }
 
-export type DifficultyLevel = 'basics' | 'intermediate' | 'advanced';
+export type DifficultyLevel = "basics" | "intermediate" | "advanced";
 
-function key(subject: Subject, classLevel: ClassLevel, topic: string, subtopicName: string): string {
+function key(
+  subject: Subject,
+  classLevel: ClassLevel,
+  topic: string,
+  subtopicName: string
+): string {
   return `${subject}|${classLevel}|${topic}|${subtopicName}`;
 }
 
@@ -77,7 +87,7 @@ export function getTheoryForSubtopic(
     const levelKey = keyWithLevel(baseKey, level);
     const levelContent = theoryMap[levelKey];
     if (levelContent) return levelContent;
-    if (level === 'intermediate' || level === 'advanced') {
+    if (level === "intermediate" || level === "advanced") {
       return null;
     }
   }
@@ -94,20 +104,20 @@ export function getTopicOverviewOrPlaceholder(
 ): SubtopicTheory {
   const list =
     subtopicTitles.length > 0
-      ? subtopicTitles.map((t, i) => `* **${i + 1}.** ${t}`).join('\n')
-      : '* Subtopics will appear here once the syllabus loads.';
+      ? subtopicTitles.map((t, i) => `* **${i + 1}.** ${t}`).join("\n")
+      : "* Subtopics will appear here once the syllabus loads.";
 
   const levelNote =
-    level === 'intermediate'
-      ? '\n\n**Intermediate** adds derivations and exam-style problems on top of the basics.'
-      : level === 'advanced'
-        ? '\n\n**Advanced** covers deeper theory and competition-level ideas.'
-        : '';
+    level === "intermediate"
+      ? "\n\n**Intermediate** adds derivations and exam-style problems on top of the basics."
+      : level === "advanced"
+        ? "\n\n**Advanced** covers deeper theory and competition-level ideas."
+        : "";
 
   return {
     theory: `**${topic}** — topic overview
 
-This lesson is organised into **${subtopicTitles.length}** subtopic${subtopicTitles.length === 1 ? '' : 's'}. Use the numbered links in the sidebar to open each subtopic on its **own page** with full theory and practice.
+This lesson is organised into **${subtopicTitles.length}** subtopic${subtopicTitles.length === 1 ? "" : "s"}. Use the numbered links in the sidebar to open each subtopic on its **own page** with full theory and practice.
 
 **What you will cover**
 ${list}
@@ -133,9 +143,9 @@ export function getTheoryOrPlaceholder(
   const levelContent = level ? theoryMap[keyWithLevel(baseKey, level)] : null;
 
   if (levelContent) return levelContent;
-  if (baseContent && (level === 'basics' || !level)) return baseContent;
-  if (baseContent && (level === 'intermediate' || level === 'advanced')) {
-    const levelLabel = level === 'intermediate' ? 'Intermediate' : 'Advanced';
+  if (baseContent && (level === "basics" || !level)) return baseContent;
+  if (baseContent && (level === "intermediate" || level === "advanced")) {
+    const levelLabel = level === "intermediate" ? "Intermediate" : "Advanced";
     return {
       theory: `**${levelLabel}** content for **${subtopicName}** is not in the database yet.
 
@@ -145,7 +155,7 @@ It will be delivered from **Supabase** when published. Study your textbook and n
   }
 
   const levelLabel =
-    level === 'intermediate' ? 'Intermediate' : level === 'advanced' ? 'Advanced' : 'Basic';
+    level === "intermediate" ? "Intermediate" : level === "advanced" ? "Advanced" : "Basic";
 
   return {
     theory: `**${subtopicName}** (${topic} · ${subject}, Class ${classLevel} · ${levelLabel})

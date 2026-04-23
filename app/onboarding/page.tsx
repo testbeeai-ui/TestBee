@@ -6,28 +6,44 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowRight, BookOpen, GraduationCap, Award, Globe, Lock, Sparkles, Check, UserCircle2 } from "lucide-react";
+import {
+  ArrowRight,
+  BookOpen,
+  GraduationCap,
+  Award,
+  Globe,
+  Lock,
+  Sparkles,
+  Check,
+  UserCircle2,
+} from "lucide-react";
 import { TARGET_EXAM_OPTIONS, type TargetExamKey } from "@/lib/targetExam";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 
 const teachingLevels = ["School", "UG", "PG", "Competitive", "International"];
-const teachingLevelToNumber: Record<string, number> = { School: 1, UG: 2, PG: 3, Competitive: 4, International: 5 };
+const teachingLevelToNumber: Record<string, number> = {
+  School: 1,
+  UG: 2,
+  PG: 3,
+  Competitive: 4,
+  International: 5,
+};
 const examTags = ["JEE", "NEET", "GRE", "GMAT", "SAT", "TOEFL"];
-const subjects = ["Physics", "Chemistry", "Math", "Biology"];
-const studentExamTargets: { key: TargetExamKey; label: string; tag?: string; locked?: boolean }[] = [
-  { key: "cbse", label: "CBSE Board", locked: true },
-  { key: "jee_mains", label: "JEE Main", tag: "NTA" },
-  { key: "jee_advance", label: "JEE Advanced", tag: "IIT" },
-  { key: "other", label: "Other" },
-];
+const subjects = ["Physics", "Chemistry", "Math"];
+const studentExamTargets: { key: TargetExamKey; label: string; tag?: string; locked?: boolean }[] =
+  [
+    { key: "cbse", label: "CBSE Board", locked: true },
+    { key: "jee_mains", label: "JEE Main", tag: "NTA" },
+    { key: "jee_advance", label: "JEE Advanced", tag: "IIT" },
+    { key: "other", label: "Other" },
+  ];
 const mandatoryStudentSubjects = [
   { key: "physics", label: "Physics", subtitle: "Mechanics, electrostatics, optics" },
   { key: "chemistry", label: "Chemistry", subtitle: "Organic, inorganic & physical" },
   { key: "math", label: "Mathematics", subtitle: "Calculus, algebra, geometry" },
 ];
 const comingSoonStudentSubjects = [
-  { key: "biology", label: "Biology", subtitle: "Botany & zoology" },
   { key: "other", label: "Other", subtitle: "Specify when available" },
 ];
 const visibilityOptions = [
@@ -37,7 +53,13 @@ const visibilityOptions = [
 
 export default function Onboarding() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-background"><span className="text-4xl animate-pulse">🎯</span></div>}>
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-background">
+          <span className="text-4xl animate-pulse">🎯</span>
+        </div>
+      }
+    >
       <OnboardingContent />
     </Suspense>
   );
@@ -149,31 +171,40 @@ function OnboardingContent() {
       };
 
       if (role === "student") {
-        const primaryTargetExam: TargetExamKey =
-          studentTargetExams.includes("jee_advance")
-            ? "jee_advance"
-            : studentTargetExams.includes("jee_mains")
-              ? "jee_mains"
-              : studentTargetExams.includes("other")
-                ? "other"
-                : "cbse";
+        const primaryTargetExam: TargetExamKey = studentTargetExams.includes("jee_advance")
+          ? "jee_advance"
+          : studentTargetExams.includes("jee_mains")
+            ? "jee_mains"
+            : studentTargetExams.includes("other")
+              ? "other"
+              : "cbse";
         (updates as Record<string, unknown>).class_level = studentClassLevel;
         (updates as Record<string, unknown>).target_exam = primaryTargetExam;
         (updates as Record<string, unknown>).exam_tags = studentTargetExams;
         (updates as Record<string, unknown>).subject_combo = subjectCombo;
         (updates as Record<string, unknown>).stream = "science";
       } else {
-        (updates as Record<string, unknown>).subjects = teachingSubjects.length ? teachingSubjects : null;
+        (updates as Record<string, unknown>).subjects = teachingSubjects.length
+          ? teachingSubjects
+          : null;
         (updates as Record<string, unknown>).teaching_levels = selectedLevels.length
           ? selectedLevels.map((l) => teachingLevelToNumber[l] ?? 0).filter(Boolean)
           : null;
-        (updates as Record<string, unknown>).exam_tags = selectedExams.length ? selectedExams : null;
+        (updates as Record<string, unknown>).exam_tags = selectedExams.length
+          ? selectedExams
+          : null;
       }
 
       const payload = { id: user.id, ...updates };
-      const { error: profileError } = await supabase.from("profiles").upsert(payload, { onConflict: "id" });
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .upsert(payload, { onConflict: "id" });
       if (profileError) {
-        toast({ title: "Could not save profile", description: profileError.message, variant: "destructive" });
+        toast({
+          title: "Could not save profile",
+          description: profileError.message,
+          variant: "destructive",
+        });
         return;
       }
 
@@ -205,14 +236,22 @@ function OnboardingContent() {
             <div className="text-center mb-8">
               <span className="text-5xl block mb-3">👋</span>
               <h1 className="text-3xl font-display text-white">Who are you?</h1>
-              <p className="text-zinc-300 mt-2">
-                Choose your role to personalize your experience
-              </p>
+              <p className="text-zinc-300 mt-2">Choose your role to personalize your experience</p>
             </div>
             <div className="grid grid-cols-2 gap-4">
               {[
-                { r: "student" as const, emoji: "🎓", title: "Student", desc: "Learn, practice & conquer exams" },
-                { r: "teacher" as const, emoji: "📖", title: "Teacher", desc: "Create classrooms & teach" },
+                {
+                  r: "student" as const,
+                  emoji: "🎓",
+                  title: "Student",
+                  desc: "Learn, practice & conquer exams",
+                },
+                {
+                  r: "teacher" as const,
+                  emoji: "📖",
+                  title: "Teacher",
+                  desc: "Create classrooms & teach",
+                },
               ].map(({ r, emoji, title, desc }) => (
                 <button
                   key={r}
@@ -247,7 +286,9 @@ function OnboardingContent() {
                   <UserCircle2 className="h-5 w-5" />
                 </div>
                 <div>
-                  <h2 className="text-[2rem] sm:text-[2.15rem] font-extrabold leading-tight text-white">Set up your profile</h2>
+                  <h2 className="text-[2rem] sm:text-[2.15rem] font-extrabold leading-tight text-white">
+                    Set up your profile
+                  </h2>
                   <p className="text-sm sm:text-[15px] text-zinc-200 mt-1">
                     Personalises learning and verifies you for scholarships, awards & rewards
                   </p>
@@ -270,10 +311,10 @@ function OnboardingContent() {
                 <div>
                   <label className="text-sm font-extrabold text-white mb-2 block">Class</label>
                   <div className="grid grid-cols-2 gap-3">
-                    {([
+                    {[
                       { value: 11 as const, label: "11", subtitle: "First year" },
                       { value: 12 as const, label: "12", subtitle: "Second year" },
-                    ]).map((cl) => (
+                    ].map((cl) => (
                       <button
                         key={cl.value}
                         type="button"
@@ -284,15 +325,21 @@ function OnboardingContent() {
                             : "border-white/14 bg-white/[0.025] hover:bg-white/[0.05]"
                         }`}
                       >
-                        <div className="text-4xl font-black leading-none text-white">{cl.label}</div>
-                        <div className="mt-1 text-sm font-semibold text-zinc-200">{cl.subtitle}</div>
+                        <div className="text-4xl font-black leading-none text-white">
+                          {cl.label}
+                        </div>
+                        <div className="mt-1 text-sm font-semibold text-zinc-200">
+                          {cl.subtitle}
+                        </div>
                       </button>
                     ))}
                   </div>
                 </div>
 
                 <div>
-                  <label className="text-sm font-extrabold text-white mb-2 block">Exam targets — multi-select</label>
+                  <label className="text-sm font-extrabold text-white mb-2 block">
+                    Exam targets — multi-select
+                  </label>
                   <div className="grid grid-cols-2 gap-3">
                     {studentExamTargets.map((exam) => {
                       const active = studentTargetExams.includes(exam.key);
@@ -302,7 +349,9 @@ function OnboardingContent() {
                           type="button"
                           onClick={() => toggleStudentExam(exam.key, exam.locked)}
                           className={`rounded-2xl border px-4 py-3 text-left transition-all duration-200 ${
-                            active ? "border-primary/75 bg-primary/16 shadow-[0_0_0_1px_rgba(59,130,246,0.24)]" : "border-white/14 bg-white/[0.025] hover:bg-white/[0.05]"
+                            active
+                              ? "border-primary/75 bg-primary/16 shadow-[0_0_0_1px_rgba(59,130,246,0.24)]"
+                              : "border-white/14 bg-white/[0.025] hover:bg-white/[0.05]"
                           } ${exam.locked ? "cursor-default" : ""}`}
                         >
                           <div className="flex items-center justify-between gap-3">
@@ -316,7 +365,9 @@ function OnboardingContent() {
                               >
                                 {active ? <Check className="h-4 w-4" /> : null}
                               </span>
-                              <span className="text-lg leading-tight font-extrabold text-white tracking-tight">{exam.label}</span>
+                              <span className="text-lg leading-tight font-extrabold text-white tracking-tight">
+                                {exam.label}
+                              </span>
                             </div>
                           </div>
                         </button>
@@ -327,7 +378,9 @@ function OnboardingContent() {
               </div>
 
               <div>
-                <label className="text-sm font-extrabold text-white mb-2 block">Subjects — pick what you study</label>
+                <label className="text-sm font-extrabold text-white mb-2 block">
+                  Subjects — pick what you study
+                </label>
                 <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
                   <div className="space-y-3">
                     {mandatoryStudentSubjects.map((item) => (
@@ -344,7 +397,9 @@ function OnboardingContent() {
                             <p className="truncate text-[2rem] font-black leading-none tracking-tight text-zinc-900">
                               {item.label}
                             </p>
-                            <p className="mt-0.5 truncate text-sm font-medium text-zinc-500">{item.subtitle}</p>
+                            <p className="mt-0.5 truncate text-sm font-medium text-zinc-500">
+                              {item.subtitle}
+                            </p>
                           </div>
                           <span className="ml-auto hidden rounded-full border border-emerald-300/80 bg-emerald-100/80 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-emerald-700 sm:inline-flex">
                             Core
@@ -361,7 +416,9 @@ function OnboardingContent() {
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div>
-                            <p className="text-[2.1rem] font-black text-zinc-200 leading-none">{item.label}</p>
+                            <p className="text-[2.1rem] font-black text-zinc-200 leading-none">
+                              {item.label}
+                            </p>
                             <p className="mt-0.5 text-sm text-zinc-400">{item.subtitle}</p>
                           </div>
                           <span className="text-sm font-bold text-zinc-500">Soon</span>
@@ -378,7 +435,11 @@ function OnboardingContent() {
               </div>
 
               <div className="flex gap-3 pt-3">
-                <Button variant="outline" onClick={() => setStep("role")} className="auth-glass-outline-btn rounded-xl min-w-24">
+                <Button
+                  variant="outline"
+                  onClick={() => setStep("role")}
+                  className="auth-glass-outline-btn rounded-xl min-w-24"
+                >
                   Back
                 </Button>
                 <Button
@@ -407,7 +468,9 @@ function OnboardingContent() {
                 </div>
                 <h2 className="text-2xl font-display font-bold text-white">Teacher Profile</h2>
               </div>
-              <p className="text-center text-sm text-zinc-300">Set up your teaching profile so students can find you</p>
+              <p className="text-center text-sm text-zinc-300">
+                Set up your teaching profile so students can find you
+              </p>
             </div>
 
             <div className="p-8 space-y-7">
@@ -490,14 +553,22 @@ function OnboardingContent() {
                     >
                       <Icon className="w-5 h-5" />
                       <span>{label}</span>
-                      <span className={`text-xs font-normal ${visibility === value ? "opacity-90" : "opacity-70"}`}>{desc}</span>
+                      <span
+                        className={`text-xs font-normal ${visibility === value ? "opacity-90" : "opacity-70"}`}
+                      >
+                        {desc}
+                      </span>
                     </button>
                   ))}
                 </div>
               </div>
 
               <div className="flex gap-3 pt-2">
-                <Button variant="outline" onClick={() => setStep("role")} className="auth-glass-outline-btn rounded-xl font-semibold shrink-0">
+                <Button
+                  variant="outline"
+                  onClick={() => setStep("role")}
+                  className="auth-glass-outline-btn rounded-xl font-semibold shrink-0"
+                >
                   Back
                 </Button>
                 <Button

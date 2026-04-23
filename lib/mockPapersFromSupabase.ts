@@ -32,7 +32,7 @@ type QuestionRow = {
 };
 
 function isSubject(s: string): s is Subject {
-  return s === "physics" || s === "chemistry" || s === "math" || s === "biology";
+  return s === "physics" || s === "chemistry" || s === "math";
 }
 
 function isMockPaperType(s: string): s is MockPaperType {
@@ -71,7 +71,7 @@ export async function fetchMockPapersFromSupabase(): Promise<MockPaper[]> {
   const { data, error } = await supabase
     .from("mock_papers")
     .select(
-      "id, slug, title, exam_name, exam_set_name, paper_type, duration_minutes, total_marks, question_count, marking_scheme, class_level, tags, subjects_covered",
+      "id, slug, title, exam_name, exam_set_name, paper_type, duration_minutes, total_marks, question_count, marking_scheme, class_level, tags, subjects_covered"
     )
     .eq("published", true)
     .order("created_at", { ascending: false });
@@ -104,7 +104,7 @@ export async function fetchMockQuestionsForPaper(paperId: string): Promise<Quest
   const { data, error } = await supabase
     .from("mock_questions")
     .select(
-      "id, paper_id, sort_order, subject, topic, chapter, difficulty, question_html, solution_html, correct_letter, options_json",
+      "id, paper_id, sort_order, subject, topic, chapter, difficulty, question_html, solution_html, correct_letter, options_json"
     )
     .eq("paper_id", paperId)
     .order("sort_order", { ascending: true });

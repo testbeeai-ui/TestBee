@@ -8,7 +8,9 @@ import { runGyanBotPostCycle } from "@/lib/gyanBotPostCycle";
 
 function missingTableHint(message: string): string | undefined {
   if (
-    /relation ["'].*gyan_bot_config|does not exist|schema cache|could not find the table/i.test(message)
+    /relation ["'].*gyan_bot_config|does not exist|schema cache|could not find the table/i.test(
+      message
+    )
   ) {
     return "Apply the migration: open supabase/migrations/20260411130000_gyan_bot_config.sql in Supabase SQL Editor and run it, or run `supabase db push` from the project root.";
   }
@@ -35,7 +37,11 @@ export async function GET(request: Request) {
       );
     }
 
-    const { data, error } = await admin.from("gyan_bot_config").select("*").eq("id", 1).maybeSingle();
+    const { data, error } = await admin
+      .from("gyan_bot_config")
+      .select("*")
+      .eq("id", 1)
+      .maybeSingle();
     if (error) {
       const hint = missingTableHint(error.message);
       console.error("[admin/gyan-bot GET]", error.code, error.message);
@@ -51,12 +57,19 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       config: data,
-      nextStudent: { name: nextStudent.name, index: data?.current_student_index ?? 0, subjectFocus: nextStudent.subjectFocus },
+      nextStudent: {
+        name: nextStudent.name,
+        index: data?.current_student_index ?? 0,
+        subjectFocus: nextStudent.subjectFocus,
+      },
       capabilities,
       warnings,
     });
   } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : "Server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : "Server error" },
+      { status: 500 }
+    );
   }
 }
 
@@ -89,7 +102,11 @@ export async function POST(request: Request) {
 
     if (body.run_one_cycle === true) {
       const cycle = await runGyanBotPostCycle(admin, { bypassInterval: true });
-      const { data: cfg } = await admin.from("gyan_bot_config").select("*").eq("id", 1).maybeSingle();
+      const { data: cfg } = await admin
+        .from("gyan_bot_config")
+        .select("*")
+        .eq("id", 1)
+        .maybeSingle();
       if (!cycle.ok) {
         return NextResponse.json({ error: cycle.error, config: cfg }, { status: 500 });
       }
@@ -137,6 +154,9 @@ export async function POST(request: Request) {
     }
     return NextResponse.json({ ok: true, config: data });
   } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : "Server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : "Server error" },
+      { status: 500 }
+    );
   }
 }

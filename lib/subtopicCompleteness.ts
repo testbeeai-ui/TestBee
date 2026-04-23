@@ -48,17 +48,14 @@ export function assessSubtopicRow(row: SubtopicRowShape | null | undefined): Sub
   const bits = Array.isArray(row?.bits_questions) ? row!.bits_questions : [];
   const formulas = Array.isArray(row?.practice_formulas) ? row!.practice_formulas : [];
 
-  const theoryMissingOrPlaceholder =
-    !theory || subtopicTheoryIsPlaceholder(theory);
+  const theoryMissingOrPlaceholder = !theory || subtopicTheoryIsPlaceholder(theory);
   const instacueGap = instacue.length < MIN_INSTACUE_CARDS;
   const bitsGap = bits.length < MIN_BITS_QUESTIONS;
 
   const skipFormulasConceptual =
-    formulas.length === 0 &&
-    !(bits.length > 0 || theoryMayContainFormulas(theory));
+    formulas.length === 0 && !(bits.length > 0 || theoryMayContainFormulas(theory));
 
-  const formulasGap =
-    formulas.length === 0 && !skipFormulasConceptual;
+  const formulasGap = formulas.length === 0 && !skipFormulasConceptual;
 
   return {
     theoryMissingOrPlaceholder,
@@ -137,7 +134,9 @@ export async function fetchTopicHubGateWithRows(
 
   const byLevel: Partial<Record<string, TopicContentGateRow>> = {};
   for (const row of data ?? []) {
-    const lv = String((row as { level?: string }).level ?? "").trim().toLowerCase();
+    const lv = String((row as { level?: string }).level ?? "")
+      .trim()
+      .toLowerCase();
     if (lv) {
       byLevel[lv] = row as TopicContentGateRow;
     }

@@ -36,17 +36,12 @@ export function getSarvamMaxOutputTokensCap(): number {
 /** Clamp caller request to [min, cap] where cap comes from env (default starter-safe). */
 export function resolveSarvamMaxTokens(requested?: number): number {
   const cap = getSarvamMaxOutputTokensCap();
-  const r =
-    requested == null || !Number.isFinite(requested)
-      ? cap
-      : Math.floor(requested);
+  const r = requested == null || !Number.isFinite(requested) ? cap : Math.floor(requested);
   return Math.min(Math.max(r, SARVAM_OUTPUT_TOKENS_MIN), cap);
 }
 
 export function stripSarvamThinking(text: string): string {
-  return text
-    .replace(/<think>[\s\S]*?<\/(?:redacted_thinking|think)>\s*/gi, "")
-    .trim();
+  return text.replace(/<think>[\s\S]*?<\/(?:redacted_thinking|think)>\s*/gi, "").trim();
 }
 
 export function normalizeLatexForGyan(text: string): string {
@@ -266,9 +261,7 @@ function removeTrailingCommasInJson(json: string): string {
 
 function tryParseJsonRecord(slice: string): Record<string, unknown> | null {
   const variants = [slice, removeTrailingCommasInJson(slice)];
-  const unicodeFixed = variants.map((v) =>
-    v.replace(/\u201c|\u201d/g, '"').replace(/\uFEFF/g, ""),
-  );
+  const unicodeFixed = variants.map((v) => v.replace(/\u201c|\u201d/g, '"').replace(/\uFEFF/g, ""));
   for (const t of unicodeFixed) {
     try {
       const v = JSON.parse(t) as unknown;

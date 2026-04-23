@@ -143,8 +143,10 @@ export default function AdminUsersPage() {
 
   const statusBadge = (status: AdminUser["status"]) => {
     if (status === "banned") return <Badge variant="destructive">Banned</Badge>;
-    if (status === "suspended") return <Badge className="bg-amber-600 hover:bg-amber-600">Suspended</Badge>;
-    if (status === "soft_deleted") return <Badge className="bg-slate-600 hover:bg-slate-600">Soft Deleted</Badge>;
+    if (status === "suspended")
+      return <Badge className="bg-amber-600 hover:bg-amber-600">Suspended</Badge>;
+    if (status === "soft_deleted")
+      return <Badge className="bg-slate-600 hover:bg-slate-600">Soft Deleted</Badge>;
     return <Badge className="bg-emerald-600 hover:bg-emerald-600">Active</Badge>;
   };
 
@@ -156,10 +158,18 @@ export default function AdminUsersPage() {
           Full governance: suspend, ban, soft delete, restore, and open user analytics.
         </p>
         <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-xl border bg-background p-3 text-sm">Students: <span className="font-semibold">{stats.students}</span></div>
-          <div className="rounded-xl border bg-background p-3 text-sm">Teachers: <span className="font-semibold">{stats.teachers}</span></div>
-          <div className="rounded-xl border bg-background p-3 text-sm">Admins: <span className="font-semibold">{stats.admins}</span></div>
-          <div className="rounded-xl border bg-background p-3 text-sm">Banned: <span className="font-semibold">{stats.banned}</span></div>
+          <div className="rounded-xl border bg-background p-3 text-sm">
+            Students: <span className="font-semibold">{stats.students}</span>
+          </div>
+          <div className="rounded-xl border bg-background p-3 text-sm">
+            Teachers: <span className="font-semibold">{stats.teachers}</span>
+          </div>
+          <div className="rounded-xl border bg-background p-3 text-sm">
+            Admins: <span className="font-semibold">{stats.admins}</span>
+          </div>
+          <div className="rounded-xl border bg-background p-3 text-sm">
+            Banned: <span className="font-semibold">{stats.banned}</span>
+          </div>
         </div>
       </div>
 
@@ -176,9 +186,7 @@ export default function AdminUsersPage() {
           </Button>
         </div>
 
-        {error ? (
-          <p className="text-sm text-destructive">{error}</p>
-        ) : null}
+        {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
         <div className="rounded-xl border">
           <Table>
@@ -218,9 +226,7 @@ export default function AdminUsersPage() {
                       <TableCell>
                         <Badge variant="secondary">{user.role || "unknown"}</Badge>
                       </TableCell>
-                      <TableCell>
-                        {statusBadge(user.status)}
-                      </TableCell>
+                      <TableCell>{statusBadge(user.status)}</TableCell>
                       <TableCell>
                         {user.classLevel ? `Class ${user.classLevel}` : "—"}
                         {user.stream ? ` · ${user.stream}` : ""}
@@ -277,7 +283,10 @@ export default function AdminUsersPage() {
                                   onChange={(e) =>
                                     setSuspendDaysByUser((prev) => ({
                                       ...prev,
-                                      [user.id]: Math.max(1, Math.min(365, Number(e.target.value) || 7)),
+                                      [user.id]: Math.max(
+                                        1,
+                                        Math.min(365, Number(e.target.value) || 7)
+                                      ),
                                     }))
                                   }
                                   className="w-16 rounded-md border bg-background px-2 py-1 text-xs"

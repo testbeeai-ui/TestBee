@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAndUser } from "@/lib/apiAuth";
+import { syncAssignmentTasksForKinds } from "@/lib/classroom/syncAssignmentTaskProgress";
 
 const FIELDS = ["class", "revision", "mock", "doubt"] as const;
 type ActivityField = (typeof FIELDS)[number];
@@ -70,7 +71,9 @@ export async function GET(req: NextRequest) {
     summary = {
       streak: typeof s.streak === "number" ? s.streak : Number(s.streak) || 0,
       totalActiveDays:
-        typeof s.total_active_days === "number" ? s.total_active_days : Number(s.total_active_days) || 0,
+        typeof s.total_active_days === "number"
+          ? s.total_active_days
+          : Number(s.total_active_days) || 0,
     };
   }
 
@@ -94,7 +97,10 @@ export async function POST(req: NextRequest) {
   const b = body as { activity?: string; day?: string };
   const activity = typeof b.activity === "string" ? b.activity : "";
   if (!isActivityField(activity)) {
-    return NextResponse.json({ error: "activity must be class, revision, mock, or doubt" }, { status: 400 });
+    return NextResponse.json(
+      { error: "activity must be class, revision, mock, or doubt" },
+      { status: 400 }
+    );
   }
 
   let dayStr: string;
@@ -116,6 +122,16 @@ export async function POST(req: NextRequest) {
   if (error) {
     console.error("[prep-calendar POST rpc]", error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  if (activity === "mock") {
+    void syncAssignmentTasksForKinds(auth.supabase, auth.user.id, ["mock_paper"]).catch((e) => {
+      console.warn("[prep-calendar] assignment task sync (mock)", e);
+    });
+  } else if (activity === "revision") {
+    void syncAssignmentTasksForKinds(auth.supabase, auth.user.id, ["instacue"]).catch((e) => {
+      console.warn("[prep-calendar] assignment task sync (revision)", e);
+    });
   }
 
   return NextResponse.json({ ok: true, day: dayStr, activity });

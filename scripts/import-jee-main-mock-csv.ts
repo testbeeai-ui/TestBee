@@ -44,12 +44,12 @@ function extractStemAndOptions(html: string): { stemHtml: string; options: strin
   return { stemHtml, options: ordered as string[] };
 }
 
-function normalizeSubject(raw: string): "physics" | "chemistry" | "math" | "biology" | null {
+function normalizeSubject(raw: string): "physics" | "chemistry" | "math" | null {
   const s = raw.trim().toLowerCase();
   if (s === "physics") return "physics";
   if (s === "chemistry") return "chemistry";
   if (s === "mathematics" || s === "math") return "math";
-  if (s === "biology") return "biology";
+  if (s === "biology") return null;
   return null;
 }
 
@@ -83,7 +83,11 @@ async function main() {
 
   const supabase = createClient(url, key);
 
-  const { data: existing } = await supabase.from("mock_papers").select("id").eq("slug", SLUG).maybeSingle();
+  const { data: existing } = await supabase
+    .from("mock_papers")
+    .select("id")
+    .eq("slug", SLUG)
+    .maybeSingle();
   if (existing?.id) {
     const { error: delErr } = await supabase.from("mock_papers").delete().eq("slug", SLUG);
     if (delErr) {
@@ -105,7 +109,7 @@ async function main() {
 
   type Prepared = Record<string, unknown> & { _sortKey: number };
   const prepared: Prepared[] = [];
-  const coveredSet = new Set<"physics" | "chemistry" | "math" | "biology">();
+  const coveredSet = new Set<"physics" | "chemistry" | "math">();
   let skipped = 0;
 
   for (const row of rows) {
@@ -135,7 +139,8 @@ async function main() {
       continue;
     }
 
-    const sortKey = parseInt(row.set_question_number || row.questionNumber || "0", 10) || prepared.length + 999;
+    const sortKey =
+      parseInt(row.set_question_number || row.questionNumber || "0", 10) || prepared.length + 999;
 
     prepared.push({
       _sortKey: sortKey,
@@ -158,9 +163,9 @@ async function main() {
     return { ...rest, sort_order: idx + 1 };
   });
 
-  const subjectOrder: Record<string, number> = { physics: 0, chemistry: 1, math: 2, biology: 3 };
+  const subjectOrder: Record<string, number> = { physics: 0, chemistry: 1, math: 2 };
   const subjectsCovered = Array.from(coveredSet).sort(
-    (a, b) => (subjectOrder[a] ?? 9) - (subjectOrder[b] ?? 9),
+    (a, b) => (subjectOrder[a] ?? 9) - (subjectOrder[b] ?? 9)
   );
 
   const { data: paper, error: paperErr } = await supabase
@@ -202,7 +207,16 @@ async function main() {
     }
   }
 
-  console.log("Imported paper", SLUG, "paper_id=", paperId, "questions=", batch.length, "skipped=", skipped);
+  console.log(
+    "Imported paper",
+    SLUG,
+    "paper_id=",
+    paperId,
+    "questions=",
+    batch.length,
+    "skipped=",
+    skipped
+  );
 }
 
 main().catch((e) => {

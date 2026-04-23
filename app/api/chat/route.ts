@@ -116,9 +116,6 @@ ${userMessage}`;
     return NextResponse.json({ reply });
   } catch (error) {
     console.error("[api/chat] error:", error);
-    return NextResponse.json(
-      { error: "Something went wrong. Please try again." },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
   }
 }

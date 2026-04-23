@@ -28,7 +28,10 @@ function tryLoadEnv(...names: string[]) {
       const eq = t.indexOf("=");
       if (eq <= 0) continue;
       const key = t.slice(0, eq).trim();
-      const val = t.slice(eq + 1).trim().replace(/^["']|["']$/g, "");
+      const val = t
+        .slice(eq + 1)
+        .trim()
+        .replace(/^["']|["']$/g, "");
       if (key && !process.env[key]) process.env[key] = val;
     }
   }
@@ -92,7 +95,10 @@ async function main() {
 
   const admin = createClient(url, key, { auth: { persistSession: false } });
 
-  const { error: delErr } = await admin.from("lessons_raw_posts").delete().contains("tags", [SEED_TAG]);
+  const { error: delErr } = await admin
+    .from("lessons_raw_posts")
+    .delete()
+    .contains("tags", [SEED_TAG]);
   if (delErr) {
     console.warn("Delete existing seed (optional):", delErr.message);
   }
@@ -136,7 +142,7 @@ async function main() {
     },
     {
       title: "Heart walls: auricles vs ventricles (exam-style)",
-      subject: "biology",
+      subject: "chemistry",
       chapter_ref: "Structural organisation · Heart",
       content:
         "Working through this: why do auricles have thin walls compared to ventricles? I get the pressure argument but want a crisp exam-style answer.",

@@ -1,20 +1,20 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { Compass } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
-import { useTopicTaxonomy } from '@/hooks/useTopicTaxonomy';
-import { useExploreHubData } from '@/hooks/useExploreHubData';
-import type { Subject, ExamType } from '@/types';
-import type { TopicNode } from '@/data/topicTaxonomy';
+import { useState } from "react";
+import { Compass } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { useTopicTaxonomy } from "@/hooks/useTopicTaxonomy";
+import { useExploreHubData } from "@/hooks/useExploreHubData";
+import type { Subject, ExamType } from "@/types";
+import type { TopicNode } from "@/data/topicTaxonomy";
 
-import ExploreHubSidebar from './ExploreHubSidebar';
-import ExploreStatsBar from './ExploreStatsBar';
-import SubjectChips from './SubjectChips';
-import RawPostComposer from './RawPostComposer';
-import RawCommunityFeed from './RawCommunityFeed';
-import RandomTopicExplorer from './RandomTopicExplorer';
-import TrendingTopics from './TrendingTopics';
+import ExploreHubSidebar from "./ExploreHubSidebar";
+import ExploreStatsBar from "./ExploreStatsBar";
+import SubjectChips from "./SubjectChips";
+import RawPostComposer from "./RawPostComposer";
+import RawCommunityFeed from "./RawCommunityFeed";
+import RandomTopicExplorer from "./RandomTopicExplorer";
+import TrendingTopics from "./TrendingTopics";
 
 interface ExploreHubDashboardProps {
   onNavigateToSubjects: () => void;
@@ -63,13 +63,15 @@ export default function ExploreHubDashboard({
         <div className="flex-1 min-w-0 space-y-6">
           <ExploreStatsBar stats={stats} loading={loading} />
           <RawPostComposer onPosted={() => setRawFeedRefresh((k) => k + 1)} />
-          <SubjectChips onSelectSubject={(subject, exam) => {
-            if (onNavigateToSubjectWithExam) {
-              onNavigateToSubjectWithExam(subject, exam);
-            } else {
-              onNavigateToSubject(subject);
-            }
-          }} />
+          <SubjectChips
+            onSelectSubject={(subject, exam) => {
+              if (onNavigateToSubjectWithExam) {
+                onNavigateToSubjectWithExam(subject, exam);
+              } else {
+                onNavigateToSubject(subject);
+              }
+            }}
+          />
 
           {/* Two-column: feed + sidebar widgets */}
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">

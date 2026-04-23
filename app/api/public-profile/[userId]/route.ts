@@ -11,7 +11,10 @@ async function ensureProfileFromAuth(
   userId: string
 ): Promise<{ name: string; avatarUrl: string | null; createdAt: string } | null> {
   try {
-    const { data: { user: authUser }, error } = await admin.auth.admin.getUserById(userId);
+    const {
+      data: { user: authUser },
+      error,
+    } = await admin.auth.admin.getUserById(userId);
     if (error) {
       console.error("[public-profile] getUserById error:", error.message);
       return null;
@@ -25,29 +28,27 @@ async function ensureProfileFromAuth(
       authUser.user_metadata?.name ??
       authUser.email?.split("@")[0] ??
       "User";
-    const avatarUrl =
-      authUser.user_metadata?.avatar_url ??
-      authUser.user_metadata?.picture ??
-      null;
+    const avatarUrl = authUser.user_metadata?.avatar_url ?? authUser.user_metadata?.picture ?? null;
     const googleConnected = authUser.app_metadata?.provider === "google";
-    const { error: upsertErr } = await admin
-      .from("profiles")
-      .upsert(
-        {
-          id: userId,
-          name,
-          avatar_url: avatarUrl,
-          role: "student",
-          onboarding_complete: true,
-          google_connected: googleConnected,
-        },
-        { onConflict: "id" }
-      );
+    const { error: upsertErr } = await admin.from("profiles").upsert(
+      {
+        id: userId,
+        name,
+        avatar_url: avatarUrl,
+        role: "student",
+        onboarding_complete: true,
+        google_connected: googleConnected,
+      },
+      { onConflict: "id" }
+    );
     if (upsertErr) {
       console.error("[public-profile] profiles upsert error:", upsertErr.message);
       return null;
     }
-    console.log("[public-profile] Backfilled profile for", authUser.email ?? userId.slice(0, 8) + "...");
+    console.log(
+      "[public-profile] Backfilled profile for",
+      authUser.email ?? userId.slice(0, 8) + "..."
+    );
     return {
       name,
       avatarUrl,
@@ -67,10 +68,7 @@ async function ensureProfileFromAuth(
  *   (handles legacy accounts where handle_new_user trigger did not run)
  * - Production: ensure SUPABASE_SERVICE_ROLE_KEY is set for reliable profile resolution
  */
-export async function GET(
-  request: Request,
-  { params }: { params: Promise<{ userId: string }> }
-) {
+export async function GET(request: Request, { params }: { params: Promise<{ userId: string }> }) {
   const headers = new Headers();
   headers.set("Cache-Control", "private, no-store, max-age=0");
 
@@ -92,9 +90,15 @@ export async function GET(
 
     if (!profile) {
       if (!admin) {
-        console.warn("[public-profile] No admin client (SUPABASE_SERVICE_ROLE_KEY missing); cannot backfill");
+        console.warn(
+          "[public-profile] No admin client (SUPABASE_SERVICE_ROLE_KEY missing); cannot backfill"
+        );
       } else {
-        console.log("[public-profile] Profile null for", userId.slice(0, 8) + "...", "attempting backfill");
+        console.log(
+          "[public-profile] Profile null for",
+          userId.slice(0, 8) + "...",
+          "attempting backfill"
+        );
         const authData = await ensureProfileFromAuth(admin, userId);
         if (authData) {
           profile = await getPublicProfileWithProfileRow(

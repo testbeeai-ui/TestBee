@@ -11,8 +11,8 @@ export default function ProblemSection() {
           Every other platform puts you to sleep. EduBlast keeps you in the game.
         </h2>
         <p className="text-[15px] text-gray-500 leading-[1.75] max-w-[580px] mb-7">
-          Traditional platforms force chapter 1 &rarr; chapter 2 &rarr; chapter 3. Boring. Slow.
-          You lose momentum by page 3. EduBlast is built differently &mdash; like the social feed you
+          Traditional platforms force chapter 1 &rarr; chapter 2 &rarr; chapter 3. Boring. Slow. You
+          lose momentum by page 3. EduBlast is built differently &mdash; like the social feed you
           already can&apos;t stop scrolling, but every swipe makes you smarter and earns you points.
         </p>
 

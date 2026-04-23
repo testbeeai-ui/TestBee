@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAndUser } from "@/lib/apiAuth";
 import type { Json } from "@/integrations/supabase/types";
+import { syncAssignmentTasksForKinds } from "@/lib/classroom/syncAssignmentTaskProgress";
 
 /** DB column from migration; cast when `Database` types are not yet regenerated (e.g. Vercel on older main). */
 type ProfileBitsRow = { bits_test_attempts?: Json | null };
@@ -25,7 +26,11 @@ const MAX_ATTEMPT_KEYS = 400;
 
 function sanitize(value: unknown, maxLen = 300): string {
   if (typeof value !== "string") return "";
-  return value.replace(/[\x00-\x1F\x7F]/g, " ").replace(/\s+/g, " ").trim().slice(0, maxLen);
+  return value
+    .replace(/[\x00-\x1F\x7F]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, maxLen);
 }
 
 function normalizeKeyPart(value: unknown, maxLen = 300): string {
@@ -66,7 +71,9 @@ function parseAttemptsStore(raw: unknown): Record<string, BitsAttemptRecord> {
     const correctCount = Number(row.correctCount);
     const wrongCount = Number(row.wrongCount);
     const selectedAnswers =
-      row.selectedAnswers && typeof row.selectedAnswers === "object" && !Array.isArray(row.selectedAnswers)
+      row.selectedAnswers &&
+      typeof row.selectedAnswers === "object" &&
+      !Array.isArray(row.selectedAnswers)
         ? (row.selectedAnswers as Record<string, unknown>)
         : {};
     const normalizedSelected: Record<string, number> = {};
@@ -90,13 +97,16 @@ function parseAttemptsStore(raw: unknown): Record<string, BitsAttemptRecord> {
       submittedAt: sanitize(row.submittedAt, 80),
     };
     if (!ALLOWED_LEVELS.has(parsed.level)) continue;
-    if (!parsed.topic || !parsed.subtopicName || !parsed.bitsSignature || !parsed.submittedAt) continue;
+    if (!parsed.topic || !parsed.subtopicName || !parsed.bitsSignature || !parsed.submittedAt)
+      continue;
     out[key] = parsed;
   }
   return out;
 }
 
-function trimAttemptStore(store: Record<string, BitsAttemptRecord>): Record<string, BitsAttemptRecord> {
+function trimAttemptStore(
+  store: Record<string, BitsAttemptRecord>
+): Record<string, BitsAttemptRecord> {
   const entries = Object.entries(store);
   if (entries.length <= MAX_ATTEMPT_KEYS) return store;
   entries.sort((a, b) => {
@@ -128,7 +138,10 @@ export async function GET(request: Request) {
         return NextResponse.json({ error: "Invalid set (use 1, 2, or 3)" }, { status: 400 });
       }
       if (level !== "advanced") {
-        return NextResponse.json({ error: "set is only valid for advanced level" }, { status: 400 });
+        return NextResponse.json(
+          { error: "set is only valid for advanced level" },
+          { status: 400 }
+        );
       }
       set = n as 1 | 2 | 3;
     }
@@ -187,10 +200,16 @@ export async function POST(request: Request) {
     if (body?.clearAttempt === true) {
       const setClear = Number(body?.set);
       if (![1, 2, 3].includes(setClear)) {
-        return NextResponse.json({ error: "set is required (1, 2, or 3) to clear an attempt" }, { status: 400 });
+        return NextResponse.json(
+          { error: "set is required (1, 2, or 3) to clear an attempt" },
+          { status: 400 }
+        );
       }
       if (level !== "advanced" || !ALLOWED_LEVELS.has(level)) {
-        return NextResponse.json({ error: "clearAttempt is only valid for advanced level" }, { status: 400 });
+        return NextResponse.json(
+          { error: "clearAttempt is only valid for advanced level" },
+          { status: 400 }
+        );
       }
       if (
         !board ||
@@ -245,7 +264,9 @@ export async function POST(request: Request) {
     const correctCount = Number(body?.correctCount);
     const wrongCount = Number(body?.wrongCount);
     const selectedAnswersInput =
-      body?.selectedAnswers && typeof body.selectedAnswers === "object" && !Array.isArray(body.selectedAnswers)
+      body?.selectedAnswers &&
+      typeof body.selectedAnswers === "object" &&
+      !Array.isArray(body.selectedAnswers)
         ? (body.selectedAnswers as Record<string, unknown>)
         : {};
 
@@ -264,7 +285,10 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "Invalid set (use 1, 2, or 3)" }, { status: 400 });
       }
       if (level !== "advanced") {
-        return NextResponse.json({ error: "set is only valid for advanced level" }, { status: 400 });
+        return NextResponse.json(
+          { error: "set is only valid for advanced level" },
+          { status: 400 }
+        );
       }
       set = n as 1 | 2 | 3;
     }
@@ -286,7 +310,10 @@ export async function POST(request: Request) {
     }
 
     if (level === "advanced" && set == null) {
-      return NextResponse.json({ error: "set is required for advanced level attempts" }, { status: 400 });
+      return NextResponse.json(
+        { error: "set is required for advanced level attempts" },
+        { status: 400 }
+      );
     }
 
     const attempt: BitsAttemptRecord = {
@@ -321,9 +348,14 @@ export async function POST(request: Request) {
       .eq("id", user.id);
     if (writeErr) return NextResponse.json({ error: writeErr.message }, { status: 500 });
 
+    void syncAssignmentTasksForKinds(supabase, user.id, ["bits"]).catch((e) => {
+      console.warn("[bits-attempts] assignment task sync", e);
+    });
+
     const studyDayRaw = typeof body?.studyDay === "string" ? body.studyDay.trim() : "";
-    const studyDay =
-      /^\d{4}-\d{2}-\d{2}$/.test(studyDayRaw) ? studyDayRaw : String(attempt.submittedAt).slice(0, 10);
+    const studyDay = /^\d{4}-\d{2}-\d{2}$/.test(studyDayRaw)
+      ? studyDayRaw
+      : String(attempt.submittedAt).slice(0, 10);
     const answered = Math.max(0, attempt.correctCount + attempt.wrongCount);
     const deltaMs = answered * 3 * 60 * 1000;
     if (deltaMs > 0) {

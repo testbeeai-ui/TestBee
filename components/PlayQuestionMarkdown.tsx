@@ -4,7 +4,11 @@ import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import { normalizePastedMathForDoubt } from "@/lib/normalizePastedDoubtMath";
-import { formatPlayQuestionStemForDisplay } from "@/lib/playQuestionMathDisplay";
+import {
+  fixGreekInsideTextBlocks,
+  formatPlayQuestionStemForDisplay,
+  splitGluedGreekCommands,
+} from "@/lib/playQuestionMathDisplay";
 import { cn } from "@/lib/utils";
 
 export type PlayQuestionMarkdownVariant = "stem" | "option" | "explanation";
@@ -18,9 +22,14 @@ type PlayQuestionMarkdownProps = {
 
 /** Normalize bank strings for remark-math + KaTeX ($ / $$) and light markdown (**bold**). */
 export function preprocessPlayQuestionMarkdown(raw: string): string {
-  const trimmed = formatPlayQuestionStemForDisplay(String(raw ?? "").trim());
+  const rawStr = String(raw ?? "").trim();
+  // Fix \mu/\lambda/etc. inside \text{...} (they don't work in KaTeX text mode)
+  // and split glued commands like \muC -> \mu{}C.
+  const input = splitGluedGreekCommands(fixGreekInsideTextBlocks(rawStr));
+  const trimmed = formatPlayQuestionStemForDisplay(input);
   if (!trimmed) return "";
-  return normalizePastedMathForDoubt(trimmed);
+  const normalized = normalizePastedMathForDoubt(trimmed);
+  return splitGluedGreekCommands(fixGreekInsideTextBlocks(normalized));
 }
 
 /**
@@ -43,7 +52,7 @@ export default function PlayQuestionMarkdown({
         "play-question-md min-w-0 max-w-full [overflow-wrap:anywhere] text-foreground",
         "[&_.katex]:text-[0.95em] [&_.katex-display]:my-1 [&_.katex-display]:max-w-full",
         optionish && "inline-block w-full min-w-0 align-middle [&_.katex-display]:block",
-        className,
+        className
       )}
     >
       <ReactMarkdown
@@ -64,10 +73,18 @@ export default function PlayQuestionMarkdown({
             );
           },
           img: () => null,
-          h1: ({ children }) => <p className="m-0 text-[1em] font-bold leading-snug first:mt-0">{children}</p>,
-          h2: ({ children }) => <p className="m-0 text-[1em] font-bold leading-snug first:mt-0">{children}</p>,
-          h3: ({ children }) => <p className="m-0 text-[0.95em] font-bold leading-snug first:mt-0">{children}</p>,
-          h4: ({ children }) => <p className="m-0 text-[0.95em] font-bold leading-snug first:mt-0">{children}</p>,
+          h1: ({ children }) => (
+            <p className="m-0 text-[1em] font-bold leading-snug first:mt-0">{children}</p>
+          ),
+          h2: ({ children }) => (
+            <p className="m-0 text-[1em] font-bold leading-snug first:mt-0">{children}</p>
+          ),
+          h3: ({ children }) => (
+            <p className="m-0 text-[0.95em] font-bold leading-snug first:mt-0">{children}</p>
+          ),
+          h4: ({ children }) => (
+            <p className="m-0 text-[0.95em] font-bold leading-snug first:mt-0">{children}</p>
+          ),
           hr: () => <hr className="my-2 border-border/60" />,
           p: ({ children }) =>
             optionish ? (

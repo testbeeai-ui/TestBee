@@ -27,11 +27,12 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
       </div>
     );
   if (!user) return null;
-  if (profile === null) return (
-    <div className="min-h-screen flex items-center justify-center">
-      <span className="text-4xl animate-pulse">🎯</span>
-    </div>
-  );
+  if (profile === null)
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <span className="text-4xl animate-pulse">🎯</span>
+      </div>
+    );
   if (!profile?.onboarding_complete) return null;
   return <>{children}</>;
 }

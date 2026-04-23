@@ -13,16 +13,15 @@ export default function HeroSection() {
 
         {/* Headline */}
         <h1 className="text-3xl sm:text-4xl lg:text-[40px] font-medium text-gray-900 leading-[1.25] max-w-[640px] mb-3 tracking-tight">
-          Learning that feels like{" "}
-          <span className="text-[#1D9E75]">scrolling</span> &mdash; but builds an{" "}
-          <span className="text-[#D85A30] font-medium">exam winner.</span>
+          Learning that feels like <span className="text-[#1D9E75]">scrolling</span> &mdash; but
+          builds an <span className="text-[#D85A30] font-medium">exam winner.</span>
         </h1>
 
         {/* Subtitle */}
         <p className="text-base text-gray-500 leading-[1.75] max-w-[560px] mb-7">
-          EduBlast is India&apos;s first AI-powered learning social network. Ask questions, earn rewards,
-          watch live leaderboards, and become the student who every coaching peer looks up to &mdash; all
-          without ever feeling like you&apos;re studying.
+          EduBlast is India&apos;s first AI-powered learning social network. Ask questions, earn
+          rewards, watch live leaderboards, and become the student who every coaching peer looks up
+          to &mdash; all without ever feeling like you&apos;re studying.
         </p>
 
         {/* CTAs */}
@@ -42,7 +41,10 @@ export default function HeroSection() {
         <div className="flex flex-wrap gap-x-6 gap-y-2 mb-9">
           {TRUST_BADGES.map((b) => (
             <div key={b.label} className="flex items-center gap-[6px] text-sm text-gray-400">
-              <span className="w-[7px] h-[7px] rounded-full shrink-0" style={{ background: b.color }} />
+              <span
+                className="w-[7px] h-[7px] rounded-full shrink-0"
+                style={{ background: b.color }}
+              />
               {b.label}
             </div>
           ))}

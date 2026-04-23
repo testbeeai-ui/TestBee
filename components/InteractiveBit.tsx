@@ -25,7 +25,9 @@ export function InteractiveBit({ bit, onUnsave }: InteractiveBitProps) {
 
   return (
     <div className="space-y-3 pt-2">
-      <div className={`bg-card rounded-2xl border shadow-sm p-4 ${isFormula ? "border-primary/40 ring-1 ring-primary/20" : "border-border"}`}>
+      <div
+        className={`bg-card rounded-2xl border shadow-sm p-4 ${isFormula ? "border-primary/40 ring-1 ring-primary/20" : "border-border"}`}
+      >
         {isFormula && (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary/15 text-primary text-xs font-bold mb-3">
             <span className="font-mono">

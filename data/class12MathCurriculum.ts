@@ -1,6 +1,10 @@
-import type { ExamType } from '@/types';
-import type { TopicNode } from '@/data/topicTaxonomy';
-import type { CurriculumUnit, CurriculumChapter, CurriculumTopic } from '@/data/class12PhysicsCurriculum';
+import type { ExamType } from "@/types";
+import type { TopicNode } from "@/data/topicTaxonomy";
+import type {
+  CurriculumUnit,
+  CurriculumChapter,
+  CurriculumTopic,
+} from "@/data/class12PhysicsCurriculum";
 
 const RAW_CLASS12_MATH_CURRICULUM = `
 UNIT I - RELATIONS AND FUNCTIONS
@@ -361,12 +365,12 @@ export const class12MathUnits: CurriculumUnit[] = parseClass12MathCurriculum(
   RAW_CLASS12_MATH_CURRICULUM
 );
 
-const CLASS_12_MATH_EXAMS: ExamType[] = ['JEE', 'KCET'];
+const CLASS_12_MATH_EXAMS: ExamType[] = ["JEE", "KCET"];
 
 export const math12DetailedTopicTaxonomy: TopicNode[] = class12MathUnits.flatMap((unit) =>
   unit.chapters.flatMap((chapter) =>
     chapter.topics.map((topic) => ({
-      subject: 'math',
+      subject: "math",
       classLevel: 12,
       topic: topic.title,
       chapterTitle: chapter.title,

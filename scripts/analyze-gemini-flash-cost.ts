@@ -74,7 +74,13 @@ type ScopeResult = {
   estRemainingGrandFullUsd: number;
   actionAverages: Record<
     string,
-    { avgPrompt: number; avgOutput: number; avgTotal: number; avgUsd: number; sampleSubtopicsOrTopics: number }
+    {
+      avgPrompt: number;
+      avgOutput: number;
+      avgTotal: number;
+      avgUsd: number;
+      sampleSubtopicsOrTopics: number;
+    }
   >;
 };
 
@@ -112,7 +118,13 @@ function keyTopic(subject: string, classLevel: number, chapter: string, topic: s
   return `${subject}|${classLevel}|${chapter}|${topic}`;
 }
 
-function keySubtopic(subject: string, classLevel: number, chapter: string, topic: string, subtopic: string): string {
+function keySubtopic(
+  subject: string,
+  classLevel: number,
+  chapter: string,
+  topic: string,
+  subtopic: string
+): string {
   return `${subject}|${classLevel}|${chapter}|${topic}|${subtopic}`;
 }
 
@@ -154,16 +166,17 @@ async function main() {
 
   const supabase = createClient(url, serviceKey, { auth: { persistSession: false } });
 
-  const [{ data: units }, { data: chapters }, { data: topics }, { data: subtopics }] = await Promise.all([
-    supabase
-      .from("curriculum_units")
-      .select("id,subject,class_level,unit_label,unit_title,sort_order")
-      .in("subject", ["chemistry", "math"])
-      .in("class_level", [11, 12]),
-    supabase.from("curriculum_chapters").select("id,unit_id,title,sort_order"),
-    supabase.from("curriculum_topics").select("id,chapter_id,title,sort_order"),
-    supabase.from("curriculum_subtopics").select("id,topic_id,name,sort_order"),
-  ]);
+  const [{ data: units }, { data: chapters }, { data: topics }, { data: subtopics }] =
+    await Promise.all([
+      supabase
+        .from("curriculum_units")
+        .select("id,subject,class_level,unit_label,unit_title,sort_order")
+        .in("subject", ["chemistry", "math"])
+        .in("class_level", [11, 12]),
+      supabase.from("curriculum_chapters").select("id,unit_id,title,sort_order"),
+      supabase.from("curriculum_topics").select("id,chapter_id,title,sort_order"),
+      supabase.from("curriculum_subtopics").select("id,topic_id,name,sort_order"),
+    ]);
 
   if (!units || !chapters || !topics || !subtopics) {
     throw new Error("Failed to fetch curriculum hierarchy");
@@ -200,7 +213,12 @@ async function main() {
     for (const cl of [11, 12] as const) {
       const rows = chapterRows
         .filter((r) => r.subject === subject && r.classLevel === cl)
-        .sort((a, b) => a.unitSort - b.unitSort || a.chapterSort - b.chapterSort || a.chapterTitle.localeCompare(b.chapterTitle));
+        .sort(
+          (a, b) =>
+            a.unitSort - b.unitSort ||
+            a.chapterSort - b.chapterSort ||
+            a.chapterTitle.localeCompare(b.chapterTitle)
+        );
       rows.forEach((r, idx) => chapterSeqById.set(r.id, idx + 1));
     }
   }
@@ -286,7 +304,9 @@ async function main() {
   while (true) {
     const { data, error } = await supabase
       .from("ai_token_logs")
-      .select("id,created_at,action_type,model_id,prompt_tokens,candidates_tokens,total_tokens,cost_usd,metadata")
+      .select(
+        "id,created_at,action_type,model_id,prompt_tokens,candidates_tokens,total_tokens,cost_usd,metadata"
+      )
       .in("action_type", interestingActions)
       .order("created_at", { ascending: false })
       .range(offset, offset + pageSize - 1);
@@ -311,13 +331,21 @@ async function main() {
     let matchedTopicIds: string[] = [];
     let matchedSubtopicIds: string[] = [];
 
-    if (topicTitle && (subject === "chemistry" || subject === "math") && (classLevel === 11 || classLevel === 12)) {
+    if (
+      topicTitle &&
+      (subject === "chemistry" || subject === "math") &&
+      (classLevel === 11 || classLevel === 12)
+    ) {
       if (chapterTitle) {
-        matchedTopicIds = topicLookup.get(keyTopic(subject, classLevel, chapterTitle, topicTitle)) ?? [];
+        matchedTopicIds =
+          topicLookup.get(keyTopic(subject, classLevel, chapterTitle, topicTitle)) ?? [];
       } else {
         // Fallback: match same topic title within subject+class across chapters.
         matchedTopicIds = topicRows
-          .filter((t) => t.subject === subject && t.classLevel === classLevel && t.topicTitle === topicTitle)
+          .filter(
+            (t) =>
+              t.subject === subject && t.classLevel === classLevel && t.topicTitle === topicTitle
+          )
           .map((t) => t.id);
       }
     }
@@ -330,7 +358,9 @@ async function main() {
     ) {
       if (chapterTitle) {
         matchedSubtopicIds =
-          subtopicLookup.get(keySubtopic(subject, classLevel, chapterTitle, topicTitle, subtopicName)) ?? [];
+          subtopicLookup.get(
+            keySubtopic(subject, classLevel, chapterTitle, topicTitle, subtopicName)
+          ) ?? [];
       } else {
         matchedSubtopicIds = subtopicRows
           .filter(
@@ -387,7 +417,10 @@ async function main() {
     "generate_formulas_verifier",
   ]);
 
-  const globalActionAverages: Record<string, { avgPrompt: number; avgOutput: number; avgTotal: number; avgUsd: number }> = {};
+  const globalActionAverages: Record<
+    string,
+    { avgPrompt: number; avgOutput: number; avgTotal: number; avgUsd: number }
+  > = {};
   for (const action of interestingActions) {
     const rows = matchedLogs.filter((r) => r.action_type === action);
     globalActionAverages[action] = {
@@ -407,18 +440,30 @@ async function main() {
     );
     const topicIds = new Set(
       topicRows
-        .filter((t) => t.subject === scope.subject && t.classLevel === scope.classLevel && chapterIds.has(t.chapterId))
+        .filter(
+          (t) =>
+            t.subject === scope.subject &&
+            t.classLevel === scope.classLevel &&
+            chapterIds.has(t.chapterId)
+        )
         .map((t) => t.id)
     );
     const subtopicIds = new Set(
       subtopicRows
-        .filter((s) => s.subject === scope.subject && s.classLevel === scope.classLevel && chapterIds.has(s.chapterId))
+        .filter(
+          (s) =>
+            s.subject === scope.subject &&
+            s.classLevel === scope.classLevel &&
+            chapterIds.has(s.chapterId)
+        )
         .map((s) => s.id)
     );
 
     const scopeLogs = matchedLogs.filter((log) => {
-      if (actionForTopic.has(log.action_type)) return log.matchedTopicIds.some((id) => topicIds.has(id));
-      if (actionForSubtopic.has(log.action_type)) return log.matchedSubtopicIds.some((id) => subtopicIds.has(id));
+      if (actionForTopic.has(log.action_type))
+        return log.matchedTopicIds.some((id) => topicIds.has(id));
+      if (actionForSubtopic.has(log.action_type))
+        return log.matchedSubtopicIds.some((id) => subtopicIds.has(id));
       return false;
     });
 
@@ -434,7 +479,8 @@ async function main() {
           if (chId) coveredChapterIdsByTopic.add(chId);
         }
       } else if (actionForSubtopic.has(log.action_type)) {
-        for (const id of log.matchedSubtopicIds) if (subtopicIds.has(id)) coveredSubtopicIds.add(id);
+        for (const id of log.matchedSubtopicIds)
+          if (subtopicIds.has(id)) coveredSubtopicIds.add(id);
       }
     }
 
@@ -470,7 +516,8 @@ async function main() {
       }
     }
 
-    const avgPerTopicUsd = actionAverages.generate_topic.avgUsd + actionAverages.generate_topic_retry.avgUsd;
+    const avgPerTopicUsd =
+      actionAverages.generate_topic.avgUsd + actionAverages.generate_topic_retry.avgUsd;
     const avgPerSubtopicUsd = actionAverages.generate_subtopic.avgUsd;
     const avgPerSubtopicFullUsd =
       actionAverages.generate_subtopic.avgUsd +
@@ -510,7 +557,8 @@ async function main() {
       estRemainingTopicUsd: remainingTopics * avgPerTopicUsd,
       estRemainingSubtopicUsd: remainingSubtopics * avgPerSubtopicUsd,
       estRemainingSubtopicFullUsd: remainingSubtopics * avgPerSubtopicFullUsd,
-      estRemainingGrandFullUsd: remainingTopics * avgPerTopicUsd + remainingSubtopics * avgPerSubtopicFullUsd,
+      estRemainingGrandFullUsd:
+        remainingTopics * avgPerTopicUsd + remainingSubtopics * avgPerSubtopicFullUsd,
       actionAverages,
     };
   });
@@ -557,10 +605,16 @@ async function main() {
   );
 
   console.log("\nGemini Flash Cost Analysis (token logs + curriculum)\n");
-  console.log(`Model pricing used: input ${fmtUsd(priceInput)} / 1M, output ${fmtUsd(priceOutput)} / 1M`);
-  console.log(`Logs considered: ${fmtInt(matchedLogs.length)} Gemini-3-Flash rows across actions.\n`);
+  console.log(
+    `Model pricing used: input ${fmtUsd(priceInput)} / 1M, output ${fmtUsd(priceOutput)} / 1M`
+  );
+  console.log(
+    `Logs considered: ${fmtInt(matchedLogs.length)} Gemini-3-Flash rows across actions.\n`
+  );
 
-  console.log("| Scope | Logged rows | Logged prompt tokens | Logged output tokens | Logged total tokens | Logged cost (USD) |");
+  console.log(
+    "| Scope | Logged rows | Logged prompt tokens | Logged output tokens | Logged total tokens | Logged cost (USD) |"
+  );
   console.log("|---|---:|---:|---:|---:|---:|");
   for (const r of results) {
     console.log(
@@ -579,9 +633,7 @@ async function main() {
   console.log(
     "| Scope | Chapters (target) | Topics (target) | Subtopics (target) | Remaining chapters | Remaining topics | Remaining subtopics | Est. cost (topics) | Est. cost (subtopics full) | Est. grand total |"
   );
-  console.log(
-    "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|"
-  );
+  console.log("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|");
   for (const r of results) {
     console.log(
       `| ${r.scope.label} | ${fmtInt(r.totalChapters)} | ${fmtInt(r.totalTopics)} | ${fmtInt(r.totalSubtopics)} | ${fmtInt(
@@ -600,19 +652,25 @@ async function main() {
   );
 
   console.log("\nPer-scope unit economics (USD per item):");
-  console.log("| Scope | Avg/topic (generate_topic + retry) | Avg/subtopic (theory only) | Avg/subtopic (full pipeline*) |");
+  console.log(
+    "| Scope | Avg/topic (generate_topic + retry) | Avg/subtopic (theory only) | Avg/subtopic (full pipeline*) |"
+  );
   console.log("|---|---:|---:|---:|");
   for (const r of results) {
     console.log(
       `| ${r.scope.label} | ${fmtUsd(r.avgPerTopicUsd)} | ${fmtUsd(r.avgPerSubtopicUsd)} | ${fmtUsd(r.avgPerSubtopicFullUsd)} |`
     );
   }
-  console.log("* Full pipeline = generate_subtopic + generate_instacue + generate_bits + generate_formulas + generate_formulas_verifier");
+  console.log(
+    "* Full pipeline = generate_subtopic + generate_instacue + generate_bits + generate_formulas + generate_formulas_verifier"
+  );
 
   console.log("\nAction-level averages by scope (tokens and USD per generated item):");
   for (const r of results) {
     console.log(`\n## ${r.scope.label}`);
-    console.log("| Action | Avg prompt tokens | Avg output tokens | Avg total tokens | Avg USD | Sample entities |");
+    console.log(
+      "| Action | Avg prompt tokens | Avg output tokens | Avg total tokens | Avg USD | Sample entities |"
+    );
     console.log("|---|---:|---:|---:|---:|---:|");
     for (const action of interestingActions) {
       const a = r.actionAverages[action];
@@ -629,4 +687,3 @@ main().catch((err) => {
   console.error("Analysis failed:", err?.message ?? err);
   process.exit(1);
 });
-

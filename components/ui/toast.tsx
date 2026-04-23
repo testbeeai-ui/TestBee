@@ -19,7 +19,7 @@ const ToastViewport = React.forwardRef<
       "fixed z-[9999] flex max-h-[min(85dvh,720px)] w-full flex-col-reverse gap-3 overflow-x-hidden overflow-y-auto pointer-events-none",
       "inset-x-0 bottom-0 px-3 pb-[max(12px,env(safe-area-inset-bottom,0px))] pt-2 items-stretch justify-end",
       "md:inset-x-auto md:left-auto md:right-[max(12px,env(safe-area-inset-right,0px))] md:top-auto md:w-[min(420px,calc(100dvw-24px))] md:max-w-[min(420px,calc(100%-24px))] md:flex-col md:items-end md:px-0 md:pb-[max(12px,env(safe-area-inset-bottom,0px))]",
-      className,
+      className
     )}
     {...props}
   />
@@ -48,14 +48,20 @@ const toastVariants = cva(
     defaultVariants: {
       variant: "default",
     },
-  },
+  }
 );
 
 const Toast = React.forwardRef<
   React.ElementRef<typeof ToastPrimitives.Root>,
   React.ComponentPropsWithoutRef<typeof ToastPrimitives.Root> & VariantProps<typeof toastVariants>
 >(({ className, variant, ...props }, ref) => {
-  return <ToastPrimitives.Root ref={ref} className={cn(toastVariants({ variant }), className)} {...props} />;
+  return (
+    <ToastPrimitives.Root
+      ref={ref}
+      className={cn(toastVariants({ variant }), className)}
+      {...props}
+    />
+  );
 });
 Toast.displayName = ToastPrimitives.Root.displayName;
 
@@ -67,7 +73,7 @@ const ToastAction = React.forwardRef<
     ref={ref}
     className={cn(
       "inline-flex h-8 shrink-0 items-center justify-center rounded-md border bg-transparent px-3 text-sm font-medium ring-offset-background transition-colors group-[.destructive]:border-muted/40 hover:bg-secondary group-[.destructive]:hover:border-destructive/30 group-[.destructive]:hover:bg-destructive group-[.destructive]:hover:text-destructive-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 group-[.destructive]:focus:ring-destructive disabled:pointer-events-none disabled:opacity-50",
-      className,
+      className
     )}
     {...props}
   />
@@ -82,7 +88,7 @@ const ToastClose = React.forwardRef<
     ref={ref}
     className={cn(
       "absolute right-2.5 top-2.5 inline-flex h-8 w-8 items-center justify-center rounded-xl border bg-background/90 text-foreground opacity-100 transition-all duration-200 hover:-translate-y-px hover:bg-background hover:ring-1 hover:ring-[color-mix(in_oklab,var(--toast-accent)_40%,transparent)] hover:shadow-[0_0_18px_color-mix(in_oklab,var(--toast-accent)_22%,transparent)] focus:outline-none focus:ring-2 focus:ring-[color-mix(in_oklab,var(--toast-accent)_50%,transparent)] dark:border-white/[0.12] dark:bg-white/[0.06] dark:text-zinc-200 dark:hover:bg-white/[0.11] dark:hover:ring-white/20 group-[.destructive]:border-red-200/25 group-[.destructive]:bg-red-950/50 group-[.destructive]:text-red-50 group-[.destructive]:hover:bg-red-900/55 group-[.destructive]:hover:ring-red-400/35 group-[.destructive]:focus:ring-red-400 group-[.destructive]:focus:ring-offset-0",
-      className,
+      className
     )}
     toast-close=""
     {...props}
@@ -98,7 +104,10 @@ const ToastTitle = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <ToastPrimitives.Title
     ref={ref}
-    className={cn("text-[15px] font-semibold leading-snug tracking-tight text-foreground dark:text-zinc-50", className)}
+    className={cn(
+      "text-[15px] font-semibold leading-snug tracking-tight text-foreground dark:text-zinc-50",
+      className
+    )}
     {...props}
   />
 ));
@@ -112,7 +121,7 @@ const ToastDescription = React.forwardRef<
     ref={ref}
     className={cn(
       "text-[13px] leading-relaxed text-muted-foreground opacity-95 dark:text-zinc-400 dark:opacity-100",
-      className,
+      className
     )}
     {...props}
   />

@@ -43,12 +43,9 @@ const HORIZONTAL_TICKER = [
 /**
  * Section padding tuned for 13–14″ laptops (lg–xl): not oversized; 2xl+ keeps breathing room.
  */
-const SEC_PAD =
-  "px-4 py-12 sm:px-6 sm:py-14 lg:px-6 lg:py-14 xl:px-8 xl:py-16 2xl:px-10";
-const SEC_PAD_SHORT =
-  "px-4 py-11 sm:px-6 sm:py-12 lg:px-6 lg:py-12 xl:px-8 xl:py-14 2xl:px-10";
-const SEC_PAD_EXAM =
-  "px-4 py-8 sm:px-6 sm:py-10 lg:px-6 lg:py-10 xl:px-8 xl:py-11 2xl:px-10";
+const SEC_PAD = "px-4 py-12 sm:px-6 sm:py-14 lg:px-6 lg:py-14 xl:px-8 xl:py-16 2xl:px-10";
+const SEC_PAD_SHORT = "px-4 py-11 sm:px-6 sm:py-12 lg:px-6 lg:py-12 xl:px-8 xl:py-14 2xl:px-10";
+const SEC_PAD_EXAM = "px-4 py-8 sm:px-6 sm:py-10 lg:px-6 lg:py-10 xl:px-8 xl:py-11 2xl:px-10";
 
 /** Investor exam row — tinted pill, colored border + dot + label (ref. ticker strip layout). */
 const EXAM_COVERAGE_PILLS = [
@@ -400,7 +397,9 @@ function TeacherInvestorSections() {
                 <h3 className="mt-4 text-[0.95rem] font-semibold leading-tight text-white transition-colors duration-300 group-hover/step:text-indigo-100 sm:text-[1.02rem] lg:text-[1.1rem]">
                   {x.title}
                 </h3>
-                <p className="mt-2.5 text-[11px] leading-snug text-zinc-400 transition-colors duration-300 group-hover/step:text-zinc-300">{x.desc}</p>
+                <p className="mt-2.5 text-[11px] leading-snug text-zinc-400 transition-colors duration-300 group-hover/step:text-zinc-300">
+                  {x.desc}
+                </p>
                 {x.reward ? (
                   <p className="mt-auto rounded-full bg-amber-500/12 px-3 py-0.5 text-[10px] font-bold text-amber-300 transition-all duration-300 group-hover/step:bg-amber-500/18 group-hover/step:text-amber-200">
                     {x.reward}
@@ -433,21 +432,27 @@ function TeacherInvestorSections() {
               return (
                 <div
                   key={x.title}
-                className="group/toolkit relative min-h-[228px] overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-[#12162a] to-[#0d1020] p-5 transition-all duration-300 hover:-translate-y-1 hover:border-indigo-400/35 hover:shadow-[0_20px_36px_-18px_rgba(99,102,241,0.4)]"
-              >
-                <div className="pointer-events-none absolute inset-x-4 bottom-0 h-[2px] rounded-full bg-gradient-to-r from-transparent via-indigo-400/70 to-transparent opacity-0 transition-opacity duration-300 group-hover/toolkit:opacity-100" />
-                <div className={`inline-flex h-9 w-9 items-center justify-center rounded-xl ring-1 transition-all duration-300 group-hover/toolkit:scale-105 ${x.iconWrap}`}>
-                  <Icon className={`h-[18px] w-[18px] ${x.iconClass}`} strokeWidth={2.2} />
-                </div>
-                <h3
-                  className="mt-4 text-[1.48rem] font-semibold leading-none text-white transition-colors duration-300 group-hover/toolkit:text-indigo-100"
-                  style={{ fontFamily: "var(--font-landing-serif), ui-serif, Georgia, serif" }}
+                  className="group/toolkit relative min-h-[228px] overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-[#12162a] to-[#0d1020] p-5 transition-all duration-300 hover:-translate-y-1 hover:border-indigo-400/35 hover:shadow-[0_20px_36px_-18px_rgba(99,102,241,0.4)]"
                 >
-                  {x.title}
-                </h3>
-                <p className="mt-3 text-[12px] leading-relaxed text-zinc-400 transition-colors duration-300 group-hover/toolkit:text-zinc-300">{x.desc}</p>
-                <p className="mt-4 text-[10px] font-bold text-amber-300 transition-colors duration-300 group-hover/toolkit:text-amber-200">⚡ {x.point}</p>
-              </div>
+                  <div className="pointer-events-none absolute inset-x-4 bottom-0 h-[2px] rounded-full bg-gradient-to-r from-transparent via-indigo-400/70 to-transparent opacity-0 transition-opacity duration-300 group-hover/toolkit:opacity-100" />
+                  <div
+                    className={`inline-flex h-9 w-9 items-center justify-center rounded-xl ring-1 transition-all duration-300 group-hover/toolkit:scale-105 ${x.iconWrap}`}
+                  >
+                    <Icon className={`h-[18px] w-[18px] ${x.iconClass}`} strokeWidth={2.2} />
+                  </div>
+                  <h3
+                    className="mt-4 text-[1.48rem] font-semibold leading-none text-white transition-colors duration-300 group-hover/toolkit:text-indigo-100"
+                    style={{ fontFamily: "var(--font-landing-serif), ui-serif, Georgia, serif" }}
+                  >
+                    {x.title}
+                  </h3>
+                  <p className="mt-3 text-[12px] leading-relaxed text-zinc-400 transition-colors duration-300 group-hover/toolkit:text-zinc-300">
+                    {x.desc}
+                  </p>
+                  <p className="mt-4 text-[10px] font-bold text-amber-300 transition-colors duration-300 group-hover/toolkit:text-amber-200">
+                    ⚡ {x.point}
+                  </p>
+                </div>
               );
             })}
           </div>
@@ -468,8 +473,8 @@ function TeacherInvestorSections() {
               You add the <span className="text-[#34f5a4] italic">wisdom.</span>
             </h2>
             <p className="mt-4 max-w-lg text-[13px] leading-relaxed text-zinc-400 sm:text-[13px]">
-              On Gyan+, we handle repetitive student doubts instantly. You step in with exam insight,
-              strategy and mentorship where it matters.
+              On Gyan+, we handle repetitive student doubts instantly. You step in with exam
+              insight, strategy and mentorship where it matters.
             </p>
             <ul className="mt-5 space-y-2.5 text-[14px] text-zinc-300">
               {[
@@ -496,8 +501,14 @@ function TeacherInvestorSections() {
 
             {/* Integrated 2x2 stat board (with lines, like investor ref) */}
             <div className="relative mt-3 overflow-hidden rounded-xl border border-white/10 bg-black/15">
-              <span className="pointer-events-none absolute left-5 right-5 top-1/2 h-px -translate-y-1/2 bg-white/10" aria-hidden />
-              <span className="pointer-events-none absolute bottom-5 top-5 left-1/2 w-px -translate-x-1/2 bg-white/10" aria-hidden />
+              <span
+                className="pointer-events-none absolute left-5 right-5 top-1/2 h-px -translate-y-1/2 bg-white/10"
+                aria-hidden
+              />
+              <span
+                className="pointer-events-none absolute bottom-5 top-5 left-1/2 w-px -translate-x-1/2 bg-white/10"
+                aria-hidden
+              />
               <div className="grid grid-cols-2">
                 {[
                   ["312", "students helped this month", "text-emerald-300"],
@@ -529,11 +540,16 @@ function TeacherInvestorSections() {
                       DS
                     </span>
                     <div className="min-w-0">
-                      <p className="text-[13px] font-semibold text-white">Physics · Newton&apos;s Laws</p>
-                      <p className="mt-0.5 text-xs leading-relaxed text-zinc-400">
-                        Draw force-displacement angle explicitly — examiners award partial marks for each step shown.
+                      <p className="text-[13px] font-semibold text-white">
+                        Physics · Newton&apos;s Laws
                       </p>
-                      <p className="mt-1 text-[11px] font-bold text-amber-300">+30 RDM · 41 upvotes</p>
+                      <p className="mt-0.5 text-xs leading-relaxed text-zinc-400">
+                        Draw force-displacement angle explicitly — examiners award partial marks for
+                        each step shown.
+                      </p>
+                      <p className="mt-1 text-[11px] font-bold text-amber-300">
+                        +30 RDM · 41 upvotes
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -648,7 +664,10 @@ export default function EduBlastInvestorLanding() {
                   : "border-emerald-400/45 bg-emerald-500/[0.07] text-emerald-300/95"
               }`}
             >
-              <span className={`shrink-0 ${persona === "teacher" ? "text-indigo-300" : "text-emerald-400"}`} aria-hidden>
+              <span
+                className={`shrink-0 ${persona === "teacher" ? "text-indigo-300" : "text-emerald-400"}`}
+                aria-hidden
+              >
                 ✦
               </span>
               <span className="text-balance">
@@ -665,7 +684,9 @@ export default function EduBlastInvestorLanding() {
           >
             {persona === "teacher" ? (
               <>
-                <span className="block font-semibold text-white">Your expertise should earn you</span>
+                <span className="block font-semibold text-white">
+                  Your expertise should earn you
+                </span>
                 <span className="mt-1 block text-[2.25rem] font-semibold italic leading-[0.9] text-[#6f71ff] sm:text-[2.8rem] md:text-[3.2rem] lg:text-[3.45rem] xl:text-[3.8rem]">
                   income,
                 </span>
@@ -731,8 +752,14 @@ export default function EduBlastInvestorLanding() {
                 { v: "+10", l: "RDM PER UPVOTED COMMENT", c: "text-[#6f71ff]" },
               ].map((s) => (
                 <div key={s.l} className="min-w-0">
-                  <p className={`text-[1.55rem] font-semibold leading-none sm:text-[1.8rem] ${s.c}`}>{s.v}</p>
-                  <p className="mt-1 text-[8.5px] uppercase tracking-[0.12em] text-zinc-600 sm:text-[9px]">{s.l}</p>
+                  <p
+                    className={`text-[1.55rem] font-semibold leading-none sm:text-[1.8rem] ${s.c}`}
+                  >
+                    {s.v}
+                  </p>
+                  <p className="mt-1 text-[8.5px] uppercase tracking-[0.12em] text-zinc-600 sm:text-[9px]">
+                    {s.l}
+                  </p>
                 </div>
               ))}
             </div>
@@ -767,693 +794,691 @@ export default function EduBlastInvestorLanding() {
         </div>
       </section>
       {persona === "student" ? (
-      <>
+        <>
           <TickerStrip />
 
           <ExamCoverageStrip />
 
-      {/* —— Six systems (investor cards) —— */}
-      <section
-        id="investor-features"
-        className={`scroll-mt-20 border-b border-white/10 bg-[#0a0a0a] ${SEC_PAD}`}
-      >
-        <div className="mx-auto max-w-6xl">
-          <div className="mb-10 text-center lg:mb-12 lg:text-left">
-            <p className="text-[10px] font-bold uppercase tracking-[0.35em] text-[#34f5a4]">
-              Six AI systems · one mission
-            </p>
-            <h2 className="mt-4 max-w-4xl text-[1.65rem] font-semibold leading-tight tracking-tight text-white sm:text-[1.85rem] lg:mx-0 lg:max-w-3xl lg:text-[2rem] xl:text-3xl 2xl:text-4xl">
-              Every feature built to make you{" "}
-              <span
-                className="bg-gradient-to-r from-[#34f5a4] via-emerald-300 to-cyan-300 bg-clip-text font-semibold italic text-transparent"
+          {/* —— Six systems (investor cards) —— */}
+          <section
+            id="investor-features"
+            className={`scroll-mt-20 border-b border-white/10 bg-[#0a0a0a] ${SEC_PAD}`}
+          >
+            <div className="mx-auto max-w-6xl">
+              <div className="mb-10 text-center lg:mb-12 lg:text-left">
+                <p className="text-[10px] font-bold uppercase tracking-[0.35em] text-[#34f5a4]">
+                  Six AI systems · one mission
+                </p>
+                <h2 className="mt-4 max-w-4xl text-[1.65rem] font-semibold leading-tight tracking-tight text-white sm:text-[1.85rem] lg:mx-0 lg:max-w-3xl lg:text-[2rem] xl:text-3xl 2xl:text-4xl">
+                  Every feature built to make you{" "}
+                  <span
+                    className="bg-gradient-to-r from-[#34f5a4] via-emerald-300 to-cyan-300 bg-clip-text font-semibold italic text-transparent"
+                    style={{ fontFamily: "var(--font-landing-serif), ui-serif, Georgia, serif" }}
+                  >
+                    rank higher.
+                  </span>
+                </h2>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 xl:grid-cols-3 xl:gap-6">
+                {SIX_SYSTEMS.map((c) => {
+                  const Icon = c.icon;
+                  return (
+                    <div key={c.title} className="group/card relative">
+                      {/* Hover: outer glow + gradient hairline (investor spec) */}
+                      <div
+                        className="pointer-events-none absolute -inset-px rounded-2xl opacity-0 transition-all duration-500 group-hover/card:opacity-100"
+                        style={{
+                          background:
+                            "linear-gradient(135deg, rgba(167,139,250,0.55), rgba(52,245,164,0.45))",
+                          filter: "blur(10px)",
+                        }}
+                      />
+                      <div className="relative flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-white/[0.09] bg-[#121318] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-300 group-hover/card:-translate-y-0.5 group-hover/card:border-white/[0.18] group-hover/card:bg-[#161a22] group-hover/card:shadow-[0_24px_48px_-12px_rgba(0,0,0,0.65),0_0_0_1px_rgba(167,139,250,0.12),0_0_40px_-8px_rgba(52,245,164,0.08)] xl:p-6">
+                        {/* Bottom gradient bar on hover (purple → teal) */}
+                        <div
+                          className="pointer-events-none absolute bottom-0 left-5 right-5 h-[2px] rounded-full bg-gradient-to-r from-violet-400 via-fuchsia-400 to-teal-400 opacity-0 transition-opacity duration-300 group-hover/card:opacity-100"
+                          aria-hidden
+                        />
+
+                        <div className="relative flex items-start justify-between gap-3">
+                          <div
+                            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${c.iconWrapClass}`}
+                          >
+                            <Icon className={`h-5 w-5 ${c.iconClass}`} strokeWidth={2} />
+                          </div>
+                          {c.rdm != null && c.rdm !== "" && c.rdmPillClass ? (
+                            <span
+                              className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold tracking-wide ${c.rdmPillClass}`}
+                            >
+                              {c.rdm}
+                            </span>
+                          ) : null}
+                        </div>
+
+                        <p
+                          className={`relative mt-5 text-[10px] font-bold uppercase tracking-[0.2em] ${c.catClass}`}
+                        >
+                          {c.cat}
+                        </p>
+                        <h3
+                          className="relative mt-1.5 text-lg font-semibold text-white sm:text-xl"
+                          style={{
+                            fontFamily: "var(--font-landing-serif), ui-serif, Georgia, serif",
+                          }}
+                        >
+                          {c.title}
+                        </h3>
+                        <p className="relative mt-3 flex-1 text-[12px] leading-relaxed text-zinc-500 sm:text-[13px]">
+                          {c.desc}
+                        </p>
+                        <div className="relative mt-5 flex flex-wrap gap-2">
+                          {c.tags.map((t) => (
+                            <span
+                              key={t.label}
+                              className={`rounded-full bg-black/35 px-2.5 py-1 text-[10px] font-semibold ring-1 ring-inset ${t.className}`}
+                            >
+                              {t.label}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </section>
+
+          {/* —— Magic Wall (investor mockup: Prof-Pi + rich feed card) —— */}
+          <section className={`border-b border-white/10 bg-[#050505] ${SEC_PAD}`}>
+            <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-2 lg:items-start lg:gap-10 xl:gap-12 2xl:gap-14">
+              <div className="min-w-0">
+                <span className="inline-flex items-center gap-2 rounded-full border border-violet-500/50 bg-violet-500/10 px-3.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-violet-200">
+                  ⭐ New · Prof-Pi Gyan++ Wall
+                </span>
+                <h2
+                  className="mt-5 text-2xl font-semibold leading-[1.15] tracking-tight text-white sm:text-[1.65rem] md:text-[1.8rem] lg:text-[1.95rem] lg:leading-tight xl:text-[2.1rem] 2xl:text-[2.35rem]"
+                  style={{ fontFamily: "var(--font-landing-serif), ui-serif, Georgia, serif" }}
+                >
+                  Where multiple minds ask, answer and{" "}
+                  <span className="bg-gradient-to-r from-violet-300 via-fuchsia-300 to-indigo-300 bg-clip-text font-semibold italic text-transparent">
+                    accelerate
+                  </span>{" "}
+                  together.
+                </h2>
+                <p className="mt-5 text-[15px] leading-relaxed text-zinc-300 sm:text-base">
+                  The <span className="font-semibold text-white">Prof-Pi Gyan++ Wall</span> is
+                  EduBlast&apos;s live social feed — a constantly refreshing river of questions, AI
+                  answers, teacher commentary, peer insights and revision cards. Every time you open
+                  it, something new has been added. Interactions earn you RDM.
+                </p>
+                <div className="mt-6 grid grid-cols-2 gap-2.5 sm:max-w-md">
+                  {(
+                    [
+                      { Icon: Clock, label: "Quick answers" },
+                      { Icon: LineChart, label: "Live leaderboard" },
+                      { Icon: Star, label: "Teacher value-adds" },
+                      { Icon: Menu, label: "Trending by subject" },
+                    ] as const
+                  ).map(({ Icon, label }) => (
+                    <span
+                      key={label}
+                      className="inline-flex items-center gap-2 rounded-xl border border-white/12 bg-zinc-900/70 px-3 py-2.5 text-[12px] font-medium text-zinc-200 shadow-sm"
+                    >
+                      <Icon className="h-4 w-4 shrink-0 text-zinc-400" strokeWidth={2} />
+                      {label}
+                    </span>
+                  ))}
+                </div>
+                <Link
+                  href="/magic-wall"
+                  className="mt-9 inline-flex items-center gap-2 rounded-full bg-[#34f5a4] px-7 py-3.5 text-sm font-bold text-neutral-950 shadow-[0_0_28px_rgba(52,245,164,0.25)] transition hover:bg-[#2ee89a]"
+                >
+                  Enter the Gyan ++ Wall <span aria-hidden>→</span>
+                </Link>
+              </div>
+
+              <div className="min-w-0 rounded-2xl border border-violet-500/30 bg-gradient-to-b from-[#161022] via-[#0e0c14] to-[#08060c] p-1 shadow-[0_0_48px_rgba(139,92,246,0.14)]">
+                <div className="rounded-[14px] border border-white/[0.07] bg-[#0c0a10]/95 p-4 sm:p-5">
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-3">
+                    <span className="flex items-center gap-2 text-[11px] font-bold text-white sm:text-xs">
+                      <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.7)]" />
+                      Prof-Pi Gyan++ Wall · Physics
+                    </span>
+                    <span className="text-[10px] font-medium text-zinc-500 sm:text-[11px]">
+                      150+ Q&A on the Gyan ++ Wall today
+                    </span>
+                  </div>
+
+                  <div className="mt-4 flex gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-500/40 to-fuchsia-600/30 text-xs font-bold text-white ring-1 ring-white/10">
+                      NK
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[11px] font-semibold text-zinc-200 sm:text-xs">
+                        Nidhi K <span className="font-normal text-zinc-500">·</span> PUC 2{" "}
+                        <span className="font-normal text-zinc-500">·</span> Bengaluru
+                      </p>
+                      <p className="mt-2 text-[13px] leading-snug text-zinc-200 sm:text-sm">
+                        Why does a capacitor block DC current but allow AC current to pass?
+                      </p>
+                      <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-[10px] text-zinc-400 sm:text-[11px]">
+                          Physics <span className="text-zinc-600">·</span> Electrostatics{" "}
+                          <span className="text-zinc-600">·</span>{" "}
+                          <span className="text-zinc-500">3 min ago</span>
+                        </p>
+                        <span className="rounded-full bg-orange-500/15 px-2 py-0.5 text-[10px] font-bold text-orange-300 ring-1 ring-orange-400/30">
+                          +5 RDM earned
+                        </span>
+                      </div>
+                      <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px]">
+                        <span className="inline-flex items-center gap-1 font-semibold text-zinc-400">
+                          <ChevronUp className="h-3.5 w-3.5" strokeWidth={2.5} />
+                          31
+                        </span>
+                        <span className="text-violet-400/90">Prof-Pi AI answered ↓</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 rounded-xl border border-emerald-500/40 bg-emerald-500/[0.06] p-3 sm:p-4">
+                    <p className="flex flex-wrap items-center gap-2 text-[10px] font-bold uppercase tracking-wide text-emerald-300/95">
+                      <Clock className="h-3.5 w-3.5 shrink-0" strokeWidth={2.5} />
+                      Prof-Pi AI · answered in 1.8s
+                    </p>
+                    <p className="mt-2 text-[12px] leading-relaxed text-zinc-200 sm:text-[13px]">
+                      Capacitive reactance{" "}
+                      <span className="font-mono text-[11px] text-emerald-200/90">
+                        X_C = 1/(2πfC)
+                      </span>{" "}
+                      is infinite at DC (f = 0), so no steady current flows — but AC keeps
+                      reversing, so the capacitor repeatedly charges and discharges and AC
+                      &quot;gets through&quot; as a displacement current in the circuit.
+                    </p>
+                  </div>
+
+                  <div className="mt-3 rounded-xl border border-sky-500/35 bg-sky-500/[0.07] p-3 sm:p-4">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-sky-200/95">
+                      Dr. Suresh · Physics faculty · Teacher section
+                    </p>
+                    <p className="mt-2 text-[12px] leading-relaxed text-sky-100/90 sm:text-[13px]">
+                      <span className="font-semibold text-sky-200">JEE tip:</span> When f → 0, treat{" "}
+                      <span className="font-mono text-[11px]">X_C → ∞</span> — state that first,
+                      then connect to open circuit for DC. Examiners reward that limiting case
+                      before the formula grind.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* —— RDM + EduFund intro (investor: golden RDM + hover cards) —— */}
+          <section className={`border-b border-white/10 bg-[#050505] ${SEC_PAD}`}>
+            <div className="mx-auto max-w-6xl">
+              <p className="text-center text-[10px] font-bold uppercase tracking-[0.35em] text-[#34f5a4]">
+                Earn while you learn
+              </p>
+              <h2
+                className="mx-auto mt-5 max-w-4xl text-center text-[1.5rem] font-bold leading-[1.3] tracking-tight text-white sm:text-[1.75rem] sm:leading-[1.26] md:text-[1.9rem] md:leading-[1.22] lg:text-[2rem] xl:text-[2.2rem] 2xl:text-[2.45rem] 2xl:leading-[1.2]"
                 style={{ fontFamily: "var(--font-landing-serif), ui-serif, Georgia, serif" }}
               >
-                rank higher.
-              </span>
-            </h2>
-          </div>
+                <span className="block">
+                  Every action earns you <span className="text-[#eab308] italic">RDM</span>.
+                </span>
+                <span className="mt-1.5 block font-bold not-italic text-white sm:mt-2">
+                  RDM earns you real money.
+                </span>
+              </h2>
+              <p className="mx-auto mt-5 max-w-2xl text-center text-[15px] leading-relaxed text-zinc-300 sm:text-base">
+                RDM is the currency of EduBlast. Every meaningful action on the platform earns you
+                RDM — and enough RDM unlocks real financial grants through EduFund.
+              </p>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 xl:grid-cols-3 xl:gap-6">
-            {SIX_SYSTEMS.map((c) => {
-              const Icon = c.icon;
-              return (
-                <div key={c.title} className="group/card relative">
-                  {/* Hover: outer glow + gradient hairline (investor spec) */}
-                  <div
-                    className="pointer-events-none absolute -inset-px rounded-2xl opacity-0 transition-all duration-500 group-hover/card:opacity-100"
-                    style={{
-                      background:
-                        "linear-gradient(135deg, rgba(167,139,250,0.55), rgba(52,245,164,0.45))",
-                      filter: "blur(10px)",
-                    }}
-                  />
-                  <div
-                    className="relative flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-white/[0.09] bg-[#121318] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-300 group-hover/card:-translate-y-0.5 group-hover/card:border-white/[0.18] group-hover/card:bg-[#161a22] group-hover/card:shadow-[0_24px_48px_-12px_rgba(0,0,0,0.65),0_0_0_1px_rgba(167,139,250,0.12),0_0_40px_-8px_rgba(52,245,164,0.08)] xl:p-6"
-                  >
-                    {/* Bottom gradient bar on hover (purple → teal) */}
+              <div className="mt-8 grid grid-cols-1 gap-4 sm:mt-10 sm:grid-cols-2 xl:grid-cols-4 xl:gap-5">
+                {RDM_WAYS.map((w) => (
+                  <div key={w.title} className="group/rdm relative">
                     <div
-                      className="pointer-events-none absolute bottom-0 left-5 right-5 h-[2px] rounded-full bg-gradient-to-r from-violet-400 via-fuchsia-400 to-teal-400 opacity-0 transition-opacity duration-300 group-hover/card:opacity-100"
-                      aria-hidden
+                      className="pointer-events-none absolute -inset-px rounded-2xl opacity-0 transition-all duration-500 group-hover/rdm:opacity-100"
+                      style={{
+                        background:
+                          "linear-gradient(135deg, rgba(251,191,36,0.35), rgba(167,139,250,0.25))",
+                        filter: "blur(10px)",
+                      }}
                     />
-
-                    <div className="relative flex items-start justify-between gap-3">
+                    <div className="relative flex h-full flex-col overflow-hidden rounded-2xl border border-white/[0.08] bg-gradient-to-b from-[#181424] to-[#0f0d14] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-300 group-hover/rdm:-translate-y-0.5 group-hover/rdm:border-amber-400/25 group-hover/rdm:from-[#1c1828] group-hover/rdm:to-[#121018] group-hover/rdm:shadow-[0_22px_44px_-14px_rgba(0,0,0,0.55),0_0_0_1px_rgba(251,191,36,0.1),0_0_36px_-10px_rgba(167,139,250,0.08)]">
                       <div
-                        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${c.iconWrapClass}`}
-                      >
-                        <Icon className={`h-5 w-5 ${c.iconClass}`} strokeWidth={2} />
+                        className="pointer-events-none absolute inset-x-4 bottom-0 h-[2px] rounded-full bg-gradient-to-r from-transparent via-amber-400/60 to-transparent opacity-0 transition-opacity duration-300 group-hover/rdm:opacity-100"
+                        aria-hidden
+                      />
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-black/35 text-lg ring-1 ring-white/10 transition-colors group-hover/rdm:bg-black/50 group-hover/rdm:ring-amber-400/15">
+                        {w.icon}
                       </div>
-                      {c.rdm != null && c.rdm !== "" && c.rdmPillClass ? (
-                        <span
-                          className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold tracking-wide ${c.rdmPillClass}`}
-                        >
-                          {c.rdm}
-                        </span>
-                      ) : null}
-                    </div>
-
-                    <p
-                      className={`relative mt-5 text-[10px] font-bold uppercase tracking-[0.2em] ${c.catClass}`}
-                    >
-                      {c.cat}
-                    </p>
-                    <h3
-                      className="relative mt-1.5 text-lg font-semibold text-white sm:text-xl"
-                      style={{ fontFamily: "var(--font-landing-serif), ui-serif, Georgia, serif" }}
-                    >
-                      {c.title}
-                    </h3>
-                    <p className="relative mt-3 flex-1 text-[12px] leading-relaxed text-zinc-500 sm:text-[13px]">
-                      {c.desc}
-                    </p>
-                    <div className="relative mt-5 flex flex-wrap gap-2">
-                      {c.tags.map((t) => (
-                        <span
-                          key={t.label}
-                          className={`rounded-full bg-black/35 px-2.5 py-1 text-[10px] font-semibold ring-1 ring-inset ${t.className}`}
-                        >
-                          {t.label}
-                        </span>
-                      ))}
+                      <h3 className="mt-3 text-sm font-bold tracking-tight text-white">
+                        {w.title}
+                      </h3>
+                      <p className="mt-2 flex-1 text-xs leading-relaxed text-zinc-400 transition-colors group-hover/rdm:text-zinc-300">
+                        {w.desc}
+                      </p>
+                      <p className="mt-4 text-xs font-bold tracking-wide text-amber-200">{w.rdm}</p>
                     </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* —— Magic Wall (investor mockup: Prof-Pi + rich feed card) —— */}
-      <section className={`border-b border-white/10 bg-[#050505] ${SEC_PAD}`}>
-        <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-2 lg:items-start lg:gap-10 xl:gap-12 2xl:gap-14">
-          <div className="min-w-0">
-            <span className="inline-flex items-center gap-2 rounded-full border border-violet-500/50 bg-violet-500/10 px-3.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-violet-200">
-              ⭐ New · Prof-Pi Gyan++ Wall
-            </span>
-            <h2
-              className="mt-5 text-2xl font-semibold leading-[1.15] tracking-tight text-white sm:text-[1.65rem] md:text-[1.8rem] lg:text-[1.95rem] lg:leading-tight xl:text-[2.1rem] 2xl:text-[2.35rem]"
-              style={{ fontFamily: "var(--font-landing-serif), ui-serif, Georgia, serif" }}
-            >
-              Where multiple minds ask, answer and{" "}
-              <span className="bg-gradient-to-r from-violet-300 via-fuchsia-300 to-indigo-300 bg-clip-text font-semibold italic text-transparent">
-                accelerate
-              </span>{" "}
-              together.
-            </h2>
-            <p className="mt-5 text-[15px] leading-relaxed text-zinc-300 sm:text-base">
-              The <span className="font-semibold text-white">Prof-Pi Gyan++ Wall</span> is
-              EduBlast&apos;s live social feed — a constantly refreshing river of questions,
-              AI answers, teacher commentary, peer insights and revision cards. Every time
-              you open it, something new has been added. Interactions earn you RDM.
-            </p>
-            <div className="mt-6 grid grid-cols-2 gap-2.5 sm:max-w-md">
-              {(
-                [
-                  { Icon: Clock, label: "Quick answers" },
-                  { Icon: LineChart, label: "Live leaderboard" },
-                  { Icon: Star, label: "Teacher value-adds" },
-                  { Icon: Menu, label: "Trending by subject" },
-                ] as const
-              ).map(({ Icon, label }) => (
-                <span
-                  key={label}
-                  className="inline-flex items-center gap-2 rounded-xl border border-white/12 bg-zinc-900/70 px-3 py-2.5 text-[12px] font-medium text-zinc-200 shadow-sm"
-                >
-                  <Icon className="h-4 w-4 shrink-0 text-zinc-400" strokeWidth={2} />
-                  {label}
-                </span>
-              ))}
-            </div>
-            <Link
-              href="/magic-wall"
-              className="mt-9 inline-flex items-center gap-2 rounded-full bg-[#34f5a4] px-7 py-3.5 text-sm font-bold text-neutral-950 shadow-[0_0_28px_rgba(52,245,164,0.25)] transition hover:bg-[#2ee89a]"
-            >
-              Enter the Gyan ++ Wall <span aria-hidden>→</span>
-            </Link>
-          </div>
-
-          <div className="min-w-0 rounded-2xl border border-violet-500/30 bg-gradient-to-b from-[#161022] via-[#0e0c14] to-[#08060c] p-1 shadow-[0_0_48px_rgba(139,92,246,0.14)]">
-            <div className="rounded-[14px] border border-white/[0.07] bg-[#0c0a10]/95 p-4 sm:p-5">
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-3">
-                <span className="flex items-center gap-2 text-[11px] font-bold text-white sm:text-xs">
-                  <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.7)]" />
-                  Prof-Pi Gyan++ Wall · Physics
-                </span>
-                <span className="text-[10px] font-medium text-zinc-500 sm:text-[11px]">
-                  150+ Q&A on the Gyan ++ Wall today
-                </span>
-              </div>
-
-              <div className="mt-4 flex gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-500/40 to-fuchsia-600/30 text-xs font-bold text-white ring-1 ring-white/10">
-                  NK
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[11px] font-semibold text-zinc-200 sm:text-xs">
-                    Nidhi K <span className="font-normal text-zinc-500">·</span> PUC 2{" "}
-                    <span className="font-normal text-zinc-500">·</span> Bengaluru
-                  </p>
-                  <p className="mt-2 text-[13px] leading-snug text-zinc-200 sm:text-sm">
-                    Why does a capacitor block DC current but allow AC current to pass?
-                  </p>
-                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                    <p className="text-[10px] text-zinc-400 sm:text-[11px]">
-                      Physics <span className="text-zinc-600">·</span> Electrostatics{" "}
-                      <span className="text-zinc-600">·</span>{" "}
-                      <span className="text-zinc-500">3 min ago</span>
-                    </p>
-                    <span className="rounded-full bg-orange-500/15 px-2 py-0.5 text-[10px] font-bold text-orange-300 ring-1 ring-orange-400/30">
-                      +5 RDM earned
-                    </span>
-                  </div>
-                  <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px]">
-                    <span className="inline-flex items-center gap-1 font-semibold text-zinc-400">
-                      <ChevronUp className="h-3.5 w-3.5" strokeWidth={2.5} />
-                      31
-                    </span>
-                    <span className="text-violet-400/90">Prof-Pi AI answered ↓</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-4 rounded-xl border border-emerald-500/40 bg-emerald-500/[0.06] p-3 sm:p-4">
-                <p className="flex flex-wrap items-center gap-2 text-[10px] font-bold uppercase tracking-wide text-emerald-300/95">
-                  <Clock className="h-3.5 w-3.5 shrink-0" strokeWidth={2.5} />
-                  Prof-Pi AI · answered in 1.8s
-                </p>
-                <p className="mt-2 text-[12px] leading-relaxed text-zinc-200 sm:text-[13px]">
-                  Capacitive reactance{" "}
-                  <span className="font-mono text-[11px] text-emerald-200/90">X_C = 1/(2πfC)</span>{" "}
-                  is infinite at DC (f = 0), so no steady current flows — but AC keeps
-                  reversing, so the capacitor repeatedly charges and discharges and AC
-                  &quot;gets through&quot; as a displacement current in the circuit.
-                </p>
-              </div>
-
-              <div className="mt-3 rounded-xl border border-sky-500/35 bg-sky-500/[0.07] p-3 sm:p-4">
-                <p className="text-[10px] font-bold uppercase tracking-wide text-sky-200/95">
-                  Dr. Suresh · Physics faculty · Teacher section
-                </p>
-                <p className="mt-2 text-[12px] leading-relaxed text-sky-100/90 sm:text-[13px]">
-                  <span className="font-semibold text-sky-200">JEE tip:</span> When f → 0,
-                  treat <span className="font-mono text-[11px]">X_C → ∞</span> — state that
-                  first, then connect to open circuit for DC. Examiners reward that limiting
-                  case before the formula grind.
-                </p>
+                ))}
               </div>
             </div>
-          </div>
-        </div>
-      </section>
+          </section>
 
-      {/* —— RDM + EduFund intro (investor: golden RDM + hover cards) —— */}
-      <section className={`border-b border-white/10 bg-[#050505] ${SEC_PAD}`}>
-        <div className="mx-auto max-w-6xl">
-          <p className="text-center text-[10px] font-bold uppercase tracking-[0.35em] text-[#34f5a4]">
-            Earn while you learn
-          </p>
-          <h2
-            className="mx-auto mt-5 max-w-4xl text-center text-[1.5rem] font-bold leading-[1.3] tracking-tight text-white sm:text-[1.75rem] sm:leading-[1.26] md:text-[1.9rem] md:leading-[1.22] lg:text-[2rem] xl:text-[2.2rem] 2xl:text-[2.45rem] 2xl:leading-[1.2]"
-            style={{ fontFamily: "var(--font-landing-serif), ui-serif, Georgia, serif" }}
+          {/* —— EduFund tiers + centered CTA (ref. screen 6) —— */}
+          <section
+            id="investor-edufund"
+            className={`scroll-mt-20 border-b border-white/10 ${SEC_PAD_SHORT}`}
           >
-            <span className="block">
-              Every action earns you{" "}
-              <span className="text-[#eab308] italic">RDM</span>.
-            </span>
-            <span className="mt-1.5 block font-bold not-italic text-white sm:mt-2">
-              RDM earns you real money.
-            </span>
-          </h2>
-          <p className="mx-auto mt-5 max-w-2xl text-center text-[15px] leading-relaxed text-zinc-300 sm:text-base">
-            RDM is the currency of EduBlast. Every meaningful action on the platform earns
-            you RDM — and enough RDM unlocks real financial grants through EduFund.
-          </p>
-
-          <div className="mt-8 grid grid-cols-1 gap-4 sm:mt-10 sm:grid-cols-2 xl:grid-cols-4 xl:gap-5">
-            {RDM_WAYS.map((w) => (
-              <div key={w.title} className="group/rdm relative">
-                <div
-                  className="pointer-events-none absolute -inset-px rounded-2xl opacity-0 transition-all duration-500 group-hover/rdm:opacity-100"
-                  style={{
-                    background:
-                      "linear-gradient(135deg, rgba(251,191,36,0.35), rgba(167,139,250,0.25))",
-                    filter: "blur(10px)",
-                  }}
-                />
-                <div className="relative flex h-full flex-col overflow-hidden rounded-2xl border border-white/[0.08] bg-gradient-to-b from-[#181424] to-[#0f0d14] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-300 group-hover/rdm:-translate-y-0.5 group-hover/rdm:border-amber-400/25 group-hover/rdm:from-[#1c1828] group-hover/rdm:to-[#121018] group-hover/rdm:shadow-[0_22px_44px_-14px_rgba(0,0,0,0.55),0_0_0_1px_rgba(251,191,36,0.1),0_0_36px_-10px_rgba(167,139,250,0.08)]">
-                  <div
-                    className="pointer-events-none absolute inset-x-4 bottom-0 h-[2px] rounded-full bg-gradient-to-r from-transparent via-amber-400/60 to-transparent opacity-0 transition-opacity duration-300 group-hover/rdm:opacity-100"
-                    aria-hidden
-                  />
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-black/35 text-lg ring-1 ring-white/10 transition-colors group-hover/rdm:bg-black/50 group-hover/rdm:ring-amber-400/15">
-                    {w.icon}
-                  </div>
-                  <h3 className="mt-3 text-sm font-bold tracking-tight text-white">
-                    {w.title}
-                  </h3>
-                  <p className="mt-2 flex-1 text-xs leading-relaxed text-zinc-400 transition-colors group-hover/rdm:text-zinc-300">
-                    {w.desc}
-                  </p>
-                  <p className="mt-4 text-xs font-bold tracking-wide text-amber-200">
-                    {w.rdm}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* —— EduFund tiers + centered CTA (ref. screen 6) —— */}
-      <section
-        id="investor-edufund"
-        className={`scroll-mt-20 border-b border-white/10 ${SEC_PAD_SHORT}`}
-      >
-        <div className="mx-auto max-w-6xl">
-          <p className="text-center text-[10px] font-bold uppercase tracking-[0.35em] text-[#34f5a4]">
-            EduFund tiers · unlock real financial aid
-          </p>
-          <h2
-            className="mx-auto mt-3 max-w-3xl text-center text-[1.6rem] font-bold text-white sm:text-[1.75rem] lg:text-2xl xl:text-3xl 2xl:text-4xl"
-            style={{ fontFamily: "var(--font-landing-serif), ui-serif, Georgia, serif" }}
-          >
-            Consistent study.{" "}
-            <span className="text-[#34f5a4]">Real rewards.</span>
-          </h2>
-
-          <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {[
-              {
-                title: "Sprout",
-                icon: "🌱",
-                pts: "Earn 1000 RDM to unlock",
-                amt: "₹3,000",
-                amtClass: "text-emerald-400",
-                desc: "Device funding, study material grants, mock pack access. For students who show up consistently.",
-                ring: "border-emerald-500/25",
-              },
-              {
-                title: "Scholar",
-                icon: "📚",
-                pts: "Earn 3000 RDM to unlock",
-                amt: "₹12,000",
-                amtClass: "text-violet-300",
-                desc: "College fee support, coaching fee grants, education loan pathway, JEE-linked scholarship nominations.",
-                ring: "border-violet-500/25",
-              },
-              {
-                title: "Champion",
-                icon: "🏆",
-                pts: "Earn 8000 RDM to unlock",
-                amt: "₹50,000",
-                amtClass: "text-orange-400",
-                desc: "Full education grants, abroad pathways, startup seed funding, personal EduFund advisor. Elite achievers only.",
-                ring: "border-orange-500/25",
-              },
-            ].map((tier) => (
-              <div
-                key={tier.title}
-                className={`flex min-w-0 flex-col rounded-2xl border ${tier.ring} bg-gradient-to-b from-zinc-900/90 to-[#08080c] p-5 shadow-[0_0_32px_rgba(0,0,0,0.45)] xl:p-6`}
+            <div className="mx-auto max-w-6xl">
+              <p className="text-center text-[10px] font-bold uppercase tracking-[0.35em] text-[#34f5a4]">
+                EduFund tiers · unlock real financial aid
+              </p>
+              <h2
+                className="mx-auto mt-3 max-w-3xl text-center text-[1.6rem] font-bold text-white sm:text-[1.75rem] lg:text-2xl xl:text-3xl 2xl:text-4xl"
+                style={{ fontFamily: "var(--font-landing-serif), ui-serif, Georgia, serif" }}
               >
-                <div className="flex items-center gap-2 text-xl sm:text-2xl">
-                  <span>{tier.icon}</span>
-                  <h3 className="font-serif text-lg font-semibold text-white sm:text-xl">
-                    {tier.title}
-                  </h3>
-                </div>
-                <span className="mt-3 inline-flex w-fit max-w-full rounded-full bg-white/10 px-2.5 py-1 text-[9px] font-bold leading-snug tracking-wide text-zinc-200 sm:text-[10px]">
-                  {tier.pts}
-                </span>
-                <p className={`mt-4 text-2xl font-bold sm:text-3xl ${tier.amtClass}`}>
-                  {tier.amt}
-                </p>
-                <p className="mt-3 flex-1 text-xs leading-relaxed text-zinc-500">
-                  {tier.desc}
-                </p>
+                Consistent study. <span className="text-[#34f5a4]">Real rewards.</span>
+              </h2>
+
+              <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                {[
+                  {
+                    title: "Sprout",
+                    icon: "🌱",
+                    pts: "Earn 1000 RDM to unlock",
+                    amt: "₹3,000",
+                    amtClass: "text-emerald-400",
+                    desc: "Device funding, study material grants, mock pack access. For students who show up consistently.",
+                    ring: "border-emerald-500/25",
+                  },
+                  {
+                    title: "Scholar",
+                    icon: "📚",
+                    pts: "Earn 3000 RDM to unlock",
+                    amt: "₹12,000",
+                    amtClass: "text-violet-300",
+                    desc: "College fee support, coaching fee grants, education loan pathway, JEE-linked scholarship nominations.",
+                    ring: "border-violet-500/25",
+                  },
+                  {
+                    title: "Champion",
+                    icon: "🏆",
+                    pts: "Earn 8000 RDM to unlock",
+                    amt: "₹50,000",
+                    amtClass: "text-orange-400",
+                    desc: "Full education grants, abroad pathways, startup seed funding, personal EduFund advisor. Elite achievers only.",
+                    ring: "border-orange-500/25",
+                  },
+                ].map((tier) => (
+                  <div
+                    key={tier.title}
+                    className={`flex min-w-0 flex-col rounded-2xl border ${tier.ring} bg-gradient-to-b from-zinc-900/90 to-[#08080c] p-5 shadow-[0_0_32px_rgba(0,0,0,0.45)] xl:p-6`}
+                  >
+                    <div className="flex items-center gap-2 text-xl sm:text-2xl">
+                      <span>{tier.icon}</span>
+                      <h3 className="font-serif text-lg font-semibold text-white sm:text-xl">
+                        {tier.title}
+                      </h3>
+                    </div>
+                    <span className="mt-3 inline-flex w-fit max-w-full rounded-full bg-white/10 px-2.5 py-1 text-[9px] font-bold leading-snug tracking-wide text-zinc-200 sm:text-[10px]">
+                      {tier.pts}
+                    </span>
+                    <p className={`mt-4 text-2xl font-bold sm:text-3xl ${tier.amtClass}`}>
+                      {tier.amt}
+                    </p>
+                    <p className="mt-3 flex-1 text-xs leading-relaxed text-zinc-500">{tier.desc}</p>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
 
-          <div className="mt-10 flex justify-center">
-            <Link
-              href="/auth?role=student"
-              className="inline-flex items-center gap-2 rounded-full bg-[#34f5a4] px-8 py-3.5 text-sm font-bold text-neutral-950 shadow-[0_0_32px_rgba(52,245,164,0.25)] transition hover:bg-[#2ee89a]"
-            >
-              Start earning RDM Today <ArrowUpRight className="h-4 w-4" />
-            </Link>
-          </div>
+              <div className="mt-10 flex justify-center">
+                <Link
+                  href="/auth?role=student"
+                  className="inline-flex items-center gap-2 rounded-full bg-[#34f5a4] px-8 py-3.5 text-sm font-bold text-neutral-950 shadow-[0_0_32px_rgba(52,245,164,0.25)] transition hover:bg-[#2ee89a]"
+                >
+                  Start earning RDM Today <ArrowUpRight className="h-4 w-4" />
+                </Link>
+              </div>
 
-          <p className="mt-6 text-center text-[11px] text-zinc-500">
-            Free to join · No minimum purchase · Real grants for need-based
-            eligible students
-          </p>
-        </div>
-      </section>
+              <p className="mt-6 text-center text-[11px] text-zinc-500">
+                Free to join · No minimum purchase · Real grants for need-based eligible students
+              </p>
+            </div>
+          </section>
 
-      {/* —— Live wall (investor: hero + Prof-Pi live feed rows) —— */}
-      <section className={`border-b border-white/10 bg-[#0a0b10] ${SEC_PAD}`}>
-        <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-2 lg:items-start lg:gap-10 xl:gap-12 2xl:gap-14">
-          <div className="min-w-0 lg:pt-2">
-            <p className="text-[10px] font-bold uppercase tracking-[0.35em] text-[#34f5a4]">
-              Live right now
-            </p>
-            <h2
-              className="mt-4 text-2xl font-bold leading-[1.15] tracking-tight text-white sm:text-[1.65rem] md:text-[1.8rem] lg:text-[1.95rem] lg:leading-[1.12] xl:text-[2.1rem] 2xl:text-[2.35rem]"
-              style={{ fontFamily: "var(--font-landing-serif), ui-serif, Georgia, serif" }}
-            >
-              Multiple Students are on the wall.{" "}
-              <span className="text-[#34f5a4] italic">Are you?</span>
-            </h2>
-            <p className="mt-5 max-w-lg text-[15px] leading-relaxed text-zinc-200 sm:text-base">
-              EduBlast is where India&apos;s sharpest PUC students compete and earn every hour
-              of every day. Not a textbook. A living learning network.
-            </p>
-            <Link
-              href="/magic-wall"
-              className="mt-9 inline-flex items-center gap-2 rounded-full bg-[#34f5a4] px-7 py-3.5 text-sm font-bold text-neutral-950 shadow-[0_0_28px_rgba(52,245,164,0.22)] transition hover:bg-[#2ee89a]"
-            >
-              See the live wall <ArrowUpRight className="h-4 w-4 shrink-0" strokeWidth={2.5} />
-            </Link>
-          </div>
+          {/* —— Live wall (investor: hero + Prof-Pi live feed rows) —— */}
+          <section className={`border-b border-white/10 bg-[#0a0b10] ${SEC_PAD}`}>
+            <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-2 lg:items-start lg:gap-10 xl:gap-12 2xl:gap-14">
+              <div className="min-w-0 lg:pt-2">
+                <p className="text-[10px] font-bold uppercase tracking-[0.35em] text-[#34f5a4]">
+                  Live right now
+                </p>
+                <h2
+                  className="mt-4 text-2xl font-bold leading-[1.15] tracking-tight text-white sm:text-[1.65rem] md:text-[1.8rem] lg:text-[1.95rem] lg:leading-[1.12] xl:text-[2.1rem] 2xl:text-[2.35rem]"
+                  style={{ fontFamily: "var(--font-landing-serif), ui-serif, Georgia, serif" }}
+                >
+                  Multiple Students are on the wall.{" "}
+                  <span className="text-[#34f5a4] italic">Are you?</span>
+                </h2>
+                <p className="mt-5 max-w-lg text-[15px] leading-relaxed text-zinc-200 sm:text-base">
+                  EduBlast is where India&apos;s sharpest PUC students compete and earn every hour
+                  of every day. Not a textbook. A living learning network.
+                </p>
+                <Link
+                  href="/magic-wall"
+                  className="mt-9 inline-flex items-center gap-2 rounded-full bg-[#34f5a4] px-7 py-3.5 text-sm font-bold text-neutral-950 shadow-[0_0_28px_rgba(52,245,164,0.22)] transition hover:bg-[#2ee89a]"
+                >
+                  See the live wall <ArrowUpRight className="h-4 w-4 shrink-0" strokeWidth={2.5} />
+                </Link>
+              </div>
 
-          <div className="min-w-0 rounded-2xl border border-white/[0.09] bg-[#0e0e14] p-1 shadow-[0_0_40px_rgba(0,0,0,0.5)]">
-            <div className="rounded-[14px] border border-white/[0.06] bg-[#101018]">
-              <div className="flex items-center justify-between border-b border-white/10 px-4 py-3.5">
-                <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-500 sm:text-xs">
-                  Prof-Pi · live feed
+              <div className="min-w-0 rounded-2xl border border-white/[0.09] bg-[#0e0e14] p-1 shadow-[0_0_40px_rgba(0,0,0,0.5)]">
+                <div className="rounded-[14px] border border-white/[0.06] bg-[#101018]">
+                  <div className="flex items-center justify-between border-b border-white/10 px-4 py-3.5">
+                    <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-500 sm:text-xs">
+                      Prof-Pi · live feed
+                    </span>
+                    <span className="flex items-center gap-1.5 text-[11px] font-bold text-[#34f5a4]">
+                      <span className="relative flex h-2 w-2">
+                        <span className="absolute inset-0 animate-ping rounded-full bg-emerald-400/50" />
+                        <span className="relative h-2 w-2 rounded-full bg-[#34f5a4]" />
+                      </span>
+                      Live
+                    </span>
+                  </div>
+
+                  <div className="divide-y divide-white/[0.06]">
+                    {/* Row 1 — AI / Prof-Pi Chemistry + RDM pill */}
+                    <div className="group/feed flex gap-3 px-4 py-4 transition-colors hover:bg-white/[0.025]">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 text-[10px] font-bold text-white shadow-lg ring-1 ring-white/10">
+                        AI
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-bold text-white">Prof-Pi · Chemistry</p>
+                        <p className="mt-1.5 text-[13px] leading-relaxed text-zinc-300">
+                          Hybridization of carbon in benzene — quick recap with diagram logic.
+                        </p>
+                        <p className="mt-2 text-[10px] font-medium text-zinc-500">
+                          answered in 1.6s · 22 peers
+                        </p>
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                          <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-zinc-900/90 px-2.5 py-1 text-[10px] font-semibold text-zinc-300">
+                            <ChevronUp className="h-3 w-3" strokeWidth={2.5} />
+                            15
+                          </span>
+                          <span className="rounded-full border border-white/10 bg-zinc-900/90 px-2.5 py-1 text-[10px] font-semibold text-zinc-300">
+                            Comment +5
+                          </span>
+                          <span className="rounded-full border border-orange-400/40 bg-gradient-to-b from-orange-500/25 to-amber-900/30 px-2.5 py-1 text-[10px] font-bold leading-none text-orange-200 shadow-[0_0_12px_rgba(251,146,60,0.18)]">
+                            +5
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Row 2 — Arjun */}
+                    <div className="group/feed flex gap-3 px-4 py-4 transition-colors hover:bg-white/[0.025]">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-teal-500 to-emerald-700 text-[10px] font-bold text-white ring-1 ring-white/10">
+                        AR
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-bold text-white">Arjun R · PUC 2</p>
+                        <p className="mt-1.5 text-[13px] leading-relaxed text-zinc-300">
+                          Mock #4 done — 87%! Mechanics finally clicking… Testbee kept pushing
+                          Integration by parts. Feeling dangerous.
+                        </p>
+                        <p className="mt-2 text-[10px] font-medium text-zinc-500">
+                          29 boosts · 11 comments
+                        </p>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-zinc-900/90 px-2.5 py-1 text-[10px] font-semibold text-zinc-300">
+                            <ChevronUp className="h-3 w-3" strokeWidth={2.5} />
+                            Boost
+                          </span>
+                          <span className="rounded-full border border-white/10 bg-zinc-900/90 px-2.5 py-1 text-[10px] font-semibold text-zinc-300">
+                            Reply
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Row 3 — Sneha */}
+                    <div className="group/feed flex gap-3 px-4 py-4 transition-colors hover:bg-white/[0.025]">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-amber-500 to-orange-700 text-[10px] font-bold text-white ring-1 ring-white/10">
+                        SM
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-bold text-white">Sneha M · student</p>
+                        <p className="mt-1.5 text-[13px] leading-relaxed text-zinc-300">
+                          New Instacue: Kirchhoff&apos;s laws in 4 bullets — save before Physics
+                          mock.
+                        </p>
+                        <p className="mt-2 text-[10px] font-medium text-zinc-500">
+                          183 saves · trending
+                        </p>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <span className="rounded-full border border-white/10 bg-zinc-900/90 px-2.5 py-1 text-[10px] font-semibold text-zinc-300">
+                            Save +2 RDM
+                          </span>
+                          <span className="rounded-full border border-white/10 bg-zinc-900/90 px-2.5 py-1 text-[10px] font-semibold text-zinc-300">
+                            View
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* —— Comparison (investor: THE REAL DIFFERENCE + dual panels) —— */}
+          <section className={`border-b border-white/10 bg-[#050505] ${SEC_PAD}`}>
+            <div className="mx-auto max-w-6xl">
+              <p className="text-center text-[10px] font-bold uppercase tracking-[0.32em] text-[#34f5a4]">
+                The real difference
+              </p>
+              <h2
+                className="mx-auto mt-4 max-w-4xl text-center text-[1.6rem] font-bold leading-snug tracking-tight text-white sm:text-[1.8rem] sm:leading-tight lg:text-[1.95rem] xl:text-3xl 2xl:text-4xl"
+                style={{ fontFamily: "var(--font-landing-serif), ui-serif, Georgia, serif" }}
+              >
+                <span className="block sm:inline">Every other platform puts you to sleep.</span>{" "}
+                <span className="mt-1 block text-[#34f5a4] italic sm:mt-0 sm:inline">
+                  EduBlast keeps you in the game.
                 </span>
-                <span className="flex items-center gap-1.5 text-[11px] font-bold text-[#34f5a4]">
-                  <span className="relative flex h-2 w-2">
-                    <span className="absolute inset-0 animate-ping rounded-full bg-emerald-400/50" />
-                    <span className="relative h-2 w-2 rounded-full bg-[#34f5a4]" />
+              </h2>
+
+              <div className="mt-8 grid grid-cols-1 gap-5 sm:mt-10 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:items-stretch lg:gap-4 xl:gap-6">
+                {/* Every other EdTech */}
+                <div className="group/compare-left min-w-0 rounded-2xl border border-orange-900/40 bg-gradient-to-b from-[#1a100c] to-[#0c0806] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-all duration-300 hover:border-orange-500/55 hover:shadow-[0_0_0_1px_rgba(234,88,12,0.12),0_24px_48px_-20px_rgba(0,0,0,0.55)] sm:p-6 xl:p-7">
+                  <span className="inline-flex rounded-full bg-orange-950/80 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-orange-300 ring-1 ring-orange-500/30">
+                    Every other EdTech
                   </span>
-                  Live
+                  <ul className="mt-6 space-y-4">
+                    {INVESTOR_PROBLEM_OTHER.map((line) => (
+                      <li
+                        key={line}
+                        className="flex gap-3 text-[13px] leading-snug text-zinc-200 sm:text-[14px]"
+                      >
+                        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-red-600 shadow-sm ring-1 ring-red-400/40">
+                          <X className="h-3 w-3 text-white" strokeWidth={3} />
+                        </span>
+                        <span className="min-w-0 break-words">{line}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="flex items-center justify-center py-1 lg:px-1 lg:py-0" aria-hidden>
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-white/15 bg-[#0a0a0f] text-[11px] font-medium italic tracking-wide text-zinc-400 shadow-[0_0_24px_rgba(0,0,0,0.6)]">
+                    v/s
+                  </div>
+                </div>
+
+                {/* EduBlast */}
+                <div className="group/compare-right min-w-0 rounded-2xl border border-emerald-800/45 bg-gradient-to-b from-[#0c1814] to-[#060a08] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-all duration-300 hover:border-[#34f5a4]/45 hover:shadow-[0_0_0_1px_rgba(52,245,164,0.12),0_24px_48px_-20px_rgba(0,0,0,0.55)] sm:p-6 xl:p-7">
+                  <span className="inline-flex rounded-full bg-emerald-950/70 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-[#34f5a4] ring-1 ring-[#34f5a4]/35">
+                    EduBlast
+                  </span>
+                  <ul className="mt-6 space-y-4">
+                    {INVESTOR_PROBLEM_EDUBLAST.map((line) => (
+                      <li
+                        key={line}
+                        className="flex gap-3 text-[13px] leading-snug text-zinc-200 sm:text-[14px]"
+                      >
+                        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-600 shadow-sm ring-1 ring-emerald-400/45">
+                          <Check className="h-3 w-3 text-white" strokeWidth={3} />
+                        </span>
+                        <span className="min-w-0 break-words">{line}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* —— Recruiting (ref. screen 9) —— */}
+          <section
+            id="investor-teachers"
+            className={`scroll-mt-20 border-b border-white/10 ${SEC_PAD_SHORT}`}
+          >
+            <div className="mx-auto max-w-6xl text-center">
+              <p className="text-[10px] font-bold uppercase tracking-[0.35em] text-emerald-400">
+                Now recruiting · April 2026
+              </p>
+              <h2
+                className="mx-auto mt-3 max-w-3xl text-[1.6rem] font-semibold text-white sm:text-[1.85rem] lg:text-2xl xl:text-3xl 2xl:text-4xl"
+                style={{ fontFamily: "var(--font-landing-serif), ui-serif, Georgia, serif" }}
+              >
+                Join the founding cohort. Build EduBlast{" "}
+                <span className="text-emerald-400">with us.</span>
+              </h2>
+              <p className="mx-auto mt-4 max-w-2xl text-sm text-zinc-400">
+                We are looking for paid Student and Teacher Ambassadors who want to shape
+                India&apos;s most exciting EdTech platform from the ground up.
+              </p>
+            </div>
+            <div className="mx-auto mt-10 grid max-w-5xl gap-4 lg:grid-cols-2">
+              <div className="rounded-2xl border border-violet-500/30 bg-gradient-to-b from-[#1a1028] to-[#0c0812] p-6 text-left">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-full bg-violet-500/20 px-2 py-0.5 text-[10px] font-bold uppercase text-violet-200">
+                    Student Ambassador · Paid
+                  </span>
+                  <span className="rounded-full border border-white/10 px-2 py-0.5 text-[10px] font-bold text-zinc-400">
+                    10 spots only
+                  </span>
+                </div>
+                <h3 className="mt-4 font-serif text-xl font-semibold text-white">
+                  For curious, creative PUC students
+                </h3>
+                <ul className="mt-4 space-y-2 text-sm text-zinc-300">
+                  {[
+                    "Paid role — earn while you learn",
+                    "First access to all new platform features",
+                    "Weekly sync with product team",
+                    "Build public portfolio of content + leadership",
+                    "Direct path to Champion-tier EduFund consideration",
+                  ].map((x) => (
+                    <li key={x} className="flex gap-2">
+                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-violet-400" />
+                      {x}
+                    </li>
+                  ))}
+                </ul>
+                <Link
+                  href="/auth?role=student"
+                  className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-violet-500 py-3 text-sm font-bold text-white transition hover:bg-violet-600"
+                >
+                  Apply as Student Ambassador <ArrowUpRight className="h-4 w-4" />
+                </Link>
+              </div>
+              <div className="rounded-2xl border border-emerald-500/30 bg-gradient-to-b from-[#0c1a14] to-[#060a08] p-6 text-left">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold uppercase text-emerald-200">
+                    Teacher Ambassador · Paid
+                  </span>
+                  <span className="rounded-full border border-white/10 px-2 py-0.5 text-[10px] font-bold text-zinc-400">
+                    5 spots only
+                  </span>
+                </div>
+                <h3 className="mt-4 font-serif text-xl font-semibold text-white">
+                  For PCM teachers who want national reach
+                </h3>
+                <ul className="mt-4 space-y-2 text-sm text-zinc-300">
+                  {[
+                    "Paid teaching and mentoring role",
+                    "Host your own live webinar series",
+                    "National student visibility beyond your city",
+                    "RDM + cash compensation for verified contributions",
+                    "Shape syllabus-aligned content that ships to thousands",
+                  ].map((x) => (
+                    <li key={x} className="flex gap-2">
+                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
+                      {x}
+                    </li>
+                  ))}
+                </ul>
+                <Link
+                  href="/auth?role=teacher"
+                  className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#34f5a4] py-3 text-sm font-bold text-neutral-950 transition hover:bg-[#2ee89a]"
+                >
+                  See Teacher Page <ArrowUpRight className="h-4 w-4" />
+                </Link>
+              </div>
+            </div>
+          </section>
+
+          {/* —— Final CTA (investor ref: centered hero, serif stack, mint “Are you?”) —— */}
+          <section className="border-b border-white/10 bg-black px-4 py-14 sm:px-6 sm:py-16 lg:px-6 lg:py-16 xl:px-8 xl:py-20 2xl:px-10 2xl:py-24">
+            <div className="mx-auto max-w-3xl text-center xl:max-w-4xl">
+              <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-[#34f5a4] sm:text-[11px]">
+                Stop waiting
+              </p>
+              <h2
+                className="mt-4 text-center text-[1.45rem] font-semibold leading-[1.14] tracking-tight text-white [font-variant-numeric:lining-nums] sm:mt-5 sm:text-[1.6rem] md:text-[1.75rem] lg:text-[1.85rem] xl:text-[2.05rem] 2xl:text-[2.35rem]"
+                style={{ fontFamily: "var(--font-landing-serif), ui-serif, Georgia, serif" }}
+              >
+                <span className="block">Multiple Students are on the wall right now.</span>
+                <span
+                  className="mt-1.5 block text-[1.85rem] font-bold leading-[0.95] text-[#34f5a4] sm:mt-2 sm:text-[2.05rem] md:text-[2.2rem] lg:text-[2.35rem] xl:text-[2.55rem] 2xl:text-[2.85rem]"
+                  style={{ fontFamily: "var(--font-landing-script), cursive" }}
+                >
+                  Are you?
                 </span>
+              </h2>
+              <p className="mx-auto mt-5 max-w-xl text-[14px] leading-relaxed text-zinc-400 sm:mt-6 sm:text-[15px]">
+                The rank you want comes from doing this every day — with other students pushing you
+                from behind.
+              </p>
+              <div className="mt-10 flex flex-wrap justify-center gap-3">
+                <Link
+                  href="/auth?role=student"
+                  className="inline-flex items-center gap-2 rounded-full bg-[#34f5a4] px-8 py-3.5 text-sm font-bold text-neutral-950 shadow-[0_0_0_1px_rgba(255,255,255,0.06)] transition hover:bg-[#2ee89a]"
+                >
+                  Join EduBlast free →
+                </Link>
+                <Link
+                  href="/auth?role=teacher"
+                  className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-transparent px-8 py-3.5 text-sm font-semibold text-white transition hover:border-white/50 hover:bg-white/[0.04]"
+                >
+                  I am a teacher →
+                </Link>
               </div>
-
-              <div className="divide-y divide-white/[0.06]">
-                {/* Row 1 — AI / Prof-Pi Chemistry + RDM pill */}
-                <div className="group/feed flex gap-3 px-4 py-4 transition-colors hover:bg-white/[0.025]">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 text-[10px] font-bold text-white shadow-lg ring-1 ring-white/10">
-                    AI
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-bold text-white">Prof-Pi · Chemistry</p>
-                    <p className="mt-1.5 text-[13px] leading-relaxed text-zinc-300">
-                      Hybridization of carbon in benzene — quick recap with diagram logic.
-                    </p>
-                    <p className="mt-2 text-[10px] font-medium text-zinc-500">
-                      answered in 1.6s · 22 peers
-                    </p>
-                    <div className="mt-3 flex flex-wrap items-center gap-2">
-                      <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-zinc-900/90 px-2.5 py-1 text-[10px] font-semibold text-zinc-300">
-                        <ChevronUp className="h-3 w-3" strokeWidth={2.5} />
-                        15
-                      </span>
-                      <span className="rounded-full border border-white/10 bg-zinc-900/90 px-2.5 py-1 text-[10px] font-semibold text-zinc-300">
-                        Comment +5
-                      </span>
-                      <span className="rounded-full border border-orange-400/40 bg-gradient-to-b from-orange-500/25 to-amber-900/30 px-2.5 py-1 text-[10px] font-bold leading-none text-orange-200 shadow-[0_0_12px_rgba(251,146,60,0.18)]">
-                        +5
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Row 2 — Arjun */}
-                <div className="group/feed flex gap-3 px-4 py-4 transition-colors hover:bg-white/[0.025]">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-teal-500 to-emerald-700 text-[10px] font-bold text-white ring-1 ring-white/10">
-                    AR
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-bold text-white">Arjun R · PUC 2</p>
-                    <p className="mt-1.5 text-[13px] leading-relaxed text-zinc-300">
-                      Mock #4 done — 87%! Mechanics finally clicking… Testbee kept pushing
-                      Integration by parts. Feeling dangerous.
-                    </p>
-                    <p className="mt-2 text-[10px] font-medium text-zinc-500">
-                      29 boosts · 11 comments
-                    </p>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-zinc-900/90 px-2.5 py-1 text-[10px] font-semibold text-zinc-300">
-                        <ChevronUp className="h-3 w-3" strokeWidth={2.5} />
-                        Boost
-                      </span>
-                      <span className="rounded-full border border-white/10 bg-zinc-900/90 px-2.5 py-1 text-[10px] font-semibold text-zinc-300">
-                        Reply
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Row 3 — Sneha */}
-                <div className="group/feed flex gap-3 px-4 py-4 transition-colors hover:bg-white/[0.025]">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-amber-500 to-orange-700 text-[10px] font-bold text-white ring-1 ring-white/10">
-                    SM
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-bold text-white">Sneha M · student</p>
-                    <p className="mt-1.5 text-[13px] leading-relaxed text-zinc-300">
-                      New Instacue: Kirchhoff&apos;s laws in 4 bullets — save before Physics mock.
-                    </p>
-                    <p className="mt-2 text-[10px] font-medium text-zinc-500">
-                      183 saves · trending
-                    </p>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      <span className="rounded-full border border-white/10 bg-zinc-900/90 px-2.5 py-1 text-[10px] font-semibold text-zinc-300">
-                        Save +2 RDM
-                      </span>
-                      <span className="rounded-full border border-white/10 bg-zinc-900/90 px-2.5 py-1 text-[10px] font-semibold text-zinc-300">
-                        View
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <p className="mt-6 text-[11px] leading-relaxed text-zinc-500">
+                No credit card · PUC 1 &amp; 2 PCM · Works alongside any coaching · Free to start
+              </p>
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* —— Comparison (investor: THE REAL DIFFERENCE + dual panels) —— */}
-      <section className={`border-b border-white/10 bg-[#050505] ${SEC_PAD}`}>
-        <div className="mx-auto max-w-6xl">
-          <p className="text-center text-[10px] font-bold uppercase tracking-[0.32em] text-[#34f5a4]">
-            The real difference
-          </p>
-          <h2
-            className="mx-auto mt-4 max-w-4xl text-center text-[1.6rem] font-bold leading-snug tracking-tight text-white sm:text-[1.8rem] sm:leading-tight lg:text-[1.95rem] xl:text-3xl 2xl:text-4xl"
-            style={{ fontFamily: "var(--font-landing-serif), ui-serif, Georgia, serif" }}
-          >
-            <span className="block sm:inline">Every other platform puts you to sleep.</span>{" "}
-            <span className="mt-1 block text-[#34f5a4] italic sm:mt-0 sm:inline">
-              EduBlast keeps you in the game.
-            </span>
-          </h2>
-
-          <div className="mt-8 grid grid-cols-1 gap-5 sm:mt-10 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:items-stretch lg:gap-4 xl:gap-6">
-            {/* Every other EdTech */}
-            <div className="group/compare-left min-w-0 rounded-2xl border border-orange-900/40 bg-gradient-to-b from-[#1a100c] to-[#0c0806] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-all duration-300 hover:border-orange-500/55 hover:shadow-[0_0_0_1px_rgba(234,88,12,0.12),0_24px_48px_-20px_rgba(0,0,0,0.55)] sm:p-6 xl:p-7">
-              <span className="inline-flex rounded-full bg-orange-950/80 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-orange-300 ring-1 ring-orange-500/30">
-                Every other EdTech
-              </span>
-              <ul className="mt-6 space-y-4">
-                {INVESTOR_PROBLEM_OTHER.map((line) => (
-                  <li key={line} className="flex gap-3 text-[13px] leading-snug text-zinc-200 sm:text-[14px]">
-                    <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-red-600 shadow-sm ring-1 ring-red-400/40">
-                      <X className="h-3 w-3 text-white" strokeWidth={3} />
-                    </span>
-                    <span className="min-w-0 break-words">{line}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div
-              className="flex items-center justify-center py-1 lg:px-1 lg:py-0"
-              aria-hidden
-            >
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-white/15 bg-[#0a0a0f] text-[11px] font-medium italic tracking-wide text-zinc-400 shadow-[0_0_24px_rgba(0,0,0,0.6)]">
-                v/s
-              </div>
-            </div>
-
-            {/* EduBlast */}
-            <div className="group/compare-right min-w-0 rounded-2xl border border-emerald-800/45 bg-gradient-to-b from-[#0c1814] to-[#060a08] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-all duration-300 hover:border-[#34f5a4]/45 hover:shadow-[0_0_0_1px_rgba(52,245,164,0.12),0_24px_48px_-20px_rgba(0,0,0,0.55)] sm:p-6 xl:p-7">
-              <span className="inline-flex rounded-full bg-emerald-950/70 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-[#34f5a4] ring-1 ring-[#34f5a4]/35">
-                EduBlast
-              </span>
-              <ul className="mt-6 space-y-4">
-                {INVESTOR_PROBLEM_EDUBLAST.map((line) => (
-                  <li key={line} className="flex gap-3 text-[13px] leading-snug text-zinc-200 sm:text-[14px]">
-                    <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-600 shadow-sm ring-1 ring-emerald-400/45">
-                      <Check className="h-3 w-3 text-white" strokeWidth={3} />
-                    </span>
-                    <span className="min-w-0 break-words">{line}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* —— Recruiting (ref. screen 9) —— */}
-      <section
-        id="investor-teachers"
-        className={`scroll-mt-20 border-b border-white/10 ${SEC_PAD_SHORT}`}
-      >
-        <div className="mx-auto max-w-6xl text-center">
-          <p className="text-[10px] font-bold uppercase tracking-[0.35em] text-emerald-400">
-            Now recruiting · April 2026
-          </p>
-          <h2
-            className="mx-auto mt-3 max-w-3xl text-[1.6rem] font-semibold text-white sm:text-[1.85rem] lg:text-2xl xl:text-3xl 2xl:text-4xl"
-            style={{ fontFamily: "var(--font-landing-serif), ui-serif, Georgia, serif" }}
-          >
-            Join the founding cohort. Build EduBlast{" "}
-            <span className="text-emerald-400">with us.</span>
-          </h2>
-          <p className="mx-auto mt-4 max-w-2xl text-sm text-zinc-400">
-            We are looking for paid Student and Teacher Ambassadors who want to
-            shape India&apos;s most exciting EdTech platform from the ground up.
-          </p>
-        </div>
-        <div className="mx-auto mt-10 grid max-w-5xl gap-4 lg:grid-cols-2">
-          <div className="rounded-2xl border border-violet-500/30 bg-gradient-to-b from-[#1a1028] to-[#0c0812] p-6 text-left">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-full bg-violet-500/20 px-2 py-0.5 text-[10px] font-bold uppercase text-violet-200">
-                Student Ambassador · Paid
-              </span>
-              <span className="rounded-full border border-white/10 px-2 py-0.5 text-[10px] font-bold text-zinc-400">
-                10 spots only
-              </span>
-            </div>
-            <h3 className="mt-4 font-serif text-xl font-semibold text-white">
-              For curious, creative PUC students
-            </h3>
-            <ul className="mt-4 space-y-2 text-sm text-zinc-300">
-              {[
-                "Paid role — earn while you learn",
-                "First access to all new platform features",
-                "Weekly sync with product team",
-                "Build public portfolio of content + leadership",
-                "Direct path to Champion-tier EduFund consideration",
-              ].map((x) => (
-                <li key={x} className="flex gap-2">
-                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-violet-400" />
-                  {x}
-                </li>
-              ))}
-            </ul>
-            <Link
-              href="/auth?role=student"
-              className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-violet-500 py-3 text-sm font-bold text-white transition hover:bg-violet-600"
-            >
-              Apply as Student Ambassador <ArrowUpRight className="h-4 w-4" />
-            </Link>
-          </div>
-          <div className="rounded-2xl border border-emerald-500/30 bg-gradient-to-b from-[#0c1a14] to-[#060a08] p-6 text-left">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold uppercase text-emerald-200">
-                Teacher Ambassador · Paid
-              </span>
-              <span className="rounded-full border border-white/10 px-2 py-0.5 text-[10px] font-bold text-zinc-400">
-                5 spots only
-              </span>
-            </div>
-            <h3 className="mt-4 font-serif text-xl font-semibold text-white">
-              For PCM teachers who want national reach
-            </h3>
-            <ul className="mt-4 space-y-2 text-sm text-zinc-300">
-              {[
-                "Paid teaching and mentoring role",
-                "Host your own live webinar series",
-                "National student visibility beyond your city",
-                "RDM + cash compensation for verified contributions",
-                "Shape syllabus-aligned content that ships to thousands",
-              ].map((x) => (
-                <li key={x} className="flex gap-2">
-                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
-                  {x}
-                </li>
-              ))}
-            </ul>
-            <Link
-              href="/auth?role=teacher"
-              className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#34f5a4] py-3 text-sm font-bold text-neutral-950 transition hover:bg-[#2ee89a]"
-            >
-              See Teacher Page <ArrowUpRight className="h-4 w-4" />
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* —— Final CTA (investor ref: centered hero, serif stack, mint “Are you?”) —— */}
-      <section className="border-b border-white/10 bg-black px-4 py-14 sm:px-6 sm:py-16 lg:px-6 lg:py-16 xl:px-8 xl:py-20 2xl:px-10 2xl:py-24">
-        <div className="mx-auto max-w-3xl text-center xl:max-w-4xl">
-          <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-[#34f5a4] sm:text-[11px]">
-            Stop waiting
-          </p>
-          <h2
-            className="mt-4 text-center text-[1.45rem] font-semibold leading-[1.14] tracking-tight text-white [font-variant-numeric:lining-nums] sm:mt-5 sm:text-[1.6rem] md:text-[1.75rem] lg:text-[1.85rem] xl:text-[2.05rem] 2xl:text-[2.35rem]"
-            style={{ fontFamily: "var(--font-landing-serif), ui-serif, Georgia, serif" }}
-          >
-            <span className="block">Multiple Students are on the wall right now.</span>
-            <span
-              className="mt-1.5 block text-[1.85rem] font-bold leading-[0.95] text-[#34f5a4] sm:mt-2 sm:text-[2.05rem] md:text-[2.2rem] lg:text-[2.35rem] xl:text-[2.55rem] 2xl:text-[2.85rem]"
-              style={{ fontFamily: "var(--font-landing-script), cursive" }}
-            >
-              Are you?
-            </span>
-          </h2>
-          <p className="mx-auto mt-5 max-w-xl text-[14px] leading-relaxed text-zinc-400 sm:mt-6 sm:text-[15px]">
-            The rank you want comes from doing this every day — with other students pushing you from
-            behind.
-          </p>
-          <div className="mt-10 flex flex-wrap justify-center gap-3">
-            <Link
-              href="/auth?role=student"
-              className="inline-flex items-center gap-2 rounded-full bg-[#34f5a4] px-8 py-3.5 text-sm font-bold text-neutral-950 shadow-[0_0_0_1px_rgba(255,255,255,0.06)] transition hover:bg-[#2ee89a]"
-            >
-              Join EduBlast free →
-            </Link>
-            <Link
-              href="/auth?role=teacher"
-              className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-transparent px-8 py-3.5 text-sm font-semibold text-white transition hover:border-white/50 hover:bg-white/[0.04]"
-            >
-              I am a teacher →
-            </Link>
-          </div>
-          <p className="mt-6 text-[11px] leading-relaxed text-zinc-500">
-            No credit card · PUC 1 &amp; 2 PCM · Works alongside any coaching ·
-            Free to start
-          </p>
-        </div>
-      </section>
+          </section>
 
           <TickerStrip />
-      </>
+        </>
       ) : (
         <TeacherInvestorSections />
       )}

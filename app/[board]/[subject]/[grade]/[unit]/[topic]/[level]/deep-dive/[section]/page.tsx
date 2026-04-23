@@ -20,13 +20,19 @@ import SubjectChatbot from "@/components/SubjectChatbot";
 import { useUserStore } from "@/store/useUserStore";
 import { getInstaCueCards } from "@/data/instaCueCards";
 import type { InstaCueCard } from "@/data/instaCueCards";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { ArrowLeft, BookOpen, Zap, Bookmark, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Calculator, RefreshCw } from "lucide-react";
+  ArrowLeft,
+  BookOpen,
+  Zap,
+  Bookmark,
+  ChevronLeft,
+  ChevronRight,
+  CheckCircle2,
+  XCircle,
+  Calculator,
+  RefreshCw,
+} from "lucide-react";
 import type { BitsQuestion, PracticeFormula } from "@/data/deepDiveContent";
 import { canRegenerate, generateFormulaQuestions } from "@/lib/formulaQuestionGenerators";
 import PremiumFeatureDialog from "@/components/PremiumFeatureDialog";
@@ -109,20 +115,36 @@ function BitsQuiz({
           <Button
             variant="outline"
             size="sm"
-            className={isFormulaLayout ? "rounded-full h-10 min-w-[92px] px-4 text-[17px] font-semibold text-muted-foreground disabled:opacity-100 disabled:text-muted-foreground" : "rounded-xl"}
-            onClick={() => { setIndex((i) => Math.max(0, i - 1)); setSelected(null); }}
+            className={
+              isFormulaLayout
+                ? "rounded-full h-10 min-w-[92px] px-4 text-[17px] font-semibold text-muted-foreground disabled:opacity-100 disabled:text-muted-foreground"
+                : "rounded-xl"
+            }
+            onClick={() => {
+              setIndex((i) => Math.max(0, i - 1));
+              setSelected(null);
+            }}
             disabled={index === 0}
           >
             <ChevronLeft className="w-4 h-4 mr-1" /> Previous
           </Button>
-          <span className={`${isFormulaLayout ? "text-[30px] font-extrabold text-foreground tracking-tight" : "text-sm font-bold text-muted-foreground"}`}>
+          <span
+            className={`${isFormulaLayout ? "text-[30px] font-extrabold text-foreground tracking-tight" : "text-sm font-bold text-muted-foreground"}`}
+          >
             Question {index + 1} of {questions.length}
           </span>
           <Button
             variant="outline"
             size="sm"
-            className={isFormulaLayout ? "rounded-full h-10 min-w-[92px] px-4 text-[17px] font-semibold" : "rounded-xl"}
-            onClick={() => { setIndex((i) => Math.min(questions.length - 1, i + 1)); setSelected(null); }}
+            className={
+              isFormulaLayout
+                ? "rounded-full h-10 min-w-[92px] px-4 text-[17px] font-semibold"
+                : "rounded-xl"
+            }
+            onClick={() => {
+              setIndex((i) => Math.min(questions.length - 1, i + 1));
+              setSelected(null);
+            }}
             disabled={index === questions.length - 1}
           >
             Next <ChevronRight className="w-4 h-4 ml-1" />
@@ -131,16 +153,26 @@ function BitsQuiz({
       )}
 
       <div className="flex items-center gap-2">
-        <span className={`edu-chip text-xs font-bold ${isFormulaLayout ? "bg-primary/10 text-primary rounded-full px-3 py-1.5" : "bg-primary/10 text-primary"}`}>
+        <span
+          className={`edu-chip text-xs font-bold ${isFormulaLayout ? "bg-primary/10 text-primary rounded-full px-3 py-1.5" : "bg-primary/10 text-primary"}`}
+        >
           <Zap className="w-3.5 h-3.5 inline mr-1" />
           {subject}
         </span>
-        <span className={`${isFormulaLayout ? "text-sm font-semibold text-foreground" : "text-xs font-bold text-foreground"}`}>{topic}</span>
+        <span
+          className={`${isFormulaLayout ? "text-sm font-semibold text-foreground" : "text-xs font-bold text-foreground"}`}
+        >
+          {topic}
+        </span>
       </div>
 
-      <div className={`bg-card rounded-3xl border border-border shadow-sm ${compact ? "p-4" : "p-5"}`}>
+      <div
+        className={`bg-card rounded-3xl border border-border shadow-sm ${compact ? "p-4" : "p-5"}`}
+      >
         <div className="flex items-start justify-between gap-3 mb-3">
-          <h3 className={`font-bold text-foreground leading-snug flex-1 min-w-0 ${compact ? "text-sm" : "text-base"}`}>
+          <h3
+            className={`font-bold text-foreground leading-snug flex-1 min-w-0 ${compact ? "text-sm" : "text-base"}`}
+          >
             {q.question}
           </h3>
           {onSaveBit && (
@@ -166,10 +198,13 @@ function BitsQuiz({
           {q.options.map((opt, i) => {
             let optionClass = "bg-muted hover:bg-muted/80 text-foreground";
             if (answered) {
-              if (i === q.correctAnswer) optionClass = "bg-emerald-500/15 border-2 border-emerald-500 text-foreground";
-              else if (i === selected && !isCorrect) optionClass = "bg-destructive/15 border-2 border-destructive text-foreground";
+              if (i === q.correctAnswer)
+                optionClass = "bg-emerald-500/15 border-2 border-emerald-500 text-foreground";
+              else if (i === selected && !isCorrect)
+                optionClass = "bg-destructive/15 border-2 border-destructive text-foreground";
               else optionClass = "bg-muted/50 text-muted-foreground";
-            } else if (i === selected) optionClass = "bg-primary/20 border-2 border-primary text-foreground";
+            } else if (i === selected)
+              optionClass = "bg-primary/20 border-2 border-primary text-foreground";
             return (
               <button
                 key={i}
@@ -182,14 +217,20 @@ function BitsQuiz({
                   {String.fromCharCode(65 + i)}
                 </span>
                 {opt}
-                {answered && i === q.correctAnswer && <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600 ml-auto" />}
-                {answered && i === selected && !isCorrect && <XCircle className="w-4 h-4 shrink-0 text-destructive ml-auto" />}
+                {answered && i === q.correctAnswer && (
+                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600 ml-auto" />
+                )}
+                {answered && i === selected && !isCorrect && (
+                  <XCircle className="w-4 h-4 shrink-0 text-destructive ml-auto" />
+                )}
               </button>
             );
           })}
         </div>
         {answered && q.solution && (
-          <div className={`rounded-xl bg-primary/5 border border-primary/20 text-sm text-muted-foreground ${compact ? "mt-2 p-2.5" : "mt-3 p-3"}`}>
+          <div
+            className={`rounded-xl bg-primary/5 border border-primary/20 text-sm text-muted-foreground ${compact ? "mt-2 p-2.5" : "mt-3 p-3"}`}
+          >
             <span className="font-semibold text-foreground">Explanation: </span>
             {q.solution}
           </div>
@@ -201,20 +242,36 @@ function BitsQuiz({
           <Button
             variant="outline"
             size="sm"
-            className={isFormulaLayout ? "rounded-full h-10 min-w-[92px] px-4 text-[17px] font-semibold text-muted-foreground disabled:opacity-100 disabled:text-muted-foreground" : "rounded-xl"}
-            onClick={() => { setIndex((i) => Math.max(0, i - 1)); setSelected(null); }}
+            className={
+              isFormulaLayout
+                ? "rounded-full h-10 min-w-[92px] px-4 text-[17px] font-semibold text-muted-foreground disabled:opacity-100 disabled:text-muted-foreground"
+                : "rounded-xl"
+            }
+            onClick={() => {
+              setIndex((i) => Math.max(0, i - 1));
+              setSelected(null);
+            }}
             disabled={index === 0}
           >
             <ChevronLeft className="w-4 h-4 mr-1" /> Previous
           </Button>
-          <span className={`${isFormulaLayout ? "text-[30px] font-extrabold text-foreground tracking-tight" : "text-sm font-bold text-muted-foreground"}`}>
+          <span
+            className={`${isFormulaLayout ? "text-[30px] font-extrabold text-foreground tracking-tight" : "text-sm font-bold text-muted-foreground"}`}
+          >
             Question {index + 1} of {questions.length}
           </span>
           <Button
             variant="outline"
             size="sm"
-            className={isFormulaLayout ? "rounded-full h-10 min-w-[92px] px-4 text-[17px] font-semibold" : "rounded-xl"}
-            onClick={() => { setIndex((i) => Math.min(questions.length - 1, i + 1)); setSelected(null); }}
+            className={
+              isFormulaLayout
+                ? "rounded-full h-10 min-w-[92px] px-4 text-[17px] font-semibold"
+                : "rounded-xl"
+            }
+            onClick={() => {
+              setIndex((i) => Math.min(questions.length - 1, i + 1));
+              setSelected(null);
+            }}
             disabled={index === questions.length - 1}
           >
             Next <ChevronRight className="w-4 h-4 ml-1" />
@@ -276,44 +333,72 @@ export default function DeepDivePage() {
   const [bitsDialogOpen, setBitsDialogOpen] = useState(false);
   const [formulaDialogOpen, setFormulaDialogOpen] = useState(false);
   const [selectedFormula, setSelectedFormula] = useState<PracticeFormula | null>(null);
-  const [formulaPracticeQuestions, setFormulaPracticeQuestions] = useState<BitsQuestion[] | null>(null);
+  const [formulaPracticeQuestions, setFormulaPracticeQuestions] = useState<BitsQuestion[] | null>(
+    null
+  );
   const [formulaQuizKey, setFormulaQuizKey] = useState(0);
   const [bitsSaveDialogOpen, setBitsSaveDialogOpen] = useState(false);
   const [pendingBit, setPendingBit] = useState<BitsQuestion | null>(null);
-  const [pendingBitFormulaContext, setPendingBitFormulaContext] = useState<{ name: string; formulaLatex?: string } | null>(null);
+  const [pendingBitFormulaContext, setPendingBitFormulaContext] = useState<{
+    name: string;
+    formulaLatex?: string;
+  } | null>(null);
   const [formulaSaveDialogOpen, setFormulaSaveDialogOpen] = useState(false);
   const [formulaRegenDialogOpen, setFormulaRegenDialogOpen] = useState(false);
   const [formulaCurrentIndex, setFormulaCurrentIndex] = useState(0);
-  const levelLabel = level === "intermediate" ? "Intermediate" : level === "advanced" ? "Advanced" : "Basic";
+  const levelLabel =
+    level === "intermediate" ? "Intermediate" : level === "advanced" ? "Advanced" : "Basic";
 
-  const { deepDiveContent, sectionTitle, instaCueCards, topicHref, topicNode, subtopicName } = useMemo(() => {
-    if (!resolved) return { deepDiveContent: null, sectionTitle: "Deep Dive", instaCueCards: [] as InstaCueCard[], topicHref: "/explore-1", topicNode: null, subtopicName: "" };
-    const { topicNode: node, subtopicName: stName, level: diffLevel } = resolved;
-    const diffLevelStr = diffLevel as "basics" | "intermediate" | "advanced";
-    const dd = getDeepDiveContent(node.subject, node.classLevel, node.topic, stName, sectionIndex, diffLevelStr);
-    const theoryData = getTheoryOrPlaceholder(
-      node.subject,
-      node.classLevel,
-      node.topic,
-      stName,
-      diffLevel as "basics" | "intermediate" | "advanced"
-    );
-    const parsed = parseTheorySections(theoryData.theory);
-    const fallbackTitle = parsed.sections[sectionIndex]?.title ?? `Section ${sectionIndex + 1}`;
-    const href = buildTopicPath(
-      board,
-      node.subject,
-      node.classLevel,
-      node.topic,
-      stName,
-      diffLevel,
-      fromRandom ? "random" : undefined,
-      node.chapterTitle
-    );
-    const baseCards = getInstaCueCards(node.subject, node.classLevel, node.topic, [stName], sectionIndex, diffLevelStr);
-    const userCards = savedCards
-      .filter(
-        (c) => {
+  const { deepDiveContent, sectionTitle, instaCueCards, topicHref, topicNode, subtopicName } =
+    useMemo(() => {
+      if (!resolved)
+        return {
+          deepDiveContent: null,
+          sectionTitle: "Deep Dive",
+          instaCueCards: [] as InstaCueCard[],
+          topicHref: "/explore-1",
+          topicNode: null,
+          subtopicName: "",
+        };
+      const { topicNode: node, subtopicName: stName, level: diffLevel } = resolved;
+      const diffLevelStr = diffLevel as "basics" | "intermediate" | "advanced";
+      const dd = getDeepDiveContent(
+        node.subject,
+        node.classLevel,
+        node.topic,
+        stName,
+        sectionIndex,
+        diffLevelStr
+      );
+      const theoryData = getTheoryOrPlaceholder(
+        node.subject,
+        node.classLevel,
+        node.topic,
+        stName,
+        diffLevel as "basics" | "intermediate" | "advanced"
+      );
+      const parsed = parseTheorySections(theoryData.theory);
+      const fallbackTitle = parsed.sections[sectionIndex]?.title ?? `Section ${sectionIndex + 1}`;
+      const href = buildTopicPath(
+        board,
+        node.subject,
+        node.classLevel,
+        node.topic,
+        stName,
+        diffLevel,
+        fromRandom ? "random" : undefined,
+        node.chapterTitle
+      );
+      const baseCards = getInstaCueCards(
+        node.subject,
+        node.classLevel,
+        node.topic,
+        [stName],
+        sectionIndex,
+        diffLevelStr
+      );
+      const userCards = savedCards
+        .filter((c) => {
           const typedCard = c as Partial<InstaCueCard>;
           return (
             c.topic === node.topic &&
@@ -323,19 +408,18 @@ export default function DeepDivePage() {
             typedCard.sectionIndex === sectionIndex &&
             typedCard.level === diffLevelStr
           );
-        }
-      )
-      .map((c) => ({ ...c })) as InstaCueCard[];
-    const instaCueCards = [...baseCards, ...userCards];
-    return {
-      deepDiveContent: dd,
-      sectionTitle: dd?.title ?? fallbackTitle,
-      instaCueCards,
-      topicHref: href,
-      topicNode: node,
-      subtopicName: stName,
-    };
-  }, [resolved, sectionIndex, board, savedCards, fromRandom]);
+        })
+        .map((c) => ({ ...c })) as InstaCueCard[];
+      const instaCueCards = [...baseCards, ...userCards];
+      return {
+        deepDiveContent: dd,
+        sectionTitle: dd?.title ?? fallbackTitle,
+        instaCueCards,
+        topicHref: href,
+        topicNode: node,
+        subtopicName: stName,
+      };
+    }, [resolved, sectionIndex, board, savedCards, fromRandom]);
 
   const savedFormulaIdForCurrentQuestion = useMemo(() => {
     if (!selectedFormula || !topicNode) return null;
@@ -485,34 +569,38 @@ export default function DeepDivePage() {
               )}
             </div>
             {deepDiveContent?.playableElements?.includes("wall-toggle") && <WallToggleSimulation />}
-            {deepDiveContent?.playableElements?.includes("particle-sandbox") && <ParticleCollisionSandbox />}
-            {deepDiveContent?.playableElements?.includes("thermometer-sandbox") && <ThermometerScaleSandbox />}
+            {deepDiveContent?.playableElements?.includes("particle-sandbox") && (
+              <ParticleCollisionSandbox />
+            )}
+            {deepDiveContent?.playableElements?.includes("thermometer-sandbox") && (
+              <ThermometerScaleSandbox />
+            )}
           </main>
 
           <aside className="w-full lg:w-80 xl:w-96 shrink-0">
             <div className="lg:sticky lg:top-24">
               <InstaCue
-              cards={instaCueCards}
-              topicName={topicNode.topic}
-              subtopicName={subtopicName}
-              level={level as "basics" | "intermediate" | "advanced"}
-              subject={topicNode.subject}
-              classLevel={topicNode.classLevel}
-              onAddCard={
-                user
-                  ? (card) => {
-                      const id = `user-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-                      saveRevisionCard({
-                        ...card,
-                        id,
-                        sectionIndex,
-                        board: (board === "icse" ? "ICSE" : "CBSE") as Board,
-                      } as Parameters<typeof saveRevisionCard>[0]);
-                      syncAllSavedContent().catch(() => {});
-                    }
-                  : undefined
-              }
-            />
+                cards={instaCueCards}
+                topicName={topicNode.topic}
+                subtopicName={subtopicName}
+                level={level as "basics" | "intermediate" | "advanced"}
+                subject={topicNode.subject}
+                classLevel={topicNode.classLevel}
+                onAddCard={
+                  user
+                    ? (card) => {
+                        const id = `user-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+                        saveRevisionCard({
+                          ...card,
+                          id,
+                          sectionIndex,
+                          board: (board === "icse" ? "ICSE" : "CBSE") as Board,
+                        } as Parameters<typeof saveRevisionCard>[0]);
+                        syncAllSavedContent().catch(() => {});
+                      }
+                    : undefined
+                }
+              />
               <section className="mt-4 edu-card rounded-2xl p-4 border border-border">
                 <p className="text-sm font-medium text-foreground mb-2">
                   Want to recall what you&apos;ve read?
@@ -554,7 +642,9 @@ export default function DeepDivePage() {
               <DialogTitle className="flex flex-wrap items-center gap-x-2 gap-y-1">
                 <Zap className="w-5 h-5 text-primary shrink-0" />
                 <span>Bits — Subtopic {sectionIndex + 1}: </span>
-                <MathText as="span" className="min-w-0">{subtopicMathTextLabel(subtopicName)}</MathText>
+                <MathText as="span" className="min-w-0">
+                  {subtopicMathTextLabel(subtopicName)}
+                </MathText>
                 <span> (Level: {levelLabel})</span>
               </DialogTitle>
             </DialogHeader>
@@ -592,7 +682,8 @@ export default function DeepDivePage() {
                 <div className="rounded-2xl border border-dashed border-border p-6 text-center">
                   <p className="text-sm font-semibold text-foreground">No bits added yet</p>
                   <p className="text-sm text-muted-foreground mt-2">
-                    Future bits for this subtopic and level will appear here and connect directly to Supabase.
+                    Future bits for this subtopic and level will appear here and connect directly to
+                    Supabase.
                   </p>
                 </div>
               </div>
@@ -652,12 +743,14 @@ export default function DeepDivePage() {
               name: selectedFormula.name,
               formulaLatex: selectedFormula.formulaLatex,
               description: selectedFormula.description,
-              bitsQuestions: [{
-                question: currentQuestion.question,
-                options: currentQuestion.options,
-                correctAnswer: currentQuestion.correctAnswer,
-                solution: currentQuestion.solution,
-              }],
+              bitsQuestions: [
+                {
+                  question: currentQuestion.question,
+                  options: currentQuestion.options,
+                  correctAnswer: currentQuestion.correctAnswer,
+                  solution: currentQuestion.solution,
+                },
+              ],
               subject: topicNode.subject,
               topic: topicNode.topic,
               subtopicName,
@@ -678,7 +771,10 @@ export default function DeepDivePage() {
           actionLabel="Regenerate"
           onConfirm={() => {
             if (!selectedFormula) return;
-            const next = generateFormulaQuestions(selectedFormula.name, selectedFormula.bitsQuestions);
+            const next = generateFormulaQuestions(
+              selectedFormula.name,
+              selectedFormula.bitsQuestions
+            );
             if (next.length > 0) {
               setFormulaPracticeQuestions(next);
               setFormulaQuizKey((k) => k + 1);
@@ -743,7 +839,14 @@ export default function DeepDivePage() {
                     navigationPlacement="bottom"
                     onSaveBit={(q) => {
                       setPendingBit(q);
-                      setPendingBitFormulaContext(selectedFormula ? { name: selectedFormula.name, formulaLatex: selectedFormula.formulaLatex } : null);
+                      setPendingBitFormulaContext(
+                        selectedFormula
+                          ? {
+                              name: selectedFormula.name,
+                              formulaLatex: selectedFormula.formulaLatex,
+                            }
+                          : null
+                      );
                       setBitsSaveDialogOpen(true);
                     }}
                     onUnsaveBit={(bitId) => {
@@ -770,7 +873,9 @@ export default function DeepDivePage() {
                     }}
                   >
                     <Bookmark className="w-4 h-4" />
-                    {savedFormulaIdForCurrentQuestion ? "Remove saved question" : "Save current question"}
+                    {savedFormulaIdForCurrentQuestion
+                      ? "Remove saved question"
+                      : "Save current question"}
                   </Button>
                   <Button
                     variant="outline"
@@ -811,16 +916,20 @@ export default function DeepDivePage() {
                           </div>
                         )}
                         <span className="text-xs text-muted-foreground mt-2 block">
-                          {formula.bitsQuestions.length} question{formula.bitsQuestions.length !== 1 ? "s" : ""}
+                          {formula.bitsQuestions.length} question
+                          {formula.bitsQuestions.length !== 1 ? "s" : ""}
                         </span>
                       </button>
                     ))}
                   </div>
                 ) : (
                   <div className="rounded-2xl border border-dashed border-border p-6 text-center">
-                    <p className="text-sm font-semibold text-foreground">No practice formulas added yet</p>
+                    <p className="text-sm font-semibold text-foreground">
+                      No practice formulas added yet
+                    </p>
                     <p className="text-sm text-muted-foreground mt-2">
-                      Future formulas for this subtopic and level will appear here and connect directly to Supabase.
+                      Future formulas for this subtopic and level will appear here and connect
+                      directly to Supabase.
                     </p>
                   </div>
                 )}
@@ -839,7 +948,7 @@ export default function DeepDivePage() {
           unitSlug={unitSlug}
           topicSlug={topicSlug}
           levelSlug={level}
-          sectionSlug={String(sectionParam ?? '')}
+          sectionSlug={String(sectionParam ?? "")}
         />
       </div>
     </AppLayout>

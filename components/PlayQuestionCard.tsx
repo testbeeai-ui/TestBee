@@ -90,7 +90,7 @@ export default function PlayQuestionCard({
   }, [timeLeft, timerSeconds, onTimerTick]);
 
   const text =
-    (question.content && typeof question.content === "object" && "text" in question.content)
+    question.content && typeof question.content === "object" && "text" in question.content
       ? String((question.content as { text: string }).text ?? "")
       : String(question.content ?? "");
   const options: string[] = Array.isArray(question.options)
@@ -137,19 +137,26 @@ export default function PlayQuestionCard({
       {timerSeconds > 0 && !answered && !hideInlineTimer && (
         <div className="flex justify-between items-center">
           <span className="text-sm font-bold text-muted-foreground">Time</span>
-          <span className={`text-lg font-mono font-bold ${timeLeft <= 5 ? "text-destructive" : "text-foreground"}`}>
+          <span
+            className={`text-lg font-mono font-bold ${timeLeft <= 5 ? "text-destructive" : "text-foreground"}`}
+          >
             {timeLeft}s
           </span>
         </div>
       )}
-      <div className={cn("bg-card rounded-2xl p-5 shadow-lg border border-border", optGrid && "p-4 sm:p-5")}>
+      <div
+        className={cn(
+          "bg-card rounded-2xl p-5 shadow-lg border border-border",
+          optGrid && "p-4 sm:p-5"
+        )}
+      >
         <PlayQuestionMarkdown
           variant="stem"
           source={text}
           className={cn(
             "mb-4 font-bold leading-snug",
             optGrid ? "text-base sm:text-lg" : "text-lg",
-            "[&_.katex]:text-[1em] [&_.katex-display]:my-1",
+            "[&_.katex]:text-[1em] [&_.katex-display]:my-1"
           )}
         />
         <div className={cn(optGrid ? "grid grid-cols-1 sm:grid-cols-2 gap-2" : "space-y-2")}>
@@ -178,13 +185,25 @@ export default function PlayQuestionCard({
                   {String.fromCharCode(65 + i)}
                 </span>
                 <div className="min-w-0 flex-1 text-left">
-                  <PlayQuestionMarkdown variant="option" source={option} className="font-semibold" />
+                  <PlayQuestionMarkdown
+                    variant="option"
+                    source={option}
+                    className="font-semibold"
+                  />
                 </div>
                 {answered && i === correctIndex && (
-                  <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" strokeWidth={2.5} aria-hidden />
+                  <CheckCircle2
+                    className="h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400"
+                    strokeWidth={2.5}
+                    aria-hidden
+                  />
                 )}
                 {answered && i === selectedOption && !isCorrect && (
-                  <XCircle className="h-5 w-5 shrink-0 text-red-600 dark:text-red-400" strokeWidth={2.5} aria-hidden />
+                  <XCircle
+                    className="h-5 w-5 shrink-0 text-red-600 dark:text-red-400"
+                    strokeWidth={2.5}
+                    aria-hidden
+                  />
                 )}
               </motion.button>
             );

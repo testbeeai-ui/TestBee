@@ -17,7 +17,11 @@ const MAX_ENGAGEMENT_KEYS = 300;
 
 function sanitize(value: unknown, maxLen = 300): string {
   if (typeof value !== "string") return "";
-  return value.replace(/[\x00-\x1F\x7F]/g, " ").replace(/\s+/g, " ").trim().slice(0, maxLen);
+  return value
+    .replace(/[\x00-\x1F\x7F]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, maxLen);
 }
 
 function normalizeKeyPart(value: unknown, maxLen = 300): string {
@@ -44,11 +48,16 @@ function parseEngagementStore(raw: unknown): Record<string, SubtopicEngagementSn
       const b = row.bits as Record<string, unknown>;
       const currentIdx = Number(b.currentIdx);
       const visited = Array.isArray(b.visitedIndices)
-        ? (b.visitedIndices as unknown[]).map((x) => Number(x)).filter((n) => Number.isInteger(n) && n >= 0)
+        ? (b.visitedIndices as unknown[])
+            .map((x) => Number(x))
+            .filter((n) => Number.isInteger(n) && n >= 0)
         : [];
-      const sel = b.selectedAnswers && typeof b.selectedAnswers === "object" && !Array.isArray(b.selectedAnswers)
-        ? (b.selectedAnswers as Record<string, unknown>)
-        : {};
+      const sel =
+        b.selectedAnswers &&
+        typeof b.selectedAnswers === "object" &&
+        !Array.isArray(b.selectedAnswers)
+          ? (b.selectedAnswers as Record<string, unknown>)
+          : {};
       const selectedAnswers: Record<string, number> = {};
       for (const [k, v] of Object.entries(sel)) {
         const idx = Number(v);
@@ -64,9 +73,15 @@ function parseEngagementStore(raw: unknown): Record<string, SubtopicEngagementSn
       let graded: SubtopicEngagementBitsGraded | undefined;
       if (gr && typeof gr === "object" && !Array.isArray(gr)) {
         const g = gr as Record<string, unknown>;
-        const answered = Number.isFinite(Number(g.answered)) ? Math.max(0, Math.min(10_000, Math.trunc(Number(g.answered)))) : 0;
-        const correct = Number.isFinite(Number(g.correct)) ? Math.max(0, Math.min(10_000, Math.trunc(Number(g.correct)))) : 0;
-        const wrong = Number.isFinite(Number(g.wrong)) ? Math.max(0, Math.min(10_000, Math.trunc(Number(g.wrong)))) : 0;
+        const answered = Number.isFinite(Number(g.answered))
+          ? Math.max(0, Math.min(10_000, Math.trunc(Number(g.answered))))
+          : 0;
+        const correct = Number.isFinite(Number(g.correct))
+          ? Math.max(0, Math.min(10_000, Math.trunc(Number(g.correct))))
+          : 0;
+        const wrong = Number.isFinite(Number(g.wrong))
+          ? Math.max(0, Math.min(10_000, Math.trunc(Number(g.wrong))))
+          : 0;
         const totalQuestions = Number.isFinite(Number(g.totalQuestions))
           ? Math.max(0, Math.min(10_000, Math.trunc(Number(g.totalQuestions))))
           : 0;
@@ -76,7 +91,11 @@ function parseEngagementStore(raw: unknown): Record<string, SubtopicEngagementSn
       }
       snap.bits = graded ? { ...bitsBase, graded } : bitsBase;
     }
-    if (row.formulaByIdx && typeof row.formulaByIdx === "object" && !Array.isArray(row.formulaByIdx)) {
+    if (
+      row.formulaByIdx &&
+      typeof row.formulaByIdx === "object" &&
+      !Array.isArray(row.formulaByIdx)
+    ) {
       const fbi: Record<string, SubtopicEngagementFormulaDraft> = {};
       for (const [fi, pack] of Object.entries(row.formulaByIdx as Record<string, unknown>)) {
         if (!pack || typeof pack !== "object" || Array.isArray(pack)) continue;
@@ -103,10 +122,14 @@ function parseEngagementStore(raw: unknown): Record<string, SubtopicEngagementSn
     else if (row.instaCue && typeof row.instaCue === "object" && !Array.isArray(row.instaCue)) {
       const ic = row.instaCue as Record<string, unknown>;
       const nav = Array.isArray(ic.navVisited)
-        ? (ic.navVisited as unknown[]).map((x) => Number(x)).filter((n) => Number.isInteger(n) && n >= 0)
+        ? (ic.navVisited as unknown[])
+            .map((x) => Number(x))
+            .filter((n) => Number.isInteger(n) && n >= 0)
         : [];
       const flipped = Array.isArray(ic.flipped)
-        ? (ic.flipped as unknown[]).map((x) => Number(x)).filter((n) => Number.isInteger(n) && n >= 0)
+        ? (ic.flipped as unknown[])
+            .map((x) => Number(x))
+            .filter((n) => Number.isInteger(n) && n >= 0)
         : [];
       snap.instaCue = { navVisited: nav, flipped };
     }
@@ -119,7 +142,11 @@ function parseEngagementStore(raw: unknown): Record<string, SubtopicEngagementSn
     if (lessonDone) snap.lessonChecklistMarkedCompleteAt = lessonDone;
     if (row.lessonFocusTimer === null) {
       snap.lessonFocusTimer = null;
-    } else if (row.lessonFocusTimer && typeof row.lessonFocusTimer === "object" && !Array.isArray(row.lessonFocusTimer)) {
+    } else if (
+      row.lessonFocusTimer &&
+      typeof row.lessonFocusTimer === "object" &&
+      !Array.isArray(row.lessonFocusTimer)
+    ) {
       const lt = row.lessonFocusTimer as Record<string, unknown>;
       const sec = Number(lt.secondsRemaining);
       const running = Boolean(lt.running);
@@ -135,7 +162,9 @@ function parseEngagementStore(raw: unknown): Record<string, SubtopicEngagementSn
   return out;
 }
 
-function trimStore(store: Record<string, SubtopicEngagementSnapshot>): Record<string, SubtopicEngagementSnapshot> {
+function trimStore(
+  store: Record<string, SubtopicEngagementSnapshot>
+): Record<string, SubtopicEngagementSnapshot> {
   const entries = Object.entries(store);
   if (entries.length <= MAX_ENGAGEMENT_KEYS) return store;
   entries.sort((a, b) => {
@@ -172,7 +201,11 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Missing or invalid fields" }, { status: 400 });
     }
 
-    const { data, error } = await supabase.from("profiles").select("*").eq("id", user.id).maybeSingle();
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", user.id)
+      .maybeSingle();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
     const key = makeSubtopicEngagementStorageKey({
@@ -231,7 +264,11 @@ export async function POST(request: Request) {
       subtopicName,
       level: level as DifficultyLevel,
     });
-    const { data: profile, error: readErr } = await supabase.from("profiles").select("*").eq("id", user.id).maybeSingle();
+    const { data: profile, error: readErr } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", user.id)
+      .maybeSingle();
     if (readErr) return NextResponse.json({ error: readErr.message }, { status: 500 });
 
     const profileRow = profile as ProfileEngagementRow | null;

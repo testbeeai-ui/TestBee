@@ -8,7 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { getMockQuestions, questions as questionBank } from "@/data/questions";
 import { useTheme } from "next-themes";
 import { NtaMockTokens, type NtaSkin } from "@/components/prep-mock/nta/NtaMockTokens";
-import { NtaGeneralInstructions, type NtaInstructionsExamMeta } from "@/components/prep-mock/nta/NtaGeneralInstructions";
+import { NtaGeneralInstructions } from "@/components/prep-mock/nta/NtaGeneralInstructions";
 import { NtaProceedWarningDialog } from "@/components/prep-mock/nta/NtaProceedWarningDialog";
 import { NtaExamShell } from "@/components/prep-mock/nta/NtaExamShell";
 import { NtaSubmitModal } from "@/components/prep-mock/nta/NtaSubmitModal";
@@ -33,10 +33,17 @@ import {
   ListOrdered,
 } from "lucide-react";
 import type { MockPaper, Question, Subject } from "@/types";
-import { filterMockPapers, mockPaperTypeLabel, type LibraryCategoryFilter } from "@/lib/mockPapersCatalog";
-import { fetchMockPapersFromSupabase, fetchMockQuestionsForPaper } from "@/lib/mockPapersFromSupabase";
+import {
+  filterMockPapers,
+  mockPaperTypeLabel,
+  type LibraryCategoryFilter,
+} from "@/lib/mockPapersCatalog";
+import {
+  fetchMockPapersFromSupabase,
+  fetchMockQuestionsForPaper,
+} from "@/lib/mockPapersFromSupabase";
 import { useToast } from "@/hooks/use-toast";
-import { sanitizeMockHtml } from "@/lib/mockHtml";
+
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -51,6 +58,7 @@ import { fetchSavedContent } from "@/lib/savedContentService";
 import { mergeAllSavedContent } from "@/lib/mergeSavedContent";
 import { incrementPrepCalendarDay, localDayISO } from "@/lib/prepCalendarClient";
 import { cn } from "@/lib/utils";
+import katex from "katex";
 
 const QUICK_DURATIONS = [60, 90, 180] as const;
 
@@ -73,9 +81,13 @@ type NtaPendingExamMeta = {
   quickSubjects?: Subject[];
 };
 
-function estimateQuickQuestionCount(subjects: Subject[], classLevel: number, durationMin: number): number {
+function estimateQuickQuestionCount(
+  subjects: Subject[],
+  classLevel: number,
+  durationMin: number
+): number {
   const eligible = questionBank.filter(
-    (q) => subjects.includes(q.subject) && q.classLevel <= classLevel,
+    (q) => subjects.includes(q.subject) && q.classLevel <= classLevel
   ).length;
   return Math.max(1, Math.min(Math.ceil(durationMin / 2.5), eligible || 1));
 }
@@ -87,21 +99,177 @@ const subjectEmojis: Record<Subject, string> = {
   physics: "⚡",
   chemistry: "🧪",
   math: "📐",
-  biology: "🧬",
 };
 
-function ReviewInlineHtml({ text }: { text: string }) {
-  const t = text.trim();
-  if (t.includes("<")) {
-    return (
-      <span
-        className="prose prose-sm inline max-w-none align-top dark:prose-invert"
-        // eslint-disable-next-line react/no-danger
-        dangerouslySetInnerHTML={{ __html: sanitizeMockHtml(t) }}
-      />
+/** Decode common HTML entities found in mock question/solution text. */
+function decodeMockEntities(s: string): string {
+  return s
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&minus;/gi, "\u2212")
+    .replace(/&times;/gi, "\u00D7")
+    .replace(/&middot;/gi, "\u00B7")
+    .replace(/&#92;/g, "\\")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&amp;/gi, "&")
+    .replace(/&[a-zA-Z0-9]+;/g, " ");
+}
+
+/**
+ * Render text that may contain \(...\) \[...\] $$...$$ math into an HTML string.
+ * Calls katex.renderToString directly — no MathText heuristics involved.
+ */
+function renderMockLatexToHtml(raw: string): string {
+  if (!raw.trim()) return "";
+
+  // 1. Decode HTML entities
+  let s = decodeMockEntities(raw.trim());
+
+  // 2. Normalize over-escaped backslashes before delimiters and commands
+  s = s.replace(/\\{2,}([()[\]{}])/g, "\\$1");
+  s = s.replace(/\\{2,}([A-Za-z])/g, "\\$1");
+
+  // 3. Split on math delimiters, render each math block with KaTeX
+  const result: string[] = [];
+  const pattern = /(\\\[[\s\S]+?\\\]|\\\([\s\S]+?\\\)|\$\$[\s\S]+?\$\$|\$[^\n$]+?\$)/g;
+  let last = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = pattern.exec(s)) !== null) {
+    // plain text before this math block
+    if (match.index > last) {
+      const txt = s.slice(last, match.index);
+      result.push(
+        txt
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/\n/g, "<br>")
+      );
+    }
+
+    const full = match[0];
+    const isDisplay = full.startsWith("\\[") || full.startsWith("$$");
+    // strip outer delimiters to get inner LaTeX
+    const inner = full
+      .replace(/^\\\(/, "")
+      .replace(/\\\)$/, "")
+      .replace(/^\\\[/, "")
+      .replace(/\\\]$/, "")
+      .replace(/^\$\$/, "")
+      .replace(/\$\$$/, "")
+      .replace(/^\$/, "")
+      .replace(/\$$/, "")
+      .trim();
+
+    try {
+      const firstPass = katex.renderToString(inner, {
+        displayMode: isDisplay,
+        throwOnError: false,
+        output: "html",
+        strict: false,
+      });
+
+      if (!firstPass.includes("katex-error")) {
+        result.push(
+          isDisplay
+            ? `<span class="block overflow-x-auto my-1 text-center">${firstPass}</span>`
+            : firstPass
+        );
+      } else {
+        // Retry with progressively repaired latex (UI-only fix; no DB mutation)
+        const repaired = inner
+          // Normalize malformed command spacing: \text t -> \text{t}
+          .replace(/\\text\s+([A-Za-z0-9]+)/g, "\\text{$1}")
+          .replace(/\\(mathrm|mathbf|mathit|operatorname)\s+([A-Za-z0-9]+)/g, "\\$1{$2}")
+          // Common payload issues: bare greek words/commands with broken braces
+          .replace(/\\(theta|alpha|beta|gamma|delta|lambda|mu|pi|rho|sigma|phi|omega)\b/g, "\\$1")
+          // Normalize escaped delimiters that leak into inner math
+          .replace(/\\\(/g, "")
+          .replace(/\\\)/g, "")
+          .replace(/\\\[/g, "")
+          .replace(/\\\]/g, "")
+          // Basic corrupted command recovery
+          .replace(/\\{2,}(?=[A-Za-z])/g, "\\")
+          .replace(/\\uparrowrac\b/g, "\\frac")
+          .replace(/\\[A-Za-z^]*rac(?=\s*\{)/g, "\\frac")
+          // Normalize Unicode operators to TeX-friendly forms
+          .replace(/\u2212/g, "-")
+          .replace(/\u00D7/g, "\\times ")
+          .replace(/\u00B7/g, "\\cdot ")
+          // Keep matrix row separators and avoid collapsing meaningful spaces
+          .replace(/[ \t]+/g, " ")
+          .trim();
+
+        const secondPass = katex.renderToString(repaired, {
+          displayMode: isDisplay,
+          throwOnError: false,
+          output: "html",
+          strict: false,
+        });
+
+        if (!secondPass.includes("katex-error")) {
+          result.push(
+            isDisplay
+              ? `<span class="block overflow-x-auto my-1 text-center">${secondPass}</span>`
+              : secondPass
+          );
+        } else {
+          // Final fallback: preserve readable raw text instead of broken HTML
+          result.push(full.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"));
+        }
+      }
+    } catch {
+      result.push(full.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"));
+    }
+
+    last = match.index + full.length;
+  }
+
+  // remaining plain text
+  if (last < s.length) {
+    result.push(
+      s
+        .slice(last)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/\n/g, "<br>")
     );
   }
-  return <span>{t}</span>;
+
+  return result.join("");
+}
+
+/**
+ * Renders mock question / option / solution text that may contain LaTeX or HTML.
+ * Uses direct KaTeX rendering for reliable math output.
+ */
+function ReviewInlineHtml({ text, block = false }: { text: string; block?: boolean }) {
+  const rawTrimmed = text.trim();
+  if (!rawTrimmed) return null;
+
+  // Strip HTML tags (preserve line breaks) then render through KaTeX
+  let src = rawTrimmed;
+  if (src.includes("<") && /<[a-zA-Z][\s\S]*?>/.test(src)) {
+    src = src
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<\/p>/gi, "\n")
+      .replace(/<\/div>/gi, "\n")
+      .replace(/<[^>]+>/g, " ");
+  }
+
+  const html = renderMockLatexToHtml(src);
+
+  return (
+    <span
+      className={cn(
+        "[&_.katex]:text-[0.97em] [&_.katex-display]:my-1",
+        block ? "block leading-relaxed" : "inline align-middle"
+      )}
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  );
 }
 
 function formatTime(seconds: number): string {
@@ -122,12 +290,7 @@ export default function MockPage() {
   const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
   const mockCalendarLoggedRef = useRef(false);
 
-  const subjects: Subject[] = useMemo(() => {
-    if (!user) return ["physics", "chemistry", "math"];
-    return user.subjectCombo === "PCMB"
-      ? ["physics", "chemistry", "math", "biology"]
-      : ["physics", "chemistry", "math"];
-  }, [user]);
+  const subjects: Subject[] = useMemo(() => ["physics", "chemistry", "math"], []);
 
   const [view, setView] = useState<View>("landing");
   const [duration, setDuration] = useState<number>(90);
@@ -140,7 +303,9 @@ export default function MockPage() {
   const [catalogError, setCatalogError] = useState<string | null>(null);
   const [ntaProceedBusy, setNtaProceedBusy] = useState(false);
   const [ntaPendingMeta, setNtaPendingMeta] = useState<NtaPendingExamMeta | null>(null);
-  const [ntaInstructionBackView, setNtaInstructionBackView] = useState<"landing" | "setup">("setup");
+  const [ntaInstructionBackView, setNtaInstructionBackView] = useState<"landing" | "setup">(
+    "setup"
+  );
   const [featuredCatalogLoading, setFeaturedCatalogLoading] = useState(false);
   const [ntaWarningOpen, setNtaWarningOpen] = useState(false);
   const [visitedQuestionIds, setVisitedQuestionIds] = useState<Set<string>>(() => new Set());
@@ -154,6 +319,7 @@ export default function MockPage() {
   const [secondsLeft, setSecondsLeft] = useState<number>(0);
   const [submitDialogOpen, setSubmitDialogOpen] = useState(false);
   const [expandedReviewId, setExpandedReviewId] = useState<string | null>(null);
+  const [reviewSubjectFilter, setReviewSubjectFilter] = useState<Subject | "all">("all");
 
   const totalSeconds = duration * 60;
   const effectiveSubject = selectedSubject ?? subjects[0] ?? null;
@@ -267,22 +433,25 @@ export default function MockPage() {
         setNtaProceedBusy(false);
       }
     },
-    [user, ntaPendingMeta, subjects, toast],
+    [user, ntaPendingMeta, subjects, toast]
   );
 
-  const openNtaInstructionsForPaper = useCallback((paper: MockPaper, back: "landing" | "setup" = "setup") => {
-    setNtaInstructionBackView(back);
-    setNtaPendingMeta({
-      kind: "paper",
-      paper,
-      durationMin: paper.durationMinutes,
-      questionCount: paper.questionsCount,
-      titleLine: paper.title,
-      subjectLine: paper.title,
-      markingScheme: paper.markingScheme,
-    });
-    setView("nta_instructions");
-  }, []);
+  const openNtaInstructionsForPaper = useCallback(
+    (paper: MockPaper, back: "landing" | "setup" = "setup") => {
+      setNtaInstructionBackView(back);
+      setNtaPendingMeta({
+        kind: "paper",
+        paper,
+        durationMin: paper.durationMinutes,
+        questionCount: paper.questionsCount,
+        titleLine: paper.title,
+        subjectLine: paper.title,
+        markingScheme: paper.markingScheme,
+      });
+      setView("nta_instructions");
+    },
+    []
+  );
 
   const handleQuickStartMock = useCallback((subject: Subject) => {
     setSelectedSubject(subject);
@@ -303,13 +472,19 @@ export default function MockPage() {
       (p) =>
         p.type === "pyq" &&
         (/10\s*th?\s*January\s*2019/i.test(p.title) || /10\s+January\s*2019/i.test(p.title)) &&
-        /shift\s*1/i.test(p.title),
+        /shift\s*1/i.test(p.title)
     );
   }, [catalogPapers]);
 
   const filteredCatalogPapers = useMemo(() => {
     if (libraryTab === "quick") return [];
-    return filterMockPapers(papersByClassLevel, libraryTab, librarySearch, librarySubjectFilter, subjects);
+    return filterMockPapers(
+      papersByClassLevel,
+      libraryTab,
+      librarySearch,
+      librarySubjectFilter,
+      subjects
+    );
   }, [papersByClassLevel, libraryTab, librarySearch, librarySubjectFilter, subjects]);
 
   useEffect(() => {
@@ -410,6 +585,11 @@ export default function MockPage() {
   const timeTakenSeconds =
     startTime != null && endTime != null ? Math.floor((endTime - startTime) / 1000) : 0;
 
+  const reviewQuestions = useMemo(() => {
+    if (reviewSubjectFilter === "all") return questions;
+    return questions.filter((q) => q.subject === reviewSubjectFilter);
+  }, [questions, reviewSubjectFilter]);
+
   // Dashboard derived data
   const overallAccuracy = useMemo(() => {
     if (allResults.length === 0) return 0;
@@ -437,13 +617,15 @@ export default function MockPage() {
           data.savedRevisionUnits,
           data.savedCommunityPosts
         );
-        useUserStore.getState().setSavedFromServer(
-          merged.savedBits,
-          merged.savedFormulas,
-          merged.savedRevisionCards,
-          merged.savedRevisionUnits,
-          merged.savedCommunityPosts
-        );
+        useUserStore
+          .getState()
+          .setSavedFromServer(
+            merged.savedBits,
+            merged.savedFormulas,
+            merged.savedRevisionCards,
+            merged.savedRevisionUnits,
+            merged.savedCommunityPosts
+          );
       })
       .catch(() => {});
     return () => {
@@ -486,8 +668,12 @@ export default function MockPage() {
                     <ClipboardList className="w-5 h-5 text-primary-foreground" />
                   </div>
                   <div>
-                    <h1 className="text-xl font-display font-extrabold text-foreground">Prep + Mock</h1>
-                    <p className="text-xs text-muted-foreground">Classes, AI-powered scheduling, mock tests, and smart revision</p>
+                    <h1 className="text-xl font-display font-extrabold text-foreground">
+                      Prep + Mock
+                    </h1>
+                    <p className="text-xs text-muted-foreground">
+                      Classes, AI-powered scheduling, mock tests, and smart revision
+                    </p>
                   </div>
                 </div>
 
@@ -574,10 +760,12 @@ export default function MockPage() {
                       <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                         Institute-style mock portal
                       </p>
-                      <h1 className="edu-page-title mt-1 text-2xl md:text-3xl">Mock test library</h1>
+                      <h1 className="edu-page-title mt-1 text-2xl md:text-3xl">
+                        Mock test library
+                      </h1>
                       <p className="edu-page-desc mt-1 max-w-2xl text-sm md:text-base">
-                        Browse published papers from the institute bank (Supabase) or start a timed quick mock from
-                        the adaptive pool.
+                        Browse published papers from the institute bank (Supabase) or start a timed
+                        quick mock from the adaptive pool.
                       </p>
                     </div>
                   </div>
@@ -606,7 +794,7 @@ export default function MockPage() {
                         "shrink-0 rounded-full border px-4 py-2 text-xs font-bold transition-all sm:text-sm",
                         libraryTab === tab.id
                           ? "border-primary bg-primary/15 text-primary"
-                          : "border-border bg-muted/30 text-muted-foreground hover:border-primary/40 hover:text-foreground",
+                          : "border-border bg-muted/30 text-muted-foreground hover:border-primary/40 hover:text-foreground"
                       )}
                     >
                       {tab.label}
@@ -622,7 +810,8 @@ export default function MockPage() {
                         Quick mock (adaptive pool)
                       </h2>
                       <p className="text-sm text-muted-foreground">
-                        Same engine as before: mixed questions from your syllabus level, timed like exam day.
+                        Same engine as before: mixed questions from your syllabus level, timed like
+                        exam day.
                       </p>
                       <div>
                         <h3 className="mb-3 text-sm font-bold text-foreground">Duration</h3>
@@ -633,10 +822,10 @@ export default function MockPage() {
                               type="button"
                               onClick={() => setDuration(d)}
                               className={cn(
-                                "min-w-[100px] flex-1 rounded-xl border-2 px-4 py-3 text-sm font-bold transition-all",
+                                "min-w-25 flex-1 rounded-xl border-2 px-4 py-3 text-sm font-bold transition-all",
                                 duration === d
                                   ? "border-primary bg-primary/10 text-primary"
-                                  : "border-border bg-muted/30 text-muted-foreground hover:border-primary/50",
+                                  : "border-border bg-muted/30 text-muted-foreground hover:border-primary/50"
                               )}
                             >
                               {d} min
@@ -662,7 +851,7 @@ export default function MockPage() {
                                 "flex items-center gap-2 rounded-xl border-2 px-4 py-2 text-sm font-bold transition-all",
                                 effectiveSubject === subj
                                   ? "border-primary bg-primary/10 text-primary"
-                                  : "border-border bg-muted/30 text-muted-foreground hover:border-primary/50",
+                                  : "border-border bg-muted/30 text-muted-foreground hover:border-primary/50"
                               )}
                             >
                               <span>{subjectEmojis[subj]}</span>
@@ -686,12 +875,16 @@ export default function MockPage() {
                       <div className="edu-card rounded-2xl border border-primary/20 bg-primary/5 p-5">
                         <Target className="mb-2 h-8 w-8 text-primary" />
                         <h4 className="mb-1 font-bold text-foreground">Stamina</h4>
-                        <p className="text-sm text-muted-foreground">Long sits train focus for boards and entrances.</p>
+                        <p className="text-sm text-muted-foreground">
+                          Long sits train focus for boards and entrances.
+                        </p>
                       </div>
                       <div className="edu-card rounded-2xl border border-border p-5">
                         <Lightbulb className="mb-2 h-8 w-8 text-primary" />
                         <h4 className="mb-1 font-bold text-foreground">Strategy</h4>
-                        <p className="text-sm text-muted-foreground">Flag hard items; review after submit.</p>
+                        <p className="text-sm text-muted-foreground">
+                          Flag hard items; review after submit.
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -721,7 +914,7 @@ export default function MockPage() {
                               "rounded-lg border px-3 py-1.5 text-xs font-bold transition-all",
                               librarySubjectFilter === s
                                 ? "border-primary bg-primary/10 text-primary"
-                                : "border-border bg-muted/30 text-muted-foreground hover:border-primary/40",
+                                : "border-border bg-muted/30 text-muted-foreground hover:border-primary/40"
                             )}
                           >
                             {s === "all" ? "All" : subjectEmojis[s]}
@@ -732,7 +925,10 @@ export default function MockPage() {
                     </div>
 
                     <p className="text-xs text-muted-foreground">
-                      Showing <span className="font-semibold text-foreground">{filteredCatalogPapers.length}</span>{" "}
+                      Showing{" "}
+                      <span className="font-semibold text-foreground">
+                        {filteredCatalogPapers.length}
+                      </span>{" "}
                       paper{filteredCatalogPapers.length === 1 ? "" : "s"} in this view
                       {catalogLoading ? " · loading…" : ""}.
                     </p>
@@ -767,7 +963,10 @@ export default function MockPage() {
                             className="edu-card flex flex-col rounded-2xl border border-border p-5 transition-shadow hover:shadow-md"
                           >
                             <div className="mb-3 flex flex-wrap items-center gap-2">
-                              <Badge variant="secondary" className="text-[10px] font-semibold uppercase tracking-wide">
+                              <Badge
+                                variant="secondary"
+                                className="text-[10px] font-semibold uppercase tracking-wide"
+                              >
                                 {mockPaperTypeLabel(paper.type)}
                               </Badge>
                               <Badge variant="outline" className="text-[10px]">
@@ -777,23 +976,29 @@ export default function MockPage() {
                                 Class {paper.classLevel}
                               </span>
                             </div>
-                            <h3 className="line-clamp-2 min-h-[2.75rem] text-base font-bold leading-snug text-foreground">
+                            <h3 className="line-clamp-2 min-h-11 text-base font-bold leading-snug text-foreground">
                               {paper.title}
                             </h3>
                             <div className="mt-4 grid grid-cols-3 gap-2 text-center text-[11px]">
                               <div className="rounded-lg bg-muted/50 px-2 py-2">
                                 <FileQuestion className="mx-auto mb-1 h-4 w-4 text-primary" />
-                                <span className="font-bold tabular-nums text-foreground">{paper.questionsCount}</span>
+                                <span className="font-bold tabular-nums text-foreground">
+                                  {paper.questionsCount}
+                                </span>
                                 <span className="block text-muted-foreground">Qs</span>
                               </div>
                               <div className="rounded-lg bg-muted/50 px-2 py-2">
                                 <Clock className="mx-auto mb-1 h-4 w-4 text-primary" />
-                                <span className="font-bold tabular-nums text-foreground">{paper.durationMinutes}</span>
+                                <span className="font-bold tabular-nums text-foreground">
+                                  {paper.durationMinutes}
+                                </span>
                                 <span className="block text-muted-foreground">Min</span>
                               </div>
                               <div className="rounded-lg bg-muted/50 px-2 py-2">
                                 <Award className="mx-auto mb-1 h-4 w-4 text-primary" />
-                                <span className="font-bold tabular-nums text-foreground">{paper.totalMarks}</span>
+                                <span className="font-bold tabular-nums text-foreground">
+                                  {paper.totalMarks}
+                                </span>
                                 <span className="block text-muted-foreground">Marks</span>
                               </div>
                             </div>
@@ -829,7 +1034,6 @@ export default function MockPage() {
                   </div>
                 )}
               </div>
-
             </motion.div>
           )}
 
@@ -837,7 +1041,7 @@ export default function MockPage() {
           {view === "nta_instructions" && ntaPendingMeta ? (
             <div
               key="nta-instructions"
-              className="fixed inset-0 z-[100] flex flex-col"
+              className="fixed inset-0 z-100 flex flex-col"
               style={{ top: 0 }}
             >
               <NtaMockTokens skin={ntaSkin} className="flex min-h-0 flex-1 flex-col">
@@ -855,14 +1059,17 @@ export default function MockPage() {
                   }}
                   onProceed={handleNtaProceed}
                 />
-                <NtaProceedWarningDialog open={ntaWarningOpen} onOk={() => setNtaWarningOpen(false)} />
+                <NtaProceedWarningDialog
+                  open={ntaWarningOpen}
+                  onOk={() => setNtaWarningOpen(false)}
+                />
               </NtaMockTokens>
             </div>
           ) : null}
 
           {/* ── NTA EXAM SHELL (fullscreen) ── */}
           {view === "test" && questions.length > 0 ? (
-            <div key="nta-test" className="fixed inset-0 z-[100] flex flex-col">
+            <div key="nta-test" className="fixed inset-0 z-100 flex flex-col">
               <NtaMockTokens skin={ntaSkin} className="flex min-h-0 flex-1 flex-col">
                 <NtaExamShell
                   candidateName={candidateDisplayName}
@@ -913,7 +1120,9 @@ export default function MockPage() {
                 </div>
                 <h1 className="edu-page-title text-3xl">Mock test complete</h1>
                 {activeExamTitle ? (
-                  <p className="edu-page-desc mt-1 line-clamp-2 text-sm font-medium text-primary">{activeExamTitle}</p>
+                  <p className="edu-page-desc mt-1 line-clamp-2 text-sm font-medium text-primary">
+                    {activeExamTitle}
+                  </p>
                 ) : null}
                 <p className="edu-page-desc">
                   {correctCount} / {questions.length} correct
@@ -923,7 +1132,9 @@ export default function MockPage() {
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <div className="edu-card p-4 rounded-2xl text-center">
-                  <span className="text-2xl font-extrabold text-edu-green block">{correctCount}</span>
+                  <span className="text-2xl font-extrabold text-edu-green block">
+                    {correctCount}
+                  </span>
                   <span className="text-xs text-muted-foreground font-bold">Correct</span>
                 </div>
                 <div className="edu-card p-4 rounded-2xl text-center">
@@ -934,10 +1145,7 @@ export default function MockPage() {
                 </div>
                 <div className="edu-card p-4 rounded-2xl text-center">
                   <span className="text-2xl font-extrabold text-primary block">
-                    {questions.length
-                      ? Math.round((correctCount / questions.length) * 100)
-                      : 0}
-                    %
+                    {questions.length ? Math.round((correctCount / questions.length) * 100) : 0}%
                   </span>
                   <span className="text-xs text-muted-foreground font-bold">Score</span>
                 </div>
@@ -953,26 +1161,52 @@ export default function MockPage() {
                 <div className="edu-card p-6 rounded-2xl">
                   <h3 className="font-display font-bold text-foreground mb-4">By subject</h3>
                   <div className="flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setReviewSubjectFilter("all")}
+                      className={cn(
+                        "flex items-center gap-2 px-4 py-2 rounded-xl border transition-colors",
+                        reviewSubjectFilter === "all"
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border bg-muted/40 text-foreground hover:bg-muted/60"
+                      )}
+                    >
+                      <span>📚</span>
+                      <span className="font-bold">All</span>
+                      <span className="text-sm text-muted-foreground">{questions.length}</span>
+                    </button>
                     {Object.entries(sectionBreakdown).map(([subj, { correct, total }]) => (
-                      <div
+                      <button
                         key={subj}
-                        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-muted/50"
+                        type="button"
+                        onClick={() => setReviewSubjectFilter(subj as Subject)}
+                        className={cn(
+                          "flex items-center gap-2 px-4 py-2 rounded-xl border transition-colors",
+                          reviewSubjectFilter === (subj as Subject)
+                            ? "border-primary bg-primary/10 text-primary"
+                            : "border-border bg-muted/40 text-foreground hover:bg-muted/60"
+                        )}
                       >
                         <span>{subjectEmojis[subj as Subject]}</span>
-                        <span className="font-bold text-foreground capitalize">{subj}</span>
+                        <span className="font-bold capitalize">{subj}</span>
                         <span className="text-sm text-muted-foreground">
                           {correct}/{total}
                         </span>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 </div>
               )}
 
               <div className="edu-card p-6 rounded-2xl">
-                <h3 className="font-display font-bold text-foreground mb-4">Review answers</h3>
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <h3 className="font-display font-bold text-foreground">Review answers</h3>
+                  <span className="text-xs text-muted-foreground">
+                    Showing {reviewQuestions.length} of {questions.length}
+                  </span>
+                </div>
                 <div className="space-y-3">
-                  {questions.map((q) => {
+                  {reviewQuestions.map((q) => {
                     const selected = answers[q.id];
                     const correct = selected === q.correctAnswer;
                     const open = expandedReviewId === q.id;
@@ -990,11 +1224,12 @@ export default function MockPage() {
                               <XCircle className="w-5 h-5 text-destructive" />
                             )}
                           </span>
-                          <span className="text-sm font-bold text-foreground line-clamp-1 flex-1">
-                            {q.question}
+                          <span className="text-sm font-bold text-foreground line-clamp-2 flex-1">
+                            <ReviewInlineHtml text={q.question} />
                           </span>
                           <span className="text-xs text-muted-foreground">
-                            {q.subject} · {q.topic}
+                            {q.subject}
+                            {q.topic && q.topic !== "NULL" ? ` · ${q.topic}` : ""}
                           </span>
                           {open ? (
                             <ChevronUp className="w-4 h-4 shrink-0" />
@@ -1010,27 +1245,31 @@ export default function MockPage() {
                           >
                             <p className="text-muted-foreground">
                               Your answer:{" "}
-                              {selected != null ? <ReviewInlineHtml text={q.options[selected] ?? ""} /> : "—"}
+                              {selected != null ? (
+                                <ReviewInlineHtml text={q.options[selected] ?? ""} />
+                              ) : (
+                                "—"
+                              )}
                             </p>
                             {!correct && (
                               <p className="text-edu-green font-medium">
-                                Correct: <ReviewInlineHtml text={q.options[q.correctAnswer] ?? ""} />
+                                Correct:{" "}
+                                <ReviewInlineHtml text={q.options[q.correctAnswer] ?? ""} />
                               </p>
                             )}
-                            {q.solutionHtml ? (
-                              <div
-                                className="prose prose-sm max-w-none text-foreground/90 dark:prose-invert [&_img]:max-h-48"
-                                // eslint-disable-next-line react/no-danger
-                                dangerouslySetInnerHTML={{ __html: sanitizeMockHtml(q.solutionHtml) }}
-                              />
-                            ) : (
-                              <p className="text-foreground/90">{q.solution}</p>
-                            )}
+                            <div className="text-foreground/90 [&_.katex]:text-[0.97em]">
+                              <ReviewInlineHtml text={q.solutionHtml || q.solution || ""} block />
+                            </div>
                           </motion.div>
                         )}
                       </div>
                     );
                   })}
+                  {reviewQuestions.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+                      No questions found for this subject filter.
+                    </div>
+                  ) : null}
                 </div>
               </div>
 

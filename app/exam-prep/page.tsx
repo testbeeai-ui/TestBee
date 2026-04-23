@@ -4,14 +4,7 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import AppLayout from "@/components/AppLayout";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import {
-  ClipboardList,
-  School,
-  BookMarked,
-  Calendar,
-  ChevronRight,
-  Lock,
-} from "lucide-react";
+import { ClipboardList, School, BookMarked, Calendar, ChevronRight, Lock } from "lucide-react";
 
 const cards = [
   {
@@ -35,7 +28,8 @@ const cards = [
     href: "/revision",
     icon: BookMarked,
     title: "Revision",
-    description: "Spaced repetition with instructive questions and reasons – save cards and revise by topic.",
+    description:
+      "Spaced repetition with instructive questions and reasons – save cards and revise by topic.",
     gradient: "from-green-500 to-emerald-500",
     available: true,
   },
@@ -89,18 +83,14 @@ export default function ExamPrepPage() {
                     <Icon className="w-6 h-6 text-white" />
                   </div>
                   <div className="flex items-center gap-2 mb-1">
-                    <h3 className="font-extrabold text-lg text-foreground">
-                      {item.title}
-                    </h3>
+                    <h3 className="font-extrabold text-lg text-foreground">{item.title}</h3>
                     {!item.available && (
                       <span className="edu-chip bg-muted text-muted-foreground text-[10px] font-bold flex items-center gap-1">
                         <Lock className="w-3 h-3" /> Optional / Coming soon
                       </span>
                     )}
                   </div>
-                  <p className="text-sm text-muted-foreground mb-3">
-                    {item.description}
-                  </p>
+                  <p className="text-sm text-muted-foreground mb-3">{item.description}</p>
                   {item.available ? (
                     <span className="inline-flex items-center gap-1 text-sm font-bold text-primary">
                       Open <ChevronRight className="w-4 h-4" />

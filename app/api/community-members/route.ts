@@ -41,10 +41,9 @@ export async function GET() {
       .order("created_at", { ascending: false })
       .limit(20);
 
-    const uniqueIds = [...new Set((doubtAuthors ?? []).map((r: { user_id: string }) => r.user_id))].slice(
-      0,
-      10
-    );
+    const uniqueIds = [
+      ...new Set((doubtAuthors ?? []).map((r: { user_id: string }) => r.user_id)),
+    ].slice(0, 10);
 
     if (uniqueIds.length === 0) {
       return NextResponse.json(
@@ -53,12 +52,14 @@ export async function GET() {
       );
     }
 
-    const { data: profileRows } = await db
-      .from("profiles")
-      .select("id, name")
-      .in("id", uniqueIds);
+    const { data: profileRows } = await db.from("profiles").select("id, name").in("id", uniqueIds);
 
-    const byId = new Map((profileRows ?? []).map((p: { id: string; name: string | null }) => [p.id, p.name ?? "Student"]));
+    const byId = new Map(
+      (profileRows ?? []).map((p: { id: string; name: string | null }) => [
+        p.id,
+        p.name ?? "Student",
+      ])
+    );
     const members = uniqueIds.map((id) => ({
       id,
       name: byId.get(id) ?? "Student",

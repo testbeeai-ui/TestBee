@@ -1,5 +1,5 @@
-import type { ExamType } from '@/types';
-import type { TopicNode } from '@/data/topicTaxonomy';
+import type { ExamType } from "@/types";
+import type { TopicNode } from "@/data/topicTaxonomy";
 
 export interface CurriculumTopic {
   title: string;
@@ -408,12 +408,12 @@ export const class12PhysicsUnits: CurriculumUnit[] = parseClass12PhysicsCurricul
   RAW_CLASS12_PHYSICS_CURRICULUM
 );
 
-const CLASS_12_PHYSICS_EXAMS: ExamType[] = ['JEE', 'NEET', 'KCET'];
+const CLASS_12_PHYSICS_EXAMS: ExamType[] = ["JEE", "NEET", "KCET"];
 
 export const physics12DetailedTopicTaxonomy: TopicNode[] = class12PhysicsUnits.flatMap((unit) =>
   unit.chapters.flatMap((chapter) =>
     chapter.topics.map((topic) => ({
-      subject: 'physics',
+      subject: "physics",
       classLevel: 12,
       topic: topic.title,
       chapterTitle: chapter.title,

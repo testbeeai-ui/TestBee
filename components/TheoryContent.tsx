@@ -17,9 +17,12 @@ function normalizeKatexRetryLatex(latex: string): string {
   out = out.replace(/\\widehat\{\$\s*\\?([A-Za-z0-9]+)\s*\$\}/g, "\\widehat{$1}");
   out = out.replace(
     /\\widehat\{([A-Za-z0-9]+)\}\{\$?\s*([A-Za-z0-9]+)\s*\$?\}/g,
-    "\\widehat{$1}^{$2}",
+    "\\widehat{$1}^{$2}"
   );
-  out = out.replace(/\\widehat\{([A-Za-z0-9]+)\}\{\$?\s*th(?:'s)?\s*\$?\}/gi, "\\widehat{$1}^{\\text{th}}");
+  out = out.replace(
+    /\\widehat\{([A-Za-z0-9]+)\}\{\$?\s*th(?:'s)?\s*\$?\}/gi,
+    "\\widehat{$1}^{\\text{th}}"
+  );
   out = out.replace(/\\widehat\{([^}]+)\}\s*\{([^}]+)\}/g, "\\widehat{$1}^{$2}");
   out = out.replace(/\\widehat\{([^}]+)\}\s*([A-Za-z0-9+\-]+)/g, "\\widehat{$1}^{$2}");
   out = out.replace(/\\\(|\\\)|\\\[|\\\]/g, "");
@@ -118,7 +121,7 @@ function repairCorruptedLatexEscapes(s: string): string {
   // Normalize to "{}^{n}C_{r}" so expressions render instead of turning red.
   out = out.replace(
     /(^|[\s(=+\-},;])\^\{?\s*([A-Za-z0-9]+)\s*\}?\s*C\s*_\s*\{?\s*([A-Za-z0-9]+)\s*\}?/g,
-    "$1{}^{$2}C_{$3}",
+    "$1{}^{$2}C_{$3}"
   );
   return out;
 }
@@ -178,10 +181,7 @@ function normalizeTheoryForRender(raw: string): string {
   ];
   for (const heading of structuredHeadings) {
     const escaped = heading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    out = out.replace(
-      new RegExp(`(^|\\n)(#{2,3}\\s*${escaped})(\\s+)(?=\\S)`, "gi"),
-      "$1$2\n"
-    );
+    out = out.replace(new RegExp(`(^|\\n)(#{2,3}\\s*${escaped})(\\s+)(?=\\S)`, "gi"), "$1$2\n");
   }
 
   // Ensure there is a blank line after markdown heading lines so block splitting
@@ -228,12 +228,9 @@ function normalizeTheoryForRender(raw: string): string {
   // between \\vec{B} and d\\vec{l}, or a bare period that KaTeX stacks oddly.
   out = out.replace(
     /\\vec\{B\}\s*[`\u201C\u201D\u2018\u2019"']\s*\.\s*[`\u201C\u201D\u2018\u2019"']\s*d\\vec\{l\}/gi,
-    "\\vec{B} \\cdot d\\vec{l}",
+    "\\vec{B} \\cdot d\\vec{l}"
   );
-  out = out.replace(
-    /\\vec\{B\}\s*\.\s*d\\vec\{l\}(\s*=\s*\\mu)/gi,
-    "\\vec{B} \\cdot d\\vec{l}$1",
-  );
+  out = out.replace(/\\vec\{B\}\s*\.\s*d\\vec\{l\}(\s*=\s*\\mu)/gi, "\\vec{B} \\cdot d\\vec{l}$1");
   // Subscript "enclosed" in mu_0 I_enclosed → proper \\text inside display math
   out = out.replace(/(\\mu_0\s*)I_\{?enclosed\}?/gi, "$1I_{\\text{enclosed}}");
 
@@ -412,7 +409,7 @@ function renderInlineFormatting(text: string) {
       if (nextBracketMath >= 0 && nextBracketMath < next) next = nextBracketMath;
       if (nextBold >= 0 && nextBold < next) next = nextBold;
       if (nextItalic >= 0 && nextItalic < next) next = nextItalic;
-      const chunk = next > 0 ? remaining.slice(0, next) : remaining[0] ?? "";
+      const chunk = next > 0 ? remaining.slice(0, next) : (remaining[0] ?? "");
       if (chunk) parts.push(chunk);
       remaining = remaining.slice(next || 1);
     }
@@ -477,7 +474,10 @@ function parseTrapsStructured(trimmed: string): { intro: string; items: TrapList
     }
   }
 
-  const lines = trimmed.split(/\n/).map((l) => l.trim()).filter(Boolean);
+  const lines = trimmed
+    .split(/\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
   const trapLineRe = /^-\s*Trap\s+(\d+):\s*(.*)$/i;
   const trapIndices = lines
     .map((l, idx) => (trapLineRe.test(l) ? idx : -1))
@@ -522,7 +522,10 @@ function parseDenseOrderedListItemsFromListPart(listPart: string): TrapListItem[
   const splitNextItem = new RegExp(`\\s+(?=${DENSE_ORDERED_ITEM_START.source})`, "u");
   if (!splitNextItem.test(compact)) return null;
 
-  const parts = compact.split(splitNextItem).map((s) => s.trim()).filter(Boolean);
+  const parts = compact
+    .split(splitNextItem)
+    .map((s) => s.trim())
+    .filter(Boolean);
   if (parts.length < 2) return null;
 
   const items: TrapListItem[] = [];
@@ -538,7 +541,9 @@ function parseDenseOrderedListItemsFromListPart(listPart: string): TrapListItem[
  * Run-on ordered lists (e.g. "Typical Mistakes"): `1. **A** … 2. **B** …`
  * Internal newlines are compacted to spaces so multi-line model output still parses.
  */
-function parseDenseOrderedListParagraph(trimmed: string): { intro: string; items: TrapListItem[] } | null {
+function parseDenseOrderedListParagraph(
+  trimmed: string
+): { intro: string; items: TrapListItem[] } | null {
   const items = parseDenseOrderedListItemsFromListPart(trimmed);
   if (!items || items.length < 2) return null;
   return { intro: "", items };
@@ -548,7 +553,9 @@ function parseDenseOrderedListParagraph(trimmed: string): { intro: string; items
  * Same as dense list, but allows leading prose (exam strategy blocks):
  * `CBSE … To secure full marks: 1. Draw … 2. State … 3. Show …`
  */
-function parseDenseOrderedListWithIntro(trimmed: string): { intro: string; items: TrapListItem[] } | null {
+function parseDenseOrderedListWithIntro(
+  trimmed: string
+): { intro: string; items: TrapListItem[] } | null {
   const compact = trimmed.replace(/\s+/g, " ").trim();
   const itemHead = new RegExp(`(?<=^|[\\s:])(${DENSE_ORDERED_ITEM_START.source})`, "gu");
   const matches = [...compact.matchAll(itemHead)];
@@ -591,9 +598,7 @@ function splitComparativePhysicsSolutionSteps(rest: string): string[] | null {
     .map((s) => s.trim())
     .filter(Boolean);
 
-  const cleaned = parts.map((p) =>
-    p.replace(/^Result:\*\s+/i, "*Result:* ")
-  );
+  const cleaned = parts.map((p) => p.replace(/^Result:\*\s+/i, "*Result:* "));
 
   return cleaned.length >= 2 ? cleaned : null;
 }
@@ -609,7 +614,10 @@ function splitWorkedExampleSolutionSteps(rest: string): string[] {
   const t = rest.trim();
   if (t.length < 40) return [t];
 
-  const lines = t.split(/\n/).map((l) => l.trim()).filter(Boolean);
+  const lines = t
+    .split(/\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
   if (lines.length >= 2) return lines;
 
   // After ". " (or ".** " etc.), next token starts a new reasoning step.
@@ -644,7 +652,10 @@ function splitSolutionNumberedSubsteps(rest: string): string[] | null {
   if (t.length < 20) return null;
   // Step starts: space + "N. " + (optional **) + letter (avoids "6.92" style decimals)
   const stepHead = /\s+(?=[1-9]\d?\.\s+(?:\*\*)?[A-Za-z])/g;
-  const parts = t.split(stepHead).map((s) => s.trim()).filter(Boolean);
+  const parts = t
+    .split(stepHead)
+    .map((s) => s.trim())
+    .filter(Boolean);
   if (parts.length < 2) return null;
   if (!/^\d{1,2}\.\s+/.test(parts[0]!)) return null;
   return parts;
@@ -706,10 +717,7 @@ function normalizeRunonPipeTableString(s: string): string {
   out = out.replace(/\|\s+\|\s+(?=:[-:]{2,})/g, "|\n| ");
   out = out.replace(/\|\s+\|\s+(?=\*\*)/g, "|\n| ");
   // Next row starts with Title Case phrase then ` | ` (e.g. "| … | | Form continuous … |")
-  out = out.replace(
-    /\|\s+\|\s+(?=[A-Z][a-z]{2,}(?:\s+[a-z,°\-²³]+)*\s*\|)/g,
-    "|\n| "
-  );
+  out = out.replace(/\|\s+\|\s+(?=[A-Z][a-z]{2,}(?:\s+[a-z,°\-²³]+)*\s*\|)/g, "|\n| ");
   return out;
 }
 
@@ -744,7 +752,10 @@ function tryParseMarkdownPipeTable(raw: string): {
   rows: string[][];
 } | null {
   const normalized = normalizeRunonPipeTableString(raw.trim());
-  const linesAll = normalized.split(/\n/).map((l) => l.trim()).filter(Boolean);
+  const linesAll = normalized
+    .split(/\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
   const lines = linesAll.filter((l) => l.startsWith("|") && l.includes("|", 1));
   if (lines.length < 2) return null;
 
@@ -794,10 +805,7 @@ function trySplitBlockTablePreamble(trimmed: string): {
   const tableSpan = lines.slice(start).join("\n");
   const parsed = tryParseMarkdownPipeTable(tableSpan);
   if (!parsed) return null;
-  const preamble = lines
-    .slice(0, start)
-    .join("\n")
-    .trim();
+  const preamble = lines.slice(0, start).join("\n").trim();
   return { preamble, ...parsed };
 }
 
@@ -882,11 +890,7 @@ function SolutionStepsBlock({ labelHtml, steps }: { labelHtml: string; steps: st
       </span>
       <ol className="space-y-3 list-none pl-0 m-0" role="list">
         {steps.map((step, j) => (
-          <li
-            key={j}
-            className="flex gap-3 text-muted-foreground pl-0 border-l-0"
-            role="listitem"
-          >
+          <li key={j} className="flex gap-3 text-muted-foreground pl-0 border-l-0" role="listitem">
             <span className="font-semibold text-foreground/80 shrink-0 tabular-nums w-6 text-right select-none">
               {j + 1}.
             </span>
@@ -905,9 +909,7 @@ function SolutionStepsBlock({ labelHtml, steps }: { labelHtml: string; steps: st
 function TrapListBlock({ intro, items }: { intro: string; items: TrapListItem[] }) {
   return (
     <div className="space-y-4 my-3">
-      {intro ? (
-        <p className="text-muted-foreground">{renderInlineFormatting(intro)}</p>
-      ) : null}
+      {intro ? <p className="text-muted-foreground">{renderInlineFormatting(intro)}</p> : null}
       <ol className="space-y-4 list-none pl-0" role="list">
         {items.map((item, j) => (
           <li
@@ -915,7 +917,9 @@ function TrapListBlock({ intro, items }: { intro: string; items: TrapListItem[] 
             className="flex gap-2.5 text-muted-foreground pl-4 py-1 border-l-2 border-primary/20"
             role="listitem"
           >
-            <span className="font-bold text-foreground shrink-0 tabular-nums min-w-[1.75rem]">{item.num}.</span>
+            <span className="font-bold text-foreground shrink-0 tabular-nums min-w-[1.75rem]">
+              {item.num}.
+            </span>
             <span className="min-w-0 flex-1">{renderInlineFormatting(item.body)}</span>
           </li>
         ))}
@@ -925,7 +929,13 @@ function TrapListBlock({ intro, items }: { intro: string; items: TrapListItem[] 
 }
 
 /** Render theory content with proper heading hierarchy and readable formatting. Same pattern for Basic and Intermediate. */
-export default function TheoryContent({ theory, className }: { theory: string; className?: string }) {
+export default function TheoryContent({
+  theory,
+  className,
+}: {
+  theory: string;
+  className?: string;
+}) {
   const normalizedTheory = normalizeTheoryForRender(theory);
   const blocks = expandTheoryBlocks(normalizedTheory.split(/\n\n+/).filter((b) => b.trim()));
   return (
@@ -949,10 +959,29 @@ export default function TheoryContent({ theory, className }: { theory: string; c
                 : level === 3
                   ? "text-lg font-extrabold text-foreground mt-5 mb-1.5 first:mt-0 tracking-tight [&_.katex]:text-[1em]"
                   : "text-base font-bold text-foreground mt-4 mb-1 first:mt-0 [&_.katex]:text-[1em]";
-          if (level === 1) return <h1 key={i} className={cls}>{renderInlineFormatting(text)}</h1>;
-          if (level === 2) return <h2 key={i} className={cls}>{renderInlineFormatting(text)}</h2>;
-          if (level === 3) return <h3 key={i} className={cls}>{renderInlineFormatting(text)}</h3>;
-          return <h4 key={i} className={cls}>{renderInlineFormatting(text)}</h4>;
+          if (level === 1)
+            return (
+              <h1 key={i} className={cls}>
+                {renderInlineFormatting(text)}
+              </h1>
+            );
+          if (level === 2)
+            return (
+              <h2 key={i} className={cls}>
+                {renderInlineFormatting(text)}
+              </h2>
+            );
+          if (level === 3)
+            return (
+              <h3 key={i} className={cls}>
+                {renderInlineFormatting(text)}
+              </h3>
+            );
+          return (
+            <h4 key={i} className={cls}>
+              {renderInlineFormatting(text)}
+            </h4>
+          );
         }
 
         // Topic title: **🏛️ Topic 1: ...** or **Topic 1: ... (Basic/Intermediate Level)**
@@ -1016,7 +1045,9 @@ export default function TheoryContent({ theory, className }: { theory: string; c
                 className="max-w-full h-auto rounded-xl border border-border shadow-md"
               />
               {alt && (
-                <figcaption className="mt-2 text-sm text-muted-foreground italic text-center">{alt}</figcaption>
+                <figcaption className="mt-2 text-sm text-muted-foreground italic text-center">
+                  {alt}
+                </figcaption>
               )}
             </figure>
           );
@@ -1044,7 +1075,13 @@ export default function TheoryContent({ theory, className }: { theory: string; c
 
         const denseOrderedWithIntro = parseDenseOrderedListWithIntro(trimmed);
         if (denseOrderedWithIntro && denseOrderedWithIntro.items.length > 0) {
-          return <TrapListBlock key={i} intro={denseOrderedWithIntro.intro} items={denseOrderedWithIntro.items} />;
+          return (
+            <TrapListBlock
+              key={i}
+              intro={denseOrderedWithIntro.intro}
+              items={denseOrderedWithIntro.items}
+            />
+          );
         }
 
         const denseOrdered = parseDenseOrderedListParagraph(trimmed);
@@ -1053,7 +1090,10 @@ export default function TheoryContent({ theory, className }: { theory: string; c
         }
 
         // Bullet list block (all non-empty lines start with "* " or "- ")
-        const lines = trimmed.split(/\n/).map((l) => l.trim()).filter(Boolean);
+        const lines = trimmed
+          .split(/\n/)
+          .map((l) => l.trim())
+          .filter(Boolean);
         const allBullets = lines.length > 0 && lines.every((l) => /^[\*\-]\s+/.test(l));
         if (allBullets) {
           return (
@@ -1061,7 +1101,10 @@ export default function TheoryContent({ theory, className }: { theory: string; c
               {lines.map((line, j) => {
                 const content = line.replace(/^[\*\-]\s+/, "");
                 return (
-                  <li key={j} className="flex gap-2 text-muted-foreground pl-4 border-l-2 border-primary/20">
+                  <li
+                    key={j}
+                    className="flex gap-2 text-muted-foreground pl-4 border-l-2 border-primary/20"
+                  >
                     <span className="text-primary font-semibold shrink-0">•</span>
                     <span>{renderInlineFormatting(content)}</span>
                   </li>
@@ -1084,7 +1127,11 @@ export default function TheoryContent({ theory, className }: { theory: string; c
           return (
             <ol key={i} className="space-y-4 list-none pl-0 my-3" role="list">
               {mergedNumbered.map((item, j) => (
-                <li key={j} className="flex gap-2.5 text-muted-foreground pl-4 py-1 border-l-2 border-primary/20" role="listitem">
+                <li
+                  key={j}
+                  className="flex gap-2.5 text-muted-foreground pl-4 py-1 border-l-2 border-primary/20"
+                  role="listitem"
+                >
                   <span className="font-bold text-foreground shrink-0 tabular-nums min-w-[1.75rem]">
                     {item.num}.
                   </span>
@@ -1107,13 +1154,14 @@ export default function TheoryContent({ theory, className }: { theory: string; c
             return <SolutionStepsBlock key={i} labelHtml={`${label}:`} steps={steps} />;
           }
           return (
-            <div key={i} className="space-y-1.5 pl-4 py-2.5 rounded-r-lg bg-primary/5 border-l-[3px] border-primary/60">
+            <div
+              key={i}
+              className="space-y-1.5 pl-4 py-2.5 rounded-r-lg bg-primary/5 border-l-[3px] border-primary/60"
+            >
               <span className="inline-block text-sm font-semibold text-primary [&_.katex]:text-[1em]">
                 {renderInlineFormatting(label + ":")}
               </span>
-              <p className="text-muted-foreground pl-0 sm:pl-2">
-                {renderInlineFormatting(rest)}
-              </p>
+              <p className="text-muted-foreground pl-0 sm:pl-2">{renderInlineFormatting(rest)}</p>
             </div>
           );
         }

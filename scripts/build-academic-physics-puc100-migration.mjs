@@ -25,7 +25,7 @@ add(
   "Gravity stops acting on it the instant it is released.",
   "It has zero horizontal velocity, so it falls straight toward Earth’s centre.",
   "The satellite’s cabin air pushes it back into the satellite.",
-  "The particle retains tangential orbital velocity; it shares the satellite’s orbit rather than falling radially.",
+  "The particle retains tangential orbital velocity; it shares the satellite’s orbit rather than falling radially."
 );
 add(
   "kinematics",
@@ -35,7 +35,7 @@ add(
   "\\(F = Mg\\sin\\theta\\)",
   "\\(F = (M+m)g\\sin\\theta\\)",
   "\\(F = mg\\cos\\theta\\)",
-  "Pseudo-force \\(ma\\) along the incline balances \\(mg\\sin\\theta\\) with \\(a = g\\tan\\theta\\); total mass \\((M+m)\\).",
+  "Pseudo-force \\(ma\\) along the incline balances \\(mg\\sin\\theta\\) with \\(a = g\\tan\\theta\\); total mass \\((M+m)\\)."
 );
 add(
   "kinematics",
@@ -45,7 +45,7 @@ add(
   "Equal to \\(mg\\).",
   "Strictly less than \\(mg\\).",
   "Zero when the bob moves fastest.",
-  "\\(T\\cos\\theta = mg\\) gives \\(T = mg/\\cos\\theta > mg\\) for \\(\\theta > 0\\).",
+  "\\(T\\cos\\theta = mg\\) gives \\(T = mg/\\cos\\theta > mg\\) for \\(\\theta > 0\\)."
 );
 add(
   "kinematics",
@@ -55,7 +55,7 @@ add(
   "\\(\\mu = \\tan\\theta\\,(1 - 1/n)\\)",
   "\\(\\mu = \\cot\\theta\\,(1 - 1/n^2)\\)",
   "\\(\\mu = \\tan\\theta / n^2\\)",
-  "\\(t \\propto 1/\\sqrt{a}\\); \\(a_{\\text{smooth}} = g\\sin\\theta\\), \\(a_{\\text{rough}} = g(\\sin\\theta - \\mu\\cos\\theta)\\); ratio yields the result.",
+  "\\(t \\propto 1/\\sqrt{a}\\); \\(a_{\\text{smooth}} = g\\sin\\theta\\), \\(a_{\\text{rough}} = g(\\sin\\theta - \\mu\\cos\\theta)\\); ratio yields the result."
 );
 add(
   "kinematics",
@@ -65,7 +65,7 @@ add(
   "No — equilibrium always requires both translational and rotational balance.",
   "Only if the body is a single point mass.",
   "Only in non-inertial frames.",
-  "Two equal and opposite parallel forces give zero net force but non-zero torque.",
+  "Two equal and opposite parallel forces give zero net force but non-zero torque."
 );
 add(
   "kinematics",
@@ -75,7 +75,7 @@ add(
   "\\(kA^2/2\\)",
   "\\(kA^3\\)",
   "\\(kA/3\\)",
-  "\\(W = \\int_0^A kx^2\\,dx = kA^3/3\\).",
+  "\\(W = \\int_0^A kx^2\\,dx = kA^3/3\\)."
 );
 add(
   "kinematics",
@@ -85,7 +85,7 @@ add(
   "Yes — larger area always increases \\(\\mu_s\\).",
   "Yes — it is inversely proportional to contact area.",
   "Only for rolling, not sliding.",
-  "Amontons’ model: \\(\\mu_s\\) is material/normal-force dependent, not nominal area.",
+  "Amontons’ model: \\(\\mu_s\\) is material/normal-force dependent, not nominal area."
 );
 add(
   "kinematics",
@@ -95,7 +95,7 @@ add(
   "\\(\\tan^{-1}(4/3)\\)",
   "\\(\\sin^{-1}(3/5)\\) from the horizontal only",
   "\\(45^\\circ\\) always",
-  "Relative velocity of rain w.r.t. man has horizontal \\(3\\) and downward \\(4\\); \\(\\tan\\phi = 3/4\\) from vertical.",
+  "Relative velocity of rain w.r.t. man has horizontal \\(3\\) and downward \\(4\\); \\(\\tan\\phi = 3/4\\) from vertical."
 );
 add(
   "kinematics",
@@ -105,7 +105,7 @@ add(
   "At the launch point.",
   "At impact with the ground.",
   "Midway horizontally only.",
-  "Vertical component is zero at apex; horizontal \\(v\\cos\\theta\\) remains — minimum speed.",
+  "Vertical component is zero at apex; horizontal \\(v\\cos\\theta\\) remains — minimum speed."
 );
 add(
   "kinematics",
@@ -115,7 +115,7 @@ add(
   "\\(\\frac{m_1-m_2}{m_1+m_2}\\,g\\)",
   "\\(\\frac{m_1+m_2}{m_1-m_2}\\,g\\)",
   "\\(g/2\\) always",
-  "Each mass accelerates at \\(a = g(m_1-m_2)/(m_1+m_2)\\); \\(a_{\\mathrm{cm}} = (m_1 a - m_2 a)/(m_1+m_2)\\).",
+  "Each mass accelerates at \\(a = g(m_1-m_2)/(m_1+m_2)\\); \\(a_{\\mathrm{cm}} = (m_1 a - m_2 a)/(m_1+m_2)\\)."
 );
 
 // --- Block 2: Work, Energy, Power & Circular Motion (11–20) ---
@@ -127,7 +127,7 @@ add(
   "No — momentum can be non-zero while \\(K=0\\).",
   "Only for two particles.",
   "Only in the centre-of-mass frame.",
-  "\\(K\\) is a sum of non-negative terms; \\(K=0\\) implies each \\(v_i=0\\).",
+  "\\(K\\) is a sum of non-negative terms; \\(K=0\\) implies each \\(v_i=0\\)."
 );
 add(
   "work_energy",
@@ -137,7 +137,7 @@ add(
   "\\(\\sqrt{gL}\\)",
   "\\(\\sqrt{2gL}\\)",
   "\\(\\sqrt{3gL}\\)",
-  "Top requires \\(v_{\\mathrm{top}} \\ge \\sqrt{gL}\\); energy from bottom gives \\(\\sqrt{5gL}\\).",
+  "Top requires \\(v_{\\mathrm{top}} \\ge \\sqrt{gL}\\); energy from bottom gives \\(\\sqrt{5gL}\\)."
 );
 add(
   "work_energy",
@@ -147,7 +147,7 @@ add(
   "Yes — friction always removes mechanical energy.",
   "Yes — unless the surface is frictionless.",
   "Only for static friction, never kinetic.",
-  "Example: friction forward on a block on an accelerating truck increases its \\(K\\).",
+  "Example: friction forward on a block on an accelerating truck increases its \\(K\\)."
 );
 add(
   "work_energy",
@@ -157,7 +157,7 @@ add(
   "\\(v = Pt/m\\)",
   "\\(v = \\sqrt{Pt/(2m)}\\)",
   "\\(v = P^2 t^2/m\\)",
-  "\\(W = Pt = \\tfrac12 mv^2\\) from rest.",
+  "\\(W = Pt = \\tfrac12 mv^2\\) from rest."
 );
 add(
   "work_energy",
@@ -167,7 +167,7 @@ add(
   "\\(\\pi r F\\).",
   "\\(2\\pi r F\\).",
   "\\(Fr\\).",
-  "Centripetal force is perpendicular to each displacement element; \\(W=0\\).",
+  "Centripetal force is perpendicular to each displacement element; \\(W=0\\)."
 );
 add(
   "work_energy",
@@ -177,7 +177,7 @@ add(
   "\\(k/3\\)",
   "\\(k\\)",
   "\\(9k\\)",
-  "\\(k \\propto 1/L\\); length \\(\\to L/3\\) gives stiffness \\(\\times 3\\).",
+  "\\(k \\propto 1/L\\); length \\(\\to L/3\\) gives stiffness \\(\\times 3\\)."
 );
 add(
   "work_energy",
@@ -187,7 +187,7 @@ add(
   "Banking increases weight along the slope only.",
   "To increase rolling friction deliberately.",
   "To make vehicles accelerate uphill.",
-  "Banked turn: \\(N\\sin\\theta\\) contributes to \\(mv^2/r\\).",
+  "Banked turn: \\(N\\sin\\theta\\) contributes to \\(mv^2/r\\)."
 );
 add(
   "work_energy",
@@ -197,7 +197,7 @@ add(
   "\\(h/(1-e)\\)",
   "\\(h(1+e)/(1-e)\\)",
   "\\(2h/(1-e^2)\\)",
-  "Sum of bounce heights forms a geometric series.",
+  "Sum of bounce heights forms a geometric series."
 );
 add(
   "work_energy",
@@ -207,7 +207,7 @@ add(
   "No — energy cannot be negative.",
   "Only for unbound systems.",
   "Only at absolute zero.",
-  "Negative \\(U\\) means energy must be supplied to separate the parts to infinity.",
+  "Negative \\(U\\) means energy must be supplied to separate the parts to infinity."
 );
 add(
   "work_energy",
@@ -217,7 +217,7 @@ add(
   "\\(t = R/k\\)",
   "\\(t = \\sqrt{k/R}\\)",
   "\\(t = kR\\)",
-  "\\(v = kt\\), \\(a_c = v^2/R = k^2 t^2/R\\); set equal to \\(k\\).",
+  "\\(v = kt\\), \\(a_c = v^2/R = k^2 t^2/R\\); set equal to \\(k\\)."
 );
 
 // --- Block 3: COM & Rotation (21–30) ---
@@ -229,7 +229,7 @@ add(
   "Lead — denser means higher \\(K_{\\mathrm{rot}}\\).",
   "They are always equal if \\(m,\\omega\\) match.",
   "Depends only on colour of paint.",
-  "\\(I = \\frac{2}{5}mR^2\\); larger \\(R\\) for Al at fixed \\(m\\).",
+  "\\(I = \\frac{2}{5}mR^2\\); larger \\(R\\) for Al at fixed \\(m\\)."
 );
 add(
   "rotation",
@@ -239,7 +239,7 @@ add(
   "\\(\\tfrac12 MR^2\\) only",
   "\\(ML^2/12\\) only",
   "\\(M(R^2 + L^2)\\)",
-  "Perpendicular-axis / parallel-axis composition for a solid cylinder.",
+  "Perpendicular-axis / parallel-axis composition for a solid cylinder."
 );
 add(
   "rotation",
@@ -249,7 +249,7 @@ add(
   "Rotational kinetic energy.",
   "Moment of inertia alone.",
   "Linear momentum only.",
-  "\\(L = I\\omega\\); \\(I\\) decreases ⇒ \\(\\omega\\) increases.",
+  "\\(L = I\\omega\\); \\(I\\) decreases ⇒ \\(\\omega\\) increases."
 );
 add(
   "rotation",
@@ -259,7 +259,7 @@ add(
   "\\(21/25\\)",
   "\\(5/7\\)",
   "\\(1\\)",
-  "\\(a = g\\sin\\theta/(1+k^2/R^2)\\); \\(2/5\\) vs \\(2/3\\) for \\(k^2/R^2\\).",
+  "\\(a = g\\sin\\theta/(1+k^2/R^2)\\); \\(2/5\\) vs \\(2/3\\) for \\(k^2/R^2\\)."
 );
 add(
   "rotation",
@@ -269,7 +269,7 @@ add(
   "The radius of the trajectory in circular motion.",
   "The distance from CM to the geometric centre always.",
   "The lever arm of friction only.",
-  "\\(I = Mk^2\\) defines \\(k\\).",
+  "\\(I = Mk^2\\) defines \\(k\\)."
 );
 add(
   "rotation",
@@ -279,7 +279,7 @@ add(
   "\\(g/L\\)",
   "\\(2g/L\\)",
   "\\(g/(2L)\\)",
-  "\\(\\tau = MgL/2\\), \\(I = ML^2/3\\), \\(\\alpha = \\tau/I\\).",
+  "\\(\\tau = MgL/2\\), \\(I = ML^2/3\\), \\(\\alpha = \\tau/I\\)."
 );
 add(
   "rotation",
@@ -289,7 +289,7 @@ add(
   "Yes — it is tangent to the circle.",
   "Yes — it points toward the centre.",
   "Only for clockwise rotation.",
-  "\\(\\vec\\omega\\) is axial; velocity is tangential.",
+  "\\(\\vec\\omega\\) is axial; velocity is tangential."
 );
 add(
   "rotation",
@@ -299,7 +299,7 @@ add(
   "\\(1/2\\)",
   "\\(2/5\\)",
   "\\(1/4\\)",
-  "\\(K_{\\mathrm{rot}} = \\tfrac14 Mv^2\\), \\(K_{\\mathrm{tot}} = \\tfrac34 Mv^2\\).",
+  "\\(K_{\\mathrm{rot}} = \\tfrac14 Mv^2\\), \\(K_{\\mathrm{tot}} = \\tfrac34 Mv^2\\)."
 );
 add(
   "rotation",
@@ -309,7 +309,7 @@ add(
   "Never — CM must always be inside the bulk.",
   "Only for gases, not solids.",
   "Only if the body is charged.",
-  "CM is a mass-weighted average; geometry can enclose empty space.",
+  "CM is a mass-weighted average; geometry can enclose empty space."
 );
 add(
   "rotation",
@@ -319,7 +319,7 @@ add(
   "\\(\\hat i + 2\\hat j + \\hat k\\)",
   "\\(2\\hat i - \\hat j + \\hat k\\)",
   "\\(\\vec 0\\)",
-  "Expand the determinant for the cross product.",
+  "Expand the determinant for the cross product."
 );
 
 // --- Block 4: Gravitation & SHM (31–40) ---
@@ -331,7 +331,7 @@ add(
   "Infinite.",
   "Same as at the surface.",
   "Maximum in magnitude.",
-  "Interior shells contribute cancelling fields at the centre.",
+  "Interior shells contribute cancelling fields at the centre."
 );
 add(
   "gravitation_shm",
@@ -341,7 +341,7 @@ add(
   "\\(\\sqrt{2}\\,v_e\\)",
   "\\(v_e/\\sqrt{2}\\)",
   "\\(2v_e\\)",
-  "\\(v \\propto \\sqrt{M/R}\\); doubling both leaves \\(\\sqrt{M/R}\\) the same.",
+  "\\(v \\propto \\sqrt{M/R}\\); doubling both leaves \\(\\sqrt{M/R}\\) the same."
 );
 add(
   "gravitation_shm",
@@ -351,7 +351,7 @@ add(
   "Linear momentum.",
   "Mechanical energy alone.",
   "Areal velocity itself as a fundamental quantity.",
-  "Zero torque from central force ⇒ \\(L\\) constant.",
+  "Zero torque from central force ⇒ \\(L\\) constant."
 );
 add(
   "gravitation_shm",
@@ -361,7 +361,7 @@ add(
   "\\(A/2\\)",
   "\\(A/\\sqrt{3}\\)",
   "\\(A\\)",
-  "Equate \\(\\tfrac12 k(A^2-x^2) = \\tfrac12 kx^2\\).",
+  "Equate \\(\\tfrac12 k(A^2-x^2) = \\tfrac12 kx^2\\)."
 );
 add(
   "gravitation_shm",
@@ -371,7 +371,7 @@ add(
   "It grows without bound.",
   "It stays exactly constant.",
   "It oscillates between 0 and \\(2A\\).",
-  "Dissipation removes energy from the oscillator.",
+  "Dissipation removes energy from the oscillator."
 );
 add(
   "gravitation_shm",
@@ -381,7 +381,7 @@ add(
   "\\(r/5\\)",
   "\\(r/2\\)",
   "\\(2r/5\\)",
-  "Set \\(Gm/x^2 = G(4m)/(r-x)^2\\) ⇒ \\(x = r/3\\) between them.",
+  "Set \\(Gm/x^2 = G(4m)/(r-x)^2\\) ⇒ \\(x = r/3\\) between them."
 );
 add(
   "gravitation_shm",
@@ -391,7 +391,7 @@ add(
   "Gravity is weaker because the equator is colder.",
   "Air is thinner at the equator only.",
   "Coriolis force directly reduces scale reading at rest.",
-  "Smaller effective \\(g\\) at equator: rotation and distance from centre.",
+  "Smaller effective \\(g\\) at equator: rotation and distance from centre."
 );
 add(
   "gravitation_shm",
@@ -401,7 +401,7 @@ add(
   "\\(a_{\\max}/v_{\\max}\\)",
   "\\(v_{\\max}/a_{\\max}\\)",
   "\\(a_{\\max} v_{\\max}\\)",
-  "\\(v_{\\max} = A\\omega\\), \\(a_{\\max} = A\\omega^2\\) ⇒ \\(A = v_{\\max}^2/a_{\\max}\\).",
+  "\\(v_{\\max} = A\\omega\\), \\(a_{\\max} = A\\omega^2\\) ⇒ \\(A = v_{\\max}^2/a_{\\max}\\)."
 );
 add(
   "gravitation_shm",
@@ -411,7 +411,7 @@ add(
   "Yes — heavier bobs swing slower.",
   "Yes — period is proportional to mass.",
   "Only if the string has mass.",
-  "Mass cancels in the equation of motion for point bob.",
+  "Mass cancels in the equation of motion for point bob."
 );
 add(
   "gravitation_shm",
@@ -421,7 +421,7 @@ add(
   "\\(2\\pi\\sqrt{g/R}\\)",
   "\\(\\pi\\sqrt{R/g}\\)",
   "\\(2\\pi R/g\\)",
-  "\\(v = \\sqrt{gR}\\), circumference \\(2\\pi R\\).",
+  "\\(v = \\sqrt{gR}\\), circumference \\(2\\pi R\\)."
 );
 
 // --- Block 5: Fluids & properties of matter (41–50) ---
@@ -433,7 +433,7 @@ add(
   "Gravity switches off after a few seconds.",
   "Raindrops lose mass as they fall.",
   "Buoyancy exactly cancels gravity for all drops.",
-  "Net force goes to zero when drag equals weight.",
+  "Net force goes to zero when drag equals weight."
 );
 add(
   "fluids",
@@ -443,7 +443,7 @@ add(
   "\\(R_1 + R_2\\)",
   "\\(\\sqrt[3]{R_1^3 + R_2^3}\\) only (pressure ignored)",
   "\\(\\sqrt{R_1 R_2}\\)",
-  "For isothermal coalescence with \\(PV \\propto R^2\\) for bubbles, \\(R^2 = R_1^2 + R_2^2\\).",
+  "For isothermal coalescence with \\(PV \\propto R^2\\) for bubbles, \\(R^2 = R_1^2 + R_2^2\\)."
 );
 add(
   "fluids",
@@ -453,7 +453,7 @@ add(
   "Pressure increases.",
   "Pressure is unchanged.",
   "Pressure oscillates sinusoidally.",
-  "Higher kinetic energy density ⇒ lower pressure for fixed height.",
+  "Higher kinetic energy density ⇒ lower pressure for fixed height."
 );
 add(
   "fluids",
@@ -463,7 +463,7 @@ add(
   "\\(1:2\\)",
   "\\(1:1\\)",
   "\\(4:1\\)",
-  "Continuity: \\(A_1 v_1 = A_2 v_2\\).",
+  "Continuity: \\(A_1 v_1 = A_2 v_2\\)."
 );
 add(
   "fluids",
@@ -473,7 +473,7 @@ add(
   "It never returns to original shape.",
   "It flows like a liquid.",
   "It only stretches, never compresses.",
-  "Perfect elasticity: no permanent set.",
+  "Perfect elasticity: no permanent set."
 );
 add(
   "fluids",
@@ -483,7 +483,7 @@ add(
   "\\(l\\)",
   "\\(2l\\)",
   "\\(l/4\\)",
-  "\\(\\Delta L \\propto L/A \\propto L/r^2\\); doubling \\(L\\) and \\(r\\) gives factor \\(2/4\\).",
+  "\\(\\Delta L \\propto L/A \\propto L/r^2\\); doubling \\(L\\) and \\(r\\) gives factor \\(2/4\\)."
 );
 add(
   "fluids",
@@ -493,7 +493,7 @@ add(
   "Mercury is cheaper than water.",
   "Water cannot support vacuum above it.",
   "Mercury is non-toxic (opposite is true — still practical column height).",
-  "\\(h \\propto 1/\\rho\\); Hg column ~760 mm vs ~10 m water.",
+  "\\(h \\propto 1/\\rho\\); Hg column ~760 mm vs ~10 m water."
 );
 add(
   "fluids",
@@ -503,7 +503,7 @@ add(
   "\\(1500\\ \\mathrm{kg/m^3}\\)",
   "\\(333\\ \\mathrm{kg/m^3}\\)",
   "\\(1000\\ \\mathrm{kg/m^3}\\)",
-  "\\(\\rho_{\\text{wood}} V g = \\rho_w (2V/3) g\\).",
+  "\\(\\rho_{\\text{wood}} V g = \\rho_w (2V/3) g\\)."
 );
 add(
   "fluids",
@@ -513,7 +513,7 @@ add(
   "Surface tension increases linearly without bound.",
   "Surface tension is unchanged.",
   "It always becomes zero at \\(100^\\circ\\mathrm{C}\\).",
-  "Higher \\(T\\) weakens cohesive forces.",
+  "Higher \\(T\\) weakens cohesive forces."
 );
 add(
   "fluids",
@@ -523,7 +523,7 @@ add(
   "\\(2v\\)",
   "\\(v\\)",
   "\\(8v\\)",
-  "For Stokes-type scaling, \\(v_t \\propto r^2\\) for given density difference.",
+  "For Stokes-type scaling, \\(v_t \\propto r^2\\) for given density difference."
 );
 
 // --- Block 6: Thermodynamics (51–60) ---
@@ -535,7 +535,7 @@ add(
   "Never — \\(Q\\) always raises \\(T\\).",
   "Only for insulators.",
   "Only if volume is zero.",
-  "Latent heat and isothermal ideal gas are standard examples.",
+  "Latent heat and isothermal ideal gas are standard examples."
 );
 add(
   "thermo",
@@ -545,7 +545,7 @@ add(
   "\\(75\\%\\)",
   "\\(33\\%\\)",
   "\\(12.5\\%\\)",
-  "\\(\\eta = 1 - T_C/T_H = 1 - 3/4\\).",
+  "\\(\\eta = 1 - T_C/T_H = 1 - 3/4\\)."
 );
 add(
   "thermo",
@@ -555,7 +555,7 @@ add(
   "Because pressure is always larger than volume.",
   "Because \\(C_p\\) counts rotational modes only.",
   "They are always equal for ideal gases.",
-  "\\(C_p = C_v + R\\) for ideal gas.",
+  "\\(C_p = C_v + R\\) for ideal gas."
 );
 add(
   "thermo",
@@ -565,7 +565,7 @@ add(
   "\\(T V^{\\gamma} = \\text{constant}\\)",
   "\\(T/V = \\text{constant}\\)",
   "\\(TV = \\text{constant}\\)",
-  "Eliminate \\(P\\) using \\(PV = nRT\\).",
+  "Eliminate \\(P\\) using \\(PV = nRT\\)."
 );
 add(
   "thermo",
@@ -575,7 +575,7 @@ add(
   "Total volume only.",
   "Total number of collisions per second only.",
   "Molecular diameter cubed.",
-  "\\(\\langle \\tfrac12 m v^2 \\rangle_{\\text{trans}} = \\tfrac32 kT\\) per molecule.",
+  "\\(\\langle \\tfrac12 m v^2 \\rangle_{\\text{trans}} = \\tfrac32 kT\\) per molecule."
 );
 add(
   "thermo",
@@ -585,7 +585,7 @@ add(
   "\\(5/3\\)",
   "\\(9/7\\)",
   "\\(4/3\\)",
-  "5 active degrees of freedom at room \\(T\\) (3 trans + 2 rot).",
+  "5 active degrees of freedom at room \\(T\\) (3 trans + 2 rot)."
 );
 add(
   "thermo",
@@ -595,7 +595,7 @@ add(
   "Yes — always in biological systems.",
   "Yes — for any cyclic process.",
   "Only if heat leaves the system.",
-  "Entropy of isolated system never decreases.",
+  "Entropy of isolated system never decreases."
 );
 add(
   "thermo",
@@ -605,7 +605,7 @@ add(
   "\\(Q/(nR)\\)",
   "\\(3Q/(2nR)\\)",
   "\\(Q/(2nR)\\)",
-  "\\(Q = n C_v \\Delta T\\), \\(C_v = 3R/2\\).",
+  "\\(Q = n C_v \\Delta T\\), \\(C_v = 3R/2\\)."
 );
 add(
   "thermo",
@@ -615,7 +615,7 @@ add(
   "\\(\\Delta U > 0\\) always.",
   "Depends on path area only, not zero.",
   "\\(\\Delta U = Q\\) always.",
-  "\\(U\\) is a state function.",
+  "\\(U\\) is a state function."
 );
 add(
   "thermo",
@@ -625,7 +625,7 @@ add(
   "\\(2P\\)",
   "\\(8P\\)",
   "\\(4P\\)",
-  "Stefan–Boltzmann: \\(P \\propto T^4\\).",
+  "Stefan–Boltzmann: \\(P \\propto T^4\\)."
 );
 
 // --- Block 7: Electrostatics & capacitance (61–70) ---
@@ -637,7 +637,7 @@ add(
   "They can cross where charge density is zero.",
   "Field lines are scalar quantities.",
   "Coulomb’s law forbids straight lines only.",
-  "Uniqueness of the static field direction.",
+  "Uniqueness of the static field direction."
 );
 add(
   "electrostatics",
@@ -647,7 +647,7 @@ add(
   "\\(0\\)",
   "\\(kq/a^2\\)",
   "\\(kq/(4a^2)\\)",
-  "Fields from both charges add along the dipole axis.",
+  "Fields from both charges add along the dipole axis."
 );
 add(
   "electrostatics",
@@ -657,7 +657,7 @@ add(
   "Uniform and non-zero.",
   "Infinite at the cavity centre.",
   "Same as just outside the surface.",
-  "Conductors in electrostatic equilibrium: \\(E=0\\) in metal and cavity.",
+  "Conductors in electrostatic equilibrium: \\(E=0\\) in metal and cavity."
 );
 add(
   "electrostatics",
@@ -667,7 +667,7 @@ add(
   "\\(3C\\)",
   "\\(C\\)",
   "\\(C^3\\)",
-  "\\(1/C_{\\mathrm{eq}} = 3/C\\).",
+  "\\(1/C_{\\mathrm{eq}} = 3/C\\)."
 );
 add(
   "electrostatics",
@@ -677,7 +677,7 @@ add(
   "It increases.",
   "It stays exactly the same.",
   "It becomes zero instantly.",
-  "Charge trapped; capacitance rises with \\(\\kappa\\).",
+  "Charge trapped; capacitance rises with \\(\\kappa\\)."
 );
 add(
   "electrostatics",
@@ -687,7 +687,7 @@ add(
   "\\(2F\\)",
   "\\(F/2\\)",
   "\\(F/4\\)",
-  "\\(F \\propto 1/r^2\\).",
+  "\\(F \\propto 1/r^2\\)."
 );
 add(
   "electrostatics",
@@ -697,7 +697,7 @@ add(
   "Charges outside the surface dominate.",
   "The surface shape only.",
   "The potential at each point on the surface.",
-  "\\(\\oint \\vec E \\cdot d\\vec A = Q_{\\mathrm{enc}}/\\varepsilon_0\\).",
+  "\\(\\oint \\vec E \\cdot d\\vec A = Q_{\\mathrm{enc}}/\\varepsilon_0\\)."
 );
 add(
   "electrostatics",
@@ -707,7 +707,7 @@ add(
   "\\(1\\ \\mathrm{eV}\\)",
   "\\(200\\ \\mathrm{eV}\\)",
   "\\(50\\ \\mathrm{eV}\\)",
-  "By definition \\(1\\ \\mathrm{eV}\\) per volt per elementary charge.",
+  "By definition \\(1\\ \\mathrm{eV}\\) per volt per elementary charge."
 );
 add(
   "electrostatics",
@@ -717,7 +717,7 @@ add(
   "Parallel planes.",
   "Cylinders about an off-centre axis.",
   "Hyperboloids only.",
-  "\\(V \\propto 1/r\\) ⇒ constant \\(V\\) on spheres.",
+  "\\(V \\propto 1/r\\) ⇒ constant \\(V\\) on spheres."
 );
 add(
   "electrostatics",
@@ -727,7 +727,7 @@ add(
   "\\(2U\\)",
   "\\(U/2\\)",
   "\\(U\\)",
-  "\\(U = Q^2/(2C)\\).",
+  "\\(U = Q^2/(2C)\\)."
 );
 
 // --- Block 8: Current & magnetism (71–80) ---
@@ -739,7 +739,7 @@ add(
   "Electrons become heavier.",
   "Lattice vibrations decrease with \\(T\\).",
   "Ohm’s law breaks entirely.",
-  "Carrier concentration rises strongly with \\(T\\).",
+  "Carrier concentration rises strongly with \\(T\\)."
 );
 add(
   "magnetism",
@@ -749,7 +749,7 @@ add(
   "\\(2R\\)",
   "\\(R/2\\)",
   "\\(R\\)",
-  "\\(R \\propto L/A\\); \\(L\\to 2L\\), \\(A\\to A/2\\).",
+  "\\(R \\propto L/A\\); \\(L\\to 2L\\), \\(A\\to A/2\\)."
 );
 add(
   "magnetism",
@@ -759,7 +759,7 @@ add(
   "Equal to the total current.",
   "Equal to the number of branches.",
   "Infinite for AC only.",
-  "Conservation of energy in circuits.",
+  "Conservation of energy in circuits."
 );
 add(
   "magnetism",
@@ -769,7 +769,7 @@ add(
   "\\(9\\ \\Omega\\)",
   "\\(3\\ \\Omega\\)",
   "\\(4.5\\ \\Omega\\)",
-  "\\(1/R = 1/3 + 1/6\\).",
+  "\\(1/R = 1/3 + 1/6\\)."
 );
 add(
   "magnetism",
@@ -779,7 +779,7 @@ add(
   "Yes — always toward north.",
   "Yes — proportional to \\(B\\) only.",
   "Only inside a ferromagnet.",
-  "Magnetic force requires motion across field lines.",
+  "Magnetic force requires motion across field lines."
 );
 add(
   "magnetism",
@@ -789,7 +789,7 @@ add(
   "\\(\\mu_0 I/(2\\pi r)\\)",
   "\\(\\mu_0 I r\\)",
   "\\(\\mu_0 I / r^2\\)",
-  "Standard result from Biot–Savart integration.",
+  "Standard result from Biot–Savart integration."
 );
 add(
   "magnetism",
@@ -799,7 +799,7 @@ add(
   "\\(\\vec F = q\\vec B\\) only.",
   "\\(\\vec F = m\\vec a\\) only.",
   "\\(\\vec F = q\\vec E/\\varepsilon_0\\).",
-  "Electric + magnetic parts combined.",
+  "Electric + magnetic parts combined."
 );
 add(
   "magnetism",
@@ -809,7 +809,7 @@ add(
   "\\(r = qB/(mv)\\)",
   "\\(r = mvB/q\\)",
   "\\(r = qvB/m\\)",
-  "Balance \\(qvB = mv^2/r\\).",
+  "Balance \\(qvB = mv^2/r\\)."
 );
 add(
   "magnetism",
@@ -819,7 +819,7 @@ add(
   "Currents in vacuum only.",
   "Displacement currents in capacitors only.",
   "Superconducting surface modes only.",
-  "Lenz’s law tends to oppose flux change; energy often dissipated as heat.",
+  "Lenz’s law tends to oppose flux change; energy often dissipated as heat."
 );
 add(
   "magnetism",
@@ -829,7 +829,7 @@ add(
   "\\(IA/N\\)",
   "\\(N^2 IA\\)",
   "\\(IA^2\\)",
-  "Moments add for stacked turns.",
+  "Moments add for stacked turns."
 );
 
 // --- Block 9: EMI, AC & waves (81–90) ---
@@ -841,7 +841,7 @@ add(
   "The original magnetic field always, unchanged.",
   "The battery voltage in the circuit.",
   "Thermal expansion of the coil.",
-  "Consistent with energy conservation.",
+  "Consistent with energy conservation."
 );
 add(
   "emi_ac",
@@ -851,7 +851,7 @@ add(
   "\\(|\\varepsilon| = L/i\\)",
   "\\(|\\varepsilon| = i/L\\)",
   "\\(|\\varepsilon| = L^2 di/dt\\)",
-  "\\(\\varepsilon = -L\\,di/dt\\).",
+  "\\(\\varepsilon = -L\\,di/dt\\)."
 );
 add(
   "emi_ac",
@@ -861,7 +861,7 @@ add(
   "Current leads voltage by \\(90^\\circ\\).",
   "In phase.",
   "Opposite phase (\\(180^\\circ\\)).",
-  "\\(V \\propto di/dt\\) for inductor.",
+  "\\(V \\propto di/dt\\) for inductor."
 );
 add(
   "emi_ac",
@@ -871,7 +871,7 @@ add(
   "\\(311\\ \\mathrm{V}\\)",
   "\\(155\\ \\mathrm{V}\\)",
   "\\(440\\ \\mathrm{V}\\)",
-  "\\(V_{\\mathrm{rms}} = V_0/\\sqrt{2}\\).",
+  "\\(V_{\\mathrm{rms}} = V_0/\\sqrt{2}\\)."
 );
 add(
   "emi_ac",
@@ -881,7 +881,7 @@ add(
   "Self-induction only in one coil.",
   "Hall effect in the core.",
   "Photoelectric effect in the windings.",
-  "Time-varying flux links secondary.",
+  "Time-varying flux links secondary."
 );
 add(
   "emi_ac",
@@ -891,7 +891,7 @@ add(
   "\\(f = \\sqrt{LC}/(2\\pi)\\)",
   "\\(f = 2\\pi\\sqrt{LC}\\)",
   "\\(f = 1/(\\sqrt{LC})\\)",
-  "\\(\\omega_0 = 1/\\sqrt{LC}\\).",
+  "\\(\\omega_0 = 1/\\sqrt{LC}\\)."
 );
 add(
   "emi_ac",
@@ -901,7 +901,7 @@ add(
   "FM radio.",
   "Microwaves.",
   "Infrared.",
-  "Shortest \\(\\lambda\\), highest \\(f\\), \\(E=hf\\).",
+  "Shortest \\(\\lambda\\), highest \\(f\\), \\(E=hf\\)."
 );
 add(
   "emi_ac",
@@ -911,7 +911,7 @@ add(
   "\\(+z\\)",
   "\\(-x\\)",
   "\\(+x\\)",
-  "\\(\\vec E \\times \\vec B\\) gives propagation direction.",
+  "\\(\\vec E \\times \\vec B\\) gives propagation direction."
 );
 add(
   "emi_ac",
@@ -921,7 +921,7 @@ add(
   "It measures static friction in dielectrics.",
   "It replaces conduction current in metals always.",
   "It is real charge flow in vacuum.",
-  "Needed for capacitor gaps and wave solutions.",
+  "Needed for capacitor gaps and wave solutions."
 );
 add(
   "emi_ac",
@@ -931,7 +931,7 @@ add(
   "\\(B_0 = E_0 c\\)",
   "\\(B_0 = E_0/c^2\\)",
   "\\(B_0 = c E_0\\)",
-  "Maxwell relations in vacuum: \\(|E|/|B| = c\\).",
+  "Maxwell relations in vacuum: \\(|E|/|B| = c\\)."
 );
 
 // --- Block 10: Optics & modern physics (91–100) ---
@@ -943,7 +943,7 @@ add(
   "Any angle from rarer to denser medium.",
   "Normal incidence only.",
   "Requires metallic coating.",
-  "\\(n_i \\sin\\theta_i = n_t \\sin\\theta_t\\); beyond critical, no transmitted ray.",
+  "\\(n_i \\sin\\theta_i = n_t \\sin\\theta_t\\); beyond critical, no transmitted ray."
 );
 add(
   "optics_modern",
@@ -953,7 +953,7 @@ add(
   "\\(1\\)",
   "\\(2\\)",
   "\\(1/4\\)",
-  "\\(\\beta \\propto D/d\\).",
+  "\\(\\beta \\propto D/d\\)."
 );
 add(
   "optics_modern",
@@ -963,7 +963,7 @@ add(
   "Yes — brighter light always gives higher \\(K_{\\max}\\).",
   "Yes — linearly with intensity.",
   "Only below threshold frequency.",
-  "Einstein’s \\(K_{\\max} = hf - \\phi\\).",
+  "Einstein’s \\(K_{\\max} = hf - \\phi\\)."
 );
 add(
   "optics_modern",
@@ -973,7 +973,7 @@ add(
   "\\(310\\ \\mathrm{nm}\\)",
   "\\(1240\\ \\mathrm{nm}\\)",
   "\\(200\\ \\mathrm{nm}\\)",
-  "\\(\\lambda(\\mathrm{nm}) \\approx 1240 / E(\\mathrm{eV})\\).",
+  "\\(\\lambda(\\mathrm{nm}) \\approx 1240 / E(\\mathrm{eV})\\)."
 );
 add(
   "optics_modern",
@@ -983,7 +983,7 @@ add(
   "Nucleus should be positively charged (that part matched experiment).",
   "Atoms should be cubic.",
   "Electron mass was unknown.",
-  "Radiation loss from orbiting charge.",
+  "Radiation loss from orbiting charge."
 );
 add(
   "optics_modern",
@@ -993,7 +993,7 @@ add(
   "\\(1/3\\)",
   "\\(1/4\\)",
   "\\(3/4\\)",
-  "\\(N = N_0 (1/2)^{t/T}\\).",
+  "\\(N = N_0 (1/2)^{t/T}\\)."
 );
 add(
   "optics_modern",
@@ -1003,7 +1003,7 @@ add(
   "Only the colour of the sources.",
   "Only total intensity of each beam separately.",
   "Polarization must match exactly always.",
-  "Phase relationship sets fringe type.",
+  "Phase relationship sets fringe type."
 );
 add(
   "optics_modern",
@@ -1013,7 +1013,7 @@ add(
   "\\(\\lambda = h/(mK)\\)",
   "\\(\\lambda = \\sqrt{2mK}/h\\)",
   "\\(\\lambda = hK/m\\)",
-  "\\(p = \\sqrt{2mK}\\), \\(\\lambda = h/p\\).",
+  "\\(p = \\sqrt{2mK}\\), \\(\\lambda = h/p\\)."
 );
 add(
   "optics_modern",
@@ -1023,7 +1023,7 @@ add(
   "Speed neutrons up for fusion.",
   "Absorb all neutrons completely.",
   "Generate electrical power directly.",
-  "U-235 fission cross-section is much larger for thermal neutrons.",
+  "U-235 fission cross-section is much larger for thermal neutrons."
 );
 add(
   "optics_modern",
@@ -1033,7 +1033,7 @@ add(
   "\\(+5\\ \\mathrm{D}\\)",
   "\\(-15\\ \\mathrm{D}\\)",
   "\\(+15\\ \\mathrm{D}\\)",
-  "\\(P = 1/f\\) with \\(f\\) in metres; add powers for thin contact lenses.",
+  "\\(P = 1/f\\) with \\(f\\) in metres; add powers for thin contact lenses."
 );
 
 if (Q.length !== 100) {
@@ -1054,7 +1054,7 @@ lines.push("  AND category = 'physics'");
 lines.push(`  AND (content->>'pack') = '${PACK}';`);
 lines.push("");
 lines.push(
-  "INSERT INTO public.play_questions (domain, category, difficulty_rating, content, options, correct_answer_index, explanation)",
+  "INSERT INTO public.play_questions (domain, category, difficulty_rating, content, options, correct_answer_index, explanation)"
 );
 lines.push("VALUES");
 
@@ -1081,7 +1081,7 @@ const out = path.join(
   "..",
   "supabase",
   "migrations",
-  "20260430341000_play_academic_physics_puc100_jee_neet.sql",
+  "20260430341000_play_academic_physics_puc100_jee_neet.sql"
 );
 fs.mkdirSync(path.dirname(out), { recursive: true });
 fs.writeFileSync(out, lines.join("\n"), "utf8");

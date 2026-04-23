@@ -1,7 +1,9 @@
-export type Subject = 'physics' | 'chemistry' | 'math' | 'biology';
+/** Core CBSE/JEE subjects supported in product flows (no Biology track). */
+export const CORE_SUBJECTS = ["physics", "chemistry", "math"] as const;
+export type Subject = (typeof CORE_SUBJECTS)[number];
 
 /** Category for curated mock papers (library); maps to Supabase later. */
-export type MockPaperType = 'pyq' | 'ncert' | 'chapter' | 'full';
+export type MockPaperType = "pyq" | "ncert" | "chapter" | "full";
 
 /** Catalog entry for institute-style mock tests. */
 export interface MockPaper {
@@ -17,17 +19,17 @@ export interface MockPaper {
   durationMinutes: number;
   questionsCount: number;
   totalMarks: number;
-  difficulty: 'Easy' | 'Moderate' | 'Hard';
+  difficulty: "Easy" | "Moderate" | "Hard";
   tags: string[];
   classLevel: ClassLevel;
   /** Short line for instructions modal, e.g. "+4 for correct, −1 for incorrect" */
   markingScheme: string;
 }
-export type Stream = 'science' | 'commerce' | 'arts';
-export type SubjectCombo = 'PCM' | 'PCMB';
-export type ExamType = 'JEE' | 'JEE_Mains' | 'JEE_Advance' | 'NEET' | 'KCET' | 'other';
+export type Stream = "science" | "commerce" | "arts";
+export type SubjectCombo = "PCM";
+export type ExamType = "JEE" | "JEE_Mains" | "JEE_Advance" | "NEET" | "KCET" | "other";
 export type ClassLevel = 11 | 12;
-export type StreakPhase = 'playing' | 'break' | 'recall';
+export type StreakPhase = "playing" | "break" | "recall";
 
 export interface Question {
   id: string;
@@ -53,7 +55,7 @@ export interface Question {
   };
 }
 
-export type RevisionCardType = 'concept' | 'formula' | 'common_mistake' | 'trap';
+export type RevisionCardType = "concept" | "formula" | "common_mistake" | "trap";
 
 /** Revision card; topic = unit name, subtopicName = topic (lesson) within that unit */
 export interface SavedRevisionCard {
@@ -69,7 +71,7 @@ export interface SavedRevisionCard {
   topic: string;
   subject: Subject;
   classLevel: ClassLevel;
-  status?: 'unsure' | 'tomorrow' | 'know_it' | 'new';
+  status?: "unsure" | "tomorrow" | "know_it" | "new";
   /** Deep Dive / InstaCue context when saved from a section */
   level?: DifficultyLevel;
   board?: Board;
@@ -77,10 +79,10 @@ export interface SavedRevisionCard {
 }
 
 /** Syllabus board, e.g. CBSE. Default for Explore is CBSE. */
-export type Board = 'CBSE' | 'ICSE';
+export type Board = "CBSE" | "ICSE";
 
 /** Difficulty level for topic/Deep Dive. */
-export type DifficultyLevel = 'basics' | 'intermediate' | 'advanced';
+export type DifficultyLevel = "basics" | "intermediate" | "advanced";
 
 /** Saved Bits question from Deep Dive (one MCQ). */
 export interface SavedBit {
@@ -108,7 +110,12 @@ export interface SavedFormula {
   name: string;
   formulaLatex?: string;
   description?: string;
-  bitsQuestions: Array<{ question: string; options: string[]; correctAnswer: number; solution?: string }>;
+  bitsQuestions: Array<{
+    question: string;
+    options: string[];
+    correctAnswer: number;
+    solution?: string;
+  }>;
   subject: Subject;
   topic: string;
   subtopicName: string;
@@ -193,10 +200,16 @@ export interface PricingPlan {
 }
 
 // Play (adaptive / gamified)
-export type PlayDomain = 'academic' | 'funbrain';
-export type AcademicCategory = 'physics' | 'chemistry' | 'math' | 'biology' | 'cs';
-export type FunbrainCategory = 'puzzles' | 'verbal' | 'quantitative' | 'analytical' | 'gk' | 'mental_math';
-export type PlayCategory = AcademicCategory | FunbrainCategory | 'mixed';
+export type PlayDomain = "academic" | "funbrain";
+export type AcademicCategory = "physics" | "chemistry" | "math" | "cs";
+export type FunbrainCategory =
+  | "puzzles"
+  | "verbal"
+  | "quantitative"
+  | "analytical"
+  | "gk"
+  | "mental_math";
+export type PlayCategory = AcademicCategory | FunbrainCategory | "mixed";
 
 export interface PlayQuestionContent {
   text: string;

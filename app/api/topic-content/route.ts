@@ -30,16 +30,12 @@ function normalizeSubtopicPreviews(value: unknown): { subtopicName: string; prev
     .map((item) => {
       if (!item || typeof item !== "object") return null;
       const row = item as Record<string, unknown>;
-      const subtopicName = String(
-        row.subtopicName ?? row.subtopic_name ?? ""
-      ).trim();
+      const subtopicName = String(row.subtopicName ?? row.subtopic_name ?? "").trim();
       const preview = typeof row.preview === "string" ? row.preview.trim() : "";
       if (!subtopicName || !preview) return null;
       return { subtopicName, preview };
     })
-    .filter(
-      (item): item is { subtopicName: string; preview: string } => Boolean(item)
-    );
+    .filter((item): item is { subtopicName: string; preview: string } => Boolean(item));
   return rows.slice(0, 80);
 }
 
@@ -88,7 +84,9 @@ function parseBody(body: unknown): UpsertBody | null {
   const classLevel = Number(b.classLevel);
   const topic = String(b.topic ?? "").trim();
   const level = String(b.level ?? "").trim();
-  const hubRaw = String(b.hubScope ?? "topic").trim().toLowerCase();
+  const hubRaw = String(b.hubScope ?? "topic")
+    .trim()
+    .toLowerCase();
   const hubScope: "topic" | "chapter" = hubRaw === "chapter" ? "chapter" : "topic";
   const whyStudy = typeof b.whyStudy === "string" ? b.whyStudy : "";
   const whatLearn = typeof b.whatLearn === "string" ? b.whatLearn : "";

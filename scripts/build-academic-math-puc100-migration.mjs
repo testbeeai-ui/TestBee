@@ -25,7 +25,7 @@ add(
   "The function is undefined at every integer.",
   "The limit always equals \\(n\\).",
   "\\([x]\\) is continuous at integers.",
-  "Floor/step jumps: left limit and right limit at \\(n\\) differ.",
+  "Floor/step jumps: left limit and right limit at \\(n\\) differ."
 );
 add(
   "limits_continuity",
@@ -35,7 +35,7 @@ add(
   "\\(1/6\\)",
   "\\(0\\)",
   "\\(-1/2\\)",
-  "\\(\\sin x = x - x^3/6 + \\cdots\\) ⇒ numerator \\(\\sim -x^3/6\\).",
+  "\\(\\sin x = x - x^3/6 + \\cdots\\) ⇒ numerator \\(\\sim -x^3/6\\)."
 );
 add(
   "limits_continuity",
@@ -45,7 +45,7 @@ add(
   "Yes — always, like a removable discontinuity.",
   "Only if the jump is rational.",
   "Only for piecewise linear functions.",
-  "Removable needs LHL = RHL \\(\\neq f(c)\\); jump has unequal one-sided limits.",
+  "Removable needs LHL = RHL \\(\\neq f(c)\\); jump has unequal one-sided limits."
 );
 add(
   "limits_continuity",
@@ -55,7 +55,7 @@ add(
   "\\(\\pi\\)",
   "\\(2\\pi\\)",
   "\\(\\pi/4\\)",
-  "Reduce to \\(1 - \\tfrac12\\sin^2 2x\\); \\(\\sin^2 2x\\) has period \\(\\pi/2\\).",
+  "Reduce to \\(1 - \\tfrac12\\sin^2 2x\\); \\(\\sin^2 2x\\) has period \\(\\pi/2\\)."
 );
 add(
   "limits_continuity",
@@ -65,7 +65,7 @@ add(
   "Yes — always on every closed interval.",
   "Only if it is unbounded.",
   "Uniform continuity never holds in calculus.",
-  "Compact interval \\([a,b]\\) + continuity \\(\\Rightarrow\\) uniform continuity.",
+  "Compact interval \\([a,b]\\) + continuity \\(\\Rightarrow\\) uniform continuity."
 );
 add(
   "limits_continuity",
@@ -75,7 +75,7 @@ add(
   "\\(1/2\\)",
   "\\(0\\)",
   "\\(1\\)",
-  "Riemann sum \\(\\int_0^1 \\frac{1}{1+x^2}\\,dx = \\tan^{-1}1\\).",
+  "Riemann sum \\(\\int_0^1 \\frac{1}{1+x^2}\\,dx = \\tan^{-1}1\\)."
 );
 add(
   "limits_continuity",
@@ -85,7 +85,7 @@ add(
   "It is continuous only at \\(x=0\\).",
   "It equals zero almost everywhere.",
   "Limits exist everywhere.",
-  "\\(\\varepsilon\\)-\\(\\delta\\) fails: no local constancy.",
+  "\\(\\varepsilon\\)-\\(\\delta\\) fails: no local constancy."
 );
 add(
   "limits_continuity",
@@ -95,7 +95,7 @@ add(
   "\\(1\\) only",
   "\\(2\\) only",
   "\\(0\\)",
-  "Sketch \\(e^x\\) vs \\(x^2\\); sign changes locate three crossings (well-known classic).",
+  "Sketch \\(e^x\\) vs \\(x^2\\); sign changes locate three crossings (well-known classic)."
 );
 add(
   "limits_continuity",
@@ -105,7 +105,7 @@ add(
   "Rolle is stronger and never uses derivatives.",
   "They apply to disjoint intervals only.",
   "MVT is only for linear functions.",
-  "Net change of \\(f\\) over \\([a,b]\\) is zero.",
+  "Net change of \\(f\\) over \\([a,b]\\) is zero."
 );
 add(
   "limits_continuity",
@@ -115,7 +115,7 @@ add(
   "\\(4\\)",
   "\\(1/2\\)",
   "\\(1\\)",
-  "\\(f(1)=2\\); \\((f^{-1})'(y) = 1/f'(x)\\); \\(f'(1)=4\\).",
+  "\\(f(1)=2\\); \\((f^{-1})'(y) = 1/f'(x)\\); \\(f'(1)=4\\)."
 );
 
 // Block 2: Differentiability & applications (11–20)
@@ -127,7 +127,7 @@ add(
   "The function is undefined at \\(a\\).",
   "Absolute value is never differentiable anywhere.",
   "Only because \\(a\\) is irrational.",
-  "One-sided derivatives differ at the kink.",
+  "One-sided derivatives differ at the kink."
 );
 add(
   "derivatives_apps",
@@ -137,7 +137,7 @@ add(
   "\\(4\\pi R^3/3\\)",
   "\\(\\pi R^3/\\sqrt{2}\\)",
   "\\(2\\pi R^3/3\\)",
-  "Optimize \\(V(h)\\) with constraint \\(r^2 + (h/2)^2 = R^2\\).",
+  "Optimize \\(V(h)\\) with constraint \\(r^2 + (h/2)^2 = R^2\\)."
 );
 add(
   "derivatives_apps",
@@ -147,7 +147,7 @@ add(
   "It is always sufficient for a maximum.",
   "Derivatives do not exist at extrema.",
   "Only for discontinuous functions.",
-  "First derivative test can fail without sign change of \\(f'\\).",
+  "First derivative test can fail without sign change of \\(f'\\)."
 );
 add(
   "derivatives_apps",
@@ -157,7 +157,7 @@ add(
   "\\(7/4\\)",
   "\\(\\sqrt{2}\\)",
   "\\(1/\\sqrt{2}\\)",
-  "Parallel tangent to \\(y=x\\); point \\((9/4,\\,1/2)\\); distance to \\(x-y=0\\).",
+  "Parallel tangent to \\(y=x\\); point \\((9/4,\\,1/2)\\); distance to \\(x-y=0\\)."
 );
 add(
   "derivatives_apps",
@@ -167,7 +167,7 @@ add(
   "Tangent is always horizontal.",
   "Secant does not exist.",
   "Only for polynomials of degree 2.",
-  "Instantaneous rate matches average rate.",
+  "Instantaneous rate matches average rate."
 );
 add(
   "derivatives_apps",
@@ -177,7 +177,7 @@ add(
   "\\(1/2\\)",
   "\\(0\\)",
   "\\(1\\)",
-  "\\(\\ln\\): \\(y\\ln x = x-y\\) ⇒ \\(y = x/(1+\\ln x)\\); quotient rule at \\(x=e\\).",
+  "\\(\\ln\\): \\(y\\ln x = x-y\\) ⇒ \\(y = x/(1+\\ln x)\\); quotient rule at \\(x=e\\)."
 );
 add(
   "derivatives_apps",
@@ -187,7 +187,7 @@ add(
   "Only where \\(f'=0\\).",
   "Only where \\(f''=0\\) always, with no sign change needed.",
   "A point where the function is undefined.",
-  "Curvature switches from cup-up to cup-down or vice versa.",
+  "Curvature switches from cup-up to cup-down or vice versa."
 );
 add(
   "derivatives_apps",
@@ -197,7 +197,7 @@ add(
   "\\(2\\ \\mathrm{cm^2/s}\\)",
   "\\(8\\ \\mathrm{cm^2/s}\\)",
   "\\(10\\ \\mathrm{cm^2/s}\\)",
-  "\\(V=\\frac{4}{3}\\pi r^3\\), \\(A=4\\pi r^2\\); chain rule.",
+  "\\(V=\\frac{4}{3}\\pi r^3\\), \\(A=4\\pi r^2\\); chain rule."
 );
 add(
   "derivatives_apps",
@@ -207,7 +207,7 @@ add(
   "When the leading coefficient is zero.",
   "Always — cubics have no extrema.",
   "When \\(f''>0\\) everywhere.",
-  "Monotone cubic ⇔ derivative quadratic has \\(\\le 1\\) real root.",
+  "Monotone cubic ⇔ derivative quadratic has \\(\\le 1\\) real root."
 );
 add(
   "derivatives_apps",
@@ -217,7 +217,7 @@ add(
   "\\(e\\)",
   "\\(1\\)",
   "\\(e^{-1}\\)",
-  "Log-derivative; maximum at \\(x=e\\).",
+  "Log-derivative; maximum at \\(x=e\\)."
 );
 
 // Block 3: Integration (21–30)
@@ -229,7 +229,7 @@ add(
   "Definite integral always equals zero.",
   "Fundamental theorem forbids constants.",
   "Only polynomials need \\(C\\).",
-  "FTC: antiderivative evaluated at endpoints.",
+  "FTC: antiderivative evaluated at endpoints."
 );
 add(
   "integration",
@@ -239,7 +239,7 @@ add(
   "\\(\\pi/2\\)",
   "\\(0\\)",
   "\\(1\\)",
-  "Use \\(\\int_0^{\\pi/2} f(x)\\,dx = \\int_0^{\\pi/2} f(\\pi/2-x)\\,dx\\); add.",
+  "Use \\(\\int_0^{\\pi/2} f(x)\\,dx = \\int_0^{\\pi/2} f(\\pi/2-x)\\,dx\\); add."
 );
 add(
   "integration",
@@ -249,7 +249,7 @@ add(
   "Only polynomials.",
   "Only improper integrals of first kind.",
   "The constant \\(C\\) in indefinite integrals.",
-  "Differentiation under the integral sign / variable limits.",
+  "Differentiation under the integral sign / variable limits."
 );
 add(
   "integration",
@@ -259,7 +259,7 @@ add(
   "\\(e^x(1-x^2)/(1+x^2) + C\\)",
   "\\(\\tan^{-1}x + C\\)",
   "\\(e^x/(1-x)^2 + C\\)",
-  "Recognize \\(e^x(f+f')\\) form after algebra.",
+  "Recognize \\(e^x(f+f')\\) form after algebra."
 );
 add(
   "integration",
@@ -269,7 +269,7 @@ add(
   "Odd ⇒ double the integral; even ⇒ zero.",
   "No simplification is possible.",
   "Only for periodic functions.",
-  "Symmetric interval + parity.",
+  "Symmetric interval + parity."
 );
 add(
   "integration",
@@ -279,7 +279,7 @@ add(
   "\\(0\\)",
   "\\(\\pi\\log 2\\)",
   "\\(-\\pi\\log 2\\)",
-  "Use \\(x\\to \\pi-x\\); relate to \\(\\int_0^\\pi \\log(\\sin x)\\,dx = -\\pi\\log 2\\).",
+  "Use \\(x\\to \\pi-x\\); relate to \\(\\int_0^\\pi \\log(\\sin x)\\,dx = -\\pi\\log 2\\)."
 );
 add(
   "integration",
@@ -289,7 +289,7 @@ add(
   "It is a theorem proved for all integrands.",
   "Trig must always be \\(dv\\).",
   "Exponentials must always be \\(u\\).",
-  "Balance differentiation vs integration difficulty.",
+  "Balance differentiation vs integration difficulty."
 );
 add(
   "integration",
@@ -299,7 +299,7 @@ add(
   "\\(100\\)",
   "\\(400\\)",
   "\\(0\\)",
-  "\\(|\\sin x|\\) has period \\(\\pi\\); \\(\\int_0^\\pi |\\sin x|\\,dx = 2\\).",
+  "\\(|\\sin x|\\) has period \\(\\pi\\); \\(\\int_0^\\pi |\\sin x|\\,dx = 2\\)."
 );
 add(
   "integration",
@@ -309,7 +309,7 @@ add(
   "Integrand blows up inside \\([a,b]\\).",
   "Only when integral equals \\(\\pi\\).",
   "Same as Cauchy principal value always.",
-  "Type 1: infinite interval; type 2: unbounded integrand on finite interval.",
+  "Type 1: infinite interval; type 2: unbounded integrand on finite interval."
 );
 add(
   "integration",
@@ -319,7 +319,7 @@ add(
   "\\(\\pi\\)",
   "\\(1\\)",
   "\\(2\\sqrt{\\pi}\\)",
-  "Polar/double-integral trick; Gaussian.",
+  "Polar/double-integral trick; Gaussian."
 );
 
 // Block 4: ODEs & area (31–40)
@@ -331,7 +331,7 @@ add(
   "They always mean the same thing.",
   "Degree is always 1 for ODEs.",
   "Order is the number of arbitrary constants.",
-  "e.g. \\((y'')^3 + y' = 0\\): order 2, degree 3.",
+  "e.g. \\((y'')^3 + y' = 0\\): order 2, degree 3."
 );
 add(
   "diff_eq_area",
@@ -341,7 +341,7 @@ add(
   "\\(y = x^2 + c\\)",
   "\\(y = \\log x + c\\)",
   "\\(y = ce^x\\)",
-  "Substitute \\(y = vx\\); cancel \\(v\\); integrate \\(dv = dx/x\\).",
+  "Substitute \\(y = vx\\); cancel \\(v\\); integrate \\(dv = dx/x\\)."
 );
 add(
   "diff_eq_area",
@@ -351,7 +351,7 @@ add(
   "Only when the equation is separable already.",
   "Only for second-order equations.",
   "Never — it is only for exact equations in \\(y\\).",
-  "Linear first-order standard form.",
+  "Linear first-order standard form."
 );
 add(
   "diff_eq_area",
@@ -361,7 +361,7 @@ add(
   "\\(8/3\\)",
   "\\(32/3\\)",
   "\\(4\\)",
-  "Intersect at \\((0,0)\\) and \\((4,4)\\); \\(\\int_0^4 (2\\sqrt{x} - x^2/4)\\,dx\\).",
+  "Intersect at \\((0,0)\\) and \\((4,4)\\); \\(\\int_0^4 (2\\sqrt{x} - x^2/4)\\,dx\\)."
 );
 add(
   "diff_eq_area",
@@ -371,7 +371,7 @@ add(
   "A curve parallel to every member.",
   "The envelope only.",
   "A singular solution always.",
-  "Slope negative reciprocal at intersections.",
+  "Slope negative reciprocal at intersections."
 );
 add(
   "diff_eq_area",
@@ -381,7 +381,7 @@ add(
   "\\(50/\\ln 2\\)",
   "\\(\\ln 2\\)",
   "\\(1/50\\)",
-  "\\(2 = e^{50k}\\Rightarrow k = \\ln 2/50\\).",
+  "\\(2 = e^{50k}\\Rightarrow k = \\ln 2/50\\)."
 );
 add(
   "diff_eq_area",
@@ -391,7 +391,7 @@ add(
   "They always equal zero.",
   "They are particular solutions with \\(C=0\\) only.",
   "Arbitrary constants are illegal in ODEs.",
-  "Lie outside the one-parameter family.",
+  "Lie outside the one-parameter family."
 );
 add(
   "diff_eq_area",
@@ -401,7 +401,7 @@ add(
   "\\(1 - \\sqrt{2}\\)",
   "\\(0\\)",
   "\\(\\sqrt{2}\\)",
-  "On \\([0,\\pi/4]\\), \\(\\cos x \\ge \\sin x\\); integrate difference.",
+  "On \\([0,\\pi/4]\\), \\(\\cos x \\ge \\sin x\\); integrate difference."
 );
 add(
   "diff_eq_area",
@@ -411,7 +411,7 @@ add(
   "Circles centered at origin.",
   "Hyperbolas only.",
   "Parabolas only.",
-  "\\(dy/dx = y/x\\) ⇒ separable ⇒ \\(\\ln|y| = \\ln|x|+C\\).",
+  "\\(dy/dx = y/x\\) ⇒ separable ⇒ \\(\\ln|y| = \\ln|x|+C\\)."
 );
 add(
   "diff_eq_area",
@@ -421,7 +421,7 @@ add(
   "\\(y = \\sin(2x)\\)",
   "\\(y = \\cos x\\)",
   "\\(y = e^{-2x}\\)",
-  "\\(r^2+4=0\\Rightarrow r=\\pm 2i\\); ICs give \\(A=1,B=0\\).",
+  "\\(r^2+4=0\\Rightarrow r=\\pm 2i\\); ICs give \\(A=1,B=0\\)."
 );
 
 // Block 5: Complex numbers & quadratics (41–50)
@@ -433,7 +433,7 @@ add(
   "Only expands binomials with real roots.",
   "Computes matrix rank.",
   "Only for \\(n<0\\).",
-  "Bridges complex exponentials/trig for integer \\(n\\).",
+  "Bridges complex exponentials/trig for integer \\(n\\)."
 );
 add(
   "complex_quad",
@@ -443,7 +443,7 @@ add(
   "\\(0\\)",
   "\\(-32\\)",
   "\\(64\\)",
-  "Use \\(1+\\omega+\\omega^2=0\\); simplify brackets to \\(-2\\omega\\), \\(-2\\omega^2\\); sum.",
+  "Use \\(1+\\omega+\\omega^2=0\\); simplify brackets to \\(-2\\omega\\), \\(-2\\omega^2\\); sum."
 );
 add(
   "complex_quad",
@@ -453,7 +453,7 @@ add(
   "A parabola",
   "A hyperbola",
   "A straight line",
-  "Sum of distances to two fixed points constant.",
+  "Sum of distances to two fixed points constant."
 );
 add(
   "complex_quad",
@@ -463,7 +463,7 @@ add(
   "\\(6\\)",
   "\\(2\\)",
   "\\(0\\)",
-  "Triangle inequality on segment from 1 to 5; minimum at points between.",
+  "Triangle inequality on segment from 1 to 5; minimum at points between."
 );
 add(
   "complex_quad",
@@ -473,7 +473,7 @@ add(
   "Two distinct real roots",
   "One repeated real root",
   "No roots in \\(\\mathbb{C}\\)",
-  "\\(\\sqrt{\\Delta}\\) imaginary; coefficients real ⇒ conjugate pair.",
+  "\\(\\sqrt{\\Delta}\\) imaginary; coefficients real ⇒ conjugate pair."
 );
 add(
   "complex_quad",
@@ -483,7 +483,7 @@ add(
   "\\(p^2 - 4q = 0\\)",
   "\\(p = 4q\\)",
   "\\(p+q=1\\)",
-  "\\((\\alpha-\\beta)^2 = (\\alpha+\\beta)^2 - 4\\alpha\\beta\\).",
+  "\\((\\alpha-\\beta)^2 = (\\alpha+\\beta)^2 - 4\\alpha\\beta\\)."
 );
 add(
   "complex_quad",
@@ -493,7 +493,7 @@ add(
   "Because \\(|z|=1\\).",
   "Only for cubics.",
   "Roots must be rational.",
-  "\\(P(\\bar z) = \\overline{P(z)} = 0\\) if \\(P(z)=0\\).",
+  "\\(P(\\bar z) = \\overline{P(z)} = 0\\) if \\(P(z)=0\\)."
 );
 add(
   "complex_quad",
@@ -503,7 +503,7 @@ add(
   "\\(\\pi/3\\)",
   "\\(2\\pi/3\\)",
   "\\(-\\pi/6\\)",
-  "Third quadrant; reference \\(\\pi/3\\).",
+  "Third quadrant; reference \\(\\pi/3\\)."
 );
 add(
   "complex_quad",
@@ -513,7 +513,7 @@ add(
   "Reflection in real axis",
   "Dilation by factor \\(i\\)",
   "Rotation by \\(\\pi\\)",
-  "\\(\\arg(iz) = \\arg z + \\pi/2\\).",
+  "\\(\\arg(iz) = \\arg z + \\pi/2\\)."
 );
 add(
   "complex_quad",
@@ -523,7 +523,7 @@ add(
   "\\(x = 1,2\\) only",
   "\\(x = \\pm \\sqrt{5}\\)",
   "No real roots",
-  "Let \\(u=x^2\\); \\((u-1)(u-4)=0\\).",
+  "Let \\(u=x^2\\); \\((u-1)(u-4)=0\\)."
 );
 
 // Block 6: Matrices, determinants, probability (51–60)
@@ -535,7 +535,7 @@ add(
   "Singular matrices always have two inverses.",
   "Determinant is always 1 for invertible matrices.",
   "Only diagonal matrices are invertible.",
-  "\\(A^{-1}\\) needs \\(\\det A \\neq 0\\).",
+  "\\(A^{-1}\\) needs \\(\\det A \\neq 0\\)."
 );
 add(
   "matrices_prob",
@@ -545,7 +545,7 @@ add(
   "\\(4\\)",
   "\\(64\\)",
   "\\(12\\)",
-  "\\(|\\mathrm{adj}A| = |A|^{n-1} = 4^2\\).",
+  "\\(|\\mathrm{adj}A| = |A|^{n-1} = 4^2\\)."
 );
 add(
   "matrices_prob",
@@ -555,7 +555,7 @@ add(
   "\\(\\det A = 0\\) always",
   "\\(A\\) is diagonalizable",
   "\\(A^2 = I\\) always",
-  "Substitute matrix into characteristic equation.",
+  "Substitute matrix into characteristic equation."
 );
 add(
   "matrices_prob",
@@ -565,7 +565,7 @@ add(
   "No",
   "Cannot tell",
   "Only if mutually exclusive",
-  "\\(P(A\\cap B) = P(A)+P(B)-P(A\\cup B)\\).",
+  "\\(P(A\\cap B) = P(A)+P(B)-P(A\\cup B)\\)."
 );
 add(
   "matrices_prob",
@@ -575,7 +575,7 @@ add(
   "\\(|A|\\neq 0\\)",
   "Always for square \\(A\\)",
   "Never for linear systems",
-  "Singular + compatible ⇒ line/plane of solutions.",
+  "Singular + compatible ⇒ line/plane of solutions."
 );
 add(
   "matrices_prob",
@@ -585,7 +585,7 @@ add(
   "\\(0,1\\)",
   "Any real number",
   "\\(2\\) only",
-  "\\(|AA^T|=|A|^2=1\\).",
+  "\\(|AA^T|=|A|^2=1\\)."
 );
 add(
   "matrices_prob",
@@ -595,7 +595,7 @@ add(
   "They are synonyms.",
   "Independent implies \\(P(A\\cap B)=0\\).",
   "Mutually exclusive implies independence.",
-  "Exclusive forbids overlap; independence is probabilistic factorization.",
+  "Exclusive forbids overlap; independence is probabilistic factorization."
 );
 add(
   "matrices_prob",
@@ -605,7 +605,7 @@ add(
   "\\(1/2\\)",
   "\\(105/512\\) (\\(\\binom{10}{4}/2^{10}\\))",
   "\\(1/32\\)",
-  "\\(\\binom{10}{5}/2^{10} = 252/1024 = 63/256\\).",
+  "\\(\\binom{10}{5}/2^{10} = 252/1024 = 63/256\\)."
 );
 add(
   "matrices_prob",
@@ -615,7 +615,7 @@ add(
   "Always doubles every probability",
   "Only for independent events",
   "Removes all priors",
-  "Posterior from prior \\(\\times\\) likelihood / evidence.",
+  "Posterior from prior \\(\\times\\) likelihood / evidence."
 );
 add(
   "matrices_prob",
@@ -625,7 +625,7 @@ add(
   "\\(3/7\\)",
   "\\(1\\)",
   "\\(12/49\\)",
-  "Hypergeometric mean \\(nK/N = 2\\cdot 3/7\\).",
+  "Hypergeometric mean \\(nK/N = 2\\cdot 3/7\\)."
 );
 
 // Block 7: Permutations, binomial (61–70)
@@ -637,7 +637,7 @@ add(
   "Only for disjoint sets",
   "Only for circular permutations",
   "Never in combinatorics",
-  "\\(|A\\cup B\\cup\\cdots|\\) with overlaps.",
+  "\\(|A\\cup B\\cup\\cdots|\\) with overlaps."
 );
 add(
   "perm_binom",
@@ -647,7 +647,7 @@ add(
   "\\(11!\\)",
   "\\(39916800\\)",
   "\\(1663200\\)",
-  "\\(11!/(4!\\,4!\\,2!)\\).",
+  "\\(11!/(4!\\,4!\\,2!)\\)."
 );
 add(
   "perm_binom",
@@ -657,7 +657,7 @@ add(
   "Because zero is prime.",
   "Historical convention only with no formula reason.",
   "So \\(0! = 0\\).",
-  "Combinatorial consistency.",
+  "Combinatorial consistency."
 );
 add(
   "perm_binom",
@@ -667,7 +667,7 @@ add(
   "\\(200\\)",
   "\\(210\\)",
   "\\(120\\)",
-  "\\(\\binom{10}{5}\\).",
+  "\\(\\binom{10}{5}\\)."
 );
 add(
   "perm_binom",
@@ -677,7 +677,7 @@ add(
   "Any permutation",
   "Only the identity",
   "Permutation with all fixed points",
-  "No \\(i\\) maps to \\(i\\).",
+  "No \\(i\\) maps to \\(i\\)."
 );
 add(
   "perm_binom",
@@ -687,7 +687,7 @@ add(
   "\\(1024\\)",
   "\\(0\\)",
   "\\(3^{10}\\)",
-  "Set \\(x=y=1\\): \\((2-1)^{10}\\).",
+  "Set \\(x=y=1\\): \\((2-1)^{10}\\)."
 );
 add(
   "perm_binom",
@@ -697,7 +697,7 @@ add(
   "Binomial coefficients are always prime.",
   "\\(\\binom{n}{k} = nk\\) always",
   "Only for \\(k=1\\)",
-  "Choose \\(k\\) items: include a distinguished element or not.",
+  "Choose \\(k\\) items: include a distinguished element or not."
 );
 add(
   "perm_binom",
@@ -707,7 +707,7 @@ add(
   "\\(125\\)",
   "\\(15\\)",
   "\\(3!\\,5!\\)",
-  "\\(3^5\\) choices per ball.",
+  "\\(3^5\\) choices per ball."
 );
 add(
   "perm_binom",
@@ -717,7 +717,7 @@ add(
   "\\(n\\) is odd",
   "Never",
   "Always two middle terms",
-  "Even \\(n\\) gives single central binomial term.",
+  "Even \\(n\\) gives single central binomial term."
 );
 add(
   "perm_binom",
@@ -727,7 +727,7 @@ add(
   "\\(-84\\)",
   "\\(0\\)",
   "\\(126\\)",
-  "General term exponent \\(18-3r=0\\Rightarrow r=6\\); \\(\\binom{9}{6}(-1)^6\\).",
+  "General term exponent \\(18-3r=0\\Rightarrow r=6\\); \\(\\binom{9}{6}(-1)^6\\)."
 );
 
 // Block 8: Coordinate geometry (71–80)
@@ -739,7 +739,7 @@ add(
   "Always inside",
   "Always at the centroid",
   "Undefined for obtuse triangles",
-  "Altitudes meet extended lines outside.",
+  "Altitudes meet extended lines outside."
 );
 add(
   "coordinate_geometry",
@@ -749,7 +749,7 @@ add(
   "\\(5\\)",
   "\\(20\\)",
   "\\(1\\)",
-  "\\(|Ax_0+By_0+C|/\\sqrt{A^2+B^2}\\).",
+  "\\(|Ax_0+By_0+C|/\\sqrt{A^2+B^2}\\)."
 );
 add(
   "coordinate_geometry",
@@ -759,7 +759,7 @@ add(
   "Always the radius",
   "Area of the circle",
   "Slope of tangent only",
-  "Chord product for secants through the point.",
+  "Chord product for secants through the point."
 );
 add(
   "coordinate_geometry",
@@ -769,7 +769,7 @@ add(
   "\\(10\\)",
   "\\(\\sqrt{5}\\)",
   "\\(25\\)",
-  "\\(r = \\sqrt{g^2+f^2-c}\\) with standard form.",
+  "\\(r = \\sqrt{g^2+f^2-c}\\) with standard form."
 );
 add(
   "coordinate_geometry",
@@ -779,7 +779,7 @@ add(
   "\\(h=0\\)",
   "\\(a=b\\)",
   "\\(ab=1\\)",
-  "Product of slopes \\(= -1\\Rightarrow a+b=0\\).",
+  "Product of slopes \\(= -1\\Rightarrow a+b=0\\)."
 );
 add(
   "coordinate_geometry",
@@ -789,7 +789,7 @@ add(
   "\\(45^\\circ\\)",
   "\\(60^\\circ\\)",
   "\\(0^\\circ\\)",
-  "Factors to \\(y=\\pm x\\); slopes \\(\\pm1\\) ⇒ perpendicular.",
+  "Factors to \\(y=\\pm x\\); slopes \\(\\pm1\\) ⇒ perpendicular."
 );
 add(
   "coordinate_geometry",
@@ -799,7 +799,7 @@ add(
   "Line through both centers only",
   "Common chord only when circles don’t intersect",
   "Always a parabola",
-  "Tangent lengths to the two circles equal.",
+  "Tangent lengths to the two circles equal."
 );
 add(
   "coordinate_geometry",
@@ -809,7 +809,7 @@ add(
   "\\(5\\)",
   "\\(3.5\\)",
   "\\(\\sqrt{12}\\)",
-  "Right triangle inscribed; hypotenuse \\(5\\) is diameter.",
+  "Right triangle inscribed; hypotenuse \\(5\\) is diameter."
 );
 add(
   "coordinate_geometry",
@@ -819,7 +819,7 @@ add(
   "\\(L_1 L_2 = 0\\)",
   "\\(L_1^2+L_2^2=0\\)",
   "\\(L_1 = L_2\\) only",
-  "Linear combination through common point.",
+  "Linear combination through common point."
 );
 add(
   "coordinate_geometry",
@@ -829,7 +829,7 @@ add(
   "\\(x^2+y^2 = a^2\\)",
   "\\(x^2+y^2 = a/2\\)",
   "\\(x+y=0\\)",
-  "Geometry: distance from center to chord \\(= a/\\sqrt{2}\\) for \\(90^\\circ\\) at center.",
+  "Geometry: distance from center to chord \\(= a/\\sqrt{2}\\) for \\(90^\\circ\\) at center."
 );
 
 // Block 9: Conics (81–90)
@@ -841,7 +841,7 @@ add(
   "All have \\(e<1\\)",
   "Hyperbola \\(e<1\\)",
   "Parabola \\(e=0\\)",
-  "Deviation from circular (\\(e=0\\)).",
+  "Deviation from circular (\\(e=0\\))."
 );
 add(
   "conics",
@@ -851,7 +851,7 @@ add(
   "\\(8\\)",
   "\\(4\\)",
   "\\(32\\)",
-  "\\(y^2=4ax\\Rightarrow 4a=16\\).",
+  "\\(y^2=4ax\\Rightarrow 4a=16\\)."
 );
 add(
   "conics",
@@ -861,7 +861,7 @@ add(
   "\\(c^2 = a^2 + b^2\\)",
   "\\(a=b=c\\)",
   "\\(a+b=c\\)",
-  "Right triangle from geometry of definition \\(2a\\) sum of focal distances.",
+  "Right triangle from geometry of definition \\(2a\\) sum of focal distances."
 );
 add(
   "conics",
@@ -871,7 +871,7 @@ add(
   "\\(3/5\\)",
   "\\(5/4\\)",
   "\\(1\\)",
-  "Standard form \\(x^2/9 - y^2/16 = 1\\); \\(e = \\sqrt{1+b^2/a^2}\\).",
+  "Standard form \\(x^2/9 - y^2/16 = 1\\); \\(e = \\sqrt{1+b^2/a^2}\\)."
 );
 add(
   "conics",
@@ -881,7 +881,7 @@ add(
   "The major axis only",
   "The latus rectum only",
   "Center of the conic",
-  "Defines parabola/ellipse/hyperbola with focus.",
+  "Defines parabola/ellipse/hyperbola with focus."
 );
 add(
   "conics",
@@ -891,7 +891,7 @@ add(
   "\\(7\\pi\\)",
   "\\(48\\pi\\)",
   "\\(\\pi\\)",
-  "Area \\(\\pi ab\\) with \\(a=4,b=3\\).",
+  "Area \\(\\pi ab\\) with \\(a=4,b=3\\)."
 );
 add(
   "conics",
@@ -901,7 +901,7 @@ add(
   "\\(x^2+y^2=b^2\\) only",
   "The director circle only",
   "The circumcircle of any focal triangle",
-  "Relates parametric angle to geometry.",
+  "Relates parametric angle to geometry."
 );
 add(
   "conics",
@@ -911,7 +911,7 @@ add(
   "\\(8\\)",
   "\\(5\\)",
   "\\(20\\)",
-  "\\(ae=4\\Rightarrow a=5\\Rightarrow 2a=10\\).",
+  "\\(ae=4\\Rightarrow a=5\\Rightarrow 2a=10\\)."
 );
 add(
   "conics",
@@ -921,7 +921,7 @@ add(
   "All hyperbolas have perpendicular asymptotes",
   "Because \\(e=1\\)",
   "Because foci coincide",
-  "Equal \\(a\\) and \\(b\\) in standard rectangular form.",
+  "Equal \\(a\\) and \\(b\\) in standard rectangular form."
 );
 add(
   "conics",
@@ -931,7 +931,7 @@ add(
   "\\(x+y=0\\)",
   "\\(y=2x\\)",
   "\\(2x+y-8=0\\)",
-  "Chord of contact / \\(T=0\\): \\(yy_1 = 4(x+x_1)\\) for \\(y^2=4ax\\), \\(4a=8\\).",
+  "Chord of contact / \\(T=0\\): \\(yy_1 = 4(x+x_1)\\) for \\(y^2=4ax\\), \\(4a=8\\)."
 );
 
 // Block 10: Vectors, 3D, inverse trig (91–100)
@@ -943,7 +943,7 @@ add(
   "Surface area only",
   "Angle between \\(\\mathbf{a}\\) and \\(\\mathbf{b}\\) only",
   "Always zero",
-  "Volume = magnitude of STP (sign = orientation).",
+  "Volume = magnitude of STP (sign = orientation)."
 );
 add(
   "vectors_3d_trig",
@@ -953,7 +953,7 @@ add(
   "\\(\\sqrt{14}\\)",
   "\\(7\\)",
   "\\(5\\)",
-  "Cross product \\((1,-5,-3)\\); magnitude \\(\\sqrt{1+25+9}\\).",
+  "Cross product \\((1,-5,-3)\\); magnitude \\(\\sqrt{1+25+9}\\)."
 );
 add(
   "vectors_3d_trig",
@@ -963,7 +963,7 @@ add(
   "Parallel",
   "Anti-parallel only",
   "One must be zero",
-  "\\(\\cos\\theta=0\\).",
+  "\\(\\cos\\theta=0\\)."
 );
 add(
   "vectors_3d_trig",
@@ -973,7 +973,7 @@ add(
   "\\(\\sqrt{6}\\)",
   "\\(1/6\\)",
   "\\(0\\)",
-  "\\(|(\\mathbf{a}_2-\\mathbf{a}_1)\\cdot\\mathbf{n}|/|\\mathbf{n}|\\) with \\(\\mathbf{n}=\\mathbf{b}_1\\times\\mathbf{b}_2\\).",
+  "\\(|(\\mathbf{a}_2-\\mathbf{a}_1)\\cdot\\mathbf{n}|/|\\mathbf{n}|\\) with \\(\\mathbf{n}=\\mathbf{b}_1\\times\\mathbf{b}_2\\)."
 );
 add(
   "vectors_3d_trig",
@@ -983,7 +983,7 @@ add(
   "To make derivatives infinite",
   "Because angles are always integers",
   "No restriction is needed",
-  "Horizontal line test / function definition.",
+  "Horizontal line test / function definition."
 );
 add(
   "vectors_3d_trig",
@@ -993,7 +993,7 @@ add(
   "\\(\\pi/2\\)",
   "\\(\\pi\\)",
   "\\(5\\pi/6\\)",
-  "\\(\\pi/4 + 2\\pi/3 - \\pi/6\\).",
+  "\\(\\pi/4 + 2\\pi/3 - \\pi/6\\)."
 );
 add(
   "vectors_3d_trig",
@@ -1003,7 +1003,7 @@ add(
   "Their dot product is 1",
   "They are unit vectors",
   "Their sum is zero",
-  "Zero parallelepiped volume.",
+  "Zero parallelepiped volume."
 );
 add(
   "vectors_3d_trig",
@@ -1013,7 +1013,7 @@ add(
   "\\(\\cos\\theta = 21/4\\)",
   "\\(\\theta = 90^\\circ\\)",
   "\\(\\cos\\theta = 1\\)",
-  "Normals \\((2,1,-2)\\) and \\((3,-6,-2)\\); use dot product over magnitudes.",
+  "Normals \\((2,1,-2)\\) and \\((3,-6,-2)\\); use dot product over magnitudes."
 );
 add(
   "vectors_3d_trig",
@@ -1023,7 +1023,7 @@ add(
   "They always sum to \\(\\pi\\)",
   "They equal the vector’s magnitude",
   "Only defined in 2D",
-  "Components of the normalized direction.",
+  "Components of the normalized direction."
 );
 add(
   "vectors_3d_trig",
@@ -1033,7 +1033,7 @@ add(
   "\\(7/25\\)",
   "\\(3/5\\)",
   "\\(1\\)",
-  "\\(\\sin 2\\theta = 2\\tan\\theta/(1+\\tan^2\\theta)\\) with \\(\\tan\\theta=3/4\\).",
+  "\\(\\sin 2\\theta = 2\\tan\\theta/(1+\\tan^2\\theta)\\) with \\(\\tan\\theta=3/4\\)."
 );
 
 if (Q.length !== 100) {
@@ -1042,7 +1042,9 @@ if (Q.length !== 100) {
 }
 
 const lines = [];
-lines.push(`-- PUC 1/2 Mathematics (JEE/NEET style): 100 items, alternating conceptual / numerical.`);
+lines.push(
+  `-- PUC 1/2 Mathematics (JEE/NEET style): 100 items, alternating conceptual / numerical.`
+);
 lines.push(`-- academic / math; pack: ${PACK}`);
 lines.push(`-- Generated by scripts/build-academic-math-puc100-migration.mjs`);
 lines.push("");
@@ -1054,7 +1056,7 @@ lines.push("  AND category = 'math'");
 lines.push(`  AND (content->>'pack') = '${PACK}';`);
 lines.push("");
 lines.push(
-  "INSERT INTO public.play_questions (domain, category, difficulty_rating, content, options, correct_answer_index, explanation)",
+  "INSERT INTO public.play_questions (domain, category, difficulty_rating, content, options, correct_answer_index, explanation)"
 );
 lines.push("VALUES");
 
@@ -1081,7 +1083,7 @@ const out = path.join(
   "..",
   "supabase",
   "migrations",
-  "20260430343000_play_academic_math_puc100_jee_neet.sql",
+  "20260430343000_play_academic_math_puc100_jee_neet.sql"
 );
 fs.mkdirSync(path.dirname(out), { recursive: true });
 fs.writeFileSync(out, lines.join("\n"), "utf8");

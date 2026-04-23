@@ -1,31 +1,22 @@
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import type { Board, Subject } from '@/types';
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
+import type { Board, Subject } from "@/types";
 
-export const ORCHESTRATOR_LEVELS = ['advanced'] as const;
+export const ORCHESTRATOR_LEVELS = ["advanced"] as const;
 export type OrchestratorLevel = (typeof ORCHESTRATOR_LEVELS)[number];
 
-export type OrchestratorSubtopicStep =
-  | 'deep_dive'
-  | 'instacue'
-  | 'bits'
-  | 'formulas';
+export type OrchestratorSubtopicStep = "deep_dive" | "instacue" | "bits" | "formulas";
 
 export type OrchestratorPhase =
-  | 'chapter_overview'
-  | 'topic_hub'
-  | 'subtopic'
-  | 'final_audit'
-  | 'done';
+  | "chapter_overview"
+  | "topic_hub"
+  | "subtopic"
+  | "final_audit"
+  | "done";
 
-export type OrchestratorJobStatus =
-  | 'pending'
-  | 'running'
-  | 'completed'
-  | 'failed'
-  | 'cancelled';
+export type OrchestratorJobStatus = "pending" | "running" | "completed" | "failed" | "cancelled";
 
-export type OrchestratorRunMode = 'generate' | 'regenerate';
+export type OrchestratorRunMode = "generate" | "regenerate";
 
 export type OrchestratorTopicBlueprint = {
   title: string;
@@ -85,7 +76,10 @@ type ScheduleChapterJobResult =
 type OrchestratorState = {
   jobs: OrchestratorJob[];
   scheduleChapterJob: (input: ScheduleChapterJobInput) => ScheduleChapterJobResult;
-  patchJob: (jobId: string, updater: Partial<OrchestratorJob> | ((job: OrchestratorJob) => OrchestratorJob)) => void;
+  patchJob: (
+    jobId: string,
+    updater: Partial<OrchestratorJob> | ((job: OrchestratorJob) => OrchestratorJob)
+  ) => void;
   appendLog: (jobId: string, message: string) => void;
   shiftPendingJobsAfter: (jobId: string, delayMs: number) => void;
   cancelJob: (jobId: string) => void;
@@ -93,14 +87,14 @@ type OrchestratorState = {
 };
 
 const DEFAULT_CURSOR: OrchestratorCursor = {
-  phase: 'chapter_overview',
+  phase: "chapter_overview",
   topicIndex: 0,
   levelIndex: 0,
   subtopicIndex: 0,
-  subtopicStep: 'deep_dive',
+  subtopicStep: "deep_dive",
 };
 
-const ACTIVE_STATUSES: OrchestratorJobStatus[] = ['pending', 'running'];
+const ACTIVE_STATUSES: OrchestratorJobStatus[] = ["pending", "running"];
 
 function chapterKeyFor(input: {
   board: Board;
@@ -113,28 +107,25 @@ function chapterKeyFor(input: {
     input.subject.trim().toLowerCase(),
     String(input.classLevel),
     input.chapterTitle.trim().toLowerCase(),
-  ].join('::');
+  ].join("::");
 }
 
 function sortJobs(jobs: OrchestratorJob[]): OrchestratorJob[] {
   return [...jobs].sort((a, b) => {
-    const timeDelta =
-      new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime();
+    const timeDelta = new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime();
     if (timeDelta !== 0) return timeDelta;
     return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
   });
 }
 
-function normalizeTopics(
-  topics: OrchestratorTopicBlueprint[]
-): OrchestratorTopicBlueprint[] {
+function normalizeTopics(topics: OrchestratorTopicBlueprint[]): OrchestratorTopicBlueprint[] {
   return topics
     .map((topic) => ({
-      title: String(topic.title ?? '').trim(),
+      title: String(topic.title ?? "").trim(),
       subtopics: Array.from(
         new Set(
           (Array.isArray(topic.subtopics) ? topic.subtopics : [])
-            .map((subtopic) => String(subtopic ?? '').trim())
+            .map((subtopic) => String(subtopic ?? "").trim())
             .filter(Boolean)
         )
       ),
@@ -146,24 +137,27 @@ function trimLogs(logs: string[]): string[] {
   return logs.slice(-120);
 }
 
-export function getNextRunnableJob(jobs: OrchestratorJob[], nowMs = Date.now()): OrchestratorJob | null {
-  const sorted = sortJobs(jobs).filter((job) => job.status !== 'cancelled');
-  const running = sorted.find((job) => job.status === 'running');
+export function getNextRunnableJob(
+  jobs: OrchestratorJob[],
+  nowMs = Date.now()
+): OrchestratorJob | null {
+  const sorted = sortJobs(jobs).filter((job) => job.status !== "cancelled");
+  const running = sorted.find((job) => job.status === "running");
   if (running) return running;
 
-  const firstPendingIndex = sorted.findIndex((job) => job.status === 'pending');
+  const firstPendingIndex = sorted.findIndex((job) => job.status === "pending");
   if (firstPendingIndex === -1) return null;
 
   const candidate = sorted[firstPendingIndex]!;
   const scheduledMs = new Date(candidate.scheduledAt).getTime();
   const earlierJobs = sorted.slice(0, firstPendingIndex);
-  const hasBlockingEarlierFailure = earlierJobs.some((job) => job.status === 'failed');
+  const hasBlockingEarlierFailure = earlierJobs.some((job) => job.status === "failed");
   if (hasBlockingEarlierFailure) return null;
 
   const canStartImmediately =
     earlierJobs.length > 0 &&
-    earlierJobs.every((job) => job.status === 'completed' || job.status === 'cancelled') &&
-    earlierJobs.some((job) => job.status === 'completed');
+    earlierJobs.every((job) => job.status === "completed" || job.status === "cancelled") &&
+    earlierJobs.some((job) => job.status === "completed");
 
   if (scheduledMs <= nowMs || canStartImmediately) {
     return candidate;
@@ -177,11 +171,11 @@ export const useOrchestratorStore = create<OrchestratorState>()(
       jobs: [],
 
       scheduleChapterJob: (input) => {
-        const chapterTitle = String(input.chapterTitle ?? '').trim();
-        const scheduledAt = String(input.scheduledAt ?? '').trim();
+        const chapterTitle = String(input.chapterTitle ?? "").trim();
+        const scheduledAt = String(input.scheduledAt ?? "").trim();
         const topics = normalizeTopics(input.topics);
         if (!chapterTitle || !scheduledAt || topics.length === 0) {
-          throw new Error('Invalid orchestrator job payload');
+          throw new Error("Invalid orchestrator job payload");
         }
 
         const chapterKey = chapterKeyFor({
@@ -198,9 +192,7 @@ export const useOrchestratorStore = create<OrchestratorState>()(
 
         set((state) => {
           const existing = sortJobs(state.jobs).find(
-            (job) =>
-              job.chapterKey === chapterKey &&
-              ACTIVE_STATUSES.includes(job.status)
+            (job) => job.chapterKey === chapterKey && ACTIVE_STATUSES.includes(job.status)
           );
           if (existing) {
             result = { ok: false, existing };
@@ -210,7 +202,7 @@ export const useOrchestratorStore = create<OrchestratorState>()(
           const nowIso = new Date().toISOString();
           const job: OrchestratorJob = {
             id:
-              typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+              typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
                 ? crypto.randomUUID()
                 : `orch-${Date.now()}-${Math.random().toString(36).slice(2)}`,
             board: input.board,
@@ -223,7 +215,7 @@ export const useOrchestratorStore = create<OrchestratorState>()(
             chapterKey,
             originalScheduledAt: new Date(scheduledAt).toISOString(),
             scheduledAt: new Date(scheduledAt).toISOString(),
-            status: 'pending',
+            status: "pending",
             createdAt: nowIso,
             retryCount: 0,
             formulaRetryCount: 0,
@@ -247,10 +239,7 @@ export const useOrchestratorStore = create<OrchestratorState>()(
           jobs: sortJobs(
             state.jobs.map((job) => {
               if (job.id !== jobId) return job;
-              const next =
-                typeof updater === 'function'
-                  ? updater(job)
-                  : { ...job, ...updater };
+              const next = typeof updater === "function" ? updater(job) : { ...job, ...updater };
               return {
                 ...next,
                 logs: trimLogs(Array.isArray(next.logs) ? next.logs : []),
@@ -265,10 +254,7 @@ export const useOrchestratorStore = create<OrchestratorState>()(
             job.id === jobId
               ? {
                   ...job,
-                  logs: trimLogs([
-                    ...job.logs,
-                    `${new Date().toLocaleString()}: ${message}`,
-                  ]),
+                  logs: trimLogs([...job.logs, `${new Date().toLocaleString()}: ${message}`]),
                 }
               : job
           ),
@@ -278,7 +264,7 @@ export const useOrchestratorStore = create<OrchestratorState>()(
         set((state) => {
           if (!(delayMs > 0)) return state;
           const pendingIds = new Set(
-            state.jobs.filter((job) => job.status === 'pending').map((job) => job.id)
+            state.jobs.filter((job) => job.status === "pending").map((job) => job.id)
           );
           if (pendingIds.size === 0) return state;
 
@@ -286,7 +272,9 @@ export const useOrchestratorStore = create<OrchestratorState>()(
             jobs: sortJobs(
               state.jobs.map((job) => {
                 if (!pendingIds.has(job.id)) return job;
-                const shiftedTime = new Date(new Date(job.scheduledAt).getTime() + delayMs).toISOString();
+                const shiftedTime = new Date(
+                  new Date(job.scheduledAt).getTime() + delayMs
+                ).toISOString();
                 return {
                   ...job,
                   scheduledAt: shiftedTime,
@@ -310,13 +298,10 @@ export const useOrchestratorStore = create<OrchestratorState>()(
             job.id === jobId
               ? {
                   ...job,
-                  status: job.status === 'completed' ? job.status : 'cancelled',
+                  status: job.status === "completed" ? job.status : "cancelled",
                   finishedAt:
-                    job.status === 'completed'
-                      ? job.finishedAt
-                      : new Date().toISOString(),
-                  currentAction:
-                    job.status === 'completed' ? job.currentAction : 'Cancelled',
+                    job.status === "completed" ? job.finishedAt : new Date().toISOString(),
+                  currentAction: job.status === "completed" ? job.currentAction : "Cancelled",
                 }
               : job
           ),
@@ -325,12 +310,12 @@ export const useOrchestratorStore = create<OrchestratorState>()(
       clearFinishedJobs: () =>
         set((state) => ({
           jobs: state.jobs.filter(
-            (job) => !['completed', 'failed', 'cancelled'].includes(job.status)
+            (job) => !["completed", "failed", "cancelled"].includes(job.status)
           ),
         })),
     }),
     {
-      name: 'edublast-orchestrator',
+      name: "edublast-orchestrator",
       version: 2,
       partialize: (state) => ({ jobs: state.jobs }),
     }

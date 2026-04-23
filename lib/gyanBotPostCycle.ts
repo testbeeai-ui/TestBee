@@ -25,7 +25,11 @@ export async function runGyanBotPostCycle(
   admin: SupabaseClient<Database>,
   options: { bypassInterval?: boolean } = {}
 ): Promise<GyanBotCycleResult> {
-  const { data: cfg, error: cfgErr } = await admin.from("gyan_bot_config").select("*").eq("id", 1).maybeSingle();
+  const { data: cfg, error: cfgErr } = await admin
+    .from("gyan_bot_config")
+    .select("*")
+    .eq("id", 1)
+    .maybeSingle();
   if (cfgErr || !cfg) {
     return { ok: false, error: cfgErr?.message ?? "Missing gyan_bot_config" };
   }
@@ -80,11 +84,13 @@ export async function runGyanBotPostCycle(
         : undefined,
   });
   if (!generated) {
-    return { ok: false, error: "Failed to generate doubt (Sarvam — check SARVAM_API_KEY and logs)" };
+    return {
+      ok: false,
+      error: "Failed to generate doubt (Sarvam — check SARVAM_API_KEY and logs)",
+    };
   }
 
-  const subjectStored =
-    canonicalDoubtSubject(generated.subject) ?? persona.subjectFocus;
+  const subjectStored = canonicalDoubtSubject(generated.subject) ?? persona.subjectFocus;
 
   const { data: doubtRow, error: insDoubtErr } = await admin
     .from("doubts")
@@ -109,7 +115,9 @@ export async function runGyanBotPostCycle(
     return { ok: false, error: insDoubtErr?.message ?? "Insert doubt failed" };
   }
 
-  const answer = await runProfPiAnswerForDoubt(admin, doubtRow.id, { gradeLevel: persona.classLevel });
+  const answer = await runProfPiAnswerForDoubt(admin, doubtRow.id, {
+    gradeLevel: persona.classLevel,
+  });
   if (!answer.ok) {
     return { ok: false, error: answer.error };
   }

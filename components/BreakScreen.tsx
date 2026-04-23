@@ -1,8 +1,8 @@
-import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { breakActivities, BreakActivity } from '@/data/breakActivities';
-import { Coffee, RefreshCw } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { useState } from "react";
+import { motion } from "framer-motion";
+import { breakActivities, BreakActivity } from "@/data/breakActivities";
+import { Coffee, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface Props {
   secondsLeft: number;
@@ -34,13 +34,14 @@ const BreakScreen = ({ secondsLeft }: Props) => {
           <Coffee className="w-12 h-12 text-edu-orange" />
           <h2 className="text-2xl font-display text-foreground">Break Time! ☕</h2>
           <p className="text-muted-foreground text-sm">
-            You earned <span className="font-bold text-primary">+50 RDM</span> for your 25-min streak!
+            You earned <span className="font-bold text-primary">+50 RDM</span> for your 25-min
+            streak!
           </p>
         </div>
 
         <div className="bg-edu-orange/10 rounded-full px-4 py-2 inline-flex items-center gap-2">
           <span className="text-lg font-bold text-edu-orange">
-            {mins}:{secs.toString().padStart(2, '0')}
+            {mins}:{secs.toString().padStart(2, "0")}
           </span>
           <span className="text-xs text-muted-foreground">remaining</span>
         </div>
@@ -53,7 +54,7 @@ const BreakScreen = ({ secondsLeft }: Props) => {
               {showAnswer ? (
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
+                  animate={{ opacity: 1, height: "auto" }}
                   className="bg-accent/10 rounded-xl p-3"
                 >
                   <p className="text-sm font-bold text-accent">{activity.answer}</p>

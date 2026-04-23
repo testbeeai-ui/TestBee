@@ -3,7 +3,18 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
-import { ResponsiveContainer, AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip, PieChart, Pie, Cell } from "recharts";
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip,
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { safeGetSession } from "@/lib/safeSession";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -112,7 +123,9 @@ export default function AdminUserDetailPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">User Analytics Detail</h1>
-          <p className="text-sm text-muted-foreground">Investigate account state, usage, and governance history.</p>
+          <p className="text-sm text-muted-foreground">
+            Investigate account state, usage, and governance history.
+          </p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" asChild>
@@ -130,10 +143,30 @@ export default function AdminUserDetailPage() {
       {analytics ? (
         <>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <Card size="sm"><CardHeader className="pb-2"><CardDescription>Name</CardDescription><CardTitle>{analytics.user.name || "—"}</CardTitle></CardHeader></Card>
-            <Card size="sm"><CardHeader className="pb-2"><CardDescription>Email</CardDescription><CardTitle className="text-base">{analytics.user.email || "—"}</CardTitle></CardHeader></Card>
-            <Card size="sm"><CardHeader className="pb-2"><CardDescription>Status</CardDescription><CardTitle>{analytics.user.status}</CardTitle></CardHeader></Card>
-            <Card size="sm"><CardHeader className="pb-2"><CardDescription>Role</CardDescription><CardTitle>{analytics.user.role || "unknown"}</CardTitle></CardHeader></Card>
+            <Card size="sm">
+              <CardHeader className="pb-2">
+                <CardDescription>Name</CardDescription>
+                <CardTitle>{analytics.user.name || "—"}</CardTitle>
+              </CardHeader>
+            </Card>
+            <Card size="sm">
+              <CardHeader className="pb-2">
+                <CardDescription>Email</CardDescription>
+                <CardTitle className="text-base">{analytics.user.email || "—"}</CardTitle>
+              </CardHeader>
+            </Card>
+            <Card size="sm">
+              <CardHeader className="pb-2">
+                <CardDescription>Status</CardDescription>
+                <CardTitle>{analytics.user.status}</CardTitle>
+              </CardHeader>
+            </Card>
+            <Card size="sm">
+              <CardHeader className="pb-2">
+                <CardDescription>Role</CardDescription>
+                <CardTitle>{analytics.user.role || "unknown"}</CardTitle>
+              </CardHeader>
+            </Card>
           </div>
 
           <div className="grid gap-4 xl:grid-cols-2">
@@ -149,7 +182,13 @@ export default function AdminUserDetailPage() {
                     <XAxis dataKey="month" />
                     <YAxis />
                     <Tooltip />
-                    <Area type="monotone" dataKey="tokens" stroke="#6366f1" fill="#6366f133" strokeWidth={2} />
+                    <Area
+                      type="monotone"
+                      dataKey="tokens"
+                      stroke="#6366f1"
+                      fill="#6366f133"
+                      strokeWidth={2}
+                    />
                   </AreaChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -163,9 +202,18 @@ export default function AdminUserDetailPage() {
               <CardContent className="h-72">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie data={savedMix} dataKey="value" nameKey="name" outerRadius={95} innerRadius={45}>
+                    <Pie
+                      data={savedMix}
+                      dataKey="value"
+                      nameKey="name"
+                      outerRadius={95}
+                      innerRadius={45}
+                    >
                       {savedMix.map((entry, index) => (
-                        <Cell key={`${entry.name}-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                        <Cell
+                          key={`${entry.name}-${index}`}
+                          fill={PIE_COLORS[index % PIE_COLORS.length]}
+                        />
                       ))}
                     </Pie>
                     <Tooltip />
@@ -176,10 +224,30 @@ export default function AdminUserDetailPage() {
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <Card size="sm"><CardHeader className="pb-2"><CardDescription>Doubts Created</CardDescription><CardTitle>{analytics.metrics.doubtsCreated}</CardTitle></CardHeader></Card>
-            <Card size="sm"><CardHeader className="pb-2"><CardDescription>Doubts Resolved</CardDescription><CardTitle>{analytics.metrics.doubtsResolved}</CardTitle></CardHeader></Card>
-            <Card size="sm"><CardHeader className="pb-2"><CardDescription>AI Calls</CardDescription><CardTitle>{analytics.metrics.aiCalls}</CardTitle></CardHeader></Card>
-            <Card size="sm"><CardHeader className="pb-2"><CardDescription>Total RDM</CardDescription><CardTitle>{analytics.metrics.rdm.toLocaleString()}</CardTitle></CardHeader></Card>
+            <Card size="sm">
+              <CardHeader className="pb-2">
+                <CardDescription>Doubts Created</CardDescription>
+                <CardTitle>{analytics.metrics.doubtsCreated}</CardTitle>
+              </CardHeader>
+            </Card>
+            <Card size="sm">
+              <CardHeader className="pb-2">
+                <CardDescription>Doubts Resolved</CardDescription>
+                <CardTitle>{analytics.metrics.doubtsResolved}</CardTitle>
+              </CardHeader>
+            </Card>
+            <Card size="sm">
+              <CardHeader className="pb-2">
+                <CardDescription>AI Calls</CardDescription>
+                <CardTitle>{analytics.metrics.aiCalls}</CardTitle>
+              </CardHeader>
+            </Card>
+            <Card size="sm">
+              <CardHeader className="pb-2">
+                <CardDescription>Total RDM</CardDescription>
+                <CardTitle>{analytics.metrics.rdm.toLocaleString()}</CardTitle>
+              </CardHeader>
+            </Card>
           </div>
 
           <Card>
@@ -196,7 +264,9 @@ export default function AdminUserDetailPage() {
                     <div key={`${item.timestamp}-${idx}`} className="rounded-lg border p-3">
                       <div className="flex items-center justify-between gap-2">
                         <p className="text-sm font-semibold">{item.title}</p>
-                        <span className="text-xs text-muted-foreground">{new Date(item.timestamp).toLocaleString()}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(item.timestamp).toLocaleString()}
+                        </span>
                       </div>
                       <p className="text-xs text-muted-foreground mt-1">{item.details}</p>
                     </div>

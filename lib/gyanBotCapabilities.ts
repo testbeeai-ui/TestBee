@@ -33,13 +33,19 @@ export function getGyanBotSetupWarnings(caps: GyanBotCapabilities): string[] {
     w.push("SARVAM_API_KEY is missing — student doubts and Prof-Pi answers cannot be generated.");
   }
   if (!caps.ragSidecarConfigured) {
-    w.push("RAG_SIDECAR_URL is missing — CBSE textbook retrieval is off; Sarvam still uses syllabus-style prompts.");
+    w.push(
+      "RAG_SIDECAR_URL is missing — CBSE textbook retrieval is off; Sarvam still uses syllabus-style prompts."
+    );
   }
   if (caps.vercelProduction && !caps.cronSecretConfigured) {
-    w.push("Vercel production: set CRON_SECRET — scheduled /api/cron/gyan-bot-post calls are blocked until it is set.");
+    w.push(
+      "Vercel production: set CRON_SECRET — scheduled /api/cron/gyan-bot-post calls are blocked until it is set."
+    );
   }
   if (caps.vercelProduction && caps.ragSidecarConfigured && !caps.ragInternalTokenSet) {
-    w.push("RAG sidecar URL is set but RAG_INTERNAL_TOKEN is empty — if your retriever requires auth, fix this or retrieval will fail.");
+    w.push(
+      "RAG sidecar URL is set but RAG_INTERNAL_TOKEN is empty — if your retriever requires auth, fix this or retrieval will fail."
+    );
   }
   return w;
 }

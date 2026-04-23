@@ -38,7 +38,8 @@ const landingScript = Caveat({
 
 export const metadata: Metadata = {
   title: "EduBlast — Learn. Play. Conquer.",
-  description: "Fire questions, earn RDM, and blast through your syllabus with byte-sized learning!",
+  description:
+    "Fire questions, earn RDM, and blast through your syllabus with byte-sized learning!",
 };
 
 export default function RootLayout({

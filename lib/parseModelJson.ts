@@ -9,7 +9,10 @@ export function tryParseJsonObject(raw: string): Record<string, unknown> | null 
 
   const directCandidates = [
     text,
-    text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim(),
+    text
+      .replace(/^```(?:json)?\s*/i, "")
+      .replace(/\s*```$/, "")
+      .trim(),
   ];
   for (const candidate of directCandidates) {
     if (!candidate) continue;

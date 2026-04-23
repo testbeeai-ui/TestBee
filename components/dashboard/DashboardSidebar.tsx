@@ -29,18 +29,13 @@ function isActivePath(pathname: string, href: string): boolean {
   if (href === "/mock") {
     if (pathname === "/mock" || pathname === "/exam-prep") return true;
   }
-  if (href === EXPLORE_APP_PATH) return pathname === EXPLORE_APP_PATH || pathname.startsWith("/explore-1");
+  if (href === EXPLORE_APP_PATH)
+    return pathname === EXPLORE_APP_PATH || pathname.startsWith("/explore-1");
   if (href === "/edufund") return pathname === "/edufund" || pathname.startsWith("/edufund/");
   return pathname === href;
 }
 
-function NavRow({
-  item,
-  active,
-}: {
-  item: NavItem;
-  active: boolean;
-}) {
+function NavRow({ item, active }: { item: NavItem; active: boolean }) {
   const Icon = item.icon;
   return (
     <li>
@@ -83,7 +78,9 @@ function NavRow({
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="space-y-1.5">
-      <p className="px-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground/90">{title}</p>
+      <p className="px-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground/90">
+        {title}
+      </p>
       <ul className="space-y-0.5">{children}</ul>
     </div>
   );
@@ -120,7 +117,11 @@ export default function DashboardSidebar() {
     { href: "/edufund", label: "EduFund", icon: Heart, badge: edufundBadge },
   ];
 
-  const streakLabel = !profile?.id ? "—" : streakReady ? `${streakDays} day${streakDays === 1 ? "" : "s"}` : "…";
+  const streakLabel = !profile?.id
+    ? "—"
+    : streakReady
+      ? `${streakDays} day${streakDays === 1 ? "" : "s"}`
+      : "…";
 
   return (
     <aside className="hidden w-[13.5rem] shrink-0 flex-col border-r border-border/50 bg-card/30 lg:flex xl:w-60">
@@ -143,14 +144,18 @@ export default function DashboardSidebar() {
         </Section>
 
         <div className="mt-auto rounded-xl border border-border/70 bg-muted/25 p-3 dark:bg-slate-950/50">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Study streak</p>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+            Study streak
+          </p>
           <p className="mt-1.5 flex items-baseline gap-1.5 text-lg font-extrabold tabular-nums text-foreground">
             <span aria-hidden>🔥</span>
             {streakLabel}
           </p>
           <p className="mt-2 border-t border-border/50 pt-2 text-[11px] text-muted-foreground">
             RDM balance{" "}
-            <span className="font-bold tabular-nums text-foreground">{rdm.toLocaleString("en-IN")}</span>
+            <span className="font-bold tabular-nums text-foreground">
+              {rdm.toLocaleString("en-IN")}
+            </span>
           </p>
         </div>
       </nav>

@@ -78,9 +78,7 @@ export default function TheoryContentWithDeepDive({
 
   return (
     <div className={`space-y-8 ${className ?? ""}`}>
-      {preamble.trim() && (
-        <TheoryContent theory={preamble} />
-      )}
+      {preamble.trim() && <TheoryContent theory={preamble} />}
       {sections.map((section, idx) => (
         <div key={idx} className="space-y-3">
           <TheoryContent theory={section.content} />

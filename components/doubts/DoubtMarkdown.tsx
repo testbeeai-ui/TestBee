@@ -38,10 +38,18 @@ export default function DoubtMarkdown({ content, className = "" }: DoubtMarkdown
             );
           },
           img: () => null,
-          h1: ({ children }) => <p className="text-base font-bold mt-2 mb-1 first:mt-0">{children}</p>,
-          h2: ({ children }) => <p className="text-base font-bold mt-2 mb-1 first:mt-0">{children}</p>,
-          h3: ({ children }) => <p className="text-sm font-bold mt-2 mb-0.5 first:mt-0">{children}</p>,
-          h4: ({ children }) => <p className="text-sm font-bold mt-1.5 mb-0.5 first:mt-0">{children}</p>,
+          h1: ({ children }) => (
+            <p className="text-base font-bold mt-2 mb-1 first:mt-0">{children}</p>
+          ),
+          h2: ({ children }) => (
+            <p className="text-base font-bold mt-2 mb-1 first:mt-0">{children}</p>
+          ),
+          h3: ({ children }) => (
+            <p className="text-sm font-bold mt-2 mb-0.5 first:mt-0">{children}</p>
+          ),
+          h4: ({ children }) => (
+            <p className="text-sm font-bold mt-1.5 mb-0.5 first:mt-0">{children}</p>
+          ),
           hr: () => <hr className="my-3 border-border/80" />,
         }}
       >

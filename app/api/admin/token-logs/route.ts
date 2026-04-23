@@ -14,7 +14,9 @@ export async function GET(request: Request) {
 
     const url = new URL(request.url);
     const rawLimit = Number(url.searchParams.get("limit") ?? 1000);
-    const limit = Number.isFinite(rawLimit) ? Math.max(1, Math.min(5000, Math.floor(rawLimit))) : 1000;
+    const limit = Number.isFinite(rawLimit)
+      ? Math.max(1, Math.min(5000, Math.floor(rawLimit)))
+      : 1000;
 
     const { data, error } = await supabase
       .from("ai_token_logs")

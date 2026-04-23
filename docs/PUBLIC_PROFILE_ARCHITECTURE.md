@@ -46,16 +46,16 @@ The `[id]` param (UUID) is extracted via `useParams()` and passed to `getPublicP
 
 The page is composed of **8 stacked card sections** inside `AppLayout`, each wrapped in `edu-card`:
 
-| # | Section | Data Source | Key Visual |
-|---|---------|-------------|------------|
-| 1 | **Header** | name, initials, bio, rank, rdm, memberSince, streakDays, badges | Avatar circle with initials + rank badge + badge pills |
-| 2 | **Stats Grid** | questionsAsked, answersGiven, acceptedAnswers, strikeRate | 4-column grid with icons + big numbers |
-| 3 | **Academic Record** | `academics[]` | Rows with exam/board/score + verification icon |
-| 4 | **Achievements** | `achievements[]` | Rows with competition name + level badge + year + result |
-| 5 | **RDM Breakdown** | `rdmBreakdown` | Horizontal bars proportional to max value, total at bottom |
-| 6 | **Subject Breakdown** | `subjectStats` | Colored horizontal bars (physics, chemistry, math, biology) |
-| 7 | **Reputation** | rdmFromDoubts, bountiesWon, streakDays, rdm/nextRankRdm | 3-stat row + progress bar for rank progress |
-| 8 | **Recent Activity** | recentDoubts[], recentAnswers[] | Side-by-side cards listing recent questions and answers |
+| #   | Section               | Data Source                                                     | Key Visual                                                  |
+| --- | --------------------- | --------------------------------------------------------------- | ----------------------------------------------------------- |
+| 1   | **Header**            | name, initials, bio, rank, rdm, memberSince, streakDays, badges | Avatar circle with initials + rank badge + badge pills      |
+| 2   | **Stats Grid**        | questionsAsked, answersGiven, acceptedAnswers, strikeRate       | 4-column grid with icons + big numbers                      |
+| 3   | **Academic Record**   | `academics[]`                                                   | Rows with exam/board/score + verification icon              |
+| 4   | **Achievements**      | `achievements[]`                                                | Rows with competition name + level badge + year + result    |
+| 5   | **RDM Breakdown**     | `rdmBreakdown`                                                  | Horizontal bars proportional to max value, total at bottom  |
+| 6   | **Subject Breakdown** | `subjectStats`                                                  | Colored horizontal bars (physics, chemistry, math, biology) |
+| 7   | **Reputation**        | rdmFromDoubts, bountiesWon, streakDays, rdm/nextRankRdm         | 3-stat row + progress bar for rank progress                 |
+| 8   | **Recent Activity**   | recentDoubts[], recentAnswers[]                                 | Side-by-side cards listing recent questions and answers     |
 
 ---
 

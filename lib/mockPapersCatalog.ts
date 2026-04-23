@@ -20,7 +20,7 @@ export function filterMockPapers(
   category: LibraryCategoryFilter,
   search: string,
   subjectFilter: Subject | "all",
-  allowedSubjects: Subject[],
+  allowedSubjects: Subject[]
 ): MockPaper[] {
   const q = search.trim().toLowerCase();
   return papers.filter((p) => {

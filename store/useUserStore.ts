@@ -1,13 +1,31 @@
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import { UserProfile, AnswerResult, ClassLevel, Stream, SubjectCombo, SavedRevisionCard, SavedRevisionUnit, SavedBit, SavedFormula, SavedCommunityPost, Board, ExamType } from '@/types';
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
+import {
+  UserProfile,
+  AnswerResult,
+  ClassLevel,
+  Stream,
+  SubjectCombo,
+  SavedRevisionCard,
+  SavedRevisionUnit,
+  SavedBit,
+  SavedFormula,
+  SavedCommunityPost,
+  Board,
+  ExamType,
+} from "@/types";
 
 interface UserState {
   user: UserProfile | null;
   currentRound: AnswerResult[];
   allResults: AnswerResult[];
 
-  signup: (name: string, classLevel: ClassLevel, stream: Stream, subjectCombo: SubjectCombo) => void;
+  signup: (
+    name: string,
+    classLevel: ClassLevel,
+    stream: Stream,
+    subjectCombo: SubjectCombo
+  ) => void;
   setBoard: (board: Board) => void;
   setExamType: (examType: ExamType | null) => void;
   logout: () => void;
@@ -18,7 +36,10 @@ interface UserState {
   unsaveQuestion: (questionId: string) => void;
   saveRevisionCard: (card: SavedRevisionCard) => void;
   unsaveRevisionCard: (cardId: string) => void;
-  updateRevisionCardStatus: (cardId: string, status: 'unsure' | 'tomorrow' | 'know_it' | 'new') => void;
+  updateRevisionCardStatus: (
+    cardId: string,
+    status: "unsure" | "tomorrow" | "know_it" | "new"
+  ) => void;
   saveRevisionUnit: (unit: SavedRevisionUnit) => void;
   unsaveRevisionUnit: (unitId: string) => void;
   saveBit: (bit: SavedBit) => void;
@@ -57,7 +78,7 @@ export const useUserStore = create<UserState>()(
             classLevel,
             stream,
             subjectCombo,
-            board: 'CBSE',
+            board: "CBSE",
             examType: null,
             rdm: 100,
             answeredQuestions: [],
@@ -93,9 +114,7 @@ export const useUserStore = create<UserState>()(
 
       deductRdm: (amount) =>
         set((state) => ({
-          user: state.user
-            ? { ...state.user, rdm: Math.max(0, state.user.rdm - amount) }
-            : null,
+          user: state.user ? { ...state.user, rdm: Math.max(0, state.user.rdm - amount) } : null,
         })),
 
       recordAnswer: (result) =>
@@ -104,12 +123,10 @@ export const useUserStore = create<UserState>()(
           allResults: [...state.allResults, result],
           user: state.user
             ? {
-              ...state.user,
-              answeredQuestions: [...state.user.answeredQuestions, result.questionId],
-              rdm: result.isCorrect
-                ? state.user.rdm + 10
-                : Math.max(0, state.user.rdm - 5),
-            }
+                ...state.user,
+                answeredQuestions: [...state.user.answeredQuestions, result.questionId],
+                rdm: result.isCorrect ? state.user.rdm + 10 : Math.max(0, state.user.rdm - 5),
+              }
             : null,
         })),
 
@@ -117,10 +134,10 @@ export const useUserStore = create<UserState>()(
         set((state) => ({
           user: state.user
             ? {
-              ...state.user,
-              savedQuestions: [...state.user.savedQuestions, questionId],
-              rdm: state.user.rdm + 2, // bonus for saving
-            }
+                ...state.user,
+                savedQuestions: [...state.user.savedQuestions, questionId],
+                rdm: state.user.rdm + 2, // bonus for saving
+              }
             : null,
         })),
 
@@ -128,9 +145,9 @@ export const useUserStore = create<UserState>()(
         set((state) => ({
           user: state.user
             ? {
-              ...state.user,
-              savedQuestions: state.user.savedQuestions.filter((id) => id !== questionId),
-            }
+                ...state.user,
+                savedQuestions: state.user.savedQuestions.filter((id) => id !== questionId),
+              }
             : null,
         })),
 
@@ -145,10 +162,10 @@ export const useUserStore = create<UserState>()(
           return {
             user: state.user
               ? {
-                ...state.user,
-                savedRevisionCards: [...list, stamped],
-                rdm: state.user.rdm + 2,
-              }
+                  ...state.user,
+                  savedRevisionCards: [...list, stamped],
+                  rdm: state.user.rdm + 2,
+                }
               : null,
           };
         }),
@@ -157,9 +174,11 @@ export const useUserStore = create<UserState>()(
         set((state) => ({
           user: state.user
             ? {
-              ...state.user,
-              savedRevisionCards: (state.user.savedRevisionCards ?? []).filter((c) => c.id !== cardId),
-            }
+                ...state.user,
+                savedRevisionCards: (state.user.savedRevisionCards ?? []).filter(
+                  (c) => c.id !== cardId
+                ),
+              }
             : null,
         })),
 
@@ -167,11 +186,11 @@ export const useUserStore = create<UserState>()(
         set((state) => ({
           user: state.user
             ? {
-              ...state.user,
-              savedRevisionCards: (state.user.savedRevisionCards ?? []).map((c) =>
-                c.id === cardId ? { ...c, status } : c
-              ),
-            }
+                ...state.user,
+                savedRevisionCards: (state.user.savedRevisionCards ?? []).map((c) =>
+                  c.id === cardId ? { ...c, status } : c
+                ),
+              }
             : null,
         })),
 
@@ -193,10 +212,10 @@ export const useUserStore = create<UserState>()(
           return {
             user: state.user
               ? {
-                ...state.user,
-                savedRevisionUnits: [...list, unit],
-                rdm: state.user.rdm + 2,
-              }
+                  ...state.user,
+                  savedRevisionUnits: [...list, unit],
+                  rdm: state.user.rdm + 2,
+                }
               : null,
           };
         }),
@@ -205,9 +224,11 @@ export const useUserStore = create<UserState>()(
         set((state) => ({
           user: state.user
             ? {
-              ...state.user,
-              savedRevisionUnits: (state.user.savedRevisionUnits ?? []).filter((u) => u.id !== unitId),
-            }
+                ...state.user,
+                savedRevisionUnits: (state.user.savedRevisionUnits ?? []).filter(
+                  (u) => u.id !== unitId
+                ),
+              }
             : null,
         })),
 
@@ -216,9 +237,7 @@ export const useUserStore = create<UserState>()(
           const list = state.user?.savedBits ?? [];
           if (list.some((b) => b.id === bit.id)) return state;
           return {
-            user: state.user
-              ? { ...state.user, savedBits: [...list, bit] }
-              : null,
+            user: state.user ? { ...state.user, savedBits: [...list, bit] } : null,
           };
         }),
 
@@ -226,9 +245,9 @@ export const useUserStore = create<UserState>()(
         set((state) => ({
           user: state.user
             ? {
-              ...state.user,
-              savedBits: (state.user.savedBits ?? []).filter((b) => b.id !== bitId),
-            }
+                ...state.user,
+                savedBits: (state.user.savedBits ?? []).filter((b) => b.id !== bitId),
+              }
             : null,
         })),
 
@@ -237,9 +256,7 @@ export const useUserStore = create<UserState>()(
           const list = state.user?.savedFormulas ?? [];
           if (list.some((f) => f.id === formula.id)) return state;
           return {
-            user: state.user
-              ? { ...state.user, savedFormulas: [...list, formula] }
-              : null,
+            user: state.user ? { ...state.user, savedFormulas: [...list, formula] } : null,
           };
         }),
 
@@ -247,9 +264,9 @@ export const useUserStore = create<UserState>()(
         set((state) => ({
           user: state.user
             ? {
-              ...state.user,
-              savedFormulas: (state.user.savedFormulas ?? []).filter((f) => f.id !== formulaId),
-            }
+                ...state.user,
+                savedFormulas: (state.user.savedFormulas ?? []).filter((f) => f.id !== formulaId),
+              }
             : null,
         })),
 
@@ -258,9 +275,7 @@ export const useUserStore = create<UserState>()(
           const list = state.user?.savedCommunityPosts ?? [];
           if (list.some((p) => p.postId === post.postId)) return state;
           return {
-            user: state.user
-              ? { ...state.user, savedCommunityPosts: [post, ...list] }
-              : null,
+            user: state.user ? { ...state.user, savedCommunityPosts: [post, ...list] } : null,
           };
         }),
 
@@ -268,13 +283,21 @@ export const useUserStore = create<UserState>()(
         set((state) => ({
           user: state.user
             ? {
-              ...state.user,
-              savedCommunityPosts: (state.user.savedCommunityPosts ?? []).filter((p) => p.postId !== postId),
-            }
+                ...state.user,
+                savedCommunityPosts: (state.user.savedCommunityPosts ?? []).filter(
+                  (p) => p.postId !== postId
+                ),
+              }
             : null,
         })),
 
-      setSavedFromServer: (savedBits, savedFormulas, savedRevisionCards, savedRevisionUnits, savedCommunityPosts) =>
+      setSavedFromServer: (
+        savedBits,
+        savedFormulas,
+        savedRevisionCards,
+        savedRevisionUnits,
+        savedCommunityPosts
+      ) =>
         set((state) =>
           state.user
             ? {
@@ -301,9 +324,9 @@ export const useUserStore = create<UserState>()(
         set((state) => ({
           user: state.user
             ? {
-              ...state.user,
-              likedQuestions: state.user.likedQuestions.filter((id) => id !== questionId),
-            }
+                ...state.user,
+                likedQuestions: state.user.likedQuestions.filter((id) => id !== questionId),
+              }
             : null,
         })),
 
@@ -330,12 +353,12 @@ export const useUserStore = create<UserState>()(
         })),
     }),
     {
-      name: 'edublast-user',
+      name: "edublast-user",
       version: 1,
       migrate: (persistedState: unknown, _fromVersion: number) => {
         const state = persistedState as { user?: Record<string, unknown> } | null | undefined;
         const user = state?.user;
-        if (user && typeof user === 'object') {
+        if (user && typeof user === "object") {
           if (!Array.isArray(user.savedBits)) user.savedBits = [];
           if (!Array.isArray(user.savedFormulas)) user.savedFormulas = [];
           if (!Array.isArray(user.savedRevisionCards)) user.savedRevisionCards = [];

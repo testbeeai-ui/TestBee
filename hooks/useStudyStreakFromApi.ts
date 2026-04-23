@@ -28,7 +28,9 @@ export function useStudyStreakFromApi(): { streakDays: number; ready: boolean } 
       const todayStart = startOfLocalDay(new Date());
       const toStr = localDayKeyFromDate(todayStart);
       const fromStr = localDayKeyFromDate(addDaysLocal(todayStart, -45));
-      const res = await fetch(`/api/user/study-days?from=${fromStr}&to=${toStr}&today=${toStr}`, { headers });
+      const res = await fetch(`/api/user/study-days?from=${fromStr}&to=${toStr}&today=${toStr}`, {
+        headers,
+      });
       if (!res.ok) return;
       const json = (await res.json()) as {
         days?: { day: string; active_ms: number }[];

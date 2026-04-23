@@ -60,7 +60,7 @@ async function fetchReferQuestionsWithStratifiedFallback(
   sb: SupabaseClient<Database>,
   domain: PlayDomain,
   category: string,
-  count: number,
+  count: number
 ): Promise<PlayQuestionRow[]> {
   const adaptive = await fetchPlayQuestionsAdaptiveWithFallback(sb, { domain, category, count });
   if (adaptive.length > 0) {
@@ -71,7 +71,9 @@ async function fetchReferQuestionsWithStratifiedFallback(
       // Top-up strictly from the mental_math bank to hit requested count.
       const topUp = await sb
         .from("play_questions")
-        .select("id, content, options, correct_answer_index, explanation, difficulty_rating, category")
+        .select(
+          "id, content, options, correct_answer_index, explanation, difficulty_rating, category"
+        )
         .eq("domain", "funbrain")
         .eq("category", "mental_math")
         .limit(Math.max(count * 6, 36));
@@ -93,7 +95,9 @@ async function fetchReferQuestionsWithStratifiedFallback(
   if (domain === "funbrain" && category === "mental_math") {
     const { data, error } = await sb
       .from("play_questions")
-      .select("id, content, options, correct_answer_index, explanation, difficulty_rating, category")
+      .select(
+        "id, content, options, correct_answer_index, explanation, difficulty_rating, category"
+      )
       .eq("domain", "funbrain")
       .eq("category", "mental_math")
       .limit(Math.max(count * 4, 24));
@@ -108,13 +112,28 @@ async function fetchReferQuestionsWithStratifiedFallback(
 
 export async function fetchReferChallengeQuestions(
   sb: SupabaseClient<Database>,
-  spec: ReferChallengePublicSpec,
+  spec: ReferChallengePublicSpec
 ): Promise<PlayQuestionRow[]> {
   if (spec.key === "5") {
-    return fetchReferQuestionsWithStratifiedFallback(sb, "funbrain", "mental_math", spec.questionCount);
+    return fetchReferQuestionsWithStratifiedFallback(
+      sb,
+      "funbrain",
+      "mental_math",
+      spec.questionCount
+    );
   }
   if (spec.key === "10") {
-    return fetchReferQuestionsWithStratifiedFallback(sb, "funbrain", "funbrain_all", spec.questionCount);
+    return fetchReferQuestionsWithStratifiedFallback(
+      sb,
+      "funbrain",
+      "funbrain_all",
+      spec.questionCount
+    );
   }
-  return fetchReferQuestionsWithStratifiedFallback(sb, spec.domain as PlayDomain, spec.playCategory, spec.questionCount);
+  return fetchReferQuestionsWithStratifiedFallback(
+    sb,
+    spec.domain as PlayDomain,
+    spec.playCategory,
+    spec.questionCount
+  );
 }

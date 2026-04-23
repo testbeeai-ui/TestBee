@@ -38,15 +38,21 @@ function isRetryableNetworkError(err: unknown): boolean {
   return msg.includes("fetch failed") || msg.includes("network") || msg.includes("timeout");
 }
 
-export async function supabaseNodeFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+export async function supabaseNodeFetch(
+  input: RequestInfo | URL,
+  init?: RequestInit
+): Promise<Response> {
   let lastErr: unknown;
   const attempts = 1 + retries;
   for (let i = 0; i < attempts; i++) {
     try {
-      const res = await undiciFetch(input as never, {
-        ...init,
-        dispatcher: agent,
-      } as never);
+      const res = await undiciFetch(
+        input as never,
+        {
+          ...init,
+          dispatcher: agent,
+        } as never
+      );
       return res as unknown as Response;
     } catch (e) {
       lastErr = e;

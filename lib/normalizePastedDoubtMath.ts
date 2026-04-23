@@ -32,7 +32,7 @@ export function applyNormalizedPasteToField(
   current: string,
   selectionStart: number,
   selectionEnd: number,
-  pastedPlain: string,
+  pastedPlain: string
 ): { value: string; caret: number } {
   const normalized = pastedPlain === "" ? "" : normalizePastedMathForDoubt(pastedPlain);
   const value = current.slice(0, selectionStart) + normalized + current.slice(selectionEnd);

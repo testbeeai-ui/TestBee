@@ -1,33 +1,30 @@
-'use client';
+"use client";
 
-import { ClipboardList, ArrowRight } from 'lucide-react';
-import type { MockPaper, Subject } from '@/types';
-import { cn } from '@/lib/utils';
+import { ClipboardList, ArrowRight } from "lucide-react";
+import type { MockPaper, Subject } from "@/types";
+import { cn } from "@/lib/utils";
 
-const subjectConfig: Record<Subject, { badge: string; color: string; title: string; details: string }> = {
+const subjectConfig: Record<
+  Subject,
+  { badge: string; color: string; title: string; details: string }
+> = {
   physics: {
-    badge: 'P',
-    color: 'bg-blue-500',
-    title: 'Physics Full Syllabus Mock',
-    details: '90 mins · 36 Qs · Adaptive difficulty',
+    badge: "P",
+    color: "bg-blue-500",
+    title: "Physics Full Syllabus Mock",
+    details: "90 mins · 36 Qs · Adaptive difficulty",
   },
   chemistry: {
-    badge: 'C',
-    color: 'bg-purple-500',
-    title: 'Chemistry Full Syllabus Mock',
-    details: '90 mins · 36 Qs · Adaptive difficulty',
+    badge: "C",
+    color: "bg-purple-500",
+    title: "Chemistry Full Syllabus Mock",
+    details: "90 mins · 36 Qs · Adaptive difficulty",
   },
   math: {
-    badge: 'M',
-    color: 'bg-orange-500',
-    title: 'Mathematics Full Syllabus Mock',
-    details: '90 mins · 36 Qs · Adaptive difficulty',
-  },
-  biology: {
-    badge: 'B',
-    color: 'bg-green-500',
-    title: 'Biology Full Syllabus Mock',
-    details: '90 mins · 36 Qs · Adaptive difficulty',
+    badge: "M",
+    color: "bg-orange-500",
+    title: "Mathematics Full Syllabus Mock",
+    details: "90 mins · 36 Qs · Adaptive difficulty",
   },
 };
 
@@ -51,13 +48,13 @@ function MockTestRow({
   return (
     <div
       className={cn(
-        'edu-card p-3 rounded-xl border border-border/50 flex items-center gap-3 hover:shadow-sm transition-shadow',
+        "edu-card p-3 rounded-xl border border-border/50 flex items-center gap-3 hover:shadow-sm transition-shadow"
       )}
     >
       <div
         className={cn(
-          'w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-white font-extrabold text-sm',
-          badgeClassName,
+          "w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-white font-extrabold text-sm",
+          badgeClassName
         )}
       >
         {badgeLabel}
@@ -96,7 +93,7 @@ export default function MockTestsSection({
   onStartFeaturedPaper,
 }: MockTestsSectionProps) {
   const hidePhysicsRow = Boolean(featuredPaper || featuredLoading);
-  const listSubjects = hidePhysicsRow ? subjects.filter((s) => s !== 'physics') : subjects;
+  const listSubjects = hidePhysicsRow ? subjects.filter((s) => s !== "physics") : subjects;
 
   return (
     <section className="space-y-3">
@@ -138,10 +135,10 @@ export default function MockTestsSection({
           />
         ) : null}
 
-        {!featuredLoading && !featuredPaper && subjects.includes('physics') ? (
+        {!featuredLoading && !featuredPaper && subjects.includes("physics") ? (
           <div className="rounded-lg border border-dashed border-amber-500/40 bg-amber-500/5 px-3 py-2 text-[11px] text-muted-foreground">
-            JEE Main PYQ paper is not in your catalog yet. Import it with the project seed script, or use View all →
-            library.
+            JEE Main PYQ paper is not in your catalog yet. Import it with the project seed script,
+            or use View all → library.
           </div>
         ) : null}
 

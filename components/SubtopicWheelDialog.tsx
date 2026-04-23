@@ -13,9 +13,18 @@ import { RotateCw, ArrowRight } from "lucide-react";
 
 // Same palette as TopicRoulette
 const VIBRANT = [
-  "#FF3366", "#FF6B2B", "#FFB800", "#00C9A7",
-  "#0088FF", "#7B2FF7", "#FF0099", "#3A86FF",
-  "#FF5500", "#8B5CF6", "#06BCC1", "#E63946",
+  "#FF3366",
+  "#FF6B2B",
+  "#FFB800",
+  "#00C9A7",
+  "#0088FF",
+  "#7B2FF7",
+  "#FF0099",
+  "#3A86FF",
+  "#FF5500",
+  "#8B5CF6",
+  "#06BCC1",
+  "#E63946",
 ];
 
 const WHEEL_SIZE = 300;
@@ -36,11 +45,7 @@ function darken(hex: string, p: number) {
   return `rgb(${r},${g},${b})`;
 }
 
-function drawWheel(
-  canvas: HTMLCanvasElement,
-  segmentCount: number,
-  highlightIndex: number | null
-) {
+function drawWheel(canvas: HTMLCanvasElement, segmentCount: number, highlightIndex: number | null) {
   const n = segmentCount;
   if (n === 0) return;
 
@@ -126,7 +131,7 @@ function drawWheel(
     ctx.stroke();
 
     // Text
-    const tR = wheelR * 0.60;
+    const tR = wheelR * 0.6;
     const tx = cx + Math.cos(ma) * tR;
     const ty = cy + Math.sin(ma) * tR;
     ctx.save();
@@ -259,7 +264,7 @@ export default function SubtopicWheelDialog({
         setSpinning(false);
         // Derive winner from final angle (same as TopicRoulette)
         const norm = ((end % 360) + 360) % 360;
-        const idx = (Math.round((360 - norm) / segAngle - 0.5) % n + n) % n;
+        const idx = ((Math.round((360 - norm) / segAngle - 0.5) % n) + n) % n;
         setWinnerIndex(idx);
         setTimeout(() => setShowResult(true), 350);
       }
@@ -308,8 +313,7 @@ export default function SubtopicWheelDialog({
     }
   }, [winnerIndex, subtopics, onSelect]);
 
-  const winnerColor =
-    winnerIndex !== null ? VIBRANT[winnerIndex % VIBRANT.length] : undefined;
+  const winnerColor = winnerIndex !== null ? VIBRANT[winnerIndex % VIBRANT.length] : undefined;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -325,15 +329,13 @@ export default function SubtopicWheelDialog({
         `}</style>
 
         <DialogHeader className="px-5 pt-5 pb-0">
-          <DialogTitle className="text-lg font-extrabold">
-            🎯 Spin for a Subtopic
-          </DialogTitle>
+          <DialogTitle className="text-lg font-extrabold">🎯 Spin for a Subtopic</DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground">
             {spinning
               ? "Spinning…"
               : showResult && winnerIndex !== null
-              ? `Landed on: ${subtopics[winnerIndex]}`
-              : "Get ready…"}
+                ? `Landed on: ${subtopics[winnerIndex]}`
+                : "Get ready…"}
           </DialogDescription>
         </DialogHeader>
 
@@ -376,9 +378,7 @@ export default function SubtopicWheelDialog({
         {/* Result + actions */}
         <div className="px-5 pb-5 min-h-[96px] flex flex-col items-center justify-center gap-3">
           {spinning && (
-            <p className="text-sm font-semibold text-muted-foreground animate-pulse">
-              Spinning…
-            </p>
+            <p className="text-sm font-semibold text-muted-foreground animate-pulse">Spinning…</p>
           )}
 
           {!spinning && showResult && winnerIndex !== null && (
@@ -399,11 +399,7 @@ export default function SubtopicWheelDialog({
                   <RotateCw className="w-3.5 h-3.5" />
                   Spin Again
                 </Button>
-                <Button
-                  size="sm"
-                  onClick={handleLetsGo}
-                  className="gap-1.5 rounded-lg font-bold"
-                >
+                <Button size="sm" onClick={handleLetsGo} className="gap-1.5 rounded-lg font-bold">
                   Let&apos;s Go!
                   <ArrowRight className="w-3.5 h-3.5" />
                 </Button>

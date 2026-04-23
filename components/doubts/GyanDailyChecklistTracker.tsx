@@ -7,13 +7,16 @@ import { getClientApiAuthHeaders } from "@/lib/clientApiAuth";
 import { localDayBoundsIso } from "@/lib/dashboardDayActivity";
 import type { DailyChecklistApiResponse } from "@/lib/dailyChecklistState";
 import { EDUBLAST_STUDY_DAYS_REFRESH } from "@/lib/studyDayBumpEvents";
-import { GyanFeedFocusTimer, useGyanDoubtsPendingFocusMs } from "@/components/doubts/GyanDoubtsFocusTracker";
+import {
+  GyanFeedFocusTimer,
+  useGyanDoubtsPendingFocusMs,
+} from "@/components/doubts/GyanDoubtsFocusTracker";
 import { Bookmark, CheckCircle2, Clock, ListChecks, Loader2, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const FIVE_MIN_MS = 5 * 60 * 1000;
 /** Same subject scope as home dashboard checklist GET. */
-const CHECKLIST_SUBJECTS_PARAM = "physics,chemistry,math,biology";
+const CHECKLIST_SUBJECTS_PARAM = "physics,chemistry,math";
 const POLL_MS = 12_000;
 
 type RowProps = {
@@ -28,7 +31,9 @@ function TrackerRow({ done, icon, title, detail, end }: RowProps) {
   return (
     <div className="flex items-start justify-between gap-2 rounded-xl border border-border/60 bg-background/40 px-2.5 py-2">
       <div className="flex min-w-0 flex-1 gap-2.5">
-        <div className={cn("mt-0.5 shrink-0", done ? "text-emerald-500" : "text-muted-foreground")}>{icon}</div>
+        <div className={cn("mt-0.5 shrink-0", done ? "text-emerald-500" : "text-muted-foreground")}>
+          {icon}
+        </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 min-w-0">
             {done ? (
@@ -140,7 +145,10 @@ export function GyanDailyChecklistTracker() {
   const savesDone = saves >= 1;
   const communityDone = community >= 1;
 
-  const timePct = useMemo(() => Math.min(100, Math.round((100 * liveFocusMs) / FIVE_MIN_MS)), [liveFocusMs]);
+  const timePct = useMemo(
+    () => Math.min(100, Math.round((100 * liveFocusMs) / FIVE_MIN_MS)),
+    [liveFocusMs]
+  );
 
   const doneCount = (timeDone ? 1 : 0) + (savesDone ? 1 : 0) + (communityDone ? 1 : 0);
 
@@ -153,7 +161,9 @@ export function GyanDailyChecklistTracker() {
         onClick={() => setOpen((v) => !v)}
         className={cn(
           "fixed z-[44] left-0 top-[max(7rem,28vh)] flex h-[4.25rem] w-[3.25rem] flex-col items-center justify-center gap-0.5 rounded-r-2xl border-y border-r border-emerald-500/45 bg-gradient-to-b from-emerald-600 to-emerald-700 text-white shadow-lg shadow-emerald-950/25 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-          open ? "from-emerald-500 to-emerald-600 ring-2 ring-white/30" : "hover:from-emerald-500 hover:to-emerald-600"
+          open
+            ? "from-emerald-500 to-emerald-600 ring-2 ring-white/30"
+            : "hover:from-emerald-500 hover:to-emerald-600"
         )}
         aria-label={open ? "Close Gyan++ daily checklist" : "Open Gyan++ daily checklist"}
         aria-expanded={open}
@@ -190,7 +200,8 @@ export function GyanDailyChecklistTracker() {
                     Today on Gyan++
                   </h3>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Home checklist (c): {doneCount}/3 done here — finish all three to tick it on your dashboard.
+                    Home checklist (c): {doneCount}/3 done here — finish all three to tick it on
+                    your dashboard.
                   </p>
                 </div>
                 <button
@@ -203,7 +214,9 @@ export function GyanDailyChecklistTracker() {
                 </button>
               </div>
               {data?.gyanPlusDone ? (
-                <p className="mt-2 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">All set for today.</p>
+                <p className="mt-2 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                  All set for today.
+                </p>
               ) : null}
             </div>
 
@@ -214,7 +227,9 @@ export function GyanDailyChecklistTracker() {
                   Loading progress…
                 </div>
               ) : status === "error" && !data ? (
-                <p className="text-xs text-rose-300 py-2">Could not load checklist. Try Refresh or reload the page.</p>
+                <p className="text-xs text-rose-300 py-2">
+                  Could not load checklist. Try Refresh or reload the page.
+                </p>
               ) : (
                 <div className="space-y-2">
                   <TrackerRow
@@ -230,7 +245,10 @@ export function GyanDailyChecklistTracker() {
                   />
                   {!timeDone ? (
                     <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-                      <div className="h-full rounded-full bg-emerald-500/80 transition-all" style={{ width: `${timePct}%` }} />
+                      <div
+                        className="h-full rounded-full bg-emerald-500/80 transition-all"
+                        style={{ width: `${timePct}%` }}
+                      />
                     </div>
                   ) : null}
 
@@ -259,11 +277,19 @@ export function GyanDailyChecklistTracker() {
               )}
 
               <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border/50 pt-3 text-[11px]">
-                <button type="button" className="font-semibold text-primary hover:underline" onClick={() => void load()}>
+                <button
+                  type="button"
+                  className="font-semibold text-primary hover:underline"
+                  onClick={() => void load()}
+                >
                   Refresh
                 </button>
                 <span className="text-muted-foreground">·</span>
-                <Link href="/home" className="font-semibold text-primary hover:underline" onClick={() => setOpen(false)}>
+                <Link
+                  href="/home"
+                  className="font-semibold text-primary hover:underline"
+                  onClick={() => setOpen(false)}
+                >
                   Full daily checklist
                 </Link>
               </div>

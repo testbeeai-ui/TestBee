@@ -1,5 +1,5 @@
-import { Copy } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { Copy } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 const template = `Dear IT Administrator,
 
@@ -20,12 +20,19 @@ const AdminRequestTemplate = () => {
     <div className="bg-muted/30 rounded-xl p-4">
       <div className="flex items-center justify-between mb-2">
         <h4 className="text-sm font-extrabold text-foreground">Admin Request Template</h4>
-        <button onClick={() => { navigator.clipboard.writeText(template); toast({ title: 'Template copied!' }); }}
-          className="text-xs text-primary font-bold flex items-center gap-1 hover:underline">
+        <button
+          onClick={() => {
+            navigator.clipboard.writeText(template);
+            toast({ title: "Template copied!" });
+          }}
+          className="text-xs text-primary font-bold flex items-center gap-1 hover:underline"
+        >
           <Copy className="w-3 h-3" /> Copy
         </button>
       </div>
-      <pre className="text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed">{template}</pre>
+      <pre className="text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed">
+        {template}
+      </pre>
     </div>
   );
 };

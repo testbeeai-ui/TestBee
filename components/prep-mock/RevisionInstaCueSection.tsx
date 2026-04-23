@@ -1,25 +1,24 @@
-'use client';
+"use client";
 
-import { useEffect, useRef } from 'react';
-import Link from 'next/link';
-import { RotateCcw, Plus, ArrowRight } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import MathText from '@/components/MathText';
-import type { SavedRevisionCard } from '@/types';
-import { incrementPrepCalendarDay, localDayISO } from '@/lib/prepCalendarClient';
+import { useEffect, useRef } from "react";
+import Link from "next/link";
+import { RotateCcw, Plus, ArrowRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import MathText from "@/components/MathText";
+import type { SavedRevisionCard } from "@/types";
+import { incrementPrepCalendarDay, localDayISO } from "@/lib/prepCalendarClient";
 
 const subjectColors: Record<string, string> = {
-  physics: 'text-blue-500 dark:text-blue-400',
-  chemistry: 'text-purple-500 dark:text-purple-400',
-  math: 'text-orange-500 dark:text-orange-400',
-  biology: 'text-green-500 dark:text-green-400',
+  physics: "text-blue-500 dark:text-blue-400",
+  chemistry: "text-purple-500 dark:text-purple-400",
+  math: "text-orange-500 dark:text-orange-400",
 };
 
 const typeLabels: Record<string, string> = {
-  concept: 'Concept',
-  formula: 'Formula',
-  common_mistake: 'Mistake',
-  trap: 'Trap',
+  concept: "Concept",
+  formula: "Formula",
+  common_mistake: "Mistake",
+  trap: "Trap",
 };
 
 interface RevisionInstaCueSectionProps {
@@ -30,19 +29,19 @@ interface RevisionInstaCueSectionProps {
 }
 
 function previewLine(card: SavedRevisionCard): string {
-  const front = (card.frontContent ?? '').trim();
+  const front = (card.frontContent ?? "").trim();
   if (front) return front;
-  return (card.backContent ?? '').trim();
+  return (card.backContent ?? "").trim();
 }
 
 /** Turn syllabus-style ALL CAPS topics into title case for the preview row. */
 function formatTopicLabel(topic: string): string {
-  const t = topic.replace(/\s+/g, ' ').trim();
-  if (!t) return '';
+  const t = topic.replace(/\s+/g, " ").trim();
+  if (!t) return "";
   return t
-    .split(' ')
+    .split(" ")
     .map((w) => (w.length <= 1 ? w.toUpperCase() : w.charAt(0) + w.slice(1).toLowerCase()))
-    .join(' ');
+    .join(" ");
 }
 
 export default function RevisionInstaCueSection({
@@ -62,14 +61,13 @@ export default function RevisionInstaCueSection({
     if (!userId || revisionLoggedRef.current) return;
     const day = localDayISO();
     const k = `prep_cal_revision_${userId}_${day}`;
-    if (typeof window !== 'undefined' && sessionStorage.getItem(k)) return;
+    if (typeof window !== "undefined" && sessionStorage.getItem(k)) return;
     revisionLoggedRef.current = true;
-    void incrementPrepCalendarDay(accessToken ?? undefined, 'revision', day).then((ok) => {
-      if (ok && typeof window !== 'undefined') sessionStorage.setItem(k, '1');
+    void incrementPrepCalendarDay(accessToken ?? undefined, "revision", day).then((ok) => {
+      if (ok && typeof window !== "undefined") sessionStorage.setItem(k, "1");
       if (ok) onCalendarActivity?.();
     });
   }, [userId, cards.length, accessToken, onCalendarActivity]);
-
 
   return (
     <section className="space-y-3">
@@ -103,7 +101,7 @@ export default function RevisionInstaCueSection({
         <div className="edu-card rounded-xl border border-border/50 overflow-hidden flex flex-col max-h-[220px]">
           <div className="overflow-y-auto p-2 space-y-2">
             {preview.map((card) => {
-              const subjectColor = subjectColors[card.subject] ?? 'text-primary';
+              const subjectColor = subjectColors[card.subject] ?? "text-primary";
               const subj = card.subject.charAt(0).toUpperCase() + card.subject.slice(1);
               const typeLabel = typeLabels[card.type] ?? card.type;
               return (

@@ -40,7 +40,10 @@ export async function POST(request: Request) {
     const created: string[] = [];
     const skipped: string[] = [];
 
-    const { data: listData, error: listErr } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+    const { data: listData, error: listErr } = await admin.auth.admin.listUsers({
+      page: 1,
+      perPage: 1000,
+    });
     if (listErr) {
       return NextResponse.json({ error: listErr.message }, { status: 500 });
     }
@@ -74,10 +77,7 @@ export async function POST(request: Request) {
 
       if (createErr) {
         console.error("[seed-gyan-bot-personas] createUser", row.email, createErr);
-        return NextResponse.json(
-          { error: createErr.message, email: row.email },
-          { status: 500 }
-        );
+        return NextResponse.json({ error: createErr.message, email: row.email }, { status: 500 });
       }
 
       await admin.from("profiles").upsert(
@@ -102,6 +102,9 @@ export async function POST(request: Request) {
     });
   } catch (e) {
     console.error(e);
-    return NextResponse.json({ error: e instanceof Error ? e.message : "Server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : "Server error" },
+      { status: 500 }
+    );
   }
 }

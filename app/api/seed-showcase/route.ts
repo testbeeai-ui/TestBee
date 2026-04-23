@@ -9,24 +9,80 @@ import { createClient, createAdminClient } from "@/integrations/supabase/server"
 // Fixed demo user IDs (deterministic so re-seeding is idempotent)
 const DEMO_IDS = {
   gyanBot: "10000000-0000-0000-0000-000000000001",
-  gyanAI:  "10000000-0000-0000-0000-000000000002",
-  drSuresh:"10000000-0000-0000-0000-000000000003",
+  gyanAI: "10000000-0000-0000-0000-000000000002",
+  drSuresh: "10000000-0000-0000-0000-000000000003",
   profRao: "10000000-0000-0000-0000-000000000004",
-  arjunK:  "10000000-0000-0000-0000-000000000005",
-  priyaM:  "10000000-0000-0000-0000-000000000006",
-  nidhiK:  "10000000-0000-0000-0000-000000000007",
-  snehaR:  "10000000-0000-0000-0000-000000000008",
+  arjunK: "10000000-0000-0000-0000-000000000005",
+  priyaM: "10000000-0000-0000-0000-000000000006",
+  nidhiK: "10000000-0000-0000-0000-000000000007",
+  snehaR: "10000000-0000-0000-0000-000000000008",
 };
 
 const PERSONAS = [
-  { id: DEMO_IDS.gyanBot,  email: "gyan-bot@showcase.demo",   name: "Gyan++ Bot",  role: "ai",      rdm: 0,    lifetime_answer_rdm: 0 },
-  { id: DEMO_IDS.gyanAI,   email: "gyan-ai@showcase.demo",    name: "Prof-Pi",     role: "ai",      rdm: 0,    lifetime_answer_rdm: 0 },
-  { id: DEMO_IDS.drSuresh, email: "dr-suresh@showcase.demo",  name: "Dr. Suresh",  role: "teacher", rdm: 1200, lifetime_answer_rdm: 1200 },
-  { id: DEMO_IDS.profRao,  email: "prof-rao@showcase.demo",   name: "Prof. Rao",   role: "teacher", rdm: 980,  lifetime_answer_rdm: 980 },
-  { id: DEMO_IDS.arjunK,   email: "arjun-k@showcase.demo",    name: "Arjun K",     role: "student", rdm: 340,  lifetime_answer_rdm: 120 },
-  { id: DEMO_IDS.priyaM,   email: "priya-m@showcase.demo",    name: "Priya M",     role: "student", rdm: 280,  lifetime_answer_rdm: 94 },
-  { id: DEMO_IDS.nidhiK,   email: "nidhi-k@showcase.demo",    name: "Nidhi K",     role: "student", rdm: 190,  lifetime_answer_rdm: 81 },
-  { id: DEMO_IDS.snehaR,   email: "sneha-r@showcase.demo",    name: "Sneha R",     role: "student", rdm: 210,  lifetime_answer_rdm: 75 },
+  {
+    id: DEMO_IDS.gyanBot,
+    email: "gyan-bot@showcase.demo",
+    name: "Gyan++ Bot",
+    role: "ai",
+    rdm: 0,
+    lifetime_answer_rdm: 0,
+  },
+  {
+    id: DEMO_IDS.gyanAI,
+    email: "gyan-ai@showcase.demo",
+    name: "Prof-Pi",
+    role: "ai",
+    rdm: 0,
+    lifetime_answer_rdm: 0,
+  },
+  {
+    id: DEMO_IDS.drSuresh,
+    email: "dr-suresh@showcase.demo",
+    name: "Dr. Suresh",
+    role: "teacher",
+    rdm: 1200,
+    lifetime_answer_rdm: 1200,
+  },
+  {
+    id: DEMO_IDS.profRao,
+    email: "prof-rao@showcase.demo",
+    name: "Prof. Rao",
+    role: "teacher",
+    rdm: 980,
+    lifetime_answer_rdm: 980,
+  },
+  {
+    id: DEMO_IDS.arjunK,
+    email: "arjun-k@showcase.demo",
+    name: "Arjun K",
+    role: "student",
+    rdm: 340,
+    lifetime_answer_rdm: 120,
+  },
+  {
+    id: DEMO_IDS.priyaM,
+    email: "priya-m@showcase.demo",
+    name: "Priya M",
+    role: "student",
+    rdm: 280,
+    lifetime_answer_rdm: 94,
+  },
+  {
+    id: DEMO_IDS.nidhiK,
+    email: "nidhi-k@showcase.demo",
+    name: "Nidhi K",
+    role: "student",
+    rdm: 190,
+    lifetime_answer_rdm: 81,
+  },
+  {
+    id: DEMO_IDS.snehaR,
+    email: "sneha-r@showcase.demo",
+    name: "Sneha R",
+    role: "student",
+    rdm: 210,
+    lifetime_answer_rdm: 75,
+  },
 ];
 
 export async function POST(request: Request) {
@@ -36,13 +92,19 @@ export async function POST(request: Request) {
     let user = (await cookieSupabase.auth.getUser()).data?.user ?? null;
     const token = request.headers.get("Authorization")?.replace(/^Bearer\s+/i, "");
     if (!user && token) {
-      const { data: { user: u } } = await cookieSupabase.auth.getUser(token);
+      const {
+        data: { user: u },
+      } = await cookieSupabase.auth.getUser(token);
       user = u ?? null;
     }
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const admin = createAdminClient();
-    if (!admin) return NextResponse.json({ error: "Service role not configured. Add SUPABASE_SERVICE_ROLE_KEY." }, { status: 500 });
+    if (!admin)
+      return NextResponse.json(
+        { error: "Service role not configured. Add SUPABASE_SERVICE_ROLE_KEY." },
+        { status: 500 }
+      );
 
     // ── Idempotency check (title-based, survives ID remapping) ──
     const { data: existing } = await admin
@@ -64,21 +126,30 @@ export async function POST(request: Request) {
         user_metadata: { name: p.name },
       });
       // Upsert profile (works whether user existed or was just created)
-      const { data: existingProfile } = await admin.from("profiles").select("id").eq("id", p.id).maybeSingle();
+      const { data: existingProfile } = await admin
+        .from("profiles")
+        .select("id")
+        .eq("id", p.id)
+        .maybeSingle();
       if (!existingProfile) {
         // Find the auth user we just created to get their real ID, then insert profile
         const { data: allUsers } = await admin.auth.admin.listUsers({ page: 1, perPage: 200 });
         const authUser = allUsers?.users?.find((u: { email?: string }) => u.email === p.email);
         const realId = authUser?.id ?? p.id;
-        await admin.from("profiles").upsert({
-          id: realId,
-          name: p.name,
-          role: p.role,
-          rdm: p.rdm,
-          lifetime_answer_rdm: p.lifetime_answer_rdm,
-        }, { onConflict: "id" });
+        await admin.from("profiles").upsert(
+          {
+            id: realId,
+            name: p.name,
+            role: p.role,
+            rdm: p.rdm,
+            lifetime_answer_rdm: p.lifetime_answer_rdm,
+          },
+          { onConflict: "id" }
+        );
         // Update DEMO_IDS map for use in content creation below
-        (DEMO_IDS as Record<string, string>)[Object.entries(DEMO_IDS).find(([, v]) => v === p.id)?.[0] ?? ""] = realId;
+        (DEMO_IDS as Record<string, string>)[
+          Object.entries(DEMO_IDS).find(([, v]) => v === p.id)?.[0] ?? ""
+        ] = realId;
       }
     }
 
@@ -91,37 +162,42 @@ export async function POST(request: Request) {
     }
 
     const uid = {
-      bot:    userMap["gyan-bot@showcase.demo"],
-      ai:     userMap["gyan-ai@showcase.demo"],
+      bot: userMap["gyan-bot@showcase.demo"],
+      ai: userMap["gyan-ai@showcase.demo"],
       suresh: userMap["dr-suresh@showcase.demo"],
-      rao:    userMap["prof-rao@showcase.demo"],
-      arjun:  userMap["arjun-k@showcase.demo"],
-      priya:  userMap["priya-m@showcase.demo"],
-      nidhi:  userMap["nidhi-k@showcase.demo"],
-      sneha:  userMap["sneha-r@showcase.demo"],
-      me:     user.id,
+      rao: userMap["prof-rao@showcase.demo"],
+      arjun: userMap["arjun-k@showcase.demo"],
+      priya: userMap["priya-m@showcase.demo"],
+      nidhi: userMap["nidhi-k@showcase.demo"],
+      sneha: userMap["sneha-r@showcase.demo"],
+      me: user.id,
     };
 
     // ── Timestamp helpers ─────────────────────────────────────
     const now = new Date();
     const ago = (ms: number) => new Date(now.getTime() - ms).toISOString();
-    const mins  = (m: number) => ago(m * 60 * 1000);
+    const mins = (m: number) => ago(m * 60 * 1000);
     const hours = (h: number) => ago(h * 60 * 60 * 1000);
-    const days  = (d: number) => ago(d * 24 * 60 * 60 * 1000);
+    const days = (d: number) => ago(d * 24 * 60 * 60 * 1000);
 
     // ── DOUBT 1: Normal force on frictionless incline ─────────
-    const { data: d1 } = await admin.from("doubts").insert({
-      user_id: uid.bot,
-      title: "Why does the normal force do no work when a block slides down a frictionless incline — even though it acts on the block throughout the motion?",
-      body: "My textbook says work = F·d·cos(θ) and normal force is perpendicular to motion so cos(90°) = 0. But I don't intuitively understand why a force that's clearly present does zero work. Can someone break it down?",
-      subject: "Physics",
-      upvotes: 34,
-      is_resolved: true,
-      bounty_rdm: 50,
-      bounty_escrowed_at: mins(5),
-      views: 142,
-      created_at: mins(2),
-    }).select("id").single();
+    const { data: d1 } = await admin
+      .from("doubts")
+      .insert({
+        user_id: uid.bot,
+        title:
+          "Why does the normal force do no work when a block slides down a frictionless incline — even though it acts on the block throughout the motion?",
+        body: "My textbook says work = F·d·cos(θ) and normal force is perpendicular to motion so cos(90°) = 0. But I don't intuitively understand why a force that's clearly present does zero work. Can someone break it down?",
+        subject: "Physics",
+        upvotes: 34,
+        is_resolved: true,
+        bounty_rdm: 50,
+        bounty_escrowed_at: mins(5),
+        views: 142,
+        created_at: mins(2),
+      })
+      .select("id")
+      .single();
 
     if (d1?.id) {
       // AI answer
@@ -160,17 +236,21 @@ export async function POST(request: Request) {
     }
 
     // ── DOUBT 2: Buffer / pH (posted by logged-in user, PCM) ──
-    const { data: d2 } = await admin.from("doubts").insert({
-      user_id: uid.me,
-      title: "Why does adding a small amount of strong acid to a buffer barely change the pH?",
-      body: "I know Henderson–Hasselbalch says pH = pKa + log([A⁻]/[HA]). I get confused at the exam: why doesn't a drop of strong acid swing the pH wildly if the conjugate base is supposed to neutralize it?",
-      subject: "Chemistry",
-      upvotes: 12,
-      bounty_rdm: 20,
-      bounty_escrowed_at: days(13),
-      views: 89,
-      created_at: days(13),
-    }).select("id").single();
+    const { data: d2 } = await admin
+      .from("doubts")
+      .insert({
+        user_id: uid.me,
+        title: "Why does adding a small amount of strong acid to a buffer barely change the pH?",
+        body: "I know Henderson–Hasselbalch says pH = pKa + log([A⁻]/[HA]). I get confused at the exam: why doesn't a drop of strong acid swing the pH wildly if the conjugate base is supposed to neutralize it?",
+        subject: "Chemistry",
+        upvotes: 12,
+        bounty_rdm: 20,
+        bounty_escrowed_at: days(13),
+        views: 89,
+        created_at: days(13),
+      })
+      .select("id")
+      .single();
 
     if (d2?.id) {
       await admin.from("doubt_answers").insert({
@@ -190,17 +270,22 @@ export async function POST(request: Request) {
     }
 
     // ── DOUBT 3: Redox equation (AI-generated, teacher tagged) ──
-    const { data: d3 } = await admin.from("doubts").insert({
-      user_id: uid.bot,
-      title: "Best way to balance a redox equation in acidic medium — what are the half-reaction steps?",
-      body: "I keep getting wrong coefficients when balancing MnO₄⁻ + Fe²⁺ → Mn²⁺ + Fe³⁺ in acidic medium. What exactly are the half-reaction steps and in what order?",
-      subject: "Chemistry",
-      upvotes: 9,
-      bounty_rdm: 30,
-      bounty_escrowed_at: mins(6),
-      views: 64,
-      created_at: mins(5),
-    }).select("id").single();
+    const { data: d3 } = await admin
+      .from("doubts")
+      .insert({
+        user_id: uid.bot,
+        title:
+          "Best way to balance a redox equation in acidic medium — what are the half-reaction steps?",
+        body: "I keep getting wrong coefficients when balancing MnO₄⁻ + Fe²⁺ → Mn²⁺ + Fe³⁺ in acidic medium. What exactly are the half-reaction steps and in what order?",
+        subject: "Chemistry",
+        upvotes: 9,
+        bounty_rdm: 30,
+        bounty_escrowed_at: mins(6),
+        views: 64,
+        created_at: mins(5),
+      })
+      .select("id")
+      .single();
 
     if (d3?.id) {
       await admin.from("doubt_answers").insert({
@@ -230,7 +315,8 @@ export async function POST(request: Request) {
     // ── DOUBT 4: Boltzmann constant (generating...) ──────────
     await admin.from("doubts").insert({
       user_id: uid.bot,
-      title: "What is the significance of the Boltzmann constant and how does it connect the macroscopic and microscopic worlds?",
+      title:
+        "What is the significance of the Boltzmann constant and how does it connect the macroscopic and microscopic worlds?",
       body: "I know k_B = 1.38 × 10⁻²³ J/K but I don't understand what it physically means. How does it bridge thermodynamics and statistical mechanics?",
       subject: "Physics",
       upvotes: 0,
@@ -276,11 +362,15 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       ok: true,
-      message: "Showcase data seeded. You should see Dr. Suresh, Prof. Rao, Arjun K, Priya M and more in the feed!",
+      message:
+        "Showcase data seeded. You should see Dr. Suresh, Prof. Rao, Arjun K, Priya M and more in the feed!",
       seeded: true,
     });
   } catch (e) {
     console.error("seed-showcase error", e);
-    return NextResponse.json({ error: e instanceof Error ? e.message : "Server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : "Server error" },
+      { status: 500 }
+    );
   }
 }

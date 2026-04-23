@@ -31,10 +31,7 @@ export default function PersonaCoachingTab() {
       <div>
         <div className="grid grid-cols-2 gap-[10px] mb-[14px]">
           {COACHING_FEATURES.map((f) => (
-            <div
-              key={f.title}
-              className="bg-white border border-gray-200/60 rounded-xl p-4"
-            >
+            <div key={f.title} className="bg-white border border-gray-200/60 rounded-xl p-4">
               <div
                 className="w-9 h-9 rounded-[9px] flex items-center justify-center text-[16px] mb-[10px]"
                 style={{ background: f.bg }}

@@ -39,7 +39,11 @@ const STREAK_BONUS = [
   { day: "Day 7", reward: 80 },
 ] as const;
 
-export default function ProfileReferEarnHub({ userId, displayName, rdm }: ProfileReferEarnHubProps) {
+export default function ProfileReferEarnHub({
+  userId,
+  displayName,
+  rdm,
+}: ProfileReferEarnHubProps) {
   const [tab, setTab] = useState<ReferTab>("tiers");
   const { toast } = useToast();
 
@@ -64,7 +68,10 @@ export default function ProfileReferEarnHub({ userId, displayName, rdm }: Profil
     }
   };
 
-  const activeTierIndex = Math.min(Math.floor(LEADERBOARD_SAMPLE[3]!.invites / 3), REWARD_TIERS.length - 1);
+  const activeTierIndex = Math.min(
+    Math.floor(LEADERBOARD_SAMPLE[3]!.invites / 3),
+    REWARD_TIERS.length - 1
+  );
   const nextTier = REWARD_TIERS[Math.min(activeTierIndex + 1, REWARD_TIERS.length - 1)];
   const invitesToNext = Math.max(nextTier.referrals - LEADERBOARD_SAMPLE[3]!.invites, 0);
 
@@ -80,22 +87,31 @@ export default function ProfileReferEarnHub({ userId, displayName, rdm }: Profil
           <div className="inline-flex items-center rounded-full border border-emerald-400/30 bg-emerald-500/15 px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider text-emerald-300">
             Top Priority · Refer & Earn
           </div>
-          <h3 className="mt-3 text-2xl font-black text-foreground dark:text-white">Grow your rewards with friend invites</h3>
+          <h3 className="mt-3 text-2xl font-black text-foreground dark:text-white">
+            Grow your rewards with friend invites
+          </h3>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground dark:text-slate-300">
-            Invite classmates, unlock tier rewards, climb the weekly board, and keep your streak bonus alive.
+            Invite classmates, unlock tier rewards, climb the weekly board, and keep your streak
+            bonus alive.
           </p>
         </div>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
           <div className="rounded-xl border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-center">
-            <p className="text-[11px] font-bold uppercase tracking-wide text-amber-200">RDM Wallet</p>
+            <p className="text-[11px] font-bold uppercase tracking-wide text-amber-200">
+              RDM Wallet
+            </p>
             <p className="text-xl font-black text-amber-100">{rdm}</p>
           </div>
           <div className="rounded-xl border border-violet-400/30 bg-violet-500/10 px-3 py-2 text-center">
-            <p className="text-[11px] font-bold uppercase tracking-wide text-violet-200">Weekly Rank</p>
+            <p className="text-[11px] font-bold uppercase tracking-wide text-violet-200">
+              Weekly Rank
+            </p>
             <p className="text-xl font-black text-violet-100">#{LEADERBOARD_SAMPLE[3]!.rank}</p>
           </div>
           <div className="rounded-xl border border-cyan-400/30 bg-cyan-500/10 px-3 py-2 text-center col-span-2 sm:col-span-1">
-            <p className="text-[11px] font-bold uppercase tracking-wide text-cyan-200">Invite Streak</p>
+            <p className="text-[11px] font-bold uppercase tracking-wide text-cyan-200">
+              Invite Streak
+            </p>
             <p className="text-xl font-black text-cyan-100">6 days</p>
           </div>
         </div>
@@ -104,8 +120,12 @@ export default function ProfileReferEarnHub({ userId, displayName, rdm }: Profil
       <div className="mt-4 rounded-xl border border-border/70 bg-background/70 p-3 dark:border-white/10 dark:bg-slate-900/70">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Invite link</p>
-            <p className="truncate text-sm font-bold text-foreground dark:text-slate-100">{inviteLink}</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Invite link
+            </p>
+            <p className="truncate text-sm font-bold text-foreground dark:text-slate-100">
+              {inviteLink}
+            </p>
             <p className="text-xs text-muted-foreground dark:text-slate-400">
               {invitesToNext > 0
                 ? `${invitesToNext} more invite${invitesToNext === 1 ? "" : "s"} to unlock your next tier reward.`
@@ -166,13 +186,17 @@ export default function ProfileReferEarnHub({ userId, displayName, rdm }: Profil
                   unlocked
                     ? "border-emerald-400/40 bg-emerald-500/10"
                     : isNext
-                    ? "border-violet-400/40 bg-violet-500/10"
-                    : "border-border bg-muted/40 dark:border-white/10 dark:bg-slate-900/70"
+                      ? "border-violet-400/40 bg-violet-500/10"
+                      : "border-border bg-muted/40 dark:border-white/10 dark:bg-slate-900/70"
                 }`}
               >
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{tier.title}</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {tier.title}
+                </p>
                 <div className="mt-2 flex items-center justify-between">
-                  <p className="text-lg font-black text-foreground dark:text-white">{tier.referrals} invites</p>
+                  <p className="text-lg font-black text-foreground dark:text-white">
+                    {tier.referrals} invites
+                  </p>
                   <p className="text-sm font-extrabold text-amber-300">+{tier.reward} RDM</p>
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">
@@ -199,12 +223,18 @@ export default function ProfileReferEarnHub({ userId, displayName, rdm }: Profil
                   }`}
                 >
                   <div className="flex items-center gap-2">
-                    <span className="w-7 text-center text-sm font-black text-muted-foreground">#{row.rank}</span>
-                    <p className="font-bold text-foreground dark:text-white">{isYou ? displayName : row.name}</p>
+                    <span className="w-7 text-center text-sm font-black text-muted-foreground">
+                      #{row.rank}
+                    </span>
+                    <p className="font-bold text-foreground dark:text-white">
+                      {isYou ? displayName : row.name}
+                    </p>
                     {row.rank <= 3 ? <Crown className="h-3.5 w-3.5 text-amber-300" /> : null}
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-black text-foreground dark:text-slate-100">{row.invites} invites</p>
+                    <p className="text-sm font-black text-foreground dark:text-slate-100">
+                      {row.invites} invites
+                    </p>
                     <p className="text-xs text-muted-foreground">+{row.reward} RDM</p>
                   </div>
                 </div>
@@ -228,8 +258,12 @@ export default function ProfileReferEarnHub({ userId, displayName, rdm }: Profil
                       : "border-border/70 bg-background/80 dark:border-white/10 dark:bg-slate-950/70"
                   }`}
                 >
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{step.day}</p>
-                  <p className="mt-1 text-sm font-black text-foreground dark:text-white">+{step.reward}</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    {step.day}
+                  </p>
+                  <p className="mt-1 text-sm font-black text-foreground dark:text-white">
+                    +{step.reward}
+                  </p>
                   <p className="text-[10px] font-semibold text-muted-foreground">RDM</p>
                 </div>
               );
@@ -244,4 +278,3 @@ export default function ProfileReferEarnHub({ userId, displayName, rdm }: Profil
     </motion.section>
   );
 }
-

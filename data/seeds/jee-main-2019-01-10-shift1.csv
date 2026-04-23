@@ -1,0 +1,1554 @@
+"questionId","questionNumber","questionName","answer","formula","solution","qti","sti","fti","questionText","solutionText","formulaText","hints","moreInfo","queDT","queStatus","examId","yearId","subjectId","chapterId","topicId","examSetId","dificultyId","optionId","wrongAns","set_question_number","autherMarkedQueOk","addedBy","fk_levelId","subjectName","mapQwId","fk_studentId","examName","examSetName","options","adminId","firstName","lastName","eqCommentId","dataEntryFixed","ownerOK","adminOK","ownerComment","adminComment","topicName","subjectCode","chapterName","fk_questionStatusId","fk_queAnsTypeId","fk_essId","essName","queAnsType","fk_examSetId","fk_queAnsTypeId","fk_optionId","dificulty","levelDifficultyId","levelDifficulty","levelDifficultyName","fk_yearId","essInstruction","questionStatusId","questionStatusName","qcStatusClass","examTypeId","examType","mainSubjectId"
+"24016","90",,"A",,,"1","1","1","<p><strong>Consider the statement: &ldquo;&nbsp;<span class=""math-tex"">\(\text P(\text n):\text n^2-\text n+41\)</span> is prime.&rdquo; Then which one of the following is true? &nbsp;</strong></p>
+
+<p><strong>(A) Both P(3) and P(5) are true </strong></p>
+
+<p><strong>(B) P(3) is false but P(5) is true &nbsp;</strong></p>
+
+<p><strong>(C) Both P(3) and P(5) are false </strong></p>
+
+<p><strong>(D) P(5) is false but P(3) is true&nbsp;</strong></p>
+","<p><strong><span class=""math-tex"">\(\text P(\text n)=\text n^2+41\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\text p(3)=9-3+41=47\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\text P(5)=25-5+41=61\)</span></strong></p>
+
+<p><strong>Hence&nbsp; &nbsp;P(3) and &nbsp;P(5)&nbsp; are both prime&nbsp;</strong></p>
+",,,,"2020-04-25 08:48:21","1","1",NULL,"2",NULL,NULL,"375","1","3","2","30","2","7","5","mathematics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14374","3","3","1",,,NULL,"MATH",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","easy","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","2"
+"24013","89",,"B",,,"1","1","1","<p><strong>If the area enclosed between the curves&nbsp;<span class=""math-tex"">\(\text y = \text {kx}^2 \text {and x} = \text {ky}^2, (\text k &gt; 0),\)</span> is 1 square unit. Then k is:&nbsp;</strong></p>
+
+<p><strong>(A)&nbsp;<span class=""math-tex"">\(\frac{\sqrt{3}}{2}\)</span></strong></p>
+
+<p><strong>(B)&nbsp;<span class=""math-tex"">\(\frac{1}{\sqrt{3}}\)</span></strong></p>
+
+<p><strong>(C)&nbsp;<span class=""math-tex"">\(\sqrt{3}\)</span></strong></p>
+
+<p><strong>(D)&nbsp;<span class=""math-tex"">\(\frac{2}{\sqrt{3}}\)</span></strong></p>
+","<p><strong><span class=""math-tex"">\(\text {y=kx}^2,\text {x=ky}^2\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\Rightarrow \text {x=k(k}^2\text x^4)\Rightarrow\text x=0\ \text {or }\ \text x^3=\Big(\frac{1}{\text k}\Big)^3\Rightarrow\text x=\frac{1}{\text k},0\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\)</span>&nbsp;Point of intersection are&nbsp;<span class=""math-tex"">\(\Big(\frac{1}{\text k},\frac{1}{\text k}\Big)\)</span>&nbsp;and (0,0)</strong></p>
+
+<p><strong>Area&nbsp;<span class=""math-tex"">\(=\overset{1/\text k}{\underset{0}\int}\Big(\sqrt{\frac{\text x}{\text k}}-\text {kx}^1\Big)\text {dx}=1\Rightarrow\Big(\frac{1}{\sqrt{\text k}}\frac{\text x^{3/2}}{3/2}-\frac{\text {kx}^3}{3}\Big)^{1/\text k}\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(=1\Rightarrow \frac{2}{3\text k^2}=1\Rightarrow\text k^2=\frac{1}{3}\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\text k=\frac{1}{\sqrt{3}}\)</span></strong></p>
+
+<p><img alt="""" src="" https://www.testbee.in/preview/show_qimage/1587804172.png"" style=""height:189px; width:250px"" /></p>
+",,,,"2020-04-25 08:43:26","1","1",NULL,"2",NULL,NULL,"375","3","3","2","29","2","7","5","mathematics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14373","3","3","1",,,NULL,"MATH",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","high","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","2"
+"24008","88",,"D",,,"1","1","1","<p><strong>The sum of all two digit positive numbers which when divided by 7 yield 2 or 5 as remainder is:&nbsp;</strong></p>
+
+<p><strong>(A) 1256 </strong></p>
+
+<p><strong>(B) 1465 &nbsp;</strong></p>
+
+<p><strong>(C) 1365 </strong></p>
+
+<p><strong>(D) 1356&nbsp;</strong></p>
+","<p><strong>Two digit numbers of the form 7<span class=""math-tex"">\(\lambda\)</span>&nbsp;+2 are 16, 23 &hellip;&hellip;&hellip;&hellip;&hellip;.,93 &nbsp;</strong></p>
+
+<p><strong>Two digit numbers of the form 7<span class=""math-tex"">\(\lambda\)</span>&nbsp;+5 &nbsp;are 12, 19,&hellip;&hellip;&hellip;&hellip;&hellip;.,96 &nbsp;</strong></p>
+
+<p><strong>Sum of all the above numbers equals to&nbsp;<span class=""math-tex"">\(\frac{12}{2}(16+93)+\frac{13}{2}(12+96)=654+702=1356\)</span></strong></p>
+",,,,"2020-04-25 08:22:56","1","1",NULL,"2",NULL,NULL,"375","2","3","2","28","2","7","5","mathematics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14372","3","3","1",,,NULL,"MATH",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","medium","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","2"
+"24007","87",,"B",,,"1","1","1","<p><strong>If the line 3x + 3y &ndash; 24 = 0 intersects the x-axis at the point A and the y-axis at the point B, then the incentre of the triangle OAB, where O is the origin, is: &nbsp;</strong></p>
+
+<p><strong>(A) (3, 4) </strong></p>
+
+<p><strong>(B) (2, 2) &nbsp;</strong></p>
+
+<p><strong>(C) (4, 3) </strong></p>
+
+<p><strong>(d) (4, 4)&nbsp;</strong></p>
+","<p><span class=""math-tex"">\(\text I=\Big(\frac{\text {ax}_1+\text {bx}_2+\text {cx}_3}{\text {a+b+c}},\frac{\text {ay}_1+\text {by}_2+\text {cy }_2}{\text {a+b+c}}\Big)\)</span></p>
+
+<p>&nbsp;&nbsp;<span class=""math-tex"">\(=\Big(\frac{8(60)+6(0)+10(0)}{24},\frac{10(0)+6(8)+8(0)}{24}\Big)=(2,2)\)</span>&nbsp;</p>
+
+<p><img alt="""" src=""https://www.testbee.in/preview/show_qimage/1587802728.png"" style=""height:159px; width:200px"" /></p>
+",,,,"2020-04-25 08:19:11","1","1",NULL,"2",NULL,NULL,"375","1","3","2","27","2","7","5","mathematics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14371","3","3","1",,,NULL,"MATH",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","easy","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","2"
+"24006","86",,"A",,,"1","1","1","<p><strong>The equation of a tangent to the hyperbola <span class=""math-tex"">\(4x^2 – 5y^2 = 20\)</span> parallel to the line x &ndash; y = 2 is: &nbsp;</strong></p>
+
+<p><strong>(A) x &ndash; y + 1 = 0 </strong></p>
+
+<p><strong>(B) x &ndash; y + 7 = 0 &nbsp;</strong></p>
+
+<p><strong>(C) x &ndash; y + 9 = 0 </strong></p>
+
+<p><strong>(D) x &ndash; y &ndash; 3 = 0&nbsp;</strong></p>
+","<p><strong>Hyperbola is&nbsp;<span class=""math-tex"">\(\frac{\text x^2}{5}\frac{\text y^2}{4}=1\)</span>&nbsp;</strong></p>
+
+<p><strong>Equation of its tangent in slope from is&nbsp;<span class=""math-tex"">\(\text y=\text {mx}\pm\sqrt{5\text m^2-4}\)</span></strong></p>
+
+<p><strong>Hence tangent with slope 1 is&nbsp;<span class=""math-tex"">\(\text y=\text x\pm1\)</span></strong></p>
+",,,,"2020-04-25 08:09:08","1","1",NULL,"2",NULL,NULL,"375","3","3","2","26","2","7","5","mathematics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14370","3","3","1",,,NULL,"MATH",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","high","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","2"
+"23999","85",,"B",,,"1","1","1","<p><strong>Consider a triangular plot ABC with sides AB = 7 m, BC = 5 m and CA = 6 m. A vertical lamp-post at the mid point D of AC subtends an angle 30&deg; at B. The height (in m) of the lamp-post is:&nbsp;</strong></p>
+
+<p><strong>(A)&nbsp;<span class=""math-tex"">\(\frac{3}{2}\sqrt{21}\)</span></strong></p>
+
+<p><strong>(B)&nbsp;<span class=""math-tex"">\(\frac{2}{3}\sqrt{21}\)</span></strong></p>
+
+<p><strong>(C)&nbsp;<span class=""math-tex"">\({2}\sqrt{21}\)</span></strong></p>
+
+<p><strong>(D)&nbsp;<span class=""math-tex"">\({7}\sqrt{21}\)</span></strong></p>
+","<p><strong>Length of median&nbsp;<span class=""math-tex"">\(\text {BM}=\frac{1}{2}\sqrt{2(\text {Bc}^2+\text {BA}^2)-(\text {AC})^2}=\frac{1}{2}\sqrt{2(25+49)-36}\)</span></strong></p>
+
+<p><strong><img alt="""" src=""https://www.testbee.in/preview/show_qimage/1587801840.png"" style=""height:191px; width:500px"" /></strong></p>
+
+<p><strong><span class=""math-tex"">\(=\frac{1}{2}\sqrt{112}=\sqrt{\frac{112}{4}}=\sqrt{28}=2\sqrt{7}\)</span></strong></p>
+
+<p><strong>Let h be height of tower, given&nbsp;<span class=""math-tex"">\(\tan 30^{\circ}=\frac{\text h}{2\sqrt{\text h}}\Rightarrow\text h=2\sqrt{\frac{7}{3}}=\sqrt{\frac{28}{3}}\)</span></strong></p>
+",,,,"2020-04-25 07:35:10","1","1",NULL,"2",NULL,NULL,"375","2","3","2","25","2","7","5","mathematics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14369","3","3","1",,,NULL,"MATH",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","medium","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","2"
+"23997","84",,"A",,,"1","1","1","<p><strong>Let&nbsp;<span class=""math-tex"">\(\text n\geq2\)</span>&nbsp; be a natural number and&nbsp;<span class=""math-tex"">\(0&lt;\theta&lt;\pi/2.\)</span>&nbsp;Then&nbsp;<span class=""math-tex"">\(\int \frac{(\sin^\text n\theta-\sin\theta)^\frac{1}{\text n}\cos \theta}{\sin^{\text n+1}\theta}d\theta\)</span>&nbsp;&nbsp;is equal to:&nbsp;<br />
+(where C is a constant of integration)&nbsp;</strong></p>
+
+<p><strong>(A)&nbsp;<span class=""math-tex"">\(\frac{\text n}{\text n^2-1}\Big(1-\frac{1}{\sin^{\text n-1}\theta}\Big)^{\frac{\text n+1}{\text n}}+\text C\)</span></strong></p>
+
+<p><strong>(B)&nbsp;<span class=""math-tex"">\(\frac{\text n}{\text n^2+1}\Big(1-\frac{1}{\sin^{\text n-1}\theta}\Big)^{\frac{\text n+1}{\text n}}+\text C\)</span></strong></p>
+
+<p><strong>(C)&nbsp;<span class=""math-tex"">\(\frac{\text n}{\text n^2-1}\Big(1+\frac{1}{\sin^{\text n-1}\theta}\Big)^{\frac{\text n+1}{\text n}}+\text C\)</span></strong></p>
+
+<p><strong>(D)&nbsp;<span class=""math-tex"">\(\frac{\text n}{\text n^2-1}\Big(1-\frac{1}{\sin^{\text n+1}\theta}\Big)^{\frac{\text n+1}{\text n}}+\text C\)</span></strong></p>
+","<p><strong><span class=""math-tex"">\(\int \frac{(\sin^\text n\theta-\sin\theta)^\frac{1}{\text n}\cos \theta}{\sin^{\text n+1}\theta}\text d\theta\)</span></strong></p>
+
+<p><span class=""math-tex"">\(=\int \frac{(\text t^\text n-\text t)^{\text n}\text {dt}}{\text t^{\text n+1}}\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;( Put <span class=""math-tex"">\(\sin\theta=\text t\)</span>)</p>
+
+<p><span class=""math-tex"">\(=\int \frac{\text t\Big(1-\frac{1}{\text t^{\text n-1}}\Big)^{\frac{1}{\text n}}}{\text t^{\text n+1}}\text {dt}=\int \frac{\Big(1-\frac{1}{\text t^{\text n-1}}\Big)^{\frac{1}{\text n}}}{\text t^\text n}\text {dt}\)</span></p>
+
+<p>Put&nbsp;&nbsp;<span class=""math-tex"">\(1-\frac{1}{\text t^{\text n-1}}=\text z\Rightarrow\frac{(\text n-1)}{\text t^\text n}\text {dt=dz}\)</span></p>
+
+<p><span class=""math-tex"">\(\Rightarrow\text I=\frac{1}{\text n-1}\int \text z^{\frac{1}{\text n}}\text {dz}=\frac{\text z^{\frac{1}{\text n}+1}}{\Big(\frac{1}{\text n}+1\Big)(\text n-1)}+\text c=\frac{\text n(1-\text t^{1-\text n})^{\text n+1}}{\text n^2-1}+\text c\)</span></p>
+
+<p><span class=""math-tex"">\(=\frac{\text n}{\text n^2-1}\Big(1-\frac{1}{\sin^{\text n-1}\theta}\Big)^{\frac{\text h+1}{\text n}}+\text c\)</span></p>
+
+<p>&nbsp;</p>
+",,,,"2020-04-25 07:26:15","1","1",NULL,"2",NULL,NULL,"375","1","3","2","24","2","7","5","mathematics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14368","3","3","1",,,NULL,"MATH",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","easy","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","2"
+"23983","83",,"A",,,"1","1","1","<p><strong>Let A be a point on the line&nbsp;<span class=""math-tex"">\(\overrightarrow{\text r}=(1-3\mu)\hat{\text i}+(\mu-1)\hat{\text j}+(2+5\mu)\hat{\text k}\)</span>&nbsp;and B(3,2,6)&nbsp;&nbsp;be a point in the space. Then the value of <span class=""math-tex"">\(\mu\)</span>&nbsp;for which the vector&nbsp;<span class=""math-tex"">\(\overrightarrow{\text {AB}}\)</span>&nbsp;is parallel to the plane x &ndash; 4y + 3z = 1 is:&nbsp;&nbsp;</strong></p>
+
+<p><strong>(A)&nbsp;<span class=""math-tex"">\(\frac{1}{4}\)</span></strong></p>
+
+<p><strong>(B)&nbsp;<span class=""math-tex"">\(\frac{1}{8}\)</span></strong></p>
+
+<p><strong>(C)&nbsp;<span class=""math-tex"">\(\frac{1}{2}\)</span></strong></p>
+
+<p><strong>(D)&nbsp;<span class=""math-tex"">\(-\frac{1}{4}\)</span></strong></p>
+","<p><strong>Let A is&nbsp;<span class=""math-tex"">\((1-3\mu,\mu-1,2+5\mu)\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\overrightarrow{\text {AB}}=(3\mu+2)\text i+(3-\mu)\hat{\text j}+(4-5\mu)\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\hat{\text k}\)</span>&nbsp;which is parallel to plane&nbsp;x - 4y + 3z = 1</strong></p>
+
+<p><strong><span class=""math-tex"">\(\Rightarrow 1(3\mu+2)-4(3-\mu)+3(4-5\mu)=0\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(=-8\mu+2=0\Rightarrow \mu =\frac{1}{4}\)</span></strong></p>
+",,,,"2020-04-24 17:31:59","1","1",NULL,"2",NULL,NULL,"375","3","3","2","23","2","7","5","mathematics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14367","3","3","1",,,NULL,"MATH",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","high","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","2"
+"23981","82",,"B",,,"1","1","1","<p><strong>Let&nbsp;<span class=""math-tex"">\(\overrightarrow{a}=2\hat{\text i}+\lambda_1\hat{\text j} +3\hat{\text k},\overrightarrow{\text b}=4\hat{\text i}+(3-\lambda_2)\hat{\text j}+6\hat{\text k}\)</span>&nbsp;and&nbsp;<span class=""math-tex"">\(\overrightarrow{\text c}=3\hat{\text i}+6\hat{\text j}+(\lambda_3-1)\hat{\text k}\)</span>&nbsp;be three vectors&nbsp;such that&nbsp;<span class=""math-tex"">\(\overrightarrow{\text b}=2\overrightarrow{\text a}\)</span>&nbsp; and&nbsp;<span class=""math-tex"">\(\overrightarrow{\text a}\)</span>&nbsp;&nbsp;is perpendicular to&nbsp;<span class=""math-tex"">\(\overrightarrow{\text c}\)</span>&nbsp;Then a possible value of (<span class=""math-tex"">\(\lambda_1,\lambda_2,\lambda_3\)</span>) is:</strong></p>
+
+<p><strong>(A)&nbsp;<span class=""math-tex"">\((1,3,1)\)</span></strong></p>
+
+<p><strong>(B)&nbsp;<span class=""math-tex"">\(\Big(-\frac{1}{2},4,0\Big)\)</span></strong></p>
+
+<p><strong>(C)&nbsp;<span class=""math-tex"">\(\Big(\frac{1}{2},4,-2\Big)\)</span></strong></p>
+
+<p><strong>(D)&nbsp;<span class=""math-tex"">\((1,5,1)\)</span></strong></p>
+
+<p>&nbsp;</p>
+","<p><strong>&nbsp;Because&nbsp;<span class=""math-tex"">\(\text b=2\overrightarrow{a},\text {so}\ 3-\lambda_2=2\lambda_1\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;............(i)</strong></p>
+
+<p><strong>Because a is perpendicular to c so&nbsp;&nbsp;<span class=""math-tex"">\(6+6\lambda_1+3(\lambda_3-1)=0\)</span>&nbsp; &nbsp; &nbsp; &nbsp;..........(ii)</strong></p>
+
+<p><strong><span class=""math-tex"">\(\Rightarrow (\lambda_1,\lambda_2,\lambda_3)=(\lambda_1,3-2\lambda_1,-1-2\lambda_1 )\)</span>&nbsp;where&nbsp;<span class=""math-tex"">\(\lambda_1\in\text R\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\Rightarrow\Big(-\frac{1}{2},4,0\Big)\)</span>&nbsp;&nbsp;satisfied above triplet. &nbsp;&nbsp;</strong></p>
+",,,,"2020-04-24 15:41:38","1","1",NULL,"2",NULL,NULL,"375","2","3","2","22","2","7","5","mathematics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14366","3","3","1",,,NULL,"MATH",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","medium","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","2"
+"23980","81",,"C",,,"1","1","1","<p><strong>Let&nbsp;<span class=""math-tex"">\(\text f:\text R\rightarrow \text R\)</span>&nbsp;&nbsp;be a function such that&nbsp;<span class=""math-tex"">\(\text f(\text x)=\text x^3+\text x^2\text f'(1)+\text{xf}''(2)+\text f'''(3),\text x\in \text R.\)</span>&nbsp;&nbsp;Then f(2) equals: &nbsp;</strong></p>
+
+<p><strong>(A) -4 </strong></p>
+
+<p><strong>(B) 30 &nbsp;</strong></p>
+
+<p><strong>(C) -2 </strong></p>
+
+<p><strong>(D) 8 &nbsp;</strong></p>
+","<p><strong><span class=""math-tex"">\(\text f(\text x)=\text x^3+\text {ax}^2+\text {bx}+\text c\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\text f'(\text x)=3\text x^2+2\text {ax}+\text b\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\text f''(\text x)=6\text x+2\text a\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\text f'''(\text x)=6\text a=\text f'(1)=3+2\text a+\text b\ \ \Rightarrow \text a+\text b=-3\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\text b=\text f''=12+2\text a \ \ \ \ \ \ \ \ \)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<span class=""math-tex"">\(\Rightarrow2\text a-\text b=-12\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\text c=\text f'''(3)\ \ \ \ \ \ \Rightarrow \text c=6\ \ \text {and }\text a=-5,\text b=2\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\Rightarrow \text f(\text x)=\text x^2-5\text x^2+2\text x+6\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\Rightarrow \text f(2)=8-20+4+6=-2\)</span></strong></p>
+
+<p>&nbsp;</p>
+",,,,"2020-04-24 15:08:30","1","1",NULL,"2",NULL,NULL,"375","1","3","2","21","2","7","5","mathematics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14365","3","3","1",,,NULL,"MATH",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","easy","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","2"
+"23979","80",,"C",,,"1","1","1","<p><strong>f a circle C passing through the point (4, 0) touches the circle&nbsp;<span class=""math-tex"">\(\text x^2+\text y^2+4\text x-6\text y=12\)</span>&nbsp;externally at the point (1, -1), then the radius of C is:&nbsp;</strong></p>
+
+<p><strong>(A)&nbsp;<span class=""math-tex"">\(2\sqrt{5}\)</span></strong></p>
+
+<p><strong>(B)&nbsp;<span class=""math-tex"">\(\)</span>4</strong></p>
+
+<p><strong>(C)&nbsp;<span class=""math-tex"">\(\)</span>5</strong></p>
+
+<p><strong>(D)&nbsp;<span class=""math-tex"">\(\sqrt{57}\)</span></strong></p>
+","<p><strong>Tangent at (1,-1) is&nbsp;<span class=""math-tex"">\(\text x(1)+\text y(-1)+2(\text x+1)-3(\text y-1)-12=0\)</span>&nbsp;&nbsp;</strong></p>
+
+<p><strong><span class=""math-tex"">\(=3\text x-4\text y=7\)</span></strong></p>
+
+<p><strong>Required circle is&nbsp;<span class=""math-tex"">\((\text x-1)^2+(\text y+1)^2+\lambda(3\text x-4\text y-7)=0\)</span></strong></p>
+
+<p><strong>It pass through (4, 0) &nbsp;&nbsp;</strong></p>
+
+<p><strong><span class=""math-tex"">\(\Rightarrow 9+1+ \lambda(12-7)=0\Rightarrow\lambda=-2\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\Rightarrow\)</span>&nbsp;&nbsp;required circle is&nbsp;<span class=""math-tex"">\(\text x^2+\text y^2-8\text x+10\text y+16=0\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\Rightarrow\)</span>&nbsp;&nbsp;Radius&nbsp;<span class=""math-tex"">\(=\sqrt{16+25-16}=5\)</span></strong></p>
+",,,,"2020-04-24 14:46:06","1","1",NULL,"2",NULL,NULL,"375","3","3","2","20","2","7","5","mathematics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14364","3","3","1",,,NULL,"MATH",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","high","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","2"
+"23940","79",,"B",,,"1","1","1","<p><strong>Let&nbsp;<span class=""math-tex"">\(f(\text x) =
+\begin{cases}
+\text {max}\{|\text x|,\text x^2\},  &amp; |\text x|\leq2 \\
+8-2|\text x| ,&amp; 2&lt;|\text x|\leq4{}
+\end{cases}\)</span>&nbsp;Let S be the set of points in the interval (-4, 4) at&nbsp;which f is not differentiable. Then S: &nbsp;</strong></p>
+
+<p><strong>(A) is an empty set </strong></p>
+
+<p><strong>(B) equals {-2, -1, 0, 1, 2} &nbsp;</strong></p>
+
+<p><strong>(C) equals {-2, -1, 1, 2} </strong></p>
+
+<p><strong>(D) equals {-2, 2} &nbsp;</strong></p>
+","<p><strong>From the graph we can easily conclude that <span class=""math-tex"">\(\text{ f(x)}\)</span>&nbsp;is non &ndash; derivable at&nbsp;&nbsp;<span class=""math-tex"">\(\text {x=-2,-1,0,1,2}\)</span></strong></p>
+",,,,"2020-04-24 09:36:11","1","1",NULL,"2",NULL,NULL,"375","3","3","2","19","2","7","5","mathematics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14363","3","3","1",,,NULL,"MATH",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","high","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","2"
+"23936","78",,"C",,,"1","1","1","<p><strong>A point P moves on the line&nbsp;<span class=""math-tex"">\(2\text x-3\text y+4=0.\)</span>&nbsp;If&nbsp;<span class=""math-tex"">\(\text Q(1,4)\ \text {and }\text R(3,-2)\)</span>&nbsp;and&nbsp;are fixed points, then the locus of the centroid of <span class=""math-tex"">\(\Delta\text{PQR}\)</span> is a line:&nbsp;</strong></p>
+
+<p><strong>&nbsp;(A)&nbsp;<span class=""math-tex"">\(\)</span>with slope&nbsp;<span class=""math-tex"">\(\frac{3}{2}\)</span></strong></p>
+
+<p><strong>(B)&nbsp;&nbsp;parallel to x-axis&nbsp;</strong></p>
+
+<p><strong>(C)&nbsp;&nbsp;with slope&nbsp;<span class=""math-tex"">\(\frac{2}{3}\)</span></strong></p>
+
+<p><strong>(D) parallel to y-axis &nbsp;</strong></p>
+
+<p>&nbsp;</p>
+","<p><strong>Let point&nbsp;P is&nbsp;<span class=""math-tex"">\((\alpha,\beta)\)</span>&nbsp;and centroid of&nbsp;&nbsp;<span class=""math-tex"">\(\Delta\text {PQR}\)</span>&nbsp;is (h, k), then&nbsp;<span class=""math-tex"">\(3\text h=\alpha+1+3\)</span>&nbsp;and&nbsp;<span class=""math-tex"">\(3\text k=\beta+4-2\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\Rightarrow \alpha=3\text h-4\ \text {and } \beta =3\text k-2\)</span></strong></p>
+
+<p><strong>Because&nbsp;<span class=""math-tex"">\((\alpha,\beta)\)</span>&nbsp;lies&nbsp;on&nbsp;<span class=""math-tex"">\(2\text x-3\text y+4=0\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\Rightarrow 2(3\text h-4)-3(\text k-2)+4=0\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\Rightarrow \)</span>&nbsp;locus is&nbsp;&nbsp;<span class=""math-tex"">\(6\text x-9\text y+2=0\)</span>&nbsp;&nbsp;whose slope is&nbsp;<span class=""math-tex"">\(\frac{2}{3}\)</span></strong></p>
+
+<p>&nbsp;</p>
+",,,,"2020-04-24 09:10:41","1","1",NULL,"2",NULL,NULL,"375","2","3","2","18","2","7","5","mathematics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14362","3","3","1",,,NULL,"MATH",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","medium","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","2"
+"23931","77",,"D",,,"1","1","1","<p><strong>Let&nbsp;<span class=""math-tex"">\(\text I=\overset{\text b}{\underset{\text a}\int}(\text x^4-2\text x^2)\text {dx}.\)</span>&nbsp;&nbsp;If I is minimum then the ordered pair (a, b) is:&nbsp;</strong></p>
+
+<p><strong>(A)&nbsp;<span class=""math-tex"">\((0,\sqrt{2})\)</span></strong></p>
+
+<p><strong>(B)&nbsp;<span class=""math-tex"">\((-\sqrt{2},0)\)</span></strong></p>
+
+<p><strong>(C)&nbsp;<span class=""math-tex"">\((\sqrt{2},-\sqrt{2})\)</span></strong></p>
+
+<p><strong>(D)&nbsp;<span class=""math-tex"">\((-\sqrt{2},\sqrt{2})\)</span></strong></p>
+","<p><strong><span class=""math-tex"">\(\overset{\text b}{\underset{\text a}\int}(\text x^4-2\text x^2)\text {dx}\)</span></strong></p>
+
+<p><strong>From figure min area is&nbsp;&nbsp;<span class=""math-tex"">\((-\sqrt{2},\sqrt{2})\)</span>&nbsp;</strong></p>
+
+<p><strong><img alt="""" src=""https://www.testbee.in/preview/show_qimage/1587717777.png"" style=""height:147px; width:200px"" /></strong></p>
+",,,,"2020-04-24 08:43:35","1","1",NULL,"2",NULL,NULL,"375","3","3","2","17","2","7","5","mathematics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14355","3","3","1",,"Incorrect formula in the solution. First line",NULL,"MATH",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","high","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","2"
+"23930","76",,"wrongAns",,,"1","1","1","<p><strong>Let&nbsp;<span class=""math-tex"">\(\text z_1\)</span>&nbsp;and&nbsp;<span class=""math-tex"">\(\text z_2\)</span>&nbsp;be any two non-zero complex numbers such that&nbsp;<span class=""math-tex"">\(3|\text z_1|=4|\text z_2|.\)</span>&nbsp;If&nbsp;<span class=""math-tex"">\(\text z=\frac{3\text z_1}{2\text z_2}+\frac{2\text z_2}{3\text z_1}\)</span>&nbsp;then:</strong></p>
+
+<p>&nbsp;</p>
+
+<p><strong>(A)&nbsp;<span class=""math-tex"">\(\text {Re}(\text z)=0\)</span></strong></p>
+
+<p><strong>(B)&nbsp;<span class=""math-tex"">\(|\text z|=\sqrt{\frac{5}{2}}\)</span></strong></p>
+
+<p><strong>(C)&nbsp;<span class=""math-tex"">\(|\text z|=\frac{1}{2}\sqrt{\frac{17}{2}}\)</span></strong></p>
+
+<p><strong>(D)&nbsp;<span class=""math-tex"">\(\text {Im}(\text z)=0\)</span></strong></p>
+","<p><strong><span class=""math-tex"">\(\Big|\frac{3\text z_1}{2\text z_2}\Big|=2\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\)</span>Let&nbsp;<span class=""math-tex"">\(\frac{3\text z_1}{2\text z_2}=2\cos\theta+2(\sin\theta)\text i\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\Rightarrow \frac{2\text z_2}{3\text z_1}=\frac{1}{2}\cos\theta-\frac{1}{2}(\sin\theta)\)</span></strong></p>
+
+<p><strong>Given,&nbsp;<span class=""math-tex"">\(\text z=\frac{2\text z_1}{3\text z _2}+\frac{3\text z_2}{2\text z_1}=\frac{5}{2}\cos\theta+\frac{3}{2}(\sin\theta)\text i\)</span></strong></p>
+
+<p><strong>Which is neither purely imaginary and |z| depends on&nbsp;<span class=""math-tex"">\(\theta\)</span></strong></p>
+",,,,"2020-04-24 08:34:06","1","1",NULL,"2",NULL,NULL,"375","2","3","2","16","2","7","5","mathematics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14361","3","3","1",,,NULL,"MATH",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","medium","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","2"
+"23929","75",,"A",,,"1","1","1","<p><strong>Let&nbsp;<span class=""math-tex"">\(\text d \in \text R\)</span>, and&nbsp;<span class=""math-tex"">\(A=\begin{bmatrix} -2 &amp; 4+\text d &amp; (\sin\theta)-2 \\ 1 &amp; (\sin\theta)+2 &amp; \text d \\ 5 &amp; (2\sin\theta)-\text d &amp; (-\sin\theta)+2+2\text d \\ \end{bmatrix},\theta\in[0,2\pi].\)</span>&nbsp; If the minimum&nbsp;value of det (A) is 8, then a value of d is:&nbsp;</strong></p>
+
+<p><strong>(A) -5</strong></p>
+
+<p><strong>(B) -7</strong></p>
+
+<p><strong>(C)&nbsp;<span class=""math-tex"">\(2(\sqrt{2}+1)\)</span></strong></p>
+
+<p><strong>(D)&nbsp;<span class=""math-tex"">\(2(\sqrt{2}+2)\)</span></strong></p>
+","<p><strong><span class=""math-tex"">\(|\text A|=\begin{bmatrix} -2 &amp; 4+\text d &amp; (\sin\theta)-2 \\ 1 &amp; (\sin\theta)+2 &amp; \text d \\ 5 &amp; (2\sin\theta)-\text d &amp; (-\sin\theta)+2+2\text d \\ \end{bmatrix}\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(=\begin{bmatrix} -2 &amp; 4+\text d &amp; (\sin\theta-2) \\ 1 &amp; (\sin\theta) &amp; \text d \\ 1 &amp; 0&amp; 0 \\ \end{bmatrix}\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp;<span class=""math-tex"">\((\text {New}\ \text R_3=\text R_3-2\text R_2+\text R_1)\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(=(4+\text d)\text d-\sin^2\theta +4=(\text d+2)^2-\sin^2\theta\)</span></strong></p>
+
+<p><strong>Because minimum value of&nbsp;&nbsp;<span class=""math-tex"">\(|\text A|=8\Rightarrow (\text d+2)^2=9\Rightarrow\text d=1\ \text {or } -5 \)</span></strong></p>
+",,,,"2020-04-24 08:19:32","1","1",NULL,"2",NULL,NULL,"375","1","3","2","15","2","7","5","mathematics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14360","3","3","1",,,NULL,"MATH",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","easy","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","2"
+"23928","74",,"B",,,"1","1","1","<p><strong>For each <span class=""math-tex"">\(\text t\in \text R\)</span>, let [t] be the greatest integer less than or equal to t. Then,&nbsp;</strong></p>
+
+<p><strong><span class=""math-tex"">\(\lim_\limits{\ \ \text x\rightarrow1+}\frac{(1-|\text x|+\sin|1-\text x|)\sin\Big(\frac
+{\pi}{2}[1-\text x]\Big)}{|1-\text x||1-\text x|}\)</span></strong></p>
+
+<p><strong>(A) equals 1 </strong></p>
+
+<p><strong>(B) equals 0 &nbsp;</strong></p>
+
+<p><strong>(C) equals -1 </strong></p>
+
+<p><strong>(D) does not exist&nbsp;</strong></p>
+","<p><strong><span class=""math-tex"">\(\lim_\limits{\ \ \text x\rightarrow1+}\frac{(1-|\text x|+\sin|1-\text x|)\sin\Big([1-\text x]\frac{\pi}{2}\Big)}{|1-\text x|[1-\text x]}\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\lim_\limits{\ \ \text x\rightarrow1^-}\frac{(1-\text x+\sin(\text x-1))\sin\Big(-\frac{\pi}{2}\Big)}{|\text x-1|(-1)}\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\lim_\limits{\ \ \text x\rightarrow1^-}\frac{-(\text x-1)+\sin(\text x-1)}{(\text x-1)}=-1+1=0\)</span></strong></p>
+
+<p>&nbsp;</p>
+",,,,"2020-04-24 07:57:51","1","1",NULL,"2",NULL,NULL,"375","3","3","2","14","2","7","5","mathematics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14359","3","3","1",,,NULL,"MATH",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","high","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","2"
+"23927","73",,"B",,,"1","1","1","<p><strong>If the system of equations</strong></p>
+
+<p><strong>&nbsp;<span class=""math-tex"">\(\text{x+y+z=5}\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\text{x+2y+3z=9}\)</span>,</strong></p>
+
+<p><strong><span class=""math-tex"">\(\text{x+3y}+\alpha \text z=\beta\)</span></strong></p>
+
+<p><strong>&nbsp;has infinitely many solutions, then&nbsp;<span class=""math-tex"">\(\beta-\alpha\)</span> equals: &nbsp;</strong></p>
+
+<p><strong>(A) 21 </strong></p>
+
+<p><strong>(B) 8 &nbsp;</strong></p>
+
+<p><strong>(C) 18 </strong></p>
+
+<p><strong>(D) 5&nbsp;</strong></p>
+","<p><strong><span class=""math-tex"">\(\text{x+y-z=5}\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\text{x+2y+3z=9}\)</span>,</strong></p>
+
+<p><strong><span class=""math-tex"">\(\text{x+3y}+\alpha \text z=\beta\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\text D=\begin{vmatrix} 1 &amp; 1&amp;1\\ 1 &amp; 2&amp; 3 \\ 1 &amp; 3 &amp; 0 \\ \end{vmatrix}=0\Rightarrow (2\alpha-9)+(3-\alpha)+(3-2)=0\Rightarrow\alpha=5\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\text{Now , D}_3=\begin{vmatrix} 1 &amp; 1&amp;5\\ 1 &amp; 2&amp; 9 \\ 1 &amp; 3 &amp; \alpha \\ \end{vmatrix}=0\Rightarrow 2\beta-27+9\beta-5(3-2)=0\Rightarrow\beta=13\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\Rightarrow \)</span>&nbsp;&nbsp;at <span class=""math-tex"">\(\alpha=5,\text b=13\)</span> above 3 planes from common line&nbsp;</strong></p>
+
+<p>&nbsp;</p>
+",,,,"2020-04-24 06:37:52","1","1",NULL,"2",NULL,NULL,"375","2","3","2","13","2","7","5","mathematics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14358","3","3","1",,,NULL,"MATH",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","medium","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","2"
+"23926","72",,"B",,,"1","1","1","<p><strong>If the parabolas <span class=""math-tex"">\(\text y^2 = 4\text{b(x – c) and y}^2 = 8\text {ax}\)</span> have a common normal, then which one of the following is a valid choice for the ordered triad (a, b, c)?&nbsp;</strong></p>
+
+<p><strong>(A)&nbsp;<span class=""math-tex"">\(\Big(\frac{1}{2},2,3\Big)\)</span></strong></p>
+
+<p><strong>(B)&nbsp;<span class=""math-tex"">\((1,1,3)\)</span></strong></p>
+
+<p><strong>(C)&nbsp;<span class=""math-tex"">\(\Big(\frac{1}{2},2,0\Big)\)</span></strong></p>
+
+<p><strong>(D)&nbsp;<span class=""math-tex"">\((1,1,0)\)</span></strong></p>
+","<p><strong>Normal to there 2 curves are&nbsp;</strong></p>
+
+<p><strong><span class=""math-tex"">\(\text y= \text{ m(x-c) - 2bm - bm}^3\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\text {y= mx - 4am - 2am}^3\)</span></strong></p>
+
+<p><strong>If they how a common normal&nbsp;</strong></p>
+
+<p><strong><span class=""math-tex"">\(\text {(c + 2b) – 4a = (2a – b) m}^2\text { (m = 0 corresponds to axis)  }\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\Rightarrow\text m^2=\frac{\text c}{2\text {a-b}}-2&gt;0\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\frac{\text c}{2\text {a-b}}&gt;2\)</span></strong></p>
+
+<p><strong>According to the question answer is (1, 2, 3, 4) but my be in question they want common normal other than x &ndash; axis, hence answer is (B)&nbsp;<br />
+&nbsp;</strong></p>
+
+<p>&nbsp;</p>
+",,,,"2020-04-24 06:37:07","1","1",NULL,"2",NULL,NULL,"375","1","3","2","12","2","7","5","mathematics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14357","3","3","1",,,NULL,"MATH",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","easy","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","2"
+"23925","71",,"A",,,"1","1","1","<p><strong>If the third term in the binomial expansion of&nbsp; <span class=""math-tex"">\((1+\text x^{\log_2\text x})^5\)</span>&nbsp;equals 2560, then a possible&nbsp;value of x is:&nbsp;</strong></p>
+
+<p><strong>(A)&nbsp;<span class=""math-tex"">\(\frac{1}{4}\)</span></strong></p>
+
+<p><strong>(B)&nbsp;<span class=""math-tex"">\(4\sqrt{2}\)</span></strong></p>
+
+<p><strong>(C)&nbsp;<span class=""math-tex"">\(\frac{1}{8}\)</span></strong></p>
+
+<p><strong>(D)&nbsp;<span class=""math-tex"">\(2\sqrt{2}\)</span></strong></p>
+","<p><strong>In the expansion of&nbsp;&nbsp;<span class=""math-tex"">\((1+\text x^{\log_2\text x})^5\)</span></strong></p>
+
+<p><strong>&nbsp;third term say&nbsp;&nbsp;&nbsp;<span class=""math-tex"">\(\text T_3=\ ^5\text C_2(\text x^{\log_2\text x})^2=2560\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\Rightarrow (\text x^{\text{lo}_2\text x})^2=256\)</span></strong></p>
+
+<p><strong>taking lograthium to the base 2 on both sides &nbsp;&nbsp;</strong></p>
+
+<p><strong><span class=""math-tex"">\(\Rightarrow2(\log_2\text x)^2=8\Rightarrow(\log_2\text x=\pm2)\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\Rightarrow \text x=4,\frac{1}{4}\)</span></strong></p>
+
+<p><strong>Here&nbsp;&nbsp;<span class=""math-tex"">\(\text x=\frac{1}{4}\)</span></strong></p>
+",,,,"2020-04-24 06:26:22","1","1",NULL,"2",NULL,NULL,"375","3","3","2","11","2","7","5","mathematics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14356","3","3","1",,,NULL,"MATH",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","high","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","2"
+"23888","70",,"D",,,"1","1","1","<p><strong>In a class of 140 students numbered 1 to 140, all even numbered students opted Mathematics course, those whose number is divisible by 3 opted Physics course and those whose number is divisible by 5 opted Chemistry course. Then the number of students who did not opt for any of the three courses is: &nbsp;</strong></p>
+
+<p><strong>(A) 102 </strong></p>
+
+<p><strong>(B) 42 &nbsp;</strong></p>
+
+<p><strong>(C) 1 </strong></p>
+
+<p><strong>(D) 38&nbsp;</strong></p>
+","<p><strong><span class=""math-tex"">\(\text n(\text P)=\Big[\frac{140}{3}\Big]=46\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\text n(\text C)=\Big[\frac{140}{5}\Big]=28\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\text n(\text M)=\Big[\frac{140}{2}\Big]=70\)</span></strong></p>
+
+<p><img alt="""" src=""https://www.testbee.in/preview/show_qimage/1587708111.png"" style=""height:109px; width:128px"" /></p>
+
+<p><strong><span class=""math-tex"">\(\text n(\text P\cup\text C\cup\text M)=\text {n(P)+n(C)+n(M)}-\text n(\text P\cap\text C)-\text n(\text C\cap\text M)-\text n(\text M\cap \text P)+\text n(\text P\cap \text M\cap \text C)\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(46+28+70-\Big[\frac{140}{15}\Big]-\Big[\frac{140}{10}\Big]-\Big[\frac{140}{6}\Big]+\Big[\frac{140}{30}\Big]\)</span></strong></p>
+
+<p><span class=""math-tex"">\(144-9-14-23+4=102\)</span></p>
+
+<p><strong>&nbsp;So required number of student <span class=""math-tex"">\(=140-102=38\)</span></strong></p>
+
+<p>&nbsp;</p>
+
+<p>&nbsp;</p>
+",,,,"2020-04-23 09:59:10","1","1",NULL,"2",NULL,NULL,"375","2","3","2","10","2","7","5","mathematics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14304","3","3","1",,"Diagram is missing in the solution",NULL,"MATH",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","medium","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","2"
+"23887","69",,"A",,,"1","1","1","<p><strong><span class=""math-tex"">\(\)</span>If&nbsp;<span class=""math-tex"">\(\frac{\text {dy}}{\text {dx}}+\frac{3}{\cos^2\text x}\text y=\frac{1}{\cos^2\text x},\text x\in\Big(\frac{-\pi}{3},\frac{\pi}{3}\Big)\)</span>&nbsp;and&nbsp;<span class=""math-tex"">\(\text y\Big(\frac{\pi}{4}\Big)=\frac{4}{3},\)</span>&nbsp;then&nbsp;<span class=""math-tex"">\(\text y\Big(-\frac{\pi}{4}\Big)\)</span>equals:&nbsp;</strong></p>
+
+<p><strong>(A) <span class=""math-tex"">\(\frac{1}{3}+\text e^6\)</span></strong></p>
+
+<p><strong>(B) <span class=""math-tex"">\(\frac{1}{3}\)</span></strong></p>
+
+<p><strong>(C) <span class=""math-tex"">\(-\frac{4}{3}\)</span></strong></p>
+
+<p><strong>(D)&nbsp;<span class=""math-tex"">\(\frac{1}{3}+\text e^3\)</span></strong></p>
+","<p><strong><span class=""math-tex"">\(\frac{\text {dy}}{\text{dx}}+(3\sec^2\text x)\text y=\sec^2\text x\)</span></strong></p>
+
+<p><strong>This is linear differential equation &nbsp;<br />
+&nbsp;Integrating factor&nbsp;<span class=""math-tex"">\(=\text e\int ^{3 \sec^2\text {xdx}}=\text e^{3\tan\text x}\)</span></strong></p>
+
+<p><strong>Hence&nbsp;&nbsp;<span class=""math-tex"">\(\text y.\text e^{3\tan \text x}=\text e\int ^{3\tan \text x}.\sec^2\text {x dx} \)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\Rightarrow \text {y e}^{3\tan \text x}=\frac{\text e^{3\tan \text x}}{3}+\text c\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\Rightarrow \text y=\text {Ce}^{-3\tan \text x}+\frac{1}{3}\)</span></strong></p>
+
+<p><strong>Given&nbsp;&nbsp;<span class=""math-tex"">\(\text y\Big(\frac{\pi}{4}\Big)=\frac{4}{3}\Rightarrow\frac{4}{3}=\text {Ce}^{-3}+\frac{1}{3}\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\Rightarrow \text C=\text e^3\)</span></strong></p>
+
+<p><strong>Hence&nbsp;&nbsp;<span class=""math-tex"">\(\text y\Big(\frac{\pi}{4}\Big)=\text e^3.\text e^3+\frac{1}{3}=\text e^6+\frac{1}{3}\)</span></strong></p>
+",,,,"2020-04-23 08:47:09","1","1",NULL,"2",NULL,NULL,"375","1","3","2","9","2","7","5","mathematics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14321","3","3","1",,,NULL,"MATH",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","easy","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","2"
+"23886","68",,"D",,,"1","1","1","<p><strong>Consider the quadratic equation&nbsp;<span class=""math-tex"">\((\text c-5)\text x^2-2\text {cs}+(\text c-4)=0,\text c \ne 5\)</span>&nbsp;.Let S be the set of all integral values of c for which one root of the equation lies in the interval (0, 2) and its other root lies in the interval (2, 3). Then the number of elements in S is: &nbsp;</strong></p>
+
+<p><strong>(A) 18 </strong></p>
+
+<p><strong>(B) 12 &nbsp;</strong></p>
+
+<p><strong>(C) 10 </strong></p>
+
+<p><strong>(D) 11&nbsp;</strong></p>
+","<p><strong>Case &ndash; 1&nbsp; &nbsp; &nbsp; &nbsp;&nbsp;</strong></p>
+
+<p><strong><span class=""math-tex"">\(\text c-5&gt;0\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ..........(i)</strong></p>
+
+<p><strong><span class=""math-tex"">\(\)</span>f(0)&gt;0</strong></p>
+
+<p><strong>c-4&gt;0&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;.........(ii)</strong></p>
+
+<p><strong>f(2)&lt;0</strong></p>
+
+<p><strong>4(c-5)-4c+c-4&lt;0</strong></p>
+
+<p><strong><img alt="""" src="" https://www.testbee.in/preview/show_qimage/1587631426.png"" style=""height:89px; width:200px"" /></strong></p>
+
+<p><strong>c&lt;24&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ..........(iii)</strong></p>
+
+<p><strong>f(2)&gt;0</strong></p>
+
+<p><strong>9(c-5)-6c+c-4&gt;0</strong></p>
+
+<p><strong><span class=""math-tex"">\(4\text c-49&gt;0\Rightarrow\text c&gt; \frac{49}{4}\)</span>&nbsp; &nbsp;........(iv)</strong></p>
+
+<p><strong>Here (i)&nbsp;<span class=""math-tex"">\(\cap\)</span> (ii) <span class=""math-tex"">\(\cap\)</span>&nbsp;(iii) <span class=""math-tex"">\(\cap\)</span>&nbsp;(iv)</strong></p>
+
+<p><strong><span class=""math-tex"">\(\text c\in \Big(\frac{49}{4},24\Big)\)</span></strong></p>
+
+<p><strong>Case &ndash; II&nbsp;</strong></p>
+
+<p><strong>c-5&lt;0&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;.........(i)</strong></p>
+
+<p><strong>f(0)&lt;0</strong></p>
+
+<p><strong><img alt="""" src=""https://www.testbee.in/preview/show_qimage/1587631525.png"" style=""height:96px; width:200px"" /></strong></p>
+
+<p><strong>c&lt;4&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;.........(ii)</strong></p>
+
+<p><strong><span class=""math-tex"">\(\text f(2)&gt;0\Rightarrow \text c&gt;24\)</span>&nbsp; &nbsp;.......(iii)</strong></p>
+
+<p><strong><span class=""math-tex"">\(\text f(3)&lt;0\Rightarrow \text c&lt;49\)</span>&nbsp; &nbsp; ........(iv)</strong></p>
+
+<p><strong>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp;<span class=""math-tex"">\(4\Rightarrow \text c\in \phi\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(c\in \Big(\frac{49}{4},24\Big)\)</span><br />
+&nbsp;</strong></p>
+",,,,"2020-04-23 08:45:56","1","1",NULL,"2",NULL,NULL,"375","3","3","2","8","2","7","5","mathematics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14320","3","3","1",,,NULL,"MATH",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","high","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","2"
+"23885","67",,"C",,,"1","1","1","<p><strong>The sum of all values of&nbsp;<span class=""math-tex"">\(\theta\in \Big(0,\frac{\pi}{2}\Big)\)</span>&nbsp;satisfying&nbsp;<span class=""math-tex"">\(\sin^2 2\theta +\cos^42\theta=\frac{3}{4}\)</span>&nbsp;is:</strong></p>
+
+<p><strong>(A)&nbsp;<span class=""math-tex"">\(\pi\)</span></strong></p>
+
+<p><strong>(B)&nbsp;<span class=""math-tex"">\(\frac{5\pi}{4}\)</span></strong></p>
+
+<p><strong>(C)&nbsp;<span class=""math-tex"">\(\frac{\pi}{2}\)</span></strong></p>
+
+<p><strong>(D)&nbsp;<span class=""math-tex"">\(\frac{3\pi}{8}\)</span></strong></p>
+","<p><strong><span class=""math-tex"">\(\sin^22\theta+\cos^42\theta=\frac{3}{4}\)</span></strong></p>
+
+<p><strong>Let&nbsp;<span class=""math-tex"">\(\cos^22\theta=\text t\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\Rightarrow 1-\cos^22\theta+\cos^42\theta=\frac{3}{4}\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\Rightarrow \text t=\frac{1}{2}\Rightarrow \cos ^22\theta=\frac{1}{2}\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\Rightarrow 2\cos^22\theta-1=0\Rightarrow \cos4\theta=0\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\Rightarrow 4\theta =(2\text n+1)\frac{\pi}{2}\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\Rightarrow \theta=(2\text n+1)\frac{\pi}{8}\Rightarrow\theta=\frac{\pi}{8},\frac{3\pi}{8}\in\Big[0,\frac{\pi}{2}\Big]\)</span></strong></p>
+
+<p><strong>Sum of values of <span class=""math-tex"">\(\theta\)</span>&nbsp;is&nbsp;<span class=""math-tex"">\(\frac{\pi}{2}\)</span></strong></p>
+",,,,"2020-04-23 08:04:56","1","1",NULL,"2",NULL,NULL,"375","2","3","2","7","2","7","5","mathematics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14319","3","3","1",,,NULL,"MATH",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","medium","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","2"
+"23884","66",,"D",,,"1","1","1","<p><strong>If&nbsp;<span class=""math-tex"">\(\overset{20}{\underset{\text {i=1}}\Sigma}\Big(\frac{^{20}\text C_\text {i-1}}{^{20}\text C_\text i+^{20}\text C_\text{i-1}} \Big)^3=\frac{\text k}{21},\)</span>then k equals:</strong></p>
+
+<p><strong>(A) 400 </strong></p>
+
+<p><strong>(B) 50 &nbsp;</strong></p>
+
+<p><strong>(C) 200 </strong></p>
+
+<p><strong>(D) 100&nbsp;</strong></p>
+","<p><span class=""math-tex"">\(\overset{20}{\underset{\text {i-1}}\Sigma}\Big(\frac{^{20}\text C_\text {I-1}}{^{20}\text C_\text I+^{20}\text C_\text{I-1}} \Big)^3\)</span></p>
+
+<p>Now&nbsp;&nbsp;<span class=""math-tex"">\(\frac{^{20}\text C_\text {I-1}}{^{20}\text C_\text I+^{20}\text C_\text{I-1}} =\frac{^{20}\text C_\text{I-1}}{^{21}\text C_\text I}=\frac{\text I}{21}\)</span></p>
+
+<p>Let given sum be S, so &nbsp;&nbsp;</p>
+
+<p><span class=""math-tex"">\(\text S=\overset{20}{\underset{\text{I-1}}\Sigma}\frac{(\text i)^3}{21^3}=\frac{1}{(21)^3}\Big(\frac{20.21}{2}\Big)^2=\frac{100}{21}\)</span></p>
+
+<p>Given&nbsp;&nbsp;<span class=""math-tex"">\(\text S=\frac{\text k}{21}\Rightarrow \text k=100\)</span><br />
+&nbsp;</p>
+
+<p>&nbsp;</p>
+
+<p>&nbsp;</p>
+
+<p>&nbsp;</p>
+
+<p>&nbsp;</p>
+
+<p>&nbsp;</p>
+",,,,"2020-04-23 07:50:37","1","1",NULL,"2",NULL,NULL,"375","1","3","2","6","2","7","5","mathematics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14318","3","3","1",,,NULL,"MATH",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","easy","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","2"
+"23883","65",,"C",,,"1","1","1","<p><strong>If <span class=""math-tex"">\(5, 5\text r, 5\text r^2 \)</span>are the lengths of the sides of a triangle, then r cannot be equal to:&nbsp;</strong></p>
+
+<p><strong>(A)&nbsp;<span class=""math-tex"">\(\frac{3}{4}\)</span></strong></p>
+
+<p><strong>(B)&nbsp;<span class=""math-tex"">\(\frac{5}{4}\)</span></strong></p>
+
+<p><strong>(C)&nbsp;<span class=""math-tex"">\(\frac{7}{4}\)</span></strong></p>
+
+<p><strong>(D)&nbsp;<span class=""math-tex"">\(\frac{3}{2}\)</span></strong></p>
+","<p><strong><span class=""math-tex"">\(5,5\text r,5\text r^2\)</span> sides of triangle,</strong></p>
+
+<p><strong>&nbsp;<span class=""math-tex"">\(5+5\text r&gt;5\text r^2\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;...........(1)</strong></p>
+
+<p><strong><span class=""math-tex"">\(5+5\text r^2&gt;5\text r\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;.............(2)</strong></p>
+
+<p><strong><span class=""math-tex"">\(5\text r+5\text r^2&gt;5\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; .............(3)</strong></p>
+
+<p><strong><span class=""math-tex"">\(\text {From} \ \ \text r^2-\text r -1&lt; 0 \)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\Big[\text r-\Big(\frac{1-\sqrt{5}}{2},\frac{1+\sqrt{5}}{2}\Big)\Big]\)</span>&nbsp; &nbsp; &nbsp;........(4)</strong></p>
+
+<p><strong>From (2)&nbsp;</strong></p>
+
+<p><strong><span class=""math-tex"">\( \text r^2-\text r +1&gt; 0 \Rightarrow\text r\in \text R\)</span>&nbsp; &nbsp; ........(5)</strong></p>
+
+<p><strong>From (3)&nbsp;</strong></p>
+
+<p><strong><span class=""math-tex"">\(\text r^2+\text r -1&gt;0 \)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\text {So}\Big(\text r+\sqrt\frac{1+\sqrt{5}}{2}\Big)\Big(\text r+\frac{1-\sqrt{5}}{2}\Big)&gt;0\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\text r\in\Big(-\infty,\frac{1+\sqrt{5}}{2}\Big)\cup\Big(-\frac{1-\sqrt{5}}{2},\infty\Big)\)</span>&nbsp; &nbsp;......(6)</strong></p>
+
+<p><strong>From (4), (5), (6)&nbsp;<span class=""math-tex"">\(\text r\in\Big(\frac{-1+\sqrt{5}}{2},\frac{1+\sqrt{5}}{2}\Big)\)</span></strong></p>
+
+<p><strong>now check options&nbsp;</strong></p>
+",,,,"2020-04-23 07:35:31","1","1",NULL,"2",NULL,NULL,"375","3","3","2","5","2","7","5","mathematics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14317","3","3","1",,,NULL,"MATH",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","high","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","2"
+"23882","64",,"B",,,"1","1","1","<p><strong>The mean of five observations is 5 and their variance is 9.20. If three of the given five observations are 1, 3 and 8, then a ratio of other two observations is: &nbsp;</strong></p>
+
+<p><strong>(A) 10 : 3 </strong></p>
+
+<p><strong>(B) 4 : 9 &nbsp;</strong></p>
+
+<p><strong>(C) 5 : 8 </strong></p>
+
+<p><strong>(D) 6 : 7&nbsp;</strong></p>
+","<p><span class=""math-tex"">\(\mu=\frac{1+3+8+\text x+\text y}{5}\)</span></p>
+
+<p><span class=""math-tex"">\(25=12+\text x+\text y\Rightarrow\text x+\text y=13\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;.........(1)</p>
+
+<p><span class=""math-tex"">\(\sigma^2=\frac{\sum(\text x_\text i-\mu)^2}{\text N}\)</span></p>
+
+<p><span class=""math-tex"">\(9.2=\frac{1+9+64+\text x^2+\text y^2}{5}-25\)</span></p>
+
+<p><span class=""math-tex"">\(34.2\times5=74+\text x^2+\text y^2\)</span></p>
+
+<p><span class=""math-tex"">\(171=74+\text x^2+\text y^2\)</span></p>
+
+<p><span class=""math-tex"">\(97=\text x^2+\text y^2\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ........(2)</p>
+
+<p><span class=""math-tex"">\((\text x+\text y)^2=\text x^2+\text y^2+2\text {xy}\)</span></p>
+
+<p><span class=""math-tex"">\(169-97=2\text{xy}\Rightarrow\text{xy}=36\)</span></p>
+
+<p><span class=""math-tex"">\(T=4, 9\)</span></p>
+
+<p><strong>So ratio is&nbsp;<span class=""math-tex"">\(\frac{4}{9}\)</span>&nbsp;or&nbsp;<span class=""math-tex"">\(\frac{9}{4}\)</span></strong></p>
+",,,,"2020-04-23 07:06:43","1","1",NULL,"2",NULL,NULL,"375","2","3","2","4","2","7","5","mathematics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14316","3","3","1",,,NULL,"MATH",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","medium","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","2"
+"23881","63",,"B",,,"1","1","1","<p><strong>The plane passing through the point (4, -1, 2) and parallel to the lines&nbsp;<span class=""math-tex"">\(\frac{\text x+2}{3}=\frac{\text y-2}{-1}=\frac{\text z+1}{2}\)</span>&nbsp;and&nbsp;</strong></p>
+
+<p><strong><span class=""math-tex"">\(\)</span><span class=""math-tex"">\(\frac{\text x-2}{1}=\frac{\text y-3}{2}=\frac{\text z-4}{3}\)</span>&nbsp;also passes through the point:&nbsp;</strong></p>
+
+<p><strong>(A) (1, 1&lt;, -1) </strong></p>
+
+<p><strong>(B) (1, 1, 1) &nbsp;</strong></p>
+
+<p><strong>(C) (-1, -1, -1) </strong></p>
+
+<p><strong>(D) (-1, -1, 1)&nbsp;</strong></p>
+","<p><strong><span class=""math-tex"">\(\overrightarrow{\text n}=\overrightarrow{\text n}_1\times\overrightarrow{\text n}_2=\begin{vmatrix} \hat{\text i} &amp; \hat{\text j}&amp; \hat{\text k} \\ 3 &amp; -1 &amp; 2 \\ 1 &amp; 2 &amp; 3 \\ \end{vmatrix}=7\hat{\text i}-7\hat{\text j}+7\hat{\text k}\)</span></strong></p>
+
+<p><strong>Equation of plane is&nbsp;<span class=""math-tex"">\(-7(\text x-4)-7(\text y+1)+7(\text z-2)=0\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\Rightarrow -7\text x-7\text y+7\text z+7=0\Rightarrow\text x+\text y-\text z=1\)</span></strong></p>
+",,,,"2020-04-23 06:26:55","1","1",NULL,"2",NULL,NULL,"375","1","3","2","3","2","7","5","mathematics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14315","3","3","1",,,NULL,"MATH",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","easy","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","2"
+"23873","62",,"A",,,"1","1","1","<p><strong>The shortest distance between the point&nbsp;<span class=""math-tex"">\(\Big(\frac{3}{2},0\Big)\)</span></strong>&nbsp;<strong>and the curve&nbsp;&nbsp;<span class=""math-tex"">\(\text y=\sqrt{\text x},(\text x&gt;0),\)</span><span class=""math-tex"">\(\)</span>is</strong>:&nbsp;</p>
+
+<p><strong><span class=""math-tex"">\(\)</span>(A)&nbsp;<span class=""math-tex"">\(\frac{\sqrt{5}}{2}\)</span></strong></p>
+
+<p><strong>(B)&nbsp;<strong><span class=""math-tex"">\(\frac{\sqrt{3}}{2}\)</span></strong></strong></p>
+
+<p><strong>(C)&nbsp;<span class=""math-tex"">\(\frac{3}{2}\)</span></strong></p>
+
+<p><strong>(D)&nbsp;<strong><span class=""math-tex"">\(\frac{5}{4}\)</span></strong></strong></p>
+
+<p>&nbsp;</p>
+","<p><strong>Let P be the point nearest to&nbsp;<span class=""math-tex"">\(\Big(\frac{3}{2},0\Big)\)</span>,then normal&nbsp;</strong></p>
+
+<p><strong>at P will pass through&nbsp;<span class=""math-tex"">\(\Big(\frac{3}{2},0\Big)\)</span>.</strong></p>
+
+<p><strong>Let Co &ndash; ordinates of P be&nbsp;&nbsp;<span class=""math-tex"">\(\text s\Big(\frac{\text t^2}{4},\frac{\text t}{2}\Big)\)</span></strong></p>
+
+<p><strong>Hence equation of normal is&nbsp;&nbsp;<span class=""math-tex"">\(\text y+\text{tx}=\frac{\text t}{2}+\frac{\text t^2}{4}\)</span></strong></p>
+
+<p><strong>The line passes through&nbsp;<span class=""math-tex"">\(\Big(\frac{3}{2},0\Big)\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\frac{3\text t}{2}=\frac{\text t}{2}+\frac{\text t^3}{4}\Rightarrow\text t=2\)</span>&nbsp; &nbsp; &nbsp;&nbsp;(&ndash;2, 0 are rejected) &nbsp;</strong></p>
+
+<p><strong>hence nearest point is (1, 1)&nbsp;</strong></p>
+
+<p><strong>distance&nbsp;&nbsp;<span class=""math-tex"">\(\sqrt{\Big(\frac{3}{2}-1\Big)^2+(1-0)^2}=\frac{\sqrt{5}}{2}\)</span><br />
+&nbsp;<img alt="""" src=""https://www.testbee.in/preview/show_qimage/1587623934.png"" style=""height:175px; width:200px"" /></strong></p>
+",,,,"2020-04-22 18:02:41","1","1",NULL,"2",NULL,NULL,"375","3","3","2","2","2","7","5","mathematics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14314","3","3","1",,,NULL,"MATH",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","high","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","2"
+"23872","61",,"C",,,"1","1","1","<p><strong>An unbiased coin is tossed. If the outcome is a head then a pair of unbiased dice is rolled and the sum of the numbers obtained on the is noted. If the toss of the coin results in tail then a card from a well-shuffled pack of nine cards numbered 1, 2, 3,&hellip;.., 9 is randomly picked and the number on the card is noted. The probability that the noted number is either 7 or 8 is:&nbsp;</strong></p>
+
+<p><strong>(A)&nbsp;<span class=""math-tex"">\(\frac{13}{36}\)</span></strong></p>
+
+<p><strong>(B)&nbsp;<strong><span class=""math-tex"">\(\frac{15}{72}\)</span></strong></strong></p>
+
+<p><strong>(C)&nbsp;<strong><span class=""math-tex"">\(\frac{19}{72}\)</span></strong></strong></p>
+
+<p><strong>(D)&nbsp;<strong><span class=""math-tex"">\(\frac{19}{36}\)</span></strong></strong></p>
+","<p><strong>P (7 or 8)&nbsp;</strong></p>
+
+<p><strong><span class=""math-tex"">\(=\text P(\text H)\text P(7 \text {or}\ 8)+\text P(\text T)\text P(7 \ {\text {or}}\ 8 )=\frac{1}{2}\times\frac{11}{36}+\frac{1}{2}\times\frac{2}{9}=\frac{11}{72}+\frac{1}{9}=\frac{19}{72}\)</span></strong></p>
+
+<p>&nbsp;</p>
+",,,,"2020-04-22 17:57:13","1","1",NULL,"2",NULL,NULL,"375","1","3","2","1","2","7","5","mathematics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14313","3","3","1",,,NULL,"MATH",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","easy","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","2"
+"23871","60",,"D",,,"1","1","1","<p><strong>Two pi and half sigma bonds are present in &nbsp; </strong></p>
+
+<p><strong>(A) <span class=""math-tex"">\( \text O^+_2\)</span> </strong></p>
+
+<p><strong>(B)&nbsp;<span class=""math-tex"">\(\text N_2\)</span></strong></p>
+
+<p><strong>(C)&nbsp;<span class=""math-tex"">\(\text O_2\)</span></strong></p>
+
+<p><strong>(D)&nbsp;<span class=""math-tex"">\(\text N^+_2\)</span></strong></p>
+","<p><span class=""math-tex"">\(\text N_2^\oplus \Rightarrow \text {BO}=2.5\Rightarrow \Big[\pi -\text {Bond}=2\ \&amp; \ \sigma - \text {Bond} =\frac{1}{2}\Big]\)</span></p>
+
+<p><span class=""math-tex"">\(\text N_2\Rightarrow \text {B.O.}=3.0\Rightarrow \Big[\pi -\text {Bond}=2\ \&amp; \ \sigma - \text {Bond} =1\Big]\)</span></p>
+
+<p><span class=""math-tex"">\(\text O_2^\oplus \Rightarrow \text {B.O.}=2.5\Rightarrow \Big[\pi -\text {Bond}=1.5\ \&amp; \ \sigma - \text {Bond} =1\Big]\)</span></p>
+
+<p><span class=""math-tex"">\(\text O_2 \Rightarrow \text {B.O.}=2\Rightarrow \Big[\pi -\text {Bond}=1\ \&amp; \ \sigma - \text {Bond} =1\Big]\)</span></p>
+",,,,"2020-04-22 17:48:06","1","1",NULL,"1",NULL,NULL,"375","3","3","2","30","2","7","5","chemistry",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14312","3","3","1",,,NULL,"CHEM",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","high","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","1"
+"23870","59",,"C",,,"1","1","1","<p><strong>Hall-Herolut&rsquo;s process is given by &nbsp;</strong></p>
+
+<p><strong>(A)&nbsp;&nbsp;<span class=""math-tex"">\(\text{Cu}^2(\text{aq})+\text H_2(\text g)\longrightarrow \text {Cu}(\text s)+2\text H^+(\text {aq})\)</span></strong></p>
+
+<p><strong>(B)&nbsp;<span class=""math-tex"">\(\text {Cr}_2\text O_3+2\text {AI}\longrightarrow\text {AI}_2\text O_3+2\text {Cr}\)</span></strong></p>
+
+<p><strong>(C)&nbsp;<span class=""math-tex"">\(2\text {AI}_2\text O_3+3\text C\longrightarrow 4\text {AI}+3\text {CO}_2\)</span></strong></p>
+
+<p><strong>(D)&nbsp;<span class=""math-tex"">\(\text {ZnO}+\text C\xrightarrow{\ \ \text {coke,1673 K}\ \ }\text {Zn}+\text{CO}\)</span></strong></p>
+","<p><strong>Hall-Herolut&rsquo;s process is given by&nbsp;</strong></p>
+
+<p><strong><span class=""math-tex"">\(2\text{AI}_2\text O_3+3\text C\longrightarrow4\text {AI}+3\text {CO}_2\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(2\text {AI}_2\text{O}_3(\ell)\rightleftharpoons 4\text {AI}^{3+}(\ell)+6\text O^{2-}(\ell)\)</span></strong></p>
+
+<p><strong>At cathode :&nbsp;<span class=""math-tex"">\(4\text {AI}^{3+}(\ell)+12\text e^-\longrightarrow 4\text {AI}(\ell)\)</span></strong></p>
+
+<p><strong>At anode :&nbsp;<span class=""math-tex"">\(6\text O^{2-}(\ell)\longrightarrow 3\text O_2(\text g)+12\text e^-\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(2\text C+3\text O_2\longrightarrow 3\text {CO}_2(\uparrow)\)</span></strong></p>
+",,,,"2020-04-22 17:35:45","1","1",NULL,"1",NULL,NULL,"375","2","3","2","29","2","7","5","chemistry",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14311","3","3","1",,,NULL,"CHEM",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","medium","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","1"
+"23869","58",,"D",,,"1","1","1","<p><strong>The increasing order of pKa values of the following compounds is</strong></p>
+
+<p><strong>&nbsp;<img alt="""" src=""https://www.testbee.in/preview/show_qimage/1587575374.png"" style=""height:117px; width:350px"" /></strong></p>
+
+<p><strong>(A) C &lt; B &lt; A &lt; D </strong></p>
+
+<p><strong>(B) B &lt; C &lt; D &lt; A &nbsp;</strong></p>
+
+<p><strong>(C) D &lt; A &lt; C &lt; B </strong></p>
+
+<p><strong>(D) B &lt; C &lt; A&lt; D&nbsp;&nbsp;</strong></p>
+","<p><strong>Higher the Ka value lower the pKa value.&nbsp;</strong></p>
+",,,,"2020-04-22 17:10:03","1","1",NULL,"1",NULL,NULL,"375","1","3","2","28","2","7","5","chemistry",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14310","3","3","1",,,NULL,"CHEM",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","easy","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","1"
+"23868","57",,"C",,,"1","1","1","<p><strong>The metal used for making X-ray tube window is &nbsp;</strong></p>
+
+<p><strong>(A) Mg </strong></p>
+
+<p><strong>(B) Na &nbsp;</strong></p>
+
+<p><strong>(C) Be </strong></p>
+
+<p><strong>(D) Ca&nbsp;</strong></p>
+","<p><strong>Fact based&nbsp;</strong></p>
+",,,,"2020-04-22 17:06:49","1","1",NULL,"1",NULL,NULL,"375","3","3","2","27","2","7","5","chemistry",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14309","3","3","1",,,NULL,"CHEM",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","high","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","1"
+"23867","56",,"D",,,"1","1","1","<p><strong>The major product &lsquo;X&rsquo; formed in the following reaction is:&nbsp;</strong></p>
+
+<p><strong><img alt="""" src=""https://www.testbee.in/preview/show_qimage/1587575029.png"" style=""height:271px; width:500px"" /></strong></p>
+","<p><span class=""math-tex"">\(\text {NaBH}_4\text{ don’t reduce ester. }\)</span></p>
+",,,,"2020-04-22 17:04:31","1","1",NULL,"1",NULL,NULL,"375","3","3","2","26","2","7","5","chemistry",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14308","3","3","1",,,NULL,"CHEM",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","high","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","1"
+"23866","55",,"B",,,"1","1","1","<p><strong>Liquids A and B form and ideal solution in the entire composition range. At 350 K, the vapour pressures of pure A and pure B are <span class=""math-tex"">\(7 \times 10^3\text{ Pa and}\ 12 \times 10^3\text{ Pa},\)</span> respectively. The composition of the vapour in equilibrium with a solution containing 40 mole percent of A at this temperature is&nbsp;</strong></p>
+
+<p><strong>(A) <span class=""math-tex"">\(\text {xA} = 0.37; \text{xB} = 0.63 \)</span></strong></p>
+
+<p><strong>(B)<span class=""math-tex"">\(\text{ xA = 0.28; xB = 0.72  }\)</span></strong></p>
+
+<p><strong>(C) <span class=""math-tex"">\(\text{xA = 0.4; xB = 0.6 }\)</span></strong></p>
+
+<p><strong>(D) <span class=""math-tex"">\(\text{xA = 0.76; xB = 0.24 }\)</span></strong></p>
+","<p><strong><span class=""math-tex"">\(\text P_\text A=\chi_\text A\text P^0_\text A=\text Y_\text A\text P_\text T \)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\text P_\text T=\chi_\text A\text P^0_\text A+\chi_\text B\text P^0_\text B=0.4\times7\times10^3+0.6\times12\times10^3=10^4\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(0.4\times7\times10^3=\text Y_ \text A\times10^4\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\text Y_\text A=0.28\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\text Y_\text B=1-0.28=0.72\)</span></strong></p>
+
+<p>&nbsp;</p>
+",,,,"2020-04-22 16:57:38","1","1",NULL,"1",NULL,NULL,"375","2","3","2","25","2","7","5","chemistry",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14307","3","3","1",,,NULL,"CHEM",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","medium","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","1"
+"23865","54",,"A",,,"1","1","1","<p><strong>A mixture of 100 m mol of <span class=""math-tex"">\(\text{Ca(OH)}_2\)</span> and 2 g of sodium sulphate was dissolved in water and the volume was made upto 100 mL. The mass of calcium sulphate formed and the concentration of&nbsp;<span class=""math-tex"">\( \text{OH}^–\)</span> in resulting solution, respectively are &nbsp; (Molar mass of <span class=""math-tex"">\(\text {Ca(OH)}_2,\text{ Na}_2\text{SO}_4 \text{and CaSO}_4 \)</span>&nbsp;are 74, 143 and <span class=""math-tex"">\(136 \text{g mol}^{–1}\)</span> respectively; <span class=""math-tex"">\(\text K_{\text{ sp}}\text { of Ca(OH)}_2\ \text {is}\ 5.5 \times 10^{-6})    \)</span></strong></p>
+
+<p><strong>(A) <span class=""math-tex"">\(1.9\ \text g, 0.28\ \text {mol L}^{–1} \)</span></strong></p>
+
+<p><strong>(B)&nbsp;<span class=""math-tex"">\(13.6\ \text g, 0.28\ \text {mol L}^{–1} \)</span></strong></p>
+
+<p><strong>(C)&nbsp;<span class=""math-tex"">\(1.9\ \text g, 0.14\ \text {mol L}^{–1} \)</span></strong></p>
+
+<p><strong>(D)&nbsp;<span class=""math-tex"">\(13.6\ \text g, 0.14\ \text {mol L}^{–1} \)</span></strong></p>
+","<p><img alt="""" src=""https://www.testbee.in/preview/show_qimage/1587573647.png"" style=""height:138px; width:300px"" /></p>
+",,,,"2020-04-22 16:41:18","1","1",NULL,"1",NULL,NULL,"375","1","3","2","24","2","7","5","chemistry",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14306","3","3","1",,,NULL,"CHEM",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","easy","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","1"
+"23864","53",,"D",,,"1","1","1","<p><strong>The chemical nature of hydrogen peroxide is &nbsp; </strong></p>
+
+<p><strong>(A) oxidising agent in acidic medium, but not in basic medium &nbsp;</strong></p>
+
+<p><strong>(B) reducing agent in basic medium but not in acidic medium &nbsp;</strong></p>
+
+<p><strong>(C) oxidising and reducing agent in acidic medium but not in basic medium &nbsp;</strong></p>
+
+<p><strong>(D) oxidising and reducing agent in both &nbsp;acidic and basic medium&nbsp;</strong></p>
+","<p><strong>Fact based.&nbsp;</strong></p>
+",,,,"2020-04-22 16:28:27","1","1",NULL,"1",NULL,NULL,"375","3","3","2","23","2","7","5","chemistry",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14305","3","3","1",,,NULL,"CHEM",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","high","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","1"
+"23782","52",,"B",,,"1","1","1","<p><strong>Consider the following&nbsp;</strong></p>
+
+<p><strong><span class=""math-tex"">\(\text{Zn}^{2+}+ 2\text e^- \longrightarrow \text{Zn} (\text s) ;\text E^\circ=- 0.76\text V\)</span><br />
+<span class=""math-tex"">\(\text{Ca}^{2+}+ 2\text e^- \longrightarrow \text{Ca} (\text s) ;\text E^\circ=-2.87\text V\)</span><br />
+<span class=""math-tex"">\(\text{Mg}^{2+}+ 2\text e^- \longrightarrow \text{Mg} (\text s) ;\text E^\circ=-2.36\text V\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\text{Ni}^{2+}+ 2\text e^- \longrightarrow \text{Ni} (\text s) ;\text E^\circ=-0.25\text V\)</span></strong></p>
+
+<p><strong>The reducing power of the metals increases in the order &nbsp;</strong></p>
+
+<p><strong>(A) Ca &lt; Zn &lt; Mg &lt; Ni </strong></p>
+
+<p><strong>(B) Ni &lt; Zn &lt; Mg &lt; Ca &nbsp;</strong></p>
+
+<p><strong>(C) Zn &lt; Mg &lt; Ni &lt; Ca </strong></p>
+
+<p><strong>(D) Ca &lt; Mg &lt; Zn &lt; Ni&nbsp;</strong></p>
+","<p><strong>Lesser the SRP value higher the reducing power. &nbsp;</strong></p>
+",,,,"2020-04-21 07:23:22","1","1",NULL,"1",NULL,NULL,"375","2","3","2","22","2","7","5","chemistry",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14259","3","3","1",,,NULL,"CHEM",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","medium","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","1"
+"23781","51",,"C",,,"1","1","1","<p><strong>The electronegativity of aluminium is similar to &nbsp; </strong></p>
+
+<p><strong>(A) carbon </strong></p>
+
+<p><strong>(B) beryllium &nbsp;</strong></p>
+
+<p><strong>(C) boron </strong></p>
+
+<p><strong>(D) lithium &nbsp;</strong></p>
+","<p><strong>Diagonal relationship.&nbsp;</strong></p>
+",,,,"2020-04-21 07:15:14","1","1",NULL,"1",NULL,NULL,"375","2","3","2","21","2","7","5","chemistry",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14258","3","3","1",,,NULL,"CHEM",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","medium","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","1"
+"23780","50",,"A",,,"1","1","1","<p><strong>The type of hybridisation and number of lone pair(s) of electrons of Xe in <span class=""math-tex"">\(\text{XeOF}_4 \)</span>&nbsp;respectively are &nbsp;</strong></p>
+
+<p><strong>(A) <span class=""math-tex"">\(\text{sp}^3\text d^2\)</span> and 1 </strong></p>
+
+<p><strong>(B) <span class=""math-tex"">\(\text {sp}^3\text d\)</span> and 2 &nbsp;</strong></p>
+
+<p><strong>(C) <span class=""math-tex"">\(\text{sp}^3\text d^2\)</span> and 2 </strong></p>
+
+<p><strong>(D) <span class=""math-tex"">\(\text{sp}^3\text d \)</span>&nbsp;and 1&nbsp;</strong></p>
+","<p><img alt="""" src="" https://www.testbee.in/preview/show_qimage/1587452998.png"" style=""height:108px; width:103px"" /></p>
+",,,,"2020-04-21 07:13:47","1","1",NULL,"1",NULL,NULL,"375","2","3","2","20","2","7","5","chemistry",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14257","3","3","1",,,NULL,"CHEM",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","medium","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","1"
+"23779","49",,"B",,,"1","1","1","<p><strong>The correct structure of product &lsquo;P&rsquo; in the following reaction is&nbsp;</strong></p>
+
+<p><strong><img alt="""" src=""https://www.testbee.in/preview/show_qimage/1587452780.png"" style=""height:189px; width:500px"" /></strong></p>
+","<p><img alt="""" src=""https://www.testbee.in/preview/show_qimage/1587452858.png"" style=""height:253px; width:250px"" /></p>
+",,,,"2020-04-21 07:08:35","1","1",NULL,"1",NULL,NULL,"375","1","3","2","19","2","7","5","chemistry",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14256","3","3","1",,,NULL,"CHEM",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","easy","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","1"
+"23778","48",,"D",,,"1","1","1","<p><strong>The major product of the following reaction is &nbsp;&nbsp;</strong></p>
+
+<p><strong><img alt="""" src=""https://www.testbee.in/preview/show_qimage/1587452472.png"" style=""height:219px; width:400px"" /></strong></p>
+","<p><img alt="""" src=""https://www.testbee.in/preview/show_qimage/1587452651.png"" style=""height:253px; width:300px"" /></p>
+",,,,"2020-04-21 07:04:46","1","1",NULL,"1",NULL,NULL,"375","3","3","2","18","2","7","5","chemistry",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14255","3","3","1",,,NULL,"CHEM",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","high","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","1"
+"23777","47",,"B",,,"1","1","1","<p><strong>Which hydrogen in compound(E) is easily replaceable during bromination reaction in presence of light?&nbsp;</strong></p>
+
+<p><strong><img alt="""" src=""https://www.testbee.in/preview/show_qimage/1587452014.png"" style=""height:53px; width:150px"" /></strong></p>
+
+<p><strong>(A) &nbsp;<span class=""math-tex"">\(\alpha\)</span>&nbsp;- hydrogen &nbsp;</strong></p>
+
+<p><strong>(B) &nbsp;<span class=""math-tex"">\(\gamma\)</span>&nbsp;- hydrogen &nbsp; </strong></p>
+
+<p><strong>(C) &nbsp;<span class=""math-tex"">\(\delta\)</span>&nbsp;- hydrogen </strong></p>
+
+<p><strong>(D) &nbsp;<span class=""math-tex"">\(\beta\)</span>&nbsp;- hydrogen&nbsp;</strong></p>
+","<p><strong>Allylic radical will form in presence of sunlight.&nbsp;</strong></p>
+",,,,"2020-04-21 06:55:59","1","1",NULL,"1",NULL,NULL,"375","1","3","2","17","2","7","5","chemistry",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14254","3","3","1",,,NULL,"CHEM",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","easy","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","1"
+"23776","46",,"C",,,"1","1","1","<p><strong>The effect of lanthanoid contraction in the lanthanoid series of elements by the large means &nbsp;</strong></p>
+
+<p><strong>(A) increase in both atomic and ionic radii &nbsp; </strong></p>
+
+<p><strong>(B) decrease in atomic radii and increase in ionic radii &nbsp; </strong></p>
+
+<p><strong>(C) decrease in both atomic and ionic radii &nbsp;</strong></p>
+
+<p><strong>(D) increase in atomic radii and decrease in ionic radii&nbsp;</strong></p>
+","<p><strong>Atomic &amp; ionic radii decreases&nbsp;</strong></p>
+",,,,"2020-04-21 06:51:00","1","1",NULL,"1",NULL,NULL,"375","3","3","2","16","2","7","5","chemistry",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14253","3","3","1",,,NULL,"CHEM",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","high","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","1"
+"23775","45",,"B",,,"1","1","1","<p><strong>Which of the following is not an example of heterogeneous catalytic reaction? &nbsp;</strong></p>
+
+<p><strong>(A) Ostwald&rsquo;s process </strong></p>
+
+<p><strong>(B) Combustion of coal &nbsp;</strong></p>
+
+<p><strong>(C) Hydrogenation of vegetable oils </strong></p>
+
+<p><strong>(D) Haber&rsquo;s process&nbsp;</strong></p>
+","<p><strong>Fact based.&nbsp;</strong></p>
+",,,,"2020-04-21 06:49:47","1","1",NULL,"1",NULL,NULL,"375","2","3","2","15","2","7","5","chemistry",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14252","3","3","1",,,NULL,"CHEM",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","medium","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","1"
+"23774","44",,"C",,,"1","1","1","<p><strong>Which of the graphs shown below does not represent the relationship between incident light and the electron ejected from metal surface?&nbsp;</strong></p>
+
+<p><strong><img alt="""" src="" https://www.testbee.in/preview/show_qimage/1587451585.png"" style=""height:210px; width:400px"" /></strong></p>
+","<p><strong><span class=""math-tex"">\(\text{K.E} =\text h \nu - \text h_ {\nu0}\)</span>,&nbsp;</strong></p>
+",,,,"2020-04-21 06:48:30","1","1",NULL,"1",NULL,NULL,"375","1","3","2","14","2","7","5","chemistry",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14251","3","3","1",,,NULL,"CHEM",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","easy","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","1"
+"23772","43",,"B",,,"1","1","1","<p><strong>The decreasing order of ease of alkaline hydrolysis for the following ester is &nbsp;&nbsp;</strong></p>
+
+<p><strong><img alt="""" src=""https://www.testbee.in/preview/show_qimage/1587450254.png"" style=""height:278px; width:150px"" /></strong></p>
+
+<p><strong>(A) <span class=""math-tex"">\(\text{III &gt; II &gt; IV &gt; I }\)</span></strong></p>
+
+<p><strong>(B) <span class=""math-tex"">\(\text{III &gt; II &gt; I &gt; IV  }\)</span></strong></p>
+
+<p><strong>(C)&nbsp;<span class=""math-tex"">\(\text{ IV &gt; II &gt; III &gt; I  }\)</span></strong></p>
+
+<p><strong>(D) <span class=""math-tex"">\(\text{II &gt; III &gt; I &gt; IV }\)</span></strong></p>
+","<p><strong>Electron withdrawing group enhances the rate of hydrolysis.&nbsp;</strong></p>
+",,,,"2020-04-21 06:26:20","1","1",NULL,"1",NULL,NULL,"375","3","3","2","13","2","7","5","chemistry",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14250","3","3","1",,,NULL,"CHEM",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","high","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","1"
+"23771","42",,"A",,,"1","1","1","<p><strong>Which diccarboxylic acid in presence of a dehydrating agent is least reactive to give anhydride?&nbsp;</strong></p>
+
+<p><strong><img alt="""" src=""https://www.testbee.in/preview/show_qimage/1587450073.png"" style=""height:158px; width:400px"" /></strong></p>
+","<p><strong>Adipic acid will give unstable 7 membered anhydride.&nbsp;</strong></p>
+",,,,"2020-04-21 06:22:05","1","1",NULL,"1",NULL,NULL,"375","2","3","2","12","2","7","5","chemistry",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14249","3","3","1",,,NULL,"CHEM",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","medium","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","1"
+"23770","41",,"A",,,"1","1","1","<p><strong>If dichloromethane (<span class=""math-tex"">\(\text{DCM}\)</span>) and water(<span class=""math-tex"">\(\text H_2\text O\)</span>) are used for differential extraction, which one of the following statements is correct? &nbsp;</strong></p>
+
+<p><strong>(A)&nbsp;<span class=""math-tex"">\(\text{DCM}\)</span> and <span class=""math-tex"">\(\text H_2\text O\)</span>would stay as lower and upper layer respectively in the S.F &nbsp;</strong></p>
+
+<p><strong>(B) <span class=""math-tex"">\(\text{DCM}\)</span>&nbsp;and&nbsp;<span class=""math-tex"">\(\text H_2\text O\)</span> will make &nbsp;turbid/colloidal mixture &nbsp;</strong></p>
+
+<p><strong>(C)&nbsp;<span class=""math-tex"">\(\text{DCM}\)</span> and&nbsp;<span class=""math-tex"">\(\text H_2\text O\)</span> would stay as upper and lower layer respectively in the separating funnel(S.F) &nbsp;</strong></p>
+
+<p><strong>(D)&nbsp;<span class=""math-tex"">\(\text{DCM}\)</span> and&nbsp;<span class=""math-tex"">\(\text H_2\text O\)</span> will be miscible clearly&nbsp;</strong></p>
+","<p><strong>Density of&nbsp; <span class=""math-tex"">\(\text{DCM}\)</span>&nbsp;is higher than <span class=""math-tex"">\(\text H_2\text O\)</span>.&nbsp;</strong></p>
+",,,,"2020-04-21 06:19:31","1","1",NULL,"1",NULL,NULL,"375","1","3","2","11","2","7","5","chemistry",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14248","3","3","1",,,NULL,"CHEM",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","easy","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","1"
+"23769","40",,"C",,,"1","1","1","<p><strong>Wilkinson catalyst is &nbsp;</strong></p>
+
+<p><strong>(A) <span class=""math-tex"">\([(\text{Ph}_3\text P)_3\text{IrCl}]      \)</span> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;</strong></p>
+
+<p><strong>(B) <span class=""math-tex"">\([\text{Et}_3\text P)_3\text{RhCl}]  \)</span> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;</strong></p>
+
+<p><strong>(C) <span class=""math-tex"">\([(\text{Ph}_3\text P)_3\text{RhCl}]\)</span> &nbsp; &nbsp; &nbsp; </strong></p>
+
+<p><strong>(D) <span class=""math-tex"">\([(\text{Et}_3\text P)_3\text{IrCl}] \)</span></strong></p>
+","<p><strong>Fact based&nbsp;</strong></p>
+",,,,"2020-04-21 06:07:59","1","1",NULL,"1",NULL,NULL,"375","3","3","2","10","2","7","5","chemistry",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14247","3","3","1",,,NULL,"CHEM",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","high","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","1"
+"23768","39",,"wrongAns",,,"1","1","1","<p><strong>The major product formed in the reaction given below will be:&nbsp;</strong></p>
+
+<p><strong><img alt="""" src=""https://www.testbee.in/preview/show_qimage/1587449179.png"" style=""height:193px; width:450px"" /></strong></p>
+","<p><img alt="""" src="" https://www.testbee.in/preview/show_qimage/1587449063.png"" style=""height:85px; width:300px"" /></p>
+",,,,"2020-04-21 06:07:01","1","1",NULL,"1",NULL,NULL,"375","2","3","2","9","2","7","5","chemistry",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14246","3","3","1",,,NULL,"CHEM",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","medium","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","1"
+"23766","38",,"A",,,"1","1","1","<p><strong>Consider the given plots for a reaction obeying Arrhenius equation&nbsp; <span class=""math-tex"">\((0^\circ \text C &lt; \text T &lt; 300^\circ \text C) \)</span>: (k and <span class=""math-tex"">\(\text E_\text a\)</span> are rate constant and activation energy respectively)&nbsp;</strong></p>
+
+<p><strong><img alt="""" src=""https://www.testbee.in/preview/show_qimage/1587448544.png"" style=""height:107px; width:250px"" /></strong></p>
+
+<p><strong>Choose the correct option: &nbsp;</strong></p>
+
+<p><strong>(A) I is right but II is wrong </strong></p>
+
+<p><strong>(B) Both I and Ii are correct &nbsp;</strong></p>
+
+<p><strong>(C) I is wrong but II is right </strong></p>
+
+<p><strong>(D) Both I and II are wrong&nbsp;</strong></p>
+","<p><strong><span class=""math-tex"">\(\text K=\text {Ae}^{\text {-E}_\text a/\text {RT}}\)</span></strong></p>
+
+<p><strong>(i) is true but&nbsp; (ii) is false&nbsp; &nbsp;(ii) should be</strong></p>
+
+<p><strong><img alt="""" src=""https://www.testbee.in/preview/show_qimage/1587448909.png"" style=""height:122px; width:150px"" /></strong></p>
+
+<p><strong>&nbsp;</strong></p>
+
+<p>&nbsp;</p>
+",,,,"2020-04-21 06:02:28","1","1",NULL,"1",NULL,NULL,"375","1","3","2","8","2","7","5","chemistry",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14245","3","3","1",,,NULL,"CHEM",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","easy","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","1"
+"23731","37",,"A",,,"1","1","1","<p><strong>The major product of the following reaction is:&nbsp;</strong></p>
+
+<p><strong><img alt="""" src=""https://www.testbee.in/preview/show_qimage/1587373896.png"" style=""height:207px; width:500px"" /></strong></p>
+","<p><img alt="""" src="" https://www.testbee.in/preview/show_qimage/1587373974.png"" style=""height:82px; width:500px"" /></p>
+",,,,"2020-04-20 09:13:17","1","1",NULL,"1",NULL,NULL,"375","3","3","2","7","2","7","5","chemistry",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14214","3","3","1",,,NULL,"CHEM",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","high","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","1"
+"23730","36",,"A",,,"1","1","1","<p><strong>Which primitive unit cell has unequal edge length (a <span class=""math-tex"">\(\ne\)</span>&nbsp;b <span class=""math-tex"">\(\ne\)</span>&nbsp;c) and all axial angles different from <span class=""math-tex"">\(90^\circ\)</span>? &nbsp;</strong></p>
+
+<p><strong>(A) Triclinic </strong></p>
+
+<p><strong>(B) Hexagonal &nbsp;</strong></p>
+
+<p><strong>(C) Monoclinic </strong></p>
+
+<p><strong>(D) Tetragonal &nbsp;</strong><br />
+&nbsp;</p>
+
+<p>&nbsp;</p>
+","<p><strong>Fact based.&nbsp;</strong></p>
+",,,,"2020-04-20 09:09:54","1","1",NULL,"3",NULL,NULL,"375","2","3","2","6","2","7","5","physics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14213","3","3","1",,,NULL,"PHY",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","medium","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","3"
+"23728","35",,"A",,,"1","1","1","<p><strong>Water filled in two glasses A and B have BOD values of 10 and 20 respectively. The correct statement regarding them is &nbsp; </strong></p>
+
+<p><strong>(A) B is more polluted than A &nbsp; </strong></p>
+
+<p><strong>(B) A is suitable for drinking, whereas B is not &nbsp;</strong></p>
+
+<p><strong>(C) both A and B are suitable for drinking &nbsp; </strong></p>
+
+<p><strong>(D) A is more polluted than B&nbsp;</strong></p>
+","<p><strong>More polluted water has high biological oxygen demand.&nbsp;</strong></p>
+",,,,"2020-04-20 09:07:32","1","1",NULL,"1",NULL,NULL,"375","1","3","2","5","2","7","5","chemistry",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14212","3","3","1",,,NULL,"CHEM",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","easy","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","1"
+"23727","34",,"A",,,"1","1","1","<p><strong>The total number of isotopes of hydrogen and number of radioactive isotopes among them, respectively are  </strong></p>
+
+<p><strong>(A) 3 and 1 </strong></p>
+
+<p><strong>(B) 3 and 2   </strong></p>
+
+<p><strong>(C) 2 and 1 </strong></p>
+
+<p><strong>(D) 2 and 0   </strong></p>
+","<p>Fact based </p>
+",,,,"2020-04-20 09:05:10","1","1",NULL,"1",NULL,NULL,"375","3","3","2","4","2","7","5","chemistry",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14211","3","3","1",,,NULL,"CHEM",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","high","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","1"
+"23726","33",,"B",,,"1","1","1","<p><strong>The values of <span class=""math-tex"">\(\text {Kp/Kc}\)</span> for the following reactions at 300 K are respectively: &nbsp; </strong></p>
+
+<p><strong><span class=""math-tex"">\(\text{(At}\ 300\ \text {K, Rt} = 24.62\ \text{dm}^3\text{ atm mol}^{–1})\)</span></strong></p>
+
+<p><strong>&nbsp;&nbsp;<span class=""math-tex"">\(\text N_2(\text g)+\text O_2(\text g)=2\text {NO}(\text g)\)</span></strong></p>
+
+<p><strong>&nbsp;<span class=""math-tex"">\(\text N_2\text O_4(\text g)=2\text {NO}_2(\text g)\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\text N_2(\text g)+3\text H_2(\text g)=2\text {NH}_3(\text g)\)</span></strong></p>
+
+<p><strong>(A) <span class=""math-tex"">\(1, 24.62\ \text{dm}^3 \text{atm mol}^{–1}, 606.0\ \text{ dm}^6 \text {atm}^2 \text{mol}^{–2  }\)</span></strong></p>
+
+<p><strong>(B) <span class=""math-tex"">\(1, 24.62\ \text{dm}^3 \text{atm mol}^{–1}, 1.65 \times10^{-3} \text{dm}^{–6 }\text{atm}^{–2} \text{mol}^2  \)</span></strong></p>
+
+<p><strong>(C) <span class=""math-tex"">\(1, 4.1 \times 10^{–2} \text{dm}^{–3}\text{ atm}^{–1} \text{mol}, 606.0\ \text{dm}^6 \text{atm}^2 \text{mol}^{–2 }\)</span></strong></p>
+
+<p><strong>&nbsp;(D)&nbsp;<span class=""math-tex"">\( 24.62 \text{dm}^3 \text{atm mol}^{–1}, 606.0\ \text{dm}^6 \text { atm}^2 \text{atm}^2 \text {mol}^ {–2}, 1.65 \times 10^{–3} \text {dm}^{–6} \text {atm}^{–2} \text {moI}^2\)</span></strong></p>
+","<p><span class=""math-tex"">\(\text {K}_\text P=\text K_\text C(\text {RT})^{\Delta\text {ng}}\)</span></p>
+",,,,"2020-04-20 09:03:37","1","1",NULL,"1",NULL,NULL,"375","3","3","2","33","2","7","5","chemistry",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14210","3","3","1",,,NULL,"CHEM",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","high","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","1"
+"23723","32",,"C",,,"1","1","1","<p><strong>A process that has&nbsp; <span class=""math-tex"">\(\Delta \text H = 200 \text {J mol}^{–1}\ \text { and} \Delta \text S = 40\text { JK}^{–1 }\text {mol}^{–1}\)</span>. Out of the values given below, choose the minimum temperature above which the process will be spontaneous: &nbsp;</strong></p>
+
+<p><strong>(A) 20 K </strong></p>
+
+<p><strong>(B) 12 K &nbsp;</strong></p>
+
+<p><strong>(C) 5 K </strong></p>
+
+<p><strong>(D) 4 K&nbsp;</strong></p>
+","<p><span class=""math-tex"">\(\Delta\text S=\frac{\Delta \text H}{\text T}\)</span></p>
+",,,,"2020-04-20 08:44:59","1","1",NULL,"1",NULL,NULL,"375","2","3","2","2","2","7","5","chemistry",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14209","3","3","1",,,NULL,"CHEM",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","medium","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","1"
+"23722","31",,"D",,,"1","1","1","<p><strong>The total number of isomers for a square planar complex <span class=""math-tex"">\(\text {[M(F)(Cl)(SCN)(NO}_2)] \)</span>is &nbsp; </strong></p>
+
+<p><strong>(A) 16 </strong></p>
+
+<p><strong>(B) 8 &nbsp;</strong></p>
+
+<p><strong>(C) 4 </strong></p>
+
+<p><strong>(D) 12&nbsp;</strong></p>
+","<p><img alt="""" src="" https://www.testbee.in/preview/show_qimage/1587371858.png"" style=""height:136px; width:500px"" /></p>
+",,,,"2020-04-20 08:34:07","1","1",NULL,"1",NULL,NULL,"375","1","3","2","1","2","7","5","chemistry",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14208","3","3","1",,,NULL,"CHEM",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","easy","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","1"
+"23721","30",,"D",,,"1","1","1","<p><strong>A homogeneous solid cylindrical roller of radius R and mass M is pulled on a cricket pitch by a horizontal force. Assuming rolling without slipping, angular acceleration of the cylinder is:&nbsp;</strong></p>
+
+<p><strong>(A)&nbsp;<span class=""math-tex"">\(\frac{3\text F}{2\ \text {mR}}\)</span></strong></p>
+
+<p><strong>(B)&nbsp;<span class=""math-tex"">\(\frac{\text F}{3\ \text {mR}}\)</span></strong></p>
+
+<p><strong>(C)&nbsp;<span class=""math-tex"">\(\frac{\text F}{2\ \text {mR}}\)</span></strong></p>
+
+<p><strong>(D)&nbsp;<span class=""math-tex"">\(\frac{2\text F}{3\ \text {mR}}\)</span></strong></p>
+","<p><span class=""math-tex"">\(\text {F-f=ma}\)</span></p>
+
+<p><span class=""math-tex"">\(\text {fR}=\frac{1}{2}\text {mR}^2\alpha\)</span></p>
+
+<p><span class=""math-tex"">\(\text a=\alpha\text R\)</span></p>
+",,,,"2020-04-20 08:32:44","1","1",NULL,"3",NULL,NULL,"375","3","3","2","30","2","7","5","physics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14207","3","3","1",,,NULL,"PHY",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","high","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","3"
+"23720","29",,"C",,,"1","1","1","<p><strong>An insulating thin rod of length&nbsp;<span class=""math-tex"">\(\ell\)</span>&nbsp;has a linear charge density&nbsp; <span class=""math-tex"">\(\rho(\text x)=\rho_0\frac{\text x}{\ell}\)</span>on it. The rod is&nbsp;rotated about an axis passing through the origin (x = 0) and perpendicular to the rod. If the rod makes n rotations per second, then the time averaged magnetic moment of the rod is:&nbsp;</strong></p>
+
+<p><strong>(A)&nbsp;<span class=""math-tex"">\(\pi\text n\rho\ell^3\)</span></strong></p>
+
+<p><strong>(B)&nbsp;<span class=""math-tex"">\(\frac{\pi}{3}\text n\rho\ell^3\)</span></strong></p>
+
+<p><strong>(C)&nbsp;<span class=""math-tex"">\(\frac{\pi}{4}\text n\rho\ell^3\)</span></strong></p>
+
+<p><strong>(D)&nbsp;<span class=""math-tex"">\(\text n\rho\ell^3\)</span></strong></p>
+","<p><span class=""math-tex"">\(\text {dM}=\text {di A}\)</span></p>
+
+<p>&nbsp; &nbsp; &nbsp;&nbsp;<span class=""math-tex"">\(=\Big(\frac{\text {dq}\omega}{2\pi}\Big)\pi\text x^2\)</span></p>
+
+<p>&nbsp; &nbsp; &nbsp;&nbsp;<span class=""math-tex"">\(=(\rho\text {dx})\frac{\omega}{2\pi}\pi\text x^2\)</span></p>
+
+<p><span class=""math-tex"">\(\text M=\overset{\text L}{\underset{0}\int}\text{dM}\)</span></p>
+",,,,"2020-04-20 08:25:15","1","1",NULL,"3",NULL,NULL,"375","2","3","2","29","2","7","5","physics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14206","3","3","1",,,NULL,"PHY",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","medium","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","3"
+"23719","28",,"C",,,"1","1","1","<p><strong>A piece of wood of mass 0.03 kg is dropped from the top of a 100 m height building. At the same time, a bullet of mass 0.02 kg is fired vertically upward, with a velocity&nbsp; <span class=""math-tex"">\(100\text {ms}^{-1}\)</span>&nbsp;,from the ground. The bullet gets embedded in the wood. Then the maximum height to which the combined system reaches above the top of the building before falling below is: <span class=""math-tex"">\((\text g = 10 \text{ms}^{-2}) \)</span>&nbsp;</strong></p>
+
+<p><strong>(A) 20 m </strong></p>
+
+<p><strong>(B) 30 m &nbsp;</strong></p>
+
+<p><strong>(C) 40 m </strong></p>
+
+<p><strong>(D) 10 m &nbsp;</strong><br />
+&nbsp;</p>
+","<p><strong><img alt="""" src=""https://www.testbee.in/preview/show_qimage/1587370006.png"" style=""height:144px; width:120px"" /></strong></p>
+
+<p><strong><span class=""math-tex"">\(\text Y_{\text {cm}}\)</span>&nbsp;&nbsp;from ground&nbsp;<span class=""math-tex"">\(=\frac{0.03\times100}{0.05}=60\  \text m\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\text V_\text {cm}=\frac{0.02\times100}{0.05}=40\  \text{m/s}\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\text H=\frac{\text V^2_\text {cm}}{2\text g}=\frac{40\times40}{20}=80\ \text{m}\)</span></strong></p>
+
+<p><strong>Height above building = 80 &ndash; 40 = 40 m &nbsp;&nbsp;</strong></p>
+",,,,"2020-04-20 08:12:14","1","1",NULL,"3",NULL,NULL,"375","1","3","2","28","2","7","5","physics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14205","3","3","1",,,NULL,"PHY",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","easy","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","3"
+"23718","27",,"A",,,"1","1","1","<p><strong>A 2 W carbon resistor is color coded with green, black, red and brown respectively. The maximum current which can be passed through this resistor is: &nbsp;</strong></p>
+
+<p><strong>(A) 20 mA </strong></p>
+
+<p><strong>(B) 100 mA &nbsp;</strong></p>
+
+<p><strong>(C) 0.4 mA </strong></p>
+
+<p><strong>(D) 63 mA&nbsp;</strong></p>
+","<p><strong>By colour coding,&nbsp;</strong></p>
+
+<p><strong>&nbsp; &nbsp; &nbsp; &nbsp;<span class=""math-tex"">\(
+\text R=50\times10^2\Omega\)</span></strong></p>
+
+<p><strong>&nbsp; &nbsp; &nbsp; &nbsp;<span class=""math-tex"">\(\text I^2\text R=\text P\)</span></strong></p>
+
+<p><strong>&nbsp; &nbsp; &nbsp; &nbsp;<span class=""math-tex"">\(\text I=\sqrt{\frac{\text P}{\text R}}=20 \ \text {mA}\)</span></strong></p>
+",,,,"2020-04-20 08:02:58","1","1",NULL,"3",NULL,NULL,"375","3","3","2","27","2","7","5","physics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14204","3","3","1",,,NULL,"PHY",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","high","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","3"
+"23717","26",,"C",,,"1","1","1","<p><strong>In the given circuit the cells have zero internal resistance. The currents (in Amperes) passing through resistance <span class=""math-tex"">\( \text R_1 \ \text {and}\  \text R_2 \)</span>respectively, are: &nbsp;</strong></p>
+
+<p><strong><img alt="""" src=""https://www.testbee.in/preview/show_qimage/1587369021.png"" style=""height:129px; width:198px"" /></strong></p>
+
+<p><strong>(A) 1, 2 &nbsp;</strong></p>
+
+<p><strong>(B) 2, 2 &nbsp;</strong></p>
+
+<p><strong>(C) 0.5, 0 &nbsp;</strong></p>
+
+<p><strong>(D) 0, 1&nbsp;</strong></p>
+","<p><img alt="""" src="" https://www.testbee.in/preview/show_qimage/1587369388.png"" style=""height:130px; width:200px"" /></p>
+",,,,"2020-04-20 07:56:58","1","1",NULL,"3",NULL,NULL,"375","2","3","2","26","2","7","5","physics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14203","3","3","1",,,NULL,"PHY",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","medium","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","3"
+"23716","25",,"A",,,"1","1","1","<p><strong>Two electric dipoles A, B with respective dipole moments&nbsp;<span class=""math-tex"">\(\overrightarrow{\text d_\text A}=-4 \text {qa}\hat{\text i}\)</span> and <span class=""math-tex"">\(\overrightarrow{\text d_\text B}=2\text {qa}\hat{\text i}\)</span>are placed on the x-axis with a separation R, as shown in the figure. The distance from A at which both of them produce the same potential is:&nbsp;</strong></p>
+
+<p><strong><img alt="""" src="" https://www.testbee.in/preview/show_qimage/1587367483.png"" style=""height:62px; width:209px"" /></strong></p>
+
+<p><strong>(A)&nbsp;<span class=""math-tex"">\(\frac{\text R}{\sqrt{2}+1}\)</span></strong></p>
+
+<p><strong>(B)&nbsp;<span class=""math-tex"">\(\frac{\sqrt{2}\text R}{\sqrt{2}+1}\)</span></strong></p>
+
+<p><strong>(C)&nbsp;<span class=""math-tex"">\(\frac{\text R}{\sqrt{2}-1}\)</span></strong></p>
+
+<p><strong>(D)&nbsp;<span class=""math-tex"">\(\frac{\sqrt{2}\text R}{\sqrt{2}-1}\)</span></strong></p>
+","<p><strong><img alt="""" src=""https://www.testbee.in/preview/show_qimage/1587367973.png"" style=""height:96px; width:150px"" /></strong></p>
+
+<p><strong><span class=""math-tex"">\(\text v_1=\text v_2\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\frac{\text k(2\text {qa})}{\text x^2}=\frac{\text k(4\text {qa})}{(\text R-\text x)^2}\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\text R-\text x=\sqrt{2}\text x\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\text x=\frac{\text R}{\sqrt{2}+1}\)</span></strong></p>
+",,,,"2020-04-20 07:40:30","1","1",NULL,"3",NULL,NULL,"375","1","3","2","25","2","7","5","physics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14202","3","3","1",,,NULL,"PHY",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","easy","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","3"
+"23715","24",,"A",,,"1","1","1","<p><strong>A solid metal cube of edge length 2 cm is moving in a positive y-direction at a constant speed of 6 m/s. There is a uniform magnetic field of 0.1 T in the positive z-direction. The potential difference between the two faces of the cube perpendicular to the x-axis, is: &nbsp;</strong></p>
+
+<p><strong>(A) 12 mV </strong></p>
+
+<p><strong>(B) 6 mV &nbsp;</strong></p>
+
+<p><strong>(C) 1 mV </strong></p>
+
+<p><strong>(D) 2 mV&nbsp;</strong></p>
+","<p><span class=""math-tex"">\(\text E=\text {vB}\)</span></p>
+
+<p><span class=""math-tex"">\(\text{ v=Ed=dvB}\)</span></p>
+",,,,"2020-04-20 07:15:54","1","1",NULL,"3",NULL,NULL,"375","3","3","2","24","2","7","5","physics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14201","3","3","1",,,NULL,"PHY",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","high","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","3"
+"23714","23",,"A",,,"1","1","1","<p><strong>Using a nuclear counter the count rate of emitted particles from a radioactive source is measured. At t = 0 it was 1600 counts per second and t = 8 seconds it was 100 counts per second. The count rate observed, as counts per second, at t = 6 seconds is close to: &nbsp;</strong></p>
+
+<p><strong>(A) 200 </strong></p>
+
+<p><strong>(B) 150 &nbsp;</strong></p>
+
+<p><strong>(C) 400 </strong></p>
+
+<p><strong>(D) 360&nbsp;</strong></p>
+","<p><strong>In 8 seconds count rate becomes&nbsp;<span class=""math-tex"">\(\frac{1}{16}\)</span>times</strong></p>
+
+<p><strong><span class=""math-tex"">\(\therefore\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp;4 half lives = 8s</strong></p>
+
+<p><strong>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; 1 half lie = 2s&nbsp;</strong></p>
+
+<p><strong>In 6s or 3 half lives, count rate&nbsp;<span class=""math-tex"">\(=\frac{1600}{2^3}=200\)</span>&nbsp;</strong></p>
+",,,,"2020-04-20 07:12:36","1","1",NULL,"3",NULL,NULL,"375","2","3","2","23","2","7","5","physics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14200","3","3","1",,,NULL,"PHY",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","medium","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","3"
+"23713","22",,"B",,,"1","1","1","<p><strong>If the magnetic field of a plane electromagnetic wave is given by (The speed of light = &nbsp;<span class=""math-tex"">\(3\times10^8 \ \text {m/s}) \text B=100\times10^{-6}\sin\Big[2\pi\times2\times10^{15}\Big(\text t-\frac{\text x}{\text c}\Big)\Big]\)</span>then the maximum electric field&nbsp;associated with it is: &nbsp;</strong></p>
+
+<p><strong>(A) <span class=""math-tex"">\(6 × 10^4\text{ N/C}\)</span> </strong></p>
+
+<p><strong>(B) <span class=""math-tex"">\(3 × 10^4 \text{N/C}  \)</span></strong></p>
+
+<p><strong>(C) <span class=""math-tex"">\(4 × 10^4\text{ N/C} \)</span></strong></p>
+
+<p><strong>(D) <span class=""math-tex"">\(4.5 × 10^4 \text{N/C} \)</span></strong></p>
+","<p><strong>E = CB&nbsp;</strong></p>
+",,,,"2020-04-20 07:08:45","1","1",NULL,"3",NULL,NULL,"375","1","3","2","22","2","7","5","physics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14199","3","3","1",,,NULL,"PHY",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","easy","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","3"
+"23712","21",,"C",,,"1","1","1","<p><strong>To get output &lsquo;1&rsquo; at R, for the given logic gate circuit the input values must be: &nbsp;</strong></p>
+
+<p><strong><img alt="""" src="" https://www.testbee.in/preview/show_qimage/1587365519.png"" style=""height:84px; width:200px"" /></strong></p>
+
+<p><strong>(A) X = 0, Y = 1 &nbsp;</strong></p>
+
+<p><strong>(B) X = 1, Y = 1 &nbsp;</strong></p>
+
+<p><strong>(C) X = 1, Y = 0 &nbsp;</strong></p>
+
+<p><strong>(D) X = 0, Y = 0 &nbsp;&nbsp;</strong></p>
+","<p><strong><span class=""math-tex"">\(\text R=\overline{\text P+\text Q}=\overline{(\overline{\text x}+\text y)+(\overline{\text x\overline{\text y}})}\)</span></strong></p>
+
+<p><strong>&nbsp; &nbsp; &nbsp; &nbsp;&nbsp;<span class=""math-tex"">\(=\big(\overline{\overline{\text x}+\text y}\big).\big(\text x\overline{\text y}\big)\)</span></strong></p>
+
+<p><strong>&nbsp; &nbsp; &nbsp; &nbsp;&nbsp;<span class=""math-tex"">\(=\big({\text x}.\overline{\text y}\big).\big(\text x\overline{\text y}\big)\)</span></strong></p>
+
+<p><strong>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<span class=""math-tex"">\(=\text x\overline{\text y}\)</span></strong></p>
+
+<p><strong>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<span class=""math-tex"">\(\)</span></strong></p>
+
+<p>&nbsp;</p>
+",,,,"2020-04-20 07:01:16","1","1",NULL,"3",NULL,NULL,"375","3","3","2","21","2","7","5","physics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14198","3","3","1",,"Incomplete formula in the solution.. First line",NULL,"PHY",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","high","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","3"
+"23685","20",,"A",,,"1","1","1","<p><strong>A plano-convex lens of refractive index&nbsp;<span class=""math-tex"">\(\mu_1\)</span> and focal length&nbsp;<span class=""math-tex"">\(\text f_1\)</span> is kept in contact with another plano concave lens of refractive index <span class=""math-tex"">\(\mu_2\)</span> and focal length <span class=""math-tex"">\(\text f_2\)</span>. If the radius of curvature of their spherical faces is R each and, then <span class=""math-tex"">\(\mu_1\)</span>&nbsp;and <span class=""math-tex"">\(\mu_2\)</span>&nbsp;are related as: &nbsp;</strong></p>
+
+<p><strong>(A) <span class=""math-tex"">\(\mu_1 + \mu_2 = 3 \)</span></strong></p>
+
+<p><strong>(B) <span class=""math-tex"">\(2\mu_1 + \mu_2 = 1  \)</span></strong></p>
+
+<p><strong>(C)&nbsp;<span class=""math-tex"">\( 3\mu_2 + \mu_1 = 1 \)</span></strong></p>
+
+<p><strong>(D) <span class=""math-tex"">\(2\mu_2 + \mu_1 = 1 \)</span></strong></p>
+","<p><span class=""math-tex"">\(\frac{1}{\text f_1}=(\mu_1-1)\Big(\frac{1}{\text R}-\frac{1}{\infty}\Big); \frac{1}{\text f_2}=(\mu_2-1)\Big(\frac{1}{\infty}-\frac{1}{\text R}\Big)\)</span></p>
+
+<p><span class=""math-tex"">\(\frac{1}{\text f_1}=\frac{\mu-1}{\text R};\frac{1}{\text f_2}=-\Big(\frac{\mu_2-1}{\text R}\Big)\)</span></p>
+
+<p><span class=""math-tex"">\(\text f_2=2\text f_1 \ \ ;\ \ \frac{1}{\text f_1}=\frac{2}{\text f_2}\)</span></p>
+
+<p><span class=""math-tex"">\(\frac{\mu_1-1}{\text R}=\frac{-2(\mu_2-1)}{\text R}\)</span></p>
+
+<p><span class=""math-tex"">\(\mu_1+2\mu_2=3\)</span></p>
+",,,,"2020-04-18 09:06:49","1","1",NULL,"3",NULL,NULL,"375","3","3","2","20","2","7","5","physics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14197","3","3","1",,,NULL,"PHY",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","high","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","3"
+"23683","19",,"B",,,"1","1","1","<p><strong>A train moves towards a stationary observer with speed 34 m/s. The train sounds a whistle and its frequency registered by the observer is <span class=""math-tex"">\(\text f_1.\)</span> If the speed of the train is reduced to 17 m/s, the frequency registered is If&nbsp;<span class=""math-tex"">\(\text f_2.\)</span>&nbsp;If speed of sound is 340 m/s, then the ratio <span class=""math-tex"">\(\text f_1/\text f_2 \)</span>is: &nbsp;</strong></p>
+
+<p><strong>(A) 18/17 </strong></p>
+
+<p><strong>(B) 19/18 &nbsp;</strong></p>
+
+<p><strong>(C) 20/19 </strong></p>
+
+<p><strong>(D) 21/20&nbsp;</strong></p>
+","<p><strong><span class=""math-tex"">\(\text f_1=\text f_\circ\Big(\frac{340}{340-17}\Big)\ \ ;\ \ \text f_2=\text f_\circ\Big(\frac{340}{340-34}\Big)\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\frac{\text f_1}{\text f_2}=\frac{306}{323} \ \ \text {or} \ \ \frac{18\times17}{19\times17}\ \ \text {or} \ \ \frac{18}{19}\)</span></strong></p>
+",,,,"2020-04-18 08:51:43","1","1",NULL,"3",NULL,NULL,"375","3","3","2","19","2","7","5","physics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14196","3","3","1",,,NULL,"PHY",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","high","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","3"
+"23682","18",,"D",,,"1","1","1","<p><strong>A string of length 1 m and mass 5 g is fixed at both ends. The tension in the string is 8.0 N. The string is set into vibration using an external vibrator of frequency 100 Hz. The separation between successive nodes on the string is close to: &nbsp;</strong></p>
+
+<p><strong>(A) 10.0 cm </strong></p>
+
+<p><strong>(B) 33.3 cm &nbsp;</strong></p>
+
+<p><strong>(C) 16.6 cm </strong></p>
+
+<p><strong>(D) 20.0 cm&nbsp;</strong></p>
+","<p><strong><span class=""math-tex"">\(\text f=\frac{\text n}{2\ell}\sqrt{\frac{\text T}{\text m}}\)</span></strong></p>
+
+<p><strong>On solving, n = 5, </strong></p>
+
+<p><strong>5 loops are formed in 1 m. </strong></p>
+
+<p><strong>&nbsp;<span class=""math-tex"">\(\therefore\)</span>&nbsp;Separation between successive nodes&nbsp;<span class=""math-tex"">\(=\frac{1}{5}\text m=20\text {cm}\)</span></strong></p>
+
+<p>&nbsp;</p>
+",,,,"2020-04-18 08:44:51","1","1",NULL,"3",NULL,NULL,"375","2","3","2","18","2","7","5","physics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14195","3","3","1",,,NULL,"PHY",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","medium","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","3"
+"23680","17",,"A",,,"1","1","1","<p><strong>Water flows into a large tank with flat bottom at the rate of&nbsp; <span class=""math-tex"">\(10^{-4} \text m^3\text s^{-1}. \)</span>Water is also leaking out of a hole of area 1 <span class=""math-tex"">\(\text {cm}^2\)</span> at its bottom. If the height of the water in the tank remains steady, then this height is: &nbsp;</strong></p>
+
+<p><strong>(A) 5.1 cm </strong></p>
+
+<p><strong>(B) 1.7 cm &nbsp;</strong></p>
+
+<p><strong>(C) 4 cm </strong></p>
+
+<p><strong>(D) 2.9 cm&nbsp;</strong></p>
+","<p><strong><span class=""math-tex"">\(\frac{\text {dV}}{\text {dt}}=\phi-\text a\sqrt{2\text {gh}}=0\)</span>&nbsp; &nbsp;&nbsp;&nbsp;(for maximum height)&nbsp;</strong></p>
+
+<p><strong><span class=""math-tex"">\(\text h=\frac{\phi^2}{2\text {ga}^2}=\frac{10^{-8}}{2\times9.8\times10^{-8}}=5.1 \text{cm}\)</span></strong></p>
+",,,,"2020-04-18 08:40:37","1","1",NULL,"3",NULL,NULL,"375","1","3","2","17","2","7","5","physics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14194","3","3","1",,,NULL,"PHY",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","easy","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","3"
+"23679","16",,"B",,,"1","1","1","<p><strong>A satellite is moving with a constant speed <span class=""math-tex"">\(\upsilon\)</span>&nbsp;in circular orbit around the earth. An object of mass &lsquo;m&rsquo; is ejected from the satellite such that it just escapes from the gravitational pull of the earth. At the time of ejection, the kinetic energy of the object is: &nbsp;</strong></p>
+
+<p><strong>(A) <span class=""math-tex"">\(2 \text m\upsilon^2 \)</span></strong></p>
+
+<p><strong>(B) <span class=""math-tex"">\(\text m\upsilon^2\)</span>&nbsp;</strong></p>
+
+<p><strong>(C) <span class=""math-tex"">\(\frac{1}{2} \text m\upsilon^ 2 \)</span></strong></p>
+
+<p><strong>(D) <span class=""math-tex"">\(\frac{3}{2} \text m\upsilon^2 \)</span></strong></p>
+","<p><strong>Initially, kinetic energy&nbsp;<span class=""math-tex"">\(=\frac{1}{2}\text {mv}^2=\frac{1}{2}\text m\frac{\text {GM}_\text e}{\text r}\)</span></strong></p>
+
+<p><strong>By conservation of M.E.,&nbsp;</strong></p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<span class=""math-tex"">\(\frac{-\text {GM}_\text {e}\text m}{\text r}+\text {KE}=0\)</span></p>
+
+<p><span class=""math-tex"">\(\text {KE}=\frac{\text {GM}_\text e\text m}{\text r}=\text {mv}^2\)</span></p>
+",,,,"2020-04-18 08:35:01","1","1",NULL,"3",NULL,NULL,"375","3","3","2","16","2","7","5","physics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14193","3","3","1",,,NULL,"PHY",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","high","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","3"
+"23678","15",,"B",,,"1","1","1","<p><strong>Three Carnot engines operate in series between a heat source at a temperature <span class=""math-tex"">\(\text T_1\)</span> and a heat sink at temperature <span class=""math-tex"">\(\text T_4 \)</span>(see figure). There are two other reservoirs at temperature <span class=""math-tex"">\(\text T_2 \)</span>and <span class=""math-tex"">\(\text T_3,\)</span> as shown, with <span class=""math-tex"">\(\text T_1 &gt; \text T_2 &gt; \text T_3 &gt;\text  T_4.\)</span> The three engines are equally efficient if:&nbsp;</strong></p>
+
+<p><strong><img alt="""" src="" https://www.testbee.in/preview/show_qimage/1587197759.png"" style=""height:120px; width:120px"" /></strong></p>
+
+<p>(A)&nbsp;<span class=""math-tex"">\(\text T_2=(\text T_1\text T_4)^{1/2}; \text T_3=(\text T^2_1\text T_4)^{1/3}\)</span></p>
+
+<p>(B)&nbsp;<span class=""math-tex"">\(\text T_2=(\text T^2_1\text T_4)^{1/3}; \text T_3=(\text T_1\text T^4_2)^{1/3}\)</span></p>
+
+<p>(C)&nbsp;<span class=""math-tex"">\(\text T_2=(\text T_1\text T^2_4)^{1/3}; \text T_3=(\text T^2_1\text T_4)^{1/3}\)</span></p>
+
+<p>(D)&nbsp;<span class=""math-tex"">\(\text T_2=(\text T^3_1\text T_4)^{1/4}; \text T_3=(\text T_1\text T^3_4)^{1/4}\)</span></p>
+","<p><strong><span class=""math-tex"">\(\text n_1=\text n_2=\text n_3\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\Rightarrow  \ \ \ 1-\frac{\text T_2}{\text T_1}=1-\frac{\text T_3}{\text T _2}=1-\frac{\text T_4}{\text T_3}\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\Rightarrow  \ \ \ \frac{\text T_2}{\text T_1}=\frac{\text T_3}{\text T _2}=\frac{\text T_4}{\text T_3}\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\Rightarrow \ \ \text T_2\text T_3=\text T_1\text T_4\ \ \text{and }\ \  \frac{\text T^2_3}{\text T_2}=\text T_4\)</span></strong></p>
+
+<p><strong>Solve for <span class=""math-tex"">\(\text T_2\)</span> and <span class=""math-tex"">\(\text T_3.\)</span></strong></p>
+",,,,"2020-04-18 08:24:17","1","1",NULL,"3",NULL,NULL,"375","3","3","2","15","2","7","5","physics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14192","3","3","1",,,NULL,"PHY",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","high","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","3"
+"23676","14",,"D",,,"1","1","1","<p><strong>A charge Q is distributed over three concentric spherical shell of radii a, b, c (a &lt; b &lt; c) such that their surface charge densities are equal to one another. &nbsp;The total potential at a point at distance r from their common centre, where r &lt; a, would be:&nbsp;</strong></p>
+
+<p><strong>(A)&nbsp;<span class=""math-tex"">\(\frac{\text Q}{12\pi \in_0}\frac{\text {ab+bc+ca}}{\text{abc}}\)</span></strong></p>
+
+<p><strong>(B)&nbsp;<span class=""math-tex"">\(\frac{\text Q(\text a^2+\text b^2+\text c^2)}{4\pi\in_0(\text a^3+\text b^3+\text c^3)}\)</span></strong></p>
+
+<p><strong>(C)&nbsp;<span class=""math-tex"">\(\frac{\text Q}{4\pi\in_0(\text a+\text b+\text c)}\)</span></strong></p>
+
+<p><strong>(D)&nbsp;<span class=""math-tex"">\(\frac{\text Q(\text a+\text b+\text c)}{4\pi\in_0(\text a^2+\text b^2+\text c^2)}\)</span></strong></p>
+","<p><span class=""math-tex"">\(\text Q_1+\text q_2+\text Q_3=\text Q\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;.......(1)</p>
+
+<p><span class=""math-tex"">\(=\frac{\text Q_1}{4\pi\text a^2}=\frac{\text Q_2}{4\pi \text b^2}=\frac{\text Q_3}{4\pi\text c^2}=\text k\)</span>&nbsp; &nbsp; ........(2)</p>
+
+<p>Subs.<span class=""math-tex"">\(\text Q_1,\text Q_2,\text Q_3\)</span>&nbsp;in (1)</p>
+
+<p><span class=""math-tex"">\(\text k=\frac{\text Q}{4\pi(\text a^2+\text b^2+\text c^2)}\)</span></p>
+
+<p><span class=""math-tex"">\(\text v=\frac{\text {kQ}_1}{\text a}+\frac{\text {kQ}_2}{\text b}+\frac{\text{kQ}_3}{\text c}\)</span></p>
+",,,,"2020-04-18 07:38:24","1","1",NULL,"3",NULL,NULL,"375","2","3","2","14","2","7","5","physics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14191","3","3","1",,,NULL,"PHY",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","medium","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","3"
+"23672","13",,"C",,,"1","1","1","<p><strong>A parallel plate capacitor is of area 6 <span class=""math-tex"">\(\text{cm}^2\)</span> and a separation 3 mm. The gap is filled with three dielectric materials of equal thickness (see figure) with dielectric constants <span class=""math-tex"">\(\text K_1 = 10, \text K_2 = 12 \ \text {and K}_3 = 14.\)</span> The dielectric constant of a material which when fully inserted in above capacitor, gives same capacitance would be: &nbsp;</strong></p>
+
+<p><strong><img alt="""" src=""https://www.testbee.in/preview/show_qimage/1587192923.png"" style=""height:65px; width:150px"" /></strong></p>
+
+<p><strong>(A) 4 </strong></p>
+
+<p><strong>(B) 14 &nbsp;</strong></p>
+
+<p><strong>(C) 12 </strong></p>
+
+<p><strong>(D) 36&nbsp;</strong></p>
+","<p><strong><span class=""math-tex"">\(\text C_{\text{net}}\text C_1+\text C_2+\text C_3\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\frac{\text {kAE}_\circ}{\text d}=\text k_1\Big(\frac{\text A}{3}\Big)\frac{\text E_\circ}{\text d}+\text k_2\Big(\frac{\text A}{3}\Big)\frac{\text E_\circ}{\text d}+\text k_3\Big(\frac{\text A}{3}\Big)\frac{\text E_\circ}{\text d}\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\text k=\frac{\text k_1+\text k_2+\text k_3}{3}=12\)</span></strong></p>
+",,,,"2020-04-18 07:04:01","1","1",NULL,"3",NULL,NULL,"375","1","3","2","13","2","7","5","physics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14190","3","3","1",,,NULL,"PHY",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","easy","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","3"
+"23671","12",,"A",,,"1","1","1","<p><strong>A heat source at <span class=""math-tex"">\(\text T=10^3\)</span>K is connected to another heat reservoir at <span class=""math-tex"">\(\text T = 10^2\)</span> K by a copper slab which is 1 m thick. Given that the thermal conductivity of copper is <span class=""math-tex"">\(0.1 \text {WK}^{-1} \text m^{-1},\)</span> the energy flux through it in the steady state is: &nbsp;</strong></p>
+
+<p><strong>(A) <span class=""math-tex"">\(90 \text{Wm}^{-2}\)</span></strong></p>
+
+<p><strong>(B)&nbsp;<span class=""math-tex"">\(120 \text{Wm}^{-2}\)</span></strong></p>
+
+<p><strong>(C)&nbsp;<span class=""math-tex"">\(65 \text{Wm}^{-2}\)</span></strong></p>
+
+<p><strong>(D)&nbsp;<span class=""math-tex"">\(200 \text{Wm}^{-2}\)</span></strong></p>
+","<p><span class=""math-tex"">\(\frac{\Delta\text Q}{\Delta \text t}=\frac{\text {kA}}{\ell}(\text T_2-\text T_1)\)</span></p>
+
+<p><span class=""math-tex"">\(\frac{1}{\text A}\Big(\frac{\Delta\text Q}{\Delta \text t}\Big)=\frac{\text {k}}{\ell}(\text T_2-\text T_1)\)</span></p>
+
+<p>&nbsp;</p>
+",,,,"2020-04-18 06:50:30","1","1",NULL,"3",NULL,NULL,"375","3","3","2","12","2","7","5","physics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14189","3","3","1",,,NULL,"PHY",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","high","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","3"
+"23669","11",,"wrongAns",,,"1","1","1","<p><strong>A magnet of total magnetic moment&nbsp; <span class=""math-tex"">\(10^{-2}\hat{\text i}\text A-\text m^2\)</span>&nbsp;is placed in a time varying magnetic field,&nbsp;<span class=""math-tex"">\(\text B\hat{\text i}(\cos\omega\  \text t)\)</span> where B = 1 Tesla and&nbsp;<span class=""math-tex"">\(\omega=0.125\)</span> rad/s. The work done for reversing the direction of the magnetic moment at t = 1 second, is: &nbsp;</strong></p>
+
+<p><strong>(A) 0.01 J </strong></p>
+
+<p><strong>(B) 0.007 J &nbsp;</strong></p>
+
+<p><strong>(C) 0.028 J </strong></p>
+
+<p><strong>(D) 0.014 J</strong></p>
+","<p><strong>Work done by external agent&nbsp;<span class=""math-tex"">\(=\text U_\text f-\text U_\text i\)</span></strong></p>
+
+<p><strong>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp;<span class=""math-tex"">\(=2\text {MB}\)</span></strong></p>
+",,,,"2020-04-18 06:40:10","1","1",NULL,"3",NULL,NULL,"375","2","3","2","11","2","7","5","physics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14188","3","3","1",,,NULL,"PHY",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","medium","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","3"
+"23668","10",,"A",,,"1","1","1","<p><strong>The density of a material in SI units is 128 kg <span class=""math-tex"">\(\text m^{-3}\)</span>. In certain units in which the unit of length is 25 cm and the unit of mass 50 g, the numerical value of density of the material is: &nbsp;</strong></p>
+
+<p><strong>(A) 40 </strong></p>
+
+<p><strong>(B) 16 &nbsp;</strong></p>
+
+<p><strong>(C) 640 </strong></p>
+
+<p><strong>(D) 410 &nbsp;</strong></p>
+","<p><span class=""math-tex"">\(\frac{128\text {kg}}{\text m^3}=\frac{64(2\text{kg})}{10\text {cm}^3}\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;</p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<span class=""math-tex"">\(=\frac{64(2\text {kg})}{10^6(50\text {cm})^3}\times 50^{3}\)</span></p>
+
+<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<span class=""math-tex"">\(=\frac{64\times50\times50\times50}{100\times100\times100}\times\frac{2\text{kg}}{(50 \text {cm})^3}=8\frac{(2\text{kg})}{(50\text {cm}^3)}\)</span></p>
+
+<p>&nbsp;</p>
+
+<p>&nbsp;</p>
+",,,,"2020-04-18 06:33:04","1","1",NULL,"3",NULL,NULL,"375","1","3","2","10","2","7","5","physics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14187","3","3","1",,,NULL,"PHY",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","easy","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","3"
+"23667","9",,"A",,,"1","1","1","<p><strong>Two guns A and B can fire bullets at speed 1 km/s and 2 km/s respectively. From a point on a horizontal ground, they are fired in all possible directions. The ratio of maximum areas covered by the bullets fired by the two guns, on the ground is: &nbsp;</strong></p>
+
+<p><strong>(A) 1 : 16 </strong></p>
+
+<p><strong>(B) 1 : 2 &nbsp;</strong></p>
+
+<p><strong>(C) 1 : 4 </strong></p>
+
+<p><strong>(D) 1 : 8&nbsp;</strong></p>
+","<p><strong>Area&nbsp;<span class=""math-tex"">\(\propto \pi(\text {Range})^2\propto\text v^4\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\therefore \frac{\text A_1}{\text A_2}=\Big(\frac{1}{2}\Big)^4\)</span></strong></p>
+",,,,"2020-04-18 06:21:41","1","1",NULL,"3",NULL,NULL,"375","3","3","2","9","2","7","5","physics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14186","3","3","1",,,NULL,"PHY",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","high","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","3"
+"23666","8",,"A",,,"1","1","1","<p><strong>In a Young&rsquo;s double slit experiment with slit separation 0.1 mm, one observes a bright&nbsp;fringe at angle&nbsp; <span class=""math-tex"">\(\frac{1}{40}\)</span>rad by using light of wavelength <span class=""math-tex"">\(\lambda_1\)</span>. When the light of wavelength <span class=""math-tex"">\(\lambda_2\)</span>&nbsp;is used a bright fringe is seen at the same angle in the same set up. Given that <span class=""math-tex"">\(\lambda_1\)</span>&nbsp;and <span class=""math-tex"">\(\lambda_2\)</span>&nbsp;are in visible range (380 nm to 740 nm), their values are: &nbsp;</strong></p>
+
+<p><strong>(A) 625 nm, 500 nm </strong></p>
+
+<p><strong>(B) 380 nm, 525 nm &nbsp;</strong></p>
+
+<p><strong>(C) 380 nm, 500 nm </strong></p>
+
+<p><strong>(D) 400 nm, 500 nm&nbsp;</strong></p>
+","<p><strong>For maxima,&nbsp;</strong></p>
+
+<p><strong>&nbsp; &nbsp; &nbsp; &nbsp;&nbsp;<span class=""math-tex"">\(\text {dsin}\theta=\text n\lambda\)</span></strong></p>
+
+<p><strong>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<span class=""math-tex"">\(\lambda=\frac{\text d\theta}{\text n}\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp;<span class=""math-tex"">\((\because \sin \theta\approx \theta\  \text {When }\theta \ \text {is small })\)</span></strong></p>
+
+<p><strong>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<span class=""math-tex"">\(=\frac{2500}{\text n}\text {nm}\)</span></strong></p>
+
+<p><strong>Take n=4, for&nbsp;<span class=""math-tex"">\(\lambda=625 \text {nm and 500 nm.}\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\)</span></strong></p>
+",,,,"2020-04-18 06:17:10","1","1",NULL,"3",NULL,NULL,"375","2","3","2","8","2","7","5","physics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14184","3","3","1",,,NULL,"PHY",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","medium","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","3"
+"23629","7",,"D",,,"1","1","1","<p><strong>A block of mass m is kept on a platform which starts from rest with constant acceleration g/2 upward, as shown in figure. Work done by normal reaction on block in time t is:&nbsp;</strong></p>
+
+<p><strong><img alt="""" src="" https://www.testbee.in/preview/show_qimage/1587120557.png"" style=""height:78px; width:198px"" /></strong></p>
+
+<p><strong>(A)&nbsp;<span class=""math-tex"">\(-\frac{\text {mg}^2\text t^2}{8}\)</span></strong></p>
+
+<p><strong>(B)&nbsp;<span class=""math-tex"">\(\frac{\text {mg}^2\text t^2}{8}\)</span></strong></p>
+
+<p><strong>(C) 0</strong></p>
+
+<p><strong>(D)&nbsp;<span class=""math-tex"">\(-\frac{3\text {mg}^2\text t^2}{8}\)</span></strong></p>
+","<p><span class=""math-tex"">\(\text W=\text {F s}\cos\theta\)</span></p>
+
+<p>&nbsp; &nbsp; &nbsp;<span class=""math-tex"">\(=\text m\Big(\text g+\frac{\text g}{2}\Big)\times\Big[\frac{1}{2}\times\frac{\text g}{2}\times\text t^2\Big]\)</span></p>
+",,,,"2020-04-17 10:49:40","1","1",NULL,"3",NULL,NULL,"375","1","3","2","7","2","7","5","physics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14177","3","3","1",,,NULL,"PHY",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","easy","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","3"
+"23627","6",,"A",,,"1","1","1","<p><strong>A uniform metallic wire has a resistance of 18&nbsp;<span class=""math-tex"">\(\Omega\)</span>&nbsp;and is bent into an equilateral triangle. Then, the resistance between any two vertices of the triangle is: &nbsp;</strong></p>
+
+<p><strong>(A) 4&nbsp;<span class=""math-tex"">\(\Omega\)</span></strong></p>
+
+<p><strong>(B) 8&nbsp;<span class=""math-tex"">\(\Omega\)</span></strong></p>
+
+<p><strong>(C) 12&nbsp;<span class=""math-tex"">\(\Omega\)</span></strong></p>
+
+<p><strong>(D) 2&nbsp;<span class=""math-tex"">\(\Omega\)</span></strong></p>
+","<p><strong><img alt="""" src=""https://www.testbee.in/preview/show_qimage/1587120004.png"" style=""height:144px; width:200px"" /></strong></p>
+
+<p><strong><span class=""math-tex"">\(\text R_\text{net}=4\Omega\)</span></strong></p>
+",,,,"2020-04-17 10:42:38","1","1",NULL,"3",NULL,NULL,"375","3","3","2","6","2","7","5","physics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14178","3","3","1",,,NULL,"PHY",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","high","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","3"
+"23626","5",,"C",,,"1","1","1","<p><strong>In the cube of side &lsquo;a&rsquo; shown in the figure, the vector from the central point of the face ABOD to the central point of the face BEFO will be:&nbsp;</strong></p>
+
+<p><strong><img alt="""" src="" https://www.testbee.in/preview/show_qimage/1587119614.png"" style=""height:111px; width:125px"" /></strong></p>
+
+<p><strong>(A)&nbsp;<span class=""math-tex"">\(\frac{1}{2}\text a(\hat{\text k}-\hat{\text i})\)</span></strong></p>
+
+<p><strong>(B)&nbsp;<span class=""math-tex"">\(\frac{1}{2}\text a(\hat{\text i}-\hat{\text k})\)</span></strong></p>
+
+<p><strong>(C)&nbsp;<span class=""math-tex"">\(\frac{1}{2}\text a(\hat{\text j}-\hat{\text i})\)</span></strong></p>
+
+<p><strong>(D)&nbsp;<span class=""math-tex"">\(\frac{1}{2}\text a(\hat{\text j}-\hat{\text k})\)</span></strong></p>
+","<p><strong><span class=""math-tex"">\(1\Big(0,\frac{\text a}{2},\frac{\text a}{2}\Big)\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(2\Big(\frac{\text a}{2},\frac{\text a}{2},0\Big)\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\overrightarrow{\text r_2}-\overrightarrow{\text r_1}=\frac{\text a}{2}\hat{\text i}-\frac{\text a}{2}\hat{\text k}\)</span></strong></p>
+
+<p><strong>Unit vector&nbsp;&nbsp;<span class=""math-tex"">\(=\frac{\hat{\text i}-\hat{\text k}}{\sqrt{2}}\)</span></strong></p>
+",,,,"2020-04-17 10:38:48","1","1",NULL,"3",NULL,NULL,"375","2","3","2","5","2","7","5","physics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14179","3","3","1",,,NULL,"PHY",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","medium","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","3"
+"23623","4",,"A",,,"1","1","1","<p><strong>A TV transmission tower has a height of 140 m and the height of the receiving antenna is 40 m. What is the maximum distance upto which signals can be broadcasted from this tower in LOS (Line of Sight) mode? (Given : radius of earth = <span class=""math-tex"">\(6.4 × 10^6 \)</span>m). &nbsp;</strong></p>
+
+<p><strong>(A) 65 km </strong></p>
+
+<p><strong>(B) 48 km &nbsp;</strong></p>
+
+<p><strong>(C) 80 km </strong></p>
+
+<p><strong>(D) 40 km&nbsp;</strong></p>
+","<p><span class=""math-tex"">\(\text D=\sqrt{2\text h_\text T\text R}+\sqrt{2\text h_\text R\text R}\)</span></p>
+",,,,"2020-04-17 10:29:17","1","1",NULL,"3",NULL,NULL,"375","1","3","2","4","2","7","5","physics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14183","3","3","1",,,NULL,"PHY",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","easy","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","3"
+"23622","3",,"C",,,"1","1","1","<p><strong>A potentiometer wire AB having length L and resistance 12 r is joined to a cell D of emf <span class=""math-tex"">\(\varepsilon	\)</span>&nbsp;and internal resistance r. A cell C having emf <span class=""math-tex"">\(\varepsilon/2\)</span> and internal resistance 3r is connected. The length AJ at which the galvanometer as shown in figure shows no deflection is:&nbsp;</strong></p>
+
+<p><strong><img alt="""" src=""https://www.testbee.in/preview/show_qimage/1587118975.png"" style=""height:173px; width:200px"" /></strong></p>
+
+<p><strong>(A)&nbsp;<span class=""math-tex"">\(\frac{11}{12}\text L\)</span></strong></p>
+
+<p><strong>(B)&nbsp;<span class=""math-tex"">\(\frac{11}{24}\text L\)</span></strong></p>
+
+<p><strong>(C)&nbsp;<span class=""math-tex"">\(\frac{13}{24}\text L\)</span></strong></p>
+
+<p><strong>(D)&nbsp;<span class=""math-tex"">\(\frac{5}{12}\text L\)</span></strong></p>
+","<p><strong><span class=""math-tex"">\(\text V_\text {AJ}=\text {IR}_\text {AJ}\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\frac{\text E}{3}=\Big(\frac
+{\text E}{12\text r+3\text r}\Big)\times\Big(\frac{\text x}{\text L}\times12\text r\Big)\)</span></strong></p>
+
+<p>&nbsp;</p>
+",,,,"2020-04-17 10:26:57","1","1",NULL,"3",NULL,NULL,"375","3","3","2","3","2","7","5","physics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14182","3","3","1",,,NULL,"PHY",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","high","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","3"
+"23620","2",,"D",,,"1","1","1","<p><strong>To mop-clean a floor, a cleaning machine presses a circular mop of radius R vertically down with a total force F and rotates it with a constant angular speed about its axis. If the force F is distributed uniformly over the mop and the floor is <span class=""math-tex"">\(\mu\)</span>, the torque, applied by the machine on the mop is: &nbsp;</strong></p>
+
+<p><strong>(A) <span class=""math-tex"">\(\mu \text {FR}/3 \)</span></strong></p>
+
+<p><strong>(B) <span class=""math-tex"">\(\mu \text {FR}/6 \)</span>&nbsp;</strong></p>
+
+<p><strong>(C) <span class=""math-tex"">\(\mu\text {FR}/2 \)</span></strong></p>
+
+<p><strong>(D) <span class=""math-tex"">\(\frac{2}{3}\mu\text {FR}  \)</span></strong></p>
+","<p><span class=""math-tex"">\(\text d\tau=(\mu\ \text {dN})\text x\)</span></p>
+
+<p>&nbsp; &nbsp; &nbsp;&nbsp;<span class=""math-tex"">\(=\mu\Big(\frac{\text F}{\pi\text R^2}\times2\pi\times\text {dx}\Big)\text x\)</span></p>
+
+<p>&nbsp; &nbsp;&nbsp;<span class=""math-tex"">\(\tau=\overset{\text R}{\underset{0}\int}\text {d}\tau\)</span></p>
+
+<p><img alt="""" src=""https://www.testbee.in/preview/show_qimage/1587118220.png"" style=""height:126px; width:125px"" /></p>
+",,,,"2020-04-17 10:10:54","1","1",NULL,"3",NULL,NULL,"375","2","3","2","2","2","7","5","physics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14181","3","3","1",,,NULL,"PHY",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","medium","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","3"
+"23618","1",,"D",,,"1","1","1","<p><strong>In an electron microscope, the resolution that can be achieved is of the order of the wavelength of electrons used. To resolve a width of&nbsp; <span class=""math-tex"">\(7.5 × 10^{-12}\)</span>m, the minimum electron energy required is close to: &nbsp;</strong></p>
+
+<p><strong>(A) 500 <span class=""math-tex"">\(\text{keV} \)</span></strong></p>
+
+<p><strong>(B) 100&nbsp;<span class=""math-tex"">\(\text{keV} \)</span></strong></p>
+
+<p><strong>(C) 1&nbsp;<span class=""math-tex"">\(\text{keV} \)</span></strong></p>
+
+<p><strong>(D) 25&nbsp;<span class=""math-tex"">\(\text{keV} \)</span></strong></p>
+","<p><strong><span class=""math-tex"">\(\text k=\frac{\text p^2}{2\text m}=\frac{\text h^2}{2\text m\lambda^2}\)</span></strong></p>
+
+<p><strong>&nbsp; &nbsp;<span class=""math-tex"">\(=\frac{(6.62\times10^{-34})^2}{2\times9.1\times10^{-31}\times(7.5\times10^{-12})^2}\times\frac{1}{1.6\times10^{-19}}\text {eV}\)</span></strong></p>
+
+<p><strong>Alternate method&nbsp;</strong></p>
+
+<p><strong><span class=""math-tex"">\(\lambda=\sqrt{\frac{150}{\text V}}\)</span></strong></p>
+
+<p><strong><span class=""math-tex"">\(\Rightarrow  7.5\times10^{-12}=\sqrt{\frac{150}{\text V}}\)</span></strong></p>
+
+<p><strong>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<span class=""math-tex"">\(\text V=\frac{80}{3}\text {kV}\)</span></strong></p>
+
+<p><strong>Energy&nbsp;<span class=""math-tex"">\(=\frac{80}{3}\text {keV}\simeq 25\text {keV}\)</span></strong></p>
+",,,,"2020-04-17 09:59:53","1","1",NULL,"3",NULL,NULL,"375","1","3","2","1","2","7","5","physics",NULL,NULL,"JEE Main","10th January 2019(Shift 1)","A,B,C,D","7","rajeshri","mestry","14180","3","3","1",,,NULL,"PHY",NULL,"1","1",NULL,NULL,"MCQ","375","1","3","easy","5","L4","Across all chapters (JEE Main)","0",NULL,"1","Published","success","1","Previous years papers","3"

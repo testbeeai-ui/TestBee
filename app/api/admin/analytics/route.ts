@@ -33,16 +33,19 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "SUPABASE_SERVICE_ROLE_KEY is not set" }, { status: 500 });
     }
 
-    const [{ data: profiles, error: profilesError }, { data: doubts, error: doubtsError }, { count: aiCalls, error: aiCountError }] =
-      await Promise.all([
-        admin
-          .from("profiles")
-          .select(
-            "id, role, class_level, stream, rdm, lifetime_answer_rdm, created_at, updated_at, saved_bits, saved_formulas, saved_revision_cards, saved_revision_units, bits_test_attempts, subtopic_engagement"
-          ),
-        admin.from("doubts").select("id, is_resolved, created_at, views"),
-        admin.from("ai_token_logs").select("*", { head: true, count: "exact" }),
-      ]);
+    const [
+      { data: profiles, error: profilesError },
+      { data: doubts, error: doubtsError },
+      { count: aiCalls, error: aiCountError },
+    ] = await Promise.all([
+      admin
+        .from("profiles")
+        .select(
+          "id, role, class_level, stream, rdm, lifetime_answer_rdm, created_at, updated_at, saved_bits, saved_formulas, saved_revision_cards, saved_revision_units, bits_test_attempts, subtopic_engagement"
+        ),
+      admin.from("doubts").select("id, is_resolved, created_at, views"),
+      admin.from("ai_token_logs").select("*", { head: true, count: "exact" }),
+    ]);
 
     if (profilesError) return NextResponse.json({ error: profilesError.message }, { status: 500 });
     if (doubtsError) return NextResponse.json({ error: doubtsError.message }, { status: 500 });
@@ -63,13 +66,22 @@ export async function GET(request: Request) {
 
     const totalSavedBits = users.reduce((sum, u) => sum + jsonArrayLen(u.saved_bits), 0);
     const totalSavedFormulas = users.reduce((sum, u) => sum + jsonArrayLen(u.saved_formulas), 0);
-    const totalSavedRevisionCards = users.reduce((sum, u) => sum + jsonArrayLen(u.saved_revision_cards), 0);
-    const totalSavedRevisionUnits = users.reduce((sum, u) => sum + jsonArrayLen(u.saved_revision_units), 0);
+    const totalSavedRevisionCards = users.reduce(
+      (sum, u) => sum + jsonArrayLen(u.saved_revision_cards),
+      0
+    );
+    const totalSavedRevisionUnits = users.reduce(
+      (sum, u) => sum + jsonArrayLen(u.saved_revision_units),
+      0
+    );
     const totalSavedItems =
       totalSavedBits + totalSavedFormulas + totalSavedRevisionCards + totalSavedRevisionUnits;
 
     const bitsAttempts = users.reduce((sum, u) => sum + jsonObjectLen(u.bits_test_attempts), 0);
-    const subtopicEngagement = users.reduce((sum, u) => sum + jsonObjectLen(u.subtopic_engagement), 0);
+    const subtopicEngagement = users.reduce(
+      (sum, u) => sum + jsonObjectLen(u.subtopic_engagement),
+      0
+    );
 
     const userGrowthMap = new Map<string, number>();
     for (const user of users) {
@@ -96,14 +108,20 @@ export async function GET(request: Request) {
       const label = s.class_level ? `Class ${s.class_level}` : "Unknown";
       classMap.set(label, (classMap.get(label) ?? 0) + 1);
     }
-    const classDistribution = Array.from(classMap.entries()).map(([name, value]) => ({ name, value }));
+    const classDistribution = Array.from(classMap.entries()).map(([name, value]) => ({
+      name,
+      value,
+    }));
 
     const streamMap = new Map<string, number>();
     for (const s of students) {
       const label = s.stream || "Unknown";
       streamMap.set(label, (streamMap.get(label) ?? 0) + 1);
     }
-    const streamDistribution = Array.from(streamMap.entries()).map(([name, value]) => ({ name, value }));
+    const streamDistribution = Array.from(streamMap.entries()).map(([name, value]) => ({
+      name,
+      value,
+    }));
 
     const rdmByRole = [
       { role: "student", value: students.reduce((sum, u) => sum + Number(u.rdm ?? 0), 0) },

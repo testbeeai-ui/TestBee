@@ -1,12 +1,13 @@
-import { NextResponse } from 'next/server';
-import { createAdminClient } from '@/integrations/supabase/server';
-import { getSupabaseAndUser } from '@/lib/apiAuth';
+import { NextResponse } from "next/server";
+import { createAdminClient } from "@/integrations/supabase/server";
+import { getSupabaseAndUser } from "@/lib/apiAuth";
 
 /**
  * Lists classrooms for the Explore grid on /classrooms (students).
  * Uses the service role when SUPABASE_SERVICE_ROLE_KEY is set so listing works even if
  * client-side RLS policies are missing or misconfigured on the Supabase project.
- * Still requires a logged-in user. Hides classes whose teacher profile visibility is invite_only.
+ * Still requires a logged-in user. Hides classes whose teacher profile visibility is invite_only
+ * (including when using the service role client).
  *
  * Auth: browser Supabase uses localStorage for the session, so cookie-only SSR auth is often empty.
  * Clients should send `Authorization: Bearer <access_token>`; getSupabaseAndUser falls back to that.
@@ -15,18 +16,16 @@ export async function GET(request: Request) {
   try {
     const auth = await getSupabaseAndUser(request);
     if (!auth?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const admin = createAdminClient();
     const db = admin ?? auth.supabase;
-    /** Service role can read all rows; visibility filter is only for user-JWT (RLS-aligned) browsing. */
-    const skipInviteOnlyFilter = !!admin;
 
     const { data: allClassrooms, error: cErr } = await db
-      .from('classrooms')
-      .select('id, name, subject, section, description, type, teacher_id')
-      .order('created_at', { ascending: false });
+      .from("classrooms")
+      .select("id, name, subject, section, description, type, teacher_id")
+      .order("created_at", { ascending: false });
 
     if (cErr) {
       return NextResponse.json({ error: cErr.message }, { status: 500 });
@@ -42,9 +41,9 @@ export async function GET(request: Request) {
 
     if (teacherIds.length > 0) {
       const { data: teacherProfiles, error: pErr } = await db
-        .from('profiles')
-        .select('id, name, visibility')
-        .in('id', teacherIds);
+        .from("profiles")
+        .select("id, name, visibility")
+        .in("id", teacherIds);
 
       if (pErr) {
         return NextResponse.json({ error: pErr.message }, { status: 500 });
@@ -62,16 +61,18 @@ export async function GET(request: Request) {
           teacher_visibility: p?.visibility ?? null,
         };
       })
-      .filter((c) => skipInviteOnlyFilter || c.teacher_visibility !== 'invite_only');
+      .filter((c) => c.teacher_visibility !== "invite_only");
 
     const classroomIds = withTeacher.map((c) => c.id);
     const ratingMap = new Map<string, { sum: number; count: number }>();
 
     if (classroomIds.length > 0) {
+      // `classroom_reviews` exists in Postgres (see migrations) but may be absent from generated TS types.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- narrow escape hatch until types include this table
       const { data: reviewData } = await (db as any)
-        .from('classroom_reviews')
-        .select('classroom_id, rating')
-        .in('classroom_id', classroomIds);
+        .from("classroom_reviews")
+        .select("classroom_id, rating")
+        .in("classroom_id", classroomIds);
 
       (reviewData ?? []).forEach((r: { classroom_id: string; rating: number }) => {
         const existing = ratingMap.get(r.classroom_id) ?? { sum: 0, count: 0 };
@@ -84,7 +85,11 @@ export async function GET(request: Request) {
     const classrooms = withTeacher.map((c) => {
       const stats = ratingMap.get(c.id);
       if (!stats) {
-        return { ...c, avg_rating: undefined as number | undefined, review_count: undefined as number | undefined };
+        return {
+          ...c,
+          avg_rating: undefined as number | undefined,
+          review_count: undefined as number | undefined,
+        };
       }
       return {
         ...c,
@@ -95,6 +100,6 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ classrooms });
   } catch {
-    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

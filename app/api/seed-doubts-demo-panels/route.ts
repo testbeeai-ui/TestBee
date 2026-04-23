@@ -12,7 +12,9 @@ export async function POST(request: Request) {
     let user = (await cookieSupabase.auth.getUser()).data?.user ?? null;
     const token = request.headers.get("Authorization")?.replace(/^Bearer\s+/i, "");
     if (!user && token) {
-      const { data: { user: u } } = await cookieSupabase.auth.getUser(token);
+      const {
+        data: { user: u },
+      } = await cookieSupabase.auth.getUser(token);
       user = u ?? null;
     }
     if (!user) {
@@ -34,7 +36,11 @@ export async function POST(request: Request) {
       .eq("is_resolved", false)
       .limit(5);
     if (!unresolved?.length) {
-      const { data: latest } = await admin.from("doubts").select("id").order("created_at", { ascending: false }).limit(2);
+      const { data: latest } = await admin
+        .from("doubts")
+        .select("id")
+        .order("created_at", { ascending: false })
+        .limit(2);
       if (latest?.length) {
         for (const row of latest) {
           await admin.from("doubts").update({ is_resolved: false }).eq("id", row.id);
@@ -56,7 +62,11 @@ export async function POST(request: Request) {
     }
 
     // 2) Trending: bump views on latest doubts so "Trending Now" shows rows (frontend uses 7-day window)
-    const { data: latestDoubts } = await admin.from("doubts").select("id").order("created_at", { ascending: false }).limit(5);
+    const { data: latestDoubts } = await admin
+      .from("doubts")
+      .select("id")
+      .order("created_at", { ascending: false })
+      .limit(5);
     const viewCounts = [120, 85, 64, 41, 28];
     if (latestDoubts?.length) {
       for (let i = 0; i < latestDoubts.length; i++) {
@@ -66,12 +76,11 @@ export async function POST(request: Request) {
     }
 
     // 3) Top Contributors: insert accepted_answer_payouts for existing answers (so leaderboard shows)
-    const { data: answers } = await admin
-      .from("doubt_answers")
-      .select("id, user_id")
-      .limit(20);
+    const { data: answers } = await admin.from("doubt_answers").select("id, user_id").limit(20);
     const existingPayouts = await admin.from("accepted_answer_payouts").select("answer_id");
-    const paidIds = new Set((existingPayouts.data ?? []).map((r: { answer_id: string }) => r.answer_id));
+    const paidIds = new Set(
+      (existingPayouts.data ?? []).map((r: { answer_id: string }) => r.answer_id)
+    );
     const toPay = (answers ?? []).filter((a: { id: string }) => !paidIds.has(a.id)).slice(0, 5);
     const rdmAmounts = [45, 32, 28, 18, 12];
     for (let i = 0; i < toPay.length; i++) {
@@ -88,7 +97,11 @@ export async function POST(request: Request) {
     return NextResponse.json({
       ok: true,
       message: "Demo panel data seeded.",
-      results: { bountyBoard: results.bounty, trending: results.trending, topContributors: results.contributors },
+      results: {
+        bountyBoard: results.bounty,
+        trending: results.trending,
+        topContributors: results.contributors,
+      },
     });
   } catch (e) {
     console.error("seed-doubts-demo-panels error", e);

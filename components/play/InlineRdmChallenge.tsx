@@ -6,9 +6,16 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { ToastAction } from "@/components/ui/toast";
 import PlayQuestionCard from "@/components/PlayQuestionCard";
 import { fetchReferChallengeQuestions } from "@/lib/fetchReferChallengeQuestions";
-import { renderShareCardToPng, downloadBlobAsPng } from "@/lib/referChallengeShareImage";
 import { buildWhatsAppShareUrl } from "@/lib/referChallengeShareUrls";
 import {
   buildReferSharePayload,
@@ -21,7 +28,17 @@ import { shufflePlayQuestionOptions } from "@/lib/shufflePlayQuestionOptions";
 import type { ReferChallengePublicSpec, ReferClaimKey } from "@/lib/referEarnChallenges";
 import { cn } from "@/lib/utils";
 import type { PlayQuestionRow } from "@/types";
-import { Clock, Copy, Download, Flame, Instagram, Loader2, MessageCircle, Play, Share2, Shuffle, Sparkles, Zap } from "lucide-react";
+import {
+  Clock,
+  Flame,
+  Loader2,
+  MessageCircle,
+  Play,
+  Shuffle,
+  Sparkles,
+  Users,
+  Zap,
+} from "lucide-react";
 
 const MAX_STRIKES = 3;
 
@@ -35,6 +52,7 @@ export type InlineRdmChallengeProps = {
   onClose: () => void;
   /** Fired once when the run ends (win/lose/strikes/time). Parent may persist “played today” per claim. */
   onTerminal?: (info: { claimKey: ReferClaimKey; outcome: "won" | "lost" }) => void;
+  onClaimsUpdated?: () => void | Promise<void>;
   streakDays?: number;
   dailyRdmEarned?: number;
   dailyRdmCap?: number;
@@ -46,6 +64,7 @@ export default function InlineRdmChallenge({
   spec,
   onClose,
   onTerminal,
+  onClaimsUpdated,
   streakDays = 0,
   dailyRdmEarned = 0,
   dailyRdmCap = 50,
@@ -58,7 +77,9 @@ export default function InlineRdmChallenge({
   /** When the bank returns fewer than requested, scale the pass bar (same ratio as spec). */
   const [minPassCorrect, setMinPassCorrect] = useState(spec.minCorrect);
   const [index, setIndex] = useState(0);
-  const [results, setResults] = useState<{ question_id: string; is_correct: boolean; time_taken_ms: number }[]>([]);
+  const [results, setResults] = useState<
+    { question_id: string; is_correct: boolean; time_taken_ms: number }[]
+  >([]);
   const resultsRef = useRef(results);
   useEffect(() => {
     resultsRef.current = results;
@@ -68,6 +89,11 @@ export default function InlineRdmChallenge({
   const [phase, setPhase] = useState<"playing" | "summary">("playing");
   const [summaryReason, setSummaryReason] = useState<SummaryReason>(null);
   const [igTemplateIndex, setIgTemplateIndex] = useState(0);
+  const [winClaimed, setWinClaimed] = useState(false);
+  const [shareClaimed, setShareClaimed] = useState(false);
+  const [claimingWin, setClaimingWin] = useState(false);
+  const [claimingShare, setClaimingShare] = useState(false);
+  const [postPreviewOpen, setPostPreviewOpen] = useState(false);
   const terminalFiredRef = useRef(false);
   const sessionEndRef = useRef(false);
   const sessionStartedAtRef = useRef<number | null>(null);
@@ -85,7 +111,7 @@ export default function InlineRdmChallenge({
       terminalFiredRef.current = true;
       onTerminal?.({ claimKey: spec.key, outcome });
     },
-    [onTerminal, spec.key],
+    [onTerminal, spec.key]
   );
 
   useEffect(() => {
@@ -98,6 +124,11 @@ export default function InlineRdmChallenge({
       setIndex(0);
       setResults([]);
       setIgTemplateIndex(0);
+      setWinClaimed(false);
+      setShareClaimed(false);
+      setClaimingWin(false);
+      setClaimingShare(false);
+      setPostPreviewOpen(false);
       terminalFiredRef.current = false;
       sessionEndRef.current = false;
       sessionStartedAtRef.current = null;
@@ -130,6 +161,22 @@ export default function InlineRdmChallenge({
     };
   }, [spec, sessionSec, user?.id]);
 
+  const finalizeRun = useCallback(
+    (reason: "strikes" | "time" | "finish") => {
+      const correct = resultsRef.current.filter((r) => r.is_correct).length;
+      const passedBar = correct >= minPassCorrect;
+      setPhase("summary");
+      if (passedBar) {
+        setSummaryReason("won");
+        fireTerminal("won");
+      } else {
+        setSummaryReason(reason === "finish" ? "below_threshold" : reason);
+        fireTerminal("lost");
+      }
+    },
+    [fireTerminal, minPassCorrect]
+  );
+
   useEffect(() => {
     if (phase !== "playing" || questions.length === 0) return;
     const t = setInterval(() => {
@@ -138,15 +185,13 @@ export default function InlineRdmChallenge({
         const next = s - 1;
         if (next === 0 && !sessionEndRef.current) {
           sessionEndRef.current = true;
-          setPhase("summary");
-          setSummaryReason("time");
-          fireTerminal("lost");
+          finalizeRun("time");
         }
         return next;
       });
     }, 1000);
     return () => clearInterval(t);
-  }, [phase, questions.length, fireTerminal]);
+  }, [phase, questions.length, finalizeRun]);
 
   const handleAnswer = async (selectedIndex: number, timeTakenMs: number) => {
     const q = questions[indexRef.current];
@@ -166,37 +211,17 @@ export default function InlineRdmChallenge({
     setResults(next);
   };
 
-  const finishQuiz = useCallback(() => {
-    const correct = resultsRef.current.filter((r) => r.is_correct).length;
-    const misses = resultsRef.current.filter((r) => !r.is_correct).length;
-    setPhase("summary");
-    if (misses >= MAX_STRIKES) {
-      setSummaryReason("strikes");
-      fireTerminal("lost");
-      return;
-    }
-    if (correct >= minPassCorrect) {
-      setSummaryReason("won");
-      fireTerminal("won");
-    } else {
-      setSummaryReason("below_threshold");
-      fireTerminal("lost");
-    }
-  }, [fireTerminal, minPassCorrect]);
-
   const handleNext = () => {
     if (phase !== "playing") return;
     const misses = resultsRef.current.filter((r) => !r.is_correct).length;
     if (misses >= MAX_STRIKES) {
-      setPhase("summary");
-      setSummaryReason("strikes");
-      fireTerminal("lost");
+      finalizeRun("strikes");
       return;
     }
     const idx = indexRef.current;
     const qs = questionsRef.current;
     if (idx >= qs.length - 1) {
-      finishQuiz();
+      finalizeRun("finish");
       return;
     }
     setIndex(idx + 1);
@@ -221,6 +246,54 @@ export default function InlineRdmChallenge({
         : spec.key === "20"
           ? "text-violet-400"
           : "text-amber-400";
+
+  const claimReward = useCallback(
+    async (rewardType: "win" | "share") => {
+      const { data, error } = await supabase.rpc("claim_refer_challenge_reward", {
+        p_challenge_key: spec.key,
+        p_reward_type: rewardType,
+      });
+      if (error) throw new Error(error.message);
+      const payload = (data ?? {}) as {
+        ok?: boolean;
+        error?: string;
+        claimed_now?: boolean;
+        already_claimed?: boolean;
+      };
+      if (!payload.ok) throw new Error(payload.error ?? "Claim failed");
+      return payload;
+    },
+    [spec.key]
+  );
+
+  const postToCommunityFeed = useCallback(
+    async (text: string, title: string) => {
+      if (!user?.id) throw new Error("Sign in required");
+      const { data, error } = await supabase
+        .from("lessons_raw_posts")
+        .insert({
+          user_id: user.id,
+          // Must match DB check constraint: ('post' | 'doubt' | 'instacue')
+          kind: "post",
+          title,
+          content: text,
+          tags: ["challenge", "refer-earn", spec.domain, spec.key],
+          subject: spec.domain === "academic" ? "math" : null,
+          source_type: "refer_challenge",
+          source_payload: {
+            challengeKey: spec.key,
+            challengeName: spec.name,
+            domain: spec.domain,
+          },
+        })
+        .select("id")
+        .single();
+      if (error) throw new Error(error.message);
+      if (!data?.id) throw new Error("Post created but ID was not returned.");
+      return String(data.id);
+    },
+    [spec.domain, spec.key, spec.name, user?.id]
+  );
 
   if (bootLoading) {
     return (
@@ -276,23 +349,25 @@ export default function InlineRdmChallenge({
         : strongScore
           ? "Strong score — run didn’t finish as a win"
           : "Not quite this time";
-    const sub =
-      won
-        ? `You scored ${pctCorrectOverall}% correct overall (${correctCount}/${tot} out of all questions${attempted < tot ? `, ${attempted} answered before the run ended` : ""}) and cleared the ${passBar}/${tot} bar. RDM credits when tracking is on.`
-        : summaryReason === "quit"
-          ? "You left the challenge early — no worries. Pick another run when you're ready."
-          : summaryReason === "strikes"
+    const sub = won
+      ? `You scored ${pctCorrectOverall}% correct overall (${correctCount}/${tot} out of all questions${attempted < tot ? `, ${attempted} answered before the run ended` : ""}) and cleared the ${passBar}/${tot} bar. RDM credits when tracking is on.`
+      : summaryReason === "quit"
+        ? "You left the challenge early — no worries. Pick another run when you're ready."
+        : summaryReason === "strikes"
+          ? passedScoreBar
+            ? `You already had at least ${passBar}/${tot} correct (the RDM bar), but three strikes ended the run before completion — so this attempt doesn’t count as a win.`
+            : `Three strikes after ${attempted} answers — ${correctCount}/${tot} correct overall (${pctCorrectOverall}% of all questions). You still needed ${passBar} correct across all ${tot} questions to earn RDM (${minPct}% of all questions).`
+          : summaryReason === "time"
             ? passedScoreBar
-              ? `You already had at least ${passBar}/${tot} correct (the RDM bar), but three strikes ended the run before completion — so this attempt doesn’t count as a win.`
-              : `Three strikes after ${attempted} answers — ${correctCount}/${tot} correct overall (${pctCorrectOverall}% of all questions). You still needed ${passBar} correct across all ${tot} questions to earn RDM (${minPct}% of all questions).`
-            : summaryReason === "time"
-              ? passedScoreBar
-                ? `You hit the ${passBar}/${tot} correct bar, but the timer ran out before the session completed — try again with a quicker pace.`
-                : `Time ran out with ${attempted}/${tot} answered — ${correctCount}/${tot} correct overall (${pctCorrectOverall}% of all questions). You needed ${passBar} correct (${minPct}% of all ${tot} questions).`
-              : `You finished ${attempted}/${tot} answered — ${correctCount}/${tot} correct overall (${pctCorrectOverall}% of all questions). You needed at least ${passBar} correct (${minPct}% of all questions). Give it another shot!`;
+              ? `You hit the ${passBar}/${tot} correct bar, but the timer ran out before the session completed — try again with a quicker pace.`
+              : `Time ran out with ${attempted}/${tot} answered — ${correctCount}/${tot} correct overall (${pctCorrectOverall}% of all questions). You needed ${passBar} correct (${minPct}% of all ${tot} questions).`
+            : `You finished ${attempted}/${tot} answered — ${correctCount}/${tot} correct overall (${pctCorrectOverall}% of all questions). You needed at least ${passBar} correct (${minPct}% of all questions). Give it another shot!`;
 
     const rdmBarPct = dailyRdmCap > 0 ? Math.min(100, (dailyRdmEarned / dailyRdmCap) * 100) : 0;
-    const appUrl = typeof window !== "undefined" ? `${window.location.origin}/refer-earn` : "https://edublast.in/refer-earn";
+    const appUrl =
+      typeof window !== "undefined"
+        ? `${window.location.origin}/refer-earn`
+        : "https://edublast.in/refer-earn";
     const sharePayload = buildReferSharePayload({
       spec,
       correct: correctCount,
@@ -314,11 +389,39 @@ export default function InlineRdmChallenge({
       body: `${correctCount}/${tot} correct`,
       cta: appUrl,
       text: `${correctCount}/${tot} correct`,
+      waTitle: "Challenge result",
+      waBody: `${correctCount}/${tot} correct`,
+      waCta: appUrl,
+      whatsappText: `Challenge result\n\n${correctCount}/${tot} correct\n\n${appUrl}`,
       charCount: `${correctCount}/${tot} correct`.length,
     };
-    const activeTemplate = igTemplates[igTemplateIndex % Math.max(1, igTemplates.length)] ?? fallbackTemplate;
-    const socialHeroKicker = won ? "THE WINNING RUN" : strongScore ? "THE HEARTBREAK RUN" : "THE COMEBACK RUN";
-    const socialHeroMain = won ? "BAR CLEARED, BIG ENERGY" : strongScore ? "STRONG SCORE, NO WIN" : "RESET, RELOAD, RISE";
+    const activeTemplate =
+      igTemplates[igTemplateIndex % Math.max(1, igTemplates.length)] ?? fallbackTemplate;
+    const domainLabel = spec.domain === "academic" ? "Academic Arena" : "Funbrain";
+    const wonWhatsAppVariants = [
+      `OMG I actually cleared ${spec.name} and my hands are still shaking 😭🔥\n\nScore drop: ${correctCount}/${tot} (${pctCorrectOverall}%) in ${timeTakenLabel} on ${domainLabel}.\n\nThat timer pressure was INSANE but we survived 😤📚\n\nTry to beat this run right now: ${appUrl}`,
+      `No wayyy... ${spec.name} just got cooked by me today 😮‍💨🏆\n\nFinal stats: ${correctCount}/${tot} (${pctCorrectOverall}%), time ${timeTakenLabel}, vibe = locked in mode.\n\nI was one wrong tap away from chaos but still clutched.\n\nPull up and challenge this score: ${appUrl}`,
+      `Main character moment unlocked on ${spec.name} ✨\n\nI dropped ${correctCount}/${tot} with ${pctCorrectOverall}% accuracy in ${timeTakenLabel}.\n\n${domainLabel} tried to humble me and failed this time 😤\n\nYour turn, don't ghost this challenge: ${appUrl}`,
+    ];
+    const lostWhatsAppVariants = [
+      `Broooo ${spec.name} absolutely humbled me today 💀📉\n\nI got ${correctCount}/${tot} (${pctCorrectOverall}%) in ${timeTakenLabel} and needed ${passBar}/${tot} to clear.\n\nLowkey painful, but this is just the training arc.\n\nI am running it back tomorrow - join me: ${appUrl}`,
+      `${spec.name} said "not today" and I felt that 😭\n\nResult: ${correctCount}/${tot} (${pctCorrectOverall}%) in ${timeTakenLabel}, target was ${passBar}/${tot}.\n\nTimer gave me anxiety but comeback mode is ON now ⚡\n\nTry this and send your score: ${appUrl}`,
+      `Got cooked on ${spec.name} this round, not gonna lie 🤡📚\n\nFinished at ${correctCount}/${tot} (${pctCorrectOverall}%) in ${timeTakenLabel} on ${domainLabel}.\n\nNot quitting. Next run is personal.\n\nPull up for the redemption run: ${appUrl}`,
+    ];
+    const activeWhatsAppText = won
+      ? wonWhatsAppVariants[igTemplateIndex % wonWhatsAppVariants.length]!
+      : lostWhatsAppVariants[igTemplateIndex % lostWhatsAppVariants.length]!;
+    const showShareActions = !won || winClaimed;
+    const socialHeroKicker = won
+      ? "THE WINNING RUN"
+      : strongScore
+        ? "THE HEARTBREAK RUN"
+        : "THE COMEBACK RUN";
+    const socialHeroMain = won
+      ? "BAR CLEARED, BIG ENERGY"
+      : strongScore
+        ? "STRONG SCORE, NO WIN"
+        : "RESET, RELOAD, RISE";
     const socialMidMessage = won
       ? `CRUSHED THE RDM BAR (${passBar}/${tot}) WITH ${pctCorrectOverall}% CORRECT ACROSS ALL ${tot} QUESTIONS.\nPROGRESS: ${attempted}/${tot}. MOMENTUM IS REAL.`
       : strongScore
@@ -335,66 +438,91 @@ export default function InlineRdmChallenge({
         });
       }
     };
-
-    const copyShareText = async (
-      text: string,
-      toastCopy?: { title: string; description: string },
-    ) => {
+    const handleClaimWinReward = async () => {
+      if (!won || winClaimed) return;
+      setClaimingWin(true);
       try {
-        await navigator.clipboard.writeText(text);
+        const result = await claimReward("win");
+        setWinClaimed(true);
         toast({
-          title: toastCopy?.title ?? "Caption copied",
-          description: toastCopy?.description ?? "Paste it into your post composer.",
+          title: result.already_claimed ? "Win already claimed" : `+${spec.winRdm} RDM credited`,
+          description: result.already_claimed
+            ? "You already claimed the win reward for this challenge today."
+            : "Now share your result to claim the share reward too.",
         });
-      } catch {
+        await onClaimsUpdated?.();
+      } catch (error) {
         toast({
-          title: "Copy failed",
-          description: "Please copy manually from the preview.",
+          title: "Win claim failed",
+          description: error instanceof Error ? error.message : "Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setClaimingWin(false);
+      }
+    };
+
+    const ensureShareRewardClaimed = async () => {
+      if (shareClaimed) return true;
+      setClaimingShare(true);
+      try {
+        const result = await claimReward("share");
+        setShareClaimed(true);
+        toast({
+          title: result.already_claimed
+            ? "Share already claimed"
+            : `+${spec.shareRdm} RDM share reward claimed`,
+          description: result.already_claimed
+            ? "You already claimed your share reward for this challenge today."
+            : "Share reward credited successfully.",
+        });
+        await onClaimsUpdated?.();
+        return true;
+      } catch (error) {
+        toast({
+          title: "Share reward not claimed",
+          description: error instanceof Error ? error.message : "Please try again.",
+          variant: "destructive",
+        });
+        return false;
+      } finally {
+        setClaimingShare(false);
+      }
+    };
+
+    const handlePostToCommunity = async () => {
+      try {
+        const postId = await postToCommunityFeed(activeTemplate.text, activeTemplate.title);
+        const ok = await ensureShareRewardClaimed();
+        if (!ok) return;
+        setPostPreviewOpen(false);
+        toast({
+          title: "Post successful",
+          description: "Posted to community feed. Tap to open your post.",
+          action: (
+            <ToastAction
+              altText="View post"
+              onClick={() =>
+                (window.location.href = `/home?focusPost=${encodeURIComponent(postId)}`)
+              }
+            >
+              View post
+            </ToastAction>
+          ),
+        });
+      } catch (error) {
+        toast({
+          title: "Community post failed",
+          description: error instanceof Error ? error.message : "Please try again.",
           variant: "destructive",
         });
       }
     };
 
-    const getSharePngBlob = async () => {
-      const node = shareCardRef.current;
-      if (!node) throw new Error("share-card-missing");
-      return renderShareCardToPng(node);
-    };
-
-    const handleDownloadPng = async () => {
-      try {
-        const blob = await getSharePngBlob();
-        downloadBlobAsPng(blob, `edublast-challenge-${spec.key}-${sharePayload.shareDateIso}.png`);
-      } catch {
-        toast({
-          title: "PNG export failed",
-          description: "Sharing text still works. Please try again.",
-          variant: "destructive",
-        });
-      }
-    };
-
-    const handleNativeShare = async () => {
-      if (!navigator.share) {
-        await copyShareText(activeTemplate.text);
-        return;
-      }
-      try {
-        const blob = await getSharePngBlob();
-        const file = new File([blob], `edublast-challenge-${spec.key}.png`, { type: "image/png" });
-        const shareData: ShareData = {
-          title: activeTemplate.title,
-          text: activeTemplate.text,
-          url: appUrl,
-        };
-        if (typeof navigator.canShare === "function" && navigator.canShare({ files: [file] })) {
-          await navigator.share({ ...shareData, files: [file] });
-          return;
-        }
-        await navigator.share(shareData);
-      } catch {
-        // user cancel and unsupported paths are intentionally silent
-      }
+    const handleShareWhatsApp = async () => {
+      const ok = await ensureShareRewardClaimed();
+      if (!ok) return;
+      openShareIntent(buildWhatsAppShareUrl(activeWhatsAppText));
     };
 
     return (
@@ -411,7 +539,8 @@ export default function InlineRdmChallenge({
               </div>
               <p className="mt-1 max-w-xl text-xs leading-relaxed text-slate-400 sm:text-[13px]">
                 Complete challenges daily to earn RDM instantly · Max{" "}
-                <span className="font-semibold text-amber-300/95">{dailyRdmCap} RDM</span> per day from challenges
+                <span className="font-semibold text-amber-300/95">{dailyRdmCap} RDM</span> per day
+                from challenges
               </p>
             </div>
             <div className="inline-flex shrink-0 items-center gap-1.5 self-start rounded-full border border-amber-500/30 bg-amber-500/[0.12] px-3 py-1.5 text-xs font-semibold text-amber-100">
@@ -423,7 +552,9 @@ export default function InlineRdmChallenge({
           <div className="mt-4 flex items-center gap-2 rounded-[12px] border border-white/10 bg-black/30 px-3 py-2.5">
             <Zap className="h-4 w-4 shrink-0 text-orange-400" />
             <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-medium text-slate-500">Daily RDM earned from challenges</p>
+              <p className="text-[11px] font-medium text-slate-500">
+                Daily RDM earned from challenges
+              </p>
               <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-black/55">
                 <div
                   className="h-full rounded-full bg-gradient-to-r from-amber-500 to-fuchsia-500 transition-all duration-500"
@@ -441,7 +572,9 @@ export default function InlineRdmChallenge({
               <div className="text-5xl leading-none sm:text-6xl" aria-hidden>
                 {emoji}
               </div>
-              <p className="mt-4 font-serif text-2xl font-semibold tracking-tight text-white sm:text-[1.65rem]">{serifHeadline}</p>
+              <p className="mt-4 font-serif text-2xl font-semibold tracking-tight text-white sm:text-[1.65rem]">
+                {serifHeadline}
+              </p>
               <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-slate-400">{sub}</p>
             </div>
 
@@ -457,7 +590,9 @@ export default function InlineRdmChallenge({
                   className="rounded-xl border border-white/10 bg-black/40 px-3 py-3 text-center shadow-inner shadow-black/20"
                 >
                   <p className="text-xl font-bold tabular-nums text-white sm:text-2xl">{cell.v}</p>
-                  <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">{cell.k}</p>
+                  <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                    {cell.k}
+                  </p>
                 </div>
               ))}
             </div>
@@ -475,7 +610,7 @@ export default function InlineRdmChallenge({
                   "h-12 rounded-xl border-0 text-base font-bold shadow-lg transition hover:opacity-95",
                   won
                     ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-emerald-950"
-                    : "bg-gradient-to-r from-teal-400 to-emerald-500 text-slate-950",
+                    : "bg-gradient-to-r from-teal-400 to-emerald-500 text-slate-950"
                 )}
                 onClick={onClose}
               >
@@ -497,9 +632,12 @@ export default function InlineRdmChallenge({
             <div className="mt-4 rounded-xl border border-white/10 bg-black/30 p-3">
               <div className="mb-2 flex items-center justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Share this result</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">
+                    Share this result
+                  </p>
                   <p className="mt-0.5 text-[11px] text-slate-500">
-                    Caption {igTemplateIndex + 1}/{Math.max(1, igTemplates.length)} · {activeTemplate.tone}
+                    Caption {igTemplateIndex + 1}/{Math.max(1, igTemplates.length)} ·{" "}
+                    {activeTemplate.tone}
                   </p>
                 </div>
                 <Button
@@ -516,77 +654,100 @@ export default function InlineRdmChallenge({
                   Shuffle template
                 </Button>
               </div>
-              <p className="text-[12px] leading-relaxed text-slate-300 whitespace-pre-line">{activeTemplate.text}</p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  className="h-9 bg-cyan-500 text-cyan-950 hover:bg-cyan-400"
-                  onClick={() => void handleDownloadPng()}
-                >
-                  <Download className="mr-1.5 h-4 w-4" />
-                  Download PNG
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className="h-9 border-white/20 bg-transparent text-white hover:bg-white/10"
-                  onClick={() => void handleNativeShare()}
-                >
-                  <Share2 className="mr-1.5 h-4 w-4" />
-                  Share
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className="h-9 border-white/20 bg-transparent text-white hover:bg-white/10"
-                  onClick={() => openShareIntent(buildWhatsAppShareUrl(activeTemplate.text))}
-                >
-                  <MessageCircle className="mr-1.5 h-4 w-4" />
-                  WhatsApp
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className="h-9 border-white/20 bg-transparent text-white hover:bg-white/10"
-                  onClick={() =>
-                    void copyShareText(activeTemplate.text, {
-                      title: "Caption copied!",
-                      description: "Paste it in Instagram.",
-                    })
-                  }
-                >
-                  <Instagram className="mr-1.5 h-4 w-4" />
-                  Instagram
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className="h-9 border-amber-400/30 bg-amber-500/10 text-amber-100 hover:bg-amber-500/20"
-                  onClick={() =>
-                    toast({
-                      title: "Community posting",
-                      description: "Post to community is coming soon.",
-                    })
-                  }
-                >
-                  Post to Community (soon)
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className="h-9 border-white/20 bg-transparent text-white hover:bg-white/10"
-                  onClick={() => void copyShareText(activeTemplate.text)}
-                >
-                  <Copy className="mr-1.5 h-4 w-4" />
-                  Copy caption
-                </Button>
-              </div>
+              <p className="text-[12px] leading-relaxed text-slate-300 whitespace-pre-line">
+                {activeTemplate.text}
+              </p>
+              {won && !winClaimed ? (
+                <div className="mt-3">
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="h-10 bg-emerald-500 text-emerald-950 hover:bg-emerald-400"
+                    disabled={claimingWin}
+                    onClick={() => void handleClaimWinReward()}
+                  >
+                    {claimingWin ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}
+                    Claim +{spec.winRdm} RDM (Win)
+                  </Button>
+                </div>
+              ) : null}
+              {showShareActions ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-9 border-amber-400/30 bg-amber-500/10 text-amber-100 hover:bg-amber-500/20"
+                    disabled={claimingShare}
+                    onClick={() => setPostPreviewOpen(true)}
+                  >
+                    {claimingShare ? (
+                      <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Users className="mr-1.5 h-4 w-4" />
+                    )}
+                    Post to Community
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-9 border-white/20 bg-transparent text-white hover:bg-white/10"
+                    disabled={claimingShare}
+                    onClick={() => void handleShareWhatsApp()}
+                  >
+                    {claimingShare ? (
+                      <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                    ) : (
+                      <MessageCircle className="mr-1.5 h-4 w-4" />
+                    )}
+                    WhatsApp
+                  </Button>
+                </div>
+              ) : (
+                <p className="mt-3 text-[11px] text-slate-500">
+                  Claim your win reward first to unlock share actions and the +{spec.shareRdm} RDM
+                  share reward.
+                </p>
+              )}
+              <Dialog open={postPreviewOpen} onOpenChange={setPostPreviewOpen}>
+                <DialogContent className="max-w-xl border-white/15 bg-[#0d0f1d] text-white">
+                  <DialogHeader>
+                    <DialogTitle>Preview community post</DialogTitle>
+                    <DialogDescription className="text-slate-400">
+                      This template will post only after you click{" "}
+                      <strong className="text-slate-200">Post now</strong>.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="rounded-xl border border-white/10 bg-black/30 p-3">
+                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">
+                      {activeTemplate.title}
+                    </p>
+                    <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-slate-200">
+                      {activeTemplate.text}
+                    </p>
+                  </div>
+                  <div className="flex items-center justify-end gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="border-white/20 bg-transparent text-white"
+                      onClick={() => setPostPreviewOpen(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="button"
+                      className="bg-amber-500 text-amber-950 hover:bg-amber-400"
+                      disabled={claimingShare}
+                      onClick={() => void handlePostToCommunity()}
+                    >
+                      {claimingShare ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}
+                      Post now
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </div>
 
             <p className="mt-4 text-center text-[11px] text-slate-500">
@@ -611,7 +772,9 @@ export default function InlineRdmChallenge({
                   <div className="mt-4 flex items-start gap-3">
                     <div className="text-[54px] leading-none">💪</div>
                     <div className="min-w-0">
-                      <p className="text-[36px] font-black uppercase leading-[0.96] tracking-tight text-white">{socialHeroKicker}</p>
+                      <p className="text-[36px] font-black uppercase leading-[0.96] tracking-tight text-white">
+                        {socialHeroKicker}
+                      </p>
                       <p
                         className={cn(
                           "mt-1 text-[42px] font-black uppercase leading-[0.94] tracking-tight",
@@ -624,7 +787,9 @@ export default function InlineRdmChallenge({
                   </div>
 
                   <div className="mt-5 rounded-[18px] border border-white/30 bg-white/14 px-4 py-4 shadow-[0_12px_32px_rgba(0,0,0,0.35)]">
-                    <p className="whitespace-pre-line text-[28px] font-semibold leading-[1.14] text-white">{socialMidMessage}</p>
+                    <p className="whitespace-pre-line text-[28px] font-semibold leading-[1.14] text-white">
+                      {socialMidMessage}
+                    </p>
                   </div>
 
                   <div className="mt-5 grid grid-cols-4 gap-2.5">
@@ -633,22 +798,36 @@ export default function InlineRdmChallenge({
                       <p className="mt-1 text-[44px] font-black tabular-nums text-amber-100 leading-none">
                         {attempted}/{tot}
                       </p>
-                      <p className="mt-1 text-[14px] font-semibold uppercase tracking-[0.1em] text-slate-200">Progress</p>
+                      <p className="mt-1 text-[14px] font-semibold uppercase tracking-[0.1em] text-slate-200">
+                        Progress
+                      </p>
                     </div>
                     <div className="rounded-[14px] border border-cyan-300/45 bg-gradient-to-b from-cyan-500/16 to-cyan-950/35 p-3 text-center shadow-[0_0_22px_rgba(34,211,238,0.16)]">
                       <p className="text-[16px]">🎯</p>
-                      <p className="mt-1 text-[44px] font-black tabular-nums text-amber-100 leading-none">{correctCount}</p>
-                      <p className="mt-1 text-[14px] font-semibold uppercase tracking-[0.1em] text-slate-200">Correct</p>
+                      <p className="mt-1 text-[44px] font-black tabular-nums text-amber-100 leading-none">
+                        {correctCount}
+                      </p>
+                      <p className="mt-1 text-[14px] font-semibold uppercase tracking-[0.1em] text-slate-200">
+                        Correct
+                      </p>
                     </div>
                     <div className="rounded-[14px] border border-cyan-300/45 bg-gradient-to-b from-cyan-500/16 to-cyan-950/35 p-3 text-center shadow-[0_0_22px_rgba(34,211,238,0.16)]">
                       <p className="text-[16px]">🧭</p>
-                      <p className="mt-1 text-[44px] font-black tabular-nums text-amber-100 leading-none">{pctCorrectOverall}%</p>
-                      <p className="mt-1 text-[14px] font-semibold uppercase tracking-[0.1em] text-slate-200">% correct</p>
+                      <p className="mt-1 text-[44px] font-black tabular-nums text-amber-100 leading-none">
+                        {pctCorrectOverall}%
+                      </p>
+                      <p className="mt-1 text-[14px] font-semibold uppercase tracking-[0.1em] text-slate-200">
+                        % correct
+                      </p>
                     </div>
                     <div className="rounded-[14px] border border-cyan-300/45 bg-gradient-to-b from-cyan-500/16 to-cyan-950/35 p-3 text-center shadow-[0_0_22px_rgba(34,211,238,0.16)]">
                       <p className="text-[16px]">⏱</p>
-                      <p className="mt-1 text-[44px] font-black tabular-nums text-amber-100 leading-none">{timeTakenLabel}</p>
-                      <p className="mt-1 text-[14px] font-semibold uppercase tracking-[0.1em] text-slate-200">Time taken</p>
+                      <p className="mt-1 text-[44px] font-black tabular-nums text-amber-100 leading-none">
+                        {timeTakenLabel}
+                      </p>
+                      <p className="mt-1 text-[14px] font-semibold uppercase tracking-[0.1em] text-slate-200">
+                        Time taken
+                      </p>
                     </div>
                   </div>
 
@@ -674,8 +853,7 @@ export default function InlineRdmChallenge({
   const wrongSoFar = results.filter((r) => !r.is_correct).length;
   const displayStrikes = Math.min(MAX_STRIKES, wrongSoFar);
   const answeredCount = results.length;
-  const scoreLabel =
-    answeredCount === 0 ? "0 / 0" : `${correctCount} / ${answeredCount}`;
+  const scoreLabel = answeredCount === 0 ? "0 / 0" : `${correctCount} / ${answeredCount}`;
   const questionTrackPct = tot > 0 ? Math.min(100, ((idx + 1) / tot) * 100) : 0;
   const rdmBarPctPlay = dailyRdmCap > 0 ? Math.min(100, (dailyRdmEarned / dailyRdmCap) * 100) : 0;
 
@@ -693,7 +871,8 @@ export default function InlineRdmChallenge({
             </div>
             <p className="mt-1 max-w-xl text-xs leading-relaxed text-slate-400 sm:text-[13px]">
               Complete challenges daily to earn RDM instantly · Max{" "}
-              <span className="font-semibold text-amber-300/95">{dailyRdmCap} RDM</span> per day from challenges
+              <span className="font-semibold text-amber-300/95">{dailyRdmCap} RDM</span> per day
+              from challenges
             </p>
           </div>
           <div className="inline-flex shrink-0 items-center gap-1.5 self-start rounded-full border border-amber-500/30 bg-amber-500/[0.12] px-3 py-1.5 text-xs font-semibold text-amber-100">
@@ -705,7 +884,9 @@ export default function InlineRdmChallenge({
         <div className="mt-4 flex items-center gap-2 rounded-[12px] border border-white/10 bg-black/30 px-3 py-2.5">
           <Zap className="h-4 w-4 shrink-0 text-orange-400" />
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-medium text-slate-500">Daily RDM earned from challenges</p>
+            <p className="text-[11px] font-medium text-slate-500">
+              Daily RDM earned from challenges
+            </p>
             <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-black/55">
               <div
                 className="h-full rounded-full bg-gradient-to-r from-amber-500 to-fuchsia-500 transition-all duration-500"
@@ -726,13 +907,20 @@ export default function InlineRdmChallenge({
               </span>
               <span className="inline-flex items-center gap-1.5 text-slate-400">
                 <Clock className="h-4 w-4 text-slate-500" />
-                <span className={cn("font-mono text-sm tabular-nums", sessionLeft <= 30 ? "text-red-400" : "text-amber-300")}>
+                <span
+                  className={cn(
+                    "font-mono text-sm tabular-nums",
+                    sessionLeft <= 30 ? "text-red-400" : "text-amber-300"
+                  )}
+                >
                   {formatClock(sessionLeft)}
                 </span>
               </span>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-sm font-semibold tabular-nums text-emerald-400/95">Score: {scoreLabel}</span>
+              <span className="text-sm font-semibold tabular-nums text-emerald-400/95">
+                Score: {scoreLabel}
+              </span>
               <Button
                 type="button"
                 variant="outline"
@@ -757,7 +945,7 @@ export default function InlineRdmChallenge({
                 <span className="mr-1">{spec.headerEmoji}</span>
                 {spec.name}
                 <span className="mx-1.5 text-slate-600">·</span>
-                <span className={cn("font-semibold", rdmAccent)}>+{spec.rdm} RDM on win</span>
+                <span className={cn("font-semibold", rdmAccent)}>+{spec.winRdm} RDM on win</span>
               </span>
               <span className="tabular-nums text-rose-300/90">
                 Strikes {displayStrikes}/{MAX_STRIKES}
@@ -783,15 +971,22 @@ export default function InlineRdmChallenge({
           <div className="mt-3 rounded-lg border border-white/5 bg-black/20 px-3 py-2">
             <div className="mb-1 flex items-center justify-between gap-2 text-[9px] font-semibold uppercase tracking-wider text-slate-500">
               <span>Session time</span>
-              <span className="font-mono normal-case tabular-nums text-slate-400">{formatClock(sessionLeft)}</span>
+              <span className="font-mono normal-case tabular-nums text-slate-400">
+                {formatClock(sessionLeft)}
+              </span>
             </div>
             <div className="h-1 overflow-hidden rounded-full bg-white/10">
               <div
-                className={cn("h-full rounded-full transition-[width] duration-300", sessionLeft <= 30 ? "bg-red-500" : accentFill)}
+                className={cn(
+                  "h-full rounded-full transition-[width] duration-300",
+                  sessionLeft <= 30 ? "bg-red-500" : accentFill
+                )}
                 style={{ width: `${sessionPct}%` }}
               />
             </div>
-            <p className="mt-1.5 text-[10px] text-slate-500">Tap an answer, then Next — three wrong answers end the run.</p>
+            <p className="mt-1.5 text-[10px] text-slate-500">
+              Tap an answer, then Next — three wrong answers end the run.
+            </p>
           </div>
         </div>
       </div>

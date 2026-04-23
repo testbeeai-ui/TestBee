@@ -20,7 +20,11 @@ function parseIsoInstant(s: string | null): number | null {
   return Number.isFinite(t) ? t : null;
 }
 
-function countInstacueCardsSavedInRange(rawCards: unknown, dayStartMs: number, dayEndMs: number): number {
+function countInstacueCardsSavedInRange(
+  rawCards: unknown,
+  dayStartMs: number,
+  dayEndMs: number
+): number {
   if (!Array.isArray(rawCards)) return 0;
   let n = 0;
   for (const c of rawCards) {
@@ -84,9 +88,12 @@ export async function GET(req: NextRequest) {
   const dashboardSubjects = subjectsParam
     .split(",")
     .map((s) => s.trim().toLowerCase())
-    .filter((s): s is Subject => ["physics", "chemistry", "math", "biology"].includes(s));
+    .filter((s): s is Subject => ["physics", "chemistry", "math"].includes(s));
   if (!dashboardSubjects.length) {
-    return NextResponse.json({ error: "subjects query param must list at least one subject" }, { status: 400 });
+    return NextResponse.json(
+      { error: "subjects query param must list at least one subject" },
+      { status: 400 }
+    );
   }
 
   const sb = auth.supabase as any;
@@ -95,7 +102,9 @@ export async function GET(req: NextRequest) {
   const [profileRes, gauntletRes, savesRes, votesRes, answersRes] = await Promise.all([
     sb
       .from("profiles")
-      .select("bits_test_attempts, subtopic_engagement, saved_revision_cards, daily_checklist_state")
+      .select(
+        "bits_test_attempts, subtopic_engagement, saved_revision_cards, daily_checklist_state"
+      )
       .eq("id", uid)
       .maybeSingle(),
     sb
@@ -175,13 +184,18 @@ export async function GET(req: NextRequest) {
   /** Only real subtopic work: topic quiz submits today across all subjects, or Lessons/Progress Mark as complete (credited once per subtopic per day until Reset). */
   const subtopicRoutineDone = bitsAllSubjectsDone || lessonRule;
 
-  const focusMs = typeof dayState.doubtsFocusMs === "number" ? Math.max(0, dayState.doubtsFocusMs) : 0;
+  const focusMs =
+    typeof dayState.doubtsFocusMs === "number" ? Math.max(0, dayState.doubtsFocusMs) : 0;
 
   const savesToday = typeof savesRes.count === "number" ? savesRes.count : 0;
 
   const voteRows = (votesRes.data ?? []) as { target_type: string; target_id: string }[];
-  const doubtIdsFromVotes = voteRows.filter((v) => v.target_type === "doubt").map((v) => v.target_id);
-  const answerIdsFromVotes = voteRows.filter((v) => v.target_type === "answer").map((v) => v.target_id);
+  const doubtIdsFromVotes = voteRows
+    .filter((v) => v.target_type === "doubt")
+    .map((v) => v.target_id);
+  const answerIdsFromVotes = voteRows
+    .filter((v) => v.target_type === "answer")
+    .map((v) => v.target_id);
 
   const answerRows = (answersRes.data ?? []) as { doubt_id: string }[];
   const doubtIdsFromAnswers = answerRows.map((a) => a.doubt_id);
@@ -202,14 +216,22 @@ export async function GET(req: NextRequest) {
     }
   }
   if (answerIdsFromVotes.length > 0) {
-    const { data: ansAuthors } = await sb.from("doubt_answers").select("id, user_id").in("id", answerIdsFromVotes);
+    const { data: ansAuthors } = await sb
+      .from("doubt_answers")
+      .select("id, user_id")
+      .in("id", answerIdsFromVotes);
     for (const a of (ansAuthors ?? []) as { id: string; user_id: string }[]) {
       if (a.user_id !== uid) communityActionsToday++;
     }
   }
   if (doubtIdsFromAnswers.length > 0) {
-    const { data: doubtsForMyAnswers } = await sb.from("doubts").select("id, user_id").in("id", doubtIdsFromAnswers);
-    const authorByDoubt = new Map((doubtsForMyAnswers ?? []).map((d: { id: string; user_id: string }) => [d.id, d.user_id]));
+    const { data: doubtsForMyAnswers } = await sb
+      .from("doubts")
+      .select("id, user_id")
+      .in("id", doubtIdsFromAnswers);
+    const authorByDoubt = new Map(
+      (doubtsForMyAnswers ?? []).map((d: { id: string; user_id: string }) => [d.id, d.user_id])
+    );
     for (const a of answerRows) {
       if (authorByDoubt.get(a.doubt_id) && authorByDoubt.get(a.doubt_id) !== uid) {
         communityActionsToday++;
@@ -288,7 +310,10 @@ export async function PATCH(req: NextRequest) {
 
   if (body.action === "instacue_ack") {
     const next = mergeDayState(current, today, { instacueSessionAck: true });
-    const { error: wErr } = await sb.from("profiles").update({ daily_checklist_state: next }).eq("id", uid);
+    const { error: wErr } = await sb
+      .from("profiles")
+      .update({ daily_checklist_state: next })
+      .eq("id", uid);
     if (wErr) return NextResponse.json({ error: wErr.message }, { status: 500 });
     return NextResponse.json({ ok: true });
   }
@@ -302,14 +327,19 @@ export async function PATCH(req: NextRequest) {
       body.action === "subtopic_b_credit"
         ? appendSubtopicBCompleteKey(current, today, engagementKey)
         : removeSubtopicBCompleteKey(current, today, engagementKey);
-    const { error: wErr } = await sb.from("profiles").update({ daily_checklist_state: next }).eq("id", uid);
+    const { error: wErr } = await sb
+      .from("profiles")
+      .update({ daily_checklist_state: next })
+      .eq("id", uid);
     if (wErr) return NextResponse.json({ error: wErr.message }, { status: 500 });
     return NextResponse.json({ ok: true });
   }
 
   if (body.action === "doubts_focus") {
     const addRaw = Number(body.addMs);
-    const addMs = Number.isFinite(addRaw) ? Math.min(MAX_ADD_MS, Math.max(0, Math.trunc(addRaw))) : 0;
+    const addMs = Number.isFinite(addRaw)
+      ? Math.min(MAX_ADD_MS, Math.max(0, Math.trunc(addRaw)))
+      : 0;
     if (addMs <= 0) {
       return NextResponse.json({ error: "addMs must be a positive number" }, { status: 400 });
     }
@@ -319,7 +349,10 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ ok: true, capped: true });
     }
     const next = mergeDayState(current, today, { doubtsFocusMs: cappedAdd });
-    const { error: wErr } = await sb.from("profiles").update({ daily_checklist_state: next }).eq("id", uid);
+    const { error: wErr } = await sb
+      .from("profiles")
+      .update({ daily_checklist_state: next })
+      .eq("id", uid);
     if (wErr) return NextResponse.json({ error: wErr.message }, { status: 500 });
     return NextResponse.json({ ok: true });
   }

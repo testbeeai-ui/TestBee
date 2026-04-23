@@ -47,9 +47,7 @@ export async function getClientApiAuthHeaders(): Promise<Record<string, string>>
   const exp = session?.expires_at;
   const expMs = typeof exp === "number" ? exp * 1000 : 0;
   const needsRefresh =
-    !session?.access_token ||
-    expMs === 0 ||
-    expMs < Date.now() + EXPIRY_BUFFER_MS;
+    !session?.access_token || expMs === 0 || expMs < Date.now() + EXPIRY_BUFFER_MS;
 
   if (needsRefresh) {
     const next = await refreshSessionDeduped();

@@ -7,41 +7,41 @@ import React from "react";
  * multi-layer cyan / white / blue aura + particle sparks.
  */
 export default function AnimatedFlameIcon({
-    size = "40px",
-    isOpen = false,
+  size = "40px",
+  isOpen = false,
 }: {
-    size?: string;
-    isOpen?: boolean;
+  size?: string;
+  isOpen?: boolean;
 }) {
-    const activeClass = isOpen ? "active" : "";
+  const activeClass = isOpen ? "active" : "";
 
-    return (
-        <div
-            className="relative flex items-center justify-center shrink-0"
-            style={{ width: size, height: size }}
-        >
-            <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="60 40 180 230"
-                className="w-full h-full overflow-visible"
-            >
-                <defs>
-                    <filter id="ffCoreGlow" x="-50%" y="-50%" width="200%" height="200%">
-                        <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur1" />
-                        <feGaussianBlur in="SourceGraphic" stdDeviation="15" result="blur2" />
-                        <feMerge>
-                            <feMergeNode in="blur2" />
-                            <feMergeNode in="blur1" />
-                            <feMergeNode in="SourceGraphic" />
-                        </feMerge>
-                    </filter>
-                    <filter id="ffAmbientGlow" x="-50%" y="-50%" width="200%" height="200%">
-                        <feGaussianBlur in="SourceGraphic" stdDeviation="20" result="blur" />
-                        <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                    </filter>
-                </defs>
+  return (
+    <div
+      className="relative flex items-center justify-center shrink-0"
+      style={{ width: size, height: size }}
+    >
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="60 40 180 230"
+        className="w-full h-full overflow-visible"
+      >
+        <defs>
+          <filter id="ffCoreGlow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur1" />
+            <feGaussianBlur in="SourceGraphic" stdDeviation="15" result="blur2" />
+            <feMerge>
+              <feMergeNode in="blur2" />
+              <feMergeNode in="blur1" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+          <filter id="ffAmbientGlow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="20" result="blur" />
+            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+          </filter>
+        </defs>
 
-                <style>{`
+        <style>{`
           .ff-aura-layer {
             transform-origin: 150px 250px;
             transition: d 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275),
@@ -99,21 +99,87 @@ export default function AnimatedFlameIcon({
           }
         `}</style>
 
-                <g className={`ff-container ${activeClass}`}>
-                    {/* Sparks */}
-                    <path className="ff-spark" fill="#00E5FF" style={{ "--dur": "1.2s", "--del": "0.0s", "--dir": -1, "--ty": "-200px" } as React.CSSProperties} />
-                    <path className="ff-spark" fill="#FFFFFF" style={{ "--dur": "1.5s", "--del": "0.2s", "--dir": 1, "--ty": "-220px" } as React.CSSProperties} />
-                    <path className="ff-spark" fill="#0066CC" style={{ "--dur": "1.0s", "--del": "0.4s", "--dir": -2, "--ty": "-180px" } as React.CSSProperties} />
-                    <path className="ff-spark" fill="#FFFFFF" style={{ "--dur": "1.8s", "--del": "0.6s", "--dir": 0.5, "--ty": "-250px" } as React.CSSProperties} />
-                    <path className="ff-spark" fill="#00E5FF" style={{ "--dur": "1.1s", "--del": "0.1s", "--dir": 1.5, "--ty": "-190px" } as React.CSSProperties} />
-                    <path className="ff-spark" fill="#FFFFFF" style={{ "--dur": "1.4s", "--del": "0.8s", "--dir": -0.5, "--ty": "-210px" } as React.CSSProperties} />
+        <g className={`ff-container ${activeClass}`}>
+          {/* Sparks */}
+          <path
+            className="ff-spark"
+            fill="#00E5FF"
+            style={
+              {
+                "--dur": "1.2s",
+                "--del": "0.0s",
+                "--dir": -1,
+                "--ty": "-200px",
+              } as React.CSSProperties
+            }
+          />
+          <path
+            className="ff-spark"
+            fill="#FFFFFF"
+            style={
+              {
+                "--dur": "1.5s",
+                "--del": "0.2s",
+                "--dir": 1,
+                "--ty": "-220px",
+              } as React.CSSProperties
+            }
+          />
+          <path
+            className="ff-spark"
+            fill="#0066CC"
+            style={
+              {
+                "--dur": "1.0s",
+                "--del": "0.4s",
+                "--dir": -2,
+                "--ty": "-180px",
+              } as React.CSSProperties
+            }
+          />
+          <path
+            className="ff-spark"
+            fill="#FFFFFF"
+            style={
+              {
+                "--dur": "1.8s",
+                "--del": "0.6s",
+                "--dir": 0.5,
+                "--ty": "-250px",
+              } as React.CSSProperties
+            }
+          />
+          <path
+            className="ff-spark"
+            fill="#00E5FF"
+            style={
+              {
+                "--dur": "1.1s",
+                "--del": "0.1s",
+                "--dir": 1.5,
+                "--ty": "-190px",
+              } as React.CSSProperties
+            }
+          />
+          <path
+            className="ff-spark"
+            fill="#FFFFFF"
+            style={
+              {
+                "--dur": "1.4s",
+                "--del": "0.8s",
+                "--dir": -0.5,
+                "--ty": "-210px",
+              } as React.CSSProperties
+            }
+          />
 
-                    {/* Aura layers */}
-                    <path className="ff-aura-layer ff-layer-outer" />
-                    <path className="ff-aura-layer ff-layer-mid" />
-                    <path className="ff-aura-layer ff-layer-core" />
-                </g>
-            </svg>
-        </div>
-    );
+          {/* Aura layers */}
+          <path className="ff-aura-layer ff-layer-outer" />
+          <path className="ff-aura-layer ff-layer-mid" />
+          <path className="ff-aura-layer ff-layer-core" />
+        </g>
+      </svg>
+    </div>
+  );
 }

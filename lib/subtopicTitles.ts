@@ -98,7 +98,12 @@ export function prettifySubtopicTitle(raw: string): string {
     .replace(/\bn\s*[-_ ]*hat/gi, "n̂ ")
     .replace(/\\hat\s*\{?\s*n\s*\}?/gi, "n̂ ");
 
-  if (/right\s*[- ]*hand/i.test(s) || /hand\s*rule/i.test(s) || /by\s*right/i.test(s) || /byright/i.test(s)) {
+  if (
+    /right\s*[- ]*hand/i.test(s) ||
+    /hand\s*rule/i.test(s) ||
+    /by\s*right/i.test(s) ||
+    /byright/i.test(s)
+  ) {
     s = s
       .replace(/\bby\s*right\b/gi, "")
       .replace(/byright/gi, "")
@@ -127,8 +132,7 @@ const AMPERE_LINE_INTEGRAL_CURRICULUM =
   /^B\.dl\s*=\s*mu_0I_enclosed\s*\(\s*line integral around a closed Amperian loop\s*\)\s*$/i;
 
 /** Slug for Biot–Savart vector-form line in class 12 physics curriculum (URL segment unchanged). */
-const BIOT_SAVART_SLUG =
-  "db-mu-0-4pi-x-i-dl-x-r-r-2-mu-0-4pi-x-10-7-t-m-a-1";
+const BIOT_SAVART_SLUG = "db-mu-0-4pi-x-i-dl-x-r-r-2-mu-0-4pi-x-10-7-t-m-a-1";
 
 /** Matches the plain-text curriculum title for Biot–Savart (before LaTeX display). */
 const BIOT_SAVART_CURRICULUM =
@@ -142,8 +146,7 @@ function isBiotSavartCurriculumSubtopic(raw: string): boolean {
 }
 
 /** Slug for “Definition of Ampere” (Force between conductors); URL segment unchanged. */
-const DEFINITION_OF_AMPERE_SLUG =
-  "definition-of-ampere-1-a-produces-f-l-2-x-10-7-n-m-when-d-1-m";
+const DEFINITION_OF_AMPERE_SLUG = "definition-of-ampere-1-a-produces-f-l-2-x-10-7-n-m-when-d-1-m";
 
 /** Class 12 physics curriculum line (plain); avoid wrapping the whole title in math so words don’t collapse. */
 const DEFINITION_OF_AMPERE_CURRICULUM =
@@ -264,7 +267,7 @@ export function subtopicDeepDiveHeadingMarkdown(subtopicName: string): string {
   }
 
   const solenoid = raw.match(
-    /^Field inside a long solenoid:\s*B\s*=\s*mu_0n[lLiI]\s*\(\s*n\s*=\s*([^)]+)\)\s*$/i,
+    /^Field inside a long solenoid:\s*B\s*=\s*mu_0n[lLiI]\s*\(\s*n\s*=\s*([^)]+)\)\s*$/i
   );
   if (solenoid) {
     const rest = solenoid[1]!.trim();

@@ -6,7 +6,9 @@
 import { getProfPiVerifyMaxTokens } from "@/lib/gyanContentPolicy";
 import { formatSarvamAssistantReply, sarvamChatCompletion } from "@/lib/sarvamGyanClient";
 
-export type ProfPiRagKey = "physics" | "chemistry" | "math" | "biology";
+import type { Subject } from "@/types";
+
+export type ProfPiRagKey = Subject;
 export type ProfPiAnswerSource = "rephrase" | "rag_sarvam";
 
 export function isProfPiVerifyEnabled(): boolean {
@@ -24,18 +26,6 @@ export function draftLooksLikeHeavyStemLatex(draft: string): boolean {
   if (/\\vec|\\mathbf|\\hat\{/.test(t)) return true;
   const inlineBlocks = t.match(/\$[^\$\n]{14,}\$/g);
   return (inlineBlocks?.length ?? 0) >= 2;
-}
-
-/**
- * Heuristic: longer biology answer with exam-heavy vocabulary — verify candidate.
- */
-export function draftLooksLikeBioTechnical(draft: string): boolean {
-  const t = draft ?? "";
-  /** Avoid one-liner false positives; typical NCERT-style explanations exceed this. */
-  if (t.length < 300) return false;
-  return /\b(mitosis|meiosis|photosynthesis|cellular respiration|glycolysis|Krebs|citric acid cycle|calvin|transcription|translation|replication|cross(?:ing)? ?over|allele|genotype|phenotype|homeostasis|synap(?:se|tic)|neuron|hormone|enzyme|ATP|NADH|DNA|RNA|mRNA|tRNA|ribosome|nucleotide|mutation|ecosystem|food chain|nitrogen fixation)\b/i.test(
-    t
-  );
 }
 
 /**
@@ -70,14 +60,12 @@ export function shouldRunProfPiVerifier(params: {
     case "math":
     case "physics":
       return draftLooksLikeHeavyStemLatex(params.draft);
-    case "biology":
-      return draftLooksLikeBioTechnical(params.draft);
     default:
       return false;
   }
 }
 
-const VERIFIER_SYSTEM = `You are a strict fact-checker for a CBSE/NCERT-level tutor answer (Prof-Pi), across **physics, chemistry, math, and biology**.
+const VERIFIER_SYSTEM = `You are a strict fact-checker for a CBSE/NCERT-level tutor answer (Prof-Pi), across **physics, chemistry, and mathematics**.
 
 TASK:
 1) Read the STUDENT QUESTION and the DRAFT ANSWER below.
@@ -85,7 +73,6 @@ TASK:
    - Chemistry: wrong or unbalanced formulas; mixing resonance vs tautomerism; incorrect reaction conditions.
    - Physics: wrong signs, units, or energy/conservation reasoning; inconsistent reference frames.
    - Math: incorrect algebra/calculus; wrong limits; identity used outside its domain.
-   - Biology: wrong process names (mitosis vs meiosis, etc.); inconsistent genetics logic; overstated causation.
 3) If the draft is already correct, output it **unchanged** (same markdown).
 4) Output **markdown only** — no preamble, no "Here is the corrected version".
 5) Preserve length and tone: do not expand into a long essay; keep the same structure when possible.

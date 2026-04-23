@@ -10,9 +10,7 @@ import { Label } from "@/components/ui/label";
 import { getTheoryOrPlaceholder, getTopicOverviewOrPlaceholder } from "@/data/topicTheory";
 import TheoryContent from "@/components/TheoryContent";
 import TopicAgentTracePanel from "@/components/TopicAgentTracePanel";
-import {
-  TheoryPanelSkeleton,
-} from "@/components/SubtopicLessonSkeletons";
+import { TheoryPanelSkeleton } from "@/components/SubtopicLessonSkeletons";
 import {
   resolveTopicFromParams,
   buildTopicPath,
@@ -45,7 +43,28 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { ArrowLeft, BookOpen, Zap, ChevronLeft, ChevronRight, Shuffle, Video, FileText, ExternalLink, Lightbulb, Sparkles, CheckCircle2, Loader2, RefreshCw, ListChecks, Play, Pause, RotateCcw, Bookmark, Lock } from "lucide-react";
+import {
+  ArrowLeft,
+  BookOpen,
+  Zap,
+  ChevronLeft,
+  ChevronRight,
+  Shuffle,
+  Video,
+  FileText,
+  ExternalLink,
+  Lightbulb,
+  Sparkles,
+  CheckCircle2,
+  Loader2,
+  RefreshCw,
+  ListChecks,
+  Play,
+  Pause,
+  RotateCcw,
+  Bookmark,
+  Lock,
+} from "lucide-react";
 import type { DeepDiveReference } from "@/data/deepDiveContent";
 import MathText from "@/components/MathText";
 import { stripFormulaDelimiters } from "@/lib/stripFormulaDelimiters";
@@ -67,9 +86,17 @@ import {
   type ArtifactBitsQuestion,
   type ArtifactFormula,
 } from "@/lib/subtopicContentService";
-import { fetchMagicWallBasket, type MagicWallBasketItem, makeTopicKey } from "@/lib/magicWallBasketService";
+import {
+  fetchMagicWallBasket,
+  type MagicWallBasketItem,
+  makeTopicKey,
+} from "@/lib/magicWallBasketService";
 import { assessSubtopicRow } from "@/lib/subtopicCompleteness";
-import { canRegenerate, generateFormulaQuestions, getFallbackPracticeFormulas } from "@/lib/formulaQuestionGenerators";
+import {
+  canRegenerate,
+  generateFormulaQuestions,
+  getFallbackPracticeFormulas,
+} from "@/lib/formulaQuestionGenerators";
 import {
   fetchTopicContent,
   generateTopicContent,
@@ -88,8 +115,17 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { fuzzySubtopicKey } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchBitsAttempt, saveBitsAttempt, clearBitsAttemptSet, type BitsAttemptRecord } from "@/lib/bitsAttemptService";
-import { getAdvancedSetBounds, isAdvancedMultiSet, type AdvancedQuizSetIndex } from "@/lib/advancedQuizSets";
+import {
+  fetchBitsAttempt,
+  saveBitsAttempt,
+  clearBitsAttemptSet,
+  type BitsAttemptRecord,
+} from "@/lib/bitsAttemptService";
+import {
+  getAdvancedSetBounds,
+  isAdvancedMultiSet,
+  type AdvancedQuizSetIndex,
+} from "@/lib/advancedQuizSets";
 import {
   buildQuizPostDrafts,
   pickRandomQuizPostDraft,
@@ -130,11 +166,12 @@ function truncateForStack(text: string, max: number): string {
  * This is display-only formatting for readability.
  */
 function formatSubtopicPreviewText(raw: string): string {
-  let s = String(raw ?? "").replace(/\r\n/g, "\n").trim();
+  let s = String(raw ?? "")
+    .replace(/\r\n/g, "\n")
+    .trim();
   if (!s) return "";
 
-  const alreadyStructured =
-    /(^|\n)\s*(#{1,6}\s|[-*]\s|\d+\.\s|>)/m.test(s) || s.includes("\n\n");
+  const alreadyStructured = /(^|\n)\s*(#{1,6}\s|[-*]\s|\d+\.\s|>)/m.test(s) || s.includes("\n\n");
   if (alreadyStructured) return s;
 
   // Promote common inline labels to their own lines.
@@ -241,7 +278,10 @@ function subtopicNavPreviewLine(raw: string): string {
   return subtopicNavPreviewPlain(raw);
 }
 
-function shuffleWithCorrectOption(options: string[], correctAnswer: string): { options: string[]; correctAnswer: string } {
+function shuffleWithCorrectOption(
+  options: string[],
+  correctAnswer: string
+): { options: string[]; correctAnswer: string } {
   const indexed = options.map((opt, idx) => ({ opt, idx }));
   indexed.sort(() => Math.random() - 0.5);
   const shuffled = indexed.map((x) => x.opt);
@@ -249,7 +289,7 @@ function shuffleWithCorrectOption(options: string[], correctAnswer: string): { o
   const nextCorrect =
     correctIdx >= 0
       ? shuffled[indexed.findIndex((x) => x.idx === correctIdx)]
-      : shuffled[0] ?? "";
+      : (shuffled[0] ?? "");
   return { options: shuffled, correctAnswer: nextCorrect };
 }
 
@@ -275,7 +315,10 @@ function ensureMinimumFormulaBits(
   while (out.length < min) {
     const src = seed[i % seed.length]!;
     const tweakedOptions = src.options.map((o) => mutateNumbersLite(o));
-    const correctIdx = Math.max(0, src.options.findIndex((o) => o === src.correctAnswer));
+    const correctIdx = Math.max(
+      0,
+      src.options.findIndex((o) => o === src.correctAnswer)
+    );
     const corrected = tweakedOptions[correctIdx] ?? tweakedOptions[0] ?? src.correctAnswer;
     const shuffled = shuffleWithCorrectOption(tweakedOptions, corrected);
     out.push({
@@ -296,7 +339,10 @@ function regenerateFormulaBitsAlgorithmic(
   if (base.length === 0) return [];
   if (canRegenerate(formulaName)) {
     const converted = base.map((q) => {
-      const idx = Math.max(0, q.options.findIndex((o) => o === q.correctAnswer));
+      const idx = Math.max(
+        0,
+        q.options.findIndex((o) => o === q.correctAnswer)
+      );
       return {
         question: q.question,
         options: q.options,
@@ -321,7 +367,10 @@ function regenerateFormulaBitsAlgorithmic(
   const mutated = base.map((q) => {
     const mutatedQuestion = mutateNumbersLite(q.question);
     const mutatedOptions = q.options.map((o) => mutateNumbersLite(o));
-    const correctIdx = Math.max(0, q.options.findIndex((o) => o === q.correctAnswer));
+    const correctIdx = Math.max(
+      0,
+      q.options.findIndex((o) => o === q.correctAnswer)
+    );
     const corrected = mutatedOptions[correctIdx] ?? mutatedOptions[0] ?? q.correctAnswer;
     const shuffled = shuffleWithCorrectOption(mutatedOptions, corrected);
     return {
@@ -433,11 +482,15 @@ export default function TopicPage() {
   /** Cards the learner has landed on in the carousel (scroll / dots), not only flipped. */
   const [instaCueNavIndices, setInstaCueNavIndices] = useState<Set<number>>(new Set());
   /** Per-formula numerals draft in the formulas dialog (key = formula index). */
-  const [formulaByIdx, setFormulaByIdx] = useState<Record<number, { qIdx: number; answers: Record<number, number> }>>({});
+  const [formulaByIdx, setFormulaByIdx] = useState<
+    Record<number, { qIdx: number; answers: Record<number, number> }>
+  >({});
   const engagementHydratedRef = useRef<string | null>(null);
   const engagementSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** Persisted in Supabase (`lessonChecklistMarkedCompleteAt`); state drives UI so refresh shows "Marked completed". */
-  const [lessonChecklistMarkedCompleteAt, setLessonChecklistMarkedCompleteAt] = useState<string | null>(null);
+  const [lessonChecklistMarkedCompleteAt, setLessonChecklistMarkedCompleteAt] = useState<
+    string | null
+  >(null);
   /** When this changes (subtopic / level / quiz set), lesson timer resets until Supabase hydration applies. */
   const lastLessonTimerScopeRef = useRef<string>("");
   const focusTimerSecondsRef = useRef(focusTimerSeconds);
@@ -471,13 +524,12 @@ export default function TopicPage() {
   const { taxonomy, loading: taxonomyLoading, error: taxonomyError } = useTopicTaxonomy();
 
   const resolved = useMemo(
-    () =>
-      resolveTopicFromParams(board, subject, grade, unitSlug, topicSlug, level, taxonomy),
+    () => resolveTopicFromParams(board, subject, grade, unitSlug, topicSlug, level, taxonomy),
     [board, subject, grade, unitSlug, topicSlug, level, taxonomy]
   );
 
   const topicNode = resolved?.topicNode ?? null;
-  
+
   const currentTopicKey = useMemo(() => {
     if (!topicNode) return "";
     return makeTopicKey({
@@ -493,22 +545,26 @@ export default function TopicPage() {
   const topicLevelSiblings = useMemo(() => {
     if (!topicNode) return { prev: null, next: null } as const;
     if (isMagicWallSource && magicWallBasket.length > 0) {
-      const idx = magicWallBasket.findIndex(item => item.topicKey === currentTopicKey);
+      const idx = magicWallBasket.findIndex((item) => item.topicKey === currentTopicKey);
       if (idx !== -1) {
         const prevItem = idx > 0 ? magicWallBasket[idx - 1] : null;
         const nextItem = idx < magicWallBasket.length - 1 ? magicWallBasket[idx + 1] : null;
-        
+
         return {
-          prev: prevItem ? {
-            subject: prevItem.subject,
-            classLevel: prevItem.classLevel,
-            topic: prevItem.topicName,
-          } : null,
-          next: nextItem ? {
-            subject: nextItem.subject,
-            classLevel: nextItem.classLevel,
-            topic: nextItem.topicName,
-          } : null,
+          prev: prevItem
+            ? {
+                subject: prevItem.subject,
+                classLevel: prevItem.classLevel,
+                topic: prevItem.topicName,
+              }
+            : null,
+          next: nextItem
+            ? {
+                subject: nextItem.subject,
+                classLevel: nextItem.classLevel,
+                topic: nextItem.topicName,
+              }
+            : null,
         } as const;
       }
     }
@@ -583,7 +639,9 @@ export default function TopicPage() {
   const [topicAgentTrace, setTopicAgentTrace] = useState<TopicAgentTrace | null>(null);
   const [topicEditorOpen, setTopicEditorOpen] = useState(false);
   const [draftTopicWhyStudy, setDraftTopicWhyStudy] = useState("");
-  const [draftTopicSubtopicPreviews, setDraftTopicSubtopicPreviews] = useState<TopicSubtopicPreview[]>([]);
+  const [draftTopicSubtopicPreviews, setDraftTopicSubtopicPreviews] = useState<
+    TopicSubtopicPreview[]
+  >([]);
   const [savingTopicContent, setSavingTopicContent] = useState(false);
   const [generatingDeepDive, setGeneratingDeepDive] = useState(false);
   const [wheelOpen, setWheelOpen] = useState(false);
@@ -602,10 +660,20 @@ export default function TopicPage() {
   const revisionUnitId = useMemo(() => {
     if (!topicNode || isOverview || !subtopicName) return "";
     return `rev-topic-${board}-${subject}-${topicNode.classLevel}-${unitSlug}-${topicSlug}-${difficultyLevel}-${subtopicIndex}`;
-  }, [board, subject, topicNode, isOverview, subtopicName, unitSlug, topicSlug, difficultyLevel, subtopicIndex]);
+  }, [
+    board,
+    subject,
+    topicNode,
+    isOverview,
+    subtopicName,
+    unitSlug,
+    topicSlug,
+    difficultyLevel,
+    subtopicIndex,
+  ]);
 
   const isSavedForRevision = useMemo(
-    () => (!!revisionUnitId && (user?.savedRevisionUnits ?? []).some((u) => u.id === revisionUnitId)),
+    () => !!revisionUnitId && (user?.savedRevisionUnits ?? []).some((u) => u.id === revisionUnitId),
     [revisionUnitId, user?.savedRevisionUnits]
   );
 
@@ -666,7 +734,9 @@ export default function TopicPage() {
   const [bitsReviewMode, setBitsReviewMode] = useState(false);
   const [bitsAttempt, setBitsAttempt] = useState<BitsAttemptRecord | null>(null);
   /** Advanced (>10 Q): one stored attempt per set (1–3). */
-  const [bitsAttemptBySet, setBitsAttemptBySet] = useState<Partial<Record<AdvancedQuizSetIndex, BitsAttemptRecord | null>>>({});
+  const [bitsAttemptBySet, setBitsAttemptBySet] = useState<
+    Partial<Record<AdvancedQuizSetIndex, BitsAttemptRecord | null>>
+  >({});
   const [activeQuizSet, setActiveQuizSet] = useState<AdvancedQuizSetIndex>(1);
   const [quizPostDialogOpen, setQuizPostDialogOpen] = useState(false);
   const [quizPostDrafts, setQuizPostDrafts] = useState<QuizPostDraft[]>([]);
@@ -693,8 +763,12 @@ export default function TopicPage() {
   const showPreviousQuizAttempt = Boolean(displayBitsAttempt);
   const [selectedFormulaIdx, setSelectedFormulaIdx] = useState<number | null>(null);
   const [formulaBitsCurrentIdx, setFormulaBitsCurrentIdx] = useState(0);
-  const [formulaBitsSelectedAnswers, setFormulaBitsSelectedAnswers] = useState<Record<number, number>>({});
-  const [formulaQuestionsOverride, setFormulaQuestionsOverride] = useState<Record<number, ArtifactBitsQuestion[]>>({});
+  const [formulaBitsSelectedAnswers, setFormulaBitsSelectedAnswers] = useState<
+    Record<number, number>
+  >({});
+  const [formulaQuestionsOverride, setFormulaQuestionsOverride] = useState<
+    Record<number, ArtifactBitsQuestion[]>
+  >({});
   const [artifactRunLog, setArtifactRunLog] = useState<string[]>([]);
   const [artifactRunStatus, setArtifactRunStatus] = useState<
     "idle" | "running" | "success" | "partial" | "failed"
@@ -707,26 +781,64 @@ export default function TopicPage() {
 
   useEffect(() => {
     // #region agent log
-    fetch('http://127.0.0.1:7826/ingest/70e4f01b-2a33-46c4-8228-3ea27639475c',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'548b33'},body:JSON.stringify({sessionId:'548b33',runId:'pre-fix',hypothesisId:'H2-H3',location:'page.tsx:620',message:'formula dialog state changed',data:{formulasDialogOpen,selectedFormulaIdx,practiceCount:dbPracticeFormulas.length},timestamp:Date.now()})}).catch(()=>{});
+    fetch("http://127.0.0.1:7826/ingest/70e4f01b-2a33-46c4-8228-3ea27639475c", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "548b33" },
+      body: JSON.stringify({
+        sessionId: "548b33",
+        runId: "pre-fix",
+        hypothesisId: "H2-H3",
+        location: "page.tsx:620",
+        message: "formula dialog state changed",
+        data: { formulasDialogOpen, selectedFormulaIdx, practiceCount: dbPracticeFormulas.length },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
     // #endregion
   }, [formulasDialogOpen, selectedFormulaIdx, dbPracticeFormulas.length]);
 
   useEffect(() => {
     if (!topicNode?.topic) return;
+    if (searchParams.get("panel") === "quiz") {
+      setRightPanelTab("quiz");
+    }
     setBitsVisitedIndices(new Set());
     setBitsCurrentIdx(0);
     setBitsSelectedAnswers({});
     setBitsDialogOpen(false);
     setBitsReviewMode(false);
     setBitsAttemptBySet({});
-    setActiveQuizSet(1);
+    const qs = searchParams.get("quizSet");
+    const fromAssignmentLink =
+      searchParams.get("panel") === "quiz" &&
+      difficultyLevel === "advanced" &&
+      (qs === "1" || qs === "2" || qs === "3");
+    setActiveQuizSet(fromAssignmentLink ? (Number(qs) as AdvancedQuizSetIndex) : 1);
     setInstaCueValidatedIndices(new Set());
     setInstaCueNavIndices(new Set());
     setFormulaByIdx({});
     engagementHydratedRef.current = null;
     setConceptsPage(0);
     setViewedConceptPages(new Set([0]));
-  }, [board, topicNode?.topic, subtopicName, difficultyLevel]);
+  }, [board, topicNode?.topic, subtopicName, difficultyLevel, searchParams]);
+
+  const hasAutoOpenedQuizRef = useRef(false);
+  useEffect(() => {
+    if (hasAutoOpenedQuizRef.current || dbBitsQuestions.length === 0) return;
+    const qs = searchParams.get("quizSet");
+    const panel = searchParams.get("panel");
+    const postId = searchParams.get("postId");
+    if (panel === "quiz" && qs && postId && difficultyLevel === "advanced") {
+      const s = Number(qs) as AdvancedQuizSetIndex;
+      if ([1, 2, 3].includes(s)) {
+        setActiveQuizSet(s);
+        const b = getAdvancedSetBounds(dbBitsQuestions.length, s);
+        setBitsCurrentIdx(b.start);
+        setBitsDialogOpen(true);
+        hasAutoOpenedQuizRef.current = true;
+      }
+    }
+  }, [searchParams, difficultyLevel, dbBitsQuestions.length]);
 
   useEffect(() => {
     if (!bitsDialogOpen || dbBitsQuestions.length === 0) return;
@@ -789,15 +901,31 @@ export default function TopicPage() {
     });
     const first = pickRandomQuizPostDraft(drafts, new Set());
     return { drafts, first };
-  }, [displayBitsAttempt, topicNode?.subject, topicNode?.topic, subject, unitSlug, topicSlug, subtopicName]);
+  }, [
+    displayBitsAttempt,
+    topicNode?.subject,
+    topicNode?.topic,
+    subject,
+    unitSlug,
+    topicSlug,
+    subtopicName,
+  ]);
 
   const handleOpenQuizPostDialog = useCallback(() => {
     if (!displayBitsAttempt) {
-      toast({ title: "No quiz result found", description: "Submit the quiz once before posting.", variant: "destructive" });
+      toast({
+        title: "No quiz result found",
+        description: "Submit the quiz once before posting.",
+        variant: "destructive",
+      });
       return;
     }
     if (!session?.user?.id) {
-      toast({ title: "Sign in required", description: "Please sign in to post your quiz result.", variant: "destructive" });
+      toast({
+        title: "Sign in required",
+        description: "Please sign in to post your quiz result.",
+        variant: "destructive",
+      });
       return;
     }
     const seeded = buildInitialQuizDraft();
@@ -823,6 +951,31 @@ export default function TopicPage() {
     });
   }, [quizPostDrafts, quizPostUsedTemplateIds]);
 
+  const reportScoreToAssignment = useCallback(
+    async (score: number, total: number) => {
+      const postId = searchParams.get("postId");
+      const classroomId = searchParams.get("classroomId");
+      if (!postId || !classroomId) return;
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (!session?.access_token) return;
+        await fetch(`/api/classroom/${classroomId}/posts/${postId}/generated-test-attempt`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ submit: true, chapterQuizScore: { score, total } }),
+        });
+      } catch (e) {
+        console.error("Failed to report assignment score", e);
+      }
+    },
+    [searchParams]
+  );
+
   const handlePublishQuizPost = useCallback(async () => {
     if (!session?.user?.id || !displayBitsAttempt) return;
     const scorePercent =
@@ -842,7 +995,11 @@ export default function TopicPage() {
     const cleanTitle = titleWithMetrics.trim();
     const cleanDetails = detailsWithMetrics.trim();
     if (cleanTitle.length < 3) {
-      toast({ title: "Title too short", description: "Use at least 3 characters in your post title.", variant: "destructive" });
+      toast({
+        title: "Title too short",
+        description: "Use at least 3 characters in your post title.",
+        variant: "destructive",
+      });
       return;
     }
     setPublishingQuizPost(true);
@@ -936,7 +1093,8 @@ export default function TopicPage() {
     if (selectedFormulaIdx === null) return null;
     const formula = practiceFormulasForUi[selectedFormulaIdx];
     if (!formula) return null;
-    const formulaQuestions = formulaQuestionsOverride[selectedFormulaIdx] ?? formula.bitsQuestions ?? [];
+    const formulaQuestions =
+      formulaQuestionsOverride[selectedFormulaIdx] ?? formula.bitsQuestions ?? [];
     if (formulaQuestions.length === 0) return null;
     const idx = Math.max(0, Math.min(formulaBitsCurrentIdx, formulaQuestions.length - 1));
     return {
@@ -981,7 +1139,11 @@ export default function TopicPage() {
   }, [hasPersistedAiArtifacts, dbTheoryExists, dbTheory]);
 
   const appendArtifactLog = useCallback((message: string) => {
-    const ts = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    const ts = new Date().toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
     setArtifactRunLog((prev) => [...prev, `[${ts}] ${message}`]);
   }, []);
 
@@ -1014,55 +1176,17 @@ export default function TopicPage() {
       setArtifactRunLog([]);
       appendArtifactLog("Run started manually: InstaCue → Bits → Formulas.");
       appendArtifactLog(
-        `Current counts before run -> InstaCue: ${beforeInsta}, Bits: ${beforeBits}, Practice Formulas: ${beforeFormulas}.`,
+        `Current counts before run -> InstaCue: ${beforeInsta}, Bits: ${beforeBits}, Practice Formulas: ${beforeFormulas}.`
       );
       setGeneratingInstacue(true);
       const stepErrors: string[] = [];
       try {
         runLog.push("Started AI Cards");
         appendArtifactLog(
-          `Step 1/3: Generating InstaCue cards (up to ${ARTIFACT_STEP_MAX_ATTEMPTS} attempts, ${ARTIFACT_STEP_RETRY_DELAY_MS / 1000}s between retries).`,
+          `Step 1/3: Generating InstaCue cards (up to ${ARTIFACT_STEP_MAX_ATTEMPTS} attempts, ${ARTIFACT_STEP_RETRY_DELAY_MS / 1000}s between retries).`
         );
         const instaRes = await runArtifactStepWithRetries("InstaCue", () =>
           generateInstaCueCards({
-          board: boardName,
-          subject: topicNode.subject as Subject,
-          classLevel: topicNode.classLevel as 11 | 12,
-          topic: topicNode.topic,
-          subtopicName,
-          level: difficultyLevel,
-          includeTrace: true,
-          })
-        );
-        if (instaRes.ok) {
-          const out = instaRes.value;
-        setDbInstacueCards(out.items);
-        nextInsta = out.items.length;
-        runLog.push(`Finished AI Cards (${out.items.length})`);
-        appendArtifactLog(`Step 1/3 complete: InstaCue generated ${out.items.length} cards (was ${beforeInsta}).`);
-        toast({
-          title: `Generated ${out.items.length} InstaCue cards`,
-          description: "Starting Bits generation…",
-        });
-        } else {
-          stepErrors.push(instaRes.error);
-          runLog.push("AI Cards failed");
-          appendArtifactLog(`Step 1/3 failed after retries: ${instaRes.error}`);
-        }
-
-        appendArtifactLog(
-          `Waiting ${Math.round(ARTIFACT_PIPELINE_BETWEEN_STEPS_MS / 1000)}s before Bits (step gap — edit ARTIFACT_PIPELINE_BETWEEN_STEPS_MS in page.tsx to change).`,
-        );
-        await delay(ARTIFACT_PIPELINE_BETWEEN_STEPS_MS);
-
-        setGeneratingBits(true);
-        try {
-          runLog.push("Started Bits");
-          appendArtifactLog(
-            `Step 2/3: Generating Bits questions (up to ${ARTIFACT_STEP_MAX_ATTEMPTS} attempts).`,
-          );
-          const bitsRes = await runArtifactStepWithRetries("Bits", () =>
-            generateBitsQuestions({
             board: boardName,
             subject: topicNode.subject as Subject,
             classLevel: topicNode.classLevel as 11 | 12,
@@ -1070,20 +1194,62 @@ export default function TopicPage() {
             subtopicName,
             level: difficultyLevel,
             includeTrace: true,
+          })
+        );
+        if (instaRes.ok) {
+          const out = instaRes.value;
+          setDbInstacueCards(out.items);
+          nextInsta = out.items.length;
+          runLog.push(`Finished AI Cards (${out.items.length})`);
+          appendArtifactLog(
+            `Step 1/3 complete: InstaCue generated ${out.items.length} cards (was ${beforeInsta}).`
+          );
+          toast({
+            title: `Generated ${out.items.length} InstaCue cards`,
+            description: "Starting Bits generation…",
+          });
+        } else {
+          stepErrors.push(instaRes.error);
+          runLog.push("AI Cards failed");
+          appendArtifactLog(`Step 1/3 failed after retries: ${instaRes.error}`);
+        }
+
+        appendArtifactLog(
+          `Waiting ${Math.round(ARTIFACT_PIPELINE_BETWEEN_STEPS_MS / 1000)}s before Bits (step gap — edit ARTIFACT_PIPELINE_BETWEEN_STEPS_MS in page.tsx to change).`
+        );
+        await delay(ARTIFACT_PIPELINE_BETWEEN_STEPS_MS);
+
+        setGeneratingBits(true);
+        try {
+          runLog.push("Started Bits");
+          appendArtifactLog(
+            `Step 2/3: Generating Bits questions (up to ${ARTIFACT_STEP_MAX_ATTEMPTS} attempts).`
+          );
+          const bitsRes = await runArtifactStepWithRetries("Bits", () =>
+            generateBitsQuestions({
+              board: boardName,
+              subject: topicNode.subject as Subject,
+              classLevel: topicNode.classLevel as 11 | 12,
+              topic: topicNode.topic,
+              subtopicName,
+              level: difficultyLevel,
+              includeTrace: true,
             })
           );
           if (bitsRes.ok) {
             const bitsOut = bitsRes.value;
-          setDbBitsQuestions(bitsOut.items);
-          nextBits = bitsOut.items.length;
-          setBitsCurrentIdx(0);
-          setBitsSelectedAnswers({});
-          runLog.push(`Finished Bits (${bitsOut.items.length})`);
-          appendArtifactLog(`Step 2/3 complete: Bits generated ${bitsOut.items.length} questions (was ${beforeBits}).`);
-          toast({
-            title: `Generated ${bitsOut.items.length} Bits questions`,
-            description: "Starting formula practice generation…",
-          });
+            setDbBitsQuestions(bitsOut.items);
+            nextBits = bitsOut.items.length;
+            setBitsCurrentIdx(0);
+            setBitsSelectedAnswers({});
+            runLog.push(`Finished Bits (${bitsOut.items.length})`);
+            appendArtifactLog(
+              `Step 2/3 complete: Bits generated ${bitsOut.items.length} questions (was ${beforeBits}).`
+            );
+            toast({
+              title: `Generated ${bitsOut.items.length} Bits questions`,
+              description: "Starting formula practice generation…",
+            });
           } else {
             stepErrors.push(bitsRes.error);
             runLog.push("Bits failed");
@@ -1094,7 +1260,7 @@ export default function TopicPage() {
         }
 
         appendArtifactLog(
-          `Waiting ${Math.round(ARTIFACT_PIPELINE_BETWEEN_STEPS_MS / 1000)}s before Practice Formulas (same step gap).`,
+          `Waiting ${Math.round(ARTIFACT_PIPELINE_BETWEEN_STEPS_MS / 1000)}s before Practice Formulas (same step gap).`
         );
         await delay(ARTIFACT_PIPELINE_BETWEEN_STEPS_MS);
 
@@ -1102,31 +1268,31 @@ export default function TopicPage() {
         try {
           runLog.push("Started Formula Practice");
           appendArtifactLog(
-            `Step 3/3: Generating Practice Formulas (up to ${ARTIFACT_STEP_MAX_ATTEMPTS} attempts).`,
+            `Step 3/3: Generating Practice Formulas (up to ${ARTIFACT_STEP_MAX_ATTEMPTS} attempts).`
           );
           const formulasRes = await runArtifactStepWithRetries("Formulas", () =>
             generateFormulaPractice({
-            board: boardName,
-            subject: topicNode.subject as Subject,
-            classLevel: topicNode.classLevel as 11 | 12,
-            topic: topicNode.topic,
-            subtopicName,
-            level: difficultyLevel,
-            includeTrace: true,
+              board: boardName,
+              subject: topicNode.subject as Subject,
+              classLevel: topicNode.classLevel as 11 | 12,
+              topic: topicNode.topic,
+              subtopicName,
+              level: difficultyLevel,
+              includeTrace: true,
             })
           );
           if (formulasRes.ok) {
             const formulasOut = formulasRes.value;
-          setDbPracticeFormulas(formulasOut.items);
-          nextFormulas = formulasOut.items.length;
-          setSelectedFormulaIdx(null);
-          setFormulaBitsCurrentIdx(0);
-          setFormulaBitsSelectedAnswers({});
-          runLog.push(`Finished Formula Practice (${formulasOut.items.length})`);
-          appendArtifactLog(
-            `Step 3/3 complete: Practice Formulas generated ${formulasOut.items.length} sets (was ${beforeFormulas}).`,
-          );
-          toast({ title: `Generated ${formulasOut.items.length} formula sets` });
+            setDbPracticeFormulas(formulasOut.items);
+            nextFormulas = formulasOut.items.length;
+            setSelectedFormulaIdx(null);
+            setFormulaBitsCurrentIdx(0);
+            setFormulaBitsSelectedAnswers({});
+            runLog.push(`Finished Formula Practice (${formulasOut.items.length})`);
+            appendArtifactLog(
+              `Step 3/3 complete: Practice Formulas generated ${formulasOut.items.length} sets (was ${beforeFormulas}).`
+            );
+            toast({ title: `Generated ${formulasOut.items.length} formula sets` });
           } else {
             stepErrors.push(formulasRes.error);
             runLog.push("Formula Practice failed");
@@ -1137,14 +1303,14 @@ export default function TopicPage() {
         }
 
         appendArtifactLog(
-          `Run finished -> InstaCue: ${nextInsta}, Bits: ${nextBits}, Practice Formulas: ${nextFormulas}. Errors: ${stepErrors.length}.`,
+          `Run finished -> InstaCue: ${nextInsta}, Bits: ${nextBits}, Practice Formulas: ${nextFormulas}. Errors: ${stepErrors.length}.`
         );
         if (stepErrors.length === 0) {
-        setArtifactRunStatus("success");
-        toast({
-          title: "AI artifacts completed",
-          description: runLog.join(" → "),
-        });
+          setArtifactRunStatus("success");
+          toast({
+            title: "AI artifacts completed",
+            description: runLog.join(" → "),
+          });
         } else if (stepErrors.length === 3) {
           setArtifactRunStatus("failed");
           toast({
@@ -1160,7 +1326,9 @@ export default function TopicPage() {
           });
         }
       } catch (e) {
-        appendArtifactLog(`Run failed unexpectedly: ${e instanceof Error ? e.message : "Unknown error"}`);
+        appendArtifactLog(
+          `Run failed unexpectedly: ${e instanceof Error ? e.message : "Unknown error"}`
+        );
         setArtifactRunStatus("failed");
         toast({
           title: e instanceof Error ? e.message : "Generation failed",
@@ -1186,8 +1354,9 @@ export default function TopicPage() {
       if (!topicNode || !subtopicName) return false;
       const boardName = (board === "icse" ? "ICSE" : "CBSE") as Board;
       const existingPreview =
-        topicSubtopicPreviews.find((p) => p.subtopicName.trim().toLowerCase() === subtopicName.trim().toLowerCase())
-          ?.preview ?? "";
+        topicSubtopicPreviews.find(
+          (p) => p.subtopicName.trim().toLowerCase() === subtopicName.trim().toLowerCase()
+        )?.preview ?? "";
       const isRegenerate = dbTheoryExists;
       setGeneratingDeepDive(true);
       setSubtopicAgentTrace(null);
@@ -1243,7 +1412,14 @@ export default function TopicPage() {
 
   const runSubtopicAiGeneration = useCallback(async () => {
     if (!topicNode || !subtopicName) return;
-    if (generatingDeepDive || generatingInstacue || generatingBits || generatingFormulas || loadingDbTheory) return;
+    if (
+      generatingDeepDive ||
+      generatingInstacue ||
+      generatingBits ||
+      generatingFormulas ||
+      loadingDbTheory
+    )
+      return;
     const deepDiveOk = await runDeepDiveGeneration({ fromSubtopicAi: true });
     if (!deepDiveOk) return;
     await delay(ARTIFACT_PIPELINE_AFTER_DEEP_DIVE_SETTLE_MS);
@@ -1298,7 +1474,10 @@ export default function TopicPage() {
     } catch (e) {
       appendArtifactLog(`Bits failed: ${e instanceof Error ? e.message : "Unknown error"}`);
       setArtifactRunStatus("failed");
-      toast({ title: e instanceof Error ? e.message : "Bits generation failed", variant: "destructive" });
+      toast({
+        title: e instanceof Error ? e.message : "Bits generation failed",
+        variant: "destructive",
+      });
     } finally {
       setGeneratingBits(false);
     }
@@ -1355,9 +1534,14 @@ export default function TopicPage() {
       setArtifactRunStatus("success");
       toast({ title: `Generated ${formulasOut.items.length} formula sets` });
     } catch (e) {
-      appendArtifactLog(`Practice Formulas failed: ${e instanceof Error ? e.message : "Unknown error"}`);
+      appendArtifactLog(
+        `Practice Formulas failed: ${e instanceof Error ? e.message : "Unknown error"}`
+      );
       setArtifactRunStatus("failed");
-      toast({ title: e instanceof Error ? e.message : "Formula generation failed", variant: "destructive" });
+      toast({
+        title: e instanceof Error ? e.message : "Formula generation failed",
+        variant: "destructive",
+      });
     } finally {
       setGeneratingFormulas(false);
     }
@@ -1398,7 +1582,7 @@ export default function TopicPage() {
       appendArtifactLog(
         opts?.dryRun
           ? "Audit current subtopic (no AI): basics → intermediate → advanced …"
-          : "Complete-subtopic fallback: filling gaps for basics → intermediate → advanced…",
+          : "Complete-subtopic fallback: filling gaps for basics → intermediate → advanced…"
       );
       try {
         const out = await postCompleteSubtopic({
@@ -1416,7 +1600,9 @@ export default function TopicPage() {
           setArtifactRunStatus("failed");
           toast({
             title: "Topic hub incomplete",
-            description: miss ? `Missing: ${miss}` : "Generate Basics, Intermediate, and Advanced topic hubs first.",
+            description: miss
+              ? `Missing: ${miss}`
+              : "Generate Basics, Intermediate, and Advanced topic hubs first.",
             variant: "destructive",
           });
           return;
@@ -1424,7 +1610,7 @@ export default function TopicPage() {
         const levelEntries = Object.entries(out.levels ?? {});
         for (const [lv, rep] of levelEntries) {
           appendArtifactLog(
-            `[${lv}] theory=${rep.theory} instacue=${rep.instacue} bits=${rep.bits} formulas=${rep.formulas}`,
+            `[${lv}] theory=${rep.theory} instacue=${rep.instacue} bits=${rep.bits} formulas=${rep.formulas}`
           );
           for (const w of rep.warnings ?? []) appendArtifactLog(`[${lv}] ${w}`);
         }
@@ -1432,11 +1618,16 @@ export default function TopicPage() {
         for (const r of out.retries ?? []) appendArtifactLog(`Retry: ${r.level}/${r.block}`);
         if (opts?.dryRun) {
           setArtifactRunStatus("success");
-          toast({ title: "Audit complete", description: "See Behind the scenes log for all levels." });
+          toast({
+            title: "Audit complete",
+            description: "See Behind the scenes log for all levels.",
+          });
           return;
         }
         const hadFail = levelEntries.some(([, lv]) =>
-          [lv.theory, lv.instacue, lv.bits, lv.formulas].some((s) => s === "failed" || s === "failed_after_retry")
+          [lv.theory, lv.instacue, lv.bits, lv.formulas].some(
+            (s) => s === "failed" || s === "failed_after_retry"
+          )
         );
         setArtifactRunStatus(hadFail ? "partial" : "success");
         toast({
@@ -1488,7 +1679,9 @@ export default function TopicPage() {
     setArtifactRunStatus("running");
     setArtifactLastRunAt(new Date().toLocaleString());
     setArtifactRunLog([]);
-    appendArtifactLog("Audit all levels (no AI): basics → intermediate → advanced (all subtopics) …");
+    appendArtifactLog(
+      "Audit all levels (no AI): basics → intermediate → advanced (all subtopics) …"
+    );
 
     try {
       const subtopics = topicNode.subtopics.map((s) => s.name).filter(Boolean);
@@ -1625,7 +1818,10 @@ export default function TopicPage() {
       const fk = fuzzySubtopicKey(row.subtopicName);
       if (fk && !fuzzy.has(fk)) fuzzy.set(fk, p);
     }
-    return { get: (name: string) => exact.get(name.trim().toLowerCase()) ?? fuzzy.get(fuzzySubtopicKey(name)) ?? "" };
+    return {
+      get: (name: string) =>
+        exact.get(name.trim().toLowerCase()) ?? fuzzy.get(fuzzySubtopicKey(name)) ?? "",
+    };
   }, [topicSubtopicPreviews]);
 
   const buildTopicHubDraftPreviews = useCallback((): TopicSubtopicPreview[] => {
@@ -1693,7 +1889,15 @@ export default function TopicPage() {
     return () => {
       cancelled = true;
     };
-  }, [topicNode, isOverview, subtopicName, difficultyLevel, board, authLoading, session?.access_token]);
+  }, [
+    topicNode,
+    isOverview,
+    subtopicName,
+    difficultyLevel,
+    board,
+    authLoading,
+    session?.access_token,
+  ]);
 
   useEffect(() => {
     if (isOverview || !topicNode || !session?.access_token) {
@@ -1942,15 +2146,13 @@ export default function TopicPage() {
     let cancelled = false;
     const boardName = (board === "icse" ? "ICSE" : "CBSE") as Board;
     setTopicContentLoading(true);
-    fetchTopicContent(
-      {
-        board: boardName,
-        subject: topicNode.subject,
-        classLevel: topicNode.classLevel,
-        topic: topicNode.topic,
-        level: difficultyLevel,
-      }
-    )
+    fetchTopicContent({
+      board: boardName,
+      subject: topicNode.subject,
+      classLevel: topicNode.classLevel,
+      topic: topicNode.topic,
+      level: difficultyLevel,
+    })
       .then((res) => {
         if (cancelled) return;
         setTopicWhyStudy(res.whyStudy);
@@ -2027,7 +2229,14 @@ export default function TopicPage() {
       seen.add(key);
       return true;
     });
-  }, [topicNode, isOverview, subtopicName, difficultyLevel, user?.savedRevisionCards, dbInstacueCards]);
+  }, [
+    topicNode,
+    isOverview,
+    subtopicName,
+    difficultyLevel,
+    user?.savedRevisionCards,
+    dbInstacueCards,
+  ]);
 
   const handleInstaCueValidated = useCallback((index: number) => {
     setInstaCueValidatedIndices((prev) => {
@@ -2136,13 +2345,19 @@ export default function TopicPage() {
   }, [practiceFormulasForUi, formulaQuestionsOverride, formulaByIdx, formulaBitsSelectedAnswers]);
 
   const formulaChecklistTotal = formulaProgressAggregate.total;
-  const formulaChecklistProgress = Math.min(formulaProgressAggregate.answered, formulaChecklistTotal);
+  const formulaChecklistProgress = Math.min(
+    formulaProgressAggregate.answered,
+    formulaChecklistTotal
+  );
 
   // Extract section headings from theory markdown for left sidebar
   const dbTheorySections = useMemo(() => {
     if (!dbTheory) return [] as string[];
     const matches = [...dbTheory.matchAll(/^#{1,2}\s+(.+)/gm)];
-    return matches.map((m) => (m[1] ?? "").replace(/\*\*/g, "").trim()).filter(Boolean).slice(0, 10);
+    return matches
+      .map((m) => (m[1] ?? "").replace(/\*\*/g, "").trim())
+      .filter(Boolean)
+      .slice(0, 10);
   }, [dbTheory]);
 
   const topicHubSections = useMemo(() => {
@@ -2540,7 +2755,7 @@ export default function TopicPage() {
                 <div className="h-3 w-[92%] rounded bg-muted/70 animate-pulse" />
                 <div className="h-3 w-[80%] rounded bg-muted/70 animate-pulse" />
                 <div className="h-28 w-full rounded-xl bg-muted/60 animate-pulse mt-2" />
-            </div>
+              </div>
               <div className="h-10 w-44 rounded-xl bg-muted animate-pulse" />
             </div>
 
@@ -2562,7 +2777,9 @@ export default function TopicPage() {
               </div>
             </aside>
           </div>
-          <p className="text-center text-sm text-muted-foreground mt-8">Loading syllabus and topic…</p>
+          <p className="text-center text-sm text-muted-foreground mt-8">
+            Loading syllabus and topic…
+          </p>
         </div>
       </AppLayout>
     );
@@ -2585,43 +2802,46 @@ export default function TopicPage() {
     );
   }
 
-  const backHref = isMagicWallSource 
-    ? "/magic-wall" 
+  const backHref = isMagicWallSource
+    ? "/magic-wall"
     : `/explore-1?subject=${topicNode.subject}&class=${topicNode.classLevel}&unit=${unitSlug}`;
   const spinAgainHref = `/explore-1?subject=${topicNode.subject}&class=${topicNode.classLevel}&unit=${unitSlug}&spin=1`;
 
   const allStackPlaceholders =
     subtopicStackRows.length > 0 && subtopicStackRows.every((r) => r.isPh);
-  const activeTheory = dbTheoryExists ? dbTheory : focusedSubtopicTheoryData?.theory ?? "";
+  const activeTheory = dbTheoryExists ? dbTheory : (focusedSubtopicTheoryData?.theory ?? "");
   const focusedTheoryIsPh =
     !focusedSubtopicTheoryData ||
     (!dbTheoryExists && subtopicTheoryIsPlaceholder(focusedSubtopicTheoryData.theory));
   const overviewHref = appendQueryParams(
     buildTopicOverviewPath(
-    board,
-    topicNode.subject,
-    topicNode.classLevel,
-    topicNode.topic,
-    difficultyLevel,
-    isRandomMode ? "random" : undefined
+      board,
+      topicNode.subject,
+      topicNode.classLevel,
+      topicNode.topic,
+      difficultyLevel,
+      isRandomMode ? "random" : undefined
     ),
     isMagicWallSource ? { source: "magic-wall" } : {}
   );
   /** Subtopic view: top Back goes to topic overview (same as old in-card "Topic overview"). Overview: Back to Explore unit. */
   const topBackHref = isOverview ? backHref : overviewHref;
-  const prevSubtopic = !isOverview && subtopicIndex > 0 ? topicNode.subtopics[subtopicIndex - 1] : null;
+  const prevSubtopic =
+    !isOverview && subtopicIndex > 0 ? topicNode.subtopics[subtopicIndex - 1] : null;
   const nextSubtopic =
-    !isOverview && subtopicIndex < topicNode.subtopics.length - 1 ? topicNode.subtopics[subtopicIndex + 1] : null;
+    !isOverview && subtopicIndex < topicNode.subtopics.length - 1
+      ? topicNode.subtopics[subtopicIndex + 1]
+      : null;
   const prevSubtopicHref = prevSubtopic
     ? appendQueryParams(
         buildTopicPath(
-        board,
-        topicNode.subject,
-        topicNode.classLevel,
-        topicNode.topic,
-        prevSubtopic.name,
-        difficultyLevel,
-        isRandomMode ? "random" : undefined
+          board,
+          topicNode.subject,
+          topicNode.classLevel,
+          topicNode.topic,
+          prevSubtopic.name,
+          difficultyLevel,
+          isRandomMode ? "random" : undefined
         ),
         isMagicWallSource ? { source: "magic-wall" } : {}
       )
@@ -2629,13 +2849,13 @@ export default function TopicPage() {
   const nextSubtopicHref = nextSubtopic
     ? appendQueryParams(
         buildTopicPath(
-        board,
-        topicNode.subject,
-        topicNode.classLevel,
-        topicNode.topic,
-        nextSubtopic.name,
-        difficultyLevel,
-        isRandomMode ? "random" : undefined
+          board,
+          topicNode.subject,
+          topicNode.classLevel,
+          topicNode.topic,
+          nextSubtopic.name,
+          difficultyLevel,
+          isRandomMode ? "random" : undefined
         ),
         isMagicWallSource ? { source: "magic-wall" } : {}
       )
@@ -2721,13 +2941,17 @@ export default function TopicPage() {
                               <div className="flex items-center gap-3 min-w-0">
                                 <span
                                   className={`flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full text-[11px] font-bold ${
-                                    isCurrent ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"
+                                    isCurrent
+                                      ? "bg-white/20 text-white"
+                                      : "bg-muted text-muted-foreground"
                                   }`}
                                 >
                                   {idx + 1}
                                 </span>
                                 <div className="min-w-0 flex-1">
-                                  <p className={`text-sm font-bold truncate ${isCurrent ? "text-white" : ""}`}>
+                                  <p
+                                    className={`text-sm font-bold truncate ${isCurrent ? "text-white" : ""}`}
+                                  >
                                     {item.topicName}
                                   </p>
                                   <p
@@ -2813,12 +3037,15 @@ export default function TopicPage() {
                       <ListChecks className="h-5 w-5 text-blue-400" />
                     </div>
                     <p className="text-xs font-medium text-foreground">
-                      To get into progress, go to a subtopic and complete the checklist so your topic moves into progress.
+                      To get into progress, go to a subtopic and complete the checklist so your
+                      topic moves into progress.
                     </p>
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    <p className="text-xs font-semibold text-foreground/90">Complete these actions for concept mastery:</p>
+                    <p className="text-xs font-semibold text-foreground/90">
+                      Complete these actions for concept mastery:
+                    </p>
                     <ul className="space-y-2.5">
                       {TOPIC_PROGRESS_CHECKLIST.map((item) => (
                         <li
@@ -2855,10 +3082,16 @@ export default function TopicPage() {
                                       onClick={() => setFocusTimerRunning((prev) => !prev)}
                                       className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-blue-400/40 bg-background/70 text-blue-300 hover:bg-blue-500/10"
                                       aria-label={
-                                        focusTimerRunning ? "Pause 10 minute timer" : "Resume 10 minute timer"
+                                        focusTimerRunning
+                                          ? "Pause 10 minute timer"
+                                          : "Resume 10 minute timer"
                                       }
                                     >
-                                      {focusTimerRunning ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
+                                      {focusTimerRunning ? (
+                                        <Pause className="h-3.5 w-3.5" />
+                                      ) : (
+                                        <Play className="h-3.5 w-3.5" />
+                                      )}
                                     </button>
                                     <button
                                       type="button"
@@ -2881,7 +3114,10 @@ export default function TopicPage() {
                                 </span>
                                 {bitsQuizAggregate ? (
                                   <span className="inline-flex items-center gap-0.5 rounded-md border border-emerald-400/50 bg-emerald-500/15 px-2 py-1 text-[11px] font-bold text-emerald-300 tabular-nums">
-                                    <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-400" aria-hidden />
+                                    <CheckCircle2
+                                      className="h-3.5 w-3.5 shrink-0 text-emerald-400"
+                                      aria-hidden
+                                    />
                                     {bitsQuizAggregate.correct}
                                   </span>
                                 ) : null}
@@ -2965,7 +3201,8 @@ export default function TopicPage() {
                               setLessonChecklistMarkedCompleteAt(null);
                               toast({
                                 title: "Save failed",
-                                description: "Could not save completion. Check your connection and try again.",
+                                description:
+                                  "Could not save completion. Check your connection and try again.",
                                 variant: "destructive",
                               });
                             }
@@ -2974,7 +3211,10 @@ export default function TopicPage() {
                       >
                         {lessonProgressMarkedDone ? (
                           <span className="inline-flex items-center gap-1.5">
-                            <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" aria-hidden />
+                            <CheckCircle2
+                              className="h-4 w-4 shrink-0 text-emerald-500"
+                              aria-hidden
+                            />
                             Marked completed
                           </span>
                         ) : (
@@ -3029,7 +3269,12 @@ export default function TopicPage() {
 
       <div className="max-w-6xl mx-auto w-full min-w-0 px-4 -mt-6 pt-2 pb-6">
         <div className="mb-6 flex flex-wrap items-center gap-2 sm:gap-3">
-          <Button variant="ghost" size="sm" asChild className="rounded-full font-bold -ml-1 shrink-0">
+          <Button
+            variant="ghost"
+            size="sm"
+            asChild
+            className="rounded-full font-bold -ml-1 shrink-0"
+          >
             <Link href={topBackHref}>
               <ArrowLeft className="w-4 h-4 mr-1" /> Back
             </Link>
@@ -3080,7 +3325,6 @@ export default function TopicPage() {
         </div>
 
         <div className="flex flex-col lg:flex-row gap-6 min-w-0 max-w-full">
-
           {/* ── LEFT SIDEBAR (desktop only, investor topic-hub override) ── */}
           {isInvestorTopicHubLayout && (
             <aside className="hidden lg:flex flex-col w-44 shrink-0">
@@ -3092,7 +3336,9 @@ export default function TopicPage() {
                   <ul className="space-y-0.5">
                     <li
                       className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-bold transition-colors ${
-                        activeSectionIdx === 0 ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted/60"
+                        activeSectionIdx === 0
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-muted/60"
                       }`}
                     >
                       {activeSectionIdx === 0 && <span className="text-green-600 shrink-0">✓</span>}
@@ -3102,7 +3348,9 @@ export default function TopicPage() {
                       <li
                         key={title}
                         className={`px-2 py-1.5 rounded-lg text-xs font-medium transition-colors truncate cursor-default ${
-                          activeSectionIdx === i + 1 ? "bg-primary/10 text-primary font-bold" : "text-muted-foreground hover:bg-muted/60"
+                          activeSectionIdx === i + 1
+                            ? "bg-primary/10 text-primary font-bold"
+                            : "text-muted-foreground hover:bg-muted/60"
                         }`}
                         title={title}
                       >
@@ -3119,15 +3367,21 @@ export default function TopicPage() {
                   <ul className="space-y-2 px-1">
                     <li className="flex items-center justify-between gap-1">
                       <span className="text-xs text-muted-foreground">Subtopics</span>
-                      <span className="text-xs font-bold text-foreground">{topicNode.subtopics.length}</span>
+                      <span className="text-xs font-bold text-foreground">
+                        {topicNode.subtopics.length}
+                      </span>
                     </li>
                     <li className="flex items-center justify-between gap-1">
                       <span className="text-xs text-muted-foreground">Subject</span>
-                      <span className="text-xs font-bold text-primary capitalize">{topicNode.subject}</span>
+                      <span className="text-xs font-bold text-primary capitalize">
+                        {topicNode.subject}
+                      </span>
                     </li>
                     <li className="flex items-center justify-between gap-1">
                       <span className="text-xs text-muted-foreground">Level</span>
-                      <span className="text-xs font-bold text-primary capitalize">{difficultyLevel}</span>
+                      <span className="text-xs font-bold text-primary capitalize">
+                        {difficultyLevel}
+                      </span>
                     </li>
                   </ul>
                 </div>
@@ -3137,7 +3391,8 @@ export default function TopicPage() {
                     Learning Flow
                   </p>
                   <p className="text-[11px] text-foreground/80 leading-snug">
-                    Open a subtopic below to access InstaCue cards, Quiz (Bits), Numerals, and Concepts.
+                    Open a subtopic below to access InstaCue cards, Quiz (Bits), Numerals, and
+                    Concepts.
                   </p>
                 </div>
               </div>
@@ -3148,14 +3403,15 @@ export default function TopicPage() {
           {isSubtopicDashboardLayout && (
             <aside className="hidden lg:flex flex-col w-44 shrink-0">
               <div className="sticky top-24 space-y-5 text-sm">
-
                 {/* Theory sections list */}
                 <div>
                   <h4 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2 px-1">
                     Theory Overview
                   </h4>
                   <ul className="space-y-0.5">
-                    <li className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-bold transition-colors ${activeSectionIdx === 0 ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted/60"}`}>
+                    <li
+                      className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-bold transition-colors ${activeSectionIdx === 0 ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted/60"}`}
+                    >
                       {activeSectionIdx === 0 && <span className="text-green-600 shrink-0">✓</span>}
                       Theory Overview
                     </li>
@@ -3169,7 +3425,7 @@ export default function TopicPage() {
                       </li>
                     ))}
                   </ul>
-        </div>
+                </div>
 
                 {/* Topic Snapshot */}
                 <div>
@@ -3187,7 +3443,9 @@ export default function TopicPage() {
                     </li>
                     <li className="flex items-center justify-between gap-1">
                       <span className="text-xs text-muted-foreground">Level</span>
-                      <span className="text-xs font-bold text-primary capitalize">{difficultyLevel}</span>
+                      <span className="text-xs font-bold text-primary capitalize">
+                        {difficultyLevel}
+                      </span>
                     </li>
                   </ul>
                 </div>
@@ -3210,7 +3468,8 @@ export default function TopicPage() {
                           <div
                             className="h-full bg-primary rounded-full"
                             style={{
-                              width: bitsQuizAggregate.total > 0 ? `${bitsQuizAggregate.pct}%` : "0%",
+                              width:
+                                bitsQuizAggregate.total > 0 ? `${bitsQuizAggregate.pct}%` : "0%",
                             }}
                           />
                         </div>
@@ -3242,19 +3501,21 @@ export default function TopicPage() {
                   <div className="flex justify-end mb-3">
                     <span className="text-sm font-extrabold text-muted-foreground">Topic hub</span>
                   </div>
-                  <h1 className="font-black text-3xl tracking-tight text-foreground mb-4">{topicNode.topic}</h1>
+                  <h1 className="font-black text-3xl tracking-tight text-foreground mb-4">
+                    {topicNode.topic}
+                  </h1>
 
                   {mode === "linear" && (
                     <div className="flex flex-wrap gap-2 mb-6">
                       {LEVELS.map(({ value, label }) => {
                         const href = appendQueryParams(
                           buildTopicOverviewPath(
-                          board,
-                          topicNode.subject,
-                          topicNode.classLevel,
-                          topicNode.topic,
-                          value,
-                          isRandomMode ? "random" : undefined
+                            board,
+                            topicNode.subject,
+                            topicNode.classLevel,
+                            topicNode.topic,
+                            value,
+                            isRandomMode ? "random" : undefined
                           ),
                           isMagicWallSource ? { source: "magic-wall" } : {}
                         );
@@ -3318,67 +3579,72 @@ export default function TopicPage() {
                             }
                             onClick={async () => {
                               if (!topicNode) return;
-                            if (topicContentExists) {
-                              setFbLiked("");
-                              setFbDisliked("");
-                              setFbInstructions("");
-                              setTopicRegenFeedbackOpen(true);
-                              return;
-                            }
-                            const boardName = (board === "icse" ? "ICSE" : "CBSE") as Board;
-                            setGeneratingTopic(true);
-                            try {
-                              const out = await generateTopicContent({
-                                board: boardName,
-                                subject: topicNode.subject,
-                                classLevel: topicNode.classLevel,
-                                topic: topicNode.topic,
-                                level: difficultyLevel,
-                                unitLabel: topicNode.unitLabel,
-                                unitTitle: topicNode.unitTitle,
-                                chapterTitle: topicNode.chapterTitle,
-                                subtopicNames: topicNode.subtopics.map((s) => s.name),
-                                mode: "generate",
-                                includeTrace: true,
-                              });
-                              setTopicWhyStudy(out.whyStudy);
-                              setTopicSubtopicPreviews(out.subtopicPreviews ?? []);
-                              setTopicContentExists(true);
-                              setTopicAgentTrace(out.trace ?? null);
-                              toast({
-                                title: "Topic hub generated",
-                                description:
-                                  out.ragChunks != null
-                                    ? `Saved to Supabase · RAG passages used: ${out.ragChunks}`
-                                    : "Saved to Supabase",
-                              });
-                            } catch (e) {
-                              const message = e instanceof Error ? e.message : "Generation failed";
-                              toast({ title: message, variant: "destructive" });
-                            } finally {
-                              setGeneratingTopic(false);
-                            }
-                          }}
-                        >
-                          <Sparkles className="w-4 h-4" />
-                          {generatingTopic
-                            ? topicContentExists
-                              ? "Regenerating…"
-                              : "Generating…"
-                            : topicContentExists
-                              ? "Regenerate topic"
-                              : "Generate topic hub"}
-                        </Button>
+                              if (topicContentExists) {
+                                setFbLiked("");
+                                setFbDisliked("");
+                                setFbInstructions("");
+                                setTopicRegenFeedbackOpen(true);
+                                return;
+                              }
+                              const boardName = (board === "icse" ? "ICSE" : "CBSE") as Board;
+                              setGeneratingTopic(true);
+                              try {
+                                const out = await generateTopicContent({
+                                  board: boardName,
+                                  subject: topicNode.subject,
+                                  classLevel: topicNode.classLevel,
+                                  topic: topicNode.topic,
+                                  level: difficultyLevel,
+                                  unitLabel: topicNode.unitLabel,
+                                  unitTitle: topicNode.unitTitle,
+                                  chapterTitle: topicNode.chapterTitle,
+                                  subtopicNames: topicNode.subtopics.map((s) => s.name),
+                                  mode: "generate",
+                                  includeTrace: true,
+                                });
+                                setTopicWhyStudy(out.whyStudy);
+                                setTopicSubtopicPreviews(out.subtopicPreviews ?? []);
+                                setTopicContentExists(true);
+                                setTopicAgentTrace(out.trace ?? null);
+                                toast({
+                                  title: "Topic hub generated",
+                                  description:
+                                    out.ragChunks != null
+                                      ? `Saved to Supabase · RAG passages used: ${out.ragChunks}`
+                                      : "Saved to Supabase",
+                                });
+                              } catch (e) {
+                                const message =
+                                  e instanceof Error ? e.message : "Generation failed";
+                                toast({ title: message, variant: "destructive" });
+                              } finally {
+                                setGeneratingTopic(false);
+                              }
+                            }}
+                          >
+                            <Sparkles className="w-4 h-4" />
+                            {generatingTopic
+                              ? topicContentExists
+                                ? "Regenerating…"
+                                : "Generating…"
+                              : topicContentExists
+                                ? "Regenerate topic"
+                                : "Generate topic hub"}
+                          </Button>
                         </div>
                       ) : null}
                     </div>
                     <p className="text-xs text-muted-foreground mb-3">
-                      Level-wise topic master guide in educator format. Subtopic cards below are focused previews before deep dive.
+                      Level-wise topic master guide in educator format. Subtopic cards below are
+                      focused previews before deep dive.
                     </p>
                     {canEditTopicContent ? (
-                      <TopicAgentTracePanel trace={topicAgentTrace} onClear={() => setTopicAgentTrace(null)} />
+                      <TopicAgentTracePanel
+                        trace={topicAgentTrace}
+                        onClear={() => setTopicAgentTrace(null)}
+                      />
                     ) : null}
-                    
+
                     {topicContentLoading ? (
                       <TheoryPanelSkeleton />
                     ) : topicContentExists && topicWhyStudy.trim() ? (
@@ -3399,7 +3665,9 @@ export default function TopicPage() {
 
                     {topicEditorOpen && canEditTopicContent && (
                       <div className="mb-6 space-y-4 rounded-xl border border-border bg-background/80 p-4">
-                        <p className="text-xs font-semibold text-muted-foreground">Topic intro (markdown)</p>
+                        <p className="text-xs font-semibold text-muted-foreground">
+                          Topic intro (markdown)
+                        </p>
                         <textarea
                           value={draftTopicWhyStudy}
                           onChange={(e) => setDraftTopicWhyStudy(e.target.value)}
@@ -3417,7 +3685,9 @@ export default function TopicPage() {
                                   <p className="text-xs font-bold text-foreground">
                                     {idx + 1}.{" "}
                                     <MathText weight="bold">
-                                      {prettifySubtopicTitle(humanReadableSubtopicTitle(row.subtopicName))}
+                                      {prettifySubtopicTitle(
+                                        humanReadableSubtopicTitle(row.subtopicName)
+                                      )}
                                     </MathText>
                                   </p>
                                   <textarea
@@ -3497,14 +3767,17 @@ export default function TopicPage() {
                         <DialogHeader>
                           <DialogTitle>Regenerate topic hub</DialogTitle>
                           <DialogDescription>
-                            Updates only <span className="font-semibold text-foreground">{topicNode.topic}</span> for
-                            this level. A full-chapter overview from Explore is saved separately and is not changed
-                            when you regenerate here.
+                            Updates only{" "}
+                            <span className="font-semibold text-foreground">{topicNode.topic}</span>{" "}
+                            for this level. A full-chapter overview from Explore is saved separately
+                            and is not changed when you regenerate here.
                           </DialogDescription>
                         </DialogHeader>
                         <div className="space-y-3">
                           <div>
-                            <p className="text-xs font-bold text-muted-foreground mb-1">What did you like? (keep)</p>
+                            <p className="text-xs font-bold text-muted-foreground mb-1">
+                              What did you like? (keep)
+                            </p>
                             <textarea
                               value={fbLiked}
                               onChange={(e) => setFbLiked(e.target.value)}
@@ -3513,7 +3786,9 @@ export default function TopicPage() {
                             />
                           </div>
                           <div>
-                            <p className="text-xs font-bold text-muted-foreground mb-1">What should improve?</p>
+                            <p className="text-xs font-bold text-muted-foreground mb-1">
+                              What should improve?
+                            </p>
                             <textarea
                               value={fbDisliked}
                               onChange={(e) => setFbDisliked(e.target.value)}
@@ -3522,7 +3797,9 @@ export default function TopicPage() {
                             />
                           </div>
                           <div>
-                            <p className="text-xs font-bold text-muted-foreground mb-1">Any extra instruction?</p>
+                            <p className="text-xs font-bold text-muted-foreground mb-1">
+                              Any extra instruction?
+                            </p>
                             <textarea
                               value={fbInstructions}
                               onChange={(e) => setFbInstructions(e.target.value)}
@@ -3573,156 +3850,166 @@ export default function TopicPage() {
                                 setTopicContentExists(true);
                                 setTopicAgentTrace(out.trace ?? null);
                                 toast({
-                            title: "Topic hub regenerated",
-                            description:
-                              out.ragChunks != null
-                                ? `Saved to Supabase · RAG passages used: ${out.ragChunks}`
-                                : "Saved to Supabase",
-                          });
-                        } catch (e) {
-                          const message = e instanceof Error ? e.message : "Regeneration failed";
-                          toast({ title: message, variant: "destructive" });
-                        } finally {
-                          setGeneratingTopic(false);
-                        }
-                      }}
-                    >
-                      {generatingTopic ? "Regenerating…" : "Submit & regenerate"}
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-
-              <h2 className="text-sm font-bold text-primary uppercase tracking-wide mb-4 mt-2">
-                Subtopics ({difficultyLevel === "intermediate" ? "Intermediate" : difficultyLevel === "advanced" ? "Advanced" : "Basic"} preview cards)
-              </h2>
-              <div className="space-y-6">
-                    {subtopicStackRows.map((row, idx) => {
-                      const generatedPreview = topicPreviewByName.get(row.name) ?? "";
-                      const displayText = formatSubtopicPreviewText(
-                        generatedPreview || truncateForStack(row.theoryFull, SUBTOPIC_STACK_PREVIEW_CHARS)
-                      );
-                      return (
-                        <section
-                          key={row.name}
-                          className="rounded-2xl border-2 border-border bg-muted/20 p-4 sm:p-5 transition-shadow min-w-0 max-w-full overflow-x-clip"
-                        >
-                          <h3 className="font-extrabold text-base flex min-w-0 max-w-full items-start gap-2 mb-3">
-                            <span className="w-8 h-8 rounded-lg bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center text-sm font-extrabold text-black dark:text-white shrink-0">
-                              {idx + 1}
-                            </span>
-                            <span className="subtopic-title-text min-w-0 flex-1 max-w-full">
-                            <MathText
-                              weight="extrabold"
-                                className="[&_.katex]:!text-[0.88em] sm:[&_.katex]:!text-[0.92em]"
-                                title={subtopicNavPreviewLine(row.name)}
-                            >
-                                {subtopicMathTextLabel(row.name)}
-                            </MathText>
-                            </span>
-                          </h3>
-                          {!generatedPreview && row.isPh ? (
-                            <div
-                              className={`min-h-[100px] rounded-xl border-2 border-dashed flex items-center justify-center p-5 text-center ${["border-primary/40", "border-emerald-500/40", "border-amber-500/40", "border-violet-500/40"][idx % 4]}`}
-                            >
-                              <p className="text-muted-foreground text-sm">
-                                Content coming soon. Refer to your textbook for this subtopic.
-                              </p>
-                            </div>
-                          ) : (
-                            <div className="theory-content text-[15px] leading-relaxed text-muted-foreground min-w-0 max-w-full [overflow-wrap:anywhere] break-words">
-                              <TheoryContent theory={displayText} />
-                            </div>
-                          )}
-                        </section>
-                      );
-                    })}
-                  </div>
-                </section>
-
-                {!isRandomMode && (topicLevelSiblings.prev || topicLevelSiblings.next) && (
-                  <nav
-                    className="mt-10 pt-8 border-t border-border"
-                    aria-label="Previous and next syllabus topic in this chapter"
-                  >
-                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-3">
-                      {isMagicWallSource ? "Magic Wall Reading Basket" : "More in this chapter"}
-                    </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {topicLevelSiblings.prev ? (
-                        <Button
-                          asChild
-                          variant="outline"
-                          className="h-auto min-h-[3.25rem] w-full justify-start rounded-xl border-2 px-4 py-3 font-semibold shadow-sm hover:bg-muted/50"
-                        >
-                          <Link
-                            href={appendQueryParams(
-                              buildTopicOverviewPath(
-                              board,
-                              topicLevelSiblings.prev.subject,
-                              topicLevelSiblings.prev.classLevel,
-                              topicLevelSiblings.prev.topic,
-                              difficultyLevel,
-                              isRandomMode ? "random" : undefined
-                              ),
-                              isMagicWallSource ? { source: "magic-wall" } : {}
-                            )}
-                            className="flex w-full items-center gap-3 text-left"
+                                  title: "Topic hub regenerated",
+                                  description:
+                                    out.ragChunks != null
+                                      ? `Saved to Supabase · RAG passages used: ${out.ragChunks}`
+                                      : "Saved to Supabase",
+                                });
+                              } catch (e) {
+                                const message =
+                                  e instanceof Error ? e.message : "Regeneration failed";
+                                toast({ title: message, variant: "destructive" });
+                              } finally {
+                                setGeneratingTopic(false);
+                              }
+                            }}
                           >
-                            <ChevronLeft className="size-5 shrink-0 text-primary" aria-hidden />
-                            <span className="min-w-0 flex-1">
-                              <span className="block text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
-                                Previous topic
-                              </span>
-                              <span className="block truncate text-sm font-bold text-foreground">
-                                {topicLevelSiblings.prev.topic}
-                              </span>
-                            </span>
-                          </Link>
-                        </Button>
-                      ) : (
-                        <div className="hidden sm:block" aria-hidden />
-                      )}
-                      {topicLevelSiblings.next ? (
-                        <Button
-                          asChild
-                          className="edu-btn-primary h-auto min-h-[3.25rem] w-full justify-start rounded-xl px-4 py-3 font-semibold shadow-sm sm:justify-end"
-                        >
-                          <Link
-                            href={appendQueryParams(
-                              buildTopicOverviewPath(
-                              board,
-                              topicLevelSiblings.next.subject,
-                              topicLevelSiblings.next.classLevel,
-                              topicLevelSiblings.next.topic,
-                              difficultyLevel,
-                              isRandomMode ? "random" : undefined
-                              ),
-                              isMagicWallSource ? { source: "magic-wall" } : {}
-                            )}
-                            className="flex w-full items-center gap-3 text-left sm:flex-row-reverse sm:text-right"
+                            {generatingTopic ? "Regenerating…" : "Submit & regenerate"}
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+
+                    <h2 className="text-sm font-bold text-primary uppercase tracking-wide mb-4 mt-2">
+                      Subtopics (
+                      {difficultyLevel === "intermediate"
+                        ? "Intermediate"
+                        : difficultyLevel === "advanced"
+                          ? "Advanced"
+                          : "Basic"}{" "}
+                      preview cards)
+                    </h2>
+                    <div className="space-y-6">
+                      {subtopicStackRows.map((row, idx) => {
+                        const generatedPreview = topicPreviewByName.get(row.name) ?? "";
+                        const displayText = formatSubtopicPreviewText(
+                          generatedPreview ||
+                            truncateForStack(row.theoryFull, SUBTOPIC_STACK_PREVIEW_CHARS)
+                        );
+                        return (
+                          <section
+                            key={row.name}
+                            className="rounded-2xl border-2 border-border bg-muted/20 p-4 sm:p-5 transition-shadow min-w-0 max-w-full overflow-x-clip"
                           >
-                            <ChevronRight className="size-5 shrink-0" aria-hidden />
-                            <span className="min-w-0 flex-1 sm:text-right">
-                              <span className="block text-[11px] font-bold uppercase tracking-wide opacity-90">
-                                Next topic
+                            <h3 className="font-extrabold text-base flex min-w-0 max-w-full items-start gap-2 mb-3">
+                              <span className="w-8 h-8 rounded-lg bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center text-sm font-extrabold text-black dark:text-white shrink-0">
+                                {idx + 1}
                               </span>
-                              <span className="block truncate text-sm font-bold">
-                                {topicLevelSiblings.next.topic}
+                              <span className="subtopic-title-text min-w-0 flex-1 max-w-full">
+                                <MathText
+                                  weight="extrabold"
+                                  className="[&_.katex]:!text-[0.88em] sm:[&_.katex]:!text-[0.92em]"
+                                  title={subtopicNavPreviewLine(row.name)}
+                                >
+                                  {subtopicMathTextLabel(row.name)}
+                                </MathText>
                               </span>
-                            </span>
-                          </Link>
-                        </Button>
-                      ) : null}
+                            </h3>
+                            {!generatedPreview && row.isPh ? (
+                              <div
+                                className={`min-h-[100px] rounded-xl border-2 border-dashed flex items-center justify-center p-5 text-center ${["border-primary/40", "border-emerald-500/40", "border-amber-500/40", "border-violet-500/40"][idx % 4]}`}
+                              >
+                                <p className="text-muted-foreground text-sm">
+                                  Content coming soon. Refer to your textbook for this subtopic.
+                                </p>
+                              </div>
+                            ) : (
+                              <div className="theory-content text-[15px] leading-relaxed text-muted-foreground min-w-0 max-w-full [overflow-wrap:anywhere] break-words">
+                                <TheoryContent theory={displayText} />
+                              </div>
+                            )}
+                          </section>
+                        );
+                      })}
                     </div>
-                  </nav>
-                )}
+                  </section>
+
+                  {!isRandomMode && (topicLevelSiblings.prev || topicLevelSiblings.next) && (
+                    <nav
+                      className="mt-10 pt-8 border-t border-border"
+                      aria-label="Previous and next syllabus topic in this chapter"
+                    >
+                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-3">
+                        {isMagicWallSource ? "Magic Wall Reading Basket" : "More in this chapter"}
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {topicLevelSiblings.prev ? (
+                          <Button
+                            asChild
+                            variant="outline"
+                            className="h-auto min-h-[3.25rem] w-full justify-start rounded-xl border-2 px-4 py-3 font-semibold shadow-sm hover:bg-muted/50"
+                          >
+                            <Link
+                              href={appendQueryParams(
+                                buildTopicOverviewPath(
+                                  board,
+                                  topicLevelSiblings.prev.subject,
+                                  topicLevelSiblings.prev.classLevel,
+                                  topicLevelSiblings.prev.topic,
+                                  difficultyLevel,
+                                  isRandomMode ? "random" : undefined
+                                ),
+                                isMagicWallSource ? { source: "magic-wall" } : {}
+                              )}
+                              className="flex w-full items-center gap-3 text-left"
+                            >
+                              <ChevronLeft className="size-5 shrink-0 text-primary" aria-hidden />
+                              <span className="min-w-0 flex-1">
+                                <span className="block text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+                                  Previous topic
+                                </span>
+                                <span className="block truncate text-sm font-bold text-foreground">
+                                  {topicLevelSiblings.prev.topic}
+                                </span>
+                              </span>
+                            </Link>
+                          </Button>
+                        ) : (
+                          <div className="hidden sm:block" aria-hidden />
+                        )}
+                        {topicLevelSiblings.next ? (
+                          <Button
+                            asChild
+                            className="edu-btn-primary h-auto min-h-[3.25rem] w-full justify-start rounded-xl px-4 py-3 font-semibold shadow-sm sm:justify-end"
+                          >
+                            <Link
+                              href={appendQueryParams(
+                                buildTopicOverviewPath(
+                                  board,
+                                  topicLevelSiblings.next.subject,
+                                  topicLevelSiblings.next.classLevel,
+                                  topicLevelSiblings.next.topic,
+                                  difficultyLevel,
+                                  isRandomMode ? "random" : undefined
+                                ),
+                                isMagicWallSource ? { source: "magic-wall" } : {}
+                              )}
+                              className="flex w-full items-center gap-3 text-left sm:flex-row-reverse sm:text-right"
+                            >
+                              <ChevronRight className="size-5 shrink-0" aria-hidden />
+                              <span className="min-w-0 flex-1 sm:text-right">
+                                <span className="block text-[11px] font-bold uppercase tracking-wide opacity-90">
+                                  Next topic
+                                </span>
+                                <span className="block truncate text-sm font-bold">
+                                  {topicLevelSiblings.next.topic}
+                                </span>
+                              </span>
+                            </Link>
+                          </Button>
+                        ) : null}
+                      </div>
+                    </nav>
+                  )}
                 </>
               ) : (
                 <>
                   <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                     <p className="min-w-0 flex-1 text-xl sm:text-2xl font-black tracking-tight text-foreground break-words">
-                      <span className="text-muted-foreground font-extrabold text-base sm:text-lg">Topic · </span>
+                      <span className="text-muted-foreground font-extrabold text-base sm:text-lg">
+                        Topic ·{" "}
+                      </span>
                       <span>{topicNode.topic}</span>
                     </p>
                     <Button
@@ -3741,13 +4028,13 @@ export default function TopicPage() {
                       Subtopic
                     </div>
                     <h1 className="font-black text-xl sm:text-2xl tracking-tight text-foreground min-w-0 break-words">
-                    <MathText
-                      weight="extrabold"
-                      className="subtopic-title-text break-words [&_.katex]:!text-[0.8em] sm:[&_.katex]:!text-[0.88em]"
-                    >
+                      <MathText
+                        weight="extrabold"
+                        className="subtopic-title-text break-words [&_.katex]:!text-[0.8em] sm:[&_.katex]:!text-[0.88em]"
+                      >
                         {subtopicDeepDiveHeadingMarkdown(subtopicName)}
-                    </MathText>
-                  </h1>
+                      </MathText>
+                    </h1>
                   </div>
 
                   <section className="mb-2">
@@ -3759,9 +4046,9 @@ export default function TopicPage() {
                         {canEditTheory && topicNode && subtopicName && (
                           <>
                             {loadingDbTheory && (
-                          <Button
-                            variant="outline"
-                            size="sm"
+                              <Button
+                                variant="outline"
+                                size="sm"
                                 className="shrink-0 whitespace-nowrap rounded-lg"
                                 disabled
                               >
@@ -3775,17 +4062,17 @@ export default function TopicPage() {
                               className="shrink-0 whitespace-nowrap rounded-lg"
                               disabled={loadingDbTheory}
                               title="Edit theory content"
-                            onClick={() => {
-                              if (!editorOpen) {
-                                setDraftTheory(activeTheory);
-                                setDraftDidYouKnow(dbDidYouKnow);
-                                setDraftReferencesJson(JSON.stringify(dbReferences, null, 2));
-                              }
-                              setEditorOpen((prev) => !prev);
-                            }}
-                          >
-                            {editorOpen ? "Close editor" : "Edit"}
-                          </Button>
+                              onClick={() => {
+                                if (!editorOpen) {
+                                  setDraftTheory(activeTheory);
+                                  setDraftDidYouKnow(dbDidYouKnow);
+                                  setDraftReferencesJson(JSON.stringify(dbReferences, null, 2));
+                                }
+                                setEditorOpen((prev) => !prev);
+                              }}
+                            >
+                              {editorOpen ? "Close editor" : "Edit"}
+                            </Button>
                             <Button
                               variant="outline"
                               size="sm"
@@ -3806,31 +4093,36 @@ export default function TopicPage() {
                               ) : (
                                 <Sparkles className="w-4 h-4" />
                               )}
-                              {generatingDeepDive || generatingInstacue || generatingBits || generatingFormulas
+                              {generatingDeepDive ||
+                              generatingInstacue ||
+                              generatingBits ||
+                              generatingFormulas
                                 ? "Generating Subtopic AI…"
                                 : "Generate Subtopic AI"}
                             </Button>
-                          <Button
-                            variant="secondary"
-                            size="sm"
+                            <Button
+                              variant="secondary"
+                              size="sm"
                               className="shrink-0 whitespace-nowrap rounded-lg gap-2 font-bold"
-                              disabled={generatingDeepDive || loadingDbTheory || completingSubtopicAll}
-                            title={
-                              dbTheoryExists
-                                ? `Regenerate deep dive for ${subtopicName} (${difficultyLevel})`
-                                : `Generate deep dive for ${subtopicName} (${difficultyLevel})`
-                            }
+                              disabled={
+                                generatingDeepDive || loadingDbTheory || completingSubtopicAll
+                              }
+                              title={
+                                dbTheoryExists
+                                  ? `Regenerate deep dive for ${subtopicName} (${difficultyLevel})`
+                                  : `Generate deep dive for ${subtopicName} (${difficultyLevel})`
+                              }
                               onClick={() => void runDeepDiveGeneration()}
-                          >
-                            <Sparkles className="w-4 h-4" />
-                            {generatingDeepDive
-                              ? dbTheoryExists
-                                ? "Regenerating…"
-                                : "Generating…"
-                              : dbTheoryExists
-                                ? "Regenerate Deep Dive"
-                                : "Generate Deep Dive"}
-                          </Button>
+                            >
+                              <Sparkles className="w-4 h-4" />
+                              {generatingDeepDive
+                                ? dbTheoryExists
+                                  ? "Regenerating…"
+                                  : "Generating…"
+                                : dbTheoryExists
+                                  ? "Regenerate Deep Dive"
+                                  : "Generate Deep Dive"}
+                            </Button>
                             <Button
                               variant="outline"
                               size="sm"
@@ -3875,12 +4167,15 @@ export default function TopicPage() {
                     </div>
                     {canEditTheory && subtopicAiBlockedByTopicHub && (
                       <p className="text-[10px] text-amber-900 dark:text-amber-200 mb-2 leading-snug">
-                        Complete all levels requires topic hub coverage for Basics, Intermediate, and Advanced
-                        (generate on topic overview / Explore).
+                        Complete all levels requires topic hub coverage for Basics, Intermediate,
+                        and Advanced (generate on topic overview / Explore).
                         {topicHubGateLoading ? (
                           <span className="font-semibold"> Checking hub…</span>
                         ) : topicHubGateMissing.length > 0 ? (
-                          <span className="font-semibold"> Missing: {topicHubGateMissing.join(", ")}.</span>
+                          <span className="font-semibold">
+                            {" "}
+                            Missing: {topicHubGateMissing.join(", ")}.
+                          </span>
                         ) : null}
                       </p>
                     )}
@@ -3892,7 +4187,9 @@ export default function TopicPage() {
                     ) : null}
                     {editorOpen && canEditTheory && (
                       <div className="mb-4 space-y-3">
-                        <p className="text-xs font-semibold text-muted-foreground">Theory (markdown)</p>
+                        <p className="text-xs font-semibold text-muted-foreground">
+                          Theory (markdown)
+                        </p>
                         <textarea
                           value={draftTheory}
                           onChange={(e) => setDraftTheory(e.target.value)}
@@ -3924,7 +4221,9 @@ export default function TopicPage() {
                               if (!topicNode) return;
                               const parsedRefs: DeepDiveReference[] = [];
                               try {
-                                const raw = JSON.parse(draftReferencesJson.trim() || "[]") as unknown;
+                                const raw = JSON.parse(
+                                  draftReferencesJson.trim() || "[]"
+                                ) as unknown;
                                 if (!Array.isArray(raw)) {
                                   throw new Error("References must be a JSON array");
                                 }
@@ -3936,7 +4235,9 @@ export default function TopicPage() {
                                   const url = typeof o.url === "string" ? o.url.trim() : "";
                                   if (!title || !url) continue;
                                   const description =
-                                    typeof o.description === "string" ? o.description.trim() : undefined;
+                                    typeof o.description === "string"
+                                      ? o.description.trim()
+                                      : undefined;
                                   parsedRefs.push({
                                     type: o.type,
                                     title,
@@ -3947,7 +4248,8 @@ export default function TopicPage() {
                               } catch {
                                 toast({
                                   title: "Invalid references JSON",
-                                  description: "Use a JSON array of objects with type, title, and url.",
+                                  description:
+                                    "Use a JSON array of objects with type, title, and url.",
                                   variant: "destructive",
                                 });
                                 return;
@@ -4045,7 +4347,9 @@ export default function TopicPage() {
                             className="flex w-full min-w-0 max-w-full flex-nowrap items-center gap-1.5 overflow-hidden text-left text-primary-foreground"
                             title={subtopicNavPreviewLine(nextSubtopic.name)}
                           >
-                            <span className="shrink-0 text-xs opacity-90 sm:text-sm">Next subtopic:</span>
+                            <span className="shrink-0 text-xs opacity-90 sm:text-sm">
+                              Next subtopic:
+                            </span>
                             <span className="min-w-0 flex-1 truncate text-xs sm:text-sm">
                               {subtopicNavPreviewLine(nextSubtopic.name)}
                             </span>
@@ -4069,7 +4373,12 @@ export default function TopicPage() {
                   >
                     <Shuffle className="w-4 h-4" /> Spin Subtopic Wheel
                   </Button>
-                  <Button asChild size="sm" variant="outline" className="rounded-xl gap-2 font-bold w-fit">
+                  <Button
+                    asChild
+                    size="sm"
+                    variant="outline"
+                    className="rounded-xl gap-2 font-bold w-fit"
+                  >
                     <Link href={spinAgainHref}>Spin topic wheel</Link>
                   </Button>
                 </div>
@@ -4081,15 +4390,15 @@ export default function TopicPage() {
                 className="mt-5 flex flex-wrap items-center gap-2"
                 aria-label="Video, reading references, and did you know"
               >
-                    <Button
+                <Button
                   type="button"
-                      variant="outline"
+                  variant="outline"
                   onClick={() => setReferencesDialogOpen(true)}
-                      className="rounded-full gap-2 font-semibold border-primary text-foreground bg-primary/5 hover:bg-primary/10"
-                    >
-                      <BookOpen className="w-4 h-4 text-foreground" />
-                      Video &amp; Reading References
-                    </Button>
+                  className="rounded-full gap-2 font-semibold border-primary text-foreground bg-primary/5 hover:bg-primary/10"
+                >
+                  <BookOpen className="w-4 h-4 text-foreground" />
+                  Video &amp; Reading References
+                </Button>
                 <Dialog open={referencesDialogOpen} onOpenChange={setReferencesDialogOpen}>
                   <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto">
                     <DialogHeader>
@@ -4108,8 +4417,8 @@ export default function TopicPage() {
                           </p>
                           {canEditTheory && (
                             <p className="text-xs text-muted-foreground">
-                              Open <span className="font-semibold text-foreground">Edit</span> under Theory to add a
-                              JSON list of references (videos and readings).
+                              Open <span className="font-semibold text-foreground">Edit</span> under
+                              Theory to add a JSON list of references (videos and readings).
                             </p>
                           )}
                         </div>
@@ -4121,7 +4430,9 @@ export default function TopicPage() {
                               Video References
                             </h4>
                             {dbReferences.filter((r) => r.type === "video").length === 0 ? (
-                              <p className="text-sm text-muted-foreground">No video links listed.</p>
+                              <p className="text-sm text-muted-foreground">
+                                No video links listed.
+                              </p>
                             ) : (
                               <ul className="space-y-3">
                                 {dbReferences
@@ -4138,7 +4449,9 @@ export default function TopicPage() {
                                         <ExternalLink className="w-3.5 h-3.5" />
                                       </a>
                                       {ref.description && (
-                                        <p className="text-sm text-muted-foreground mt-0.5">{ref.description}</p>
+                                        <p className="text-sm text-muted-foreground mt-0.5">
+                                          {ref.description}
+                                        </p>
                                       )}
                                     </li>
                                   ))}
@@ -4151,7 +4464,9 @@ export default function TopicPage() {
                               PDF &amp; Reading Materials
                             </h4>
                             {dbReferences.filter((r) => r.type === "reading").length === 0 ? (
-                              <p className="text-sm text-muted-foreground">No reading or PDF links listed.</p>
+                              <p className="text-sm text-muted-foreground">
+                                No reading or PDF links listed.
+                              </p>
                             ) : (
                               <ul className="space-y-3">
                                 {dbReferences
@@ -4168,7 +4483,9 @@ export default function TopicPage() {
                                         <ExternalLink className="w-3.5 h-3.5" />
                                       </a>
                                       {ref.description && (
-                                        <p className="text-sm text-muted-foreground mt-0.5">{ref.description}</p>
+                                        <p className="text-sm text-muted-foreground mt-0.5">
+                                          {ref.description}
+                                        </p>
                                       )}
                                     </li>
                                   ))}
@@ -4207,19 +4524,18 @@ export default function TopicPage() {
                         </p>
                         {canEditTheory && (
                           <p className="text-xs text-muted-foreground">
-                            Use <span className="font-semibold text-foreground">Edit</span> under Theory to add one.
+                            Use <span className="font-semibold text-foreground">Edit</span> under
+                            Theory to add one.
                           </p>
                         )}
                       </div>
                     ) : (
                       <div className="rounded-xl border border-amber-200/50 dark:border-amber-800/40 bg-amber-50/40 dark:bg-amber-900/10 p-4">
                         <TheoryContent
-                          theory={
-                            dbDidYouKnow
-                              // Convert escaped braces from model output for cleaner display.
-                              .replace(/\\\{/g, "{")
-                              .replace(/\\\}/g, "}")
-                          }
+                          theory={dbDidYouKnow
+                            // Convert escaped braces from model output for cleaner display.
+                            .replace(/\\\{/g, "{")
+                            .replace(/\\\}/g, "}")}
                           className="[&>p]:text-foreground/90 [&>p]:leading-relaxed [&>p]:text-base"
                         />
                       </div>
@@ -4231,164 +4547,72 @@ export default function TopicPage() {
           </main>
 
           {isInvestorTopicHubLayout && (
-          <aside className="w-full lg:w-72 xl:w-80 shrink-0 min-w-0 lg:min-w-[18rem]">
-            <div className="lg:sticky lg:top-24 space-y-4">
-              <Tabs value={rightPanelTab} onValueChange={(v) => setRightPanelTab(v as PanelTab)} className="w-full">
-                <TabsList className="grid w-full grid-cols-4 mb-3">
-                  <TabsTrigger value="instacue" className="text-xs">+ InstaCue</TabsTrigger>
-                  <TabsTrigger value="quiz" className="text-xs">Quiz (0)</TabsTrigger>
-                  <TabsTrigger value="numerals" className="text-xs">Numerals</TabsTrigger>
-                  <TabsTrigger value="concepts" className="text-xs">Concepts</TabsTrigger>
-                </TabsList>
+            <aside className="w-full lg:w-72 xl:w-80 shrink-0 min-w-0 lg:min-w-[18rem]">
+              <div className="lg:sticky lg:top-24 space-y-4">
+                <Tabs
+                  value={rightPanelTab}
+                  onValueChange={(v) => setRightPanelTab(v as PanelTab)}
+                  className="w-full"
+                >
+                  <TabsList className="grid w-full grid-cols-4 mb-3">
+                    <TabsTrigger value="instacue" className="text-xs">
+                      + InstaCue
+                    </TabsTrigger>
+                    <TabsTrigger value="quiz" className="text-xs">
+                      Quiz (0)
+                    </TabsTrigger>
+                    <TabsTrigger value="numerals" className="text-xs">
+                      Numerals
+                    </TabsTrigger>
+                    <TabsTrigger value="concepts" className="text-xs">
+                      Concepts
+                    </TabsTrigger>
+                  </TabsList>
 
-                <TabsContent value="instacue" className="mt-0">
-                  <div className="rounded-xl border border-border bg-muted/20 px-3 py-2">
-                    <p className="text-xs text-muted-foreground">
-                      Go through the subtopic level to see InstaCue cards.
-                    </p>
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="quiz" className="mt-0">
-                  <div className="rounded-xl border border-border bg-muted/20 px-3 py-2">
-                    <p className="text-xs text-muted-foreground">
-                      Go through the subtopic level to see Quiz (Bits).
-                    </p>
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="numerals" className="mt-0">
-                  <div className="rounded-xl border border-border bg-muted/20 px-3 py-2">
-                    <p className="text-xs text-muted-foreground">
-                      Go through the subtopic level to see Numerals.
-                    </p>
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="concepts" className="mt-0">
-                  <div className="rounded-xl border border-border bg-muted/20 px-3 py-2">
-                    <p className="text-xs text-muted-foreground">
-                      Go through the subtopic level to see Concepts.
-                    </p>
-                  </div>
-                </TabsContent>
-              </Tabs>
-
-              {!isRandomMode && (
-                <section className="rounded-2xl border border-border bg-muted/20 p-4 sm:p-5">
-                  <p className="text-sm font-bold text-foreground mb-1">Continue to subtopics</p>
-                  <p className="text-xs text-muted-foreground mb-3">
-                    Open each subtopic to view InstaCue cards, Quiz (Bits), Numerals, and Concepts.
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {topicNode.subtopics.map((st, idx) => {
-                      const href = appendQueryParams(
-                        buildTopicPath(
-                          board,
-                          topicNode.subject,
-                          topicNode.classLevel,
-                          topicNode.topic,
-                          st.name,
-                          difficultyLevel,
-                          undefined
-                        ),
-                        isMagicWallSource ? { source: "magic-wall" } : {}
-                      );
-                      return (
-                        <Link
-                          key={st.name}
-                          href={href}
-                          className="inline-flex items-center rounded-lg px-3 py-2 text-xs font-semibold transition-colors bg-muted hover:bg-muted/80 text-foreground/90"
-                          title={subtopicNavPreviewLine(st.name)}
-                        >
-                          <span className="mr-1.5 text-[10px] font-bold text-muted-foreground">{idx + 1}.</span>
-                          <MathText className="[&_.katex]:!text-[0.85em]">
-                            {subtopicMathTextLabel(st.name)}
-                          </MathText>
-                        </Link>
-                      );
-                    })}
-                  </div>
-                </section>
-              )}
-            </div>
-          </aside>
-          )}
-
-          {!isInvestorTopicHubLayout && (
-          <aside className="w-full lg:w-72 xl:w-80 shrink-0 min-w-0 lg:min-w-[18rem]">
-            <div className="lg:sticky lg:top-24 space-y-4">
-              {isOverview && !isMagicWallSource && (
-              <div className="edu-card p-5 rounded-2xl border border-border">
-                <h4 className="font-extrabold text-foreground text-base mb-3 flex items-center gap-2">
-                  <BookOpen className="w-4 h-4 text-primary" />
-                  Subtopics in {topicNode.topic}
-                </h4>
-                <p className="text-xs text-muted-foreground mb-3">
-                  Preview list for this chapter. Use the numbered buttons below to open each subtopic page.
-                </p>
-                <ul className="space-y-2 text-sm">
-                  {topicNode.subtopics.map((st, idx) => {
-                    return (
-                      <li
-                        key={st.name}
-                        className="subtopic-title-text flex gap-3 min-w-0 rounded-xl border border-border/70 bg-background/70 px-3 py-2"
-                      >
-                        <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-md bg-muted text-[11px] font-extrabold text-foreground shrink-0">
-                          {idx + 1}
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <p
-                            className="text-sm font-semibold text-foreground min-w-0 break-words leading-snug"
-                            title={subtopicNavPreviewLine(st.name)}
-                          >
-                            <MathText weight="semibold" className="[&_.katex]:!text-[0.9em]">
-                              {subtopicMathTextLabel(st.name)}
-                            </MathText>
-                          </p>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-              )}
-              {isOverview && (
-                <div className="edu-card p-5 rounded-2xl border border-border">
-                  <h4 className="font-extrabold text-foreground text-base mb-2 flex items-center gap-2">
-                    <Zap className="w-4 h-4 text-primary" />
-                    Exam weightage
-                  </h4>
-                  <p className="text-sm text-muted-foreground mb-3">
-                    Main column = level-wise topic master guide; cards provide focused previews before subtopic deep dive.
-                  </p>
-                  <p className="text-sm text-muted-foreground mb-3">
-                    {topicNode.totalPeriods != null
-                      ? `~${Math.round((topicNode.totalPeriods / 200) * 100)}% of syllabus`
-                      : "~5–8% of exam"}
-                    {topicNode.totalPeriods != null && (
-                      <span className="block mt-1 text-xs">{topicNode.totalPeriods} periods</span>
-                    )}
-                  </p>
-                  {isRandomMode ? (
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={() => setWheelOpen(true)}
-                      className="rounded-xl gap-2 font-bold edu-btn-primary w-full mt-1"
-                      disabled={!topicNode?.subtopics?.length}
-                    >
-                      <Shuffle className="w-4 h-4" /> Spin Subtopic Wheel
-                    </Button>
-                  ) : (
-                    <>
-                      <p className="text-xs text-muted-foreground font-medium mb-2">
-                        {topicNode.subtopics.length} subtopic{topicNode.subtopics.length !== 1 ? "s" : ""} — open on its own page:
+                  <TabsContent value="instacue" className="mt-0">
+                    <div className="rounded-xl border border-border bg-muted/20 px-3 py-2">
+                      <p className="text-xs text-muted-foreground">
+                        Go through the subtopic level to see InstaCue cards.
                       </p>
-                      <div className="flex flex-wrap gap-2">
-                        {topicNode.subtopics.map((st, idx) => {
-                          const href = appendQueryParams(
-                            buildTopicPath(
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="quiz" className="mt-0">
+                    <div className="rounded-xl border border-border bg-muted/20 px-3 py-2">
+                      <p className="text-xs text-muted-foreground">
+                        Go through the subtopic level to see Quiz (Bits).
+                      </p>
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="numerals" className="mt-0">
+                    <div className="rounded-xl border border-border bg-muted/20 px-3 py-2">
+                      <p className="text-xs text-muted-foreground">
+                        Go through the subtopic level to see Numerals.
+                      </p>
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="concepts" className="mt-0">
+                    <div className="rounded-xl border border-border bg-muted/20 px-3 py-2">
+                      <p className="text-xs text-muted-foreground">
+                        Go through the subtopic level to see Concepts.
+                      </p>
+                    </div>
+                  </TabsContent>
+                </Tabs>
+
+                {!isRandomMode && (
+                  <section className="rounded-2xl border border-border bg-muted/20 p-4 sm:p-5">
+                    <p className="text-sm font-bold text-foreground mb-1">Continue to subtopics</p>
+                    <p className="text-xs text-muted-foreground mb-3">
+                      Open each subtopic to view InstaCue cards, Quiz (Bits), Numerals, and
+                      Concepts.
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {topicNode.subtopics.map((st, idx) => {
+                        const href = appendQueryParams(
+                          buildTopicPath(
                             board,
                             topicNode.subject,
                             topicNode.classLevel,
@@ -4396,376 +4620,572 @@ export default function TopicPage() {
                             st.name,
                             difficultyLevel,
                             undefined
-                            ),
-                            isMagicWallSource ? { source: "magic-wall" } : {}
-                          );
-                          return (
-                            <Link
-                              key={st.name}
-                              href={href}
-                              className="w-9 h-9 rounded-lg flex items-center justify-center text-sm font-bold transition-colors bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground"
-                              title={subtopicNavPreviewLine(st.name)}
-                            >
+                          ),
+                          isMagicWallSource ? { source: "magic-wall" } : {}
+                        );
+                        return (
+                          <Link
+                            key={st.name}
+                            href={href}
+                            className="inline-flex items-center rounded-lg px-3 py-2 text-xs font-semibold transition-colors bg-muted hover:bg-muted/80 text-foreground/90"
+                            title={subtopicNavPreviewLine(st.name)}
+                          >
+                            <span className="mr-1.5 text-[10px] font-bold text-muted-foreground">
+                              {idx + 1}.
+                            </span>
+                            <MathText className="[&_.katex]:!text-[0.85em]">
+                              {subtopicMathTextLabel(st.name)}
+                            </MathText>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </section>
+                )}
+              </div>
+            </aside>
+          )}
+
+          {!isInvestorTopicHubLayout && (
+            <aside className="w-full lg:w-72 xl:w-80 shrink-0 min-w-0 lg:min-w-[18rem]">
+              <div className="lg:sticky lg:top-24 space-y-4">
+                {isOverview && !isMagicWallSource && (
+                  <div className="edu-card p-5 rounded-2xl border border-border">
+                    <h4 className="font-extrabold text-foreground text-base mb-3 flex items-center gap-2">
+                      <BookOpen className="w-4 h-4 text-primary" />
+                      Subtopics in {topicNode.topic}
+                    </h4>
+                    <p className="text-xs text-muted-foreground mb-3">
+                      Preview list for this chapter. Use the numbered buttons below to open each
+                      subtopic page.
+                    </p>
+                    <ul className="space-y-2 text-sm">
+                      {topicNode.subtopics.map((st, idx) => {
+                        return (
+                          <li
+                            key={st.name}
+                            className="subtopic-title-text flex gap-3 min-w-0 rounded-xl border border-border/70 bg-background/70 px-3 py-2"
+                          >
+                            <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-md bg-muted text-[11px] font-extrabold text-foreground shrink-0">
                               {idx + 1}
-                            </Link>
-                          );
-                        })}
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
-
-              {/* Right column: InstaCue / Quiz / Numerals / Concepts */}
-              {isSubtopicDashboardLayout && (
-                <Tabs value={rightPanelTab} onValueChange={(v) => setRightPanelTab(v as PanelTab)} className="w-full">
-                  <TabsList className="grid w-full grid-cols-4 mb-3">
-                    <TabsTrigger value="instacue" className="text-xs">
-                      {canEditTheory ? "+ InstaCue" : "InstaCue"}
-                    </TabsTrigger>
-                    <TabsTrigger value="quiz" className="text-xs">
-                      Quiz{dbBitsQuestions.length > 0 ? ` (${dbBitsQuestions.length})` : ""}
-                    </TabsTrigger>
-                    <TabsTrigger value="numerals" className="text-xs">Numerals</TabsTrigger>
-                    <TabsTrigger value="concepts" className="text-xs">Concepts</TabsTrigger>
-                  </TabsList>
-
-                  {/* Tab 1: InstaCue */}
-                  <TabsContent value="instacue" className="space-y-3 mt-0">
-                  <InstaCue
-                    cards={sidebarInstaCueCards}
-                    topicName={topicNode.topic}
-                    subtopicName={subtopicName}
-                    level={difficultyLevel as "basics" | "intermediate" | "advanced"}
-                    subject={topicNode.subject}
-                    classLevel={topicNode.classLevel}
-                    onCardIndexChange={handleInstaCueNav}
-                      onCardValidated={handleInstaCueValidated}
-                    onAddCard={
-                        user && canEditTheory
-                        ? (card) => {
-                            const id = `user-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-                            saveRevisionCard({
-                              ...card,
-                              id,
-                              board: (board === "icse" ? "ICSE" : "CBSE") as Board,
-                            } as Parameters<typeof saveRevisionCard>[0]);
-                            syncAllSavedContent().catch(() => {});
-                          }
-                        : undefined
-                    }
-                  />
-                  {canEditTheory && (
-                    <div className="flex flex-col items-end gap-1 -mt-2 mb-1">
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <p
+                                className="text-sm font-semibold text-foreground min-w-0 break-words leading-snug"
+                                title={subtopicNavPreviewLine(st.name)}
+                              >
+                                <MathText weight="semibold" className="[&_.katex]:!text-[0.9em]">
+                                  {subtopicMathTextLabel(st.name)}
+                                </MathText>
+                              </p>
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                )}
+                {isOverview && (
+                  <div className="edu-card p-5 rounded-2xl border border-border">
+                    <h4 className="font-extrabold text-foreground text-base mb-2 flex items-center gap-2">
+                      <Zap className="w-4 h-4 text-primary" />
+                      Exam weightage
+                    </h4>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Main column = level-wise topic master guide; cards provide focused previews
+                      before subtopic deep dive.
+                    </p>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      {topicNode.totalPeriods != null
+                        ? `~${Math.round((topicNode.totalPeriods / 200) * 100)}% of syllabus`
+                        : "~5–8% of exam"}
+                      {topicNode.totalPeriods != null && (
+                        <span className="block mt-1 text-xs">{topicNode.totalPeriods} periods</span>
+                      )}
+                    </p>
+                    {isRandomMode ? (
                       <Button
-                        variant="ghost"
+                        type="button"
                         size="sm"
-                        className="rounded-lg gap-1.5 text-xs font-bold text-primary disabled:opacity-50"
-                        title={
-                          hasDeepDiveForAiArtifacts
-                              ? "Runs the full pack: InstaCue cards, then Bits (MCQs), then practice formulas — same pipeline as Generate Subtopic AI step 2."
-                              : "Generate Deep Dive first, then run AI cards."
-                        }
-                        disabled={
-                            artifactActionsTopicHubBlocked ||
-                          !hasDeepDiveForAiArtifacts ||
-                          generatingDeepDive ||
-                          generatingInstacue ||
-                          generatingBits ||
-                            generatingFormulas ||
-                            completingSubtopicAll
-                          }
-                          onClick={() => void runAiArtifactPipeline()}
-                        >
-                          {generatingInstacue || generatingBits || generatingFormulas ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          ) : (
-                            <Sparkles className="w-3.5 h-3.5" />
-                          )}
-                          {generatingFormulas
-                            ? "Generating formulas…"
-                            : generatingBits
-                              ? "Generating Bits…"
-                              : generatingInstacue
-                                ? "Generating InstaCue…"
-                                : dbInstacueCards.length > 0 || dbBitsQuestions.length > 0 || dbPracticeFormulas.length > 0
-                                  ? "Regenerate AI pack"
-                                  : "Generate InstaCue + Bits + Formulas"}
+                        onClick={() => setWheelOpen(true)}
+                        className="rounded-xl gap-2 font-bold edu-btn-primary w-full mt-1"
+                        disabled={!topicNode?.subtopics?.length}
+                      >
+                        <Shuffle className="w-4 h-4" /> Spin Subtopic Wheel
                       </Button>
-                      {!hasDeepDiveForAiArtifacts && !generatingDeepDive && (
-                        <p className="text-[10px] text-muted-foreground text-right max-w-[14rem] leading-snug">
-                            Generate Deep Dive above, then use the AI pack button or Generate Subtopic AI.
-                        </p>
-                      )}
-                      {generatingDeepDive && (
-                        <p className="text-[10px] text-muted-foreground text-right max-w-[14rem] leading-snug">
-                            Deep Dive running — AI cards can be generated after it finishes.
-                        </p>
-                      )}
-                    </div>
-                  )}
-                  {canEditTheory && artifactRunLog.length > 0 && (
-                    <div className="mb-3 rounded-xl border border-dashed border-primary/40 bg-primary/5 p-3">
-                      <div className="flex items-center justify-between gap-2 mb-2">
-                        <p className="text-[11px] font-extrabold uppercase tracking-wide text-primary">
-                            Behind the scenes · AI artifacts (manual run)
-                        </p>
-                        <span
-                          className={`text-[11px] font-bold ${
-                            artifactRunStatus === "running"
-                              ? "text-blue-700 dark:text-blue-300"
-                              : artifactRunStatus === "success"
-                                ? "text-green-700 dark:text-green-300"
-                                  : artifactRunStatus === "partial"
-                                    ? "text-amber-700 dark:text-amber-300"
-                                : artifactRunStatus === "failed"
-                                  ? "text-red-700 dark:text-red-300"
-                                  : "text-muted-foreground"
-                          }`}
-                        >
-                          {artifactRunStatus === "running"
-                            ? "Running"
-                            : artifactRunStatus === "success"
-                              ? "Completed"
-                                : artifactRunStatus === "partial"
-                                  ? "Partial"
-                              : artifactRunStatus === "failed"
-                                ? "Failed"
-                                : "Idle"}
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-muted-foreground mb-2">
-                        Last run: {artifactLastRunAt ?? "—"} · Current data: InstaCue {dbInstacueCards.length}, Bits{" "}
-                        {dbBitsQuestions.length}, Practice Formulas {dbPracticeFormulas.length}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground mb-2 leading-snug">
-                          Manual run: <span className="font-semibold text-foreground">Generate InstaCue + Bits + Formulas</span>{" "}
-                          or <span className="font-semibold text-foreground">Generate Subtopic AI</span> (or section buttons). Step
-                          delay:{" "}
-                        <span className="font-mono text-foreground/80">ARTIFACT_PIPELINE_BETWEEN_STEPS_MS</span>.
-                      </p>
-                      <div className="rounded-lg border border-border bg-background/80 p-2 max-h-44 overflow-y-auto">
-                        <ul className="space-y-1">
-                          {artifactRunLog.map((line, idx) => (
-                            <li key={`${line}-${idx}`} className="text-[11px] text-foreground/90 font-mono break-words">
-                              {line}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
-                  )}
-                  </TabsContent>
-
-                  {/* Tab 2: Quiz — intro card + Dialog popup */}
-                  <TabsContent value="quiz" className="space-y-3 mt-0">
-                    {canEditTheory && (
-                      <div className="flex justify-end">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="rounded-lg gap-1.5 text-xs font-bold text-primary disabled:opacity-50"
-                          disabled={
-                            artifactActionsTopicHubBlocked ||
-                            !hasDeepDiveForAiArtifacts ||
-                            generatingDeepDive ||
-                            generatingInstacue ||
-                            generatingBits ||
-                            generatingFormulas ||
-                            completingSubtopicAll
-                          }
-                          onClick={() => void runBitsOnly()}
-                        >
-                          {generatingBits ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-                          {generatingBits ? "Generating Bits..." : dbBitsQuestions.length > 0 ? "Regenerate Bits" : "Generate Bits"}
-                        </Button>
-                      </div>
-                    )}
-
-                    {dbBitsQuestions.length === 0 ? (
-                      <div className="py-6 text-center">
-                        <p className="text-sm text-muted-foreground mb-3">No quiz questions yet for this subtopic.</p>
-                        {canEditTheory ? (
-                          <p className="text-xs text-muted-foreground">
-                            First run <span className="font-semibold text-foreground">Generate Deep Dive</span> so theory is
-                            saved to Supabase, then generate quiz questions.
-                          </p>
-                        ) : (
-                          <p className="text-xs text-muted-foreground">Check back later — practice questions may be added for this lesson.</p>
-                        )}
-                      </div>
                     ) : (
-                      <div className="edu-card p-4 rounded-xl border border-border space-y-3">
-                    <div>
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Topic Quiz</p>
-                          <p className="font-bold text-sm text-foreground leading-snug">
-                            <MathText>{displaySubtopicTitle}</MathText>
-                          </p>
+                      <>
+                        <p className="text-xs text-muted-foreground font-medium mb-2">
+                          {topicNode.subtopics.length} subtopic
+                          {topicNode.subtopics.length !== 1 ? "s" : ""} — open on its own page:
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {topicNode.subtopics.map((st, idx) => {
+                            const href = appendQueryParams(
+                              buildTopicPath(
+                                board,
+                                topicNode.subject,
+                                topicNode.classLevel,
+                                topicNode.topic,
+                                st.name,
+                                difficultyLevel,
+                                undefined
+                              ),
+                              isMagicWallSource ? { source: "magic-wall" } : {}
+                            );
+                            return (
+                              <Link
+                                key={st.name}
+                                href={href}
+                                className="w-9 h-9 rounded-lg flex items-center justify-center text-sm font-bold transition-colors bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground"
+                                title={subtopicNavPreviewLine(st.name)}
+                              >
+                                {idx + 1}
+                              </Link>
+                            );
+                          })}
                         </div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-blue-500/15 text-blue-700 dark:text-blue-300">
-                            {topicNode?.subject ?? "Subject"}
-                          </span>
-                          <span className="text-xs text-muted-foreground">{topicNode?.topic ?? "Topic"}</span>
-                        </div>
-                        <ul className="space-y-1.5 text-xs divide-y divide-border/40">
-                          {!useAdvancedSetsUi ? (
-                            <>
-                              <li className="flex justify-between py-1">
-                                <span className="text-muted-foreground">Questions</span>
-                                <span className="font-bold text-foreground">{dbBitsQuestions.length} MCQs</span>
-                              </li>
-                              <li className="flex justify-between py-1">
-                                <span className="text-muted-foreground">Level</span>
-                                <span className="font-bold text-foreground capitalize">{difficultyLevel}</span>
-                              </li>
-                            </>
-                          ) : (
-                            <>
-                              <li className="py-1.5">
-                                <span className="text-muted-foreground block mb-1.5">Sets (10 + 10 + remainder)</span>
-                                <div className="flex flex-col gap-1">
-                                  {([1, 2, 3] as const).map((s) => {
-                                    const len = getAdvancedSetBounds(dbBitsQuestions.length, s).length;
-                                    if (len === 0) return null;
-                                    const locked =
-                                      s === 2 ? !bitsAttemptBySet[1] : s === 3 ? !bitsAttemptBySet[2] : false;
-                                    const att = bitsAttemptBySet[s];
-                                    return (
-                                      <div
-                                        key={s}
-                                        className="flex items-center justify-between gap-2 rounded-md border border-border/60 bg-muted/30 px-2 py-1"
-                                      >
-                                        <span className="font-semibold text-foreground">
-                                          Set {s}{locked ? <Lock className="inline h-3 w-3 ml-1 text-muted-foreground" /> : null}
-                                        </span>
-                                        <span className="text-muted-foreground">
-                                          {len} Q
-                                          {att && att.totalQuestions > 0
-                                            ? ` · ${Math.round((att.correctCount / att.totalQuestions) * 100)}%`
-                                            : ""}
-                                        </span>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              </li>
-                              <li className="flex justify-between py-1">
-                                <span className="text-muted-foreground">Level</span>
-                                <span className="font-bold text-foreground capitalize">{difficultyLevel}</span>
-                              </li>
-                            </>
-                          )}
-                          {bitsQuizAggregate && (
-                            <li className="flex justify-between py-1">
-                              <span className="text-muted-foreground">{useAdvancedSetsUi ? "Overall score" : "Last score"}</span>
-                              <span className="font-bold text-green-700 dark:text-green-300">
-                                {bitsQuizAggregate.pct}% · {bitsQuizAggregate.correct}/{bitsQuizAggregate.total}
-                              </span>
-                            </li>
-                          )}
-                        </ul>
-                        <Button
-                          className="w-full rounded-xl edu-btn-primary text-sm font-bold"
-                          onClick={() => {
-                            if (!useAdvancedSetsUi) {
-                              if (showPreviousQuizAttempt && bitsAttempt) {
-                                setBitsCurrentIdx(0);
-                                setBitsSelectedAnswers({});
-                                setBitsReviewMode(false);
-                              } else {
-                                setBitsReviewMode(false);
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {/* Right column: InstaCue / Quiz / Numerals / Concepts */}
+                {isSubtopicDashboardLayout && (
+                  <Tabs
+                    value={rightPanelTab}
+                    onValueChange={(v) => setRightPanelTab(v as PanelTab)}
+                    className="w-full"
+                  >
+                    <TabsList className="grid w-full grid-cols-4 mb-3">
+                      <TabsTrigger value="instacue" className="text-xs">
+                        {canEditTheory ? "+ InstaCue" : "InstaCue"}
+                      </TabsTrigger>
+                      <TabsTrigger value="quiz" className="text-xs">
+                        Quiz{dbBitsQuestions.length > 0 ? ` (${dbBitsQuestions.length})` : ""}
+                      </TabsTrigger>
+                      <TabsTrigger value="numerals" className="text-xs">
+                        Numerals
+                      </TabsTrigger>
+                      <TabsTrigger value="concepts" className="text-xs">
+                        Concepts
+                      </TabsTrigger>
+                    </TabsList>
+
+                    {/* Tab 1: InstaCue */}
+                    <TabsContent value="instacue" className="space-y-3 mt-0">
+                      <InstaCue
+                        cards={sidebarInstaCueCards}
+                        topicName={topicNode.topic}
+                        subtopicName={subtopicName}
+                        level={difficultyLevel as "basics" | "intermediate" | "advanced"}
+                        subject={topicNode.subject}
+                        classLevel={topicNode.classLevel}
+                        onCardIndexChange={handleInstaCueNav}
+                        onCardValidated={handleInstaCueValidated}
+                        onAddCard={
+                          user && canEditTheory
+                            ? (card) => {
+                                const id = `user-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+                                saveRevisionCard({
+                                  ...card,
+                                  id,
+                                  board: (board === "icse" ? "ICSE" : "CBSE") as Board,
+                                } as Parameters<typeof saveRevisionCard>[0]);
+                                syncAllSavedContent().catch(() => {});
                               }
-                              setBitsDialogOpen(true);
-                              return;
+                            : undefined
+                        }
+                      />
+                      {canEditTheory && (
+                        <div className="flex flex-col items-end gap-1 -mt-2 mb-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="rounded-lg gap-1.5 text-xs font-bold text-primary disabled:opacity-50"
+                            title={
+                              hasDeepDiveForAiArtifacts
+                                ? "Runs the full pack: InstaCue cards, then Bits (MCQs), then practice formulas — same pipeline as Generate Subtopic AI step 2."
+                                : "Generate Deep Dive first, then run AI cards."
                             }
-                            setActiveQuizSet(1);
-                            const b1 = getAdvancedSetBounds(dbBitsQuestions.length, 1);
-                            setBitsCurrentIdx(b1.start);
-                            setBitsReviewMode(false);
-                            setBitsDialogOpen(true);
-                          }}
-                        >
-                          {!useAdvancedSetsUi
-                            ? showPreviousQuizAttempt
-                              ? "Open quiz →"
-                              : bitsCurrentIdx > 0 || bitsFilledQuestionCount > 0
-                                ? "Continue quiz →"
-                                : "Start Quiz →"
-                            : Object.values(bitsAttemptBySet).some(Boolean) || bitsFilledQuestionCount > 0
-                              ? "Open quiz →"
-                              : "Start Quiz →"}
-                        </Button>
-                        <div className="flex flex-col gap-1.5">
-                          {useAdvancedSetsUi
-                            ? ([1, 2, 3] as const).map((s) => {
-                                const len = getAdvancedSetBounds(dbBitsQuestions.length, s).length;
-                                if (len === 0) return null;
-                                const locked = s === 2 ? !bitsAttemptBySet[1] : s === 3 ? !bitsAttemptBySet[2] : false;
-                                const att = bitsAttemptBySet[s];
-                                const b = getAdvancedSetBounds(dbBitsQuestions.length, s);
-                                const inProgress =
-                                  !att &&
-                                  Array.from({ length: b.end - b.start }, (_, i) => b.start + i).some(
-                                    (idx) => typeof bitsSelectedAnswers[idx] === "number"
-                                  );
-                                return (
-                                  <Button
-                                    key={s}
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    disabled={locked}
-                                    title={locked ? "Complete the previous set first" : undefined}
-                                    className="w-full rounded-lg text-xs font-bold"
-                                    onClick={() => {
-                                      if (locked) return;
-                                      setActiveQuizSet(s);
-                                      setBitsCurrentIdx(b.start);
-                                      setBitsReviewMode(att ? false : false);
-                                      setBitsDialogOpen(true);
-                                    }}
-                                  >
-                                    {locked ? (
-                                      <>
-                                        <Lock className="h-3.5 w-3.5 mr-1" />
-                                        Set {s} (locked)
-                                      </>
-                                    ) : att ? (
-                                      `Set ${s} — results`
-                                    ) : inProgress ? (
-                                      `Continue set ${s} →`
-                                    ) : (
-                                      `Start set ${s} →`
-                                    )}
-                                  </Button>
-                                );
-                              })
-                            : null}
+                            disabled={
+                              artifactActionsTopicHubBlocked ||
+                              !hasDeepDiveForAiArtifacts ||
+                              generatingDeepDive ||
+                              generatingInstacue ||
+                              generatingBits ||
+                              generatingFormulas ||
+                              completingSubtopicAll
+                            }
+                            onClick={() => void runAiArtifactPipeline()}
+                          >
+                            {generatingInstacue || generatingBits || generatingFormulas ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <Sparkles className="w-3.5 h-3.5" />
+                            )}
+                            {generatingFormulas
+                              ? "Generating formulas…"
+                              : generatingBits
+                                ? "Generating Bits…"
+                                : generatingInstacue
+                                  ? "Generating InstaCue…"
+                                  : dbInstacueCards.length > 0 ||
+                                      dbBitsQuestions.length > 0 ||
+                                      dbPracticeFormulas.length > 0
+                                    ? "Regenerate AI pack"
+                                    : "Generate InstaCue + Bits + Formulas"}
+                          </Button>
+                          {!hasDeepDiveForAiArtifacts && !generatingDeepDive && (
+                            <p className="text-[10px] text-muted-foreground text-right max-w-[14rem] leading-snug">
+                              Generate Deep Dive above, then use the AI pack button or Generate
+                              Subtopic AI.
+                            </p>
+                          )}
+                          {generatingDeepDive && (
+                            <p className="text-[10px] text-muted-foreground text-right max-w-[14rem] leading-snug">
+                              Deep Dive running — AI cards can be generated after it finishes.
+                            </p>
+                          )}
                         </div>
-                        {showPreviousQuizAttempt && displayBitsAttempt && !useAdvancedSetsUi && (
-                          <button
-                            type="button"
-                            className="w-full text-xs text-primary hover:underline text-center"
+                      )}
+                      {canEditTheory && artifactRunLog.length > 0 && (
+                        <div className="mb-3 rounded-xl border border-dashed border-primary/40 bg-primary/5 p-3">
+                          <div className="flex items-center justify-between gap-2 mb-2">
+                            <p className="text-[11px] font-extrabold uppercase tracking-wide text-primary">
+                              Behind the scenes · AI artifacts (manual run)
+                            </p>
+                            <span
+                              className={`text-[11px] font-bold ${
+                                artifactRunStatus === "running"
+                                  ? "text-blue-700 dark:text-blue-300"
+                                  : artifactRunStatus === "success"
+                                    ? "text-green-700 dark:text-green-300"
+                                    : artifactRunStatus === "partial"
+                                      ? "text-amber-700 dark:text-amber-300"
+                                      : artifactRunStatus === "failed"
+                                        ? "text-red-700 dark:text-red-300"
+                                        : "text-muted-foreground"
+                              }`}
+                            >
+                              {artifactRunStatus === "running"
+                                ? "Running"
+                                : artifactRunStatus === "success"
+                                  ? "Completed"
+                                  : artifactRunStatus === "partial"
+                                    ? "Partial"
+                                    : artifactRunStatus === "failed"
+                                      ? "Failed"
+                                      : "Idle"}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground mb-2">
+                            Last run: {artifactLastRunAt ?? "—"} · Current data: InstaCue{" "}
+                            {dbInstacueCards.length}, Bits {dbBitsQuestions.length}, Practice
+                            Formulas {dbPracticeFormulas.length}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground mb-2 leading-snug">
+                            Manual run:{" "}
+                            <span className="font-semibold text-foreground">
+                              Generate InstaCue + Bits + Formulas
+                            </span>{" "}
+                            or{" "}
+                            <span className="font-semibold text-foreground">
+                              Generate Subtopic AI
+                            </span>{" "}
+                            (or section buttons). Step delay:{" "}
+                            <span className="font-mono text-foreground/80">
+                              ARTIFACT_PIPELINE_BETWEEN_STEPS_MS
+                            </span>
+                            .
+                          </p>
+                          <div className="rounded-lg border border-border bg-background/80 p-2 max-h-44 overflow-y-auto">
+                            <ul className="space-y-1">
+                              {artifactRunLog.map((line, idx) => (
+                                <li
+                                  key={`${line}-${idx}`}
+                                  className="text-[11px] text-foreground/90 font-mono break-words"
+                                >
+                                  {line}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        </div>
+                      )}
+                    </TabsContent>
+
+                    {/* Tab 2: Quiz — intro card + Dialog popup */}
+                    <TabsContent value="quiz" className="space-y-3 mt-0">
+                      {canEditTheory && (
+                        <div className="flex justify-end">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="rounded-lg gap-1.5 text-xs font-bold text-primary disabled:opacity-50"
+                            disabled={
+                              artifactActionsTopicHubBlocked ||
+                              !hasDeepDiveForAiArtifacts ||
+                              generatingDeepDive ||
+                              generatingInstacue ||
+                              generatingBits ||
+                              generatingFormulas ||
+                              completingSubtopicAll
+                            }
+                            onClick={() => void runBitsOnly()}
+                          >
+                            {generatingBits ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <Sparkles className="w-3.5 h-3.5" />
+                            )}
+                            {generatingBits
+                              ? "Generating Bits..."
+                              : dbBitsQuestions.length > 0
+                                ? "Regenerate Bits"
+                                : "Generate Bits"}
+                          </Button>
+                        </div>
+                      )}
+
+                      {dbBitsQuestions.length === 0 ? (
+                        <div className="py-6 text-center">
+                          <p className="text-sm text-muted-foreground mb-3">
+                            No quiz questions yet for this subtopic.
+                          </p>
+                          {canEditTheory ? (
+                            <p className="text-xs text-muted-foreground">
+                              First run{" "}
+                              <span className="font-semibold text-foreground">
+                                Generate Deep Dive
+                              </span>{" "}
+                              so theory is saved to Supabase, then generate quiz questions.
+                            </p>
+                          ) : (
+                            <p className="text-xs text-muted-foreground">
+                              Check back later — practice questions may be added for this lesson.
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="edu-card p-4 rounded-xl border border-border space-y-3">
+                          <div>
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">
+                              Topic Quiz
+                            </p>
+                            <p className="font-bold text-sm text-foreground leading-snug">
+                              <MathText>{displaySubtopicTitle}</MathText>
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-blue-500/15 text-blue-700 dark:text-blue-300">
+                              {topicNode?.subject ?? "Subject"}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              {topicNode?.topic ?? "Topic"}
+                            </span>
+                          </div>
+                          <ul className="space-y-1.5 text-xs divide-y divide-border/40">
+                            {!useAdvancedSetsUi ? (
+                              <>
+                                <li className="flex justify-between py-1">
+                                  <span className="text-muted-foreground">Questions</span>
+                                  <span className="font-bold text-foreground">
+                                    {dbBitsQuestions.length} MCQs
+                                  </span>
+                                </li>
+                                <li className="flex justify-between py-1">
+                                  <span className="text-muted-foreground">Level</span>
+                                  <span className="font-bold text-foreground capitalize">
+                                    {difficultyLevel}
+                                  </span>
+                                </li>
+                              </>
+                            ) : (
+                              <>
+                                <li className="py-1.5">
+                                  <span className="text-muted-foreground block mb-1.5">
+                                    Sets (10 + 10 + remainder)
+                                  </span>
+                                  <div className="flex flex-col gap-1">
+                                    {([1, 2, 3] as const).map((s) => {
+                                      const len = getAdvancedSetBounds(
+                                        dbBitsQuestions.length,
+                                        s
+                                      ).length;
+                                      if (len === 0) return null;
+                                      const isAssignmentSet =
+                                        searchParams.get("panel") === "quiz" &&
+                                        searchParams.get("quizSet") === String(s) &&
+                                        !!searchParams.get("postId");
+                                      const locked =
+                                        !isAssignmentSet &&
+                                        (s === 2
+                                          ? !bitsAttemptBySet[1]
+                                          : s === 3
+                                            ? !bitsAttemptBySet[2]
+                                            : false);
+                                      const att = bitsAttemptBySet[s];
+                                      return (
+                                        <div
+                                          key={s}
+                                          className="flex items-center justify-between gap-2 rounded-md border border-border/60 bg-muted/30 px-2 py-1"
+                                        >
+                                          <span className="font-semibold text-foreground">
+                                            Set {s}
+                                            {locked ? (
+                                              <Lock className="inline h-3 w-3 ml-1 text-muted-foreground" />
+                                            ) : null}
+                                          </span>
+                                          <span className="text-muted-foreground">
+                                            {len} Q
+                                            {att && att.totalQuestions > 0
+                                              ? ` · ${Math.round((att.correctCount / att.totalQuestions) * 100)}%`
+                                              : ""}
+                                          </span>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </li>
+                                <li className="flex justify-between py-1">
+                                  <span className="text-muted-foreground">Level</span>
+                                  <span className="font-bold text-foreground capitalize">
+                                    {difficultyLevel}
+                                  </span>
+                                </li>
+                              </>
+                            )}
+                            {bitsQuizAggregate && (
+                              <li className="flex justify-between py-1">
+                                <span className="text-muted-foreground">
+                                  {useAdvancedSetsUi ? "Overall score" : "Last score"}
+                                </span>
+                                <span className="font-bold text-green-700 dark:text-green-300">
+                                  {bitsQuizAggregate.pct}% · {bitsQuizAggregate.correct}/
+                                  {bitsQuizAggregate.total}
+                                </span>
+                              </li>
+                            )}
+                          </ul>
+                          <Button
+                            className="w-full rounded-xl edu-btn-primary text-sm font-bold"
                             onClick={() => {
-                              const selected: Record<number, number> = {};
-                              for (const [k, v] of Object.entries(displayBitsAttempt.selectedAnswers)) {
-                                const idx = Number(k);
-                                if (Number.isInteger(idx)) selected[idx] = v;
+                              if (!useAdvancedSetsUi) {
+                                if (showPreviousQuizAttempt && bitsAttempt) {
+                                  setBitsCurrentIdx(0);
+                                  setBitsSelectedAnswers({});
+                                  setBitsReviewMode(false);
+                                } else {
+                                  setBitsReviewMode(false);
+                                }
+                                setBitsDialogOpen(true);
+                                return;
                               }
-                              setBitsSelectedAnswers(selected);
-                              setBitsCurrentIdx(0);
-                              setBitsReviewMode(true);
+                              setActiveQuizSet(1);
+                              const b1 = getAdvancedSetBounds(dbBitsQuestions.length, 1);
+                              setBitsCurrentIdx(b1.start);
+                              setBitsReviewMode(false);
                               setBitsDialogOpen(true);
                             }}
                           >
-                            Review previous answers
-                          </button>
-                        )}
-                      </div>
-                    )}
+                            {!useAdvancedSetsUi
+                              ? showPreviousQuizAttempt
+                                ? "Open quiz →"
+                                : bitsCurrentIdx > 0 || bitsFilledQuestionCount > 0
+                                  ? "Continue quiz →"
+                                  : "Start Quiz →"
+                              : Object.values(bitsAttemptBySet).some(Boolean) ||
+                                  bitsFilledQuestionCount > 0
+                                ? "Open quiz →"
+                                : "Start Quiz →"}
+                          </Button>
+                          <div className="flex flex-col gap-1.5">
+                            {useAdvancedSetsUi
+                              ? ([1, 2, 3] as const).map((s) => {
+                                  const len = getAdvancedSetBounds(
+                                    dbBitsQuestions.length,
+                                    s
+                                  ).length;
+                                  if (len === 0) return null;
+                                  const isAssignmentSet =
+                                    searchParams.get("panel") === "quiz" &&
+                                    searchParams.get("quizSet") === String(s) &&
+                                    !!searchParams.get("postId");
+                                  const locked =
+                                    !isAssignmentSet &&
+                                    (s === 2
+                                      ? !bitsAttemptBySet[1]
+                                      : s === 3
+                                        ? !bitsAttemptBySet[2]
+                                        : false);
+                                  const att = bitsAttemptBySet[s];
+                                  const b = getAdvancedSetBounds(dbBitsQuestions.length, s);
+                                  const inProgress =
+                                    !att &&
+                                    Array.from(
+                                      { length: b.end - b.start },
+                                      (_, i) => b.start + i
+                                    ).some((idx) => typeof bitsSelectedAnswers[idx] === "number");
+                                  return (
+                                    <Button
+                                      key={s}
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      disabled={locked}
+                                      title={locked ? "Complete the previous set first" : undefined}
+                                      className="w-full rounded-lg text-xs font-bold"
+                                      onClick={() => {
+                                        if (locked) return;
+                                        setActiveQuizSet(s);
+                                        setBitsCurrentIdx(b.start);
+                                        setBitsReviewMode(att ? false : false);
+                                        setBitsDialogOpen(true);
+                                      }}
+                                    >
+                                      {locked ? (
+                                        <>
+                                          <Lock className="h-3.5 w-3.5 mr-1" />
+                                          Set {s} (locked)
+                                        </>
+                                      ) : att ? (
+                                        `Set ${s} — results`
+                                      ) : inProgress ? (
+                                        `Continue set ${s} →`
+                                      ) : (
+                                        `Start set ${s} →`
+                                      )}
+                                    </Button>
+                                  );
+                                })
+                              : null}
+                          </div>
+                          {showPreviousQuizAttempt && displayBitsAttempt && !useAdvancedSetsUi && (
+                            <button
+                              type="button"
+                              className="w-full text-xs text-primary hover:underline text-center"
+                              onClick={() => {
+                                const selected: Record<number, number> = {};
+                                for (const [k, v] of Object.entries(
+                                  displayBitsAttempt.selectedAnswers
+                                )) {
+                                  const idx = Number(k);
+                                  if (Number.isInteger(idx)) selected[idx] = v;
+                                }
+                                setBitsSelectedAnswers(selected);
+                                setBitsCurrentIdx(0);
+                                setBitsReviewMode(true);
+                                setBitsDialogOpen(true);
+                              }}
+                            >
+                              Review previous answers
+                            </button>
+                          )}
+                        </div>
+                      )}
 
-                    {/* Quiz Dialog */}
+                      {/* Quiz Dialog */}
                       <Dialog
                         open={bitsDialogOpen}
                         onOpenChange={(open) => {
@@ -4779,229 +5199,273 @@ export default function TopicPage() {
                         <DialogContent className="bits-quiz-dialog w-[min(42rem,calc(100vw-1.5rem))] max-w-2xl min-w-0 max-h-[min(88vh,52rem)] overflow-y-auto overflow-x-hidden p-4 sm:p-6 gap-3">
                           <DialogHeader className="min-w-0 shrink-0 space-y-1 text-left">
                             <DialogTitle className="min-w-0 max-w-full break-words text-[1.05rem] font-bold tracking-tight leading-snug text-foreground pr-10 text-left">
-                            Topic Quiz —{" "}
-                              <MathText as="span" weight="semibold" className="font-semibold [overflow-wrap:anywhere]">
+                              Topic Quiz —{" "}
+                              <MathText
+                                as="span"
+                                weight="semibold"
+                                className="font-semibold [overflow-wrap:anywhere]"
+                              >
                                 {displaySubtopicTitle}
                               </MathText>
                             </DialogTitle>
-                            <DialogDescription className="text-xs">Test your understanding</DialogDescription>
+                            <DialogDescription className="text-xs">
+                              Test your understanding
+                            </DialogDescription>
                           </DialogHeader>
-                            <div className="min-w-0 max-w-full space-y-3">
-                              {!bitsReviewMode && showPreviousQuizAttempt && displayBitsAttempt ? (
-                                <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
-                                  <p className="text-lg font-bold text-foreground">{setResultsHeading}</p>
-                                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                                    <div className="rounded-xl bg-green-500/10 border border-green-500/30 p-3">
-                                      <p className="text-xs text-muted-foreground">Correct</p>
-                                      <p className="text-xl font-bold text-green-700 dark:text-green-300">{displayBitsAttempt.correctCount}</p>
-                                    </div>
-                                    <div className="rounded-xl bg-destructive/10 border border-destructive/30 p-3">
-                                      <p className="text-xs text-muted-foreground">Wrong</p>
-                                      <p className="text-xl font-bold text-destructive">{displayBitsAttempt.wrongCount}</p>
-                                    </div>
-                                    <div className="rounded-xl bg-muted border border-border p-3">
-                                      <p className="text-xs text-muted-foreground">Score</p>
-                                      <p className="text-xl font-bold text-foreground">
-                                        {displayBitsAttempt.totalQuestions > 0
-                                          ? `${Math.round((displayBitsAttempt.correctCount / displayBitsAttempt.totalQuestions) * 100)}%`
-                                          : "0%"}
-                                      </p>
-                                    </div>
+                          <div className="min-w-0 max-w-full space-y-3">
+                            {!bitsReviewMode && showPreviousQuizAttempt && displayBitsAttempt ? (
+                              <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
+                                <p className="text-lg font-bold text-foreground">
+                                  {setResultsHeading}
+                                </p>
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                  <div className="rounded-xl bg-green-500/10 border border-green-500/30 p-3">
+                                    <p className="text-xs text-muted-foreground">Correct</p>
+                                    <p className="text-xl font-bold text-green-700 dark:text-green-300">
+                                      {displayBitsAttempt.correctCount}
+                                    </p>
                                   </div>
-                                  <p className="text-xs text-muted-foreground">
-                                    Submitted on {new Date(displayBitsAttempt.submittedAt).toLocaleString()}
-                                  </p>
-                                  <div className="grid grid-cols-1 gap-2 pt-1 sm:grid-cols-3 sm:items-center">
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      className="rounded-xl h-8 px-3 text-xs sm:justify-self-start"
-                                      onClick={() => {
-                                        const selected: Record<number, number> = {};
-                                        for (const [k, v] of Object.entries(displayBitsAttempt.selectedAnswers)) {
-                                          const idx = Number(k);
-                                          if (Number.isInteger(idx)) selected[idx] = v;
-                                        }
-                                        setBitsSelectedAnswers(selected);
-                                        const b = useAdvancedSetsUi
-                                          ? getAdvancedSetBounds(dbBitsQuestions.length, activeQuizSet)
-                                          : { start: 0, end: dbBitsQuestions.length, length: dbBitsQuestions.length };
-                                        setBitsCurrentIdx(b.start);
-                                        setBitsReviewMode(true);
-                                      }}
-                                    >
-                                      Review submitted answers
-                                    </Button>
-                                    <Button
-                                      variant="default"
-                                      size="sm"
-                                      className="rounded-xl h-8 px-3 text-xs sm:justify-self-center"
-                                      onClick={async () => {
-                                        if (!topicNode || !subtopicName) return;
-                                        if (useAdvancedSetsUi) {
-                                          const boardName = (board === "icse" ? "ICSE" : "CBSE") as Board;
-                                          try {
-                                            await clearBitsAttemptSet({
-                                              board: boardName,
-                                              subject: topicNode.subject,
-                                              classLevel: topicNode.classLevel,
-                                              topic: topicNode.topic,
-                                              subtopicName,
-                                              level: difficultyLevel,
-                                              set: activeQuizSet,
-                                            });
-                                            const b = getAdvancedSetBounds(dbBitsQuestions.length, activeQuizSet);
-                                            setBitsAttemptBySet((prev) => {
-                                              const n = { ...prev };
-                                              delete n[activeQuizSet];
-                                              return n;
-                                            });
-                                            setBitsSelectedAnswers((prev) => {
-                                              const n = { ...prev };
-                                              for (let i = b.start; i < b.end; i++) delete n[i];
-                                              return n;
-                                            });
-                                            setBitsCurrentIdx(b.start);
-                                            setBitsReviewMode(false);
-                                            window.setTimeout(() => flushSubtopicEngagementNow(), 0);
-                                          } catch {
-                                            toast({
-                                              title: "Could not reset attempt",
-                                              description: "Please try again.",
-                                              variant: "destructive",
-                                            });
-                                          }
-                                          return;
-                                        }
-                                        setBitsSelectedAnswers({});
-                                        setBitsCurrentIdx(0);
-                                        setBitsReviewMode(true);
-                                      }}
-                                    >
-                                      Take test another time
-                                    </Button>
-                                    <Button
-                                      variant="secondary"
-                                      size="sm"
-                                      className="h-9 rounded-xl border border-primary/35 bg-primary/12 px-5 text-sm font-semibold text-primary shadow-[0_0_0_1px_rgba(59,130,246,0.18)] transition hover:bg-primary/18 sm:justify-self-end"
-                                      onClick={handleOpenQuizPostDialog}
-                                    >
-                                      Post quiz
-                                    </Button>
+                                  <div className="rounded-xl bg-destructive/10 border border-destructive/30 p-3">
+                                    <p className="text-xs text-muted-foreground">Wrong</p>
+                                    <p className="text-xl font-bold text-destructive">
+                                      {displayBitsAttempt.wrongCount}
+                                    </p>
                                   </div>
-                                  {useAdvancedSetsUi &&
-                                  (activeQuizSet > 1 || nextQuizSetNumber !== null) ? (
-                                    <div className="flex w-full flex-row gap-2 pt-1">
-                                      {activeQuizSet > 1 ? (
+                                  <div className="rounded-xl bg-muted border border-border p-3">
+                                    <p className="text-xs text-muted-foreground">Score</p>
+                                    <p className="text-xl font-bold text-foreground">
+                                      {displayBitsAttempt.totalQuestions > 0
+                                        ? `${Math.round((displayBitsAttempt.correctCount / displayBitsAttempt.totalQuestions) * 100)}%`
+                                        : "0%"}
+                                    </p>
+                                  </div>
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                  Submitted on{" "}
+                                  {new Date(displayBitsAttempt.submittedAt).toLocaleString()}
+                                </p>
+                                <div className="grid grid-cols-1 gap-2 pt-1 sm:grid-cols-3 sm:items-center">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="rounded-xl h-8 px-3 text-xs sm:justify-self-start"
+                                    onClick={() => {
+                                      const selected: Record<number, number> = {};
+                                      for (const [k, v] of Object.entries(
+                                        displayBitsAttempt.selectedAnswers
+                                      )) {
+                                        const idx = Number(k);
+                                        if (Number.isInteger(idx)) selected[idx] = v;
+                                      }
+                                      setBitsSelectedAnswers(selected);
+                                      const b = useAdvancedSetsUi
+                                        ? getAdvancedSetBounds(
+                                            dbBitsQuestions.length,
+                                            activeQuizSet
+                                          )
+                                        : {
+                                            start: 0,
+                                            end: dbBitsQuestions.length,
+                                            length: dbBitsQuestions.length,
+                                          };
+                                      setBitsCurrentIdx(b.start);
+                                      setBitsReviewMode(true);
+                                    }}
+                                  >
+                                    Review submitted answers
+                                  </Button>
+                                  <Button
+                                    variant="default"
+                                    size="sm"
+                                    className="rounded-xl h-8 px-3 text-xs sm:justify-self-center"
+                                    onClick={async () => {
+                                      if (!topicNode || !subtopicName) return;
+                                      if (useAdvancedSetsUi) {
+                                        const boardName = (
+                                          board === "icse" ? "ICSE" : "CBSE"
+                                        ) as Board;
+                                        try {
+                                          await clearBitsAttemptSet({
+                                            board: boardName,
+                                            subject: topicNode.subject,
+                                            classLevel: topicNode.classLevel,
+                                            topic: topicNode.topic,
+                                            subtopicName,
+                                            level: difficultyLevel,
+                                            set: activeQuizSet,
+                                          });
+                                          const b = getAdvancedSetBounds(
+                                            dbBitsQuestions.length,
+                                            activeQuizSet
+                                          );
+                                          setBitsAttemptBySet((prev) => {
+                                            const n = { ...prev };
+                                            delete n[activeQuizSet];
+                                            return n;
+                                          });
+                                          setBitsSelectedAnswers((prev) => {
+                                            const n = { ...prev };
+                                            for (let i = b.start; i < b.end; i++) delete n[i];
+                                            return n;
+                                          });
+                                          setBitsCurrentIdx(b.start);
+                                          setBitsReviewMode(false);
+                                          window.setTimeout(() => flushSubtopicEngagementNow(), 0);
+                                        } catch {
+                                          toast({
+                                            title: "Could not reset attempt",
+                                            description: "Please try again.",
+                                            variant: "destructive",
+                                          });
+                                        }
+                                        return;
+                                      }
+                                      setBitsSelectedAnswers({});
+                                      setBitsCurrentIdx(0);
+                                      setBitsReviewMode(true);
+                                    }}
+                                  >
+                                    Take test another time
+                                  </Button>
+                                  <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    className="h-9 rounded-xl border border-primary/35 bg-primary/12 px-5 text-sm font-semibold text-primary shadow-[0_0_0_1px_rgba(59,130,246,0.18)] transition hover:bg-primary/18 sm:justify-self-end"
+                                    onClick={handleOpenQuizPostDialog}
+                                  >
+                                    Post quiz
+                                  </Button>
+                                </div>
+                                {useAdvancedSetsUi &&
+                                (activeQuizSet > 1 || nextQuizSetNumber !== null) ? (
+                                  <div className="flex w-full flex-row gap-2 pt-1">
+                                    {activeQuizSet > 1 ? (
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        className="min-h-9 flex-1 rounded-xl text-xs font-semibold border-dashed"
+                                        onClick={() => {
+                                          const prev = (activeQuizSet - 1) as AdvancedQuizSetIndex;
+                                          setActiveQuizSet(prev);
+                                          setBitsReviewMode(false);
+                                        }}
+                                      >
+                                        Previous Set
+                                      </Button>
+                                    ) : null}
+                                    {nextQuizSetNumber !== null ? (
+                                      <Button
+                                        type="button"
+                                        className="min-h-9 flex-1 rounded-xl text-sm font-bold"
+                                        onClick={() => {
+                                          const next = nextQuizSetNumber;
+                                          const b = getAdvancedSetBounds(
+                                            dbBitsQuestions.length,
+                                            next
+                                          );
+                                          setActiveQuizSet(next);
+                                          setBitsReviewMode(false);
+                                          setBitsCurrentIdx(b.start);
+                                        }}
+                                      >
+                                        Next Set →
+                                      </Button>
+                                    ) : null}
+                                  </div>
+                                ) : null}
+
+                                <Dialog
+                                  open={quizPostDialogOpen}
+                                  onOpenChange={setQuizPostDialogOpen}
+                                >
+                                  <DialogContent className="w-[min(42rem,calc(100vw-1.5rem))] max-w-2xl rounded-2xl p-4 sm:p-6">
+                                    <DialogHeader>
+                                      <DialogTitle>Post quiz result</DialogTitle>
+                                      <DialogDescription>
+                                        Pick a ready format, edit if needed, then publish to
+                                        Lessons.
+                                      </DialogDescription>
+                                    </DialogHeader>
+
+                                    <div className="rounded-xl border border-border bg-muted/25 p-3 text-xs text-muted-foreground">
+                                      <p className="font-semibold text-foreground">Context</p>
+                                      <div className="mt-2 flex flex-wrap gap-1.5">
+                                        {quizContextChips.map((chip) => (
+                                          <span
+                                            key={chip}
+                                            className="rounded-full border border-border bg-background px-2 py-0.5 text-[11px]"
+                                          >
+                                            {chip}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                      <div className="flex items-center justify-between gap-2">
+                                        <Label className="text-xs font-semibold">
+                                          Template preview
+                                        </Label>
                                         <Button
                                           type="button"
                                           variant="outline"
                                           size="sm"
-                                          className="min-h-9 flex-1 rounded-xl text-xs font-semibold border-dashed"
-                                          onClick={() => {
-                                            const prev = (activeQuizSet - 1) as AdvancedQuizSetIndex;
-                                            setActiveQuizSet(prev);
-                                            setBitsReviewMode(false);
-                                          }}
+                                          className="h-8 rounded-lg"
+                                          onClick={handleShuffleQuizTemplate}
+                                          disabled={publishingQuizPost}
                                         >
-                                          Previous Set
+                                          <Shuffle className="mr-1 h-3.5 w-3.5" />
+                                          Shuffle template
                                         </Button>
-                                      ) : null}
-                                      {nextQuizSetNumber !== null ? (
-                                        <Button
-                                          type="button"
-                                          className="min-h-9 flex-1 rounded-xl text-sm font-bold"
-                                          onClick={() => {
-                                            const next = nextQuizSetNumber;
-                                            const b = getAdvancedSetBounds(dbBitsQuestions.length, next);
-                                            setActiveQuizSet(next);
-                                            setBitsReviewMode(false);
-                                            setBitsCurrentIdx(b.start);
-                                          }}
-                                        >
-                                          Next Set →
-                                        </Button>
-                                      ) : null}
+                                      </div>
+                                      <input
+                                        value={quizPostTitle}
+                                        onChange={(e) => setQuizPostTitle(e.target.value)}
+                                        className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+                                        placeholder="Post title"
+                                        disabled={publishingQuizPost}
+                                      />
+                                      <Textarea
+                                        value={quizPostDetails}
+                                        onChange={(e) => setQuizPostDetails(e.target.value)}
+                                        className="min-h-[120px] rounded-xl"
+                                        placeholder="Details (optional)"
+                                        disabled={publishingQuizPost}
+                                      />
                                     </div>
-                                  ) : null}
 
-                                  <Dialog open={quizPostDialogOpen} onOpenChange={setQuizPostDialogOpen}>
-                                    <DialogContent className="w-[min(42rem,calc(100vw-1.5rem))] max-w-2xl rounded-2xl p-4 sm:p-6">
-                                      <DialogHeader>
-                                        <DialogTitle>Post quiz result</DialogTitle>
-                                        <DialogDescription>
-                                          Pick a ready format, edit if needed, then publish to Lessons.
-                                        </DialogDescription>
-                                      </DialogHeader>
-
-                                      <div className="rounded-xl border border-border bg-muted/25 p-3 text-xs text-muted-foreground">
-                                        <p className="font-semibold text-foreground">Context</p>
-                                        <div className="mt-2 flex flex-wrap gap-1.5">
-                                          {quizContextChips.map((chip) => (
-                                            <span key={chip} className="rounded-full border border-border bg-background px-2 py-0.5 text-[11px]">
-                                              {chip}
-                                            </span>
-                                          ))}
-                                        </div>
-                                      </div>
-
-                                      <div className="space-y-2">
-                                        <div className="flex items-center justify-between gap-2">
-                                          <Label className="text-xs font-semibold">Template preview</Label>
-                                          <Button
-                                            type="button"
-                                            variant="outline"
-                                            size="sm"
-                                            className="h-8 rounded-lg"
-                                            onClick={handleShuffleQuizTemplate}
-                                            disabled={publishingQuizPost}
-                                          >
-                                            <Shuffle className="mr-1 h-3.5 w-3.5" />
-                                            Shuffle template
-                                          </Button>
-                                        </div>
-                                        <input
-                                          value={quizPostTitle}
-                                          onChange={(e) => setQuizPostTitle(e.target.value)}
-                                          className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
-                                          placeholder="Post title"
-                                          disabled={publishingQuizPost}
-                                        />
-                                        <Textarea
-                                          value={quizPostDetails}
-                                          onChange={(e) => setQuizPostDetails(e.target.value)}
-                                          className="min-h-[120px] rounded-xl"
-                                          placeholder="Details (optional)"
-                                          disabled={publishingQuizPost}
-                                        />
-                                      </div>
-
-                                      <DialogFooter className="gap-2 sm:gap-0">
-                                        <Button
-                                          type="button"
-                                          variant="outline"
-                                          className="rounded-xl"
-                                          disabled={publishingQuizPost}
-                                          onClick={() => setQuizPostDialogOpen(false)}
-                                        >
-                                          Cancel
-                                        </Button>
-                                        <Button
-                                          type="button"
-                                          className="rounded-xl"
-                                          disabled={publishingQuizPost}
-                                          onClick={() => void handlePublishQuizPost()}
-                                        >
-                                          {publishingQuizPost ? "Publishing..." : "Post"}
-                                        </Button>
-                                      </DialogFooter>
-                                    </DialogContent>
-                                  </Dialog>
-                                </div>
-                              ) : (() => {
+                                    <DialogFooter className="gap-2 sm:gap-0">
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        className="rounded-xl"
+                                        disabled={publishingQuizPost}
+                                        onClick={() => setQuizPostDialogOpen(false)}
+                                      >
+                                        Cancel
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        className="rounded-xl"
+                                        disabled={publishingQuizPost}
+                                        onClick={() => void handlePublishQuizPost()}
+                                      >
+                                        {publishingQuizPost ? "Publishing..." : "Post"}
+                                      </Button>
+                                    </DialogFooter>
+                                  </DialogContent>
+                                </Dialog>
+                              </div>
+                            ) : (
+                              (() => {
                                 const navStart = useAdvancedSetsUi ? activeSetBounds.start : 0;
-                                const navEndExcl = useAdvancedSetsUi ? activeSetBounds.end : dbBitsQuestions.length;
-                                const setLen = useAdvancedSetsUi ? activeSetBounds.length : dbBitsQuestions.length;
+                                const navEndExcl = useAdvancedSetsUi
+                                  ? activeSetBounds.end
+                                  : dbBitsQuestions.length;
+                                const setLen = useAdvancedSetsUi
+                                  ? activeSetBounds.length
+                                  : dbBitsQuestions.length;
                                 const qInSet = bitsCurrentIdx - navStart + 1;
                                 const isLastInWindow = useAdvancedSetsUi
                                   ? bitsCurrentIdx >= activeSetBounds.end - 1
@@ -5010,17 +5474,24 @@ export default function TopicPage() {
                                 if (!q) return null;
                                 const selected = bitsSelectedAnswers[bitsCurrentIdx];
                                 const answered = typeof selected === "number";
-                                const isCorrectSelection = answered && q.options[selected] === q.correctAnswer;
+                                const isCorrectSelection =
+                                  answered && q.options[selected] === q.correctAnswer;
                                 const isCurrentQuizBitSaved = isBitSaved(q, savedBits);
                                 const currentQuizSavedBitId = getSavedBitId(q, savedBits);
                                 const useTwoColumns = shouldUseTwoColumnOptions(q.options);
                                 return (
                                   <>
                                     <div className="flex items-center justify-center">
-                                  <span className="text-xs font-semibold text-muted-foreground" aria-live="polite">
+                                      <span
+                                        className="text-xs font-semibold text-muted-foreground"
+                                        aria-live="polite"
+                                      >
                                         Question {qInSet} of {setLen}
                                         {useAdvancedSetsUi ? (
-                                          <span className="text-muted-foreground/80"> · Set {activeQuizSet}</span>
+                                          <span className="text-muted-foreground/80">
+                                            {" "}
+                                            · Set {activeQuizSet}
+                                          </span>
                                         ) : null}
                                       </span>
                                     </div>
@@ -5035,7 +5506,9 @@ export default function TopicPage() {
                                     <div className="min-w-0 max-w-full rounded-2xl border border-border p-4 space-y-3 bg-card">
                                       <div className="flex items-start justify-between gap-3">
                                         <h3 className="min-w-0 max-w-full flex-1 text-[1.05rem] font-bold leading-snug text-foreground [overflow-wrap:anywhere] break-words">
-                                          <MathText>{normalizeQuizDisplayMath(q.question)}</MathText>
+                                          <MathText>
+                                            {normalizeQuizDisplayMath(q.question)}
+                                          </MathText>
                                         </h3>
                                         <Button
                                           variant="outline"
@@ -5074,31 +5547,53 @@ export default function TopicPage() {
                                             persistSavedContent();
                                             toast({ title: "Saved to Saved Bits" });
                                           }}
-                                          title={isCurrentQuizBitSaved ? "Remove saved Bit" : "Save this Bit"}
+                                          title={
+                                            isCurrentQuizBitSaved
+                                              ? "Remove saved Bit"
+                                              : "Save this Bit"
+                                          }
                                         >
-                                          <Bookmark className={`w-3.5 h-3.5 ${isCurrentQuizBitSaved ? "fill-current" : ""}`} />
+                                          <Bookmark
+                                            className={`w-3.5 h-3.5 ${isCurrentQuizBitSaved ? "fill-current" : ""}`}
+                                          />
                                           {isCurrentQuizBitSaved ? "Saved bit" : "Save this bit"}
                                         </Button>
                                       </div>
                                       <div
-                                        className={useTwoColumns ? "grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2" : "min-w-0 space-y-2"}
+                                        className={
+                                          useTwoColumns
+                                            ? "grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2"
+                                            : "min-w-0 space-y-2"
+                                        }
                                         role="radiogroup"
                                         aria-label={`Answers for question ${bitsCurrentIdx + 1}`}
                                       >
                                         {q.options.map((opt, oi) => {
                                           const isCorrect = opt === q.correctAnswer;
-                                          let cls = "bg-muted/70 hover:bg-muted text-foreground border-border";
+                                          let cls =
+                                            "bg-muted/70 hover:bg-muted text-foreground border-border";
                                           if (answered) {
-                                            if (isCorrect) cls = "bg-green-500/12 border-green-500 text-foreground";
-                                        else if (selected === oi && !isCorrectSelection) cls = "bg-destructive/10 border-destructive text-foreground";
-                                        else cls = "bg-muted/60 text-muted-foreground border-border";
+                                            if (isCorrect)
+                                              cls =
+                                                "bg-green-500/12 border-green-500 text-foreground";
+                                            else if (selected === oi && !isCorrectSelection)
+                                              cls =
+                                                "bg-destructive/10 border-destructive text-foreground";
+                                            else
+                                              cls =
+                                                "bg-muted/60 text-muted-foreground border-border";
                                           }
                                           return (
                                             <button
                                               key={oi}
                                               type="button"
                                               disabled={answered}
-                                          onClick={() => setBitsSelectedAnswers((prev) => ({ ...prev, [bitsCurrentIdx]: oi }))}
+                                              onClick={() =>
+                                                setBitsSelectedAnswers((prev) => ({
+                                                  ...prev,
+                                                  [bitsCurrentIdx]: oi,
+                                                }))
+                                              }
                                               role="radio"
                                               aria-checked={selected === oi}
                                               className={`flex min-w-0 w-full max-w-full items-center gap-2.5 rounded-xl border px-3 py-2 text-left text-sm transition-colors ${cls}`}
@@ -5109,14 +5604,17 @@ export default function TopicPage() {
                                               <span className="min-w-0 flex-1 [overflow-wrap:anywhere] break-words">
                                                 <MathText>{normalizeQuizDisplayMath(opt)}</MathText>
                                               </span>
-                                          {answered && isCorrect && <CheckCircle2 className="inline w-4 h-4 ml-auto text-green-600" />}
+                                              {answered && isCorrect && (
+                                                <CheckCircle2 className="inline w-4 h-4 ml-auto text-green-600" />
+                                              )}
                                             </button>
                                           );
                                         })}
                                       </div>
                                       <div className="flex items-center justify-between gap-2 pt-1">
                                         <Button
-                                      variant="outline" size="sm"
+                                          variant="outline"
+                                          size="sm"
                                           className="rounded-xl h-8 px-3 text-xs min-w-24 font-semibold border-primary/35 bg-primary/[0.06] text-foreground shadow-sm ring-1 ring-primary/10 hover:bg-primary/10 hover:border-primary/50 hover:ring-primary/18 disabled:border-border/40 disabled:bg-muted/40 disabled:text-muted-foreground disabled:ring-0 dark:bg-primary/10 dark:ring-primary/15"
                                           onClick={() =>
                                             setBitsCurrentIdx((i) => Math.max(navStart, i - 1))
@@ -5135,58 +5633,97 @@ export default function TopicPage() {
                                           }
                                           onClick={async () => {
                                             if (!isLastInWindow) {
-                                              setBitsCurrentIdx((i) => Math.min(navEndExcl - 1, i + 1));
+                                              setBitsCurrentIdx((i) =>
+                                                Math.min(navEndExcl - 1, i + 1)
+                                              );
                                               return;
                                             }
                                             if (!useAdvancedSetsUi) {
-                                            const total = dbBitsQuestions.length;
-                                            let answeredCount = 0;
-                                            for (let i = 0; i < total; i++) {
-                                              if (typeof bitsSelectedAnswers[i] === "number") answeredCount++;
-                                            }
-                                            if (answeredCount < total) {
-                                          toast({ title: "Answer all questions before submit", description: `${answeredCount}/${total} answered` });
-                                              return;
-                                            }
-                                            const correctCount = dbBitsQuestions.reduce((acc, item, idx) => {
-                                          const si = bitsSelectedAnswers[idx];
-                                          if (typeof si !== "number") return acc;
-                                          return item.options[si] === item.correctAnswer ? acc + 1 : acc;
-                                            }, 0);
-                                            const wrongCount = total - correctCount;
-                                            if (!topicNode || !subtopicName) return;
-                                            const boardName = (board === "icse" ? "ICSE" : "CBSE") as Board;
-                                            const payload: BitsAttemptRecord = {
-                                          board: boardName, subject: topicNode.subject, classLevel: topicNode.classLevel,
-                                          topic: topicNode.topic, subtopicName, level: difficultyLevel, bitsSignature,
-                                          totalQuestions: total, correctCount, wrongCount,
-                                          selectedAnswers: Object.fromEntries(Object.entries(bitsSelectedAnswers).map(([k, v]) => [String(k), v])),
-                                              submittedAt: new Date().toISOString(),
-                                            };
-                                            setSubmittingBits(true);
-                                            try {
-                                              const persisted =
-                                                difficultyLevel === "advanced"
-                                                  ? await saveBitsAttempt(payload, { set: 1 })
-                                                  : await saveBitsAttempt(payload);
-                                              setBitsAttempt(persisted);
-                                              setBitsReviewMode(false);
-                                              setBitsCurrentIdx(0);
-                                              setBitsSelectedAnswers({});
-                                              window.setTimeout(() => flushSubtopicEngagementNow(), 0);
-                                          toast({ title: "Quiz submitted", description: `Correct: ${correctCount}, Wrong: ${wrongCount}` });
-                                            } catch {
-                                          toast({ title: "Failed to save result", description: "Please retry submit.", variant: "destructive" });
-                                            } finally {
-                                              setSubmittingBits(false);
-                                            }
+                                              const total = dbBitsQuestions.length;
+                                              let answeredCount = 0;
+                                              for (let i = 0; i < total; i++) {
+                                                if (typeof bitsSelectedAnswers[i] === "number")
+                                                  answeredCount++;
+                                              }
+                                              if (answeredCount < total) {
+                                                toast({
+                                                  title: "Answer all questions before submit",
+                                                  description: `${answeredCount}/${total} answered`,
+                                                });
+                                                return;
+                                              }
+                                              const correctCount = dbBitsQuestions.reduce(
+                                                (acc, item, idx) => {
+                                                  const si = bitsSelectedAnswers[idx];
+                                                  if (typeof si !== "number") return acc;
+                                                  return item.options[si] === item.correctAnswer
+                                                    ? acc + 1
+                                                    : acc;
+                                                },
+                                                0
+                                              );
+                                              const wrongCount = total - correctCount;
+                                              if (!topicNode || !subtopicName) return;
+                                              const boardName = (
+                                                board === "icse" ? "ICSE" : "CBSE"
+                                              ) as Board;
+                                              const payload: BitsAttemptRecord = {
+                                                board: boardName,
+                                                subject: topicNode.subject,
+                                                classLevel: topicNode.classLevel,
+                                                topic: topicNode.topic,
+                                                subtopicName,
+                                                level: difficultyLevel,
+                                                bitsSignature,
+                                                totalQuestions: total,
+                                                correctCount,
+                                                wrongCount,
+                                                selectedAnswers: Object.fromEntries(
+                                                  Object.entries(bitsSelectedAnswers).map(
+                                                    ([k, v]) => [String(k), v]
+                                                  )
+                                                ),
+                                                submittedAt: new Date().toISOString(),
+                                              };
+                                              setSubmittingBits(true);
+                                              try {
+                                                const persisted =
+                                                  difficultyLevel === "advanced"
+                                                    ? await saveBitsAttempt(payload, { set: 1 })
+                                                    : await saveBitsAttempt(payload);
+                                                void reportScoreToAssignment(
+                                                  persisted.correctCount,
+                                                  persisted.totalQuestions
+                                                );
+                                                setBitsAttempt(persisted);
+                                                setBitsReviewMode(false);
+                                                setBitsCurrentIdx(0);
+                                                setBitsSelectedAnswers({});
+                                                window.setTimeout(
+                                                  () => flushSubtopicEngagementNow(),
+                                                  0
+                                                );
+                                                toast({
+                                                  title: "Quiz submitted",
+                                                  description: `Correct: ${correctCount}, Wrong: ${wrongCount}`,
+                                                });
+                                              } catch {
+                                                toast({
+                                                  title: "Failed to save result",
+                                                  description: "Please retry submit.",
+                                                  variant: "destructive",
+                                                });
+                                              } finally {
+                                                setSubmittingBits(false);
+                                              }
                                               return;
                                             }
                                             const { start, end } = activeSetBounds;
                                             const sliceLen = end - start;
                                             let answeredInSet = 0;
                                             for (let i = start; i < end; i++) {
-                                              if (typeof bitsSelectedAnswers[i] === "number") answeredInSet++;
+                                              if (typeof bitsSelectedAnswers[i] === "number")
+                                                answeredInSet++;
                                             }
                                             if (answeredInSet < sliceLen) {
                                               toast({
@@ -5200,11 +5737,14 @@ export default function TopicPage() {
                                               const item = dbBitsQuestions[i];
                                               const si = bitsSelectedAnswers[i];
                                               if (typeof si !== "number") continue;
-                                              if (item.options[si] === item.correctAnswer) correctCount++;
+                                              if (item.options[si] === item.correctAnswer)
+                                                correctCount++;
                                             }
                                             const wrongCount = sliceLen - correctCount;
                                             if (!topicNode || !subtopicName) return;
-                                            const boardName = (board === "icse" ? "ICSE" : "CBSE") as Board;
+                                            const boardName = (
+                                              board === "icse" ? "ICSE" : "CBSE"
+                                            ) as Board;
                                             const selectedSlice: Record<string, number> = {};
                                             for (let i = start; i < end; i++) {
                                               if (typeof bitsSelectedAnswers[i] === "number") {
@@ -5227,8 +5767,17 @@ export default function TopicPage() {
                                             };
                                             setSubmittingBits(true);
                                             try {
-                                              const persisted = await saveBitsAttempt(payload, { set: activeQuizSet });
-                                              setBitsAttemptBySet((prev) => ({ ...prev, [activeQuizSet]: persisted }));
+                                              const persisted = await saveBitsAttempt(payload, {
+                                                set: activeQuizSet,
+                                              });
+                                              void reportScoreToAssignment(
+                                                persisted.correctCount,
+                                                persisted.totalQuestions
+                                              );
+                                              setBitsAttemptBySet((prev) => ({
+                                                ...prev,
+                                                [activeQuizSet]: persisted,
+                                              }));
                                               setBitsReviewMode(false);
                                               setBitsSelectedAnswers((prev) => {
                                                 const n = { ...prev };
@@ -5236,7 +5785,10 @@ export default function TopicPage() {
                                                 return n;
                                               });
                                               setBitsCurrentIdx(start);
-                                              window.setTimeout(() => flushSubtopicEngagementNow(), 0);
+                                              window.setTimeout(
+                                                () => flushSubtopicEngagementNow(),
+                                                0
+                                              );
                                               toast({
                                                 title: "Set submitted",
                                                 description: `Correct: ${correctCount}, Wrong: ${wrongCount}`,
@@ -5251,19 +5803,31 @@ export default function TopicPage() {
                                               setSubmittingBits(false);
                                             }
                                           }}
-                                      disabled={
-                                        submittingBits ||
-                                        (!isLastInWindow &&
-                                          typeof bitsSelectedAnswers[bitsCurrentIdx] !== "number") ||
-                                        (isLastInWindow &&
-                                          (useAdvancedSetsUi
-                                            ? bitsFilledInActiveSet < activeSetBounds.length
-                                            : bitsFilledQuestionCount < dbBitsQuestions.length))
-                                      }
-                                    >
-                                      {isLastInWindow
-                                        ? submittingBits ? <><Loader2 className="w-4 h-4 mr-1 animate-spin" /> Submitting</> : "Submit"
-                                        : <>Next <ChevronRight className="w-4 h-4 ml-1" /></>}
+                                          disabled={
+                                            submittingBits ||
+                                            (!isLastInWindow &&
+                                              typeof bitsSelectedAnswers[bitsCurrentIdx] !==
+                                                "number") ||
+                                            (isLastInWindow &&
+                                              (useAdvancedSetsUi
+                                                ? bitsFilledInActiveSet < activeSetBounds.length
+                                                : bitsFilledQuestionCount < dbBitsQuestions.length))
+                                          }
+                                        >
+                                          {isLastInWindow ? (
+                                            submittingBits ? (
+                                              <>
+                                                <Loader2 className="w-4 h-4 mr-1 animate-spin" />{" "}
+                                                Submitting
+                                              </>
+                                            ) : (
+                                              "Submit"
+                                            )
+                                          ) : (
+                                            <>
+                                              Next <ChevronRight className="w-4 h-4 ml-1" />
+                                            </>
+                                          )}
                                         </Button>
                                       </div>
                                       {isLastInWindow &&
@@ -5276,496 +5840,617 @@ export default function TopicPage() {
                                               ? `${bitsFilledInActiveSet}/${activeSetBounds.length}`
                                               : `${bitsFilledQuestionCount}/${dbBitsQuestions.length}`}{" "}
                                             questions have an answer in this set. Use{" "}
-                                            <span className="font-semibold">Previous</span> to find any you skipped.
+                                            <span className="font-semibold">Previous</span> to find
+                                            any you skipped.
                                           </p>
                                         )}
                                       {answered && q.solution && (
                                         <div className="bits-quiz-explanation mt-2 rounded-xl bg-muted/50 p-3 text-sm text-muted-foreground">
-                                          <p className="mb-1 font-bold text-foreground">Explanation</p>
+                                          <p className="mb-1 font-bold text-foreground">
+                                            Explanation
+                                          </p>
                                           <div className="min-w-0 max-w-full text-foreground/90">
-                                            <MathText as="div">{normalizeQuizDisplayMath(q.solution)}</MathText>
+                                            <MathText as="div">
+                                              {normalizeQuizDisplayMath(q.solution)}
+                                            </MathText>
                                           </div>
                                         </div>
                                       )}
                                     </div>
                                   </>
                                 );
-                              })()}
-                            </div>
+                              })()
+                            )}
+                          </div>
                         </DialogContent>
                       </Dialog>
-                  </TabsContent>
+                    </TabsContent>
 
-                  {/* Tab 3: Numerals */}
-                  <TabsContent value="numerals" className="space-y-3 mt-0">
-                    {canEditTheory && (
-                      <div className="flex justify-end mb-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="rounded-lg gap-1.5 text-xs font-bold text-primary disabled:opacity-50"
-                          disabled={
-                            artifactActionsTopicHubBlocked ||
-                            !hasDeepDiveForAiArtifacts ||
-                            generatingDeepDive ||
-                            generatingInstacue ||
-                            generatingBits ||
-                            generatingFormulas ||
-                            completingSubtopicAll
-                          }
-                          onClick={() => void runFormulasOnly()}
+                    {/* Tab 3: Numerals */}
+                    <TabsContent value="numerals" className="space-y-3 mt-0">
+                      {canEditTheory && (
+                        <div className="flex justify-end mb-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="rounded-lg gap-1.5 text-xs font-bold text-primary disabled:opacity-50"
+                            disabled={
+                              artifactActionsTopicHubBlocked ||
+                              !hasDeepDiveForAiArtifacts ||
+                              generatingDeepDive ||
+                              generatingInstacue ||
+                              generatingBits ||
+                              generatingFormulas ||
+                              completingSubtopicAll
+                            }
+                            onClick={() => void runFormulasOnly()}
+                          >
+                            {generatingFormulas ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <Sparkles className="w-3.5 h-3.5" />
+                            )}
+                            {generatingFormulas
+                              ? "Generating Formulas..."
+                              : dbPracticeFormulas.length > 0
+                                ? "Regenerate Practice Formulas"
+                                : "Generate Practice Formulas"}
+                          </Button>
+                        </div>
+                      )}
+                      {dbPracticeFormulas.length === 0 ? (
+                        <div className="py-6 text-center">
+                          <p className="text-sm text-muted-foreground">
+                            No numerals yet for this subtopic.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {dbPracticeFormulas.map((formula, i) => (
+                            <button
+                              key={i}
+                              type="button"
+                              onClick={() => {
+                                // #region agent log
+                                fetch(
+                                  "http://127.0.0.1:7826/ingest/70e4f01b-2a33-46c4-8228-3ea27639475c",
+                                  {
+                                    method: "POST",
+                                    headers: {
+                                      "Content-Type": "application/json",
+                                      "X-Debug-Session-Id": "548b33",
+                                    },
+                                    body: JSON.stringify({
+                                      sessionId: "548b33",
+                                      runId: "pre-fix",
+                                      hypothesisId: "H1",
+                                      location: "page.tsx:4460",
+                                      message: "numeral card clicked",
+                                      data: {
+                                        formulaIdx: i,
+                                        formulaName: formula.name,
+                                        formulasDialogOpenBefore: formulasDialogOpen,
+                                        selectedFormulaIdxBefore: selectedFormulaIdx,
+                                      },
+                                      timestamp: Date.now(),
+                                    }),
+                                  }
+                                ).catch(() => {});
+                                // #endregion
+                                setSelectedFormulaIdx(i);
+                                setFormulasDialogOpen(true);
+                              }}
+                              className="edu-card w-full p-3 rounded-xl border border-border/60 text-left transition-colors hover:border-primary/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                              aria-label={`Open numeral ${i + 1}: ${formula.name}`}
+                            >
+                              <p className="text-[10px] font-extrabold text-primary uppercase mb-1">
+                                Numeral {i + 1}
+                              </p>
+                              <p className="font-bold text-sm mb-1">{formula.name}</p>
+                              <p className="text-xs text-muted-foreground mb-2 line-clamp-2">
+                                {formula.description}
+                              </p>
+                              <span className="text-primary text-xs font-bold hover:underline">
+                                Try this →
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </TabsContent>
+
+                    {/* Tab 4: Concepts */}
+                    <TabsContent value="concepts" className="mt-0">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">
+                        Key Concepts
+                      </p>
+                      {conceptCards.length === 0 ? (
+                        <div className="py-6 text-center">
+                          <p className="text-sm text-muted-foreground">
+                            No concept cards yet for this subtopic.
+                          </p>
+                        </div>
+                      ) : (
+                        <div
+                          ref={conceptsScrollRef}
+                          className="space-y-2 overflow-y-auto no-scrollbar pb-2"
+                          style={{ maxHeight: "calc(100vh - 220px)" }}
+                          onMouseEnter={() => {
+                            conceptsHoveredRef.current = true;
+                          }}
+                          onMouseLeave={() => {
+                            conceptsHoveredRef.current = false;
+                          }}
                         >
-                          {generatingFormulas ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          ) : (
-                            <Sparkles className="w-3.5 h-3.5" />
+                          {displayedConcepts.map((card) => (
+                            <div
+                              key={card.id}
+                              className="edu-card p-3 rounded-xl border border-border/60"
+                            >
+                              <p className="text-xs font-bold text-primary mb-1">
+                                <MathText>{card.frontContent}</MathText>
+                              </p>
+                              <p className="text-xs text-foreground/80">
+                                <MathText>{card.backContent}</MathText>
+                              </p>
+                            </div>
+                          ))}
+
+                          {totalConceptPages > 1 && (
+                            <div className="flex items-center justify-between pt-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setConceptsPage((p) => {
+                                    const np = Math.max(0, p - 1);
+                                    setViewedConceptPages((prev) => new Set(prev).add(np));
+                                    return np;
+                                  });
+                                }}
+                                disabled={conceptsPage === 0}
+                                className="text-xs h-8 px-3 rounded-lg"
+                              >
+                                Previous
+                              </Button>
+                              <span className="text-xs text-muted-foreground font-medium">
+                                Page {conceptsPage + 1} of {totalConceptPages}
+                              </span>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setConceptsPage((p) => {
+                                    const np = Math.min(totalConceptPages - 1, p + 1);
+                                    setViewedConceptPages((prev) => new Set(prev).add(np));
+                                    return np;
+                                  });
+                                }}
+                                disabled={conceptsPage >= totalConceptPages - 1}
+                                className="text-xs h-8 px-3 rounded-lg"
+                              >
+                                Next
+                              </Button>
+                            </div>
                           )}
-                          {generatingFormulas
-                            ? "Generating Formulas..."
-                            : dbPracticeFormulas.length > 0
-                              ? "Regenerate Practice Formulas"
-                              : "Generate Practice Formulas"}
-                        </Button>
-                    </div>
-                    )}
-                    {dbPracticeFormulas.length === 0 ? (
+                        </div>
+                      )}
+                    </TabsContent>
+                  </Tabs>
+                )}
+
+                {/* Formulas Dialog — opened programmatically from Numerals tab */}
+                <Dialog
+                  open={formulasDialogOpen}
+                  onOpenChange={(open) => {
+                    // #region agent log
+                    fetch("http://127.0.0.1:7826/ingest/70e4f01b-2a33-46c4-8228-3ea27639475c", {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                        "X-Debug-Session-Id": "548b33",
+                      },
+                      body: JSON.stringify({
+                        sessionId: "548b33",
+                        runId: "pre-fix",
+                        hypothesisId: "H2",
+                        location: "page.tsx:4555",
+                        message: "formula dialog onOpenChange",
+                        data: {
+                          open,
+                          selectedFormulaIdx,
+                          formulasDialogOpenBefore: formulasDialogOpen,
+                        },
+                        timestamp: Date.now(),
+                      }),
+                    }).catch(() => {});
+                    // #endregion
+                    setFormulasDialogOpen(open);
+                    if (!open) {
+                      if (selectedFormulaIdx !== null) {
+                        setFormulaByIdx((prev) => ({
+                          ...prev,
+                          [selectedFormulaIdx]: {
+                            qIdx: formulaBitsCurrentIdx,
+                            answers: { ...formulaBitsSelectedAnswers },
+                          },
+                        }));
+                      }
+                      setSelectedFormulaIdx(null);
+                      setFormulaBitsCurrentIdx(0);
+                      setFormulaBitsSelectedAnswers({});
+                      setFormulaQuestionsOverride({});
+                    }
+                  }}
+                >
+                  <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle>
+                        {selectedFormulaIdx === null
+                          ? "Which formula do you want to practice?"
+                          : (practiceFormulasForUi[selectedFormulaIdx]?.name ?? "Practice Formula")}
+                      </DialogTitle>
+                      <DialogDescription asChild>
+                        <div className="text-sm text-muted-foreground">
+                          {selectedFormulaIdx === null ? (
+                            <>
+                              <span className="text-muted-foreground">Formulas from </span>
+                              <MathText className="inline text-foreground [&_.katex]:text-[1em]">
+                                {displaySubtopicTitle}
+                              </MathText>
+                            </>
+                          ) : (
+                            "Practice questions in the same Bits structure"
+                          )}
+                        </div>
+                      </DialogDescription>
+                    </DialogHeader>
+                    {practiceFormulasForUi.length === 0 ? (
                       <div className="py-6 text-center">
-                        <p className="text-sm text-muted-foreground">No numerals yet for this subtopic.</p>
+                        <p className="text-sm text-muted-foreground mb-3">
+                          No formulas generated yet for this subtopic.
+                        </p>
+                        {canEditTheory ? (
+                          <p className="text-xs text-muted-foreground">
+                            First run{" "}
+                            <span className="font-semibold text-foreground">
+                              Generate Deep Dive
+                            </span>
+                            , then{" "}
+                            <span className="font-semibold text-foreground">
+                              Generate Practice Formulas
+                            </span>{" "}
+                            to generate formula practice.
+                          </p>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">
+                            Formula practice for this lesson is not available yet.
+                          </p>
+                        )}
                       </div>
-                    ) : (
-                      <div className="space-y-2">
-                        {dbPracticeFormulas.map((formula, i) => (
+                    ) : selectedFormulaIdx === null ? (
+                      <div className="space-y-4">
+                        {practiceFormulasForUi.map((f, fi) => (
                           <button
-                            key={i}
+                            key={fi}
                             type="button"
+                            className="w-full text-left rounded-2xl border border-border p-4 space-y-2 hover:border-primary/50 hover:bg-muted/20 transition-colors"
                             onClick={() => {
                               // #region agent log
-                              fetch('http://127.0.0.1:7826/ingest/70e4f01b-2a33-46c4-8228-3ea27639475c',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'548b33'},body:JSON.stringify({sessionId:'548b33',runId:'pre-fix',hypothesisId:'H1',location:'page.tsx:4460',message:'numeral card clicked',data:{formulaIdx:i,formulaName:formula.name,formulasDialogOpenBefore:formulasDialogOpen,selectedFormulaIdxBefore:selectedFormulaIdx},timestamp:Date.now()})}).catch(()=>{});
+                              fetch(
+                                "http://127.0.0.1:7826/ingest/70e4f01b-2a33-46c4-8228-3ea27639475c",
+                                {
+                                  method: "POST",
+                                  headers: {
+                                    "Content-Type": "application/json",
+                                    "X-Debug-Session-Id": "548b33",
+                                  },
+                                  body: JSON.stringify({
+                                    sessionId: "548b33",
+                                    runId: "pre-fix",
+                                    hypothesisId: "H4",
+                                    location: "page.tsx:4616",
+                                    message: "formula chooser option clicked",
+                                    data: { formulaIdx: fi, formulaName: f.name },
+                                    timestamp: Date.now(),
+                                  }),
+                                }
+                              ).catch(() => {});
                               // #endregion
-                              setSelectedFormulaIdx(i);
-                              setFormulasDialogOpen(true);
+                              const merged: Record<
+                                number,
+                                { qIdx: number; answers: Record<number, number> }
+                              > = {
+                                ...formulaByIdx,
+                              };
+                              if (selectedFormulaIdx !== null) {
+                                merged[selectedFormulaIdx] = {
+                                  qIdx: formulaBitsCurrentIdx,
+                                  answers: { ...formulaBitsSelectedAnswers },
+                                };
+                              }
+                              const d = merged[fi];
+                              setFormulaByIdx(merged);
+                              setSelectedFormulaIdx(fi);
+                              setFormulaBitsCurrentIdx(d?.qIdx ?? 0);
+                              setFormulaBitsSelectedAnswers(d?.answers ? { ...d.answers } : {});
                             }}
-                            className="edu-card w-full p-3 rounded-xl border border-border/60 text-left transition-colors hover:border-primary/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
-                            aria-label={`Open numeral ${i + 1}: ${formula.name}`}
                           >
-                            <p className="text-[10px] font-extrabold text-primary uppercase mb-1">
-                              Numeral {i + 1}
+                            <p className="text-lg font-bold text-foreground">{f.name}</p>
+                            <p className="text-sm text-muted-foreground [&_.katex]:text-[0.95em]">
+                              <MathText>{f.description}</MathText>
                             </p>
-                            <p className="font-bold text-sm mb-1">{formula.name}</p>
-                            <p className="text-xs text-muted-foreground mb-2 line-clamp-2">{formula.description}</p>
-                            <span className="text-primary text-xs font-bold hover:underline">
-                              Try this →
-                            </span>
+                            <div className="rounded-lg bg-muted/60 px-3 py-2 text-primary overflow-x-auto [&_.katex]:text-[1.05em]">
+                              <MathText>{`$$${stripFormulaDelimiters(f.formulaLatex)}$$`}</MathText>
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              {f.bitsQuestions?.length ?? 0} question
+                              {(f.bitsQuestions?.length ?? 0) !== 1 ? "s" : ""}
+                            </p>
                           </button>
                         ))}
                       </div>
-                    )}
-                  </TabsContent>
-
-                  {/* Tab 4: Concepts */}
-                  <TabsContent value="concepts" className="mt-0">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">
-                      Key Concepts
-                    </p>
-                    {conceptCards.length === 0 ? (
-                      <div className="py-6 text-center">
-                        <p className="text-sm text-muted-foreground">No concept cards yet for this subtopic.</p>
-                      </div>
                     ) : (
-                      <div
-                        ref={conceptsScrollRef}
-                        className="space-y-2 overflow-y-auto no-scrollbar pb-2"
-                        style={{ maxHeight: "calc(100vh - 220px)" }}
-                        onMouseEnter={() => { conceptsHoveredRef.current = true; }}
-                        onMouseLeave={() => { conceptsHoveredRef.current = false; }}
-                      >
-                        {displayedConcepts.map((card) => (
-                          <div key={card.id} className="edu-card p-3 rounded-xl border border-border/60">
-                            <p className="text-xs font-bold text-primary mb-1">
-                              <MathText>{card.frontContent}</MathText>
-                            </p>
-                            <p className="text-xs text-foreground/80">
-                              <MathText>{card.backContent}</MathText>
-                            </p>
-                          </div>
-                        ))}
-                        
-                        {totalConceptPages > 1 && (
-                          <div className="flex items-center justify-between pt-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                setConceptsPage((p) => {
-                                  const np = Math.max(0, p - 1);
-                                  setViewedConceptPages((prev) => new Set(prev).add(np));
-                                  return np;
-                                });
-                              }}
-                              disabled={conceptsPage === 0}
-                              className="text-xs h-8 px-3 rounded-lg"
-                            >
-                              Previous
-                            </Button>
-                            <span className="text-xs text-muted-foreground font-medium">
-                              Page {conceptsPage + 1} of {totalConceptPages}
-                            </span>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                setConceptsPage((p) => {
-                                  const np = Math.min(totalConceptPages - 1, p + 1);
-                                  setViewedConceptPages((prev) => new Set(prev).add(np));
-                                  return np;
-                                });
-                              }}
-                              disabled={conceptsPage >= totalConceptPages - 1}
-                              className="text-xs h-8 px-3 rounded-lg"
-                            >
-                              Next
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </TabsContent>
-                </Tabs>
-              )}
-
-              {/* Formulas Dialog — opened programmatically from Numerals tab */}
-                      <Dialog
-                        open={formulasDialogOpen}
-                        onOpenChange={(open) => {
-                          // #region agent log
-                          fetch('http://127.0.0.1:7826/ingest/70e4f01b-2a33-46c4-8228-3ea27639475c',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'548b33'},body:JSON.stringify({sessionId:'548b33',runId:'pre-fix',hypothesisId:'H2',location:'page.tsx:4555',message:'formula dialog onOpenChange',data:{open,selectedFormulaIdx,formulasDialogOpenBefore:formulasDialogOpen},timestamp:Date.now()})}).catch(()=>{});
-                          // #endregion
-                          setFormulasDialogOpen(open);
-                          if (!open) {
-                            if (selectedFormulaIdx !== null) {
-                              setFormulaByIdx((prev) => ({
-                                ...prev,
-                                [selectedFormulaIdx]: {
-                                  qIdx: formulaBitsCurrentIdx,
-                                  answers: { ...formulaBitsSelectedAnswers },
-                                },
-                              }));
-                            }
-                            setSelectedFormulaIdx(null);
-                            setFormulaBitsCurrentIdx(0);
-                            setFormulaBitsSelectedAnswers({});
-                            setFormulaQuestionsOverride({});
-                          }
-                        }}
-                      >
-                        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-                          <DialogHeader>
-                            <DialogTitle>
-                              {selectedFormulaIdx === null
-                                ? "Which formula do you want to practice?"
-                                : practiceFormulasForUi[selectedFormulaIdx]?.name ?? "Practice Formula"}
-                            </DialogTitle>
-                            <DialogDescription asChild>
-                              <div className="text-sm text-muted-foreground">
-                                {selectedFormulaIdx === null ? (
-                                  <>
-                                    <span className="text-muted-foreground">Formulas from </span>
-                                    <MathText className="inline text-foreground [&_.katex]:text-[1em]">
-                                      {displaySubtopicTitle}
-                                    </MathText>
-                                  </>
-                                ) : (
-                                  "Practice questions in the same Bits structure"
-                                )}
-                              </div>
-                            </DialogDescription>
-                          </DialogHeader>
-                          {practiceFormulasForUi.length === 0 ? (
-                            <div className="py-6 text-center">
-                              <p className="text-sm text-muted-foreground mb-3">No formulas generated yet for this subtopic.</p>
-                      {canEditTheory ? (
-                              <p className="text-xs text-muted-foreground">
-                                First run <span className="font-semibold text-foreground">Generate Deep Dive</span>, then{" "}
-                          <span className="font-semibold text-foreground">Generate Practice Formulas</span> to generate
-                          formula practice.
-                              </p>
-                      ) : (
-                        <p className="text-xs text-muted-foreground">Formula practice for this lesson is not available yet.</p>
-                      )}
+                      (() => {
+                        const formula = practiceFormulasForUi[selectedFormulaIdx];
+                        if (!formula) return null;
+                        const formulaQuestions =
+                          formulaQuestionsOverride[selectedFormulaIdx] ??
+                          formula.bitsQuestions ??
+                          [];
+                        const q = formulaQuestions[formulaBitsCurrentIdx];
+                        if (!q) {
+                          return (
+                            <div className="py-6 text-center text-sm text-muted-foreground">
+                              No practice questions available for this formula.
                             </div>
-                          ) : selectedFormulaIdx === null ? (
-                            <div className="space-y-4">
-                              {practiceFormulasForUi.map((f, fi) => (
-                                <button
-                                  key={fi}
-                                  type="button"
-                                  className="w-full text-left rounded-2xl border border-border p-4 space-y-2 hover:border-primary/50 hover:bg-muted/20 transition-colors"
-                                  onClick={() => {
-                                    // #region agent log
-                                    fetch('http://127.0.0.1:7826/ingest/70e4f01b-2a33-46c4-8228-3ea27639475c',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'548b33'},body:JSON.stringify({sessionId:'548b33',runId:'pre-fix',hypothesisId:'H4',location:'page.tsx:4616',message:'formula chooser option clicked',data:{formulaIdx:fi,formulaName:f.name},timestamp:Date.now()})}).catch(()=>{});
-                                    // #endregion
-                                    const merged: Record<number, { qIdx: number; answers: Record<number, number> }> = {
-                                      ...formulaByIdx,
-                                    };
-                                    if (selectedFormulaIdx !== null) {
-                                      merged[selectedFormulaIdx] = {
-                                        qIdx: formulaBitsCurrentIdx,
-                                        answers: { ...formulaBitsSelectedAnswers },
-                                      };
-                                    }
-                                    const d = merged[fi];
-                                    setFormulaByIdx(merged);
-                                    setSelectedFormulaIdx(fi);
-                                    setFormulaBitsCurrentIdx(d?.qIdx ?? 0);
-                                    setFormulaBitsSelectedAnswers(d?.answers ? { ...d.answers } : {});
-                                  }}
-                                >
-                                  <p className="text-lg font-bold text-foreground">{f.name}</p>
-                                  <p className="text-sm text-muted-foreground [&_.katex]:text-[0.95em]">
-                                    <MathText>{f.description}</MathText>
-                                  </p>
-                                  <div className="rounded-lg bg-muted/60 px-3 py-2 text-primary overflow-x-auto [&_.katex]:text-[1.05em]">
-                                    <MathText>{`$$${stripFormulaDelimiters(f.formulaLatex)}$$`}</MathText>
-                                  </div>
-                                  <p className="text-sm text-muted-foreground">
-                                    {f.bitsQuestions?.length ?? 0} question{(f.bitsQuestions?.length ?? 0) !== 1 ? "s" : ""}
-                                  </p>
-                                </button>
-                              ))}
-                            </div>
-                          ) : (
-                            (() => {
-                              const formula = practiceFormulasForUi[selectedFormulaIdx];
-                              if (!formula) return null;
-                              const formulaQuestions = formulaQuestionsOverride[selectedFormulaIdx] ?? formula.bitsQuestions ?? [];
-                              const q = formulaQuestions[formulaBitsCurrentIdx];
-                              if (!q) {
-                                return (
-                                  <div className="py-6 text-center text-sm text-muted-foreground">
-                                    No practice questions available for this formula.
-                                  </div>
-                                );
-                              }
-                              const selected = formulaBitsSelectedAnswers[formulaBitsCurrentIdx];
-                              const answered = typeof selected === "number";
-                              const isCorrectSelection = answered && q.options[selected] === q.correctAnswer;
-                              const useTwoColumns = shouldUseTwoColumnOptions(q.options);
+                          );
+                        }
+                        const selected = formulaBitsSelectedAnswers[formulaBitsCurrentIdx];
+                        const answered = typeof selected === "number";
+                        const isCorrectSelection =
+                          answered && q.options[selected] === q.correctAnswer;
+                        const useTwoColumns = shouldUseTwoColumnOptions(q.options);
 
-                              return (
-                                <div className="space-y-4">
-                                  <button
-                                    type="button"
-                                    className="inline-flex items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-foreground"
-                                    onClick={() => {
-                                      if (selectedFormulaIdx !== null) {
-                                        setFormulaByIdx((prev) => ({
+                        return (
+                          <div className="space-y-4">
+                            <button
+                              type="button"
+                              className="inline-flex items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-foreground"
+                              onClick={() => {
+                                if (selectedFormulaIdx !== null) {
+                                  setFormulaByIdx((prev) => ({
+                                    ...prev,
+                                    [selectedFormulaIdx]: {
+                                      qIdx: formulaBitsCurrentIdx,
+                                      answers: { ...formulaBitsSelectedAnswers },
+                                    },
+                                  }));
+                                }
+                                setSelectedFormulaIdx(null);
+                                setFormulaBitsCurrentIdx(0);
+                                setFormulaBitsSelectedAnswers({});
+                              }}
+                            >
+                              <ArrowLeft className="w-4 h-4" />
+                              Back to Formulas
+                            </button>
+                            <p className="text-sm text-muted-foreground [&_.katex]:text-[0.95em]">
+                              <MathText>{formula.description}</MathText>
+                            </p>
+                            <div className="rounded-lg bg-muted/60 px-3 py-2 text-primary overflow-x-auto [&_.katex]:text-[1.05em]">
+                              <MathText>{`$$${stripFormulaDelimiters(formula.formulaLatex)}$$`}</MathText>
+                            </div>
+
+                            <div className="flex items-center gap-1.5">
+                              <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-blue-500/15 text-blue-700 dark:text-blue-300">
+                                {topicNode?.subject ?? "Subject"}
+                              </span>
+                              <span className="text-xs font-medium text-foreground/80">
+                                {topicNode?.topic ?? "Topic"}
+                              </span>
+                            </div>
+
+                            <div className="rounded-2xl border border-border p-4 space-y-3 bg-card">
+                              <h3 className="text-[1.05rem] font-bold leading-snug text-foreground">
+                                <MathText>{normalizeQuizDisplayMath(q.question)}</MathText>
+                              </h3>
+                              <div
+                                className={
+                                  useTwoColumns
+                                    ? "grid grid-cols-1 sm:grid-cols-2 gap-2"
+                                    : "space-y-2"
+                                }
+                                role="radiogroup"
+                                aria-label={`Formula answers for question ${formulaBitsCurrentIdx + 1}`}
+                              >
+                                {q.options.map((opt, oi) => {
+                                  const isCorrect = opt === q.correctAnswer;
+                                  let cls =
+                                    "bg-muted/70 hover:bg-muted text-foreground border-border";
+                                  if (answered) {
+                                    if (isCorrect)
+                                      cls = "bg-green-500/12 border-green-500 text-foreground";
+                                    else if (selected === oi && !isCorrectSelection)
+                                      cls = "bg-destructive/10 border-destructive text-foreground";
+                                    else cls = "bg-muted/60 text-muted-foreground border-border";
+                                  }
+                                  return (
+                                    <button
+                                      key={oi}
+                                      type="button"
+                                      disabled={answered}
+                                      onClick={() =>
+                                        setFormulaBitsSelectedAnswers((prev) => ({
                                           ...prev,
-                                          [selectedFormulaIdx]: {
-                                            qIdx: formulaBitsCurrentIdx,
-                                            answers: { ...formulaBitsSelectedAnswers },
-                                          },
-                                        }));
+                                          [formulaBitsCurrentIdx]: oi,
+                                        }))
                                       }
-                                      setSelectedFormulaIdx(null);
-                                      setFormulaBitsCurrentIdx(0);
-                                      setFormulaBitsSelectedAnswers({});
+                                      className={`w-full text-left px-3 py-2 rounded-xl text-sm border transition-colors flex items-center gap-2.5 ${cls}`}
+                                    >
+                                      <span className="w-7 h-7 rounded-full bg-background/90 flex items-center justify-center text-sm shrink-0 font-bold">
+                                        {String.fromCharCode(65 + oi)}
+                                      </span>
+                                      <MathText>{normalizeQuizDisplayMath(opt)}</MathText>
+                                      {answered && isCorrect && (
+                                        <CheckCircle2 className="inline w-4 h-4 ml-auto text-green-600" />
+                                      )}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                              {answered && q.solution && (
+                                <div className="mt-2 p-3 rounded-xl bg-muted/50 text-sm text-muted-foreground">
+                                  <p className="font-bold text-foreground mb-1">Explanation</p>
+                                  <MathText>{normalizeQuizDisplayMath(q.solution)}</MathText>
+                                </div>
+                              )}
+                              <div className="space-y-2 pt-1">
+                                <div className="flex items-center justify-between gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="rounded-full h-9 px-3 text-xs min-w-24"
+                                    onClick={() =>
+                                      setFormulaBitsCurrentIdx((i) => Math.max(0, i - 1))
+                                    }
+                                    disabled={formulaBitsCurrentIdx === 0}
+                                  >
+                                    <ChevronLeft className="w-4 h-4 mr-1" /> Previous
+                                  </Button>
+                                  <span className="text-xs font-semibold text-muted-foreground">
+                                    Question {formulaBitsCurrentIdx + 1} of{" "}
+                                    {formulaQuestions.length}
+                                  </span>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="rounded-full h-9 px-3 text-xs min-w-24"
+                                    onClick={() =>
+                                      setFormulaBitsCurrentIdx((i) =>
+                                        Math.min(formulaQuestions.length - 1, i + 1)
+                                      )
+                                    }
+                                    disabled={formulaBitsCurrentIdx === formulaQuestions.length - 1}
+                                  >
+                                    Next <ChevronRight className="w-4 h-4 ml-1" />
+                                  </Button>
+                                </div>
+                                <div className="mx-auto grid w-full max-w-[620px] grid-cols-1 gap-2 sm:grid-cols-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="rounded-full h-10 gap-2 font-semibold border-emerald-600/45 bg-emerald-500/12 text-emerald-950 ring-2 ring-emerald-500/35 shadow-[0_0_18px_rgba(16,185,129,0.18)] hover:bg-emerald-500/20 hover:border-emerald-600/60 dark:border-emerald-400/60 dark:text-emerald-50 dark:ring-emerald-400/40 dark:hover:border-emerald-400/80"
+                                    onClick={() => {
+                                      if (!topicNode || !subtopicName || !currentFormulaQuestion)
+                                        return;
+                                      if (savedFormulaIdForCurrentQuestion) {
+                                        unsaveFormula(savedFormulaIdForCurrentQuestion);
+                                        persistSavedContent();
+                                        toast({ title: "Removed from Saved Formulas" });
+                                        return;
+                                      }
+                                      const { formula: activeFormula, question: activeQuestion } =
+                                        currentFormulaQuestion;
+                                      const payload: SavedFormula = {
+                                        id: `formula-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+                                        name: activeFormula.name,
+                                        formulaLatex: activeFormula.formulaLatex,
+                                        description: activeFormula.description,
+                                        bitsQuestions: [
+                                          {
+                                            question: activeQuestion.question,
+                                            options: activeQuestion.options,
+                                            correctAnswer: getCorrectOptionIndex(activeQuestion),
+                                            solution: activeQuestion.solution,
+                                          },
+                                        ],
+                                        subject: topicNode.subject,
+                                        topic: topicNode.topic,
+                                        subtopicName,
+                                        classLevel: topicNode.classLevel,
+                                        unitName: topicNode.topic,
+                                        level: difficultyLevel,
+                                        board: (board === "icse" ? "ICSE" : "CBSE") as Board,
+                                        sectionIndex: subtopicIndex,
+                                      };
+                                      saveFormula(payload);
+                                      persistSavedContent();
+                                      toast({ title: "Saved to Saved Formulas" });
                                     }}
                                   >
-                                    <ArrowLeft className="w-4 h-4" />
-                                    Back to Formulas
-                                  </button>
-                                  <p className="text-sm text-muted-foreground [&_.katex]:text-[0.95em]">
-                                    <MathText>{formula.description}</MathText>
-                                  </p>
-                                  <div className="rounded-lg bg-muted/60 px-3 py-2 text-primary overflow-x-auto [&_.katex]:text-[1.05em]">
-                                    <MathText>{`$$${stripFormulaDelimiters(formula.formulaLatex)}$$`}</MathText>
-                                  </div>
-
-                                  <div className="flex items-center gap-1.5">
-                                    <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-blue-500/15 text-blue-700 dark:text-blue-300">
-                                      {topicNode?.subject ?? "Subject"}
-                                    </span>
-                                    <span className="text-xs font-medium text-foreground/80">
-                                      {topicNode?.topic ?? "Topic"}
-                                    </span>
-                                  </div>
-
-                                  <div className="rounded-2xl border border-border p-4 space-y-3 bg-card">
-                                    <h3 className="text-[1.05rem] font-bold leading-snug text-foreground">
-                                      <MathText>{normalizeQuizDisplayMath(q.question)}</MathText>
-                                    </h3>
-                                    <div
-                                      className={useTwoColumns ? "grid grid-cols-1 sm:grid-cols-2 gap-2" : "space-y-2"}
-                                      role="radiogroup"
-                                      aria-label={`Formula answers for question ${formulaBitsCurrentIdx + 1}`}
-                                    >
-                                      {q.options.map((opt, oi) => {
-                                        const isCorrect = opt === q.correctAnswer;
-                                        let cls = "bg-muted/70 hover:bg-muted text-foreground border-border";
-                                        if (answered) {
-                                          if (isCorrect) cls = "bg-green-500/12 border-green-500 text-foreground";
-                                          else if (selected === oi && !isCorrectSelection) cls = "bg-destructive/10 border-destructive text-foreground";
-                                          else cls = "bg-muted/60 text-muted-foreground border-border";
-                                        }
-                                        return (
-                                          <button
-                                            key={oi}
-                                            type="button"
-                                            disabled={answered}
-                                            onClick={() =>
-                                              setFormulaBitsSelectedAnswers((prev) => ({
-                                                ...prev,
-                                                [formulaBitsCurrentIdx]: oi,
-                                              }))
-                                            }
-                                            className={`w-full text-left px-3 py-2 rounded-xl text-sm border transition-colors flex items-center gap-2.5 ${cls}`}
-                                          >
-                                            <span className="w-7 h-7 rounded-full bg-background/90 flex items-center justify-center text-sm shrink-0 font-bold">
-                                              {String.fromCharCode(65 + oi)}
-                                            </span>
-                                            <MathText>{normalizeQuizDisplayMath(opt)}</MathText>
-                                            {answered && isCorrect && (
-                                              <CheckCircle2 className="inline w-4 h-4 ml-auto text-green-600" />
-                                            )}
-                                          </button>
+                                    <Bookmark
+                                      className={`w-4 h-4 ${savedFormulaIdForCurrentQuestion ? "fill-current" : ""}`}
+                                    />
+                                    {savedFormulaIdForCurrentQuestion ? "Saved" : "Save"}
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    disabled
+                                    title="Regenerate is coming soon"
+                                    className="rounded-full h-10 gap-2 font-semibold border-amber-400/70 text-amber-100 bg-amber-500/15 ring-2 ring-amber-400/45 shadow-[0_0_18px_rgba(251,191,36,0.2)] hover:bg-amber-500/15 disabled:opacity-100 disabled:pointer-events-none cursor-not-allowed"
+                                    onClick={async () => {
+                                      const next = regenerateFormulaBitsAlgorithmic(
+                                        formula.name,
+                                        formula.bitsQuestions ?? []
+                                      );
+                                      if (next.length > 0) {
+                                        const updatedFormulas = practiceFormulasForUi.map((f, i) =>
+                                          i === selectedFormulaIdx
+                                            ? { ...f, bitsQuestions: next }
+                                            : f
                                         );
-                                      })}
-                                    </div>
-                                    {answered && q.solution && (
-                                      <div className="mt-2 p-3 rounded-xl bg-muted/50 text-sm text-muted-foreground">
-                                        <p className="font-bold text-foreground mb-1">Explanation</p>
-                                        <MathText>{normalizeQuizDisplayMath(q.solution)}</MathText>
-                                      </div>
-                                    )}
-                                    <div className="space-y-2 pt-1">
-                                      <div className="flex items-center justify-between gap-2">
-                                        <Button
-                                          variant="outline"
-                                          size="sm"
-                                          className="rounded-full h-9 px-3 text-xs min-w-24"
-                                          onClick={() => setFormulaBitsCurrentIdx((i) => Math.max(0, i - 1))}
-                                          disabled={formulaBitsCurrentIdx === 0}
-                                        >
-                                          <ChevronLeft className="w-4 h-4 mr-1" /> Previous
-                                        </Button>
-                                        <span className="text-xs font-semibold text-muted-foreground">
-                                          Question {formulaBitsCurrentIdx + 1} of {formulaQuestions.length}
-                                        </span>
-                                        <Button
-                                          variant="outline"
-                                          size="sm"
-                                          className="rounded-full h-9 px-3 text-xs min-w-24"
-                                          onClick={() => setFormulaBitsCurrentIdx((i) => Math.min(formulaQuestions.length - 1, i + 1))}
-                                          disabled={formulaBitsCurrentIdx === formulaQuestions.length - 1}
-                                        >
-                                          Next <ChevronRight className="w-4 h-4 ml-1" />
-                                        </Button>
-                                      </div>
-                                      <div className="mx-auto grid w-full max-w-[620px] grid-cols-1 gap-2 sm:grid-cols-2">
-                                        <Button
-                                          variant="outline"
-                                          size="sm"
-                                          className="rounded-full h-10 gap-2 font-semibold border-emerald-600/45 bg-emerald-500/12 text-emerald-950 ring-2 ring-emerald-500/35 shadow-[0_0_18px_rgba(16,185,129,0.18)] hover:bg-emerald-500/20 hover:border-emerald-600/60 dark:border-emerald-400/60 dark:text-emerald-50 dark:ring-emerald-400/40 dark:hover:border-emerald-400/80"
-                                          onClick={() => {
-                                            if (!topicNode || !subtopicName || !currentFormulaQuestion) return;
-                                            if (savedFormulaIdForCurrentQuestion) {
-                                              unsaveFormula(savedFormulaIdForCurrentQuestion);
-                                              persistSavedContent();
-                                              toast({ title: "Removed from Saved Formulas" });
-                                              return;
-                                            }
-                                            const { formula: activeFormula, question: activeQuestion } = currentFormulaQuestion;
-                                            const payload: SavedFormula = {
-                                              id: `formula-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-                                              name: activeFormula.name,
-                                              formulaLatex: activeFormula.formulaLatex,
-                                              description: activeFormula.description,
-                                              bitsQuestions: [{
-                                                question: activeQuestion.question,
-                                                options: activeQuestion.options,
-                                                correctAnswer: getCorrectOptionIndex(activeQuestion),
-                                                solution: activeQuestion.solution,
-                                              }],
-                                              subject: topicNode.subject,
+                                        setFormulaQuestionsOverride((prev) => ({
+                                          ...prev,
+                                          [selectedFormulaIdx]: next,
+                                        }));
+                                        setDbPracticeFormulas(updatedFormulas);
+                                        setFormulaBitsCurrentIdx(0);
+                                        setFormulaBitsSelectedAnswers({});
+                                        try {
+                                          if (topicNode && subtopicName) {
+                                            await saveFormulaPractice({
+                                              board: (board === "icse" ? "ICSE" : "CBSE") as Board,
+                                              subject: topicNode.subject as Subject,
+                                              classLevel: topicNode.classLevel as 11 | 12,
                                               topic: topicNode.topic,
                                               subtopicName,
-                                              classLevel: topicNode.classLevel,
-                                              unitName: topicNode.topic,
                                               level: difficultyLevel,
-                                              board: (board === "icse" ? "ICSE" : "CBSE") as Board,
-                                              sectionIndex: subtopicIndex,
-                                            };
-                                            saveFormula(payload);
-                                            persistSavedContent();
-                                            toast({ title: "Saved to Saved Formulas" });
-                                          }}
-                                        >
-                                          <Bookmark className={`w-4 h-4 ${savedFormulaIdForCurrentQuestion ? "fill-current" : ""}`} />
-                                          {savedFormulaIdForCurrentQuestion ? "Saved" : "Save"}
-                                        </Button>
-                                        <Button
-                                          variant="outline"
-                                          size="sm"
-                                          disabled
-                                          title="Regenerate is coming soon"
-                                          className="rounded-full h-10 gap-2 font-semibold border-amber-400/70 text-amber-100 bg-amber-500/15 ring-2 ring-amber-400/45 shadow-[0_0_18px_rgba(251,191,36,0.2)] hover:bg-amber-500/15 disabled:opacity-100 disabled:pointer-events-none cursor-not-allowed"
-                                          onClick={async () => {
-                                            const next = regenerateFormulaBitsAlgorithmic(
-                                              formula.name,
-                                              formula.bitsQuestions ?? []
-                                            );
-                                            if (next.length > 0) {
-                                              const updatedFormulas = practiceFormulasForUi.map((f, i) =>
-                                                i === selectedFormulaIdx ? { ...f, bitsQuestions: next } : f
-                                              );
-                                              setFormulaQuestionsOverride((prev) => ({
-                                                ...prev,
-                                                [selectedFormulaIdx]: next,
-                                              }));
-                                              setDbPracticeFormulas(updatedFormulas);
-                                              setFormulaBitsCurrentIdx(0);
-                                              setFormulaBitsSelectedAnswers({});
-                                              try {
-                                                if (topicNode && subtopicName) {
-                                                  await saveFormulaPractice({
-                                                    board: (board === "icse" ? "ICSE" : "CBSE") as Board,
-                                                    subject: topicNode.subject as Subject,
-                                                    classLevel: topicNode.classLevel as 11 | 12,
-                                                    topic: topicNode.topic,
-                                                    subtopicName,
-                                                    level: difficultyLevel,
-                                                    practiceFormulas: updatedFormulas,
-                                                  });
-                                                }
-                                                toast({
-                                                  title: "Regenerated and saved",
-                                                  description: "Stored in Supabase. Reopening will show this updated set.",
-                                                });
-                                              } catch (e) {
-                                                toast({
-                                                  title: e instanceof Error ? e.message : "Save failed",
-                                                  description: "Regenerated locally, but Supabase save failed.",
-                                                  variant: "destructive",
-                                                });
-                                              }
-                                            }
-                                          }}
-                                        >
-                                          <RefreshCw className="w-4 h-4 opacity-80" />
-                                          Regenerate (coming soon)
-                                        </Button>
-                                      </div>
-                                    </div>
-                                  </div>
+                                              practiceFormulas: updatedFormulas,
+                                            });
+                                          }
+                                          toast({
+                                            title: "Regenerated and saved",
+                                            description:
+                                              "Stored in Supabase. Reopening will show this updated set.",
+                                          });
+                                        } catch (e) {
+                                          toast({
+                                            title: e instanceof Error ? e.message : "Save failed",
+                                            description:
+                                              "Regenerated locally, but Supabase save failed.",
+                                            variant: "destructive",
+                                          });
+                                        }
+                                      }
+                                    }}
+                                  >
+                                    <RefreshCw className="w-4 h-4 opacity-80" />
+                                    Regenerate (coming soon)
+                                  </Button>
                                 </div>
-                              );
-                            })()
-                          )}
-                        </DialogContent>
-                      </Dialog>
-                    </div>
-          </aside>
-              )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()
+                    )}
+                  </DialogContent>
+                </Dialog>
+              </div>
+            </aside>
+          )}
         </div>
       </div>
       <SubjectChatbot

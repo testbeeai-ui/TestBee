@@ -44,8 +44,8 @@ export default function PremiumFeatureDialog({
             Premium Feature
           </DialogTitle>
           <DialogDescription>
-            For premium users this feature is unlimited. Do you want to take
-            premium, or do you want to proceed for 2 RDM?
+            For premium users this feature is unlimited. Do you want to take premium, or do you want
+            to proceed for 2 RDM?
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col sm:flex-row gap-2 sm:justify-end pt-2">

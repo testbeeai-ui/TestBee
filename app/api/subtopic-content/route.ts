@@ -26,7 +26,9 @@ function parseQuery(url: string): QueryParams | null {
   return { board, subject, classLevel: classLevelRaw, topic, subtopicName, level };
 }
 
-function normalizeReferences(raw: unknown): { type: string; title: string; url: string; description?: string }[] {
+function normalizeReferences(
+  raw: unknown
+): { type: string; title: string; url: string; description?: string }[] {
   if (!Array.isArray(raw)) return [];
   const out: { type: string; title: string; url: string; description?: string }[] = [];
   for (const item of raw) {
@@ -45,11 +47,18 @@ function normalizeReferences(raw: unknown): { type: string; title: string; url: 
 function legacySanitizeForLookup(value: string): string {
   // Legacy generator builds replaced "<" / ">" with spaces before persisting.
   // Keep fallback lookup for already-saved rows.
-  return value.replace(/[<>\x00-\x1F\x7F]/g, " ").replace(/\s+/g, " ").trim();
+  return value
+    .replace(/[<>\x00-\x1F\x7F]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function looseCollisionKey(value: string): string {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 export async function GET(request: Request) {
@@ -65,7 +74,9 @@ export async function GET(request: Request) {
     const { supabase, user } = ctx;
     const baseQuery = supabase
       .from("subtopic_content")
-      .select("theory, reading_references, did_you_know, instacue_cards, bits_questions, practice_formulas")
+      .select(
+        "theory, reading_references, did_you_know, instacue_cards, bits_questions, practice_formulas"
+      )
       .eq("board", params.board)
       .eq("subject", params.subject)
       .eq("class_level", params.classLevel)
@@ -80,7 +91,9 @@ export async function GET(request: Request) {
       if (legacyTopic !== params.topic || legacySubtopic !== params.subtopicName) {
         const fallback = await supabase
           .from("subtopic_content")
-          .select("theory, reading_references, did_you_know, instacue_cards, bits_questions, practice_formulas")
+          .select(
+            "theory, reading_references, did_you_know, instacue_cards, bits_questions, practice_formulas"
+          )
           .eq("board", params.board)
           .eq("subject", params.subject)
           .eq("class_level", params.classLevel)
@@ -129,7 +142,9 @@ export async function GET(request: Request) {
       // Final collision fallback: search sibling rows and pick the closest key match.
       const candidates = await supabase
         .from("subtopic_content")
-        .select("topic, subtopic_name, updated_at, theory, reading_references, did_you_know, instacue_cards, bits_questions, practice_formulas")
+        .select(
+          "topic, subtopic_name, updated_at, theory, reading_references, did_you_know, instacue_cards, bits_questions, practice_formulas"
+        )
         .eq("board", params.board)
         .eq("subject", params.subject)
         .eq("class_level", params.classLevel)
@@ -162,11 +177,15 @@ export async function GET(request: Request) {
               subtopic_name: params.subtopicName,
               level: params.level,
               theory: match.theory ?? "",
-              reading_references: Array.isArray(match.reading_references) ? match.reading_references : [],
+              reading_references: Array.isArray(match.reading_references)
+                ? match.reading_references
+                : [],
               did_you_know: match.did_you_know ?? "",
               instacue_cards: Array.isArray(match.instacue_cards) ? match.instacue_cards : [],
               bits_questions: Array.isArray(match.bits_questions) ? match.bits_questions : [],
-              practice_formulas: Array.isArray(match.practice_formulas) ? match.practice_formulas : [],
+              practice_formulas: Array.isArray(match.practice_formulas)
+                ? match.practice_formulas
+                : [],
               updated_by: user.id,
               updated_at: new Date().toISOString(),
             },

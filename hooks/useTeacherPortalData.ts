@@ -1,0 +1,365 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import type { AssignmentTaskStored } from "@/lib/classroom/assignmentTasks";
+import type { Json } from "@/integrations/supabase/types";
+import {
+  createClassroomAssignment,
+  createTeacherLiveSession,
+  createMotivationAction,
+  createRewardTopStudentsAction,
+  createTeacherClassroom,
+  deleteTeacherClassroom,
+  loadTeacherPortalBundle,
+  updateTeacherClassroom,
+  postTeacherSection,
+  updateTeacherProfile,
+} from "@/lib/teacherPortal/queries";
+import type {
+  TeacherPortalChapterQuizRef,
+  TeacherPortalDailyDoseStreakRef,
+  TeacherPortalDataBundle,
+  TeacherPortalGyanEngagementRef,
+  TeacherPortalMockPaperRef,
+} from "@/lib/teacherPortal/types";
+
+interface UseTeacherPortalDataResult {
+  data: TeacherPortalDataBundle | null;
+  loading: boolean;
+  error: string | null;
+  /** Pass `{ silent: true }` to reload data without toggling the full-page loading state (for polling). */
+  refresh: (opts?: { silent?: boolean }) => Promise<void>;
+  submitTeacherSection: (input: {
+    doubtId: string;
+    teacherId: string;
+    body: string;
+  }) => Promise<void>;
+  saveProfile: (input: {
+    userId: string;
+    name: string;
+    bio: string;
+    visibility: string;
+    subjects: string[];
+    examTags: string[];
+    teachingLevels: number[];
+    details?: {
+      location?: string;
+      qualification?: string;
+      experience?: string;
+      email?: string;
+      phone?: string;
+      youtubeOrSocial?: string;
+      docs?: {
+        aadharPhotoUrl?: string;
+        aadharShareLink?: string;
+        instituteCertificatePhotoUrl?: string;
+        instituteCertificateShareLink?: string;
+      };
+    };
+  }) => Promise<void>;
+  createClassroom: (input: {
+    userId: string;
+    name: string;
+    subject: string;
+    pucLevel: "PUC 1" | "PUC 2" | "Both";
+    examTarget: string;
+    scheduleDate: string | null;
+    scheduleTime: string | null;
+    durationMinutes: number;
+    repeatDays: string[];
+    allowAdhocTrial: boolean;
+  }) => Promise<void>;
+  createAssignment: (input: {
+    teacherId: string;
+    classroomId: string;
+    assignmentType: string;
+    title: string;
+    dueDate: string | null;
+    assignToLabel: string;
+    rewardRdm: number;
+    instructions: string;
+    tasks?: AssignmentTaskStored[];
+    mockPaper?: TeacherPortalMockPaperRef | null;
+    chapterQuiz?: TeacherPortalChapterQuizRef | null;
+    dailyDoseStreak?: TeacherPortalDailyDoseStreakRef | null;
+    gyanEngagement?: TeacherPortalGyanEngagementRef | null;
+    extraContentJson?: Record<string, Json> | null;
+  }) => Promise<void>;
+  motivateStudents: (input: {
+    teacherId: string;
+    classroomId: string;
+    actionKind: "boost" | "nudge" | "urgent_nudge";
+    targetStudentIds: string[];
+    message: string;
+    rdmDelta: number;
+  }) => Promise<void>;
+  rewardTopStudents: (input: {
+    teacherId: string;
+    classroomId: string;
+    targetStudentIds: string[];
+    message: string;
+    rdmDelta: number;
+  }) => Promise<void>;
+  createSession: (input: {
+    teacherId: string;
+    classroomId: string;
+    title: string;
+    date: string;
+    startTime: string;
+    durationMinutes: number;
+    meetLink: string;
+    allowAdhocTrial: boolean;
+    preWork: string;
+    postWork: string;
+    preWorkMode?: "custom" | "concept_focus";
+    preWorkConceptRef?: {
+      board: string;
+      subject: "physics" | "chemistry" | "math";
+      classLevel: 11 | 12;
+      chapterTitle: string;
+      topic: string;
+      subtopicName: string;
+      level: "basics" | "intermediate" | "advanced";
+      advancedSet?: 1 | 2 | 3;
+    } | null;
+    postWorkMode?: "custom" | "concept_focus";
+    postWorkConceptRef?: {
+      board: string;
+      subject: "physics" | "chemistry" | "math";
+      classLevel: 11 | 12;
+      chapterTitle: string;
+      topic: string;
+      subtopicName: string;
+      level: "basics" | "intermediate" | "advanced";
+      advancedSet?: 1 | 2 | 3;
+    } | null;
+    postWorkDelayDays?: number;
+  }) => Promise<void>;
+  updateClassroom: (input: {
+    teacherId: string;
+    classroomId: string;
+    name: string;
+    subject: string | null;
+    section: string | null;
+  }) => Promise<void>;
+  deleteClassroom: (input: { teacherId: string; classroomId: string }) => Promise<void>;
+}
+
+export function useTeacherPortalData(
+  userId: string | null | undefined
+): UseTeacherPortalDataResult {
+  const [data, setData] = useState<TeacherPortalDataBundle | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(
+    async (opts?: { silent?: boolean }) => {
+      if (!userId) return;
+      const silent = Boolean(opts?.silent);
+      if (!silent) setLoading(true);
+      setError(null);
+      try {
+        const next = await loadTeacherPortalBundle(userId);
+        setData(next);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Could not load teacher portal.");
+      } finally {
+        if (!silent) setLoading(false);
+      }
+    },
+    [userId]
+  );
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  const submitTeacherSection = useCallback(
+    async (input: { doubtId: string; teacherId: string; body: string }) => {
+      await postTeacherSection(input);
+      await refresh();
+    },
+    [refresh]
+  );
+
+  const saveProfile = useCallback(
+    async (input: {
+      userId: string;
+      name: string;
+      bio: string;
+      visibility: string;
+      subjects: string[];
+      examTags: string[];
+      teachingLevels: number[];
+      details?: {
+        location?: string;
+        qualification?: string;
+        experience?: string;
+        email?: string;
+        phone?: string;
+        youtubeOrSocial?: string;
+        docs?: {
+          aadharPhotoUrl?: string;
+          aadharShareLink?: string;
+          instituteCertificatePhotoUrl?: string;
+          instituteCertificateShareLink?: string;
+        };
+      };
+    }) => {
+      await updateTeacherProfile(input);
+      await refresh();
+    },
+    [refresh]
+  );
+
+  const createClassroom = useCallback(
+    async (input: {
+      userId: string;
+      name: string;
+      subject: string;
+      pucLevel: "PUC 1" | "PUC 2" | "Both";
+      examTarget: string;
+      scheduleDate: string | null;
+      scheduleTime: string | null;
+      durationMinutes: number;
+      repeatDays: string[];
+      allowAdhocTrial: boolean;
+    }) => {
+      await createTeacherClassroom(input);
+      await refresh();
+    },
+    [refresh]
+  );
+
+  const createAssignment = useCallback(
+    async (input: {
+      teacherId: string;
+      classroomId: string;
+      assignmentType: string;
+      title: string;
+      dueDate: string | null;
+      assignToLabel: string;
+      rewardRdm: number;
+      instructions: string;
+      tasks?: AssignmentTaskStored[];
+      mockPaper?: TeacherPortalMockPaperRef | null;
+      chapterQuiz?: TeacherPortalChapterQuizRef | null;
+      dailyDoseStreak?: TeacherPortalDailyDoseStreakRef | null;
+      gyanEngagement?: TeacherPortalGyanEngagementRef | null;
+      extraContentJson?: Record<string, Json> | null;
+    }) => {
+      await createClassroomAssignment(input);
+      await refresh();
+    },
+    [refresh]
+  );
+
+  const motivateStudents = useCallback(
+    async (input: {
+      teacherId: string;
+      classroomId: string;
+      actionKind: "boost" | "nudge" | "urgent_nudge";
+      targetStudentIds: string[];
+      message: string;
+      rdmDelta: number;
+    }) => {
+      await createMotivationAction(input);
+      await refresh();
+    },
+    [refresh]
+  );
+
+  const rewardTopStudents = useCallback(
+    async (input: {
+      teacherId: string;
+      classroomId: string;
+      targetStudentIds: string[];
+      message: string;
+      rdmDelta: number;
+    }) => {
+      await createRewardTopStudentsAction(input);
+      await refresh();
+    },
+    [refresh]
+  );
+
+  const createSession = useCallback(
+    async (input: {
+      teacherId: string;
+      classroomId: string;
+      title: string;
+      date: string;
+      startTime: string;
+      durationMinutes: number;
+      meetLink: string;
+      allowAdhocTrial: boolean;
+      preWork: string;
+      postWork: string;
+      preWorkMode?: "custom" | "concept_focus";
+      preWorkConceptRef?: {
+        board: string;
+        subject: "physics" | "chemistry" | "math";
+        classLevel: 11 | 12;
+        chapterTitle: string;
+        topic: string;
+        subtopicName: string;
+        level: "basics" | "intermediate" | "advanced";
+        advancedSet?: 1 | 2 | 3;
+      } | null;
+      postWorkMode?: "custom" | "concept_focus";
+      postWorkConceptRef?: {
+        board: string;
+        subject: "physics" | "chemistry" | "math";
+        classLevel: 11 | 12;
+        chapterTitle: string;
+        topic: string;
+        subtopicName: string;
+        level: "basics" | "intermediate" | "advanced";
+        advancedSet?: 1 | 2 | 3;
+      } | null;
+      postWorkDelayDays?: number;
+    }) => {
+      await createTeacherLiveSession(input);
+      await refresh();
+    },
+    [refresh]
+  );
+
+  const updateClassroom = useCallback(
+    async (input: {
+      teacherId: string;
+      classroomId: string;
+      name: string;
+      subject: string | null;
+      section: string | null;
+    }) => {
+      await updateTeacherClassroom(input);
+      await refresh();
+    },
+    [refresh]
+  );
+
+  const deleteClassroom = useCallback(
+    async (input: { teacherId: string; classroomId: string }) => {
+      await deleteTeacherClassroom(input);
+      await refresh();
+    },
+    [refresh]
+  );
+
+  return {
+    data,
+    loading,
+    error,
+    refresh,
+    submitTeacherSection,
+    saveProfile,
+    createClassroom,
+    createAssignment,
+    motivateStudents,
+    rewardTopStudents,
+    createSession,
+    updateClassroom,
+    deleteClassroom,
+  };
+}

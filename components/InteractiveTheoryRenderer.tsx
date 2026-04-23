@@ -1,22 +1,28 @@
 "use client";
 
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import type { InteractiveBlock } from '@/data/topicTheory';
-import { CheckCircle2, XCircle } from 'lucide-react';
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import type { InteractiveBlock } from "@/data/topicTheory";
+import { CheckCircle2, XCircle } from "lucide-react";
 import MathText from "@/components/MathText";
 
 function renderMarkdown(text: string) {
   return text.split(/(\*\*[^*]+\*\*)/g).map((part, j) =>
-    part.startsWith('**') && part.endsWith('**') ? (
-      <strong key={j} className="font-semibold text-foreground">{part.slice(2, -2)}</strong>
+    part.startsWith("**") && part.endsWith("**") ? (
+      <strong key={j} className="font-semibold text-foreground">
+        {part.slice(2, -2)}
+      </strong>
     ) : (
       part
     )
   );
 }
 
-function ActiveReadingBlock({ block }: { block: Extract<InteractiveBlock, { type: 'active-reading' }> }) {
+function ActiveReadingBlock({
+  block,
+}: {
+  block: Extract<InteractiveBlock, { type: "active-reading" }>;
+}) {
   const [selected, setSelected] = useState<number | null>(null);
   const { preQuestion, content } = block;
   const answered = selected !== null;
@@ -35,12 +41,15 @@ function ActiveReadingBlock({ block }: { block: Extract<InteractiveBlock, { type
       <div className="space-y-2">
         <p className="text-xs font-medium text-foreground">Answer:</p>
         {preQuestion.options.map((opt, i) => {
-          let style = 'bg-muted hover:bg-muted/80 text-foreground';
+          let style = "bg-muted hover:bg-muted/80 text-foreground";
           if (answered) {
-            if (i === preQuestion.correctAnswer) style = 'bg-edu-green/15 border-2 border-edu-green text-foreground';
-            else if (i === selected && !isCorrect) style = 'bg-destructive/15 border-2 border-destructive text-foreground';
-            else style = 'bg-muted/50 text-muted-foreground';
-          } else if (i === selected) style = 'bg-primary/20 border-2 border-primary text-foreground';
+            if (i === preQuestion.correctAnswer)
+              style = "bg-edu-green/15 border-2 border-edu-green text-foreground";
+            else if (i === selected && !isCorrect)
+              style = "bg-destructive/15 border-2 border-destructive text-foreground";
+            else style = "bg-muted/50 text-muted-foreground";
+          } else if (i === selected)
+            style = "bg-primary/20 border-2 border-primary text-foreground";
           return (
             <button
               key={i}
@@ -53,20 +62,30 @@ function ActiveReadingBlock({ block }: { block: Extract<InteractiveBlock, { type
                 {String.fromCharCode(65 + i)}
               </span>
               {opt}
-              {answered && i === preQuestion.correctAnswer && <CheckCircle2 className="w-4 h-4 shrink-0 text-edu-green ml-auto" />}
-              {answered && i === selected && !isCorrect && <XCircle className="w-4 h-4 shrink-0 text-destructive ml-auto" />}
+              {answered && i === preQuestion.correctAnswer && (
+                <CheckCircle2 className="w-4 h-4 shrink-0 text-edu-green ml-auto" />
+              )}
+              {answered && i === selected && !isCorrect && (
+                <XCircle className="w-4 h-4 shrink-0 text-destructive ml-auto" />
+              )}
             </button>
           );
         })}
       </div>
       {answered && (
-        <div className="text-xs text-muted-foreground bg-muted/50 p-3 rounded-xl">{preQuestion.explanation}</div>
+        <div className="text-xs text-muted-foreground bg-muted/50 p-3 rounded-xl">
+          {preQuestion.explanation}
+        </div>
       )}
     </div>
   );
 }
 
-function FormulaVariationsBlock({ block }: { block: Extract<InteractiveBlock, { type: 'formula-variations' }> }) {
+function FormulaVariationsBlock({
+  block,
+}: {
+  block: Extract<InteractiveBlock, { type: "formula-variations" }>;
+}) {
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
   const [score, setScore] = useState(0);
@@ -118,12 +137,15 @@ function FormulaVariationsBlock({ block }: { block: Extract<InteractiveBlock, { 
       <p className="text-sm font-medium text-foreground">{v.question}</p>
       <div className="space-y-2">
         {v.options.map((opt, i) => {
-          let style = 'bg-muted hover:bg-muted/80 text-foreground';
+          let style = "bg-muted hover:bg-muted/80 text-foreground";
           if (answered) {
-            if (i === v.correctAnswer) style = 'bg-edu-green/15 border-2 border-edu-green text-foreground';
-            else if (i === selected && !isCorrect) style = 'bg-destructive/15 border-2 border-destructive text-foreground';
-            else style = 'bg-muted/50 text-muted-foreground';
-          } else if (i === selected) style = 'bg-primary/20 border-2 border-primary text-foreground';
+            if (i === v.correctAnswer)
+              style = "bg-edu-green/15 border-2 border-edu-green text-foreground";
+            else if (i === selected && !isCorrect)
+              style = "bg-destructive/15 border-2 border-destructive text-foreground";
+            else style = "bg-muted/50 text-muted-foreground";
+          } else if (i === selected)
+            style = "bg-primary/20 border-2 border-primary text-foreground";
           return (
             <button
               key={i}
@@ -136,15 +158,21 @@ function FormulaVariationsBlock({ block }: { block: Extract<InteractiveBlock, { 
                 {String.fromCharCode(65 + i)}
               </span>
               {opt}
-              {answered && i === v.correctAnswer && <CheckCircle2 className="w-4 h-4 shrink-0 text-edu-green ml-auto" />}
-              {answered && i === selected && !isCorrect && <XCircle className="w-4 h-4 shrink-0 text-destructive ml-auto" />}
+              {answered && i === v.correctAnswer && (
+                <CheckCircle2 className="w-4 h-4 shrink-0 text-edu-green ml-auto" />
+              )}
+              {answered && i === selected && !isCorrect && (
+                <XCircle className="w-4 h-4 shrink-0 text-destructive ml-auto" />
+              )}
             </button>
           );
         })}
       </div>
       {answered && (
         <>
-          <div className="text-xs text-muted-foreground bg-muted/50 p-3 rounded-xl">{v.explanation}</div>
+          <div className="text-xs text-muted-foreground bg-muted/50 p-3 rounded-xl">
+            {v.explanation}
+          </div>
           {!isLast ? (
             <Button size="sm" variant="outline" onClick={handleNext} className="rounded-xl">
               Next variation
@@ -160,8 +188,12 @@ function FormulaVariationsBlock({ block }: { block: Extract<InteractiveBlock, { 
   );
 }
 
-function FillInBlanksBlock({ block }: { block: Extract<InteractiveBlock, { type: 'fill-in-blanks' }> }) {
-  const [selections, setSelections] = useState<string[]>(block.blanks.map(() => ''));
+function FillInBlanksBlock({
+  block,
+}: {
+  block: Extract<InteractiveBlock, { type: "fill-in-blanks" }>;
+}) {
+  const [selections, setSelections] = useState<string[]>(block.blanks.map(() => ""));
   const [checked, setChecked] = useState(false);
 
   const handleSelect = (idx: number, val: string) => {
@@ -171,7 +203,7 @@ function FillInBlanksBlock({ block }: { block: Extract<InteractiveBlock, { type:
   };
 
   const correctCount = block.blanks.filter((b, i) => selections[i] === b.correctAnswer).length;
-  const allFilled = selections.every((s) => s !== '');
+  const allFilled = selections.every((s) => s !== "");
   const allCorrect = correctCount === block.blanks.length;
 
   const parts = block.textWithBlanks.split(/\{(\d+)\}/g);
@@ -190,9 +222,9 @@ function FillInBlanksBlock({ block }: { block: Extract<InteractiveBlock, { type:
           className={`mx-1 px-2 py-1 rounded border text-sm min-w-[80px] ${
             checked
               ? selections[idx] === blank.correctAnswer
-                ? 'border-edu-green bg-edu-green/10'
-                : 'border-destructive bg-destructive/10'
-              : 'border-border bg-background'
+                ? "border-edu-green bg-edu-green/10"
+                : "border-destructive bg-destructive/10"
+              : "border-border bg-background"
           }`}
         >
           <option value="">Choose...</option>
@@ -210,9 +242,7 @@ function FillInBlanksBlock({ block }: { block: Extract<InteractiveBlock, { type:
   return (
     <div className="space-y-4 rounded-xl border border-border bg-card p-4">
       <p className="text-sm text-muted-foreground">{block.content}</p>
-      <div className="text-sm text-foreground leading-relaxed">
-        {rendered}
-      </div>
+      <div className="text-sm text-foreground leading-relaxed">{rendered}</div>
       {!checked ? (
         <Button
           size="sm"
@@ -240,7 +270,7 @@ function FillInBlanksBlock({ block }: { block: Extract<InteractiveBlock, { type:
   );
 }
 
-function TextBlock({ block }: { block: Extract<InteractiveBlock, { type: 'text' }> }) {
+function TextBlock({ block }: { block: Extract<InteractiveBlock, { type: "text" }> }) {
   return (
     <div className="space-y-2 rounded-xl border border-border bg-card p-4">
       <div className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
@@ -259,10 +289,10 @@ export default function InteractiveTheoryRenderer({ blocks }: { blocks: Interact
     <div className="space-y-4">
       {blocks.map((block) => (
         <div key={block.id}>
-          {block.type === 'active-reading' && <ActiveReadingBlock block={block} />}
-          {block.type === 'formula-variations' && <FormulaVariationsBlock block={block} />}
-          {block.type === 'fill-in-blanks' && <FillInBlanksBlock block={block} />}
-          {block.type === 'text' && <TextBlock block={block} />}
+          {block.type === "active-reading" && <ActiveReadingBlock block={block} />}
+          {block.type === "formula-variations" && <FormulaVariationsBlock block={block} />}
+          {block.type === "fill-in-blanks" && <FillInBlanksBlock block={block} />}
+          {block.type === "text" && <TextBlock block={block} />}
         </div>
       ))}
     </div>

@@ -197,43 +197,101 @@ export default function TokenLogsPage() {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="rounded border p-3 text-sm"><p className="text-muted-foreground">Entries</p><p className="font-semibold">{filteredRows.length.toLocaleString()}</p></div>
-        <div className="rounded border p-3 text-sm"><p className="text-muted-foreground">Prompt Tokens</p><p className="font-semibold">{totals.prompt.toLocaleString()}</p></div>
-        <div className="rounded border p-3 text-sm"><p className="text-muted-foreground">Output Tokens</p><p className="font-semibold">{totals.output.toLocaleString()}</p></div>
-        <div className="rounded border p-3 text-sm"><p className="text-muted-foreground">Total Tokens</p><p className="font-semibold">{totals.total.toLocaleString()}</p></div>
+        <div className="rounded border p-3 text-sm">
+          <p className="text-muted-foreground">Entries</p>
+          <p className="font-semibold">{filteredRows.length.toLocaleString()}</p>
+        </div>
+        <div className="rounded border p-3 text-sm">
+          <p className="text-muted-foreground">Prompt Tokens</p>
+          <p className="font-semibold">{totals.prompt.toLocaleString()}</p>
+        </div>
+        <div className="rounded border p-3 text-sm">
+          <p className="text-muted-foreground">Output Tokens</p>
+          <p className="font-semibold">{totals.output.toLocaleString()}</p>
+        </div>
+        <div className="rounded border p-3 text-sm">
+          <p className="text-muted-foreground">Total Tokens</p>
+          <p className="font-semibold">{totals.total.toLocaleString()}</p>
+        </div>
       </div>
 
       <div className="rounded border p-3 text-sm bg-muted/20">
         <p className="font-semibold">Current Month ({currentMonthStats.month})</p>
         <p className="text-muted-foreground">
-          Entries: {currentMonthStats.entries.toLocaleString()} | Tokens: {currentMonthStats.total.toLocaleString()}
+          Entries: {currentMonthStats.entries.toLocaleString()} | Tokens:{" "}
+          {currentMonthStats.total.toLocaleString()}
         </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-6 gap-2">
-        <input className="border rounded px-3 py-2 text-sm md:col-span-2" placeholder="Search action/model/user/metadata..." value={search} onChange={(e) => setSearch(e.target.value)} />
-        <select className="border rounded px-2 py-2 text-sm" value={actionFilter} onChange={(e) => setActionFilter(e.target.value)}>
+        <input
+          className="border rounded px-3 py-2 text-sm md:col-span-2"
+          placeholder="Search action/model/user/metadata..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <select
+          className="border rounded px-2 py-2 text-sm"
+          value={actionFilter}
+          onChange={(e) => setActionFilter(e.target.value)}
+        >
           <option value="all">All actions</option>
-          {options.actions.map((a) => <option key={a} value={a}>{a}</option>)}
+          {options.actions.map((a) => (
+            <option key={a} value={a}>
+              {a}
+            </option>
+          ))}
         </select>
-        <select className="border rounded px-2 py-2 text-sm" value={modelFilter} onChange={(e) => setModelFilter(e.target.value)}>
+        <select
+          className="border rounded px-2 py-2 text-sm"
+          value={modelFilter}
+          onChange={(e) => setModelFilter(e.target.value)}
+        >
           <option value="all">All models</option>
-          {options.models.map((m) => <option key={m} value={m}>{m}</option>)}
+          {options.models.map((m) => (
+            <option key={m} value={m}>
+              {m}
+            </option>
+          ))}
         </select>
-        <select className="border rounded px-2 py-2 text-sm" value={backendFilter} onChange={(e) => setBackendFilter(e.target.value)}>
+        <select
+          className="border rounded px-2 py-2 text-sm"
+          value={backendFilter}
+          onChange={(e) => setBackendFilter(e.target.value)}
+        >
           <option value="all">All backends</option>
-          {options.backends.map((b) => <option key={b} value={b}>{b}</option>)}
+          {options.backends.map((b) => (
+            <option key={b} value={b}>
+              {b}
+            </option>
+          ))}
         </select>
-        <select className="border rounded px-2 py-2 text-sm" value={monthFilter} onChange={(e) => setMonthFilter(e.target.value)}>
+        <select
+          className="border rounded px-2 py-2 text-sm"
+          value={monthFilter}
+          onChange={(e) => setMonthFilter(e.target.value)}
+        >
           <option value="all">All months</option>
-          {options.months.map((m) => <option key={m} value={m}>{m}</option>)}
+          {options.months.map((m) => (
+            <option key={m} value={m}>
+              {m}
+            </option>
+          ))}
         </select>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-        <select className="border rounded px-2 py-2 text-sm" value={userFilter} onChange={(e) => setUserFilter(e.target.value)}>
+        <select
+          className="border rounded px-2 py-2 text-sm"
+          value={userFilter}
+          onChange={(e) => setUserFilter(e.target.value)}
+        >
           <option value="all">All users</option>
-          {options.users.map((u) => <option key={u} value={u}>{u}</option>)}
+          {options.users.map((u) => (
+            <option key={u} value={u}>
+              {u}
+            </option>
+          ))}
         </select>
         <button
           type="button"
@@ -296,16 +354,16 @@ export default function TokenLogsPage() {
           <tbody>
             {filteredRows.map((row) => (
               <tr key={row.id} className="border-t align-top">
-                <td className="p-2 whitespace-nowrap">{new Date(row.created_at).toLocaleString()}</td>
+                <td className="p-2 whitespace-nowrap">
+                  {new Date(row.created_at).toLocaleString()}
+                </td>
                 <td className="p-2 whitespace-nowrap">{row.user_id ?? "system"}</td>
                 <td className="p-2 whitespace-nowrap">{row.action_type}</td>
                 <td className="p-2 whitespace-nowrap">{row.model_id}</td>
                 <td className="p-2 whitespace-nowrap">{row.backend}</td>
                 <td className="p-2 whitespace-nowrap">
-                  {(
-                    (row.metadata as { telemetry?: { tokenSource?: string } } | null | undefined)
-                      ?.telemetry?.tokenSource
-                  ) ?? "legacy"}
+                  {(row.metadata as { telemetry?: { tokenSource?: string } } | null | undefined)
+                    ?.telemetry?.tokenSource ?? "legacy"}
                 </td>
                 <td className="p-2 text-right">{row.prompt_tokens.toLocaleString()}</td>
                 <td className="p-2 text-right">{row.candidates_tokens.toLocaleString()}</td>

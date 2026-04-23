@@ -26,7 +26,7 @@ function preProcessBankMath(math: string): string {
 export function useKatexAutoRender(
   containerRef: RefObject<HTMLElement | null>,
   safeHtml: string,
-  revision?: unknown,
+  revision?: unknown
 ) {
   useLayoutEffect(() => {
     const el = containerRef.current;

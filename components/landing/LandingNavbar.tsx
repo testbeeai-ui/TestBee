@@ -141,7 +141,9 @@ export default function LandingNavbar({
               key={l.label}
               href={l.href}
               className={
-                isDark ? "block text-[15px] text-zinc-300 py-1" : "block text-[15px] text-gray-600 py-1"
+                isDark
+                  ? "block text-[15px] text-zinc-300 py-1"
+                  : "block text-[15px] text-gray-600 py-1"
               }
               onClick={() => setMobileOpen(false)}
             >

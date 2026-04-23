@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import PlayQuestionCard from "@/components/PlayQuestionCard";
 import { bumpUserStudyDayMs } from "@/lib/studyDayBump";
+import { fireAssignmentTaskSync } from "@/lib/classroom/syncAssignmentTaskProgress";
 import { shufflePlayQuestionOptions } from "@/lib/shufflePlayQuestionOptions";
 import { cn } from "@/lib/utils";
 import type { PlayDomain, PlayQuestionRow } from "@/types";
@@ -49,19 +50,28 @@ type LbRow = {
  * Full Daily Gauntlet session embedded on pages like Refer & Earn (no redirect to /play).
  * Mirrors `app/play/page.tsx` gauntlet RPCs, timers, and submit behavior.
  */
-export default function InlineDailyGauntlet({ domain, onClose, onSessionComplete }: InlineDailyGauntletProps) {
+export default function InlineDailyGauntlet({
+  domain,
+  onClose,
+  onSessionComplete,
+}: InlineDailyGauntletProps) {
   const { user } = useAuth();
   const isPlayAdmin = useIsAppAdmin();
   const [bootLoading, setBootLoading] = useState(true);
   const [gauntletQuestions, setGauntletQuestions] = useState<PlayQuestionRow[]>([]);
   const [gauntletIndex, setGauntletIndex] = useState(0);
-  const [gauntletResults, setGauntletResults] = useState<{ question_id: string; is_correct: boolean; time_taken_ms: number }[]>([]);
+  const [gauntletResults, setGauntletResults] = useState<
+    { question_id: string; is_correct: boolean; time_taken_ms: number }[]
+  >([]);
   const gauntletResultsRef = useRef(gauntletResults);
   useEffect(() => {
     gauntletResultsRef.current = gauntletResults;
   }, [gauntletResults]);
 
-  const [gauntletSubmitted, setGauntletSubmitted] = useState<{ correct_count: number; total_time_ms: number } | null>(null);
+  const [gauntletSubmitted, setGauntletSubmitted] = useState<{
+    correct_count: number;
+    total_time_ms: number;
+  } | null>(null);
   const [gauntletAlreadyPlayed, setGauntletAlreadyPlayed] = useState(false);
   const [leaderboard, setLeaderboard] = useState<LbRow[]>([]);
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
@@ -77,7 +87,10 @@ export default function InlineDailyGauntlet({ domain, onClose, onSessionComplete
 
   const fetchLeaderboard = useCallback(async (date: string, d: PlayDomain) => {
     setLeaderboardLoading(true);
-    const { data } = await supabase.rpc("get_daily_gauntlet_leaderboard", { p_gauntlet_date: date, p_domain: d });
+    const { data } = await supabase.rpc("get_daily_gauntlet_leaderboard", {
+      p_gauntlet_date: date,
+      p_domain: d,
+    });
     setLeaderboard((data as LbRow[]) || []);
     setLeaderboardLoading(false);
   }, []);
@@ -112,13 +125,14 @@ export default function InlineDailyGauntlet({ domain, onClose, onSessionComplete
         } catch {
           /* ignore */
         }
+        fireAssignmentTaskSync(["daily_dose"]);
       }
 
       setGauntletSubmitted({ correct_count: localCorrect, total_time_ms: localTimeMs });
       void fetchLeaderboard(today, domain);
       onSessionComplete?.();
     },
-    [domain, fetchLeaderboard, onSessionComplete, user?.id, isPlayAdmin],
+    [domain, fetchLeaderboard, onSessionComplete, user?.id, isPlayAdmin]
   );
 
   const handleGauntletTimeout = useCallback(() => {
@@ -161,7 +175,11 @@ export default function InlineDailyGauntlet({ domain, onClose, onSessionComplete
     const existing = [...gauntletResultsRef.current];
     while (existing.length < qs.length) {
       const i = existing.length;
-      existing.push({ question_id: qs[i]!.id, is_correct: false, time_taken_ms: GAUNTLET_Q_SEC * 1000 });
+      existing.push({
+        question_id: qs[i]!.id,
+        is_correct: false,
+        time_taken_ms: GAUNTLET_Q_SEC * 1000,
+      });
     }
     gauntletResultsRef.current = existing;
     setGauntletResults(existing);
@@ -189,7 +207,10 @@ export default function InlineDailyGauntlet({ domain, onClose, onSessionComplete
       const myRow = lbRows.find((r) => r.user_id === uid);
       if (myRow && !isPlayAdmin) {
         setGauntletAlreadyPlayed(true);
-        setGauntletSubmitted({ correct_count: myRow.correct_count, total_time_ms: myRow.total_time_ms });
+        setGauntletSubmitted({
+          correct_count: myRow.correct_count,
+          total_time_ms: myRow.total_time_ms,
+        });
         setLeaderboard(lbRows);
         setGauntletQuestions([]);
         setBootLoading(false);
@@ -239,11 +260,7 @@ export default function InlineDailyGauntlet({ domain, onClose, onSessionComplete
   const qPct = Math.round((gauntletQTimeLeft / GAUNTLET_Q_SEC) * 100);
   const accentFill = domain === "funbrain" ? "bg-orange-500" : "bg-indigo-600";
   const qFillClass =
-    gauntletQTimeLeft <= 5
-      ? "bg-red-500"
-      : domain === "funbrain"
-        ? "bg-sky-500"
-        : "bg-emerald-500";
+    gauntletQTimeLeft <= 5 ? "bg-red-500" : domain === "funbrain" ? "bg-sky-500" : "bg-emerald-500";
   const ttl = domain === "funbrain" ? "Funbrain Forge" : "Academic Arena";
   const questionProgressPct = tot > 0 ? Math.round(((idx + 1) / tot) * 100) : 0;
 
@@ -278,18 +295,27 @@ export default function InlineDailyGauntlet({ domain, onClose, onSessionComplete
       <div className="dark mt-3 space-y-4 rounded-[14px] border border-violet-500/25 bg-[#0a0818] p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="text-sm font-bold text-white">{ttl} · Daily Gauntlet</h3>
-          <Button type="button" variant="ghost" size="sm" className="h-8 text-xs text-slate-400 hover:text-white" onClick={handleDone}>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-8 text-xs text-slate-400 hover:text-white"
+            onClick={handleDone}
+          >
             Close
           </Button>
         </div>
         {gauntletSubmitted ? (
           <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-emerald-200/90">Today&apos;s result</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-emerald-200/90">
+              Today&apos;s result
+            </p>
             <p className="mt-1 text-2xl font-bold text-emerald-400">
               {gauntletSubmitted.correct_count}/{denom} correct
             </p>
             <p className="mt-1 flex items-center gap-1 text-xs text-slate-400">
-              <Clock className="h-3.5 w-3.5" /> {(gauntletSubmitted.total_time_ms / 1000).toFixed(1)}s total
+              <Clock className="h-3.5 w-3.5" />{" "}
+              {(gauntletSubmitted.total_time_ms / 1000).toFixed(1)}s total
             </p>
           </div>
         ) : (
@@ -318,14 +344,23 @@ export default function InlineDailyGauntlet({ domain, onClose, onSessionComplete
                     className={cn(
                       "flex items-center justify-between rounded-lg border px-3 py-2 text-xs",
                       "border-white/10 bg-black/30",
-                      isMe && "ring-1 ring-violet-500/40",
+                      isMe && "ring-1 ring-violet-500/40"
                     )}
                   >
-                    <span className={cn("w-7 font-bold", row.rank <= 3 ? "text-amber-400" : "text-slate-500")}>#{row.rank}</span>
+                    <span
+                      className={cn(
+                        "w-7 font-bold",
+                        row.rank <= 3 ? "text-amber-400" : "text-slate-500"
+                      )}
+                    >
+                      #{row.rank}
+                    </span>
                     <span className="flex min-w-0 flex-1 items-center gap-1 truncate px-2 font-medium text-slate-200">
                       {row.display_name ?? "Anonymous"}
                       {isMe ? (
-                        <span className="shrink-0 rounded-full bg-violet-600 px-1.5 py-0.5 text-[9px] font-bold text-white">YOU</span>
+                        <span className="shrink-0 rounded-full bg-violet-600 px-1.5 py-0.5 text-[9px] font-bold text-white">
+                          YOU
+                        </span>
                       ) : null}
                     </span>
                     <span className="shrink-0 font-semibold text-emerald-400">
@@ -338,7 +373,10 @@ export default function InlineDailyGauntlet({ domain, onClose, onSessionComplete
           )}
         </div>
         <p className="text-center text-[11px] text-slate-500">
-          <Link href={`/play?domain=${domain}`} className="text-violet-400 underline-offset-2 hover:underline">
+          <Link
+            href={`/play?domain=${domain}`}
+            className="text-violet-400 underline-offset-2 hover:underline"
+          >
             Open full Play hub
           </Link>
         </p>
@@ -350,7 +388,10 @@ export default function InlineDailyGauntlet({ domain, onClose, onSessionComplete
     return (
       <div className="dark mt-3 rounded-[14px] border border-white/10 bg-black/30 p-4 text-center text-sm text-slate-400">
         Couldn&apos;t load questions for today. Try again later or{" "}
-        <Link href={`/play?domain=${domain}`} className="text-violet-400 underline-offset-2 hover:underline">
+        <Link
+          href={`/play?domain=${domain}`}
+          className="text-violet-400 underline-offset-2 hover:underline"
+        >
           open Play
         </Link>
         .
@@ -376,7 +417,12 @@ export default function InlineDailyGauntlet({ domain, onClose, onSessionComplete
           </span>
           <span className="inline-flex items-center gap-1 tabular-nums text-slate-400">
             <Clock className="h-3.5 w-3.5" />
-            <span className={cn("font-mono", gauntletSessionLeft <= 30 ? "text-red-400" : "text-amber-300")}>
+            <span
+              className={cn(
+                "font-mono",
+                gauntletSessionLeft <= 30 ? "text-red-400" : "text-amber-300"
+              )}
+            >
               {formatClock(gauntletSessionLeft)}
             </span>
           </span>
@@ -399,19 +445,29 @@ export default function InlineDailyGauntlet({ domain, onClose, onSessionComplete
         <div>
           <div className="mb-1 flex items-center justify-between gap-2 text-[9px] font-semibold uppercase tracking-wider text-slate-500">
             <span>Session</span>
-            <span className="font-mono normal-case tabular-nums text-slate-400">{formatClock(gauntletSessionLeft)}</span>
+            <span className="font-mono normal-case tabular-nums text-slate-400">
+              {formatClock(gauntletSessionLeft)}
+            </span>
           </div>
           <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
-            <div className={cn("h-full rounded-full transition-[width] duration-300", accentFill)} style={{ width: `${sessionPct}%` }} />
+            <div
+              className={cn("h-full rounded-full transition-[width] duration-300", accentFill)}
+              style={{ width: `${sessionPct}%` }}
+            />
           </div>
         </div>
         <div>
           <div className="mb-1 flex items-center justify-between gap-2 text-[9px] font-semibold uppercase tracking-wider text-slate-500">
             <span>This question</span>
-            <span className="font-mono normal-case tabular-nums text-slate-400">{gauntletQTimeLeft}s</span>
+            <span className="font-mono normal-case tabular-nums text-slate-400">
+              {gauntletQTimeLeft}s
+            </span>
           </div>
           <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
-            <div className={cn("h-full rounded-full transition-[width] duration-300", qFillClass)} style={{ width: `${qPct}%` }} />
+            <div
+              className={cn("h-full rounded-full transition-[width] duration-300", qFillClass)}
+              style={{ width: `${qPct}%` }}
+            />
           </div>
         </div>
         <div>

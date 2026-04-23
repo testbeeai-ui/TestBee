@@ -56,7 +56,6 @@ const SUBJECT_TONE: Record<Subject, string> = {
   physics: "border-cyan-400/60 text-cyan-300",
   chemistry: "border-rose-400/60 text-rose-300",
   math: "border-amber-400/60 text-amber-300",
-  biology: "border-emerald-400/60 text-emerald-300",
 };
 
 function setsEqual(a: Set<string>, b: Set<string>): boolean {
@@ -87,10 +86,9 @@ const RAIN_TWIN_PHASE_FR = 0.5;
 const RAIN_CARD_MAX_W = 172;
 
 const SUBJECT_DOT_COLOR: Record<Subject, string> = {
-  physics:   "#38bdf8",
+  physics: "#38bdf8",
   chemistry: "#fb7185",
-  math:      "#fbbf24",
-  biology:   "#34d399",
+  math: "#fbbf24",
 };
 
 function hashStr(s: string): number {
@@ -147,7 +145,7 @@ function rainEntryStaggerDelay(slotIndex: number, slotCount: number): number {
 /** ~5–7s per fall across the wall */
 function rainFallDurationSec(slotId: number, topicKey: string): number {
   const th = hashStr(topicKey);
-  return Number((5 + ((slotId * 53 + th) % 1000) / 1000 * 2).toFixed(2));
+  return Number((5 + (((slotId * 53 + th) % 1000) / 1000) * 2).toFixed(2));
 }
 
 type RainSlot = {
@@ -168,9 +166,14 @@ export default function MagicWallPage() {
   const router = useRouter();
 
   const board = (storeUser?.board ?? "CBSE") as Board;
-  const initialClass = profile?.class_level === 11 || profile?.class_level === 12 ? (profile.class_level as ClassLevel) : 11;
+  const initialClass =
+    profile?.class_level === 11 || profile?.class_level === 12
+      ? (profile.class_level as ClassLevel)
+      : 11;
   const [selectedClass, setSelectedClass] = useState<ClassLevel>(initialClass);
-  const [activeSubjects, setActiveSubjects] = useState<Set<Subject>>(new Set(["physics", "chemistry", "math"]));
+  const [activeSubjects, setActiveSubjects] = useState<Set<Subject>>(
+    new Set(["physics", "chemistry", "math"])
+  );
   const [selectedTopicKeys, setSelectedTopicKeys] = useState<Set<string>>(new Set());
   const selectedTopicKeysRef = useRef(selectedTopicKeys);
   selectedTopicKeysRef.current = selectedTopicKeys;
@@ -246,15 +249,15 @@ export default function MagicWallPage() {
       seen.add(item.topicKey);
       if (!buckets.has(item.subject)) buckets.set(item.subject, []);
       buckets.get(item.subject)!.push({
-        topicKey:     item.topicKey,
-        board:        item.board,
-        subject:      item.subject,
-        classLevel:   item.classLevel,
-        examType:     item.examType,
-        unitName:     item.unitName,
+        topicKey: item.topicKey,
+        board: item.board,
+        subject: item.subject,
+        classLevel: item.classLevel,
+        examType: item.examType,
+        unitName: item.unitName,
         chapterTitle: item.chapterTitle,
-        topicName:    item.topicName,
-        tag:          item.tag,
+        topicName: item.topicName,
+        tag: item.tag,
       });
     }
     // Round-robin interleave: physics[0], chem[0], math[0], physics[1], ...
@@ -280,17 +283,16 @@ export default function MagicWallPage() {
   filteredRainLatestRef.current = filteredRainTopics;
 
   const topicKeyOrderSig = useMemo(
-    () => filteredRainTopics.map((t) => t.topicKey).sort().join("\0"),
+    () =>
+      filteredRainTopics
+        .map((t) => t.topicKey)
+        .sort()
+        .join("\0"),
     [filteredRainTopics]
   );
 
   const rainFilterKey = useMemo(
-    () =>
-      [
-        String(selectedClass),
-        [...activeSubjects].sort().join(","),
-        topicKeyOrderSig,
-      ].join("§"),
+    () => [String(selectedClass), [...activeSubjects].sort().join(","), topicKeyOrderSig].join("§"),
     [selectedClass, activeSubjects, topicKeyOrderSig]
   );
 
@@ -337,8 +339,7 @@ export default function MagicWallPage() {
       return;
     }
     const w = Math.max(wfSize.width, 320);
-    const slotCap =
-      w < 420 ? 6 : w < 500 ? 8 : w < 620 ? 10 : RAIN_SLOT_COUNT;
+    const slotCap = w < 420 ? 6 : w < 500 ? 8 : w < 620 ? 10 : RAIN_SLOT_COUNT;
     const n = Math.min(slotCap, pool.length);
     let qi = 0;
     const slots: RainSlot[] = Array.from({ length: n }, (_, i) => {
@@ -408,7 +409,10 @@ export default function MagicWallPage() {
   }, [rainSlots.length]);
 
   const basketKeySet = useMemo(() => new Set(basketItems.map((i) => i.topicKey)), [basketItems]);
-  const hasUnsavedChanges = useMemo(() => !setsEqual(selectedTopicKeys, basketKeySet), [selectedTopicKeys, basketKeySet]);
+  const hasUnsavedChanges = useMemo(
+    () => !setsEqual(selectedTopicKeys, basketKeySet),
+    [selectedTopicKeys, basketKeySet]
+  );
 
   const startReadingHref = useMemo(() => {
     if (basketItems.length === 0) return null;
@@ -472,7 +476,9 @@ export default function MagicWallPage() {
         saved: true,
       });
     }
-    return out.sort((a, b) => a.subject.localeCompare(b.subject) || a.topicName.localeCompare(b.topicName));
+    return out.sort(
+      (a, b) => a.subject.localeCompare(b.subject) || a.topicName.localeCompare(b.topicName)
+    );
   }, [selectedTopicKeys, topicMapByKey, basketItems, basketKeySet]);
 
   const refreshBasket = useCallback(async () => {
@@ -570,7 +576,10 @@ export default function MagicWallPage() {
           topicName: topic.topicName,
         }));
 
-      await Promise.all([upsertMagicWallBasketItems(addPayload), removeMagicWallBasketItems(toRemove)]);
+      await Promise.all([
+        upsertMagicWallBasketItems(addPayload),
+        removeMagicWallBasketItems(toRemove),
+      ]);
       const rows = await fetchMagicWallBasket();
       setBasketItems(rows);
       setSelectedTopicKeys(new Set(rows.map((r) => r.topicKey)));
@@ -604,7 +613,10 @@ export default function MagicWallPage() {
                 <div className="min-w-0">
                   <p className="text-sm md:text-base font-extrabold text-white flex flex-wrap items-center gap-2">
                     <WandSparkles className="h-4.5 w-4.5 shrink-0 text-violet-300" />
-                    <span>Topic Rain — tap to select (max {MAGIC_WALL_MAX_SELECTED_TOPICS}), add to basket</span>
+                    <span>
+                      Topic Rain — tap to select (max {MAGIC_WALL_MAX_SELECTED_TOPICS}), add to
+                      basket
+                    </span>
                   </p>
                   <p className="text-xs text-slate-400 mt-0.5 break-words">
                     {loading
@@ -633,7 +645,9 @@ export default function MagicWallPage() {
               {filtersOpen && (
                 <div className="mb-2 rounded-2xl border border-white/10 bg-black/35 p-3 space-y-3">
                   <div className="flex items-center justify-between">
-                    <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Filter topics</p>
+                    <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                      Filter topics
+                    </p>
                     <button
                       type="button"
                       onClick={() => setFiltersOpen(false)}
@@ -644,7 +658,9 @@ export default function MagicWallPage() {
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Subjects</span>
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                      Subjects
+                    </span>
                     {SUBJECT_OPTIONS.map((s) => {
                       const active = activeSubjects.has(s.subject);
                       return (
@@ -662,7 +678,9 @@ export default function MagicWallPage() {
                         </button>
                       );
                     })}
-                    <span className="ml-1 text-[11px] font-bold uppercase tracking-wider text-slate-400">Classes</span>
+                    <span className="ml-1 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                      Classes
+                    </span>
                     <div className="flex items-center gap-1 bg-black/30 border border-white/10 rounded-xl p-1">
                       {[11, 12].map((lv) => (
                         <button
@@ -670,7 +688,9 @@ export default function MagicWallPage() {
                           type="button"
                           onClick={() => setSelectedClass(lv as ClassLevel)}
                           className={`${classPill} ${
-                            selectedClass === lv ? "border-violet-400 bg-violet-500/20 text-violet-200" : "text-slate-300"
+                            selectedClass === lv
+                              ? "border-violet-400 bg-violet-500/20 text-violet-200"
+                              : "text-slate-300"
                           }`}
                         >
                           Class {lv}
@@ -704,7 +724,8 @@ export default function MagicWallPage() {
                     <Loader2 className="h-6 w-6 animate-spin" />
                     <span className="text-sm font-medium">Loading…</span>
                     <span className="max-w-sm text-xs text-slate-500">
-                      Topic Rain starts after your syllabus is loaded — hover or touch a topic to pause it, then tap to select.
+                      Topic Rain starts after your syllabus is loaded — hover or touch a topic to
+                      pause it, then tap to select.
                     </span>
                   </div>
                 )}
@@ -716,7 +737,9 @@ export default function MagicWallPage() {
                         <span className="max-w-md text-xs text-slate-500">{error}</span>
                       </>
                     ) : (
-                      <span>No topics for selected filters. Try another class, exam, or subject.</span>
+                      <span>
+                        No topics for selected filters. Try another class, exam, or subject.
+                      </span>
                     )}
                   </div>
                 )}
@@ -781,7 +804,8 @@ export default function MagicWallPage() {
                             "absolute top-0 flex min-h-[38px] min-w-0 max-w-[min(172px,calc(100%-12px))] touch-manipulation cursor-pointer select-none items-center gap-1.5 rounded-[10px] border px-2.5 py-2 text-left text-[11px] leading-snug shadow-sm transition-[border-color,background-color,box-shadow] duration-150",
                             tone,
                             selected && "border-[1.5px] ring-1 ring-white/15",
-                            isPaused && "ring-2 ring-white/25 shadow-[0_0_0_1px_rgba(255,255,255,0.12)]"
+                            isPaused &&
+                              "ring-2 ring-white/25 shadow-[0_0_0_1px_rgba(255,255,255,0.12)]"
                           )}
                           style={{
                             left: leftPx,
@@ -796,11 +820,17 @@ export default function MagicWallPage() {
                             animationPlayState: isPaused ? "paused" : "running",
                           }}
                         >
-                          <span className="h-[7px] w-[7px] shrink-0 rounded-full" style={{ background: dot }} aria-hidden />
+                          <span
+                            className="h-[7px] w-[7px] shrink-0 rounded-full"
+                            style={{ background: dot }}
+                            aria-hidden
+                          />
                           <span className="min-w-0 flex-1 truncate font-medium text-[rgba(232,232,240,0.9)]">
                             {topic.topicName}
                           </span>
-                          <span className="shrink-0 text-[9px] text-[rgba(232,232,240,0.32)]">C{topic.classLevel}</span>
+                          <span className="shrink-0 text-[9px] text-[rgba(232,232,240,0.32)]">
+                            C{topic.classLevel}
+                          </span>
                           <span
                             className={cn(
                               "ml-[3px] flex h-[15px] w-[15px] shrink-0 items-center justify-center rounded-[4px] border-[1.5px] border-white/18",
@@ -830,8 +860,8 @@ export default function MagicWallPage() {
                 <div className="flex flex-col gap-1.5 rounded-xl border border-violet-400/50 bg-violet-500/25 px-2.5 py-1.5 shadow-md shadow-violet-950/25 backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-3 sm:py-2">
                   <div className="min-w-0 text-[11px] font-bold leading-tight text-violet-100 sm:pr-2 sm:text-xs">
                     <span className="break-words">
-                      Reading Basket: {selectedTopicKeys.size}/{MAGIC_WALL_MAX_SELECTED_TOPICS} selected · {basketItems.length}{" "}
-                      saved
+                      Reading Basket: {selectedTopicKeys.size}/{MAGIC_WALL_MAX_SELECTED_TOPICS}{" "}
+                      selected · {basketItems.length} saved
                     </span>
                   </div>
                   <div className="flex flex-wrap items-center justify-end gap-1.5 sm:shrink-0">
@@ -870,7 +900,9 @@ export default function MagicWallPage() {
 
             <aside className="min-w-0 w-full rounded-2xl border-2 border-violet-400/30 bg-gradient-to-b from-[#121425] to-[#0a0c16] p-3 space-y-2.5 shadow-[0_0_28px_rgba(139,92,246,0.1)] ring-1 ring-violet-500/10 sm:rounded-3xl lg:sticky lg:top-24 lg:self-start">
               <div className="rounded-2xl border border-amber-400/35 bg-amber-500/10 p-3 lg:shrink-0">
-                <p className="text-[11px] uppercase tracking-wider font-bold text-amber-200">Live Study Hour</p>
+                <p className="text-[11px] uppercase tracking-wider font-bold text-amber-200">
+                  Live Study Hour
+                </p>
                 <p className="mt-1 text-sm font-extrabold text-white">25 min study · 5 min break</p>
                 <p className="text-xs text-amber-100/80">Syncs with streak rhythm</p>
               </div>
@@ -886,12 +918,16 @@ export default function MagicWallPage() {
                   <p className="text-xs text-slate-400">Loading…</p>
                 ) : selectedDetails.length === 0 ? (
                   <p className="text-xs text-slate-400">
-                    No topics selected yet. Tap cards in Topic Rain (max {MAGIC_WALL_MAX_SELECTED_TOPICS}).
+                    No topics selected yet. Tap cards in Topic Rain (max{" "}
+                    {MAGIC_WALL_MAX_SELECTED_TOPICS}).
                   </p>
                 ) : (
                   <div className="space-y-1.5 pr-1">
                     {selectedDetails.map((item) => (
-                      <div key={item.topicKey} className="rounded-xl border border-white/10 bg-white/[0.03] px-2.5 py-2">
+                      <div
+                        key={item.topicKey}
+                        className="rounded-xl border border-white/10 bg-white/[0.03] px-2.5 py-2"
+                      >
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0 flex-1">
                             <div className="flex min-w-0 items-center gap-1.5">
@@ -914,7 +950,9 @@ export default function MagicWallPage() {
                                   {item.topicName}
                                 </Link>
                               ) : (
-                                <p className="min-w-0 flex-1 truncate text-xs font-bold text-white">{item.topicName}</p>
+                                <p className="min-w-0 flex-1 truncate text-xs font-bold text-white">
+                                  {item.topicName}
+                                </p>
                               )}
                               <span
                                 className={cn(
@@ -923,13 +961,18 @@ export default function MagicWallPage() {
                                     ? "border-emerald-400/45 bg-emerald-500/20 text-emerald-200"
                                     : "border-amber-400/45 bg-amber-500/20 text-amber-200"
                                 )}
-                                title={item.saved ? "Saved to basket" : "Not saved yet — use Save changes"}
+                                title={
+                                  item.saved
+                                    ? "Saved to basket"
+                                    : "Not saved yet — use Save changes"
+                                }
                               >
                                 {item.saved ? "Saved" : "Pending"}
                               </span>
                             </div>
                             <p className="mt-0.5 truncate text-[10px] text-slate-400">
-                              {item.subject.toUpperCase()} · C{item.classLevel} · {item.chapterTitle}
+                              {item.subject.toUpperCase()} · C{item.classLevel} ·{" "}
+                              {item.chapterTitle}
                             </p>
                           </div>
                           <button

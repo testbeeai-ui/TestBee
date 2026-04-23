@@ -58,11 +58,13 @@ function CurriculumPill({
       className={cn(
         "edu-chip inline-flex max-w-[min(100%,11rem)] min-w-0 shrink-0 items-center gap-1 py-1 pl-2 pr-2.5 text-xs font-semibold sm:max-w-[13rem]",
         CURRICULUM_LEVEL_TONE[kind],
-        className,
+        className
       )}
       title={`${role}: ${fullLabel}`}
     >
-      <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide opacity-80">{abbr}</span>
+      <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide opacity-80">
+        {abbr}
+      </span>
       <span className="min-w-0 truncate">{text}</span>
     </span>
   );
@@ -78,21 +80,27 @@ export function AiCurriculumSourceStrip({
   node: AiCurriculumNodeLabels;
   className?: string;
 }) {
-  const full = [node.chapter_label, node.topic_label, node.subtopic_label].filter(Boolean).join(" → ");
+  const full = [node.chapter_label, node.topic_label, node.subtopic_label]
+    .filter(Boolean)
+    .join(" → ");
   const ch = shorten(node.chapter_label, 14);
   const tp = shorten(node.topic_label, 16);
   const sub = node.subtopic_label ? shorten(node.subtopic_label, 14) : null;
   if (!ch && !tp) return null;
 
   return (
-    <div
-      className={cn("flex min-w-0 flex-wrap items-center gap-1.5", className)}
-      title={full}
-    >
-      {ch ? <CurriculumPill kind="chapter" abbr="Ch" text={ch} fullLabel={node.chapter_label} /> : null}
+    <div className={cn("flex min-w-0 flex-wrap items-center gap-1.5", className)} title={full}>
+      {ch ? (
+        <CurriculumPill kind="chapter" abbr="Ch" text={ch} fullLabel={node.chapter_label} />
+      ) : null}
       {tp ? <CurriculumPill kind="topic" abbr="Tp" text={tp} fullLabel={node.topic_label} /> : null}
       {sub ? (
-        <CurriculumPill kind="subtopic" abbr="Sub" text={sub} fullLabel={node.subtopic_label ?? ""} />
+        <CurriculumPill
+          kind="subtopic"
+          abbr="Sub"
+          text={sub}
+          fullLabel={node.subtopic_label ?? ""}
+        />
       ) : null}
     </div>
   );

@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import type { LucideIcon } from 'lucide-react';
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import type { LucideIcon } from "lucide-react";
 import {
   Newspaper,
   TrendingUp,
@@ -16,7 +16,7 @@ import {
   Crosshair,
   Heart,
   User,
-} from 'lucide-react';
+} from "lucide-react";
 
 interface SidebarItem {
   label: string;
@@ -31,38 +31,38 @@ interface SidebarSection {
 
 const sections: SidebarSection[] = [
   {
-    title: 'SOCIAL',
+    title: "SOCIAL",
     items: [
-      { label: 'Feed', icon: Newspaper, href: '#community-feed' },
-      { label: 'Trending', icon: TrendingUp, href: '#trending-topics' },
-      { label: 'Saved', icon: Bookmark, href: '/doubts?tab=saved' },
-      { label: 'My Network', icon: Users, href: '/profile' },
+      { label: "Feed", icon: Newspaper, href: "#community-feed" },
+      { label: "Trending", icon: TrendingUp, href: "#trending-topics" },
+      { label: "Saved", icon: Bookmark, href: "/doubts?tab=saved" },
+      { label: "My Network", icon: Users, href: "/profile" },
     ],
   },
   {
-    title: 'PREP + MOCK',
+    title: "PREP + MOCK",
     items: [
-      { label: 'Classes', icon: GraduationCap, href: '/classrooms' },
-      { label: 'Calendar', icon: CalendarDays, href: '#calendar' },
-      { label: 'Mock Tests', icon: ClipboardList, href: '#mock-tests' },
-      { label: 'Revision', icon: RotateCcw, href: '/revision' },
+      { label: "Classes", icon: GraduationCap, href: "/classrooms" },
+      { label: "Calendar", icon: CalendarDays, href: "#calendar" },
+      { label: "Mock Tests", icon: ClipboardList, href: "#mock-tests" },
+      { label: "Revision", icon: RotateCcw, href: "/revision" },
     ],
   },
   {
-    title: 'TOOLS',
+    title: "TOOLS",
     items: [
-      { label: 'Gyan++', icon: HelpCircle, href: '/doubts' },
-      { label: 'Play', icon: Crosshair, href: '/play' },
-      { label: 'EduFund', icon: Heart, href: '/edufund' },
-      { label: 'Profile', icon: User, href: '/profile' },
+      { label: "Gyan++", icon: HelpCircle, href: "/doubts" },
+      { label: "Play", icon: Crosshair, href: "/play" },
+      { label: "EduFund", icon: Heart, href: "/edufund" },
+      { label: "Profile", icon: User, href: "/profile" },
     ],
   },
 ];
 
 const addOns = [
-  { label: 'Testbee', color: 'bg-blue-50 text-blue-700 border-blue-200' },
-  { label: 'DailyDose', color: 'bg-amber-50 text-amber-700 border-amber-200' },
-  { label: 'MentaMill', color: 'bg-purple-50 text-purple-700 border-purple-200' },
+  { label: "Testbee", color: "bg-blue-50 text-blue-700 border-blue-200" },
+  { label: "DailyDose", color: "bg-amber-50 text-amber-700 border-amber-200" },
+  { label: "MentaMill", color: "bg-purple-50 text-purple-700 border-purple-200" },
 ];
 
 export default function PrepMockSidebar() {
@@ -81,12 +81,12 @@ export default function PrepMockSidebar() {
               <ul className="space-y-0.5">
                 {section.items.map((item) => {
                   const Icon = item.icon;
-                  const isAnchor = item.href.startsWith('#');
+                  const isAnchor = item.href.startsWith("#");
                   const isActive = !isAnchor && pathname === item.href;
                   const cls = `flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-sm transition-colors ${
                     isActive
-                      ? 'text-primary bg-primary/10 font-bold'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/60 font-medium'
+                      ? "text-primary bg-primary/10 font-bold"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/60 font-medium"
                   }`;
                   return (
                     <li key={item.label}>
@@ -129,27 +129,29 @@ export default function PrepMockSidebar() {
 
       {/* Mobile horizontal strip */}
       <div className="lg:hidden overflow-x-auto flex gap-2 pb-2 -mx-1 px-1 scrollbar-hide">
-        {sections.flatMap((s) => s.items).map((item) => {
-          const Icon = item.icon;
-          const isAnchor = item.href.startsWith('#');
-          const isActive = !isAnchor && pathname === item.href;
-          const cls = `flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium transition-colors whitespace-nowrap shrink-0 ${
-            isActive
-              ? 'border-primary bg-primary/10 text-primary font-bold'
-              : 'border-border text-muted-foreground hover:text-foreground hover:bg-muted/60'
-          }`;
-          return isAnchor ? (
-            <a key={item.label} href={item.href} className={cls}>
-              <Icon className="w-3.5 h-3.5" />
-              {item.label}
-            </a>
-          ) : (
-            <Link key={item.label} href={item.href} className={cls}>
-              <Icon className="w-3.5 h-3.5" />
-              {item.label}
-            </Link>
-          );
-        })}
+        {sections
+          .flatMap((s) => s.items)
+          .map((item) => {
+            const Icon = item.icon;
+            const isAnchor = item.href.startsWith("#");
+            const isActive = !isAnchor && pathname === item.href;
+            const cls = `flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium transition-colors whitespace-nowrap shrink-0 ${
+              isActive
+                ? "border-primary bg-primary/10 text-primary font-bold"
+                : "border-border text-muted-foreground hover:text-foreground hover:bg-muted/60"
+            }`;
+            return isAnchor ? (
+              <a key={item.label} href={item.href} className={cls}>
+                <Icon className="w-3.5 h-3.5" />
+                {item.label}
+              </a>
+            ) : (
+              <Link key={item.label} href={item.href} className={cls}>
+                <Icon className="w-3.5 h-3.5" />
+                {item.label}
+              </Link>
+            );
+          })}
       </div>
     </>
   );

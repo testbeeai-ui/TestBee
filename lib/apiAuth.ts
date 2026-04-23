@@ -8,7 +8,11 @@ import { createClient, createClientWithToken } from "@/integrations/supabase/ser
  */
 export async function getSupabaseAndUser(request: Request) {
   const cookieClient = await createClient();
-  const bearer = request.headers.get("Authorization")?.replace(/^Bearer\s+/i, "").trim() ?? "";
+  const bearer =
+    request.headers
+      .get("Authorization")
+      ?.replace(/^Bearer\s+/i, "")
+      .trim() ?? "";
 
   if (bearer) {
     const {

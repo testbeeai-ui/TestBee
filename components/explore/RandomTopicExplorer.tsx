@@ -1,32 +1,30 @@
-'use client';
+"use client";
 
-import { useState, useCallback, useEffect } from 'react';
-import Link from 'next/link';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Shuffle, ArrowRight, HelpCircle } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import type { TopicNode } from '@/data/topicTaxonomy';
-import type { Subject } from '@/types'; // used for subjectBadge/subjectLabel keys
+import { useState, useCallback, useEffect } from "react";
+import Link from "next/link";
+import { motion, AnimatePresence } from "framer-motion";
+import { Shuffle, ArrowRight, HelpCircle } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import type { TopicNode } from "@/data/topicTaxonomy";
+import type { Subject } from "@/types"; // used for subjectBadge/subjectLabel keys
 
 const subjectBadge: Record<Subject, { bg: string; text: string }> = {
-  physics: { bg: 'bg-blue-500/15', text: 'text-blue-700' },
-  chemistry: { bg: 'bg-purple-500/15', text: 'text-purple-700' },
-  math: { bg: 'bg-orange-500/15', text: 'text-orange-700' },
-  biology: { bg: 'bg-green-500/15', text: 'text-green-700' },
+  physics: { bg: "bg-blue-500/15", text: "text-blue-700" },
+  chemistry: { bg: "bg-purple-500/15", text: "text-purple-700" },
+  math: { bg: "bg-orange-500/15", text: "text-orange-700" },
 };
 
 const subjectLabel: Record<Subject, string> = {
-  physics: 'Physics',
-  chemistry: 'Chemistry',
-  math: 'Math',
-  biology: 'Biology',
+  physics: "Physics",
+  chemistry: "Chemistry",
+  math: "Math",
 };
 
 function buildDescription(node: TopicNode): string {
   if (node.subtopics.length === 0) return `Explore ${node.topic} in ${subjectLabel[node.subject]}.`;
   const names = node.subtopics.map((s) => s.name);
-  if (names.length <= 3) return `Covers ${names.join(', ')}.`;
-  return `Covers ${names.slice(0, 3).join(', ')}, and real-world applications.`;
+  if (names.length <= 3) return `Covers ${names.join(", ")}.`;
+  return `Covers ${names.slice(0, 3).join(", ")}, and real-world applications.`;
 }
 
 function buildTitle(node: TopicNode): string {
@@ -44,7 +42,10 @@ interface RandomTopicExplorerProps {
   onExploreTopic: (node: TopicNode) => void;
 }
 
-export default function RandomTopicExplorer({ taxonomy, onExploreTopic }: RandomTopicExplorerProps) {
+export default function RandomTopicExplorer({
+  taxonomy,
+  onExploreTopic,
+}: RandomTopicExplorerProps) {
   const [current, setCurrent] = useState<TopicNode | null>(null);
 
   // Pick initial random topic once taxonomy loads

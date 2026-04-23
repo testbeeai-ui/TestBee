@@ -29,9 +29,7 @@ export function resolveGeminiModelId(raw: string | undefined): {
 }
 
 /** IDs that commonly work on AI Studio but return 404 on Vertex (wrong publisher / region). */
-const VERTEX_TYPICAL_404_IDS = new Set([
-  "gemini-3-pro-preview",
-]);
+const VERTEX_TYPICAL_404_IDS = new Set(["gemini-3-pro-preview"]);
 
 /**
  * Vertex uses a different model catalog than AI Studio (`generativelanguage`).
@@ -54,8 +52,7 @@ export function resolveVertexTopicModelId(fallbackFromGeminiModel: string): {
   const normalized = fallbackFromGeminiModel.trim();
   const key = normalized.toLowerCase();
   if (VERTEX_TYPICAL_404_IDS.has(key)) {
-    const fallback =
-      process.env.VERTEX_TOPIC_FALLBACK_MODEL?.trim() || "gemini-2.5-pro";
+    const fallback = process.env.VERTEX_TOPIC_FALLBACK_MODEL?.trim() || "gemini-2.5-pro";
     console.warn(
       `[geminiModel] Vertex: "${normalized}" is usually unavailable on Vertex; using "${fallback}". ` +
         "Set VERTEX_GEMINI_MODEL (or VERTEX_TOPIC_FALLBACK_MODEL) to override."

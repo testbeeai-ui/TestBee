@@ -79,12 +79,19 @@ function parseReferences(data: unknown): DeepDiveReference[] {
   return out;
 }
 
-export async function fetchSubtopicContent(params: SubtopicContentParams): Promise<SubtopicContentResponse> {
+export async function fetchSubtopicContent(
+  params: SubtopicContentParams
+): Promise<SubtopicContentResponse> {
   const res = await fetchWithClientAuth(buildQuery(params), { cache: "no-store" });
   const empty: SubtopicContentResponse = {
-    theory: "", references: [], didYouKnow: "",
-    instacueCards: [], bitsQuestions: [], practiceFormulas: [],
-    exists: false, canEdit: false,
+    theory: "",
+    references: [],
+    didYouKnow: "",
+    instacueCards: [],
+    bitsQuestions: [],
+    practiceFormulas: [],
+    exists: false,
+    canEdit: false,
   };
   if (!res.ok) {
     if (res.status === 401) return empty;
@@ -193,9 +200,7 @@ export async function generateSubtopicContent(
     ragChunks: typeof data.ragChunks === "number" ? data.ragChunks : undefined,
     modelId: typeof data.modelId === "string" ? data.modelId : undefined,
     trace:
-      data.trace && typeof data.trace === "object"
-        ? (data.trace as TopicAgentTrace)
-        : undefined,
+      data.trace && typeof data.trace === "object" ? (data.trace as TopicAgentTrace) : undefined,
   };
 }
 
@@ -236,9 +241,7 @@ async function callArtifactApi<T>(
     items: Array.isArray(data.items) ? (data.items as T[]) : [],
     modelId: typeof data.modelId === "string" ? data.modelId : undefined,
     trace:
-      data.trace && typeof data.trace === "object"
-        ? (data.trace as TopicAgentTrace)
-        : undefined,
+      data.trace && typeof data.trace === "object" ? (data.trace as TopicAgentTrace) : undefined,
   };
 }
 

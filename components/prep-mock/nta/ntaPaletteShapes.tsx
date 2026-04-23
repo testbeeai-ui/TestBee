@@ -8,9 +8,18 @@ import { cn } from "@/lib/utils";
  * Same shapes in the legend and in the grid so status semantics stay visually aligned.
  */
 
-export type NtaPaletteKind = "not_visited" | "not_answered" | "answered" | "marked" | "answered_marked";
+export type NtaPaletteKind =
+  | "not_visited"
+  | "not_answered"
+  | "answered"
+  | "marked"
+  | "answered_marked";
 
-export function getNtaPaletteKind(visited: boolean, answered: boolean, marked: boolean): NtaPaletteKind {
+export function getNtaPaletteKind(
+  visited: boolean,
+  answered: boolean,
+  marked: boolean
+): NtaPaletteKind {
   if (!visited) return "not_visited";
   if (answered && marked) return "answered_marked";
   if (marked) return "marked";
@@ -43,8 +52,14 @@ export function NtaPaletteShapeSvg({
   const defs = tile ? (
     <defs>
       <linearGradient id={`${rid}-nv`} x1="0" y1="0" x2="0" y2={VB} gradientUnits="userSpaceOnUse">
-        <stop offset="0%" stopColor="var(--nta-palette-unvisited-fill-top, var(--nta-palette-unvisited-fill))" />
-        <stop offset="100%" stopColor="var(--nta-palette-unvisited-fill-deep, var(--nta-palette-unvisited-stroke))" />
+        <stop
+          offset="0%"
+          stopColor="var(--nta-palette-unvisited-fill-top, var(--nta-palette-unvisited-fill))"
+        />
+        <stop
+          offset="100%"
+          stopColor="var(--nta-palette-unvisited-fill-deep, var(--nta-palette-unvisited-stroke))"
+        />
       </linearGradient>
       <filter id={`${rid}-elev`} x="-40%" y="-40%" width="180%" height="180%">
         <feDropShadow dx="0" dy="1" stdDeviation="0.75" floodColor="#000000" floodOpacity="0.2" />
@@ -109,15 +124,36 @@ export function NtaPaletteShapeSvg({
       }
       case "marked": {
         const c = (
-          <circle cx={12} cy={12} r={8.2} fill="var(--nta-legend-purple)" stroke="#4b2d8a" strokeWidth={0.6} />
+          <circle
+            cx={12}
+            cy={12}
+            r={8.2}
+            fill="var(--nta-legend-purple)"
+            stroke="#4b2d8a"
+            strokeWidth={0.6}
+          />
         );
         return tile ? <g filter={`url(#${rid}-elev)`}>{c}</g> : c;
       }
       case "answered_marked": {
         const dual = (
           <g>
-            <circle cx={11.5} cy={11.5} r={8} fill="var(--nta-legend-purple)" stroke="#4b2d8a" strokeWidth={0.55} />
-            <circle cx={17.5} cy={17.5} r={4.2} fill="var(--nta-green)" stroke="#2d6a2d" strokeWidth={0.45} />
+            <circle
+              cx={11.5}
+              cy={11.5}
+              r={8}
+              fill="var(--nta-legend-purple)"
+              stroke="#4b2d8a"
+              strokeWidth={0.55}
+            />
+            <circle
+              cx={17.5}
+              cy={17.5}
+              r={4.2}
+              fill="var(--nta-green)"
+              stroke="#2d6a2d"
+              strokeWidth={0.45}
+            />
           </g>
         );
         return tile ? <g filter={`url(#${rid}-elev)`}>{dual}</g> : dual;
@@ -127,16 +163,20 @@ export function NtaPaletteShapeSvg({
     }
   })();
 
-  const body =
-    tile ? (
-      <g transform={`translate(${VB / 2} ${VB / 2}) scale(1.18) translate(${-VB / 2} ${-VB / 2})`}>{inner}</g>
-    ) : (
-      inner
-    );
+  const body = tile ? (
+    <g transform={`translate(${VB / 2} ${VB / 2}) scale(1.18) translate(${-VB / 2} ${-VB / 2})`}>
+      {inner}
+    </g>
+  ) : (
+    inner
+  );
 
   return (
     <svg
-      className={cn(fill ? "block h-full w-full max-h-full max-w-full" : "block shrink-0", className)}
+      className={cn(
+        fill ? "block h-full w-full max-h-full max-w-full" : "block shrink-0",
+        className
+      )}
       width={fill ? "100%" : size}
       height={fill ? "100%" : size}
       viewBox={`0 0 ${VB} ${VB}`}

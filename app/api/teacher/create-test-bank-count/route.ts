@@ -36,14 +36,61 @@ function isMatch(x: unknown): x is CreateTestQuestionBankMatch {
   return true;
 }
 
-function sumBitsQuestions(rows: { bits_questions: unknown }[] | null): number {
-  if (!rows?.length) return 0;
-  let n = 0;
+function normalizeStem(text: unknown): string {
+  return typeof text === "string" ? text.trim().toLowerCase() : "";
+}
+
+async function getUsedQuestionStemsForTopic(
+  db: Db,
+  teacherId: string,
+  subject: string
+): Promise<Set<string>> {
+  const usedStems = new Set<string>();
+
+  // Fetch all history for this teacher+subject — covers both Topic-wise and Unit-wise entries
+  const { data, error } = await db
+    // @ts-expect-error: Temporary ignore due to schema type mismatches
+    .from("teacher_generated_test_history")
+    .select("used_question_ids")
+    .eq("teacher_id", teacherId)
+    .eq("subject", subject);
+
+  if (error || !data) return usedStems;
+
+  for (const row of data as unknown as Array<{ used_question_ids: unknown }>) {
+    const stems = Array.isArray(row.used_question_ids) ? row.used_question_ids : [];
+    for (const stem of stems) {
+      const normalized = normalizeStem(stem);
+      if (normalized) usedStems.add(normalized);
+    }
+  }
+
+  return usedStems;
+}
+
+function countQuestionsExcludingUsed(
+  rows: { bits_questions: unknown }[] | null,
+  usedStems: Set<string>
+): { total: number; available: number } {
+  if (!rows?.length) return { total: 0, available: 0 };
+
+  let total = 0;
+  let available = 0;
+
   for (const r of rows) {
     const arr = Array.isArray(r.bits_questions) ? r.bits_questions : [];
-    n += arr.length;
+    for (const q of arr) {
+      if (q && typeof q === "object") {
+        const stem = normalizeStem((q as { question?: unknown }).question);
+        total++;
+        if (!stem || !usedStems.has(stem)) {
+          available++;
+        }
+      }
+    }
   }
-  return n;
+
+  return { total, available };
 }
 
 type Db = ReturnType<typeof createClientWithToken>;
@@ -52,20 +99,25 @@ async function fetchBitsRowsForTopicsIn(
   db: Db,
   subject: string,
   classLevel: number,
-  topicTitles: string[]
+  topicTitles: string[],
+  levelFilter?: "basics" | "intermediate" | "advanced" | null
 ): Promise<{ rows: { bits_questions: unknown }[]; error: string | null }> {
   const keys = [...new Set(topicTitles.map((t) => normalizeSubtopicContentKey(t)).filter(Boolean))];
   if (keys.length === 0) return { rows: [], error: null };
 
   const all: { bits_questions: unknown }[] = [];
   for (const chunk of chunkStrings(keys, TOPIC_IN_CHUNK)) {
-    const { data, error } = await db
+    let query = db
       .from("subtopic_content")
       .select("bits_questions")
       .eq("board", BOARD)
       .eq("subject", subject)
       .eq("class_level", classLevel)
       .in("topic", chunk);
+    if (levelFilter) {
+      query = query.eq("level", levelFilter);
+    }
+    const { data, error } = await query;
     if (error) return { rows: [], error: error.message };
     if (data?.length) all.push(...data);
   }
@@ -73,8 +125,8 @@ async function fetchBitsRowsForTopicsIn(
 }
 
 /**
- * Counts MCQs in `subtopic_content.bits_questions` for the selected syllabus topic(s)
- * (all levels: basics / intermediate / advanced rows are included).
+ * Counts MCQs in `subtopic_content.bits_questions` for the selected syllabus topic(s).
+ * Topic-wise and Unit-wise scopes restrict to advanced level only.
  */
 export async function POST(req: Request) {
   let body: unknown;
@@ -91,6 +143,15 @@ export async function POST(req: Request) {
     subject?: unknown;
     match?: unknown;
   };
+
+  // Topic-wise and Unit-wise scopes automatically restrict to advanced level only
+  const effectiveLevelFilter: "advanced" | null =
+    match &&
+    typeof match === "object" &&
+    ((match as { scope?: string }).scope === "Topic-wise" ||
+      (match as { scope?: string }).scope === "Unit-wise")
+      ? "advanced"
+      : null;
 
   if (classLevel !== 11 && classLevel !== 12) {
     return NextResponse.json({ error: "classLevel must be 11 or 12" }, { status: 400 });
@@ -123,29 +184,46 @@ export async function POST(req: Request) {
 
   const titles = match.topicTitles;
 
-  const { rows, error } = await fetchBitsRowsForTopicsIn(db, subject, classLevel, titles);
+  const { rows, error } = await fetchBitsRowsForTopicsIn(
+    db,
+    subject,
+    classLevel,
+    titles,
+    effectiveLevelFilter
+  );
   if (error) {
     return NextResponse.json({ error }, { status: 500 });
   }
-  let count = sumBitsQuestions(rows);
+
+  // Get used question stems from history for depletion
+  const usedStems = await getUsedQuestionStemsForTopic(db, user.id, subject);
+  const { total, available } = countQuestionsExcludingUsed(rows, usedStems);
+  let count = available;
+  let rawCount = total;
   let scanned = rows.length;
 
   if (count === 0 && classLevel === 11) {
-    const r2 = await fetchBitsRowsForTopicsIn(db, subject, 12, titles);
+    const r2 = await fetchBitsRowsForTopicsIn(db, subject, 12, titles, effectiveLevelFilter);
     if (!r2.error && r2.rows.length) {
-      count = sumBitsQuestions(r2.rows);
+      const r2Counts = countQuestionsExcludingUsed(r2.rows, usedStems);
+      count = r2Counts.available;
+      rawCount = r2Counts.total;
       scanned = r2.rows.length;
     }
   } else if (count === 0 && classLevel === 12) {
-    const r2 = await fetchBitsRowsForTopicsIn(db, subject, 11, titles);
+    const r2 = await fetchBitsRowsForTopicsIn(db, subject, 11, titles, effectiveLevelFilter);
     if (!r2.error && r2.rows.length) {
-      count = sumBitsQuestions(r2.rows);
+      const r2Counts = countQuestionsExcludingUsed(r2.rows, usedStems);
+      count = r2Counts.available;
+      rawCount = r2Counts.total;
       scanned = r2.rows.length;
     }
   }
 
   return NextResponse.json({
     count,
+    rawCount,
+    usedCount: usedStems.size,
     error: null,
     scanned,
     source: "subtopic_content.bits_questions",

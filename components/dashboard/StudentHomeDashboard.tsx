@@ -82,9 +82,30 @@ const UPCOMING_MOCKS = [
 ] as const;
 
 const EDUFUND_TIERS = [
-  { name: "Sprout", status: "Unlocked" as const, detail: "1,000 RDM threshold", progress: 1, amount: "₹3,000", tone: "text-emerald-500" },
-  { name: "Scholar", status: "In progress" as const, detail: "3,000 RDM needed · 1,260 more to go", progress: 0.58, amount: "₹12,000", tone: "text-indigo-400" },
-  { name: "Champion", status: "Locked" as const, detail: "8,000 RDM needed · 6,260 more to go", progress: 0.22, amount: "₹50,000", tone: "text-orange-400" },
+  {
+    name: "Sprout",
+    status: "Unlocked" as const,
+    detail: "1,000 RDM threshold",
+    progress: 1,
+    amount: "₹3,000",
+    tone: "text-emerald-500",
+  },
+  {
+    name: "Scholar",
+    status: "In progress" as const,
+    detail: "3,000 RDM needed · 1,260 more to go",
+    progress: 0.58,
+    amount: "₹12,000",
+    tone: "text-indigo-400",
+  },
+  {
+    name: "Champion",
+    status: "Locked" as const,
+    detail: "8,000 RDM needed · 6,260 more to go",
+    progress: 0.22,
+    amount: "₹50,000",
+    tone: "text-orange-400",
+  },
 ] as const;
 
 function greenCellClass(level: 0 | 1 | 2 | 3 | 4, isToday: boolean): string {
@@ -115,10 +136,16 @@ export default function StudentHomeDashboard() {
     streak: number;
     activeDaysThisMonth: number;
   } | null>(null);
-  const [studyDaysStatus, setStudyDaysStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [studyDaysStatus, setStudyDaysStatus] = useState<"idle" | "loading" | "ready" | "error">(
+    "idle"
+  );
   /** After first successful fetch, refetches stay quiet (no greeting/stat "…" flicker). */
   const studyDaysCommittedRef = useRef(false);
-  const { taxonomy: fullTaxonomy, loading: taxonomyLoading, error: taxonomyError } = useTopicTaxonomy();
+  const {
+    taxonomy: fullTaxonomy,
+    loading: taxonomyLoading,
+    error: taxonomyError,
+  } = useTopicTaxonomy();
 
   const livePresencePendingMs = useSitePresenceLiveMsToday();
 
@@ -136,7 +163,10 @@ export default function StudentHomeDashboard() {
   /** Stable clock for memo deps; ticks every minute so heatmap / greeting stay fresh without re-running memos every frame. */
   const [dashboardClock, setDashboardClock] = useState(() => Date.now());
   const now = useMemo(() => new Date(dashboardClock), [dashboardClock]);
-  const monthDays = useMemo(() => new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate(), [now]);
+  const monthDays = useMemo(
+    () => new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate(),
+    [now]
+  );
 
   useEffect(() => {
     const id = setInterval(() => setDashboardClock(Date.now()), 60_000);
@@ -164,7 +194,9 @@ export default function StudentHomeDashboard() {
     }
     try {
       const headers = await getClientApiAuthHeaders();
-      const res = await fetch(`/api/user/study-days?from=${fromStr}&to=${toStr}&today=${toStr}`, { headers });
+      const res = await fetch(`/api/user/study-days?from=${fromStr}&to=${toStr}&today=${toStr}`, {
+        headers,
+      });
       if (!res.ok) {
         if (!silent) setStudyDaysStatus("error");
         return;
@@ -248,10 +280,7 @@ export default function StudentHomeDashboard() {
 
   const classLevelNum = storeUser?.classLevel ?? profile?.class_level ?? null;
   const subjectCombo = (storeUser?.subjectCombo ?? profile?.subject_combo ?? "PCM") as SubjectCombo;
-  const dashboardSubjects: Subject[] = useMemo(
-    () => (subjectCombo === "PCMB" ? ["physics", "chemistry", "math", "biology"] : ["physics", "chemistry", "math"]),
-    [subjectCombo]
-  );
+  const dashboardSubjects: Subject[] = useMemo(() => ["physics", "chemistry", "math"], []);
 
   /**
    * Subject accuracy uses only Lessons/Progress “Marked completed”; scope taxonomy to
@@ -286,10 +315,17 @@ export default function StudentHomeDashboard() {
       6,
       { progressSource: "lesson_marked_only" }
     );
-  }, [taxonomyForChapterAccuracy, bitsAttemptRows, submittedBitsKeys, profile?.subtopic_engagement]);
+  }, [
+    taxonomyForChapterAccuracy,
+    bitsAttemptRows,
+    submittedBitsKeys,
+    profile?.subtopic_engagement,
+  ]);
 
   const [dailyChecklist, setDailyChecklist] = useState<DailyChecklistApiResponse | null>(null);
-  const [dailyChecklistStatus, setDailyChecklistStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [dailyChecklistStatus, setDailyChecklistStatus] = useState<
+    "idle" | "loading" | "ready" | "error"
+  >("idle");
   const dailyChecklistCommittedRef = useRef(false);
   const [instacueAckLoading, setInstacueAckLoading] = useState(false);
 
@@ -313,7 +349,9 @@ export default function StudentHomeDashboard() {
         dayEnd,
         subjects,
       });
-      const res = await fetchWithClientAuth(`/api/user/daily-checklist?${q.toString()}`, { headers });
+      const res = await fetchWithClientAuth(`/api/user/daily-checklist?${q.toString()}`, {
+        headers,
+      });
       if (!res.ok) {
         if (!silent) setDailyChecklistStatus("error");
         return;
@@ -366,7 +404,10 @@ export default function StudentHomeDashboard() {
   /** Single-line checklist hint for the greeting strip (items a–d from GET /api/user/daily-checklist). */
   const greetingChecklistLine = useMemo(() => {
     if (!profile?.id) {
-      return { tone: "muted" as const, text: "Sign in to see your daily checklist and study streak." };
+      return {
+        tone: "muted" as const,
+        text: "Sign in to see your daily checklist and study streak.",
+      };
     }
     if (dailyChecklistStatus === "error") {
       return {
@@ -392,7 +433,9 @@ export default function StudentHomeDashboard() {
       const rest = formatRemainingChecklistLabels(labels);
       return {
         tone: "muted" as const,
-        text: labels.length ? `Remaining: ${rest}.` : "Almost there — finish the last items in the checklist below.",
+        text: labels.length
+          ? `Remaining: ${rest}.`
+          : "Almost there — finish the last items in the checklist below.",
       };
     }
     return {
@@ -476,7 +519,15 @@ export default function StudentHomeDashboard() {
       tooltipTitle: string | null;
     }[] = [];
     for (let i = 0; i < offset; i++) {
-      cells.push({ day: null, key: null, activeMs: 0, presenceMs: 0, level: 0, label: "—", tooltipTitle: null });
+      cells.push({
+        day: null,
+        key: null,
+        activeMs: 0,
+        presenceMs: 0,
+        level: 0,
+        label: "—",
+        tooltipTitle: null,
+      });
     }
     for (let day = 1; day <= monthDays; day++) {
       const d = new Date(y, mon, day);
@@ -496,7 +547,15 @@ export default function StudentHomeDashboard() {
       });
     }
     while (cells.length % 7 !== 0) {
-      cells.push({ day: null, key: null, activeMs: 0, presenceMs: 0, level: 0, label: "—", tooltipTitle: null });
+      cells.push({
+        day: null,
+        key: null,
+        activeMs: 0,
+        presenceMs: 0,
+        level: 0,
+        label: "—",
+        tooltipTitle: null,
+      });
     }
     const monthLong = now.toLocaleDateString("en-US", { month: "long" }).toUpperCase();
     const year = now.getFullYear();
@@ -535,7 +594,8 @@ export default function StudentHomeDashboard() {
       ? `PUC ${classLevel === 12 ? 2 : 1} · ${subjectCombo} · JEE + KCET track · ${dateStr}`
       : `PUC 2 · ${subjectCombo} · JEE + KCET track · ${dateStr}`;
 
-  const studyStreakPending = profile?.id && (studyDaysStatus === "idle" || studyDaysStatus === "loading");
+  const studyStreakPending =
+    profile?.id && (studyDaysStatus === "idle" || studyDaysStatus === "loading");
   const studyStreakReady = profile?.id && studyDaysStatus === "ready";
 
   return (
@@ -543,7 +603,9 @@ export default function StudentHomeDashboard() {
       {/* Greeting strip */}
       <div className="rounded-2xl border border-border/60 bg-card/60 px-4 py-3 dark:bg-slate-950/50">
         <p className="text-sm text-foreground">
-          <span className="font-bold">{greeting}, {displayName}!</span>{" "}
+          <span className="font-bold">
+            {greeting}, {displayName}!
+          </span>{" "}
           <span
             className={
               greetingChecklistLine.tone === "warn" ? "text-amber-200/90" : "text-muted-foreground"
@@ -551,7 +613,10 @@ export default function StudentHomeDashboard() {
           >
             {greetingChecklistLine.text}{" "}
             {profile?.id && studyStreakReady ? (
-              <>Your study streak is {streakDays} {streakDays === 1 ? "day" : "days"} — don&apos;t break it.</>
+              <>
+                Your study streak is {streakDays} {streakDays === 1 ? "day" : "days"} — don&apos;t
+                break it.
+              </>
             ) : profile?.id && studyStreakPending ? (
               <>Loading your saved study streak…</>
             ) : profile?.id && studyDaysStatus === "error" ? (
@@ -565,11 +630,19 @@ export default function StudentHomeDashboard() {
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="font-serif text-3xl font-bold tracking-tight text-foreground md:text-4xl">My dashboard</h1>
+          <h1 className="font-serif text-3xl font-bold tracking-tight text-foreground md:text-4xl">
+            My dashboard
+          </h1>
           <p className="mt-1 text-sm text-muted-foreground">{classLine}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button type="button" variant="outline" size="sm" className="rounded-full font-bold" onClick={() => router.push("/play")}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="rounded-full font-bold"
+            onClick={() => router.push("/play")}
+          >
             AI coach advice
           </Button>
         </div>
@@ -598,7 +671,13 @@ export default function StudentHomeDashboard() {
           },
           {
             label: "STUDY STREAK",
-            value: studyStreakReady ? `${streakDays} days` : studyStreakPending ? "…" : studyDaysStatus === "error" ? "—" : "—",
+            value: studyStreakReady
+              ? `${streakDays} days`
+              : studyStreakPending
+                ? "…"
+                : studyDaysStatus === "error"
+                  ? "—"
+                  : "—",
             sub: studyStreakReady
               ? `Active days this month: ${activeDaysThisMonth}/${monthDays}`
               : studyStreakPending
@@ -609,7 +688,10 @@ export default function StudentHomeDashboard() {
             subClass: "text-muted-foreground",
           },
         ].map((c) => (
-          <div key={c.label} className="rounded-2xl border border-border/70 bg-card/90 p-4 shadow-sm dark:bg-slate-950/60">
+          <div
+            key={c.label}
+            className="rounded-2xl border border-border/70 bg-card/90 p-4 shadow-sm dark:bg-slate-950/60"
+          >
             <p className="text-[10px] font-bold tracking-widest text-muted-foreground">{c.label}</p>
             <p className="mt-1 text-2xl font-extrabold tabular-nums text-foreground">{c.value}</p>
             <p className={cn("mt-1 text-xs font-semibold", c.subClass)}>{c.sub}</p>
@@ -631,9 +713,15 @@ export default function StudentHomeDashboard() {
         </div>
 
         <p id="study-streak-map-help" className="sr-only">
-          Each day shows time on site with this tab in focus; hover for on-site time and saved study time toward your streak.
+          Each day shows time on site with this tab in focus; hover for on-site time and saved study
+          time toward your streak.
         </p>
-        <div className="mb-3 inline-flex w-fit rounded-full border border-border bg-muted/30 p-0.5 dark:bg-slate-900/80" role="group" aria-label="Time on site map range" aria-describedby="study-streak-map-help">
+        <div
+          className="mb-3 inline-flex w-fit rounded-full border border-border bg-muted/30 p-0.5 dark:bg-slate-900/80"
+          role="group"
+          aria-label="Time on site map range"
+          aria-describedby="study-streak-map-help"
+        >
           <button
             type="button"
             onClick={() => setHeatmapMode("7")}
@@ -669,7 +757,8 @@ export default function StudentHomeDashboard() {
         {heatmapMode === "7" ? (
           <div className="flex flex-wrap gap-2">
             {last7Series.map((cell) => {
-              const isToday = localDayKeyFromDate(cell.date) === localDayKeyFromDate(startOfLocalDay(now));
+              const isToday =
+                localDayKeyFromDate(cell.date) === localDayKeyFromDate(startOfLocalDay(now));
               return (
                 <div
                   key={cell.key}
@@ -683,7 +772,9 @@ export default function StudentHomeDashboard() {
                     {cell.date.toLocaleDateString(undefined, { weekday: "short" })}
                   </span>
                   <span className="text-sm font-extrabold tabular-nums">{cell.label}</span>
-                  {isToday ? <span className="text-[10px] font-semibold text-teal-400">Today</span> : null}
+                  {isToday ? (
+                    <span className="text-[10px] font-semibold text-teal-400">Today</span>
+                  ) : null}
                 </div>
               );
             })}
@@ -698,7 +789,9 @@ export default function StudentHomeDashboard() {
             <div className="mt-1 grid grid-cols-7 gap-1.5">
               {monthGrid.cells.map((cell, idx) => {
                 if (cell.day == null) {
-                  return <div key={`pad-${idx}`} className="aspect-square rounded-lg bg-transparent" />;
+                  return (
+                    <div key={`pad-${idx}`} className="aspect-square rounded-lg bg-transparent" />
+                  );
                 }
                 const d = new Date(now.getFullYear(), now.getMonth(), cell.day);
                 const isToday = startOfLocalDay(d).getTime() === monthGrid.todayStart.getTime();
@@ -726,11 +819,13 @@ export default function StudentHomeDashboard() {
           <span className="h-3 w-8 rounded bg-gradient-to-r from-muted to-emerald-400" />
           <span>More</span>
           <span className="ml-2">
-            Cell numbers show time on EduBlast with this tab in the foreground (pauses when you switch tabs). Tooltips also show
-            saved study time toward your streak (play + topic quizzes). A dash means no on-site time that day;{" "}
-            <span className="font-mono">{"<1m"}</span> means under one minute on site. Streak = consecutive calendar days with
-            any saved study time, counted through your most recent active day on or before today (so the map can look quiet while
-            your streak continues if you have not opened the app long enough to sync).
+            Cell numbers show time on EduBlast with this tab in the foreground (pauses when you
+            switch tabs). Tooltips also show saved study time toward your streak (play + topic
+            quizzes). A dash means no on-site time that day;{" "}
+            <span className="font-mono">{"<1m"}</span> means under one minute on site. Streak =
+            consecutive calendar days with any saved study time, counted through your most recent
+            active day on or before today (so the map can look quiet while your streak continues if
+            you have not opened the app long enough to sync).
           </span>
         </div>
       </section>
@@ -742,7 +837,12 @@ export default function StudentHomeDashboard() {
             <CheckCircle2 className="h-5 w-5 text-emerald-500" />
             <h2 className="text-lg font-bold">Today&apos;s checklist and what is done</h2>
           </div>
-          <Button type="button" size="sm" className="gap-1 rounded-full font-bold" onClick={() => router.push("/play")}>
+          <Button
+            type="button"
+            size="sm"
+            className="gap-1 rounded-full font-bold"
+            onClick={() => router.push("/play")}
+          >
             <Flame className="h-4 w-4" />
             Start streak for today
           </Button>
@@ -784,7 +884,10 @@ export default function StudentHomeDashboard() {
             >
               <div className="flex min-w-0 flex-1 gap-2">
                 {item.done ? (
-                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" aria-label="Done" />
+                  <CheckCircle2
+                    className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500"
+                    aria-label="Done"
+                  />
                 ) : (
                   <span
                     className="mt-0.5 inline-flex h-4 w-4 shrink-0 rounded border border-dashed border-muted-foreground/50"
@@ -825,7 +928,8 @@ export default function StudentHomeDashboard() {
                     <span className="mt-1 block text-[11px] text-muted-foreground">
                       Today&apos;s Instacue saves: {dailyChecklist.savedRevisionCardCount}/32
                       {typeof dailyChecklist.savedRevisionCardsDeckTotal === "number" &&
-                      dailyChecklist.savedRevisionCardsDeckTotal !== dailyChecklist.savedRevisionCardCount ? (
+                      dailyChecklist.savedRevisionCardsDeckTotal !==
+                        dailyChecklist.savedRevisionCardCount ? (
                         <>
                           {" "}
                           · Bank total {dailyChecklist.savedRevisionCardsDeckTotal} (not day-scoped)
@@ -841,16 +945,20 @@ export default function StudentHomeDashboard() {
         </ul>
         <p className="mt-3 text-xs text-muted-foreground">
           {dailyChecklistStatus === "error" ? (
-            <span className="text-rose-300">Could not load checklist status. Refresh and try again.</span>
+            <span className="text-rose-300">
+              Could not load checklist status. Refresh and try again.
+            </span>
           ) : (
             <>
-              <span className="font-semibold text-foreground">
-                {checklistDoneCount} of 4 done
-              </span>
+              <span className="font-semibold text-foreground">{checklistDoneCount} of 4 done</span>
               {" · "}
-              Gyan++ today: {dailyChecklist ? `${Math.round(dailyChecklist.gyanPlusProgress.focusMs / 60000)}m` : "—"} on feed,{" "}
-              {dailyChecklist?.gyanPlusProgress.savesToday ?? "—"} saves, {dailyChecklist?.gyanPlusProgress.communityActionsToday ?? "—"}{" "}
-              community actions (items a–d are live; rewards later).
+              Gyan++ today:{" "}
+              {dailyChecklist
+                ? `${Math.round(dailyChecklist.gyanPlusProgress.focusMs / 60000)}m`
+                : "—"}{" "}
+              on feed, {dailyChecklist?.gyanPlusProgress.savesToday ?? "—"} saves,{" "}
+              {dailyChecklist?.gyanPlusProgress.communityActionsToday ?? "—"} community actions
+              (items a–d are live; rewards later).
             </>
           )}
         </p>
@@ -864,21 +972,33 @@ export default function StudentHomeDashboard() {
               <LineChart className="h-5 w-5 text-emerald-500" />
               <h2 className="text-lg font-bold">Subject accuracy</h2>
             </div>
-            <Link href="/performance" className="text-xs font-bold text-emerald-500 hover:underline">
+            <Link
+              href="/performance"
+              className="text-xs font-bold text-emerald-500 hover:underline"
+            >
               View full report →
             </Link>
           </div>
           <p className="mb-3 text-xs text-muted-foreground">
             {chapterAccuracyClassLabel} · Tracked only when you tap{" "}
-            <span className="font-semibold text-foreground/90">Marked completed</span> in Lessons/Progress on a subtopic. Each chapter lists all curriculum subtopics; % is marked subtopics ÷ total subtopics in that chapter; chapters with at least one mark first (newest mark first).
+            <span className="font-semibold text-foreground/90">Marked completed</span> in
+            Lessons/Progress on a subtopic. Each chapter lists all curriculum subtopics; % is marked
+            subtopics ÷ total subtopics in that chapter; chapters with at least one mark first
+            (newest mark first).
           </p>
           {taxonomyLoading ? (
-            <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">Loading curriculum…</p>
+            <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+              Loading curriculum…
+            </p>
           ) : taxonomyError ? (
-            <p className="rounded-lg border border-dashed p-6 text-center text-sm text-rose-200">{taxonomyError}</p>
+            <p className="rounded-lg border border-dashed p-6 text-center text-sm text-rose-200">
+              {taxonomyError}
+            </p>
           ) : chapterRows.length === 0 ? (
             <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-              Open any subtopic, finish Lessons/Progress, and tap <span className="font-semibold text-foreground/90">Marked completed</span> — those chapters show here with real X/total subtopics (quizzes alone do not count).
+              Open any subtopic, finish Lessons/Progress, and tap{" "}
+              <span className="font-semibold text-foreground/90">Marked completed</span> — those
+              chapters show here with real X/total subtopics (quizzes alone do not count).
             </p>
           ) : (
             <ul className="space-y-3">
@@ -889,11 +1009,15 @@ export default function StudentHomeDashboard() {
                     <span>{row.completionPct}%</span>
                   </div>
                   <p className="mb-1 text-[11px] text-muted-foreground">
-                    {row.completed}/{row.total} subtopics marked · {row.topicCountInChapter} topic{row.topicCountInChapter === 1 ? "" : "s"} in this chapter
+                    {row.completed}/{row.total} subtopics marked · {row.topicCountInChapter} topic
+                    {row.topicCountInChapter === 1 ? "" : "s"} in this chapter
                   </p>
                   <div className="h-2 overflow-hidden rounded-full bg-muted">
                     <div
-                      className={cn("h-full rounded-full transition-all", TOPIC_BAR_TONES[i % TOPIC_BAR_TONES.length])}
+                      className={cn(
+                        "h-full rounded-full transition-all",
+                        TOPIC_BAR_TONES[i % TOPIC_BAR_TONES.length]
+                      )}
                       style={{ width: `${row.completionPct}%` }}
                     />
                   </div>
@@ -903,8 +1027,11 @@ export default function StudentHomeDashboard() {
           )}
           {lowestChapter && lowestChapter.completionPct < 100 ? (
             <div className="mt-4 rounded-xl border border-rose-500/40 bg-rose-500/5 p-3 text-sm text-rose-200">
-              Needs attention: {lowestChapter.label} at {lowestChapter.completionPct}% ({lowestChapter.completed}/{lowestChapter.total}{" "}
-              subtopics across {lowestChapter.topicCountInChapter} topic{lowestChapter.topicCountInChapter === 1 ? "" : "s"}) — schedule revision or a targeted mock on this chapter.
+              Needs attention: {lowestChapter.label} at {lowestChapter.completionPct}% (
+              {lowestChapter.completed}/{lowestChapter.total} subtopics across{" "}
+              {lowestChapter.topicCountInChapter} topic
+              {lowestChapter.topicCountInChapter === 1 ? "" : "s"}) — schedule revision or a
+              targeted mock on this chapter.
             </div>
           ) : null}
         </div>
@@ -937,7 +1064,9 @@ export default function StudentHomeDashboard() {
                   <p className="truncate font-semibold">{row.name}</p>
                   <p className="text-xs text-muted-foreground">{row.city}</p>
                 </div>
-                <span className="font-mono text-sm font-bold tabular-nums">{row.pts.toLocaleString()}</span>
+                <span className="font-mono text-sm font-bold tabular-nums">
+                  {row.pts.toLocaleString()}
+                </span>
               </li>
             ))}
             <li className="flex items-center gap-3 py-2.5 text-sm ring-2 ring-emerald-500/30 ring-inset rounded-lg px-1 -mx-1">
@@ -948,14 +1077,20 @@ export default function StudentHomeDashboard() {
               <div className="min-w-0 flex-1">
                 <p className="truncate font-semibold">
                   You — {storeUser?.name ?? profile?.name ?? "You"}{" "}
-                  <span className="ml-1 rounded bg-emerald-500/20 px-1.5 text-[10px] font-bold text-emerald-600">YOU</span>
+                  <span className="ml-1 rounded bg-emerald-500/20 px-1.5 text-[10px] font-bold text-emerald-600">
+                    YOU
+                  </span>
                 </p>
                 <p className="text-xs text-muted-foreground">Bengaluru</p>
               </div>
-              <span className="font-mono text-sm font-bold tabular-nums">{rdm.toLocaleString()}</span>
+              <span className="font-mono text-sm font-bold tabular-nums">
+                {rdm.toLocaleString()}
+              </span>
             </li>
           </ul>
-          <p className="mt-2 text-xs text-muted-foreground">310 points to reach top 10 · Keep your streak going (illustrative)</p>
+          <p className="mt-2 text-xs text-muted-foreground">
+            310 points to reach top 10 · Keep your streak going (illustrative)
+          </p>
         </div>
       </section>
 
@@ -981,16 +1116,31 @@ export default function StudentHomeDashboard() {
             </div>
             <ul className="space-y-3">
               {UPCOMING_MOCKS.map((m) => (
-                <li key={m.title} className={cn("rounded-xl border bg-background/60 p-3 dark:bg-slate-900/50", m.tone)}>
+                <li
+                  key={m.title}
+                  className={cn(
+                    "rounded-xl border bg-background/60 p-3 dark:bg-slate-900/50",
+                    m.tone
+                  )}
+                >
                   <p className="font-semibold leading-snug">{m.title}</p>
                   <p className="mt-1 text-xs text-muted-foreground">{m.meta}</p>
                   <div className="mt-2">
                     {m.action === "Start now" ? (
-                      <Button size="sm" className="rounded-full font-bold" onClick={() => router.push("/mock")}>
+                      <Button
+                        size="sm"
+                        className="rounded-full font-bold"
+                        onClick={() => router.push("/mock")}
+                      >
                         Start now
                       </Button>
                     ) : m.action === "Scheduled" ? (
-                      <Button size="sm" variant="secondary" disabled className="rounded-full font-bold">
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        disabled
+                        className="rounded-full font-bold"
+                      >
                         Scheduled
                       </Button>
                     ) : (
@@ -1002,7 +1152,9 @@ export default function StudentHomeDashboard() {
                 </li>
               ))}
             </ul>
-            <p className="mt-2 text-[11px] text-muted-foreground">Mock schedule shown for investors — will go live with calendar integration.</p>
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              Mock schedule shown for investors — will go live with calendar integration.
+            </p>
           </div>
 
           <div className="rounded-2xl border border-border bg-card/90 p-4 shadow-sm dark:bg-slate-950/60">
@@ -1033,13 +1185,20 @@ export default function StudentHomeDashboard() {
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">{tier.detail}</p>
                   <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
-                    <div className={cn("h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400")} style={{ width: `${tier.progress * 100}%` }} />
+                    <div
+                      className={cn(
+                        "h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400"
+                      )}
+                      style={{ width: `${tier.progress * 100}%` }}
+                    />
                   </div>
                   <p className={cn("mt-1 text-sm font-bold", tier.tone)}>{tier.amount}</p>
                 </li>
               ))}
             </ul>
-            <p className="mt-2 text-[11px] text-muted-foreground">Tiers shown as mock milestones — ties to RDM & grants later.</p>
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              Tiers shown as mock milestones — ties to RDM & grants later.
+            </p>
           </div>
         </div>
       </section>

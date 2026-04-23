@@ -3,12 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Layers, Play, Coffee, Timer } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
 interface DeepDiveRandomWheelProps {
@@ -164,7 +159,8 @@ export default function DeepDiveRandomWheel({
         Random Deep Dive
       </h4>
       <p className="text-xs text-muted-foreground mb-4">
-        Want to explore a subtopic in depth? Spin the wheel to land on a random section and dive deep. Current level: <strong className="text-foreground">{levelLabel}</strong>.
+        Want to explore a subtopic in depth? Spin the wheel to land on a random section and dive
+        deep. Current level: <strong className="text-foreground">{levelLabel}</strong>.
       </p>
 
       {/* Wheel with segments */}
@@ -221,7 +217,14 @@ export default function DeepDiveRandomWheel({
                   </g>
                 );
               })}
-              <circle cx="50" cy="50" r="18" fill="hsl(var(--primary))" stroke="white" strokeWidth="2" />
+              <circle
+                cx="50"
+                cy="50"
+                r="18"
+                fill="hsl(var(--primary))"
+                stroke="white"
+                strokeWidth="2"
+              />
               <text x="50" y="54" textAnchor="middle" fill="white" fontSize="10" fontWeight="bold">
                 SPIN
               </text>
@@ -254,13 +257,11 @@ export default function DeepDiveRandomWheel({
           </DialogHeader>
           <div className="py-4 space-y-4">
             <p className="text-muted-foreground">
-              You&apos;ve been exploring a lot! Studies show that taking short breaks helps your brain absorb what you&apos;ve learned. Would you like to take a 5‑minute break?
+              You&apos;ve been exploring a lot! Studies show that taking short breaks helps your
+              brain absorb what you&apos;ve learned. Would you like to take a 5‑minute break?
             </p>
             <div className="flex flex-col sm:flex-row gap-2 sm:justify-end">
-              <Button
-                variant="outline"
-                onClick={handleKeepGoing}
-              >
+              <Button variant="outline" onClick={handleKeepGoing}>
                 Keep going
               </Button>
               <Button
@@ -296,10 +297,7 @@ export default function DeepDiveRandomWheel({
                 Break complete! Ready to dive back in?
               </p>
             )}
-            <Button
-              className="w-full"
-              onClick={() => setTimerDialogOpen(false)}
-            >
+            <Button className="w-full" onClick={() => setTimerDialogOpen(false)}>
               {timerSeconds === 0 ? "Done" : "I'm back — close timer"}
             </Button>
           </div>

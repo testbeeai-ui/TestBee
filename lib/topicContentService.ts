@@ -208,7 +208,9 @@ export type GenerateTopicResponse = {
   trace?: TopicAgentTrace;
 };
 
-export async function generateTopicContent(body: GenerateTopicBody): Promise<GenerateTopicResponse> {
+export async function generateTopicContent(
+  body: GenerateTopicBody
+): Promise<GenerateTopicResponse> {
   const res = await fetchWithClientAuth(API_GENERATE, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -229,7 +231,10 @@ export async function generateTopicContent(body: GenerateTopicBody): Promise<Gen
       includeTrace: body.includeTrace === true,
     }),
   });
-  const data = (await res.json()) as Partial<GenerateTopicResponse> & { error?: string; trace?: TopicAgentTrace };
+  const data = (await res.json()) as Partial<GenerateTopicResponse> & {
+    error?: string;
+    trace?: TopicAgentTrace;
+  };
   if (!res.ok) {
     throw new Error(data.error || "Generation failed");
   }
@@ -253,7 +258,8 @@ export async function generateTopicContent(body: GenerateTopicBody): Promise<Gen
     modelId: typeof data.modelId === "string" ? data.modelId : undefined,
     runType: typeof data.runType === "string" ? data.runType : undefined,
     runMeta,
-    trace: body.includeTrace && data.trace && typeof data.trace === "object" ? data.trace : undefined,
+    trace:
+      body.includeTrace && data.trace && typeof data.trace === "object" ? data.trace : undefined,
   };
 }
 
@@ -335,7 +341,9 @@ export async function postCompleteSubtopic(
       ...(Array.isArray(body.levels) && body.levels.length > 0 ? { levels: body.levels } : {}),
     }),
   });
-  const data = (await res.json().catch(() => ({}))) as CompleteSubtopicResponse & { error?: string };
+  const data = (await res.json().catch(() => ({}))) as CompleteSubtopicResponse & {
+    error?: string;
+  };
   if (!res.ok) {
     throw new Error(data.error || `complete-subtopic failed (${res.status})`);
   }

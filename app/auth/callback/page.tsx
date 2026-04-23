@@ -170,7 +170,8 @@ export default function AuthCallback() {
         </p>
         {errorDescription?.includes("Database") && (
           <p className="text-xs text-muted-foreground text-center max-w-md">
-            This is usually fixed by running the latest database migration (fix_handle_new_user_profile).
+            This is usually fixed by running the latest database migration
+            (fix_handle_new_user_profile).
           </p>
         )}
         <Button className="rounded-xl" onClick={() => router.replace("/auth?role=student")}>

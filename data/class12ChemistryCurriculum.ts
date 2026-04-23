@@ -1,6 +1,10 @@
-import type { ExamType } from '@/types';
-import type { TopicNode } from '@/data/topicTaxonomy';
-import type { CurriculumUnit, CurriculumChapter, CurriculumTopic } from '@/data/class12PhysicsCurriculum';
+import type { ExamType } from "@/types";
+import type { TopicNode } from "@/data/topicTaxonomy";
+import type {
+  CurriculumUnit,
+  CurriculumChapter,
+  CurriculumTopic,
+} from "@/data/class12PhysicsCurriculum";
 
 const RAW_CLASS12_CHEMISTRY_CURRICULUM = `
 UNIT 1 - SOLUTIONS
@@ -542,23 +546,23 @@ function parseClass12ChemistryCurriculum(raw: string): CurriculumUnit[] {
   return units;
 }
 
-export const class12ChemistryUnits: CurriculumUnit[] =
-  parseClass12ChemistryCurriculum(RAW_CLASS12_CHEMISTRY_CURRICULUM);
+export const class12ChemistryUnits: CurriculumUnit[] = parseClass12ChemistryCurriculum(
+  RAW_CLASS12_CHEMISTRY_CURRICULUM
+);
 
-const CLASS_12_CHEMISTRY_EXAMS: ExamType[] = ['JEE', 'NEET', 'KCET'];
+const CLASS_12_CHEMISTRY_EXAMS: ExamType[] = ["JEE", "NEET", "KCET"];
 
-export const chemistry12DetailedTopicTaxonomy: TopicNode[] =
-  class12ChemistryUnits.flatMap((unit) =>
-    unit.chapters.flatMap((chapter) =>
-      chapter.topics.map((topic) => ({
-        subject: 'chemistry',
-        classLevel: 12,
-        topic: topic.title,
-        chapterTitle: chapter.title,
-        unitLabel: unit.unitLabel,
-        unitTitle: unit.unitTitle,
-        subtopics: topic.subtopics.map((name) => ({ name })),
-        examRelevance: CLASS_12_CHEMISTRY_EXAMS,
-      }))
-    )
-  );
+export const chemistry12DetailedTopicTaxonomy: TopicNode[] = class12ChemistryUnits.flatMap((unit) =>
+  unit.chapters.flatMap((chapter) =>
+    chapter.topics.map((topic) => ({
+      subject: "chemistry",
+      classLevel: 12,
+      topic: topic.title,
+      chapterTitle: chapter.title,
+      unitLabel: unit.unitLabel,
+      unitTitle: unit.unitTitle,
+      subtopics: topic.subtopics.map((name) => ({ name })),
+      examRelevance: CLASS_12_CHEMISTRY_EXAMS,
+    }))
+  )
+);

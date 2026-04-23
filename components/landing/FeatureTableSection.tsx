@@ -35,15 +35,11 @@ export default function FeatureTableSection() {
                   <td className="p-2 md:p-[9px_12px] font-medium text-gray-900 align-top">
                     {row.feature}
                   </td>
-                  <td className="p-2 md:p-[9px_12px] text-gray-500 align-top">
-                    {row.typical}
-                  </td>
+                  <td className="p-2 md:p-[9px_12px] text-gray-500 align-top">{row.typical}</td>
                   <td className="p-2 md:p-[9px_12px] text-[#085041] bg-[#E1F5EE] font-medium align-top">
                     {row.ours}
                   </td>
-                  <td className="p-2 md:p-[9px_12px] text-gray-500 align-top">
-                    {row.why}
-                  </td>
+                  <td className="p-2 md:p-[9px_12px] text-gray-500 align-top">{row.why}</td>
                 </tr>
               ))}
             </tbody>

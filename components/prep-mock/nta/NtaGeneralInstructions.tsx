@@ -23,7 +23,12 @@ interface NtaGeneralInstructionsProps {
   proceedBusy?: boolean;
 }
 
-export function NtaGeneralInstructions({ meta, onBack, onProceed, proceedBusy }: NtaGeneralInstructionsProps) {
+export function NtaGeneralInstructions({
+  meta,
+  onBack,
+  onProceed,
+  proceedBusy,
+}: NtaGeneralInstructionsProps) {
   const [langOpen, setLangOpen] = useState(false);
   const [declaration, setDeclaration] = useState(false);
 
@@ -59,7 +64,10 @@ export function NtaGeneralInstructions({ meta, onBack, onProceed, proceedBusy }:
         className="flex shrink-0 items-center justify-between border-b px-3 py-2 sm:px-6"
         style={{ background: "var(--nta-bar)", borderColor: "var(--nta-border)" }}
       >
-        <h1 className="text-center text-sm font-bold uppercase sm:flex-1" style={{ color: "var(--nta-title-blue)" }}>
+        <h1
+          className="text-center text-sm font-bold uppercase sm:flex-1"
+          style={{ color: "var(--nta-title-blue)" }}
+        >
           General Instructions
         </h1>
         <div className="relative flex items-center gap-2 text-xs">
@@ -68,7 +76,11 @@ export function NtaGeneralInstructions({ meta, onBack, onProceed, proceedBusy }:
             type="button"
             onClick={() => setLangOpen((o) => !o)}
             className="rounded border px-2 py-1 font-semibold"
-            style={{ borderColor: "var(--nta-border)", background: "var(--nta-bg)", color: "var(--nta-text)" }}
+            style={{
+              borderColor: "var(--nta-border)",
+              background: "var(--nta-bg)",
+              color: "var(--nta-text)",
+            }}
           >
             English ▾
           </button>
@@ -93,11 +105,17 @@ export function NtaGeneralInstructions({ meta, onBack, onProceed, proceedBusy }:
             <h3 className="font-bold">General Instructions:</h3>
             <ol className="list-decimal space-y-2 pl-5 marker:font-bold">
               <li>
-                The total duration of the examination is <strong>{meta.durationMinutes} minutes</strong>.
+                The total duration of the examination is{" "}
+                <strong>{meta.durationMinutes} minutes</strong>.
               </li>
-              <li>The clock will be set at the server. The countdown timer at the top right corner of screen will display the remaining time available to you for the examination. When the timer reaches zero, the examination will end by itself.</li>
               <li>
-                The Question Palette displayed on the right side of screen will show the status of each question using one of the following symbols:
+                The clock will be set at the server. The countdown timer at the top right corner of
+                screen will display the remaining time available to you for the examination. When
+                the timer reaches zero, the examination will end by itself.
+              </li>
+              <li>
+                The Question Palette displayed on the right side of screen will show the status of
+                each question using one of the following symbols:
               </li>
             </ol>
 
@@ -123,7 +141,8 @@ export function NtaGeneralInstructions({ meta, onBack, onProceed, proceedBusy }:
 
             <ol className="list-decimal space-y-2 pl-5 marker:font-bold" start={6}>
               <li>
-                You can click on the <strong>&lt;&lt;</strong> and <strong>&gt;&gt;</strong> icons to collapse and expand the question palette.
+                You can click on the <strong>&lt;&lt;</strong> and <strong>&gt;&gt;</strong> icons
+                to collapse and expand the question palette.
               </li>
             </ol>
           </section>
@@ -134,12 +153,17 @@ export function NtaGeneralInstructions({ meta, onBack, onProceed, proceedBusy }:
               <li>
                 To answer a question, do the following:
                 <ol className="mt-2 list-[lower-alpha] space-y-1 pl-5" type="a">
-                  <li>Click on the question number in the Question Palette to go to that question directly.</li>
                   <li>
-                    Click on <strong>Save &amp; Next</strong> to save your answer for the current question and then go to the next question.
+                    Click on the question number in the Question Palette to go to that question
+                    directly.
                   </li>
                   <li>
-                    Click on <strong>Mark for Review &amp; Next</strong> to save your answer for the current question, mark it for review, and then go to the next question.
+                    Click on <strong>Save &amp; Next</strong> to save your answer for the current
+                    question and then go to the next question.
+                  </li>
+                  <li>
+                    Click on <strong>Mark for Review &amp; Next</strong> to save your answer for the
+                    current question, mark it for review, and then go to the next question.
                   </li>
                 </ol>
               </li>
@@ -150,10 +174,12 @@ export function NtaGeneralInstructions({ meta, onBack, onProceed, proceedBusy }:
             <h3 className="font-bold">Answering a Question:</h3>
             <ol className="list-decimal space-y-2 pl-5" start={8}>
               <li>
-                For multiple choice type questions, select the option using the mouse. To change your answer, click another option. To save, use <strong>Save &amp; Next</strong>.
+                For multiple choice type questions, select the option using the mouse. To change
+                your answer, click another option. To save, use <strong>Save &amp; Next</strong>.
               </li>
               <li>
-                To clear your answer, use <strong>Clear</strong> for the current question (if available).
+                To clear your answer, use <strong>Clear</strong> for the current question (if
+                available).
               </li>
             </ol>
           </section>
@@ -161,7 +187,9 @@ export function NtaGeneralInstructions({ meta, onBack, onProceed, proceedBusy }:
           <section className="mb-6 space-y-2">
             <h3 className="font-bold">Navigating through sections:</h3>
             <ol className="list-decimal space-y-2 pl-5" start={10}>
-              <li>This practice test may present a single section or multiple sections as configured.</li>
+              <li>
+                This practice test may present a single section or multiple sections as configured.
+              </li>
               <li>Use the question palette to move between questions.</li>
               <li>Submit ends your attempt; you cannot change responses after submitting.</li>
             </ol>
@@ -178,9 +206,10 @@ export function NtaGeneralInstructions({ meta, onBack, onProceed, proceedBusy }:
             <p className="mb-1 font-semibold">Paper summary</p>
             <p style={{ color: "var(--nta-muted)" }}>{meta.paperTitle}</p>
             <p className="mt-2" style={{ color: "var(--nta-muted)" }}>
-              <strong className="text-[var(--nta-text)]">Duration:</strong> {meta.durationMinutes} min ·{" "}
-              <strong className="text-[var(--nta-text)]">Questions:</strong> {meta.questionCount} ·{" "}
-              <strong className="text-[var(--nta-text)]">Marking:</strong> {meta.markingScheme}
+              <strong className="text-[var(--nta-text)]">Duration:</strong> {meta.durationMinutes}{" "}
+              min · <strong className="text-[var(--nta-text)]">Questions:</strong>{" "}
+              {meta.questionCount} · <strong className="text-[var(--nta-text)]">Marking:</strong>{" "}
+              {meta.markingScheme}
             </p>
           </div>
 
@@ -192,8 +221,9 @@ export function NtaGeneralInstructions({ meta, onBack, onProceed, proceedBusy }:
               className="mt-1 h-4 w-4 shrink-0"
             />
             <span style={{ color: "var(--nta-text)" }}>
-              I have read and understood the instructions. I confirm that I am not using unauthorised aids. I will
-              follow the timer and submission rules for this practice test.
+              I have read and understood the instructions. I confirm that I am not using
+              unauthorised aids. I will follow the timer and submission rules for this practice
+              test.
             </span>
           </label>
 
