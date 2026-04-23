@@ -16,7 +16,8 @@ function PreBlock({ text, truncated }: { text: string; truncated?: boolean }) {
     <div className="relative rounded-lg border border-border bg-muted/40">
       {truncated ? (
         <p className="text-[10px] font-bold text-amber-700 dark:text-amber-400 px-2 pt-2">
-          Truncated in API response — see server logs or increase limits in generate-topic route if needed.
+          Truncated in API response — see server logs or increase limits in generate-topic route if
+          needed.
         </p>
       ) : null}
       <pre className="text-[11px] leading-relaxed p-3 max-h-[min(55vh,420px)] overflow-auto whitespace-pre-wrap break-words font-mono text-foreground/90">
@@ -86,8 +87,8 @@ export default function TopicAgentTracePanel({
         </div>
       </div>
       <p className="text-[10px] text-muted-foreground mb-3">
-        This is exactly what the server used for this run: RAG request shape, whether the sidecar returned chunks,
-        and the system + user text sent to Gemini (possibly truncated for size).
+        This is exactly what the server used for this run: RAG request shape, whether the sidecar
+        returned chunks, and the system + user text sent to Gemini (possibly truncated for size).
       </p>
 
       <Accordion type="multiple" className="w-full space-y-1">
@@ -136,11 +137,17 @@ export default function TopicAgentTracePanel({
             <pre className="text-[11px] font-mono bg-muted/50 rounded p-2 overflow-x-auto whitespace-pre-wrap break-all">
               {JSON.stringify(rag?.requestJson ?? {}, null, 2)}
             </pre>
-            <p className="text-[10px] font-bold text-muted-foreground">Base query (before augmentation)</p>
+            <p className="text-[10px] font-bold text-muted-foreground">
+              Base query (before augmentation)
+            </p>
             <PreBlock text={rag?.baseQuery ?? ""} />
-            <p className="text-[10px] font-bold text-muted-foreground">Augmented query (sent to sidecar)</p>
+            <p className="text-[10px] font-bold text-muted-foreground">
+              Augmented query (sent to sidecar)
+            </p>
             <PreBlock text={rag?.augmentedQuery ?? ""} />
-            <p className="text-[10px] font-bold text-muted-foreground">Formatted context embedded in prompt</p>
+            <p className="text-[10px] font-bold text-muted-foreground">
+              Formatted context embedded in prompt
+            </p>
             <PreBlock
               text={rag?.formattedContextEmbeddedInPrompt ?? ""}
               truncated={rag?.formattedContextTruncated}

@@ -3,10 +3,10 @@
  * and maps to TopicNode[] for use in the explore UI.
  */
 
-import { supabase } from '@/integrations/supabase/client';
-import type { TopicNode } from '@/data/topicTaxonomy';
-import type { Subject } from '@/types';
-import type { ExamType } from '@/types';
+import { supabase } from "@/integrations/supabase/client";
+import type { TopicNode } from "@/data/topicTaxonomy";
+import type { Subject } from "@/types";
+import type { ExamType } from "@/types";
 
 type CurriculumUnitRow = {
   id: string;
@@ -63,12 +63,12 @@ function shouldSkipTopicNode(
 }
 
 function normalizeText(value: string | null | undefined): string {
-  return typeof value === 'string' ? value.trim() : '';
+  return typeof value === "string" ? value.trim() : "";
 }
 
 function mapExamRelevance(arr: string[] | null): ExamType[] {
   if (!arr?.length) return [];
-  const allowed = new Set<ExamType>(['JEE', 'NEET', 'KCET', 'JEE_Mains', 'JEE_Advance', 'other']);
+  const allowed = new Set<ExamType>(["JEE", "NEET", "KCET", "JEE_Mains", "JEE_Advance", "other"]);
   const out: ExamType[] = [];
   for (const value of arr) {
     const trimmed = value.trim();
@@ -79,7 +79,12 @@ function mapExamRelevance(arr: string[] | null): ExamType[] {
   return out;
 }
 
-function applyCanonicalSubtopicFixups(subject: Subject, classLevel: number, topicTitle: string, raw: string[]): string[] {
+function applyCanonicalSubtopicFixups(
+  subject: Subject,
+  classLevel: number,
+  topicTitle: string,
+  raw: string[]
+): string[] {
   const key = `${subject}|${classLevel}|${topicTitle}`;
   const canonical = CANONICAL_SUBTOPICS[key];
   if (!canonical?.length) return raw;
@@ -119,18 +124,7 @@ function getTopicOrderOverride(
   return null;
 }
 
-/**
- * Fetches curriculum from Supabase for the given subject and class level,
- * returns TopicNode[] or null on error.
- */
-export async function fetchCurriculumFromSupabase(
-  subject: Subject,
-  classLevel: number
-): Promise<TopicNode[] | null> {
-  const { data, error } = await supabase
-    .from('curriculum_units')
-    .select(
-      `
+const curriculumUnitsSelect = `
       id,
       subject,
       class_level,
@@ -152,19 +146,259 @@ export async function fetchCurriculumFromSupabase(
           )
         )
       )
-    `
-    )
-    .eq('subject', subject)
-    .eq('class_level', classLevel)
-    .order('sort_order', { ascending: true });
+    `;
+
+async function fetchCurriculumUnitRows(
+  subject: Subject,
+  classLevel: number
+): Promise<CurriculumUnitRow[] | null> {
+  const { data, error } = await supabase
+    .from("curriculum_units")
+    .select(curriculumUnitsSelect)
+    .eq("subject", subject)
+    .eq("class_level", classLevel)
+    .order("sort_order", { ascending: true });
 
   if (error) {
-    console.warn('[curriculumService] Supabase error:', subject, classLevel, error.message, error.code);
+    console.warn(
+      "[curriculumService] Supabase error:",
+      subject,
+      classLevel,
+      error.message,
+      error.code
+    );
     return null;
   }
   if (!data) return null;
+  return data as CurriculumUnitRow[];
+}
 
-  const rows = data as CurriculumUnitRow[];
+/** Topic row for test-creation and other hierarchical UIs (stable DB ids). */
+export type CurriculumHierarchyTopic = {
+  id: string;
+  title: string;
+  sort_order: number;
+  /** Normalized subtopic names from curriculum (used to match bank rows tagged at subtopic level). */
+  subtopics?: string[];
+};
+
+export type CurriculumHierarchyChapter = {
+  id: string;
+  title: string;
+  sort_order: number;
+  topics: CurriculumHierarchyTopic[];
+};
+
+export type CurriculumHierarchyUnit = {
+  id: string;
+  unit_label: string;
+  unit_title: string;
+  sort_order: number;
+  chapters: CurriculumHierarchyChapter[];
+};
+
+function compareTopicsForChapter(
+  subject: Subject,
+  classLevel: number,
+  chapterTitleForSort: string,
+  a: CurriculumTopicRow,
+  b: CurriculumTopicRow
+): number {
+  const aTitle = normalizeText(a.title);
+  const bTitle = normalizeText(b.title);
+  const aOverride = getTopicOrderOverride(
+    subject,
+    classLevel as 11 | 12,
+    chapterTitleForSort,
+    aTitle
+  );
+  const bOverride = getTopicOrderOverride(
+    subject,
+    classLevel as 11 | 12,
+    chapterTitleForSort,
+    bTitle
+  );
+  if (aOverride !== null || bOverride !== null) {
+    return (aOverride ?? Number.MAX_SAFE_INTEGER) - (bOverride ?? Number.MAX_SAFE_INTEGER);
+  }
+  return (a.sort_order ?? 0) - (b.sort_order ?? 0);
+}
+
+/**
+ * Builds unit → chapter → topics tree from raw Supabase rows (same filtering as TopicNode export).
+ */
+export function buildCurriculumHierarchyFromRows(
+  rows: CurriculumUnitRow[]
+): CurriculumHierarchyUnit[] {
+  const out: CurriculumHierarchyUnit[] = [];
+  for (const unit of rows) {
+    const unitLabel = normalizeText(unit.unit_label);
+    const unitTitle = normalizeText(unit.unit_title);
+    if (!unitLabel || !unitTitle) continue;
+
+    const chaptersSorted = (unit.curriculum_chapters ?? []).sort(
+      (a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)
+    );
+    const chaptersOut: CurriculumHierarchyChapter[] = [];
+    const subject = unit.subject as Subject;
+    const classLevel = unit.class_level as 11 | 12;
+
+    for (const chapter of chaptersSorted) {
+      const chapterTitle = normalizeText(chapter.title);
+      if (!chapterTitle) continue;
+
+      const topics = (chapter.curriculum_topics ?? []).sort((a, b) =>
+        compareTopicsForChapter(subject, classLevel, chapterTitle, a, b)
+      );
+      const topicsOut: CurriculumHierarchyTopic[] = [];
+      for (const topic of topics) {
+        const topicTitle = normalizeText(topic.title);
+        if (!topicTitle) continue;
+        if (shouldSkipTopicNode(subject, classLevel, chapterTitle, topicTitle)) continue;
+        const seenSubtopics = new Set<string>();
+        const normalizedSubtopics = (topic.curriculum_subtopics ?? [])
+          .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+          .map((s) => normalizeText(s.name))
+          .filter((name) => {
+            if (!name) return false;
+            const key = name.toLowerCase();
+            if (seenSubtopics.has(key)) return false;
+            seenSubtopics.add(key);
+            return true;
+          });
+        const subtopics = applyCanonicalSubtopicFixups(
+          subject,
+          classLevel,
+          topicTitle,
+          normalizedSubtopics
+        );
+        topicsOut.push({
+          id: topic.id,
+          title: topicTitle,
+          sort_order: topic.sort_order ?? 0,
+          subtopics: subtopics.length > 0 ? subtopics : undefined,
+        });
+      }
+      chaptersOut.push({
+        id: chapter.id,
+        title: chapterTitle,
+        sort_order: chapter.sort_order ?? 0,
+        topics: topicsOut,
+      });
+    }
+
+    if (chaptersOut.length === 0) continue;
+
+    out.push({
+      id: unit.id,
+      unit_label: unitLabel,
+      unit_title: unitTitle,
+      sort_order: unit.sort_order ?? 0,
+      chapters: chaptersOut,
+    });
+  }
+  return out;
+}
+
+const CHAPTER_COMPOSITE_SEP = "__";
+
+function dedupeTopicPhrases(phrases: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of phrases) {
+    const t = normalizeText(raw);
+    if (!t) continue;
+    const k = t.toLowerCase();
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(t);
+  }
+  return out;
+}
+
+/**
+ * Topic labels to match against `subtopic_content.topic` for the selected syllabus topic
+ * (parent title + every listed subtopic).
+ */
+export function collectCreateTestTopicMatchPhrases(
+  units: CurriculumHierarchyUnit[],
+  chapterCompositeId: string,
+  topicId: string
+): string[] {
+  const i = chapterCompositeId.indexOf(CHAPTER_COMPOSITE_SEP);
+  if (i < 0) return [];
+  const unitId = chapterCompositeId.slice(0, i);
+  const chapterId = chapterCompositeId.slice(i + CHAPTER_COMPOSITE_SEP.length);
+  const unit = units.find((u) => u.id === unitId);
+  const ch = unit?.chapters.find((c) => c.id === chapterId);
+  const top = ch?.topics.find((t) => t.id === topicId);
+  if (!top) return [];
+  return dedupeTopicPhrases([top.title, ...(top.subtopics ?? [])]);
+}
+
+export type CreateTestUnitTopicClause = { chapterTitle: string; topicPhrase: string };
+
+/**
+ * All (chapter, topic-or-subtopic) pairs in a unit — legacy mock-bank matching; unit-wise counts use {@link collectUnitTopicTitles} + subtopic_content.
+ */
+export function collectCreateTestUnitMatchClauses(
+  units: CurriculumHierarchyUnit[],
+  unitId: string
+): CreateTestUnitTopicClause[] {
+  const unit = units.find((u) => u.id === unitId);
+  if (!unit) return [];
+  const out: CreateTestUnitTopicClause[] = [];
+  for (const ch of unit.chapters) {
+    for (const top of ch.topics) {
+      for (const phrase of dedupeTopicPhrases([top.title, ...(top.subtopics ?? [])])) {
+        out.push({ chapterTitle: ch.title, topicPhrase: phrase });
+      }
+    }
+  }
+  return out;
+}
+
+/** Unique parent topic titles in a unit (for aggregating subtopic_content rows). */
+export function collectUnitTopicTitles(units: CurriculumHierarchyUnit[], unitId: string): string[] {
+  const unit = units.find((u) => u.id === unitId);
+  if (!unit) return [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const ch of unit.chapters) {
+    for (const top of ch.topics) {
+      const t = normalizeText(top.title);
+      if (!t) continue;
+      const k = t.toLowerCase();
+      if (seen.has(k)) continue;
+      seen.add(k);
+      out.push(t);
+    }
+  }
+  return out;
+}
+
+/**
+ * Fetches curriculum hierarchy (units with chapter and topic ids) for test creation flows.
+ */
+export async function fetchCurriculumHierarchyFromSupabase(
+  subject: Subject,
+  classLevel: number
+): Promise<CurriculumHierarchyUnit[] | null> {
+  const rows = await fetchCurriculumUnitRows(subject, classLevel);
+  if (!rows?.length) return rows === null ? null : [];
+  return buildCurriculumHierarchyFromRows(rows);
+}
+
+/**
+ * Fetches curriculum from Supabase for the given subject and class level,
+ * returns TopicNode[] or null on error.
+ */
+export async function fetchCurriculumFromSupabase(
+  subject: Subject,
+  classLevel: number
+): Promise<TopicNode[] | null> {
+  const rows = await fetchCurriculumUnitRows(subject, classLevel);
+  if (!rows) return null;
   const nodes: TopicNode[] = [];
 
   for (const unit of rows) {
@@ -174,26 +408,15 @@ export async function fetchCurriculumFromSupabase(
     );
     for (const chapter of chapters) {
       const chapterTitleForSort = normalizeText(chapter.title);
-      const topics = (chapter.curriculum_topics ?? []).sort((a, b) => {
-        const aTitle = normalizeText(a.title);
-        const bTitle = normalizeText(b.title);
-        const aOverride = getTopicOrderOverride(
+      const topics = (chapter.curriculum_topics ?? []).sort((a, b) =>
+        compareTopicsForChapter(
           unit.subject as Subject,
           unit.class_level as 11 | 12,
           chapterTitleForSort,
-          aTitle
-        );
-        const bOverride = getTopicOrderOverride(
-          unit.subject as Subject,
-          unit.class_level as 11 | 12,
-          chapterTitleForSort,
-          bTitle
-        );
-        if (aOverride !== null || bOverride !== null) {
-          return (aOverride ?? Number.MAX_SAFE_INTEGER) - (bOverride ?? Number.MAX_SAFE_INTEGER);
-        }
-        return (a.sort_order ?? 0) - (b.sort_order ?? 0);
-      });
+          a,
+          b
+        )
+      );
       for (const topic of topics) {
         const unitLabel = normalizeText(unit.unit_label);
         const unitTitle = normalizeText(unit.unit_title);
@@ -201,7 +424,7 @@ export async function fetchCurriculumFromSupabase(
         const topicTitle = normalizeText(topic.title);
         if (!unitLabel || !unitTitle || !chapterTitle || !topicTitle) {
           console.warn(
-            '[curriculumService] Skipping malformed curriculum row:',
+            "[curriculumService] Skipping malformed curriculum row:",
             JSON.stringify({
               subject: unit.subject,
               classLevel: unit.class_level,
@@ -213,7 +436,14 @@ export async function fetchCurriculumFromSupabase(
           );
           continue;
         }
-        if (shouldSkipTopicNode(unit.subject as Subject, unit.class_level as 11 | 12, chapterTitle, topicTitle)) {
+        if (
+          shouldSkipTopicNode(
+            unit.subject as Subject,
+            unit.class_level as 11 | 12,
+            chapterTitle,
+            topicTitle
+          )
+        ) {
           continue;
         }
 
@@ -234,8 +464,7 @@ export async function fetchCurriculumFromSupabase(
           topicTitle,
           normalizedSubtopics
         );
-        const subtopics = canonicalized
-          .map((name) => ({ name }));
+        const subtopics = canonicalized.map((name) => ({ name }));
         nodes.push({
           subject: unit.subject as Subject,
           classLevel: unit.class_level as 11 | 12,
@@ -253,7 +482,7 @@ export async function fetchCurriculumFromSupabase(
   return nodes;
 }
 
-const CURRICULUM_SUBJECTS = ['physics', 'chemistry', 'math', 'biology'] as const satisfies readonly Subject[];
+const CURRICULUM_SUBJECTS = ["physics", "chemistry", "math"] as const satisfies readonly Subject[];
 
 /**
  * Fetches all curriculum rows from Supabase (Class 11 & 12, all subjects).
@@ -287,9 +516,9 @@ export async function fetchClass12CurriculumFromSupabase(): Promise<{
   chemistry: TopicNode[];
 } | null> {
   const [physics, math, chemistry] = await Promise.all([
-    fetchCurriculumFromSupabase('physics', 12),
-    fetchCurriculumFromSupabase('math', 12),
-    fetchCurriculumFromSupabase('chemistry', 12),
+    fetchCurriculumFromSupabase("physics", 12),
+    fetchCurriculumFromSupabase("math", 12),
+    fetchCurriculumFromSupabase("chemistry", 12),
   ]);
   if (physics === null && math === null && chemistry === null) return null;
   return {

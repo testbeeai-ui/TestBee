@@ -1,7 +1,15 @@
-import { createContext, useContext, useCallback, useEffect, useRef, useState, ReactNode } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import type { AuthError, User, Session } from '@supabase/supabase-js';
-import { useUserStore } from '@/store/useUserStore';
+import {
+  createContext,
+  useContext,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  ReactNode,
+} from "react";
+import { supabase } from "@/integrations/supabase/client";
+import type { AuthError, User, Session } from "@supabase/supabase-js";
+import { useUserStore } from "@/store/useUserStore";
 import type {
   ClassLevel,
   SubjectCombo,
@@ -10,18 +18,18 @@ import type {
   SavedRevisionCard,
   SavedRevisionUnit,
   SavedCommunityPost,
-} from '@/types';
-import { targetExamToExamType } from '@/lib/targetExam';
-import { mergeAllSavedContent } from '@/lib/mergeSavedContent';
-import type { Json } from '@/integrations/supabase/types';
-import { safeGetSession } from '@/lib/safeSession';
+} from "@/types";
+import { targetExamToExamType } from "@/lib/targetExam";
+import { mergeAllSavedContent } from "@/lib/mergeSavedContent";
+import type { Json } from "@/integrations/supabase/types";
+import { safeGetSession } from "@/lib/safeSession";
 
 interface Profile {
   id: string;
   /** Profile row creation time from Supabase (ISO). */
   created_at?: string | null;
   name: string;
-  role: 'student' | 'teacher' | 'admin';
+  role: "student" | "teacher" | "admin";
   class_level: number | null;
   target_exam?: string | null;
   stream: string | null;
@@ -55,7 +63,11 @@ interface AuthContextType {
   loading: boolean;
   signInWithGoogle: (redirectPath?: string) => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<{ error: AuthError | null }>;
-  signUpWithEmail: (email: string, password: string, name: string) => Promise<{ error: AuthError | null }>;
+  signUpWithEmail: (
+    email: string,
+    password: string,
+    name: string
+  ) => Promise<{ error: AuthError | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -68,54 +80,57 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchProfile = async (userId: string, userMeta?: { name?: string; avatar_url?: string; provider?: string }) => {
+  const fetchProfile = async (
+    userId: string,
+    userMeta?: { name?: string; avatar_url?: string; provider?: string }
+  ) => {
     const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
+      .from("profiles")
+      .select("*")
+      .eq("id", userId)
       .maybeSingle();
     if (data) {
       const p = data as unknown as Profile;
       setProfile(p);
-      if (typeof p.rdm === 'number') useUserStore.getState().setRdmFromProfile(p.rdm);
+      if (typeof p.rdm === "number") useUserStore.getState().setRdmFromProfile(p.rdm);
       return;
     }
     // Profile read failed (RLS, network, or row missing). Do NOT upsert — that would overwrite
     // an existing completed profile with onboarding_complete: false when token refresh fires.
     // handle_new_user trigger creates profiles for new signups. If we can't read, set null
     // and retry will happen on next auth state change or refresh.
-    if (error?.code === 'PGRST116' || !data) {
-      const name = userMeta?.name || 'User';
+    if (error?.code === "PGRST116" || !data) {
+      const name = userMeta?.name || "User";
       const { data: inserted } = await supabase
-        .from('profiles')
+        .from("profiles")
         .upsert(
           {
             id: userId,
-            name: name || 'User',
+            name: name || "User",
             avatar_url: userMeta?.avatar_url ?? null,
-            role: 'student',
+            role: "student",
             onboarding_complete: false,
-            google_connected: userMeta?.provider === 'google',
+            google_connected: userMeta?.provider === "google",
           },
-          { onConflict: 'id', ignoreDuplicates: true }
+          { onConflict: "id", ignoreDuplicates: true }
         )
         .select()
         .maybeSingle();
       if (inserted) {
         const p = inserted as unknown as Profile;
         setProfile(p);
-        if (typeof p.rdm === 'number') useUserStore.getState().setRdmFromProfile(p.rdm);
+        if (typeof p.rdm === "number") useUserStore.getState().setRdmFromProfile(p.rdm);
       } else {
         // Row exists but ignoreDuplicates prevented update; refetch to get current state
         const { data: refetched } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', userId)
+          .from("profiles")
+          .select("*")
+          .eq("id", userId)
           .maybeSingle();
         if (refetched) {
           const p = refetched as unknown as Profile;
           setProfile(p);
-          if (typeof p.rdm === 'number') useUserStore.getState().setRdmFromProfile(p.rdm);
+          if (typeof p.rdm === "number") useUserStore.getState().setRdmFromProfile(p.rdm);
         } else setProfile(null);
       }
       return;
@@ -124,24 +139,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          const meta = session.user.user_metadata || {};
-          const provider = session.user.app_metadata?.provider;
-          setTimeout(() => fetchProfile(session.user.id, {
-            name: meta.full_name || meta.name,
-            avatar_url: meta.avatar_url,
-            provider,
-          }), 0);
-        } else {
-          setProfile(null);
-        }
-        setLoading(false);
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        const meta = session.user.user_metadata || {};
+        const provider = session.user.app_metadata?.provider;
+        setTimeout(
+          () =>
+            fetchProfile(session.user.id, {
+              name: meta.full_name || meta.name,
+              avatar_url: meta.avatar_url,
+              provider,
+            }),
+          0
+        );
+      } else {
+        setProfile(null);
       }
-    );
+      setLoading(false);
+    });
 
     safeGetSession().then(({ session }) => {
       setSession(session);
@@ -166,12 +185,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const maybeSignup = () => {
       if (useUserStore.getState().user) return;
       const cl = profile.class_level;
-      const classLevel: ClassLevel = (cl === 11 || cl === 12) ? cl : 12;
-      const subjectCombo: SubjectCombo = profile.subject_combo === 'PCMB' ? 'PCMB' : 'PCM';
-      useUserStore.getState().signup(profile.name || 'User', classLevel, 'science', subjectCombo);
+      const classLevel: ClassLevel = cl === 11 || cl === 12 ? cl : 12;
+      const subjectCombo: SubjectCombo = "PCM";
+      useUserStore.getState().signup(profile.name || "User", classLevel, "science", subjectCombo);
     };
     const syncExamFromProfile = () => {
-      if (profile.role !== 'student') return;
+      if (profile.role !== "student") return;
       const next = targetExamToExamType(profile.target_exam);
       useUserStore.getState().setExamType(next);
     };
@@ -201,20 +220,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         revisionUnits,
         communityPosts
       );
-      useUserStore.getState().setSavedFromServer(
-        merged.savedBits,
-        merged.savedFormulas,
-        merged.savedRevisionCards,
-        merged.savedRevisionUnits,
-        merged.savedCommunityPosts
-      );
+      useUserStore
+        .getState()
+        .setSavedFromServer(
+          merged.savedBits,
+          merged.savedFormulas,
+          merged.savedRevisionCards,
+          merged.savedRevisionUnits,
+          merged.savedCommunityPosts
+        );
     };
     const run = () => {
       maybeSignup();
       syncExamFromProfile();
       syncSavedFromProfile();
     };
-    const persist = (useUserStore as unknown as { persist?: { onFinishHydration: (cb: () => void) => () => void; hasHydrated: () => boolean } }).persist;
+    const persist = (
+      useUserStore as unknown as {
+        persist?: { onFinishHydration: (cb: () => void) => () => void; hasHydrated: () => boolean };
+      }
+    ).persist;
     if (persist?.onFinishHydration) {
       if (persist.hasHydrated?.()) {
         run();
@@ -237,23 +262,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     profile?.saved_community_posts,
   ]);
 
-  const signInWithGoogle = async (redirectPath: string = '/onboarding') => {
-    const normalized = redirectPath.startsWith('/') ? redirectPath : `/${redirectPath}`;
+  const signInWithGoogle = async (redirectPath: string = "/onboarding") => {
+    const normalized = redirectPath.startsWith("/") ? redirectPath : `/${redirectPath}`;
     try {
-      sessionStorage.setItem('auth_redirect_after_login', normalized);
+      sessionStorage.setItem("auth_redirect_after_login", normalized);
     } catch (_) {}
     await safeGetSession();
     const redirectTo = `${window.location.origin}/auth/callback`;
     const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
+      provider: "google",
       options: { redirectTo },
     });
-    if (error) console.error('signInWithOAuth', error);
+    if (error) console.error("signInWithOAuth", error);
   };
 
   const signInWithEmail = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (!error) await supabase.auth.signOut({ scope: 'others' });
+    if (!error) await supabase.auth.signOut({ scope: "others" });
     return { error };
   };
 
@@ -283,7 +308,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [user?.id]);
 
   return (
-    <AuthContext.Provider value={{ user, session, profile, loading, signInWithGoogle, signInWithEmail, signUpWithEmail, signOut, refreshProfile }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        session,
+        profile,
+        loading,
+        signInWithGoogle,
+        signInWithEmail,
+        signUpWithEmail,
+        signOut,
+        refreshProfile,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -291,6 +328,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
 export const useAuth = () => {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
+  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
   return ctx;
 };

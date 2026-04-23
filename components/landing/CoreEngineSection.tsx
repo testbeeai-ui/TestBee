@@ -13,22 +13,15 @@ export default function CoreEngineSection() {
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-[14px]">
           {CORE_ENGINES.map((e) => (
-            <div
-              key={e.title}
-              className="bg-white border border-gray-200/60 rounded-xl p-4"
-            >
+            <div key={e.title} className="bg-white border border-gray-200/60 rounded-xl p-4">
               <div
                 className="w-9 h-9 rounded-[9px] flex items-center justify-center text-[16px] mb-[10px]"
                 style={{ background: e.bg }}
               >
                 {e.icon}
               </div>
-              <h3 className="text-sm font-medium text-gray-900 mb-[5px]">
-                {e.title}
-              </h3>
-              <p className="text-sm text-gray-500 leading-[1.7]">
-                {e.text}
-              </p>
+              <h3 className="text-sm font-medium text-gray-900 mb-[5px]">{e.title}</h3>
+              <p className="text-sm text-gray-500 leading-[1.7]">{e.text}</p>
               <span className="inline-flex items-center gap-1 text-xs font-medium text-[#633806] bg-[#FAEEDA] rounded-full px-2 py-[2px] mt-2">
                 <span className="w-[5px] h-[5px] rounded-full bg-[#EF9F27]" />
                 {e.rdm}

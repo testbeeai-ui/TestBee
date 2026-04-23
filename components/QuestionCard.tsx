@@ -1,8 +1,8 @@
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Question } from '@/types';
-import { useUserStore } from '@/store/useUserStore';
-import { Button } from '@/components/ui/button';
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Question } from "@/types";
+import { useUserStore } from "@/store/useUserStore";
+import { Button } from "@/components/ui/button";
 import {
   Heart,
   Share2,
@@ -14,26 +14,24 @@ import {
   Bookmark,
   CheckCircle2,
   XCircle,
-} from 'lucide-react';
-import { sanitizeMockHtml } from '@/lib/mockHtml';
+} from "lucide-react";
+import { sanitizeMockHtml } from "@/lib/mockHtml";
 
 const subjectColors: Record<string, string> = {
-  physics: 'bg-edu-blue',
-  chemistry: 'bg-edu-purple',
-  math: 'bg-edu-orange',
-  biology: 'bg-edu-green',
+  physics: "bg-edu-blue",
+  chemistry: "bg-edu-purple",
+  math: "bg-edu-orange",
 };
 
 const subjectEmoji: Record<string, string> = {
-  physics: '⚡',
-  chemistry: '🧪',
-  math: '📐',
-  biology: '🧬',
+  physics: "⚡",
+  chemistry: "🧪",
+  math: "📐",
 };
 
 function OptionBody({ text }: { text: string }) {
   const t = text.trim();
-  if (t.includes('<')) {
+  if (t.includes("<")) {
     return (
       <span
         className="prose prose-sm max-w-none flex-1 text-foreground dark:prose-invert [&_.math-tex]:text-inherit"
@@ -80,7 +78,7 @@ const QuestionCard = ({ question, onNext, mockMode, onAnswerSelect }: Props) => 
         timestamp: Date.now(),
       });
       if (index === question.correctAnswer) {
-        import('canvas-confetti').then((confetti) => {
+        import("canvas-confetti").then((confetti) => {
           confetti.default({ particleCount: 50, spread: 60, origin: { y: 0.7 } });
         });
       }
@@ -94,7 +92,8 @@ const QuestionCard = ({ question, onNext, mockMode, onAnswerSelect }: Props) => 
         <span
           className={`${subjectColors[question.subject]} text-primary-foreground text-xs font-bold px-3 py-1 rounded-full`}
         >
-          {subjectEmoji[question.subject]} {question.subject.charAt(0).toUpperCase() + question.subject.slice(1)}
+          {subjectEmoji[question.subject]}{" "}
+          {question.subject.charAt(0).toUpperCase() + question.subject.slice(1)}
         </span>
         <span className="text-xs text-muted-foreground">{question.topic}</span>
       </div>
@@ -108,23 +107,25 @@ const QuestionCard = ({ question, onNext, mockMode, onAnswerSelect }: Props) => 
             dangerouslySetInnerHTML={{ __html: sanitizeMockHtml(question.questionHtml) }}
           />
         ) : (
-          <h3 className="mb-4 text-lg font-bold leading-snug text-foreground">{question.question}</h3>
+          <h3 className="mb-4 text-lg font-bold leading-snug text-foreground">
+            {question.question}
+          </h3>
         )}
 
         {/* Options */}
         <div className="space-y-2">
           {question.options.map((option, i) => {
-            let optionClass = 'bg-muted hover:bg-muted/80 text-foreground';
+            let optionClass = "bg-muted hover:bg-muted/80 text-foreground";
             if (answered) {
               if (i === question.correctAnswer) {
-                optionClass = 'bg-accent/20 border-2 border-accent text-foreground';
+                optionClass = "bg-accent/20 border-2 border-accent text-foreground";
               } else if (i === selectedOption && !isCorrect) {
-                optionClass = 'bg-destructive/20 border-2 border-destructive text-foreground';
+                optionClass = "bg-destructive/20 border-2 border-destructive text-foreground";
               } else {
-                optionClass = 'bg-muted/50 text-muted-foreground';
+                optionClass = "bg-muted/50 text-muted-foreground";
               }
             } else if (i === selectedOption) {
-              optionClass = 'bg-primary/20 border-2 border-primary text-foreground';
+              optionClass = "bg-primary/20 border-2 border-primary text-foreground";
             }
 
             return (
@@ -156,7 +157,7 @@ const QuestionCard = ({ question, onNext, mockMode, onAnswerSelect }: Props) => 
             {answered && (
               <motion.div
                 initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
+                animate={{ opacity: 1, height: "auto" }}
                 className="mt-3"
               >
                 {isCorrect ? (
@@ -186,7 +187,7 @@ const QuestionCard = ({ question, onNext, mockMode, onAnswerSelect }: Props) => 
           className="rounded-full text-xs"
         >
           <Lightbulb className="w-3.5 h-3.5 mr-1" />
-          {showHint ? 'Hide' : 'Hint'}
+          {showHint ? "Hide" : "Hint"}
         </Button>
         {answered && (
           <Button
@@ -196,7 +197,7 @@ const QuestionCard = ({ question, onNext, mockMode, onAnswerSelect }: Props) => 
             className="rounded-full text-xs"
           >
             <Eye className="w-3.5 h-3.5 mr-1" />
-            {showSolution ? 'Hide' : 'Solution'}
+            {showSolution ? "Hide" : "Solution"}
           </Button>
         )}
         <Button
@@ -206,7 +207,12 @@ const QuestionCard = ({ question, onNext, mockMode, onAnswerSelect }: Props) => 
           className="rounded-full text-xs"
         >
           <BookOpen className="w-3.5 h-3.5 mr-1" />
-          Reference {showReference ? <ChevronUp className="w-3 h-3 ml-0.5" /> : <ChevronDown className="w-3 h-3 ml-0.5" />}
+          Reference{" "}
+          {showReference ? (
+            <ChevronUp className="w-3 h-3 ml-0.5" />
+          ) : (
+            <ChevronDown className="w-3 h-3 ml-0.5" />
+          )}
         </Button>
         <div className="flex-1" />
         {!mockMode && (
@@ -217,7 +223,7 @@ const QuestionCard = ({ question, onNext, mockMode, onAnswerSelect }: Props) => 
               onClick={() => (isLiked ? unlikeQuestion(question.id) : likeQuestion(question.id))}
               className="rounded-full"
             >
-              <Heart className={`w-4 h-4 ${isLiked ? 'fill-destructive text-destructive' : ''}`} />
+              <Heart className={`w-4 h-4 ${isLiked ? "fill-destructive text-destructive" : ""}`} />
             </Button>
             <Button
               variant="ghost"
@@ -225,7 +231,7 @@ const QuestionCard = ({ question, onNext, mockMode, onAnswerSelect }: Props) => 
               onClick={() => (isSaved ? unsaveQuestion(question.id) : saveQuestion(question.id))}
               className="rounded-full"
             >
-              <Bookmark className={`w-4 h-4 ${isSaved ? 'fill-primary text-primary' : ''}`} />
+              <Bookmark className={`w-4 h-4 ${isSaved ? "fill-primary text-primary" : ""}`} />
             </Button>
             <Button
               variant="ghost"
@@ -244,7 +250,7 @@ const QuestionCard = ({ question, onNext, mockMode, onAnswerSelect }: Props) => 
         {showHint && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
+            animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
             className="bg-edu-yellow/10 rounded-xl p-4 border border-edu-yellow/30"
           >
@@ -254,7 +260,7 @@ const QuestionCard = ({ question, onNext, mockMode, onAnswerSelect }: Props) => 
         {showSolution && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
+            animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
             className="bg-accent/10 rounded-xl p-4 border border-accent/30"
           >
@@ -273,7 +279,7 @@ const QuestionCard = ({ question, onNext, mockMode, onAnswerSelect }: Props) => 
         {showReference && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
+            animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
             className="bg-muted rounded-xl p-4 space-y-3"
           >
@@ -291,7 +297,10 @@ const QuestionCard = ({ question, onNext, mockMode, onAnswerSelect }: Props) => 
               <h4 className="font-bold text-sm text-foreground mb-1">🔗 Related Topics</h4>
               <div className="flex gap-1 flex-wrap">
                 {question.reference.relatedTopics.map((t) => (
-                  <span key={t} className="bg-primary/10 text-primary text-xs px-2 py-0.5 rounded-full font-semibold">
+                  <span
+                    key={t}
+                    className="bg-primary/10 text-primary text-xs px-2 py-0.5 rounded-full font-semibold"
+                  >
                     {t}
                   </span>
                 ))}
@@ -299,7 +308,9 @@ const QuestionCard = ({ question, onNext, mockMode, onAnswerSelect }: Props) => 
             </div>
             <div>
               <h4 className="font-bold text-sm text-foreground mb-1">🌍 Application</h4>
-              <p className="text-sm text-muted-foreground">{question.reference.applicationExample}</p>
+              <p className="text-sm text-muted-foreground">
+                {question.reference.applicationExample}
+              </p>
             </div>
             {question.reference.youtubeUrl && (
               <div>

@@ -17,11 +17,15 @@ export type ParsedBitsAttemptRow = {
 };
 
 const ALLOWED_LEVELS = new Set(["basics", "intermediate", "advanced"]);
-const ALLOWED_SUBJECTS = new Set<string>(["physics", "chemistry", "math", "biology"]);
+const ALLOWED_SUBJECTS = new Set<string>(["physics", "chemistry", "math"]);
 
 function sanitize(value: unknown, maxLen = 300): string {
   if (typeof value !== "string") return "";
-  return value.replace(/[\x00-\x1F\x7F]/g, " ").replace(/\s+/g, " ").trim().slice(0, maxLen);
+  return value
+    .replace(/[\x00-\x1F\x7F]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, maxLen);
 }
 
 /**

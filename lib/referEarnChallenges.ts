@@ -5,7 +5,12 @@ export type ReferClaimKey = "5" | "10" | "20" | "50";
 /** Refer & Earn RDM targets — separate rules from /play Daily Gauntlet or streak. */
 export type ReferChallengePublicSpec = {
   key: ReferClaimKey;
-  rdm: number;
+  /** Win reward (claim once/day/challenge after passing). */
+  winRdm: number;
+  /** Share reward (claim once/day/challenge after posting/sharing). */
+  shareRdm: number;
+  /** Total potential reward = win + share; used for daily cap UX. */
+  totalRdm: number;
   domain: PlayDomain;
   /** Supabase `get_adaptive_play_questions` sentinel or tab category (academic refer = `academic_all`, same cycle as Play Streak Survival). */
   playCategory: string;
@@ -28,7 +33,9 @@ export type ReferChallengePublicSpec = {
 export const REFER_CHALLENGE_SPECS: ReferChallengePublicSpec[] = [
   {
     key: "5",
-    rdm: 5,
+    winRdm: 3,
+    shareRdm: 2,
+    totalRdm: 5,
     domain: "funbrain",
     playCategory: "mental_math",
     questionCount: 10,
@@ -45,7 +52,9 @@ export const REFER_CHALLENGE_SPECS: ReferChallengePublicSpec[] = [
   },
   {
     key: "10",
-    rdm: 10,
+    winRdm: 7,
+    shareRdm: 3,
+    totalRdm: 10,
     domain: "funbrain",
     /** Mixed pool; refer fetch uses `funbrain_all` (see `fetchReferChallengeQuestions`). */
     playCategory: "funbrain_all",
@@ -63,7 +72,9 @@ export const REFER_CHALLENGE_SPECS: ReferChallengePublicSpec[] = [
   },
   {
     key: "20",
-    rdm: 20,
+    winRdm: 15,
+    shareRdm: 5,
+    totalRdm: 20,
     domain: "academic",
     playCategory: "academic_all",
     questionCount: 10,
@@ -80,7 +91,9 @@ export const REFER_CHALLENGE_SPECS: ReferChallengePublicSpec[] = [
   },
   {
     key: "50",
-    rdm: 50,
+    winRdm: 30,
+    shareRdm: 20,
+    totalRdm: 50,
     domain: "academic",
     playCategory: "academic_all",
     questionCount: 25,
@@ -105,7 +118,10 @@ export function referChallengeDayKey(userId: string, day: string): string {
   return `testbee_refer_rdm_challenge_${userId}_${day}`;
 }
 
-export function readReferChallengesDone(userId: string, day: string): Partial<Record<ReferClaimKey, boolean>> {
+export function readReferChallengesDone(
+  userId: string,
+  day: string
+): Partial<Record<ReferClaimKey, boolean>> {
   if (typeof window === "undefined") return {};
   try {
     const raw = localStorage.getItem(referChallengeDayKey(userId, day));

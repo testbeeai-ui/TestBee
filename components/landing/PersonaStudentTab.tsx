@@ -81,9 +81,7 @@ export default function PersonaStudentTab() {
             <div
               key={l.name}
               className={`flex items-center gap-2 px-[10px] py-[7px] border rounded-lg mb-[6px] ${
-                l.isYou
-                  ? "border-[#1D9E75] bg-[#E1F5EE]"
-                  : "border-gray-200/60"
+                l.isYou ? "border-[#1D9E75] bg-[#E1F5EE]" : "border-gray-200/60"
               }`}
             >
               <span className="text-xs w-5 text-center shrink-0">{l.rank}</span>
@@ -94,7 +92,9 @@ export default function PersonaStudentTab() {
                 {l.initials}
               </span>
               <div className="flex-1 min-w-0">
-                <p className={`text-xs font-medium ${l.isYou ? "text-[#085041]" : "text-gray-900"}`}>
+                <p
+                  className={`text-xs font-medium ${l.isYou ? "text-[#085041]" : "text-gray-900"}`}
+                >
                   {l.name}
                 </p>
                 <div className="bg-gray-200 rounded-full h-[5px] overflow-hidden mt-[2px]">
@@ -104,7 +104,9 @@ export default function PersonaStudentTab() {
                   />
                 </div>
               </div>
-              <span className={`text-xs font-medium whitespace-nowrap ${l.isYou ? "text-[#085041]" : "text-gray-900"}`}>
+              <span
+                className={`text-xs font-medium whitespace-nowrap ${l.isYou ? "text-[#085041]" : "text-gray-900"}`}
+              >
                 {l.pts}
               </span>
             </div>

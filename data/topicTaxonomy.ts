@@ -1,4 +1,4 @@
-import type { Subject, ClassLevel, ExamType } from '@/types';
+import type { Subject, ClassLevel, ExamType } from "@/types";
 
 /**
  * Subtopic line item under a curriculum topic.

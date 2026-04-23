@@ -45,7 +45,9 @@ export async function GET(request: Request) {
     const rawPerPage = Number(url.searchParams.get("perPage") ?? "200");
     const search = (url.searchParams.get("search") ?? "").trim().toLowerCase();
     const page = Number.isFinite(rawPage) ? Math.max(1, Math.floor(rawPage)) : 1;
-    const perPage = Number.isFinite(rawPerPage) ? Math.max(1, Math.min(1000, Math.floor(rawPerPage))) : 200;
+    const perPage = Number.isFinite(rawPerPage)
+      ? Math.max(1, Math.min(1000, Math.floor(rawPerPage)))
+      : 200;
 
     const authRes = await admin.auth.admin.listUsers({ page, perPage });
     if (authRes.error) {
@@ -72,8 +74,10 @@ export async function GET(request: Request) {
             : {};
         const suspendedUntil =
           typeof appMeta.admin_suspended_until === "string" ? appMeta.admin_suspended_until : null;
-        const deletedAt = typeof appMeta.admin_deleted_at === "string" ? appMeta.admin_deleted_at : null;
-        const deletedBy = typeof appMeta.admin_deleted_by === "string" ? appMeta.admin_deleted_by : null;
+        const deletedAt =
+          typeof appMeta.admin_deleted_at === "string" ? appMeta.admin_deleted_at : null;
+        const deletedBy =
+          typeof appMeta.admin_deleted_by === "string" ? appMeta.admin_deleted_by : null;
         const deleteScheduledFor =
           typeof appMeta.admin_delete_scheduled_for === "string"
             ? appMeta.admin_delete_scheduled_for
@@ -120,7 +124,13 @@ export async function GET(request: Request) {
       })
       .filter((u) => {
         if (!search) return true;
-        const hay = [u.email ?? "", u.name ?? "", u.role ?? "", u.stream ?? "", u.subjectCombo ?? ""]
+        const hay = [
+          u.email ?? "",
+          u.name ?? "",
+          u.role ?? "",
+          u.stream ?? "",
+          u.subjectCombo ?? "",
+        ]
           .join(" ")
           .toLowerCase();
         return hay.includes(search);

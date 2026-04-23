@@ -168,7 +168,8 @@ function topicHubResponseSchema() {
             subtopic_name: { type: Type.STRING },
             preview: {
               type: Type.STRING,
-              description: "Markdown: detailed content for the subtopic. For advanced level, this must be exhaustive and long.",
+              description:
+                "Markdown: detailed content for the subtopic. For advanced level, this must be exhaustive and long.",
             },
           },
           required: ["subtopic_name", "preview"],
@@ -183,7 +184,10 @@ function subtopicDeepDiveResponseSchema() {
   return {
     type: Type.OBJECT,
     properties: {
-      theory: { type: Type.STRING, description: "Markdown: full deep-dive lesson for one subtopic." },
+      theory: {
+        type: Type.STRING,
+        description: "Markdown: full deep-dive lesson for one subtopic.",
+      },
       did_you_know: { type: Type.STRING, description: "Short curiosity hook/fact." },
       references: {
         type: Type.ARRAY,
@@ -369,9 +373,18 @@ export function instaCueResponseSchema() {
         items: {
           type: Type.OBJECT,
           properties: {
-            type: { type: Type.STRING, description: "Card type: concept, formula, common_mistake, or trap." },
-            frontContent: { type: Type.STRING, description: "The question or concept on the front of the card." },
-            backContent: { type: Type.STRING, description: "The crisp answer or definition on the back." },
+            type: {
+              type: Type.STRING,
+              description: "Card type: concept, formula, common_mistake, or trap.",
+            },
+            frontContent: {
+              type: Type.STRING,
+              description: "The question or concept on the front of the card.",
+            },
+            backContent: {
+              type: Type.STRING,
+              description: "The crisp answer or definition on the back.",
+            },
           },
           required: ["type", "frontContent", "backContent"],
         },
@@ -397,7 +410,10 @@ export function bitsResponseSchema() {
               items: { type: Type.STRING },
               description: "Array of 4 answer options.",
             },
-            correctAnswer: { type: Type.STRING, description: "The correct option text (must match one of the options exactly)." },
+            correctAnswer: {
+              type: Type.STRING,
+              description: "The correct option text (must match one of the options exactly).",
+            },
             solution: { type: Type.STRING, description: "Step-by-step solution explanation." },
           },
           required: ["question", "options", "correctAnswer", "solution"],
@@ -418,9 +434,15 @@ export function formulasResponseSchema() {
         items: {
           type: Type.OBJECT,
           properties: {
-            name: { type: Type.STRING, description: "Name of the formula (e.g. Newton's Second Law)." },
+            name: {
+              type: Type.STRING,
+              description: "Name of the formula (e.g. Newton's Second Law).",
+            },
             formulaLatex: { type: Type.STRING, description: "The formula in LaTeX notation." },
-            description: { type: Type.STRING, description: "Short description of what the formula represents." },
+            description: {
+              type: Type.STRING,
+              description: "Short description of what the formula represents.",
+            },
             bitsQuestions: {
               type: Type.ARRAY,
               description: "Practice MCQs that test application of this formula.",
@@ -473,13 +495,7 @@ export async function generateArtifactJson(params: {
     const project = process.env.GOOGLE_CLOUD_PROJECT!.trim();
     const location = vertexLocationOrDefault(params.modelId);
     const ai = new GoogleGenAI({ vertexai: true, project, location });
-    const out = await generateContentWithRetries(
-      ai,
-      params.modelId,
-      params.userPrompt,
-      config,
-      6
-    );
+    const out = await generateContentWithRetries(ai, params.modelId, params.userPrompt, config, 6);
     return { raw: out.raw, backend: "vertex", usage: out.usage };
   }
 

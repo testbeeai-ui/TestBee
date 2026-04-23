@@ -28,7 +28,9 @@ function shuffleWithMapping<T>(arr: T[]): { shuffled: T[]; oldIndexToNew: number
   indexed.sort(() => Math.random() - 0.5);
   const shuffled = indexed.map((p) => p.x);
   const oldIndexToNew = new Array(arr.length);
-  indexed.forEach((p, newIdx) => { oldIndexToNew[p.i] = newIdx; });
+  indexed.forEach((p, newIdx) => {
+    oldIndexToNew[p.i] = newIdx;
+  });
   return { shuffled, oldIndexToNew };
 }
 
@@ -57,7 +59,13 @@ function buildOptions(
     if (all.length >= 4) break;
     if (!all.includes(w)) all.push(w);
   }
-  const fallbacks = [correctValue - 1, correctValue + 1, correctValue - 2, correctValue + 2, correctValue * 2];
+  const fallbacks = [
+    correctValue - 1,
+    correctValue + 1,
+    correctValue - 2,
+    correctValue + 2,
+    correctValue * 2,
+  ];
   for (const v of fallbacks) {
     if (all.length >= 4) break;
     const s = format(v);
@@ -74,16 +82,11 @@ function genRigidWallP(): BitsQuestion {
   const T1 = randInt(250, 350);
   const T2 = randInt(400, 600);
   if (T2 === T1) return genRigidWallP();
-  const P2 = Math.round((P1 * T2) / T1 * 100) / 100;
+  const P2 = Math.round(((P1 * T2) / T1) * 100) / 100;
   const P2Int = P2 === Math.floor(P2) ? Math.round(P2) : P2;
   const { options, correctIndex } = buildOptions(
     P2Int,
-    [
-      Math.round((P1 * T1) / T2 * 100) / 100,
-      P1,
-      P1 * 2,
-      T2 / T1,
-    ],
+    [Math.round(((P1 * T1) / T2) * 100) / 100, P1, P1 * 2, T2 / T1],
     (n) => (Number.isInteger(n) ? `${n}` : n.toFixed(2)) + " atm"
   );
   return {
@@ -100,11 +103,11 @@ function genBalloonV(): BitsQuestion {
   const T1 = randInt(280, 300);
   const T2 = randInt(310, 340);
   if (T2 === T1) return genBalloonV();
-  const V2 = Math.round((V1 * T2) / T1 * 10) / 10;
+  const V2 = Math.round(((V1 * T2) / T1) * 10) / 10;
   const { options, correctIndex } = buildOptions(
     V2,
     [
-      Math.round((V1 * T1) / T2 * 10) / 10,
+      Math.round(((V1 * T1) / T2) * 10) / 10,
       V1,
       V1 * 2,
       Math.round(V1 * (T2 / T1) * 10) / 10 + 0.5,
@@ -127,7 +130,7 @@ function genKelvinTrap(): BitsQuestion {
   const T1 = t1 + 273.15;
   const T2 = t2 + 273.15;
   const P1 = 1;
-  const P2 = Math.round((P1 * T2) / T1 * 100) / 100;
+  const P2 = Math.round(((P1 * T2) / T1) * 100) / 100;
   const trapAnswer = 2; // 2.00 atm (wrong: doubling pressure)
   const { options, correctIndex } = buildOptions(
     P2,
@@ -148,16 +151,11 @@ function genSyringeP(): BitsQuestion {
   const V1 = oneOf(10, 20, 15);
   const V2 = oneOf(5, 4, 8);
   if (V2 >= V1) return genSyringeP();
-  const P2 = Math.round((P1 * V1) / V2 * 10) / 10;
+  const P2 = Math.round(((P1 * V1) / V2) * 10) / 10;
   const P2Int = P2 === Math.floor(P2) ? Math.round(P2) : P2;
   const { options, correctIndex } = buildOptions(
     P2Int,
-    [
-      Math.round((P1 * V2) / V1 * 10) / 10,
-      P1,
-      V1 / V2 + 1,
-      P2 / 2,
-    ],
+    [Math.round(((P1 * V2) / V1) * 10) / 10, P1, V1 / V2 + 1, P2 / 2],
     (n) => (Number.isInteger(n) ? `${n}` : n.toFixed(1)) + " atm"
   );
   return {
@@ -206,15 +204,12 @@ export function canRegenerate(formulaName: string): boolean {
 }
 
 /** Generate a fresh set of formula questions. For shuffle-only formulas, pass current questions so options can be reshuffled. */
-export function generateFormulaQuestions(formulaName: string, currentQuestions?: BitsQuestion[]): BitsQuestion[] {
+export function generateFormulaQuestions(
+  formulaName: string,
+  currentQuestions?: BitsQuestion[]
+): BitsQuestion[] {
   if (formulaName === "PV = nRT (Equation of State)") {
-    return [
-      genRigidWallP(),
-      genBalloonV(),
-      genKelvinTrap(),
-      genSyringeP(),
-      genMolesDoubled(),
-    ];
+    return [genRigidWallP(), genBalloonV(), genKelvinTrap(), genSyringeP(), genMolesDoubled()];
   }
 
   if (formulaName === "Condition for Equilibrium (T_A = T_B)") {
@@ -252,7 +247,10 @@ export function generateFormulaQuestions(formulaName: string, currentQuestions?:
 }
 
 // ----- 1.2: Condition for Equilibrium (T_A = T_B) â€” numeric variants -----
-function shuffleFour(correctIndex: number, opts: [string, string, string, string]): { options: string[]; correctAnswer: number } {
+function shuffleFour(
+  correctIndex: number,
+  opts: [string, string, string, string]
+): { options: string[]; correctAnswer: number } {
   const { shuffled, oldIndexToNew } = shuffleWithMapping([opts[0], opts[1], opts[2], opts[3]]);
   return { options: shuffled, correctAnswer: oldIndexToNew[correctIndex] ?? 0 };
 }
@@ -292,10 +290,31 @@ function genConditionEquilibrium(): BitsQuestion[] {
     "The moment Liquid Y's temperature begins to drop.",
   ]);
   return [
-    { question: `You place a massive ${mass1} kg block of iron at ${T_same}Â°C directly against a tiny ${mass2} gram copper coin at ${T_same}Â°C. Which direction will heat flow?`, ...s1, solution: "The trap is thinking mass matters. It doesn't. If T_A = T_B, the condition for equilibrium is met. Heat moves back and forth, but net flow is zero." },
-    { question: `System A has an internal energy of ${Ua} J and a temperature of ${Ta} K. System B has an internal energy of ${Ub} J and a temperature of ${Tb} K. If connected by a diathermic wall, what happens?`, ...s2, solution: "Total internal energy is irrelevant to the direction of heat flow. Heat strictly flows from higher temperature to lower temperature." },
-    { question: "THE ICEBERG TRAP: An entire iceberg in the ocean contains billions of Joules of internal energy. A single cup of boiling coffee contains only a few thousand Joules. If you pour the coffee onto the iceberg, what dictates the direction of heat flow?", ...s3, solution: "The iceberg has billions of Joules, but its temperature is lower. Heat only cares about the temperature gradient: Hot to Cold." },
-    { question: `A student looks at a Temperature vs. Time graph showing two liquids placed in the same insulated container. Liquid X starts at ${Tx}Â°C and Liquid Y starts at ${Ty}Â°C. How do you identify the exact moment thermal equilibrium is reached on the graph?`, ...s4, solution: "Equilibrium is the mathematical state where T_X = T_Y. On a graph, this is where the temperature curves flatten out and become identical." },
+    {
+      question: `You place a massive ${mass1} kg block of iron at ${T_same}Â°C directly against a tiny ${mass2} gram copper coin at ${T_same}Â°C. Which direction will heat flow?`,
+      ...s1,
+      solution:
+        "The trap is thinking mass matters. It doesn't. If T_A = T_B, the condition for equilibrium is met. Heat moves back and forth, but net flow is zero.",
+    },
+    {
+      question: `System A has an internal energy of ${Ua} J and a temperature of ${Ta} K. System B has an internal energy of ${Ub} J and a temperature of ${Tb} K. If connected by a diathermic wall, what happens?`,
+      ...s2,
+      solution:
+        "Total internal energy is irrelevant to the direction of heat flow. Heat strictly flows from higher temperature to lower temperature.",
+    },
+    {
+      question:
+        "THE ICEBERG TRAP: An entire iceberg in the ocean contains billions of Joules of internal energy. A single cup of boiling coffee contains only a few thousand Joules. If you pour the coffee onto the iceberg, what dictates the direction of heat flow?",
+      ...s3,
+      solution:
+        "The iceberg has billions of Joules, but its temperature is lower. Heat only cares about the temperature gradient: Hot to Cold.",
+    },
+    {
+      question: `A student looks at a Temperature vs. Time graph showing two liquids placed in the same insulated container. Liquid X starts at ${Tx}Â°C and Liquid Y starts at ${Ty}Â°C. How do you identify the exact moment thermal equilibrium is reached on the graph?`,
+      ...s4,
+      solution:
+        "Equilibrium is the mathematical state where T_X = T_Y. On a graph, this is where the temperature curves flatten out and become identical.",
+    },
   ];
 }
 
@@ -321,17 +340,25 @@ function genDynamicBalance(): BitsQuestion[] {
         "System A must drop in pressure to compensate for the lost energy.",
         "The diathermic wall must absorb the " + J1 + " J of energy.",
       ]).shuffled,
-      correctAnswer: shuffleWithMapping([
-        `The temperature of System B must increase by ${J1} K.`,
-        `Exactly ${J1} J of thermal energy must transfer back from System B to System A, making Q_net = 0.`,
-        "System A must drop in pressure to compensate for the lost energy.",
-        "The diathermic wall must absorb the " + J1 + " J of energy.",
-      ]).oldIndexToNew[1] ?? 0,
-      solution: "Dynamic equilibrium dictates that Q_in must exactly equal Q_out. If " + J1 + " J leaves, " + J1 + " J must return to keep the state variables locked.",
+      correctAnswer:
+        shuffleWithMapping([
+          `The temperature of System B must increase by ${J1} K.`,
+          `Exactly ${J1} J of thermal energy must transfer back from System B to System A, making Q_net = 0.`,
+          "System A must drop in pressure to compensate for the lost energy.",
+          "The diathermic wall must absorb the " + J1 + " J of energy.",
+        ]).oldIndexToNew[1] ?? 0,
+      solution:
+        "Dynamic equilibrium dictates that Q_in must exactly equal Q_out. If " +
+        J1 +
+        " J leaves, " +
+        J1 +
+        " J must return to keep the state variables locked.",
     },
     (() => {
       const s = shuffleFour(0, [
-        "Because molecules at " + roomT + "Â°C are still moving and colliding, so they continuously transfer energy, but they absorb an equal amount back from the room.",
+        "Because molecules at " +
+          roomT +
+          "Â°C are still moving and colliding, so they continuously transfer energy, but they absorb an equal amount back from the room.",
         "Because the tea will eventually drop to 0Â°C.",
         "Because the room is an adiabatic system.",
         "Because the tea molecules stop moving entirely at room temperature.",
@@ -339,13 +366,20 @@ function genDynamicBalance(): BitsQuestion[] {
       return {
         question: `THE STATIC TRAP: A student claims that once a cup of hot tea cools down and matches the room temperature (${roomT}Â°C), the tea molecules stop transferring heat to the room molecules entirely (Q_out = 0). Why is this physically impossible?`,
         ...s,
-        solution: "Atoms don't freeze at room temperature. They constantly collide with the air. Heat goes out, but identical heat comes in. The student fell for the static trap.",
+        solution:
+          "Atoms don't freeze at room temperature. They constantly collide with the air. Heat goes out, but identical heat comes in. The student fell for the static trap.",
       };
     })(),
     (() => {
-      const s = shuffleFour(2, ["Q_in = 0 and Q_out = 0", "Q_in > Q_out", "Q_in = Q_out, therefore Q_net = 0", "Q_net = Q_in + Q_out"]);
+      const s = shuffleFour(2, [
+        "Q_in = 0 and Q_out = 0",
+        "Q_in > Q_out",
+        "Q_in = Q_out, therefore Q_net = 0",
+        "Q_net = Q_in + Q_out",
+      ]);
       return {
-        question: "If a system is in thermal equilibrium with its surroundings, which of the following equations accurately represents the energy exchange?",
+        question:
+          "If a system is in thermal equilibrium with its surroundings, which of the following equations accurately represents the energy exchange?",
         ...s,
         solution: "This is the strict definition of the dynamic balance equation.",
       };
@@ -371,7 +405,12 @@ function genAbsoluteTempConversion(currentQuestions?: BitsQuestion[]): BitsQuest
   const deltaQuestion: BitsQuestion = {
     question: `THE DELTA TRAP: An engine block's temperature increases by exactly ${delta}Â°C during operation. What is the corresponding mathematical change in its Kelvin temperature?`,
     ...s,
-    solution: "The step size (delta) of 1 degree Celsius equals the step size of 1 Kelvin. The change is " + delta + " K, not 273.15 + " + delta + ".",
+    solution:
+      "The step size (delta) of 1 degree Celsius equals the step size of 1 Kelvin. The change is " +
+      delta +
+      " K, not 273.15 + " +
+      delta +
+      ".",
   };
   if (!currentQuestions || currentQuestions.length < 4) {
     return currentQuestions ? currentQuestions.map(shuffleOptions) : [deltaQuestion];
@@ -430,7 +469,10 @@ export function getFallbackPracticeFormulas(params: {
       },
     ];
   }
-  if (blob.includes("area under") && (blob.includes("x-axis") || blob.includes("x axis") || blob.includes("curve y"))) {
+  if (
+    blob.includes("area under") &&
+    (blob.includes("x-axis") || blob.includes("x axis") || blob.includes("curve y"))
+  ) {
     return [
       {
         name: "Area under y = f(x) (above the x-axis)",
@@ -520,12 +562,7 @@ function genAreaUnderCurveAboveXAxis(): BitsQuestion[] {
   const areaNum = (b * b * b) / 3 - (a * a * a) / 3;
   const areaStr = Number.isInteger(areaNum) ? String(areaNum) : areaStrFixed(areaNum);
   const wrong1 = (b * b) / 2 - (a * a) / 2;
-  const s1 = shuffleFour(0, [
-    areaStr,
-    String(wrong1),
-    String(b - a),
-    String(b * b),
-  ]);
+  const s1 = shuffleFour(0, [areaStr, String(wrong1), String(b - a), String(b * b)]);
   const s2 = shuffleFour(0, [
     "Wherever f(x) ≥ 0, use ∫ f dx; wherever f(x) < 0, add the area ∫ (−f) dx on those pieces (or use ∫ |f| with splits).",
     "Replace f by |f| on the whole interval without splitting.",
@@ -557,15 +594,18 @@ function genAreaUnderCurveAboveXAxis(): BitsQuestion[] {
       solution: String.raw`[x^3/3]_0^{${b}} = ${b}^3/3 = ${areaStr}.`,
     },
     {
-      question: "If f dips below the x-axis on part of [a, b], how do you recover the total geometric area between graph and x-axis?",
+      question:
+        "If f dips below the x-axis on part of [a, b], how do you recover the total geometric area between graph and x-axis?",
       ...s2,
-      solution: "Integrate piecewise: add areas where f is nonnegative, add −∫ f where f is negative, or use ∫ |f| with splits at zeros.",
+      solution:
+        "Integrate piecewise: add areas where f is nonnegative, add −∫ f where f is negative, or use ∫ |f| with splits at zeros.",
     },
     {
       question:
         "True or false: If f is continuous on [a, b] but sometimes negative, ∫ₐᵇ f(x) dx always equals the total geometric area between the graph and the x-axis.",
       ...s3,
-      solution: "False. The integral is signed; geometric area uses |f| or a piecewise upper-boundary setup.",
+      solution:
+        "False. The integral is signed; geometric area uses |f| or a piecewise upper-boundary setup.",
     },
     {
       question:

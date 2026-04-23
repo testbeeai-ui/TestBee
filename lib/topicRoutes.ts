@@ -1,14 +1,20 @@
-import type { TopicNode } from '@/data/topicTaxonomy';
-import type { Subject } from '@/types';
-import { slugify, parseGradeSlug, toGradeSlug, isValidLevel, type DifficultyLevel } from '@/lib/slugs';
-import { subtopicSlugForRouting } from '@/lib/subtopicTitles';
+import type { TopicNode } from "@/data/topicTaxonomy";
+import type { Subject } from "@/types";
+import {
+  slugify,
+  parseGradeSlug,
+  toGradeSlug,
+  isValidLevel,
+  type DifficultyLevel,
+} from "@/lib/slugs";
+import { subtopicSlugForRouting } from "@/lib/subtopicTitles";
 
-export type { DifficultyLevel } from '@/lib/slugs';
+export type { DifficultyLevel } from "@/lib/slugs";
 
 /** Lowercase board segment for URLs (Explore uses `cbse`; profile may store `CBSE`). */
 function routeBoardSlug(board: string): string {
   const b = String(board).toLowerCase();
-  return b === 'icse' ? 'icse' : 'cbse';
+  return b === "icse" ? "icse" : "cbse";
 }
 
 /**
@@ -16,11 +22,11 @@ function routeBoardSlug(board: string): string {
  * (which breaks the `[level]` dynamic segment).
  */
 export function appendQueryParams(path: string, params: Record<string, string>): string {
-  const pairs = Object.entries(params).filter(([, v]) => v !== undefined && v !== '');
+  const pairs = Object.entries(params).filter(([, v]) => v !== undefined && v !== "");
   if (pairs.length === 0) return path;
   const qs = new URLSearchParams();
   for (const [k, v] of pairs) qs.set(k, v);
-  const sep = path.includes('?') ? '&' : '?';
+  const sep = path.includes("?") ? "&" : "?";
   return `${path}${sep}${qs.toString()}`;
 }
 
@@ -56,37 +62,37 @@ export function resolveTopicFromParams(
   taxonomy: TopicNode[],
   chapterSlug?: string | null
 ): ResolvedTopic | null {
-  if (String(board).toLowerCase() !== 'cbse') return null;
+  if (String(board).toLowerCase() !== "cbse") return null;
   const classLevel = parseGradeSlug(grade);
   if (classLevel === null) return null;
   const sub = subject as Subject;
-  if (!['physics', 'chemistry', 'math', 'biology'].includes(sub)) return null;
+  if (!["physics", "chemistry", "math"].includes(sub)) return null;
   if (!isValidLevel(level)) return null;
 
   const nodeCandidates = taxonomy.filter(
-    (n) =>
-      n.subject === sub &&
-      n.classLevel === classLevel &&
-      slugify(n.topic) === unitSlug
+    (n) => n.subject === sub && n.classLevel === classLevel && slugify(n.topic) === unitSlug
   );
   const normalizedChapterSlug = (chapterSlug ?? "").trim().toLowerCase();
   let node: TopicNode | null = null;
   if (normalizedChapterSlug) {
-    node = nodeCandidates.find((n) => slugify(n.chapterTitle ?? "") === normalizedChapterSlug) ?? null;
-  } else if (topicSlug !== 'overview') {
+    node =
+      nodeCandidates.find((n) => slugify(n.chapterTitle ?? "") === normalizedChapterSlug) ?? null;
+  } else if (topicSlug !== "overview") {
     // If chapter is not provided, prefer the topic node that actually contains
     // this subtopic slug. This resolves duplicate topic names across chapters.
-    const bySubtopic = nodeCandidates.filter((n) => findMatchingSubtopicIndices(n, topicSlug).length > 0);
+    const bySubtopic = nodeCandidates.filter(
+      (n) => findMatchingSubtopicIndices(n, topicSlug).length > 0
+    );
     if (bySubtopic.length === 1) node = bySubtopic[0]!;
   }
   if (!node) node = nodeCandidates[0] ?? null;
   if (!node) return null;
 
-  if (topicSlug === 'overview') {
+  if (topicSlug === "overview") {
     return {
       topicNode: node,
       subtopicIndex: -1,
-      subtopicName: '',
+      subtopicName: "",
       level: level as DifficultyLevel,
       isOverview: true,
     };
@@ -117,13 +123,13 @@ export function buildTopicOverviewPath(
   classLevel: number,
   topicName: string,
   level: DifficultyLevel,
-  mode?: 'random',
+  mode?: "random",
   chapterTitle?: string
 ): string {
   const base = `/${routeBoardSlug(board)}/${subject}/${toGradeSlug(classLevel)}/${slugify(topicName)}/overview/${level}`;
   const qs = new URLSearchParams();
-  if (mode === 'random') qs.set('mode', 'random');
-  if (chapterTitle?.trim()) qs.set('chapter', slugify(chapterTitle));
+  if (mode === "random") qs.set("mode", "random");
+  if (chapterTitle?.trim()) qs.set("chapter", slugify(chapterTitle));
   if (qs.size > 0) return `${base}?${qs.toString()}`;
   return base;
 }
@@ -138,13 +144,13 @@ export function buildTopicPath(
   unitName: string,
   subtopicName: string,
   level: DifficultyLevel,
-  mode?: 'random',
+  mode?: "random",
   chapterTitle?: string
 ): string {
   const base = `/${routeBoardSlug(board)}/${subject}/${toGradeSlug(classLevel)}/${slugify(unitName)}/${subtopicSlugForRouting(subtopicName)}/${level}`;
   const qs = new URLSearchParams();
-  if (mode === 'random') qs.set('mode', 'random');
-  if (chapterTitle?.trim()) qs.set('chapter', slugify(chapterTitle));
+  if (mode === "random") qs.set("mode", "random");
+  if (chapterTitle?.trim()) qs.set("chapter", slugify(chapterTitle));
   if (qs.size > 0) return `${base}?${qs.toString()}`;
   return base;
 }
@@ -159,14 +165,14 @@ export function getSiblingTopics(
   taxonomy: TopicNode[],
   node: TopicNode
 ): { prev: TopicNode | null; next: TopicNode | null } {
-  const nodeChapter = (node.chapterTitle ?? '').trim();
+  const nodeChapter = (node.chapterTitle ?? "").trim();
   // Keep Supabase curriculum order (unit/chapter/topic sort_order) as-is.
   // Re-sorting alphabetically can cause wrong prev/next chapter flow.
   const siblings = taxonomy.filter((n) => {
     if (n.subject !== node.subject || n.classLevel !== node.classLevel) return false;
     if (n.unitLabel !== node.unitLabel) return false;
     if (nodeChapter) {
-      return (n.chapterTitle ?? '').trim() === nodeChapter;
+      return (n.chapterTitle ?? "").trim() === nodeChapter;
     }
     return true;
   });
@@ -178,9 +184,9 @@ export function getSiblingTopics(
     i = siblings.findIndex(
       (n) =>
         n.topic === node.topic &&
-        (n.chapterTitle ?? '') === (node.chapterTitle ?? '') &&
-        (n.unitLabel ?? '') === (node.unitLabel ?? '') &&
-        (n.unitTitle ?? '') === (node.unitTitle ?? '')
+        (n.chapterTitle ?? "") === (node.chapterTitle ?? "") &&
+        (n.unitLabel ?? "") === (node.unitLabel ?? "") &&
+        (n.unitTitle ?? "") === (node.unitTitle ?? "")
     );
   }
   if (i < 0) return { prev: null, next: null };
@@ -203,6 +209,15 @@ export function buildDeepDivePath(
   sectionIndex: number,
   chapterTitle?: string
 ): string {
-  const base = buildTopicPath(board, subject, classLevel, unitName, subtopicName, level, undefined, chapterTitle);
+  const base = buildTopicPath(
+    board,
+    subject,
+    classLevel,
+    unitName,
+    subtopicName,
+    level,
+    undefined,
+    chapterTitle
+  );
   return `${base}/deep-dive/${sectionIndex}`;
 }

@@ -35,7 +35,9 @@ export async function POST(request: Request) {
     let user = (await cookieSupabase.auth.getUser()).data?.user ?? null;
     const token = request.headers.get("Authorization")?.replace(/^Bearer\s+/i, "");
     if (!user && token) {
-      const { data: { user: u } } = await cookieSupabase.auth.getUser(token);
+      const {
+        data: { user: u },
+      } = await cookieSupabase.auth.getUser(token);
       user = u ?? null;
     }
     const supabase = user && token ? createClientWithToken(token) : cookieSupabase;
@@ -45,7 +47,10 @@ export async function POST(request: Request) {
 
     const existing = await supabase.from("doubts").select("id").eq("user_id", user.id).limit(1);
     if ((existing.data?.length ?? 0) > 0) {
-      return NextResponse.json({ message: "You already have doubts; skip seeding.", seeded: false });
+      return NextResponse.json({
+        message: "You already have doubts; skip seeding.",
+        seeded: false,
+      });
     }
 
     const inserted: string[] = [];
@@ -82,7 +87,11 @@ export async function POST(request: Request) {
       }
     }
 
-    return NextResponse.json({ message: "Demo doubts and answers created.", seeded: true, count: inserted.length });
+    return NextResponse.json({
+      message: "Demo doubts and answers created.",
+      seeded: true,
+      count: inserted.length,
+    });
   } catch (e) {
     console.error("seed-doubts error", e);
     return NextResponse.json({ error: "Server error" }, { status: 500 });

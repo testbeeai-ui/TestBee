@@ -63,9 +63,7 @@ async function main() {
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const anonConfigured = Boolean(
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim()
-  );
+  const anonConfigured = Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim());
 
   if (!supabaseUrl || !serviceRoleKey) {
     throw new Error(
@@ -163,9 +161,7 @@ async function main() {
   ];
   for (const f of expectedForces) {
     if (!forces.includes(f)) {
-      throw new Error(
-        `Topic 1.2 missing subtopic "${f}". Found: ${forces.join("; ") || "(none)"}`
-      );
+      throw new Error(`Topic 1.2 missing subtopic "${f}". Found: ${forces.join("; ") || "(none)"}`);
     }
   }
 

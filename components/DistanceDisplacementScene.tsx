@@ -13,9 +13,7 @@ function WindingPath() {
     new THREE.Vector3(1, 0, 0.6),
     new THREE.Vector3(2, 0, 0),
   ];
-  return (
-    <Line points={points} color="#f97316" />
-  );
+  return <Line points={points} color="#f97316" />;
 }
 
 function StraightArrow() {

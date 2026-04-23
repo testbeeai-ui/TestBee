@@ -6,16 +6,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import AppLayout from "@/components/AppLayout";
-import {
-  BookOpen,
-  Plus,
-  Video,
-  Calendar,
-  ArrowRight,
-  School,
-  Users,
-  FileText,
-} from "lucide-react";
+import { BookOpen, Plus, Video, Calendar, ArrowRight, School, Users, FileText } from "lucide-react";
 
 interface Classroom {
   id: string;
@@ -74,7 +65,9 @@ export default function TeacherDashboard() {
         >
           <div className="relative z-10">
             <p className="text-primary-foreground/70 text-sm font-bold mb-1">Teach on ESM</p>
-            <h1 className="text-3xl md:text-4xl font-display mb-2">{profile?.name ?? user?.email}!</h1>
+            <h1 className="text-3xl md:text-4xl font-display mb-2">
+              {profile?.name ?? user?.email}!
+            </h1>
             <div className="flex flex-wrap items-center gap-3 mt-3">
               <span className="edu-chip bg-primary-foreground/20 text-primary-foreground">
                 📖 Teacher
@@ -188,7 +181,8 @@ export default function TeacherDashboard() {
                     <div className="flex-1 min-w-0">
                       <p className="font-extrabold text-sm text-foreground truncate">{c.name}</p>
                       <p className="text-xs text-muted-foreground">
-                        {c.subject ?? "No subject"} · {c.type === "google_linked" ? "Google" : "ESM"}
+                        {c.subject ?? "No subject"} ·{" "}
+                        {c.type === "google_linked" ? "Google" : "ESM"}
                       </p>
                     </div>
                     <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary shrink-0" />

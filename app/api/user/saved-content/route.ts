@@ -14,7 +14,9 @@ async function getSupabaseAndUser(request: Request) {
   if (!user) {
     const token = request.headers.get("Authorization")?.replace(/^Bearer\s+/i, "");
     if (token) {
-      const { data: { user: u } } = await cookieClient.auth.getUser(token);
+      const {
+        data: { user: u },
+      } = await cookieClient.auth.getUser(token);
       user = u ?? null;
       if (user) {
         return { supabase: createClientWithToken(token), user };
@@ -33,7 +35,9 @@ export async function GET(request: Request) {
     const { supabase, user } = ctx;
     const { data: profile, error } = await supabase
       .from("profiles")
-      .select("saved_bits, saved_formulas, saved_revision_cards, saved_revision_units, saved_community_posts")
+      .select(
+        "saved_bits, saved_formulas, saved_revision_cards, saved_revision_units, saved_community_posts"
+      )
       .eq("id", user.id)
       .maybeSingle();
     if (error) {
@@ -42,11 +46,12 @@ export async function GET(request: Request) {
     }
     const savedBits = (profile?.saved_bits ?? []) as unknown as SavedBit[];
     const savedFormulas = (profile?.saved_formulas ?? []) as unknown as SavedFormula[];
-    const savedRevisionCards = (profile?.saved_revision_cards ?? []) as unknown as SavedRevisionCard[];
-    const savedRevisionUnits =
-      (profile?.saved_revision_units ?? []) as unknown as SavedRevisionUnit[];
-    const savedCommunityPosts =
-      (profile?.saved_community_posts ?? []) as unknown as SavedCommunityPost[];
+    const savedRevisionCards = (profile?.saved_revision_cards ??
+      []) as unknown as SavedRevisionCard[];
+    const savedRevisionUnits = (profile?.saved_revision_units ??
+      []) as unknown as SavedRevisionUnit[];
+    const savedCommunityPosts = (profile?.saved_community_posts ??
+      []) as unknown as SavedCommunityPost[];
     return NextResponse.json({
       savedBits,
       savedFormulas,
@@ -100,10 +105,7 @@ export async function POST(request: Request) {
     if (savedRevisionCards !== undefined) updates.saved_revision_cards = savedRevisionCards;
     if (savedRevisionUnits !== undefined) updates.saved_revision_units = savedRevisionUnits;
     if (savedCommunityPosts !== undefined) updates.saved_community_posts = savedCommunityPosts;
-    const { error } = await supabase
-      .from("profiles")
-      .update(updates)
-      .eq("id", user.id);
+    const { error } = await supabase.from("profiles").update(updates).eq("id", user.id);
     if (error) {
       console.error("saved-content POST error", error);
       return NextResponse.json({ error: error.message }, { status: 500 });

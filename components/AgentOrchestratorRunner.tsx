@@ -74,16 +74,17 @@ function getPreviewForSubtopic(
   subtopicName: string
 ): string {
   const target = subtopicName.trim().toLowerCase();
-  return (
-    previews.find((row) => row.subtopicName.trim().toLowerCase() === target)?.preview ?? ""
-  );
+  return previews.find((row) => row.subtopicName.trim().toLowerCase() === target)?.preview ?? "";
 }
 
 function getCurrentLevel(cursor: OrchestratorCursor): OrchestratorLevel {
   return ORCHESTRATOR_LEVELS[cursor.levelIndex] ?? ORCHESTRATOR_LEVELS[0] ?? "advanced";
 }
 
-function nextCursorAfterTopicHubBatch(job: OrchestratorJob, processedCount: number): OrchestratorCursor {
+function nextCursorAfterTopicHubBatch(
+  job: OrchestratorJob,
+  processedCount: number
+): OrchestratorCursor {
   const topicCount = job.topics.length;
   const nextTopicIndex = job.cursor.topicIndex + processedCount;
   const hasMoreTopicsAtCurrentLevel = nextTopicIndex < topicCount;
@@ -405,12 +406,19 @@ export default function AgentOrchestratorRunner() {
             practice_formulas: subtopicContent.practiceFormulas,
           });
           if ((subtopicContent.instacueCards?.length ?? 0) === 0) {
-            throw new Error(`InstaCue generation returned no cards for ${subtopicName} (${level}).`);
+            throw new Error(
+              `InstaCue generation returned no cards for ${subtopicName} (${level}).`
+            );
           }
           if ((subtopicContent.bitsQuestions?.length ?? 0) === 0) {
-            throw new Error(`Bits generation returned no questions for ${subtopicName} (${level}).`);
+            throw new Error(
+              `Bits generation returned no questions for ${subtopicName} (${level}).`
+            );
           }
-          appendLog(job.id, `InstaCue + Bits completed sequentially for ${subtopicName} (${level}).`);
+          appendLog(
+            job.id,
+            `InstaCue + Bits completed sequentially for ${subtopicName} (${level}).`
+          );
         } else if (runInstacue) {
           await generateInstaCueCards({
             ...contentParams,
@@ -425,7 +433,9 @@ export default function AgentOrchestratorRunner() {
             practice_formulas: subtopicContent.practiceFormulas,
           });
           if ((subtopicContent.instacueCards?.length ?? 0) === 0) {
-            throw new Error(`InstaCue generation returned no cards for ${subtopicName} (${level}).`);
+            throw new Error(
+              `InstaCue generation returned no cards for ${subtopicName} (${level}).`
+            );
           }
           appendLog(job.id, `InstaCue completed for ${subtopicName} (${level}).`);
         } else {
@@ -442,7 +452,9 @@ export default function AgentOrchestratorRunner() {
             practice_formulas: subtopicContent.practiceFormulas,
           });
           if ((subtopicContent.bitsQuestions?.length ?? 0) === 0) {
-            throw new Error(`Bits generation returned no questions for ${subtopicName} (${level}).`);
+            throw new Error(
+              `Bits generation returned no questions for ${subtopicName} (${level}).`
+            );
           }
           appendLog(job.id, `Bits completed for ${subtopicName} (${level}).`);
         }
@@ -474,7 +486,9 @@ export default function AgentOrchestratorRunner() {
               practice_formulas: subtopicContent.practiceFormulas,
             });
             if ((subtopicContent.instacueCards?.length ?? 0) === 0) {
-              throw new Error(`InstaCue generation returned no cards for ${subtopicName} (${level}).`);
+              throw new Error(
+                `InstaCue generation returned no cards for ${subtopicName} (${level}).`
+              );
             }
             appendLog(job.id, `InstaCue completed for ${subtopicName} (${level}).`);
           }
@@ -492,7 +506,9 @@ export default function AgentOrchestratorRunner() {
             practice_formulas: subtopicContent.practiceFormulas,
           });
           if ((subtopicContent.instacueCards?.length ?? 0) === 0) {
-            throw new Error(`InstaCue generation returned no cards for ${subtopicName} (${level}).`);
+            throw new Error(
+              `InstaCue generation returned no cards for ${subtopicName} (${level}).`
+            );
           }
           appendLog(job.id, `InstaCue completed for ${subtopicName} (${level}).`);
         }
@@ -524,7 +540,9 @@ export default function AgentOrchestratorRunner() {
               practice_formulas: subtopicContent.practiceFormulas,
             });
             if ((subtopicContent.bitsQuestions?.length ?? 0) === 0) {
-              throw new Error(`Bits generation returned no questions for ${subtopicName} (${level}).`);
+              throw new Error(
+                `Bits generation returned no questions for ${subtopicName} (${level}).`
+              );
             }
             appendLog(job.id, `Bits completed for ${subtopicName} (${level}).`);
           }
@@ -542,7 +560,9 @@ export default function AgentOrchestratorRunner() {
             practice_formulas: subtopicContent.practiceFormulas,
           });
           if ((subtopicContent.bitsQuestions?.length ?? 0) === 0) {
-            throw new Error(`Bits generation returned no questions for ${subtopicName} (${level}).`);
+            throw new Error(
+              `Bits generation returned no questions for ${subtopicName} (${level}).`
+            );
           }
           appendLog(job.id, `Bits completed for ${subtopicName} (${level}).`);
         }
@@ -564,7 +584,10 @@ export default function AgentOrchestratorRunner() {
       }
 
       if (!isRegenerate && assess.skipFormulasConceptual) {
-        appendLog(job.id, `Formulas not required for conceptual subtopic ${subtopicName} (${level}). Skipping.`);
+        appendLog(
+          job.id,
+          `Formulas not required for conceptual subtopic ${subtopicName} (${level}). Skipping.`
+        );
         return;
       }
 
@@ -721,10 +744,7 @@ export default function AgentOrchestratorRunner() {
           const pendingQueue = useOrchestratorStore
             .getState()
             .jobs.filter((job) => job.status === "pending")
-            .sort(
-              (a, b) =>
-                new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()
-            );
+            .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
           const nextPending = pendingQueue[0] ?? null;
           if (nextPending) {
             const lateByMs = Date.now() - new Date(nextPending.scheduledAt).getTime();
@@ -752,7 +772,8 @@ export default function AgentOrchestratorRunner() {
         try {
           if (current.cursor.phase === "final_audit") {
             patchJob(jobId, {
-              currentAction: "Final audit: checking advanced completeness for all blueprint subtopics",
+              currentAction:
+                "Final audit: checking advanced completeness for all blueprint subtopics",
             });
             appendLog(
               jobId,
@@ -788,7 +809,10 @@ export default function AgentOrchestratorRunner() {
                   existing.realWorld.trim() ||
                   (existing.subtopicPreviews?.length ?? 0) > 0);
               if (alreadyComplete) {
-                appendLog(jobId, "Chapter overview already exists. Skipping chapter overview generation.");
+                appendLog(
+                  jobId,
+                  "Chapter overview already exists. Skipping chapter overview generation."
+                );
                 patchJob(jobId, {
                   cursor: {
                     phase: "topic_hub",
@@ -982,8 +1006,7 @@ export default function AgentOrchestratorRunner() {
                   ).filter((value): value is OrchestratorLevel => Boolean(value)),
                 }))
               );
-              const firstGap = topicChecks
-                .find((entry) => entry.missingLevels.length > 0);
+              const firstGap = topicChecks.find((entry) => entry.missingLevels.length > 0);
               if (firstGap) {
                 const firstMissingLevel = firstGap.missingLevels[0] ?? ORCHESTRATOR_LEVELS[0];
                 const missingLevelIndex = ORCHESTRATOR_LEVELS.findIndex(
@@ -1123,7 +1146,10 @@ export default function AgentOrchestratorRunner() {
       .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())
       .find((job) => job.status === "failed");
     if (failedJob) {
-      requeueFailedJob(failedJob, failedJob.lastError || "Recovered failed chapter from saved queue.");
+      requeueFailedJob(
+        failedJob,
+        failedJob.lastError || "Recovered failed chapter from saved queue."
+      );
       return;
     }
 
@@ -1149,18 +1175,15 @@ export default function AgentOrchestratorRunner() {
   const sortedJobs = useMemo(
     () =>
       [...jobs].sort(
-        (a, b) =>
-          new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()
+        (a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()
       ),
     [jobs]
   );
   const firstPendingIndex = sortedJobs.findIndex((job) => job.status === "pending");
-  const firstPendingJob = firstPendingIndex >= 0 ? sortedJobs[firstPendingIndex] ?? null : null;
+  const firstPendingJob = firstPendingIndex >= 0 ? (sortedJobs[firstPendingIndex] ?? null) : null;
   const blockingFailedJob =
     firstPendingIndex > 0
-      ? sortedJobs
-          .slice(0, firstPendingIndex)
-          .find((job) => job.status === "failed") ?? null
+      ? (sortedJobs.slice(0, firstPendingIndex).find((job) => job.status === "failed") ?? null)
       : null;
   const activeJob =
     sortedJobs.find((job) => job.status === "running") ??
@@ -1168,9 +1191,8 @@ export default function AgentOrchestratorRunner() {
     firstPendingJob ??
     sortedJobs.find((job) => job.status === "failed") ??
     null;
-  const nextPendingJob = sortedJobs.find(
-    (job) => job.status === "pending" && job.id !== activeJob?.id
-  ) ?? null;
+  const nextPendingJob =
+    sortedJobs.find((job) => job.status === "pending" && job.id !== activeJob?.id) ?? null;
   const finishedCount = sortedJobs.filter((job) =>
     ["completed", "failed", "cancelled"].includes(job.status)
   ).length;
@@ -1197,9 +1219,7 @@ export default function AgentOrchestratorRunner() {
           <div className="flex min-w-0 items-center gap-2">
             {statusIcon}
             <div className="min-w-0">
-              <p className="text-sm font-extrabold text-foreground">
-                Subtopic Completeness Agent
-              </p>
+              <p className="text-sm font-extrabold text-foreground">Subtopic Completeness Agent</p>
               <p className="truncate text-[11px] text-muted-foreground">
                 {activeJob
                   ? `${jobLabel(activeJob)} · ${activeJob.chapterTitle}`
@@ -1208,19 +1228,18 @@ export default function AgentOrchestratorRunner() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {activeJob &&
-              ["pending", "running"].includes(activeJob.status) && (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  className="h-7 rounded-lg px-2 text-xs"
-                  onClick={() => cancelJob(activeJob.id)}
-                >
-                  <XCircle className="mr-1 h-3.5 w-3.5" />
-                  Cancel
-                </Button>
-              )}
+            {activeJob && ["pending", "running"].includes(activeJob.status) && (
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="h-7 rounded-lg px-2 text-xs"
+                onClick={() => cancelJob(activeJob.id)}
+              >
+                <XCircle className="mr-1 h-3.5 w-3.5" />
+                Cancel
+              </Button>
+            )}
             {finishedCount > 0 && (
               <Button
                 type="button"
@@ -1249,11 +1268,12 @@ export default function AgentOrchestratorRunner() {
               <p className="mt-1 text-[11px] text-muted-foreground">
                 Scheduled: {new Date(activeJob.originalScheduledAt).toLocaleString()}
               </p>
-              {activeJob.status === "pending" && activeJob.scheduledAt !== activeJob.originalScheduledAt && (
-                <p className="text-[11px] text-amber-700 dark:text-amber-300">
-                  Updated start: {new Date(activeJob.scheduledAt).toLocaleString()}
-                </p>
-              )}
+              {activeJob.status === "pending" &&
+                activeJob.scheduledAt !== activeJob.originalScheduledAt && (
+                  <p className="text-[11px] text-amber-700 dark:text-amber-300">
+                    Updated start: {new Date(activeJob.scheduledAt).toLocaleString()}
+                  </p>
+                )}
               {activeJob.status === "pending" && activeJob.retryCount > 0 && (
                 <p className="text-[11px] text-amber-700 dark:text-amber-300">
                   Auto-retry attempt {activeJob.retryCount} is queued for this chapter.
@@ -1261,7 +1281,8 @@ export default function AgentOrchestratorRunner() {
               )}
               {blockingFailedJob && activeJob.id === blockingFailedJob.id && firstPendingJob && (
                 <p className="text-[11px] text-red-700 dark:text-red-300">
-                  Queue paused. `{firstPendingJob.chapterTitle}` cannot start until this failed chapter is cleared.
+                  Queue paused. `{firstPendingJob.chapterTitle}` cannot start until this failed
+                  chapter is cleared.
                 </p>
               )}
               {typeof activeJob.delayedMs === "number" && activeJob.delayedMs > 0 && (
@@ -1277,11 +1298,13 @@ export default function AgentOrchestratorRunner() {
                     Waiting for scheduled start time.
                   </p>
                 )}
-              {activeJob.lastError && activeJob.status === "pending" && activeJob.retryCount > 0 && (
-                <p className="mt-1 text-[11px] text-red-700 dark:text-red-300">
-                  Last error: {activeJob.lastError}
-                </p>
-              )}
+              {activeJob.lastError &&
+                activeJob.status === "pending" &&
+                activeJob.retryCount > 0 && (
+                  <p className="mt-1 text-[11px] text-red-700 dark:text-red-300">
+                    Last error: {activeJob.lastError}
+                  </p>
+                )}
               {nextPendingJob && (
                 <p className="mt-1 text-[11px] text-muted-foreground">
                   Next chapter: {nextPendingJob.chapterTitle} at{" "}
@@ -1313,14 +1336,13 @@ export default function AgentOrchestratorRunner() {
 
             {!isRunning && (
               <p className="text-[11px] text-muted-foreground">
-                The agent stays visible after refresh because the queue is saved locally in your browser.
+                The agent stays visible after refresh because the queue is saved locally in your
+                browser.
               </p>
             )}
           </>
         ) : (
-          <p className="text-xs text-muted-foreground">
-            No active scheduled chapter right now.
-          </p>
+          <p className="text-xs text-muted-foreground">No active scheduled chapter right now.</p>
         )}
       </div>
     </div>

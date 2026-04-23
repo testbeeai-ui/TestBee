@@ -25,7 +25,7 @@ add(
   "Because \\(4s\\) always has higher energy than \\(3d\\) in every atom.",
   "Because Hund’s rule forces \\(3d\\) to empty before \\(4s\\).",
   "Because \\(4s\\) is non-bonding in all transition metals.",
-  "Neutral-atom filling follows \\((n+l)\\) ordering; after \\(3d\\) occupation, effective nuclear charge and shielding reorder orbital energies for ionization.",
+  "Neutral-atom filling follows \\((n+l)\\) ordering; after \\(3d\\) occupation, effective nuclear charge and shielding reorder orbital energies for ionization."
 );
 add(
   "atomic_bonding",
@@ -35,7 +35,7 @@ add(
   "Radial = 3, angular = 2",
   "Radial = 2, angular = 3",
   "Radial = 1, angular = 2",
-  "Radial nodes \\(= n - l - 1 = 5 - 2 - 1 = 2\\); angular nodes \\(= l = 2\\).",
+  "Radial nodes \\(= n - l - 1 = 5 - 2 - 1 = 2\\); angular nodes \\(= l = 2\\)."
 );
 add(
   "atomic_bonding",
@@ -45,7 +45,7 @@ add(
   "Because \\(O_2\\) has a permanent electric dipole only.",
   "Because all electrons are paired in bonding orbitals.",
   "Because oxygen is a liquid at low temperature.",
-  "HOMO are \\(\\pi^*_{2p}\\); the last two electrons occupy separate \\(\\pi^*\\) orbitals with parallel spins.",
+  "HOMO are \\(\\pi^*_{2p}\\); the last two electrons occupy separate \\(\\pi^*\\) orbitals with parallel spins."
 );
 add(
   "atomic_bonding",
@@ -55,7 +55,7 @@ add(
   "\\(0\\)",
   "\\(-1\\)",
   "\\(+2\\)",
-  "FC = valence − lone pairs − bonding/2: \\(6 - 2 - 6/2 = +1\\).",
+  "FC = valence − lone pairs − bonding/2: \\(6 - 2 - 6/2 = +1\\)."
 );
 add(
   "atomic_bonding",
@@ -65,7 +65,7 @@ add(
   "Lone pairs are always smaller than bonding pairs.",
   "Bonding pairs have higher nuclear charge than lone pairs.",
   "Lone pairs only repel other lone pairs, not bond pairs.",
-  "Bonding pairs are shared between two nuclei and more compact; lone pairs spread out.",
+  "Bonding pairs are shared between two nuclei and more compact; lone pairs spread out."
 );
 add(
   "atomic_bonding",
@@ -75,7 +75,7 @@ add(
   "\\(3\\)",
   "\\(2\\)",
   "\\(3.5\\)",
-  "\\(N_2\\) BO = 3; remove one electron from a bonding \\(\\sigma_{2pz}\\) orbital → BO decreases by 0.5.",
+  "\\(N_2\\) BO = 3; remove one electron from a bonding \\(\\sigma_{2pz}\\) orbital → BO decreases by 0.5."
 );
 add(
   "atomic_bonding",
@@ -85,7 +85,7 @@ add(
   "Because \\(NF_3\\) has no lone pair on nitrogen.",
   "Because \\(NH_3\\) is always non-polar.",
   "Because dipole moment depends only on molecular mass.",
-  "Vector addition of bond and lone-pair contributions differs in the two pyramids.",
+  "Vector addition of bond and lone-pair contributions differs in the two pyramids."
 );
 add(
   "atomic_bonding",
@@ -95,7 +95,7 @@ add(
   "\\(\\approx 656\\ \\mathrm{nm}\\)",
   "\\(\\approx 122\\ \\mathrm{nm}\\)",
   "\\(\\approx 1000\\ \\mathrm{nm}\\)",
-  "\\(1/\\lambda = R_H(1/4 - 1/16) = 3R_H/16\\); invert to get \\(\\lambda\\).",
+  "\\(1/\\lambda = R_H(1/4 - 1/16) = 3R_H/16\\); invert to get \\(\\lambda\\)."
 );
 add(
   "atomic_bonding",
@@ -105,7 +105,7 @@ add(
   "\\(NaCl\\) — sodium is lighter.",
   "They are identical in every crystal.",
   "\\(NaCl\\) — higher lattice energy always means more covalent character.",
-  "Smaller, more polarizing cation pulls electron density from anion into the bond region.",
+  "Smaller, more polarizing cation pulls electron density from anion into the bond region."
 );
 add(
   "atomic_bonding",
@@ -115,7 +115,7 @@ add(
   "\\(\\Delta v = \\dfrac{h}{4\\pi m\\Delta x}\\) only, with \\(\\Delta x\\) arbitrary",
   "\\(\\Delta v = \\sqrt{h/(2\\pi m)}\\)",
   "\\(\\Delta v = 0\\)",
-  "\\(\\Delta x\\,\\Delta p \\ge h/(4\\pi)\\); set \\(\\Delta x = \\Delta p\\) and use \\(\\Delta p = m\\Delta v\\).",
+  "\\(\\Delta x\\,\\Delta p \\ge h/(4\\pi)\\); set \\(\\Delta x = \\Delta p\\) and use \\(\\Delta p = m\\Delta v\\)."
 );
 
 // Block 2: Thermodynamics & kinetics (11–20)
@@ -127,7 +127,7 @@ add(
   "Water’s \\(\\Delta S_{\\mathrm{vap}}\\) is always lower because hydrogen bonds make vaporization impossible.",
   "Water follows Trouton exactly because it is molecular.",
   "Trouton’s rule does not apply to any liquids.",
-  "Highly ordered liquid → larger entropy gain on forming a disordered gas.",
+  "Highly ordered liquid → larger entropy gain on forming a disordered gas."
 );
 add(
   "thermo_kinetics",
@@ -137,7 +137,7 @@ add(
   "\\(15\\ \\mathrm{min}\\)",
   "\\(60\\ \\mathrm{min}\\)",
   "\\(45\\ \\mathrm{min}\\)",
-  "75% complete ⇒ 25% left ⇒ two half-lives in 60 min ⇒ \\(t_{1/2} = 30\\ \\mathrm{min}\\).",
+  "75% complete ⇒ 25% left ⇒ two half-lives in 60 min ⇒ \\(t_{1/2} = 30\\ \\mathrm{min}\\)."
 );
 add(
   "thermo_kinetics",
@@ -147,7 +147,7 @@ add(
   "\\(\\Delta H > 0\\) and \\(\\Delta S < 0\\)",
   "\\(\\Delta H > 0\\) and \\(\\Delta S > 0\\) always",
   "\\(\\Delta S = 0\\) only",
-  "\\(\\Delta G = \\Delta H - T\\Delta S\\); both terms favor spontaneity for every \\(T\\).",
+  "\\(\\Delta G = \\Delta H - T\\Delta S\\); both terms favor spontaneity for every \\(T\\)."
 );
 add(
   "thermo_kinetics",
@@ -157,7 +157,7 @@ add(
   "\\(+11.5\\ \\mathrm{kJ}\\)",
   "\\(-2.30\\ \\mathrm{kJ}\\)",
   "\\(0\\ \\mathrm{kJ}\\)",
-  "\\(W = -2.303\\,nRT\\log(V_2/V_1)\\).",
+  "\\(W = -2.303\\,nRT\\log(V_2/V_1)\\)."
 );
 add(
   "thermo_kinetics",
@@ -167,7 +167,7 @@ add(
   "Exothermic reactions have no transition state.",
   "Activation energy only exists for endothermic reactions.",
   "Heat always flows in without a barrier.",
-  "\\(E_a\\) is the barrier to forming the activated complex, independent of overall \\(\\Delta H\\).",
+  "\\(E_a\\) is the barrier to forming the activated complex, independent of overall \\(\\Delta H\\)."
 );
 add(
   "thermo_kinetics",
@@ -177,7 +177,7 @@ add(
   "\\(4\\)",
   "\\(16\\)",
   "\\(2\\)",
-  "\\(2^{\\Delta T/10} = 2^3 = 8\\).",
+  "\\(2^{\\Delta T/10} = 2^3 = 8\\)."
 );
 add(
   "thermo_kinetics",
@@ -187,7 +187,7 @@ add(
   "State function — depends only on endpoints.",
   "Always zero for cycles.",
   "Equal to heat in all processes.",
-  "Different paths (reversible vs irreversible expansion) give different \\(W\\).",
+  "Different paths (reversible vs irreversible expansion) give different \\(W\\)."
 );
 add(
   "thermo_kinetics",
@@ -197,7 +197,7 @@ add(
   "\\(3 \\times 10^{-4}\\ \\mathrm{M\\,s^{-1}}\\)",
   "\\(1 \\times 10^{-4}\\ \\mathrm{M\\,s^{-1}}\\)",
   "\\(9 \\times 10^{-4}\\ \\mathrm{M\\,s^{-1}}\\)",
-  "Stoichiometry: \\(\\frac{1}{3}d[H_2]/dt\\) linked to \\(\\frac{1}{2}d[NH_3]/dt\\).",
+  "Stoichiometry: \\(\\frac{1}{3}d[H_2]/dt\\) linked to \\(\\frac{1}{2}d[NH_3]/dt\\)."
 );
 add(
   "thermo_kinetics",
@@ -207,7 +207,7 @@ add(
   "It shifts equilibrium toward products only.",
   "It changes \\(\\Delta H^\\circ\\) of the reaction.",
   "It consumes one of the reactants permanently.",
-  "Equal acceleration of forward and reverse rates leaves \\(K\\) the same.",
+  "Equal acceleration of forward and reverse rates leaves \\(K\\) the same."
 );
 add(
   "thermo_kinetics",
@@ -217,7 +217,7 @@ add(
   "\\(-802.1\\ \\mathrm{kJ\\,mol^{-1}}\\) only",
   "\\(+890.3\\ \\mathrm{kJ\\,mol^{-1}}\\)",
   "\\(-600.0\\ \\mathrm{kJ\\,mol^{-1}}\\)",
-  "\\(CH_4 + 2O_2 \\rightarrow CO_2 + 2H_2O\\); use products minus reactants.",
+  "\\(CH_4 + 2O_2 \\rightarrow CO_2 + 2H_2O\\); use products minus reactants."
 );
 
 // Block 3: Equilibrium (21–30)
@@ -229,7 +229,7 @@ add(
   "Shifts toward fewer moles of gas.",
   "Shifts toward more moles of gas.",
   "Always increases \\(K_p\\).",
-  "Total pressure rises but mole fractions and partial pressures of reacting gases stay the same.",
+  "Total pressure rises but mole fractions and partial pressures of reacting gases stay the same."
 );
 add(
   "equilibrium",
@@ -239,7 +239,7 @@ add(
   "Exactly \\(8.0\\)",
   "Exactly \\(7.0\\) always",
   "\\(8.0\\)",
-  "\\([H^+] \\approx 10^{-8} + 10^{-7}\\); \\(\\mathrm{pH} = -\\log[H^+]\\).",
+  "\\([H^+] \\approx 10^{-8} + 10^{-7}\\); \\(\\mathrm{pH} = -\\log[H^+]\\)."
 );
 add(
   "equilibrium",
@@ -249,7 +249,7 @@ add(
   "It increases \\(K_{\\mathrm{sp}}\\) directly.",
   "It removes water from the solution.",
   "Common ions always increase solubility.",
-  "Added ion raises ion product; Le Chatelier reduces dissolved amount.",
+  "Added ion raises ion product; Le Chatelier reduces dissolved amount."
 );
 add(
   "equilibrium",
@@ -259,7 +259,7 @@ add(
   "\\(10\\)",
   "\\(246\\)",
   "\\(0.041\\)",
-  "\\(K_p = K_c(RT)^{\\Delta n}\\), \\(\\Delta n = -1\\).",
+  "\\(K_p = K_c(RT)^{\\Delta n}\\), \\(\\Delta n = -1\\)."
 );
 add(
   "equilibrium",
@@ -269,7 +269,7 @@ add(
   "The ratio increases.",
   "The ratio stays exactly 1 always.",
   "\\(pH\\) does not change at all.",
-  "Added \\(H^+\\) consumes conjugate base.",
+  "Added \\(H^+\\) consumes conjugate base."
 );
 add(
   "equilibrium",
@@ -279,7 +279,7 @@ add(
   "\\(8 \\times 10^{-4}\\ \\mathrm{M}\\)",
   "\\(10^{-4}\\ \\mathrm{M}\\)",
   "\\(4 \\times 10^{-3}\\ \\mathrm{M}\\)",
-  "\\(K_{\\mathrm{sp}} = 4s^3\\) for \\(Ag_2CrO_4 \\rightleftharpoons 2Ag^+ + CrO_4^{2-}\\).",
+  "\\(K_{\\mathrm{sp}} = 4s^3\\) for \\(Ag_2CrO_4 \\rightleftharpoons 2Ag^+ + CrO_4^{2-}\\)."
 );
 add(
   "equilibrium",
@@ -289,7 +289,7 @@ add(
   "\\(BF_3\\) — fluorine is always a stronger donor.",
   "They are identical in Lewis acidity.",
   "\\(BF_3\\) because F is smaller only.",
-  "Back-bonding stabilizes \\(BF_3\\) more than \\(BCl_3\\).",
+  "Back-bonding stabilizes \\(BF_3\\) more than \\(BCl_3\\)."
 );
 add(
   "equilibrium",
@@ -299,7 +299,7 @@ add(
   "\\(0.18\\)",
   "\\(0.0018\\)",
   "\\(1.0\\)",
-  "\\(\\alpha \\approx \\sqrt{K_a/C}\\) for weak electrolytes.",
+  "\\(\\alpha \\approx \\sqrt{K_a/C}\\) for weak electrolytes."
 );
 add(
   "equilibrium",
@@ -309,7 +309,7 @@ add(
   "\\(Na^+\\) hydrolyzes strongly.",
   "Carbonate does not react with water.",
   "It is a strong acid salt.",
-  "Anion of weak acid accepts protons from water, releasing hydroxide.",
+  "Anion of weak acid accepts protons from water, releasing hydroxide."
 );
 add(
   "equilibrium",
@@ -319,7 +319,7 @@ add(
   "\\(4.74\\)",
   "\\(7.00\\)",
   "\\(10.74\\)",
-  "\\(pOH = pK_b + \\log([\\mathrm{salt}]/[\\mathrm{base}])\\); \\(pH = 14 - pOH\\).",
+  "\\(pOH = pK_b + \\log([\\mathrm{salt}]/[\\mathrm{base}])\\); \\(pH = 14 - pOH\\)."
 );
 
 // Block 4: Electrochemistry & solid state (31–40)
@@ -331,7 +331,7 @@ add(
   "Electrons are used up permanently.",
   "Salt bridge runs out of electrons.",
   "Temperature always drops to absolute zero.",
-  "Nernst: reactant depletion drives \\(E\\) toward 0.",
+  "Nernst: reactant depletion drives \\(E\\) toward 0."
 );
 add(
   "electrochem_solid",
@@ -341,7 +341,7 @@ add(
   "\\(965\\ \\mathrm{s}\\)",
   "\\(3860\\ \\mathrm{s}\\)",
   "\\(100\\ \\mathrm{s}\\)",
-  "\\(n = 2\\) mol e\\(^-\\) per mol Cu; \\(Q = n_e F\\); \\(t = Q/I\\).",
+  "\\(n = 2\\) mol e\\(^-\\) per mol Cu; \\(Q = n_e F\\); \\(t = Q/I\\)."
 );
 add(
   "electrochem_solid",
@@ -351,7 +351,7 @@ add(
   "A pair of cation and anion vacancies only.",
   "Loss of entire crystal to solution.",
   "Schottky defect in metals only.",
-  "Vacancy + interstitial of same ion type; density often unchanged.",
+  "Vacancy + interstitial of same ion type; density often unchanged."
 );
 add(
   "electrochem_solid",
@@ -361,7 +361,7 @@ add(
   "\\(r = a/2\\)",
   "\\(r = a\\sqrt{2}/4\\) written differently only as \\(a/4\\)",
   "\\(r = a/4\\)",
-  "Face diagonal \\(= 4r = \\sqrt{2}\\,a\\).",
+  "Face diagonal \\(= 4r = \\sqrt{2}\\,a\\)."
 );
 add(
   "electrochem_solid",
@@ -371,7 +371,7 @@ add(
   "Generates extra voltage chemically.",
   "Replaces the external wire.",
   "Prevents any redox reaction.",
-  "Counters charge buildup from oxidation/reduction.",
+  "Counters charge buildup from oxidation/reduction."
 );
 add(
   "electrochem_solid",
@@ -381,7 +381,7 @@ add(
   "\\(+212\\ \\mathrm{kJ\\,mol^{-1}}\\)",
   "\\(-106\\ \\mathrm{kJ\\,mol^{-1}}\\) only",
   "\\(0\\ \\mathrm{kJ\\,mol^{-1}}\\)",
-  "\\(E^\\circ_{\\mathrm{cell}} = 1.10\\ \\mathrm{V}\\); \\(\\Delta G^\\circ = -nFE^\\circ\\).",
+  "\\(E^\\circ_{\\mathrm{cell}} = 1.10\\ \\mathrm{V}\\); \\(\\Delta G^\\circ = -nFE^\\circ\\)."
 );
 add(
   "electrochem_solid",
@@ -391,7 +391,7 @@ add(
   "Holes are the majority carriers.",
   "Phosphorus removes all electrons.",
   "The lattice becomes insulating.",
-  "Pentavalent substituent provides donor levels near the conduction band.",
+  "Pentavalent substituent provides donor levels near the conduction band."
 );
 add(
   "electrochem_solid",
@@ -401,7 +401,7 @@ add(
   "\\(74\\%\\)",
   "\\(68\\%\\)",
   "\\(100\\%\\)",
-  "One atom per cell; \\(\\pi/6\\) sphere fraction of cube for \\(a = 2r\\).",
+  "One atom per cell; \\(\\pi/6\\) sphere fraction of cube for \\(a = 2r\\)."
 );
 add(
   "electrochem_solid",
@@ -411,7 +411,7 @@ add(
   "It is already fully dissociated like strong electrolytes.",
   "Ion mobility decreases to infinity.",
   "Only viscosity changes.",
-  "More ions per mole of solute appear in solution as \\(\\alpha \\to 1\\).",
+  "More ions per mole of solute appear in solution as \\(\\alpha \\to 1\\)."
 );
 add(
   "electrochem_solid",
@@ -421,7 +421,7 @@ add(
   "\\(-0.23\\ \\mathrm{V}\\)",
   "\\(0\\ \\mathrm{V}\\)",
   "\\(+1.31\\ \\mathrm{V}\\)",
-  "\\(E^\\circ_{\\mathrm{cathode}} - E^\\circ_{\\mathrm{anode}}\\).",
+  "\\(E^\\circ_{\\mathrm{cathode}} - E^\\circ_{\\mathrm{anode}}\\)."
 );
 
 // Block 5: GOC & stereochemistry (41–50)
@@ -433,7 +433,7 @@ add(
   "Fluorine donates electrons to the carbonyl only.",
   "Acid strength does not depend on substituents.",
   "\\(CF_3\\) is larger so acid is weaker.",
-  "Electron-withdrawing groups stabilize the conjugate base.",
+  "Electron-withdrawing groups stabilize the conjugate base."
 );
 add(
   "goc_stereo",
@@ -443,7 +443,7 @@ add(
   "\\(4\\)",
   "\\(2\\)",
   "\\(8\\)",
-  "Two stereocenters with internal plane of symmetry → meso compound counts once.",
+  "Two stereocenters with internal plane of symmetry → meso compound counts once."
 );
 add(
   "goc_stereo",
@@ -453,7 +453,7 @@ add(
   "Methyl carbocation is always most stable.",
   "Primary carbocations are most stable.",
   "Neither is ever observed.",
-  "Benzyl cation is resonance-stabilized; tert-butyl relies on hyperconjugation (exam emphasis varies).",
+  "Benzyl cation is resonance-stabilized; tert-butyl relies on hyperconjugation (exam emphasis varies)."
 );
 add(
   "goc_stereo",
@@ -463,7 +463,7 @@ add(
   "\\(sp,\\ sp,\\ sp^2,\\ sp^3\\)",
   "\\(sp^3\\) throughout",
   "\\(sp^2\\) throughout",
-  "Cumulative double bond at middle carbon is \\(sp\\)-hybridized.",
+  "Cumulative double bond at middle carbon is \\(sp\\)-hybridized."
 );
 add(
   "goc_stereo",
@@ -473,7 +473,7 @@ add(
   "Presence of oxygen only.",
   "Must be a polymer.",
   "Must absorb UV light.",
-  "Needs asymmetric environment for polarized light interaction.",
+  "Needs asymmetric environment for polarized light interaction."
 );
 add(
   "goc_stereo",
@@ -483,7 +483,7 @@ add(
   "ee \\(= 75\\%\\), \\((+) = 87.5\\%\\)",
   "ee \\(= 0\\%\\)",
   "ee \\(= 100\\%\\)",
-  "ee = observed/specific of pure enantiomer; remainder racemic splits equally.",
+  "ee = observed/specific of pure enantiomer; remainder racemic splits equally."
 );
 add(
   "goc_stereo",
@@ -493,7 +493,7 @@ add(
   "Front-side attack is mandatory.",
   "Carbocation planarity causes racemization only.",
   "Solvent always forces retention.",
-  "Walden inversion from concerted mechanism.",
+  "Walden inversion from concerted mechanism."
 );
 add(
   "goc_stereo",
@@ -503,7 +503,7 @@ add(
   "\\(10\\ \\sigma\\), \\(10\\ \\pi\\)",
   "\\(18\\ \\sigma\\), \\(6\\ \\pi\\)",
   "\\(20\\ \\sigma\\), \\(4\\ \\pi\\)",
-  "Fused aromatic framework: 8 C–H \\(\\sigma\\), 11 C–C \\(\\sigma\\), 5 aromatic \\(\\pi\\) bonds.",
+  "Fused aromatic framework: 8 C–H \\(\\sigma\\), 11 C–C \\(\\sigma\\), 5 aromatic \\(\\pi\\) bonds."
 );
 add(
   "goc_stereo",
@@ -513,7 +513,7 @@ add(
   "Pyrrole — lone pair is on nitrogen in all cases free.",
   "They are equally basic in water.",
   "Neither accepts protons.",
-  "In pyrrole, lone pair participates in \\(6\\pi\\) aromaticity and is less basic.",
+  "In pyrrole, lone pair participates in \\(6\\pi\\) aromaticity and is less basic."
 );
 add(
   "goc_stereo",
@@ -523,7 +523,7 @@ add(
   "\\(S\\)",
   "\\(E\\)",
   "\\(Z\\)",
-  "Priorities OH > CHO > CH2OH > H; D-configuration with H on horizontal gives \\(R\\) after CIP rules.",
+  "Priorities OH > CHO > CH2OH > H; D-configuration with H on horizontal gives \\(R\\) after CIP rules."
 );
 
 // Block 6: Hydrocarbons & halides (51–60)
@@ -535,7 +535,7 @@ add(
   "B always adds to the more substituted carbon.",
   "Markovnikov rule applies unchanged.",
   "Only terminal alkynes react.",
-  "Syn addition followed by retention of stereochemistry at C–B then C–OH.",
+  "Syn addition followed by retention of stereochemistry at C–B then C–OH."
 );
 add(
   "hydrocarbons",
@@ -545,7 +545,7 @@ add(
   "But-1-ene",
   "2-methylbut-1-ene only",
   "Pent-2-ene",
-  "Combine carbonyl fragments to rebuild the double bond.",
+  "Combine carbonyl fragments to rebuild the double bond."
 );
 add(
   "hydrocarbons",
@@ -555,7 +555,7 @@ add(
   "Halogens meta-direct only.",
   "Resonance never occurs for halogens.",
   "They are strong activators.",
-  "Competition between inductive withdrawal and lone-pair donation.",
+  "Competition between inductive withdrawal and lone-pair donation."
 );
 add(
   "hydrocarbons",
@@ -565,7 +565,7 @@ add(
   "2-butene only",
   "Butane",
   "Isobutene from rearrangement always",
-  "Bulky base abstracts the least hindered \\(\\beta\\)-H in \\(E2\\).",
+  "Bulky base abstracts the least hindered \\(\\beta\\)-H in \\(E2\\)."
 );
 add(
   "hydrocarbons",
@@ -575,7 +575,7 @@ add(
   "\\(sp^3\\) C–H is more acidic always.",
   "Alkynes have no acidic hydrogens.",
   "Only aromatic C–H is acidic.",
-  "Greater electronegativity of \\(sp\\) carbon stabilizes carbanion.",
+  "Greater electronegativity of \\(sp\\) carbon stabilizes carbanion."
 );
 add(
   "hydrocarbons",
@@ -585,7 +585,7 @@ add(
   "\\(1\\ \\mathrm{mol}\\)",
   "\\(6\\ \\mathrm{mol}\\)",
   "\\(2\\ \\mathrm{mol}\\)",
-  "Three \\(\\pi\\) bonds in the aromatic ring.",
+  "Three \\(\\pi\\) bonds in the aromatic ring."
 );
 add(
   "hydrocarbons",
@@ -595,7 +595,7 @@ add(
   "Odd alkanes cannot form.",
   "Sodium does not react.",
   "Only aromatic products form.",
-  "Statistical coupling gives three products with similar properties.",
+  "Statistical coupling gives three products with similar properties."
 );
 add(
   "hydrocarbons",
@@ -605,7 +605,7 @@ add(
   "2-bromobutane only",
   "Butanol",
   "Butane",
-  "Peroxide initiates free-radical addition; Br\\(^\\cdot\\) adds to less substituted carbon first.",
+  "Peroxide initiates free-radical addition; Br\\(^\\cdot\\) adds to less substituted carbon first."
 );
 add(
   "hydrocarbons",
@@ -615,7 +615,7 @@ add(
   "Inversion is mandatory.",
   "No intermediate forms.",
   "Solvent excludes the nucleophile.",
-  "Loss of stereochemical information at the flat cation.",
+  "Loss of stereochemical information at the flat cation."
 );
 add(
   "hydrocarbons",
@@ -625,7 +625,7 @@ add(
   "\\(298\\ \\mathrm{K}\\), \\(1\\ \\mathrm{atm}\\)",
   "\\(373\\ \\mathrm{K}\\) only",
   "Room temperature, catalyst only",
-  "Strong C–Cl bond + aromatic stabilization require forcing conditions for nucleophilic substitution.",
+  "Strong C–Cl bond + aromatic stabilization require forcing conditions for nucleophilic substitution."
 );
 
 // Block 7: O-, N-containing organics (61–70)
@@ -637,7 +637,7 @@ add(
   "Phenols have stronger O–H bonds only numerically.",
   "Aliphatic alkoxides are more resonance-stabilized.",
   "pH is unrelated to structure.",
-  "Charge delocalization lowers energy of the conjugate base.",
+  "Charge delocalization lowers energy of the conjugate base."
 );
 add(
   "orgo_on",
@@ -647,7 +647,7 @@ add(
   "Ethanol only",
   "Acetic acid only",
   "3-hydroxybutanal only with no dehydration",
-  "Aldol then dehydration on heating.",
+  "Aldol then dehydration on heating."
 );
 add(
   "orgo_on",
@@ -657,7 +657,7 @@ add(
   "Aromatic amines are too basic for Gabriel.",
   "Phthalimide only reacts with tertiary halides.",
   "It only makes quaternary salts.",
-  "Need aliphatic \\(S_N2\\)-active substrate.",
+  "Need aliphatic \\(S_N2\\)-active substrate."
 );
 add(
   "orgo_on",
@@ -667,7 +667,7 @@ add(
   "Benzoic acid",
   "Anisole",
   "p-Hydroxybenzaldehyde only",
-  "Dichlorocarbene ortho-formylation of phenoxide.",
+  "Dichlorocarbene ortho-formylation of phenoxide."
 );
 add(
   "orgo_on",
@@ -677,7 +677,7 @@ add(
   "The carbonyl is non-planar always.",
   "Carboxylic acids lack a carbonyl group.",
   "DNP only reacts with acids.",
-  "Acyl carbon is less electrophilic due to \\(RC(OH)=O\\leftrightarrow RC(O^-)=OH^+\\) type resonance.",
+  "Acyl carbon is less electrophilic due to \\(RC(OH)=O\\leftrightarrow RC(O^-)=OH^+\\) type resonance."
 );
 add(
   "orgo_on",
@@ -687,7 +687,7 @@ add(
   "Primary amine",
   "Tertiary amine",
   "Quaternary ammonium salt",
-  "Hinsberg: secondary sulfonamide has no acidic N–H on sulfonamide to deprotonate in base.",
+  "Hinsberg: secondary sulfonamide has no acidic N–H on sulfonamide to deprotonate in base."
 );
 add(
   "orgo_on",
@@ -697,7 +697,7 @@ add(
   "Always from the alcohol OH.",
   "Half from each randomly.",
   "From the catalyst only.",
-  "Nucleophilic acyl substitution pathway.",
+  "Nucleophilic acyl substitution pathway."
 );
 add(
   "orgo_on",
@@ -707,7 +707,7 @@ add(
   "Benzoic acid",
   "Bromobenzene",
   "Phenyl isocyanate only",
-  "Loses the carbonyl carbon as \\(CO_2/\\)carbonate; chain shortened by one to \\(ArNH_2\\).",
+  "Loses the carbonyl carbon as \\(CO_2/\\)carbonate; chain shortened by one to \\(ArNH_2\\)."
 );
 add(
   "orgo_on",
@@ -717,7 +717,7 @@ add(
   "Chlorine is more electronegative than fluorine.",
   "Size alone decides; no inductive effect.",
   "All trihalomethyl acids have identical \\(pK_a\\).",
-  "\\(-I\\) effect scales with electronegativity.",
+  "\\(-I\\) effect scales with electronegativity."
 );
 add(
   "orgo_on",
@@ -727,7 +727,7 @@ add(
   "Propan-2-ol only",
   "Butanal",
   "2-methylbutan-2-ol",
-  "Grignard adds to ketone → tertiary alcohol after workup.",
+  "Grignard adds to ketone → tertiary alcohol after workup."
 );
 
 // Block 8: Coordination & metallurgy (71–80)
@@ -739,7 +739,7 @@ add(
   "They always shrink the metal ion radius only.",
   "They remove all \\(d\\) electrons.",
   "Low spin only occurs in tetrahedral complexes.",
-  "Crystal-field splitting exceeds electron pairing energy.",
+  "Crystal-field splitting exceeds electron pairing energy."
 );
 add(
   "coordination",
@@ -749,7 +749,7 @@ add(
   "\\(5.92\\ \\mathrm{BM}\\)",
   "\\(0\\ \\mathrm{BM}\\)",
   "\\(4.90\\ \\mathrm{BM}\\)",
-  "One unpaired electron: \\(\\mu = \\sqrt{n(n+2)}\\ \\mathrm{BM}\\).",
+  "One unpaired electron: \\(\\mu = \\sqrt{n(n+2)}\\ \\mathrm{BM}\\)."
 );
 add(
   "coordination",
@@ -759,7 +759,7 @@ add(
   "Removes iron impurities only.",
   "Prevents aluminum from conducting.",
   "Increases melting point above \\(2000^\\circ\\mathrm{C}\\).",
-  "Solvent flux for \\(Al_2O_3\\) dissolution at \\(\\sim 950^\\circ\\mathrm{C}\\).",
+  "Solvent flux for \\(Al_2O_3\\) dissolution at \\(\\sim 950^\\circ\\mathrm{C}\\)."
 );
 add(
   "coordination",
@@ -769,7 +769,7 @@ add(
   "\\(33\\)",
   "\\(30\\)",
   "\\(27\\)",
-  "\\(27 - 3 + 12 = 36\\).",
+  "\\(27 - 3 + 12 = 36\\)."
 );
 add(
   "coordination",
@@ -779,7 +779,7 @@ add(
   "Only monodentate halides",
   "Only water",
   "Only chelating diamines",
-  "Same formula but different atom bound to metal.",
+  "Same formula but different atom bound to metal."
 );
 add(
   "coordination",
@@ -789,7 +789,7 @@ add(
   "Potassium iron(III) oxalate without charge balance",
   "Iron(II) trioxalate",
   "Potassium hexacyanoferrate(III)",
-  "Oxalate is bidentate; anionic complex uses -ate suffix; oxidation state +3.",
+  "Oxalate is bidentate; anionic complex uses -ate suffix; oxidation state +3."
 );
 add(
   "coordination",
@@ -799,7 +799,7 @@ add(
   "It increases Ni melting point.",
   "It only removes sulfur.",
   "CO is consumed irreversibly only.",
-  "Volatility enables purification cycle.",
+  "Volatility enables purification cycle."
 );
 add(
   "coordination",
@@ -809,7 +809,7 @@ add(
   "\\(dsp^2\\), square planar",
   "\\(sp^2\\), trigonal",
   "\\(d^2sp^3\\), octahedral",
-  "\\(Ni^{2+}\\) \\(3d^8\\) with weak field: tetrahedral \\(sp^3\\) common for four chloride ligands.",
+  "\\(Ni^{2+}\\) \\(3d^8\\) with weak field: tetrahedral \\(sp^3\\) common for four chloride ligands."
 );
 add(
   "coordination",
@@ -819,7 +819,7 @@ add(
   "They reflect all wavelengths equally.",
   "Colour arises only from \\(f\\)-electrons.",
   "Ligands never absorb light.",
-  "Crystal-field / Laporte-related transitions in visible region.",
+  "Crystal-field / Laporte-related transitions in visible region."
 );
 add(
   "coordination",
@@ -829,7 +829,7 @@ add(
   "\\(PbS + O_2 \\rightarrow Pb + SO_2\\)",
   "\\(PbS + 2O_2 \\rightarrow PbSO_4\\) only",
   "\\(PbS \\rightarrow Pb + S\\)",
-  "Sulfide roasted to oxide with \\(SO_2\\) release.",
+  "Sulfide roasted to oxide with \\(SO_2\\) release."
 );
 
 // Block 9: p-, d-, f-block (81–90)
@@ -841,7 +841,7 @@ add(
   "Oxygen has smaller atomic radius always in every table.",
   "Ionization energy increases down a group only.",
   "N has more protons than O.",
-  "Extra stability of exactly half-filled \\(p\\) shell for N.",
+  "Extra stability of exactly half-filled \\(p\\) shell for N."
 );
 add(
   "p_d_f_block",
@@ -851,7 +851,7 @@ add(
   "\\(+3\\)",
   "\\(+5\\)",
   "\\(-3\\)",
-  "One P=O, two P–H, one P–OH style counting: \\(3 + x - 4 = 0 \\Rightarrow x = +1\\).",
+  "One P=O, two P–H, one P–OH style counting: \\(3 + x - 4 = 0 \\Rightarrow x = +1\\)."
 );
 add(
   "p_d_f_block",
@@ -861,7 +861,7 @@ add(
   "They want to gain electrons to \\(+4\\) always.",
   "\\(+2\\) is always the most stable for all lanthanides.",
   "They oxidize water to \\(O_2\\) instantly only.",
-  "Thermodynamic drive toward dominant +3 oxidation state.",
+  "Thermodynamic drive toward dominant +3 oxidation state."
 );
 add(
   "p_d_f_block",
@@ -871,7 +871,7 @@ add(
   "Tetrahedral, 0 lone pairs",
   "Octahedral, 0 lone pairs",
   "T-shaped, 1 lone pair",
-  "\\(AX_4E_2\\); lone pairs axial on octahedral electron geometry → square planar molecular shape.",
+  "\\(AX_4E_2\\); lone pairs axial on octahedral electron geometry → square planar molecular shape."
 );
 add(
   "p_d_f_block",
@@ -881,7 +881,7 @@ add(
   "Nitrogen is less electronegative.",
   "\\(NCl_5\\) is more stable than \\(PCl_5\\).",
   "Chlorine does not bond to group 15.",
-  "Valence shell expansion for third period and below.",
+  "Valence shell expansion for third period and below."
 );
 add(
   "p_d_f_block",
@@ -891,7 +891,7 @@ add(
   "\\(H_2SO_5\\) only",
   "\\(SO_3\\) alone",
   "\\(H_2S_3O_{10}\\) only",
-  "\\(H_2SO_4 + SO_3 \\rightarrow H_2S_2O_7\\).",
+  "\\(H_2SO_4 + SO_3 \\rightarrow H_2S_2O_7\\)."
 );
 add(
   "p_d_f_block",
@@ -901,7 +901,7 @@ add(
   "\\(d\\)-block has lower nuclear charge always.",
   "s-block has more \\(d\\) electrons.",
   "Only f-block shows variable oxidation states.",
-  "Similar energies of valence \\(s\\) and penultimate \\(d\\) subshells.",
+  "Similar energies of valence \\(s\\) and penultimate \\(d\\) subshells."
 );
 add(
   "p_d_f_block",
@@ -911,7 +911,7 @@ add(
   "\\(3\\)",
   "\\(0\\)",
   "\\(2\\)",
-  "\\([Ar]\\,3d^5\\) after losing \\(4s^2\\); Hund’s rule → five parallel spins.",
+  "\\([Ar]\\,3d^5\\) after losing \\(4s^2\\); Hund’s rule → five parallel spins."
 );
 add(
   "p_d_f_block",
@@ -921,7 +921,7 @@ add(
   "\\(HF\\) has weaker bond than \\(HI\\).",
   "Electronegativity is irrelevant for any acid strength.",
   "\\(HF\\) never donates protons.",
-  "Bond strength trend in hydrogen halides.",
+  "Bond strength trend in hydrogen halides."
 );
 add(
   "p_d_f_block",
@@ -931,7 +931,7 @@ add(
   "Monobasic",
   "Dibasic",
   "Tetrabasic",
-  "Three acidic –OH protons on tetrahedral phosphorus oxoacid.",
+  "Three acidic –OH protons on tetrahedral phosphorus oxoacid."
 );
 
 // Block 10: Biomolecules, polymers, practical (91–100)
@@ -943,7 +943,7 @@ add(
   "Heat always hydrolyzes all peptide bonds instantly.",
   "Primary structure means only disulfide bonds.",
   "Denaturation always cleaves the chain randomly.",
-  "1° structure = amino acid order via covalent peptide bonds.",
+  "1° structure = amino acid order via covalent peptide bonds."
 );
 add(
   "bio_polymers",
@@ -953,7 +953,7 @@ add(
   "Two glucose only",
   "Galactose and glucose only",
   "Fructose and fructose",
-  "Non-reducing disaccharide: glucose + fructose at anomeric carbons.",
+  "Non-reducing disaccharide: glucose + fructose at anomeric carbons."
 );
 add(
   "bio_polymers",
@@ -963,7 +963,7 @@ add(
   "Thermoplastics always have more cross-links.",
   "Thermosets melt before flowing always.",
   "Only molecular mass differs.",
-  "Reversibility of melting vs permanent network.",
+  "Reversibility of melting vs permanent network."
 );
 add(
   "bio_polymers",
@@ -973,7 +973,7 @@ add(
   "4 and 8",
   "6 and 8",
   "10 and 6",
-  "Adipic: \\(\\mathrm{HOOC}(CH_2)_4\\mathrm{COOH}\\); diamine: \\(\\mathrm{H_2N}(CH_2)_6\\mathrm{NH_2}\\) — each contributes six carbons in standard monomer counting for the name.",
+  "Adipic: \\(\\mathrm{HOOC}(CH_2)_4\\mathrm{COOH}\\); diamine: \\(\\mathrm{H_2N}(CH_2)_6\\mathrm{NH_2}\\) — each contributes six carbons in standard monomer counting for the name."
 );
 add(
   "bio_polymers",
@@ -983,7 +983,7 @@ add(
   "Both are synthesized in large amounts in the liver daily.",
   "Neither is ever required from food.",
   "Vitamin D is water-soluble and excreted daily.",
-  "Solubility, storage, and endogenous synthesis differ.",
+  "Solubility, storage, and endogenous synthesis differ."
 );
 add(
   "bio_polymers",
@@ -993,7 +993,7 @@ add(
   "\\(4.0\\)",
   "\\(12.0\\)",
   "\\(7.4\\)",
-  "\\(pI = (pK_{a1} + pK_{a2})/2\\) for neutral side chain.",
+  "\\(pI = (pK_{a1} + pK_{a2})/2\\) for neutral side chain."
 );
 add(
   "bio_polymers",
@@ -1003,7 +1003,7 @@ add(
   "Any base can pair with any base equally well.",
   "Size matching is irrelevant.",
   "Only ionic bonds matter.",
-  "Hydrogen-bond pattern + steric fit in the double helix.",
+  "Hydrogen-bond pattern + steric fit in the double helix."
 );
 add(
   "bio_polymers",
@@ -1013,7 +1013,7 @@ add(
   "\\(Ni(CO)_4\\) and \\(H_2SO_4\\)",
   "\\(Pt\\) and \\(H_2\\)",
   "\\(Fe\\) and \\(CuSO_4\\)",
-  "Organometallic co-catalyst + transition-metal halide for coordinated polymerization.",
+  "Organometallic co-catalyst + transition-metal halide for coordinated polymerization."
 );
 add(
   "bio_polymers",
@@ -1023,7 +1023,7 @@ add(
   "Analgesics cause unconsciousness always.",
   "Only antibiotics are analgesics.",
   "Narcotic and non-narcotic are identical mechanisms.",
-  "Pain relief without general anesthesia by definition for simple analgesia.",
+  "Pain relief without general anesthesia by definition for simple analgesia."
 );
 add(
   "bio_polymers",
@@ -1033,7 +1033,7 @@ add(
   "A disaccharide of glucose",
   "Identical to sucrose",
   "A protein sweetener only",
-  "Sulfonamide aromatic sweetener discovered in coal-tar chemistry era.",
+  "Sulfonamide aromatic sweetener discovered in coal-tar chemistry era."
 );
 
 if (Q.length !== 100) {
@@ -1054,7 +1054,7 @@ lines.push("  AND category = 'chemistry'");
 lines.push(`  AND (content->>'pack') = '${PACK}';`);
 lines.push("");
 lines.push(
-  "INSERT INTO public.play_questions (domain, category, difficulty_rating, content, options, correct_answer_index, explanation)",
+  "INSERT INTO public.play_questions (domain, category, difficulty_rating, content, options, correct_answer_index, explanation)"
 );
 lines.push("VALUES");
 
@@ -1081,7 +1081,7 @@ const out = path.join(
   "..",
   "supabase",
   "migrations",
-  "20260430342000_play_academic_chemistry_puc100_jee_neet.sql",
+  "20260430342000_play_academic_chemistry_puc100_jee_neet.sql"
 );
 fs.mkdirSync(path.dirname(out), { recursive: true });
 fs.writeFileSync(out, lines.join("\n"), "utf8");

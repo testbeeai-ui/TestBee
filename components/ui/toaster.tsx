@@ -1,7 +1,14 @@
 import * as React from "react";
 import { createPortal } from "react-dom";
 import { useToast } from "@/hooks/use-toast";
-import { Toast, ToastClose, ToastDescription, ToastProvider, ToastTitle, ToastViewport } from "@/components/ui/toast";
+import {
+  Toast,
+  ToastClose,
+  ToastDescription,
+  ToastProvider,
+  ToastTitle,
+  ToastViewport,
+} from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { AlertCircle, AlertTriangle, BookmarkX, CheckCircle2, Info } from "lucide-react";
 
@@ -62,9 +69,14 @@ function inferDefaultIconKind(
   const blob = `${toastTextContent(title)} ${toastTextContent(description)}`.toLowerCase();
   if (!blob.trim()) return "info";
   if (/\b(removed from|removed|deleted|cleared|unsaved|took off)\b/.test(blob)) return "removed";
-  if (/\b(saved to|saved|added|success|complete|submitted|updated|generated|regenerated|stored)\b/.test(blob))
+  if (
+    /\b(saved to|saved|added|success|complete|submitted|updated|generated|regenerated|stored)\b/.test(
+      blob
+    )
+  )
     return "success";
-  if (/\b(warning|warn|caution|attention|answer all|skipped|invalid)\b/.test(blob)) return "warning";
+  if (/\b(warning|warn|caution|attention|answer all|skipped|invalid)\b/.test(blob))
+    return "warning";
   if (/\b(error|failed|cannot|could not|save failed)\b/.test(blob)) return "warning";
   return "info";
 }
@@ -106,7 +118,7 @@ export function Toaster() {
         ...props
       }) {
         const isDestructive = variant === "destructive";
-        const accent = isDestructive ? "var(--destructive)" : accentColor ?? hashToastHue(id);
+        const accent = isDestructive ? "var(--destructive)" : (accentColor ?? hashToastHue(id));
         const accentStyle: React.CSSProperties = {
           ...style,
           ["--toast-accent" as string]: accent,
@@ -124,33 +136,34 @@ export function Toaster() {
               isDestructive ? "toast-surface-destructive" : "toast-surface-accent",
               hideCloseButton && "pr-6",
               multi ? "items-start" : "items-center",
-              className,
+              className
             )}
             style={accentStyle}
             {...props}
           >
-            <div className={cn("flex min-w-0 flex-1 gap-3", multi ? "items-start" : "items-center")}>
+            <div
+              className={cn("flex min-w-0 flex-1 gap-3", multi ? "items-start" : "items-center")}
+            >
               <div
                 className={cn(
                   "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border shadow-sm [&_svg]:pointer-events-none [&_svg]:shrink-0",
                   multi && "mt-0.5",
                   isDestructive
                     ? "border-red-200/25 bg-red-500/15 text-red-50 ring-1 ring-red-400/15"
-                    : "border-[color-mix(in_oklab,var(--toast-accent)_42%,transparent)] bg-[color-mix(in_oklab,var(--toast-accent)_14%,transparent)] text-[color-mix(in_oklab,var(--toast-accent)_78%,#0a0a0a)] ring-1 ring-[color-mix(in_oklab,var(--toast-accent)_28%,transparent)] dark:text-[color-mix(in_oklab,var(--toast-accent)_72%,white)] dark:ring-[color-mix(in_oklab,var(--toast-accent)_22%,transparent)]",
+                    : "border-[color-mix(in_oklab,var(--toast-accent)_42%,transparent)] bg-[color-mix(in_oklab,var(--toast-accent)_14%,transparent)] text-[color-mix(in_oklab,var(--toast-accent)_78%,#0a0a0a)] ring-1 ring-[color-mix(in_oklab,var(--toast-accent)_28%,transparent)] dark:text-[color-mix(in_oklab,var(--toast-accent)_72%,white)] dark:ring-[color-mix(in_oklab,var(--toast-accent)_22%,transparent)]"
                 )}
                 aria-hidden
               >
                 {icon != null ? (
-                  <span className="flex h-5 w-5 items-center justify-center [&_svg]:h-5 [&_svg]:w-5">{icon}</span>
+                  <span className="flex h-5 w-5 items-center justify-center [&_svg]:h-5 [&_svg]:w-5">
+                    {icon}
+                  </span>
                 ) : (
                   <DefaultToastIcon kind={isDestructive ? "error" : iconKind} />
                 )}
               </div>
               <div
-                className={cn(
-                  "grid min-w-0 flex-1 pr-1",
-                  multi ? "gap-1.5 pt-0.5" : "gap-0 pt-0",
-                )}
+                className={cn("grid min-w-0 flex-1 pr-1", multi ? "gap-1.5 pt-0.5" : "gap-0 pt-0")}
               >
                 {title && <ToastTitle>{title}</ToastTitle>}
                 {description && <ToastDescription>{description}</ToastDescription>}

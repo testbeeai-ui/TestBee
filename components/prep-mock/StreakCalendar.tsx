@@ -1,12 +1,12 @@
-'use client';
+"use client";
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import {
   fetchPrepCalendarMonth,
   type PrepCalendarDayRow,
   type PrepCalendarSummary,
-} from '@/lib/prepCalendarClient';
+} from "@/lib/prepCalendarClient";
 
 type DayTotals = {
   class: number;
@@ -15,27 +15,27 @@ type DayTotals = {
   doubt: number;
 };
 
-const DAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+const DAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 const MONTHS = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
 ];
 
 const DOT_CLASS: Record<keyof DayTotals, string> = {
-  class: 'bg-green-500',
-  revision: 'bg-blue-500',
-  mock: 'bg-red-500',
-  doubt: 'bg-gray-400',
+  class: "bg-green-500",
+  revision: "bg-blue-500",
+  mock: "bg-red-500",
+  doubt: "bg-gray-400",
 };
 
 function cap(n: number, max = 6) {
@@ -45,7 +45,7 @@ function cap(n: number, max = 6) {
 /** Flatten counts into a list of dot colors (order: class → revision → mock → doubt). */
 function dotsForDay(t: DayTotals): (keyof DayTotals)[] {
   const out: (keyof DayTotals)[] = [];
-  (['class', 'revision', 'mock', 'doubt'] as const).forEach((k) => {
+  (["class", "revision", "mock", "doubt"] as const).forEach((k) => {
     const n = cap(t[k]);
     for (let i = 0; i < n; i++) out.push(k);
   });
@@ -60,7 +60,11 @@ interface StreakCalendarProps {
   refreshKey?: number;
 }
 
-export default function StreakCalendar({ userId, accessToken, refreshKey = 0 }: StreakCalendarProps) {
+export default function StreakCalendar({
+  userId,
+  accessToken,
+  refreshKey = 0,
+}: StreakCalendarProps) {
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth());
@@ -132,8 +136,8 @@ export default function StreakCalendar({ userId, accessToken, refreshKey = 0 }: 
     d === today.getDate() && viewMonth === today.getMonth() && viewYear === today.getFullYear();
 
   const dayKey = (d: number) => {
-    const mm = String(viewMonth + 1).padStart(2, '0');
-    const dd = String(d).padStart(2, '0');
+    const mm = String(viewMonth + 1).padStart(2, "0");
+    const dd = String(d).padStart(2, "0");
     return `${viewYear}-${mm}-${dd}`;
   };
 
@@ -144,7 +148,10 @@ export default function StreakCalendar({ userId, accessToken, refreshKey = 0 }: 
           <CalendarDays className="w-4 h-4 text-primary" />
           Calendar
         </h3>
-        <span className="text-xs font-bold text-[#1D9E75] cursor-pointer hover:underline opacity-80" title="Coming soon">
+        <span
+          className="text-xs font-bold text-[#1D9E75] cursor-pointer hover:underline opacity-80"
+          title="Coming soon"
+        >
           AI-optimize schedule
         </span>
       </div>
@@ -184,7 +191,12 @@ export default function StreakCalendar({ userId, accessToken, refreshKey = 0 }: 
           {calendarCells.map((day, i) => {
             if (day === null) return <div key={`empty-${i}`} />;
             const key = dayKey(day);
-            const totals: DayTotals = byDay.get(key) ?? { class: 0, revision: 0, mock: 0, doubt: 0 };
+            const totals: DayTotals = byDay.get(key) ?? {
+              class: 0,
+              revision: 0,
+              mock: 0,
+              doubt: 0,
+            };
             const dots = dotsForDay(totals);
             const todayCell = isToday(day);
             const hasDots = dots.length > 0;
@@ -192,8 +204,8 @@ export default function StreakCalendar({ userId, accessToken, refreshKey = 0 }: 
               <div
                 key={day}
                 className={`flex flex-col items-center justify-center rounded-lg text-[11px] font-medium min-h-[2.75rem] py-1 mx-0.5 transition-colors gap-0.5
-                  ${todayCell ? 'bg-primary text-primary-foreground font-extrabold ring-1 ring-primary/40' : 'text-foreground hover:bg-muted/60'}
-                  ${!todayCell && hasDots ? 'bg-muted/50 border border-border/60' : ''}`}
+                  ${todayCell ? "bg-primary text-primary-foreground font-extrabold ring-1 ring-primary/40" : "text-foreground hover:bg-muted/60"}
+                  ${!todayCell && hasDots ? "bg-muted/50 border border-border/60" : ""}`}
               >
                 <span>{day}</span>
                 {hasDots ? (
@@ -225,12 +237,16 @@ export default function StreakCalendar({ userId, accessToken, refreshKey = 0 }: 
           <span className="flex items-center gap-1 text-xs text-muted-foreground">
             <span className="w-2 h-2 rounded-full bg-gray-400 inline-block" /> Doubt
           </span>
-          {loading ? <span className="text-[10px] text-muted-foreground ml-auto">Updating…</span> : null}
+          {loading ? (
+            <span className="text-[10px] text-muted-foreground ml-auto">Updating…</span>
+          ) : null}
         </div>
 
         <div className="text-center mt-2">
           <span className="text-sm font-bold text-foreground">{summary.streak} day streak</span>
-          <span className="text-xs text-muted-foreground ml-1.5">· {summary.totalActiveDays} active days</span>
+          <span className="text-xs text-muted-foreground ml-1.5">
+            · {summary.totalActiveDays} active days
+          </span>
         </div>
       </div>
     </section>

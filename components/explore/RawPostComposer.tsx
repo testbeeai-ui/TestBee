@@ -17,7 +17,10 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { applyNormalizedPasteToField, normalizePastedMathForDoubt } from "@/lib/normalizePastedDoubtMath";
+import {
+  applyNormalizedPasteToField,
+  normalizePastedMathForDoubt,
+} from "@/lib/normalizePastedDoubtMath";
 
 /** Stored on post — only these three (no life-science option in this composer). */
 type PostSubjectSlug = "physics" | "chemistry" | "math";
@@ -52,13 +55,21 @@ export default function RawPostComposer({ onPosted }: RawPostComposerProps) {
   const submitWithSubject = useCallback(
     async (subject: PostSubjectSlug) => {
       if (!user?.id) {
-        toast({ title: "Sign in required", description: "Please sign in to post.", variant: "destructive" });
+        toast({
+          title: "Sign in required",
+          description: "Please sign in to post.",
+          variant: "destructive",
+        });
         return false;
       }
       const nt = normalizePastedMathForDoubt(title.trim());
       const nb = normalizePastedMathForDoubt(body.trim());
       if (nt.length < 3) {
-        toast({ title: "Too short", description: "Add a bit more in the main line first.", variant: "destructive" });
+        toast({
+          title: "Too short",
+          description: "Add a bit more in the main line first.",
+          variant: "destructive",
+        });
         return false;
       }
 
@@ -95,12 +106,20 @@ export default function RawPostComposer({ onPosted }: RawPostComposerProps) {
 
   const openPostDialog = useCallback(() => {
     if (!user?.id) {
-      toast({ title: "Sign in required", description: "Please sign in to post.", variant: "destructive" });
+      toast({
+        title: "Sign in required",
+        description: "Please sign in to post.",
+        variant: "destructive",
+      });
       return;
     }
     const nt = normalizePastedMathForDoubt(title.trim());
     if (nt.length < 3) {
-      toast({ title: "Too short", description: "Write a little more in the line above (at least 3 characters).", variant: "destructive" });
+      toast({
+        title: "Too short",
+        description: "Write a little more in the line above (at least 3 characters).",
+        variant: "destructive",
+      });
       return;
     }
     setDialogSubject(null);
@@ -120,13 +139,16 @@ export default function RawPostComposer({ onPosted }: RawPostComposerProps) {
   }, [dialogSubject, submitWithSubject, toast]);
 
   const normalizedTitle = normalizePastedMathForDoubt(title.trim());
-  const titlePreview = normalizedTitle.length > 120 ? `${normalizedTitle.slice(0, 120)}…` : normalizedTitle;
+  const titlePreview =
+    normalizedTitle.length > 120 ? `${normalizedTitle.slice(0, 120)}…` : normalizedTitle;
 
   return (
     <div className="rounded-2xl border border-border bg-card px-3 py-2.5 dark:border-white/10 dark:bg-slate-950/80 sm:px-4 sm:py-3">
       <div className="flex items-center gap-2.5">
         <Avatar className="h-8 w-8 shrink-0 ring-1 ring-border">
-          <AvatarFallback className="bg-primary/20 text-[10px] font-bold text-primary">{initials}</AvatarFallback>
+          <AvatarFallback className="bg-primary/20 text-[10px] font-bold text-primary">
+            {initials}
+          </AvatarFallback>
         </Avatar>
         <Input
           value={title}
@@ -170,12 +192,18 @@ export default function RawPostComposer({ onPosted }: RawPostComposerProps) {
         <DialogContent className="max-w-md rounded-2xl">
           <DialogHeader>
             <DialogTitle>Finish your post</DialogTitle>
-            <DialogDescription>Add optional details and confirm subject, then publish.</DialogDescription>
+            <DialogDescription>
+              Add optional details and confirm subject, then publish.
+            </DialogDescription>
           </DialogHeader>
 
           <div className="rounded-xl border border-border bg-muted/20 px-3 py-2 dark:border-white/10">
-            <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Headline</p>
-            <p className="mt-0.5 line-clamp-2 text-sm font-medium text-foreground">{titlePreview || "—"}</p>
+            <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+              Headline
+            </p>
+            <p className="mt-0.5 line-clamp-2 text-sm font-medium text-foreground">
+              {titlePreview || "—"}
+            </p>
           </div>
 
           <div className="space-y-1.5">
@@ -201,7 +229,9 @@ export default function RawPostComposer({ onPosted }: RawPostComposerProps) {
               disabled={submitting}
               className="min-h-[88px] resize-y rounded-xl border-border bg-background font-mono text-sm dark:bg-slate-950/80"
             />
-            <p className="text-[10px] text-muted-foreground">Math normalizes on paste, same as Gyan++.</p>
+            <p className="text-[10px] text-muted-foreground">
+              Math normalizes on paste, same as Gyan++.
+            </p>
           </div>
 
           <div className="space-y-2">

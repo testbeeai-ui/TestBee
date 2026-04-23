@@ -20,7 +20,11 @@ const ALLOWED_LEVELS = new Set(["basics", "intermediate", "advanced"]);
 function sanitize(value: unknown, maxLen = 400): string {
   if (typeof value !== "string") return "";
   // Keep symbolic chars like ">" in topic/subtopic names; strip only control chars.
-  return value.replace(/[\x00-\x1F\x7F]/g, " ").replace(/\s+/g, " ").trim().slice(0, maxLen);
+  return value
+    .replace(/[\x00-\x1F\x7F]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, maxLen);
 }
 
 function levelGuidance(level: string, subject: string): string {
@@ -30,8 +34,6 @@ function levelGuidance(level: string, subject: string): string {
       return "Tier 1: Basic. Build deep intuition, patterns, and visual meaning before formal proofs. Use light notation but provide exhaustive, step-by-step simple examples. Do not be brief; explain the 'why' behind every step.";
     if (s === "chemistry")
       return "Tier 1: Basic. Concept-first understanding using multiple daily-life and lab intuition examples. Avoid dense numeric calculations but explain the fundamental mechanism in great detail. Be narrative and thorough.";
-    if (s === "biology")
-      return "Tier 1: Basic. Big-picture understanding with clear, highly detailed process stories. Introduce CBSE terms gently but do not skip steps in biological pathways. Provide rich, descriptive context.";
     return "Tier 1: Basic. Storytelling + multiple real-world examples + why it matters. State formulas conceptually in simple inline LaTeX. Include all key formulas the student needs at this level and explain every variable comprehensively.";
   }
   if (level === "intermediate") {
@@ -39,16 +41,12 @@ function levelGuidance(level: string, subject: string): string {
       return "Tier 2: Intermediate. Strict NCERT definitions, theorem statements, and full, unskipped derivation/proof flows. Show method-first exam solving with proper LaTeX. Every single algebraic step must be shown and explained.";
     if (s === "chemistry")
       return "Tier 2: Intermediate. NCERT definitions, balanced equations in LaTeX, named reactions/trends, and thorough CBSE-style derivations. Explicit conditions, units, and sign conventions. Explain the reason behind every condition or exception.";
-    if (s === "biology")
-      return "Tier 2: Intermediate. NCERT terminology, detailed mechanism flow, and comprehensively labelled process sequencing. Provide exhaustive exam-style distinctions and step-by-step biological processes.";
     return "Tier 2: Intermediate. NCERT definitions, strict CBSE formulas/sign conventions, and complete, unskipped derivation flows. Exact formulas in LaTeX with vector notations and unit dimensions. Be extremely thorough and exam-oriented.";
   }
   if (s === "math")
     return "Tier 3: Advanced. Treat this as a full exam-prep chapter replacement. Cover HOTS traps, multiple edge cases, domain/constraint pitfalls, multi-concept chaining, alternate methods, and rich, multi-step solved examples. Show all working in strict LaTeX.";
   if (s === "chemistry")
     return "Tier 3: Advanced. Treat this as a full exam-prep chapter replacement. Cover mechanism depth exhaustively, all reagents/conditions, exception trends, comparison tables, integrated links, and exam traps with corrections. Include rigorous LaTeX equations.";
-  if (s === "biology")
-    return "Tier 3: Advanced. Treat this as a full exam-prep chapter replacement. Cover pathway integration, regulation logic, edge cases, misconceptions, and high-yield exam differentiators in extreme detail. Build deep conceptual clarity.";
   return "Tier 3: Advanced. Treat this as a full exam-prep chapter replacement, not a short note. Cover HOTS traps, exhaustive edge cases, multi-concept integration, and deep, step-by-step worked applications. Include strict LaTeX for all equations.";
 }
 
@@ -196,9 +194,7 @@ function buildSubtopicStubTheory(params: {
   const note =
     "> **Notice:** The model returned output that could not be parsed as JSON. This page is a **stub** built from your preview and reference context. Use **Generate Subtopic AI** again to replace it with a full lesson.\n\n";
   const header = `## ${subtopicName}\n\n**Topic:** ${topic} · **CBSE Class ${classLevel} ${subject}** · **Level:** ${level}\n\n`;
-  const fromPreview = preview.trim()
-    ? `### From your topic preview\n\n${preview.trim()}\n\n`
-    : "";
+  const fromPreview = preview.trim() ? `### From your topic preview\n\n${preview.trim()}\n\n` : "";
   const ragExcerpt =
     ragBlock.length > 120 && !ragBlock.startsWith("No textbook passages")
       ? `### Reference context (excerpt)\n\n${ragBlock.slice(0, 14_000)}${ragBlock.length > 14_000 ? "\n\n…" : ""}\n\n`
@@ -350,7 +346,14 @@ export async function POST(request: Request) {
 
     const ragResults = await Promise.all(
       queries.map(async (q) => {
-        const result = await fetchRAGContext(q, subject, classLevel, topic, subtopicName, matchCount);
+        const result = await fetchRAGContext(
+          q,
+          subject,
+          classLevel,
+          topic,
+          subtopicName,
+          matchCount
+        );
         return result;
       })
     );
@@ -373,7 +376,13 @@ export async function POST(request: Request) {
         : `No textbook passages were retrieved for "${subtopicName}". Use accurate CBSE Class ${classLevel} ${subject} knowledge. Do not invent details.`;
 
     // --- Build prompts ---
-    const systemInstruction = buildSystemInstruction(subject, classLevel, level, topic, subtopicName);
+    const systemInstruction = buildSystemInstruction(
+      subject,
+      classLevel,
+      level,
+      topic,
+      subtopicName
+    );
 
     const previewBlock = preview.trim()
       ? `\nPREVIOUSLY GENERATED PREVIEW (use as an outline/seed — expand into full lesson):\n${preview.trim()}\n`
@@ -392,7 +401,9 @@ ${ragBlock}`;
     // --- Call Gemini ---
     const { modelId: studioModelId, aliasFrom } = resolveGeminiModelId(process.env.GEMINI_MODEL);
     if (aliasFrom) {
-      console.warn(`[generate-subtopic] GEMINI_MODEL "${aliasFrom}" rewritten to "${studioModelId}"`);
+      console.warn(
+        `[generate-subtopic] GEMINI_MODEL "${aliasFrom}" rewritten to "${studioModelId}"`
+      );
     }
     const vertexEnabled = isVertexForTopicAgentEnabled();
     const { modelId: vertexResolvedId } = resolveVertexTopicModelId(studioModelId);
@@ -401,7 +412,9 @@ ${ragBlock}`;
 
     let backend: TopicGeminiBackend = vertexEnabled ? "vertex" : "api_key";
     let raw: string;
-    let usage: { promptTokenCount: number; candidatesTokenCount: number; totalTokenCount: number } | undefined;
+    let usage:
+      | { promptTokenCount: number; candidatesTokenCount: number; totalTokenCount: number }
+      | undefined;
 
     try {
       const out = await generateSubtopicJson({
@@ -417,11 +430,15 @@ ${ragBlock}`;
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       const status =
-        err && typeof err === "object" && "status" in err && typeof (err as { status: unknown }).status === "number"
+        err &&
+        typeof err === "object" &&
+        "status" in err &&
+        typeof (err as { status: unknown }).status === "number"
           ? (err as { status: number }).status
           : undefined;
       const isVertexNotFound =
-        vertexEnabled && (status === 404 || msg.includes("NOT_FOUND") || msg.includes("Publisher Model"));
+        vertexEnabled &&
+        (status === 404 || msg.includes("NOT_FOUND") || msg.includes("Publisher Model"));
       if (isVertexNotFound) {
         console.error("[generate-subtopic] Vertex model not found:", msg.slice(0, 600));
         return NextResponse.json(
@@ -435,7 +452,10 @@ ${ragBlock}`;
       const isQuota = status === 429 || msg.includes("RESOURCE_EXHAUSTED") || msg.includes("quota");
       if (isQuota) {
         console.error("[generate-subtopic] Gemini quota:", msg.slice(0, 500));
-        return NextResponse.json({ error: "Gemini quota / rate limit hit.", code: "GEMINI_QUOTA" }, { status: 429 });
+        return NextResponse.json(
+          { error: "Gemini quota / rate limit hit.", code: "GEMINI_QUOTA" },
+          { status: 429 }
+        );
       }
       throw err;
     }
@@ -504,8 +524,7 @@ ${ragBlock}`;
       }
     }
 
-    const theory =
-      typeof parsed.theory === "string" ? normalizeVectorNotation(parsed.theory) : "";
+    const theory = typeof parsed.theory === "string" ? normalizeVectorNotation(parsed.theory) : "";
     const didYouKnow =
       typeof parsed.did_you_know === "string" ? normalizeVectorNotation(parsed.did_you_know) : "";
 
@@ -542,10 +561,9 @@ ${ragBlock}`;
       updated_at: new Date().toISOString(),
     });
 
-    const { error: upsertError } = await persistDb.from("subtopic_content").upsert(
-      row,
-      { onConflict: "board,subject,class_level,topic,subtopic_name,level" }
-    );
+    const { error: upsertError } = await persistDb
+      .from("subtopic_content")
+      .upsert(row, { onConflict: "board,subject,class_level,topic,subtopic_name,level" });
 
     if (upsertError) {
       console.error("subtopic_content upsert error", upsertError);

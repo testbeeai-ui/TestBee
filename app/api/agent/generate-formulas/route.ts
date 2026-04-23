@@ -24,7 +24,11 @@ const MIN_ACCEPTABLE_VERIFIER_SCORE = 0.58;
 function sanitize(value: unknown, maxLen = 400): string {
   if (typeof value !== "string") return "";
   // Keep symbolic chars like ">" in topic/subtopic names; strip only control chars.
-  return value.replace(/[\x00-\x1F\x7F]/g, " ").replace(/\s+/g, " ").trim().slice(0, maxLen);
+  return value
+    .replace(/[\x00-\x1F\x7F]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, maxLen);
 }
 
 type FormulaBit = {
@@ -108,7 +112,10 @@ function normalizeAndValidateFormulaItems(input: unknown): FormulaItem[] {
       .map((q) => {
         const question = sanitize(q?.question, 800);
         const options = Array.isArray(q?.options)
-          ? q.options.map((o) => sanitize(o, 500)).filter(Boolean).slice(0, 4)
+          ? q.options
+              .map((o) => sanitize(o, 500))
+              .filter(Boolean)
+              .slice(0, 4)
           : [];
         let correctAnswer = sanitize(q?.correctAnswer, 500);
         const solution = sanitize(q?.solution, 1200);
@@ -116,9 +123,7 @@ function normalizeAndValidateFormulaItems(input: unknown): FormulaItem[] {
         // Attempt fuzzy match for correctAnswer if it doesn't match exactly
         if (options.length === 4 && correctAnswer && !options.includes(correctAnswer)) {
           const fuzzyAns = correctAnswer.replace(/\s+/g, "").toLowerCase();
-          const matchedOpt = options.find(
-            (o) => o.replace(/\s+/g, "").toLowerCase() === fuzzyAns
-          );
+          const matchedOpt = options.find((o) => o.replace(/\s+/g, "").toLowerCase() === fuzzyAns);
           if (matchedOpt) correctAnswer = matchedOpt;
         }
 
@@ -147,7 +152,15 @@ async function verifyFormulaItemsOnce(params: {
   items: FormulaItem[];
   temperature: number;
   attemptLabel: string;
-}): Promise<FormulaVerificationResult | { parseFailed: true; backend: FormulaVerificationResult["backend"]; usage: FormulaVerificationResult["usage"]; rawLen: number }> {
+}): Promise<
+  | FormulaVerificationResult
+  | {
+      parseFailed: true;
+      backend: FormulaVerificationResult["backend"];
+      usage: FormulaVerificationResult["usage"];
+      rawLen: number;
+    }
+> {
   const verificationSystemInstruction = `You are a strict senior exam reviewer.
 Verify formula practice sets for correctness, not style.
 Hard rules:
@@ -186,9 +199,7 @@ ${JSON.stringify({ items: params.items })}`;
   const verifiedItems = normalizeAndValidateFormulaItems(parsed.items);
   const rawScore = Number(parsed.score);
   const score =
-    !Number.isNaN(rawScore) && Number.isFinite(rawScore)
-      ? Math.max(0, Math.min(1, rawScore))
-      : 0;
+    !Number.isNaN(rawScore) && Number.isFinite(rawScore) ? Math.max(0, Math.min(1, rawScore)) : 0;
   return {
     approved: parsed.approved === true && score >= MIN_ACCEPTABLE_VERIFIER_SCORE,
     score,
@@ -292,7 +303,7 @@ export async function POST(request: Request) {
     if (!isVertexForTopicAgentEnabled() && !apiKey?.trim()) {
       return NextResponse.json(
         { error: "GEMINI_API_KEY or GOOGLE_GENERATIVE_AI_API_KEY is not configured." },
-        { status: 503 },
+        { status: 503 }
       );
     }
 
@@ -306,8 +317,13 @@ export async function POST(request: Request) {
     const includeTrace = body?.includeTrace === true;
 
     if (
-      !board || !subject || !topic || !subtopicName ||
-      !ALLOWED_LEVELS.has(level) || Number.isNaN(classLevel) || ![11, 12].includes(classLevel)
+      !board ||
+      !subject ||
+      !topic ||
+      !subtopicName ||
+      !ALLOWED_LEVELS.has(level) ||
+      Number.isNaN(classLevel) ||
+      ![11, 12].includes(classLevel)
     ) {
       return NextResponse.json({ error: "Missing or invalid fields" }, { status: 400 });
     }
@@ -316,8 +332,12 @@ export async function POST(request: Request) {
     const { data: existing, error: fetchErr } = await supabase
       .from("subtopic_content")
       .select("theory")
-      .eq("board", board).eq("subject", subject).eq("class_level", classLevel)
-      .eq("topic", topic).eq("subtopic_name", subtopicName).eq("level", level)
+      .eq("board", board)
+      .eq("subject", subject)
+      .eq("class_level", classLevel)
+      .eq("topic", topic)
+      .eq("subtopic_name", subtopicName)
+      .eq("level", level)
       .maybeSingle();
 
     if (fetchErr || !existing?.theory?.trim()) {
@@ -360,8 +380,7 @@ ${existing.theory.slice(0, 12000)}`;
     const vertexEnabled = isVertexForTopicAgentEnabled();
     const { modelId: vertexResolvedId } = resolveVertexTopicModelId(studioModelId);
     const modelId = vertexEnabled ? vertexResolvedId : studioModelId;
-    const verifierModelRaw =
-      process.env.FORMULAS_VERIFIER_MODEL?.trim() || modelId;
+    const verifierModelRaw = process.env.FORMULAS_VERIFIER_MODEL?.trim() || modelId;
     const { modelId: verifierStudioModelId } = resolveGeminiModelId(verifierModelRaw);
     const { modelId: verifierVertexResolvedId } = resolveVertexTopicModelId(verifierStudioModelId);
     const verifierModelId = vertexEnabled ? verifierVertexResolvedId : verifierStudioModelId;
@@ -391,7 +410,9 @@ ${existing.theory.slice(0, 12000)}`;
       },
     });
 
-    console.log(`[generate-formulas] backend=${backend} model=${modelId} topic=${topic} subtopic=${subtopicName} level=${level}`);
+    console.log(
+      `[generate-formulas] backend=${backend} model=${modelId} topic=${topic} subtopic=${subtopicName} level=${level}`
+    );
 
     // Short pause before verifier (default 1s; override with FORMULAS_VERIFIER_PAUSE_MS=300–3000).
     const fromEnv = Number(process.env.FORMULAS_VERIFIER_PAUSE_MS);
@@ -409,19 +430,26 @@ ${existing.theory.slice(0, 12000)}`;
         { status: 502 }
       );
     }
-    
+
     const seedItems = normalizeAndValidateFormulaItems(parsed.items);
-    
+
     // Check for legitimate empty formulas (e.g., conceptual subtopic)
     if (seedItems.length === 0) {
       if (Array.isArray(parsed.items) && parsed.items.length === 0) {
         const persistDb = supabaseForLongJobPersist(supabase);
-        const { error: upsertError } = await persistDb.from("subtopic_content").update({
-          practice_formulas: [],
-          updated_by: user.id,
-          updated_at: new Date().toISOString(),
-        }).eq("board", board).eq("subject", subject).eq("class_level", classLevel)
-          .eq("topic", topic).eq("subtopic_name", subtopicName).eq("level", level);
+        const { error: upsertError } = await persistDb
+          .from("subtopic_content")
+          .update({
+            practice_formulas: [],
+            updated_by: user.id,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("board", board)
+          .eq("subject", subject)
+          .eq("class_level", classLevel)
+          .eq("topic", topic)
+          .eq("subtopic_name", subtopicName)
+          .eq("level", level);
 
         if (upsertError) {
           console.error("practice_formulas empty update error", upsertError);
@@ -523,12 +551,19 @@ ${existing.theory.slice(0, 12000)}`;
 
     // Persist after long Gemini + verifier — user JWT may be expired; use service role if configured.
     const safeItems = sanitizeJsonForDb(items);
-    const { error: upsertError } = await persistDb.from("subtopic_content").update({
-      practice_formulas: safeItems,
-      updated_by: user.id,
-      updated_at: new Date().toISOString(),
-    }).eq("board", board).eq("subject", subject).eq("class_level", classLevel)
-      .eq("topic", topic).eq("subtopic_name", subtopicName).eq("level", level);
+    const { error: upsertError } = await persistDb
+      .from("subtopic_content")
+      .update({
+        practice_formulas: safeItems,
+        updated_by: user.id,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("board", board)
+      .eq("subject", subject)
+      .eq("class_level", classLevel)
+      .eq("topic", topic)
+      .eq("subtopic_name", subtopicName)
+      .eq("level", level);
 
     if (upsertError) {
       console.error("practice_formulas update error", upsertError);

@@ -1,9 +1,9 @@
-import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { AnswerResult } from '@/types';
-import { questions } from '@/data/questions';
-import { Brain, Eye } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { useState } from "react";
+import { motion } from "framer-motion";
+import { AnswerResult } from "@/types";
+import { questions } from "@/data/questions";
+import { Brain, Eye } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface Props {
   secondsLeft: number;
@@ -48,7 +48,7 @@ const RecallExercise = ({ secondsLeft, recentResults }: Props) => {
           </p>
           <div className="bg-edu-blue/10 rounded-full px-3 py-1 inline-flex items-center gap-1.5">
             <span className="text-sm font-bold text-edu-blue">
-              {mins}:{secs.toString().padStart(2, '0')}
+              {mins}:{secs.toString().padStart(2, "0")}
             </span>
           </div>
         </div>
@@ -68,11 +68,11 @@ const RecallExercise = ({ secondsLeft, recentResults }: Props) => {
                     animate={{ opacity: 1 }}
                     className={`rounded-lg p-2 text-xs font-bold ${
                       result.isCorrect
-                        ? 'bg-accent/10 text-accent'
-                        : 'bg-destructive/10 text-destructive'
+                        ? "bg-accent/10 text-accent"
+                        : "bg-destructive/10 text-destructive"
                     }`}
                   >
-                    {result.isCorrect ? '✅' : '❌'} {question.options[question.correctAnswer]}
+                    {result.isCorrect ? "✅" : "❌"} {question.options[question.correctAnswer]}
                   </motion.div>
                 ) : (
                   <Button

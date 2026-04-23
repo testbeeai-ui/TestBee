@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 interface StatCard {
   label: string;
@@ -24,28 +24,28 @@ export default function PrepMockStatCards({
 }: PrepMockStatCardsProps) {
   const cards: StatCard[] = [
     {
-      label: 'Next class',
-      value: nextClassName || '—',
-      sub: nextClassTime || 'No upcoming',
-      borderColor: 'border-l-green-500',
+      label: "Next class",
+      value: nextClassName || "—",
+      sub: nextClassTime || "No upcoming",
+      borderColor: "border-l-green-500",
     },
     {
-      label: 'Mock pending',
+      label: "Mock pending",
       value: mockPending,
-      sub: 'tests due',
-      borderColor: 'border-l-amber-500',
+      sub: "tests due",
+      borderColor: "border-l-amber-500",
     },
     {
-      label: 'Revision items',
+      label: "Revision items",
       value: revisionItems,
-      sub: 'Instacues queued',
-      borderColor: 'border-l-orange-500',
+      sub: "Instacues queued",
+      borderColor: "border-l-orange-500",
     },
     {
-      label: 'Accuracy',
+      label: "Accuracy",
       value: `${accuracy}%`,
-      sub: 'last 7 days',
-      borderColor: 'border-l-blue-500',
+      sub: "last 7 days",
+      borderColor: "border-l-blue-500",
     },
   ];
 

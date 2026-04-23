@@ -7,14 +7,16 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import type { Subject } from "@/types";
-import { SUBJECT_FEED_ICON as subjectIcon, SUBJECT_FEED_ICON_CLASS as subjectIconClass } from "./subjectFeedIcons";
+import {
+  SUBJECT_FEED_ICON as subjectIcon,
+  SUBJECT_FEED_ICON_CLASS as subjectIconClass,
+} from "./subjectFeedIcons";
 import type { RawPostRow } from "./rawFeedTypes";
 
 const subjectLabel: Record<string, string> = {
   physics: "Physics",
   chemistry: "Chemistry",
   math: "Mathematics",
-  biology: "Biology",
 };
 
 export interface CommentRow {
@@ -145,14 +147,18 @@ export default function RawFeedPostCard({
     >
       <div className="flex gap-3">
         <Avatar className="h-10 w-10 shrink-0">
-          <AvatarFallback className="bg-primary/10 text-xs font-bold text-primary">{initials}</AvatarFallback>
+          <AvatarFallback className="bg-primary/10 text-xs font-bold text-primary">
+            {initials}
+          </AvatarFallback>
         </Avatar>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-1.5 text-sm">
             <span className="font-bold text-foreground">{name}</span>
             <span className="text-muted-foreground">·</span>
             <span className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground">
-              <SubjectGlyph className={cn("h-3.5 w-3.5", subjectIconClass[subjKey] || "text-blue-600")} />
+              <SubjectGlyph
+                className={cn("h-3.5 w-3.5", subjectIconClass[subjKey] || "text-blue-600")}
+              />
               {subjName}
             </span>
             <span className="text-muted-foreground">·</span>
@@ -172,13 +178,19 @@ export default function RawFeedPostCard({
           ) : null}
           {post.title && post.title.trim().length > 0 ? (
             <>
-              <p className="mt-2 text-sm font-bold leading-snug text-foreground">{post.title.trim()}</p>
+              <p className="mt-2 text-sm font-bold leading-snug text-foreground">
+                {post.title.trim()}
+              </p>
               {post.content.trim().length > 0 ? (
-                <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-foreground">{post.content}</p>
+                <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-foreground">
+                  {post.content}
+                </p>
               ) : null}
             </>
           ) : (
-            <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-foreground">{post.content}</p>
+            <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-foreground">
+              {post.content}
+            </p>
           )}
           {contextChips.length > 0 ? (
             <div className="mt-2.5 flex items-center gap-2 overflow-hidden whitespace-nowrap">
@@ -245,9 +257,7 @@ export default function RawFeedPostCard({
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
-              <Bookmark
-                className={cn("h-4 w-4 shrink-0", isSavedForRevision && "fill-current")}
-              />
+              <Bookmark className={cn("h-4 w-4 shrink-0", isSavedForRevision && "fill-current")} />
               {isSavedForRevision ? "Saved for revision" : "Save for revision"}
             </button>
 
@@ -296,14 +306,20 @@ export default function RawFeedPostCard({
                 <ul className="space-y-2">
                   {comments.map((c) => {
                     const cn_ = c.profiles?.name || "Learner";
-                    const depth = c.parent_id ? "ml-4 border-l border-border pl-3 dark:border-white/10" : "";
+                    const depth = c.parent_id
+                      ? "ml-4 border-l border-border pl-3 dark:border-white/10"
+                      : "";
                     return (
                       <li key={c.id} className={depth}>
                         <div className="flex items-baseline justify-between gap-2">
                           <span className="text-xs font-bold text-foreground">{cn_}</span>
-                          <span className="shrink-0 text-[10px] text-muted-foreground">{formatTimeAgo(c.created_at)}</span>
+                          <span className="shrink-0 text-[10px] text-muted-foreground">
+                            {formatTimeAgo(c.created_at)}
+                          </span>
                         </div>
-                        <p className="mt-0.5 whitespace-pre-wrap text-xs leading-relaxed text-foreground">{c.body}</p>
+                        <p className="mt-0.5 whitespace-pre-wrap text-xs leading-relaxed text-foreground">
+                          {c.body}
+                        </p>
                         <button
                           type="button"
                           className="mt-1 text-[10px] font-semibold text-primary hover:underline"
@@ -319,7 +335,11 @@ export default function RawFeedPostCard({
               {replyParentId ? (
                 <p className="text-[10px] text-muted-foreground">
                   Replying to a comment —{" "}
-                  <button type="button" className="font-semibold text-primary hover:underline" onClick={() => onReplyTo(null)}>
+                  <button
+                    type="button"
+                    className="font-semibold text-primary hover:underline"
+                    onClick={() => onReplyTo(null)}
+                  >
                     Cancel
                   </button>
                 </p>
@@ -333,7 +353,12 @@ export default function RawFeedPostCard({
                   className="min-h-[56px] resize-y text-xs"
                 />
                 <div className="flex justify-end">
-                  <Button type="button" size="sm" className="h-8 rounded-lg text-xs font-bold" onClick={onSubmitComment}>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="h-8 rounded-lg text-xs font-bold"
+                    onClick={onSubmitComment}
+                  >
                     Comment
                   </Button>
                 </div>

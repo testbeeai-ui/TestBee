@@ -5,7 +5,15 @@ import Link from "next/link";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import type { PublicProfile } from "@/lib/publicProfileService";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { HelpCircle, MessageSquare, CheckCircle2, Zap, ChevronRight, Flame, Trophy } from "lucide-react";
+import {
+  HelpCircle,
+  MessageSquare,
+  CheckCircle2,
+  Zap,
+  ChevronRight,
+  Flame,
+  Trophy,
+} from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 
 const RANK_COLORS: Record<string, string> = {
@@ -19,7 +27,6 @@ const SUBJECT_COLORS: Record<string, string> = {
   physics: "bg-blue-500",
   chemistry: "bg-purple-500",
   math: "bg-orange-500",
-  biology: "bg-green-500",
 };
 
 interface UserHoverCardProps {
@@ -75,14 +82,18 @@ export function UserHoverCard({ userId, children, displayName }: UserHoverCardPr
             <div className="flex gap-3">
               <Avatar className="h-12 w-12 rounded-xl">
                 <AvatarImage src={profile.avatarUrl ?? undefined} />
-                <AvatarFallback className={`rounded-xl ${profile.avatarColor} text-white text-sm font-bold`}>
+                <AvatarFallback
+                  className={`rounded-xl ${profile.avatarColor} text-white text-sm font-bold`}
+                >
                   {profile.initials}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-bold text-foreground truncate">{profile.name}</span>
-                  <span className={`edu-chip text-[10px] font-bold ${RANK_COLORS[profile.rank] ?? RANK_COLORS.Novice}`}>
+                  <span
+                    className={`edu-chip text-[10px] font-bold ${RANK_COLORS[profile.rank] ?? RANK_COLORS.Novice}`}
+                  >
                     {profile.rank}
                   </span>
                 </div>
@@ -122,22 +133,30 @@ export function UserHoverCard({ userId, children, displayName }: UserHoverCardPr
             <div className="grid grid-cols-4 gap-2">
               <div className="rounded-lg bg-muted/60 p-2 text-center">
                 <HelpCircle className="w-3.5 h-3.5 text-muted-foreground mx-auto mb-0.5" />
-                <span className="text-xs font-bold text-foreground block">{profile.questionsAsked}</span>
+                <span className="text-xs font-bold text-foreground block">
+                  {profile.questionsAsked}
+                </span>
                 <span className="text-[10px] text-muted-foreground">Asked</span>
               </div>
               <div className="rounded-lg bg-muted/60 p-2 text-center">
                 <MessageSquare className="w-3.5 h-3.5 text-muted-foreground mx-auto mb-0.5" />
-                <span className="text-xs font-bold text-foreground block">{profile.answersGiven}</span>
+                <span className="text-xs font-bold text-foreground block">
+                  {profile.answersGiven}
+                </span>
                 <span className="text-[10px] text-muted-foreground">Answered</span>
               </div>
               <div className="rounded-lg bg-muted/60 p-2 text-center">
                 <CheckCircle2 className="w-3.5 h-3.5 text-muted-foreground mx-auto mb-0.5" />
-                <span className="text-xs font-bold text-foreground block">{profile.acceptedAnswers}</span>
+                <span className="text-xs font-bold text-foreground block">
+                  {profile.acceptedAnswers}
+                </span>
                 <span className="text-[10px] text-muted-foreground">Accepted</span>
               </div>
               <div className="rounded-lg bg-muted/60 p-2 text-center">
                 <Zap className="w-3.5 h-3.5 text-muted-foreground mx-auto mb-0.5" />
-                <span className="text-xs font-bold text-foreground block">{profile.strikeRate}%</span>
+                <span className="text-xs font-bold text-foreground block">
+                  {profile.strikeRate}%
+                </span>
                 <span className="text-[10px] text-muted-foreground">Strike</span>
               </div>
             </div>
@@ -147,13 +166,12 @@ export function UserHoverCard({ userId, children, displayName }: UserHoverCardPr
                 Subject Breakdown
               </p>
               <div className="space-y-1.5">
-                {(["physics", "chemistry", "math", "biology"] as const).map((sub) => {
+                {(["physics", "chemistry", "math"] as const).map((sub) => {
                   const val = profile.subjectStats[sub] || 0;
                   const max = Math.max(
                     profile.subjectStats.physics,
                     profile.subjectStats.chemistry,
                     profile.subjectStats.math,
-                    profile.subjectStats.biology,
                     1
                   );
                   const pct = max > 0 ? (val / max) * 100 : 0;
@@ -168,7 +186,9 @@ export function UserHoverCard({ userId, children, displayName }: UserHoverCardPr
                           style={{ width: `${pct}%` }}
                         />
                       </div>
-                      <span className="text-[10px] font-bold text-foreground w-6 text-right">{val}</span>
+                      <span className="text-[10px] font-bold text-foreground w-6 text-right">
+                        {val}
+                      </span>
                     </div>
                   );
                 })}
@@ -245,12 +265,16 @@ export function UserHoverCard({ userId, children, displayName }: UserHoverCardPr
             </div>
             <div className="flex gap-3">
               <Avatar className="h-12 w-12 rounded-xl bg-muted">
-                <AvatarFallback className="rounded-xl text-muted-foreground text-sm font-bold">S</AvatarFallback>
+                <AvatarFallback className="rounded-xl text-muted-foreground text-sm font-bold">
+                  S
+                </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-bold text-foreground truncate">Student</span>
-                  <span className="edu-chip text-[10px] font-bold bg-muted text-muted-foreground">—</span>
+                  <span className="edu-chip text-[10px] font-bold bg-muted text-muted-foreground">
+                    —
+                  </span>
                 </div>
                 <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">No profile data</p>
                 <p className="text-sm font-bold text-edu-orange mt-1">0 RDM</p>
@@ -286,9 +310,11 @@ export function UserHoverCard({ userId, children, displayName }: UserHoverCardPr
                 Subject Breakdown
               </p>
               <div className="space-y-1.5">
-                {(["physics", "chemistry", "math", "biology"] as const).map((sub) => (
+                {(["physics", "chemistry", "math"] as const).map((sub) => (
                   <div key={sub} className="flex items-center gap-2">
-                    <span className="text-[10px] font-medium text-muted-foreground w-16 capitalize">{sub}</span>
+                    <span className="text-[10px] font-medium text-muted-foreground w-16 capitalize">
+                      {sub}
+                    </span>
                     <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
                       <div className="h-full w-0 rounded-full bg-muted" />
                     </div>

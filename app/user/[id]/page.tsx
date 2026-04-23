@@ -40,7 +40,6 @@ const SUBJECT_BAR_COLORS: Record<string, string> = {
   physics: "bg-blue-500",
   chemistry: "bg-purple-500",
   math: "bg-orange-500",
-  biology: "bg-green-500",
 };
 
 const LEVEL_COLORS: Record<string, string> = {
@@ -73,7 +72,9 @@ export default function PublicProfilePage() {
     if (!id) return;
     fetch(`/api/public-profile/${id}`, { credentials: "include", cache: "no-store" })
       .then((res) => res.json())
-      .then((p: PublicProfile | null) => (p && typeof p === "object" && "id" in p ? (p as PublicProfile) : null))
+      .then((p: PublicProfile | null) =>
+        p && typeof p === "object" && "id" in p ? (p as PublicProfile) : null
+      )
       .then(setProfile)
       .finally(() => setLoading(false));
   }, [id]);
@@ -108,7 +109,7 @@ export default function PublicProfilePage() {
     answersGiven: 0,
     acceptedAnswers: 0,
     strikeRate: 0,
-    subjectStats: { physics: 0, chemistry: 0, math: 0, biology: 0 },
+    subjectStats: { physics: 0, chemistry: 0, math: 0 },
     rdmFromDoubts: 0,
     bountiesWon: 0,
     streakDays: 0,
@@ -116,8 +117,18 @@ export default function PublicProfilePage() {
     recentDoubts: [] as { id: string; title: string }[],
     recentAnswers: [] as { id: string; doubtId: string; title: string }[],
     nextRankRdm: 100,
-    academics: [] as { exam: string; board: string; score: string; verified: "verified" | "pending" | "unverified" }[],
-    achievements: [] as { name: string; level: "School" | "District" | "State" | "National" | "International"; year: number; result: string }[],
+    academics: [] as {
+      exam: string;
+      board: string;
+      score: string;
+      verified: "verified" | "pending" | "unverified";
+    }[],
+    achievements: [] as {
+      name: string;
+      level: "School" | "District" | "State" | "National" | "International";
+      year: number;
+      result: string;
+    }[],
     rdmBreakdown: {
       answersGiven: 0,
       acceptedBonus: 0,
@@ -141,10 +152,10 @@ export default function PublicProfilePage() {
     displayProfile.subjectStats.physics,
     displayProfile.subjectStats.chemistry,
     displayProfile.subjectStats.math,
-    displayProfile.subjectStats.biology,
     1
   );
-  const rankProgress = displayProfile.nextRankRdm > 0 ? (displayProfile.rdm / displayProfile.nextRankRdm) * 100 : 0;
+  const rankProgress =
+    displayProfile.nextRankRdm > 0 ? (displayProfile.rdm / displayProfile.nextRankRdm) * 100 : 0;
 
   return (
     <ProtectedRoute>
@@ -172,14 +183,20 @@ export default function PublicProfilePage() {
             <div className="flex flex-col sm:flex-row items-center gap-6">
               <Avatar className="h-20 w-20 rounded-2xl">
                 <AvatarImage src={displayProfile.avatarUrl ?? undefined} />
-                <AvatarFallback className={`rounded-2xl ${displayProfile.avatarColor} text-white text-2xl font-bold`}>
+                <AvatarFallback
+                  className={`rounded-2xl ${displayProfile.avatarColor} text-white text-2xl font-bold`}
+                >
                   {displayProfile.initials}
                 </AvatarFallback>
               </Avatar>
               <div className="text-center sm:text-left flex-1">
                 <div className="flex flex-wrap items-center gap-2 justify-center sm:justify-start">
-                  <h1 className="text-2xl font-display font-bold text-foreground">{displayProfile.name}</h1>
-                  <span className={`edu-chip font-bold ${RANK_COLORS[displayProfile.rank] ?? RANK_COLORS.Novice}`}>
+                  <h1 className="text-2xl font-display font-bold text-foreground">
+                    {displayProfile.name}
+                  </h1>
+                  <span
+                    className={`edu-chip font-bold ${RANK_COLORS[displayProfile.rank] ?? RANK_COLORS.Novice}`}
+                  >
                     {!profile ? "—" : displayProfile.rank}
                   </span>
                 </div>
@@ -195,7 +212,8 @@ export default function PublicProfilePage() {
                   </span>
                   {displayProfile.streakDays > 0 && (
                     <span className="flex items-center gap-1 text-muted-foreground">
-                      <Flame className="w-4 h-4 text-edu-orange shrink-0" /> {displayProfile.streakDays}-day streak
+                      <Flame className="w-4 h-4 text-edu-orange shrink-0" />{" "}
+                      {displayProfile.streakDays}-day streak
                     </span>
                   )}
                 </div>
@@ -217,7 +235,11 @@ export default function PublicProfilePage() {
             {[
               { icon: HelpCircle, label: "Questions Asked", value: displayProfile.questionsAsked },
               { icon: MessageSquare, label: "Answers Given", value: displayProfile.answersGiven },
-              { icon: CheckCircle2, label: "Accepted Answers", value: displayProfile.acceptedAnswers },
+              {
+                icon: CheckCircle2,
+                label: "Accepted Answers",
+                value: displayProfile.acceptedAnswers,
+              },
               { icon: Target, label: "Strike Rate", value: `${displayProfile.strikeRate}%` },
             ].map(({ icon: Icon, label, value }) => (
               <div key={label} className="edu-card p-4 rounded-2xl text-center">
@@ -235,22 +257,33 @@ export default function PublicProfilePage() {
             </h3>
             <div className="space-y-3">
               {displayProfile.academics.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-2">{!profile ? "No marks" : "No records yet"}</p>
-              ) : displayProfile.academics.map((a, i) => {
-                const Icon = VERIFICATION_ICONS[a.verified];
-                const colorClass = VERIFICATION_COLORS[a.verified];
-                return (
-                  <div key={i} className="flex items-center justify-between gap-4 py-2 border-b border-border last:border-0">
-                    <div>
-                      <p className="font-semibold text-foreground">{a.exam} — {a.board}</p>
-                      <p className="text-sm text-muted-foreground">{a.score}</p>
+                <p className="text-sm text-muted-foreground py-2">
+                  {!profile ? "No marks" : "No records yet"}
+                </p>
+              ) : (
+                displayProfile.academics.map((a, i) => {
+                  const Icon = VERIFICATION_ICONS[a.verified];
+                  const colorClass = VERIFICATION_COLORS[a.verified];
+                  return (
+                    <div
+                      key={i}
+                      className="flex items-center justify-between gap-4 py-2 border-b border-border last:border-0"
+                    >
+                      <div>
+                        <p className="font-semibold text-foreground">
+                          {a.exam} — {a.board}
+                        </p>
+                        <p className="text-sm text-muted-foreground">{a.score}</p>
+                      </div>
+                      <span
+                        className={`flex items-center gap-1 text-xs font-medium capitalize ${colorClass}`}
+                      >
+                        <Icon className="w-4 h-4" /> {a.verified}
+                      </span>
                     </div>
-                    <span className={`flex items-center gap-1 text-xs font-medium capitalize ${colorClass}`}>
-                      <Icon className="w-4 h-4" /> {a.verified}
-                    </span>
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
             </div>
           </div>
 
@@ -261,18 +294,29 @@ export default function PublicProfilePage() {
             </h3>
             <div className="space-y-3">
               {displayProfile.achievements.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-2">{!profile ? "No achievements" : "No achievements yet"}</p>
-              ) : displayProfile.achievements.map((a, i) => (
-                <div key={i} className="flex items-center justify-between gap-4 py-2 border-b border-border last:border-0">
-                  <p className="font-semibold text-foreground">{a.name}</p>
-                  <div className="flex items-center gap-2">
-                    <span className={`edu-chip text-[10px] font-bold ${LEVEL_COLORS[a.level] ?? "bg-muted"}`}>
-                      {a.level}
-                    </span>
-                    <span className="text-sm text-muted-foreground">{a.year} — {a.result}</span>
+                <p className="text-sm text-muted-foreground py-2">
+                  {!profile ? "No achievements" : "No achievements yet"}
+                </p>
+              ) : (
+                displayProfile.achievements.map((a, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center justify-between gap-4 py-2 border-b border-border last:border-0"
+                  >
+                    <p className="font-semibold text-foreground">{a.name}</p>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`edu-chip text-[10px] font-bold ${LEVEL_COLORS[a.level] ?? "bg-muted"}`}
+                      >
+                        {a.level}
+                      </span>
+                      <span className="text-sm text-muted-foreground">
+                        {a.year} — {a.result}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
 
@@ -283,12 +327,42 @@ export default function PublicProfilePage() {
             </h3>
             <div className="space-y-3">
               {[
-                { key: "answersGiven", label: "Answers Given", value: displayProfile.rdmBreakdown.answersGiven, color: "bg-purple-500" },
-                { key: "acceptedBonus", label: "Accepted Bonus", value: displayProfile.rdmBreakdown.acceptedBonus, color: "bg-blue-500" },
-                { key: "mockTests", label: "Mock Tests", value: displayProfile.rdmBreakdown.mockTests, color: "bg-green-500" },
-                { key: "streakBonus", label: "Streak Bonus", value: displayProfile.rdmBreakdown.streakBonus, color: "bg-orange-500" },
-                { key: "bountiesWon", label: "Bounties Won", value: displayProfile.rdmBreakdown.bountiesWon, color: "bg-amber-500" },
-                { key: "doubtsAsked", label: "Doubts Asked", value: displayProfile.rdmBreakdown.doubtsAsked, color: "bg-muted" },
+                {
+                  key: "answersGiven",
+                  label: "Answers Given",
+                  value: displayProfile.rdmBreakdown.answersGiven,
+                  color: "bg-purple-500",
+                },
+                {
+                  key: "acceptedBonus",
+                  label: "Accepted Bonus",
+                  value: displayProfile.rdmBreakdown.acceptedBonus,
+                  color: "bg-blue-500",
+                },
+                {
+                  key: "mockTests",
+                  label: "Mock Tests",
+                  value: displayProfile.rdmBreakdown.mockTests,
+                  color: "bg-green-500",
+                },
+                {
+                  key: "streakBonus",
+                  label: "Streak Bonus",
+                  value: displayProfile.rdmBreakdown.streakBonus,
+                  color: "bg-orange-500",
+                },
+                {
+                  key: "bountiesWon",
+                  label: "Bounties Won",
+                  value: displayProfile.rdmBreakdown.bountiesWon,
+                  color: "bg-amber-500",
+                },
+                {
+                  key: "doubtsAsked",
+                  label: "Doubts Asked",
+                  value: displayProfile.rdmBreakdown.doubtsAsked,
+                  color: "bg-muted",
+                },
               ].map(({ key, label, value, color }) => (
                 <div key={key}>
                   <div className="flex justify-between text-sm mb-1">
@@ -315,7 +389,7 @@ export default function PublicProfilePage() {
               <BookOpen className="w-5 h-5 text-primary" /> Subject Breakdown
             </h3>
             <div className="space-y-3">
-              {(["physics", "chemistry", "math", "biology"] as const).map((sub) => {
+              {(["physics", "chemistry", "math"] as const).map((sub) => {
                 const val = displayProfile.subjectStats[sub];
                 const pct = (val / subjectMax) * 100;
                 return (
@@ -335,7 +409,10 @@ export default function PublicProfilePage() {
               })}
             </div>
             <p className="text-sm text-muted-foreground mt-3">
-              Total answers across subjects: {displayProfile.subjectStats.physics + displayProfile.subjectStats.chemistry + displayProfile.subjectStats.math + displayProfile.subjectStats.biology}
+              Total answers across subjects:{" "}
+              {displayProfile.subjectStats.physics +
+                displayProfile.subjectStats.chemistry +
+                displayProfile.subjectStats.math}
             </p>
           </div>
 
@@ -345,11 +422,19 @@ export default function PublicProfilePage() {
               <Trophy className="w-5 h-5 text-primary" /> Reputation
             </h3>
             <div className="flex flex-wrap gap-4 mb-4">
-              <span className="font-bold text-foreground">{displayProfile.rdmFromDoubts} RDM from Doubts</span>
-              <span className="font-bold text-foreground">{displayProfile.bountiesWon} Bounties Won</span>
-              <span className="font-bold text-foreground">{displayProfile.streakDays}d Active Streak</span>
+              <span className="font-bold text-foreground">
+                {displayProfile.rdmFromDoubts} RDM from Doubts
+              </span>
+              <span className="font-bold text-foreground">
+                {displayProfile.bountiesWon} Bounties Won
+              </span>
+              <span className="font-bold text-foreground">
+                {displayProfile.streakDays}d Active Streak
+              </span>
             </div>
-            <p className="text-sm font-medium text-muted-foreground mb-2">Rank progress to next level</p>
+            <p className="text-sm font-medium text-muted-foreground mb-2">
+              Rank progress to next level
+            </p>
             <Progress value={Math.min(100, rankProgress)} className="h-3" />
             <p className="text-sm text-muted-foreground mt-1">
               {displayProfile.rdm}/{displayProfile.nextRankRdm} RDM
@@ -366,7 +451,10 @@ export default function PublicProfilePage() {
                 ) : (
                   displayProfile.recentDoubts.map((d) => (
                     <li key={d.id}>
-                      <Link href={`/doubts/${d.id}`} className="text-sm text-primary hover:underline line-clamp-2">
+                      <Link
+                        href={`/doubts/${d.id}`}
+                        className="text-sm text-primary hover:underline line-clamp-2"
+                      >
                         {d.title}
                       </Link>
                     </li>
@@ -382,7 +470,10 @@ export default function PublicProfilePage() {
                 ) : (
                   displayProfile.recentAnswers.map((a) => (
                     <li key={a.id}>
-                      <Link href={`/doubts/${a.doubtId}`} className="text-sm text-primary hover:underline line-clamp-2">
+                      <Link
+                        href={`/doubts/${a.doubtId}`}
+                        className="text-sm text-primary hover:underline line-clamp-2"
+                      >
                         {a.title}
                       </Link>
                     </li>

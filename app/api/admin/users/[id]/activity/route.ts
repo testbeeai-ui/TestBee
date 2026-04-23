@@ -10,10 +10,7 @@ type ActivityItem = {
   details: string;
 };
 
-export async function GET(
-  request: Request,
-  context: { params: Promise<{ id: string }> }
-) {
+export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
     const ctx = await getSupabaseAndUser(request);
     if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -31,35 +28,61 @@ export async function GET(
     }
 
     const [governanceRes, doubtsRes, aiRes] = await Promise.all([
-      (admin as unknown as {
-        from: (table: string) => {
-          select: (cols: string) => {
-            eq: (col: string, val: string) => {
-              order: (col: string, opts: { ascending: boolean }) => { limit: (n: number) => Promise<{ data: Record<string, unknown>[] | null; error: { message: string } | null }> };
+      (
+        admin as unknown as {
+          from: (table: string) => {
+            select: (cols: string) => {
+              eq: (
+                col: string,
+                val: string
+              ) => {
+                order: (
+                  col: string,
+                  opts: { ascending: boolean }
+                ) => {
+                  limit: (n: number) => Promise<{
+                    data: Record<string, unknown>[] | null;
+                    error: { message: string } | null;
+                  }>;
+                };
+              };
             };
           };
-        };
-      })
+        }
+      )
         .from("admin_user_actions")
         .select("action_type, reason, created_at, actor_user_id")
         .eq("target_user_id", userId)
         .order("created_at", { ascending: false })
         .limit(50),
-      admin.from("doubts").select("id, title, created_at, is_resolved").eq("user_id", userId).order("created_at", { ascending: false }).limit(50),
-      admin.from("ai_token_logs").select("created_at, action_type, model_id, total_tokens").eq("user_id", userId).order("created_at", { ascending: false }).limit(50),
+      admin
+        .from("doubts")
+        .select("id, title, created_at, is_resolved")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(50),
+      admin
+        .from("ai_token_logs")
+        .select("created_at, action_type, model_id, total_tokens")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(50),
     ]);
 
     const missingAuditTable = Boolean(
       governanceRes.error &&
-        /admin_user_actions|schema cache|does not exist|relation/i.test(governanceRes.error.message)
+      /admin_user_actions|schema cache|does not exist|relation/i.test(governanceRes.error.message)
     );
     if (governanceRes.error && !missingAuditTable) {
       return NextResponse.json({ error: governanceRes.error.message }, { status: 500 });
     }
-    if (doubtsRes.error) return NextResponse.json({ error: doubtsRes.error.message }, { status: 500 });
+    if (doubtsRes.error)
+      return NextResponse.json({ error: doubtsRes.error.message }, { status: 500 });
     if (aiRes.error) return NextResponse.json({ error: aiRes.error.message }, { status: 500 });
 
-    const governanceItems: ActivityItem[] = ((missingAuditTable ? [] : governanceRes.data) ?? []).map((row) => ({
+    const governanceItems: ActivityItem[] = (
+      (missingAuditTable ? [] : governanceRes.data) ?? []
+    ).map((row) => ({
       type: "governance",
       timestamp: String(row.created_at ?? new Date().toISOString()),
       title: `Admin action: ${String(row.action_type ?? "unknown")}`,

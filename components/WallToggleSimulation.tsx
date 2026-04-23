@@ -13,7 +13,11 @@ export default function WallToggleSimulation() {
   const [state, setState] = useState({
     hot: INITIAL_HOT,
     cold: INITIAL_COLD,
-    history: [{ t: 0, hot: INITIAL_HOT, cold: INITIAL_COLD }] as { t: number; hot: number; cold: number }[],
+    history: [{ t: 0, hot: INITIAL_HOT, cold: INITIAL_COLD }] as {
+      t: number;
+      hot: number;
+      cold: number;
+    }[],
   });
   const wallRef = useRef(wallType);
   useEffect(() => {
@@ -67,8 +71,10 @@ export default function WallToggleSimulation() {
         <h4 className="font-bold text-foreground">The &quot;Wall Toggle&quot; Game</h4>
       </div>
       <p className="mb-4 text-sm text-muted-foreground">
-        A hot block and cold box share a wall. Toggle the wall type: <strong className="text-foreground">Diathermic</strong> → temperatures move
-        toward a balance point. <strong className="text-foreground">Adiabatic</strong> → the graph stays flat (insulation works).
+        A hot block and cold box share a wall. Toggle the wall type:{" "}
+        <strong className="text-foreground">Diathermic</strong> → temperatures move toward a balance
+        point. <strong className="text-foreground">Adiabatic</strong> → the graph stays flat
+        (insulation works).
       </p>
 
       <div className="flex flex-col gap-4 lg:flex-row lg:items-stretch">
@@ -81,9 +87,13 @@ export default function WallToggleSimulation() {
               </div>
               <button
                 type="button"
-                onClick={() => setWallType((w) => (w === "diathermic" ? "adiabatic" : "diathermic"))}
+                onClick={() =>
+                  setWallType((w) => (w === "diathermic" ? "adiabatic" : "diathermic"))
+                }
                 className={`shrink-0 px-3 py-2 rounded-lg text-xs font-bold transition-all ${
-                  wallType === "diathermic" ? "bg-blue-500 text-white shadow" : "bg-slate-600 text-white"
+                  wallType === "diathermic"
+                    ? "bg-blue-500 text-white shadow"
+                    : "bg-slate-600 text-white"
                 }`}
               >
                 {wallType === "diathermic" ? "Diathermic" : "Adiabatic"}
@@ -114,7 +124,11 @@ export default function WallToggleSimulation() {
           <div className="rounded-xl border border-border bg-background p-4 h-full">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-medium text-muted-foreground">Temperature vs time</span>
-              <button type="button" onClick={reset} className="text-xs text-primary hover:underline flex items-center gap-1">
+              <button
+                type="button"
+                onClick={reset}
+                className="text-xs text-primary hover:underline flex items-center gap-1"
+              >
                 <RefreshCw className="h-3 w-3" /> Reset
               </button>
             </div>
@@ -127,14 +141,18 @@ export default function WallToggleSimulation() {
                       stroke="rgb(234 88 12)"
                       strokeWidth="2"
                       vectorEffect="non-scaling-stroke"
-                      points={history.map((p) => `${p.t} ${100 - ((p.hot - minTemp) / tempRange) * 90}`).join(" ")}
+                      points={history
+                        .map((p) => `${p.t} ${100 - ((p.hot - minTemp) / tempRange) * 90}`)
+                        .join(" ")}
                     />
                     <polyline
                       fill="none"
                       stroke="rgb(6 182 212)"
                       strokeWidth="2"
                       vectorEffect="non-scaling-stroke"
-                      points={history.map((p) => `${p.t} ${100 - ((p.cold - minTemp) / tempRange) * 90}`).join(" ")}
+                      points={history
+                        .map((p) => `${p.t} ${100 - ((p.cold - minTemp) / tempRange) * 90}`)
+                        .join(" ")}
                     />
                   </>
                 )}
@@ -158,13 +176,16 @@ export default function WallToggleSimulation() {
           <strong className="text-foreground">What&apos;s happening:</strong>{" "}
           {wallType === "diathermic" ? (
             <>
-              Heat flows from the hot block into the cold box. The <span className="text-orange-600 font-medium">orange line (hot)</span> drops and
-              the <span className="text-cyan-600 font-medium">blue line (cold)</span> rises. When they meet, that&apos;s{" "}
-              <strong className="text-foreground">thermal equilibrium</strong> — both reach the same temperature and heat stops flowing.
+              Heat flows from the hot block into the cold box. The{" "}
+              <span className="text-orange-600 font-medium">orange line (hot)</span> drops and the{" "}
+              <span className="text-cyan-600 font-medium">blue line (cold)</span> rises. When they
+              meet, that&apos;s <strong className="text-foreground">thermal equilibrium</strong> —
+              both reach the same temperature and heat stops flowing.
             </>
           ) : (
             <>
-              The adiabatic wall blocks all heat. Both temperatures stay flat — no heat can cross. That&apos;s why the lines don&apos;t move.
+              The adiabatic wall blocks all heat. Both temperatures stay flat — no heat can cross.
+              That&apos;s why the lines don&apos;t move.
             </>
           )}
         </div>

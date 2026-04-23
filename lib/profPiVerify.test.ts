@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
   buildProfPiVerifierUserContent,
-  draftLooksLikeBioTechnical,
   draftLooksLikeChemLatex,
   draftLooksLikeHeavyStemLatex,
   isProfPiVerifyEnabled,
@@ -83,32 +82,6 @@ describe("shouldRunProfPiVerifier", () => {
       })
     ).toBe(true);
   });
-
-  it("runs for biology when draft is long and mentions mitosis", () => {
-    const body =
-      "In mitosis, the cell prepares by duplicating chromosomes. " +
-      "Prophase condenses chromatin. Metaphase aligns chromosomes at the equator. " +
-      "Anaphase separates sister chromatids toward opposite poles. Telophase and cytokinesis complete two daughter nuclei. " +
-      "Compare this to meiosis for gamete formation. NCERT stresses the stages for board exams.";
-    expect(body.length).toBeGreaterThan(300);
-    expect(
-      shouldRunProfPiVerifier({
-        draft: body,
-        ragKey: "biology",
-        source: "rag_sarvam",
-      })
-    ).toBe(true);
-  });
-
-  it("skips biology short draft even with a keyword", () => {
-    expect(
-      shouldRunProfPiVerifier({
-        draft: "Mitosis splits one cell.",
-        ragKey: "biology",
-        source: "rag_sarvam",
-      })
-    ).toBe(false);
-  });
 });
 
 describe("draftLooksLikeHeavyStemLatex", () => {
@@ -118,18 +91,6 @@ describe("draftLooksLikeHeavyStemLatex", () => {
 
   it("detects integrals in text", () => {
     expect(draftLooksLikeHeavyStemLatex(String.raw`\int_0^1 x\,dx`)).toBe(true);
-  });
-});
-
-describe("draftLooksLikeBioTechnical", () => {
-  it("is true for long mitosis paragraph", () => {
-    const t =
-      "During mitosis the nuclear envelope breaks down in prometaphase. " +
-      "Chromosomes attach to spindle fibers at the metaphase plate. " +
-      "Sister chromatids separate in anaphase. Mitosis ends with two genetically identical daughter cells in most somatic tissues. " +
-      "Students often confuse this with meiosis which halves chromosome number for gametes.";
-    expect(t.length).toBeGreaterThan(300);
-    expect(draftLooksLikeBioTechnical(t)).toBe(true);
   });
 });
 
@@ -148,26 +109,22 @@ describe("buildProfPiVerifierUserContent", () => {
 });
 
 describe("PROF_PI_FACT_CONTRACT", () => {
-  it("covers chemistry, physics, math, and biology", () => {
+  it("covers chemistry, physics, and math", () => {
     expect(PROF_PI_FACT_CONTRACT).toMatch(/atom balance/i);
     expect(PROF_PI_FACT_CONTRACT).toMatch(/Resonance/i);
     expect(PROF_PI_FACT_CONTRACT).toMatch(/Tautomerism/i);
     expect(PROF_PI_FACT_CONTRACT).toMatch(/Physics:/);
     expect(PROF_PI_FACT_CONTRACT).toMatch(/Mathematics:/);
-    expect(PROF_PI_FACT_CONTRACT).toMatch(/Biology:/);
-    expect(PROF_PI_FACT_CONTRACT).toMatch(/mitosis/i);
   });
 });
 
 describe("getProfPiDefaultTemperatureForRagKey", () => {
-  it("orders chemistry most deterministic, then math/biology, then physics", () => {
+  it("orders chemistry most deterministic, then math, then physics", () => {
     const chem = getProfPiDefaultTemperatureForRagKey("chemistry");
     const math = getProfPiDefaultTemperatureForRagKey("math");
-    const bio = getProfPiDefaultTemperatureForRagKey("biology");
     const phys = getProfPiDefaultTemperatureForRagKey("physics");
     expect(chem).toBeLessThanOrEqual(math);
     expect(math).toBeLessThanOrEqual(phys);
-    expect(bio).toBeLessThanOrEqual(phys);
   });
 });
 

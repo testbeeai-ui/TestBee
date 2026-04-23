@@ -67,8 +67,10 @@ export default function ThermometerScaleSandbox() {
         <h4 className="font-bold text-foreground">Temperature Scale Sandbox</h4>
       </div>
       <p className="mb-4 text-sm text-muted-foreground">
-        Drop a blank thermometer in melting ice, make a mark and type a number (e.g. 0 or 32). Move it to boiling water, make another mark and type another number (e.g. 100 or 212).
-        The simulation draws evenly spaced lines between them — showing that Celsius and Fahrenheit are arbitrary human inventions based on the same physical expansion.
+        Drop a blank thermometer in melting ice, make a mark and type a number (e.g. 0 or 32). Move
+        it to boiling water, make another mark and type another number (e.g. 100 or 212). The
+        simulation draws evenly spaced lines between them — showing that Celsius and Fahrenheit are
+        arbitrary human inventions based on the same physical expansion.
       </p>
 
       <div className="rounded-lg border border-border bg-background p-6">
@@ -119,8 +121,7 @@ export default function ThermometerScaleSandbox() {
             <Button
               onClick={handleMakeMark}
               disabled={
-                (location === "ice" && mark1 !== null) ||
-                (location === "boiling" && mark2 !== null)
+                (location === "ice" && mark1 !== null) || (location === "boiling" && mark2 !== null)
               }
               className="w-full max-w-[180px] bg-primary"
             >
@@ -152,7 +153,9 @@ export default function ThermometerScaleSandbox() {
           {/* Boiling beaker */}
           <div
             className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-colors ${
-              location === "boiling" ? "border-orange-500 bg-orange-500/10" : "border-border bg-muted/30"
+              location === "boiling"
+                ? "border-orange-500 bg-orange-500/10"
+                : "border-border bg-muted/30"
             }`}
           >
             <Droplets className="h-8 w-8 text-orange-600" />
@@ -187,8 +190,21 @@ export default function ThermometerScaleSandbox() {
                     const y = 20 + THERM_HEIGHT - (THERM_HEIGHT * (t - low)) / range;
                     return (
                       <g key={i}>
-                        <line x1={0} y1={y} x2={i === 0 || i === numTicks - 1 ? 20 : 10} y2={y} stroke="#374151" strokeWidth={1} />
-                        <text x={24} y={y + 4} fontSize={10} fill="currentColor" className="fill-foreground">
+                        <line
+                          x1={0}
+                          y1={y}
+                          x2={i === 0 || i === numTicks - 1 ? 20 : 10}
+                          y2={y}
+                          stroke="#374151"
+                          strokeWidth={1}
+                        />
+                        <text
+                          x={24}
+                          y={y + 4}
+                          fontSize={10}
+                          fill="currentColor"
+                          className="fill-foreground"
+                        >
                           {t % 1 === 0 ? t : t.toFixed(1)}
                         </text>
                       </g>
@@ -196,7 +212,8 @@ export default function ThermometerScaleSandbox() {
                   })}
                 </svg>
                 <p className="text-xs text-muted-foreground mt-2 text-center max-w-[200px]">
-                  Same physical expansion, different numbers — Celsius (0,100) and Fahrenheit (32,212) are both valid.
+                  Same physical expansion, different numbers — Celsius (0,100) and Fahrenheit
+                  (32,212) are both valid.
                 </p>
               </div>
             </div>
@@ -207,8 +224,10 @@ export default function ThermometerScaleSandbox() {
       <div className="mt-4 flex items-start gap-2 rounded-lg border border-primary/20 bg-primary/5 p-3">
         <Lightbulb className="h-4 w-4 shrink-0 text-primary mt-0.5" />
         <div className="text-sm text-muted-foreground">
-          <strong className="text-foreground">What&apos;s happening:</strong> The liquid expands the same amount in ice and boiling water regardless of what numbers you choose.
-          By picking two reference points and spacing the divisions evenly, you define your own temperature scale. Celsius and Fahrenheit are just two arbitrary choices — the physics is identical.
+          <strong className="text-foreground">What&apos;s happening:</strong> The liquid expands the
+          same amount in ice and boiling water regardless of what numbers you choose. By picking two
+          reference points and spacing the divisions evenly, you define your own temperature scale.
+          Celsius and Fahrenheit are just two arbitrary choices — the physics is identical.
         </div>
       </div>
     </div>

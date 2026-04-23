@@ -7,9 +7,18 @@ import { motion } from "framer-motion";
 import { X, RotateCw, Check, ChevronRight, Sparkles, BookOpen, Flame, Zap } from "lucide-react";
 
 const VIBRANT = [
-  "#FF3366", "#FF6B2B", "#FFB800", "#00C9A7",
-  "#0088FF", "#7B2FF7", "#FF0099", "#3A86FF",
-  "#FF5500", "#8B5CF6", "#06BCC1", "#E63946",
+  "#FF3366",
+  "#FF6B2B",
+  "#FFB800",
+  "#00C9A7",
+  "#0088FF",
+  "#7B2FF7",
+  "#FF0099",
+  "#3A86FF",
+  "#FF5500",
+  "#8B5CF6",
+  "#06BCC1",
+  "#E63946",
 ];
 
 const DIFFICULTY_TIERS = [
@@ -73,11 +82,7 @@ interface TopicRouletteProps {
   onClose: () => void;
 }
 
-export default function TopicRoulette({
-  subtopics,
-  onSelect,
-  onClose,
-}: TopicRouletteProps) {
+export default function TopicRoulette({ subtopics, onSelect, onClose }: TopicRouletteProps) {
   const topics = subtopics.map((s) => s.name);
   const n = Math.max(1, topics.length);
   const segAngle = 360 / n;
@@ -291,8 +296,7 @@ export default function TopicRoulette({
         setSpinning(false);
         // Derive selected index from final rotation so the label matches the segment under the flapper
         const norm = ((end % 360) + 360) % 360;
-        const indexFromRotation =
-          (Math.round((360 - norm) / segAngle - 0.5) % n + n) % n;
+        const indexFromRotation = ((Math.round((360 - norm) / segAngle - 0.5) % n) + n) % n;
         setSelectedIndex(indexFromRotation);
         setTimeout(() => setShowResult(true), 350);
       }
@@ -352,9 +356,15 @@ export default function TopicRoulette({
       `}</style>
 
       {/* Backdrop */}
-      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/55 backdrop-blur-sm" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div
+        className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/55 backdrop-blur-sm"
+        onClick={(e) => e.target === e.currentTarget && onClose()}
+      >
         {/* Popup card */}
-        <div className="relative w-full max-w-[380px] rounded-2xl bg-card border border-border shadow-2xl overflow-hidden flex flex-col items-center py-5 px-4" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="relative w-full max-w-[380px] rounded-2xl bg-card border border-border shadow-2xl overflow-hidden flex flex-col items-center py-5 px-4"
+          onClick={(e) => e.stopPropagation()}
+        >
           <Button
             variant="ghost"
             size="icon"
@@ -441,12 +451,8 @@ export default function TopicRoulette({
                               Level {tier.level}
                             </span>
                           </div>
-                          <p className="font-bold text-foreground truncate">
-                            {tier.label}
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            {tier.subtitle}
-                          </p>
+                          <p className="font-bold text-foreground truncate">{tier.label}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{tier.subtitle}</p>
                         </div>
                         <div className="shrink-0 rounded-full bg-foreground/10 p-1.5">
                           <ChevronRight className="h-4 w-4 text-foreground" />
@@ -469,100 +475,153 @@ export default function TopicRoulette({
             </motion.div>
           ) : (
             <>
-          <div className="text-center mb-3">
-            <h2 className="font-black text-xl text-foreground tracking-tight">
-              Spin &amp; Discover
-            </h2>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Your next topic is one spin away
-            </p>
-          </div>
-
-          <div className="relative">
-            {/* Flapper - scaled down */}
-            <div className="absolute -top-1 left-1/2 -translate-x-1/2 z-30 scale-75 origin-top">
-              <svg className="flapper-arm" width="44" height="62" viewBox="0 0 44 62" style={{ transform: `rotate(${flapAngle}deg)` }}>
-              <rect x="14" y="0" width="16" height="14" rx="3" fill="url(#bracketG)" stroke="#aaa" strokeWidth="0.8" />
-              <circle cx="22" cy="10" r="5.5" fill="url(#boltG)" stroke="#999" strokeWidth="0.8" />
-              <circle cx="22" cy="10" r="2.5" fill="#777" />
-              <path d="M19 14 L16 52 Q15 58 22 58 Q29 58 28 52 L25 14" fill="url(#armG)" stroke="#B0B0B8" strokeWidth="1" />
-              <path d="M20 16 L18 50 Q17.5 54 22 54 L22 54 Q20 54 20.5 50 L22.5 16 Z" fill="rgba(255,255,255,0.3)" />
-              <circle cx="22" cy="56" r="4" fill="url(#tipG)" stroke="#aaa" strokeWidth="0.6" />
-              <circle cx="20.5" cy="54.5" r="1.2" fill="rgba(255,255,255,0.5)" />
-              <defs>
-                <linearGradient id="bracketG" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#E8E8EC" /><stop offset="50%" stopColor="#D4D4D8" /><stop offset="100%" stopColor="#B8B8BC" /></linearGradient>
-                <radialGradient id="boltG" cx="35%" cy="35%"><stop offset="0%" stopColor="#F0F0F2" /><stop offset="100%" stopColor="#A0A0A8" /></radialGradient>
-                <linearGradient id="armG" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#D8D8DC" /><stop offset="25%" stopColor="#F0F0F2" /><stop offset="50%" stopColor="#E0E0E4" /><stop offset="75%" stopColor="#D0D0D4" /><stop offset="100%" stopColor="#C0C0C4" /></linearGradient>
-                <radialGradient id="tipG" cx="35%" cy="35%"><stop offset="0%" stopColor="#F5F5F7" /><stop offset="100%" stopColor="#B0B0B8" /></radialGradient>
-              </defs>
-            </svg>
-          </div>
-
-          <div
-            className="rounded-full transition-shadow duration-300"
-            style={{
-              transform: `rotate(${rotation}deg)`,
-              willChange: "transform",
-              boxShadow: spinning ? "0 12px 48px rgba(0,0,0,0.14), 0 0 0 3px rgba(123,47,247,0.08)" : "0 10px 40px rgba(0,0,0,0.1)",
-            }}
-          >
-            <canvas ref={canvasRef} className="block rounded-full" />
-          </div>
-
-          <button
-            type="button"
-            className="roulette-spin-btn"
-            onClick={spin}
-            disabled={spinning}
-          >
-            <span className="font-mono font-bold text-sm tracking-[0.2em] text-white z-10 relative">
-              {spinning ? "•••" : "SPIN"}
-            </span>
-          </button>
-        </div>
-
-        {/* Result: topic number + name, Spin again, Use this topic */}
-        <div className="min-h-[100px] flex flex-col items-center justify-center gap-3 mt-4 w-full px-2">
-          {showResult && selectedIndex !== null && (
-            <div className="animate-[resultPop_0.55s_cubic-bezier(0.34,1.56,0.64,1)_forwards] text-center w-full">
-              <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-mono font-bold mb-1">
-                Topic {selectedIndex + 1} of {n}
+              <div className="text-center mb-3">
+                <h2 className="font-black text-xl text-foreground tracking-tight">
+                  Spin &amp; Discover
+                </h2>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Your next topic is one spin away
+                </p>
               </div>
-              <div
-                className="text-base font-extrabold text-foreground py-3 px-4 rounded-xl border border-border bg-muted/50 shadow-md relative overflow-hidden"
-                style={{
-                  borderTopColor: getColor(selectedIndex),
-                  borderTopWidth: 3,
-                }}
-              >
-                {topics[selectedIndex]}
-              </div>
-              <div className="flex flex-wrap items-center justify-center gap-2 mt-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleSpinAgain}
-                  className="rounded-lg gap-1.5 font-bold"
+
+              <div className="relative">
+                {/* Flapper - scaled down */}
+                <div className="absolute -top-1 left-1/2 -translate-x-1/2 z-30 scale-75 origin-top">
+                  <svg
+                    className="flapper-arm"
+                    width="44"
+                    height="62"
+                    viewBox="0 0 44 62"
+                    style={{ transform: `rotate(${flapAngle}deg)` }}
+                  >
+                    <rect
+                      x="14"
+                      y="0"
+                      width="16"
+                      height="14"
+                      rx="3"
+                      fill="url(#bracketG)"
+                      stroke="#aaa"
+                      strokeWidth="0.8"
+                    />
+                    <circle
+                      cx="22"
+                      cy="10"
+                      r="5.5"
+                      fill="url(#boltG)"
+                      stroke="#999"
+                      strokeWidth="0.8"
+                    />
+                    <circle cx="22" cy="10" r="2.5" fill="#777" />
+                    <path
+                      d="M19 14 L16 52 Q15 58 22 58 Q29 58 28 52 L25 14"
+                      fill="url(#armG)"
+                      stroke="#B0B0B8"
+                      strokeWidth="1"
+                    />
+                    <path
+                      d="M20 16 L18 50 Q17.5 54 22 54 L22 54 Q20 54 20.5 50 L22.5 16 Z"
+                      fill="rgba(255,255,255,0.3)"
+                    />
+                    <circle
+                      cx="22"
+                      cy="56"
+                      r="4"
+                      fill="url(#tipG)"
+                      stroke="#aaa"
+                      strokeWidth="0.6"
+                    />
+                    <circle cx="20.5" cy="54.5" r="1.2" fill="rgba(255,255,255,0.5)" />
+                    <defs>
+                      <linearGradient id="bracketG" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#E8E8EC" />
+                        <stop offset="50%" stopColor="#D4D4D8" />
+                        <stop offset="100%" stopColor="#B8B8BC" />
+                      </linearGradient>
+                      <radialGradient id="boltG" cx="35%" cy="35%">
+                        <stop offset="0%" stopColor="#F0F0F2" />
+                        <stop offset="100%" stopColor="#A0A0A8" />
+                      </radialGradient>
+                      <linearGradient id="armG" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#D8D8DC" />
+                        <stop offset="25%" stopColor="#F0F0F2" />
+                        <stop offset="50%" stopColor="#E0E0E4" />
+                        <stop offset="75%" stopColor="#D0D0D4" />
+                        <stop offset="100%" stopColor="#C0C0C4" />
+                      </linearGradient>
+                      <radialGradient id="tipG" cx="35%" cy="35%">
+                        <stop offset="0%" stopColor="#F5F5F7" />
+                        <stop offset="100%" stopColor="#B0B0B8" />
+                      </radialGradient>
+                    </defs>
+                  </svg>
+                </div>
+
+                <div
+                  className="rounded-full transition-shadow duration-300"
+                  style={{
+                    transform: `rotate(${rotation}deg)`,
+                    willChange: "transform",
+                    boxShadow: spinning
+                      ? "0 12px 48px rgba(0,0,0,0.14), 0 0 0 3px rgba(123,47,247,0.08)"
+                      : "0 10px 40px rgba(0,0,0,0.1)",
+                  }}
                 >
-                  <RotateCw className="w-3.5 h-3.5" /> Spin again
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={handleUseTopic}
-                  className="rounded-lg gap-1.5 font-bold bg-foreground hover:bg-foreground/90 text-background"
-                >
-                  <Check className="w-3.5 h-3.5" /> Use this topic
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
+                  <canvas ref={canvasRef} className="block rounded-full" />
+                </div>
 
-        <p className="text-[10px] text-muted-foreground font-medium mt-1">
-          {n} topics
-        </p>
+                <button
+                  type="button"
+                  className="roulette-spin-btn"
+                  onClick={spin}
+                  disabled={spinning}
+                >
+                  <span className="font-mono font-bold text-sm tracking-[0.2em] text-white z-10 relative">
+                    {spinning ? "•••" : "SPIN"}
+                  </span>
+                </button>
+              </div>
+
+              {/* Result: topic number + name, Spin again, Use this topic */}
+              <div className="min-h-[100px] flex flex-col items-center justify-center gap-3 mt-4 w-full px-2">
+                {showResult && selectedIndex !== null && (
+                  <div className="animate-[resultPop_0.55s_cubic-bezier(0.34,1.56,0.64,1)_forwards] text-center w-full">
+                    <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-mono font-bold mb-1">
+                      Topic {selectedIndex + 1} of {n}
+                    </div>
+                    <div
+                      className="text-base font-extrabold text-foreground py-3 px-4 rounded-xl border border-border bg-muted/50 shadow-md relative overflow-hidden"
+                      style={{
+                        borderTopColor: getColor(selectedIndex),
+                        borderTopWidth: 3,
+                      }}
+                    >
+                      {topics[selectedIndex]}
+                    </div>
+                    <div className="flex flex-wrap items-center justify-center gap-2 mt-3">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleSpinAgain}
+                        className="rounded-lg gap-1.5 font-bold"
+                      >
+                        <RotateCw className="w-3.5 h-3.5" /> Spin again
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={handleUseTopic}
+                        className="rounded-lg gap-1.5 font-bold bg-foreground hover:bg-foreground/90 text-background"
+                      >
+                        <Check className="w-3.5 h-3.5" /> Use this topic
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <p className="text-[10px] text-muted-foreground font-medium mt-1">{n} topics</p>
             </>
           )}
         </div>

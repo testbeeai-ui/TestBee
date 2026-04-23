@@ -1,0 +1,610 @@
+{
+  "migrated_count": 151,
+  "skipped_count": 0,
+  "pairs": [
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\academic-anthropologist.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\academic-anthropologist\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\academic-geographer.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\academic-geographer\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\academic-historian.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\academic-historian\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\academic-narratologist.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\academic-narratologist\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\academic-psychologist.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\academic-psychologist\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\accounts-payable-agent.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\accounts-payable-agent\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\agentic-identity-trust.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\agentic-identity-trust\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\agents-orchestrator.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\agents-orchestrator\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\automation-governance-architect.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\automation-governance-architect\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\blender-addon-engineer.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\blender-addon-engineer\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\blockchain-security-auditor.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\blockchain-security-auditor\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\compliance-auditor.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\compliance-auditor\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\corporate-training-designer.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\corporate-training-designer\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\data-consolidation-agent.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\data-consolidation-agent\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\design-brand-guardian.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\design-brand-guardian\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\design-image-prompt-engineer.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\design-image-prompt-engineer\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\design-inclusive-visuals-specialist.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\design-inclusive-visuals-specialist\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\design-ui-designer.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\design-ui-designer\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\design-ux-architect.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\design-ux-architect\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\design-ux-researcher.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\design-ux-researcher\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\design-visual-storyteller.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\design-visual-storyteller\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\design-whimsy-injector.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\design-whimsy-injector\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\engineering-ai-data-remediation-engineer.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\engineering-ai-data-remediation-engineer\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\engineering-ai-engineer.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\engineering-ai-engineer\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\engineering-autonomous-optimization-architect.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\engineering-autonomous-optimization-architect\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\engineering-code-reviewer.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\engineering-code-reviewer\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\engineering-data-engineer.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\engineering-data-engineer\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\engineering-database-optimizer.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\engineering-database-optimizer\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\engineering-embedded-firmware-engineer.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\engineering-embedded-firmware-engineer\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\engineering-feishu-integration-developer.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\engineering-feishu-integration-developer\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\engineering-incident-response-commander.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\engineering-incident-response-commander\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\engineering-mobile-app-builder.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\engineering-mobile-app-builder\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\engineering-rapid-prototyper.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\engineering-rapid-prototyper\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\engineering-security-engineer.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\engineering-security-engineer\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\engineering-senior-developer.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\engineering-senior-developer\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\engineering-software-architect.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\engineering-software-architect\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\engineering-solidity-smart-contract-engineer.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\engineering-solidity-smart-contract-engineer\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\engineering-sre.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\engineering-sre\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\engineering-technical-writer.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\engineering-technical-writer\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\engineering-threat-detection-engineer.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\engineering-threat-detection-engineer\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\engineering-wechat-mini-program-developer.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\engineering-wechat-mini-program-developer\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\game-audio-engineer.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\game-audio-engineer\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\game-designer.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\game-designer\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\godot-gameplay-scripter.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\godot-gameplay-scripter\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\godot-multiplayer-engineer.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\godot-multiplayer-engineer\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\godot-shader-developer.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\godot-shader-developer\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\government-digital-presales-consultant.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\government-digital-presales-consultant\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\healthcare-marketing-compliance.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\healthcare-marketing-compliance\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\identity-graph-operator.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\identity-graph-operator\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\level-designer.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\level-designer\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\lsp-index-engineer.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\lsp-index-engineer\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\macos-spatial-metal-engineer.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\macos-spatial-metal-engineer\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\marketing-ai-citation-strategist.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\marketing-ai-citation-strategist\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\marketing-app-store-optimizer.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\marketing-app-store-optimizer\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\marketing-baidu-seo-specialist.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\marketing-baidu-seo-specialist\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\marketing-bilibili-content-strategist.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\marketing-bilibili-content-strategist\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\marketing-book-co-author.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\marketing-book-co-author\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\marketing-carousel-growth-engine.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\marketing-carousel-growth-engine\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\marketing-china-ecommerce-operator.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\marketing-china-ecommerce-operator\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\marketing-content-creator.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\marketing-content-creator\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\marketing-cross-border-ecommerce.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\marketing-cross-border-ecommerce\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\marketing-douyin-strategist.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\marketing-douyin-strategist\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\marketing-growth-hacker.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\marketing-growth-hacker\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\marketing-instagram-curator.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\marketing-instagram-curator\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\marketing-kuaishou-strategist.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\marketing-kuaishou-strategist\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\marketing-linkedin-content-creator.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\marketing-linkedin-content-creator\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\marketing-livestream-commerce-coach.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\marketing-livestream-commerce-coach\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\marketing-podcast-strategist.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\marketing-podcast-strategist\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\marketing-private-domain-operator.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\marketing-private-domain-operator\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\marketing-reddit-community-builder.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\marketing-reddit-community-builder\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\marketing-seo-specialist.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\marketing-seo-specialist\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\marketing-short-video-editing-coach.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\marketing-short-video-editing-coach\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\marketing-social-media-strategist.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\marketing-social-media-strategist\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\marketing-tiktok-strategist.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\marketing-tiktok-strategist\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\marketing-twitter-engager.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\marketing-twitter-engager\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\marketing-wechat-official-account.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\marketing-wechat-official-account\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\marketing-weibo-strategist.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\marketing-weibo-strategist\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\marketing-xiaohongshu-specialist.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\marketing-xiaohongshu-specialist\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\marketing-zhihu-strategist.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\marketing-zhihu-strategist\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\narrative-designer.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\narrative-designer\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\paid-media-auditor.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\paid-media-auditor\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\paid-media-creative-strategist.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\paid-media-creative-strategist\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\paid-media-paid-social-strategist.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\paid-media-paid-social-strategist\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\paid-media-ppc-strategist.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\paid-media-ppc-strategist\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\paid-media-programmatic-buyer.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\paid-media-programmatic-buyer\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\paid-media-search-query-analyst.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\paid-media-search-query-analyst\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\paid-media-tracking-specialist.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\paid-media-tracking-specialist\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\product-behavioral-nudge-engine.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\product-behavioral-nudge-engine\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\product-feedback-synthesizer.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\product-feedback-synthesizer\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\product-manager.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\product-manager\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\product-sprint-prioritizer.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\product-sprint-prioritizer\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\product-trend-researcher.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\product-trend-researcher\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\project-management-experiment-tracker.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\project-management-experiment-tracker\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\project-management-jira-workflow-steward.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\project-management-jira-workflow-steward\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\project-management-project-shepherd.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\project-management-project-shepherd\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\project-management-studio-operations.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\project-management-studio-operations\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\project-management-studio-producer.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\project-management-studio-producer\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\project-manager-senior.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\project-manager-senior\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\recruitment-specialist.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\recruitment-specialist\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\report-distribution-agent.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\report-distribution-agent\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\roblox-avatar-creator.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\roblox-avatar-creator\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\roblox-experience-designer.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\roblox-experience-designer\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\roblox-systems-scripter.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\roblox-systems-scripter\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\sales-account-strategist.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\sales-account-strategist\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\sales-coach.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\sales-coach\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\sales-data-extraction-agent.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\sales-data-extraction-agent\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\sales-deal-strategist.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\sales-deal-strategist\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\sales-discovery-coach.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\sales-discovery-coach\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\sales-engineer.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\sales-engineer\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\sales-outbound-strategist.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\sales-outbound-strategist\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\sales-pipeline-analyst.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\sales-pipeline-analyst\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\sales-proposal-strategist.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\sales-proposal-strategist\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\specialized-cultural-intelligence-strategist.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\specialized-cultural-intelligence-strategist\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\specialized-developer-advocate.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\specialized-developer-advocate\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\specialized-document-generator.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\specialized-document-generator\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\specialized-french-consulting-market.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\specialized-french-consulting-market\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\specialized-korean-business-navigator.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\specialized-korean-business-navigator\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\specialized-mcp-builder.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\specialized-mcp-builder\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\specialized-model-qa.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\specialized-model-qa\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\specialized-salesforce-architect.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\specialized-salesforce-architect\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\specialized-workflow-architect.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\specialized-workflow-architect\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\study-abroad-advisor.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\study-abroad-advisor\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\supply-chain-strategist.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\supply-chain-strategist\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\support-analytics-reporter.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\support-analytics-reporter\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\support-executive-summary-generator.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\support-executive-summary-generator\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\support-finance-tracker.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\support-finance-tracker\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\support-infrastructure-maintainer.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\support-infrastructure-maintainer\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\support-legal-compliance-checker.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\support-legal-compliance-checker\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\support-support-responder.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\support-support-responder\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\technical-artist.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\technical-artist\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\testing-accessibility-auditor.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\testing-accessibility-auditor\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\testing-api-tester.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\testing-api-tester\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\testing-evidence-collector.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\testing-evidence-collector\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\testing-performance-benchmarker.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\testing-performance-benchmarker\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\testing-reality-checker.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\testing-reality-checker\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\testing-test-results-analyzer.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\testing-test-results-analyzer\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\testing-tool-evaluator.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\testing-tool-evaluator\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\testing-workflow-optimizer.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\testing-workflow-optimizer\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\unity-architect.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\unity-architect\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\unity-editor-tool-developer.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\unity-editor-tool-developer\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\unity-multiplayer-engineer.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\unity-multiplayer-engineer\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\unity-shader-graph-artist.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\unity-shader-graph-artist\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\unreal-multiplayer-architect.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\unreal-multiplayer-architect\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\unreal-systems-engineer.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\unreal-systems-engineer\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\unreal-technical-artist.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\unreal-technical-artist\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\unreal-world-builder.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\unreal-world-builder\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\visionos-spatial-engineer.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\visionos-spatial-engineer\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\xr-cockpit-interaction-specialist.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\xr-cockpit-interaction-specialist\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\xr-immersive-developer.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\xr-immersive-developer\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\xr-interface-architect.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\xr-interface-architect\\SKILL.md"
+    },
+    {
+      "from": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\rules\\zk-steward.mdc",
+      "to": "C:\\Users\\rentk\\Desktop\\Testbee\\.cursor\\skills\\zk-steward\\SKILL.md"
+    }
+  ]
+}

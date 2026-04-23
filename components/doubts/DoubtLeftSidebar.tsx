@@ -5,7 +5,17 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Coins, FileQuestion, MessageCircle, Info, Filter, BookMarked, Sparkles, ChevronDown, ChevronRight } from "lucide-react";
+import {
+  Coins,
+  FileQuestion,
+  MessageCircle,
+  Info,
+  Filter,
+  BookMarked,
+  Sparkles,
+  ChevronDown,
+  ChevronRight,
+} from "lucide-react";
 import {
   DOUBT_FLAIRS,
   SUBJECT_COLORS,
@@ -38,9 +48,24 @@ interface DoubtLeftSidebarProps {
 }
 
 export default function DoubtLeftSidebar({
-  profile, strikeRate, subjectFilters, subjectCounts,
-  activityView, sort, filteredCount, askedCount, answeredCount, savedCount, aiGeneratedCount, unansweredOnly,
-  onToggleSubject, onSelectAllSubjects, onClearAllSubjects, onSetActivityView, onSetSort, onSetUnansweredOnly,
+  profile,
+  strikeRate,
+  subjectFilters,
+  subjectCounts,
+  activityView,
+  sort,
+  filteredCount,
+  askedCount,
+  answeredCount,
+  savedCount,
+  aiGeneratedCount,
+  unansweredOnly,
+  onToggleSubject,
+  onSelectAllSubjects,
+  onClearAllSubjects,
+  onSetActivityView,
+  onSetSort,
+  onSetUnansweredOnly,
 }: DoubtLeftSidebarProps) {
   const [subjectOpen, setSubjectOpen] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
@@ -49,7 +74,12 @@ export default function DoubtLeftSidebar({
   const rank = rankFromLifetime(lifetime);
   const nextRank = rdmToNextRank(lifetime);
 
-  const activityItems: { key: ActivityView; label: string; count: number; icon: React.ComponentType<{ className?: string }> }[] = [
+  const activityItems: {
+    key: ActivityView;
+    label: string;
+    count: number;
+    icon: React.ComponentType<{ className?: string }>;
+  }[] = [
     { key: "feed", label: "All doubts", count: filteredCount, icon: FileQuestion },
     { key: "asked", label: "Questions I asked", count: askedCount, icon: FileQuestion },
     { key: "answered", label: "Questions I answered", count: answeredCount, icon: MessageCircle },
@@ -74,7 +104,9 @@ export default function DoubtLeftSidebar({
             <div className="flex items-center gap-3 mb-2">
               <Avatar className="h-12 w-12 rounded-xl shrink-0">
                 <AvatarImage src={profile?.avatar_url ?? undefined} />
-                <AvatarFallback className="rounded-xl">{(profile?.name ?? "?").slice(0, 2).toUpperCase()}</AvatarFallback>
+                <AvatarFallback className="rounded-xl">
+                  {(profile?.name ?? "?").slice(0, 2).toUpperCase()}
+                </AvatarFallback>
               </Avatar>
               <div className="min-w-0 flex-1">
                 <p className="font-bold text-foreground truncate">{profile?.name ?? "You"}</p>
@@ -117,10 +149,16 @@ export default function DoubtLeftSidebar({
                     onClick={() => onSetActivityView(item.key)}
                   >
                     <span className="flex items-center gap-1.5">
-                      <Icon className={`w-4 h-4 shrink-0 ${active ? "text-primary" : "text-muted-foreground"}`} />
+                      <Icon
+                        className={`w-4 h-4 shrink-0 ${active ? "text-primary" : "text-muted-foreground"}`}
+                      />
                       {item.label}
                     </span>
-                    <span className={`tabular-nums ${active ? "text-primary font-medium" : "text-muted-foreground"}`}>{item.count}</span>
+                    <span
+                      className={`tabular-nums ${active ? "text-primary font-medium" : "text-muted-foreground"}`}
+                    >
+                      {item.count}
+                    </span>
                   </button>
                 );
               })}
@@ -133,7 +171,9 @@ export default function DoubtLeftSidebar({
                 <span className="flex items-center gap-1.5">
                   <Sparkles className="w-4 h-4 shrink-0 text-muted-foreground" />
                   AI-generated Qs
-                  <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full ml-1">Soon</span>
+                  <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full ml-1">
+                    Soon
+                  </span>
                 </span>
                 <span className="tabular-nums text-muted-foreground">{aiGeneratedCount}</span>
               </button>
@@ -141,7 +181,11 @@ export default function DoubtLeftSidebar({
           </div>
 
           {/* Filter by subject */}
-          <Collapsible open={subjectOpen} onOpenChange={setSubjectOpen} className="edu-card rounded-2xl">
+          <Collapsible
+            open={subjectOpen}
+            onOpenChange={setSubjectOpen}
+            className="edu-card rounded-2xl"
+          >
             <div className="p-4">
               <CollapsibleTrigger asChild>
                 <button
@@ -160,19 +204,45 @@ export default function DoubtLeftSidebar({
                 <div className="flex items-center justify-between mb-2">
                   <div />
                   <div className="flex gap-1">
-                    <Button type="button" variant="ghost" size="sm" className="h-6 text-xs rounded-lg" onClick={onSelectAllSubjects}>All</Button>
-                    <Button type="button" variant="ghost" size="sm" className="h-6 text-xs rounded-lg" onClick={onClearAllSubjects}>Clear</Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 text-xs rounded-lg"
+                      onClick={onSelectAllSubjects}
+                    >
+                      All
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 text-xs rounded-lg"
+                      onClick={onClearAllSubjects}
+                    >
+                      Clear
+                    </Button>
                   </div>
                 </div>
                 <div className="flex flex-col gap-1">
                   {DOUBT_FLAIRS.map((flair) => {
                     const color = SUBJECT_COLORS[flair.toLowerCase()];
                     return (
-                      <label key={flair} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-1.5 py-1 -mx-1.5">
-                        <input type="checkbox" checked={subjectFilters.includes(flair)} onChange={() => onToggleSubject(flair)} className="rounded" />
+                      <label
+                        key={flair}
+                        className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-1.5 py-1 -mx-1.5"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={subjectFilters.includes(flair)}
+                          onChange={() => onToggleSubject(flair)}
+                          className="rounded"
+                        />
                         {color && <span className={`w-2 h-2 rounded-full ${color.dot} shrink-0`} />}
                         <span className="flex-1">{flair}</span>
-                        <span className="text-muted-foreground text-xs tabular-nums">{subjectCounts[flair] ?? 0}</span>
+                        <span className="text-muted-foreground text-xs tabular-nums">
+                          {subjectCounts[flair] ?? 0}
+                        </span>
                       </label>
                     );
                   })}
@@ -212,7 +282,12 @@ export default function DoubtLeftSidebar({
                     </button>
                   ))}
                   <label className="flex items-center gap-2 text-sm cursor-pointer px-2 py-1.5 text-muted-foreground hover:bg-muted rounded-lg mt-1">
-                    <input type="checkbox" checked={unansweredOnly} onChange={(e) => onSetUnansweredOnly(e.target.checked)} className="rounded" />
+                    <input
+                      type="checkbox"
+                      checked={unansweredOnly}
+                      onChange={(e) => onSetUnansweredOnly(e.target.checked)}
+                      className="rounded"
+                    />
                     Unanswered only
                   </label>
                 </div>

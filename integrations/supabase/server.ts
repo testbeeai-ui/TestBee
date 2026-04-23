@@ -1,8 +1,8 @@
-import { createServerClient } from '@supabase/ssr';
-import { createClient as createSupabaseClient } from '@supabase/supabase-js';
-import { cookies } from 'next/headers';
-import { supabaseNodeFetch } from '@/lib/supabaseNodeFetch';
-import type { Database } from './types';
+import { createServerClient } from "@supabase/ssr";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import { cookies } from "next/headers";
+import { supabaseNodeFetch } from "@/lib/supabaseNodeFetch";
+import type { Database } from "./types";
 
 const supabaseGlobal = { fetch: supabaseNodeFetch };
 
@@ -11,12 +11,9 @@ const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 /** Vercel/UI often saves keys wrapped in quotes or with trailing newlines — Supabase then returns "Invalid API key". */
 export function normalizeServiceRoleKey(raw: string | undefined | null): string | null {
-  if (raw == null || typeof raw !== 'string') return null;
+  if (raw == null || typeof raw !== "string") return null;
   let k = raw.trim();
-  if (
-    (k.startsWith('"') && k.endsWith('"')) ||
-    (k.startsWith("'") && k.endsWith("'"))
-  ) {
+  if ((k.startsWith('"') && k.endsWith('"')) || (k.startsWith("'") && k.endsWith("'"))) {
     k = k.slice(1, -1).trim();
   }
   return k.length > 0 ? k : null;
@@ -34,14 +31,14 @@ function supabaseProjectRefFromUrl(url: string): string | null {
 
 /** `ref` inside the service_role JWT must match the project in NEXT_PUBLIC_SUPABASE_URL or API returns Invalid API key. */
 function jwtPayloadRef(serviceRoleJwt: string): string | null {
-  const parts = serviceRoleJwt.split('.');
+  const parts = serviceRoleJwt.split(".");
   if (parts.length !== 3) return null;
   try {
-    const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-    const pad = b64.length % 4 === 0 ? '' : '='.repeat(4 - (b64.length % 4));
-    const json = Buffer.from(b64 + pad, 'base64').toString('utf8');
+    const b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const pad = b64.length % 4 === 0 ? "" : "=".repeat(4 - (b64.length % 4));
+    const json = Buffer.from(b64 + pad, "base64").toString("utf8");
     const p = JSON.parse(json) as { ref?: string };
-    return typeof p.ref === 'string' ? p.ref : null;
+    return typeof p.ref === "string" ? p.ref : null;
   } catch {
     return null;
   }
@@ -95,7 +92,7 @@ export async function createClient() {
       setAll(cookiesToSet) {
         try {
           cookiesToSet.forEach(({ name, value, options }) =>
-            cookieStore.set(name, value, options ?? { path: '/' })
+            cookieStore.set(name, value, options ?? { path: "/" })
           );
         } catch {
           // setAll from Server Component; middleware may refresh sessions
@@ -118,7 +115,7 @@ export function createAdminClient() {
       console.error(
         '[supabase] SUPABASE_SERVICE_ROLE_KEY is for a different project than NEXT_PUBLIC_SUPABASE_URL (JWT ref "%s" vs URL ref "%s"). Supabase returns "Invalid API key". Fix Vercel env so both come from the same Supabase project.',
         keyRef,
-        urlRef,
+        urlRef
       );
     }
   }

@@ -87,17 +87,6 @@ const SUBJECT_META: Record<
     },
     tags: ["Calculus", "Algebra", "Geometry"],
   },
-  biology: {
-    label: "Biology",
-    short: "B",
-    tones: {
-      border: "border-emerald-500/45 dark:border-emerald-400/45",
-      badge: "bg-emerald-500/15 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-300",
-      chip: "bg-emerald-500/10 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200",
-      percent: "text-emerald-600 dark:text-emerald-300",
-    },
-    tags: ["Botany", "Zoology", "Genetics"],
-  },
 };
 
 const EXAM_CARDS: Array<{
@@ -201,7 +190,9 @@ function SubjectBreakdownCard({ stat }: { stat: SubjectStat }) {
       <div className="flex items-center justify-between gap-4">
         <div className="min-w-0">
           <div className="flex items-center gap-2.5">
-            <span className={`inline-flex h-8 w-8 items-center justify-center rounded-lg text-sm font-bold ${meta.tones.badge}`}>
+            <span
+              className={`inline-flex h-8 w-8 items-center justify-center rounded-lg text-sm font-bold ${meta.tones.badge}`}
+            >
               {meta.short}
             </span>
             <div className="min-w-0">
@@ -212,7 +203,9 @@ function SubjectBreakdownCard({ stat }: { stat: SubjectStat }) {
             </div>
           </div>
         </div>
-        <p className={`text-3xl font-extrabold tracking-tight ${meta.tones.percent}`}>{stat.accuracy}%</p>
+        <p className={`text-3xl font-extrabold tracking-tight ${meta.tones.percent}`}>
+          {stat.accuracy}%
+        </p>
       </div>
       <div className="mt-3 grid grid-cols-3 gap-2">
         <div className="rounded-xl border border-border/60 bg-background/70 px-2 py-1.5 text-center dark:bg-slate-900/50">
@@ -230,11 +223,16 @@ function SubjectBreakdownCard({ stat }: { stat: SubjectStat }) {
       </div>
       <div className="mt-3 flex flex-wrap gap-1.5">
         {meta.tags.map((tag) => (
-          <span key={tag} className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${meta.tones.chip}`}>
+          <span
+            key={tag}
+            className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${meta.tones.chip}`}
+          >
             {tag}
           </span>
         ))}
-        <span className="rounded-full bg-muted px-2.5 py-1 text-[11px] font-medium text-muted-foreground">+ more</span>
+        <span className="rounded-full bg-muted px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+          + more
+        </span>
       </div>
     </div>
   );
@@ -253,7 +251,7 @@ export default function PerformancePage() {
 
   const bitsAttemptRows = useMemo(
     () => parseBitsTestAttemptsStore(profile?.bits_test_attempts ?? null),
-    [profile?.bits_test_attempts],
+    [profile?.bits_test_attempts]
   );
 
   const submittedBitsKeys = useMemo(() => {
@@ -263,16 +261,15 @@ export default function PerformancePage() {
   }, [profile?.bits_test_attempts]);
 
   const engagementDraftRows = useMemo(
-    () => parseEngagementDraftDashboardContributions(profile?.subtopic_engagement ?? null, submittedBitsKeys),
-    [profile?.subtopic_engagement, submittedBitsKeys],
+    () =>
+      parseEngagementDraftDashboardContributions(
+        profile?.subtopic_engagement ?? null,
+        submittedBitsKeys
+      ),
+    [profile?.subtopic_engagement, submittedBitsKeys]
   );
 
-  const subjects: Subject[] = useMemo(() => {
-    if (!user) return ["physics", "chemistry", "math"];
-    return user.subjectCombo === "PCMB"
-      ? ["physics", "chemistry", "math", "biology"]
-      : ["physics", "chemistry", "math"];
-  }, [user]);
+  const subjects: Subject[] = useMemo(() => ["physics", "chemistry", "math"], []);
 
   const subjectStats = useMemo(() => {
     return subjects.map<SubjectStat>((subject) => {
@@ -284,7 +281,7 @@ export default function PerformancePage() {
       const bitsAnswered = bitsCorrect + bitsWrong;
       const bitsSkipped = bitsRows.reduce(
         (s, r) => s + Math.max(0, r.totalQuestions - r.correctCount - r.wrongCount),
-        0,
+        0
       );
 
       const dAnswered = drafts.reduce((s, d) => s + d.answered, 0);
@@ -311,24 +308,23 @@ export default function PerformancePage() {
     () =>
       bitsAttemptRows.reduce((s, r) => s + r.correctCount + r.wrongCount, 0) +
       engagementDraftRows.reduce((s, d) => s + d.answered, 0),
-    [bitsAttemptRows, engagementDraftRows],
+    [bitsAttemptRows, engagementDraftRows]
   );
   const bitsCorrectGlobal = useMemo(
     () =>
       bitsAttemptRows.reduce((s, r) => s + r.correctCount, 0) +
       engagementDraftRows.reduce((s, d) => s + d.correct, 0),
-    [bitsAttemptRows, engagementDraftRows],
+    [bitsAttemptRows, engagementDraftRows]
   );
 
   const totalAnswered = bitsAnsweredGlobal + allResults.length;
   const totalCorrect = bitsCorrectGlobal + allResults.filter((r) => r.isCorrect).length;
-  const overallAccuracy =
-    totalAnswered > 0 ? Math.round((totalCorrect / totalAnswered) * 100) : 0;
+  const overallAccuracy = totalAnswered > 0 ? Math.round((totalCorrect / totalAnswered) * 100) : 0;
   const totalWrong = totalAnswered - totalCorrect;
   const totalSkipped = subjectStats.reduce((sum, s) => sum + s.skipped, 0);
   const totalTopicQuizzesTaken = useMemo(
     () => bitsAttemptRows.length + engagementDraftRows.length,
-    [bitsAttemptRows, engagementDraftRows],
+    [bitsAttemptRows, engagementDraftRows]
   );
 
   const accountStartForHeatmap = useMemo(() => {
@@ -383,8 +379,14 @@ export default function PerformancePage() {
   }, [heatmapBitsDayExtras, heatmapEngagementDayExtras]);
 
   const activityHeatmap = useMemo(
-    () => buildActivityHeatmapModel(allResults, accountStartForHeatmap, new Date(), heatmapMergedDayExtras),
-    [allResults, accountStartForHeatmap, heatmapMergedDayExtras],
+    () =>
+      buildActivityHeatmapModel(
+        allResults,
+        accountStartForHeatmap,
+        new Date(),
+        heatmapMergedDayExtras
+      ),
+    [allResults, accountStartForHeatmap, heatmapMergedDayExtras]
   );
 
   if (profile?.role === "teacher") {
@@ -470,11 +472,19 @@ export default function PerformancePage() {
           <section className="relative overflow-hidden rounded-2xl border border-blue-300/35 bg-gradient-to-r from-indigo-600 via-blue-500 to-cyan-400 p-4 text-white shadow-[0_24px_65px_rgba(37,99,235,0.28)] dark:border-white/10 dark:shadow-[0_26px_70px_rgba(37,99,235,0.35)] md:p-5 2xl:rounded-3xl 2xl:p-8">
             <div className="relative z-10">
               <p className="text-xs font-semibold text-white/80 2xl:text-sm">Welcome back 👋</p>
-              <h1 className="mt-0.5 text-2xl font-extrabold tracking-tight md:text-3xl 2xl:mt-1 2xl:text-4xl">{user?.name}!</h1>
+              <h1 className="mt-0.5 text-2xl font-extrabold tracking-tight md:text-3xl 2xl:mt-1 2xl:text-4xl">
+                {user?.name}!
+              </h1>
               <div className="mt-3 flex flex-wrap items-center gap-2 2xl:mt-4 2xl:gap-2.5">
-                <span className="rounded-full bg-white/18 px-3 py-1 text-xs font-semibold backdrop-blur">🎓 Class {user?.classLevel}</span>
-                <span className="rounded-full bg-white/18 px-3 py-1 text-xs font-semibold backdrop-blur">📚 {user?.subjectCombo}</span>
-                <span className="rounded-full bg-white/18 px-3 py-1 text-xs font-semibold backdrop-blur">🔬 Science</span>
+                <span className="rounded-full bg-white/18 px-3 py-1 text-xs font-semibold backdrop-blur">
+                  🎓 Class {user?.classLevel}
+                </span>
+                <span className="rounded-full bg-white/18 px-3 py-1 text-xs font-semibold backdrop-blur">
+                  📚 {user?.subjectCombo}
+                </span>
+                <span className="rounded-full bg-white/18 px-3 py-1 text-xs font-semibold backdrop-blur">
+                  🔬 Science
+                </span>
               </div>
             </div>
             <div className="pointer-events-none absolute -right-14 -top-10 h-40 w-40 rounded-full bg-white/12" />
@@ -490,7 +500,9 @@ export default function PerformancePage() {
                 <div className="mx-auto mb-2 flex h-8 w-8 items-center justify-center rounded-lg bg-muted/60 dark:bg-white/5">
                   <stat.icon className={`h-4 w-4 ${stat.iconTone}`} />
                 </div>
-                <p className="text-2xl font-extrabold tracking-tight text-foreground">{stat.value}</p>
+                <p className="text-2xl font-extrabold tracking-tight text-foreground">
+                  {stat.value}
+                </p>
                 <p className="mt-0.5 text-[11px] font-medium text-muted-foreground">{stat.label}</p>
               </div>
             ))}
@@ -526,7 +538,9 @@ export default function PerformancePage() {
                 <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-blue-500/12 text-blue-600 dark:bg-blue-500/20 dark:text-blue-300 2xl:h-8 2xl:w-8">
                   <BookOpen className="h-3.5 w-3.5 2xl:h-4 2xl:w-4" />
                 </span>
-                <h2 className="text-xl font-bold tracking-tight text-foreground 2xl:text-2xl">Quiz breakdown by subject</h2>
+                <h2 className="text-xl font-bold tracking-tight text-foreground 2xl:text-2xl">
+                  Quiz breakdown by subject
+                </h2>
               </div>
               <div className="space-y-3">
                 {subjectStats.map((stat) => (
@@ -536,7 +550,9 @@ export default function PerformancePage() {
               <div className="mt-3 rounded-xl border border-border/70 bg-background/70 px-4 py-2.5 dark:bg-slate-900/40">
                 <p className="text-sm text-muted-foreground">
                   Total quizzes taken{" "}
-                  <span className="float-right text-lg font-bold text-foreground">{totalTopicQuizzesTaken}</span>
+                  <span className="float-right text-lg font-bold text-foreground">
+                    {totalTopicQuizzesTaken}
+                  </span>
                 </p>
               </div>
             </div>
@@ -546,7 +562,9 @@ export default function PerformancePage() {
                 <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-yellow-500/12 text-yellow-600 dark:bg-yellow-500/20 dark:text-yellow-300 2xl:h-8 2xl:w-8">
                   <TrendingUp className="h-3.5 w-3.5 2xl:h-4 2xl:w-4" />
                 </span>
-                <h2 className="text-xl font-bold tracking-tight text-foreground 2xl:text-2xl">Quick actions</h2>
+                <h2 className="text-xl font-bold tracking-tight text-foreground 2xl:text-2xl">
+                  Quick actions
+                </h2>
               </div>
               <div className="space-y-2.5">
                 {QUICK_ACTIONS.map((action) => (
@@ -555,7 +573,9 @@ export default function PerformancePage() {
                     onClick={() => router.push(action.path)}
                     className="group flex w-full items-center gap-3 rounded-2xl border border-border/70 bg-background/70 p-3 text-left transition-all hover:border-primary/35 hover:bg-muted/40 dark:bg-slate-900/45"
                   >
-                    <div className={`inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br ${action.tone} text-white shadow-sm`}>
+                    <div
+                      className={`inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br ${action.tone} text-white shadow-sm`}
+                    >
                       <action.icon className="h-5 w-5" />
                     </div>
                     <div className="min-w-0 flex-1">
@@ -571,15 +591,22 @@ export default function PerformancePage() {
 
           <section className="rounded-2xl border border-border bg-card/90 p-3 shadow-sm dark:bg-slate-950/60 2xl:rounded-3xl 2xl:p-4">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2 2xl:mb-4">
-              <h2 className="text-xl font-bold tracking-tight text-foreground 2xl:text-2xl">Test performance by category</h2>
+              <h2 className="text-xl font-bold tracking-tight text-foreground 2xl:text-2xl">
+                Test performance by category
+              </h2>
               <p className="text-sm text-muted-foreground">Speed · Accuracy · Stamina dials</p>
             </div>
             <div className="grid gap-3 md:grid-cols-2">
               {EXAM_CARDS.map((card) => (
-                <div key={card.key} className={`rounded-2xl border bg-background/75 p-4 dark:bg-slate-900/50 ${card.tone}`}>
+                <div
+                  key={card.key}
+                  className={`rounded-2xl border bg-background/75 p-4 dark:bg-slate-900/50 ${card.tone}`}
+                >
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-2.5">
-                      <span className={`inline-flex h-9 w-9 items-center justify-center rounded-lg ${card.iconBg}`}>
+                      <span
+                        className={`inline-flex h-9 w-9 items-center justify-center rounded-lg ${card.iconBg}`}
+                      >
                         <card.icon className="h-4.5 w-4.5" />
                       </span>
                       <div>
@@ -617,7 +644,9 @@ export default function PerformancePage() {
               <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-violet-500/12 text-violet-600 dark:bg-violet-500/20 dark:text-violet-300 2xl:h-8 2xl:w-8">
                 <CalendarDays className="h-4 w-4 2xl:h-[18px] 2xl:w-[18px]" />
               </span>
-              <h2 className="text-xl font-bold tracking-tight text-foreground 2xl:text-2xl">Activity heatmap</h2>
+              <h2 className="text-xl font-bold tracking-tight text-foreground 2xl:text-2xl">
+                Activity heatmap
+              </h2>
             </div>
 
             <div className="flex flex-col gap-3 lg:flex-row lg:items-stretch lg:gap-4 2xl:gap-5">
@@ -680,18 +709,17 @@ export default function PerformancePage() {
                             : `${cell.day.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })} · ${cell.count} activit${cell.count === 1 ? "y" : "ies"}`;
                           const base =
                             "min-h-0 min-w-0 rounded-[2px] outline outline-1 -outline-offset-1 transition-colors";
-                          const tone =
-                            cell.isFuture
-                              ? "bg-muted/30 opacity-45 outline-transparent"
-                              : intensity === 0
-                                ? "bg-muted/80 outline-border/40 dark:bg-slate-800/90 dark:outline-white/10"
-                                : intensity === 1
-                                  ? "bg-violet-300/95 outline-violet-500/25 dark:bg-violet-950 dark:outline-violet-500/20"
-                                  : intensity === 2
-                                    ? "bg-violet-400/95 outline-violet-500/30 dark:bg-violet-800 dark:outline-violet-400/25"
-                                    : intensity === 3
-                                      ? "bg-violet-500/95 outline-violet-400/35 dark:bg-violet-600 dark:outline-violet-300/30"
-                                      : "bg-violet-600 text-white outline-violet-300/40 dark:bg-violet-400 dark:outline-violet-200/35";
+                          const tone = cell.isFuture
+                            ? "bg-muted/30 opacity-45 outline-transparent"
+                            : intensity === 0
+                              ? "bg-muted/80 outline-border/40 dark:bg-slate-800/90 dark:outline-white/10"
+                              : intensity === 1
+                                ? "bg-violet-300/95 outline-violet-500/25 dark:bg-violet-950 dark:outline-violet-500/20"
+                                : intensity === 2
+                                  ? "bg-violet-400/95 outline-violet-500/30 dark:bg-violet-800 dark:outline-violet-400/25"
+                                  : intensity === 3
+                                    ? "bg-violet-500/95 outline-violet-400/35 dark:bg-violet-600 dark:outline-violet-300/30"
+                                    : "bg-violet-600 text-white outline-violet-300/40 dark:bg-violet-400 dark:outline-violet-200/35";
                           return (
                             <div
                               key={idx}
@@ -721,15 +749,21 @@ export default function PerformancePage() {
               <div className="grid shrink-0 grid-cols-2 gap-2 sm:gap-3 lg:w-[min(100%,280px)] lg:min-w-[220px]">
                 <div className="rounded-xl border border-border bg-background/80 px-3 py-2.5 dark:bg-slate-900/55">
                   <p className="text-[11px] text-muted-foreground">Overall Correct</p>
-                  <p className="text-xl font-bold tabular-nums text-emerald-500 sm:text-2xl">{totalCorrect}</p>
+                  <p className="text-xl font-bold tabular-nums text-emerald-500 sm:text-2xl">
+                    {totalCorrect}
+                  </p>
                 </div>
                 <div className="rounded-xl border border-border bg-background/80 px-3 py-2.5 dark:bg-slate-900/55">
                   <p className="text-[11px] text-muted-foreground">Overall Wrong</p>
-                  <p className="text-xl font-bold tabular-nums text-rose-500 sm:text-2xl">{totalWrong}</p>
+                  <p className="text-xl font-bold tabular-nums text-rose-500 sm:text-2xl">
+                    {totalWrong}
+                  </p>
                 </div>
                 <div className="rounded-xl border border-border bg-background/80 px-3 py-2.5 dark:bg-slate-900/55">
                   <p className="text-[11px] text-muted-foreground">Overall Skipped</p>
-                  <p className="text-xl font-bold tabular-nums text-muted-foreground sm:text-2xl">{totalSkipped}</p>
+                  <p className="text-xl font-bold tabular-nums text-muted-foreground sm:text-2xl">
+                    {totalSkipped}
+                  </p>
                 </div>
                 <div className="rounded-xl border border-border bg-background/80 px-3 py-2.5 dark:bg-slate-900/55">
                   <p className="text-[11px] text-muted-foreground">Daily Momentum</p>

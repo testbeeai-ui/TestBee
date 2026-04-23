@@ -17,7 +17,9 @@ export default function InlineAnswer({ answer }: InlineAnswerProps) {
   const net = answer.upvotes - answer.downvotes;
 
   return (
-    <div className={`pl-4 py-3 ${isTeacher ? "border-l-4 border-blue-500 bg-blue-500/5" : isAccepted ? "border-l-4 border-emerald-500 bg-emerald-500/5" : "border-l-2 border-border"}`}>
+    <div
+      className={`pl-4 py-3 ${isTeacher ? "border-l-4 border-blue-500 bg-blue-500/5" : isAccepted ? "border-l-4 border-emerald-500 bg-emerald-500/5" : "border-l-2 border-border"}`}
+    >
       <div className="flex items-center gap-2 mb-1.5">
         <UserHoverCard userId={answer.user_id}>
           <div className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity">
@@ -43,7 +45,8 @@ export default function InlineAnswer({ answer }: InlineAnswerProps) {
       <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{answer.body}</p>
       <div className="flex items-center gap-3 mt-2">
         <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-          <ChevronUp className="w-3.5 h-3.5" /> {net > 0 ? `${net} helpful` : net === 0 ? "0" : `${net}`}
+          <ChevronUp className="w-3.5 h-3.5" />{" "}
+          {net > 0 ? `${net} helpful` : net === 0 ? "0" : `${net}`}
         </span>
       </div>
     </div>

@@ -7,48 +7,48 @@ import React from "react";
  * and the active plasma engine powers up with magnetic rings and erratic arcs.
  */
 export default function AnimatedPhysicsIcon({
-    size = "40px",
-    isOpen = false,
+  size = "40px",
+  isOpen = false,
 }: {
-    size?: string;
-    isOpen?: boolean;
+  size?: string;
+  isOpen?: boolean;
 }) {
-    const activeClass = isOpen ? "active" : "";
+  const activeClass = isOpen ? "active" : "";
 
-    return (
-        <div
-            className="relative flex items-center justify-center shrink-0"
-            style={{ width: size, height: size }}
-        >
-            <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="60 40 180 230"
-                className="w-full h-full overflow-visible"
-            >
-                <defs>
-                    <linearGradient id="physIdleGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                        <stop offset="0%" stopColor="#FF8C00" />
-                        <stop offset="100%" stopColor="#EF4444" />
-                    </linearGradient>
+  return (
+    <div
+      className="relative flex items-center justify-center shrink-0"
+      style={{ width: size, height: size }}
+    >
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="60 40 180 230"
+        className="w-full h-full overflow-visible"
+      >
+        <defs>
+          <linearGradient id="physIdleGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#FF8C00" />
+            <stop offset="100%" stopColor="#EF4444" />
+          </linearGradient>
 
-                    <linearGradient id="physActivePlasmaGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                        <stop offset="0%" stopColor="#7E22CE" />
-                        <stop offset="50%" stopColor="#D946EF" />
-                        <stop offset="100%" stopColor="#E11D48" />
-                    </linearGradient>
+          <linearGradient id="physActivePlasmaGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#7E22CE" />
+            <stop offset="50%" stopColor="#D946EF" />
+            <stop offset="100%" stopColor="#E11D48" />
+          </linearGradient>
 
-                    <linearGradient id="physActiveCoreGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                        <stop offset="0%" stopColor="#FDE047" />
-                        <stop offset="100%" stopColor="#F59E0B" />
-                    </linearGradient>
+          <linearGradient id="physActiveCoreGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#FDE047" />
+            <stop offset="100%" stopColor="#F59E0B" />
+          </linearGradient>
 
-                    <filter id="physPlasmaBurn" x="-50%" y="-50%" width="200%" height="200%">
-                        <feDropShadow dx="0" dy="0" stdDeviation="5" floodColor="#9333EA" floodOpacity="0.8" />
-                        <feDropShadow dx="0" dy="0" stdDeviation="15" floodColor="#E11D48" floodOpacity="0.4" />
-                    </filter>
-                </defs>
+          <filter id="physPlasmaBurn" x="-50%" y="-50%" width="200%" height="200%">
+            <feDropShadow dx="0" dy="0" stdDeviation="5" floodColor="#9333EA" floodOpacity="0.8" />
+            <feDropShadow dx="0" dy="0" stdDeviation="15" floodColor="#E11D48" floodOpacity="0.4" />
+          </filter>
+        </defs>
 
-                <style>{`
+        <style>{`
           /* --- IDLE PHYSICS (Potential Energy) --- */
           @keyframes physLevitateHeavy {
             0%, 100% { transform: translateY(0px); }
@@ -127,34 +127,45 @@ export default function AnimatedPhysicsIcon({
           .phys-container.active .phys-arc-e { animation: physStrobeArc 0.35s infinite 0.15s; --tx: 0px; --ty: -40px; stroke-width: 2; stroke: #2563EB; }
         `}</style>
 
-                <g className={`phys-container ${activeClass}`}>
-                    <circle cx="150" cy="150" r="140" fill="transparent" />
+        <g className={`phys-container ${activeClass}`}>
+          <circle cx="150" cy="150" r="140" fill="transparent" />
 
-                    {/* Optional bottom shadow/glow if needed
+          {/* Optional bottom shadow/glow if needed
           <ellipse cx="150" cy="260" rx="40" ry="6" fill="#E2E8F0" opacity="0.8" />
           */}
 
-                    <g className="phys-active-engine">
-                        <circle className="phys-flux-ring phys-flux-1" cx="150" cy="150" r="50" />
-                        <circle className="phys-flux-ring phys-flux-2" cx="150" cy="150" r="70" />
+          <g className="phys-active-engine">
+            <circle className="phys-flux-ring phys-flux-1" cx="150" cy="150" r="50" />
+            <circle className="phys-flux-ring phys-flux-2" cx="150" cy="150" r="70" />
 
-                        <g className="phys-core-bolt">
-                            <path className="phys-arc phys-arc-a" d="M 150 150 L 110 130 L 90 140 L 70 110" />
-                            <path className="phys-arc phys-arc-b" d="M 150 150 L 190 160 L 210 140 L 240 170" />
-                            <path className="phys-arc phys-arc-c" d="M 150 150 L 130 190 L 140 210 L 110 230" />
-                            <path className="phys-arc phys-arc-d" d="M 150 150 L 180 110 L 170 90 L 210 60" />
-                            <path className="phys-arc phys-arc-e" d="M 150 150 L 140 110 L 160 80 L 145 50" />
+            <g className="phys-core-bolt">
+              <path className="phys-arc phys-arc-a" d="M 150 150 L 110 130 L 90 140 L 70 110" />
+              <path className="phys-arc phys-arc-b" d="M 150 150 L 190 160 L 210 140 L 240 170" />
+              <path className="phys-arc phys-arc-c" d="M 150 150 L 130 190 L 140 210 L 110 230" />
+              <path className="phys-arc phys-arc-d" d="M 150 150 L 180 110 L 170 90 L 210 60" />
+              <path className="phys-arc phys-arc-e" d="M 150 150 L 140 110 L 160 80 L 145 50" />
 
-                            <path d="M 160 50 L 90 150 L 140 150 L 110 250 L 200 130 L 150 130 Z" fill="url(#physActivePlasmaGrad)" filter="url(#physPlasmaBurn)" />
-                            <path d="M 155 70 L 105 150 L 140 150 L 120 220 L 180 130 L 145 130 Z" fill="url(#physActiveCoreGrad)" />
-                        </g>
-                    </g>
+              <path
+                d="M 160 50 L 90 150 L 140 150 L 110 250 L 200 130 L 150 130 Z"
+                fill="url(#physActivePlasmaGrad)"
+                filter="url(#physPlasmaBurn)"
+              />
+              <path
+                d="M 155 70 L 105 150 L 140 150 L 120 220 L 180 130 L 145 130 Z"
+                fill="url(#physActiveCoreGrad)"
+              />
+            </g>
+          </g>
 
-                    <g className="phys-idle-bolt">
-                        <path d="M 160 50 L 90 150 L 140 150 L 110 250 L 200 130 L 150 130 Z" fill="url(#physIdleGrad)" filter="drop-shadow(0px 10px 15px rgba(220, 38, 38, 0.2))" />
-                    </g>
-                </g>
-            </svg>
-        </div>
-    );
+          <g className="phys-idle-bolt">
+            <path
+              d="M 160 50 L 90 150 L 140 150 L 110 250 L 200 130 L 150 130 Z"
+              fill="url(#physIdleGrad)"
+              filter="drop-shadow(0px 10px 15px rgba(220, 38, 38, 0.2))"
+            />
+          </g>
+        </g>
+      </svg>
+    </div>
+  );
 }

@@ -32,10 +32,14 @@ export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const from = parseIsoDate(url.searchParams.get("from"));
   const to = parseIsoDate(url.searchParams.get("to"));
-  const today = parseIsoDate(url.searchParams.get("today")) ?? parseIsoDate(url.searchParams.get("to"));
+  const today =
+    parseIsoDate(url.searchParams.get("today")) ?? parseIsoDate(url.searchParams.get("to"));
 
   if (!from || !to) {
-    return NextResponse.json({ error: "from and to query params (YYYY-MM-DD) are required" }, { status: 400 });
+    return NextResponse.json(
+      { error: "from and to query params (YYYY-MM-DD) are required" },
+      { status: 400 }
+    );
   }
 
   // Table/RPC from migration `20260418160000_user_study_day_totals.sql`; add to `Database` when types are regenerated.
@@ -48,7 +52,9 @@ export async function GET(req: NextRequest) {
       .gte("day", from)
       .lte("day", to)
       .order("day", { ascending: true }),
-    today ? sb.rpc("get_study_streak_summary", { p_today: today }) : Promise.resolve({ data: null, error: null }),
+    today
+      ? sb.rpc("get_study_streak_summary", { p_today: today })
+      : Promise.resolve({ data: null, error: null }),
   ]);
 
   if (error) {
@@ -57,7 +63,7 @@ export async function GET(req: NextRequest) {
       console.warn("[study-days GET] upstream:", msg.slice(0, 240));
       return NextResponse.json(
         { error: "Database temporarily unavailable", retryable: true },
-        { status: 503 },
+        { status: 503 }
       );
     }
     console.error("[study-days GET]", msg);
@@ -133,7 +139,7 @@ export async function POST(req: NextRequest) {
         console.warn("[study-days POST presence] upstream:", msg.slice(0, 240));
         return NextResponse.json(
           { error: "Database temporarily unavailable", retryable: true },
-          { status: 503 },
+          { status: 503 }
         );
       }
       console.error("[study-days POST presence]", msg);
@@ -161,7 +167,7 @@ export async function POST(req: NextRequest) {
       console.warn("[study-days POST rpc] upstream:", msg.slice(0, 240));
       return NextResponse.json(
         { error: "Database temporarily unavailable", retryable: true },
-        { status: 503 },
+        { status: 503 }
       );
     }
     console.error("[study-days POST rpc]", msg);

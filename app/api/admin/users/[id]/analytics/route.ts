@@ -14,10 +14,7 @@ function jsonObjectLen(value: Json | null | undefined): number {
   return Object.keys(value as Record<string, unknown>).length;
 }
 
-export async function GET(
-  request: Request,
-  context: { params: Promise<{ id: string }> }
-) {
+export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
     const ctx = await getSupabaseAndUser(request);
     if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -38,14 +35,24 @@ export async function GET(
       admin.auth.admin.getUserById(userId),
       admin.from("profiles").select("*").eq("id", userId).maybeSingle(),
       admin.from("doubts").select("id, created_at, is_resolved, views").eq("user_id", userId),
-      admin.from("ai_token_logs").select("id, created_at, prompt_tokens, candidates_tokens, total_tokens").eq("user_id", userId).order("created_at", { ascending: false }).limit(200),
+      admin
+        .from("ai_token_logs")
+        .select("id, created_at, prompt_tokens, candidates_tokens, total_tokens")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(200),
     ]);
 
     if (authRes.error || !authRes.data.user) {
-      return NextResponse.json({ error: authRes.error?.message || "User not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: authRes.error?.message || "User not found" },
+        { status: 404 }
+      );
     }
-    if (profileRes.error) return NextResponse.json({ error: profileRes.error.message }, { status: 500 });
-    if (doubtsRes.error) return NextResponse.json({ error: doubtsRes.error.message }, { status: 500 });
+    if (profileRes.error)
+      return NextResponse.json({ error: profileRes.error.message }, { status: 500 });
+    if (doubtsRes.error)
+      return NextResponse.json({ error: doubtsRes.error.message }, { status: 500 });
     if (aiRes.error) return NextResponse.json({ error: aiRes.error.message }, { status: 500 });
 
     const authUser = authRes.data.user;
@@ -83,10 +90,18 @@ export async function GET(
         lifetimeRdm: Number(profile?.lifetime_answer_rdm ?? 0),
         savedBits: jsonArrayLen((profile?.saved_bits as Json | null | undefined) ?? null),
         savedFormulas: jsonArrayLen((profile?.saved_formulas as Json | null | undefined) ?? null),
-        savedRevisionCards: jsonArrayLen((profile?.saved_revision_cards as Json | null | undefined) ?? null),
-        savedRevisionUnits: jsonArrayLen((profile?.saved_revision_units as Json | null | undefined) ?? null),
-        bitsAttempts: jsonObjectLen((profile?.bits_test_attempts as Json | null | undefined) ?? null),
-        subtopicEngagement: jsonObjectLen((profile?.subtopic_engagement as Json | null | undefined) ?? null),
+        savedRevisionCards: jsonArrayLen(
+          (profile?.saved_revision_cards as Json | null | undefined) ?? null
+        ),
+        savedRevisionUnits: jsonArrayLen(
+          (profile?.saved_revision_units as Json | null | undefined) ?? null
+        ),
+        bitsAttempts: jsonObjectLen(
+          (profile?.bits_test_attempts as Json | null | undefined) ?? null
+        ),
+        subtopicEngagement: jsonObjectLen(
+          (profile?.subtopic_engagement as Json | null | undefined) ?? null
+        ),
         doubtsCreated: doubts.length,
         doubtsResolved: doubts.filter((d) => Boolean(d.is_resolved)).length,
         doubtViews: doubts.reduce((sum, d) => sum + Number(d.views ?? 0), 0),

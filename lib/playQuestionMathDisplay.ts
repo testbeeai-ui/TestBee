@@ -4,6 +4,103 @@
  * Repair before MathText so chunks parse and prose heuristics work.
  */
 
+/**
+ * Detect and wrap naked math notation (Greek letters, LaTeX commands) in math delimiters.
+ * This prevents KaTeX from showing red errors for things like \mu, \lambda, etc.
+ */
+/** Map LaTeX Greek commands -> Unicode so they work inside \text{...} (text mode). */
+const GREEK_TO_UNICODE: Record<string, string> = {
+  alpha: "α",
+  beta: "β",
+  gamma: "γ",
+  delta: "δ",
+  epsilon: "ε",
+  varepsilon: "ε",
+  zeta: "ζ",
+  eta: "η",
+  theta: "θ",
+  iota: "ι",
+  kappa: "κ",
+  lambda: "λ",
+  mu: "μ",
+  nu: "ν",
+  xi: "ξ",
+  pi: "π",
+  rho: "ρ",
+  sigma: "σ",
+  tau: "τ",
+  phi: "φ",
+  varphi: "φ",
+  chi: "χ",
+  psi: "ψ",
+  omega: "ω",
+  Delta: "Δ",
+  Gamma: "Γ",
+  Lambda: "Λ",
+  Omega: "Ω",
+  Phi: "Φ",
+  Pi: "Π",
+  Psi: "Ψ",
+  Sigma: "Σ",
+  Theta: "Θ",
+  Xi: "Ξ",
+};
+
+/**
+ * Replace Greek LaTeX commands (e.g. \mu) that appear INSIDE \text{...} blocks
+ * with Unicode equivalents. KaTeX's text mode does not recognize \mu and renders
+ * it as a red error — unicode characters work fine in text mode.
+ */
+export function fixGreekInsideTextBlocks(text: string): string {
+  return text.replace(/\\text\{([^{}]*)\}/g, (_match, inner: string) => {
+    const fixed = inner.replace(
+      /\\(mu|lambda|tau|sigma|rho|theta|alpha|beta|gamma|delta|epsilon|varepsilon|omega|phi|varphi|psi|pi|chi|eta|iota|kappa|nu|xi|zeta|Delta|Gamma|Lambda|Omega|Phi|Pi|Psi|Sigma|Theta|Xi)\s?/g,
+      (_m, name: string) => GREEK_TO_UNICODE[name] ?? _m
+    );
+    return `\\text{${fixed}}`;
+  });
+}
+
+/**
+ * Split glued letters after Greek commands: "\muC" -> "\mu{}C".
+ * KaTeX would otherwise treat \muC as one unknown command.
+ */
+export function splitGluedGreekCommands(text: string): string {
+  return text.replace(
+    /\\(mu|lambda|tau|sigma|rho|theta|alpha|beta|gamma|delta|epsilon|varepsilon|omega|phi|varphi|psi|pi|chi|eta|iota|kappa|nu|xi|zeta|Delta|Gamma|Lambda|Omega|Phi|Pi|Psi|Sigma|Theta|Xi)([A-Za-z])/g,
+    "\\$1{}$2"
+  );
+}
+
+function preprocessNakedMath(text: string): string {
+  let t = text;
+  if (!t.trim()) return t;
+
+  // Handle unicode mu character (μ) directly
+  t = t.replace(/μ/g, "\\mu ");
+
+  // Split glued letters after Greek commands (runs even inside math delimiters)
+  t = splitGluedGreekCommands(t);
+
+  // If already in math mode, done (splitting was enough)
+  if (/\\\(|\\\[|\$\$?/.test(t)) return t;
+
+  // Wrap LaTeX Greek commands in $...$ when outside math mode
+  // Note: $$ in replacement string = literal $
+  t = t.replace(
+    /\\(mu|lambda|tau|sigma|rho|theta|alpha|beta|gamma|delta|epsilon|varepsilon|omega|phi|varphi|psi|pi|chi|eta|iota|kappa|nu|xi|zeta|Delta|Gamma|Lambda|Omega|Phi|Pi|Psi|Sigma|Theta|Xi)/g,
+    "$$\\$1$$"
+  );
+
+  // Wrap Greek letter names without backslash (common in plain text)
+  t = t.replace(
+    /\b(tau|sigma|rho|theta|alpha|beta|gamma|delta|epsilon|omega|phi|psi|lambda|mu)\b/gi,
+    "$$\\$1$$"
+  );
+
+  return t;
+}
+
 /** Long run of letters without spaces — likely glued English inside bad LaTeX. */
 function hasGluedEnglishRun(s: string, minLen = 8): boolean {
   return new RegExp(`[a-zA-Z]{${minLen},}`).test(s);
@@ -46,13 +143,15 @@ export function repairGluedWordsInString(s: string): string {
 
 /** Apply {@link repairGluedWordsInString} inside each `$...$` / `$$...$$` pair only. */
 export function repairPlayQuestionDollarSegments(text: string): string {
-  return text.replace(/\$\$([^$]+)\$\$/g, (_, inner: string) => {
-    const x = repairGluedWordsInString(String(inner));
-    return `$$${x}$$`;
-  }).replace(/\$([^$\n]+?)\$/g, (_, inner: string) => {
-    const x = repairGluedWordsInString(String(inner));
-    return `$${x}$`;
-  });
+  return text
+    .replace(/\$\$([^$]+)\$\$/g, (_, inner: string) => {
+      const x = repairGluedWordsInString(String(inner));
+      return `$$${x}$$`;
+    })
+    .replace(/\$([^$\n]+?)\$/g, (_, inner: string) => {
+      const x = repairGluedWordsInString(String(inner));
+      return `$${x}$`;
+    });
 }
 
 /**
@@ -81,9 +180,29 @@ export function unicodePowToTeX(text: string): string {
   return t;
 }
 
+/**
+ * Some banks send nested inline delimiters inside exponent blocks, e.g.
+ * `e^{\\(i\\pi\\)} + 1 = 0`. This confuses the markdown->KaTeX pipeline because
+ * `\\(...\\)` later becomes `$...$` and gets embedded inside braces.
+ * Strip only this nesting so the expression remains valid TeX/plain math.
+ */
+export function unwrapNestedInlineMathInPowers(text: string): string {
+  let t = text;
+  // e^{\(i\pi\)} -> e^{i\pi}
+  t = t.replace(/\^\{\\\(([\s\S]*?)\\\)\}/g, "^{$1}");
+  // e^\(i\pi\) -> e^{i\pi}
+  t = t.replace(/\^\\\(([\s\S]*?)\\\)/g, "^{$1}");
+  // {( ... )} wrappers that sometimes appear around Euler-like exponent content
+  t = t.replace(/\^\{\(([^{}]+)\)\}/g, "^{$1}");
+  return t;
+}
+
 /** Full pipeline for stems shown in PlayQuestionCard / InlineRdmChallenge. */
 export function formatPlayQuestionStemForDisplay(text: string): string {
   const s = String(text ?? "").trim();
   if (!s) return s;
-  return repairPlayQuestionDollarSegments(unicodePowToTeX(s));
+  const withNakedMath = preprocessNakedMath(s);
+  return repairPlayQuestionDollarSegments(
+    unwrapNestedInlineMathInPowers(unicodePowToTeX(withNakedMath))
+  );
 }

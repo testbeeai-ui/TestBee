@@ -15,13 +15,7 @@ import { UserHoverCard } from "@/components/UserHoverCard";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DUMMY_PROPOSALS } from "@/lib/edufundProposals";
 import type { Proposal, ProposalCategory } from "@/lib/edufundProposals";
-import {
-  Flame,
-  Laptop,
-  BookOpen,
-  FlaskConical,
-  GraduationCap,
-} from "lucide-react";
+import { Flame, Laptop, BookOpen, FlaskConical, GraduationCap } from "lucide-react";
 
 const CATEGORY_ICONS: Record<ProposalCategory, typeof Laptop> = {
   "Learning Device": Laptop,
@@ -44,10 +38,7 @@ export default function EduFundDetailPage() {
   const [donationAmount, setDonationAmount] = useState(0);
   const [hypedIds, setHypedIds] = useState<Set<string>>(new Set());
 
-  const baseProposal = useMemo(
-    () => (id ? DUMMY_PROPOSALS.find((p) => p.id === id) : null),
-    [id]
-  );
+  const baseProposal = useMemo(() => (id ? DUMMY_PROPOSALS.find((p) => p.id === id) : null), [id]);
   const proposalIndex = baseProposal ? DUMMY_PROPOSALS.findIndex((p) => p.id === id) : -1;
 
   const [communityMembers, setCommunityMembers] = useState<{ id: string; name: string }[]>([]);
@@ -67,9 +58,7 @@ export default function EduFundDetailPage() {
   const proposal = baseProposal;
   const isSupporting = proposal && supportingId === proposal.id;
   const isHyped = proposal ? hypedIds.has(proposal.id) : false;
-  const pct = proposal
-    ? Math.min(100, Math.round((proposal.raised / proposal.goal) * 100))
-    : 0;
+  const pct = proposal ? Math.min(100, Math.round((proposal.raised / proposal.goal) * 100)) : 0;
 
   const toggleHype = () => {
     if (!proposal) return;

@@ -12,7 +12,13 @@ export default function LandingFooter({ variant = "light" }: { variant?: "light"
     >
       <div className="max-w-[1200px] mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <p className={isDark ? "text-[15px] font-medium text-white" : "text-[15px] font-medium text-gray-900"}>
+          <p
+            className={
+              isDark
+                ? "text-[15px] font-medium text-white"
+                : "text-[15px] font-medium text-gray-900"
+            }
+          >
             Edu<span className="text-[#34f5a4]">Blast</span>
             <span className={isDark ? "text-zinc-500 font-normal" : "text-gray-400 font-normal"}>
               {" "}
@@ -26,11 +32,11 @@ export default function LandingFooter({ variant = "light" }: { variant?: "light"
                 : "text-xs text-gray-400 max-w-xl leading-relaxed mt-1"
             }
           >
-            Edufund is a genuine financial aid programme wherein need-based students can apply for grants
-            and donations from charities and philanthropists who support the bright and diligent,
-            hardworking students to help them on a level-playing field. Eligibility is based on achieving
-            certain RDM earnings from the site which can be obtained through high activity thresholds which
-            signifies regular learning, revisions and mock tests.
+            Edufund is a genuine financial aid programme wherein need-based students can apply for
+            grants and donations from charities and philanthropists who support the bright and
+            diligent, hardworking students to help them on a level-playing field. Eligibility is
+            based on achieving certain RDM earnings from the site which can be obtained through high
+            activity thresholds which signifies regular learning, revisions and mock tests.
           </p>
         </div>
 

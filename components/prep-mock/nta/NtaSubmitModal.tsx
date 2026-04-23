@@ -22,7 +22,11 @@ export function NtaSubmitModal({ open, onCancel, onConfirm }: NtaSubmitModalProp
         style={{ background: "var(--nta-bg)", borderColor: "var(--nta-border)" }}
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 id="nta-submit-title" className="text-lg font-bold" style={{ color: "var(--nta-text)" }}>
+        <h2
+          id="nta-submit-title"
+          className="text-lg font-bold"
+          style={{ color: "var(--nta-text)" }}
+        >
           Submit and see results?
         </h2>
         <p className="mt-2 text-sm" style={{ color: "var(--nta-muted)" }}>

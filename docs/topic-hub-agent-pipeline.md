@@ -4,8 +4,8 @@ Admin-only endpoint that generates JSON sections (`why_study`, `what_learn`, `re
 
 ## Chapter hub vs topic hub (do not merge)
 
-- **Topic hub** (`hubScope=topic`, default): one syllabus **topic** (e.g. *Coulomb's Law*) — used on `/.../topic/overview/...` and Explore when the unit is a single topic.
-- **Chapter hub** (`hubScope=chapter`): the **whole chapter landing** in Explore (e.g. *Electric Charges and Fields*) — `topic` in the API/DB is the **chapter title**, not the first topic inside it.
+- **Topic hub** (`hubScope=topic`, default): one syllabus **topic** (e.g. _Coulomb's Law_) — used on `/.../topic/overview/...` and Explore when the unit is a single topic.
+- **Chapter hub** (`hubScope=chapter`): the **whole chapter landing** in Explore (e.g. _Electric Charges and Fields_) — `topic` in the API/DB is the **chapter title**, not the first topic inside it.
 
 These are stored as **different rows** in `topic_content` (see migration `hub_scope`). Generating chapter copy no longer overwrites the Coulomb's Law topic hub.
 
@@ -13,10 +13,10 @@ Apply migration `20250326100000_topic_content_hub_scope.sql` so `hub_scope` and 
 
 ## Gemini backends
 
-| Mode | When | Required env |
-|------|------|----------------|
-| **AI Studio (API key)** | Default | `GEMINI_API_KEY` |
-| **Vertex AI** | `GEMINI_USE_VERTEX=true` or `1` **and** `GOOGLE_CLOUD_PROJECT` set | `GOOGLE_CLOUD_PROJECT`, ADC |
+| Mode                    | When                                                               | Required env                |
+| ----------------------- | ------------------------------------------------------------------ | --------------------------- |
+| **AI Studio (API key)** | Default                                                            | `GEMINI_API_KEY`            |
+| **Vertex AI**           | `GEMINI_USE_VERTEX=true` or `1` **and** `GOOGLE_CLOUD_PROJECT` set | `GOOGLE_CLOUD_PROJECT`, ADC |
 
 **Do not remove `GEMINI_API_KEY` until Vertex is configured and tested** (still required when Vertex is off).
 

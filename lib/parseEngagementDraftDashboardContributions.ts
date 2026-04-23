@@ -1,6 +1,6 @@
 import type { Subject } from "@/types";
 
-const ALLOWED_SUBJECTS = new Set<string>(["physics", "chemistry", "math", "biology"]);
+const ALLOWED_SUBJECTS = new Set<string>(["physics", "chemistry", "math"]);
 
 export type EngagementDraftDashboardRow = {
   subject: Subject;
@@ -38,7 +38,7 @@ function topicFromEngagementKey(key: string): string | null {
  */
 export function parseEngagementDraftDashboardContributions(
   raw: unknown,
-  submittedAttemptKeys: Set<string>,
+  submittedAttemptKeys: Set<string>
 ): EngagementDraftDashboardRow[] {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return [];
   const out: EngagementDraftDashboardRow[] = [];

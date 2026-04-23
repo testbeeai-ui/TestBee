@@ -14,7 +14,11 @@ type InsertItem = {
 
 function clean(value: unknown, maxLen = 240): string {
   if (typeof value !== "string") return "";
-  return value.replace(/[\x00-\x1F\x7F]/g, " ").replace(/\s+/g, " ").trim().slice(0, maxLen);
+  return value
+    .replace(/[\x00-\x1F\x7F]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, maxLen);
 }
 
 function normalizeTopicKey(value: unknown): string {
@@ -47,7 +51,7 @@ function normalizeInsertItems(raw: unknown): InsertItem[] {
     const chapterTitle = clean(o.chapterTitle, 200);
     const topicName = clean(o.topicName, 220);
     if (!topicName) continue;
-    if (subject !== "physics" && subject !== "chemistry" && subject !== "math" && subject !== "biology") continue;
+    if (subject !== "physics" && subject !== "chemistry" && subject !== "math") continue;
     out.push({
       topicKey,
       board: board === "ICSE" ? "ICSE" : "CBSE",

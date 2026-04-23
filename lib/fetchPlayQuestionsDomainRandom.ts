@@ -57,7 +57,7 @@ function domainCategorySentinels(domain: PlayDomain): readonly string[] {
  */
 export async function fetchPlayQuestionsDomainRandom(
   sb: SupabaseClient<Database>,
-  params: { domain: PlayDomain; count: number },
+  params: { domain: PlayDomain; count: number }
 ): Promise<PlayQuestionRow[]> {
   const { domain, count } = params;
   const sentinels = domainCategorySentinels(domain);
@@ -67,11 +67,13 @@ export async function fetchPlayQuestionsDomainRandom(
     sentinels.map((category) =>
       sb
         .from("play_questions")
-        .select("id, content, options, correct_answer_index, explanation, difficulty_rating, category")
+        .select(
+          "id, content, options, correct_answer_index, explanation, difficulty_rating, category"
+        )
         .eq("domain", domain)
         .eq("category", category)
-        .limit(perCatLimit),
-    ),
+        .limit(perCatLimit)
+    )
   );
 
   const byCat = new Map<string, RawPlayQuestion[]>();

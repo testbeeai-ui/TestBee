@@ -5,7 +5,10 @@ import { normalizeSubjectKey, normalizeSubtopicContentKey } from "@/lib/subtopic
 
 function sanitize(value: unknown, maxLen = 500): string {
   if (typeof value !== "string") return "";
-  return value.replace(/[<>\x00-\x1F\x7F]/g, " ").trim().slice(0, maxLen);
+  return value
+    .replace(/[<>\x00-\x1F\x7F]/g, " ")
+    .trim()
+    .slice(0, maxLen);
 }
 
 function normalizePracticeFormulas(raw: unknown) {
@@ -26,7 +29,10 @@ function normalizePracticeFormulas(raw: unknown) {
             return {
               question: sanitize(b.question, 2000),
               options: Array.isArray(b.options)
-                ? b.options.map((opt) => sanitize(opt, 1000)).filter(Boolean).slice(0, 4)
+                ? b.options
+                    .map((opt) => sanitize(opt, 1000))
+                    .filter(Boolean)
+                    .slice(0, 4)
                 : [],
               correctAnswer: sanitize(b.correctAnswer, 1000),
               solution: sanitize(b.solution, 4000),
@@ -81,4 +87,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
-

@@ -9,13 +9,7 @@ import {
   parseGovernanceMeta,
 } from "@/lib/adminGovernance";
 
-type ActionType =
-  | "ban"
-  | "unban"
-  | "suspend"
-  | "unsuspend"
-  | "soft_delete"
-  | "restore";
+type ActionType = "ban" | "unban" | "suspend" | "unsuspend" | "soft_delete" | "restore";
 
 type Body = {
   userId?: string;
@@ -55,12 +49,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "userId and valid action are required" }, { status: 400 });
     }
     if (userId === ctx.user.id) {
-      return NextResponse.json({ error: "You cannot apply governance actions on your own account" }, { status: 400 });
+      return NextResponse.json(
+        { error: "You cannot apply governance actions on your own account" },
+        { status: 400 }
+      );
     }
 
     const getUserRes = await admin.auth.admin.getUserById(userId);
     if (getUserRes.error || !getUserRes.data.user) {
-      return NextResponse.json({ error: getUserRes.error?.message || "User not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: getUserRes.error?.message || "User not found" },
+        { status: 404 }
+      );
     }
     const target = getUserRes.data.user;
     const { data: profile, error: profileError } = await admin
@@ -77,7 +77,10 @@ export async function POST(request: Request) {
         role: profile?.role ?? null,
       })
     ) {
-      return NextResponse.json({ error: "Protected system accounts cannot be modified" }, { status: 403 });
+      return NextResponse.json(
+        { error: "Protected system accounts cannot be modified" },
+        { status: 403 }
+      );
     }
 
     const oldMeta = parseGovernanceMeta(target.app_metadata);
@@ -123,7 +126,10 @@ export async function POST(request: Request) {
 
     const updateRes = await admin.auth.admin.updateUserById(userId, updatePayload);
     if (updateRes.error || !updateRes.data.user) {
-      return NextResponse.json({ error: updateRes.error?.message || "Failed to update user" }, { status: 500 });
+      return NextResponse.json(
+        { error: updateRes.error?.message || "Failed to update user" },
+        { status: 500 }
+      );
     }
 
     const updated = updateRes.data.user;
@@ -135,7 +141,9 @@ export async function POST(request: Request) {
 
     // Audit log insert (best effort).
     const adminAny = admin as unknown as {
-      from: (table: string) => { insert: (values: Record<string, unknown>) => Promise<{ error: { message: string } | null }> };
+      from: (table: string) => {
+        insert: (values: Record<string, unknown>) => Promise<{ error: { message: string } | null }>;
+      };
     };
     await adminAny.from("admin_user_actions").insert({
       target_user_id: userId,

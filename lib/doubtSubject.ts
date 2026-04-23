@@ -21,7 +21,9 @@ const SUBJECT_SYNONYMS: Record<string, CanonicalDoubtSubject> = {
  * Normalize stored `doubts.subject` for display + subject-chip filters.
  * Returns null if empty or unrecognized (caller may fall back to persona or "Untagged").
  */
-export function canonicalDoubtSubject(raw: string | null | undefined): CanonicalDoubtSubject | null {
+export function canonicalDoubtSubject(
+  raw: string | null | undefined
+): CanonicalDoubtSubject | null {
   if (raw == null) return null;
   const s = raw.trim().replace(/\s+/g, " ");
   if (!s) return null;

@@ -41,7 +41,10 @@ import {
 } from "./doubtTypes";
 import { ProfPiAvatar } from "./ProfPiAvatar";
 import { PROF_PI_CONFIG } from "@/lib/gyanBotPersonas";
-import { AiCurriculumSourceStrip, pickCurriculumNodeFromDoubt } from "@/components/doubts/AiCurriculumSourceStrip";
+import {
+  AiCurriculumSourceStrip,
+  pickCurriculumNodeFromDoubt,
+} from "@/components/doubts/AiCurriculumSourceStrip";
 
 const PROF_PI_ANSWER_LABEL = PROF_PI_CONFIG.name;
 
@@ -106,7 +109,9 @@ export default function DoubtFeedCard({
   const titleMd = stripHtml(d.title);
   const bodyMd = stripHtml(d.body);
   const isLongBody = bodyMd.length > FEED_QUESTION_PREVIEW;
-  const bodyPreviewMd = isLongBody ? truncatePreservingInlineMath(bodyMd, FEED_QUESTION_PREVIEW) : bodyMd;
+  const bodyPreviewMd = isLongBody
+    ? truncatePreservingInlineMath(bodyMd, FEED_QUESTION_PREVIEW)
+    : bodyMd;
 
   const isAuthorTeacher = d.profiles?.role === "teacher";
   const isAuthorAI = isAiTutorDoubtAuthor(d.profiles);
@@ -117,20 +122,19 @@ export default function DoubtFeedCard({
 
   const allAnswers = [...(d.doubt_answers ?? [])];
   const aiAnswers = allAnswers.filter(isAiTutorAnswer);
-  const teacherAnswers = allAnswers.filter(a => a.profiles?.role === "teacher");
+  const teacherAnswers = allAnswers.filter((a) => a.profiles?.role === "teacher");
   const teacherNames = Array.from(
     new Set(teacherAnswers.map((a) => a.profiles?.name?.trim()).filter(Boolean))
   ) as string[];
   /** Feed: newest student comments first; only two shown — rest on thread page */
   const studentAnswers = allAnswers
-    .filter(a => a.profiles?.role !== "teacher" && !isAiTutorAnswer(a))
+    .filter((a) => a.profiles?.role !== "teacher" && !isAiTutorAnswer(a))
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   const previewStudentComments = studentAnswers.slice(0, 2);
   const moreStudentComments = Math.max(0, studentAnswers.length - 2);
 
   const showProfPiPending = Boolean(expectProfPiAnswer && aiAnswers.length === 0);
-  const showTeacherSection =
-    aiAnswers.length > 0 || showProfPiPending || teacherAnswers.length > 0;
+  const showTeacherSection = aiAnswers.length > 0 || showProfPiPending || teacherAnswers.length > 0;
 
   useEffect(() => {
     if (!showProfPiPending) {
@@ -176,7 +180,10 @@ export default function DoubtFeedCard({
         const body = (await res.json()) as { error?: string };
         if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
       }
-      toast({ title: "Subject tagged", description: `${flair} — filters and sidebar counts use this label.` });
+      toast({
+        title: "Subject tagged",
+        description: `${flair} — filters and sidebar counts use this label.`,
+      });
       setSubjectPopoverOpen(false);
       onRefresh();
     } catch (e) {
@@ -197,10 +204,8 @@ export default function DoubtFeedCard({
       transition={{ delay: index * 0.03, duration: 0.3 }}
     >
       <div className="edu-card rounded-2xl overflow-hidden hover:border-primary/30 hover:shadow-md transition-all duration-200">
-
         {/* ── Main post area ── */}
         <div className="p-5 sm:p-6 pb-3">
-
           {/* Author row */}
           <div className="flex items-start justify-between gap-2 mb-3">
             <UserHoverCard userId={d.user_id}>
@@ -210,7 +215,9 @@ export default function DoubtFeedCard({
                 ) : (
                   <Avatar className="h-9 w-9 rounded-full shrink-0">
                     <AvatarImage src={d.profiles?.avatar_url ?? undefined} />
-                    <AvatarFallback className={`rounded-full text-xs font-bold ${isAuthorTeacher ? "bg-blue-500 text-white" : ""}`}>
+                    <AvatarFallback
+                      className={`rounded-full text-xs font-bold ${isAuthorTeacher ? "bg-blue-500 text-white" : ""}`}
+                    >
                       {authorInitials}
                     </AvatarFallback>
                   </Avatar>
@@ -227,7 +234,9 @@ export default function DoubtFeedCard({
                       <GraduationCap className="w-2.5 h-2.5" /> Teacher
                     </span>
                   )}
-                  <span className="text-xs text-muted-foreground">{formatTimeAgo(d.created_at)}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {formatTimeAgo(d.created_at)}
+                  </span>
                 </div>
               </div>
             </UserHoverCard>
@@ -278,13 +287,22 @@ export default function DoubtFeedCard({
           {/* Subject chip + syllabus strip on one line (strip sits right after subject) */}
           <div className="mb-3 mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1.5">
             {subjectCanon ? (
-              <span className={`edu-chip shrink-0 text-xs font-semibold ${subjectColor.bg} ${subjectColor.text}`}>{subjectCanon}</span>
+              <span
+                className={`edu-chip shrink-0 text-xs font-semibold ${subjectColor.bg} ${subjectColor.text}`}
+              >
+                {subjectCanon}
+              </span>
             ) : d.subject?.trim() ? (
-              <span className="edu-chip shrink-0 text-xs font-semibold bg-muted text-muted-foreground" title="Unrecognized subject — tag again to fix filters">
+              <span
+                className="edu-chip shrink-0 text-xs font-semibold bg-muted text-muted-foreground"
+                title="Unrecognized subject — tag again to fix filters"
+              >
                 {d.subject.trim()}
               </span>
             ) : canOpenSubjectPicker ? (
-              <span className="edu-chip shrink-0 text-xs font-semibold bg-amber-500/15 text-amber-800 dark:text-amber-200">Untagged</span>
+              <span className="edu-chip shrink-0 text-xs font-semibold bg-amber-500/15 text-amber-800 dark:text-amber-200">
+                Untagged
+              </span>
             ) : null}
             {showCurriculumSource && curriculumNode ? (
               <AiCurriculumSourceStrip
@@ -293,12 +311,15 @@ export default function DoubtFeedCard({
               />
             ) : null}
             {d.is_resolved && (
-              <span className="edu-chip shrink-0 bg-emerald-500/10 text-emerald-600 text-xs font-semibold">Resolved</span>
+              <span className="edu-chip shrink-0 bg-emerald-500/10 text-emerald-600 text-xs font-semibold">
+                Resolved
+              </span>
             )}
             {teacherNames.length > 0 && (
               <span className="edu-chip shrink-0 bg-blue-500/10 text-blue-600 text-xs font-semibold inline-flex items-center gap-1">
                 <GraduationCap className="w-3 h-3" />
-                Teacher replied{teacherNames.length === 1 ? `: ${teacherNames[0]}` : ` (${teacherNames.length})`}
+                Teacher replied
+                {teacherNames.length === 1 ? `: ${teacherNames[0]}` : ` (${teacherNames.length})`}
               </span>
             )}
           </div>
@@ -311,9 +332,11 @@ export default function DoubtFeedCard({
                 // Neutral: charcoal capsule — same height as adjacent h-8 actions
                 myVote === 0 && "border-zinc-600/90 bg-[#2e3238] dark:bg-[#2a2e35]",
                 // Upvoted: blue (per product preference)
-                myVote === 1 && "border-blue-400 bg-[#2e3238] dark:bg-[#2a2e35] ring-1 ring-blue-400/25",
+                myVote === 1 &&
+                  "border-blue-400 bg-[#2e3238] dark:bg-[#2a2e35] ring-1 ring-blue-400/25",
                 // Downvoted: orange
-                myVote === -1 && "border-orange-400 bg-[#2e3238] dark:bg-[#2a2e35] ring-1 ring-orange-400/25"
+                myVote === -1 &&
+                  "border-orange-400 bg-[#2e3238] dark:bg-[#2a2e35] ring-1 ring-orange-400/25"
               )}
             >
               <Tooltip>
@@ -376,7 +399,9 @@ export default function DoubtFeedCard({
               className="rounded-lg h-8 text-xs font-semibold text-muted-foreground hover:text-primary px-2.5"
               onClick={(e) => onToggleSave(d.id, e)}
             >
-              <Bookmark className={`w-3.5 h-3.5 mr-1 ${isSaved ? "fill-current text-primary" : ""}`} />
+              <Bookmark
+                className={`w-3.5 h-3.5 mr-1 ${isSaved ? "fill-current text-primary" : ""}`}
+              />
               {isSaved ? "Saved" : "Save for revision"}
             </Button>
             <Popover open={subjectPopoverOpen} onOpenChange={setSubjectPopoverOpen}>
@@ -447,8 +472,12 @@ export default function DoubtFeedCard({
               </div>
               <div className="flex-1 min-w-0 space-y-2">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-sm font-bold text-purple-700 dark:text-purple-300">{PROF_PI_ANSWER_LABEL}</span>
-                  <span className="text-[10px] font-semibold uppercase tracking-wide text-purple-500/90">Working on it</span>
+                  <span className="text-sm font-bold text-purple-700 dark:text-purple-300">
+                    {PROF_PI_ANSWER_LABEL}
+                  </span>
+                  <span className="text-[10px] font-semibold uppercase tracking-wide text-purple-500/90">
+                    Working on it
+                  </span>
                 </div>
                 <ul className="space-y-1.5 list-none m-0 p-0">
                   {PROF_PI_GENERATION_STAGES.map((label, idx) => {
@@ -457,13 +486,22 @@ export default function DoubtFeedCard({
                     const pending = idx > profPiStoryIdx;
                     return (
                       <li key={label} className="flex items-start gap-2.5 text-sm leading-snug">
-                        <span className="mt-0.5 shrink-0 flex h-4 w-4 items-center justify-center" aria-hidden>
+                        <span
+                          className="mt-0.5 shrink-0 flex h-4 w-4 items-center justify-center"
+                          aria-hidden
+                        >
                           {done ? (
-                            <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" strokeWidth={2.5} />
+                            <Check
+                              className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400"
+                              strokeWidth={2.5}
+                            />
                           ) : active ? (
                             <Loader2 className="h-3.5 w-3.5 animate-spin text-purple-500" />
                           ) : (
-                            <Circle className="h-2.5 w-2.5 text-muted-foreground/35" fill="currentColor" />
+                            <Circle
+                              className="h-2.5 w-2.5 text-muted-foreground/35"
+                              fill="currentColor"
+                            />
                           )}
                         </span>
                         <span
@@ -481,7 +519,8 @@ export default function DoubtFeedCard({
                   })}
                 </ul>
                 <p className="text-[11px] text-muted-foreground">
-                  Hang tight — this usually takes a few seconds. The card refreshes when the answer is ready.
+                  Hang tight — this usually takes a few seconds. The card refreshes when the answer
+                  is ready.
                 </p>
               </div>
             </div>
@@ -489,53 +528,61 @@ export default function DoubtFeedCard({
         )}
 
         {/* ── AI Answer section ── */}
-        {aiAnswers.length > 0 && (() => {
-          const ai = aiAnswers[0];
-          const raw = ai.body ?? "";
-          const aiLong = raw.length > FEED_AI_PREVIEW;
-          const aiMd = aiLong ? truncatePreservingInlineMath(raw, FEED_AI_PREVIEW) : raw;
-          return (
-            <div className="border-t border-purple-200/40 bg-purple-500/5 px-5 py-3">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2 min-w-0">
-                  <UserHoverCard userId={ai.user_id}>
-                    <span className="inline-flex cursor-pointer items-center gap-2 rounded-lg hover:opacity-90 min-w-0">
-                      <ProfPiAvatar size="sm" />
-                      <span className="text-sm font-bold text-purple-700 dark:text-purple-400 tracking-tight">{PROF_PI_ANSWER_LABEL}</span>
+        {aiAnswers.length > 0 &&
+          (() => {
+            const ai = aiAnswers[0];
+            const raw = ai.body ?? "";
+            const aiLong = raw.length > FEED_AI_PREVIEW;
+            const aiMd = aiLong ? truncatePreservingInlineMath(raw, FEED_AI_PREVIEW) : raw;
+            return (
+              <div className="border-t border-purple-200/40 bg-purple-500/5 px-5 py-3">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <UserHoverCard userId={ai.user_id}>
+                      <span className="inline-flex cursor-pointer items-center gap-2 rounded-lg hover:opacity-90 min-w-0">
+                        <ProfPiAvatar size="sm" />
+                        <span className="text-sm font-bold text-purple-700 dark:text-purple-400 tracking-tight">
+                          {PROF_PI_ANSWER_LABEL}
+                        </span>
+                      </span>
+                    </UserHoverCard>
+                    <span className="text-xs text-muted-foreground shrink-0">
+                      · Answered instantly
                     </span>
-                  </UserHoverCard>
-                  <span className="text-xs text-muted-foreground shrink-0">· Answered instantly</span>
+                  </div>
+                  {ai.is_accepted && d.bounty_rdm ? (
+                    <span className="text-xs text-muted-foreground font-medium">
+                      -{d.bounty_rdm} RDM · bounty distributed
+                    </span>
+                  ) : null}
                 </div>
-                {ai.is_accepted && d.bounty_rdm ? (
-                  <span className="text-xs text-muted-foreground font-medium">-{d.bounty_rdm} RDM · bounty distributed</span>
-                ) : null}
-              </div>
-              <div className="text-sm sm:text-[15px] text-foreground mb-2">
-                <DoubtMarkdown content={aiMd} />
-                {aiLong ? (
+                <div className="text-sm sm:text-[15px] text-foreground mb-2">
+                  <DoubtMarkdown content={aiMd} />
+                  {aiLong ? (
+                    <Link
+                      href={`/doubts/${d.id}#answer-${ai.id}`}
+                      className="inline-block text-xs font-semibold text-primary hover:underline mt-2"
+                    >
+                      Read full answer — open thread
+                    </Link>
+                  ) : null}
+                </div>
+                <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
+                  <span className="inline-flex items-center gap-1">
+                    <ChevronUp className="w-3.5 h-3.5" /> {Math.max(0, ai.upvotes - ai.downvotes)}{" "}
+                    helpful
+                  </span>
                   <Link
                     href={`/doubts/${d.id}#answer-${ai.id}`}
-                    className="inline-block text-xs font-semibold text-primary hover:underline mt-2"
+                    className="text-[11px] font-medium text-primary/80 hover:text-primary hover:underline"
+                    title="Open thread and use Report → Incorrect formula or fact"
                   >
-                    Read full answer — open thread
+                    Wrong formula? Report on thread
                   </Link>
-                ) : null}
+                </div>
               </div>
-              <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
-                <span className="inline-flex items-center gap-1">
-                  <ChevronUp className="w-3.5 h-3.5" /> {Math.max(0, ai.upvotes - ai.downvotes)} helpful
-                </span>
-                <Link
-                  href={`/doubts/${d.id}#answer-${ai.id}`}
-                  className="text-[11px] font-medium text-primary/80 hover:text-primary hover:underline"
-                  title="Open thread and use Report → Incorrect formula or fact"
-                >
-                  Wrong formula? Report on thread
-                </Link>
-              </div>
-            </div>
-          );
-        })()}
+            );
+          })()}
 
         {/* ── Teacher section (bar always when AI / pending / or teacher replies exist) ── */}
         {showTeacherSection && (
@@ -552,7 +599,8 @@ export default function DoubtFeedCard({
               (aiAnswers.length > 0 || showProfPiPending) && (
                 <div className="px-5 py-3 bg-emerald-500/5">
                   <p className="text-sm text-muted-foreground">
-                    No teacher note yet. Teachers can add exam tips or corrections here; it stays separate from student comments.
+                    No teacher note yet. Teachers can add exam tips or corrections here; it stays
+                    separate from student comments.
                   </p>
                   <Link
                     href={`/doubts/${d.id}#teacher-section`}
@@ -580,14 +628,18 @@ export default function DoubtFeedCard({
                                   {tInitials}
                                 </AvatarFallback>
                               </Avatar>
-                              <span className="text-xs font-semibold text-foreground truncate">{tName}</span>
+                              <span className="text-xs font-semibold text-foreground truncate">
+                                {tName}
+                              </span>
                             </div>
                           </UserHoverCard>
                           <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase bg-blue-500/15 text-blue-600 px-1.5 py-0.5 rounded-full shrink-0">
                             <GraduationCap className="w-2.5 h-2.5" /> Teacher
                           </span>
                         </div>
-                        <span className="text-xs text-emerald-600 font-semibold shrink-0">+10 RDM earned</span>
+                        <span className="text-xs text-emerald-600 font-semibold shrink-0">
+                          +10 RDM earned
+                        </span>
                       </div>
                       <div className="px-5 pb-3 pt-0">
                         <DoubtMarkdown content={ta.body} className="text-sm text-foreground" />
@@ -628,19 +680,31 @@ export default function DoubtFeedCard({
                     <UserHoverCard userId={ans.user_id}>
                       <Avatar className="h-7 w-7 rounded-full shrink-0 mt-0.5 cursor-pointer hover:opacity-80">
                         <AvatarImage src={ans.profiles?.avatar_url ?? undefined} />
-                        <AvatarFallback className="rounded-full text-[10px] font-bold">{aInitials}</AvatarFallback>
+                        <AvatarFallback className="rounded-full text-[10px] font-bold">
+                          {aInitials}
+                        </AvatarFallback>
                       </Avatar>
                     </UserHoverCard>
                   )}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className={`text-sm font-bold ${commentIsAI ? "text-purple-700 dark:text-purple-400" : "text-foreground"}`}>{aName}</span>
+                      <span
+                        className={`text-sm font-bold ${commentIsAI ? "text-purple-700 dark:text-purple-400" : "text-foreground"}`}
+                      >
+                        {aName}
+                      </span>
                       {commentIsAI && (
-                        <span className="text-[10px] font-bold uppercase bg-purple-500/15 text-purple-600 px-1.5 py-0.5 rounded-full">AI tutor</span>
+                        <span className="text-[10px] font-bold uppercase bg-purple-500/15 text-purple-600 px-1.5 py-0.5 rounded-full">
+                          AI tutor
+                        </span>
                       )}
-                      <span className="text-xs text-muted-foreground">{formatTimeAgo(ans.created_at)}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {formatTimeAgo(ans.created_at)}
+                      </span>
                       {!commentIsAI && (
-                        <span className="text-[10px] font-bold text-emerald-600 bg-emerald-500/10 px-1.5 py-0.5 rounded-full">+5 RDM earned</span>
+                        <span className="text-[10px] font-bold text-emerald-600 bg-emerald-500/10 px-1.5 py-0.5 rounded-full">
+                          +5 RDM earned
+                        </span>
                       )}
                       {aNet > 0 && (
                         <span className="inline-flex items-center gap-0.5 text-xs text-muted-foreground">

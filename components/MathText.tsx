@@ -63,7 +63,7 @@ function toLatex(text: string): string {
   // Normalize to "{}^{n}C_{r}" so KaTeX renders cleanly.
   s = s.replace(
     /(^|[\s(=+\-},;])\^\{?\s*([A-Za-z0-9]+)\s*\}?\s*C\s*_\s*\{?\s*([A-Za-z0-9]+)\s*\}?/g,
-    "$1{}^{$2}C_{$3}",
+    "$1{}^{$2}C_{$3}"
   );
   s = s.replace(/\bgeq\b/gi, "\\geq");
   s = s.replace(/\bleq\b/gi, "\\leq");
@@ -87,11 +87,11 @@ function preprocessPartnershipRatios(text: string): string {
       const l = letters.replace(/:/g, "{:}");
       const n = nums.replace(/:/g, "{:}");
       return `\\(${l} = ${n}\\)`;
-    },
+    }
   );
   s = s.replace(
     /\b(?:ratio|Ratio)\s+(\d+(?::\d+){2,})\b/g,
-    (_m, nums: string) => `\\(\\mathrm{${nums.replace(/:/g, "{:}")}}\\)`,
+    (_m, nums: string) => `\\(\\mathrm{${nums.replace(/:/g, "{:}")}}\\)`
   );
   return s;
 }
@@ -250,7 +250,7 @@ function looksLikeRawTexExpression(text: string): boolean {
   if (
     wc > 8 &&
     /\b(the|a|an|is|are|was|were|what|which|when|where|how|why|and|or|but|if|then|from|this|that|these|those|for|with|wire|length|charge|uniform|straight|carries|total|distribution|linear|surface|volume)\b/i.test(
-      t,
+      t
     )
   ) {
     return false;
@@ -304,7 +304,7 @@ function normalizeRelationTitleBody(s: string): string {
 function parseReflexiveDefinition(body: string): string | null {
   const b = normalizeRelationTitleBody(body);
   const p1 = b.match(
-    /^\(\s*([a-z])\s*,\s*\1\s*\)\s+in\s+([A-Za-z])\s+for\s+every\s+\1\s+in\s+([A-Za-z])$/i,
+    /^\(\s*([a-z])\s*,\s*\1\s*\)\s+in\s+([A-Za-z])\s+for\s+every\s+\1\s+in\s+([A-Za-z])$/i
   );
   if (p1) {
     const v = p1[1]!;
@@ -313,7 +313,7 @@ function parseReflexiveDefinition(body: string): string | null {
     return `\\text{for every } ${v} \\in ${A}\\text{, } (${v},\\,${v}) \\in ${R}\\text{.}`;
   }
   const p2 = b.match(
-    /^for\s+every\s+([a-z])\s+in\s+([A-Za-z])\s*,\s*\(\s*\1\s*,\s*\1\s*\)\s+in\s+([A-Za-z])$/i,
+    /^for\s+every\s+([a-z])\s+in\s+([A-Za-z])\s*,\s*\(\s*\1\s*,\s*\1\s*\)\s+in\s+([A-Za-z])$/i
   );
   if (p2) {
     const v = p2[1]!;
@@ -327,7 +327,7 @@ function parseReflexiveDefinition(body: string): string | null {
 function parseSymmetricDefinition(body: string): string | null {
   const b = normalizeRelationTitleBody(body);
   const m = b.match(
-    /^\(\s*([a-z])\s*,\s*([a-z])\s*\)\s+in\s+([A-Za-z])\s+(?:implies|⇒|->|=>)\s+\(\s*\2\s*,\s*\1\s*\)\s+in\s+\3$/i,
+    /^\(\s*([a-z])\s*,\s*([a-z])\s*\)\s+in\s+([A-Za-z])\s+(?:implies|⇒|->|=>)\s+\(\s*\2\s*,\s*\1\s*\)\s+in\s+\3$/i
   );
   if (!m) return null;
   const a = m[1]!;
@@ -339,7 +339,7 @@ function parseSymmetricDefinition(body: string): string | null {
 function parseTransitiveDefinition(body: string): string | null {
   const b = normalizeRelationTitleBody(body);
   const m = b.match(
-    /^\(\s*([a-z])\s*,\s*([a-z])\s*\)\s+in\s+([A-Za-z])\s+and\s+\(\s*\2\s*,\s*([a-z])\s*\)\s+in\s+\3\s+(?:implies|⇒|->|=>)\s+\(\s*\1\s*,\s*\4\s*\)\s+in\s+\3$/i,
+    /^\(\s*([a-z])\s*,\s*([a-z])\s*\)\s+in\s+([A-Za-z])\s+and\s+\(\s*\2\s*,\s*([a-z])\s*\)\s+in\s+\3\s+(?:implies|⇒|->|=>)\s+\(\s*\1\s*,\s*\4\s*\)\s+in\s+\3$/i
   );
   if (!m) return null;
   const a = m[1]!;
@@ -355,7 +355,7 @@ function parseTransitiveDefinition(body: string): string | null {
  * Two LaTeX lines: short head + definition (fits layout without horizontal scroll).
  */
 function parseEquivalenceClassCurriculumParts(
-  raw: string,
+  raw: string
 ): { prefixLatex: string; suffixLatex: string } | null {
   const n = raw
     .replace(/\$\s*\[([^\]]+)\]\s*\$/g, "[$1]")
@@ -367,7 +367,7 @@ function parseEquivalenceClassCurriculumParts(
   if (!/^[A-Za-z][A-Za-z0-9']*$/i.test(rep)) return null;
   const body = head[2]!.trim().replace(/\.\s*$/, "");
   const m = body.match(
-    /^all\s+elements\s+([a-z])\s+such\s+that\s+\(\s*([a-z])\s*,\s*([a-z])\s*\)\s+(?:in|∈)\s+([A-Za-z])\s*;\s*(.+)$/i,
+    /^all\s+elements\s+([a-z])\s+such\s+that\s+\(\s*([a-z])\s*,\s*([a-z])\s*\)\s+(?:in|∈)\s+([A-Za-z])\s*;\s*(.+)$/i
   );
   if (!m) return null;
   const bEl = m[1]!;
@@ -398,9 +398,7 @@ function parseEquivalenceClassCurriculumParts(
  */
 function parseInjectiveFunctionTitleParts(raw: string): { line1: string; line2: string } | null {
   const n = raw.replace(/\s+/g, " ").trim();
-  const hm = n.match(
-    /^Injective\s+\(\s*(?:one\s*-\s*to\s*-\s*one|one-to-one)\s*\)\s*:\s*(.+)$/i,
-  );
+  const hm = n.match(/^Injective\s+\(\s*(?:one\s*-\s*to\s*-\s*one|one-to-one)\s*\)\s*:\s*(.+)$/i);
   if (!hm) return null;
   const rest = hm[1]!
     .trim()
@@ -408,7 +406,7 @@ function parseInjectiveFunctionTitleParts(raw: string): { line1: string; line2: 
     .replace(/!\s*=\s*/g, " != ")
     .replace(/\s+/g, " ");
   const m = rest.match(
-    /^f\s*\(\s*([a-z])\s*1\s*\)\s*=\s*f\s*\(\s*\1\s*2\s*\)\s+(?:implies|⇒)\s+\1\s*1\s*=\s*\1\s*2\s*;\s*or\s+\1\s*1\s*(?:!=|≠)\s+\1\s*2\s+(?:implies|⇒)\s+f\s*\(\s*\1\s*1\s*\)\s*(?:!=|≠)\s+f\s*\(\s*\1\s*2\s*\)\s*$/i,
+    /^f\s*\(\s*([a-z])\s*1\s*\)\s*=\s*f\s*\(\s*\1\s*2\s*\)\s+(?:implies|⇒)\s+\1\s*1\s*=\s*\1\s*2\s*;\s*or\s+\1\s*1\s*(?:!=|≠)\s+\1\s*2\s+(?:implies|⇒)\s+f\s*\(\s*\1\s*1\s*\)\s*(?:!=|≠)\s+f\s*\(\s*\1\s*2\s*\)\s*$/i
   );
   if (!m) return null;
   const v = m[1]!;
@@ -426,7 +424,7 @@ function parseSurjectiveFunctionTitleParts(raw: string): { line1: string; line2:
   if (!hm) return null;
   const rest = hm[1]!.trim().replace(/\.\s*$/, "");
   const m = rest.match(
-    /^for\s+every\s+([a-z])\s+in\s+codomain\s*,\s*there\s+exists\s+([a-z])\s+in\s+domain\s+such\s+that\s+f\s*\(\s*\2\s*\)\s*=\s*\1\s*$/i,
+    /^for\s+every\s+([a-z])\s+in\s+codomain\s*,\s*there\s+exists\s+([a-z])\s+in\s+domain\s+such\s+that\s+f\s*\(\s*\2\s*\)\s*=\s*\1\s*$/i
   );
   if (!m) return null;
   const bVar = m[1]!;
@@ -440,8 +438,12 @@ function parseSurjectiveFunctionTitleParts(raw: string): { line1: string; line2:
 function parseBijectiveFunctionTitleLatex(raw: string): string | null {
   const n = raw.replace(/\s+/g, " ").trim();
   if (!/^Bijective\s*:/i.test(n)) return null;
-  const body = n.replace(/^Bijective\s*:\s*/i, "").trim().replace(/\.\s*$/, "");
-  if (!/^both\s+injective\s+and\s+surjective\s*;\s*inverse\s+function\s+exists$/i.test(body)) return null;
+  const body = n
+    .replace(/^Bijective\s*:\s*/i, "")
+    .trim()
+    .replace(/\.\s*$/, "");
+  if (!/^both\s+injective\s+and\s+surjective\s*;\s*inverse\s+function\s+exists$/i.test(body))
+    return null;
   return "\\text{Bijective: both injective and surjective; inverse function exists.}";
 }
 
@@ -461,9 +463,12 @@ function rangePieceToLatex(s: string): string {
 
 /** "sin^-1x: domain [-1, 1]; range [-pi/2, pi/2] (principal value branch)" */
 function parseInverseTrigDomainRangeTitle(raw: string): string | null {
-  const n = raw.replace(/\s+/g, " ").trim().replace(/\.\s*$/, "");
+  const n = raw
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\.\s*$/, "");
   const m = n.match(
-    /^(sin|cos|tan|cosec|sec|cot)\s*\^\s*-?\s*1\s*x\s*:\s*domain\s+(.+?)\s*;\s*range\s+(.+?)(?:\s*\(([^)]+)\))?$/i,
+    /^(sin|cos|tan|cosec|sec|cot)\s*\^\s*-?\s*1\s*x\s*:\s*domain\s+(.+?)\s*;\s*range\s+(.+?)(?:\s*\(([^)]+)\))?$/i
   );
   if (!m) return null;
   const fn = m[1]!.toLowerCase();
@@ -477,12 +482,15 @@ function parseInverseTrigDomainRangeTitle(raw: string): string | null {
 
 /** "A^-1 = adj(A)/|A| (valid only if |A| != 0; A is non-singular)" */
 function parseAdjointInverseFormulaTitle(raw: string): string | null {
-  let n = raw.replace(/\s+/g, " ").trim().replace(/\.\s*$/, "");
+  let n = raw
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\.\s*$/, "");
   n = n.replace(/!\s*=\s*/g, "!=");
   // prettifySubtopicTitle turns hyphens into " - " (e.g. non - singular)
   n = n.replace(/\bnon\s*-\s*singular\b/gi, "non-singular");
   const strict = n.match(
-    /^A\s*\^\s*-?\s*1\s*=\s*adj\s*\(\s*A\s*\)\s*\/\s*\|\s*A\s*\|\s*\(\s*valid\s+only\s+if\s*\|\s*A\s*\|\s*(?:!=|≠)\s*0\s*;\s*A\s+is\s+non-singular\s*\)\s*$/i,
+    /^A\s*\^\s*-?\s*1\s*=\s*adj\s*\(\s*A\s*\)\s*\/\s*\|\s*A\s*\|\s*\(\s*valid\s+only\s+if\s*\|\s*A\s*\|\s*(?:!=|≠)\s*0\s*;\s*A\s+is\s+non-singular\s*\)\s*$/i
   );
   const loose =
     !strict &&
@@ -501,9 +509,12 @@ function parseAdjointInverseFormulaTitle(raw: string): string | null {
  * Display: Adjoint of A :  adj(A) = (cofactor matrix of A)^T
  */
 function parseAdjointCofactorTransposeTitle(raw: string): string | null {
-  const n = raw.replace(/\s+/g, " ").trim().replace(/\.\s*$/, "");
+  const n = raw
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\.\s*$/, "");
   const strict = n.match(
-    /^Adjoint\s*:\s*adj\s*\(\s*A\s*\)\s*=\s*transpose\s+of\s+cofactor\s+matrix\s*;\s*A\s*\.\s*adj\s*\(\s*A\s*\)\s*=\s*\|\s*A\s*\|\s*\.\s*I\s*$/i,
+    /^Adjoint\s*:\s*adj\s*\(\s*A\s*\)\s*=\s*transpose\s+of\s+cofactor\s+matrix\s*;\s*A\s*\.\s*adj\s*\(\s*A\s*\)\s*=\s*\|\s*A\s*\|\s*\.\s*I\s*$/i
   );
   const loose =
     !strict &&
@@ -521,24 +532,27 @@ function parseAdjointCofactorTransposeTitle(raw: string): string | null {
  * Display: Minor M_{ij} of an n×n matrix A is M_{ij} = det(A_{ij}),
  */
 function parseMinorMijDefinitionTitle(raw: string): string | null {
-  const n = raw.replace(/\s+/g, " ").trim().replace(/\.\s*$/, "");
+  const n = raw
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\.\s*$/, "");
   const strict = n.match(
-    /^Minor\s+Mij\s*:\s*det\s+of\s+matrix\s+obtained\s+by\s+deleting\s+row\s+i\s+and\s+col\s+j\s*$/i,
+    /^Minor\s+Mij\s*:\s*det\s+of\s+matrix\s+obtained\s+by\s+deleting\s+row\s+i\s+and\s+col\s+j\s*$/i
   );
   const loose =
-    !strict &&
-    /^Minor\s+Mij\s*:/i.test(n) &&
-    /\brow\s+i\b/i.test(n) &&
-    /\bcol\s+j\b/i.test(n);
+    !strict && /^Minor\s+Mij\s*:/i.test(n) && /\brow\s+i\b/i.test(n) && /\bcol\s+j\b/i.test(n);
   if (!strict && !loose) return null;
   return "\\text{Minor } M_{ij} \\text{ of an } n \\times n \\text{ matrix } A \\text{ is } M_{ij} = \\det(A_{ij})\\text{,}";
 }
 
 /** Curriculum: "Cofactor Cij = (-1)^(i+j) Mij" (prettify may add spaces around - and +) */
 function parseCofactorCijTitle(raw: string): string | null {
-  const n = raw.replace(/\s+/g, " ").trim().replace(/\.\s*$/, "");
+  const n = raw
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\.\s*$/, "");
   const strict = n.match(
-    /^Cofactor\s+Cij\s*=\s*\(\s*-?\s*1\s*\)\s*\^\s*\(\s*i\s*\+\s*j\s*\)\s*Mij\s*$/i,
+    /^Cofactor\s+Cij\s*=\s*\(\s*-?\s*1\s*\)\s*\^\s*\(\s*i\s*\+\s*j\s*\)\s*Mij\s*$/i
   );
   const loose =
     !strict &&
@@ -555,10 +569,13 @@ function parseCofactorCijTitle(raw: string): string | null {
  * prettifySubtopicTitle may rewrite exponents as "A^ - 1".
  */
 function parseElementaryRowOpsInverseTitle(raw: string): string | null {
-  let n = raw.replace(/\s+/g, " ").trim().replace(/\.\s*$/, "");
+  let n = raw
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\.\s*$/, "");
   n = n.replace(/\^\s*-\s*1/g, "^-1");
   const strict = n.match(
-    /^Using elementary row operations to find A\^-1:\s*write\s+\[A\|I\]\s+and reduce to\s+\[I\|A\^-1\]$/i,
+    /^Using elementary row operations to find A\^-1:\s*write\s+\[A\|I\]\s+and reduce to\s+\[I\|A\^-1\]$/i
   );
   const loose =
     !strict &&
@@ -582,7 +599,10 @@ function parseElementaryRowOpsInverseTitle(raw: string): string | null {
  * Display: proper ×, m = n, I(a_{ij} = δ_{ij}) (prettify may use × and spaces around =).
  */
 function parseMatrixTypesCatalogTitle(raw: string): string | null {
-  const n = raw.replace(/\s+/g, " ").trim().replace(/\.\s*$/, "");
+  const n = raw
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\.\s*$/, "");
   if (!/^Types:\s*row\s+matrix/i.test(n)) return null;
   if (!/row\s+matrix\s*\(\s*1\s*[x×]\s*n\s*\)/i.test(n)) return null;
   if (!/column\s*\(\s*m\s*[x×]\s*1\s*\)/i.test(n)) return null;
@@ -602,8 +622,13 @@ function parseMatrixTypesCatalogTitle(raw: string): string | null {
  * Curriculum: "Matrix multiplication (AB): A is m x n and B is n x p -> AB is m x p; (AB)ij = Sigma_k aikbkj"
  * prettify may use × and may mangle "->" (e.g. " - >").
  */
-function parseMatrixMultiplicationDefinitionTitle(raw: string): { line1: string; line2: string } | null {
-  const n = raw.replace(/\s+/g, " ").trim().replace(/\.\s*$/, "");
+function parseMatrixMultiplicationDefinitionTitle(
+  raw: string
+): { line1: string; line2: string } | null {
+  const n = raw
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\.\s*$/, "");
   const parts = n.split(/\s*;\s*/).map((p) => p.trim());
   if (parts.length !== 2) return null;
   const [head, tail] = parts;
@@ -623,10 +648,12 @@ function parseMatrixMultiplicationDefinitionTitle(raw: string): { line1: string;
   return { line1, line2 };
 }
 
-function binaryRelationPropertyHeading(raw: string): { label: string; definitionLatex: string } | null {
+function binaryRelationPropertyHeading(
+  raw: string
+): { label: string; definitionLatex: string } | null {
   const normalized = raw.replace(/\s+/g, " ").trim();
   const hm = normalized.match(
-    /^((Reflexive|Symmetric|Transitive|Equivalence)\s+relation)\s*:\s*(.+)$/i,
+    /^((Reflexive|Symmetric|Transitive|Equivalence)\s+relation)\s*:\s*(.+)$/i
   );
   if (!hm) return null;
   const kind = hm[2]!.toLowerCase();
@@ -705,8 +732,14 @@ function applyStandardAreasRestTransforms(rest: string): string {
   r = r.replace(/\s*->\s*/g, " \\Rightarrow ");
   r = r.replace(/\s*=>/g, " \\Rightarrow ");
   r = r.replace(/\bfrom\s+0\s+to\s+h\b/gi, "\\text{ from } 0 \\text{ to } h");
-  r = r.replace(/\(\s*4a\s*\/\s*3\s*\)\s*\(\s*h\s*\/\s*4a\s*\)\^\{\s*3\s*\/\s*2\s*\}/gi, "\\frac{4a}{3}\\left(\\frac{h}{4a}\\right)^{3/2}");
-  r = r.replace(/\(\s*4a\s*\/\s*3\s*\)\s*\(\s*h\s*\/\s*4a\s*\)\^\(3\/2\)/gi, "\\frac{4a}{3}\\left(\\frac{h}{4a}\\right)^{3/2}");
+  r = r.replace(
+    /\(\s*4a\s*\/\s*3\s*\)\s*\(\s*h\s*\/\s*4a\s*\)\^\{\s*3\s*\/\s*2\s*\}/gi,
+    "\\frac{4a}{3}\\left(\\frac{h}{4a}\\right)^{3/2}"
+  );
+  r = r.replace(
+    /\(\s*4a\s*\/\s*3\s*\)\s*\(\s*h\s*\/\s*4a\s*\)\^\(3\/2\)/gi,
+    "\\frac{4a}{3}\\left(\\frac{h}{4a}\\right)^{3/2}"
+  );
   r = r.replace(/x\^2\+y\^2=r\^2/gi, "x^2 + y^2 = r^2");
   r = r.replace(/\bx\^2\s*\+\s*y\^2\s*=\s*r\^2/gi, "x^2 + y^2 = r^2");
   r = r.replace(/\by\^2\s*=\s*4ax\b/gi, "y^2 = 4ax");
@@ -783,11 +816,11 @@ function renderLatex(latex: string, displayMode: boolean): string | null {
     const retry = latex
       .replace(/\\{2,}(?=[()[\]{}A-Za-z])/g, "\\")
       .replace(/\\widehat\{\$\s*\\?([A-Za-z0-9]+)\s*\$\}/g, "\\widehat{$1}")
+      .replace(/\\widehat\{([A-Za-z0-9]+)\}\{\$?\s*([A-Za-z0-9]+)\s*\$?\}/g, "\\widehat{$1}^{$2}")
       .replace(
-        /\\widehat\{([A-Za-z0-9]+)\}\{\$?\s*([A-Za-z0-9]+)\s*\$?\}/g,
-        "\\widehat{$1}^{$2}",
+        /\\widehat\{([A-Za-z0-9]+)\}\{\$?\s*th(?:'s)?\s*\$?\}/gi,
+        "\\widehat{$1}^{\\text{th}}"
       )
-      .replace(/\\widehat\{([A-Za-z0-9]+)\}\{\$?\s*th(?:'s)?\s*\$?\}/gi, "\\widehat{$1}^{\\text{th}}")
       .replace(/\\widehat\{([^}]+)\}\s*\{([^}]+)\}/g, "\\widehat{$1}^{$2}")
       .replace(/\\widehat\{([^}]+)\}\s*([A-Za-z0-9+\-]+)/g, "\\widehat{$1}^{$2}")
       .replace(/\\\(|\\\)|\\\[|\\\]/g, "");
@@ -840,7 +873,8 @@ function normalizeEscapedMathDelimiters(text: string): string {
 
 function splitIntoMathChunks(text: string): MathChunk[] {
   const source = normalizeEscapedMathDelimiters(text);
-  const pattern = /(\\\((?:[\s\S]+?)\\\)|\\\[(?:[\s\S]+?)\\\]|\$\$(?:[\s\S]+?)\$\$|\$(?:[^$\n]+?)\$)/g;
+  const pattern =
+    /(\\\((?:[\s\S]+?)\\\)|\\\[(?:[\s\S]+?)\\\]|\$\$(?:[\s\S]+?)\$\$|\$(?:[^$\n]+?)\$)/g;
   const chunks: MathChunk[] = [];
   let last = 0;
   let m: RegExpExecArray | null;
@@ -883,7 +917,9 @@ function splitLabelAndFormula(text: string): { label: string; formula: string } 
     };
   }
 
-  const eq = trimmed.match(/^([A-Za-z][A-Za-z\s-]{1,50}?)\s+([A-Za-z](?:_[0-9]+(?:_[0-9]+)?)?)\s*=\s*(.+)$/);
+  const eq = trimmed.match(
+    /^([A-Za-z][A-Za-z\s-]{1,50}?)\s+([A-Za-z](?:_[0-9]+(?:_[0-9]+)?)?)\s*=\s*(.+)$/
+  );
   if (!eq) return null;
   return {
     label: eq[1]!.trim(),
@@ -927,7 +963,9 @@ export default function MathText({
   weight = "normal",
 }: MathTextProps) {
   const w = WEIGHT_CLASS[weight];
-  const rawBase = preprocessPartnershipRatios(repairPlayQuestionDollarSegments(String(children).trim()));
+  const rawBase = preprocessPartnershipRatios(
+    repairPlayQuestionDollarSegments(String(children).trim())
+  );
   if (!rawBase) return <Tag className={`${w} ${className}`.trim()} />;
 
   const equivParts = parseEquivalenceClassCurriculumParts(rawBase);
@@ -1113,7 +1151,7 @@ export default function MathText({
           title={title}
         >
           <span
-            className={`${katexW} subtopic-function-def-line block w-full min-w-0 overflow-hidden [&>.katex-display]:!text-left [&>.katex-display]:mx-0`}
+            className={`${katexW} subtopic-function-def-line block w-full min-w-0 overflow-hidden [&>.katex-display]:text-left! [&>.katex-display]:mx-0`}
             dangerouslySetInnerHTML={{ __html: html }}
           />
         </Tag>
@@ -1132,7 +1170,7 @@ export default function MathText({
           title={title}
         >
           <span
-            className={`${katexW} subtopic-function-def-line block w-full min-w-0 overflow-hidden [&>.katex-display]:!text-left [&>.katex-display]:mx-0`}
+            className={`${katexW} subtopic-function-def-line block w-full min-w-0 overflow-hidden [&>.katex-display]:text-left! [&>.katex-display]:mx-0`}
             dangerouslySetInnerHTML={{ __html: html }}
           />
         </Tag>
@@ -1152,7 +1190,7 @@ export default function MathText({
           title={title}
         >
           <span
-            className={`${katexW} subtopic-function-def-line subtopic-function-def-line--head block w-full min-w-0 overflow-hidden text-left [&>.katex-display]:!text-left [&>.katex-display]:mx-0`}
+            className={`${katexW} subtopic-function-def-line subtopic-function-def-line--head block w-full min-w-0 overflow-hidden text-left [&>.katex-display]:text-left! [&>.katex-display]:mx-0`}
             dangerouslySetInnerHTML={{ __html: h1 }}
           />
           <span
@@ -1188,10 +1226,12 @@ export default function MathText({
     const latex = relationEqPlainToLatex(proseRelation.formulaRaw);
     const html = renderLatex(latex, displayMode);
     const katexW = katexWeightClass(weight);
-    const proseLine = proseRelation.prose.endsWith(";") ? proseRelation.prose : `${proseRelation.prose};`;
+    const proseLine = proseRelation.prose.endsWith(";")
+      ? proseRelation.prose
+      : `${proseRelation.prose};`;
     return (
       <Tag
-        className={`subtopic-relation-title ${w} ${className} inline-flex flex-col items-stretch gap-1 !break-normal max-w-full`.trim()}
+        className={`subtopic-relation-title ${w} ${className} inline-flex flex-col items-stretch gap-1 break-normal! max-w-full`.trim()}
         title={title}
       >
         <span className="block leading-snug tracking-tight">{proseLine}</span>
@@ -1216,7 +1256,7 @@ export default function MathText({
     const katexW = katexWeightClass(weight);
     return (
       <Tag
-        className={`subtopic-relation-property-title ${w} ${className} inline-flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 !break-normal max-w-full`.trim()}
+        className={`subtopic-relation-property-title ${w} ${className} inline-flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 break-normal! max-w-full`.trim()}
         title={title}
       >
         <span className="shrink-0 text-primary">{relationProperty.label}:</span>
@@ -1234,14 +1274,19 @@ export default function MathText({
 
   if (isStandardAreasTitle(rawBase)) {
     const body = rawBase.replace(/^standard\s+areas\s*:\s*/i, "").trim();
-    const parts = body.split(/\s*;\s*/).map((p) => normalizeStandardAreasSegment(p.trim())).filter(Boolean);
+    const parts = body
+      .split(/\s*;\s*/)
+      .map((p) => normalizeStandardAreasSegment(p.trim()))
+      .filter(Boolean);
     const katexW = katexWeightClass(weight);
     return (
       <Tag
-        className={`subtopic-standard-areas ${w} ${className} inline-flex flex-col items-stretch gap-3 !break-normal max-w-full`.trim()}
+        className={`subtopic-standard-areas ${w} ${className} inline-flex flex-col items-stretch gap-3 break-normal! max-w-full`.trim()}
         title={title}
       >
-        <span className="block leading-tight tracking-tight font-semibold text-foreground">Standard areas:</span>
+        <span className="block leading-tight tracking-tight font-semibold text-foreground">
+          Standard areas:
+        </span>
         {parts.map((part, i) => {
           const circle2 = parseCircleTwoLines(part);
           if (circle2) {
@@ -1256,7 +1301,7 @@ export default function MathText({
                 <span className="text-sm font-bold text-primary shrink-0">Circle</span>
                 {hEq ? (
                   <span
-                    className={`${katexW} block w-full min-w-0 [&>.katex-display]:!text-left [&>.katex-display]:mx-0 [&>.katex]:text-[0.98em]`}
+                    className={`${katexW} block w-full min-w-0 [&>.katex-display]:text-left! [&>.katex-display]:mx-0 [&>.katex]:text-[0.98em]`}
                     dangerouslySetInnerHTML={{ __html: hEq }}
                   />
                 ) : null}
@@ -1320,7 +1365,7 @@ export default function MathText({
   if (!hasMathNotation(raw)) {
     return (
       <Tag
-        className={`${w} ${className} min-w-0 max-w-full [overflow-wrap:anywhere] break-words whitespace-normal`.trim()}
+        className={`${w} ${className} min-w-0 max-w-full wrap-break-word whitespace-normal`.trim()}
         title={title}
       >
         {raw}
@@ -1332,10 +1377,7 @@ export default function MathText({
   if (chunks.some((c) => c.isMath)) {
     const katexW = katexWeightClass(weight);
     return (
-      <Tag
-        className={`${w} ${className} min-w-0 max-w-full [overflow-wrap:anywhere] break-words`.trim()}
-        title={title}
-      >
+      <Tag className={`${w} ${className} min-w-0 max-w-full wrap-break-word`.trim()} title={title}>
         {chunks.map((chunk, i) => {
           if (!chunk.isMath) return <React.Fragment key={`t-${i}`}>{chunk.text}</React.Fragment>;
           const html = renderLatex(toLatex(chunk.text), chunk.displayMode || displayMode);
@@ -1377,7 +1419,7 @@ export default function MathText({
     const formulaLooksLikeProse =
       wordTokenCount(mixed.formula) > 5 &&
       (/\b(and|from|to|axis|curve|between|has|slope|normal|point|tangent|what|which|when|where|why|the|this|that|these|those)\b/i.test(
-        mixed.formula,
+        mixed.formula
       ) ||
         /[a-z]{7,}[A-Z]|[a-z]{12,}/.test(mixed.formula.replace(/\s+/g, " ")));
     if (formulaLooksLikeProse) {
@@ -1428,10 +1470,7 @@ export default function MathText({
   }
 
   return (
-    <Tag
-      className={`${w} ${className} min-w-0 max-w-full [overflow-wrap:anywhere] break-words`.trim()}
-      title={title}
-    >
+    <Tag className={`${w} ${className} min-w-0 max-w-full wrap-break-word`.trim()} title={title}>
       {raw}
     </Tag>
   );

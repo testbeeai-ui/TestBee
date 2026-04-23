@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { parseTeacherProfileMetaFromBio } from "@/lib/teacherProfileMeta";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { computeStreakDays } from "@/lib/gauntletStreak";
 
@@ -31,7 +32,6 @@ export interface SubjectStats {
   physics: number;
   chemistry: number;
   math: number;
-  biology: number;
 }
 
 export interface PublicProfile {
@@ -110,7 +110,7 @@ function deriveBadges(
   acceptedAnswers: number,
   streakDays: number,
   bountiesWon: number,
-  questionsAsked: number,
+  questionsAsked: number
 ): string[] {
   const badges: string[] = [];
   if (acceptedAnswers >= 25) badges.push("Top Contributor");
@@ -136,9 +136,20 @@ async function fetchOptional<T>(
   }
 }
 
-export async function getPublicProfile(userId: string, client?: SupabaseClient): Promise<PublicProfile | null> {
+export async function getPublicProfile(
+  userId: string,
+  client?: SupabaseClient
+): Promise<PublicProfile | null> {
   const db = client ?? supabase;
-  const [profileRes, doubtsRes, answersRes, subjectStatsRes, payoutsRes, gauntletRes, playHistoryRes] = await Promise.all([
+  const [
+    profileRes,
+    doubtsRes,
+    answersRes,
+    subjectStatsRes,
+    payoutsRes,
+    gauntletRes,
+    playHistoryRes,
+  ] = await Promise.all([
     db
       .from("profiles")
       .select("id, name, bio, rdm, created_at, avatar_url, lifetime_answer_rdm")
@@ -157,33 +168,31 @@ export async function getPublicProfile(userId: string, client?: SupabaseClient):
       .eq("hidden", false)
       .order("created_at", { ascending: false })
       .limit(10),
-    db
-      .from("doubts")
-      .select("id, title, subject")
-      .eq("user_id", userId),
-    db
-      .from("accepted_answer_payouts")
-      .select("rdm_paid")
-      .eq("user_id", userId),
-    db
-      .from("daily_gauntlet_attempts")
-      .select("gauntlet_date")
-      .eq("user_id", userId),
-    db
-      .from("play_history")
-      .select("id")
-      .eq("user_id", userId),
+    db.from("doubts").select("id, title, subject").eq("user_id", userId),
+    db.from("accepted_answer_payouts").select("rdm_paid").eq("user_id", userId),
+    db.from("daily_gauntlet_attempts").select("gauntlet_date").eq("user_id", userId),
+    db.from("play_history").select("id").eq("user_id", userId),
   ]);
 
   const profile = profileRes.data;
   if (!profile) return null;
 
   const academicsRes = await fetchOptional(
-    async () => (await db.from("profile_academics").select("exam, board, score, verified").eq("user_id", userId).order("created_at", { ascending: true })),
+    async () =>
+      await db
+        .from("profile_academics")
+        .select("exam, board, score, verified")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: true }),
     [] as { exam: string; board: string; score: string; verified: string }[]
   );
   const achievementsRes = await fetchOptional(
-    async () => (await db.from("profile_achievements").select("name, level, year, result").eq("user_id", userId).order("year", { ascending: false })),
+    async () =>
+      await db
+        .from("profile_achievements")
+        .select("name, level, year, result")
+        .eq("user_id", userId)
+        .order("year", { ascending: false }),
     [] as { name: string; level: string; year: number; result: string }[]
   );
 
@@ -215,7 +224,7 @@ export async function getPublicProfile(userId: string, client?: SupabaseClient):
     .eq("hidden", false);
   const acceptedAnswers = acceptedRes.count ?? 0;
 
-  const subjectCounts: Record<string, number> = { physics: 0, chemistry: 0, math: 0, biology: 0 };
+  const subjectCounts: Record<string, number> = { physics: 0, chemistry: 0, math: 0 };
   const askedDoubts = subjectStatsRes.data ?? [];
   for (const d of askedDoubts) {
     const sub = ((d as { subject?: string }).subject || "").toLowerCase();
@@ -248,19 +257,23 @@ export async function getPublicProfile(userId: string, client?: SupabaseClient):
     doubtsAsked: questionsAsked,
   };
 
-  const academics: AcademicRecord[] = (Array.isArray(academicsRes) ? academicsRes : []).map((a) => ({
-    exam: a.exam ?? "",
-    board: a.board ?? "",
-    score: a.score ?? "",
-    verified: (a.verified as AcademicRecord["verified"]) ?? "unverified",
-  }));
+  const academics: AcademicRecord[] = (Array.isArray(academicsRes) ? academicsRes : []).map(
+    (a) => ({
+      exam: a.exam ?? "",
+      board: a.board ?? "",
+      score: a.score ?? "",
+      verified: (a.verified as AcademicRecord["verified"]) ?? "unverified",
+    })
+  );
 
-  const achievements: Achievement[] = (Array.isArray(achievementsRes) ? achievementsRes : []).map((a) => ({
-    name: a.name ?? "",
-    level: (a.level as Achievement["level"]) ?? "School",
-    year: a.year ?? new Date().getFullYear(),
-    result: a.result ?? "",
-  }));
+  const achievements: Achievement[] = (Array.isArray(achievementsRes) ? achievementsRes : []).map(
+    (a) => ({
+      name: a.name ?? "",
+      level: (a.level as Achievement["level"]) ?? "School",
+      year: a.year ?? new Date().getFullYear(),
+      result: a.result ?? "",
+    })
+  );
 
   const recentAnswersWithTitles = answers.slice(0, 3).map((a) => ({
     id: a.id,
@@ -274,10 +287,13 @@ export async function getPublicProfile(userId: string, client?: SupabaseClient):
     initials: getInitials(profile.name),
     avatarColor: getAvatarColor(profile.id),
     avatarUrl: profile.avatar_url ?? null,
-    bio: profile.bio ?? null,
+    bio: parseTeacherProfileMetaFromBio(profile.bio).studentBio || null,
     rdm,
     rank,
-    memberSince: new Date(profile.created_at).toLocaleDateString("en-US", { month: "short", year: "numeric" }),
+    memberSince: new Date(profile.created_at).toLocaleDateString("en-US", {
+      month: "short",
+      year: "numeric",
+    }),
     questionsAsked,
     answersGiven,
     acceptedAnswers,
@@ -286,7 +302,6 @@ export async function getPublicProfile(userId: string, client?: SupabaseClient):
       physics: subjectCounts.physics || 0,
       chemistry: subjectCounts.chemistry || 0,
       math: subjectCounts.math || 0,
-      biology: subjectCounts.biology || 0,
     },
     rdmFromDoubts: lifetimeRdm,
     bountiesWon,
@@ -332,37 +347,73 @@ export async function getPublicProfileWithProfileRow(
     lifetime_answer_rdm: profileRow.lifetime_answer_rdm ?? 0,
   };
 
-  const [doubtsRes, answersRes, subjectStatsRes, payoutsRes, gauntletRes, playHistoryRes] = await Promise.all([
-    db.from("doubts").select("id, title, subject").eq("user_id", userId).order("created_at", { ascending: false }).limit(3),
-    db.from("doubt_answers").select("id, doubt_id, body").eq("user_id", userId).eq("hidden", false).order("created_at", { ascending: false }).limit(10),
-    db.from("doubts").select("id, title, subject").eq("user_id", userId),
-    db.from("accepted_answer_payouts").select("rdm_paid").eq("user_id", userId),
-    db.from("daily_gauntlet_attempts").select("gauntlet_date").eq("user_id", userId),
-    db.from("play_history").select("id").eq("user_id", userId),
-  ]);
+  const [doubtsRes, answersRes, subjectStatsRes, payoutsRes, gauntletRes, playHistoryRes] =
+    await Promise.all([
+      db
+        .from("doubts")
+        .select("id, title, subject")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(3),
+      db
+        .from("doubt_answers")
+        .select("id, doubt_id, body")
+        .eq("user_id", userId)
+        .eq("hidden", false)
+        .order("created_at", { ascending: false })
+        .limit(10),
+      db.from("doubts").select("id, title, subject").eq("user_id", userId),
+      db.from("accepted_answer_payouts").select("rdm_paid").eq("user_id", userId),
+      db.from("daily_gauntlet_attempts").select("gauntlet_date").eq("user_id", userId),
+      db.from("play_history").select("id").eq("user_id", userId),
+    ]);
 
   const academicsRes = await fetchOptional(
-    async () => (await db.from("profile_academics").select("exam, board, score, verified").eq("user_id", userId).order("created_at", { ascending: true })),
+    async () =>
+      await db
+        .from("profile_academics")
+        .select("exam, board, score, verified")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: true }),
     [] as { exam: string; board: string; score: string; verified: string }[]
   );
   const achievementsRes = await fetchOptional(
-    async () => (await db.from("profile_achievements").select("name, level, year, result").eq("user_id", userId).order("year", { ascending: false })),
+    async () =>
+      await db
+        .from("profile_achievements")
+        .select("name, level, year, result")
+        .eq("user_id", userId)
+        .order("year", { ascending: false }),
     [] as { name: string; level: string; year: number; result: string }[]
   );
 
   const doubts = doubtsRes.data ?? [];
-  const questionsAskedRes = await db.from("doubts").select("id", { count: "exact", head: true }).eq("user_id", userId);
+  const questionsAskedRes = await db
+    .from("doubts")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId);
   const questionsAsked = questionsAskedRes.count ?? 0;
   const answers = answersRes.data ?? [];
   const answerDoubtIds = [...new Set(answers.map((a) => a.doubt_id))];
-  const { data: answerDoubts } = answerDoubtIds.length ? await db.from("doubts").select("id, title, subject").in("id", answerDoubtIds) : { data: [] };
+  const { data: answerDoubts } = answerDoubtIds.length
+    ? await db.from("doubts").select("id, title, subject").in("id", answerDoubtIds)
+    : { data: [] };
   const doubtTitleMap = Object.fromEntries((answerDoubts ?? []).map((d) => [d.id, d.title ?? ""]));
-  const answersGivenRes = await db.from("doubt_answers").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("hidden", false);
+  const answersGivenRes = await db
+    .from("doubt_answers")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .eq("hidden", false);
   const answersGiven = answersGivenRes.count ?? 0;
-  const acceptedRes = await db.from("doubt_answers").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("is_accepted", true).eq("hidden", false);
+  const acceptedRes = await db
+    .from("doubt_answers")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .eq("is_accepted", true)
+    .eq("hidden", false);
   const acceptedAnswers = acceptedRes.count ?? 0;
 
-  const subjectCounts: Record<string, number> = { physics: 0, chemistry: 0, math: 0, biology: 0 };
+  const subjectCounts: Record<string, number> = { physics: 0, chemistry: 0, math: 0 };
   const askedDoubts = subjectStatsRes.data ?? [];
   for (const d of askedDoubts) {
     const sub = ((d as { subject?: string }).subject || "").toLowerCase();
@@ -394,19 +445,23 @@ export async function getPublicProfileWithProfileRow(
     doubtsAsked: questionsAsked,
   };
 
-  const academics: AcademicRecord[] = (Array.isArray(academicsRes) ? academicsRes : []).map((a) => ({
-    exam: a.exam ?? "",
-    board: a.board ?? "",
-    score: a.score ?? "",
-    verified: (a.verified as AcademicRecord["verified"]) ?? "unverified",
-  }));
+  const academics: AcademicRecord[] = (Array.isArray(academicsRes) ? academicsRes : []).map(
+    (a) => ({
+      exam: a.exam ?? "",
+      board: a.board ?? "",
+      score: a.score ?? "",
+      verified: (a.verified as AcademicRecord["verified"]) ?? "unverified",
+    })
+  );
 
-  const achievements: Achievement[] = (Array.isArray(achievementsRes) ? achievementsRes : []).map((a) => ({
-    name: a.name ?? "",
-    level: (a.level as Achievement["level"]) ?? "School",
-    year: a.year ?? new Date().getFullYear(),
-    result: a.result ?? "",
-  }));
+  const achievements: Achievement[] = (Array.isArray(achievementsRes) ? achievementsRes : []).map(
+    (a) => ({
+      name: a.name ?? "",
+      level: (a.level as Achievement["level"]) ?? "School",
+      year: a.year ?? new Date().getFullYear(),
+      result: a.result ?? "",
+    })
+  );
 
   const recentAnswersWithTitles = answers.slice(0, 3).map((a) => ({
     id: a.id,
@@ -420,10 +475,13 @@ export async function getPublicProfileWithProfileRow(
     initials: getInitials(profile.name),
     avatarColor: getAvatarColor(profile.id),
     avatarUrl: profile.avatar_url ?? null,
-    bio: profile.bio ?? null,
+    bio: parseTeacherProfileMetaFromBio(profile.bio).studentBio || null,
     rdm,
     rank,
-    memberSince: new Date(profile.created_at).toLocaleDateString("en-US", { month: "short", year: "numeric" }),
+    memberSince: new Date(profile.created_at).toLocaleDateString("en-US", {
+      month: "short",
+      year: "numeric",
+    }),
     questionsAsked,
     answersGiven,
     acceptedAnswers,
@@ -432,7 +490,6 @@ export async function getPublicProfileWithProfileRow(
       physics: subjectCounts.physics || 0,
       chemistry: subjectCounts.chemistry || 0,
       math: subjectCounts.math || 0,
-      biology: subjectCounts.biology || 0,
     },
     rdmFromDoubts: lifetimeRdm,
     bountiesWon,

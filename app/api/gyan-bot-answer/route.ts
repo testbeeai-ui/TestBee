@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     if (!DOUBT_ID_UUID_RE.test(doubtId)) {
       return NextResponse.json(
         { error: "Invalid doubtId", hint: "Expected a UUID from create_doubt_with_escrow." },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -46,19 +46,26 @@ export async function POST(req: NextRequest) {
       const ctx = await getSupabaseAndUser(req);
       if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-      const { data: gateRow, error: gateSelectError } = await waitForDoubtRow(admin, doubtId, "user_id");
+      const { data: gateRow, error: gateSelectError } = await waitForDoubtRow(
+        admin,
+        doubtId,
+        "user_id"
+      );
       const doubt = gateRow as { user_id: string } | null;
       if (!doubt) {
         let supabaseHost = "";
         try {
-          supabaseHost = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL || "https://invalid").hostname;
+          supabaseHost = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL || "https://invalid")
+            .hostname;
         } catch {
           supabaseHost = "(invalid URL)";
         }
         console.error("[gyan-bot-answer] Doubt not found after retries", {
           doubtId,
           supabaseHost,
-          hasNormalizedServiceRoleKey: Boolean(normalizeServiceRoleKey(process.env.SUPABASE_SERVICE_ROLE_KEY)),
+          hasNormalizedServiceRoleKey: Boolean(
+            normalizeServiceRoleKey(process.env.SUPABASE_SERVICE_ROLE_KEY)
+          ),
           /** If set, PostgREST failed (key/table/network) — not the same as “row missing”. */
           supabaseSelectError: gateSelectError?.message ?? null,
         });
@@ -94,7 +101,7 @@ export async function POST(req: NextRequest) {
             ...(gateSelectError?.message ? { supabaseError: gateSelectError.message } : {}),
             ...(envDiag ? { envDiag, envDiagSummary } : {}),
           },
-          { status: 404 },
+          { status: 404 }
         );
       }
 
@@ -113,6 +120,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(result);
   } catch (e) {
     console.error("[gyan-bot-answer]", e);
-    return NextResponse.json({ error: e instanceof Error ? e.message : "Server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : "Server error" },
+      { status: 500 }
+    );
   }
 }

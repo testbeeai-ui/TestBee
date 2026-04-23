@@ -101,21 +101,9 @@ function generateForSubject(
   return lines;
 }
 
-const physicsLines = generateForSubject(
-  class12PhysicsUnits,
-  "physics",
-  12
-);
-const mathLines = generateForSubject(
-  class12MathUnits,
-  "math",
-  12
-);
-const chemistryLines = generateForSubject(
-  class12ChemistryUnits,
-  "chemistry",
-  12
-);
+const physicsLines = generateForSubject(class12PhysicsUnits, "physics", 12);
+const mathLines = generateForSubject(class12MathUnits, "math", 12);
+const chemistryLines = generateForSubject(class12ChemistryUnits, "chemistry", 12);
 
 const allLines = [
   "-- Seed Class 12 Physics, Math and Chemistry curriculum (Unit -> Chapter -> Topic -> Subtopic)",

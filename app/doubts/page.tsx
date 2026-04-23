@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import AppLayout from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -42,6 +43,9 @@ type SimpleDoubtRow = {
 export default function DoubtsPage() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const openedAskFromQuery = useRef(false);
 
   // Core data
   const [doubts, setDoubts] = useState<ExpandedDoubtRow[]>([]);
@@ -56,11 +60,28 @@ export default function DoubtsPage() {
   // Sidebar data
   const [bountyBoard, setBountyBoard] = useState<SimpleDoubtRow[]>([]);
   const [trending, setTrending] = useState<SimpleDoubtRow[]>([]);
-  const [topContributors, setTopContributors] = useState<{ user_id: string; total: number; profiles: { name: string; avatar_url: string | null } | null }[]>([]);
+  const [topContributors, setTopContributors] = useState<
+    {
+      user_id: string;
+      total: number;
+      profiles: { name: string; avatar_url: string | null } | null;
+    }[]
+  >([]);
   const [teacherWeeklyRdm, setTeacherWeeklyRdm] = useState<Map<string, number>>(new Map());
 
   // UI state
   const [askOpen, setAskOpen] = useState(false);
+
+  useEffect(() => {
+    if (openedAskFromQuery.current) return;
+    if (searchParams.get("ask") !== "1") return;
+    openedAskFromQuery.current = true;
+    setAskOpen(true);
+    const next = new URLSearchParams(searchParams.toString());
+    next.delete("ask");
+    const qs = next.toString();
+    router.replace(qs ? `/doubts?${qs}` : "/doubts", { scroll: false });
+  }, [router, searchParams]);
   const [sort, setSort] = useState<SortOption>("recent");
   const [subjectFilters, setSubjectFilters] = useState<string[]>([]);
   const [unansweredOnly, setUnansweredOnly] = useState(false);
@@ -73,44 +94,50 @@ export default function DoubtsPage() {
 
   // ─── Data fetching ───────────────────────────────────────────
 
-  const fetchDoubts = useCallback(async (opts?: { silent?: boolean }) => {
-    if (!opts?.silent) setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from("doubts")
-        .select(
-          "*, doubt_answers(id, body, upvotes, downvotes, is_accepted, created_at, user_id, profiles!doubt_answers_user_id_fkey(name, avatar_url, role)), profiles!doubts_user_id_fkey(name, avatar_url, role), gyan_curriculum_nodes(chapter_label, topic_label, subtopic_label)",
-        )
-        .order("created_at", { ascending: false });
-      if (error) {
+  const fetchDoubts = useCallback(
+    async (opts?: { silent?: boolean }) => {
+      if (!opts?.silent) setLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from("doubts")
+          .select(
+            "*, doubt_answers(id, body, upvotes, downvotes, is_accepted, created_at, user_id, profiles!doubt_answers_user_id_fkey(name, avatar_url, role)), profiles!doubts_user_id_fkey(name, avatar_url, role), gyan_curriculum_nodes(chapter_label, topic_label, subtopic_label)"
+          )
+          .order("created_at", { ascending: false });
+        if (error) {
+          if (!opts?.silent) {
+            const isNetworkError =
+              error.message?.includes("fetch") || error.message?.includes("Failed to fetch");
+            toast({
+              title: "Could not load Gyan++",
+              description: isNetworkError
+                ? "Network error. Check your connection and that the Supabase project is not paused."
+                : error.message,
+              variant: "destructive",
+            });
+          }
+          setDoubts([]);
+        } else {
+          setDoubts((data as ExpandedDoubtRow[]) || []);
+        }
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "Network or connection error.";
         if (!opts?.silent) {
-          const isNetworkError = error.message?.includes("fetch") || error.message?.includes("Failed to fetch");
           toast({
             title: "Could not load Gyan++",
-            description: isNetworkError
+            description: msg.includes("fetch")
               ? "Network error. Check your connection and that the Supabase project is not paused."
-              : error.message,
+              : msg,
             variant: "destructive",
           });
         }
         setDoubts([]);
-      } else {
-        setDoubts((data as ExpandedDoubtRow[]) || []);
+      } finally {
+        if (!opts?.silent) setLoading(false);
       }
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "Network or connection error.";
-      if (!opts?.silent) {
-        toast({
-          title: "Could not load Gyan++",
-          description: msg.includes("fetch") ? "Network error. Check your connection and that the Supabase project is not paused." : msg,
-          variant: "destructive",
-        });
-      }
-      setDoubts([]);
-    } finally {
-      if (!opts?.silent) setLoading(false);
-    }
-  }, [toast]);
+    },
+    [toast]
+  );
 
   const fetchProfile = async () => {
     if (!user?.id) return;
@@ -124,7 +151,10 @@ export default function DoubtsPage() {
 
   const fetchStrikeRate = async () => {
     if (!user?.id) return;
-    const { data } = await supabase.from("doubt_answers").select("id, is_accepted").eq("user_id", user.id);
+    const { data } = await supabase
+      .from("doubt_answers")
+      .select("id, is_accepted")
+      .eq("user_id", user.id);
     const list = (data || []) as { id: string; is_accepted: boolean }[];
     setStrikeRate({ accepted: list.filter((a) => a.is_accepted).length, total: list.length });
   };
@@ -149,7 +179,9 @@ export default function DoubtsPage() {
       .eq("user_id", user.id)
       .eq("target_type", "doubt");
     const map = new Map<string, number>();
-    (data || []).forEach((r: { target_id: string; vote_type: number }) => map.set(r.target_id, r.vote_type));
+    (data || []).forEach((r: { target_id: string; vote_type: number }) =>
+      map.set(r.target_id, r.vote_type)
+    );
     setMyVotes(map);
   };
 
@@ -196,14 +228,38 @@ export default function DoubtsPage() {
     const byUser = new Map<string, number>();
     list.forEach((r) => byUser.set(r.user_id, (byUser.get(r.user_id) || 0) + r.rdm_paid));
     setTeacherWeeklyRdm(new Map(byUser));
-    const sorted = Array.from(byUser.entries()).sort((a, b) => b[1] - a[1]).slice(0, 5);
-    if (sorted.length === 0) { setTopContributors([]); return; }
-    const { data: profiles } = await supabase.from("profiles").select("id, name, avatar_url").in("id", sorted.map((s) => s[0]));
-    const byId = new Map((profiles || []).map((p: { id: string; name: string; avatar_url: string | null }) => [p.id, p]));
-    setTopContributors(sorted.map(([uid, total]) => ({
-      user_id: uid, total,
-      profiles: byId.get(uid) ? { name: (byId.get(uid) as { name: string }).name, avatar_url: (byId.get(uid) as { avatar_url: string | null }).avatar_url } : null,
-    })));
+    const sorted = Array.from(byUser.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5);
+    if (sorted.length === 0) {
+      setTopContributors([]);
+      return;
+    }
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, name, avatar_url")
+      .in(
+        "id",
+        sorted.map((s) => s[0])
+      );
+    const byId = new Map(
+      (profiles || []).map((p: { id: string; name: string; avatar_url: string | null }) => [
+        p.id,
+        p,
+      ])
+    );
+    setTopContributors(
+      sorted.map(([uid, total]) => ({
+        user_id: uid,
+        total,
+        profiles: byId.get(uid)
+          ? {
+              name: (byId.get(uid) as { name: string }).name,
+              avatar_url: (byId.get(uid) as { avatar_url: string | null }).avatar_url,
+            }
+          : null,
+      }))
+    );
   };
 
   const fetchUserRdmToday = async () => {
@@ -218,11 +274,7 @@ export default function DoubtsPage() {
         .select("rdm_paid")
         .eq("user_id", user.id)
         .gte("paid_at", from),
-      supabase
-        .from("doubt_answers")
-        .select("id")
-        .eq("user_id", user.id)
-        .gte("created_at", from),
+      supabase.from("doubt_answers").select("id").eq("user_id", user.id).gte("created_at", from),
     ]);
 
     const payoutRdm = (payouts ?? []).reduce(
@@ -280,7 +332,14 @@ export default function DoubtsPage() {
     return () => document.removeEventListener("visibilitychange", onVis);
   }, [fetchDoubts]);
 
-  useEffect(() => { fetchProfile(); fetchStrikeRate(); fetchSaved(); fetchAnsweredDoubtIds(); fetchMyVotes(); fetchUserRdmToday(); }, [user?.id]);
+  useEffect(() => {
+    fetchProfile();
+    fetchStrikeRate();
+    fetchSaved();
+    fetchAnsweredDoubtIds();
+    fetchMyVotes();
+    fetchUserRdmToday();
+  }, [user?.id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -289,14 +348,23 @@ export default function DoubtsPage() {
         setIsAdmin(false);
         return;
       }
-      const { data } = await supabase.from("user_roles").select("id").eq("user_id", user.id).eq("role", "admin").maybeSingle();
+      const { data } = await supabase
+        .from("user_roles")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("role", "admin")
+        .maybeSingle();
       if (!cancelled) setIsAdmin(!!data);
     })();
     return () => {
       cancelled = true;
     };
   }, [user?.id]);
-  useEffect(() => { fetchBountyBoard(); fetchTrending(); fetchTopContributors(); }, []);
+  useEffect(() => {
+    fetchBountyBoard();
+    fetchTrending();
+    fetchTopContributors();
+  }, []);
 
   // ─── Computed data ───────────────────────────────────────────
 
@@ -322,7 +390,10 @@ export default function DoubtsPage() {
 
     // Tab filter
     if (activeTab === "student") list = list.filter((d) => d.profiles?.role !== "teacher");
-    else if (activeTab === "teacher") list = list.filter((d) => (d.doubt_answers ?? []).some((a) => a.profiles?.role === "teacher"));
+    else if (activeTab === "teacher")
+      list = list.filter((d) =>
+        (d.doubt_answers ?? []).some((a) => a.profiles?.role === "teacher")
+      );
     else if (activeTab === "revision") list = list.filter((d) => savedDoubtIds.has(d.id));
     else if (activeTab === "bounties") list = list.filter((d) => (d.bounty_rdm ?? 0) > 0);
     else if (activeTab === "ai") {
@@ -340,26 +411,44 @@ export default function DoubtsPage() {
         return Boolean(s && subjectFilters.includes(s));
       });
     }
-    if (unansweredOnly) list = list.filter((d) => !((d.doubt_answers?.length) ?? 0));
+    if (unansweredOnly) list = list.filter((d) => !(d.doubt_answers?.length ?? 0));
 
     // Sort
-    if (sort === "recent") list.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    else if (sort === "upvoted") list.sort((a, b) => (b.upvotes - b.downvotes) - (a.upvotes - a.downvotes));
-    else if (sort === "unanswered") list.sort((a, b) => (a.doubt_answers?.length ?? 0) - (b.doubt_answers?.length ?? 0));
+    if (sort === "recent")
+      list.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    else if (sort === "upvoted")
+      list.sort((a, b) => b.upvotes - b.downvotes - (a.upvotes - a.downvotes));
+    else if (sort === "unanswered")
+      list.sort((a, b) => (a.doubt_answers?.length ?? 0) - (b.doubt_answers?.length ?? 0));
     else if (sort === "bounty") list.sort((a, b) => (b.bounty_rdm ?? 0) - (a.bounty_rdm ?? 0));
-    else if (sort === "teacher_tagged") list.sort((a, b) => {
-      const aH = (a.doubt_answers ?? []).some((ans) => ans.profiles?.role === "teacher") ? 1 : 0;
-      const bH = (b.doubt_answers ?? []).some((ans) => ans.profiles?.role === "teacher") ? 1 : 0;
-      return bH - aH;
-    });
-    else if (sort === "saved") list.sort((a, b) => {
-      return (savedDoubtIds.has(b.id) ? 1 : 0) - (savedDoubtIds.has(a.id) ? 1 : 0);
-    });
+    else if (sort === "teacher_tagged")
+      list.sort((a, b) => {
+        const aH = (a.doubt_answers ?? []).some((ans) => ans.profiles?.role === "teacher") ? 1 : 0;
+        const bH = (b.doubt_answers ?? []).some((ans) => ans.profiles?.role === "teacher") ? 1 : 0;
+        return bH - aH;
+      });
+    else if (sort === "saved")
+      list.sort((a, b) => {
+        return (savedDoubtIds.has(b.id) ? 1 : 0) - (savedDoubtIds.has(a.id) ? 1 : 0);
+      });
 
     return list;
-  }, [doubts, sort, subjectFilters, unansweredOnly, activityView, activeTab, user?.id, savedDoubtIds, answeredDoubtIds]);
+  }, [
+    doubts,
+    sort,
+    subjectFilters,
+    unansweredOnly,
+    activityView,
+    activeTab,
+    user?.id,
+    savedDoubtIds,
+    answeredDoubtIds,
+  ]);
 
-  const askedCount = useMemo(() => (user?.id ? doubts.filter((d) => d.user_id === user.id).length : 0), [doubts, user?.id]);
+  const askedCount = useMemo(
+    () => (user?.id ? doubts.filter((d) => d.user_id === user.id).length : 0),
+    [doubts, user?.id]
+  );
   const answeredCount = answeredDoubtIds.size;
   const savedCount = savedDoubtIds.size;
 
@@ -370,7 +459,8 @@ export default function DoubtsPage() {
   }, [doubts]);
 
   const teacherTaggedCount = useMemo(() => {
-    return doubts.filter((d) => (d.doubt_answers ?? []).some((a) => a.profiles?.role === "teacher")).length;
+    return doubts.filter((d) => (d.doubt_answers ?? []).some((a) => a.profiles?.role === "teacher"))
+      .length;
   }, [doubts]);
 
   const aiAuthoredDoubtCount = useMemo(
@@ -380,7 +470,16 @@ export default function DoubtsPage() {
 
   // Compute top teachers from answers data
   const topTeachers = useMemo(() => {
-    const map = new Map<string, { name: string; avatar_url: string | null; answerCount: number; rdmEarned: number; subject: string | null }>();
+    const map = new Map<
+      string,
+      {
+        name: string;
+        avatar_url: string | null;
+        answerCount: number;
+        rdmEarned: number;
+        subject: string | null;
+      }
+    >();
     doubts.forEach((d) => {
       (d.doubt_answers ?? []).forEach((a) => {
         if (a.profiles?.role === "teacher") {
@@ -411,18 +510,20 @@ export default function DoubtsPage() {
     if (!user?.id) return;
     const current = myVotes.get(doubtId) ?? 0;
     // Optimistic UI update
-    setDoubts((prev) => prev.map((d) => {
-      if (d.id !== doubtId) return d;
-      let up = d.upvotes;
-      let down = d.downvotes;
-      if (current === 1) up--;
-      else if (current === -1) down--;
-      if (current !== direction) {
-        if (direction === 1) up++;
-        else down++;
-      }
-      return { ...d, upvotes: up, downvotes: down };
-    }));
+    setDoubts((prev) =>
+      prev.map((d) => {
+        if (d.id !== doubtId) return d;
+        let up = d.upvotes;
+        let down = d.downvotes;
+        if (current === 1) up--;
+        else if (current === -1) down--;
+        if (current !== direction) {
+          if (direction === 1) up++;
+          else down++;
+        }
+        return { ...d, upvotes: up, downvotes: down };
+      })
+    );
     setMyVotes((prev) => {
       const next = new Map(prev);
       if (current === direction) next.delete(doubtId);
@@ -438,16 +539,20 @@ export default function DoubtsPage() {
       // Update with actual server counts
       const res = data as { ok: boolean; upvotes?: number; downvotes?: number };
       if (res.upvotes !== undefined && res.downvotes !== undefined) {
-        setDoubts((prev) => prev.map((d) =>
-          d.id === doubtId ? { ...d, upvotes: res.upvotes!, downvotes: res.downvotes! } : d
-        ));
+        setDoubts((prev) =>
+          prev.map((d) =>
+            d.id === doubtId ? { ...d, upvotes: res.upvotes!, downvotes: res.downvotes! } : d
+          )
+        );
       }
       dispatchStudyDayBumped({ day: "", deltaMs: 0 });
     }
   };
 
   const toggleSubject = (flair: string) => {
-    setSubjectFilters((prev) => (prev.includes(flair) ? prev.filter((s) => s !== flair) : [...prev, flair]));
+    setSubjectFilters((prev) =>
+      prev.includes(flair) ? prev.filter((s) => s !== flair) : [...prev, flair]
+    );
   };
 
   const toggleSave = async (doubtId: string, e: React.MouseEvent) => {
@@ -457,7 +562,11 @@ export default function DoubtsPage() {
     const saved = savedDoubtIds.has(doubtId);
     if (saved) {
       await supabase.from("doubt_saves").delete().eq("user_id", user.id).eq("doubt_id", doubtId);
-      setSavedDoubtIds((prev) => { const next = new Set(prev); next.delete(doubtId); return next; });
+      setSavedDoubtIds((prev) => {
+        const next = new Set(prev);
+        next.delete(doubtId);
+        return next;
+      });
       toast({ title: "Removed from saved" });
       dispatchStudyDayBumped({ day: "", deltaMs: 0 });
     } else {
@@ -488,93 +597,94 @@ export default function DoubtsPage() {
         <GyanDoubtsFocusTracker>
           <GyanDailyChecklistTracker />
           <div className="max-w-[1680px] mx-auto px-4 sm:px-5 py-6">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 xl:gap-7">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 xl:gap-7">
+              {/* Left sidebar */}
+              <DoubtLeftSidebar
+                profile={profile}
+                strikeRate={strikeRate}
+                subjectFilters={subjectFilters}
+                subjectCounts={subjectCounts}
+                activityView={activityView}
+                sort={sort}
+                filteredCount={filteredAndSorted.length}
+                askedCount={askedCount}
+                answeredCount={answeredCount}
+                savedCount={savedCount}
+                aiGeneratedCount={aiAuthoredDoubtCount}
+                unansweredOnly={unansweredOnly}
+                onToggleSubject={toggleSubject}
+                onSelectAllSubjects={() => setSubjectFilters([...DOUBT_FLAIRS])}
+                onClearAllSubjects={() => setSubjectFilters([])}
+                onSetActivityView={setActivityView}
+                onSetSort={setSort}
+                onSetUnansweredOnly={setUnansweredOnly}
+              />
 
-            {/* Left sidebar */}
-            <DoubtLeftSidebar
-              profile={profile}
-              strikeRate={strikeRate}
-              subjectFilters={subjectFilters}
-              subjectCounts={subjectCounts}
-              activityView={activityView}
-              sort={sort}
-              filteredCount={filteredAndSorted.length}
-              askedCount={askedCount}
-              answeredCount={answeredCount}
-              savedCount={savedCount}
-              aiGeneratedCount={aiAuthoredDoubtCount}
-              unansweredOnly={unansweredOnly}
-              onToggleSubject={toggleSubject}
-              onSelectAllSubjects={() => setSubjectFilters([...DOUBT_FLAIRS])}
-              onClearAllSubjects={() => setSubjectFilters([])}
-              onSetActivityView={setActivityView}
-              onSetSort={setSort}
-              onSetUnansweredOnly={setUnansweredOnly}
-            />
+              {/* Center: header + tabs + feed */}
+              <main className="lg:col-span-6 order-1 lg:order-2 min-w-0">
+                <LiveQAHeader todayCount={todayCount} onAskClick={() => setAskOpen(true)} />
+                {isAdmin ? (
+                  <div className="mb-4">
+                    <GyanBotAdminPanel />
+                  </div>
+                ) : null}
+                <DoubtsTabBar activeTab={activeTab} onTabChange={setActiveTab} />
 
-            {/* Center: header + tabs + feed */}
-            <main className="lg:col-span-6 order-1 lg:order-2 min-w-0">
-              <LiveQAHeader
+                {loading ? (
+                  <div className="flex items-center justify-center py-16">
+                    <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+                  </div>
+                ) : filteredAndSorted.length === 0 ? (
+                  <div className="edu-card p-10 text-center rounded-2xl">
+                    <p className="text-muted-foreground font-medium mb-1">No questions yet.</p>
+                    <p className="text-xs text-muted-foreground mb-4">
+                      This wall is fully live from Supabase. Post the first question to start the
+                      thread.
+                    </p>
+                    <div className="flex flex-wrap justify-center gap-3">
+                      <Button className="rounded-xl" onClick={() => setAskOpen(true)}>
+                        Ask a question
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {filteredAndSorted.map((d, i) => (
+                      <DoubtFeedCard
+                        key={d.id}
+                        doubt={d}
+                        index={i}
+                        isSaved={savedDoubtIds.has(d.id)}
+                        onToggleSave={toggleSave}
+                        onRefresh={() => void fetchDoubts()}
+                        profileAvatarUrl={profile?.avatar_url}
+                        profileName={profile?.name}
+                        myVote={myVotes.get(d.id) ?? 0}
+                        onVote={handleVoteFeed}
+                        currentUserId={user?.id ?? null}
+                        isAdmin={isAdmin}
+                        expectProfPiAnswer={Boolean(profPiPendingByDoubtId[d.id])}
+                        currentUserRole={profile?.role ?? null}
+                      />
+                    ))}
+                  </div>
+                )}
+              </main>
+
+              {/* Right sidebar */}
+              <DoubtRightSidebar
                 todayCount={todayCount}
+                aiGeneratedCount={aiAuthoredDoubtCount}
+                teacherTaggedCount={teacherTaggedCount}
+                userRdmToday={userRdmToday}
+                bountyBoard={bountyBoard}
+                trending={trending}
+                topContributors={topContributors}
+                topTeachers={topTeachers}
                 onAskClick={() => setAskOpen(true)}
               />
-              {isAdmin ? (
-                <div className="mb-4">
-                  <GyanBotAdminPanel />
-                </div>
-              ) : null}
-              <DoubtsTabBar activeTab={activeTab} onTabChange={setActiveTab} />
-
-              {loading ? (
-                <div className="flex items-center justify-center py-16">
-                  <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-                </div>
-              ) : filteredAndSorted.length === 0 ? (
-                <div className="edu-card p-10 text-center rounded-2xl">
-                  <p className="text-muted-foreground font-medium mb-1">No questions yet.</p>
-                  <p className="text-xs text-muted-foreground mb-4">This wall is fully live from Supabase. Post the first question to start the thread.</p>
-                  <div className="flex flex-wrap justify-center gap-3">
-                    <Button className="rounded-xl" onClick={() => setAskOpen(true)}>Ask a question</Button>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {filteredAndSorted.map((d, i) => (
-                    <DoubtFeedCard
-                      key={d.id}
-                      doubt={d}
-                      index={i}
-                      isSaved={savedDoubtIds.has(d.id)}
-                      onToggleSave={toggleSave}
-                      onRefresh={() => void fetchDoubts()}
-                      profileAvatarUrl={profile?.avatar_url}
-                      profileName={profile?.name}
-                      myVote={myVotes.get(d.id) ?? 0}
-                      onVote={handleVoteFeed}
-                      currentUserId={user?.id ?? null}
-                      isAdmin={isAdmin}
-                      expectProfPiAnswer={Boolean(profPiPendingByDoubtId[d.id])}
-                      currentUserRole={profile?.role ?? null}
-                    />
-                  ))}
-                </div>
-              )}
-            </main>
-
-            {/* Right sidebar */}
-            <DoubtRightSidebar
-              todayCount={todayCount}
-              aiGeneratedCount={aiAuthoredDoubtCount}
-              teacherTaggedCount={teacherTaggedCount}
-              userRdmToday={userRdmToday}
-              bountyBoard={bountyBoard}
-              trending={trending}
-              topContributors={topContributors}
-              topTeachers={topTeachers}
-              onAskClick={() => setAskOpen(true)}
-            />
+            </div>
           </div>
-        </div>
 
           <AskDoubtDialog
             open={askOpen}

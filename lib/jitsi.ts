@@ -4,10 +4,10 @@
  * Otherwise uses NEXT_PUBLIC_JITSI_DOMAIN or meet.jit.si.
  */
 
-const JITSI_APP_ID = process.env.NEXT_PUBLIC_JITSI_APP_ID || '';
-const JITSI_DOMAIN_FALLBACK = process.env.NEXT_PUBLIC_JITSI_DOMAIN || 'meet.jit.si';
+const JITSI_APP_ID = process.env.NEXT_PUBLIC_JITSI_APP_ID || "";
+const JITSI_DOMAIN_FALLBACK = process.env.NEXT_PUBLIC_JITSI_DOMAIN || "meet.jit.si";
 
-export const JITSI_DOMAIN = JITSI_APP_ID ? '8x8.vc' : JITSI_DOMAIN_FALLBACK;
+export const JITSI_DOMAIN = JITSI_APP_ID ? "8x8.vc" : JITSI_DOMAIN_FALLBACK;
 
 /** Script URL for the Jitsi external API (JaaS uses 8x8.vc/appId/external_api.js). */
 export const JITSI_SCRIPT_URL = JITSI_APP_ID
@@ -28,12 +28,12 @@ export function getJitsiMeetLink(shortRoomName: string): string {
 /** Room name to pass to JitsiMeeting/iframe. For JaaS, must be appId/roomName (tenant in URL); fixes old links that are 8x8.vc/room only. */
 export function getJitsiRoomNameForMeeting(meetLink: string): string {
   try {
-    const path = new URL(meetLink).pathname.replace(/^\/+|\/+$/g, '') || 'EduBlast';
+    const path = new URL(meetLink).pathname.replace(/^\/+|\/+$/g, "") || "EduBlast";
     if (!JITSI_APP_ID) return path;
-    if (path.includes('/')) return path; // already appId/room
+    if (path.includes("/")) return path; // already appId/room
     return `${JITSI_APP_ID}/${path}`;
   } catch {
-    return JITSI_APP_ID ? `${JITSI_APP_ID}/EduBlast` : 'EduBlast';
+    return JITSI_APP_ID ? `${JITSI_APP_ID}/EduBlast` : "EduBlast";
   }
 }
 

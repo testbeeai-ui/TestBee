@@ -35,7 +35,8 @@ export default function DashboardLayout({ children, streakTimer }: DashboardLayo
                 href={l.href}
                 className={cn(
                   "shrink-0 rounded-full px-3 py-1.5 text-xs font-bold",
-                  pathname === l.href || (l.href === EXPLORE_APP_PATH && pathname.startsWith("/explore-1"))
+                  pathname === l.href ||
+                    (l.href === EXPLORE_APP_PATH && pathname.startsWith("/explore-1"))
                     ? "bg-primary text-primary-foreground"
                     : "bg-muted/70 text-muted-foreground"
                 )}

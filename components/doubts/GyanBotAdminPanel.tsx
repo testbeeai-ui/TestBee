@@ -171,7 +171,10 @@ export default function GyanBotAdminPanel() {
       if (c?.skipped) {
         toast({ title: "No post created", description: c.reason ?? "Skipped" });
       } else if (c?.doubtId) {
-        toast({ title: "Bot post created", description: `Doubt ${c.doubtId.slice(0, 8)}… — refresh the feed to see it.` });
+        toast({
+          title: "Bot post created",
+          description: `Doubt ${c.doubtId.slice(0, 8)}… — refresh the feed to see it.`,
+        });
       }
       void load();
     } catch (e) {
@@ -193,7 +196,12 @@ export default function GyanBotAdminPanel() {
         method: "POST",
         headers: { ...h },
       });
-      const body = (await res.json()) as { ok?: boolean; error?: string; created?: string[]; skippedExistingEmail?: string[] };
+      const body = (await res.json()) as {
+        ok?: boolean;
+        error?: string;
+        created?: string[];
+        skippedExistingEmail?: string[];
+      };
       if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
       toast({
         title: "Bot personas",
@@ -226,12 +234,20 @@ export default function GyanBotAdminPanel() {
           <div>
             <h3 className="font-bold text-sm sm:text-base">Gyan++ bot orchestration</h3>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Rotates 12 student personas; Prof-Pi answers each post. In production, Vercel cron calls the poster every 10
-              min. On your PC, cron does not run — use <strong>Run one post now</strong> to test.
+              Rotates 12 student personas; Prof-Pi answers each post. In production, Vercel cron
+              calls the poster every 10 min. On your PC, cron does not run — use{" "}
+              <strong>Run one post now</strong> to test.
             </p>
           </div>
         </div>
-        <Button type="button" variant="outline" size="sm" className="rounded-xl gap-1" onClick={() => void load()} disabled={loading}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="rounded-xl gap-1"
+          onClick={() => void load()}
+          disabled={loading}
+        >
           <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
           Refresh
         </Button>
@@ -267,13 +283,16 @@ export default function GyanBotAdminPanel() {
             </dd>
           </div>
           <div>
-            <dt className="text-muted-foreground text-xs font-semibold uppercase">Curriculum pointer</dt>
+            <dt className="text-muted-foreground text-xs font-semibold uppercase">
+              Curriculum pointer
+            </dt>
             <dd className="font-bold">
               seq #{config.curriculum_sequence_index ?? 0}
               <span className="text-muted-foreground font-normal"> · </span>
               batch slot {config.curriculum_batch_slot ?? 1}/5
               <span className="block text-[11px] text-muted-foreground font-normal mt-1">
-                Slot 5 = numeric round. Dedupe by cell in <code className="text-[10px]">gyan_curriculum_nodes</code> +{" "}
+                Slot 5 = numeric round. Dedupe by cell in{" "}
+                <code className="text-[10px]">gyan_curriculum_nodes</code> +{" "}
                 <code className="text-[10px]">doubts.gyan_curriculum_node_id</code>.
               </span>
             </dd>
@@ -285,20 +304,46 @@ export default function GyanBotAdminPanel() {
         <div className="mt-4 rounded-xl border border-border/80 bg-background/60 px-3 py-2.5 space-y-2">
           <p className="text-xs font-bold text-foreground">Server readiness (this deployment)</p>
           <div className="flex flex-wrap gap-1.5 text-[10px] font-semibold">
-            <span className={capabilities.serviceRoleConfigured ? "rounded-full bg-emerald-500/15 text-emerald-700 px-2 py-0.5" : "rounded-full bg-amber-500/20 text-amber-800 px-2 py-0.5"}>
+            <span
+              className={
+                capabilities.serviceRoleConfigured
+                  ? "rounded-full bg-emerald-500/15 text-emerald-700 px-2 py-0.5"
+                  : "rounded-full bg-amber-500/20 text-amber-800 px-2 py-0.5"
+              }
+            >
               Service role {capabilities.serviceRoleConfigured ? "OK" : "missing"}
             </span>
-            <span className={capabilities.sarvamConfigured ? "rounded-full bg-emerald-500/15 text-emerald-700 px-2 py-0.5" : "rounded-full bg-amber-500/20 text-amber-800 px-2 py-0.5"}>
+            <span
+              className={
+                capabilities.sarvamConfigured
+                  ? "rounded-full bg-emerald-500/15 text-emerald-700 px-2 py-0.5"
+                  : "rounded-full bg-amber-500/20 text-amber-800 px-2 py-0.5"
+              }
+            >
               Sarvam {capabilities.sarvamConfigured ? "OK" : "missing"}
             </span>
-            <span className={capabilities.ragSidecarConfigured ? "rounded-full bg-emerald-500/15 text-emerald-700 px-2 py-0.5" : "rounded-full bg-muted text-muted-foreground px-2 py-0.5"}>
+            <span
+              className={
+                capabilities.ragSidecarConfigured
+                  ? "rounded-full bg-emerald-500/15 text-emerald-700 px-2 py-0.5"
+                  : "rounded-full bg-muted text-muted-foreground px-2 py-0.5"
+              }
+            >
               RAG sidecar {capabilities.ragSidecarConfigured ? "OK" : "off"}
             </span>
-            <span className={capabilities.cronSecretConfigured ? "rounded-full bg-emerald-500/15 text-emerald-700 px-2 py-0.5" : "rounded-full bg-muted text-muted-foreground px-2 py-0.5"}>
+            <span
+              className={
+                capabilities.cronSecretConfigured
+                  ? "rounded-full bg-emerald-500/15 text-emerald-700 px-2 py-0.5"
+                  : "rounded-full bg-muted text-muted-foreground px-2 py-0.5"
+              }
+            >
               CRON_SECRET {capabilities.cronSecretConfigured ? "set" : "unset"}
             </span>
             {capabilities.vercelProduction ? (
-              <span className="rounded-full bg-blue-500/15 text-blue-700 px-2 py-0.5">Vercel production</span>
+              <span className="rounded-full bg-blue-500/15 text-blue-700 px-2 py-0.5">
+                Vercel production
+              </span>
             ) : null}
           </div>
           {setupWarnings.length > 0 ? (
@@ -308,14 +353,18 @@ export default function GyanBotAdminPanel() {
               ))}
             </ul>
           ) : (
-            <p className="text-[11px] text-muted-foreground">No blocking setup warnings detected for this environment.</p>
+            <p className="text-[11px] text-muted-foreground">
+              No blocking setup warnings detected for this environment.
+            </p>
           )}
         </div>
       ) : null}
 
       <div className="mt-4 flex flex-wrap items-end gap-2">
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-semibold text-muted-foreground">Post interval (minutes)</label>
+          <label className="text-xs font-semibold text-muted-foreground">
+            Post interval (minutes)
+          </label>
           <div className="flex gap-1">
             <input
               type="number"
@@ -325,7 +374,14 @@ export default function GyanBotAdminPanel() {
               value={intervalDraft}
               onChange={(e) => setIntervalDraft(e.target.value)}
             />
-            <Button type="button" variant="outline" size="sm" className="rounded-xl" disabled={saving} onClick={() => void saveInterval()}>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="rounded-xl"
+              disabled={saving}
+              onClick={() => void saveInterval()}
+            >
               Save
             </Button>
           </div>
@@ -351,7 +407,13 @@ export default function GyanBotAdminPanel() {
         >
           Stop bot
         </Button>
-        <Button type="button" variant="outline" className="rounded-xl" disabled={seeding} onClick={() => void seedPersonas()}>
+        <Button
+          type="button"
+          variant="outline"
+          className="rounded-xl"
+          disabled={seeding}
+          onClick={() => void seedPersonas()}
+        >
           {seeding ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
           Seed bot users (13)
         </Button>
@@ -368,8 +430,10 @@ export default function GyanBotAdminPanel() {
         </Button>
       </div>
       <p className="text-[11px] text-muted-foreground mt-3">
-        One-time: <strong>Seed bot users</strong> creates auth + profiles for fixed UUIDs (Prof-Pi + 12 students). Set{" "}
-        <code className="text-[10px] bg-muted px-1 rounded">GYAN_BOT_SEED_PASSWORD</code> in production.
+        One-time: <strong>Seed bot users</strong> creates auth + profiles for fixed UUIDs (Prof-Pi +
+        12 students). Set{" "}
+        <code className="text-[10px] bg-muted px-1 rounded">GYAN_BOT_SEED_PASSWORD</code> in
+        production.
       </p>
     </div>
   );

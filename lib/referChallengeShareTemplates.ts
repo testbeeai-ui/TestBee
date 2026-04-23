@@ -27,6 +27,10 @@ export type ReferChallengeShareTemplate = {
   body: string;
   cta: string;
   text: string;
+  waTitle: string;
+  waBody: string;
+  waCta: string;
+  whatsappText: string;
   charCount: number;
 };
 
@@ -36,6 +40,9 @@ type ReferChallengeTemplateDef = {
   hook: string;
   bodyPattern: string;
   ctaPattern: string;
+  waHook: string;
+  waBodyPattern: string;
+  waCtaPattern: string;
 };
 
 export function buildReferSharePayload(input: {
@@ -54,7 +61,7 @@ export function buildReferSharePayload(input: {
     challengeKey: input.spec.key,
     challengeName: input.spec.name,
     domain: input.spec.domain,
-    rewardRdm: input.spec.rdm,
+    rewardRdm: input.spec.winRdm,
     correct: input.correct,
     attempted: input.attempted,
     total: input.total,
@@ -82,11 +89,20 @@ function fillPattern(pattern: string, payload: ReferChallengeSharePayload): stri
     .replaceAll("{appUrl}", payload.appUrl);
 }
 
-function makeTemplate(def: ReferChallengeTemplateDef, payload: ReferChallengeSharePayload): ReferChallengeShareTemplate {
+function makeTemplate(
+  def: ReferChallengeTemplateDef,
+  payload: ReferChallengeSharePayload
+): ReferChallengeShareTemplate {
   const title = fillPattern(def.hook, payload);
   const body = fillPattern(def.bodyPattern, payload);
   const cta = fillPattern(def.ctaPattern, payload);
   const text = [title, body, cta].join("\n\n");
+
+  const waTitle = fillPattern(def.waHook, payload);
+  const waBody = fillPattern(def.waBodyPattern, payload);
+  const waCta = fillPattern(def.waCtaPattern, payload);
+  const whatsappText = [waTitle, waBody, waCta].join("\n\n");
+
   return {
     id: def.id,
     platform: "instagram",
@@ -95,184 +111,252 @@ function makeTemplate(def: ReferChallengeTemplateDef, payload: ReferChallengeSha
     body,
     cta,
     text,
+    waTitle,
+    waBody,
+    waCta,
+    whatsappText,
     charCount: text.length,
   };
 }
 
-/** 10 win captions — Gen Z / 11th–12th energy, long-form for IG. */
+/** 10 win templates: concise for Community Feed + expressive for WhatsApp. */
 const IG_WIN_DEFS: ReferChallengeTemplateDef[] = [
   {
     id: "ig_win_01",
     tone: "achievement",
-    hook: "🔥 MAIN CHARACTER ENERGY JUST DROPPED 🔥",
-    bodyPattern:
-      "11th/12th brainrot officially LOST today because I CLEARED {challengeName} on EduBlast.\n\n📊 THE RECEIPTS:\n✅ {correct}/{total} locked in\n✅ {accuracyPct}% correct on all questions (we don’t miss)\n⏱ {timeTakenLabel} on the clock\n🎯 Bar smashed — +{rewardRdm} RDM target in the bag (when tracking goes live)\n\n{domainLabel} mode had me in a chokehold but I STILL cooked. Boards/JEE energy: one session, one win, zero excuses.\n\nIf you’re still doom-scrolling instead of drilling — this is your sign to touch grass… then touch questions.",
-    ctaPattern: "📲 Pull up the same run: {appUrl}\n\n#studygram #jee #boards #class12 #class11 #edublast #grindset",
+    hook: "Just locked in a {challengeName} win. 🎯",
+    bodyPattern: "{correct}/{total} ({accuracyPct}%) in {timeTakenLabel} on {domainLabel}.",
+    ctaPattern: "Think you can beat it? {appUrl}",
+    waHook: "OMG I just clutched {challengeName} and my heart is still racing 😭🔥",
+    waBodyPattern:
+      "Dropped {correct}/{total} ({accuracyPct}%) in {timeTakenLabel} on {domainLabel} and it felt like a boss fight fr.",
+    waCtaPattern: "No excuses, pull up rn and beat this score: {appUrl}",
   },
   {
     id: "ig_win_02",
     tone: "achievement",
-    hook: "✨ SHE/HE/THEY PASSED… IT WAS ME ✨",
-    bodyPattern:
-      "POV: you’re in {challengeName} and the timer is staring you down like your tuition teacher.\n\nI STILL cleared it.\n\n🧠 Score: {correct}/{total}\n📈 % correct (all questions): {accuracyPct}%\n⏳ Session time: {timeTakenLabel}\n\nThis is the kind of win that hits different when you’re juggling PCM + backlogs + “5 min break” that turns into 2 hours.\n\nSmall daily reps > one panic night before the exam. I’m not gatekeeping — EduBlast is literally built for this chaos.",
-    ctaPattern: "🔗 Run it yourself: {appUrl}\n\n#studywithme #pcm #studyreels #edublast",
+    hook: "{challengeName} = cleared. ✅",
+    bodyPattern: "{accuracyPct}% accuracy ({correct}/{total}) in {timeTakenLabel}.",
+    ctaPattern: "Your turn starts here: {appUrl}",
+    waHook: "Ayo {challengeName} got folded 😤📚",
+    waBodyPattern:
+      "{correct}/{total} with {accuracyPct}% in just {timeTakenLabel}... I was LOCKED IN on {domainLabel}.",
+    waCtaPattern: "Try it before I go on another streak: {appUrl}",
   },
   {
     id: "ig_win_03",
     tone: "progress",
-    hook: "🫡 REPORTING LIVE FROM THE GRIND (WIN EDITION) 🫡",
-    bodyPattern:
-      "Day whatever of pretending I have my life together — but {challengeName} says otherwise because I PASSED.\n\n📌 {correct}/{total}\n📌 {accuracyPct}% correct (all questions)\n📌 {timeTakenLabel} total focus time\n\n{domainLabel} had me sweating but I kept my composure like it’s the last 10 minutes of the paper.\n\nFor everyone in 11th/12th who thinks “I’ll start Monday” — start with ONE timed run. Momentum is fake until you feel it once.",
-    ctaPattern: "🎯 Start here: {appUrl}\n\n#studytok #examseason #edublast",
+    hook: "Result drop: won {challengeName}.",
+    bodyPattern: "{correct}/{total} correct, {accuracyPct}% overall.",
+    ctaPattern: "Attempt now: {appUrl}",
+    waHook: "Not me actually speedrunning {challengeName} like a maniac 💀⚡",
+    waBodyPattern:
+      "Ended with {correct}/{total} and {accuracyPct}% in {timeTakenLabel}. {domainLabel} was throwing heat and I still survived.",
+    waCtaPattern: "Come test your luck/skill combo: {appUrl}",
   },
   {
     id: "ig_win_04",
     tone: "achievement",
-    hook: "🏆 LOCKED IN. BAR CLEARED. EGO +100. 🏆",
-    bodyPattern:
-      "Tell your group chat you’re busy — {challengeName} needed full focus and I delivered.\n\n🧾 Stats that matter:\n• {correct}/{total} correct\n• {accuracyPct}% correct (all questions)\n• {timeTakenLabel} deep work\n\nThis wasn’t luck. It was reps + timing discipline + refusing to panic-click answers like it’s a BuzzFeed quiz.\n\nIf you’re prepping for boards or JEE — treat every timed set like a match. You lose fast, you learn faster, you come back stronger.",
-    ctaPattern: "⚡ Same challenge format: {appUrl}\n\n#jee2026 #boards2026 #studygram #edublast",
+    hook: "Challenge cleared: {challengeName}.",
+    bodyPattern: "{domainLabel} run finished at {correct}/{total} ({accuracyPct}%).",
+    ctaPattern: "Take the same challenge: {appUrl}",
+    waHook: "I said 'one try' on {challengeName} and then COOKED 🍳🔥",
+    waBodyPattern:
+      "{correct}/{total} with {accuracyPct}% in {timeTakenLabel}. This run had me talking to my screen ngl.",
+    waCtaPattern: "Your move, don't ghost this: {appUrl}",
   },
   {
     id: "ig_win_05",
     tone: "progress",
-    hook: "📚 ACADEMIC ARC UPDATE: WE WINNING 📚",
-    bodyPattern:
-      "Character development unlocked: I cleared {challengeName} today.\n\n🎮 Run stats:\n{correct}/{total} | {accuracyPct}% correct (all questions) | {timeTakenLabel}\n\n{domainLabel} is basically the boss level of my study routine. Every mistake is data, every pass is proof the system works.\n\nShoutout to every 11th/12th student running on chai, guilt, and last-minute motivation — you’re not alone. Build the habit anyway.",
-    ctaPattern: "🔗 Tap in: {appUrl}\n\n#studymotivation #class12 #class11 #edublast",
+    hook: "Today’s W: {challengeName}.",
+    bodyPattern: "{correct}/{total} • {accuracyPct}% • {timeTakenLabel}.",
+    ctaPattern: "See if you can top it: {appUrl}",
+    waHook: "Massive student-core W unlocked on {challengeName} 🧠✨",
+    waBodyPattern:
+      "Went {correct}/{total} ({accuracyPct}%) in {timeTakenLabel} and my confidence just went +100.",
+    waCtaPattern: "Tap in and try to outscore me: {appUrl}",
   },
   {
     id: "ig_win_06",
     tone: "achievement",
-    hook: "🚨 ATTENTION: I DID THE THING 🚨",
-    bodyPattern:
-      "Not me clearing {challengeName} while half my class is still asking “is this in syllabus?”\n\n📊 {correct}/{total}\n📊 {accuracyPct}% correct (all questions)\n⏱ {timeTakenLabel}\n\nThis is the energy I’m bringing into exam season. Controlled speed > random guessing. Calm brain > chaotic tabs.\n\nIf your revision plan is “I’ll wing it” — no you won’t. You’ll cry in the hall. Fix it in small timed chunks instead.",
-    ctaPattern: "📲 Practice link: {appUrl}\n\n#studywithme #edublast #examready",
+    hook: "{challengeName} pass bar crossed. 🚀",
+    bodyPattern: "{correct}/{total} ({accuracyPct}%) on all questions.",
+    ctaPattern: "Jump into the challenge: {appUrl}",
+    waHook: "BROOO I beat {challengeName} and almost screamed in class 😭📈",
+    waBodyPattern:
+      "Final was {correct}/{total}, {accuracyPct}% in {timeTakenLabel}. Felt like exam revenge mode.",
+    waCtaPattern: "Don't just react, run it: {appUrl}",
   },
   {
     id: "ig_win_07",
     tone: "achievement",
-    hook: "💅 THAT’S HOT. (IT’S MY SCORE.) 💅",
-    bodyPattern:
-      "EduBlast said {challengeName} — I said BET.\n\n✅ {correct}/{total}\n✅ {accuracyPct}% correct (all questions)\n✅ {timeTakenLabel} of pure focus (minus the 2 seconds I debated life choices)\n\nWinning here feels like winning in the exam hall: same pressure, same timer, same “don’t throw away easy marks” rule.\n\nTag someone who needs to stop saying “kal se pakka” and actually start today.",
-    ctaPattern: "🎯 Link: {appUrl}\n\n#studygram #pcm #edublast",
+    hook: "{challengeName} win secured on EduBlast.",
+    bodyPattern: "{domainLabel}: {correct}/{total} and {accuracyPct}% in {timeTakenLabel}.",
+    ctaPattern: "Try this run: {appUrl}",
+    waHook: "Lowkey shook... I actually cleared {challengeName} 😮‍💨🏆",
+    waBodyPattern:
+      "{correct}/{total}, {accuracyPct}% in {timeTakenLabel}. Brain was buffering at first then boom, flow state.",
+    waCtaPattern: "Get in here and challenge me: {appUrl}",
   },
   {
     id: "ig_win_08",
     tone: "progress",
-    hook: "🧠 BRAIN ON SPORT MODE 🧠",
-    bodyPattern:
-      "Trained like an athlete today — {challengeName} cleared.\n\n🏃‍♂️ Performance split:\n• Output: {correct}/{total}\n• % correct (all questions): {accuracyPct}%\n• Tempo: {timeTakenLabel}\n\n{domainLabel} is not “extra” work. It’s the same skill stack as competitive exams: read fast, decide clean, move on.\n\nIf you’re in 11th/12th, your biggest flex is consistency. Not one 8-hour myth. Daily reps that don’t lie.",
-    ctaPattern: "🔗 Train here: {appUrl}\n\n#jee #boards #edublast #studyreels",
+    hook: "Consistency check passed: {challengeName}.",
+    bodyPattern: "Finished {correct}/{total} with {accuracyPct}% accuracy.",
+    ctaPattern: "Ready for your run? {appUrl}",
+    waHook: "Another day, another academic anime arc completed with {challengeName} ⚔️📘",
+    waBodyPattern:
+      "{correct}/{total}, {accuracyPct}% in {timeTakenLabel}. The comeback montage music was playing in my head fr.",
+    waCtaPattern: "Join the storyline: {appUrl}",
   },
   {
     id: "ig_win_09",
     tone: "achievement",
-    hook: "🎉 CANON EVENT: I PASSED {challengeName} 🎉",
-    bodyPattern:
-      "Every student movie has that montage — mine is just EduBlast runs and iced coffee.\n\n📌 {correct}/{total}\n📌 {accuracyPct}% correct (all questions)\n📌 {timeTakenLabel}\n\nThis pass hits harder because it’s measurable. Not vibes. Not “I studied a lot”. Numbers.\n\nIf you’re scrolling at 2am — close the app, run ONE timed set, come back and flex in the comments. Future you is literally begging.",
-    ctaPattern: "⚡ Start: {appUrl}\n\n#studygram #edublast #class12",
+    hook: "{challengeName} done and delivered.",
+    bodyPattern: "Scoreline: {correct}/{total} ({accuracyPct}%) in {timeTakenLabel}.",
+    ctaPattern: "Can you beat it? {appUrl}",
+    waHook: "I'm not saying I'm a genius but {challengeName} just got handled 😌🔥",
+    waBodyPattern:
+      "{correct}/{total} with {accuracyPct}% in {timeTakenLabel} on {domainLabel}. This felt illegal.",
+    waCtaPattern: "Try to humble me here: {appUrl}",
   },
   {
     id: "ig_win_10",
     tone: "progress",
-    hook: "✅ W + COPIED TO CLIPBOARD ENERGY (IN MY HEAD) ✅",
-    bodyPattern:
-      "Officially clearing {challengeName} today — posting so the universe holds me accountable tomorrow too.\n\n🧾 {correct}/{total}\n🧾 {accuracyPct}% correct (all questions)\n🧾 {timeTakenLabel}\n\n{domainLabel} grind is boring until it isn’t. Then it’s addictive.\n\nDrop a 🔥 if you’re also trying to survive PCM + sanity. We’re literally in the same group project called life.",
-    ctaPattern: "📲 Join the run: {appUrl}\n\n#studywithme #edublast #boards",
+    hook: "Win shared: {challengeName}.",
+    bodyPattern: "{correct}/{total} and {accuracyPct}% completed in {timeTakenLabel}.",
+    ctaPattern: "Play now: {appUrl}",
+    waHook: "Main character moment: I cleared {challengeName} and the aura is unmatched ✨😤",
+    waBodyPattern:
+      "{correct}/{total} ({accuracyPct}%) in {timeTakenLabel}. If you beat this, respect++.",
+    waCtaPattern: "Prove it here: {appUrl}",
   },
 ];
 
-/** 10 loss / comeback captions — still hype, honest, Gen Z. */
+/** 10 loss/comeback templates: concise for Community Feed + expressive for WhatsApp. */
 const IG_LOSS_DEFS: ReferChallengeTemplateDef[] = [
   {
     id: "ig_loss_01",
     tone: "comeback",
-    hook: "💀 VILLAIN ARC LOADING… DIDN’T CLEAR {challengeName} 💀",
-    bodyPattern:
-      "Okay real talk — I did NOT pass today. And I’m posting anyway because hiding Ls is cringe.\n\n📉 The damage report:\n• Score: {correct}/{total}\n• % correct (all questions): {accuracyPct}%\n• Needed: {neededCorrect}/{total} to actually win\n⏱ Time in the arena: {timeTakenLabel}\n\nThis is the part nobody posts — but it’s where growth lives. One bad run ≠ one bad student. It means the exam found a leak in my process BEFORE the real paper did.\n\n11th/12th is literally built different — we fail loud, fix fast, run it back.",
-    ctaPattern: "🔁 Retry energy here: {appUrl}\n\n#studygram #comeback #jee #boards #edublast",
+    hook: "Took an L on {challengeName} today, but progress logged. 🧪",
+    bodyPattern: "{correct}/{total} ({accuracyPct}%) in {timeTakenLabel}.",
+    ctaPattern: "Running it back soon: {appUrl}",
+    waHook: "Nahhh {challengeName} actually humbled me today 💀📉",
+    waBodyPattern:
+      "I got {correct}/{total} ({accuracyPct}%) in {timeTakenLabel} and this run had no mercy.",
+    waCtaPattern: "I'm reloading tomorrow, pull up too: {appUrl}",
   },
   {
     id: "ig_loss_02",
     tone: "comeback",
-    hook: "🎬 CANON EVENT: I TOOK AN L (AND I’M FINE… MOSTLY) 🎬",
-    bodyPattern:
-      "POV: {challengeName} humbled me today.\n\n📊 {correct}/{total}\n📊 {accuracyPct}% correct (all questions)\n🎯 Needed {neededCorrect}/{total}\n\nIt stings — but I’d rather take the L in practice than in the hall.\n\n{domainLabel} runs teach you where you panic, where you rush, and where your brain goes blank under pressure. That data is GOLD.\n\nIf you’re also “smart but inconsistent” — welcome. We’re fixing that one rep at a time.",
-    ctaPattern: "📲 Same format, better me: {appUrl}\n\n#studywithme #edublast #class12",
+    hook: "{challengeName} wasn't cleared this round.",
+    bodyPattern: "{correct}/{total} ({accuracyPct}%), needed {neededCorrect}/{total}.",
+    ctaPattern: "Comeback attempt: {appUrl}",
+    waHook: "Brooo {challengeName} said 'not today' and I felt that 😭",
+    waBodyPattern:
+      "Ended at {correct}/{total}, {accuracyPct}% (needed {neededCorrect}/{total}). Character development arc activated.",
+    waCtaPattern: "Next run is personal: {appUrl}",
   },
   {
     id: "ig_loss_03",
     tone: "progress",
-    hook: "📉 SCOREBOARD SAYS NO… BRAIN SAYS “WATCH ME” 📉",
-    bodyPattern:
-      "Not every day is a win day. Today {challengeName} said “try again”.\n\n🧾 {correct}/{total}\n🧾 {accuracyPct}% correct (all questions)\n⏱ {timeTakenLabel}\n\nI’m not romanticizing failure — I’m logging it like a lab experiment. What broke? Timing? Silly mistakes? Overthinking?\n\nExams don’t care about your story. They care about execution. So I’m converting this L into a patch note for tomorrow’s session.",
-    ctaPattern: "🔗 Back on EduBlast: {appUrl}\n\n#studymotivation #edublast #pcm",
+    hook: "No clear on {challengeName}, still learning.",
+    bodyPattern: "{domainLabel}: {correct}/{total} and {accuracyPct}% in {timeTakenLabel}.",
+    ctaPattern: "Practice with me: {appUrl}",
+    waHook: "I got cooked by {challengeName} but we don't quit around here 😤",
+    waBodyPattern:
+      "{correct}/{total}, {accuracyPct}% in {timeTakenLabel}. Low score, high comeback energy.",
+    waCtaPattern: "Let's run it together: {appUrl}",
   },
   {
     id: "ig_loss_04",
     tone: "comeback",
-    hook: "🫠 I FUMBLED… BUT THE GRIND RECEIPT IS STILL REAL 🫠",
-    bodyPattern:
-      "If you think I’m only posting wins — no. I got cooked in {challengeName} today.\n\n📌 {correct}/{total}\n📌 {accuracyPct}% correct (all questions)\n📌 Bar: {neededCorrect}/{total}\n\nBut listen: showing up under a timer when you’re tired is still elite behavior. Most people won’t even start.\n\nThis is for every 11th/12th student who feels behind: you’re not “dumb”, you’re under-trained on pressure. Fix that, not your self-worth.",
-    ctaPattern: "⚡ Run again: {appUrl}\n\n#studygram #edublast #boards",
+    hook: "Progress post: {challengeName} attempt.",
+    bodyPattern: "{correct}/{total} | {accuracyPct}% | target {neededCorrect}/{total}.",
+    ctaPattern: "Try it and compare: {appUrl}",
+    waHook: "Okay listen... {challengeName} jumped me out of nowhere 🤡📚",
+    waBodyPattern:
+      "Only {correct}/{total} ({accuracyPct}%) this time, but the rematch is already scheduled in my head.",
+    waCtaPattern: "Come watch the redemption run: {appUrl}",
   },
   {
     id: "ig_loss_05",
     tone: "comeback",
-    hook: "⚠️ HEARTBREAK RUN ⚠️ (STILL POSTING BECAUSE I’M BRAVE)",
-    bodyPattern:
-      "EduBlast said {challengeName} — I said “I got this” — the universe said “not today bestie”.\n\n💔 {correct}/{total}\n💔 {accuracyPct}% correct (all questions)\n⏱ {timeTakenLabel}\n\nBut here’s the plot twist: I still learned something expensive for free.\n\nPressure reveals truth. And truth is how you rebuild faster than people who only practice when they feel motivated (aka never).",
-    ctaPattern: "📲 Retry arc: {appUrl}\n\n#studywithme #edublast #jee",
+    hook: "Close run, no finish on {challengeName}.",
+    bodyPattern: "{correct}/{total} at {accuracyPct}% in {timeTakenLabel}.",
+    ctaPattern: "Next attempt here: {appUrl}",
+    waHook: "I just got plot-twisted by {challengeName} and I need revenge asap 😵‍💫",
+    waBodyPattern:
+      "Finished with {correct}/{total} ({accuracyPct}%) in {timeTakenLabel}. Painful? yes. Over? never.",
+    waCtaPattern: "Join the revenge mission: {appUrl}",
   },
   {
     id: "ig_loss_06",
     tone: "progress",
-    hook: "🧪 EXPERIMENT FAILED… DATA COLLECTED 🧪",
-    bodyPattern:
-      "Science students know: a failed experiment is still data.\n\nToday’s {challengeName} data:\n• {correct}/{total}\n• {accuracyPct}% correct (all questions)\n• Needed {neededCorrect}/{total}\n\n{domainLabel} is basically forcing me to confront my weak spots without the delulu “I’ll revise later” mindset.\n\nIf you’re prepping for competitive exams — get comfortable being wrong in practice. It’s cheaper than being wrong on paper.",
-    ctaPattern: "🔗 Practice lab: {appUrl}\n\n#pcm #studygram #edublast",
+    hook: "Today's data point: {challengeName}.",
+    bodyPattern: "{correct}/{total}, {accuracyPct}% (bar: {neededCorrect}/{total}).",
+    ctaPattern: "Attempt your run: {appUrl}",
+    waHook: "Current status: academically bruised by {challengeName} but still standing 🫡",
+    waBodyPattern: "{correct}/{total} and {accuracyPct}% today. Not my final form.",
+    waCtaPattern: "Catch me on the comeback run: {appUrl}",
   },
   {
     id: "ig_loss_07",
     tone: "comeback",
-    hook: "🫡 RESPECTFULLY… I GOT RATIO’D BY THE TIMER 🫡",
-    bodyPattern:
-      "Me vs {challengeName} today: 0-1.\n\n📉 {correct}/{total}\n📉 {accuracyPct}% correct (all questions)\n⏱ {timeTakenLabel}\n\nBut I’m not quitting the storyline. I’m just entering the training arc.\n\nIf your brain freezes when the clock ticks — SAME. That’s exactly why timed reps exist.\n\nTag your study bestie who needs to hear this: progress is ugly before it looks aesthetic.",
-    ctaPattern: "📲 Next attempt: {appUrl}\n\n#studyreels #edublast #class11",
+    hook: "Missed clear on {challengeName}, staying consistent.",
+    bodyPattern: "{domainLabel} score: {correct}/{total} ({accuracyPct}%).",
+    ctaPattern: "Retry with me: {appUrl}",
+    waHook: "{challengeName} really tested my patience and won this round 😮‍💨",
+    waBodyPattern:
+      "Got {correct}/{total} at {accuracyPct}% in {timeTakenLabel}. Next one is comeback cinema.",
+    waCtaPattern: "Slide in for round two: {appUrl}",
   },
   {
     id: "ig_loss_08",
     tone: "comeback",
-    hook: "🎮 GG… RUN IT BACK 🎮",
-    bodyPattern:
-      "Lost the match, not the season.\n\n{challengeName} stats:\n{correct}/{total} | {accuracyPct}% correct (all questions) | {timeTakenLabel}\nGoal was {neededCorrect}/{total} — we pack it up and queue next game.\n\nThis is the Gen Z version of discipline: post the L, analyze like a streamer reviewing VOD, come back cracked.\n\nYour future self doesn’t need motivation — they need receipts. Start collecting them.",
-    ctaPattern: "⚡ EduBlast run: {appUrl}\n\n#studygram #edublast #boards",
+    hook: "GG for now on {challengeName}.",
+    bodyPattern: "{correct}/{total} ({accuracyPct}%), needed {neededCorrect}/{total}.",
+    ctaPattern: "Queue next run: {appUrl}",
+    waHook: "GGs only... {challengeName} packed me up today 😂📦",
+    waBodyPattern:
+      "{correct}/{total}, {accuracyPct}% in {timeTakenLabel}. I blinked and the timer vanished.",
+    waCtaPattern: "Rematch lobby is open: {appUrl}",
   },
   {
     id: "ig_loss_09",
     tone: "progress",
-    hook: "📓 DEAR DIARY… TODAY WAS MID 📓",
-    bodyPattern:
-      "Day summary (brutally honest):\n{challengeName} — NOT cleared.\n\n📌 {correct}/{total}\n📌 {accuracyPct}% correct (all questions)\n📌 Needed {neededCorrect}/{total}\n\nBut mid days are part of the syllabus of life. Especially in 11th/12th when everyone pretends they’re fine.\n\nI’m choosing consistency over perfection theater. One bad run doesn’t erase the habit — it tests if you’ll show up again tomorrow.",
-    ctaPattern: "🔗 Show up here: {appUrl}\n\n#studywithme #edublast #mentalhealthmatters",
+    hook: "Day summary: {challengeName} attempt complete.",
+    bodyPattern: "{correct}/{total}, {accuracyPct}% with clear bar at {neededCorrect}/{total}.",
+    ctaPattern: "Back tomorrow: {appUrl}",
+    waHook: "Today's episode: I fought {challengeName} and lost by stats 😵",
+    waBodyPattern:
+      "Result was {correct}/{total} ({accuracyPct}%), needed {neededCorrect}/{total}. Training arc starts now.",
+    waCtaPattern: "Try it and send your score: {appUrl}",
   },
   {
     id: "ig_loss_10",
     tone: "comeback",
-    hook: "🔁 RESET. RELOAD. RISE. (YES I’M STILL POSTING) 🔁",
-    bodyPattern:
-      "If you wanted a perfect highlight reel — wrong account.\n\n{challengeName} today: didn’t pass.\n\n📉 {correct}/{total}\n📉 {accuracyPct}% correct (all questions)\n⏱ {timeTakenLabel}\n\nBut I’m treating this like a sports season: you take losses on the road and still win the championship if your process is tight.\n\nNext run: slower panic, faster decisions, fewer silly mistakes. Let’s cook.",
-    ctaPattern: "📲 Run it back: {appUrl}\n\n#comeback #studygram #edublast #jee",
+    hook: "Reset mode on: {challengeName}.",
+    bodyPattern: "{correct}/{total} at {accuracyPct}% in {timeTakenLabel}.",
+    ctaPattern: "Join the next attempt: {appUrl}",
+    waHook: "I got folded by {challengeName} but the comeback tweet drafts are ready 😤📲",
+    waBodyPattern:
+      "{correct}/{total}, {accuracyPct}% in {timeTakenLabel}. This is the 'before' screenshot.",
+    waCtaPattern: "Watch the glow-up run: {appUrl}",
   },
 ];
 
-export function renderTemplate(def: ReferChallengeTemplateDef, payload: ReferChallengeSharePayload): ReferChallengeShareTemplate {
+export function renderTemplate(
+  def: ReferChallengeTemplateDef,
+  payload: ReferChallengeSharePayload
+): ReferChallengeShareTemplate {
   return makeTemplate(def, payload);
 }
 
-/** All Instagram share captions for the current outcome (10 win or 10 loss). */
-export function buildReferShareTemplates(payload: ReferChallengeSharePayload): ReferChallengeShareTemplate[] {
+/** All share captions for the current outcome (10 win or 10 loss). */
+export function buildReferShareTemplates(
+  payload: ReferChallengeSharePayload
+): ReferChallengeShareTemplate[] {
   const defs = payload.outcome === "won" ? IG_WIN_DEFS : IG_LOSS_DEFS;
   return defs.map((def) => renderTemplate(def, payload));
 }

@@ -9,7 +9,11 @@ import {
   STUDENT_BOT_TITLE_MAX_CHARS,
   STUDENT_DOUBT_LENGTH_CONTRACT,
 } from "@/lib/gyanContentPolicy";
-import { extractJsonObject, sarvamChatCompletion, stripSarvamThinking } from "@/lib/sarvamGyanClient";
+import {
+  extractJsonObject,
+  sarvamChatCompletion,
+  stripSarvamThinking,
+} from "@/lib/sarvamGyanClient";
 
 const DOUBT_SUBJECTS = ["Physics", "Chemistry", "Math", "General Question", "Other"] as const;
 
@@ -53,8 +57,7 @@ const CBSE_DOUBT_ARCHETYPES = [
   },
   {
     key: "derivation_or_proof_sketch",
-    ragProbe:
-      "derivation steps proof outline key intermediate results CBSE exam style",
+    ragProbe: "derivation steps proof outline key intermediate results CBSE exam style",
     teacherVoice:
       "Like a student lost *mid-derivation*: which step is justified, why a term appears, or what assumption is used. Title compact; body references ‘step after …’ in words.",
   },
@@ -74,15 +77,13 @@ const CBSE_DOUBT_ARCHETYPES = [
   },
   {
     key: "misconception_check",
-    ragProbe:
-      "common mistakes misconceptions student errors frequently asked doubts CBSE",
+    ragProbe: "common mistakes misconceptions student errors frequently asked doubts CBSE",
     teacherVoice:
       "Like a student repeating a *wrong belief* then asking ‘is this wrong?’: title sharp; body one sentence of wrong reasoning + question.",
   },
   {
     key: "graph_or_case_interpret",
-    ragProbe:
-      "graphs diagrams limiting cases special conditions interpretation CBSE",
+    ragProbe: "graphs diagrams limiting cases special conditions interpretation CBSE",
     teacherVoice:
       "Like a student asking about *graphs, limits, or special cases* tied to the topic: title mentions the situation; body what looks contradictory to them.",
   },
@@ -96,7 +97,9 @@ const CBSE_DOUBT_ARCHETYPES = [
 ] as const;
 
 function pickArchetype(rotationIndex: number) {
-  const i = ((rotationIndex % CBSE_DOUBT_ARCHETYPES.length) + CBSE_DOUBT_ARCHETYPES.length) % CBSE_DOUBT_ARCHETYPES.length;
+  const i =
+    ((rotationIndex % CBSE_DOUBT_ARCHETYPES.length) + CBSE_DOUBT_ARCHETYPES.length) %
+    CBSE_DOUBT_ARCHETYPES.length;
   return CBSE_DOUBT_ARCHETYPES[i]!;
 }
 
@@ -147,7 +150,9 @@ Rules: no fake chapter/exercise refs; one topic; optional minimal $...$ in body 
 }
 
 /** One repair call when primary output is not valid JSON (temperature low, short prompt). */
-async function repairStudentDoubtJsonWithSarvam(rawOutput: string): Promise<Record<string, unknown> | null> {
+async function repairStudentDoubtJsonWithSarvam(
+  rawOutput: string
+): Promise<Record<string, unknown> | null> {
   const snippet = stripSarvamThinking(rawOutput).slice(0, 2800);
   const allowed = DOUBT_SUBJECTS.join(", ");
   const systemPrompt = `You convert broken or non-JSON model output into ONE valid JSON object only.
@@ -197,7 +202,11 @@ export async function generateStudentDoubtWithSarvam(
     undefined,
     RAG_MATCH_COUNT_STUDENT_BOT
   );
-  const ragBlock = buildRagBlockForStudentQuestion(ragContext, persona.classLevel, persona.subjectFocus);
+  const ragBlock = buildRagBlockForStudentQuestion(
+    ragContext,
+    persona.classLevel,
+    persona.subjectFocus
+  );
 
   const curriculumBlock = cur
     ? `CURRICULUM CELL (mandatory — the doubt must clearly belong to this syllabus thread, not a random chapter):
@@ -206,9 +215,11 @@ export async function generateStudentDoubtWithSarvam(
 ${cur.node.subtopic_label ? `- Subtopic: ${cur.node.subtopic_label}` : ""}
 - Syllabus label subject: ${cur.node.subject} (Class ${cur.node.class_level})
 - Coverage batch slot: ${cur.batchSlot} of 5 (slot 5 is the “numeric / exam-setup” round in this rotation).
-${cur.requiresNumeric
-      ? `NUMERIC ROUND (slot 5): Write a doubt that includes at least two concrete numeric values (counts, distances, angles, concentrations, etc.) with units where natural. It should read like a short word-problem hook or data the student is stuck on — not a full worked solution.`
-      : `QUALITATIVE SLOTS (1–4): Prefer conceptual “why/how”, definitions, or intuition; avoid inventing a long multi-step calculation unless it fits the archetype naturally.`}
+${
+  cur.requiresNumeric
+    ? `NUMERIC ROUND (slot 5): Write a doubt that includes at least two concrete numeric values (counts, distances, angles, concentrations, etc.) with units where natural. It should read like a short word-problem hook or data the student is stuck on — not a full worked solution.`
+    : `QUALITATIVE SLOTS (1–4): Prefer conceptual “why/how”, definitions, or intuition; avoid inventing a long multi-step calculation unless it fits the archetype naturally.`
+}
 `
     : "";
 

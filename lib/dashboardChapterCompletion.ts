@@ -6,7 +6,6 @@ const SUBJECT_LABEL: Record<Subject, string> = {
   physics: "Physics",
   chemistry: "Chemistry",
   math: "Mathematics",
-  biology: "Biology",
 };
 
 export function normalizeCurriculumText(value: string): string {
@@ -39,7 +38,12 @@ function chapterAggregateId(node: TopicNode): string {
   return `${node.subject}::${node.classLevel}::${u}::${ch}`;
 }
 
-function progressKey(subject: Subject, classLevel: 11 | 12, topic: string, subtopic: string): string {
+function progressKey(
+  subject: Subject,
+  classLevel: 11 | 12,
+  topic: string,
+  subtopic: string
+): string {
   return `${subject}::${classLevel}::${normalizeCurriculumText(topic)}::${normalizeCurriculumText(subtopic)}`;
 }
 
@@ -88,7 +92,9 @@ export function parseClassLevelsFromLessonMarkedEngagementRaw(raw: unknown): Set
     const row = value as Record<string, unknown>;
     if (Number(row.v) !== 1) continue;
     const marked =
-      typeof row.lessonChecklistMarkedCompleteAt === "string" ? row.lessonChecklistMarkedCompleteAt.trim() : "";
+      typeof row.lessonChecklistMarkedCompleteAt === "string"
+        ? row.lessonChecklistMarkedCompleteAt.trim()
+        : "";
     if (!marked) continue;
     const cl = parseClassLevelFromBitsStorageKey(key);
     if (cl != null) out.add(cl);
@@ -115,7 +121,9 @@ function mergeLessonMarkedRowsIntoProgress(
     const row = value as Record<string, unknown>;
     if (Number(row.v) !== 1) continue;
     const marked =
-      typeof row.lessonChecklistMarkedCompleteAt === "string" ? row.lessonChecklistMarkedCompleteAt.trim() : "";
+      typeof row.lessonChecklistMarkedCompleteAt === "string"
+        ? row.lessonChecklistMarkedCompleteAt.trim()
+        : "";
     if (!marked) continue;
     const parts = key.split("||");
     if (parts.length < 6) continue;
@@ -154,8 +162,10 @@ function buildAggregatedChapterRowsInternal(
 
   const add = (subject: string, classLevel: 11 | 12, topic: string, subtopic: string) => {
     const s = subject.trim().toLowerCase();
-    if (!["physics", "chemistry", "math", "biology"].includes(s)) return;
-    completed.add(`${s}::${classLevel}::${normalizeCurriculumText(topic)}::${normalizeCurriculumText(subtopic)}`);
+    if (!["physics", "chemistry", "math"].includes(s)) return;
+    completed.add(
+      `${s}::${classLevel}::${normalizeCurriculumText(topic)}::${normalizeCurriculumText(subtopic)}`
+    );
   };
 
   if (bitsCountTowardCompletion) {
@@ -265,7 +275,13 @@ export function buildChapterCompletionRows(
   subtopicEngagement?: unknown,
   options?: BuildChapterCompletionRowsOptions
 ): ChapterCompletionRow[] {
-  return buildAggregatedChapterRowsInternal(taxonomy, bitsRows, bitsStoreKeys, subtopicEngagement, options)
+  return buildAggregatedChapterRowsInternal(
+    taxonomy,
+    bitsRows,
+    bitsStoreKeys,
+    subtopicEngagement,
+    options
+  )
     .filter((r) => r.total > 0)
     .sort((a, b) => {
       if (a.completionPct !== b.completionPct) return a.completionPct - b.completionPct;
@@ -287,7 +303,13 @@ export function buildChapterCompletionRowsByRecentActivity(
   limit = 6,
   options?: BuildChapterCompletionRowsOptions
 ): ChapterCompletionRow[] {
-  const rows = buildAggregatedChapterRowsInternal(taxonomy, bitsRows, bitsStoreKeys, subtopicEngagement, options);
+  const rows = buildAggregatedChapterRowsInternal(
+    taxonomy,
+    bitsRows,
+    bitsStoreKeys,
+    subtopicEngagement,
+    options
+  );
   const progressSource = options?.progressSource ?? "bits_and_lesson";
   const touched =
     progressSource === "lesson_marked_only"

@@ -1,19 +1,30 @@
 "use client";
 
-import { ReactNode } from 'react';
-import { usePathname } from 'next/navigation';
-import Link from 'next/link';
-import { useAuth } from '@/hooks/useAuth';
-import { useUserStore } from '@/store/useUserStore';
-import { LayoutDashboard, Compass, Sparkles, User, Coins, Settings, HelpCircle, Heart, GraduationCap, Gift } from 'lucide-react';
-import StreakTimer from '@/components/StreakTimer';
-import NotificationBell from '@/components/NotificationBell';
-import BreakScreen from '@/components/BreakScreen';
-import RecallExercise from '@/components/RecallExercise';
-import { useStreakTimer } from '@/hooks/useStreakTimer';
-import AgentOrchestratorRunner from '@/components/AgentOrchestratorRunner';
-import { SitePresenceProvider } from '@/components/providers/SitePresenceProvider';
-import { cn } from '@/lib/utils';
+import { ReactNode } from "react";
+import { usePathname } from "next/navigation";
+import Link from "next/link";
+import { useAuth } from "@/hooks/useAuth";
+import { useUserStore } from "@/store/useUserStore";
+import {
+  LayoutDashboard,
+  Compass,
+  Sparkles,
+  User,
+  Coins,
+  Settings,
+  HelpCircle,
+  Heart,
+  GraduationCap,
+  Gift,
+} from "lucide-react";
+import StreakTimer from "@/components/StreakTimer";
+import NotificationBell from "@/components/NotificationBell";
+import BreakScreen from "@/components/BreakScreen";
+import RecallExercise from "@/components/RecallExercise";
+import { useStreakTimer } from "@/hooks/useStreakTimer";
+import AgentOrchestratorRunner from "@/components/AgentOrchestratorRunner";
+import { SitePresenceProvider } from "@/components/providers/SitePresenceProvider";
+import { cn } from "@/lib/utils";
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -37,6 +48,7 @@ function isPrepMockActive(pathname: string): boolean {
 
 const baseNavItems = [
   { path: "/home", icon: LayoutDashboard, label: "Dashboard", emoji: "📊" },
+  { path: "/teacher-portal", icon: GraduationCap, label: "Teacher Portal", emoji: "🧑‍🏫" },
   { path: "/magic-wall", icon: Sparkles, label: "Magic Wall", emoji: "✨" },
   { path: EXPLORE_APP_PATH, icon: Compass, label: "Lessons", emoji: "🧭" },
   { path: "/mock", icon: GraduationCap, label: "Prep + Mock", emoji: "🎓" },
@@ -46,155 +58,199 @@ const baseNavItems = [
   { path: "/profile", icon: User, label: "Profile", emoji: "👤" },
 ];
 
-const AppLayout = ({ children, streakTimer, hideTopNav = false, wideMain = false }: AppLayoutProps) => {
+const AppLayout = ({
+  children,
+  streakTimer,
+  hideTopNav = false,
+  wideMain = false,
+}: AppLayoutProps) => {
   const pathname = usePathname();
-  const isMagicWall = pathname === '/magic-wall';
+  const isMagicWall = pathname === "/magic-wall";
   const { profile } = useAuth();
   const user = useUserStore((s) => s.user);
   const rdm = profile?.rdm ?? user?.rdm ?? 0;
   const allResults = useUserStore((s) => s.allResults);
-  const navItems = baseNavItems;
+  const navItems =
+    profile?.role === "teacher"
+      ? baseNavItems
+      : baseNavItems.filter((item) => item.path !== "/teacher-portal");
 
   return (
     <SitePresenceProvider userId={profile?.id ?? null}>
-    <div className="min-h-screen bg-background flex flex-col">
-      {/* Top Navigation Bar */}
-      {!hideTopNav && (
-      <header className="sticky top-0 z-40 bg-card/80 backdrop-blur-xl border-b border-border/60">
-        <div className="max-w-7xl mx-auto flex items-center justify-between px-4 py-2.5 lg:px-5 lg:py-3 2xl:px-6">
-          {/* Logo */}
-          <Link href="/home" className="flex items-center gap-2 hover:opacity-80 transition-opacity group 2xl:gap-2.5">
-            <span className="text-xl group-hover:scale-110 transition-transform 2xl:text-2xl">🎯</span>
-            <h1 className="text-xl font-display bg-clip-text text-transparent 2xl:text-2xl" style={{ background: 'var(--gradient-primary)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-              EduBlast
-            </h1>
-          </Link>
-
-          {/* Nav Links - Desktop */}
-          <nav className="hidden md:flex items-center gap-0.5 bg-muted/50 rounded-xl p-0.5 2xl:rounded-2xl 2xl:p-1">
-            {navItems.map(({ path, icon: Icon, label }) => {
-              const isActive =
-                pathname === path ||
-                (path === "/mock" && isPrepMockActive(pathname)) ||
-                (path === "/edufund" && (pathname === "/edufund" || pathname.startsWith("/edufund/")));
-              return (
-                <Link
-                  key={path}
-                  href={path}
-                  className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold transition-all 2xl:gap-2 2xl:rounded-xl 2xl:px-4 2xl:py-2 2xl:text-sm ${
-                    isActive
-                      ? 'bg-card text-primary shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  <Icon className="w-3.5 h-3.5 shrink-0 2xl:w-4 2xl:h-4" suppressHydrationWarning />
-                  {label}
-                </Link>
-              );
-            })}
-          </nav>
-
-          {/* Right side */}
-          <div className="flex items-center gap-2 2xl:gap-3">
-            {streakTimer?.isActive && (
-              <StreakTimer
-                phase={streakTimer.phase}
-                secondsLeft={streakTimer.secondsLeft}
-                totalSeconds={streakTimer.totalSeconds}
-              />
-            )}
-            {(user || profile) && (
+      <div className="min-h-screen bg-background flex flex-col">
+        {/* Top Navigation Bar */}
+        {!hideTopNav && (
+          <header className="sticky top-0 z-40 bg-card/80 backdrop-blur-xl border-b border-border/60">
+            <div className="max-w-7xl mx-auto flex items-center justify-between px-4 py-2.5 lg:px-5 lg:py-3 2xl:px-6">
+              {/* Logo */}
               <Link
-                href="/pricing"
-                className="flex items-center gap-1.5 bg-edu-yellow/15 hover:bg-edu-yellow/25 px-2.5 py-1.5 rounded-full transition-colors 2xl:px-3.5 2xl:py-2"
+                href="/home"
+                className="flex items-center gap-2 hover:opacity-80 transition-opacity group 2xl:gap-2.5"
               >
-                <Coins className="w-4 h-4 text-edu-orange" suppressHydrationWarning />
-                <span className="font-extrabold text-sm text-foreground">{rdm}</span>
-                <span className="text-xs text-muted-foreground hidden sm:inline font-bold">RDM</span>
-              </Link>
-            )}
-            <NotificationBell />
-            <Link
-              href="/profile"
-              className="w-8 h-8 rounded-lg bg-muted/60 hover:bg-muted flex items-center justify-center transition-colors 2xl:w-9 2xl:h-9 2xl:rounded-xl"
-            >
-              <Settings className="w-4 h-4 text-muted-foreground 2xl:w-[18px] 2xl:h-[18px]" suppressHydrationWarning />
-            </Link>
-          </div>
-        </div>
-
-        {/* Mobile nav */}
-        <div className="md:hidden border-t border-border/60">
-          <div className="flex overflow-x-auto px-2 gap-0.5">
-            {navItems.map(({ path, icon: Icon, label, emoji }) => {
-              const isActive =
-                pathname === path ||
-                (path === "/mock" && isPrepMockActive(pathname)) ||
-                (path === "/edufund" && (pathname === "/edufund" || pathname.startsWith("/edufund/")));
-              return (
-                <Link
-                  key={path}
-                  href={path}
-                  className={`flex items-center gap-1.5 px-3.5 py-2.5 text-xs font-bold whitespace-nowrap transition-all ${
-                    isActive
-                      ? 'text-primary border-b-2 border-primary'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
+                <span className="text-xl group-hover:scale-110 transition-transform 2xl:text-2xl">
+                  🎯
+                </span>
+                <h1
+                  className="text-xl font-display bg-clip-text text-transparent 2xl:text-2xl"
+                  style={{
+                    background: "var(--gradient-primary)",
+                    WebkitBackgroundClip: "text",
+                    WebkitTextFillColor: "transparent",
+                  }}
                 >
-                  <span className="text-sm">{emoji}</span>
-                  {label}
+                  EduBlast
+                </h1>
+              </Link>
+
+              {/* Nav Links - Desktop */}
+              <nav className="hidden md:flex items-center gap-0.5 bg-muted/50 rounded-xl p-0.5 2xl:rounded-2xl 2xl:p-1">
+                {navItems.map(({ path, icon: Icon, label }) => {
+                  const isActive =
+                    pathname === path ||
+                    (path === "/mock" && isPrepMockActive(pathname)) ||
+                    (path === "/edufund" &&
+                      (pathname === "/edufund" || pathname.startsWith("/edufund/")));
+                  return (
+                    <Link
+                      key={path}
+                      href={path}
+                      className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold transition-all 2xl:gap-2 2xl:rounded-xl 2xl:px-4 2xl:py-2 2xl:text-sm ${
+                        isActive
+                          ? "bg-card text-primary shadow-sm"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      <Icon
+                        className="w-3.5 h-3.5 shrink-0 2xl:w-4 2xl:h-4"
+                        suppressHydrationWarning
+                      />
+                      {label}
+                    </Link>
+                  );
+                })}
+              </nav>
+
+              {/* Right side */}
+              <div className="flex items-center gap-2 2xl:gap-3">
+                {streakTimer?.isActive && (
+                  <StreakTimer
+                    phase={streakTimer.phase}
+                    secondsLeft={streakTimer.secondsLeft}
+                    totalSeconds={streakTimer.totalSeconds}
+                  />
+                )}
+                {(user || profile) && (
+                  <Link
+                    href="/pricing"
+                    className="flex items-center gap-1.5 bg-edu-yellow/15 hover:bg-edu-yellow/25 px-2.5 py-1.5 rounded-full transition-colors 2xl:px-3.5 2xl:py-2"
+                  >
+                    <Coins className="w-4 h-4 text-edu-orange" suppressHydrationWarning />
+                    <span className="font-extrabold text-sm text-foreground">{rdm}</span>
+                    <span className="text-xs text-muted-foreground hidden sm:inline font-bold">
+                      RDM
+                    </span>
+                  </Link>
+                )}
+                <NotificationBell />
+                <Link
+                  href="/profile"
+                  className="w-8 h-8 rounded-lg bg-muted/60 hover:bg-muted flex items-center justify-center transition-colors 2xl:w-9 2xl:h-9 2xl:rounded-xl"
+                >
+                  <Settings
+                    className="w-4 h-4 text-muted-foreground 2xl:w-[18px] 2xl:h-[18px]"
+                    suppressHydrationWarning
+                  />
                 </Link>
-              );
-            })}
-          </div>
-        </div>
-      </header>
-      )}
+              </div>
+            </div>
 
-      {/* Content */}
-      <main
-        className={cn(
-          'flex-1 mx-auto w-full',
-          hideTopNav || wideMain
-            ? 'max-w-[1920px] px-3 py-3 sm:px-4 sm:py-4 lg:px-5 lg:py-5'
-            : 'max-w-7xl px-4 lg:px-5 2xl:px-6',
-          !hideTopNav &&
-            !wideMain &&
-            (isMagicWall ? 'flex min-h-0 flex-col pt-2 pb-0 sm:pt-3' : 'py-4 lg:py-5 2xl:py-7'),
-          !hideTopNav && wideMain && (isMagicWall ? 'flex min-h-0 flex-col pt-2 pb-0 sm:pt-3' : ''),
-          hideTopNav && isMagicWall && 'flex min-h-0 flex-col pt-2 pb-0 sm:pt-3',
+            {/* Mobile nav */}
+            <div className="md:hidden border-t border-border/60">
+              <div className="flex overflow-x-auto px-2 gap-0.5">
+                {navItems.map(({ path, label, emoji }) => {
+                  const isActive =
+                    pathname === path ||
+                    (path === "/mock" && isPrepMockActive(pathname)) ||
+                    (path === "/edufund" &&
+                      (pathname === "/edufund" || pathname.startsWith("/edufund/")));
+                  return (
+                    <Link
+                      key={path}
+                      href={path}
+                      className={`flex items-center gap-1.5 px-3.5 py-2.5 text-xs font-bold whitespace-nowrap transition-all ${
+                        isActive
+                          ? "text-primary border-b-2 border-primary"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      <span className="text-sm">{emoji}</span>
+                      {label}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          </header>
         )}
-      >
-        {children}
-      </main>
 
-      {/* Overlay screens */}
-      {streakTimer?.isActive && streakTimer.phase === 'break' && (
-        <BreakScreen secondsLeft={streakTimer.secondsLeft} />
-      )}
-      {streakTimer?.isActive && streakTimer.phase === 'recall' && (
-        <RecallExercise secondsLeft={streakTimer.secondsLeft} recentResults={allResults.slice(-5)} />
-      )}
-      <AgentOrchestratorRunner />
+        {/* Content */}
+        <main
+          className={cn(
+            "flex-1 mx-auto w-full",
+            hideTopNav || wideMain
+              ? "max-w-[1920px] px-3 py-3 sm:px-4 sm:py-4 lg:px-5 lg:py-5"
+              : "max-w-7xl px-4 lg:px-5 2xl:px-6",
+            !hideTopNav &&
+              !wideMain &&
+              (isMagicWall ? "flex min-h-0 flex-col pt-2 pb-0 sm:pt-3" : "py-4 lg:py-5 2xl:py-7"),
+            !hideTopNav &&
+              wideMain &&
+              (isMagicWall ? "flex min-h-0 flex-col pt-2 pb-0 sm:pt-3" : ""),
+            hideTopNav && isMagicWall && "flex min-h-0 flex-col pt-2 pb-0 sm:pt-3"
+          )}
+        >
+          {children}
+        </main>
 
-      {/* Footer */}
-      <footer className="border-t border-border/60 bg-card/40 py-3 lg:py-4 2xl:py-5">
-        <div className="max-w-7xl mx-auto px-4 lg:px-5 2xl:px-6 flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-3 text-xs text-muted-foreground">
-          <span className="font-bold">© 2026 EduBlast — Learn thru Questions 🎯</span>
-          <div className="flex gap-6">
-            <Link href="/pricing" className="hover:text-foreground transition-colors font-bold">Pricing</Link>
-            <Link href="/profile" className="hover:text-foreground transition-colors font-bold">Profile</Link>
-            <Link href={EXPLORE_APP_PATH} className="hover:text-foreground transition-colors font-bold">Lessons</Link>
-            <Link
-              href={`/contact?from=${encodeURIComponent(pathname || "/home")}`}
-              className="hover:text-foreground transition-colors font-bold"
-            >
-              Contact Us
-            </Link>
+        {/* Overlay screens */}
+        {streakTimer?.isActive && streakTimer.phase === "break" && (
+          <BreakScreen secondsLeft={streakTimer.secondsLeft} />
+        )}
+        {streakTimer?.isActive && streakTimer.phase === "recall" && (
+          <RecallExercise
+            secondsLeft={streakTimer.secondsLeft}
+            recentResults={allResults.slice(-5)}
+          />
+        )}
+        <AgentOrchestratorRunner />
+
+        {/* Footer */}
+        <footer className="border-t border-border/60 bg-card/40 py-3 lg:py-4 2xl:py-5">
+          <div className="max-w-7xl mx-auto px-4 lg:px-5 2xl:px-6 flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-3 text-xs text-muted-foreground">
+            <span className="font-bold">© 2026 EduBlast — Learn thru Questions 🎯</span>
+            <div className="flex gap-6">
+              <Link href="/pricing" className="hover:text-foreground transition-colors font-bold">
+                Pricing
+              </Link>
+              <Link href="/profile" className="hover:text-foreground transition-colors font-bold">
+                Profile
+              </Link>
+              <Link
+                href={EXPLORE_APP_PATH}
+                className="hover:text-foreground transition-colors font-bold"
+              >
+                Lessons
+              </Link>
+              <Link
+                href={`/contact?from=${encodeURIComponent(pathname || "/home")}`}
+                className="hover:text-foreground transition-colors font-bold"
+              >
+                Contact Us
+              </Link>
+            </div>
           </div>
-        </div>
-      </footer>
-    </div>
+        </footer>
+      </div>
     </SitePresenceProvider>
   );
 };

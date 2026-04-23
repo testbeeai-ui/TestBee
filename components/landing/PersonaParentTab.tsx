@@ -48,10 +48,7 @@ export default function PersonaParentTab() {
                 className="bg-white border border-gray-200/60 rounded-lg p-[8px_10px]"
               >
                 <p className="text-xs text-gray-400">{a.label}</p>
-                <p
-                  className="text-lg font-medium mt-[1px]"
-                  style={{ color: a.color ?? "#111" }}
-                >
+                <p className="text-lg font-medium mt-[1px]" style={{ color: a.color ?? "#111" }}>
                   {a.value}
                 </p>
               </div>

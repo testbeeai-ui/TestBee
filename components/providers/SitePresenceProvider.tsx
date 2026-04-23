@@ -1,6 +1,15 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { fetchWithClientAuth } from "@/lib/clientApiAuth";
 import { EDUBLAST_STUDY_DAYS_REFRESH } from "@/lib/studyDayBumpEvents";
 import { localStudyCalendarDay } from "@/lib/studyDayBump";
@@ -33,7 +42,13 @@ async function postPresenceDelta(day: string, deltaMs: number): Promise<boolean>
  * Tracks time while this browser tab is in the foreground and syncs `presence_ms` in Supabase.
  * Pauses when the tab is hidden. Study streak in the database still uses `active_ms` (quiz + play) only.
  */
-export function SitePresenceProvider({ userId, children }: { userId: string | null; children: ReactNode }) {
+export function SitePresenceProvider({
+  userId,
+  children,
+}: {
+  userId: string | null;
+  children: ReactNode;
+}) {
   const [liveMs, setLiveMs] = useState(0);
   const unsentMsRef = useRef(0);
   const lastTickRef = useRef<number | null>(null);
@@ -76,7 +91,9 @@ export function SitePresenceProvider({ userId, children }: { userId: string | nu
         dayKeyRef.current = next;
         unsentMsRef.current = 0;
         lastTickRef.current =
-          typeof document !== "undefined" && document.visibilityState === "visible" ? performance.now() : null;
+          typeof document !== "undefined" && document.visibilityState === "visible"
+            ? performance.now()
+            : null;
         setLiveMs(0);
       }
     };
@@ -135,5 +152,7 @@ export function SitePresenceProvider({ userId, children }: { userId: string | nu
 
   const value = useMemo(() => liveMs, [liveMs]);
 
-  return <SitePresenceLiveContext.Provider value={value}>{children}</SitePresenceLiveContext.Provider>;
+  return (
+    <SitePresenceLiveContext.Provider value={value}>{children}</SitePresenceLiveContext.Provider>
+  );
 }

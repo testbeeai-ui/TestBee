@@ -9,20 +9,9 @@ import { join } from "path";
 const ROOT = process.cwd();
 
 /** Patterns that strongly indicate the incorrect "CH2C(OH)CH2" enol side (missing = and wrong H count). */
-const BANNED_SUBSTRINGS = [
-  "CH_2C(OH)CH_2",
-  "CH_{2}C(OH)CH_{2}",
-  "CH2C(OH)CH2",
-] as const;
+const BANNED_SUBSTRINGS = ["CH_2C(OH)CH_2", "CH_{2}C(OH)CH_{2}", "CH2C(OH)CH2"] as const;
 
-const SKIP_DIR = new Set([
-  "node_modules",
-  ".next",
-  ".git",
-  "dist",
-  "coverage",
-  "out",
-]);
+const SKIP_DIR = new Set(["node_modules", ".next", ".git", "dist", "coverage", "out"]);
 
 function walkFiles(dir: string, out: string[]): void {
   let names: string[];
@@ -50,7 +39,12 @@ function walkFiles(dir: string, out: string[]): void {
 }
 
 function main(): void {
-  const roots = [join(ROOT, "data"), join(ROOT, "lib"), join(ROOT, "supabase"), join(ROOT, "scripts")].filter((d) => {
+  const roots = [
+    join(ROOT, "data"),
+    join(ROOT, "lib"),
+    join(ROOT, "supabase"),
+    join(ROOT, "scripts"),
+  ].filter((d) => {
     try {
       return statSync(d).isDirectory();
     } catch {

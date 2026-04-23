@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { computeStreakDays } from '@/lib/gauntletStreak';
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { computeStreakDays } from "@/lib/gauntletStreak";
 
 export interface ExploreStats {
   streakDays: number;
@@ -85,44 +85,38 @@ export function useExploreHubData(userId: string | undefined, rdm: number): Expl
       setLoading(true);
 
       const feedPromise = supabase
-        .from('doubts')
-        .select('*, doubt_answers(id), profiles!doubts_user_id_fkey(name, avatar_url)')
-        .order('created_at', { ascending: false })
+        .from("doubts")
+        .select("*, doubt_answers(id), profiles!doubts_user_id_fkey(name, avatar_url)")
+        .order("created_at", { ascending: false })
         .limit(10);
 
       const since = new Date();
       since.setDate(since.getDate() - 7);
       const trendingPromise = supabase
-        .from('doubts')
-        .select('id, title, subject, views, upvotes')
-        .gte('created_at', since.toISOString())
-        .order('views', { ascending: false })
-        .order('upvotes', { ascending: false })
+        .from("doubts")
+        .select("id, title, subject, views, upvotes")
+        .gte("created_at", since.toISOString())
+        .order("views", { ascending: false })
+        .order("upvotes", { ascending: false })
         .limit(4);
 
       const answersPromise = userId
-        ? supabase
-            .from('doubt_answers')
-            .select('id, is_accepted')
-            .eq('user_id', userId)
+        ? supabase.from("doubt_answers").select("id, is_accepted").eq("user_id", userId)
         : Promise.resolve({ data: [] as { id: string; is_accepted: boolean }[] });
 
       // Streak: count consecutive days with daily_gauntlet_attempts
       const streakPromise = userId
         ? supabase
-            .from('daily_gauntlet_attempts')
-            .select('gauntlet_date')
-            .eq('user_id', userId)
-            .order('gauntlet_date', { ascending: false })
+            .from("daily_gauntlet_attempts")
+            .select("gauntlet_date")
+            .eq("user_id", userId)
+            .order("gauntlet_date", { ascending: false })
             .limit(60)
         : Promise.resolve({ data: [] as { gauntlet_date: string }[] });
 
       // Topics explored: distinct categories from user_play_stats
       const topicsPromise = userId
-        ? supabase
-            .from('user_play_stats')
-            .select('category')
-            .eq('user_id', userId)
+        ? supabase.from("user_play_stats").select("category").eq("user_id", userId)
         : Promise.resolve({ data: [] as { category: string }[] });
 
       const [feedRes, trendingRes, answersRes, streakRes, topicsRes] = await Promise.all([
@@ -169,7 +163,9 @@ export function useExploreHubData(userId: string | undefined, rdm: number): Expl
       const accepted = answerList.filter((a) => a.is_accepted).length;
 
       // Compute streak from daily_gauntlet_attempts dates
-      const gauntletDates = ((streakRes.data || []) as { gauntlet_date: string }[]).map((r) => r.gauntlet_date);
+      const gauntletDates = ((streakRes.data || []) as { gauntlet_date: string }[]).map(
+        (r) => r.gauntlet_date
+      );
       const streakDays = computeStreakDays(gauntletDates);
 
       // Count distinct categories from user_play_stats
@@ -187,7 +183,9 @@ export function useExploreHubData(userId: string | undefined, rdm: number): Expl
     }
 
     loadAll();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [userId, rdm]);
 
   return { stats, feedPosts, trendingTopics, loading };

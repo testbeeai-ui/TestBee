@@ -22,11 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import { UserHoverCard } from "@/components/UserHoverCard";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  DUMMY_PROPOSALS,
-  type Proposal,
-  type ProposalCategory,
-} from "@/lib/edufundProposals";
+import { DUMMY_PROPOSALS, type Proposal, type ProposalCategory } from "@/lib/edufundProposals";
 import {
   Heart,
   Target,
@@ -99,7 +95,9 @@ function ProposalCard({
   ) : (
     <div className="flex items-center gap-2">
       <Avatar className="h-8 w-8 rounded-lg bg-muted">
-        <AvatarFallback className="rounded-lg text-muted-foreground text-xs font-bold">S</AvatarFallback>
+        <AvatarFallback className="rounded-lg text-muted-foreground text-xs font-bold">
+          S
+        </AvatarFallback>
       </Avatar>
       <span className="text-sm font-semibold text-foreground">Student</span>
       <span className="text-xs text-muted-foreground">{proposal.postedDate}</span>
@@ -261,10 +259,7 @@ export default function EduFundPage() {
   }, [communityMembers, currentUserId, currentUserName]);
 
   const topSupported = useMemo(
-    () =>
-      [...proposals]
-        .sort((a, b) => (b.raised / b.goal) - (a.raised / a.goal))
-        .slice(0, 3),
+    () => [...proposals].sort((a, b) => b.raised / b.goal - a.raised / a.goal).slice(0, 3),
     [proposals]
   );
 
@@ -480,9 +475,7 @@ export default function EduFundPage() {
                   aria-label="Category"
                   value={createCategory ?? ""}
                   onChange={(e) =>
-                    setCreateCategory(
-                      e.target.value ? (e.target.value as ProposalCategory) : null
-                    )
+                    setCreateCategory(e.target.value ? (e.target.value as ProposalCategory) : null)
                   }
                   className="mt-1 w-full h-9 rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >

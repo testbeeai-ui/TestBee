@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useMemo } from 'react';
-import type { TopicNode } from '@/data/topicTaxonomy';
-import { fetchFullCurriculumFromSupabase } from '@/lib/curriculumService';
+import { useState, useEffect, useMemo } from "react";
+import type { TopicNode } from "@/data/topicTaxonomy";
+import { fetchFullCurriculumFromSupabase } from "@/lib/curriculumService";
 
 export type TopicTaxonomyState = {
   taxonomy: TopicNode[];
@@ -32,8 +32,8 @@ export function useTopicTaxonomy(): TopicTaxonomyState {
             setTaxonomy([]);
             setError(
               data == null
-                ? 'Could not load curriculum from Supabase. In Vercel, set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to your project. In Supabase, run migrations (curriculum schema + seed). Curriculum tables are readable without sign-in once they exist.'
-                : 'No curriculum rows in the database yet. Run the curriculum seed migration on your Supabase project.'
+                ? "Could not load curriculum from Supabase. In Vercel, set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to your project. In Supabase, run migrations (curriculum schema + seed). Curriculum tables are readable without sign-in once they exist."
+                : "No curriculum rows in the database yet. Run the curriculum seed migration on your Supabase project."
             );
           } else {
             setTaxonomy(data);
@@ -42,9 +42,9 @@ export function useTopicTaxonomy(): TopicTaxonomyState {
         })
         .catch((err) => {
           if (!cancelled) {
-            console.error('[useTopicTaxonomy]', err);
+            console.error("[useTopicTaxonomy]", err);
             setTaxonomy([]);
-            setError(err?.message ?? 'Failed to load curriculum.');
+            setError(err?.message ?? "Failed to load curriculum.");
           }
         })
         .finally(() => {

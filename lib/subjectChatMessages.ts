@@ -87,10 +87,7 @@ export async function loadThreadMessages(
 
   const rows: ChatMessageRow[] = [];
   for (const r of data ?? []) {
-    if (
-      (r.role === "user" || r.role === "assistant") &&
-      typeof r.content === "string"
-    ) {
+    if ((r.role === "user" || r.role === "assistant") && typeof r.content === "string") {
       rows.push({ role: r.role, content: r.content });
     }
   }
@@ -147,10 +144,8 @@ export function normalizeAnonClientHistory(
   return history
     .slice(-maxTurns)
     .map((item): ChatMessageRow | null => {
-      const role =
-        item?.role === "assistant" || item?.role === "bot" ? "assistant" : "user";
-      const content =
-        typeof item?.content === "string" ? item.content.trim().slice(0, 1000) : "";
+      const role = item?.role === "assistant" || item?.role === "bot" ? "assistant" : "user";
+      const content = typeof item?.content === "string" ? item.content.trim().slice(0, 1000) : "";
       if (!content.length) return null;
       return { role, content };
     })

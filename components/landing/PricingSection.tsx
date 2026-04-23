@@ -17,9 +17,7 @@ export default function PricingSection() {
             <div
               key={plan.name}
               className={`bg-white rounded-xl p-[18px] text-center ${
-                plan.featured
-                  ? "border-2 border-[#1D9E75]"
-                  : "border border-gray-200/60"
+                plan.featured ? "border-2 border-[#1D9E75]" : "border border-gray-200/60"
               }`}
             >
               {plan.badge && (

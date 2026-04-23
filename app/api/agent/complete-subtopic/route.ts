@@ -20,13 +20,7 @@ const VERIFY_RETRY_BACKOFF_MS = 2_000;
 const BETWEEN_SUBTOPIC_ARTIFACT_STEPS_MS = 12_000;
 const BETWEEN_LEVELS_MS = 6_000;
 
-type BlockStatus =
-  | "ok"
-  | "skipped"
-  | "would_fill"
-  | "generated"
-  | "failed"
-  | "failed_after_retry";
+type BlockStatus = "ok" | "skipped" | "would_fill" | "generated" | "failed" | "failed_after_retry";
 
 type LevelReport = {
   theory: BlockStatus;
@@ -107,7 +101,9 @@ export async function POST(request: Request) {
     const classLevel = Number(body?.classLevel);
     const topic = normalizeSubtopicContentKey(body?.topic);
     const subtopicName = normalizeSubtopicContentKey(body?.subtopicName);
-    const hubScopeRaw = String(body?.hubScope ?? "topic").trim().toLowerCase();
+    const hubScopeRaw = String(body?.hubScope ?? "topic")
+      .trim()
+      .toLowerCase();
     const hubScope: TopicHubScope = hubScopeRaw === "chapter" ? "chapter" : "topic";
     const dryRun = body?.dryRun === true;
     const includeTrace = body?.includeTrace === true;
@@ -115,7 +111,11 @@ export async function POST(request: Request) {
     const levelsRaw = body?.levels;
     const levelsFilter: SubtopicDifficultyLevel[] = Array.isArray(levelsRaw)
       ? levelsRaw
-          .map((x: unknown) => String(x ?? "").trim().toLowerCase())
+          .map((x: unknown) =>
+            String(x ?? "")
+              .trim()
+              .toLowerCase()
+          )
           .filter((x): x is SubtopicDifficultyLevel => ALLOWED_LEVELS.has(x))
       : [];
     const levelsToRun: SubtopicDifficultyLevel[] =

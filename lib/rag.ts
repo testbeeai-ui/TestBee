@@ -15,13 +15,18 @@ const GENERIC_FOLLOW_UPS =
   /^(why|how|explain|tell me more|give an example|can you explain|what does that mean|elaborate|continue|go on|yes|no|ok|okay|thanks|thank you|huh|what about that|can you give|more examples?|another example|i (don't|dont) understand|repeat that|say that again|what)\s*\??$/i;
 
 const SUBJECT_LABELS: Record<string, string> = {
-  physics:   "Physics",
+  physics: "Physics",
   chemistry: "Chemistry",
-  math:      "Mathematics",
-  biology:   "Biology",
+  math: "Mathematics",
 };
 
-export type QueryIntent = "formula" | "definition" | "derivation" | "example" | "comparison" | "general";
+export type QueryIntent =
+  | "formula"
+  | "definition"
+  | "derivation"
+  | "example"
+  | "comparison"
+  | "general";
 
 function classifyIntent(query: string): QueryIntent {
   const q = query.toLowerCase();
@@ -35,12 +40,12 @@ function classifyIntent(query: string): QueryIntent {
 
 function buildIntentPrefix(intent: QueryIntent, subjectLabel: string): string {
   const prefixes: Record<QueryIntent, string> = {
-    formula:    `${subjectLabel} formulas and equations for`,
+    formula: `${subjectLabel} formulas and equations for`,
     definition: `${subjectLabel} definition and explanation of`,
     derivation: `${subjectLabel} derivation and proof of`,
-    example:    `${subjectLabel} worked example of`,
+    example: `${subjectLabel} worked example of`,
     comparison: `${subjectLabel} comparison of`,
-    general:    subjectLabel,
+    general: subjectLabel,
   };
   return prefixes[intent];
 }
@@ -126,7 +131,7 @@ export async function fetchRAGContext(
   topic?: string,
   subtopic?: string,
   matchCount = 5,
-  maxFormattedChars?: number,
+  maxFormattedChars?: number
 ): Promise<RAGContext | null> {
   const sidecarUrl = process.env.RAG_SIDECAR_URL;
 
@@ -167,9 +172,7 @@ export async function fetchRAGContext(
     });
 
     if (!response.ok) {
-      console.warn(
-        `[RAG] RAG service returned ${response.status}: ${response.statusText}`,
-      );
+      console.warn(`[RAG] RAG service returned ${response.status}: ${response.statusText}`);
       return null;
     }
 
@@ -184,7 +187,9 @@ export async function fetchRAGContext(
 
     const envCapRaw = process.env.RAG_FORMATTED_CONTEXT_MAX_CHARS?.trim();
     const envCap =
-      envCapRaw && Number.isFinite(Number.parseInt(envCapRaw, 10)) && Number.parseInt(envCapRaw, 10) > 0
+      envCapRaw &&
+      Number.isFinite(Number.parseInt(envCapRaw, 10)) &&
+      Number.parseInt(envCapRaw, 10) > 0
         ? Number.parseInt(envCapRaw, 10)
         : undefined;
     const cap = maxFormattedChars ?? envCap ?? RAG_CONTEXT_MAX_CHARS;

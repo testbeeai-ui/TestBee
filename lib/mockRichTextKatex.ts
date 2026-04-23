@@ -30,11 +30,15 @@ export function decodeBankPlainEntities(s: string): string {
       .replace(/&middot;/gi, "\u00B7")
       .replace(/&#(\d{1,7});/g, (m, n) => {
         const code = Number(n);
-        return Number.isFinite(code) && code >= 0 && code <= 0x10ffff ? String.fromCodePoint(code) : m;
+        return Number.isFinite(code) && code >= 0 && code <= 0x10ffff
+          ? String.fromCodePoint(code)
+          : m;
       })
       .replace(/&#x([0-9a-f]{1,6});/gi, (m, h) => {
         const code = parseInt(h, 16);
-        return Number.isFinite(code) && code >= 0 && code <= 0x10ffff ? String.fromCodePoint(code) : m;
+        return Number.isFinite(code) && code >= 0 && code <= 0x10ffff
+          ? String.fromCodePoint(code)
+          : m;
       })
       .replace(/&amp;/g, "&");
     if (next === t) break;

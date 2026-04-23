@@ -98,8 +98,7 @@ export function buildActivityHeatmapModel(
 
   const startSunday = startOfWeekSunday(windowStartDay);
   const endSunday = startOfWeekSunday(windowEndDay);
-  const numWeeks =
-    Math.floor((endSunday.getTime() - startSunday.getTime()) / (7 * 86400000)) + 1;
+  const numWeeks = Math.floor((endSunday.getTime() - startSunday.getTime()) / (7 * 86400000)) + 1;
 
   const counts = new Map<string, number>();
   for (const r of results) {
@@ -108,7 +107,9 @@ export function buildActivityHeatmapModel(
   }
   if (extraDayCounts) {
     const entries =
-      extraDayCounts instanceof Map ? [...extraDayCounts.entries()] : Object.entries(extraDayCounts);
+      extraDayCounts instanceof Map
+        ? [...extraDayCounts.entries()]
+        : Object.entries(extraDayCounts);
     for (const [k, raw] of entries) {
       const add = Number(raw);
       if (!Number.isFinite(add) || add <= 0) continue;
@@ -128,7 +129,7 @@ export function buildActivityHeatmapModel(
     const beforeWindow = dayStart < windowStartDay || dayStart > windowEndDay;
     const beforeAccount = dayStart < anchorDay;
     const k = localDayKey(dayStart);
-    const count = beforeWindow || beforeAccount || isFuture ? 0 : counts.get(k) ?? 0;
+    const count = beforeWindow || beforeAccount || isFuture ? 0 : (counts.get(k) ?? 0);
     const intensity = beforeWindow || beforeAccount || isFuture ? 0 : intensityFromCount(count);
     contributionsInRange += count;
     cells.push({ intensity, isFuture, day: dayStart, count });

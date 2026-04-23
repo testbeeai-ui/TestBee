@@ -95,7 +95,12 @@ export default function CommentInput({
         />
         {expanded && text.trim() && (
           <div className="flex justify-end mt-1">
-            <Button size="sm" className="rounded-lg h-7 text-xs" onClick={handlePost} disabled={posting || !text.trim()}>
+            <Button
+              size="sm"
+              className="rounded-lg h-7 text-xs"
+              onClick={handlePost}
+              disabled={posting || !text.trim()}
+            >
               {posting ? <Loader2 className="w-3 h-3 animate-spin" /> : "Post"}
             </Button>
           </div>

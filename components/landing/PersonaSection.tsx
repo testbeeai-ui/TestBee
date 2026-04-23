@@ -7,10 +7,34 @@ import PersonaTeacherTab from "./PersonaTeacherTab";
 import PersonaParentTab from "./PersonaParentTab";
 
 const TABS = [
-  { id: "student", label: "I am a student", activeBg: "#E1F5EE", activeBorder: "#1D9E75", activeText: "#085041" },
-  { id: "coaching", label: "I am at a coaching class", activeBg: "#FAECE7", activeBorder: "#D85A30", activeText: "#4A1B0C" },
-  { id: "teacher", label: "I am a teacher", activeBg: "#EEEDFE", activeBorder: "#534AB7", activeText: "#26215C" },
-  { id: "parent", label: "I am a parent", activeBg: "#FAEEDA", activeBorder: "#EF9F27", activeText: "#412402" },
+  {
+    id: "student",
+    label: "I am a student",
+    activeBg: "#E1F5EE",
+    activeBorder: "#1D9E75",
+    activeText: "#085041",
+  },
+  {
+    id: "coaching",
+    label: "I am at a coaching class",
+    activeBg: "#FAECE7",
+    activeBorder: "#D85A30",
+    activeText: "#4A1B0C",
+  },
+  {
+    id: "teacher",
+    label: "I am a teacher",
+    activeBg: "#EEEDFE",
+    activeBorder: "#534AB7",
+    activeText: "#26215C",
+  },
+  {
+    id: "parent",
+    label: "I am a parent",
+    activeBg: "#FAEEDA",
+    activeBorder: "#EF9F27",
+    activeText: "#412402",
+  },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -39,7 +63,12 @@ export default function PersonaSection() {
                 className="rounded-lg px-[18px] py-2 text-sm transition-colors border"
                 style={
                   isActive
-                    ? { background: t.activeBg, borderColor: t.activeBorder, color: t.activeText, fontWeight: 500 }
+                    ? {
+                        background: t.activeBg,
+                        borderColor: t.activeBorder,
+                        color: t.activeText,
+                        fontWeight: 500,
+                      }
                     : { background: "white", borderColor: "#e5e5e5", color: "#6b7280" }
                 }
               >

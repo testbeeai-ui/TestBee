@@ -62,7 +62,11 @@ export function parseDailyChecklistState(raw: unknown): DailyChecklistStateMap {
         .filter(Boolean);
       if (keys.length) day.subtopicBCompleteKeys = Array.from(new Set(keys)).slice(0, 100);
     }
-    if (day.instacueSessionAck || day.doubtsFocusMs != null || (day.subtopicBCompleteKeys?.length ?? 0) > 0) {
+    if (
+      day.instacueSessionAck ||
+      day.doubtsFocusMs != null ||
+      (day.subtopicBCompleteKeys?.length ?? 0) > 0
+    ) {
       out[k] = day;
     }
   }
@@ -79,7 +83,10 @@ export function mergeDayState(
   if (patch.instacueSessionAck === true) nextDay.instacueSessionAck = true;
   if (patch.doubtsFocusMs != null && Number.isFinite(patch.doubtsFocusMs)) {
     const add = Math.max(0, Math.trunc(patch.doubtsFocusMs));
-    const base = typeof prior.doubtsFocusMs === "number" && Number.isFinite(prior.doubtsFocusMs) ? prior.doubtsFocusMs : 0;
+    const base =
+      typeof prior.doubtsFocusMs === "number" && Number.isFinite(prior.doubtsFocusMs)
+        ? prior.doubtsFocusMs
+        : 0;
     nextDay.doubtsFocusMs = Math.min(86_400_000, base + add);
   }
   return { ...prev, [dayKey]: nextDay };
@@ -97,7 +104,9 @@ export function appendSubtopicBCompleteKey(
   const k = engagementKey.trim().slice(0, MAX_ENGAGEMENT_KEY_LEN);
   if (!k || !k.includes("||")) return prev;
   const prior = prev[dayKey] ?? {};
-  const existing = new Set((prior.subtopicBCompleteKeys ?? []).filter((x) => typeof x === "string"));
+  const existing = new Set(
+    (prior.subtopicBCompleteKeys ?? []).filter((x) => typeof x === "string")
+  );
   if (existing.has(k)) return { ...prev, [dayKey]: { ...prior } };
   existing.add(k);
   const arr = Array.from(existing).slice(0, MAX_B_KEYS_PER_DAY);

@@ -98,7 +98,11 @@ export function GyanDoubtsFocusTracker({ children }: { children?: ReactNode }) {
     };
   }, [user?.id, onGyan]);
 
-  return <GyanPendingFocusContext.Provider value={pendingDisplay}>{children ?? null}</GyanPendingFocusContext.Provider>;
+  return (
+    <GyanPendingFocusContext.Provider value={pendingDisplay}>
+      {children ?? null}
+    </GyanPendingFocusContext.Provider>
+  );
 }
 
 /** Live MM:SS for feed focus (server snapshot + pending session ms). */
@@ -108,7 +112,12 @@ export function GyanFeedFocusTimer({ serverMs, goalMs }: { serverMs: number; goa
   const done = live >= goalMs;
   return (
     <div className="text-right tabular-nums" aria-live="polite">
-      <p className={cn("font-mono text-base font-bold leading-none", done ? "text-emerald-500" : "text-foreground")}>
+      <p
+        className={cn(
+          "font-mono text-base font-bold leading-none",
+          done ? "text-emerald-500" : "text-foreground"
+        )}
+      >
         {formatMmSs(live)}
       </p>
       <p className="mt-0.5 text-[10px] font-medium text-muted-foreground">/ {formatMmSs(goalMs)}</p>

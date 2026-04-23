@@ -46,7 +46,13 @@ export default function AnimatedChemistryIcon({
           </linearGradient>
 
           <filter id="glassShadow" x="-20%" y="-20%" width="140%" height="140%">
-            <feDropShadow dx="0" dy="10" stdDeviation="8" floodColor="#0F172A" floodOpacity="0.15" />
+            <feDropShadow
+              dx="0"
+              dy="10"
+              stdDeviation="8"
+              floodColor="#0F172A"
+              floodOpacity="0.15"
+            />
           </filter>
 
           <filter id="fireGlowChem" x="-50%" y="-50%" width="200%" height="200%">
@@ -162,9 +168,22 @@ export default function AnimatedChemistryIcon({
           <ellipse cx="150" cy="245" rx="55" ry="8" fill="#E2E8F0" />
 
           <g className="fire-group">
-            <path className="fire-layer fire-outer" d="M 150 140 C 180 140, 220 90, 200 40 C 180 80, 190 80, 150 20 C 110 80, 120 80, 100 40 C 80 90, 120 140, 150 140 Z" fill="#9333EA" filter="url(#fireGlowChem)" />
-            <path className="fire-layer fire-mid" d="M 150 140 C 170 140, 190 100, 180 60 C 165 90, 170 90, 150 40 C 130 90, 135 90, 120 60 C 110 100, 130 140, 150 140 Z" fill="#0EA5E9" />
-            <path className="fire-layer fire-core" d="M 150 140 C 160 140, 175 110, 165 80 C 155 100, 160 100, 150 60 C 140 100, 145 100, 135 80 C 125 110, 140 140, 150 140 Z" fill="#FDE047" />
+            <path
+              className="fire-layer fire-outer"
+              d="M 150 140 C 180 140, 220 90, 200 40 C 180 80, 190 80, 150 20 C 110 80, 120 80, 100 40 C 80 90, 120 140, 150 140 Z"
+              fill="#9333EA"
+              filter="url(#fireGlowChem)"
+            />
+            <path
+              className="fire-layer fire-mid"
+              d="M 150 140 C 170 140, 190 100, 180 60 C 165 90, 170 90, 150 40 C 130 90, 135 90, 120 60 C 110 100, 130 140, 150 140 Z"
+              fill="#0EA5E9"
+            />
+            <path
+              className="fire-layer fire-core"
+              d="M 150 140 C 160 140, 175 110, 165 80 C 155 100, 160 100, 150 60 C 140 100, 145 100, 135 80 C 125 110, 140 140, 150 140 Z"
+              fill="#FDE047"
+            />
           </g>
 
           <rect className="ember e1" x="145" y="110" width="8" height="8" fill="#0EA5E9" />
@@ -172,28 +191,94 @@ export default function AnimatedChemistryIcon({
           <rect className="ember e3" x="140" y="120" width="10" height="10" fill="#F59E0B" />
 
           <g className="flask-rig" filter="url(#glassShadow)">
-            <path d="M 135 150 L 165 150 L 165 180 L 210 240 C 220 255, 80 255, 90 240 L 135 180 Z" fill="#CBD5E1" opacity="0.4" />
+            <path
+              d="M 135 150 L 165 150 L 165 180 L 210 240 C 220 255, 80 255, 90 240 L 135 180 Z"
+              fill="#CBD5E1"
+              opacity="0.4"
+            />
 
             <g clipPath="url(#flaskClip)">
-              <rect className="flask-liquid-cyan" x="60" y="200" width="180" height="60" fill="url(#liquidCyan)" />
-              <ellipse className="flask-liquid-cyan" cx="150" cy="200" rx="42" ry="6" fill="#0E7490" />
+              <rect
+                className="flask-liquid-cyan"
+                x="60"
+                y="200"
+                width="180"
+                height="60"
+                fill="url(#liquidCyan)"
+              />
+              <ellipse
+                className="flask-liquid-cyan"
+                cx="150"
+                cy="200"
+                rx="42"
+                ry="6"
+                fill="#0E7490"
+              />
 
-              <rect className="flask-liquid-magenta" x="60" y="190" width="180" height="80" fill="url(#liquidMagenta)" />
-              <ellipse className="flask-liquid-magenta" cx="150" cy="190" rx="35" ry="6" fill="#7E22CE" />
+              <rect
+                className="flask-liquid-magenta"
+                x="60"
+                y="190"
+                width="180"
+                height="80"
+                fill="url(#liquidMagenta)"
+              />
+              <ellipse
+                className="flask-liquid-magenta"
+                cx="150"
+                cy="190"
+                rx="35"
+                ry="6"
+                fill="#7E22CE"
+              />
             </g>
 
-            <path d="M 135 150 L 165 150 L 165 180 L 210 240 C 220 255, 80 255, 90 240 L 135 180 Z" fill="url(#glassBody)" stroke="#94A3B8" strokeWidth="3" strokeLinejoin="round" />
+            <path
+              d="M 135 150 L 165 150 L 165 180 L 210 240 C 220 255, 80 255, 90 240 L 135 180 Z"
+              fill="url(#glassBody)"
+              stroke="#94A3B8"
+              strokeWidth="3"
+              strokeLinejoin="round"
+            />
 
-            <path d="M 98 230 L 138 175 L 138 152" fill="none" stroke="#FFFFFF" strokeWidth="4" strokeLinecap="round" opacity="0.8" />
+            <path
+              d="M 98 230 L 138 175 L 138 152"
+              fill="none"
+              stroke="#FFFFFF"
+              strokeWidth="4"
+              strokeLinecap="round"
+              opacity="0.8"
+            />
 
-            <rect x="125" y="140" width="50" height="12" rx="6" fill="#F8FAFC" stroke="#94A3B8" strokeWidth="3" />
+            <rect
+              x="125"
+              y="140"
+              width="50"
+              height="12"
+              rx="6"
+              fill="#F8FAFC"
+              stroke="#94A3B8"
+              strokeWidth="3"
+            />
             <path d="M 130 143 L 170 143" fill="none" stroke="#FFFFFF" strokeWidth="2" />
           </g>
 
-          <rect className="pour-stream" x="146" y="110" width="8" height="85" fill="#16A34A" rx="4" />
+          <rect
+            className="pour-stream"
+            x="146"
+            y="110"
+            width="8"
+            height="85"
+            fill="#16A34A"
+            rx="4"
+          />
 
           <g className="test-tube-rig" filter="url(#glassShadow)">
-            <path d="M 175 45 L 205 45 L 205 110 C 205 125, 175 125, 175 110 Z" fill="#CBD5E1" opacity="0.4" />
+            <path
+              d="M 175 45 L 205 45 L 205 110 C 205 125, 175 125, 175 110 Z"
+              fill="#CBD5E1"
+              opacity="0.4"
+            />
 
             <g clipPath="url(#tubeClip)">
               <g className="tube-liquid-level">
@@ -202,13 +287,33 @@ export default function AnimatedChemistryIcon({
               </g>
             </g>
 
-            <path d="M 175 45 L 205 45 L 205 110 C 205 125, 175 125, 175 110 Z" fill="url(#glassBody)" stroke="#94A3B8" strokeWidth="3" />
-            <path d="M 181 52 L 181 108" fill="none" stroke="#FFFFFF" strokeWidth="3" strokeLinecap="round" opacity="0.8" />
+            <path
+              d="M 175 45 L 205 45 L 205 110 C 205 125, 175 125, 175 110 Z"
+              fill="url(#glassBody)"
+              stroke="#94A3B8"
+              strokeWidth="3"
+            />
+            <path
+              d="M 181 52 L 181 108"
+              fill="none"
+              stroke="#FFFFFF"
+              strokeWidth="3"
+              strokeLinecap="round"
+              opacity="0.8"
+            />
 
-            <rect x="170" y="38" width="40" height="10" rx="4" fill="#F8FAFC" stroke="#94A3B8" strokeWidth="3" />
+            <rect
+              x="170"
+              y="38"
+              width="40"
+              height="10"
+              rx="4"
+              fill="#F8FAFC"
+              stroke="#94A3B8"
+              strokeWidth="3"
+            />
             <path d="M 175 41 L 205 41" fill="none" stroke="#FFFFFF" strokeWidth="2" />
           </g>
-
         </g>
       </svg>
     </div>

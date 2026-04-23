@@ -44,7 +44,15 @@ function normalizeInstaCue(value: unknown): Array<{
         backContent,
       };
     })
-    .filter((x): x is { type: "concept" | "formula" | "common_mistake" | "trap"; frontContent: string; backContent: string } => Boolean(x));
+    .filter(
+      (
+        x
+      ): x is {
+        type: "concept" | "formula" | "common_mistake" | "trap";
+        frontContent: string;
+        backContent: string;
+      } => Boolean(x)
+    );
 }
 
 export async function POST(request: Request) {
@@ -60,7 +68,7 @@ export async function POST(request: Request) {
     if (!isVertexForTopicAgentEnabled() && !apiKey?.trim()) {
       return NextResponse.json(
         { error: "GEMINI_API_KEY or GOOGLE_GENERATIVE_AI_API_KEY is not configured." },
-        { status: 503 },
+        { status: 503 }
       );
     }
 
@@ -74,8 +82,13 @@ export async function POST(request: Request) {
     const includeTrace = body?.includeTrace === true;
 
     if (
-      !board || !subject || !topic || !subtopicName ||
-      !ALLOWED_LEVELS.has(level) || Number.isNaN(classLevel) || ![11, 12].includes(classLevel)
+      !board ||
+      !subject ||
+      !topic ||
+      !subtopicName ||
+      !ALLOWED_LEVELS.has(level) ||
+      Number.isNaN(classLevel) ||
+      ![11, 12].includes(classLevel)
     ) {
       return NextResponse.json({ error: "Missing or invalid fields" }, { status: 400 });
     }
@@ -84,8 +97,12 @@ export async function POST(request: Request) {
     const { data: existing, error: fetchErr } = await supabase
       .from("subtopic_content")
       .select("theory")
-      .eq("board", board).eq("subject", subject).eq("class_level", classLevel)
-      .eq("topic", topic).eq("subtopic_name", subtopicName).eq("level", level)
+      .eq("board", board)
+      .eq("subject", subject)
+      .eq("class_level", classLevel)
+      .eq("topic", topic)
+      .eq("subtopic_name", subtopicName)
+      .eq("level", level)
       .maybeSingle();
 
     if (fetchErr || !existing?.theory?.trim()) {
@@ -99,7 +116,14 @@ export async function POST(request: Request) {
     const targetCards = level === "advanced" ? 32 : level === "intermediate" ? 20 : 14;
     const ragMatchCount = level === "advanced" ? 24 : level === "intermediate" ? 16 : 10;
     const ragQuery = `${topic} ${subtopicName} CBSE Class ${classLevel} ${subject} revision key points formula traps mistakes`;
-    const rag = await fetchRAGContext(ragQuery, subject, classLevel, topic, subtopicName, ragMatchCount);
+    const rag = await fetchRAGContext(
+      ragQuery,
+      subject,
+      classLevel,
+      topic,
+      subtopicName,
+      ragMatchCount
+    );
     const ragBlock = rag?.formattedContext
       ? `\n\nRAG CONTEXT (trusted textbook snippets):\n${rag.formattedContext}`
       : "";
@@ -131,7 +155,11 @@ ${existing.theory.slice(0, 16000)}${ragBlock}`;
     const modelId = vertexEnabled ? vertexResolvedId : studioModelId;
 
     let backend = vertexEnabled ? "vertex" : "api_key";
-    let items: Array<{ type: "concept" | "formula" | "common_mistake" | "trap"; frontContent: string; backContent: string }> = [];
+    let items: Array<{
+      type: "concept" | "formula" | "common_mistake" | "trap";
+      frontContent: string;
+      backContent: string;
+    }> = [];
 
     for (let attempt = 1; attempt <= 3; attempt++) {
       const shortfallHint =
@@ -181,7 +209,9 @@ ${existing.theory.slice(0, 16000)}${ragBlock}`;
       if (items.length >= minCards) break;
     }
 
-    console.log(`[generate-instacue] backend=${backend} model=${modelId} topic=${topic} subtopic=${subtopicName} level=${level}`);
+    console.log(
+      `[generate-instacue] backend=${backend} model=${modelId} topic=${topic} subtopic=${subtopicName} level=${level}`
+    );
     if (items.length < minCards) {
       return NextResponse.json(
         {
@@ -196,12 +226,19 @@ ${existing.theory.slice(0, 16000)}${ragBlock}`;
 
     const persistDb = supabaseForLongJobPersist(supabase);
     const safeItems = sanitizeJsonForDb(items);
-    const { error: upsertError } = await persistDb.from("subtopic_content").update({
-      instacue_cards: safeItems,
-      updated_by: user.id,
-      updated_at: new Date().toISOString(),
-    }).eq("board", board).eq("subject", subject).eq("class_level", classLevel)
-      .eq("topic", topic).eq("subtopic_name", subtopicName).eq("level", level);
+    const { error: upsertError } = await persistDb
+      .from("subtopic_content")
+      .update({
+        instacue_cards: safeItems,
+        updated_by: user.id,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("board", board)
+      .eq("subject", subject)
+      .eq("class_level", classLevel)
+      .eq("topic", topic)
+      .eq("subtopic_name", subtopicName)
+      .eq("level", level);
 
     if (upsertError) {
       console.error("instacue_cards update error", upsertError);
@@ -215,7 +252,9 @@ ${existing.theory.slice(0, 16000)}${ragBlock}`;
         pipelineSteps: [
           "Verify admin user.",
           "Fetch existing theory from subtopic_content.",
-          rag?.formattedContext ? `Fetch RAG context (${rag?.chunkCount ?? 0} chunks).` : "RAG returned no context.",
+          rag?.formattedContext
+            ? `Fetch RAG context (${rag?.chunkCount ?? 0} chunks).`
+            : "RAG returned no context.",
           `Call Gemini "${modelId}" with InstaCue schema.`,
           `Generated ${items.length} cards. Saved to subtopic_content.instacue_cards.`,
         ],

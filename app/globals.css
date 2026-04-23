@@ -164,65 +164,124 @@
 }
 
 /* ── Landing page font scope (keep landing unchanged) ──── */
-.landing-page { font-family: var(--font-geist-sans), system-ui, sans-serif; }
+.landing-page {
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
 
 /* ── Chat markdown + KaTeX rendering ───────────────────────────── */
 .chat-markdown {
-    font-size: 0.9375rem;
-    line-height: 1.65;
-    min-width: 0;
-    max-width: 100%;
+  font-size: 0.9375rem;
+  line-height: 1.65;
+  min-width: 0;
+  max-width: 100%;
 }
-.chat-markdown p { margin: 0 0 0.55rem 0; }
-.chat-markdown p:last-child { margin-bottom: 0; }
-.chat-markdown strong { font-weight: 700; color: #1e293b; }
-.chat-markdown ul { list-style: disc; padding-left: 1.4rem; margin: 0.4rem 0; }
-.chat-markdown ol { list-style: decimal; padding-left: 1.4rem; margin: 0.4rem 0; }
-.chat-markdown li { margin: 0.25rem 0; }
+.chat-markdown p {
+  margin: 0 0 0.55rem 0;
+}
+.chat-markdown p:last-child {
+  margin-bottom: 0;
+}
+.chat-markdown strong {
+  font-weight: 700;
+  color: #1e293b;
+}
+.chat-markdown ul {
+  list-style: disc;
+  padding-left: 1.4rem;
+  margin: 0.4rem 0;
+}
+.chat-markdown ol {
+  list-style: decimal;
+  padding-left: 1.4rem;
+  margin: 0.4rem 0;
+}
+.chat-markdown li {
+  margin: 0.25rem 0;
+}
 /* Inline math — match surrounding text size */
-.chat-markdown .katex { font-size: 1.1em; }
+.chat-markdown .katex {
+  font-size: 1.1em;
+}
 /* Display/block math — card-style */
 .chat-markdown .katex-display {
-    background: #f8faff;
-    border: 1px solid #e0e7ff;
-    border-radius: 10px;
-    padding: 0.75rem 1.25rem;
-    margin: 0.6rem 0;
-    box-sizing: border-box;
-    max-width: 100%;
-    overflow-x: auto;
-    overflow-y: hidden;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: thin;
-    text-align: center;
+  background: #f8faff;
+  border: 1px solid #e0e7ff;
+  border-radius: 10px;
+  padding: 0.75rem 1.25rem;
+  margin: 0.6rem 0;
+  box-sizing: border-box;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  text-align: center;
 }
 /* Display block: outer .katex-display scrolls; inner .katex must not clamp/shrink */
 .chat-markdown .katex-display > .katex {
-    font-size: 1.25em;
-    max-width: none;
-    overflow: visible;
+  font-size: 1.25em;
+  max-width: none;
+  overflow: visible;
 }
 /* Inline math: avoid stretching the chat flex row when a single expression is very wide */
 .chat-markdown .katex {
-    max-width: 100%;
-    overflow-x: auto;
-    overflow-y: hidden;
-    box-sizing: border-box;
-    vertical-align: text-bottom;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  box-sizing: border-box;
+  vertical-align: text-bottom;
 }
 
 /* Doubt feed + thread: Markdown + KaTeX (light + dark) */
-.doubt-markdown { font-size: 0.9375rem; line-height: 1.65; overflow-x: auto; }
-.doubt-markdown p { margin: 0 0 0.5rem 0; }
-.doubt-markdown p:last-child { margin-bottom: 0; }
-.doubt-markdown strong { font-weight: 700; color: var(--foreground); }
-.doubt-markdown ul { list-style: disc; padding-left: 1.35rem; margin: 0.35rem 0; }
-.doubt-markdown ol { list-style: decimal; padding-left: 1.35rem; margin: 0.35rem 0; }
-.doubt-markdown li { margin: 0.2rem 0; }
-.doubt-markdown code { font-size: 0.85em; padding: 0.1em 0.35em; border-radius: 0.35rem; background: var(--muted); }
-.doubt-markdown pre { margin: 0.5rem 0; padding: 0.75rem; border-radius: 0.75rem; background: var(--muted); overflow-x: auto; font-size: 0.85em; }
-.doubt-markdown pre code { padding: 0; background: transparent; }
-.doubt-markdown .katex { font-size: 1.05em; }
+.doubt-markdown {
+  font-size: 0.9375rem;
+  line-height: 1.65;
+  overflow-x: auto;
+}
+.doubt-markdown p {
+  margin: 0 0 0.5rem 0;
+}
+.doubt-markdown p:last-child {
+  margin-bottom: 0;
+}
+.doubt-markdown strong {
+  font-weight: 700;
+  color: var(--foreground);
+}
+.doubt-markdown ul {
+  list-style: disc;
+  padding-left: 1.35rem;
+  margin: 0.35rem 0;
+}
+.doubt-markdown ol {
+  list-style: decimal;
+  padding-left: 1.35rem;
+  margin: 0.35rem 0;
+}
+.doubt-markdown li {
+  margin: 0.2rem 0;
+}
+.doubt-markdown code {
+  font-size: 0.85em;
+  padding: 0.1em 0.35em;
+  border-radius: 0.35rem;
+  background: var(--muted);
+}
+.doubt-markdown pre {
+  margin: 0.5rem 0;
+  padding: 0.75rem;
+  border-radius: 0.75rem;
+  background: var(--muted);
+  overflow-x: auto;
+  font-size: 0.85em;
+}
+.doubt-markdown pre code {
+  padding: 0;
+  background: transparent;
+}
+.doubt-markdown .katex {
+  font-size: 1.05em;
+}
 .doubt-markdown .katex-display {
   background: color-mix(in oklch, var(--muted) 88%, transparent);
   border: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
@@ -232,7 +291,9 @@
   overflow-x: auto;
   text-align: center;
 }
-.doubt-markdown .katex-display > .katex { font-size: 1.12em; }
+.doubt-markdown .katex-display > .katex {
+  font-size: 1.12em;
+}
 
 /* Heavier KaTeX in headings (formulas ignore parent font-weight without this) */
 .math-text-katex-heavy .katex,
@@ -412,17 +473,17 @@
   --edu-yellow: 45 93% 58%;
   --edu-red: 0 84% 60%;
   /* Landing page brand palette (investor spec) */
-  --landing-green: #1D9E75;
-  --landing-purple: #534AB7;
-  --landing-coral: #D85A30;
-  --landing-amber: #EF9F27;
+  --landing-green: #1d9e75;
+  --landing-purple: #534ab7;
+  --landing-coral: #d85a30;
+  --landing-amber: #ef9f27;
   --landing-dark-teal: #085041;
-  --landing-bg-green: #E1F5EE;
-  --landing-bg-purple: #EEEDFE;
-  --landing-bg-coral: #FAECE7;
-  --landing-bg-amber: #FAEEDA;
-  --landing-bg-red: #FCEBEB;
-  --landing-red-text: #A32D2D;
+  --landing-bg-green: #e1f5ee;
+  --landing-bg-purple: #eeedfe;
+  --landing-bg-coral: #faece7;
+  --landing-bg-amber: #faeeda;
+  --landing-bg-red: #fcebeb;
+  --landing-red-text: #a32d2d;
   --edu-physics: 199 89% 48%;
   --edu-chemistry: 262 83% 58%;
   --edu-math: 25 95% 53%;
@@ -430,14 +491,27 @@
   --gradient-primary: linear-gradient(135deg, hsl(262 83% 58%), hsl(199 89% 48%));
   --gradient-success: linear-gradient(135deg, hsl(142 71% 45%), hsl(160 84% 39%));
   --gradient-fire: linear-gradient(135deg, hsl(25 95% 53%), hsl(0 84% 60%));
-  --gradient-hero: linear-gradient(135deg, hsl(262 83% 58%) 0%, hsl(199 89% 48%) 50%, hsl(142 71% 45%) 100%);
+  --gradient-hero: linear-gradient(
+    135deg,
+    hsl(262 83% 58%) 0%,
+    hsl(199 89% 48%) 50%,
+    hsl(142 71% 45%) 100%
+  );
 }
 
 /* Gradient utility classes (use as className, do not @apply in Tailwind v4) */
-.gradient-primary { background: var(--gradient-primary); }
-.gradient-success { background: var(--gradient-success); }
-.gradient-fire { background: var(--gradient-fire); }
-.gradient-hero { background: var(--gradient-hero); }
+.gradient-primary {
+  background: var(--gradient-primary);
+}
+.gradient-success {
+  background: var(--gradient-success);
+}
+.gradient-fire {
+  background: var(--gradient-fire);
+}
+.gradient-hero {
+  background: var(--gradient-hero);
+}
 
 /* Investor auth/onboarding glass surface */
 .auth-glass-page {
@@ -473,7 +547,10 @@
 .auth-glass-input {
   background: rgba(17, 22, 34, 0.72);
   border: 1px solid rgba(255, 255, 255, 0.12);
-  transition: border-color 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    background-color 180ms ease;
 }
 
 .auth-glass-input:focus-within,
@@ -486,7 +563,10 @@
 .auth-glass-outline-btn {
   border: 1px solid rgba(255, 255, 255, 0.14);
   background: rgba(18, 22, 35, 0.7);
-  transition: border-color 180ms ease, background-color 180ms ease, transform 180ms ease;
+  transition:
+    border-color 180ms ease,
+    background-color 180ms ease,
+    transform 180ms ease;
 }
 
 .auth-glass-outline-btn:hover {
@@ -506,20 +586,37 @@
 }
 
 @layer utilities {
-  .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
-  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 @layer components {
-  .edu-card { @apply bg-card rounded-2xl border border-border shadow-sm hover:shadow-md transition-shadow; }
-  .edu-section { @apply py-5 2xl:py-8; }
-  .edu-page-header { @apply mb-5 2xl:mb-8; }
+  .edu-card {
+    @apply bg-card rounded-2xl border border-border shadow-sm hover:shadow-md transition-shadow;
+  }
+  .edu-section {
+    @apply py-5 2xl:py-8;
+  }
+  .edu-page-header {
+    @apply mb-5 2xl:mb-8;
+  }
   .edu-page-title {
     @apply text-2xl md:text-3xl 2xl:text-4xl text-foreground mb-1.5 2xl:mb-2;
   }
-  .edu-page-desc { @apply text-muted-foreground text-sm md:text-base 2xl:text-lg; }
-  .edu-stat-card { @apply bg-card rounded-2xl border border-border p-4 text-center hover:shadow-md transition-all hover:-translate-y-0.5 2xl:p-5; }
-  .edu-chip { @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold; }
+  .edu-page-desc {
+    @apply text-muted-foreground text-sm md:text-base 2xl:text-lg;
+  }
+  .edu-stat-card {
+    @apply bg-card rounded-2xl border border-border p-4 text-center hover:shadow-md transition-all hover:-translate-y-0.5 2xl:p-5;
+  }
+  .edu-chip {
+    @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold;
+  }
   .edu-btn-primary {
     @apply rounded-xl font-bold text-primary-foreground border-0 shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all;
     background: var(--gradient-primary);
@@ -530,12 +627,24 @@
   }
 }
 
-.bg-edu-yellow\/15 { background-color: hsl(45 93% 58% / 0.15); }
-.hover\:bg-edu-yellow\/25:hover { background-color: hsl(45 93% 58% / 0.25); }
-.text-edu-orange { color: hsl(25 95% 53%); }
-.text-edu-yellow { color: hsl(45 93% 58%); }
-.text-edu-green { color: hsl(142 71% 45%); }
-.bg-edu-green\/15 { background-color: hsl(142 71% 45% / 0.15); }
+.bg-edu-yellow\/15 {
+  background-color: hsl(45 93% 58% / 0.15);
+}
+.hover\:bg-edu-yellow\/25:hover {
+  background-color: hsl(45 93% 58% / 0.25);
+}
+.text-edu-orange {
+  color: hsl(25 95% 53%);
+}
+.text-edu-yellow {
+  color: hsl(45 93% 58%);
+}
+.text-edu-green {
+  color: hsl(142 71% 45%);
+}
+.bg-edu-green\/15 {
+  background-color: hsl(142 71% 45% / 0.15);
+}
 
 @layer base {
   * {
@@ -544,7 +653,10 @@
   body {
     @apply bg-background text-foreground;
   }
-  input, textarea, select, button {
+  input,
+  textarea,
+  select,
+  button {
     font-family: inherit;
   }
 }

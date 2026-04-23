@@ -2,7 +2,11 @@ import type { SubtopicEngagementScope } from "@/lib/subtopicEngagementService";
 
 function sanitize(value: unknown, maxLen = 300): string {
   if (typeof value !== "string") return "";
-  return value.replace(/[\x00-\x1F\x7F]/g, " ").replace(/\s+/g, " ").trim().slice(0, maxLen);
+  return value
+    .replace(/[\x00-\x1F\x7F]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, maxLen);
 }
 
 function normalizeKeyPart(value: unknown, maxLen = 300): string {

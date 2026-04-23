@@ -26,18 +26,47 @@ export default function ProfileAcademicsAchievements({ userId }: { userId: strin
   const [academics, setAcademics] = useState<AcademicRow[]>([]);
   const [achievements, setAchievements] = useState<AchievementRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [academicDialog, setAcademicDialog] = useState<{ open: boolean; edit?: AcademicRow }>({ open: false });
-  const [achievementDialog, setAchievementDialog] = useState<{ open: boolean; edit?: AchievementRow }>({ open: false });
+  const [academicDialog, setAcademicDialog] = useState<{ open: boolean; edit?: AcademicRow }>({
+    open: false,
+  });
+  const [achievementDialog, setAchievementDialog] = useState<{
+    open: boolean;
+    edit?: AchievementRow;
+  }>({ open: false });
 
   const load = async () => {
     setLoading(true);
     try {
       const [aRes, achRes] = await Promise.all([
-        supabase.from("profile_academics").select("*").eq("user_id", userId).order("created_at", { ascending: true }),
-        supabase.from("profile_achievements").select("*").eq("user_id", userId).order("year", { ascending: false }),
+        supabase
+          .from("profile_academics")
+          .select("*")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: true }),
+        supabase
+          .from("profile_achievements")
+          .select("*")
+          .eq("user_id", userId)
+          .order("year", { ascending: false }),
       ]);
-      setAcademics((aRes.data ?? []).map((r) => ({ id: r.id, exam: r.exam, board: r.board, score: r.score, verified: r.verified as AcademicRecord["verified"] })));
-      setAchievements((achRes.data ?? []).map((r) => ({ id: r.id, name: r.name, level: r.level as Achievement["level"], year: r.year, result: r.result ?? "" })));
+      setAcademics(
+        (aRes.data ?? []).map((r) => ({
+          id: r.id,
+          exam: r.exam,
+          board: r.board,
+          score: r.score,
+          verified: r.verified as AcademicRecord["verified"],
+        }))
+      );
+      setAchievements(
+        (achRes.data ?? []).map((r) => ({
+          id: r.id,
+          name: r.name,
+          level: r.level as Achievement["level"],
+          year: r.year,
+          result: r.result ?? "",
+        }))
+      );
     } finally {
       setLoading(false);
     }
@@ -64,7 +93,13 @@ export default function ProfileAcademicsAchievements({ userId }: { userId: strin
   const handleUpdateAcademic = async (id: string, data: AcademicRecord) => {
     const { error } = await supabase
       .from("profile_academics")
-      .update({ exam: data.exam, board: data.board, score: data.score, verified: data.verified, updated_at: new Date().toISOString() })
+      .update({
+        exam: data.exam,
+        board: data.board,
+        score: data.score,
+        verified: data.verified,
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", id);
     if (!error) {
       setAcademicDialog({ open: false });
@@ -94,7 +129,13 @@ export default function ProfileAcademicsAchievements({ userId }: { userId: strin
   const handleUpdateAchievement = async (id: string, data: Achievement) => {
     const { error } = await supabase
       .from("profile_achievements")
-      .update({ name: data.name, level: data.level, year: data.year, result: data.result, updated_at: new Date().toISOString() })
+      .update({
+        name: data.name,
+        level: data.level,
+        year: data.year,
+        result: data.result,
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", id);
     if (!error) {
       setAchievementDialog({ open: false });
@@ -117,7 +158,8 @@ export default function ProfileAcademicsAchievements({ userId }: { userId: strin
       >
         <div className="flex items-center justify-between mb-3 2xl:mb-4">
           <h3 className="text-lg font-black text-foreground dark:text-white flex items-center gap-1.5 2xl:text-xl 2xl:gap-2">
-            <GraduationCap className="w-4 h-4 shrink-0 text-indigo-300 2xl:w-5 2xl:h-5" /> Academic Record
+            <GraduationCap className="w-4 h-4 shrink-0 text-indigo-300 2xl:w-5 2xl:h-5" /> Academic
+            Record
           </h3>
           <Button
             size="sm"
@@ -131,18 +173,37 @@ export default function ProfileAcademicsAchievements({ userId }: { userId: strin
         {loading ? (
           <p className="text-sm text-muted-foreground dark:text-slate-400">Loading...</p>
         ) : academics.length === 0 ? (
-          <p className="text-sm text-muted-foreground dark:text-slate-400">No records yet. Add your Class 11/12 results for your public profile.</p>
+          <p className="text-sm text-muted-foreground dark:text-slate-400">
+            No records yet. Add your Class 11/12 results for your public profile.
+          </p>
         ) : (
           <div className="space-y-2">
             {academics.map((a) => (
-              <div key={a.id} className="flex items-center justify-between py-2 border-b border-border last:border-0 dark:border-white/10">
-                <p className="font-semibold text-foreground dark:text-slate-100">{a.exam} — {a.board}</p>
+              <div
+                key={a.id}
+                className="flex items-center justify-between py-2 border-b border-border last:border-0 dark:border-white/10"
+              >
+                <p className="font-semibold text-foreground dark:text-slate-100">
+                  {a.exam} — {a.board}
+                </p>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground dark:text-slate-400">{a.score}</span>
-                  <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-muted-foreground hover:bg-muted dark:text-slate-300 dark:hover:bg-slate-800" onClick={() => setAcademicDialog({ open: true, edit: a })}>
+                  <span className="text-sm text-muted-foreground dark:text-slate-400">
+                    {a.score}
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-8 w-8 p-0 text-muted-foreground hover:bg-muted dark:text-slate-300 dark:hover:bg-slate-800"
+                    onClick={() => setAcademicDialog({ open: true, edit: a })}
+                  >
                     <Pencil className="w-4 h-4" />
                   </Button>
-                  <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-rose-400 hover:bg-rose-500/20 hover:text-rose-300" onClick={() => handleDeleteAcademic(a.id)}>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-8 w-8 p-0 text-rose-400 hover:bg-rose-500/20 hover:text-rose-300"
+                    onClick={() => handleDeleteAcademic(a.id)}
+                  >
                     <Trash2 className="w-4 h-4" />
                   </Button>
                 </div>
@@ -150,7 +211,12 @@ export default function ProfileAcademicsAchievements({ userId }: { userId: strin
             ))}
           </div>
         )}
-        <Button variant="link" size="sm" className="mt-2 text-violet-300 px-0 hover:text-violet-200" asChild>
+        <Button
+          variant="link"
+          size="sm"
+          className="mt-2 text-violet-300 px-0 hover:text-violet-200"
+          asChild
+        >
           <Link href={`/user/${userId}`}>View public profile →</Link>
         </Button>
       </motion.div>
@@ -163,7 +229,8 @@ export default function ProfileAcademicsAchievements({ userId }: { userId: strin
       >
         <div className="flex items-center justify-between mb-3 2xl:mb-4">
           <h3 className="text-lg font-black text-foreground dark:text-white flex items-center gap-1.5 2xl:text-xl 2xl:gap-2">
-            <Medal className="w-4 h-4 shrink-0 text-amber-300 2xl:w-5 2xl:h-5" /> Achievements & Competitions
+            <Medal className="w-4 h-4 shrink-0 text-amber-300 2xl:w-5 2xl:h-5" /> Achievements &
+            Competitions
           </h3>
           <Button
             size="sm"
@@ -177,19 +244,38 @@ export default function ProfileAcademicsAchievements({ userId }: { userId: strin
         {loading ? (
           <p className="text-sm text-muted-foreground dark:text-slate-400">Loading...</p>
         ) : achievements.length === 0 ? (
-          <p className="text-sm text-muted-foreground dark:text-slate-400">No achievements yet. Add Olympiads, competitions, and more.</p>
+          <p className="text-sm text-muted-foreground dark:text-slate-400">
+            No achievements yet. Add Olympiads, competitions, and more.
+          </p>
         ) : (
           <div className="space-y-2">
             {achievements.map((a) => (
-              <div key={a.id} className="flex items-center justify-between py-2 border-b border-border last:border-0 dark:border-white/10">
+              <div
+                key={a.id}
+                className="flex items-center justify-between py-2 border-b border-border last:border-0 dark:border-white/10"
+              >
                 <p className="font-semibold text-foreground dark:text-slate-100">{a.name}</p>
                 <div className="flex items-center gap-2">
-                  <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-bold text-muted-foreground dark:bg-slate-800 dark:text-slate-300">{a.level}</span>
-                  <span className="text-sm text-muted-foreground dark:text-slate-400">{a.year} — {a.result}</span>
-                  <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-muted-foreground hover:bg-muted dark:text-slate-300 dark:hover:bg-slate-800" onClick={() => setAchievementDialog({ open: true, edit: a })}>
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-bold text-muted-foreground dark:bg-slate-800 dark:text-slate-300">
+                    {a.level}
+                  </span>
+                  <span className="text-sm text-muted-foreground dark:text-slate-400">
+                    {a.year} — {a.result}
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-8 w-8 p-0 text-muted-foreground hover:bg-muted dark:text-slate-300 dark:hover:bg-slate-800"
+                    onClick={() => setAchievementDialog({ open: true, edit: a })}
+                  >
                     <Pencil className="w-4 h-4" />
                   </Button>
-                  <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-rose-400 hover:bg-rose-500/20 hover:text-rose-300" onClick={() => handleDeleteAchievement(a.id)}>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-8 w-8 p-0 text-rose-400 hover:bg-rose-500/20 hover:text-rose-300"
+                    onClick={() => handleDeleteAchievement(a.id)}
+                  >
                     <Trash2 className="w-4 h-4" />
                   </Button>
                 </div>
@@ -203,13 +289,21 @@ export default function ProfileAcademicsAchievements({ userId }: { userId: strin
         open={academicDialog.open}
         edit={academicDialog.edit}
         onClose={() => setAcademicDialog({ open: false })}
-        onSave={(d) => academicDialog.edit ? handleUpdateAcademic(academicDialog.edit.id, d) : handleAddAcademic(d)}
+        onSave={(d) =>
+          academicDialog.edit
+            ? handleUpdateAcademic(academicDialog.edit.id, d)
+            : handleAddAcademic(d)
+        }
       />
       <AchievementFormDialog
         open={achievementDialog.open}
         edit={achievementDialog.edit}
         onClose={() => setAchievementDialog({ open: false })}
-        onSave={(d) => achievementDialog.edit ? handleUpdateAchievement(achievementDialog.edit.id, d) : handleAddAchievement(d)}
+        onSave={(d) =>
+          achievementDialog.edit
+            ? handleUpdateAchievement(achievementDialog.edit.id, d)
+            : handleAddAchievement(d)
+        }
       />
     </>
   );
@@ -252,15 +346,33 @@ function AcademicFormDialog({
         <div className="grid gap-4 py-4">
           <div>
             <Label htmlFor="exam">Exam</Label>
-            <Input id="exam" value={exam} onChange={(e) => setExam(e.target.value)} placeholder="e.g. Class 11, Class 12" className="mt-1 rounded-xl" />
+            <Input
+              id="exam"
+              value={exam}
+              onChange={(e) => setExam(e.target.value)}
+              placeholder="e.g. Class 11, Class 12"
+              className="mt-1 rounded-xl"
+            />
           </div>
           <div>
             <Label htmlFor="board">Board</Label>
-            <Input id="board" value={board} onChange={(e) => setBoard(e.target.value)} placeholder="e.g. CBSE, State Board" className="mt-1 rounded-xl" />
+            <Input
+              id="board"
+              value={board}
+              onChange={(e) => setBoard(e.target.value)}
+              placeholder="e.g. CBSE, State Board"
+              className="mt-1 rounded-xl"
+            />
           </div>
           <div>
             <Label htmlFor="score">Score</Label>
-            <Input id="score" value={score} onChange={(e) => setScore(e.target.value)} placeholder="e.g. 95%, 450/500" className="mt-1 rounded-xl" />
+            <Input
+              id="score"
+              value={score}
+              onChange={(e) => setScore(e.target.value)}
+              placeholder="e.g. 95%, 450/500"
+              className="mt-1 rounded-xl"
+            />
           </div>
           <div>
             <Label htmlFor="verified">Verification</Label>
@@ -278,8 +390,12 @@ function AcademicFormDialog({
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} className="rounded-xl">Cancel</Button>
-          <Button onClick={() => onSave({ exam, board, score, verified })} className="rounded-xl">Save</Button>
+          <Button variant="outline" onClick={onClose} className="rounded-xl">
+            Cancel
+          </Button>
+          <Button onClick={() => onSave({ exam, board, score, verified })} className="rounded-xl">
+            Save
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -323,7 +439,13 @@ function AchievementFormDialog({
         <div className="grid gap-4 py-4">
           <div>
             <Label htmlFor="name">Name</Label>
-            <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Physics Olympiad" className="mt-1 rounded-xl" />
+            <Input
+              id="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Physics Olympiad"
+              className="mt-1 rounded-xl"
+            />
           </div>
           <div>
             <Label htmlFor="level">Level</Label>
@@ -335,22 +457,46 @@ function AchievementFormDialog({
               className="mt-1 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm"
             >
               {ACHIEVEMENT_LEVELS.map((l) => (
-                <option key={l} value={l}>{l}</option>
+                <option key={l} value={l}>
+                  {l}
+                </option>
               ))}
             </select>
           </div>
           <div>
             <Label htmlFor="year">Year</Label>
-            <Input id="year" type="number" value={year} onChange={(e) => setYear(e.target.value)} placeholder="2024" className="mt-1 rounded-xl" />
+            <Input
+              id="year"
+              type="number"
+              value={year}
+              onChange={(e) => setYear(e.target.value)}
+              placeholder="2024"
+              className="mt-1 rounded-xl"
+            />
           </div>
           <div>
             <Label htmlFor="result">Result</Label>
-            <Input id="result" value={result} onChange={(e) => setResult(e.target.value)} placeholder="e.g. Gold Medal, 2nd Place" className="mt-1 rounded-xl" />
+            <Input
+              id="result"
+              value={result}
+              onChange={(e) => setResult(e.target.value)}
+              placeholder="e.g. Gold Medal, 2nd Place"
+              className="mt-1 rounded-xl"
+            />
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} className="rounded-xl">Cancel</Button>
-          <Button onClick={() => onSave({ name, level, year: parseInt(year, 10) || new Date().getFullYear(), result })} className="rounded-xl">Save</Button>
+          <Button variant="outline" onClick={onClose} className="rounded-xl">
+            Cancel
+          </Button>
+          <Button
+            onClick={() =>
+              onSave({ name, level, year: parseInt(year, 10) || new Date().getFullYear(), result })
+            }
+            className="rounded-xl"
+          >
+            Save
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -20,7 +20,11 @@ export function localDayKeyFromDate(d: Date): string {
 }
 
 /** Local calendar day bounds as ISO strings for API filters (e.g. daily checklist, doubt_saves). */
-export function localDayBoundsIso(now = new Date()): { today: string; dayStart: string; dayEnd: string } {
+export function localDayBoundsIso(now = new Date()): {
+  today: string;
+  dayStart: string;
+  dayEnd: string;
+} {
   const start = startOfLocalDay(now);
   const end = addDaysLocal(start, 1);
   return {
@@ -52,8 +56,14 @@ export function buildActivityCountByDay(
     const key = contributionDayKeyFromTimestamp(row.submittedAtMs);
     counts.set(key, (counts.get(key) ?? 0) + n);
   }
-  if (subtopicEngagementRaw && typeof subtopicEngagementRaw === "object" && !Array.isArray(subtopicEngagementRaw)) {
-    for (const [engKey, value] of Object.entries(subtopicEngagementRaw as Record<string, unknown>)) {
+  if (
+    subtopicEngagementRaw &&
+    typeof subtopicEngagementRaw === "object" &&
+    !Array.isArray(subtopicEngagementRaw)
+  ) {
+    for (const [engKey, value] of Object.entries(
+      subtopicEngagementRaw as Record<string, unknown>
+    )) {
       if (submittedBitsKeys.has(engKey)) continue;
       if (!value || typeof value !== "object" || Array.isArray(value)) continue;
       const row = value as Record<string, unknown>;
@@ -122,7 +132,8 @@ export function formatStudyMsForTooltip(activeMs: number): string {
 
 /** Tooltip line: dwell time from Supabase `presence_ms` (+ optional live buffer). */
 export function formatPresenceMsForTooltip(presenceMs: number): string {
-  if (!Number.isFinite(presenceMs) || presenceMs <= 0) return "No on-site time yet (tab must be visible)";
+  if (!Number.isFinite(presenceMs) || presenceMs <= 0)
+    return "No on-site time yet (tab must be visible)";
   const totalSec = Math.round(presenceMs / 1000);
   const mm = Math.floor(totalSec / 60);
   const ss = totalSec % 60;
@@ -147,7 +158,10 @@ export function countConsecutiveActiveDaysEndingToday(
   return streak;
 }
 
-export function countActiveDaysInMonth(counts: ReadonlyMap<string, number>, ref: Date = new Date()): number {
+export function countActiveDaysInMonth(
+  counts: ReadonlyMap<string, number>,
+  ref: Date = new Date()
+): number {
   const y = ref.getFullYear();
   const m = ref.getMonth();
   const last = new Date(y, m + 1, 0).getDate();

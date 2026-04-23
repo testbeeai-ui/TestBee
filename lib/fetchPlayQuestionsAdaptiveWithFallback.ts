@@ -37,7 +37,7 @@ async function rpcAdaptive(
   client: SupabaseClient<Database>,
   domain: PlayDomain,
   category: string,
-  count: number,
+  count: number
 ) {
   return client.rpc("get_adaptive_play_questions", {
     p_domain: domain,
@@ -84,7 +84,7 @@ function serializeRpcError(err: unknown): Record<string, unknown> {
  */
 export async function fetchPlayQuestionsAdaptiveWithFallback(
   sb: SupabaseClient<Database>,
-  params: { domain: PlayDomain; category: string; count: number },
+  params: { domain: PlayDomain; category: string; count: number }
 ): Promise<PlayQuestionRow[]> {
   const domain = params.domain.trim() as PlayDomain;
   const category = params.category.trim();
@@ -122,12 +122,12 @@ export async function fetchPlayQuestionsAdaptiveWithFallback(
       if (error != null) {
         console.warn(
           "[fetchPlayQuestionsAdaptiveWithFallback] RPC failed or returned 0 rows; using stratified domain fallback",
-          meta,
+          meta
         );
       } else {
         console.warn(
           "[fetchPlayQuestionsAdaptiveWithFallback] RPC returned 0 rows (no error object); using stratified domain fallback",
-          meta,
+          meta
         );
       }
     }
@@ -135,11 +135,14 @@ export async function fetchPlayQuestionsAdaptiveWithFallback(
   }
 
   if (process.env.NODE_ENV === "development") {
-    console.error("[fetchPlayQuestionsAdaptiveWithFallback] adaptive RPC and domain fallback both empty", {
-      domain,
-      category,
-      rpcError: error != null ? serializeRpcError(error) : null,
-    });
+    console.error(
+      "[fetchPlayQuestionsAdaptiveWithFallback] adaptive RPC and domain fallback both empty",
+      {
+        domain,
+        category,
+        rpcError: error != null ? serializeRpcError(error) : null,
+      }
+    );
   }
 
   return [];
@@ -150,7 +153,7 @@ const GAUNTLET_QUESTION_COUNT = 10;
 async function rpcDailyGauntlet(
   client: SupabaseClient<Database>,
   p_date: string,
-  domain: PlayDomain,
+  domain: PlayDomain
 ) {
   return client.rpc("get_daily_gauntlet_questions", { p_date, p_domain: domain });
 }
@@ -161,7 +164,7 @@ async function rpcDailyGauntlet(
  */
 export async function fetchDailyGauntletQuestionsWithFallback(
   sb: SupabaseClient<Database>,
-  params: { domain: PlayDomain; dateIso: string },
+  params: { domain: PlayDomain; dateIso: string }
 ): Promise<PlayQuestionRow[]> {
   const domain = params.domain;
   const p_date = params.dateIso.trim();
@@ -184,7 +187,10 @@ export async function fetchDailyGauntletQuestionsWithFallback(
   rows = normalizeRows(data);
   if (!error && rows.length > 0) return rows;
 
-  const random = await fetchPlayQuestionsDomainRandom(sb, { domain, count: GAUNTLET_QUESTION_COUNT });
+  const random = await fetchPlayQuestionsDomainRandom(sb, {
+    domain,
+    count: GAUNTLET_QUESTION_COUNT,
+  });
   if (random.length > 0) {
     if (process.env.NODE_ENV === "development") {
       console.warn("[fetchDailyGauntletQuestionsWithFallback] using stratified domain fallback", {

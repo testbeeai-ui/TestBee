@@ -70,7 +70,9 @@ async function getAuthHeaders(): Promise<HeadersInit> {
   return headers;
 }
 
-export async function fetchSubtopicEngagement(scope: SubtopicEngagementScope): Promise<SubtopicEngagementSnapshot | null> {
+export async function fetchSubtopicEngagement(
+  scope: SubtopicEngagementScope
+): Promise<SubtopicEngagementSnapshot | null> {
   const headers = await getAuthHeaders();
   const search = new URLSearchParams({
     board: scope.board,

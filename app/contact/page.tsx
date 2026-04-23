@@ -154,8 +154,12 @@ function ContactPageBody({ showLandingNav }: { showLandingNav: boolean }) {
   const submit = () => {
     if (!cat || !form.name.trim() || !form.email.trim() || !form.role) return;
     if (cat === "sales" && (!form.salesType || form.salesMsg.trim().length < 20)) return;
-    if (cat === "issue" && (!form.issueMenu || !severity || form.issueDesc.trim().length < 20)) return;
-    if (cat === "comment" && (!form.commType || !form.commFeature || form.commMsg.trim().length < 20))
+    if (cat === "issue" && (!form.issueMenu || !severity || form.issueDesc.trim().length < 20))
+      return;
+    if (
+      cat === "comment" &&
+      (!form.commType || !form.commFeature || form.commMsg.trim().length < 20)
+    )
       return;
 
     setTicketId(`EB-2026-${Math.floor(Math.random() * 9000 + 1000)}`);
@@ -188,8 +192,7 @@ function ContactPageBody({ showLandingNav }: { showLandingNav: boolean }) {
         ? "bg-[#7c6bff] hover:bg-[#4035c0] text-white"
         : "bg-[#0fba8a] hover:bg-[#0a8a64] text-[#041a12]";
 
-  const topLineColor =
-    cat === "issue" ? "#e8553a" : cat === "comment" ? "#7c6bff" : "#0fba8a";
+  const topLineColor = cat === "issue" ? "#e8553a" : cat === "comment" ? "#7c6bff" : "#0fba8a";
   const topLineWidth = cat ? "100%" : `${progress}%`;
   const fromParam = searchParams.get("from");
 
@@ -222,7 +225,10 @@ function ContactPageBody({ showLandingNav }: { showLandingNav: boolean }) {
                 Home
               </Link>
             ) : (
-              <Link href={safeFromPath} className="text-white/40 transition-colors hover:text-white/80">
+              <Link
+                href={safeFromPath}
+                className="text-white/40 transition-colors hover:text-white/80"
+              >
                 {inAppFromLabel}
               </Link>
             )}
@@ -232,14 +238,19 @@ function ContactPageBody({ showLandingNav }: { showLandingNav: boolean }) {
 
           <div className="grid md:grid-cols-[268px_1fr]">
             <aside className="border-r border-white/10 bg-[#0a0a14] p-4 md:p-5">
-              <p className="mb-4 text-[10.5px] uppercase tracking-[0.1em] text-white/20">Ways to reach us</p>
+              <p className="mb-4 text-[10.5px] uppercase tracking-[0.1em] text-white/20">
+                Ways to reach us
+              </p>
 
               <div className="mb-2 rounded-xl border border-white/10 bg-[#161627] p-3">
                 <div className="mb-2 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-[#0fba8a]/10">
                   <Mail className="h-4 w-4 text-[#0fba8a]" />
                 </div>
                 <p className="text-[11px] text-white/35">Email us</p>
-                <a className="text-sm text-[#0fba8a] hover:underline" href="mailto:support@edublast.in">
+                <a
+                  className="text-sm text-[#0fba8a] hover:underline"
+                  href="mailto:support@edublast.in"
+                >
                   support@edublast.in
                 </a>
               </div>
@@ -257,7 +268,10 @@ function ContactPageBody({ showLandingNav }: { showLandingNav: boolean }) {
                   <MessageSquare className="h-4 w-4 text-[#7c6bff]" />
                 </div>
                 <p className="text-[11px] text-white/35">Partnership enquiries</p>
-                <a className="text-sm text-[#0fba8a] hover:underline" href="mailto:lsn@eyemagnett.in">
+                <a
+                  className="text-sm text-[#0fba8a] hover:underline"
+                  href="mailto:lsn@eyemagnett.in"
+                >
                   lsn@eyemagnett.in
                 </a>
               </div>
@@ -285,8 +299,8 @@ function ContactPageBody({ showLandingNav }: { showLandingNav: boolean }) {
               </div>
               <p className="mt-4 text-xs leading-relaxed text-white/35">
                 For institutional or bulk-enrolment partnerships, use the{" "}
-                <span className="text-[#0fba8a]">Sales or Partner</span> category. Our business team responds within 2
-                business days.
+                <span className="text-[#0fba8a]">Sales or Partner</span> category. Our business team
+                responds within 2 business days.
               </p>
             </aside>
 
@@ -302,8 +316,8 @@ function ContactPageBody({ showLandingNav }: { showLandingNav: boolean }) {
                 <>
                   <h1 className="text-3xl font-semibold">How can we help you?</h1>
                   <p className="mt-2 mb-5 max-w-3xl text-sm leading-relaxed text-white/60">
-                    Choose a category, fill in the relevant details, and hit send. Every query is reviewed by our team
-                    and routed to the right person.
+                    Choose a category, fill in the relevant details, and hit send. Every query is
+                    reviewed by our team and routed to the right person.
                   </p>
 
                   <p className="mb-2 text-[10.5px] uppercase tracking-[0.09em] text-white/20">
@@ -319,7 +333,9 @@ function ContactPageBody({ showLandingNav }: { showLandingNav: boolean }) {
                         <Star className="h-4 w-4 text-[#0fba8a]" />
                       </div>
                       <p className="text-sm font-medium">Sales or partner</p>
-                      <p className="mt-1 text-xs text-white/35">Bulk enrolments, coaching partnerships, B2B, institutional tie-ups</p>
+                      <p className="mt-1 text-xs text-white/35">
+                        Bulk enrolments, coaching partnerships, B2B, institutional tie-ups
+                      </p>
                     </button>
                     <button
                       type="button"
@@ -330,7 +346,9 @@ function ContactPageBody({ showLandingNav }: { showLandingNav: boolean }) {
                         <AlertTriangle className="h-4 w-4 text-[#e8553a]" />
                       </div>
                       <p className="text-sm font-medium">Issue faced</p>
-                      <p className="mt-1 text-xs text-white/35">Bug, login problem, payment error, content mistake, or feature not working</p>
+                      <p className="mt-1 text-xs text-white/35">
+                        Bug, login problem, payment error, content mistake, or feature not working
+                      </p>
                     </button>
                     <button
                       type="button"
@@ -341,24 +359,40 @@ function ContactPageBody({ showLandingNav }: { showLandingNav: boolean }) {
                         <MessageSquare className="h-4 w-4 text-[#7c6bff]" />
                       </div>
                       <p className="text-sm font-medium">Comment or suggestion</p>
-                      <p className="mt-1 text-xs text-white/35">Feedback, feature request, content gap, improvement idea, or compliment</p>
+                      <p className="mt-1 text-xs text-white/35">
+                        Feedback, feature request, content gap, improvement idea, or compliment
+                      </p>
                     </button>
                   </div>
 
                   {cat && (
                     <>
-                      <p className="mb-3 text-[10.5px] uppercase tracking-[0.09em] text-white/20">Your details</p>
+                      <p className="mb-3 text-[10.5px] uppercase tracking-[0.09em] text-white/20">
+                        Your details
+                      </p>
                       <div className="mb-3 grid gap-3 sm:grid-cols-2">
                         <Field label="Full name" required>
-                          <Input value={form.name} onChange={(v) => update("name", v)} placeholder="e.g. Priya Mehta" />
+                          <Input
+                            value={form.name}
+                            onChange={(v) => update("name", v)}
+                            placeholder="e.g. Priya Mehta"
+                          />
                         </Field>
                         <Field label="Email address" required>
-                          <Input value={form.email} onChange={(v) => update("email", v)} placeholder="you@example.com" />
+                          <Input
+                            value={form.email}
+                            onChange={(v) => update("email", v)}
+                            placeholder="you@example.com"
+                          />
                         </Field>
                       </div>
                       <div className="mb-4 grid gap-3 sm:grid-cols-2">
                         <Field label="Phone number">
-                          <Input value={form.phone} onChange={(v) => update("phone", v)} placeholder="+91 98765 43210" />
+                          <Input
+                            value={form.phone}
+                            onChange={(v) => update("phone", v)}
+                            placeholder="+91 98765 43210"
+                          />
                         </Field>
                         <Field label="Your role" required>
                           <Select value={form.role} onChange={(v) => update("role", v)}>
@@ -401,7 +435,11 @@ function ContactPageBody({ showLandingNav }: { showLandingNav: boolean }) {
 
                       <div className="mt-3 grid gap-3 sm:grid-cols-2">
                         <Field label="Organisation / Institute name">
-                          <Input value={form.salesOrg} onChange={(v) => update("salesOrg", v)} placeholder="e.g. Brilliant Coaching Centre" />
+                          <Input
+                            value={form.salesOrg}
+                            onChange={(v) => update("salesOrg", v)}
+                            placeholder="e.g. Brilliant Coaching Centre"
+                          />
                         </Field>
                         <Field label="Approximate student count">
                           <Select value={form.salesCount} onChange={(v) => update("salesCount", v)}>
@@ -501,7 +539,10 @@ function ContactPageBody({ showLandingNav }: { showLandingNav: boolean }) {
                           </Select>
                         </Field>
                         <Field label="Subject (if applicable)">
-                          <Select value={form.issueSubject} onChange={(v) => update("issueSubject", v)}>
+                          <Select
+                            value={form.issueSubject}
+                            onChange={(v) => update("issueSubject", v)}
+                          >
                             <option value="">— Select subject —</option>
                             <option>Physics</option>
                             <option>Chemistry</option>
@@ -514,7 +555,10 @@ function ContactPageBody({ showLandingNav }: { showLandingNav: boolean }) {
 
                       {showPlatformField && (
                         <Field label="Platform / Device">
-                          <Select value={form.issuePlatform} onChange={(v) => update("issuePlatform", v)}>
+                          <Select
+                            value={form.issuePlatform}
+                            onChange={(v) => update("issuePlatform", v)}
+                          >
                             <option value="">— Select —</option>
                             <option>Android app</option>
                             <option>iOS app</option>
@@ -558,7 +602,9 @@ function ContactPageBody({ showLandingNav }: { showLandingNav: boolean }) {
                           value={form.issueSteps}
                           onChange={(v) => update("issueSteps", v)}
                           rows={3}
-                          placeholder={"1. I opened the Testbee mock section\n2. I clicked Start mock\n3. The page went blank..."}
+                          placeholder={
+                            "1. I opened the Testbee mock section\n2. I clicked Start mock\n3. The page went blank..."
+                          }
                         />
                       </Field>
                     </div>
@@ -578,7 +624,9 @@ function ContactPageBody({ showLandingNav }: { showLandingNav: boolean }) {
                           <option value="">— Select type —</option>
                           <option>Feature request — I want EduBlast to add something</option>
                           <option>Content gap — topic or subject not covered</option>
-                          <option>UI / UX improvement — something is confusing or hard to use</option>
+                          <option>
+                            UI / UX improvement — something is confusing or hard to use
+                          </option>
                           <option>Positive feedback — something that worked really well</option>
                           <option>Curriculum feedback — mock or question quality</option>
                           <option>RDM or EduFund suggestion</option>
@@ -622,7 +670,10 @@ function ContactPageBody({ showLandingNav }: { showLandingNav: boolean }) {
                           </Select>
                         </Field>
                         <Field label="Subject (if applicable)">
-                          <Select value={form.commSubject} onChange={(v) => update("commSubject", v)}>
+                          <Select
+                            value={form.commSubject}
+                            onChange={(v) => update("commSubject", v)}
+                          >
                             <option value="">— Select subject —</option>
                             <option>Physics</option>
                             <option>Chemistry</option>
@@ -635,7 +686,11 @@ function ContactPageBody({ showLandingNav }: { showLandingNav: boolean }) {
 
                       <Field label="Priority for you">
                         <div className="flex flex-wrap gap-2">
-                          {["Nice to have", "Would improve my experience", "Essential — please add this"].map((x) => (
+                          {[
+                            "Nice to have",
+                            "Would improve my experience",
+                            "Essential — please add this",
+                          ].map((x) => (
                             <button
                               key={x}
                               type="button"
@@ -669,7 +724,11 @@ function ContactPageBody({ showLandingNav }: { showLandingNav: boolean }) {
                             Yes, please reply to my email
                           </label>
                           <label className="flex items-center gap-2">
-                            <input type="radio" checked={form.followUp === "no"} onChange={() => update("followUp", "no")} />
+                            <input
+                              type="radio"
+                              checked={form.followUp === "no"}
+                              onChange={() => update("followUp", "no")}
+                            />
                             No follow-up needed
                           </label>
                         </div>
@@ -680,8 +739,8 @@ function ContactPageBody({ showLandingNav }: { showLandingNav: boolean }) {
                   {cat && (
                     <div className="mt-2 flex flex-wrap items-center justify-between gap-4 border-t border-white/10 pt-4">
                       <p className="max-w-xs text-xs leading-relaxed text-white/25">
-                        By submitting this form you agree to our privacy policy. We will never share your details with
-                        third parties.
+                        By submitting this form you agree to our privacy policy. We will never share
+                        your details with third parties.
                       </p>
                       <div className="flex items-center gap-2">
                         <button
@@ -708,7 +767,9 @@ function ContactPageBody({ showLandingNav }: { showLandingNav: boolean }) {
                     <Check className="h-6 w-6 text-[#0fba8a]" />
                   </div>
                   <h2 className="text-2xl font-semibold">{successCopy.title}</h2>
-                  <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-white/60">{successCopy.desc}</p>
+                  <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-white/60">
+                    {successCopy.desc}
+                  </p>
                   <div className="mx-auto mt-5 inline-flex items-center gap-2 rounded-lg border border-white/15 bg-[#0a0a14] px-3 py-2 text-sm text-white/70">
                     Ticket ID: <span className="font-medium text-[#0fba8a]">{ticketId}</span>
                   </div>
@@ -845,4 +906,3 @@ function Count({ value, max }: { value: string; max: number }) {
     </p>
   );
 }
-

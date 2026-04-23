@@ -30,31 +30,31 @@ import {
 } from "@/lib/sarvamGyanClient";
 import { maybeAttachCurriculumNodeToDoubt } from "@/lib/gyanCurriculum";
 import { logAiUsage } from "@/lib/aiLogger";
+import type { Subject } from "@/types";
 
 const SUBJECT_BOUNDARIES: Record<string, { allowed: string; forbidden: string[] }> = {
   physics: {
-    allowed: "Physics (mechanics, thermodynamics, optics, electromagnetism, modern physics, waves, motion, force, energy)",
+    allowed:
+      "Physics (mechanics, thermodynamics, optics, electromagnetism, modern physics, waves, motion, force, energy)",
     forbidden: ["chemistry", "biology", "history", "geography"],
   },
   chemistry: {
-    allowed: "Chemistry (organic, inorganic, physical chemistry, reactions, bonding, thermochemistry)",
+    allowed:
+      "Chemistry (organic, inorganic, physical chemistry, reactions, bonding, thermochemistry)",
     forbidden: ["physics concepts unrelated to chemistry", "biology", "pure mathematics"],
   },
   math: {
-    allowed: "Mathematics (algebra, calculus, geometry, trigonometry, statistics, number theory, proof)",
-    forbidden: ["physics", "chemistry", "biology"],
-  },
-  biology: {
-    allowed: "Biology (cell biology, genetics, ecology, human physiology, plant biology, evolution)",
-    forbidden: ["physics", "chemistry beyond biochemistry"],
+    allowed:
+      "Mathematics (algebra, calculus, geometry, trigonometry, statistics, number theory, proof)",
+    forbidden: ["physics", "chemistry"],
   },
 };
 
-export function flairToRagSubject(flair: string | null): "physics" | "chemistry" | "math" | "biology" {
+export function flairToRagSubject(flair: string | null): Subject {
   const s = (flair ?? "").toLowerCase();
   if (s.includes("chem")) return "chemistry";
   if (s.includes("math")) return "math";
-  if (s.includes("bio")) return "biology";
+  if (s.includes("bio")) return "chemistry";
   if (s.includes("phys")) return "physics";
   return "physics";
 }
@@ -67,7 +67,13 @@ export type ProfPiDiag = {
 
 export type ProfPiAnswerResult =
   | { ok: true; skipped: true; reason: string; diag: ProfPiDiag }
-  | { ok: true; skipped: false; answerId: string; source: "rephrase" | "rag_sarvam"; diag: ProfPiDiag }
+  | {
+      ok: true;
+      skipped: false;
+      answerId: string;
+      source: "rephrase" | "rag_sarvam";
+      diag: ProfPiDiag;
+    }
   | { ok: false; error: string; diag: ProfPiDiag };
 
 function profPiDiag(ragChunksRetrieved: number | null): ProfPiDiag {
@@ -86,7 +92,7 @@ const DOUBT_READ_RETRY_DELAYS_MS = [0, 250, 500, 750, 1000, 1500, 2000] as const
 export async function waitForDoubtRow(
   admin: SupabaseClient<Database>,
   doubtId: string,
-  selectColumns: string,
+  selectColumns: string
 ): Promise<{ data: unknown | null; error: { message: string } | null }> {
   let lastErr: { message: string } | null = null;
   for (let i = 0; i < DOUBT_READ_RETRY_DELAYS_MS.length; i++) {
@@ -156,8 +162,17 @@ async function rephraseSimilarAnswerWithSarvamRag(params: {
 }): Promise<{ text: string | null; ragChunksRetrieved: number | null; usage?: SarvamUsage }> {
   const ragKey = flairToRagSubject(params.subjectFlair) as ProfPiRagKey;
   const boundary = SUBJECT_BOUNDARIES[ragKey] ?? SUBJECT_BOUNDARIES.physics;
-  const queryForRag = `${params.title}\n\n${params.body || ""}`.trim().slice(0, PROF_PI_RAG_QUERY_MAX);
-  const ragContext = await fetchRAGContext(queryForRag, ragKey, params.gradeLevel, undefined, undefined, RAG_MATCH_COUNT_PROF_PI);
+  const queryForRag = `${params.title}\n\n${params.body || ""}`
+    .trim()
+    .slice(0, PROF_PI_RAG_QUERY_MAX);
+  const ragContext = await fetchRAGContext(
+    queryForRag,
+    ragKey,
+    params.gradeLevel,
+    undefined,
+    undefined,
+    RAG_MATCH_COUNT_PROF_PI
+  );
   const ragChunksRetrieved = ragContext?.chunkCount ?? null;
   const ragBlock = buildRagBlockForProfPi(ragContext, params.gradeLevel, ragKey);
 
@@ -222,7 +237,14 @@ async function answerWithSarvamRag(params: {
   const ragKey = flairToRagSubject(params.subjectFlair) as ProfPiRagKey;
   const boundary = SUBJECT_BOUNDARIES[ragKey] ?? SUBJECT_BOUNDARIES.physics;
   const query = `${params.title}\n\n${params.body || ""}`.trim().slice(0, PROF_PI_RAG_QUERY_MAX);
-  const ragContext = await fetchRAGContext(query, ragKey, params.gradeLevel, undefined, undefined, RAG_MATCH_COUNT_PROF_PI);
+  const ragContext = await fetchRAGContext(
+    query,
+    ragKey,
+    params.gradeLevel,
+    undefined,
+    undefined,
+    RAG_MATCH_COUNT_PROF_PI
+  );
   const ragChunksRetrieved = ragContext?.chunkCount ?? null;
   const ragBlock = buildRagBlockForProfPi(ragContext, params.gradeLevel, ragKey);
 
@@ -284,7 +306,7 @@ export async function runProfPiAnswerForDoubt(
   const { data: row, error: dErr } = await waitForDoubtRow(
     admin,
     doubtId,
-    "id, title, body, subject, user_id, gyan_curriculum_node_id",
+    "id, title, body, subject, user_id, gyan_curriculum_node_id"
   );
   const doubt = row as {
     id: string;
@@ -486,7 +508,11 @@ export async function runProfPiAnswerForDoubt(
     .single();
 
   if (insErr || !inserted?.id) {
-    return { ok: false, error: insErr?.message ?? "Insert failed", diag: profPiDiag(lastRagChunks) };
+    return {
+      ok: false,
+      error: insErr?.message ?? "Insert failed",
+      diag: profPiDiag(lastRagChunks),
+    };
   }
 
   await maybeAttachCurriculumNodeToDoubt({
@@ -498,7 +524,13 @@ export async function runProfPiAnswerForDoubt(
     existingNodeId: doubt.gyan_curriculum_node_id,
   });
 
-  return { ok: true, skipped: false, answerId: inserted.id, source, diag: profPiDiag(lastRagChunks) };
+  return {
+    ok: true,
+    skipped: false,
+    answerId: inserted.id,
+    source,
+    diag: profPiDiag(lastRagChunks),
+  };
 }
 
 /** True if this user_id is any Gyan bot persona (student or ProfPi). */

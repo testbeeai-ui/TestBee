@@ -18,14 +18,13 @@ export type { RawPostRow } from "./rawFeedTypes";
 
 const LATEST_PAGE_SIZE = 5;
 
-export type RawFeedFilter = "all" | "physics" | "chemistry" | "math" | "biology";
+export type RawFeedFilter = "all" | "physics" | "chemistry" | "math";
 
 const FILTER_CHIPS: { id: RawFeedFilter; label: string }[] = [
   { id: "all", label: "All" },
   { id: "physics", label: "Physics" },
   { id: "chemistry", label: "Chemistry" },
   { id: "math", label: "Math" },
-  { id: "biology", label: "Biology" },
 ];
 
 /** Hint FK so PostgREST works when lessons_raw_posts has multiple references to profiles. */
@@ -33,10 +32,8 @@ const PROFILE_EMBED = "profiles!lessons_raw_posts_user_id_fkey(name, avatar_url)
 const COMMENT_PROFILE_EMBED = "profiles!lessons_raw_post_comments_user_id_fkey(name)";
 
 /** When DB migrations are not yet applied on the project behind NEXT_PUBLIC_SUPABASE_URL. */
-const SELECT_LESSONS_RAW_LEGACY =
-  `id, user_id, kind, title, content, tags, subject, chapter_ref, board_ref, grade_ref, unit_ref, topic_ref, subtopic_ref, source_type, source_payload, boost_count, created_at, ${PROFILE_EMBED}`;
-const SELECT_LESSONS_RAW_FULL =
-  `id, user_id, kind, title, content, tags, subject, chapter_ref, board_ref, grade_ref, unit_ref, topic_ref, subtopic_ref, source_type, source_payload, boost_count, upvote_count, downvote_count, comment_count, created_at, ${PROFILE_EMBED}`;
+const SELECT_LESSONS_RAW_LEGACY = `id, user_id, kind, title, content, tags, subject, chapter_ref, board_ref, grade_ref, unit_ref, topic_ref, subtopic_ref, source_type, source_payload, boost_count, created_at, ${PROFILE_EMBED}`;
+const SELECT_LESSONS_RAW_FULL = `id, user_id, kind, title, content, tags, subject, chapter_ref, board_ref, grade_ref, unit_ref, topic_ref, subtopic_ref, source_type, source_payload, boost_count, upvote_count, downvote_count, comment_count, created_at, ${PROFILE_EMBED}`;
 
 function isMissingVoteCountColumns(msg: string): boolean {
   const m = msg.toLowerCase();
@@ -107,7 +104,7 @@ export default function RawCommunityFeed({ refreshKey = 0 }: RawCommunityFeedPro
         setPosts([]);
         return;
       }
-      const rows = ((data ?? []) as unknown) as RawPostRow[];
+      const rows = (data ?? []) as unknown as RawPostRow[];
       setPosts(rows);
 
       const voteMap: Record<string, -1 | 0 | 1> = {};
@@ -186,7 +183,10 @@ export default function RawCommunityFeed({ refreshKey = 0 }: RawCommunityFeedPro
           : p
       )
     );
-    setMyVotes((prev) => ({ ...prev, [postId]: (mv === 1 ? 1 : mv === -1 ? -1 : 0) as -1 | 0 | 1 }));
+    setMyVotes((prev) => ({
+      ...prev,
+      [postId]: (mv === 1 ? 1 : mv === -1 ? -1 : 0) as -1 | 0 | 1,
+    }));
   };
 
   const loadComments = async (postId: string) => {
@@ -289,15 +289,14 @@ export default function RawCommunityFeed({ refreshKey = 0 }: RawCommunityFeedPro
     const panel = post.source_type === "quiz_post" ? "quiz" : "instacue";
     const freshQuiz = post.source_type === "quiz_post" ? "&freshQuiz=1" : "";
     const subject = (post.subject ?? "").trim().toLowerCase();
-    if (!subject || !["physics", "chemistry", "math", "biology"].includes(subject)) return null;
+    if (!subject || !["physics", "chemistry", "math"].includes(subject)) return null;
     const board = (post.board_ref ?? "").trim().toLowerCase() || "cbse";
     const grade = (post.grade_ref ?? "").trim() || "class-12";
     const unit = (post.unit_ref ?? "").trim();
     if (!unit) return null;
 
-    const payloadLevel = typeof post.source_payload?.level === "string"
-      ? post.source_payload.level.toLowerCase()
-      : "";
+    const payloadLevel =
+      typeof post.source_payload?.level === "string" ? post.source_payload.level.toLowerCase() : "";
     const level =
       payloadLevel === "basics" || payloadLevel === "intermediate" || payloadLevel === "advanced"
         ? payloadLevel
@@ -328,7 +327,8 @@ export default function RawCommunityFeed({ refreshKey = 0 }: RawCommunityFeedPro
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <h3 className="text-base font-bold text-foreground">Latest from your network</h3>
         <p className="text-xs text-muted-foreground">
-          Human posts only — not Gyan++. <span className="text-foreground/70">Latest {LATEST_PAGE_SIZE}.</span>
+          Human posts only — not Gyan++.{" "}
+          <span className="text-foreground/70">Latest {LATEST_PAGE_SIZE}.</span>
         </p>
       </div>
 
@@ -353,7 +353,10 @@ export default function RawCommunityFeed({ refreshKey = 0 }: RawCommunityFeedPro
       {loading ? (
         <div className="space-y-3">
           {[0, 1, 2, 3, 4].map((i) => (
-            <div key={i} className="animate-pulse rounded-xl border border-border p-4 dark:border-white/10">
+            <div
+              key={i}
+              className="animate-pulse rounded-xl border border-border p-4 dark:border-white/10"
+            >
               <div className="flex gap-3">
                 <div className="h-10 w-10 rounded-full bg-muted" />
                 <div className="flex-1 space-y-2">

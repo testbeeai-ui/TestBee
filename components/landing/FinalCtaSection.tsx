@@ -14,9 +14,9 @@ export default function FinalCtaSection() {
         </h2>
 
         <p className="text-[15px] text-gray-500 max-w-[440px] mx-auto mb-7 leading-[1.75]">
-          38,000 students are on the wall right now &mdash; asking questions, earning RDM,
-          climbing leaderboards, and closing in on the rank you want. The question is
-          whether you are there with them.
+          38,000 students are on the wall right now &mdash; asking questions, earning RDM, climbing
+          leaderboards, and closing in on the rank you want. The question is whether you are there
+          with them.
         </p>
 
         <div className="flex flex-wrap gap-[10px] justify-center mb-5">
@@ -32,7 +32,8 @@ export default function FinalCtaSection() {
         </div>
 
         <p className="text-sm text-gray-400">
-          No credit card &middot; No coaching class needed &middot; Works alongside any coaching &middot; PUC 1 &amp; 2 PCM full syllabus
+          No credit card &middot; No coaching class needed &middot; Works alongside any coaching
+          &middot; PUC 1 &amp; 2 PCM full syllabus
         </p>
       </div>
     </section>

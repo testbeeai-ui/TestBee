@@ -1,15 +1,14 @@
-'use client';
+"use client";
 
-import { useMemo } from 'react';
-import { motion } from 'framer-motion';
-import type { TopicNode } from '@/data/topicTaxonomy';
-import type { Subject } from '@/types';
+import { useMemo } from "react";
+import { motion } from "framer-motion";
+import type { TopicNode } from "@/data/topicTaxonomy";
+import type { Subject } from "@/types";
 
 const subjectTag: Record<Subject, { label: string; color: string }> = {
-  math: { label: 'Math', color: 'text-orange-600' },
-  biology: { label: 'Bio', color: 'text-green-600' },
-  chemistry: { label: 'Chem', color: 'text-purple-600' },
-  physics: { label: 'Phys', color: 'text-blue-600' },
+  math: { label: "Math", color: "text-orange-600" },
+  chemistry: { label: "Chem", color: "text-purple-600" },
+  physics: { label: "Phys", color: "text-blue-600" },
 };
 
 interface TrendingTopicsProps {
@@ -69,7 +68,9 @@ export default function TrendingTopics({ taxonomy, onExploreTopic }: TrendingTop
               <span className="text-sm font-medium text-foreground group-hover:text-primary transition-colors flex-1 truncate">
                 {item.topic}
               </span>
-              <span className={`text-xs font-bold ${tag.color} shrink-0 bg-muted/40 px-2 py-0.5 rounded`}>
+              <span
+                className={`text-xs font-bold ${tag.color} shrink-0 bg-muted/40 px-2 py-0.5 rounded`}
+              >
                 {tag.label}
               </span>
             </button>

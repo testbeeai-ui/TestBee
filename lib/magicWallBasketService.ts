@@ -64,7 +64,7 @@ function normalizeItems(data: unknown): MagicWallBasketItem[] {
     const topicKey = typeof o.topicKey === "string" ? o.topicKey : "";
     const board = o.board === "ICSE" ? "ICSE" : "CBSE";
     const subject = o.subject;
-    if (subject !== "physics" && subject !== "chemistry" && subject !== "math" && subject !== "biology") continue;
+    if (subject !== "physics" && subject !== "chemistry" && subject !== "math") continue;
     const classLevel = Number(o.classLevel) === 12 ? 12 : 11;
     const examTypeRaw = o.examType;
     const examType =
@@ -86,7 +86,7 @@ function normalizeItems(data: unknown): MagicWallBasketItem[] {
       id,
       topicKey,
       board,
-      subject,
+      subject: subject as Subject,
       classLevel,
       examType,
       unitName,

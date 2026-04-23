@@ -8,9 +8,9 @@ export function slugify(text: string): string {
   return text
     .trim()
     .toLowerCase()
-    .replace(/['']/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '');
+    .replace(/['']/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
 }
 
 /** Parse grade segment (e.g. "class-11") to ClassLevel 11. Returns null if invalid. */
@@ -26,9 +26,9 @@ export function toGradeSlug(classLevel: number): string {
   return `class-${classLevel}`;
 }
 
-export type DifficultyLevel = 'basics' | 'intermediate' | 'advanced';
+export type DifficultyLevel = "basics" | "intermediate" | "advanced";
 
 /** Validate level segment. */
 export function isValidLevel(level: string): level is DifficultyLevel {
-  return level === 'basics' || level === 'intermediate' || level === 'advanced';
+  return level === "basics" || level === "intermediate" || level === "advanced";
 }

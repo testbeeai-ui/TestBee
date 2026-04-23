@@ -23,7 +23,9 @@ export async function POST(request: Request) {
     let user = (await cookieSupabase.auth.getUser()).data?.user ?? null;
     const token = request.headers.get("Authorization")?.replace(/^Bearer\s+/i, "");
     if (!user && token) {
-      const { data: { user: u } } = await cookieSupabase.auth.getUser(token);
+      const {
+        data: { user: u },
+      } = await cookieSupabase.auth.getUser(token);
       user = u ?? null;
     }
     if (!user) {
@@ -32,7 +34,10 @@ export async function POST(request: Request) {
 
     const admin = createAdminClient();
     if (!admin) {
-      return NextResponse.json({ error: "Service role not configured. Add SUPABASE_SERVICE_ROLE_KEY." }, { status: 500 });
+      return NextResponse.json(
+        { error: "Service role not configured. Add SUPABASE_SERVICE_ROLE_KEY." },
+        { status: 500 }
+      );
     }
 
     const { data: doubtUserIds } = await admin.from("doubts").select("user_id");
@@ -41,7 +46,10 @@ export async function POST(request: Request) {
     (doubtUserIds ?? []).forEach((r: { user_id: string }) => allIds.add(r.user_id));
     (answerUserIds ?? []).forEach((r: { user_id: string }) => allIds.add(r.user_id));
 
-    const { data: existingProfiles } = await admin.from("profiles").select("id").in("id", Array.from(allIds));
+    const { data: existingProfiles } = await admin
+      .from("profiles")
+      .select("id")
+      .in("id", Array.from(allIds));
     let profileIds = new Set((existingProfiles ?? []).map((p: { id: string }) => p.id));
 
     // Create profiles for users who have doubts/answers but no profile (e.g. before handle_new_user trigger)
@@ -49,10 +57,17 @@ export async function POST(request: Request) {
     let profilesCreated = 0;
     if (missingIds.length > 0) {
       for (const uid of missingIds) {
-        const { data: { user: authUser } } = await admin.auth.admin.getUserById(uid);
+        const {
+          data: { user: authUser },
+        } = await admin.auth.admin.getUserById(uid);
         if (authUser) {
-          const name = authUser.user_metadata?.full_name ?? authUser.user_metadata?.name ?? authUser.email?.split("@")[0] ?? "User";
-          const avatarUrl = authUser.user_metadata?.avatar_url ?? authUser.user_metadata?.picture ?? null;
+          const name =
+            authUser.user_metadata?.full_name ??
+            authUser.user_metadata?.name ??
+            authUser.email?.split("@")[0] ??
+            "User";
+          const avatarUrl =
+            authUser.user_metadata?.avatar_url ?? authUser.user_metadata?.picture ?? null;
           const googleConnected = authUser.app_metadata?.provider === "google";
           const { error } = await admin.from("profiles").insert({
             id: uid,
@@ -74,10 +89,16 @@ export async function POST(request: Request) {
     }
 
     const { data: existingAcademics } = await admin.from("profile_academics").select("user_id");
-    const usersWithAcademics = new Set((existingAcademics ?? []).map((r: { user_id: string }) => r.user_id));
+    const usersWithAcademics = new Set(
+      (existingAcademics ?? []).map((r: { user_id: string }) => r.user_id)
+    );
 
-    const { data: existingAchievements } = await admin.from("profile_achievements").select("user_id");
-    const usersWithAchievements = new Set((existingAchievements ?? []).map((r: { user_id: string }) => r.user_id));
+    const { data: existingAchievements } = await admin
+      .from("profile_achievements")
+      .select("user_id");
+    const usersWithAchievements = new Set(
+      (existingAchievements ?? []).map((r: { user_id: string }) => r.user_id)
+    );
 
     let academicsCount = 0;
     let achievementsCount = 0;

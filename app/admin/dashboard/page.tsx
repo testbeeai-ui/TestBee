@@ -123,7 +123,9 @@ export default function AdminDashboardPage() {
           <div className="flex items-center gap-2">
             <Badge variant="secondary">Live</Badge>
             {data?.generatedAt ? (
-              <Badge variant="secondary">Updated: {new Date(data.generatedAt).toLocaleString()}</Badge>
+              <Badge variant="secondary">
+                Updated: {new Date(data.generatedAt).toLocaleString()}
+              </Badge>
             ) : null}
             <Button variant="outline" onClick={() => load()} disabled={loading}>
               Refresh
@@ -167,7 +169,13 @@ export default function AdminDashboardPage() {
                     <XAxis dataKey="month" />
                     <YAxis allowDecimals={false} />
                     <Tooltip />
-                    <Area type="monotone" dataKey="count" stroke="#6366f1" fill="url(#growthFill)" strokeWidth={2} />
+                    <Area
+                      type="monotone"
+                      dataKey="count"
+                      stroke="#6366f1"
+                      fill="url(#growthFill)"
+                      strokeWidth={2}
+                    />
                   </AreaChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -219,9 +227,18 @@ export default function AdminDashboardPage() {
               <CardContent className="h-72">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie data={data.series.classDistribution} dataKey="value" nameKey="name" outerRadius={95} innerRadius={45}>
+                    <Pie
+                      data={data.series.classDistribution}
+                      dataKey="value"
+                      nameKey="name"
+                      outerRadius={95}
+                      innerRadius={45}
+                    >
                       {data.series.classDistribution.map((entry, index) => (
-                        <Cell key={`${entry.name}-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                        <Cell
+                          key={`${entry.name}-${index}`}
+                          fill={PIE_COLORS[index % PIE_COLORS.length]}
+                        />
                       ))}
                     </Pie>
                     <Tooltip />
@@ -238,9 +255,18 @@ export default function AdminDashboardPage() {
               <CardContent className="h-72">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie data={data.series.savedContentBreakdown} dataKey="value" nameKey="name" outerRadius={95} innerRadius={45}>
+                    <Pie
+                      data={data.series.savedContentBreakdown}
+                      dataKey="value"
+                      nameKey="name"
+                      outerRadius={95}
+                      innerRadius={45}
+                    >
                       {data.series.savedContentBreakdown.map((entry, index) => (
-                        <Cell key={`${entry.name}-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                        <Cell
+                          key={`${entry.name}-${index}`}
+                          fill={PIE_COLORS[index % PIE_COLORS.length]}
+                        />
                       ))}
                     </Pie>
                     <Tooltip />

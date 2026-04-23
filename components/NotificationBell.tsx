@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
-import { Bell } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState } from "react";
+import { Bell } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useRouter } from "next/navigation";
 
 interface Notification {
   id: string;
@@ -21,8 +21,8 @@ const NotificationBell = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [open, setOpen] = useState(false);
   const notificationsEnabled =
-    process.env.NEXT_PUBLIC_NOTIFICATIONS_ENABLED === 'true' &&
-    process.env.NODE_ENV === 'production';
+    process.env.NEXT_PUBLIC_NOTIFICATIONS_ENABLED === "true" &&
+    process.env.NODE_ENV === "production";
 
   useEffect(() => {
     if (!user || !notificationsEnabled) return;
@@ -30,10 +30,10 @@ const NotificationBell = () => {
     void (async () => {
       try {
         const { data, error } = await supabase
-          .from('notifications')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
+          .from("notifications")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
           .limit(20);
         if (error || !mounted) return;
         setNotifications((data as Notification[]) || []);
@@ -46,16 +46,22 @@ const NotificationBell = () => {
     };
   }, [user, notificationsEnabled]);
 
-  const unread = notifications.filter(n => !n.read).length;
+  const unread = notifications.filter((n) => !n.read).length;
 
   const markRead = async (id: string, actionUrl: string | null) => {
     if (!notificationsEnabled) {
-      if (actionUrl) { router.push(actionUrl); setOpen(false); }
+      if (actionUrl) {
+        router.push(actionUrl);
+        setOpen(false);
+      }
       return;
     }
-    await supabase.from('notifications').update({ read: true }).eq('id', id);
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
-    if (actionUrl) { router.push(actionUrl); setOpen(false); }
+    await supabase.from("notifications").update({ read: true }).eq("id", id);
+    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+    if (actionUrl) {
+      router.push(actionUrl);
+      setOpen(false);
+    }
   };
 
   return (
@@ -65,7 +71,7 @@ const NotificationBell = () => {
           <Bell className="w-4.5 h-4.5 text-muted-foreground" suppressHydrationWarning />
           {unread > 0 && (
             <span className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-destructive-foreground text-[10px] font-extrabold rounded-full flex items-center justify-center">
-              {unread > 9 ? '9+' : unread}
+              {unread > 9 ? "9+" : unread}
             </span>
           )}
         </button>
@@ -77,13 +83,24 @@ const NotificationBell = () => {
         <div className="max-h-72 overflow-y-auto">
           {notifications.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8">No notifications yet</p>
-          ) : notifications.map(n => (
-            <button key={n.id} onClick={() => markRead(n.id, n.action_url)}
-              className={`w-full text-left px-4 py-3 border-b border-border/30 hover:bg-muted/40 transition-colors ${!n.read ? 'bg-primary/5' : ''}`}>
-              <p className={`text-sm font-bold ${!n.read ? 'text-foreground' : 'text-muted-foreground'}`}>{n.title}</p>
-              {n.body && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{n.body}</p>}
-            </button>
-          ))}
+          ) : (
+            notifications.map((n) => (
+              <button
+                key={n.id}
+                onClick={() => markRead(n.id, n.action_url)}
+                className={`w-full text-left px-4 py-3 border-b border-border/30 hover:bg-muted/40 transition-colors ${!n.read ? "bg-primary/5" : ""}`}
+              >
+                <p
+                  className={`text-sm font-bold ${!n.read ? "text-foreground" : "text-muted-foreground"}`}
+                >
+                  {n.title}
+                </p>
+                {n.body && (
+                  <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{n.body}</p>
+                )}
+              </button>
+            ))
+          )}
         </div>
       </PopoverContent>
     </Popover>

@@ -136,9 +136,34 @@ export const STUDENT_MOCK_FEED = [
 ];
 
 export const STUDENT_LEADERBOARD = [
-  { rank: "\ud83c\udfc5", initials: "NK", bg: "#FAC775", color: "#412402", name: "Nidhi K", pts: "4,820 pts", pct: 96 },
-  { rank: "\ud83c\udfc6", initials: "AK", bg: "#AFA9EC", color: "#26215C", name: "Arjun K", pts: "4,310 pts", pct: 86 },
-  { rank: "14", initials: "You", bg: "#C0DD97", color: "#173404", name: "You \u2014 310 pts to top 10", pts: "1,740 pts", pct: 35, isYou: true },
+  {
+    rank: "\ud83c\udfc5",
+    initials: "NK",
+    bg: "#FAC775",
+    color: "#412402",
+    name: "Nidhi K",
+    pts: "4,820 pts",
+    pct: 96,
+  },
+  {
+    rank: "\ud83c\udfc6",
+    initials: "AK",
+    bg: "#AFA9EC",
+    color: "#26215C",
+    name: "Arjun K",
+    pts: "4,310 pts",
+    pct: 86,
+  },
+  {
+    rank: "14",
+    initials: "You",
+    bg: "#C0DD97",
+    color: "#173404",
+    name: "You \u2014 310 pts to top 10",
+    pts: "1,740 pts",
+    pct: 35,
+    isYou: true,
+  },
 ];
 
 /* ─── Persona Tab: Coaching ─────────────────────────────────────────────── */
@@ -164,10 +189,30 @@ export const COACHING_STORIES = [
 ];
 
 export const COACHING_FEATURES = [
-  { icon: "?", bg: "#FAECE7", title: "Gyan++ AI wall", text: "Ask anything between classes. Get answers in 2 seconds. Browse 4,000+ peer questions. Teachers add exam tips." },
-  { icon: "\u2714", bg: "#EEEDFE", title: "Testbee adaptive mocks", text: "Mocks that adapt to your exact weak areas \u2014 not the same paper your whole class writes." },
-  { icon: "\u25cf", bg: "#EAF3DE", title: "MentaMill quant speed", text: "60-second speed rounds build the calculation reflex that wins JEE \u2014 speed most coaching classes ignore." },
-  { icon: "\u2605", bg: "#E6F1FB", title: "Instacue revision", text: "AI-scheduled spaced repetition so you never forget what your coaching class covered three weeks ago." },
+  {
+    icon: "?",
+    bg: "#FAECE7",
+    title: "Gyan++ AI wall",
+    text: "Ask anything between classes. Get answers in 2 seconds. Browse 4,000+ peer questions. Teachers add exam tips.",
+  },
+  {
+    icon: "\u2714",
+    bg: "#EEEDFE",
+    title: "Testbee adaptive mocks",
+    text: "Mocks that adapt to your exact weak areas \u2014 not the same paper your whole class writes.",
+  },
+  {
+    icon: "\u25cf",
+    bg: "#EAF3DE",
+    title: "MentaMill quant speed",
+    text: "60-second speed rounds build the calculation reflex that wins JEE \u2014 speed most coaching classes ignore.",
+  },
+  {
+    icon: "\u2605",
+    bg: "#E6F1FB",
+    title: "Instacue revision",
+    text: "AI-scheduled spaced repetition so you never forget what your coaching class covered three weeks ago.",
+  },
 ];
 
 /* ─── Persona Tab: Teacher ──────────────────────────────────────────────── */
@@ -239,14 +284,54 @@ export const PARENT_ATTENTION = [
 /* ─── Feature Comparison Table ──────────────────────────────────────────── */
 
 export const FEATURE_TABLE_ROWS = [
-  { feature: "Doubt solving", typical: "Book a tutor slot, wait 24h", ours: "Gyan++ AI answers in 2s \u00b7 teacher expert layer", why: "Doubts cleared in real time = no momentum lost" },
-  { feature: "Study approach", typical: "Linear chapter \u2192 chapter", ours: "Social wall, questions, discovery \u2014 non-linear", why: "Active recall beats passive reading 3:1 for retention" },
-  { feature: "Peer visibility", typical: "None \u2014 you study in a bubble", ours: "Live leaderboard, feed, community of 38,000", why: "Competitive awareness drives 2.8x faster improvement" },
-  { feature: "Mock tests", typical: "Same paper for all students", ours: "Testbee adaptive \u2014 targets your exact weak spots", why: "Targeted drilling closes gaps faster than broad review" },
-  { feature: "Revision", typical: "Reread notes before exam", ours: "AI spaced-repetition Instacues \u2014 scheduled optimally", why: "81% retention vs 40% from passive rereading" },
-  { feature: "Speed & stamina", typical: "Not trained systematically", ours: "MentaMill \u00b7 DailyDose \u00b7 Quant Blitz daily habits", why: "JEE rewards speed + accuracy equally, not just knowledge" },
-  { feature: "Motivation", typical: "Progress bar nobody checks", ours: "RDM rewards \u00b7 EduFund grants \u00b7 live leaderboards", why: "Consistent daily study is the single biggest predictor of rank" },
-  { feature: "Teacher interaction", typical: "Scheduled classes only", ours: "Teacher sections on any live Q&A \u00b7 anytime", why: "Contextual expert commentary sticks better than lectures" },
+  {
+    feature: "Doubt solving",
+    typical: "Book a tutor slot, wait 24h",
+    ours: "Gyan++ AI answers in 2s \u00b7 teacher expert layer",
+    why: "Doubts cleared in real time = no momentum lost",
+  },
+  {
+    feature: "Study approach",
+    typical: "Linear chapter \u2192 chapter",
+    ours: "Social wall, questions, discovery \u2014 non-linear",
+    why: "Active recall beats passive reading 3:1 for retention",
+  },
+  {
+    feature: "Peer visibility",
+    typical: "None \u2014 you study in a bubble",
+    ours: "Live leaderboard, feed, community of 38,000",
+    why: "Competitive awareness drives 2.8x faster improvement",
+  },
+  {
+    feature: "Mock tests",
+    typical: "Same paper for all students",
+    ours: "Testbee adaptive \u2014 targets your exact weak spots",
+    why: "Targeted drilling closes gaps faster than broad review",
+  },
+  {
+    feature: "Revision",
+    typical: "Reread notes before exam",
+    ours: "AI spaced-repetition Instacues \u2014 scheduled optimally",
+    why: "81% retention vs 40% from passive rereading",
+  },
+  {
+    feature: "Speed & stamina",
+    typical: "Not trained systematically",
+    ours: "MentaMill \u00b7 DailyDose \u00b7 Quant Blitz daily habits",
+    why: "JEE rewards speed + accuracy equally, not just knowledge",
+  },
+  {
+    feature: "Motivation",
+    typical: "Progress bar nobody checks",
+    ours: "RDM rewards \u00b7 EduFund grants \u00b7 live leaderboards",
+    why: "Consistent daily study is the single biggest predictor of rank",
+  },
+  {
+    feature: "Teacher interaction",
+    typical: "Scheduled classes only",
+    ours: "Teacher sections on any live Q&A \u00b7 anytime",
+    why: "Contextual expert commentary sticks better than lectures",
+  },
 ];
 
 /* ─── Core Engine ───────────────────────────────────────────────────────── */

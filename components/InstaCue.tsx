@@ -2,17 +2,20 @@
 
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Lightbulb, Plus, ChevronLeft, ChevronRight, Check, Bookmark, BookmarkCheck } from "lucide-react";
+import {
+  Lightbulb,
+  Plus,
+  ChevronLeft,
+  ChevronRight,
+  Check,
+  Bookmark,
+  BookmarkCheck,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import TheoryContent from "@/components/TheoryContent";
 import { useUserStore } from "@/store/useUserStore";
 import { useToast } from "@/hooks/use-toast";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { InstaCueCard, InstaCueCardType, InstaCueLevel } from "@/data/instaCueCards";
 import type { SavedRevisionCard } from "@/types";
 import { syncAllSavedContent } from "@/lib/savedContentService";
@@ -112,7 +115,7 @@ function SaveCardButton({ card }: { card: InstaCueCard }) {
         className="inline-flex items-center justify-center"
       >
         <AnimatePresence mode="wait">
-          {(saved || justSaved) ? (
+          {saved || justSaved ? (
             <motion.span
               key="saved"
               initial={{ scale: 0.5, opacity: 0 }}
@@ -369,7 +372,8 @@ export default function InstaCue({
           <div className="mt-4 p-3 rounded-xl bg-muted/50 text-xs text-muted-foreground flex items-start gap-2">
             <Lightbulb className="w-4 h-4 shrink-0 text-amber-400/80 dark:text-amber-500/80 mt-0.5" />
             <span>
-              Tip: Cards you add are kept separate per subtopic and level, and are ready for direct Supabase syncing.
+              Tip: Cards you add are kept separate per subtopic and level, and are ready for direct
+              Supabase syncing.
             </span>
           </div>
         )}
@@ -400,9 +404,7 @@ export default function InstaCue({
             <Lightbulb className="w-5 h-5 text-amber-400/80 dark:text-amber-500/80" />
             <span className="font-bold text-foreground">InstaCue</span>
           </div>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Quick revision cards
-          </p>
+          <p className="text-xs text-muted-foreground mt-0.5">Quick revision cards</p>
         </div>
         {onAddCard && (
           <Button
@@ -466,7 +468,9 @@ export default function InstaCue({
                 <button
                   type="button"
                   className={`rounded-full transition-colors ${
-                    i === safeIndex ? "w-2.5 h-2.5 bg-primary/80" : "w-2 h-2 bg-muted hover:bg-muted-foreground/40"
+                    i === safeIndex
+                      ? "w-2.5 h-2.5 bg-primary/80"
+                      : "w-2 h-2 bg-muted hover:bg-muted-foreground/40"
                   }`}
                   onClick={() => {
                     setIndex(i);
@@ -488,9 +492,7 @@ export default function InstaCue({
           >
             <ChevronRight className="w-5 h-5" />
           </Button>
-          {displayCard && (
-            <SaveCardButton card={displayCard} />
-          )}
+          {displayCard && <SaveCardButton card={displayCard} />}
         </div>
       </div>
       <p className="text-center text-xs text-muted-foreground mt-1">
@@ -501,7 +503,8 @@ export default function InstaCue({
         <div className="mt-4 p-3 rounded-xl bg-muted/50 text-xs text-muted-foreground flex items-start gap-2">
           <Lightbulb className="w-4 h-4 shrink-0 text-amber-500 mt-0.5" />
           <span>
-            Tip: Cards you add are kept separate per subtopic and level, and are ready for direct Supabase syncing.
+            Tip: Cards you add are kept separate per subtopic and level, and are ready for direct
+            Supabase syncing.
           </span>
         </div>
       )}
@@ -550,12 +553,7 @@ function AddCardModal({
   setType: (t: InstaCueCardType) => void;
   onAdd: () => void;
 }) {
-  const types: InstaCueCardType[] = [
-    "concept",
-    "formula",
-    "common_mistake",
-    "trap",
-  ];
+  const types: InstaCueCardType[] = ["concept", "formula", "common_mistake", "trap"];
   const typeLabels: Record<InstaCueCardType, string> = {
     concept: "Concept",
     formula: "Formula",
@@ -598,9 +596,7 @@ function AddCardModal({
             />
           </div>
           <div>
-            <label className="text-sm font-medium text-foreground block mb-2">
-              Type
-            </label>
+            <label className="text-sm font-medium text-foreground block mb-2">Type</label>
             <div className="grid grid-cols-2 gap-2">
               {types.map((t) => (
                 <Button
@@ -621,11 +617,7 @@ function AddCardModal({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button
-            onClick={onAdd}
-            disabled={!front.trim() || !back.trim()}
-            className="gap-1.5"
-          >
+          <Button onClick={onAdd} disabled={!front.trim() || !back.trim()} className="gap-1.5">
             <Plus className="w-4 h-4" /> Add Card
           </Button>
         </div>

@@ -32,7 +32,8 @@ const ntaStemKatexClass =
   "[&_.katex]:![font-size:1.125rem] sm:[&_.katex]:![font-size:1.1875rem] lg:[&_.katex]:![font-size:1.25rem] xl:[&_.katex]:![font-size:1.3125rem]";
 
 /** Options when they contain math — modest bump. */
-const ntaOptionKatexClass = "[&_.katex]:![font-size:1.0625rem] lg:[&_.katex]:![font-size:1.09375rem]";
+const ntaOptionKatexClass =
+  "[&_.katex]:![font-size:1.0625rem] lg:[&_.katex]:![font-size:1.09375rem]";
 
 /**
  * Supabase may send option HTML (`<span class="math-tex">\\(…\\)</span>`) or plain `\\(…\\)`.
@@ -44,7 +45,9 @@ const NtaOptionBody = memo(function NtaOptionBody({ text }: { text: string }) {
   const htmlRef = useRef<HTMLDivElement>(null);
   const safeHtml = useMemo(() => {
     if (!t) return "";
-    const core = t.includes("<") ? sanitizeMockHtml(t) : sanitizeMockHtml(wrapPlainMockTextForKatexHtml(t));
+    const core = t.includes("<")
+      ? sanitizeMockHtml(t)
+      : sanitizeMockHtml(wrapPlainMockTextForKatexHtml(t));
     return patchNtaHtmlPresentation(core);
   }, [t]);
   useKatexAutoRender(htmlRef, safeHtml, t);
@@ -52,7 +55,11 @@ const NtaOptionBody = memo(function NtaOptionBody({ text }: { text: string }) {
   return (
     <div
       ref={htmlRef}
-      className={cn("prose prose-sm max-w-none leading-snug lg:prose-base", ntaMdClass, ntaOptionKatexClass)}
+      className={cn(
+        "prose prose-sm max-w-none leading-snug lg:prose-base",
+        ntaMdClass,
+        ntaOptionKatexClass
+      )}
       suppressHydrationWarning
     />
   );
@@ -75,7 +82,7 @@ const NtaQuestionStem = memo(function NtaQuestionStem({ q }: { q: Question }) {
       className={cn(
         "prose prose-base max-w-none font-medium leading-relaxed [&_img]:max-h-48 [&_p]:my-2 lg:prose-lg lg:[&_img]:max-h-64 lg:[&_p]:my-3 xl:[&_img]:max-h-[22rem]",
         ntaMdClass,
-        ntaStemKatexClass,
+        ntaStemKatexClass
       )}
       suppressHydrationWarning
     />
@@ -94,7 +101,7 @@ function computeLegendCounts(
   questions: Question[],
   visitedIds: Set<string>,
   answers: Record<string, number>,
-  flagged: Set<string>,
+  flagged: Set<string>
 ): NtaLegendCounts {
   let notVisited = 0;
   let notAnswered = 0;
@@ -162,7 +169,7 @@ export function NtaExamShell({
   const q = questions[currentIndex];
   const counts = useMemo(
     () => computeLegendCounts(questions, visitedIds, answers, flagged),
-    [questions, visitedIds, answers, flagged],
+    [questions, visitedIds, answers, flagged]
   );
 
   if (!q) return null;
@@ -191,7 +198,14 @@ export function NtaExamShell({
                 // eslint-disable-next-line @next/next/no-img-element -- remote Supabase avatar URL
                 <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
               ) : (
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" className="text-gray-400" aria-hidden>
+                <svg
+                  width="32"
+                  height="32"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  className="text-gray-400"
+                  aria-hidden
+                >
                   <path
                     fill="currentColor"
                     d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
@@ -242,7 +256,11 @@ export function NtaExamShell({
               type="button"
               onClick={() => setLangOpen((o) => !o)}
               className="flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-semibold lg:px-4 lg:py-2 lg:text-sm"
-              style={{ borderColor: "var(--nta-border)", background: "var(--nta-surface)", color: "var(--nta-text)" }}
+              style={{
+                borderColor: "var(--nta-border)",
+                background: "var(--nta-surface)",
+                color: "var(--nta-text)",
+              }}
             >
               English ▾
             </button>
@@ -291,7 +309,7 @@ export function NtaExamShell({
                 key={i}
                 className={cn(
                   "flex cursor-pointer items-start gap-2 rounded border px-3 py-1.5 text-sm lg:gap-3 lg:px-4 lg:py-2 lg:text-base",
-                  selected === i ? "ring-2" : "",
+                  selected === i ? "ring-2" : ""
                 )}
                 style={{
                   borderColor: "var(--nta-border)",
@@ -317,7 +335,11 @@ export function NtaExamShell({
           <div className="mt-6 flex w-full min-w-0 flex-wrap gap-2 lg:mt-8 lg:gap-3">
             <NtaBtn variant="green" label="Save & Next" onClick={onSaveAndNext} />
             <NtaBtn variant="white" label="Clear" onClick={onClearResponse} />
-            <NtaBtn variant="orange" label="Save & Mark for Review & Next" onClick={onSaveMarkReviewNext} />
+            <NtaBtn
+              variant="orange"
+              label="Save & Mark for Review & Next"
+              onClick={onSaveMarkReviewNext}
+            />
             <NtaBtn variant="blue" label="Mark for Review & Next" onClick={onMarkReviewNext} />
           </div>
 
@@ -336,7 +358,8 @@ export function NtaExamShell({
         <aside
           className={cn(
             "flex w-full min-w-0 max-w-full shrink-0 flex-col overflow-x-hidden border-t lg:w-[28rem] lg:border-l lg:border-t-0 xl:w-[32rem] 2xl:w-[36rem]",
-            !paletteOpen && "hidden lg:flex lg:w-0 lg:min-w-0 lg:overflow-hidden lg:border-0 lg:p-0 lg:opacity-0",
+            !paletteOpen &&
+              "hidden lg:flex lg:w-0 lg:min-w-0 lg:overflow-hidden lg:border-0 lg:p-0 lg:opacity-0"
           )}
           style={{ borderColor: "var(--nta-border)", background: "var(--nta-bg)" }}
         >
@@ -344,14 +367,21 @@ export function NtaExamShell({
             className="m-3 min-w-0 max-w-full space-y-2.5 overflow-x-hidden rounded border px-3 py-3.5 text-[11px] leading-snug sm:text-xs lg:m-4 lg:space-y-3 lg:px-5 lg:py-4 lg:text-xs xl:mx-5 xl:px-5 xl:py-5 xl:text-[13px] 2xl:text-sm"
             style={{ borderColor: "var(--nta-text)", borderStyle: "dashed" }}
           >
-            <p className="mb-2 font-bold uppercase tracking-wide" style={{ color: "var(--nta-muted)" }}>
+            <p
+              className="mb-2 font-bold uppercase tracking-wide"
+              style={{ color: "var(--nta-muted)" }}
+            >
               Legend
             </p>
             <CountRow icon={<ShapeNotVisited />} n={counts.notVisited} label="Not Visited" />
             <CountRow icon={<ShapeNotAnswered />} n={counts.notAnswered} label="Not Answered" />
             <CountRow icon={<ShapeAnswered />} n={counts.answered} label="Answered" />
             <CountRow icon={<ShapeMarkedOnly />} n={counts.marked} label="Marked for Review" />
-            <CountRow icon={<ShapeAnsweredMarked />} n={counts.answeredMarked} label="Answered & Marked for Review" />
+            <CountRow
+              icon={<ShapeAnsweredMarked />}
+              n={counts.answeredMarked}
+              label="Answered & Marked for Review"
+            />
           </div>
           <div
             className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain px-2 pb-4 sm:px-2.5 lg:px-3 lg:pb-6 xl:px-3.5 xl:pb-7"
@@ -371,7 +401,9 @@ export function NtaExamShell({
                 const kind = getNtaPaletteKind(visited, answered, mark);
                 const active = i === currentIndex;
                 const numberColor =
-                  kind === "not_visited" ? "var(--nta-palette-unvisited-number, #1a2433)" : "#ffffff";
+                  kind === "not_visited"
+                    ? "var(--nta-palette-unvisited-number, #1a2433)"
+                    : "#ffffff";
                 return (
                   <button
                     key={qq.id}
@@ -381,7 +413,9 @@ export function NtaExamShell({
                     style={{
                       background: "transparent",
                       border: "none",
-                      boxShadow: active ? "0 0 0 2px var(--nta-blue), 0 0 0 1px var(--nta-bg)" : undefined,
+                      boxShadow: active
+                        ? "0 0 0 2px var(--nta-blue), 0 0 0 1px var(--nta-bg)"
+                        : undefined,
                     }}
                     aria-current={active ? "true" : undefined}
                     aria-label={`Question ${i + 1}, ${kind.replaceAll("_", " ")}`}
@@ -392,7 +426,7 @@ export function NtaExamShell({
                     <span
                       className={cn(
                         "relative z-[1] text-[12px] font-black tabular-nums leading-none sm:text-sm lg:text-[0.95rem] xl:text-base 2xl:text-lg",
-                        kind !== "not_visited" && "drop-shadow-[0_1px_1px_rgba(0,0,0,0.5)]",
+                        kind !== "not_visited" && "drop-shadow-[0_1px_1px_rgba(0,0,0,0.5)]"
                       )}
                       style={{ color: numberColor }}
                     >
@@ -418,7 +452,10 @@ function CountRow({ icon, n, label }: { icon: React.ReactNode; n: number; label:
       <span className="min-w-[2ch] font-black tabular-nums" style={{ color: "var(--nta-text)" }}>
         {n}
       </span>
-      <span className="min-w-0 break-words font-medium leading-snug" style={{ color: "var(--nta-muted)" }}>
+      <span
+        className="min-w-0 break-words font-medium leading-snug"
+        style={{ color: "var(--nta-muted)" }}
+      >
         — {label}
       </span>
     </div>
@@ -441,7 +478,11 @@ function NtaBtn({
         ? { background: "var(--nta-orange)", color: "#fff", border: "1px solid #eea236" }
         : variant === "blue"
           ? { background: "#286090", color: "#fff", border: "1px solid #204d74" }
-          : { background: "var(--nta-bg)", color: "var(--nta-text)", border: "1px solid var(--nta-border)" };
+          : {
+              background: "var(--nta-bg)",
+              color: "var(--nta-text)",
+              border: "1px solid var(--nta-border)",
+            };
   return (
     <button
       type="button"

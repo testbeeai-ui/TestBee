@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import { useState, useRef, useEffect } from 'react';
-import { Search } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import type { TopicNode } from '@/data/topicTaxonomy';
-import type { Subject } from '@/types';
+import { useState, useRef, useEffect } from "react";
+import { Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import type { TopicNode } from "@/data/topicTaxonomy";
+import type { Subject } from "@/types";
 
 interface ExploreSearchBarProps {
   taxonomy: TopicNode[];
@@ -12,23 +12,24 @@ interface ExploreSearchBarProps {
 }
 
 export default function ExploreSearchBar({ taxonomy, onSelectTopic }: ExploreSearchBarProps) {
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
-  const results = query.trim().length >= 2
-    ? taxonomy
-        .filter((t) => {
-          const q = query.toLowerCase();
-          return (
-            t.topic.toLowerCase().includes(q) ||
-            t.subject.toLowerCase().includes(q) ||
-            t.subtopics.some((s) => s.name.toLowerCase().includes(q)) ||
-            (t.chapterTitle?.toLowerCase().includes(q) ?? false)
-          );
-        })
-        .slice(0, 8)
-    : [];
+  const results =
+    query.trim().length >= 2
+      ? taxonomy
+          .filter((t) => {
+            const q = query.toLowerCase();
+            return (
+              t.topic.toLowerCase().includes(q) ||
+              t.subject.toLowerCase().includes(q) ||
+              t.subtopics.some((s) => s.name.toLowerCase().includes(q)) ||
+              (t.chapterTitle?.toLowerCase().includes(q) ?? false)
+            );
+          })
+          .slice(0, 8)
+      : [];
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -36,8 +37,8 @@ export default function ExploreSearchBar({ taxonomy, onSelectTopic }: ExploreSea
         setOpen(false);
       }
     }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   return (
@@ -63,7 +64,7 @@ export default function ExploreSearchBar({ taxonomy, onSelectTopic }: ExploreSea
               type="button"
               onClick={() => {
                 onSelectTopic(t.subject, t.topic);
-                setQuery('');
+                setQuery("");
                 setOpen(false);
               }}
               className="w-full text-left px-4 py-2.5 hover:bg-muted/60 transition-colors flex items-center gap-3"
