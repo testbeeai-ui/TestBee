@@ -31,8 +31,10 @@ function LandingPageContent() {
 
   useEffect(() => {
     if (loading) return;
-    if (user && profile?.onboarding_complete) router.replace("/home");
-  }, [user, profile?.onboarding_complete, loading, router]);
+    if (user && profile?.onboarding_complete) {
+      router.replace(profile?.role === "teacher" ? "/teacher-portal" : "/home");
+    }
+  }, [user, profile?.onboarding_complete, profile?.role, loading, router]);
 
   return (
     <div className="landing-page min-h-screen scroll-smooth bg-[#050505] text-zinc-100">

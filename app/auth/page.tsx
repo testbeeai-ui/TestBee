@@ -27,8 +27,33 @@ function AuthContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const roleParam = searchParams.get("role");
+  const modeParam = searchParams.get("mode");
   const [profileWaitDone, setProfileWaitDone] = useState(false);
-  const [mode, setMode] = useState<"login" | "signup">("login");
+
+  // Determine initial auth mode from URL or sessionStorage
+  const getInitialMode = (): "login" | "signup" => {
+    if (modeParam === "signup") return "signup";
+    if (modeParam === "signin") return "login";
+    try {
+      const stored = sessionStorage.getItem("auth_mode");
+      if (stored === "signup") return "signup";
+    } catch (_) {}
+    return "login";
+  };
+
+  useEffect(() => {
+    if (roleParam) {
+      try {
+        sessionStorage.setItem("auth_intended_role", roleParam);
+      } catch (_) {}
+    }
+    if (modeParam) {
+      try {
+        sessionStorage.setItem("auth_mode", modeParam === "signin" ? "signin" : "signup");
+      } catch (_) {}
+    }
+  }, [roleParam, modeParam]);
+  const [mode, setMode] = useState<"login" | "signup">(getInitialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -52,10 +77,14 @@ function AuthContent() {
 
   useEffect(() => {
     if (loading) return;
-    if (user && profile?.onboarding_complete) router.replace("/home");
-    else if (user && profile !== null && !profile?.onboarding_complete)
-      router.replace("/onboarding");
-  }, [user, profile, profile?.onboarding_complete, loading, router]);
+    const isTeacher = profile?.role === "teacher";
+    if (user && profile?.onboarding_complete) {
+      router.replace(isTeacher ? "/teacher-portal" : "/home");
+    } else if (user && profile !== null && !profile?.onboarding_complete) {
+      const redirectRole = isTeacher ? "teacher" : "student";
+      router.replace(`/onboarding?role=${redirectRole}`);
+    }
+  }, [user, profile, profile?.onboarding_complete, profile?.role, loading, router]);
 
   const loadingOrRedirecting = loading || (user != null && profile === null && !profileWaitDone);
   if (loadingOrRedirecting)
@@ -103,6 +132,9 @@ function AuthContent() {
             <p className="text-muted-foreground text-sm mt-1">
               {mode === "login" ? "Welcome back!" : "Create your account"}
             </p>
+            {roleParam && (
+              <p className="text-xs text-primary/80 mt-2 capitalize">{roleParam} account</p>
+            )}
           </div>
 
           <Button
@@ -208,7 +240,10 @@ function AuthContent() {
               Chose the wrong role?{" "}
               <button
                 type="button"
-                onClick={() => router.replace("/?step=role")}
+                onClick={() => {
+                  const backMode = mode === "login" ? "signin" : "signup";
+                  router.replace(`/select-role?mode=${backMode}`);
+                }}
                 className="text-primary font-bold hover:underline"
               >
                 Go back

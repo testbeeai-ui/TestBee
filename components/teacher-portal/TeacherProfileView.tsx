@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Loader2, Upload } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Loader2, LogOut, Upload } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { TeacherPortalProfileView } from "@/lib/teacherPortal/types";
 
@@ -33,6 +34,7 @@ interface TeacherProfileViewProps {
 }
 
 export default function TeacherProfileView({ profile, onSave }: TeacherProfileViewProps) {
+  const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [name, setName] = useState(profile.name);
@@ -229,7 +231,18 @@ export default function TeacherProfileView({ profile, onSave }: TeacherProfileVi
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               Save
             </button>
-          ) : null}
+          ) : (
+            <button
+              type="button"
+              onClick={async () => {
+                const { error } = await supabase.auth.signOut();
+                if (!error) router.push("/");
+              }}
+              className="inline-flex items-center gap-2 rounded-full border border-rose-400/30 bg-rose-500/10 px-4 py-2 text-sm font-semibold text-rose-300 hover:bg-rose-500/20"
+            >
+              <LogOut className="h-4 w-4" /> Log Out
+            </button>
+          )}
         </div>
       </div>
 

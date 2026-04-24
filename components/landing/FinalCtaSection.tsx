@@ -21,7 +21,7 @@ export default function FinalCtaSection() {
 
         <div className="flex flex-wrap gap-[10px] justify-center mb-5">
           <Link
-            href="/auth"
+            href="/auth-choice"
             className="bg-[#1D9E75] text-white rounded-lg px-7 py-3 text-[15px] font-medium hover:bg-[#178d68] transition-colors"
           >
             Join EduBlast free &mdash; takes 2 minutes &rarr;

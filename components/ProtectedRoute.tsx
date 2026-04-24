@@ -15,7 +15,8 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
       return;
     }
     if (profile !== null && !profile?.onboarding_complete) {
-      router.replace("/onboarding");
+      const role = profile?.role === "teacher" ? "teacher" : "student";
+      router.replace(`/onboarding?role=${role}`);
       return;
     }
   }, [user, profile, profile?.onboarding_complete, loading, router]);

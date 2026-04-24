@@ -27,7 +27,7 @@ export default function HeroSection() {
         {/* CTAs */}
         <div className="flex flex-wrap gap-[10px] mb-9">
           <Link
-            href="/auth"
+            href="/auth-choice"
             className="bg-[#1D9E75] text-white rounded-lg px-7 py-3 text-[15px] font-medium hover:bg-[#178d68] transition-colors"
           >
             Start for free &mdash; it is free &rarr;

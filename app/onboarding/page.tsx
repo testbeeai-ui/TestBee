@@ -88,8 +88,10 @@ function OnboardingContent() {
   useEffect(() => {
     if (loading) return;
     if (!user) router.replace("/auth");
-    else if (profile?.onboarding_complete) router.replace("/home");
-  }, [user, profile?.onboarding_complete, loading, router]);
+    else if (profile?.onboarding_complete) {
+      router.replace(profile?.role === "teacher" ? "/teacher-portal" : "/home");
+    }
+  }, [user, profile?.onboarding_complete, profile?.role, loading, router]);
 
   useEffect(() => {
     if (user && profile === null && !profileTimeout) {
@@ -113,7 +115,18 @@ function OnboardingContent() {
       setStep("details");
     }
     if (profileTimeout && !role) {
-      setRole("student");
+      // Use URL param or sessionStorage fallback instead of hardcoded student
+      const urlRole = searchParams.get("role");
+      let fallbackRole: "student" | "teacher" = "student";
+      if (urlRole === "teacher" || urlRole === "student") {
+        fallbackRole = urlRole;
+      } else {
+        try {
+          const stored = sessionStorage.getItem("auth_intended_role");
+          if (stored === "teacher" || stored === "student") fallbackRole = stored;
+        } catch (_) {}
+      }
+      setRole(fallbackRole);
       setStep("details");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -218,7 +231,7 @@ function OnboardingContent() {
       import("canvas-confetti").then((c) =>
         c.default({ particleCount: 150, spread: 80, origin: { y: 0.6 } })
       );
-      router.replace("/home");
+      router.replace(role === "teacher" ? "/teacher-portal" : "/home");
     } finally {
       setSaving(false);
     }

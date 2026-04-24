@@ -91,6 +91,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       .maybeSingle();
     if (data) {
       const p = data as unknown as Profile;
+      // Check if role needs correction based on user's selection
+      let intendedRole: "student" | "teacher" | null = null;
+      try {
+        const stored = sessionStorage.getItem("auth_intended_role");
+        if (stored === "teacher" || stored === "student") intendedRole = stored;
+      } catch (_) {}
+      if (intendedRole && p.role !== intendedRole && !p.onboarding_complete) {
+        // Update profile to correct role before setting it
+        const { data: updated } = await supabase
+          .from("profiles")
+          .update({ role: intendedRole })
+          .eq("id", userId)
+          .select()
+          .maybeSingle();
+        if (updated) {
+          const updatedProfile = updated as unknown as Profile;
+          setProfile(updatedProfile);
+          if (typeof updatedProfile.rdm === "number")
+            useUserStore.getState().setRdmFromProfile(updatedProfile.rdm);
+          return;
+        }
+      }
       setProfile(p);
       if (typeof p.rdm === "number") useUserStore.getState().setRdmFromProfile(p.rdm);
       return;
@@ -101,6 +123,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // and retry will happen on next auth state change or refresh.
     if (error?.code === "PGRST116" || !data) {
       const name = userMeta?.name || "User";
+      let intendedRole: "student" | "teacher" = "student";
+      try {
+        const stored = sessionStorage.getItem("auth_intended_role");
+        if (stored === "teacher" || stored === "student") intendedRole = stored;
+      } catch (_) {}
       const { data: inserted } = await supabase
         .from("profiles")
         .upsert(
@@ -108,7 +135,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             id: userId,
             name: name || "User",
             avatar_url: userMeta?.avatar_url ?? null,
-            role: "student",
+            role: intendedRole,
             onboarding_complete: false,
             google_connected: userMeta?.provider === "google",
           },

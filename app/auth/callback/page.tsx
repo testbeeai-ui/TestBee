@@ -110,17 +110,21 @@ export default function AuthCallback() {
       typeof window !== "undefined" ? sessionStorage.getItem("auth_redirect_after_login") : null;
     const target = stored && stored.startsWith("/") ? stored : "/onboarding";
 
+    const isTeacher = profile?.role === "teacher";
+    const postOnboardPath = isTeacher ? "/teacher-portal" : "/home";
+    const onboardPath = isTeacher ? "/onboarding?role=teacher" : "/onboarding?role=student";
+
     if (user && profile?.onboarding_complete) {
       (async () => {
         await supabase.auth.signOut({ scope: "others" });
-        doRedirect("/home", stored);
+        doRedirect(postOnboardPath, stored);
       })();
       return;
     }
     if (user && profile !== null && !profile?.onboarding_complete) {
       (async () => {
         await supabase.auth.signOut({ scope: "others" });
-        doRedirect(target, stored);
+        doRedirect(onboardPath, stored);
       })();
       return;
     }
@@ -134,7 +138,7 @@ export default function AuthCallback() {
       const session = await readClientSession();
       if (!session?.user) {
         if (Date.now() < pollUntil) setTimeout(poll, 400);
-        else doRedirect("/auth?role=student", stored);
+        else doRedirect("/select-role", stored);
       }
     };
 
@@ -174,7 +178,7 @@ export default function AuthCallback() {
             (fix_handle_new_user_profile).
           </p>
         )}
-        <Button className="rounded-xl" onClick={() => router.replace("/auth?role=student")}>
+        <Button className="rounded-xl" onClick={() => router.replace("/select-role")}>
           Try again
         </Button>
       </div>
