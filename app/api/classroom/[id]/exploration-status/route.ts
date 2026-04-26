@@ -2,8 +2,6 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/integrations/supabase/server";
 import { createAdminClient } from "@/integrations/supabase/server";
 
-const EXPLORATION_MINUTES = 10;
-
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id: classroomId } = await params;
   if (!classroomId) {
@@ -76,12 +74,10 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   }
 
   const startedAt = new Date(exploration.started_at).getTime();
-  const expiresAt = startedAt + EXPLORATION_MINUTES * 60 * 1000;
-  const allowed = Date.now() < expiresAt;
-
+  // No time-limited preview: guests may explore until they join or leave.
   return NextResponse.json({
-    allowed,
-    expiresAt,
+    allowed: true,
+    expiresAt: null,
     startedAt,
   });
 }

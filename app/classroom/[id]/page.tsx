@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { safeGetSession } from "@/lib/safeSession";
@@ -148,9 +148,7 @@ const ClassroomDetail = () => {
   const [savingSettings, setSavingSettings] = useState(false);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [postCount, setPostCount] = useState<number>(0);
-  const [explorationExpiresAt, setExplorationExpiresAt] = useState<number | null>(null);
   const [explorationAllowed, setExplorationAllowed] = useState<boolean | null>(null);
-  const [explorerLiveExpiresAt, setExplorerLiveExpiresAt] = useState<number | null>(null);
   const [explorerJoinRequestStatus, setExplorerJoinRequestStatus] = useState<
     "none" | "pending" | "rejected" | null
   >(null);
@@ -160,8 +158,6 @@ const ClassroomDetail = () => {
     avg_rating: number;
     review_count: number;
   } | null>(null);
-  const [showExplorerReview, setShowExplorerReview] = useState(false);
-
   useEffect(() => {
     if (activeTab === "settings" && classroom) {
       setSettingsIntroVideoUrl(classroom.intro_video_url ?? "");
@@ -303,7 +299,14 @@ const ClassroomDetail = () => {
   const isOwner = classroom?.teacher_id === user?.id;
   const studentPreview = searchParams.get("view") === "student";
   const showTeacherControls = Boolean(isOwner && !studentPreview);
-  const isExplorer = explorationExpiresAt !== null && explorationExpiresAt !== undefined;
+  const isClassMember = useMemo(
+    () => Boolean(user?.id && members.some((m) => m.user_id === user.id)),
+    [user?.id, members]
+  );
+  const isGuestExplorer = useMemo(
+    () => Boolean(user?.id && classroom && !isOwner && !isClassMember),
+    [user?.id, classroom, isOwner, isClassMember]
+  );
 
   useEffect(() => {
     if (!showTeacherControls && activeTab === "settings") {
@@ -375,8 +378,6 @@ const ClassroomDetail = () => {
         });
         const data = (await res.json()) as {
           error?: string;
-          maxLiveMinutes?: number;
-          explorerJoinedAt?: number;
         };
         if (!res.ok) {
           toast({
@@ -385,9 +386,6 @@ const ClassroomDetail = () => {
             variant: "destructive",
           });
           return;
-        }
-        if (typeof data.maxLiveMinutes === "number" && typeof data.explorerJoinedAt === "number") {
-          setExplorerLiveExpiresAt(data.explorerJoinedAt + data.maxLiveMinutes * 60 * 1000);
         }
         await refreshProfile();
         window.open(href, "_blank", "noopener,noreferrer");
@@ -442,6 +440,12 @@ const ClassroomDetail = () => {
 
   useEffect(() => {
     if (!id || !user || !classroom || isOwner) return;
+    if (isClassMember) {
+      setExplorationAllowed(true);
+      setExplorerPosts(null);
+      return;
+    }
+    let cancelled = false;
     const doFetch = async () => {
       const headers: HeadersInit = {};
       const currentSession = (await safeGetSession()).session;
@@ -453,66 +457,35 @@ const ClassroomDetail = () => {
       });
       const data = (await res.json()) as {
         allowed?: boolean;
-        expiresAt?: number | null;
-        startedAt?: number;
+        error?: string;
       };
-      if (data.expiresAt == null) {
-        setExplorationExpiresAt(null);
-        setExplorationAllowed(true);
+      if (cancelled) return;
+      if (!res.ok) {
+        setExplorationAllowed(false);
         return;
       }
-      setExplorationExpiresAt(data.expiresAt);
-      setExplorationAllowed(!!data.allowed);
+      setExplorationAllowed(Boolean(data.allowed));
       if (data.allowed) {
         await refetchPostsAndLiveForExplorer(true);
       }
     };
-    doFetch().catch(() => {
-      setExplorationAllowed(null);
-      setExplorationExpiresAt(null);
+    void doFetch().catch(() => {
+      if (!cancelled) setExplorationAllowed(null);
     });
-  }, [id, user?.id, classroom?.id, isOwner, refetchPostsAndLiveForExplorer]);
+    return () => {
+      cancelled = true;
+    };
+  }, [id, user?.id, classroom?.id, isOwner, isClassMember, refetchPostsAndLiveForExplorer]);
 
   // Retry loading posts/live for explorers via API after a short delay
   useEffect(() => {
-    if (!id || isOwner || explorationAllowed !== true || explorationExpiresAt == null) return;
+    if (!id || isOwner || !isGuestExplorer || explorationAllowed !== true) return;
     const t = setTimeout(() => refetchPostsAndLiveForExplorer(true), 600);
     return () => clearTimeout(t);
-  }, [id, isOwner, explorationAllowed, explorationExpiresAt, refetchPostsAndLiveForExplorer]);
-
-  // Explorer preview window ends at expiresAt (no visible countdown UI).
-  useEffect(() => {
-    if (explorationExpiresAt == null || explorationAllowed !== true) return;
-    const update = () => {
-      if (document.visibilityState === "hidden") return;
-      if (Date.now() >= explorationExpiresAt) setExplorationAllowed(false);
-    };
-    update();
-    const interval = setInterval(update, 1000);
-    const onVisible = () => update();
-    document.addEventListener("visibilitychange", onVisible);
-    return () => {
-      clearInterval(interval);
-      document.removeEventListener("visibilitychange", onVisible);
-    };
-  }, [explorationExpiresAt, explorationAllowed]);
+  }, [id, isOwner, isGuestExplorer, explorationAllowed, refetchPostsAndLiveForExplorer]);
 
   useEffect(() => {
-    if (explorationExpiresAt == null) return;
-    const check = () => {
-      if (Date.now() >= explorationExpiresAt) {
-        setExplorationAllowed(false);
-        setExplorerLiveExpiresAt(null);
-        toast({ title: "Exploration time ended. Request to join for full access." });
-      }
-    };
-    check();
-    const interval = setInterval(check, 60 * 1000);
-    return () => clearInterval(interval);
-  }, [explorationExpiresAt, toast]);
-
-  useEffect(() => {
-    if (!id || !user || isOwner || explorationExpiresAt == null) return;
+    if (!id || !user || isOwner || !isGuestExplorer) return;
     supabase
       .from("classroom_join_requests")
       .select("status")
@@ -522,7 +495,7 @@ const ClassroomDetail = () => {
       .then(({ data }) => {
         setExplorerJoinRequestStatus((data?.status as "pending" | "rejected") ?? "none");
       });
-  }, [id, user?.id, isOwner, explorationExpiresAt]);
+  }, [id, user?.id, isOwner, isGuestExplorer]);
 
   const handleExplorerRequestJoin = async () => {
     if (!id || !user?.id || !classroom) return;
@@ -566,25 +539,6 @@ const ClassroomDetail = () => {
     }
     setExplorerRequestingJoin(false);
   };
-
-  useEffect(() => {
-    if (explorerLiveExpiresAt == null) return;
-    const remaining = explorerLiveExpiresAt - Date.now();
-    if (remaining <= 0) {
-      setExplorerLiveExpiresAt(null);
-      toast({
-        title: "Your 8-minute live preview has ended. Request to join the class for full access.",
-      });
-      return;
-    }
-    const t = setTimeout(() => {
-      setExplorerLiveExpiresAt(null);
-      toast({
-        title: "Your 8-minute live preview has ended. Request to join the class for full access.",
-      });
-    }, remaining);
-    return () => clearTimeout(t);
-  }, [explorerLiveExpiresAt, toast]);
 
   useEffect(() => {
     refetchJoinRequests();
@@ -813,7 +767,7 @@ const ClassroomDetail = () => {
           </div>
 
           {/* Explorer banner: interest + optional next-meet link (no countdown UI) */}
-          {!isOwner && explorationAllowed === true && explorationExpiresAt != null && (
+          {!isOwner && isGuestExplorer && explorationAllowed === true && (
             <div className="edu-card p-5 rounded-2xl border-primary/30 bg-primary/5 dark:bg-primary/10 text-center space-y-3">
               <p className="font-bold text-foreground">You&apos;re previewing this class.</p>
               <p className="text-sm text-muted-foreground">
@@ -893,114 +847,6 @@ const ClassroomDetail = () => {
                   Meet link isn&apos;t available yet — your teacher will add it before the session.
                 </p>
               ) : null}
-            </div>
-          )}
-
-          {/* Exploration ended: non-member 10-min preview is over */}
-          {!isOwner && explorationAllowed === false && (
-            <div className="edu-card p-6 rounded-2xl border-amber-200 bg-amber-50 dark:border-amber-900/50 dark:bg-amber-950/30 space-y-4">
-              <div className="text-center">
-                <p className="font-bold text-foreground">Exploration time ended.</p>
-                <p className="text-sm text-muted-foreground">
-                  Request to join to get full access to this class.
-                </p>
-                {showInvestorMeetCta && upcomingLiveSessions[0] ? (
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    Next session:{" "}
-                    <span className="font-semibold text-foreground">
-                      {new Date(upcomingLiveSessions[0]!.scheduled_at).toLocaleString(undefined, {
-                        weekday: "short",
-                        month: "short",
-                        day: "numeric",
-                        hour: "numeric",
-                        minute: "2-digit",
-                      })}
-                    </span>
-                  </p>
-                ) : null}
-                <div className="flex flex-wrap justify-center gap-3 mt-4">
-                  {explorerJoinRequestStatus === "pending" ? (
-                    <p className="text-sm text-primary font-medium">
-                      Request sent · Pending. The teacher will review it.
-                    </p>
-                  ) : (
-                    <Button
-                      className="rounded-xl"
-                      onClick={handleExplorerRequestJoin}
-                      disabled={explorerRequestingJoin}
-                    >
-                      {explorerJoinRequestStatus === "rejected"
-                        ? "Reapply to join"
-                        : "Request to join"}
-                    </Button>
-                  )}
-                  {showInvestorMeetCta && nextExplorerMeetHref ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="rounded-xl"
-                      onClick={() =>
-                        window.open(nextExplorerMeetHref, "_blank", "noopener,noreferrer")
-                      }
-                    >
-                      Open next Meet
-                    </Button>
-                  ) : null}
-                  <Button
-                    variant="outline"
-                    className="rounded-xl"
-                    onClick={() => router.push("/classrooms")}
-                  >
-                    Back to Classrooms
-                  </Button>
-                </div>
-              </div>
-              {/* Explorer review prompt */}
-              <div className="border-t border-amber-200/60 dark:border-amber-800/60 pt-5 mt-2">
-                <AnimatePresence mode="wait">
-                  {!showExplorerReview ? (
-                    <motion.div
-                      key="prompt-btn"
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: "auto" }}
-                      exit={{ opacity: 0, height: 0 }}
-                      className="flex justify-center"
-                    >
-                      <Button
-                        variant="outline"
-                        onClick={() => setShowExplorerReview(true)}
-                        className="rounded-xl font-extrabold text-amber-700 dark:text-amber-300 border-amber-300 shadow-sm hover:bg-amber-100 dark:hover:bg-amber-900/50 hover:border-amber-400 gap-2 px-6"
-                      >
-                        <motion.div
-                          animate={{ rotate: [0, 15, -10, 0] }}
-                          transition={{ repeat: Infinity, repeatDelay: 3, duration: 0.5 }}
-                        >
-                          <Star className="w-4 h-4 fill-amber-500 text-amber-500 drop-shadow-sm" />
-                        </motion.div>
-                        Rate this class
-                      </Button>
-                    </motion.div>
-                  ) : (
-                    <motion.div
-                      key="prompt-form"
-                      initial={{ opacity: 0, height: 0, y: 10 }}
-                      animate={{ opacity: 1, height: "auto", y: 0 }}
-                      exit={{ opacity: 0, height: 0, y: 10 }}
-                      className="bg-background/80 backdrop-blur-sm p-5 rounded-2xl border border-border shadow-sm overflow-hidden"
-                    >
-                      <ClassroomReviews
-                        classroomId={id!}
-                        isOwner={false}
-                        compact
-                        isExplorer
-                        onReviewSubmitted={() => {
-                          setTimeout(() => setShowExplorerReview(false), 2000);
-                        }}
-                      />
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
             </div>
           )}
 
@@ -1833,7 +1679,7 @@ const ClassroomDetail = () => {
           />
 
           {/* Daily review popup for enrolled students */}
-          {!isOwner && !isExplorer && classroom && (
+          {!isOwner && !isGuestExplorer && classroom && (
             <ReviewPopup classroomId={classroom.id} classroomName={classroom.name} />
           )}
         </div>

@@ -49,14 +49,11 @@ interface ExploreClassroom {
 
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 
-const EXPLORATION_MINUTES = 10;
-
 function ExploreClassesSection({
   exploreClassrooms,
   exploreLoading,
   myRequestMap,
   myMemberClassroomIds,
-  explorationEndedClassroomIds,
   requestingId,
   onRequestJoin,
   onOpenClass,
@@ -70,7 +67,6 @@ function ExploreClassesSection({
   exploreLoading: boolean;
   myRequestMap: Record<string, string>;
   myMemberClassroomIds: Set<string>;
-  explorationEndedClassroomIds: Set<string>;
   requestingId: string | null;
   withdrawingId?: string | null;
   onRequestJoin: (id: string) => void;
@@ -114,21 +110,10 @@ function ExploreClassesSection({
         </div>
       ) : (
         <>
-          <div className="rounded-xl bg-primary/10 border border-primary/20 p-4 mb-4">
-            <p className="text-sm font-bold text-primary">
-              You can explore any class for 10 minutes.
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              After 10 minutes, entry is closed. Request to join is available inside the class while
-              you explore.
-            </p>
-          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {exploreClassrooms.map((c) => {
               const isMember = myMemberClassroomIds.has(c.id);
               const requestStatus = myRequestMap[c.id];
-              const isPending = requestStatus === "pending";
-              const explorationEnded = explorationEndedClassroomIds.has(c.id);
               return (
                 <motion.div
                   key={c.id}
@@ -165,35 +150,6 @@ function ExploreClassesSection({
                       >
                         Open class
                       </Button>
-                    ) : explorationEnded ? (
-                      <>
-                        <Button
-                          onClick={() => onRequestJoin(c.id)}
-                          size="sm"
-                          className="w-full rounded-xl font-bold gap-2 edu-btn-primary"
-                          disabled={isPending || requestingId === c.id}
-                        >
-                          {requestingId === c.id ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : null}
-                          {requestStatus === "rejected"
-                            ? "Reapply to join"
-                            : "Request to join class"}
-                        </Button>
-                        {isPending ? (
-                          <p className="text-xs text-center text-muted-foreground mt-2">
-                            Request sent · Pending.
-                          </p>
-                        ) : requestStatus === "rejected" ? (
-                          <p className="text-xs text-center text-muted-foreground mt-2">
-                            Your previous request was declined. You can reapply above.
-                          </p>
-                        ) : (
-                          <p className="text-xs text-center text-muted-foreground mt-2">
-                            Exploration time ended. Request to join for full access.
-                          </p>
-                        )}
-                      </>
                     ) : (
                       <>
                         <Button
@@ -203,7 +159,7 @@ function ExploreClassesSection({
                         >
                           Explore class
                         </Button>
-                        {isPending ? (
+                        {requestStatus === "pending" ? (
                           <p className="text-xs text-center text-muted-foreground mt-2">
                             Request sent · Pending. You can still explore.
                           </p>
@@ -246,9 +202,6 @@ const Classrooms = () => {
   const [exploreClassrooms, setExploreClassrooms] = useState<ExploreClassroom[]>([]);
   const [exploreLoading, setExploreLoading] = useState(false);
   const [myRequestMap, setMyRequestMap] = useState<Record<string, string>>({});
-  const [explorationEndedClassroomIds, setExplorationEndedClassroomIds] = useState<Set<string>>(
-    new Set()
-  );
   const [requestingId, setRequestingId] = useState<string | null>(null);
   const [withdrawingId, setWithdrawingId] = useState<string | null>(null);
 
@@ -337,16 +290,6 @@ const Classrooms = () => {
       });
       setMyRequestMap(map);
 
-      const cutoff = Date.now() - EXPLORATION_MINUTES * 60 * 1000;
-      const { data: explorations } = await supabase
-        .from("class_exploration_sessions")
-        .select("classroom_id, started_at")
-        .eq("user_id", user.id);
-      const ended = new Set<string>();
-      (explorations || []).forEach((e: { classroom_id: string; started_at: string }) => {
-        if (new Date(e.started_at).getTime() < cutoff) ended.add(e.classroom_id);
-      });
-      setExplorationEndedClassroomIds(ended);
       if (!silent) setExploreLoading(false);
     },
     [session?.access_token, toast, user]
@@ -372,40 +315,22 @@ const Classrooms = () => {
     setMyRequestMap(map);
   }, [user]);
 
-  const refetchExplorationEnded = useCallback(async () => {
-    if (!user?.id) return;
-    const cutoff = Date.now() - EXPLORATION_MINUTES * 60 * 1000;
-    const { data: explorations } = await supabase
-      .from("class_exploration_sessions")
-      .select("classroom_id, started_at")
-      .eq("user_id", user.id);
-    const ended = new Set<string>();
-    (explorations || []).forEach((e: { classroom_id: string; started_at: string }) => {
-      if (new Date(e.started_at).getTime() < cutoff) ended.add(e.classroom_id);
-    });
-    setExplorationEndedClassroomIds(ended);
-  }, [user]);
-
-  // Refetch which classes have exploration ended whenever user lands on Classrooms (e.g. back from class page)
   useEffect(() => {
     if (pathname === "/classrooms" && user?.id) {
       queueMicrotask(() => {
         void refetchExploreClassrooms({ silent: true });
-        void refetchExplorationEnded();
       });
     }
-  }, [pathname, refetchExploreClassrooms, user?.id, refetchExplorationEnded]);
+  }, [pathname, refetchExploreClassrooms, user?.id]);
 
-  // Also refetch when page becomes visible (handles full reload or tab switch so exploration-ended state is fresh)
   useEffect(() => {
     if (!user?.id) return;
     const onVisible = () => {
       void refetchExploreClassrooms({ silent: true });
-      void refetchExplorationEnded();
     };
     document.addEventListener("visibilitychange", onVisible);
     return () => document.removeEventListener("visibilitychange", onVisible);
-  }, [user?.id, refetchExploreClassrooms, refetchExplorationEnded]);
+  }, [user?.id, refetchExploreClassrooms]);
 
   const handleRequestJoin = async (classroomId: string) => {
     if (!user?.id) return;
@@ -727,7 +652,6 @@ const Classrooms = () => {
                 exploreLoading={exploreLoading}
                 myRequestMap={myRequestMap}
                 myMemberClassroomIds={new Set(classrooms.map((c) => c.id))}
-                explorationEndedClassroomIds={explorationEndedClassroomIds}
                 requestingId={requestingId}
                 withdrawingId={withdrawingId}
                 onRequestJoin={handleRequestJoin}
@@ -736,7 +660,6 @@ const Classrooms = () => {
                 onRefreshStatus={async () => {
                   await refetchExploreClassrooms({ silent: false, toastOnFailure: true });
                   await refetchMyRequestMap();
-                  await refetchExplorationEnded();
                   toast({ title: "Status updated" });
                 }}
               />
@@ -747,7 +670,6 @@ const Classrooms = () => {
               exploreLoading={exploreLoading}
               myRequestMap={myRequestMap}
               myMemberClassroomIds={new Set()}
-              explorationEndedClassroomIds={explorationEndedClassroomIds}
               requestingId={requestingId}
               withdrawingId={withdrawingId}
               onRequestJoin={handleRequestJoin}
@@ -757,7 +679,6 @@ const Classrooms = () => {
               onRefreshStatus={async () => {
                 await refetchExploreClassrooms({ silent: false, toastOnFailure: true });
                 await refetchMyRequestMap();
-                await refetchExplorationEnded();
                 toast({ title: "Status updated" });
               }}
             />
@@ -779,7 +700,6 @@ const Classrooms = () => {
                 exploreLoading={exploreLoading}
                 myRequestMap={myRequestMap}
                 myMemberClassroomIds={new Set()}
-                explorationEndedClassroomIds={explorationEndedClassroomIds}
                 requestingId={requestingId}
                 withdrawingId={withdrawingId}
                 onRequestJoin={handleRequestJoin}
@@ -788,7 +708,6 @@ const Classrooms = () => {
                 onRefreshStatus={async () => {
                   await refetchExploreClassrooms({ silent: false, toastOnFailure: true });
                   await refetchMyRequestMap();
-                  await refetchExplorationEnded();
                   toast({ title: "Status updated" });
                 }}
                 emptyStateTitle="No public classes to show"

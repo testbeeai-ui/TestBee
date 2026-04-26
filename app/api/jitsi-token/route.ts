@@ -4,55 +4,16 @@
  *   JITSI_JAAS_KID       - Key ID from 8x8 JaaS dashboard (API Key → Key ID)
  *   JITSI_JAAS_PRIVATE_KEY - PEM private key (contents of your .pk file; use \n for newlines)
  * NEXT_PUBLIC_JITSI_APP_ID is already set for the app.
- * When sessionId is passed, checks explorer_live_joins and rejects if explorer 8-min window expired.
  */
 import { NextResponse } from "next/server";
 import * as jose from "jose";
-import { createClient } from "@/integrations/supabase/server";
-import { createAdminClient } from "@/integrations/supabase/server";
 
 const APP_ID = process.env.NEXT_PUBLIC_JITSI_APP_ID || process.env.JITSI_JAAS_APP_ID || "";
 const KID = process.env.JITSI_JAAS_KID || "";
 const PRIVATE_KEY_PEM = process.env.JITSI_JAAS_PRIVATE_KEY || "";
-const EXPLORER_LIVE_MINUTES = 8;
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
-  const sessionId = typeof body?.sessionId === "string" ? body.sessionId : null;
-
-  if (sessionId) {
-    const supabase = await createClient();
-    let user = (await supabase.auth.getUser()).data?.user ?? null;
-    if (!user) {
-      const token = request.headers.get("Authorization")?.replace(/^Bearer\s+/i, "");
-      if (token) {
-        const {
-          data: { user: u },
-        } = await supabase.auth.getUser(token);
-        user = u ?? null;
-      }
-    }
-    if (user) {
-      const admin = createAdminClient();
-      if (admin) {
-        const { data: explorerJoin } = await admin
-          .from("explorer_live_joins")
-          .select("joined_at")
-          .eq("session_id", sessionId)
-          .eq("user_id", user.id)
-          .maybeSingle();
-        if (explorerJoin?.joined_at) {
-          const joinedAt = new Date(explorerJoin.joined_at).getTime();
-          if (Date.now() >= joinedAt + EXPLORER_LIVE_MINUTES * 60 * 1000) {
-            return NextResponse.json(
-              { error: "Your 8-minute live preview has ended." },
-              { status: 403 }
-            );
-          }
-        }
-      }
-    }
-  }
 
   if (!APP_ID || !KID || !PRIVATE_KEY_PEM) {
     const missing = [
