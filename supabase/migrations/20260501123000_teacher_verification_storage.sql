@@ -29,8 +29,8 @@ as $$
     split_part(coalesce(path, ''), '/', 1) = auth.uid()::text;
 $$;
 
--- 4) Enable RLS on storage.objects (idempotent)
-alter table storage.objects enable row level security;
+-- 4) Do not ALTER storage.objects here: on Supabase hosted the migration role may not own
+--    that table (SQLSTATE 42501). RLS is already enabled on storage.objects by default.
 
 -- 5) Clean old policies if re-running migration
 drop policy if exists "teacher_verif_select_own" on storage.objects;
@@ -85,7 +85,5 @@ using (
   and owner = auth.uid()
 );
 
--- 7) Helpful index for frequent lookups by bucket + owner
-create index if not exists idx_storage_objects_teacher_verif_bucket_owner
-  on storage.objects (bucket_id, owner)
-  where bucket_id = 'teacher-verification-docs';
+-- 7) Optional index on storage.objects skipped here: CREATE INDEX on storage.objects
+--    requires table owner on hosted Supabase (42501). Add in Dashboard → SQL if needed.

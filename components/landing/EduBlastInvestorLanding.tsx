@@ -595,7 +595,7 @@ function TeacherInvestorSections() {
             </div>
             <div className="flex flex-wrap gap-3">
               <Link
-                href="/auth?role=teacher"
+                href="/auth"
                 className="inline-flex items-center gap-2 rounded-full bg-[#6f71ff] px-7 py-3 text-sm font-bold text-white transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#5f62f7] hover:shadow-[0_12px_26px_-10px_rgba(111,113,255,0.6)]"
               >
                 Apply as teacher ambassador <ArrowUpRight className="h-4 w-4" />
@@ -725,7 +725,7 @@ export default function EduBlastInvestorLanding() {
 
           <div className="mt-9 flex flex-wrap justify-center gap-3">
             <Link
-              href={persona === "teacher" ? "/auth?role=teacher" : "/auth?role=student"}
+              href="/auth"
               className={`inline-flex items-center gap-2 rounded-full px-8 py-3.5 text-sm font-bold shadow-[0_0_32px_rgba(52,245,164,0.3)] transition ${
                 persona === "teacher"
                   ? "bg-[#6f71ff] text-white hover:bg-[#5f62f7]"
@@ -1139,7 +1139,7 @@ export default function EduBlastInvestorLanding() {
 
               <div className="mt-10 flex justify-center">
                 <Link
-                  href="/auth?role=student"
+                  href="/auth"
                   className="inline-flex items-center gap-2 rounded-full bg-[#34f5a4] px-8 py-3.5 text-sm font-bold text-neutral-950 shadow-[0_0_32px_rgba(52,245,164,0.25)] transition hover:bg-[#2ee89a]"
                 >
                   Start earning RDM Today <ArrowUpRight className="h-4 w-4" />
@@ -1393,7 +1393,7 @@ export default function EduBlastInvestorLanding() {
                   ))}
                 </ul>
                 <Link
-                  href="/auth?role=student"
+                  href="/auth"
                   className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-violet-500 py-3 text-sm font-bold text-white transition hover:bg-violet-600"
                 >
                   Apply as Student Ambassador <ArrowUpRight className="h-4 w-4" />
@@ -1426,7 +1426,7 @@ export default function EduBlastInvestorLanding() {
                   ))}
                 </ul>
                 <Link
-                  href="/auth?role=teacher"
+                  href="/auth"
                   className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#34f5a4] py-3 text-sm font-bold text-neutral-950 transition hover:bg-[#2ee89a]"
                 >
                   See Teacher Page <ArrowUpRight className="h-4 w-4" />
@@ -1459,13 +1459,13 @@ export default function EduBlastInvestorLanding() {
               </p>
               <div className="mt-10 flex flex-wrap justify-center gap-3">
                 <Link
-                  href="/auth?role=student"
+                  href="/auth"
                   className="inline-flex items-center gap-2 rounded-full bg-[#34f5a4] px-8 py-3.5 text-sm font-bold text-neutral-950 shadow-[0_0_0_1px_rgba(255,255,255,0.06)] transition hover:bg-[#2ee89a]"
                 >
                   Join EduBlast free →
                 </Link>
                 <Link
-                  href="/auth?role=teacher"
+                  href="/auth"
                   className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-transparent px-8 py-3.5 text-sm font-semibold text-white transition hover:border-white/50 hover:bg-white/[0.04]"
                 >
                   I am a teacher →

@@ -12,9 +12,14 @@ import { User, LogOut, Coins, Pencil, Check, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import ThemeSwitcher from "@/components/ThemeSwitcher";
+import {
+  TEACHER_EXAM_TAGS,
+  TEACHER_TEACHING_LEVELS,
+  decodeTeachingLevelNumbers,
+  encodeTeachingLevelLabels,
+  formatTeachingLevelsForDisplay,
+} from "@/lib/profileTeacherOptions";
 
-const teachingLevels = ["School", "UG", "PG", "Competitive", "International"];
-const examTags = ["JEE", "NEET", "GRE", "GMAT", "SAT", "TOEFL"];
 const subjects = ["Physics", "Chemistry", "Math", "Biology"];
 const visibilityOptions = [
   { value: "public", label: "Public" },
@@ -33,8 +38,8 @@ export default function TeacherProfile() {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [name, setName] = useState(profile?.name ?? "");
-  const [teachingLevelsSel, setTeachingLevelsSel] = useState<string[]>(
-    (profile?.teaching_levels as unknown as string[]) ?? []
+  const [teachingLevelsSel, setTeachingLevelsSel] = useState<string[]>(() =>
+    decodeTeachingLevelNumbers(profile?.teaching_levels ?? undefined)
   );
   const [subjectsSel, setSubjectsSel] = useState<string[]>(profile?.subjects ?? []);
   const [examTagsSel, setExamTagsSel] = useState<string[]>(profile?.exam_tags ?? []);
@@ -44,7 +49,7 @@ export default function TeacherProfile() {
     if (!profile) return;
     queueMicrotask(() => {
       setName(profile.name ?? "");
-      setTeachingLevelsSel((profile.teaching_levels as unknown as string[]) ?? []);
+      setTeachingLevelsSel(decodeTeachingLevelNumbers(profile.teaching_levels ?? undefined));
       setSubjectsSel(profile.subjects ?? []);
       setExamTagsSel(profile.exam_tags ?? []);
       setVisibility(profile.visibility ?? "public");
@@ -66,9 +71,9 @@ export default function TeacherProfile() {
       .from("profiles")
       .update({
         name: name.trim() || profile.name,
-        teaching_levels: (teachingLevelsSel.length ? teachingLevelsSel : null) as unknown as
-          | number[]
-          | null,
+        teaching_levels: teachingLevelsSel.length
+          ? encodeTeachingLevelLabels(teachingLevelsSel)
+          : null,
         subjects: subjectsSel.length ? subjectsSel : null,
         exam_tags: examTagsSel.length ? examTagsSel : null,
         visibility,
@@ -86,7 +91,7 @@ export default function TeacherProfile() {
 
   const handleCancelEdit = () => {
     setName(profile.name ?? "");
-    setTeachingLevelsSel((profile?.teaching_levels as unknown as string[]) ?? []);
+    setTeachingLevelsSel(decodeTeachingLevelNumbers(profile?.teaching_levels ?? undefined));
     setSubjectsSel(profile?.subjects ?? []);
     setExamTagsSel(profile?.exam_tags ?? []);
     setVisibility(profile?.visibility ?? "public");
@@ -226,7 +231,7 @@ export default function TeacherProfile() {
                     Teaching levels
                   </label>
                   <div className="flex flex-wrap gap-2">
-                    {teachingLevels.map((l) => (
+                    {TEACHER_TEACHING_LEVELS.map((l) => (
                       <button
                         key={l}
                         onClick={() => toggle(teachingLevelsSel, l, setTeachingLevelsSel)}
@@ -258,7 +263,7 @@ export default function TeacherProfile() {
                     Exam tags
                   </label>
                   <div className="flex flex-wrap gap-2">
-                    {examTags.map((e) => (
+                    {TEACHER_EXAM_TAGS.map((e) => (
                       <button
                         key={e}
                         onClick={() => toggle(examTagsSel, e, setExamTagsSel)}
@@ -290,9 +295,7 @@ export default function TeacherProfile() {
               <div className="space-y-4 text-sm">
                 <div>
                   <span className="text-muted-foreground font-bold">Teaching levels:</span>{" "}
-                  {(profile.teaching_levels as unknown as string[])?.length
-                    ? (profile.teaching_levels as unknown as string[]).join(", ")
-                    : "—"}
+                  {formatTeachingLevelsForDisplay(profile.teaching_levels)}
                 </div>
                 <div>
                   <span className="text-muted-foreground font-bold">Subjects:</span>{" "}

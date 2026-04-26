@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense, useRef } from "react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,18 +18,16 @@ import {
   UserCircle2,
 } from "lucide-react";
 import { TARGET_EXAM_OPTIONS, type TargetExamKey } from "@/lib/targetExam";
+import {
+  TEACHER_EXAM_TAGS,
+  TEACHER_TEACHING_LEVELS,
+  encodeTeachingLevelLabels,
+  decodeTeachingLevelNumbers,
+} from "@/lib/profileTeacherOptions";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 
-const teachingLevels = ["School", "UG", "PG", "Competitive", "International"];
-const teachingLevelToNumber: Record<string, number> = {
-  School: 1,
-  UG: 2,
-  PG: 3,
-  Competitive: 4,
-  International: 5,
-};
-const examTags = ["JEE", "NEET", "GRE", "GMAT", "SAT", "TOEFL"];
 const subjects = ["Physics", "Chemistry", "Math"];
 const studentExamTargets: { key: TargetExamKey; label: string; tag?: string; locked?: boolean }[] =
   [
@@ -66,10 +64,16 @@ export default function Onboarding() {
 }
 
 function OnboardingContent() {
-  const { user, profile, loading, refreshProfile } = useAuth();
+  const { user, profile, loading, refreshProfile, signOut } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
+
+  const signOutAndReturnToLogin = async () => {
+    await signOut();
+    router.replace("/auth?mode=signin");
+  };
+
   const [role, setRole] = useState<"student" | "teacher" | null>(null);
   const [step, setStep] = useState<"role" | "details">("role");
   const [name, setName] = useState(profile?.name || "");
@@ -84,12 +88,41 @@ function OnboardingContent() {
   const [visibility, setVisibility] = useState("public");
   const [saving, setSaving] = useState(false);
   const [profileTimeout, setProfileTimeout] = useState(false);
+  const teacherFormHydratedFor = useRef<string | null>(null);
+
+  useEffect(() => {
+    const uid = user?.id;
+    if (!uid) {
+      teacherFormHydratedFor.current = null;
+      return;
+    }
+    if (profile?.role !== "teacher") return;
+    if (teacherFormHydratedFor.current === uid) return;
+    const hasRemoteData =
+      (profile.subjects?.length ?? 0) > 0 ||
+      (profile.teaching_levels?.length ?? 0) > 0 ||
+      (profile.exam_tags?.length ?? 0) > 0;
+    if (!hasRemoteData) return;
+    teacherFormHydratedFor.current = uid;
+    if (profile.name?.trim()) setName(profile.name.trim());
+    if (Array.isArray(profile.subjects) && profile.subjects.length) {
+      setTeachingSubjects([...profile.subjects]);
+    }
+    setSelectedLevels(decodeTeachingLevelNumbers(profile.teaching_levels));
+    if (Array.isArray(profile.exam_tags) && profile.exam_tags.length) {
+      setSelectedExams([...profile.exam_tags]);
+    }
+    const v = profile.visibility;
+    if (v === "public" || v === "invite_only") setVisibility(v);
+  }, [user?.id, profile]);
 
   useEffect(() => {
     if (loading) return;
     if (!user) router.replace("/auth");
-    else if (profile?.onboarding_complete) router.replace("/home");
-  }, [user, profile?.onboarding_complete, loading, router]);
+    else if (profile?.onboarding_complete) {
+      router.replace(profile?.role === "teacher" ? "/teacher-portal" : "/home");
+    }
+  }, [user, profile?.onboarding_complete, profile?.role, loading, router]);
 
   useEffect(() => {
     if (user && profile === null && !profileTimeout) {
@@ -113,7 +146,18 @@ function OnboardingContent() {
       setStep("details");
     }
     if (profileTimeout && !role) {
-      setRole("student");
+      // Use URL param or sessionStorage fallback instead of hardcoded student
+      const urlRole = searchParams.get("role");
+      let fallbackRole: "student" | "teacher" = "student";
+      if (urlRole === "teacher" || urlRole === "student") {
+        fallbackRole = urlRole;
+      } else {
+        try {
+          const stored = sessionStorage.getItem("auth_intended_role");
+          if (stored === "teacher" || stored === "student") fallbackRole = stored;
+        } catch (_) {}
+      }
+      setRole(fallbackRole);
       setStep("details");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -188,7 +232,7 @@ function OnboardingContent() {
           ? teachingSubjects
           : null;
         (updates as Record<string, unknown>).teaching_levels = selectedLevels.length
-          ? selectedLevels.map((l) => teachingLevelToNumber[l] ?? 0).filter(Boolean)
+          ? encodeTeachingLevelLabels(selectedLevels)
           : null;
         (updates as Record<string, unknown>).exam_tags = selectedExams.length
           ? selectedExams
@@ -218,7 +262,7 @@ function OnboardingContent() {
       import("canvas-confetti").then((c) =>
         c.default({ particleCount: 150, spread: 80, origin: { y: 0.6 } })
       );
-      router.replace("/home");
+      router.replace(role === "teacher" ? "/teacher-portal" : "/home");
     } finally {
       setSaving(false);
     }
@@ -226,7 +270,7 @@ function OnboardingContent() {
 
   return (
     <div className="auth-glass-page flex min-h-screen flex-col">
-      <div className="relative flex-1 flex items-center justify-center p-6">
+      <div className="relative flex min-h-0 flex-1 items-start justify-center px-4 py-6 sm:items-center sm:px-6 sm:py-8">
         {step === "role" && (
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -266,6 +310,26 @@ function OnboardingContent() {
                   <p className="text-sm text-zinc-300 mt-1">{desc}</p>
                 </button>
               ))}
+            </div>
+            <div className="mt-8 space-y-3 border-t border-white/10 pt-6 text-center">
+              <p className="text-xs text-zinc-500">Wrong account or need a break?</p>
+              <div className="flex flex-col justify-center gap-2 sm:flex-row sm:flex-wrap">
+                <Button variant="ghost" size="sm" className="text-zinc-300" asChild>
+                  <Link href="/">EduBlast home</Link>
+                </Button>
+                <Button variant="outline" size="sm" className="auth-glass-outline-btn" asChild>
+                  <Link href="/auth?mode=signin">Sign-in page</Link>
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="border-destructive/40 text-destructive hover:bg-destructive/10"
+                  onClick={() => void signOutAndReturnToLogin()}
+                >
+                  Sign out
+                </Button>
+              </div>
             </div>
           </motion.div>
         )}
@@ -450,6 +514,19 @@ function OnboardingContent() {
                   {saving ? "Saving..." : "Continue"} <ArrowRight className="w-4 h-4 ml-1" />
                 </Button>
               </div>
+              <p className="mt-4 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center text-[11px] text-zinc-500">
+                <Link href="/" className="underline-offset-2 hover:text-zinc-300 hover:underline">
+                  Exit to home
+                </Link>
+                <span className="text-zinc-600">·</span>
+                <button
+                  type="button"
+                  className="underline-offset-2 hover:text-zinc-300 hover:underline"
+                  onClick={() => void signOutAndReturnToLogin()}
+                >
+                  Sign out
+                </button>
+              </p>
             </div>
           </motion.div>
         )}
@@ -459,128 +536,187 @@ function OnboardingContent() {
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
-            className="auth-glass-card rounded-3xl w-full max-w-lg border border-white/10 max-h-[90vh] overflow-y-auto"
+            className="auth-glass-card w-full max-w-lg rounded-2xl border border-white/10 sm:max-w-2xl lg:max-w-4xl xl:max-w-[56rem]"
           >
-            <div className="sticky top-0 z-10 rounded-t-3xl border-b border-white/10 bg-[#121726]/95 px-8 pt-8 pb-5 backdrop-blur-md">
-              <div className="flex items-center justify-center gap-3 mb-1">
-                <div className="w-12 h-12 rounded-2xl bg-primary/15 flex items-center justify-center">
-                  <BookOpen className="w-6 h-6 text-primary" />
+            {/* Booklet masthead — single band, no inner scroll */}
+            <div className="rounded-t-2xl border-b border-white/10 bg-[#121726]/90 px-4 py-3 backdrop-blur-sm sm:px-5 sm:py-3.5">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/15 sm:h-10 sm:w-10">
+                  <BookOpen className="h-4 w-4 text-primary sm:h-[18px] sm:w-[18px]" />
                 </div>
-                <h2 className="text-2xl font-display font-bold text-white">Teacher Profile</h2>
+                <div className="min-w-0 flex-1">
+                  <h2 className="font-display text-base font-bold tracking-tight text-white sm:text-lg">
+                    Teacher Profile
+                  </h2>
+                  <p className="truncate text-[11px] leading-tight text-zinc-400 sm:text-xs sm:whitespace-normal sm:leading-snug">
+                    EduBlast · one screen — who you teach, what you teach, how students find you
+                  </p>
+                </div>
               </div>
-              <p className="text-center text-sm text-zinc-300">
-                Set up your teaching profile so students can find you
-              </p>
             </div>
 
-            <div className="p-8 space-y-7">
-              <div>
-                <label className="text-sm font-bold text-white mb-2 block">Your Name</label>
-                <Input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="auth-glass-input rounded-xl h-12 text-white"
-                  placeholder="Enter your name"
-                />
-              </div>
+            <div className="p-4 sm:p-5 lg:p-6">
+              {/* Two-page spread: left = identity & scope, right = exams & discovery */}
+              <div className="grid gap-5 lg:grid-cols-2 lg:gap-0 lg:divide-x lg:divide-white/10">
+                <div className="space-y-4 lg:pr-6 lg:pt-0.5">
+                  <div>
+                    <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-zinc-500">
+                      Your name
+                    </label>
+                    <Input
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className="auth-glass-input h-10 rounded-lg text-sm text-white sm:h-10"
+                      placeholder="Enter your name"
+                    />
+                  </div>
 
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <GraduationCap className="w-4 h-4 text-primary" />
-                  <label className="text-sm font-bold text-white">Teaching Levels</label>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {teachingLevels.map((l) => (
-                    <button
-                      key={l}
-                      type="button"
-                      onClick={() => toggle(selectedLevels, l, setSelectedLevels)}
-                      className={`px-4 py-2.5 rounded-full font-semibold text-sm transition-all duration-200 ${selectedLevels.includes(l) ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25 scale-[1.02]" : "bg-white/[0.05] text-zinc-300 hover:bg-white/[0.08] border border-white/12"}`}
-                    >
-                      {l}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <BookOpen className="w-4 h-4 text-primary" />
-                  <label className="text-sm font-bold text-white">Subjects You Teach</label>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  {subjects.map((s) => (
-                    <button
-                      key={s}
-                      type="button"
-                      onClick={() => toggle(teachingSubjects, s, setTeachingSubjects)}
-                      className={`py-3 rounded-xl font-semibold text-sm transition-all duration-200 ${teachingSubjects.includes(s) ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25" : "bg-white/[0.05] text-zinc-300 hover:bg-white/[0.08] border border-white/12"}`}
-                    >
-                      {s}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <Award className="w-4 h-4 text-primary" />
-                  <label className="text-sm font-bold text-white">Exam Specializations</label>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {examTags.map((e) => (
-                    <button
-                      key={e}
-                      type="button"
-                      onClick={() => toggle(selectedExams, e, setSelectedExams)}
-                      className={`px-4 py-2.5 rounded-full font-semibold text-sm transition-all duration-200 ${selectedExams.includes(e) ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25 scale-[1.02]" : "bg-white/[0.05] text-zinc-300 hover:bg-white/[0.08] border border-white/12"}`}
-                    >
-                      {e}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <label className="text-sm font-bold text-white block">Visibility</label>
-                <div className="grid grid-cols-2 gap-3">
-                  {visibilityOptions.map(({ value, label, desc, Icon }) => (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() => setVisibility(value)}
-                      className={`flex flex-col items-center gap-1.5 py-4 px-3 rounded-2xl font-semibold text-sm transition-all duration-200 ${visibility === value ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25 ring-2 ring-primary ring-offset-2 ring-offset-[#121726]" : "bg-white/[0.05] text-zinc-300 hover:bg-white/[0.08] border border-white/12"}`}
-                    >
-                      <Icon className="w-5 h-5" />
-                      <span>{label}</span>
-                      <span
-                        className={`text-xs font-normal ${visibility === value ? "opacity-90" : "opacity-70"}`}
-                      >
-                        {desc}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-1.5">
+                      <GraduationCap className="h-3.5 w-3.5 shrink-0 text-primary" />
+                      <span className="text-xs font-bold uppercase tracking-wide text-zinc-500">
+                        Teaching level
                       </span>
-                    </button>
-                  ))}
+                    </div>
+                    <p className="text-[11px] leading-snug text-zinc-500">
+                      School (K–12) vs college / PUC — pick one or both.
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {TEACHER_TEACHING_LEVELS.map((l) => (
+                        <button
+                          key={l}
+                          type="button"
+                          onClick={() => toggle(selectedLevels, l, setSelectedLevels)}
+                          className={`min-h-10 rounded-xl border px-2 py-2 text-sm font-semibold transition-colors ${
+                            selectedLevels.includes(l)
+                              ? "border-primary/50 bg-primary text-primary-foreground shadow-md shadow-primary/20"
+                              : "border-white/12 bg-white/[0.05] text-zinc-300 hover:bg-white/[0.08]"
+                          }`}
+                        >
+                          {l}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-1.5">
+                      <BookOpen className="h-3.5 w-3.5 shrink-0 text-primary" />
+                      <span className="text-xs font-bold uppercase tracking-wide text-zinc-500">
+                        Subjects you teach
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      {subjects.map((s) => (
+                        <button
+                          key={s}
+                          type="button"
+                          onClick={() => toggle(teachingSubjects, s, setTeachingSubjects)}
+                          className={`min-h-10 rounded-xl border py-2 text-center text-xs font-semibold transition-colors sm:text-sm ${
+                            teachingSubjects.includes(s)
+                              ? "border-primary/50 bg-primary text-primary-foreground shadow-md shadow-primary/20"
+                              : "border-white/12 bg-white/[0.05] text-zinc-300 hover:bg-white/[0.08]"
+                          }`}
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4 border-t border-white/10 pt-5 lg:border-t-0 lg:pt-0.5 lg:pl-6">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-1.5">
+                      <Award className="h-3.5 w-3.5 shrink-0 text-primary" />
+                      <span className="text-xs font-bold uppercase tracking-wide text-zinc-500">
+                        Exam specializations
+                      </span>
+                    </div>
+                    <p className="text-[11px] leading-snug text-zinc-500">
+                      Select all that apply — shown on your public profile.
+                    </p>
+                    <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-5">
+                      {TEACHER_EXAM_TAGS.map((e) => (
+                        <button
+                          key={e}
+                          type="button"
+                          onClick={() => toggle(selectedExams, e, setSelectedExams)}
+                          className={`min-h-9 rounded-lg border px-2 py-1.5 text-center text-[11px] font-semibold leading-tight transition-colors sm:min-h-10 sm:text-xs ${
+                            selectedExams.includes(e)
+                              ? "border-primary/50 bg-primary text-primary-foreground shadow-md shadow-primary/20"
+                              : "border-white/12 bg-white/[0.05] text-zinc-300 hover:bg-white/[0.08]"
+                          }`}
+                        >
+                          {e}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <span className="text-xs font-bold uppercase tracking-wide text-zinc-500">
+                      Visibility
+                    </span>
+                    <div className="grid grid-cols-2 gap-2">
+                      {visibilityOptions.map(({ value, label, desc, Icon }) => (
+                        <button
+                          key={value}
+                          type="button"
+                          onClick={() => setVisibility(value)}
+                          className={`flex flex-col items-center gap-1 rounded-xl border px-2 py-2.5 text-center text-xs font-semibold transition-colors ${
+                            visibility === value
+                              ? "border-primary/50 bg-primary text-primary-foreground shadow-md shadow-primary/20 ring-1 ring-primary/60 ring-offset-1 ring-offset-[#0c1020]"
+                              : "border-white/12 bg-white/[0.05] text-zinc-300 hover:bg-white/[0.08]"
+                          }`}
+                        >
+                          <Icon className="h-4 w-4" />
+                          <span>{label}</span>
+                          <span
+                            className={`line-clamp-2 text-[10px] font-normal leading-tight ${
+                              visibility === value ? "text-primary-foreground/90" : "text-zinc-500"
+                            }`}
+                          >
+                            {desc}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <div className="flex gap-3 pt-2">
+              <div className="mt-5 flex flex-col-reverse gap-2 border-t border-white/10 pt-4 sm:flex-row sm:items-center sm:justify-end sm:gap-3 lg:mt-6">
                 <Button
                   variant="outline"
                   onClick={() => setStep("role")}
-                  className="auth-glass-outline-btn rounded-xl font-semibold shrink-0"
+                  className="auth-glass-outline-btn h-10 shrink-0 rounded-lg px-5 text-sm font-semibold sm:w-auto"
                 >
                   Back
                 </Button>
                 <Button
                   onClick={handleComplete}
                   disabled={saving}
-                  className="flex-1 rounded-xl h-12 text-base font-bold bg-gradient-to-r from-primary to-primary/90 hover:from-primary/95 hover:to-primary/85 shadow-lg shadow-primary/20 gap-2"
+                  className="h-10 flex-1 gap-2 rounded-lg bg-gradient-to-r from-primary to-primary/90 text-sm font-bold shadow-md shadow-primary/20 hover:from-primary/95 hover:to-primary/85 sm:min-w-[220px] sm:text-base"
                 >
-                  <Sparkles className="w-4 h-4" />
+                  <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   {saving ? "Saving..." : "Create Profile!"}
-                  <ArrowRight className="w-4 h-4 ml-0.5" />
+                  <ArrowRight className="ml-0.5 h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 </Button>
               </div>
+              <p className="mt-3 flex flex-wrap justify-center gap-x-3 gap-y-1 text-center text-[11px] text-zinc-500">
+                <Link href="/" className="underline-offset-2 hover:text-zinc-300 hover:underline">
+                  Exit to home
+                </Link>
+                <span className="text-zinc-600">·</span>
+                <button
+                  type="button"
+                  className="underline-offset-2 hover:text-zinc-300 hover:underline"
+                  onClick={() => void signOutAndReturnToLogin()}
+                >
+                  Sign out
+                </button>
+              </p>
             </div>
           </motion.div>
         )}

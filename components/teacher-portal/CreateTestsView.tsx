@@ -651,17 +651,18 @@ export default function CreateTestsView({
   const pillClassNeutral = (active: boolean) =>
     `${pillBase} ${active ? "border-emerald-400/50 bg-emerald-500/12 text-emerald-100" : "border-white/10 bg-[#0c1020] text-slate-300 hover:bg-white/[0.04]"}`;
   return (
-    <div className="w-full min-w-0 max-w-4xl text-left xl:max-w-[52rem]">
-      <h1 className="font-serif text-3xl tracking-tight sm:text-[2.125rem]">
+    <div className="w-full min-w-0 text-left">
+      <h1 className="font-serif text-2xl tracking-tight sm:text-3xl lg:text-[2.125rem]">
         Create <span className="text-emerald-400 italic">Tests</span>
       </h1>
-      <p className="mt-1.5 max-w-[65ch] text-sm leading-relaxed text-slate-400">
+      <p className="mt-1.5 max-w-[65ch] text-xs leading-relaxed text-slate-400 sm:text-sm">
         Generate question-bank MCQ papers for <span className="text-slate-200">CBSE Board</span>{" "}
         today. KCET and JEE Main are on the way.
       </p>
 
-      <div className="mt-5 overflow-hidden rounded-2xl border border-white/[0.09] bg-[#101428] shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset]">
-        <div className="grid grid-cols-5 border-b border-white/[0.08]">
+      <div className="mt-4 overflow-hidden rounded-2xl border border-white/[0.09] bg-[#101428] shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset] sm:mt-5">
+        <div className="-mx-px overflow-x-auto border-b border-white/[0.08] sm:mx-0 sm:overflow-visible">
+          <div className="grid min-w-[min(100%,28rem)] grid-cols-2 min-[480px]:grid-cols-3 sm:min-w-0 sm:grid-cols-5">
           {stepLabels.map((label, idx) => {
             const i = idx + 1;
             const active = step === i;
@@ -690,6 +691,7 @@ export default function CreateTestsView({
               </div>
             );
           })}
+          </div>
         </div>
 
         <div className="p-4 sm:p-5">
@@ -1014,11 +1016,11 @@ export default function CreateTestsView({
                 </div>
               ) : null}
               {!questionBankLoading && !questionBankError && questionBankCount !== null ? (
-                <div className="rounded-xl border border-white/10 bg-[#0e1325] px-4 py-5">
+                <div className="rounded-xl border border-white/10 bg-[#0e1325] px-3 py-4 sm:px-4 sm:py-5">
                   <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500">
                     Questions available
                   </div>
-                  <div className="mt-2 font-serif text-4xl font-bold tracking-tight text-emerald-300">
+                  <div className="mt-2 font-serif text-3xl font-bold tracking-tight text-emerald-300 sm:text-4xl">
                     {questionBankCount}
                   </div>
                   <p className="mt-2 text-xs leading-relaxed text-slate-500">
@@ -1375,9 +1377,9 @@ export default function CreateTestsView({
                     onClick={() => {
                       void handleGenerateTestNow();
                     }}
-                    className="inline-flex h-12 min-w-[min(100%,20rem)] items-center justify-center gap-2.5 rounded-full bg-emerald-500 px-10 text-base font-bold text-black shadow-[0_0_24px_-4px_rgba(52,211,153,0.45)] transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60 sm:h-14 sm:px-12 sm:text-lg"
+                    className="inline-flex h-11 min-w-[min(100%,18rem)] items-center justify-center gap-2 rounded-full bg-emerald-500 px-6 text-sm font-bold text-black shadow-[0_0_24px_-4px_rgba(52,211,153,0.45)] transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60 sm:h-12 sm:min-w-[min(100%,20rem)] sm:px-10 sm:text-base"
                   >
-                    <Code2 className="h-5 w-5 shrink-0 opacity-90" strokeWidth={2.25} aria-hidden />
+                    <Code2 className="h-4 w-4 shrink-0 opacity-90 sm:h-5 sm:w-5" strokeWidth={2.25} aria-hidden />
                     {generateLoading ? "Generating..." : "Generate Test Now"}
                   </button>
                 </div>
@@ -1403,8 +1405,8 @@ export default function CreateTestsView({
       </div>
 
       {/* Test History Section — separate card below the wizard */}
-      <div className="mt-6 overflow-hidden rounded-2xl border border-white/[0.09] bg-[#101428] shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset]">
-        <div className="border-b border-white/[0.08] px-5 py-4 sm:px-6">
+      <div className="mt-5 overflow-hidden rounded-2xl border border-white/[0.09] bg-[#101428] shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset] sm:mt-6">
+        <div className="border-b border-white/[0.08] px-4 py-3 sm:px-5 sm:py-4 lg:px-6">
           <div className="flex items-center gap-2">
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-violet-500/15 text-violet-300">
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1419,14 +1421,14 @@ export default function CreateTestsView({
             <h3 className="text-sm font-semibold text-slate-200">Your Generated Test History</h3>
           </div>
         </div>
-        <div className="p-5 sm:p-6">
+        <div className="p-4 sm:p-5 lg:p-6">
           {historyLoading ? (
             <div className="flex items-center gap-2 text-sm text-slate-500">
               <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-600 border-t-slate-300" />
               Loading history...
             </div>
           ) : testHistory.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-white/10 bg-[#0c1020] p-6 text-center">
+            <div className="rounded-xl border border-dashed border-white/10 bg-[#0c1020] p-4 text-center sm:p-6">
               <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-slate-800/50 text-slate-500">
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path
@@ -1443,11 +1445,11 @@ export default function CreateTestsView({
               </p>
             </div>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
               {testHistory.map((item) => (
                 <div
                   key={item.id}
-                  className="group relative overflow-hidden rounded-xl border border-white/10 bg-[#0b1020] p-4 transition hover:border-white/20 hover:bg-[#0d1223]"
+                  className="group relative overflow-hidden rounded-xl border border-white/10 bg-[#0b1020] p-3.5 transition hover:border-white/20 hover:bg-[#0d1223] sm:p-4"
                 >
                   <div className="absolute right-3 top-3">
                     <span className="rounded border border-white/10 bg-white/5 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
@@ -1461,10 +1463,10 @@ export default function CreateTestsView({
                       year: "numeric",
                     })}
                   </div>
-                  <div className="mb-3 pr-16 text-sm font-semibold text-slate-100 line-clamp-2">
+                  <div className="mb-2 pr-14 text-sm font-semibold text-slate-100 line-clamp-2 sm:mb-3 sm:pr-16">
                     {item.topic_title || item.unit_title || item.chapter_title || "Generated Test"}
                   </div>
-                  <div className="mb-4 flex items-center gap-3 text-xs text-slate-500">
+                  <div className="mb-3 flex items-center gap-2 text-xs text-slate-500 sm:mb-4 sm:gap-3">
                     <span className="flex items-center gap-1">
                       <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
                       {item.question_count} questions
@@ -1515,7 +1517,7 @@ export default function CreateTestsView({
                         };
                         void openTeacherTestPrintPreview(historyTest);
                       }}
-                      className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-medium text-slate-300 transition hover:bg-white/10 hover:text-white"
+                      className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs font-medium text-slate-300 transition hover:bg-white/10 hover:text-white sm:px-3 sm:py-2"
                     >
                       Print
                     </button>
@@ -1561,7 +1563,7 @@ export default function CreateTestsView({
                         setGeneratedTest(historyTest);
                         openAssignDialog();
                       }}
-                      className="flex-1 rounded-lg border border-violet-500/20 bg-violet-500/10 px-3 py-2 text-xs font-medium text-violet-300 transition hover:bg-violet-500/15 hover:text-violet-200 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-violet-500/10 disabled:hover:text-violet-300"
+                      className="flex-1 rounded-lg border border-violet-500/20 bg-violet-500/10 px-2.5 py-1.5 text-xs font-medium text-violet-300 transition hover:bg-violet-500/15 hover:text-violet-200 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-violet-500/10 disabled:hover:text-violet-300 sm:px-3 sm:py-2"
                     >
                       Assign to class
                     </button>

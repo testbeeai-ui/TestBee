@@ -225,6 +225,7 @@ export type Database = {
           id: string;
           joined_at: string;
           role: string;
+          section_id: string | null;
           user_id: string;
         };
         Insert: {
@@ -233,6 +234,7 @@ export type Database = {
           id?: string;
           joined_at?: string;
           role?: string;
+          section_id?: string | null;
           user_id: string;
         };
         Update: {
@@ -241,6 +243,7 @@ export type Database = {
           id?: string;
           joined_at?: string;
           role?: string;
+          section_id?: string | null;
           user_id?: string;
         };
         Relationships: [
@@ -249,6 +252,13 @@ export type Database = {
             columns: ["classroom_id"];
             isOneToOne: false;
             referencedRelation: "classrooms";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "classroom_members_section_id_fkey";
+            columns: ["section_id"];
+            isOneToOne: false;
+            referencedRelation: "classroom_sections";
             referencedColumns: ["id"];
           },
           {
@@ -355,7 +365,13 @@ export type Database = {
         Row: {
           created_at: string;
           description: string | null;
+          google_calendar_list_id: string | null;
           google_classroom_id: string | null;
+          google_meet_link: string | null;
+          google_recurrence_end_date: string | null;
+          google_recurring_event_id: string | null;
+          google_rrule: string | null;
+          google_time_zone: string | null;
           id: string;
           intro_video_url: string | null;
           invite_link: string | null;
@@ -370,7 +386,13 @@ export type Database = {
         Insert: {
           created_at?: string;
           description?: string | null;
+          google_calendar_list_id?: string | null;
           google_classroom_id?: string | null;
+          google_meet_link?: string | null;
+          google_recurrence_end_date?: string | null;
+          google_recurring_event_id?: string | null;
+          google_rrule?: string | null;
+          google_time_zone?: string | null;
           id?: string;
           intro_video_url?: string | null;
           invite_link?: string | null;
@@ -385,7 +407,13 @@ export type Database = {
         Update: {
           created_at?: string;
           description?: string | null;
+          google_calendar_list_id?: string | null;
           google_classroom_id?: string | null;
+          google_meet_link?: string | null;
+          google_recurrence_end_date?: string | null;
+          google_recurring_event_id?: string | null;
+          google_rrule?: string | null;
+          google_time_zone?: string | null;
           id?: string;
           intro_video_url?: string | null;
           invite_link?: string | null;
@@ -402,6 +430,109 @@ export type Database = {
             foreignKeyName: "classrooms_teacher_id_fkey";
             columns: ["teacher_id"];
             isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      teacher_google_calendar_tokens: {
+      classroom_sections: {
+        Row: {
+          classroom_id: string;
+          created_at: string;
+          duration_minutes: number | null;
+          google_calendar_list_id: string;
+          google_meet_link: string | null;
+          google_recurrence_end_date: string | null;
+          google_recurring_event_id: string | null;
+          google_rrule: string | null;
+          google_time_zone: string | null;
+          id: string;
+          name: string;
+          repeat_days: string[] | null;
+          schedule_date: string | null;
+          schedule_end_date: string | null;
+          schedule_time: string | null;
+          sort_order: number;
+          updated_at: string;
+        };
+        Insert: {
+          classroom_id: string;
+          created_at?: string;
+          duration_minutes?: number | null;
+          google_calendar_list_id?: string;
+          google_meet_link?: string | null;
+          google_recurrence_end_date?: string | null;
+          google_recurring_event_id?: string | null;
+          google_rrule?: string | null;
+          google_time_zone?: string | null;
+          id?: string;
+          name: string;
+          repeat_days?: string[] | null;
+          schedule_date?: string | null;
+          schedule_end_date?: string | null;
+          schedule_time?: string | null;
+          sort_order?: number;
+          updated_at?: string;
+        };
+        Update: {
+          classroom_id?: string;
+          created_at?: string;
+          duration_minutes?: number | null;
+          google_calendar_list_id?: string;
+          google_meet_link?: string | null;
+          google_recurrence_end_date?: string | null;
+          google_recurring_event_id?: string | null;
+          google_rrule?: string | null;
+          google_time_zone?: string | null;
+          id?: string;
+          name?: string;
+          repeat_days?: string[] | null;
+          schedule_date?: string | null;
+          schedule_end_date?: string | null;
+          schedule_time?: string | null;
+          sort_order?: number;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "classroom_sections_classroom_id_fkey";
+            columns: ["classroom_id"];
+            isOneToOne: false;
+            referencedRelation: "classrooms";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+        Row: {
+          access_token: string | null;
+          access_token_expires_at: string | null;
+          refresh_token: string;
+          scope: string | null;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          access_token?: string | null;
+          access_token_expires_at?: string | null;
+          refresh_token: string;
+          scope?: string | null;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          access_token?: string | null;
+          access_token_expires_at?: string | null;
+          refresh_token?: string;
+          scope?: string | null;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "teacher_google_calendar_tokens_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: true;
             referencedRelation: "profiles";
             referencedColumns: ["id"];
           },
@@ -716,9 +847,13 @@ export type Database = {
           duration_minutes: number;
           id: string;
           meet_link: string | null;
+          plan_json: Json | null;
+          post_assignment_post_id: string | null;
+          pre_assignment_post_id: string | null;
           recap_post_id: string | null;
           recording_url: string | null;
           scheduled_at: string;
+          section_id: string | null;
           status: string;
           teacher_id: string;
           title: string;
@@ -730,9 +865,13 @@ export type Database = {
           duration_minutes?: number;
           id?: string;
           meet_link?: string | null;
+          plan_json?: Json | null;
+          post_assignment_post_id?: string | null;
+          pre_assignment_post_id?: string | null;
           recap_post_id?: string | null;
           recording_url?: string | null;
           scheduled_at: string;
+          section_id?: string | null;
           status?: string;
           teacher_id: string;
           title: string;
@@ -744,9 +883,13 @@ export type Database = {
           duration_minutes?: number;
           id?: string;
           meet_link?: string | null;
+          plan_json?: Json | null;
+          post_assignment_post_id?: string | null;
+          pre_assignment_post_id?: string | null;
           recap_post_id?: string | null;
           recording_url?: string | null;
           scheduled_at?: string;
+          section_id?: string | null;
           status?: string;
           teacher_id?: string;
           title?: string;
@@ -760,8 +903,29 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "live_sessions_section_id_fkey";
+            columns: ["section_id"];
+            isOneToOne: false;
+            referencedRelation: "classroom_sections";
+            referencedColumns: ["id"];
+          },
+          {
             foreignKeyName: "live_sessions_recap_post_id_fkey";
             columns: ["recap_post_id"];
+            isOneToOne: false;
+            referencedRelation: "posts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "live_sessions_pre_assignment_post_id_fkey";
+            columns: ["pre_assignment_post_id"];
+            isOneToOne: false;
+            referencedRelation: "posts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "live_sessions_post_assignment_post_id_fkey";
+            columns: ["post_assignment_post_id"];
             isOneToOne: false;
             referencedRelation: "posts";
             referencedColumns: ["id"];
@@ -1006,6 +1170,7 @@ export type Database = {
           due_date: string | null;
           google_classroom_synced: boolean;
           id: string;
+          section_id: string | null;
           tags: string[] | null;
           teacher_id: string;
           title: string;
@@ -1021,6 +1186,7 @@ export type Database = {
           due_date?: string | null;
           google_classroom_synced?: boolean;
           id?: string;
+          section_id?: string | null;
           tags?: string[] | null;
           teacher_id: string;
           title: string;
@@ -1036,6 +1202,7 @@ export type Database = {
           due_date?: string | null;
           google_classroom_synced?: boolean;
           id?: string;
+          section_id?: string | null;
           tags?: string[] | null;
           teacher_id?: string;
           title?: string;
@@ -1049,6 +1216,13 @@ export type Database = {
             columns: ["classroom_id"];
             isOneToOne: false;
             referencedRelation: "classrooms";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "posts_section_id_fkey";
+            columns: ["section_id"];
+            isOneToOne: false;
+            referencedRelation: "classroom_sections";
             referencedColumns: ["id"];
           },
           {

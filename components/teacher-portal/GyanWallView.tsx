@@ -2,6 +2,9 @@
 
 import { useState } from "react";
 import { Loader2, Sparkles } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
 import type { TeacherPortalSummary, TeacherPortalWallItem } from "@/lib/teacherPortal/types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
@@ -18,9 +21,11 @@ interface GyanWallViewProps {
 
 function Stat(props: { label: string; value: string; accent: string }) {
   return (
-    <div className="h-full rounded-xl border border-white/10 bg-[#15162b] p-3 sm:p-4">
+    <div className="h-full rounded-xl border border-white/10 bg-[#15162b] p-2 sm:p-2.5 lg:p-4">
       <div className="text-[10px] uppercase tracking-[0.1em] text-slate-500">{props.label}</div>
-      <div className={`mt-1 font-serif text-2xl sm:text-3xl ${props.accent}`}>{props.value}</div>
+      <div className={`mt-0.5 font-serif text-lg sm:text-2xl lg:text-3xl ${props.accent}`}>
+        {props.value}
+      </div>
     </div>
   );
 }
@@ -34,6 +39,7 @@ export default function GyanWallView({
   const [draftById, setDraftById] = useState<Record<string, string>>({});
   const [postingId, setPostingId] = useState<string | null>(null);
   const [activeComposerDoubtId, setActiveComposerDoubtId] = useState<string | null>(null);
+  const [expandedAiById, setExpandedAiById] = useState<Record<string, boolean>>({});
 
   const submit = async (doubtId: string) => {
     const body = draftById[doubtId]?.trim();
@@ -49,23 +55,23 @@ export default function GyanWallView({
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-3 sm:space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="font-serif text-4xl">
+          <h1 className="font-serif text-2xl sm:text-4xl">
             Gyan++ <span className="text-emerald-400 italic">Teacher Wall</span>
           </h1>
-          <p className="text-sm text-slate-400">
+          <p className="text-[13px] sm:text-sm text-slate-400">
             Add expert Teacher Sections to student doubts. Earn +30 RDM per upvoted answer.
           </p>
         </div>
-        <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-200">
+        <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-200 sm:px-3 sm:py-1.5 sm:text-xs">
           <Sparkles className="h-3.5 w-3.5" />
           {summary.questionsToday.toLocaleString("en-IN")} questions today
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-2 sm:gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Stat
           label="Students helped"
           value={summary.totalStudents.toLocaleString("en-IN")}
@@ -93,17 +99,17 @@ export default function GyanWallView({
           Pending doubts from your subjects
         </div>
         {wallItems.length === 0 ? (
-          <div className="rounded-xl border border-white/10 bg-[#15162b] p-5 text-sm text-slate-400">
+          <div className="rounded-xl border border-white/10 bg-[#15162b] p-4 text-sm text-slate-400 sm:p-5">
             No doubts available right now.
           </div>
         ) : (
-          <div className="grid gap-3 lg:grid-cols-2">
+          <div className="grid gap-2 sm:gap-3 lg:grid-cols-2 xl:grid-cols-3">
             {wallItems.map((item) => (
               <article
                 key={item.doubtId}
                 className="flex h-full flex-col overflow-hidden rounded-xl border border-white/10 bg-[#111428]"
               >
-                <div className="space-y-2 px-4 py-3">
+                <div className="space-y-1.5 px-3 py-2 sm:px-4 sm:py-3">
                   <div className="flex flex-wrap items-start gap-2">
                     <div className="rounded bg-violet-500/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-violet-200">
                       {item.askerRole === "ai" ? "AI" : "Student"}
@@ -112,25 +118,67 @@ export default function GyanWallView({
                       {item.askerName} · {new Date(item.createdAt).toLocaleString()}
                     </div>
                   </div>
-                  <div className="text-sm font-semibold">{item.title}</div>
-                  <div className="text-sm leading-relaxed text-slate-300">{item.body}</div>
-                  <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
+                  <div className="text-[13px] sm:text-sm font-semibold leading-snug">{item.title}</div>
+                  <div className="space-y-2">
+                    {item.aiAnswerBody ? (
+                      <div className="rounded-lg border border-emerald-400/15 bg-emerald-500/5 p-2 sm:p-2.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-200">
+                            AI answer (quick)
+                          </div>
+                          <span className="rounded bg-emerald-500/15 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.1em] text-emerald-200">
+                            Optional
+                          </span>
+                        </div>
+                        <div
+                          className={`mt-1 doubt-markdown text-[13px] sm:text-sm leading-relaxed text-emerald-50/90 ${
+                            expandedAiById[item.doubtId] ? "" : "line-clamp-5"
+                          }`}
+                        >
+                          <ReactMarkdown
+                            remarkPlugins={[remarkMath]}
+                            rehypePlugins={[rehypeKatex]}
+                          >
+                            {item.aiAnswerBody}
+                          </ReactMarkdown>
+                        </div>
+                        {item.aiAnswerBody.trim().length > 260 ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setExpandedAiById((prev) => ({
+                                ...prev,
+                                [item.doubtId]: !prev[item.doubtId],
+                              }))
+                            }
+                            className="mt-1 text-xs font-semibold text-emerald-200 hover:underline"
+                          >
+                            {expandedAiById[item.doubtId] ? "Show less" : "Read more"}
+                          </button>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 text-[11px] sm:text-xs text-slate-400">
                     <span className="rounded bg-white/5 px-2 py-1">▲ {item.upvotes} upvotes</span>
                     <span className="rounded bg-white/5 px-2 py-1">
                       {item.peerCommentsCount} peer comments
+                    </span>
+                    <span className="rounded bg-white/5 px-2 py-1">
+                      {item.teacherAnswersCount} teacher sections
                     </span>
                     <span className="rounded bg-amber-500/10 px-2 py-1 text-amber-200">
                       +30 RDM if you add Teacher Section
                     </span>
                   </div>
                 </div>
-                <div className="mt-auto border-t border-violet-400/20 bg-violet-500/5 px-4 py-3">
+                <div className="mt-auto border-t border-violet-400/20 bg-violet-500/5 px-3 py-2 sm:px-4 sm:py-3">
                   <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.08em] text-violet-200">
                     Teacher Section
                   </div>
 
                   {item.hasCurrentTeacherAnswer ? (
-                    <div className="rounded-lg border border-emerald-400/25 bg-emerald-500/10 px-3 py-2.5">
+                    <div className="rounded-lg border border-emerald-400/25 bg-emerald-500/10 px-3 py-2">
                       <div className="text-xs font-semibold text-emerald-200">
                         You already posted your Teacher Section for this doubt.
                       </div>
@@ -146,7 +194,7 @@ export default function GyanWallView({
                       <button
                         type="button"
                         onClick={() => setActiveComposerDoubtId(item.doubtId)}
-                        className="inline-flex items-center gap-2 rounded-full bg-violet-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-violet-400"
+                        className="inline-flex min-h-10 items-center gap-2 rounded-full bg-violet-500 px-3 py-2 text-[11px] font-semibold text-white hover:bg-violet-400 sm:px-4 sm:py-2.5 sm:text-xs"
                       >
                         Post Teacher Section (+30 RDM)
                       </button>
@@ -179,6 +227,26 @@ export default function GyanWallView({
                   <div className="rounded-xl border border-white/10 bg-black/20 p-3">
                     <div className="text-sm font-semibold text-slate-100">{active.title}</div>
                     <p className="mt-1 text-sm leading-relaxed text-slate-300">{active.body}</p>
+                    {active.aiAnswerBody ? (
+                      <div className="mt-3 rounded-lg border border-emerald-400/15 bg-emerald-500/5 p-3">
+                        <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-200">
+                          AI answer (quick)
+                        </div>
+                        <div className="mt-1 doubt-markdown text-sm leading-relaxed text-emerald-50/90">
+                          <ReactMarkdown
+                            remarkPlugins={[remarkMath]}
+                            rehypePlugins={[rehypeKatex]}
+                          >
+                            {active.aiAnswerBody}
+                          </ReactMarkdown>
+                        </div>
+                      </div>
+                    ) : null}
+                    {active.teacherAnswersCount > 0 ? (
+                      <div className="mt-3 text-xs text-slate-400">
+                        Teacher sections so far: <span className="font-semibold">{active.teacherAnswersCount}</span>
+                      </div>
+                    ) : null}
                   </div>
 
                   <textarea
