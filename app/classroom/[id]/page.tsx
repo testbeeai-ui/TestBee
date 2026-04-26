@@ -58,6 +58,7 @@ interface ClassroomData {
   join_code: string;
   teacher_id: string;
   google_classroom_id?: string | null;
+  google_meet_link?: string | null;
 }
 
 interface Member {
@@ -82,6 +83,7 @@ interface LiveSession {
   duration_minutes: number;
   meet_link: string | null;
   status: string;
+  section_id?: string | null;
 }
 
 type Tab = "home" | "posts" | "live" | "members" | "reviews" | "settings";
@@ -132,6 +134,10 @@ const ClassroomDetail = () => {
   const [scheduleAt, setScheduleAt] = useState("");
   const [scheduleDuration, setScheduleDuration] = useState(60);
   const [meetLinkPaste, setMeetLinkPaste] = useState("");
+  const [scheduleSectionId, setScheduleSectionId] = useState<string | null>(null);
+  const [scheduleSectionOptions, setScheduleSectionOptions] = useState<
+    Array<{ id: string; name: string; googleMeetLink: string | null }>
+  >([]);
   const [savingSchedule, setSavingSchedule] = useState(false);
   const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([]);
   const [actingRequestId, setActingRequestId] = useState<string | null>(null);
@@ -149,7 +155,6 @@ const ClassroomDetail = () => {
     "none" | "pending" | "rejected" | null
   >(null);
   const [explorerRequestingJoin, setExplorerRequestingJoin] = useState(false);
-  const [explorationSecondsLeft, setExplorationSecondsLeft] = useState<number | null>(null);
   const [explorerPosts, setExplorerPosts] = useState<Post[] | null>(null);
   const [classRating, setClassRating] = useState<{
     avg_rating: number;
@@ -178,7 +183,7 @@ const ClassroomDetail = () => {
 
       const { data: sessions } = await supabase
         .from("live_sessions")
-        .select("id, title, scheduled_at, duration_minutes, meet_link, status")
+        .select("id, title, scheduled_at, duration_minutes, meet_link, status, section_id")
         .eq("classroom_id", id)
         .order("scheduled_at", { ascending: true });
       setLiveSessions((sessions as LiveSession[]) || []);
@@ -190,8 +195,8 @@ const ClassroomDetail = () => {
       setPostCount(count ?? 0);
 
       // Fetch rating summary
-      const { data: reviews } = await (supabase as any)
-        .from("classroom_reviews")
+      const { data: reviews } = await supabase
+        .from("classroom_reviews" as never)
         .select("rating")
         .eq("classroom_id", id);
       const reviewRows = (reviews as unknown as { rating: number }[]) || [];
@@ -203,6 +208,38 @@ const ClassroomDetail = () => {
       setLoading(false);
     };
     fetchData();
+  }, [id]);
+
+  useEffect(() => {
+    if (!scheduleOpen) return;
+    // Default meet link based on selected scope (section > class).
+    if (scheduleSectionId) {
+      const sec = scheduleSectionOptions.find((s) => s.id === scheduleSectionId);
+      if (sec?.googleMeetLink?.trim()) {
+        setMeetLinkPaste(sec.googleMeetLink.trim());
+      }
+      return;
+    }
+    if (classroom?.google_meet_link?.trim()) {
+      setMeetLinkPaste(classroom.google_meet_link.trim());
+    }
+  }, [scheduleOpen, scheduleSectionId, scheduleSectionOptions, classroom?.google_meet_link]);
+
+  useEffect(() => {
+    if (!id) return;
+    supabase
+      .from("classroom_sections" as any)
+      .select("id, name, google_meet_link")
+      .eq("classroom_id", id)
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: true })
+      .then(({ data }) => {
+        const rows =
+          (data as Array<{ id: string; name: string; google_meet_link: string | null }> | null) ?? [];
+        setScheduleSectionOptions(
+          rows.map((r) => ({ id: r.id, name: r.name, googleMeetLink: r.google_meet_link ?? null }))
+        );
+      });
   }, [id]);
 
   useEffect(() => {
@@ -279,6 +316,42 @@ const ClassroomDetail = () => {
       .filter((s) => getSessionJoinStatus(s.scheduled_at, s.duration_minutes) !== "ended")
       .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime());
   }, [liveSessions]);
+
+  const hasTeacherSections = scheduleSectionOptions.length > 0;
+
+  const firstClassSessionHasStarted = useMemo(() => {
+    const now = Date.now();
+    const ordered = [...liveSessions].sort(
+      (a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime()
+    );
+    for (const s of ordered) {
+      const st = (s.status ?? "").toString().trim().toLowerCase();
+      if (st === "cancelled" || st === "canceled") continue;
+      const start = new Date(s.scheduled_at).getTime();
+      if (!Number.isFinite(start)) continue;
+      return now >= start;
+    }
+    return false;
+  }, [liveSessions]);
+
+  const nextExplorerMeetHref = useMemo(() => {
+    const next = upcomingLiveSessions[0] ?? null;
+    if (!next) {
+      const classMeet = classroom?.google_meet_link?.trim();
+      return classMeet ? normalizeMeetLink(classMeet) : "";
+    }
+    if (next.meet_link?.trim()) return normalizeMeetLink(next.meet_link);
+    const sid = next.section_id ?? null;
+    if (sid) {
+      const sec = scheduleSectionOptions.find((s) => s.id === sid);
+      const link = sec?.googleMeetLink?.trim();
+      if (link) return normalizeMeetLink(link);
+    }
+    const classMeet = classroom?.google_meet_link?.trim();
+    return classMeet ? normalizeMeetLink(classMeet) : "";
+  }, [upcomingLiveSessions, scheduleSectionOptions, classroom?.google_meet_link]);
+
+  const showInvestorMeetCta = hasTeacherSections && !firstClassSessionHasStarted;
 
   const openLiveMeeting = useCallback(
     async (s: LiveSession) => {
@@ -407,17 +480,12 @@ const ClassroomDetail = () => {
     return () => clearTimeout(t);
   }, [id, isOwner, explorationAllowed, explorationExpiresAt, refetchPostsAndLiveForExplorer]);
 
-  // Live countdown for explorers: only runs while page is visible; stops when user leaves (tab hidden or navigates away)
+  // Explorer preview window ends at expiresAt (no visible countdown UI).
   useEffect(() => {
-    if (explorationExpiresAt == null || explorationAllowed !== true) {
-      setExplorationSecondsLeft(null);
-      return;
-    }
+    if (explorationExpiresAt == null || explorationAllowed !== true) return;
     const update = () => {
       if (document.visibilityState === "hidden") return;
-      const remaining = Math.max(0, Math.ceil((explorationExpiresAt - Date.now()) / 1000));
-      setExplorationSecondsLeft(remaining);
-      if (remaining <= 0) setExplorationAllowed(false);
+      if (Date.now() >= explorationExpiresAt) setExplorationAllowed(false);
     };
     update();
     const interval = setInterval(update, 1000);
@@ -426,7 +494,6 @@ const ClassroomDetail = () => {
     return () => {
       clearInterval(interval);
       document.removeEventListener("visibilitychange", onVisible);
-      setExplorationSecondsLeft(null);
     };
   }, [explorationExpiresAt, explorationAllowed]);
 
@@ -559,6 +626,30 @@ const ClassroomDetail = () => {
     };
     setMembers((prev) => (prev.some((m) => m.user_id === userId) ? prev : [...prev, newMember]));
     await refetchMembers();
+    const { data: sectionsWithSeries } = await supabase
+      .from("classroom_sections" as any)
+      .select("id")
+      .eq("classroom_id", classroom.id)
+      .not("google_recurring_event_id", "is", null);
+    const hasSectionCalendars = (sectionsWithSeries?.length ?? 0) > 0;
+    const googleSeriesLinked = Boolean(
+      (classroom as unknown as { google_recurring_event_id?: string | null })?.google_recurring_event_id
+    );
+    if (!hasSectionCalendars && googleSeriesLinked) {
+      try {
+        const headers: HeadersInit = {};
+        const currentSession = (await safeGetSession()).session;
+        if (currentSession?.access_token)
+          headers["Authorization"] = `Bearer ${currentSession.access_token}`;
+        await fetch(`/api/integrations/google/classrooms/${id}/attendees`, {
+          method: "POST",
+          headers,
+          credentials: "include",
+        });
+      } catch {
+        // best-effort
+      }
+    }
     toast({ title: "Request approved", description: "Student has been added to the class." });
     setActingRequestId(null);
   };
@@ -721,50 +812,87 @@ const ClassroomDetail = () => {
               ))}
           </div>
 
-          {/* Explorer banner: within 10-min exploration, show time left + request to join */}
+          {/* Explorer banner: interest + optional next-meet link (no countdown UI) */}
           {!isOwner && explorationAllowed === true && explorationExpiresAt != null && (
             <div className="edu-card p-5 rounded-2xl border-primary/30 bg-primary/5 dark:bg-primary/10 text-center space-y-3">
-              <p className="font-bold text-foreground">
-                You&apos;re exploring this class.{" "}
-                {explorationSecondsLeft != null ? (
-                  <span className="font-mono tabular-nums">
-                    {Math.floor(explorationSecondsLeft / 60)}:
-                    {String(explorationSecondsLeft % 60).padStart(2, "0")} left
-                  </span>
-                ) : (
-                  <>
-                    About {Math.max(0, Math.ceil((explorationExpiresAt - Date.now()) / 60000))} min
-                    left.
-                  </>
-                )}
-              </p>
+              <p className="font-bold text-foreground">You&apos;re previewing this class.</p>
               <p className="text-sm text-muted-foreground">
-                After 10 minutes, entry is closed. Request to join now to get full access.
+                If you want full access, request to join. The teacher can approve you anytime.
               </p>
-              {explorerJoinRequestStatus === "pending" ? (
-                <p className="text-sm text-primary font-medium">
-                  Request sent · Pending. You can still explore.
+              {showInvestorMeetCta && upcomingLiveSessions[0] ? (
+                <p className="text-xs text-muted-foreground">
+                  {(() => {
+                    const next0 = upcomingLiveSessions[0];
+                    return (
+                      <>
+                        Next session:{" "}
+                        <span className="font-semibold text-foreground">
+                          {new Date(next0.scheduled_at).toLocaleString(undefined, {
+                            weekday: "short",
+                            month: "short",
+                            day: "numeric",
+                            hour: "numeric",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                        {next0.section_id ? (
+                          <span className="ml-2 inline-flex rounded-full border border-white/10 bg-black/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-200">
+                            Only{" "}
+                            {scheduleSectionOptions.find((s) => s.id === next0.section_id)?.name ??
+                              "section"}
+                          </span>
+                        ) : (
+                          <span className="ml-2 inline-flex rounded-full border border-white/10 bg-black/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-200">
+                            Whole class
+                          </span>
+                        )}
+                      </>
+                    );
+                  })()}
                 </p>
-              ) : explorerJoinRequestStatus === "rejected" ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="rounded-xl"
-                  onClick={handleExplorerRequestJoin}
-                  disabled={explorerRequestingJoin}
-                >
-                  Reapply to join
-                </Button>
-              ) : (
-                <Button
-                  size="sm"
-                  className="rounded-xl"
-                  onClick={handleExplorerRequestJoin}
-                  disabled={explorerRequestingJoin}
-                >
-                  Request to join
-                </Button>
-              )}
+              ) : null}
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                {explorerJoinRequestStatus === "pending" ? (
+                  <p className="text-sm text-primary font-medium">
+                    Request sent · Pending. You can still explore.
+                  </p>
+                ) : explorerJoinRequestStatus === "rejected" ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="rounded-xl"
+                    onClick={handleExplorerRequestJoin}
+                    disabled={explorerRequestingJoin}
+                  >
+                    Reapply to join
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    className="rounded-xl"
+                    onClick={handleExplorerRequestJoin}
+                    disabled={explorerRequestingJoin}
+                  >
+                    Request to join
+                  </Button>
+                )}
+                {showInvestorMeetCta && nextExplorerMeetHref ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="rounded-xl"
+                    onClick={() => window.open(nextExplorerMeetHref, "_blank", "noopener,noreferrer")}
+                  >
+                    Open next Meet
+                  </Button>
+                ) : null}
+              </div>
+              {showInvestorMeetCta && !nextExplorerMeetHref ? (
+                <p className="text-xs text-muted-foreground">
+                  Meet link isn&apos;t available yet — your teacher will add it before the session.
+                </p>
+              ) : null}
             </div>
           )}
 
@@ -776,6 +904,20 @@ const ClassroomDetail = () => {
                 <p className="text-sm text-muted-foreground">
                   Request to join to get full access to this class.
                 </p>
+                {showInvestorMeetCta && upcomingLiveSessions[0] ? (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Next session:{" "}
+                    <span className="font-semibold text-foreground">
+                      {new Date(upcomingLiveSessions[0]!.scheduled_at).toLocaleString(undefined, {
+                        weekday: "short",
+                        month: "short",
+                        day: "numeric",
+                        hour: "numeric",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                  </p>
+                ) : null}
                 <div className="flex flex-wrap justify-center gap-3 mt-4">
                   {explorerJoinRequestStatus === "pending" ? (
                     <p className="text-sm text-primary font-medium">
@@ -792,6 +934,18 @@ const ClassroomDetail = () => {
                         : "Request to join"}
                     </Button>
                   )}
+                  {showInvestorMeetCta && nextExplorerMeetHref ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="rounded-xl"
+                      onClick={() =>
+                        window.open(nextExplorerMeetHref, "_blank", "noopener,noreferrer")
+                      }
+                    >
+                      Open next Meet
+                    </Button>
+                  ) : null}
                   <Button
                     variant="outline"
                     className="rounded-xl"
@@ -1145,6 +1299,15 @@ const ClassroomDetail = () => {
                                 })}{" "}
                                 · {s.duration_minutes} min
                               </p>
+                              {s.section_id ? (
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                  Only{" "}
+                                  {scheduleSectionOptions.find((sec) => sec.id === s.section_id)?.name ??
+                                    "section"}
+                                </p>
+                              ) : (
+                                <p className="mt-1 text-xs text-muted-foreground">Whole class</p>
+                              )}
                             </div>
                             <span
                               className={`edu-chip shrink-0 text-xs ${s.status === "scheduled" ? "bg-edu-green/10 text-edu-green" : "bg-muted text-muted-foreground"}`}
@@ -1227,6 +1390,35 @@ const ClassroomDetail = () => {
                   </DialogHeader>
                   <div className="space-y-4 py-2">
                     <div>
+                      <Label className="text-sm font-extrabold">Notify (optional)</Label>
+                      <select
+                        value={scheduleSectionId ?? "__class__"}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setScheduleSectionId(v === "__class__" ? null : v);
+                        }}
+                        className="mt-1 h-10 w-full appearance-none rounded-xl border border-border bg-background px-3 pr-10 text-sm outline-none focus:border-edu-green"
+                      >
+                        <option value="__class__">Whole class (all students)</option>
+                        {scheduleSectionOptions.map((sec) => (
+                          <option key={sec.id} value={sec.id}>
+                            Only {sec.name}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Whole class = everyone gets it. Only section = only that section gets it.
+                        {scheduleSectionId
+                          ? scheduleSectionOptions.find((s) => s.id === scheduleSectionId)
+                              ?.googleMeetLink
+                            ? " Meet link will auto-fill from this section’s Google Calendar."
+                            : " This section has no Google Meet link yet — create/sync its Google Calendar schedule first."
+                          : classroom?.google_meet_link
+                            ? " Meet link will auto-fill from the class Google Calendar."
+                            : " No class Meet link saved — paste one or sync Google Calendar first."}
+                      </p>
+                    </div>
+                    <div>
                       <Label className="text-sm font-extrabold">Title</Label>
                       <Input
                         value={scheduleTitle}
@@ -1305,6 +1497,7 @@ const ClassroomDetail = () => {
                             headers: { "Content-Type": "application/json", ...headers },
                             body: JSON.stringify({
                               classroom_id: classroom.id,
+                              section_id: scheduleSectionId,
                               title: scheduleTitle.trim(),
                               scheduled_at: scheduledAt,
                               duration_minutes: scheduleDuration,
@@ -1330,6 +1523,7 @@ const ClassroomDetail = () => {
                                 duration_minutes: number;
                                 meet_link: string | null;
                                 status: string;
+                                section_id?: string | null;
                               };
                             }
                           ).session;
@@ -1343,6 +1537,7 @@ const ClassroomDetail = () => {
                                 duration_minutes: created.duration_minutes,
                                 meet_link: created.meet_link,
                                 status: created.status,
+                                section_id: created.section_id ?? null,
                               },
                             ]);
                           }
@@ -1350,8 +1545,41 @@ const ClassroomDetail = () => {
                           setScheduleAt("");
                           setScheduleDuration(60);
                           setMeetLinkPaste("");
+                          setScheduleSectionId(null);
                           setScheduleOpen(false);
                           await refreshProfile();
+                          // Trigger Google Calendar attendee emails (section-scoped if chosen).
+                          // This does not create a one-off Google event; it ensures the recurring series has the right attendees.
+                          try {
+                            const notifyRes = await fetch(
+                              `/api/integrations/google/classrooms/${classroom.id}/attendees`,
+                              {
+                                method: "POST",
+                                credentials: "include",
+                                headers: { "Content-Type": "application/json", ...headers },
+                                body: JSON.stringify({ sectionId: scheduleSectionId }),
+                              }
+                            );
+                            const notifyJson = (await notifyRes.json().catch(() => ({}))) as
+                              | {
+                                  ok?: boolean;
+                                  addedStudentEmails?: number;
+                                  studentsWithoutEmail?: number;
+                                  error?: string;
+                                }
+                              | undefined;
+                            if (!notifyRes.ok) {
+                              toast({
+                                title: "Scheduled, but no email notification sent",
+                                description:
+                                  notifyJson?.error?.trim() ||
+                                  "Could not send Google Calendar notifications.",
+                                variant: "destructive",
+                              });
+                            }
+                          } catch {
+                            // Ignore network errors; session scheduling succeeded.
+                          }
                           toast({
                             title: "Session scheduled",
                             description: "Students will see it on Home and in the Live tab.",

@@ -22,6 +22,11 @@ import {
   trackLabelById,
   type DailyDoseStreakTrackId,
 } from "@/lib/teacherPortal/dailyDoseStreakTracks";
+import {
+  formatConceptFocusRefForDisplay,
+  inferSessionWorkKind,
+  postWorkDelayLabel,
+} from "@/lib/teacherPortal/sessionWorkDisplay";
 import type {
   TeacherPortalChapterQuizRef,
   TeacherPortalClassroomCard,
@@ -34,6 +39,7 @@ import type {
   TeacherPortalProfileView,
   TeacherPortalReferStats,
   TeacherPortalSessionItem,
+  TeacherPortalSessionWorkKind,
   TeacherPortalSummary,
   TeacherPortalWallItem,
 } from "@/lib/teacherPortal/types";
@@ -237,12 +243,16 @@ export async function loadTeacherPortalBundle(userId: string): Promise<TeacherPo
   ] = await Promise.all([
     supabase
       .from("profiles")
-      .select("id, name, avatar_url, bio, subjects, exam_tags, teaching_levels, visibility, rdm")
+      .select(
+        "id, name, avatar_url, bio, subjects, exam_tags, teaching_levels, visibility, rdm, google_connected"
+      )
       .eq("id", userId)
       .maybeSingle(),
     supabase
       .from("classrooms")
-      .select("id, name, subject, section, description, teacher_id, join_code")
+      .select(
+        "id, name, subject, section, description, intro_video_url, teacher_id, join_code, google_meet_link, google_recurring_event_id"
+      )
       .eq("teacher_id", userId)
       .order("created_at", { ascending: false }),
     supabase
@@ -257,12 +267,14 @@ export async function loadTeacherPortalBundle(userId: string): Promise<TeacherPo
     supabase
       .from("posts")
       .select(
-        "id, classroom_id, type, created_at, title, description, due_date, content_json, teacher_id"
+        "id, classroom_id, section_id, type, created_at, title, description, due_date, content_json, teacher_id"
       )
       .eq("teacher_id", userId),
     supabase
       .from("live_sessions")
-      .select("id, classroom_id, title, scheduled_at, duration_minutes, meet_link, status")
+      .select(
+        "id, classroom_id, section_id, title, scheduled_at, duration_minutes, meet_link, status, plan_json, pre_assignment_post_id, post_assignment_post_id"
+      )
       .eq("teacher_id", userId)
       .order("scheduled_at", { ascending: true }),
     supabase
@@ -311,18 +323,18 @@ export async function loadTeacherPortalBundle(userId: string): Promise<TeacherPo
   }
   const classroomIds = classrooms.map((c) => c.id);
 
-  const [memberRowsBase, postRows, sessionRows, askerProfilesRes] = await Promise.all([
+  const [memberRowsBase, postRows, sessionRows, sectionRowsRes, askerProfilesRes] = await Promise.all([
     classroomIds.length
       ? supabase
           .from("classroom_members")
-          .select("classroom_id, role")
+          .select("classroom_id, role, section_id")
           .in("classroom_id", classroomIds)
       : Promise.resolve({ data: [], error: null }),
     classroomIds.length
       ? supabase
           .from("posts")
           .select(
-            "id, classroom_id, type, title, description, due_date, content_json, created_at, teacher_id"
+            "id, classroom_id, section_id, type, title, description, due_date, content_json, created_at, teacher_id"
           )
           .eq("teacher_id", userId)
           .in("classroom_id", classroomIds)
@@ -330,10 +342,22 @@ export async function loadTeacherPortalBundle(userId: string): Promise<TeacherPo
     classroomIds.length
       ? supabase
           .from("live_sessions")
-          .select("id, classroom_id, title, scheduled_at, duration_minutes, meet_link, status")
+          .select(
+            "id, classroom_id, section_id, title, scheduled_at, duration_minutes, meet_link, status, plan_json, pre_assignment_post_id, post_assignment_post_id"
+          )
           .eq("teacher_id", userId)
           .in("classroom_id", classroomIds)
           .order("scheduled_at", { ascending: true })
+      : Promise.resolve({ data: [], error: null }),
+    classroomIds.length
+      ? supabase
+          .from("classroom_sections" as any)
+          .select(
+            "id, classroom_id, name, sort_order, schedule_date, schedule_time, duration_minutes, repeat_days, schedule_end_date, google_meet_link, google_recurring_event_id"
+          )
+          .in("classroom_id", classroomIds)
+          .order("sort_order", { ascending: true })
+          .order("created_at", { ascending: true })
       : Promise.resolve({ data: [], error: null }),
     supabase
       .from("profiles")
@@ -344,8 +368,33 @@ export async function loadTeacherPortalBundle(userId: string): Promise<TeacherPo
   const members = memberRowsBase.data ?? membersRes.data ?? [];
   const posts = postRows.data ?? postsRes.data ?? [];
   const sessions = sessionRows.data ?? sessionsRes.data ?? [];
+  const sectionRows = sectionRowsRes.data ?? [];
   const doubts = doubtsRes.data ?? [];
   const answers = answersRes.data ?? [];
+
+  const sectionsByClassroom = new Map<
+    string,
+    Array<{
+      id: string;
+      classroom_id: string;
+      name: string;
+      sort_order: number;
+      google_meet_link?: string | null;
+      google_recurring_event_id?: string | null;
+    }>
+  >();
+  for (const s of sectionRows as unknown as Array<{
+    id: string;
+    classroom_id: string;
+    name: string;
+    sort_order: number;
+    google_meet_link: string | null;
+    google_recurring_event_id: string | null;
+  }>) {
+    const list = sectionsByClassroom.get(s.classroom_id) ?? [];
+    list.push(s);
+    sectionsByClassroom.set(s.classroom_id, list);
+  }
 
   const memberCountMap = new Map<string, number>();
   members.forEach((m) => {
@@ -354,14 +403,59 @@ export async function loadTeacherPortalBundle(userId: string): Promise<TeacherPo
     memberCountMap.set(m.classroom_id, (memberCountMap.get(m.classroom_id) ?? 0) + 1);
   });
 
+  const memberCountBySectionId = new Map<string, number>();
+  members.forEach((m) => {
+    const role = (m as { role?: string }).role;
+    if (role === "teacher") return;
+    const sid = (m as { section_id?: string | null }).section_id ?? null;
+    if (!sid) return;
+    memberCountBySectionId.set(sid, (memberCountBySectionId.get(sid) ?? 0) + 1);
+  });
+
   const postCountMap = new Map<string, number>();
   posts.forEach((p) => {
     postCountMap.set(p.classroom_id, (postCountMap.get(p.classroom_id) ?? 0) + 1);
   });
 
+  const sectionNameById = new Map<string, string>();
+  for (const list of sectionsByClassroom.values()) {
+    for (const s of list) sectionNameById.set(s.id, s.name);
+  }
+
   const nextSessionMap = new Map<string, string>();
+  const nextMeetMap = new Map<string, { meetLink: string | null; scopeLabel: string | null }>();
+  const now = Date.now();
+  const isCancelled = (status: unknown) => {
+    const st = typeof status === "string" ? status.trim().toLowerCase() : "";
+    return st === "cancelled" || st === "canceled";
+  };
+  const safeDurationMinutes = (dur: unknown) => {
+    const n = Number(dur);
+    return Number.isFinite(n) && n > 0 ? n : 60;
+  };
   sessions.forEach((s) => {
-    if (!nextSessionMap.has(s.classroom_id)) nextSessionMap.set(s.classroom_id, s.scheduled_at);
+    if (nextSessionMap.has(s.classroom_id) && nextMeetMap.has(s.classroom_id)) return;
+    if (isCancelled((s as { status?: unknown }).status)) return;
+    const start = Date.parse(String((s as { scheduled_at?: unknown }).scheduled_at ?? ""));
+    if (!Number.isFinite(start)) return;
+    const end = start + safeDurationMinutes((s as { duration_minutes?: unknown }).duration_minutes) * 60 * 1000;
+    // nearest upcoming/live only
+    if (end < now) return;
+
+    if (!nextSessionMap.has(s.classroom_id)) nextSessionMap.set(s.classroom_id, String(s.scheduled_at));
+
+    if (!nextMeetMap.has(s.classroom_id)) {
+      const meetLink =
+        typeof (s as { meet_link?: unknown }).meet_link === "string"
+          ? String((s as { meet_link: string }).meet_link)
+          : null;
+      const sid =
+        typeof (s as { section_id?: unknown }).section_id === "string"
+          ? String((s as { section_id: string }).section_id)
+          : null;
+      const scopeLabel = sid ? `Only ${sectionNameById.get(sid) ?? "section"}` : "Whole class";
+      nextMeetMap.set(s.classroom_id, { meetLink, scopeLabel });
+    }
   });
 
   const classroomCards: TeacherPortalClassroomCard[] = classrooms.map((c) => {
@@ -369,18 +463,33 @@ export async function loadTeacherPortalBundle(userId: string): Promise<TeacherPo
     const assignmentCount = postCountMap.get(c.id) ?? 0;
     const avgScorePercent: number | null = null;
     const isDemoShowcase = isTeacherPortalDemoShowcaseClassroom(c.id, c.name);
+    const nextSessionIso = nextSessionMap.get(c.id) ?? null;
+    const googleSeriesLinked = Boolean(
+      (c as { google_recurring_event_id?: string | null }).google_recurring_event_id
+    );
+    const nextMeet = nextMeetMap.get(c.id) ?? null;
     return {
       id: c.id,
       name: c.name,
       subject: c.subject,
       section: c.section,
       description: c.description,
+      introVideoUrl: (c as { intro_video_url?: string | null }).intro_video_url ?? null,
+      googleMeetLink: (c as { google_meet_link?: string | null }).google_meet_link ?? null,
+      nextMeetLink: nextMeet?.meetLink ?? null,
+      nextMeetScopeLabel: nextMeet?.scopeLabel ?? null,
+      googleSeriesLinked,
       joinCode: c.join_code,
       isDemoShowcase,
       studentCount,
       assignmentCount,
       avgScorePercent,
-      nextSessionLabel: formatSessionLabel(nextSessionMap.get(c.id) ?? null),
+      nextSessionLabel:
+        nextSessionIso != null
+          ? formatSessionLabel(nextSessionIso)
+          : googleSeriesLinked
+            ? "Google Calendar series active"
+            : "No session scheduled",
       scheduleLabel: c.description?.includes("Repeat: ")
         ? (c.description.split("Repeat: ")[1]?.split(" | ")[0] ?? "Mon/Wed/Fri")
         : "Mon/Wed/Fri",
@@ -407,22 +516,34 @@ export async function loadTeacherPortalBundle(userId: string): Promise<TeacherPo
   const sessionItems: TeacherPortalSessionItem[] = sessions.map((s) => {
     const classroom = classroomMap.get(s.classroom_id);
     const assignmentPayload = assignmentByClassroom.get(s.classroom_id) ?? {};
-    const matchedPlan = sessionPlanPosts
+    const planJsonRaw = (s as Record<string, unknown>).plan_json;
+    const rowPlan =
+      planJsonRaw != null && typeof planJsonRaw === "object" && !Array.isArray(planJsonRaw)
+        ? asObject(planJsonRaw as Json)
+        : {};
+    const hasRowPlan = Object.keys(rowPlan).length > 0;
+    const plansForRoom = sessionPlanPosts
       .filter((p) => p.classroom_id === s.classroom_id)
       .sort((a, b) => {
         const at = a.created_at ? Date.parse(a.created_at) : 0;
         const bt = b.created_at ? Date.parse(b.created_at) : 0;
         return (Number.isFinite(bt) ? bt : 0) - (Number.isFinite(at) ? at : 0);
-      })
-      .find((p) => {
-        if (p.title?.trim() === `${s.title} plan`) return true;
+      });
+    /** Prefer exact `scheduledAt` match so repeated titles (e.g. "Linear") don't pick the wrong plan. */
+    const matchedPlan =
+      plansForRoom.find((p) => {
         const payload = asObject(p.content_json);
         const planScheduledAt =
           typeof payload.scheduledAt === "string" ? payload.scheduledAt.trim() : "";
         return planScheduledAt && planScheduledAt === s.scheduled_at;
-      });
+      }) ??
+      plansForRoom.find((p) => p.title?.trim() === `${s.title} plan`);
 
-    const sessionPlanPayload = matchedPlan ? asObject(matchedPlan.content_json) : {};
+    const sessionPlanPayload = hasRowPlan
+      ? rowPlan
+      : matchedPlan
+        ? asObject(matchedPlan.content_json)
+        : {};
     const normalizePreviewList = (value: unknown): string[] => {
       if (Array.isArray(value)) {
         return value
@@ -444,25 +565,90 @@ export async function loadTeacherPortalBundle(userId: string): Promise<TeacherPo
       return [];
     };
 
-    const preWorkMode =
-      typeof sessionPlanPayload.preWorkMode === "string"
-        ? sessionPlanPayload.preWorkMode.trim().toLowerCase()
-        : "";
+    const readJsonObject = (camel: string, snake: string): unknown => {
+      const a = sessionPlanPayload[camel];
+      if (a && typeof a === "object" && !Array.isArray(a)) return a;
+      const b = sessionPlanPayload[snake];
+      if (b && typeof b === "object" && !Array.isArray(b)) return b;
+      return null;
+    };
+    const readModeStr = (camel: string, snake: string): string => {
+      const a = sessionPlanPayload[camel];
+      if (typeof a === "string") return a;
+      const b = sessionPlanPayload[snake];
+      if (typeof b === "string") return b;
+      return "";
+    };
 
-    const postWorkMode =
-      typeof sessionPlanPayload.postWorkMode === "string"
-        ? sessionPlanPayload.postWorkMode.trim().toLowerCase()
-        : "";
+    const preConceptRef = readJsonObject("preWorkConceptRef", "pre_work_concept_ref");
+    const postConceptRef = readJsonObject("postWorkConceptRef", "post_work_concept_ref");
+    const preWorkModeStr = readModeStr("preWorkMode", "pre_work_mode");
+    const postWorkModeStr = readModeStr("postWorkMode", "post_work_mode");
 
-    let preWork = normalizePreviewList(sessionPlanPayload.preWork);
-    let postWork = normalizePreviewList(sessionPlanPayload.postWork);
+    const preWorkFromField = normalizePreviewList(sessionPlanPayload.preWork);
+    const postWorkFromField = normalizePreviewList(sessionPlanPayload.postWork);
 
-    if (preWork.length === 0 && preWorkMode === "concept_focus") {
-      preWork = normalizePreviewList(sessionPlanPayload.preWorkConceptRef);
+    const sessionPlanAttached = hasRowPlan || Boolean(matchedPlan);
+    const preKind: TeacherPortalSessionWorkKind = sessionPlanAttached
+      ? inferSessionWorkKind(preWorkModeStr, preConceptRef, preWorkFromField)
+      : "custom";
+    const postKind: TeacherPortalSessionWorkKind = sessionPlanAttached
+      ? inferSessionWorkKind(postWorkModeStr, postConceptRef, postWorkFromField)
+      : "custom";
+
+    let preWork = preWorkFromField;
+    let postWork = postWorkFromField;
+    if (preWork.length === 0 && preKind === "concept_focus") {
+      preWork = normalizePreviewList(preConceptRef);
     }
-    if (postWork.length === 0 && postWorkMode === "concept_focus") {
-      postWork = normalizePreviewList(sessionPlanPayload.postWorkConceptRef);
+    if (postWork.length === 0 && postKind === "concept_focus") {
+      postWork = normalizePreviewList(postConceptRef);
     }
+
+    let preWorkDisplay = "";
+    if (sessionPlanAttached) {
+      if (preKind === "concept_focus") {
+        preWorkDisplay =
+          formatConceptFocusRefForDisplay(preConceptRef).trim() ||
+          normalizePreviewList(preConceptRef).join(" · ");
+        if (!preWorkDisplay) {
+          preWorkDisplay = "Concept focus — choose chapter, topic, and subtopic in the session plan.";
+        }
+      } else {
+        preWorkDisplay = preWorkFromField.join("\n\n").trim();
+      }
+    }
+    if (!preWorkDisplay.trim()) {
+      preWorkDisplay = sessionPlanAttached
+        ? "No pre-work instructions saved in the session plan."
+        : "No session plan linked yet — add one when scheduling so students see the correct tasks.";
+    }
+
+    let postWorkDisplay = "";
+    if (sessionPlanAttached) {
+      if (postKind === "concept_focus") {
+        postWorkDisplay =
+          formatConceptFocusRefForDisplay(postConceptRef).trim() ||
+          normalizePreviewList(postConceptRef).join(" · ");
+        if (!postWorkDisplay) {
+          postWorkDisplay =
+            "Concept focus — choose chapter, topic, and subtopic for post-work in the session plan.";
+        }
+      } else {
+        postWorkDisplay = postWorkFromField.join("\n\n").trim();
+      }
+    }
+    if (!postWorkDisplay.trim()) {
+      postWorkDisplay = sessionPlanAttached
+        ? "No post-work instructions saved in the session plan."
+        : "No session plan linked yet — add one when scheduling so students see the correct tasks.";
+    }
+
+    const delayRaw =
+      sessionPlanPayload.postWorkDelayDays ?? sessionPlanPayload.post_work_delay_days;
+    const delayDays =
+      Number.isFinite(Number(delayRaw)) && Number(delayRaw) >= 0 ? Math.floor(Number(delayRaw)) : 0;
+    const postWorkReleaseLabel = sessionPlanAttached ? postWorkDelayLabel(delayDays) : null;
 
     const resourcesRaw = Array.isArray(assignmentPayload.resources)
       ? assignmentPayload.resources
@@ -479,12 +665,25 @@ export async function loadTeacherPortalBundle(userId: string): Promise<TeacherPo
     return {
       id: s.id,
       classroomId: s.classroom_id,
+      sectionId: (s as { section_id?: string | null }).section_id ?? null,
+      sectionName: (() => {
+        const sid = (s as { section_id?: string | null }).section_id ?? null;
+        if (!sid) return null;
+        for (const list of sectionsByClassroom.values()) {
+          const hit = list.find((sec) => sec.id === sid);
+          if (hit) return hit.name;
+        }
+        return null;
+      })(),
       classroomName: classroomNameMap.get(s.classroom_id) ?? "Classroom",
       title: s.title,
       scheduledAt: s.scheduled_at,
       durationMinutes: s.duration_minutes,
       meetLink: s.meet_link,
-      studentCount: memberCountMap.get(s.classroom_id) ?? 0,
+      studentCount:
+        (s as { section_id?: string | null }).section_id != null
+          ? memberCountBySectionId.get((s as { section_id?: string | null }).section_id ?? "") ?? 0
+          : memberCountMap.get(s.classroom_id) ?? 0,
       status: s.status,
       isTrial: classroom?.description?.toLowerCase().includes("ad-hoc trial: enabled") ?? false,
       rewardRdm: typeof assignmentPayload.rewardRdm === "number" ? assignmentPayload.rewardRdm : 20,
@@ -492,6 +691,12 @@ export async function loadTeacherPortalBundle(userId: string): Promise<TeacherPo
       postWork: postWork.length
         ? postWork
         : ["DailyDose practice set", "Post class reflection in Gyan++"],
+      sessionPlanAttached,
+      preWorkKind: preKind,
+      postWorkKind: postKind,
+      preWorkDisplay,
+      postWorkDisplay,
+      postWorkReleaseLabel,
       resources: resources.length
         ? resources
         : [
@@ -504,7 +709,7 @@ export async function loadTeacherPortalBundle(userId: string): Promise<TeacherPo
   const memberProfilesRes = classroomIds.length
     ? await supabase
         .from("classroom_members")
-        .select("classroom_id, user_id, role, joined_at, profiles(name, avatar_url, rdm)")
+        .select("classroom_id, user_id, role, joined_at, section_id, profiles(name, avatar_url, rdm)")
         .in("classroom_id", classroomIds)
     : { data: [], error: null };
   const anyDemoShowcaseClassroom = classrooms.some((c) =>
@@ -523,6 +728,7 @@ export async function loadTeacherPortalBundle(userId: string): Promise<TeacherPo
       user_id: string;
       role: string;
       joined_at: string;
+      section_id: string | null;
       profiles: { name: string; avatar_url: string | null; rdm: number | null } | null;
     }>) ?? [];
 
@@ -530,6 +736,44 @@ export async function loadTeacherPortalBundle(userId: string): Promise<TeacherPo
   classroomIds.forEach((id) => {
     detailMap[id] = {
       classroomId: id,
+      sections: (sectionsByClassroom.get(id) ?? []).map((s) => ({
+        id: s.id,
+        name: s.name,
+        sortOrder: Number(s.sort_order ?? 0),
+        scheduleLabel: (() => {
+          const repeat = Array.isArray((s as { repeat_days?: unknown }).repeat_days)
+            ? (((s as unknown as { repeat_days: string[] }).repeat_days ?? []) as string[]).filter(Boolean)
+            : [];
+          const date = typeof (s as { schedule_date?: unknown }).schedule_date === "string"
+            ? String((s as unknown as { schedule_date: string }).schedule_date)
+            : "";
+          const time = typeof (s as { schedule_time?: unknown }).schedule_time === "string"
+            ? String((s as unknown as { schedule_time: string }).schedule_time)
+            : "";
+          const dur =
+            typeof (s as { duration_minutes?: unknown }).duration_minutes === "number"
+              ? Number((s as unknown as { duration_minutes: number }).duration_minutes)
+              : null;
+          if (!date || !time || !dur) return null;
+          const normalizedDate = (() => {
+            if (/^\d{4}-\d{2}-\d{2}$/.test(date)) return date;
+            const m = /^(\d{2})-(\d{2})-(\d{4})$/.exec(date);
+            if (m) return `${m[3]}-${m[2]}-${m[1]}`;
+            return date;
+          })();
+          const start = new Date(`${normalizedDate}T${time}:00`);
+          if (Number.isNaN(start.getTime())) return null;
+          const end = new Date(start.getTime() + dur * 60 * 1000);
+          const startLabel = start.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+          const endLabel = end.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+          const repeatLabel = repeat.length ? repeat.join(" / ") : "One-time";
+          return `${repeatLabel} · ${startLabel}–${endLabel}`;
+        })(),
+        googleMeetLink: (s as { google_meet_link?: string | null }).google_meet_link ?? null,
+        googleSeriesLinked: Boolean(
+          (s as { google_recurring_event_id?: string | null }).google_recurring_event_id
+        ),
+      })),
       students: [],
       assignments: [],
       motivationLog: [],
@@ -565,6 +809,7 @@ export async function loadTeacherPortalBundle(userId: string): Promise<TeacherPo
       joinedAt: row.joined_at,
       lastActiveAt,
       role: row.role,
+      sectionId: row.section_id ?? null,
       rdm: Number(row.profiles?.rdm ?? 0),
       avgScorePercent,
       streakDays,
@@ -593,6 +838,7 @@ export async function loadTeacherPortalBundle(userId: string): Promise<TeacherPo
           joinedAt: new Date(Date.now() - (idx + 10) * 86400000).toISOString(),
           lastActiveAt: new Date(Date.now() - (idx + 3) * 3600000).toISOString(),
           role: "student",
+          sectionId: null,
           rdm: Number(student.rdm ?? 0),
           avgScorePercent,
           streakDays,
@@ -782,6 +1028,10 @@ export async function loadTeacherPortalBundle(userId: string): Promise<TeacherPo
               ? "Concept Focus Assignment"
               : "DailyDose Streak — Week 3 Challenge"),
       type: post.type,
+      sectionId:
+        typeof (post as unknown as { section_id?: unknown }).section_id === "string"
+          ? String((post as unknown as { section_id: string }).section_id)
+          : null,
       dueDateIso: post.due_date,
       dueDateLabel: post.due_date ? formatSessionLabel(post.due_date) : "No due date",
       assignedToLabel,
@@ -816,6 +1066,10 @@ export async function loadTeacherPortalBundle(userId: string): Promise<TeacherPo
     detail.motivationLog.push({
       id: post.id,
       classroomId: post.classroom_id,
+      sectionId:
+        typeof (post as unknown as { section_id?: unknown }).section_id === "string"
+          ? String((post as unknown as { section_id: string }).section_id)
+          : null,
       actionKind,
       message:
         typeof payload.message === "string" ? payload.message : (post.title ?? "Motivation action"),
@@ -890,6 +1144,9 @@ export async function loadTeacherPortalBundle(userId: string): Promise<TeacherPo
     : 0;
 
   const summary: TeacherPortalSummary = {
+    googleCalendarConnected: Boolean(
+      (profile as { google_connected?: boolean | null }).google_connected
+    ),
     activeClassrooms: classroomCards.length,
     totalStudents: classroomCards.reduce((sum, c) => sum + c.studentCount, 0),
     assignmentsActive: classroomCards.reduce((sum, c) => sum + c.assignmentCount, 0),
@@ -1108,8 +1365,10 @@ export async function createTeacherClassroom(input: {
   scheduleTime: string | null;
   durationMinutes: number;
   repeatDays: string[];
+  /** Optional last day for recurrence (YYYY-MM-DD); also sent to Google as RRULE UNTIL when set. */
+  scheduleEndDate?: string | null;
   allowAdhocTrial: boolean;
-}): Promise<void> {
+}): Promise<{ classroomId: string }> {
   const className = input.name.trim();
   if (!className) throw new Error("Classroom name is required.");
 
@@ -1118,11 +1377,14 @@ export async function createTeacherClassroom(input: {
     input.scheduleDate && input.scheduleTime
       ? `${input.scheduleDate} ${input.scheduleTime} · ${input.durationMinutes} mins`
       : "Schedule not set";
+  const endNote =
+    input.scheduleEndDate?.trim() ? `End date: ${input.scheduleEndDate.trim()}` : "End date: open-ended";
   const notes = [
     `Exam target: ${input.examTarget}`,
     `Ad-hoc trial: ${input.allowAdhocTrial ? "Enabled" : "Disabled"}`,
     `Repeat: ${repeatText}`,
     `Schedule: ${scheduleText}`,
+    endNote,
   ].join(" | ");
 
   const join_code = await allocateUniqueJoinCode();
@@ -1163,6 +1425,8 @@ export async function createTeacherClassroom(input: {
       if (sessionErr) throw ensureError(sessionErr);
     }
   }
+
+  return { classroomId };
 }
 
 export async function updateTeacherClassroom(input: {
@@ -1171,6 +1435,7 @@ export async function updateTeacherClassroom(input: {
   name: string;
   subject: string | null;
   section: string | null;
+  introVideoUrl?: string | null;
 }): Promise<void> {
   const name = input.name.trim();
   if (!name) throw new Error("Classroom name is required.");
@@ -1180,6 +1445,7 @@ export async function updateTeacherClassroom(input: {
       name,
       subject: input.subject?.trim() || null,
       section: input.section?.trim() || null,
+      intro_video_url: input.introVideoUrl?.trim() || null,
     })
     .eq("id", input.classroomId)
     .eq("teacher_id", input.teacherId);
@@ -1201,6 +1467,7 @@ export async function deleteTeacherClassroom(input: {
 export async function createClassroomAssignment(input: {
   teacherId: string;
   classroomId: string;
+  sectionId?: string | null;
   assignmentType: string;
   title: string;
   dueDate: string | null;
@@ -1374,6 +1641,7 @@ export async function createClassroomAssignment(input: {
     .from("posts")
     .insert({
       classroom_id: input.classroomId,
+      section_id: input.sectionId ?? null,
       teacher_id: input.teacherId,
       title,
       type: input.assignmentType,
@@ -1428,6 +1696,7 @@ export async function createClassroomAssignment(input: {
 export async function createMotivationAction(input: {
   teacherId: string;
   classroomId: string;
+  sectionId?: string | null;
   actionKind: "boost" | "nudge" | "urgent_nudge";
   targetStudentIds: string[];
   message: string;
@@ -1435,6 +1704,7 @@ export async function createMotivationAction(input: {
 }): Promise<void> {
   const { error } = await supabase.from("posts").insert({
     classroom_id: input.classroomId,
+    section_id: input.sectionId ?? null,
     teacher_id: input.teacherId,
     type: "motivation",
     title: input.message.trim() || "Motivation action",
@@ -1453,12 +1723,14 @@ export async function createMotivationAction(input: {
 export async function createRewardTopStudentsAction(input: {
   teacherId: string;
   classroomId: string;
+  sectionId?: string | null;
   targetStudentIds: string[];
   message: string;
   rdmDelta: number;
 }): Promise<void> {
   const { error } = await supabase.from("posts").insert({
     classroom_id: input.classroomId,
+    section_id: input.sectionId ?? null,
     teacher_id: input.teacherId,
     type: "motivation",
     title: input.message.trim() || "Rewarded top tier students",
@@ -1479,7 +1751,7 @@ export async function listMotivationLogForClassroom(
 ): Promise<TeacherPortalMotivationLogItem[]> {
   const { data, error } = await supabase
     .from("posts")
-    .select("id, classroom_id, teacher_id, type, title, created_at, content_json")
+    .select("id, classroom_id, section_id, teacher_id, type, title, created_at, content_json")
     .eq("classroom_id", classroomId)
     .eq("type", "motivation")
     .order("created_at", { ascending: false });
@@ -1498,6 +1770,7 @@ export async function listMotivationLogForClassroom(
     return {
       id: row.id,
       classroomId: row.classroom_id,
+      sectionId: row.section_id ?? null,
       actionKind,
       message:
         typeof payload.message === "string" ? payload.message : (row.title ?? "Motivation action"),
@@ -1512,6 +1785,7 @@ export async function listMotivationLogForClassroom(
 export async function createTeacherLiveSession(input: {
   teacherId: string;
   classroomId: string;
+  sectionId?: string | null;
   title: string;
   date: string;
   startTime: string;
@@ -1520,7 +1794,7 @@ export async function createTeacherLiveSession(input: {
   allowAdhocTrial: boolean;
   preWork: string;
   postWork: string;
-  preWorkMode?: "custom" | "concept_focus";
+  preWorkMode?: "none" | "custom" | "concept_focus";
   preWorkConceptRef?: {
     board: string;
     subject: "physics" | "chemistry" | "math";
@@ -1531,7 +1805,7 @@ export async function createTeacherLiveSession(input: {
     level: "basics" | "intermediate" | "advanced";
     advancedSet?: 1 | 2 | 3;
   } | null;
-  postWorkMode?: "custom" | "concept_focus";
+  postWorkMode?: "none" | "custom" | "concept_focus";
   postWorkConceptRef?: {
     board: string;
     subject: "physics" | "chemistry" | "math";
@@ -1558,68 +1832,87 @@ export async function createTeacherLiveSession(input: {
   const scheduledAt = new Date(`${input.date}T${input.startTime}:00`);
   if (Number.isNaN(scheduledAt.getTime())) throw new Error("Invalid session date/time.");
 
-  const { error: sessionError } = await supabase.from("live_sessions").insert({
-    classroom_id: input.classroomId,
-    teacher_id: input.teacherId,
-    title: sessionTitle,
-    scheduled_at: scheduledAt.toISOString(),
-    duration_minutes: input.durationMinutes,
-    meet_link: meetLink,
-    status: "scheduled",
-  });
-  if (sessionError) throw ensureError(sessionError);
+  const postDelayDays =
+    Number.isFinite(Number(input.postWorkDelayDays)) && Number(input.postWorkDelayDays) >= 0
+      ? Math.floor(Number(input.postWorkDelayDays))
+      : 0;
 
   const preWorkPreview =
-    (input.preWorkMode ?? "custom") === "concept_focus" && input.preWorkConceptRef
+    (input.preWorkMode ?? "custom") === "none"
+      ? []
+      : (input.preWorkMode ?? "custom") === "concept_focus" && input.preWorkConceptRef
       ? [`Concept Focus · ${input.preWorkConceptRef.subtopicName}`]
       : [input.preWork.trim()].filter(Boolean);
 
   const postWorkPreview =
-    (input.postWorkMode ?? "custom") === "concept_focus" && input.postWorkConceptRef
+    (input.postWorkMode ?? "custom") === "none"
+      ? []
+      : (input.postWorkMode ?? "custom") === "concept_focus" && input.postWorkConceptRef
       ? [`Concept Focus · ${input.postWorkConceptRef.subtopicName}`]
       : [input.postWork.trim()].filter(Boolean);
 
+  /** Canonical copy on `live_sessions.plan_json` (same shape as legacy `session_plan` post). */
+  const planContent: Record<string, Json> = {
+    preWork: preWorkPreview,
+    postWork: postWorkPreview,
+    preWorkMode: input.preWorkMode ?? "custom",
+    postWorkMode: input.postWorkMode ?? "custom",
+    preWorkConceptRef: (input.preWorkConceptRef ?? null) as Json,
+    postWorkConceptRef: (input.postWorkConceptRef ?? null) as Json,
+    postWorkDelayDays: postDelayDays,
+    allowAdhocTrial: input.allowAdhocTrial,
+    scheduledAt: scheduledAt.toISOString(),
+    durationMinutes: input.durationMinutes,
+  };
+
+  const { data: insertedSession, error: sessionError } = await supabase
+    .from("live_sessions")
+    .insert({
+      classroom_id: input.classroomId,
+      section_id: input.sectionId ?? null,
+      teacher_id: input.teacherId,
+      title: sessionTitle,
+      scheduled_at: scheduledAt.toISOString(),
+      duration_minutes: input.durationMinutes,
+      meet_link: meetLink,
+      status: "scheduled",
+      plan_json: planContent,
+    })
+    .select("id")
+    .single();
+  if (sessionError) throw ensureError(sessionError);
+  const liveSessionId = insertedSession.id;
+
   const { error: planError } = await supabase.from("posts").insert({
     classroom_id: input.classroomId,
+    section_id: input.sectionId ?? null,
     teacher_id: input.teacherId,
     type: "session_plan",
     title: `${sessionTitle} plan`,
     visibility: "classroom",
     description: `Adhoc trial: ${input.allowAdhocTrial ? "Enabled" : "Disabled"}`,
-    content_json: {
-      preWork: preWorkPreview,
-      postWork: postWorkPreview,
-      preWorkMode: input.preWorkMode ?? "custom",
-      postWorkMode: input.postWorkMode ?? "custom",
-      preWorkConceptRef: input.preWorkConceptRef ?? null,
-      postWorkConceptRef: input.postWorkConceptRef ?? null,
-      postWorkDelayDays:
-        Number.isFinite(Number(input.postWorkDelayDays)) && Number(input.postWorkDelayDays) >= 0
-          ? Math.floor(Number(input.postWorkDelayDays))
-          : 0,
-      allowAdhocTrial: input.allowAdhocTrial,
-      scheduledAt: scheduledAt.toISOString(),
-      durationMinutes: input.durationMinutes,
-    },
+    content_json: planContent,
   });
   if (planError) throw ensureError(planError);
 
   const sessionEnd = new Date(scheduledAt.getTime() + input.durationMinutes * 60 * 1000);
   const preReleaseAt = new Date().toISOString();
-  const postDelayDays =
-    Number.isFinite(Number(input.postWorkDelayDays)) && Number(input.postWorkDelayDays) >= 0
-      ? Math.floor(Number(input.postWorkDelayDays))
-      : 0;
   const postReleaseAt = new Date(
     sessionEnd.getTime() + postDelayDays * 24 * 60 * 60 * 1000 + 1000
   ).toISOString();
 
+  let preAssignmentPostId: string | null = null;
+  let postAssignmentPostId: string | null = null;
+
   // Auto-create PRE-WORK assignment (immediate release, deadline = class start).
-  if ((input.preWorkMode ?? "custom") === "concept_focus" && input.preWorkConceptRef) {
+  if ((input.preWorkMode ?? "custom") === "none") {
+    // no-op
+  } else if ((input.preWorkMode ?? "custom") === "concept_focus" && input.preWorkConceptRef) {
     const cq = input.preWorkConceptRef;
-    await createClassroomAssignment({
+    const created = await createClassroomAssignment({
       teacherId: input.teacherId,
       classroomId: input.classroomId,
+      sectionId: input.sectionId ?? null,
       assignmentType: "Concept Focus",
       title: `${sessionTitle} · Pre-work`,
       dueDate: null,
@@ -1641,15 +1934,18 @@ export async function createTeacherLiveSession(input: {
         releaseAt: preReleaseAt,
         autoScheduledFromSession: true,
         sessionPhase: "pre_work",
+        liveSessionId,
         sessionTitle,
         sessionScheduledAt: scheduledAt.toISOString(),
         sessionDurationMinutes: input.durationMinutes,
       },
     });
+    preAssignmentPostId = created.id;
   } else if (input.preWork.trim()) {
-    await createClassroomAssignment({
+    const created = await createClassroomAssignment({
       teacherId: input.teacherId,
       classroomId: input.classroomId,
+      sectionId: input.sectionId ?? null,
       assignmentType: "assignment",
       title: `${sessionTitle} · Pre-work`,
       dueDate: null,
@@ -1661,20 +1957,25 @@ export async function createTeacherLiveSession(input: {
         releaseAt: preReleaseAt,
         autoScheduledFromSession: true,
         sessionPhase: "pre_work",
+        liveSessionId,
         sessionTitle,
         sessionScheduledAt: scheduledAt.toISOString(),
         sessionDurationMinutes: input.durationMinutes,
       },
     });
+    preAssignmentPostId = created.id;
   }
 
   // Auto-create POST-WORK assignment (released after class end + optional day delay).
-  if ((input.postWorkMode ?? "custom") === "concept_focus" && input.postWorkConceptRef) {
+  if ((input.postWorkMode ?? "custom") === "none") {
+    // no-op
+  } else if ((input.postWorkMode ?? "custom") === "concept_focus" && input.postWorkConceptRef) {
     const cq = input.postWorkConceptRef;
     const postDueAt = new Date(postReleaseAt).toISOString();
-    await createClassroomAssignment({
+    const created = await createClassroomAssignment({
       teacherId: input.teacherId,
       classroomId: input.classroomId,
+      sectionId: input.sectionId ?? null,
       assignmentType: "Concept Focus",
       title: `${sessionTitle} · Post-work`,
       dueDate: null,
@@ -1697,17 +1998,20 @@ export async function createTeacherLiveSession(input: {
         releaseAt: postReleaseAt,
         autoScheduledFromSession: true,
         sessionPhase: "post_work",
+        liveSessionId,
         sessionTitle,
         postWorkDelayDays: postDelayDays,
         sessionScheduledAt: scheduledAt.toISOString(),
         sessionDurationMinutes: input.durationMinutes,
       },
     });
+    postAssignmentPostId = created.id;
   } else if (input.postWork.trim()) {
     const postDueAt = new Date(postReleaseAt).toISOString();
-    await createClassroomAssignment({
+    const created = await createClassroomAssignment({
       teacherId: input.teacherId,
       classroomId: input.classroomId,
+      sectionId: input.sectionId ?? null,
       assignmentType: "assignment",
       title: `${sessionTitle} · Post-work`,
       dueDate: null,
@@ -1719,11 +2023,27 @@ export async function createTeacherLiveSession(input: {
         releaseAt: postReleaseAt,
         autoScheduledFromSession: true,
         sessionPhase: "post_work",
+        liveSessionId,
         sessionTitle,
         postWorkDelayDays: postDelayDays,
         sessionScheduledAt: scheduledAt.toISOString(),
         sessionDurationMinutes: input.durationMinutes,
       },
     });
+    postAssignmentPostId = created.id;
+  }
+
+  const assignmentPatch: {
+    pre_assignment_post_id?: string | null;
+    post_assignment_post_id?: string | null;
+  } = {};
+  if (preAssignmentPostId) assignmentPatch.pre_assignment_post_id = preAssignmentPostId;
+  if (postAssignmentPostId) assignmentPatch.post_assignment_post_id = postAssignmentPostId;
+  if (Object.keys(assignmentPatch).length > 0) {
+    const { error: linkErr } = await supabase
+      .from("live_sessions")
+      .update(assignmentPatch)
+      .eq("id", liveSessionId);
+    if (linkErr) throw ensureError(linkErr);
   }
 }

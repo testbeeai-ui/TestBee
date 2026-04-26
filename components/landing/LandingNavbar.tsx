@@ -92,7 +92,7 @@ export default function LandingNavbar({
           }
         >
           <Link
-            href="/auth-choice"
+            href="/auth?mode=signin"
             className={
               isDark
                 ? "rounded-full border border-white/25 bg-transparent px-3 py-2 text-[11px] font-medium text-zinc-200 transition-colors hover:border-white/45 hover:text-white md:px-4 md:text-[12px] xl:text-[13px]"
@@ -102,7 +102,7 @@ export default function LandingNavbar({
             Sign in
           </Link>
           <Link
-            href="/auth-choice"
+            href="/auth"
             className={
               isDark
                 ? "inline-flex items-center gap-1.5 rounded-full bg-[#34f5a4] px-3.5 py-2 text-[11px] font-bold text-neutral-950 shadow-[0_0_24px_rgba(52,245,164,0.22)] transition-colors hover:bg-[#2ee89a] md:px-5 md:py-2.5 md:text-[12px] xl:text-[13px]"
@@ -152,7 +152,7 @@ export default function LandingNavbar({
           ))}
           <div className="flex gap-2 pt-2">
             <Link
-              href="/auth-choice"
+              href="/auth?mode=signin"
               className={
                 isDark
                   ? "rounded-full border border-white/20 px-4 py-2 text-sm text-zinc-200 flex-1 text-center"
@@ -163,7 +163,7 @@ export default function LandingNavbar({
               Sign in
             </Link>
             <Link
-              href="/auth-choice"
+              href="/auth"
               className={
                 isDark
                   ? "rounded-full bg-[#34f5a4] px-4 py-2 text-sm font-semibold text-neutral-950 flex-1 text-center"

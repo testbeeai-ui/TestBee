@@ -120,184 +120,217 @@ export default function ConceptFocusAssignmentFields({
 
   if (taxonomyLoading) {
     return (
-      <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-[#0c1020] px-3 py-4 text-sm text-slate-400">
-        <Loader2 className="h-4 w-4 shrink-0 animate-spin text-violet-400" />
-        Loading syllabus for concept focus…
+      <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-black/20 px-2.5 py-2.5 text-xs text-slate-400 sm:text-sm">
+        <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-violet-400 sm:h-4 sm:w-4" />
+        Loading syllabus…
       </div>
     );
   }
 
   if (taxonomyError) {
     return (
-      <p className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-200">
+      <p className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-2.5 py-2 text-xs text-rose-200 sm:text-sm">
         {taxonomyError}
       </p>
     );
   }
 
+  const chevronCls =
+    "pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500 sm:right-3 sm:h-4 sm:w-4";
+
   return (
-    <div className="space-y-3 rounded-xl border border-white/10 bg-[#0c1020] p-3 sm:p-4">
-      <div>
-        <p className="text-sm font-semibold text-slate-200">Concept focus target</p>
-        <p className="mt-0.5 text-[11px] text-slate-500">
-          Pick class → subject → chapter → lesson → subtopic to assign theory and revision content.
-        </p>
+    <div className="rounded-lg border border-white/5 bg-black/25 p-2 sm:p-2.5">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-x-2 gap-y-1 border-b border-white/[0.06] pb-2">
+        <span className="text-xs font-semibold text-slate-200">Concept focus</span>
+        <span className="text-[10px] font-medium uppercase tracking-[0.06em] text-slate-500">
+          <span className="hidden sm:inline">Class · Subject · Chapter · Lesson · Subtopic</span>
+          <span className="sm:hidden">Fill in order</span>
+        </span>
       </div>
 
-      <div>
-        <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-          Class
-        </label>
-        <div className="relative">
-          <select
-            value={value.classLevel ?? ""}
-            onChange={(e) => {
-              const raw = e.target.value;
-              const cl = raw === "11" ? 11 : raw === "12" ? 12 : null;
-              patch({
-                classLevel: cl as ClassLevel | null,
-                subject: null,
-                chapterTitle: null,
-                topicIndex: null,
-                subtopicName: null,
-              });
-            }}
-            className={selectClassName}
-          >
-            <option value="">Select class…</option>
-            <option value="11">Class 11 (PUC 1)</option>
-            <option value="12">Class 12 (PUC 2)</option>
-          </select>
-          <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-        </div>
-      </div>
-
-      {value.classLevel ? (
-        <div>
-          <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-            Subject
-          </label>
-          <div className="flex flex-wrap gap-2">
-            {SUBJECTS.map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() =>
+      <div className="space-y-2">
+        {/* Row 1–2: class + subject side by side on md+ */}
+        <div
+          className={
+            value.classLevel
+              ? "grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-x-3 sm:gap-y-0"
+              : "grid grid-cols-1"
+          }
+        >
+          <div className="min-w-0 space-y-1">
+            <label className="block text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              Class
+            </label>
+            <div className="relative">
+              <select
+                value={value.classLevel ?? ""}
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  const cl = raw === "11" ? 11 : raw === "12" ? 12 : null;
                   patch({
-                    subject: s,
+                    classLevel: cl as ClassLevel | null,
+                    subject: null,
                     chapterTitle: null,
                     topicIndex: null,
                     subtopicName: null,
-                  })
-                }
-                className={`rounded-full border px-3 py-1.5 text-xs font-semibold capitalize ${pillClass(value.subject === s)}`}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
-        </div>
-      ) : null}
-
-      {value.classLevel && value.subject ? (
-        <div>
-          <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-            Chapter
-          </label>
-          <div className="relative">
-            <select
-              value={value.chapterTitle ?? ""}
-              onChange={(e) => {
-                const ch = e.target.value || null;
-                patch({ chapterTitle: ch, topicIndex: null, subtopicName: null });
-              }}
-              className={selectClassName}
-            >
-              <option value="">Select chapter…</option>
-              {chapters.map((ch) => (
-                <option key={ch} value={ch}>
-                  {ch}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-          </div>
-        </div>
-      ) : null}
-
-      {value.chapterTitle && topicRows.length > 0 ? (
-        <div>
-          <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-            Topic (lesson)
-          </label>
-          <div className="relative">
-            <select
-              value={value.topicIndex != null ? String(value.topicIndex) : ""}
-              onChange={(e) => {
-                const idx = Number(e.target.value);
-                patch({
-                  topicIndex: Number.isInteger(idx) && idx >= 0 ? idx : null,
-                  subtopicName: null,
-                });
-              }}
-              className={selectClassName}
-            >
-              <option value="">Select topic…</option>
-              {topicRows.map((row, i) => (
-                <option key={`${row.topic}-${i}`} value={String(i)}>
-                  {topicOptionLabel(row)}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-          </div>
-        </div>
-      ) : value.chapterTitle ? (
-        <p className="text-xs text-amber-200/90">
-          No topics found for this chapter in the loaded syllabus.
-        </p>
-      ) : null}
-
-      {selectedNode && subtopicOptions.length > 0 ? (
-        <div>
-          <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-            Subtopic
-          </label>
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-            <div className="relative flex-1">
-              <select
-                value={value.subtopicName ?? ""}
-                onChange={(e) =>
-                  patch({
-                    subtopicName: e.target.value || null,
-                  })
-                }
+                  });
+                }}
                 className={selectClassName}
               >
-                <option value="">Select subtopic…</option>
-                {subtopicOptions.map((st) => (
-                  <option key={st.name} value={st.name}>
-                    {st.name}
-                  </option>
-                ))}
+                <option value="">Select class…</option>
+                <option value="11">Class 11 (PUC 1)</option>
+                <option value="12">Class 12 (PUC 2)</option>
               </select>
-              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+              <ChevronDown className={chevronCls} />
             </div>
-            {value.subtopicName && (
+          </div>
+
+          {value.classLevel ? (
+            <div className="min-w-0 space-y-1">
+              <label className="block text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                Subject
+              </label>
+              <div className="flex flex-wrap gap-1.5">
+                {SUBJECTS.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() =>
+                      patch({
+                        subject: s,
+                        chapterTitle: null,
+                        topicIndex: null,
+                        subtopicName: null,
+                      })
+                    }
+                    className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold capitalize sm:px-3 sm:py-1.5 sm:text-xs ${pillClass(value.subject === s)}`}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </div>
+
+        {/* Row 3–4: chapter + topic */}
+        {value.classLevel && value.subject ? (
+          <div
+            className={
+              value.chapterTitle && topicRows.length > 0
+                ? "grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-x-3"
+                : "grid grid-cols-1"
+            }
+          >
+            <div className="min-w-0 space-y-1">
+              <label className="block text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                Chapter
+              </label>
+              <div className="relative">
+                <select
+                  value={value.chapterTitle ?? ""}
+                  onChange={(e) => {
+                    const ch = e.target.value || null;
+                    patch({ chapterTitle: ch, topicIndex: null, subtopicName: null });
+                  }}
+                  className={selectClassName}
+                >
+                  <option value="">Select chapter…</option>
+                  {chapters.map((ch) => (
+                    <option key={ch} value={ch}>
+                      {ch}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className={chevronCls} />
+              </div>
+            </div>
+
+            {value.chapterTitle && topicRows.length > 0 ? (
+              <div className="min-w-0 space-y-1">
+                <label className="block text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                  Lesson (topic)
+                </label>
+                <div className="relative">
+                  <select
+                    value={value.topicIndex != null ? String(value.topicIndex) : ""}
+                    onChange={(e) => {
+                      const idx = Number(e.target.value);
+                      patch({
+                        topicIndex: Number.isInteger(idx) && idx >= 0 ? idx : null,
+                        subtopicName: null,
+                      });
+                    }}
+                    className={selectClassName}
+                  >
+                    <option value="">Select topic…</option>
+                    {topicRows.map((row, i) => (
+                      <option key={`${row.topic}-${i}`} value={String(i)}>
+                        {topicOptionLabel(row)}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className={chevronCls} />
+                </div>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
+        {value.chapterTitle && topicRows.length === 0 && value.classLevel && value.subject ? (
+          <p className="text-[11px] leading-snug text-amber-200/90">
+            No topics found for this chapter in the loaded syllabus.
+          </p>
+        ) : null}
+
+        {/* Row 5: subtopic + preview */}
+        {selectedNode && subtopicOptions.length > 0 ? (
+          <div
+            className={
+              value.subtopicName
+                ? "grid grid-cols-1 items-stretch gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end"
+                : "space-y-1"
+            }
+          >
+            <div className="min-w-0 space-y-1">
+              <label className="block text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                Subtopic
+              </label>
+              <div className="relative">
+                <select
+                  value={value.subtopicName ?? ""}
+                  onChange={(e) =>
+                    patch({
+                      subtopicName: e.target.value || null,
+                    })
+                  }
+                  className={selectClassName}
+                >
+                  <option value="">Select subtopic…</option>
+                  {subtopicOptions.map((st) => (
+                    <option key={st.name} value={st.name}>
+                      {st.name}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className={chevronCls} />
+              </div>
+            </div>
+            {value.subtopicName ? (
               <button
                 type="button"
                 onClick={() => void openPreview()}
-                className="shrink-0 inline-flex items-center justify-center gap-1.5 rounded-xl border border-violet-500/40 bg-violet-500/15 px-3 py-2.5 sm:py-0 sm:h-11 text-sm font-semibold text-violet-200 hover:bg-violet-500/25 transition-colors"
+                className="inline-flex h-10 w-full shrink-0 items-center justify-center gap-1.5 rounded-lg border border-violet-500/40 bg-violet-500/15 px-3 text-xs font-semibold text-violet-200 transition-colors hover:bg-violet-500/25 sm:h-10 sm:w-auto sm:self-end sm:rounded-xl sm:text-sm"
               >
-                <Eye className="h-4 w-4 opacity-90" aria-hidden />
-                Preview Content
+                <Eye className="h-3.5 w-3.5 opacity-90 sm:h-4 sm:w-4" aria-hidden />
+                Preview
               </button>
-            )}
+            ) : null}
           </div>
-        </div>
-      ) : selectedNode ? (
-        <p className="text-xs text-amber-200/90">This lesson has no subtopics listed yet.</p>
-      ) : null}
+        ) : selectedNode ? (
+          <p className="text-[11px] leading-snug text-amber-200/90">This lesson has no subtopics listed yet.</p>
+        ) : null}
+      </div>
 
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
         <DialogContent className="max-h-[85vh] w-[95vw] max-w-4xl overflow-hidden border-white/10 bg-[#0c1020] p-0 text-slate-100 flex flex-col">

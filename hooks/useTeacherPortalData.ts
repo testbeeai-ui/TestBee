@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { AssignmentTaskStored } from "@/lib/classroom/assignmentTasks";
 import type { Json } from "@/integrations/supabase/types";
+import { fetchWithClientAuth } from "@/lib/clientApiAuth";
 import {
   createClassroomAssignment,
   createTeacherLiveSession,
@@ -67,6 +68,7 @@ interface UseTeacherPortalDataResult {
     scheduleTime: string | null;
     durationMinutes: number;
     repeatDays: string[];
+    scheduleEndDate?: string | null;
     allowAdhocTrial: boolean;
   }) => Promise<void>;
   createAssignment: (input: {
@@ -111,7 +113,7 @@ interface UseTeacherPortalDataResult {
     allowAdhocTrial: boolean;
     preWork: string;
     postWork: string;
-    preWorkMode?: "custom" | "concept_focus";
+    preWorkMode?: "none" | "custom" | "concept_focus";
     preWorkConceptRef?: {
       board: string;
       subject: "physics" | "chemistry" | "math";
@@ -122,7 +124,7 @@ interface UseTeacherPortalDataResult {
       level: "basics" | "intermediate" | "advanced";
       advancedSet?: 1 | 2 | 3;
     } | null;
-    postWorkMode?: "custom" | "concept_focus";
+    postWorkMode?: "none" | "custom" | "concept_focus";
     postWorkConceptRef?: {
       board: string;
       subject: "physics" | "chemistry" | "math";
@@ -141,6 +143,7 @@ interface UseTeacherPortalDataResult {
     name: string;
     subject: string | null;
     section: string | null;
+    introVideoUrl?: string | null;
   }) => Promise<void>;
   deleteClassroom: (input: { teacherId: string; classroomId: string }) => Promise<void>;
 }
@@ -223,9 +226,34 @@ export function useTeacherPortalData(
       scheduleTime: string | null;
       durationMinutes: number;
       repeatDays: string[];
+      scheduleEndDate?: string | null;
       allowAdhocTrial: boolean;
     }) => {
-      await createTeacherClassroom(input);
+      const { classroomId } = await createTeacherClassroom(input);
+      if (input.scheduleDate && input.scheduleTime) {
+        const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        try {
+          const res = await fetchWithClientAuth(`/api/integrations/google/classrooms/${classroomId}/recurring`, {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              timeZone,
+              scheduleDate: input.scheduleDate,
+              scheduleTime: input.scheduleTime,
+              durationMinutes: input.durationMinutes,
+              repeatDays: input.repeatDays,
+              scheduleEndDate: input.scheduleEndDate?.trim() || null,
+            }),
+          });
+          const payload = (await res.json().catch(() => ({}))) as { error?: string; skipped?: boolean };
+          if (!res.ok && res.status !== 409) {
+            console.warn("[google calendar] sync:", payload.error ?? res.status);
+          }
+        } catch (e) {
+          console.warn("[google calendar] sync:", e);
+        }
+      }
       await refresh();
     },
     [refresh]
@@ -235,6 +263,7 @@ export function useTeacherPortalData(
     async (input: {
       teacherId: string;
       classroomId: string;
+      sectionId?: string | null;
       assignmentType: string;
       title: string;
       dueDate: string | null;
@@ -258,6 +287,7 @@ export function useTeacherPortalData(
     async (input: {
       teacherId: string;
       classroomId: string;
+      sectionId?: string | null;
       actionKind: "boost" | "nudge" | "urgent_nudge";
       targetStudentIds: string[];
       message: string;
@@ -273,6 +303,7 @@ export function useTeacherPortalData(
     async (input: {
       teacherId: string;
       classroomId: string;
+      sectionId?: string | null;
       targetStudentIds: string[];
       message: string;
       rdmDelta: number;
@@ -287,6 +318,7 @@ export function useTeacherPortalData(
     async (input: {
       teacherId: string;
       classroomId: string;
+      sectionId?: string | null;
       title: string;
       date: string;
       startTime: string;
@@ -295,7 +327,7 @@ export function useTeacherPortalData(
       allowAdhocTrial: boolean;
       preWork: string;
       postWork: string;
-      preWorkMode?: "custom" | "concept_focus";
+      preWorkMode?: "none" | "custom" | "concept_focus";
       preWorkConceptRef?: {
         board: string;
         subject: "physics" | "chemistry" | "math";
@@ -306,7 +338,7 @@ export function useTeacherPortalData(
         level: "basics" | "intermediate" | "advanced";
         advancedSet?: 1 | 2 | 3;
       } | null;
-      postWorkMode?: "custom" | "concept_focus";
+      postWorkMode?: "none" | "custom" | "concept_focus";
       postWorkConceptRef?: {
         board: string;
         subject: "physics" | "chemistry" | "math";
@@ -332,6 +364,7 @@ export function useTeacherPortalData(
       name: string;
       subject: string | null;
       section: string | null;
+      introVideoUrl?: string | null;
     }) => {
       await updateTeacherClassroom(input);
       await refresh();

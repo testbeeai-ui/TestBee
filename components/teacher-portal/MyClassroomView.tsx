@@ -18,10 +18,13 @@ import {
   X,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import InviteStudents from "@/components/InviteStudents";
 import { useToast } from "@/hooks/use-toast";
 import { useTopicTaxonomy } from "@/hooks/useTopicTaxonomy";
 import { supabase } from "@/integrations/supabase/client";
 import { safeGetSession } from "@/lib/safeSession";
+import { fetchWithClientAuth } from "@/lib/clientApiAuth";
 import {
   buildDefaultTasksForAssignmentType,
   normalizeTaskPositions,
@@ -73,10 +76,12 @@ interface MyClassroomViewProps {
     scheduleTime: string | null;
     durationMinutes: number;
     repeatDays: string[];
+    scheduleEndDate?: string | null;
     allowAdhocTrial: boolean;
   }) => Promise<void>;
   onCreateAssignment: (input: {
     classroomId: string;
+    sectionId?: string | null;
     assignmentType: string;
     title: string;
     dueDate: string | null;
@@ -95,12 +100,14 @@ interface MyClassroomViewProps {
     targetStudentIds: string[];
     message: string;
     rdmDelta: number;
+    sectionId?: string | null;
   }) => Promise<void>;
   onRewardTopStudents: (input: {
     classroomId: string;
     targetStudentIds: string[];
     message: string;
     rdmDelta: number;
+    sectionId?: string | null;
   }) => Promise<void>;
   teacherId: string;
   onUpdateClassroom: (input: {
@@ -108,6 +115,7 @@ interface MyClassroomViewProps {
     name: string;
     subject: string | null;
     section: string | null;
+    introVideoUrl?: string | null;
   }) => Promise<void>;
   onDeleteClassroom: (input: { classroomId: string }) => Promise<void>;
   /** Reload portal bundle; use `{ silent: true }` from polling so the page does not flash the loading state. */
@@ -122,11 +130,16 @@ type JoinRequestRow = {
   profiles: { name: string } | null;
 };
 
+type ClassroomCohortTab =
+  | { kind: "class" }
+  | { kind: "unassigned" }
+  | { kind: "section"; id: string };
+
 function StatCard(props: { label: string; value: string; sub: string; accent: string }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-[#15162b] p-3">
+    <div className="rounded-xl border border-white/10 bg-[#15162b] p-2.5 sm:p-3">
       <div className="text-[10px] uppercase tracking-widest text-slate-500">{props.label}</div>
-      <div className={`mt-1 font-serif text-3xl ${props.accent}`}>{props.value}</div>
+      <div className={`mt-1 font-serif text-2xl sm:text-3xl ${props.accent}`}>{props.value}</div>
       <div className="text-xs text-slate-400">{props.sub}</div>
     </div>
   );
@@ -149,6 +162,7 @@ const EXAM_OPTIONS = [
   "NEET",
 ] as const;
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
+const SHOW_CLASSROOM_SCHEDULE_FORM = false;
 
 type DetailTab = "students" | "assignments" | "progress" | "streaks" | "settings";
 type MotivationMessageType = "streak_reengagement" | "top_performer" | "custom";
@@ -247,7 +261,33 @@ function getAssignmentTags(item: TeacherPortalAssignmentItem) {
   return tags;
 }
 
-function AssignmentRow({
+function formatAssignmentCardDate(iso: string | null): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}
+
+function primaryAssignmentBadge(item: TeacherPortalAssignmentItem): {
+  label: string;
+  color: string;
+} {
+  const tags = getAssignmentTags(item);
+  return (
+    tags[0] ?? {
+      label: item.type,
+      color: "bg-slate-500/20 text-slate-300 border-slate-400/30",
+    }
+  );
+}
+
+function visibleTaskCountForCard(item: TeacherPortalAssignmentItem): number {
+  const tasks = item.tasks ?? [];
+  const visible = tasks.filter((t) => t.visible_to_student).length;
+  return visible > 0 ? visible : tasks.length;
+}
+
+function AssignmentCard({
   item,
   onOpen,
   progress,
@@ -256,47 +296,58 @@ function AssignmentRow({
   onOpen: () => void;
   progress?: { completionPercent: number; completedCount: number; totalCount: number };
 }) {
-  const tags = getAssignmentTags(item);
   const completionPercent = progress?.completionPercent ?? item.completionPercent;
   const completedCount = progress?.completedCount ?? item.completedCount;
   const totalCount = progress?.totalCount ?? item.totalCount;
+  const badge = primaryAssignmentBadge(item);
+  const dateLine =
+    (formatAssignmentCardDate(item.dueDateIso) ?? item.dueDateLabel?.trim()) || "No due date";
+  const title =
+    item.type === "Concept Focus"
+      ? `${item.chapterQuiz?.subtopicName ?? item.title} Complete`
+      : item.title;
+  const taskCount = visibleTaskCountForCard(item);
+  const metaLine = `${taskCount} checklist task${taskCount === 1 ? "" : "s"} · ${item.assignedToLabel}`;
+  const pct = Math.min(100, Math.max(0, Math.round(completionPercent)));
 
   return (
     <button
       type="button"
       onClick={onOpen}
-      className="flex w-full items-center gap-3 rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 text-left transition hover:border-white/20 hover:bg-black/30"
+      className="group flex h-full min-h-[160px] w-full flex-col rounded-2xl border border-white/10 bg-black/25 p-3.5 text-left shadow-[0_12px_32px_-18px_rgba(0,0,0,0.65)] transition hover:border-violet-400/30 hover:bg-black/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/55 focus-visible:ring-offset-2 focus-visible:ring-offset-[#15162b] sm:min-h-[188px] sm:p-4"
     >
-      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-500/15 text-violet-200">
-        📘
+      <div className="mb-2 flex items-start justify-between gap-2">
+        <span className="text-xs font-medium tracking-tight text-violet-200/90">{dateLine}</span>
+        <span
+          className={`max-w-[52%] shrink-0 truncate rounded border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${badge.color}`}
+        >
+          {badge.label}
+        </span>
       </div>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <div className="truncate text-sm font-semibold">
-            {item.type === "Concept Focus"
-              ? `${item.chapterQuiz?.subtopicName ?? item.title} Complete`
-              : item.title}
-          </div>
-          <div className="flex shrink-0 items-center gap-1">
-            {tags.map((t) => (
-              <span
-                key={t.label}
-                className={`shrink-0 rounded border px-1.5 py-0.5 text-[10px] font-bold ${t.color}`}
-              >
-                {t.label}
-              </span>
-            ))}
-          </div>
-        </div>
-        <div className="text-xs text-slate-400">
-          {item.dueDateLabel} · {item.assignedToLabel}
-        </div>
+      <div className="line-clamp-2 min-h-[2.5rem] text-sm font-semibold leading-snug text-white">
+        {title}
       </div>
-      <div className="text-right">
-        <div className="text-sm font-bold text-emerald-300">{completionPercent}%</div>
-        <div className="text-[11px] text-slate-500">
-          {completedCount}/{totalCount}
+      <p className="mt-2 line-clamp-1 text-[11px] leading-relaxed text-slate-400">{metaLine}</p>
+      {item.rewardRdm > 0 ? (
+        <p className="mt-0.5 text-[11px] text-amber-200/80">{item.rewardRdm} RDM reward</p>
+      ) : null}
+      <div className="min-h-2 flex-1" aria-hidden />
+      <div className="mt-3 space-y-2 border-t border-white/10 pt-3">
+        <div className="flex items-center justify-between gap-2 text-xs">
+          <span className="font-bold text-emerald-300">{completionPercent}%</span>
+          <span className="shrink-0 text-[11px] text-slate-500">
+            {completedCount}/{totalCount} done
+          </span>
         </div>
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400/90 transition-[width] duration-300"
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+        <span className="block text-[11px] font-semibold text-violet-300/90 group-hover:text-violet-200">
+          View details →
+        </span>
       </div>
     </button>
   );
@@ -304,6 +355,7 @@ function AssignmentRow({
 
 const emptyClassroomDetail: TeacherPortalClassroomDetail = {
   classroomId: "",
+  sections: [],
   students: [],
   assignments: [],
   motivationLog: [],
@@ -376,6 +428,7 @@ export default function MyClassroomView({
   >({});
   const ASSIGNMENT_PROGRESS_CACHE_KEY = "teacherPortal.assignmentProgressCache.v1";
   const [assignmentProgressCacheVersion, setAssignmentProgressCacheVersion] = useState(0);
+  const googleOauthToastKeyRef = useRef<string | null>(null);
   const [name, setName] = useState("");
   const [subject, setSubject] = useState<(typeof SUBJECT_OPTIONS)[number]>("Physics");
   const [pucLevel, setPucLevel] = useState<(typeof PUC_OPTIONS)[number]>("PUC 1");
@@ -384,20 +437,41 @@ export default function MyClassroomView({
   const [scheduleTime, setScheduleTime] = useState("");
   const [durationMinutes, setDurationMinutes] = useState(90);
   const [repeatDays, setRepeatDays] = useState<string[]>(["Mon", "Wed", "Fri"]);
+  /** Optional YYYY-MM-DD last recurrence day (open-ended if empty). */
+  const [scheduleEndDate, setScheduleEndDate] = useState("");
   const [allowAdhocTrial, setAllowAdhocTrial] = useState(true);
+  const [googleSeriesStopping, setGoogleSeriesStopping] = useState(false);
+  const [googleDisconnecting, setGoogleDisconnecting] = useState(false);
+  const [googleInviteSyncing, setGoogleInviteSyncing] = useState(false);
   const [assignmentType, setAssignmentType] = useState("Mock Paper (full length)");
   const [assignmentTitle, setAssignmentTitle] = useState("");
   const [assignmentDueDate, setAssignmentDueDate] = useState("");
   const [assignToLabel, setAssignToLabel] = useState("All students");
+  const [assignmentTargetSectionId, setAssignmentTargetSectionId] = useState<string | null>(null);
   const [rewardRdm, setRewardRdm] = useState(15);
   const [assignmentInstructions, setAssignmentInstructions] = useState("");
+  const [sectionPickerStudentId, setSectionPickerStudentId] = useState<string | null>(null);
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [settingsName, setSettingsName] = useState("");
   const [settingsSubject, setSettingsSubject] = useState("");
   const [settingsSection, setSettingsSection] = useState("");
+  const [settingsIntroVideoUrl, setSettingsIntroVideoUrl] = useState("");
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsDeleting, setSettingsDeleting] = useState(false);
   const [joinRequests, setJoinRequests] = useState<JoinRequestRow[]>([]);
   const [actingJoinRequestId, setActingJoinRequestId] = useState<string | null>(null);
+  const [cohortTab, setCohortTab] = useState<ClassroomCohortTab>({ kind: "class" });
+  const [sectionDialogOpen, setSectionDialogOpen] = useState(false);
+  const [newSectionName, setNewSectionName] = useState("");
+  const [sectionScheduleDate, setSectionScheduleDate] = useState("");
+  const [sectionScheduleTime, setSectionScheduleTime] = useState("");
+  const [sectionDurationMinutes, setSectionDurationMinutes] = useState(90);
+  const [sectionRepeatDays, setSectionRepeatDays] = useState<string[]>(["Mon", "Wed", "Fri"]);
+  const [sectionScheduleEndDate, setSectionScheduleEndDate] = useState("");
+  const [sectionCreating, setSectionCreating] = useState(false);
+  const [sectionNameDrafts, setSectionNameDrafts] = useState<Record<string, string>>({});
+  const [sectionNameSavingId, setSectionNameSavingId] = useState<string | null>(null);
+  const [sectionDeletingId, setSectionDeletingId] = useState<string | null>(null);
   const [mockPapers, setMockPapers] = useState<MockPaper[]>([]);
   const [mockPapersLoading, setMockPapersLoading] = useState(false);
   const [mockPapersLoadError, setMockPapersLoadError] = useState<string | null>(null);
@@ -442,6 +516,12 @@ export default function MyClassroomView({
     setRepeatDays((prev) => (prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]));
   };
 
+  const toggleSectionRepeat = (day: string) => {
+    setSectionRepeatDays((prev) =>
+      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
+    );
+  };
+
   const resetForm = () => {
     setName("");
     setSubject("Physics");
@@ -449,6 +529,7 @@ export default function MyClassroomView({
     setExamTarget("JEE Advanced");
     setScheduleDate("");
     setScheduleTime("");
+    setScheduleEndDate("");
     setDurationMinutes(90);
     setRepeatDays(["Mon", "Wed", "Fri"]);
     setAllowAdhocTrial(true);
@@ -462,15 +543,17 @@ export default function MyClassroomView({
         subject,
         pucLevel,
         examTarget,
-        scheduleDate: scheduleDate || null,
-        scheduleTime: scheduleTime || null,
-        durationMinutes,
-        repeatDays,
+        scheduleDate: SHOW_CLASSROOM_SCHEDULE_FORM ? scheduleDate || null : null,
+        scheduleTime: SHOW_CLASSROOM_SCHEDULE_FORM ? scheduleTime || null : null,
+        durationMinutes: SHOW_CLASSROOM_SCHEDULE_FORM ? durationMinutes : 90,
+        repeatDays: SHOW_CLASSROOM_SCHEDULE_FORM ? repeatDays : [],
+        scheduleEndDate: SHOW_CLASSROOM_SCHEDULE_FORM ? scheduleEndDate.trim() || null : null,
         allowAdhocTrial,
       });
       toast({
         title: "Classroom created",
-        description: "Students can now see it in Explore (unless your profile is Invite-only).",
+        description:
+          "Students can now join this classroom. Add sections to set schedules and sync Google Calendar.",
       });
       setOpen(false);
       resetForm();
@@ -493,16 +576,87 @@ export default function MyClassroomView({
     setActiveClassroomId(qpClassroom);
     if (qpDetail) setDetailTab(qpDetail);
   }, [qpClassroom, qpDetail, classrooms]);
+
+  useEffect(() => {
+    const g = searchParams.get("google");
+    if (g !== "connected" && g !== "error") return;
+    const dedupeKey = `${g}:${searchParams.get("reason") ?? ""}`;
+    if (googleOauthToastKeyRef.current === dedupeKey) return;
+    googleOauthToastKeyRef.current = dedupeKey;
+    if (g === "connected") {
+      toast({
+        title: "Google Calendar connected",
+        description: "Creating a class with a schedule will add Meet links to your calendar automatically.",
+      });
+      void onRefreshTeacherPortal({ silent: true });
+    } else {
+      const reason = searchParams.get("reason");
+      toast({
+        title: "Google connection failed",
+        description: reason ? `Reason: ${reason}` : "Try again from Connect Google Calendar.",
+        variant: "destructive",
+      });
+    }
+  }, [searchParams, toast, onRefreshTeacherPortal]);
+
   const activeDetail = activeClassroomId
     ? (classroomDetails[activeClassroomId] ?? emptyClassroomDetail)
     : emptyClassroomDetail;
+
+  useEffect(() => {
+    setCohortTab({ kind: "class" });
+  }, [activeClassroomId]);
+
+  const cohortStudents = useMemo(() => {
+    const roster = activeDetail.students.filter((s) => s.role !== "teacher");
+    if (cohortTab.kind === "class") return roster;
+    if (cohortTab.kind === "unassigned") return roster.filter((s) => s.sectionId == null);
+    return roster.filter((s) => s.sectionId === cohortTab.id);
+  }, [activeDetail.students, cohortTab]);
+
+  const cohortAssignments = useMemo(() => {
+    if (cohortTab.kind === "class") return activeDetail.assignments.filter((a) => a.sectionId == null);
+    if (cohortTab.kind === "unassigned") return [];
+    return activeDetail.assignments.filter((a) => a.sectionId === cohortTab.id);
+  }, [activeDetail.assignments, cohortTab]);
+
+  const cohortMotivationLog = useMemo(() => {
+    if (cohortTab.kind === "class") return activeDetail.motivationLog.filter((m) => m.sectionId == null);
+    if (cohortTab.kind === "unassigned") return [];
+    return activeDetail.motivationLog.filter((m) => m.sectionId === cohortTab.id);
+  }, [activeDetail.motivationLog, cohortTab]);
+
+  const studentCountBySectionId = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const s of activeDetail.students) {
+      if (s.role === "teacher") continue;
+      if (!s.sectionId) continue;
+      map.set(s.sectionId, (map.get(s.sectionId) ?? 0) + 1);
+    }
+    return map;
+  }, [activeDetail.students]);
+
+  const sectionById = useMemo(() => {
+    const map = new Map<string, { name: string; scheduleLabel?: string | null }>();
+    for (const sec of activeDetail.sections) {
+      map.set(sec.id, { name: sec.name, scheduleLabel: sec.scheduleLabel ?? null });
+    }
+    return map;
+  }, [activeDetail.sections]);
 
   useEffect(() => {
     if (!activeClassroom) return;
     setSettingsName(activeClassroom.name);
     setSettingsSubject(activeClassroom.subject ?? "");
     setSettingsSection(activeClassroom.section ?? "");
+    setSettingsIntroVideoUrl(activeClassroom.introVideoUrl ?? "");
   }, [activeClassroom]);
+
+  useEffect(() => {
+    const next: Record<string, string> = {};
+    for (const sec of activeDetail.sections) next[sec.id] = sec.name;
+    setSectionNameDrafts(next);
+  }, [activeDetail.sections]);
 
   useEffect(() => {
     if (!assignmentOpen) return;
@@ -511,6 +665,7 @@ export default function MyClassroomView({
     setDailyDoseTrackId(DAILYDOSE_STREAK_TRACK_IDS[0]);
     setGyanTopicFocus("");
     setGyanSubtopicHint("");
+    setAssignmentTargetSectionId(cohortTab.kind === "section" ? cohortTab.id : null);
   }, [assignmentOpen]);
 
   useEffect(() => {
@@ -595,7 +750,7 @@ export default function MyClassroomView({
           const scores = data.scores ?? [];
           setAssignmentScores(scores);
 
-          const totalStudents = activeDetail.students.filter((s) => s.role !== "teacher").length;
+          const totalStudents = cohortStudents.length;
           const completedCount = scores.length;
           const completionPercent =
             totalStudents > 0 ? Math.round((completedCount / Math.max(1, totalStudents)) * 100) : 0;
@@ -626,7 +781,7 @@ export default function MyClassroomView({
     return () => {
       cancelled = true;
     };
-  }, [assignmentDetail, activeClassroomId, activeDetail.students, ASSIGNMENT_PROGRESS_CACHE_KEY]);
+  }, [assignmentDetail, activeClassroomId, cohortStudents.length, ASSIGNMENT_PROGRESS_CACHE_KEY]);
 
   useEffect(() => {
     if (!assignmentOpen) return;
@@ -711,11 +866,202 @@ export default function MyClassroomView({
       .eq("id", req.id);
     setJoinRequests((prev) => prev.filter((r) => r.id !== req.id));
     await onRefreshTeacherPortal({ silent: true });
+    const sectionsWithSeries = activeDetail.sections.filter((s) => s.googleSeriesLinked);
+    if (sectionsWithSeries.length > 0) {
+      // Section-first: new members are unassigned — Google invites run when they are placed in a section.
+    } else if (activeClassroom?.googleSeriesLinked) {
+      try {
+        const currentSession = (await safeGetSession()).session;
+        const headers: HeadersInit = {};
+        if (currentSession?.access_token)
+          headers.Authorization = `Bearer ${currentSession.access_token}`;
+        const res = await fetch(
+          `/api/integrations/google/classrooms/${activeClassroomId}/attendees`,
+          {
+            method: "POST",
+            headers,
+            credentials: "include",
+          }
+        );
+        if (res.ok) {
+          toast({
+            title: "Calendar invite sent",
+            description: "The approved student will get a Google Calendar email invite.",
+          });
+        }
+      } catch {
+        // best-effort
+      }
+    }
     toast({
       title: "Student added",
       description: `${req.profiles?.name ?? "Student"} can access this class now.`,
     });
     setActingJoinRequestId(null);
+  };
+
+  const createSection = async () => {
+    if (!activeClassroomId || !activeClassroom) return;
+    if (activeDetail.sections.length >= 6) {
+      toast({
+        title: "Section limit reached",
+        description: "You can create up to 6 sections per classroom.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const sectionName = newSectionName.trim();
+    if (!sectionName) {
+      toast({ title: "Section name required", variant: "destructive" });
+      return;
+    }
+    if (!sectionScheduleDate.trim() || !sectionScheduleTime.trim()) {
+      toast({
+        title: "Schedule required",
+        description: "Pick a start date and time for this section schedule.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setSectionCreating(true);
+    try {
+      const { data: created, error } = await supabase
+        .from("classroom_sections" as any)
+        .insert({
+          classroom_id: activeClassroomId,
+          name: sectionName,
+          sort_order: activeDetail.sections.length,
+        })
+        .select("id")
+        .single();
+      const createdRow = created as { id?: string } | null;
+      if (error || !createdRow?.id) throw error ?? new Error("Could not create section.");
+
+      const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+      const res = await fetchWithClientAuth(
+        `/api/integrations/google/classrooms/${activeClassroomId}/recurring`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sectionId: createdRow.id,
+            timeZone,
+            scheduleDate: sectionScheduleDate,
+            scheduleTime: sectionScheduleTime,
+            durationMinutes: sectionDurationMinutes,
+            repeatDays: sectionRepeatDays,
+            scheduleEndDate: sectionScheduleEndDate.trim() || null,
+          }),
+        }
+      );
+      if (!res.ok) {
+        const payload = (await res.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(payload?.error ?? `Calendar sync failed (${res.status})`);
+      }
+
+      toast({ title: "Section created", description: "Schedule synced to Google Calendar." });
+      setSectionDialogOpen(false);
+      setNewSectionName("");
+      setSectionScheduleDate("");
+      setSectionScheduleTime("");
+      setSectionScheduleEndDate("");
+      setSectionDurationMinutes(90);
+      setSectionRepeatDays(["Mon", "Wed", "Fri"]);
+      await onRefreshTeacherPortal({ silent: true });
+    } catch (e) {
+      toast({
+        title: "Could not create section",
+        description: e instanceof Error ? e.message : "Try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSectionCreating(false);
+    }
+  };
+
+  const saveSectionName = async (sectionId: string) => {
+    if (!activeClassroomId) return;
+    const draft = (sectionNameDrafts[sectionId] ?? "").trim();
+    if (!draft) {
+      toast({ title: "Section name required", variant: "destructive" });
+      return;
+    }
+    setSectionNameSavingId(sectionId);
+    try {
+      const { error } = await supabase
+        .from("classroom_sections" as any)
+        .update({ name: draft })
+        .eq("id", sectionId)
+        .eq("classroom_id", activeClassroomId);
+      if (error) throw error;
+      toast({ title: "Section updated" });
+      await onRefreshTeacherPortal({ silent: true });
+    } catch (err) {
+      toast({
+        title: "Could not update section",
+        description: err instanceof Error ? err.message : "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSectionNameSavingId(null);
+    }
+  };
+
+  const deleteSection = async (sectionId: string) => {
+    if (!activeClassroomId) return;
+    const sec = activeDetail.sections.find((s) => s.id === sectionId);
+    const ok =
+      typeof window !== "undefined" &&
+      window.confirm(
+        `Delete section \"${sec?.name ?? "this section"}\"? Students in this section will become Unassigned. This cannot be undone.`
+      );
+    if (!ok) return;
+    setSectionDeletingId(sectionId);
+    try {
+      const { error } = await supabase
+        .from("classroom_sections" as any)
+        .delete()
+        .eq("id", sectionId)
+        .eq("classroom_id", activeClassroomId);
+      if (error) throw error;
+      toast({ title: "Section deleted", description: "Students are now Unassigned." });
+      if (cohortTab.kind === "section" && cohortTab.id === sectionId) {
+        setCohortTab({ kind: "class" });
+      }
+      await onRefreshTeacherPortal();
+    } catch (err) {
+      toast({
+        title: "Could not delete section",
+        description: err instanceof Error ? err.message : "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSectionDeletingId(null);
+    }
+  };
+
+  const assignStudentToSection = async (studentUserId: string, nextSectionId: string | null) => {
+    if (!activeClassroomId) return;
+    try {
+      const res = await fetchWithClientAuth(
+        `/api/classroom/${activeClassroomId}/members/assign-section`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: studentUserId, sectionId: nextSectionId }),
+        }
+      );
+      const payload = (await res.json().catch(() => null)) as { error?: string } | null;
+      if (!res.ok) throw new Error(payload?.error ?? `Failed (${res.status})`);
+      await onRefreshTeacherPortal({ silent: true });
+      toast({ title: "Section updated" });
+    } catch (e) {
+      toast({
+        title: "Could not update section",
+        description: e instanceof Error ? e.message : "Try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const rejectJoinRequest = async (req: JoinRequestRow) => {
@@ -836,6 +1182,7 @@ export default function MyClassroomView({
         : null;
       await onCreateAssignment({
         classroomId: activeClassroomId,
+        sectionId: assignmentTargetSectionId,
         assignmentType: derivedType,
         title: assignmentTitle,
         dueDate: assignmentDueDate || null,
@@ -879,7 +1226,7 @@ export default function MyClassroomView({
 
   const submitMotivation = async () => {
     if (!activeClassroomId) return;
-    const classroomStudents = activeDetail.students.filter((student) => student.role !== "teacher");
+    const classroomStudents = cohortStudents;
     const targetStudentIds =
       motivationTarget === "all_students"
         ? classroomStudents.map((student) => student.userId)
@@ -897,6 +1244,7 @@ export default function MyClassroomView({
         targetStudentIds,
         message: motivationMessage,
         rdmDelta: motivationRdm,
+        sectionId: cohortTab.kind === "section" ? cohortTab.id : null,
       });
       setMotivationOpen(false);
       setSelectedStudent(null);
@@ -906,14 +1254,21 @@ export default function MyClassroomView({
   };
 
   const rewardTopStudents = async () => {
-    if (!activeClassroomId || !activeDetail.topStreakStudentIds.length) return;
+    if (!activeClassroomId) return;
+    const topIds = [...cohortStudents]
+      .filter((s) => s.streakDays > 0)
+      .sort((a, b) => b.streakDays - a.streakDays)
+      .slice(0, 5)
+      .map((s) => s.userId);
+    if (topIds.length === 0) return;
     setRewardSubmitting(true);
     try {
       await onRewardTopStudents({
         classroomId: activeClassroomId,
-        targetStudentIds: activeDetail.topStreakStudentIds,
+        targetStudentIds: topIds,
         message: "Rewarded top tier students for highest streak consistency.",
         rdmDelta: 35,
+        sectionId: cohortTab.kind === "section" ? cohortTab.id : null,
       });
     } finally {
       setRewardSubmitting(false);
@@ -938,6 +1293,7 @@ export default function MyClassroomView({
         name: trimmedName,
         subject: settingsSubject.trim() || null,
         section: settingsSection.trim() || null,
+        introVideoUrl: settingsIntroVideoUrl.trim() || null,
       });
     } catch (err) {
       toast({
@@ -974,6 +1330,133 @@ export default function MyClassroomView({
     }
   };
 
+  const disconnectGoogleCalendar = async () => {
+    const ok =
+      typeof window !== "undefined" &&
+      window.confirm(
+        "Disconnect Google Calendar? New classes will not sync to Google until you connect again. Existing calendar events are not deleted."
+      );
+    if (!ok) return;
+    setGoogleDisconnecting(true);
+    try {
+      const res = await fetchWithClientAuth("/api/integrations/google/disconnect", {
+        method: "POST",
+        credentials: "include",
+      });
+      const payload = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(payload.error || `Request failed (${res.status})`);
+      toast({
+        title: "Google Calendar disconnected",
+        description: "You can reconnect anytime; Meet links in EduBlast stay until you remove them.",
+      });
+      await onRefreshTeacherPortal();
+    } catch (err) {
+      toast({
+        title: "Could not disconnect",
+        description: err instanceof Error ? err.message : "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setGoogleDisconnecting(false);
+    }
+  };
+
+  const syncStudentCalendarInvites = async () => {
+    if (!activeClassroom) return;
+    setGoogleInviteSyncing(true);
+    try {
+      const sectionsWithSeries = activeDetail.sections.filter((s) => s.googleSeriesLinked);
+      if (sectionsWithSeries.length > 0) {
+        for (const sec of sectionsWithSeries) {
+          const res = await fetchWithClientAuth(
+            `/api/integrations/google/classrooms/${activeClassroom.id}/attendees`,
+            {
+              method: "POST",
+              credentials: "include",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ sectionId: sec.id }),
+            }
+          );
+          const payload = (await res.json().catch(() => ({}))) as { error?: string };
+          if (!res.ok) throw new Error(payload.error || `Request failed (${res.status})`);
+        }
+        toast({
+          title: "Calendar invites updated",
+          description: `Synced ${sectionsWithSeries.length} section calendar(s).`,
+        });
+      } else {
+        const res = await fetchWithClientAuth(
+          `/api/integrations/google/classrooms/${activeClassroom.id}/attendees`,
+          {
+            method: "POST",
+            credentials: "include",
+          }
+        );
+        const payload = (await res.json().catch(() => ({}))) as {
+          error?: string;
+          addedStudentEmails?: number;
+          totalAttendees?: number;
+          studentsWithoutEmail?: number;
+          enrolledStudents?: number;
+        };
+        if (!res.ok) throw new Error(payload.error || `Request failed (${res.status})`);
+        toast({
+          title: "Calendar invites updated",
+          description: `Google emailed ${payload.addedStudentEmails ?? 0} student address(es); ${payload.totalAttendees ?? 0} attendee(s) on the event. ${payload.studentsWithoutEmail ?? 0} of ${payload.enrolledStudents ?? 0} enrolled students had no account email.`,
+        });
+      }
+      await onRefreshTeacherPortal({ silent: true });
+    } catch (err) {
+      toast({
+        title: "Could not sync invites",
+        description: err instanceof Error ? err.message : "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setGoogleInviteSyncing(false);
+    }
+  };
+
+  const stopGoogleSeries = async (
+    mode: "until_today" | "delete_series",
+    sectionId?: string | null
+  ) => {
+    if (!activeClassroom) return;
+    const msg =
+      mode === "delete_series"
+        ? sectionId
+          ? "Remove the entire Google Calendar series for this section?"
+          : "Remove the entire Google Calendar series for this class? Past instances may disappear from Google Calendar."
+        : sectionId
+          ? "Stop future dates for this section from today in Google Calendar?"
+          : "Stop future class dates from today in Google Calendar? Past sessions stay on the calendar.";
+    if (typeof window !== "undefined" && !window.confirm(msg)) return;
+    setGoogleSeriesStopping(true);
+    try {
+      const res = await fetchWithClientAuth(`/api/integrations/google/classrooms/${activeClassroom.id}/stop`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode, sectionId: sectionId ?? null }),
+      });
+      const payload = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(payload.error || `Request failed (${res.status})`);
+      toast({
+        title: mode === "delete_series" ? "Calendar series removed" : "Future classes stopped",
+        description: "Google Calendar was updated. Refresh if Meet links still show cached values.",
+      });
+      await onRefreshTeacherPortal();
+    } catch (err) {
+      toast({
+        title: "Could not update Google Calendar",
+        description: err instanceof Error ? err.message : "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setGoogleSeriesStopping(false);
+    }
+  };
+
   const copyJoinCode = async () => {
     const code = activeClassroom?.joinCode?.trim();
     if (!code) return;
@@ -989,20 +1472,20 @@ export default function MyClassroomView({
     "h-10 w-full appearance-none rounded-xl border border-white/15 bg-[#070b17] px-3 pr-10 text-sm outline-none focus:border-emerald-400";
 
   return (
-    <div className="space-y-4 sm:space-y-6">
+    <div className="space-y-3 sm:space-y-5">
       {!activeClassroom ? (
         <>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h1 className="font-serif text-3xl leading-tight sm:text-5xl">
+              <h1 className="font-serif text-3xl leading-tight sm:text-4xl lg:text-5xl">
                 My <span className="text-emerald-400 italic">Classrooms</span>
               </h1>
-              <p className="text-sm text-slate-400 sm:text-base">
+              <p className="text-xs text-slate-400 sm:text-sm lg:text-base">
                 Create and manage your student batches — assign tasks, track progress and motivate
                 students.
               </p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 className="inline-flex items-center gap-2 rounded-full border border-white/15 px-3 py-2 text-xs text-slate-200 hover:bg-white/5 sm:px-4 sm:py-2.5 sm:text-sm"
@@ -1010,6 +1493,75 @@ export default function MyClassroomView({
                 <Star className="h-4 w-4" />
                 Send Group RDM
               </button>
+              {summary.googleCalendarConnected ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        const res = await fetchWithClientAuth("/api/integrations/google/start", {
+                          method: "POST",
+                          credentials: "include",
+                        });
+                        const payload = (await res.json().catch(() => ({}))) as {
+                          url?: string;
+                          error?: string;
+                        };
+                        if (!res.ok || !payload.url) {
+                          throw new Error(payload.error || `Request failed (${res.status})`);
+                        }
+                        window.location.href = payload.url;
+                      } catch (err) {
+                        toast({
+                          title: "Could not start Google connect",
+                          description: err instanceof Error ? err.message : "Please try again.",
+                          variant: "destructive",
+                        });
+                      }
+                    }}
+                    className="inline-flex items-center gap-2 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-200 hover:bg-emerald-500/15 sm:px-4 sm:py-2.5 sm:text-sm"
+                  >
+                    Reconnect Google
+                  </button>
+                  <button
+                    type="button"
+                    disabled={googleDisconnecting}
+                    onClick={() => void disconnectGoogleCalendar()}
+                    className="inline-flex items-center gap-2 rounded-full border border-white/20 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-white/5 disabled:opacity-50 sm:px-4 sm:py-2.5 sm:text-sm"
+                  >
+                    {googleDisconnecting ? "Disconnecting…" : "Disconnect Google"}
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      const res = await fetchWithClientAuth("/api/integrations/google/start", {
+                        method: "POST",
+                        credentials: "include",
+                      });
+                      const payload = (await res.json().catch(() => ({}))) as {
+                        url?: string;
+                        error?: string;
+                      };
+                      if (!res.ok || !payload.url) {
+                        throw new Error(payload.error || `Request failed (${res.status})`);
+                      }
+                      window.location.href = payload.url;
+                    } catch (err) {
+                      toast({
+                        title: "Could not start Google connect",
+                        description: err instanceof Error ? err.message : "Please try again.",
+                        variant: "destructive",
+                      });
+                    }
+                  }}
+                  className="inline-flex items-center gap-2 rounded-full border border-sky-500/40 bg-sky-500/10 px-3 py-2 text-xs font-semibold text-sky-100 hover:bg-sky-500/15 sm:px-4 sm:py-2.5 sm:text-sm"
+                >
+                  Connect Google Calendar
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setOpen(true)}
@@ -1021,7 +1573,7 @@ export default function MyClassroomView({
             </div>
           </div>
 
-          <div className="grid gap-3.5 md:grid-cols-4">
+          <div className="grid gap-3 sm:gap-3.5 md:grid-cols-4">
             <StatCard
               label="Active classrooms"
               value={String(summary.activeClassrooms)}
@@ -1058,7 +1610,7 @@ export default function MyClassroomView({
         </>
       ) : null}
       {activeClassroom ? (
-        <div className="space-y-3">
+        <div className="space-y-2.5 sm:space-y-3">
           <button
             type="button"
             onClick={() => {
@@ -1069,20 +1621,24 @@ export default function MyClassroomView({
           >
             &larr; Back to classrooms
           </button>
-          <div className="flex flex-wrap items-start justify-between gap-3 rounded-2xl border border-white/10 bg-linear-to-b from-[#12172b] to-[#101426] p-4 sm:p-5">
-            <div>
-              <div className="font-serif text-[30px] leading-tight sm:text-[42px]">
+          <div className="flex flex-col gap-2.5 rounded-2xl border border-white/10 bg-linear-to-b from-[#12172b] to-[#101426] p-3.5 sm:flex-row sm:items-start sm:justify-between sm:gap-4 sm:p-5">
+            <div className="min-w-0 flex-1">
+              <div
+                title={activeClassroom.name}
+                className="font-serif text-xl leading-tight sm:text-[30px] lg:text-[36px] truncate"
+              >
                 {activeClassroom.name}
               </div>
-              <div className="text-sm text-slate-400 sm:text-base">
+              <div className="text-xs text-slate-400 sm:text-sm lg:text-base break-words">
                 {(activeClassroom.subject ?? "General").trim()} ·{" "}
                 {activeClassroom.section ?? "Section"} · {activeClassroom.studentCount} students ·{" "}
                 {activeClassroom.scheduleLabel} · {activeClassroom.nextSessionLabel}
               </div>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 sm:justify-end">
               <button
                 type="button"
+                onClick={() => setInviteDialogOpen(true)}
                 className="inline-flex h-8 items-center gap-1.5 rounded-full border border-white/15 px-3 text-xs font-semibold"
               >
                 <UserPlus className="h-3.5 w-3.5" /> Invite Student
@@ -1090,7 +1646,8 @@ export default function MyClassroomView({
               <button
                 type="button"
                 onClick={() => setAssignmentOpen(true)}
-                className="inline-flex h-8 items-center gap-1.5 rounded-full border border-white/15 px-3 text-xs font-semibold"
+                disabled={cohortTab.kind === "unassigned"}
+                className="inline-flex h-8 items-center gap-1.5 rounded-full border border-white/15 px-3 text-xs font-semibold disabled:opacity-50"
               >
                 <BookOpen className="h-3.5 w-3.5" /> Set Assignment
               </button>
@@ -1100,6 +1657,79 @@ export default function MyClassroomView({
               >
                 <WandSparkles className="h-3.5 w-3.5" /> Send RDM Boost
               </button>
+            </div>
+          </div>
+          <div
+            role="tablist"
+            aria-label="Class cohorts"
+            className="flex items-center gap-1.5 overflow-x-auto rounded-xl border border-white/10 bg-[#101426] p-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          >
+            <button
+              role="tab"
+              aria-selected={cohortTab.kind === "class" || cohortTab.kind === "unassigned"}
+              type="button"
+              onClick={() => setCohortTab({ kind: "class" })}
+              className={`shrink-0 h-9 rounded-full border px-4 text-sm font-semibold ${
+                cohortTab.kind === "class" || cohortTab.kind === "unassigned"
+                  ? "border-violet-400/40 bg-violet-500/15 text-violet-200"
+                  : "border-white/15 text-slate-400 hover:border-white/25 hover:text-slate-200"
+              }`}
+            >
+              Class
+            </button>
+            {activeDetail.sections.map((sec) => (
+              <button
+                key={sec.id}
+                role="tab"
+                aria-selected={cohortTab.kind === "section" && cohortTab.id === sec.id}
+                type="button"
+                onClick={() => setCohortTab({ kind: "section", id: sec.id })}
+                className={`shrink-0 flex min-w-[160px] flex-col items-start rounded-xl border px-3 py-1.5 text-xs font-semibold ${
+                  cohortTab.kind === "section" && cohortTab.id === sec.id
+                    ? "border-violet-400/40 bg-violet-500/15 text-violet-200"
+                    : "border-white/15 text-slate-400 hover:border-white/25 hover:text-slate-200"
+                }`}
+              >
+                <span className="max-w-[200px] truncate leading-tight">{sec.name}</span>
+                <span className="text-[10px] font-semibold text-slate-500">
+                  {sec.scheduleLabel?.trim() || "No schedule set"}
+                </span>
+              </button>
+            ))}
+            <div className="ml-auto flex shrink-0 items-center gap-2 pl-1">
+              {(cohortTab.kind === "class" || cohortTab.kind === "unassigned") && (
+                <div className="flex overflow-hidden rounded-full border border-white/10 bg-black/20">
+                  <button
+                    type="button"
+                    onClick={() => setCohortTab({ kind: "class" })}
+                    className={`px-3 py-1 text-xs font-semibold ${
+                      cohortTab.kind === "class"
+                        ? "bg-white/10 text-white"
+                        : "text-slate-400 hover:bg-white/5 hover:text-slate-200"
+                    }`}
+                  >
+                    All
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCohortTab({ kind: "unassigned" })}
+                    className={`px-3 py-1 text-xs font-semibold ${
+                      cohortTab.kind === "unassigned"
+                        ? "bg-white/10 text-white"
+                        : "text-slate-400 hover:bg-white/5 hover:text-slate-200"
+                    }`}
+                  >
+                    Unassigned
+                  </button>
+                </div>
+              )}
+            <button
+              type="button"
+              onClick={() => setSectionDialogOpen(true)}
+              className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-semibold text-slate-200 hover:bg-white/10"
+            >
+              + Add section
+            </button>
             </div>
           </div>
           {activeClassroom.isDemoShowcase ? (
@@ -1122,11 +1752,11 @@ export default function MyClassroomView({
             {[
               {
                 key: "students" as const,
-                label: `Students (${activeDetail.students.filter((s) => s.role !== "teacher").length})`,
+                label: `Students (${cohortStudents.length})`,
               },
               {
                 key: "assignments" as const,
-                label: `Assignments (${activeDetail.assignments.length})`,
+                label: `Assignments (${cohortAssignments.length})`,
               },
               { key: "progress" as const, label: "Progress" },
               { key: "streaks" as const, label: "Streaks & RDM" },
@@ -1151,7 +1781,8 @@ export default function MyClassroomView({
           </div>
           {detailTab === "students" ? (
             <div className="space-y-3">
-              <div className="rounded-xl border border-violet-500/20 bg-violet-500/5 p-4 sm:p-5">
+              {cohortTab.kind === "class" ? (
+              <div className="rounded-xl border border-violet-500/20 bg-violet-500/5 p-3.5 sm:p-4">
                 <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                   <div className="text-sm font-semibold text-violet-100">
                     Join requests ({joinRequests.length} pending)
@@ -1227,7 +1858,8 @@ export default function MyClassroomView({
                   </div>
                 )}
               </div>
-              <div className="rounded-xl border border-white/10 bg-[#15162b] p-4 sm:p-5">
+              ) : null}
+              <div className="rounded-xl border border-white/10 bg-[#15162b] p-3.5 sm:p-4">
                 <div className="mb-3 flex items-center justify-between gap-2">
                   <div className="text-sm font-semibold">Enrolled Students</div>
                   <div className="flex items-center gap-2">
@@ -1253,7 +1885,7 @@ export default function MyClassroomView({
                   <div>Action</div>
                 </div>
                 <div className="space-y-2">
-                  {activeDetail.students.filter((s) => s.role !== "teacher").length === 0 ? (
+                  {cohortStudents.length === 0 ? (
                     <div className="text-sm text-slate-400">
                       No students enrolled yet.
                       <span className="mt-1 block text-xs text-slate-500">
@@ -1262,9 +1894,7 @@ export default function MyClassroomView({
                       </span>
                     </div>
                   ) : (
-                    activeDetail.students
-                      .filter((s) => s.role !== "teacher")
-                      .map((s) => (
+                    cohortStudents.map((s) => (
                         <div
                           key={s.userId}
                           className="grid grid-cols-[1.2fr_0.7fr_0.6fr_0.5fr_0.5fr_0.5fr_1.4fr] items-center gap-2 rounded-lg border border-white/10 bg-[#111529] px-3 py-2.5 text-sm"
@@ -1298,13 +1928,104 @@ export default function MyClassroomView({
                                 : "Active"}
                           </div>
                           <div>
-                            <button
-                              type="button"
-                              onClick={() => openMotivation(s, recommendedAction(s))}
-                              className={`h-6 rounded-full border px-2.5 text-[10px] font-semibold ${actionClass(recommendedAction(s))}`}
-                            >
-                              {actionLabel(recommendedAction(s))}
-                            </button>
+                            <div className="flex flex-wrap items-center justify-end gap-2">
+                              <Popover
+                                open={sectionPickerStudentId === s.userId}
+                                onOpenChange={(open) =>
+                                  setSectionPickerStudentId(open ? s.userId : null)
+                                }
+                              >
+                                <PopoverTrigger asChild>
+                                  <button
+                                    type="button"
+                                    className="inline-flex h-6 items-center gap-1 rounded-full border border-white/15 bg-[#0c1020] px-2 text-[10px] font-semibold text-slate-200 hover:border-white/25"
+                                  >
+                                    {(s.sectionId ? sectionById.get(s.sectionId)?.name : null) ||
+                                      "Unassigned"}
+                                    <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
+                                  </button>
+                                </PopoverTrigger>
+                                <PopoverContent
+                                  align="end"
+                                  sideOffset={8}
+                                  className="w-[320px] rounded-2xl border border-white/15 bg-[#0f1329] p-2 text-slate-100 shadow-xl"
+                                >
+                                  <div className="px-2 pb-2 pt-1">
+                                    <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
+                                      Assign student to
+                                    </div>
+                                    <div className="text-xs text-slate-400">
+                                      Choose a section (or keep unassigned)
+                                    </div>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setSectionPickerStudentId(null);
+                                        void assignStudentToSection(s.userId, null);
+                                      }}
+                                      className={`flex w-full items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left text-xs font-semibold ${
+                                        s.sectionId == null
+                                          ? "border-emerald-400/40 bg-emerald-500/10 text-emerald-200"
+                                          : "border-white/10 bg-black/20 text-slate-200 hover:border-white/20"
+                                      }`}
+                                    >
+                                      <div>
+                                        <div className="text-slate-100">Unassigned</div>
+                                        <div className="mt-0.5 text-[11px] font-medium text-slate-500">
+                                          Not in any section yet
+                                        </div>
+                                      </div>
+                                      {s.sectionId == null ? (
+                                        <Check className="h-4 w-4 text-emerald-300" />
+                                      ) : null}
+                                    </button>
+                                    {activeDetail.sections.map((sec) => {
+                                      const selected = s.sectionId === sec.id;
+                                      const meta = sectionById.get(sec.id);
+                                      const schedule =
+                                        meta?.scheduleLabel?.trim() || "No schedule";
+                                      const count = studentCountBySectionId.get(sec.id) ?? 0;
+                                      return (
+                                        <button
+                                          key={sec.id}
+                                          type="button"
+                                          onClick={() => {
+                                            setSectionPickerStudentId(null);
+                                            void assignStudentToSection(s.userId, sec.id);
+                                          }}
+                                          className={`flex w-full items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left text-xs font-semibold ${
+                                            selected
+                                              ? "border-emerald-400/40 bg-emerald-500/10 text-emerald-200"
+                                              : "border-white/10 bg-black/20 text-slate-200 hover:border-white/20"
+                                          }`}
+                                        >
+                                          <div className="min-w-0">
+                                            <div className="truncate text-slate-100">
+                                              {sec.name}
+                                            </div>
+                                            <div className="mt-0.5 text-[11px] font-medium text-slate-500">
+                                              {count} students · {schedule}
+                                            </div>
+                                          </div>
+                                          {selected ? (
+                                            <Check className="h-4 w-4 text-emerald-300" />
+                                          ) : null}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </PopoverContent>
+                              </Popover>
+                              <button
+                                type="button"
+                                onClick={() => openMotivation(s, recommendedAction(s))}
+                                className={`h-6 rounded-full border px-2.5 text-[10px] font-semibold ${actionClass(recommendedAction(s))}`}
+                              >
+                                {actionLabel(recommendedAction(s))}
+                              </button>
+                            </div>
                           </div>
                         </div>
                       ))
@@ -1314,31 +2035,34 @@ export default function MyClassroomView({
             </div>
           ) : null}
           {detailTab === "assignments" ? (
-            <div className="rounded-xl border border-white/10 bg-[#15162b] p-5">
+            <div className="rounded-xl border border-white/10 bg-[#15162b] p-3.5 sm:p-4">
               <div className="mb-3 flex items-center justify-between">
                 <div className="text-sm font-semibold">Active Assignments</div>
                 <button
                   type="button"
                   onClick={() => setAssignmentOpen(true)}
-                  className="rounded-full bg-violet-500 px-3 py-1.5 text-xs font-semibold text-white"
+                  disabled={cohortTab.kind === "unassigned"}
+                  className="rounded-full bg-violet-500 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
                 >
                   + New Assignment
                 </button>
               </div>
-              <div className="space-y-2">
-                {activeDetail.assignments.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-white/10 bg-black/20 px-4 py-8 text-center text-sm text-slate-400">
-                    No assignments yet. Create your first assignment to start tracking completion.
+              <div className="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {cohortAssignments.length === 0 ? (
+                  <div className="col-span-full rounded-xl border border-dashed border-white/10 bg-black/20 px-4 py-8 text-center text-sm text-slate-400">
+                    {cohortTab.kind === "unassigned"
+                      ? "Unassigned students do not receive section assignments. Assign students to a section first."
+                      : "No assignments yet. Create your first assignment to start tracking completion."}
                   </div>
                 ) : (
-                  [...activeDetail.assignments]
+                  [...cohortAssignments]
                     .sort((a, b) => {
                       const da = a.dueDateIso ? new Date(a.dueDateIso).getTime() : 0;
                       const db = b.dueDateIso ? new Date(b.dueDateIso).getTime() : 0;
                       return db - da; // most recent first
                     })
                     .map((item) => (
-                      <AssignmentRow
+                      <AssignmentCard
                         key={item.id}
                         item={item}
                         progress={
@@ -1355,7 +2079,7 @@ export default function MyClassroomView({
             </div>
           ) : null}
           {detailTab === "progress" ? (
-            <div className="rounded-xl border border-white/10 bg-[#15162b] p-5">
+            <div className="rounded-xl border border-white/10 bg-[#15162b] p-3.5 sm:p-4">
               {activeClassroom.isDemoShowcase ? (
                 <>
                   <div className="mb-2 flex items-center justify-between">
@@ -1401,13 +2125,15 @@ export default function MyClassroomView({
             </div>
           ) : null}
           {detailTab === "streaks" ? (
-            <div className="rounded-xl border border-white/10 bg-[#15162b] p-5">
+            <div className="rounded-xl border border-white/10 bg-[#15162b] p-3.5 sm:p-4">
               <div className="mb-3 flex items-center justify-between">
                 <div className="text-sm font-semibold">Streaks &amp; RDM distribution</div>
                 <button
                   type="button"
                   onClick={() => void rewardTopStudents()}
-                  disabled={rewardSubmitting || activeDetail.topStreakStudentIds.length === 0}
+                  disabled={
+                    rewardSubmitting || cohortStudents.filter((s) => s.streakDays > 0).length === 0
+                  }
                   className="rounded-full bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-black disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <Flame className="mr-1 inline h-3.5 w-3.5" />
@@ -1416,30 +2142,30 @@ export default function MyClassroomView({
               </div>
               <div className="mb-3 grid grid-cols-4 gap-2">
                 {(() => {
-                  const roster = activeDetail.students.filter((s) => s.role !== "teacher");
+                  const roster = cohortStudents;
                   if (activeClassroom.isDemoShowcase) {
                     return (
                       <>
                         <div className="rounded-lg border border-white/10 bg-black/20 p-3 text-center">
-                          <div className="font-serif text-3xl text-emerald-300">18</div>
+                          <div className="font-serif text-2xl sm:text-3xl text-emerald-300">18</div>
                           <div className="text-[10px] uppercase tracking-[0.08em] text-slate-500">
                             Avg streak
                           </div>
                         </div>
                         <div className="rounded-lg border border-white/10 bg-black/20 p-3 text-center">
-                          <div className="font-serif text-3xl text-amber-300">79%</div>
+                          <div className="font-serif text-2xl sm:text-3xl text-amber-300">79%</div>
                           <div className="text-[10px] uppercase tracking-[0.08em] text-slate-500">
                             On streak
                           </div>
                         </div>
                         <div className="rounded-lg border border-white/10 bg-black/20 p-3 text-center">
-                          <div className="font-serif text-3xl text-rose-300">4</div>
+                          <div className="font-serif text-2xl sm:text-3xl text-rose-300">4</div>
                           <div className="text-[10px] uppercase tracking-[0.08em] text-slate-500">
                             Off-streak
                           </div>
                         </div>
                         <div className="rounded-lg border border-white/10 bg-black/20 p-3 text-center">
-                          <div className="font-serif text-3xl text-violet-300">
+                          <div className="font-serif text-2xl sm:text-3xl text-violet-300">
                             {summary.rdmDistributedMonth.toLocaleString("en-IN")}
                           </div>
                           <div className="text-[10px] uppercase tracking-[0.08em] text-slate-500">
@@ -1461,25 +2187,25 @@ export default function MyClassroomView({
                   return (
                     <>
                       <div className="rounded-lg border border-white/10 bg-black/20 p-3 text-center">
-                        <div className="font-serif text-3xl text-emerald-300">{avgStreak}</div>
+                        <div className="font-serif text-2xl sm:text-3xl text-emerald-300">{avgStreak}</div>
                         <div className="text-[10px] uppercase tracking-[0.08em] text-slate-500">
                           Avg streak
                         </div>
                       </div>
                       <div className="rounded-lg border border-white/10 bg-black/20 p-3 text-center">
-                        <div className="font-serif text-3xl text-amber-300">{onStreakPct}%</div>
+                        <div className="font-serif text-2xl sm:text-3xl text-amber-300">{onStreakPct}%</div>
                         <div className="text-[10px] uppercase tracking-[0.08em] text-slate-500">
                           On streak
                         </div>
                       </div>
                       <div className="rounded-lg border border-white/10 bg-black/20 p-3 text-center">
-                        <div className="font-serif text-3xl text-rose-300">{offStreak}</div>
+                        <div className="font-serif text-2xl sm:text-3xl text-rose-300">{offStreak}</div>
                         <div className="text-[10px] uppercase tracking-[0.08em] text-slate-500">
                           Off-streak
                         </div>
                       </div>
                       <div className="rounded-lg border border-white/10 bg-black/20 p-3 text-center">
-                        <div className="font-serif text-3xl text-violet-300">
+                        <div className="font-serif text-2xl sm:text-3xl text-violet-300">
                           {classRdmTotal.toLocaleString("en-IN")}
                         </div>
                         <div className="text-[10px] uppercase tracking-[0.08em] text-slate-500">
@@ -1493,17 +2219,20 @@ export default function MyClassroomView({
               <div className="space-y-2">
                 <div className="rounded-lg border border-violet-500/20 bg-violet-500/5 px-3 py-2 text-xs text-violet-200">
                   Highest streak students:{" "}
-                  {activeDetail.topStreakStudentIds
-                    .map((id) => activeDetail.students.find((s) => s.userId === id)?.name)
+                  {[...cohortStudents]
+                    .filter((s) => s.streakDays > 0)
+                    .sort((a, b) => b.streakDays - a.streakDays)
+                    .slice(0, 5)
+                    .map((s) => s.name)
                     .filter(Boolean)
                     .join(", ") || "No streak leaders yet"}
                 </div>
-                {activeDetail.motivationLog.length === 0 ? (
+                {cohortMotivationLog.length === 0 ? (
                   <div className="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-slate-400">
                     No motivation actions yet.
                   </div>
                 ) : (
-                  activeDetail.motivationLog.map((entry) => (
+                  cohortMotivationLog.map((entry) => (
                     <div
                       key={entry.id}
                       className="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm"
@@ -1523,52 +2252,188 @@ export default function MyClassroomView({
           ) : null}
           {detailTab === "settings" && activeClassroom ? (
             <div className="space-y-4">
-              <div className="rounded-xl border border-white/10 bg-[#15162b] p-4 sm:p-5">
-                <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-white">
-                  <Settings className="h-4 w-4 text-violet-300" />
-                  Classroom details
+              {cohortTab.kind === "section" ? (
+                <div className="space-y-4">
+                  <div className="rounded-xl border border-white/10 bg-[#15162b] p-3.5 sm:p-4">
+                    <div className="mb-4 flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 text-sm font-semibold text-white">
+                        <Settings className="h-4 w-4 text-violet-300" />
+                        Section settings
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setCohortTab({ kind: "class" })}
+                        className="rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-white/10"
+                      >
+                        ← Class settings
+                      </button>
+                    </div>
+                    {(() => {
+                      const sec = activeDetail.sections.find((s) => s.id === cohortTab.id) ?? null;
+                      if (!sec) {
+                        return (
+                          <div className="text-sm text-slate-400">
+                            This section no longer exists. Switch back to Class settings.
+                          </div>
+                        );
+                      }
+                      return (
+                        <div className="flex flex-wrap items-end justify-between gap-3">
+                          <label className="block min-w-[240px] flex-1 text-xs font-medium text-slate-400">
+                            Section name
+                            <input
+                              value={sectionNameDrafts[sec.id] ?? sec.name}
+                              onChange={(e) =>
+                                setSectionNameDrafts((prev) => ({ ...prev, [sec.id]: e.target.value }))
+                              }
+                              className="mt-1.5 w-full rounded-lg border border-white/10 bg-[#0c1020] px-3 py-2 text-sm text-slate-200 outline-none focus:border-violet-500/50"
+                            />
+                          </label>
+                          <div className="flex shrink-0 flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={() => void saveSectionName(sec.id)}
+                              disabled={sectionNameSavingId === sec.id || sectionDeletingId === sec.id}
+                              className="rounded-full bg-violet-500 px-4 py-2 text-xs font-semibold text-white disabled:opacity-60"
+                            >
+                              {sectionNameSavingId === sec.id ? "Saving…" : "Save"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void deleteSection(sec.id)}
+                              disabled={sectionNameSavingId === sec.id || sectionDeletingId === sec.id}
+                              className="rounded-full border border-rose-500/40 bg-rose-500/10 px-4 py-2 text-xs font-semibold text-rose-100 hover:bg-rose-500/20 disabled:opacity-50"
+                            >
+                              {sectionDeletingId === sec.id ? "Deleting…" : "Delete section"}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
                 </div>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <label className="block text-xs font-medium text-slate-400">
-                    Class name
-                    <input
-                      value={settingsName}
-                      onChange={(e) => setSettingsName(e.target.value)}
-                      className="mt-1.5 w-full rounded-lg border border-white/10 bg-[#0c1020] px-3 py-2 text-sm text-slate-200 outline-none focus:border-violet-500/50"
-                    />
-                  </label>
-                  <label className="block text-xs font-medium text-slate-400">
-                    Subject (optional)
-                    <input
-                      value={settingsSubject}
-                      onChange={(e) => setSettingsSubject(e.target.value)}
-                      placeholder="e.g. Physics"
-                      className="mt-1.5 w-full rounded-lg border border-white/10 bg-[#0c1020] px-3 py-2 text-sm text-slate-200 outline-none placeholder:text-slate-600 focus:border-violet-500/50"
-                    />
-                  </label>
-                  <label className="block text-xs font-medium text-slate-400 sm:col-span-2">
-                    Section / batch label (optional)
-                    <input
-                      value={settingsSection}
-                      onChange={(e) => setSettingsSection(e.target.value)}
-                      placeholder="e.g. Section A, PUC 2"
-                      className="mt-1.5 w-full rounded-lg border border-white/10 bg-[#0c1020] px-3 py-2 text-sm text-slate-200 outline-none placeholder:text-slate-600 focus:border-violet-500/50"
-                    />
-                  </label>
-                </div>
-                <div className="mt-4 flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => void saveClassroomSettings()}
-                    disabled={settingsSaving}
-                    className="rounded-full bg-violet-500 px-4 py-2 text-xs font-semibold text-white disabled:opacity-60"
-                  >
-                    {settingsSaving ? "Saving…" : "Save changes"}
-                  </button>
-                </div>
-              </div>
-              <div className="grid gap-4 lg:grid-cols-2 lg:items-stretch">
-                <div className="flex h-full flex-col rounded-xl border border-white/10 bg-[#15162b] p-4 sm:p-5">
+              ) : (
+                <>
+                  <div className="rounded-xl border border-white/10 bg-[#15162b] p-3.5 sm:p-4">
+                    <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-white">
+                      <Settings className="h-4 w-4 text-violet-300" />
+                      Class settings
+                    </div>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <label className="block text-xs font-medium text-slate-400">
+                        Class name
+                        <input
+                          value={settingsName}
+                          onChange={(e) => setSettingsName(e.target.value)}
+                          className="mt-1.5 w-full rounded-lg border border-white/10 bg-[#0c1020] px-3 py-2 text-sm text-slate-200 outline-none focus:border-violet-500/50"
+                        />
+                      </label>
+                      <label className="block text-xs font-medium text-slate-400">
+                        Subject (optional)
+                        <input
+                          value={settingsSubject}
+                          onChange={(e) => setSettingsSubject(e.target.value)}
+                          placeholder="e.g. Physics"
+                          className="mt-1.5 w-full rounded-lg border border-white/10 bg-[#0c1020] px-3 py-2 text-sm text-slate-200 outline-none placeholder:text-slate-600 focus:border-violet-500/50"
+                        />
+                      </label>
+                      <label className="block text-xs font-medium text-slate-400 sm:col-span-2">
+                        Section / batch label (optional)
+                        <input
+                          value={settingsSection}
+                          onChange={(e) => setSettingsSection(e.target.value)}
+                          placeholder="e.g. Section A, PUC 2"
+                          className="mt-1.5 w-full rounded-lg border border-white/10 bg-[#0c1020] px-3 py-2 text-sm text-slate-200 outline-none placeholder:text-slate-600 focus:border-violet-500/50"
+                        />
+                      </label>
+                      <label className="block text-xs font-medium text-slate-400 sm:col-span-2">
+                        Intro video link (optional)
+                        <input
+                          value={settingsIntroVideoUrl}
+                          onChange={(e) => setSettingsIntroVideoUrl(e.target.value)}
+                          placeholder="YouTube or Vimeo URL"
+                          className="mt-1.5 w-full rounded-lg border border-white/10 bg-[#0c1020] px-3 py-2 text-sm text-slate-200 outline-none placeholder:text-slate-600 focus:border-violet-500/50"
+                        />
+                        <span className="mt-1 block text-[11px] text-slate-500">
+                          This appears in the classroom “About this class” section.
+                        </span>
+                      </label>
+                    </div>
+                    <div className="mt-4 flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => void saveClassroomSettings()}
+                        disabled={settingsSaving}
+                        className="rounded-full bg-violet-500 px-4 py-2 text-xs font-semibold text-white disabled:opacity-60"
+                      >
+                        {settingsSaving ? "Saving…" : "Save changes"}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-white/10 bg-[#15162b] p-4 sm:p-5">
+                    <div className="mb-4 flex items-center justify-between gap-2">
+                      <div className="text-sm font-semibold text-white">Sections</div>
+                      <button
+                        type="button"
+                        onClick={() => setSectionDialogOpen(true)}
+                        className="rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-white/10"
+                      >
+                        + Add section
+                      </button>
+                    </div>
+                    {activeDetail.sections.length === 0 ? (
+                      <div className="text-sm text-slate-400">
+                        No sections yet. Add a section to set a schedule and assign students.
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {activeDetail.sections.map((sec) => (
+                          <div
+                            key={sec.id}
+                            className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-white/10 bg-black/20 p-3"
+                          >
+                            <div className="min-w-[220px] flex-1">
+                              <div className="text-[11px] font-semibold uppercase tracking-widest text-slate-500">
+                                Section name
+                              </div>
+                              <input
+                                value={sectionNameDrafts[sec.id] ?? sec.name}
+                                onChange={(e) =>
+                                  setSectionNameDrafts((prev) => ({
+                                    ...prev,
+                                    [sec.id]: e.target.value,
+                                  }))
+                                }
+                                className="mt-1.5 w-full rounded-lg border border-white/10 bg-[#0c1020] px-3 py-2 text-sm text-slate-200 outline-none focus:border-violet-500/50"
+                              />
+                            </div>
+                            <div className="flex shrink-0 flex-wrap items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => void saveSectionName(sec.id)}
+                                disabled={sectionNameSavingId === sec.id || sectionDeletingId === sec.id}
+                                className="rounded-full bg-violet-500 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
+                              >
+                                {sectionNameSavingId === sec.id ? "Saving…" : "Save"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => void deleteSection(sec.id)}
+                                disabled={sectionNameSavingId === sec.id || sectionDeletingId === sec.id}
+                                className="rounded-full border border-rose-500/40 bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-100 hover:bg-rose-500/20 disabled:opacity-50"
+                              >
+                                {sectionDeletingId === sec.id ? "Deleting…" : "Delete section"}
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+              <div className="grid gap-3 sm:gap-4 lg:grid-cols-2 xl:grid-cols-3 lg:items-stretch">
+                <div className="flex h-full flex-col rounded-xl border border-white/10 bg-[#15162b] p-3.5 sm:p-4">
                   <div className="mb-3 text-sm font-semibold text-white">
                     Join &amp; student view
                   </div>
@@ -1600,7 +2465,109 @@ export default function MyClassroomView({
                     </div>
                   </div>
                 </div>
-                <div className="flex h-full flex-col rounded-xl border border-rose-500/25 bg-rose-500/5 p-4 sm:p-5">
+                {activeClassroom.googleMeetLink ||
+                activeClassroom.googleSeriesLinked ||
+                activeDetail.sections.some((s) => s.googleMeetLink || s.googleSeriesLinked) ? (
+                  <div className="flex h-full flex-col rounded-xl border border-sky-500/25 bg-sky-500/5 p-3.5 sm:p-4 xl:col-span-2">
+                    <div className="mb-2 text-sm font-semibold text-sky-200">Google Meet &amp; Calendar</div>
+                    <p className="mb-3 text-xs text-slate-400">
+                      Stopping updates Google Calendar; your EduBlast class stays until you delete it below.
+                    </p>
+                    <p className="mb-3 text-xs text-slate-400">
+                      Invite enrolled students by email (from their login account). Run again after new students
+                      join or move sections so Google can send calendar updates.
+                    </p>
+                    {(activeClassroom.googleMeetLink || activeClassroom.googleSeriesLinked) && (
+                      <div className="mb-4 rounded-lg border border-white/10 bg-black/20 p-3">
+                        <div className="mb-1 text-xs font-semibold text-slate-200">Classroom (legacy)</div>
+                        {activeClassroom.googleMeetLink ? (
+                          <a
+                            href={activeClassroom.googleMeetLink}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mb-2 inline-flex w-fit items-center gap-1.5 rounded-full border border-sky-500/40 bg-sky-500/15 px-3 py-1.5 text-xs font-semibold text-sky-100 hover:bg-sky-500/25"
+                          >
+                            Open Meet link <ExternalLink className="h-3.5 w-3.5" />
+                          </a>
+                        ) : (
+                          <p className="mb-2 text-xs text-slate-400">Meet link will appear after the next calendar sync.</p>
+                        )}
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            disabled={googleSeriesStopping || !activeClassroom.googleSeriesLinked}
+                            onClick={() => void stopGoogleSeries("until_today", null)}
+                            className="rounded-full border border-sky-500/40 bg-sky-500/10 px-3 py-1.5 text-xs font-semibold text-sky-100 hover:bg-sky-500/20 disabled:opacity-50"
+                          >
+                            {googleSeriesStopping ? "Working…" : "Stop future dates"}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={googleSeriesStopping || !activeClassroom.googleSeriesLinked}
+                            onClick={() => void stopGoogleSeries("delete_series", null)}
+                            className="rounded-full border border-rose-500/40 bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-100 hover:bg-rose-500/20 disabled:opacity-50"
+                          >
+                            Delete Google series
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    {activeDetail.sections
+                      .filter((s) => s.googleMeetLink || s.googleSeriesLinked)
+                      .map((sec) => (
+                        <div
+                          key={sec.id}
+                          className="mb-4 rounded-lg border border-white/10 bg-black/20 p-3 last:mb-0"
+                        >
+                          <div className="mb-1 text-xs font-semibold text-slate-200">{sec.name}</div>
+                          {sec.googleMeetLink ? (
+                            <a
+                              href={sec.googleMeetLink}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="mb-2 inline-flex w-fit items-center gap-1.5 rounded-full border border-sky-500/40 bg-sky-500/15 px-3 py-1.5 text-xs font-semibold text-sky-100 hover:bg-sky-500/25"
+                            >
+                              Open Meet link <ExternalLink className="h-3.5 w-3.5" />
+                            </a>
+                          ) : (
+                            <p className="mb-2 text-xs text-slate-400">Meet link will appear after the next calendar sync.</p>
+                          )}
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              disabled={googleSeriesStopping || !sec.googleSeriesLinked}
+                              onClick={() => void stopGoogleSeries("until_today", sec.id)}
+                              className="rounded-full border border-sky-500/40 bg-sky-500/10 px-3 py-1.5 text-xs font-semibold text-sky-100 hover:bg-sky-500/20 disabled:opacity-50"
+                            >
+                              {googleSeriesStopping ? "Working…" : "Stop future dates"}
+                            </button>
+                            <button
+                              type="button"
+                              disabled={googleSeriesStopping || !sec.googleSeriesLinked}
+                              onClick={() => void stopGoogleSeries("delete_series", sec.id)}
+                              className="rounded-full border border-rose-500/40 bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-100 hover:bg-rose-500/20 disabled:opacity-50"
+                            >
+                              Delete Google series
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    <button
+                      type="button"
+                      disabled={
+                        googleInviteSyncing ||
+                        (!activeClassroom.googleSeriesLinked &&
+                          !activeDetail.sections.some((s) => s.googleSeriesLinked)) ||
+                        activeDetail.students.length === 0
+                      }
+                      onClick={() => void syncStudentCalendarInvites()}
+                      className="mb-1 mt-2 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-100 hover:bg-emerald-500/20 disabled:opacity-50"
+                    >
+                      {googleInviteSyncing ? "Syncing invites…" : "Email calendar invites to students"}
+                    </button>
+                  </div>
+                ) : null}
+                <div className="flex h-full flex-col rounded-xl border border-rose-500/25 bg-rose-500/5 p-3.5 sm:p-4">
                   <div className="mb-2 text-sm font-semibold text-rose-200">Danger zone</div>
                   <p className="mb-3 text-xs text-slate-400">
                     Deleting removes this classroom from your portal and revokes student access.
@@ -1622,7 +2589,7 @@ export default function MyClassroomView({
           ) : null}
         </div>
       ) : (
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-3 sm:gap-3.5 md:grid-cols-2 xl:grid-cols-3">
           {classrooms.map((room) => (
             <button
               key={room.id}
@@ -1631,7 +2598,7 @@ export default function MyClassroomView({
               className="overflow-hidden rounded-2xl border border-white/10 bg-[#161629] text-left transition hover:-translate-y-0.5 hover:border-white/20"
             >
               <div className="flex items-center justify-between border-b border-white/10 bg-white/5 px-4 py-3">
-                <div className="font-serif text-2xl text-slate-500">
+                <div className="font-serif text-xl text-slate-500 sm:text-2xl">
                   {room.subject?.slice(0, 8) ?? "CLASS"}
                 </div>
                 <span className="rounded bg-emerald-500/15 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-emerald-300">
@@ -1641,7 +2608,10 @@ export default function MyClassroomView({
               <div className="space-y-2 px-4 py-3">
                 <div className="text-sm font-semibold">{room.name}</div>
                 <div className="text-xs text-slate-400">
-                  {(room.subject ?? "General").trim()} {room.section ? `· ${room.section}` : ""}
+                  {(() => {
+                    const subj = (room.subject ?? "General").trim();
+                    return (subj.toLowerCase() === "mathematics" ? "Maths" : subj) + (room.section ? ` · ${room.section}` : "");
+                  })()}
                 </div>
                 <div className="grid grid-cols-3 gap-2 pt-1">
                   <div>
@@ -1670,9 +2640,27 @@ export default function MyClassroomView({
                   </div>
                 </div>
                 <div className="flex items-center justify-between border-t border-white/10 pt-2">
-                  <div className="text-xs text-slate-400">{room.nextSessionLabel}</div>
+                  <div className="min-w-0 text-xs text-slate-400">
+                    <span className="truncate">{room.nextSessionLabel}</span>
+                    {room.nextMeetScopeLabel ? (
+                      <span className="ml-2 inline-flex rounded bg-white/5 px-2 py-0.5 text-[10px] font-semibold text-slate-300">
+                        {room.nextMeetScopeLabel}
+                      </span>
+                    ) : null}
+                  </div>
                   <BookOpen className="h-4 w-4 text-slate-500" />
                 </div>
+                {room.nextMeetLink ? (
+                  <a
+                    href={room.nextMeetLink}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="flex items-center justify-center gap-1 rounded-lg border border-sky-500/30 bg-sky-500/10 py-2 text-xs font-semibold text-sky-200 hover:bg-sky-500/20"
+                  >
+                    Join Meet <ExternalLink className="h-3.5 w-3.5" />
+                  </a>
+                ) : null}
               </div>
             </button>
           ))}
@@ -1682,7 +2670,7 @@ export default function MyClassroomView({
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="w-[96vw] max-w-190 max-h-[92vh] overflow-y-auto rounded-3xl border border-white/20 bg-[#111428] p-0 text-slate-100">
           <DialogHeader className="border-b border-white/10 p-4 pb-3 sm:p-6 sm:pb-4">
-            <DialogTitle className="font-serif text-3xl sm:text-4xl">
+            <DialogTitle className="font-serif text-2xl sm:text-3xl lg:text-4xl">
               Create a new classroom
             </DialogTitle>
             <p className="mt-1 text-sm text-slate-400">
@@ -1756,66 +2744,82 @@ export default function MyClassroomView({
                 <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
               </div>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-[#0d1121] p-4">
-              <label className="mb-2 block text-sm font-semibold text-slate-300">
-                Class schedule (easy calendar)
-              </label>
-              <div className="grid gap-3 md:grid-cols-3">
-                <div className="relative">
+            {SHOW_CLASSROOM_SCHEDULE_FORM ? (
+              <div className="rounded-2xl border border-white/10 bg-[#0d1121] p-4">
+                <label className="mb-2 block text-sm font-semibold text-slate-300">
+                  Class schedule (easy calendar)
+                </label>
+                <div className="grid gap-3 md:grid-cols-3">
+                  <div className="relative">
+                    <input
+                      type="date"
+                      value={scheduleDate}
+                      onChange={(e) => setScheduleDate(e.target.value)}
+                      className="h-11 w-full rounded-xl border border-white/15 bg-[#070b17] px-3 text-sm outline-none focus:border-emerald-400"
+                    />
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="time"
+                      value={scheduleTime}
+                      onChange={(e) => setScheduleTime(e.target.value)}
+                      className="h-11 w-full rounded-xl border border-white/15 bg-[#070b17] px-3 text-sm outline-none focus:border-emerald-400"
+                    />
+                  </div>
+                  <div className="relative">
+                    <select
+                      value={String(durationMinutes)}
+                      onChange={(e) => setDurationMinutes(Number(e.target.value))}
+                      className={selectClassName}
+                    >
+                      <option value="45">45 mins</option>
+                      <option value="60">60 mins</option>
+                      <option value="90">90 mins</option>
+                      <option value="120">120 mins</option>
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <div className="mb-1 text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
+                    Repeat days
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {WEEKDAYS.map((day) => (
+                      <button
+                        key={day}
+                        type="button"
+                        onClick={() => toggleRepeat(day)}
+                        className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                          repeatDays.includes(day)
+                            ? "border-emerald-400/40 bg-emerald-500/15 text-emerald-200"
+                            : "border-white/15 text-slate-400 hover:border-white/25 hover:text-slate-200"
+                        }`}
+                      >
+                        {day}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="mt-3 rounded-lg border border-white/10 bg-[#070b17] px-3 py-2 text-sm text-slate-300">
+                  {schedulePreview}
+                </div>
+                <div className="mt-3">
+                  <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
+                    End date (optional)
+                  </label>
                   <input
                     type="date"
-                    value={scheduleDate}
-                    onChange={(e) => setScheduleDate(e.target.value)}
-                    className="h-11 w-full rounded-xl border border-white/15 bg-[#070b17] px-3 text-sm outline-none focus:border-emerald-400"
+                    value={scheduleEndDate}
+                    onChange={(e) => setScheduleEndDate(e.target.value)}
+                    className="h-11 w-full max-w-xs rounded-xl border border-white/15 bg-[#070b17] px-3 text-sm outline-none focus:border-emerald-400"
                   />
-                </div>
-                <div className="relative">
-                  <input
-                    type="time"
-                    value={scheduleTime}
-                    onChange={(e) => setScheduleTime(e.target.value)}
-                    className="h-11 w-full rounded-xl border border-white/15 bg-[#070b17] px-3 text-sm outline-none focus:border-emerald-400"
-                  />
-                </div>
-                <div className="relative">
-                  <select
-                    value={String(durationMinutes)}
-                    onChange={(e) => setDurationMinutes(Number(e.target.value))}
-                    className={selectClassName}
-                  >
-                    <option value="45">45 mins</option>
-                    <option value="60">60 mins</option>
-                    <option value="90">90 mins</option>
-                    <option value="120">120 mins</option>
-                  </select>
-                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                  <p className="mt-1 text-[11px] text-slate-500">
+                    Leave empty to run until you stop the series from class settings.
+                  </p>
                 </div>
               </div>
-              <div className="mt-3">
-                <div className="mb-1 text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
-                  Repeat days
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {WEEKDAYS.map((day) => (
-                    <button
-                      key={day}
-                      type="button"
-                      onClick={() => toggleRepeat(day)}
-                      className={`rounded-full border px-3 py-1 text-xs font-semibold ${
-                        repeatDays.includes(day)
-                          ? "border-emerald-400/40 bg-emerald-500/15 text-emerald-200"
-                          : "border-white/15 text-slate-400 hover:border-white/25 hover:text-slate-200"
-                      }`}
-                    >
-                      {day}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="mt-3 rounded-lg border border-white/10 bg-[#070b17] px-3 py-2 text-sm text-slate-300">
-                {schedulePreview}
-              </div>
-            </div>
+            ) : null}
             <div>
               <label className="mb-1 block text-sm font-semibold text-slate-300">
                 Allow ad-hoc 10-min trial?
@@ -1850,6 +2854,118 @@ export default function MyClassroomView({
               className="rounded-full bg-emerald-500 px-6 py-2 text-sm font-semibold text-black hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60 sm:min-w-40"
             >
               {submitting ? "Creating..." : "Create classroom"}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={sectionDialogOpen} onOpenChange={setSectionDialogOpen}>
+        <DialogContent className="w-[96vw] max-w-190 max-h-[92vh] overflow-y-auto rounded-3xl border border-white/20 bg-[#111428] p-0 text-slate-100">
+          <DialogHeader className="border-b border-white/10 p-4 pb-3 sm:p-6 sm:pb-4">
+            <DialogTitle className="font-serif text-2xl sm:text-3xl lg:text-4xl">
+              Add section
+            </DialogTitle>
+            <p className="mt-1 text-sm text-slate-400">
+              Create a section (up to 6) and set its recurring schedule. This is what syncs to Google
+              Calendar.
+            </p>
+          </DialogHeader>
+          <div className="space-y-4 p-4 sm:p-6">
+            <div>
+              <label className="mb-1 block text-sm font-semibold text-slate-300">
+                Section name *
+              </label>
+              <input
+                value={newSectionName}
+                onChange={(e) => setNewSectionName(e.target.value)}
+                placeholder="e.g. Section A"
+                className="h-11 w-full rounded-xl border border-white/15 bg-[#070b17] px-3 text-sm outline-none placeholder:text-slate-500 focus:border-emerald-400"
+              />
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-[#0d1121] p-4">
+              <label className="mb-2 block text-sm font-semibold text-slate-300">
+                Section schedule (easy calendar)
+              </label>
+              <div className="grid gap-3 md:grid-cols-3">
+                <div className="relative">
+                  <input
+                    type="date"
+                    value={sectionScheduleDate}
+                    onChange={(e) => setSectionScheduleDate(e.target.value)}
+                    className="h-11 w-full rounded-xl border border-white/15 bg-[#070b17] px-3 text-sm outline-none focus:border-emerald-400"
+                  />
+                </div>
+                <div className="relative">
+                  <input
+                    type="time"
+                    value={sectionScheduleTime}
+                    onChange={(e) => setSectionScheduleTime(e.target.value)}
+                    className="h-11 w-full rounded-xl border border-white/15 bg-[#070b17] px-3 text-sm outline-none focus:border-emerald-400"
+                  />
+                </div>
+                <div className="relative">
+                  <select
+                    value={String(sectionDurationMinutes)}
+                    onChange={(e) => setSectionDurationMinutes(Number(e.target.value))}
+                    className={selectClassName}
+                  >
+                    <option value="45">45 mins</option>
+                    <option value="60">60 mins</option>
+                    <option value="90">90 mins</option>
+                    <option value="120">120 mins</option>
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                </div>
+              </div>
+              <div className="mt-3">
+                <div className="mb-1 text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
+                  Repeat days
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {WEEKDAYS.map((day) => (
+                    <button
+                      key={day}
+                      type="button"
+                      onClick={() => toggleSectionRepeat(day)}
+                      className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                        sectionRepeatDays.includes(day)
+                          ? "border-emerald-400/40 bg-emerald-500/15 text-emerald-200"
+                          : "border-white/15 text-slate-400 hover:border-white/25 hover:text-slate-200"
+                      }`}
+                    >
+                      {day}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="mt-3">
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
+                  End date (optional)
+                </label>
+                <input
+                  type="date"
+                  value={sectionScheduleEndDate}
+                  onChange={(e) => setSectionScheduleEndDate(e.target.value)}
+                  className="h-11 w-full max-w-xs rounded-xl border border-white/15 bg-[#070b17] px-3 text-sm outline-none focus:border-emerald-400"
+                />
+              </div>
+            </div>
+          </div>
+          <div className="flex flex-col-reverse items-stretch justify-end gap-3 border-t border-white/10 p-4 sm:flex-row sm:items-center sm:p-5">
+            <button
+              type="button"
+              onClick={() => setSectionDialogOpen(false)}
+              className="rounded-full border border-white/20 px-5 py-2 text-sm font-semibold text-slate-300 hover:bg-white/5 sm:min-w-27.5"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => void createSection()}
+              disabled={sectionCreating}
+              className="rounded-full bg-violet-500 px-6 py-2 text-sm font-semibold text-white hover:bg-violet-400 disabled:cursor-not-allowed disabled:opacity-60 sm:min-w-40"
+            >
+              {sectionCreating ? "Creating..." : "Create section"}
             </button>
           </div>
         </DialogContent>
@@ -1905,7 +3021,6 @@ export default function MyClassroomView({
                         <option>Mock Paper (full length)</option>
                         <option>Chapter Quiz (MCQs)</option>
                         <option>Concept Focus</option>
-                        <option>DailyDose Streak Challenge</option>
                         <option>Gyan++ engagement</option>
                         <option>Custom Assignment</option>
                       </select>
@@ -1937,7 +3052,7 @@ export default function MyClassroomView({
                     </div>
                     <div>
                       <label className="mb-1 block text-sm font-semibold text-slate-300">
-                        Assign to
+                        Audience
                       </label>
                       <div className="relative">
                         <select
@@ -1952,6 +3067,48 @@ export default function MyClassroomView({
                         <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
                       </div>
                     </div>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-semibold text-slate-300">
+                      Assign to (class / section)
+                    </label>
+                    <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                      <button
+                        type="button"
+                        onClick={() => setAssignmentTargetSectionId(null)}
+                        className={`shrink-0 rounded-xl border px-3 py-2 text-left text-xs font-semibold ${
+                          assignmentTargetSectionId == null
+                            ? "border-emerald-400/40 bg-emerald-500/10 text-emerald-200"
+                            : "border-white/10 bg-black/20 text-slate-300 hover:border-white/20"
+                        }`}
+                      >
+                        <div className="text-slate-100">Class</div>
+                        <div className="mt-0.5 text-[10px] font-semibold text-slate-500">
+                          {activeDetail.students.filter((s) => s.role !== "teacher").length} students
+                        </div>
+                      </button>
+                      {activeDetail.sections.map((sec) => (
+                        <button
+                          key={sec.id}
+                          type="button"
+                          onClick={() => setAssignmentTargetSectionId(sec.id)}
+                          className={`shrink-0 min-w-[180px] rounded-xl border px-3 py-2 text-left text-xs font-semibold ${
+                            assignmentTargetSectionId === sec.id
+                              ? "border-emerald-400/40 bg-emerald-500/10 text-emerald-200"
+                              : "border-white/10 bg-black/20 text-slate-300 hover:border-white/20"
+                          }`}
+                        >
+                          <div className="truncate text-slate-100">{sec.name}</div>
+                          <div className="mt-0.5 text-[10px] font-semibold text-slate-500">
+                            {(studentCountBySectionId.get(sec.id) ?? 0).toString()} students ·{" "}
+                            {sec.scheduleLabel?.trim() || "No schedule"}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                    <p className="mt-1 text-[11px] text-slate-500">
+                      Section assignments are only visible to students assigned to that section.
+                    </p>
                   </div>
                   <div>
                     <label className="mb-1 block text-sm font-semibold text-slate-300">
@@ -2099,7 +3256,6 @@ export default function MyClassroomView({
                     <option>Mock Paper (full length)</option>
                     <option>Chapter Quiz (MCQs)</option>
                     <option>Concept Focus</option>
-                    <option>DailyDose Streak Challenge</option>
                     <option>Gyan++ engagement</option>
                     <option>Custom Assignment</option>
                   </select>
@@ -2209,10 +3365,30 @@ export default function MyClassroomView({
         </DialogContent>
       </Dialog>
 
+      <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
+        <DialogContent className="w-[96vw] max-w-2xl max-h-[92vh] overflow-y-auto rounded-3xl border border-white/20 bg-[#0f1329] p-0 text-slate-100">
+          <DialogHeader className="border-b border-white/10 p-4 pb-3 sm:p-6 sm:pb-4">
+            <DialogTitle className="font-serif text-2xl sm:text-3xl">Invite students</DialogTitle>
+            <p className="mt-1 text-sm text-slate-400">
+              Share a join link/code, or directly add existing users.
+            </p>
+          </DialogHeader>
+          <div className="p-4 sm:p-6">
+            {activeClassroom?.id && activeClassroom.joinCode?.trim() ? (
+              <InviteStudents classroomId={activeClassroom.id} joinCode={activeClassroom.joinCode} />
+            ) : (
+              <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-6 text-sm text-slate-300">
+                Join code not available yet. Please refresh the page or open this classroom from the main classrooms list again.
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={motivationOpen} onOpenChange={setMotivationOpen}>
         <DialogContent className="w-[94vw] max-w-160 rounded-[22px] border border-white/20 bg-[#12162a] p-0 text-slate-100 shadow-[0_24px_80px_rgba(0,0,0,0.55)]">
           <DialogHeader className="border-b border-white/10 px-5 py-3.5">
-            <DialogTitle className="font-serif text-[30px] leading-[1.05] tracking-tight text-white">
+            <DialogTitle className="font-serif text-2xl leading-[1.05] tracking-tight text-white sm:text-3xl">
               <span className="mr-2 text-amber-300">☆</span>
               Send personalised motivation + RDM
             </DialogTitle>
@@ -2365,9 +3541,9 @@ export default function MyClassroomView({
         }}
       >
         <DialogContent className="max-h-[90vh] w-[94vw] max-w-190 overflow-hidden rounded-3xl border border-white/20 bg-[#0f1329] p-0 text-slate-100 shadow-2xl">
-          <DialogHeader className="border-b border-white/10 bg-linear-to-r from-[#111428] to-[#1a1f3d] p-5 pr-14">
+          <DialogHeader className="border-b border-white/10 bg-linear-to-r from-[#111428] to-[#1a1f3d] p-4 pr-14 sm:p-5">
             <div className="flex items-start justify-between gap-3">
-              <DialogTitle className="font-serif text-2xl leading-tight sm:text-3xl">
+              <DialogTitle className="font-serif text-xl leading-tight sm:text-2xl lg:text-3xl">
                 {assignmentDetail?.title ?? "Assignment details"}
               </DialogTitle>
               {assignmentDetail ? (
@@ -2417,7 +3593,7 @@ export default function MyClassroomView({
                         ? assignmentScores.length
                         : (assignmentProgressCacheRef.current[assignmentDetail.id]
                             ?.completedCount ?? assignmentDetail.completedCount)}
-                      /{activeDetail.students.filter((s) => s.role !== "teacher").length}
+                      /{cohortStudents.length}
                     </div>
                   </div>
                   <div className="rounded-xl border border-white/10 bg-[#151b35] p-3 text-center">
@@ -2451,16 +3627,13 @@ export default function MyClassroomView({
                   {assignmentDetail.rewardRdm} RDM
                   <span className="mx-2 text-slate-500">•</span>
                   <span className="font-semibold text-sky-300">Completion:</span>{" "}
-                  {activeDetail.students.filter((s) => s.role !== "teacher").length > 0
+                  {cohortStudents.length > 0
                     ? `${Math.round(
                         ((assignmentScores.length > 0
                           ? assignmentScores.length
                           : (assignmentProgressCacheRef.current[assignmentDetail.id]
                               ?.completedCount ?? assignmentDetail.completedCount)) /
-                          Math.max(
-                            1,
-                            activeDetail.students.filter((s) => s.role !== "teacher").length
-                          )) *
+                          Math.max(1, cohortStudents.length)) *
                           100
                       )}%`
                     : "0%"}
@@ -2599,7 +3772,7 @@ export default function MyClassroomView({
                               {t.kind === "chapter_quiz" ? (
                                 <span className="rounded border border-sky-400/30 bg-sky-500/10 px-1.5 py-0.5 text-[10px] font-bold text-sky-300">
                                   {assignmentScores.length}/
-                                  {activeDetail.students.filter((s) => s.role !== "teacher").length}{" "}
+                                  {cohortStudents.length}{" "}
                                   submitted
                                 </span>
                               ) : null}
@@ -2710,19 +3883,14 @@ export default function MyClassroomView({
                       </div>
                     )}
                     {!assignmentScoresLoading &&
-                    activeDetail.students.filter((s) => s.role !== "teacher").length >
-                      assignmentScores.length ? (
+                    cohortStudents.length > assignmentScores.length ? (
                       <div className="mt-3 rounded-lg border border-amber-400/20 bg-amber-500/10 p-3">
                         <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.08em] text-amber-300">
                           Pending submissions
                         </div>
                         <div className="flex flex-wrap gap-1.5">
-                          {activeDetail.students
-                            .filter(
-                              (s) =>
-                                s.role !== "teacher" &&
-                                !assignmentScores.some((score) => score.userId === s.userId)
-                            )
+                          {cohortStudents
+                            .filter((s) => !assignmentScores.some((score) => score.userId === s.userId))
                             .map((s) => (
                               <span
                                 key={s.userId}

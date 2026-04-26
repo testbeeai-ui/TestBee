@@ -7,6 +7,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const {
       classroom_id: classroomId,
+      section_id: sectionIdRaw,
       title,
       scheduled_at: scheduledAt,
       duration_minutes: durationMinutes,
@@ -52,10 +53,25 @@ export async function POST(request: Request) {
       );
     }
 
+    const sectionId =
+      typeof sectionIdRaw === "string" && sectionIdRaw.trim().length ? sectionIdRaw.trim() : null;
+    if (sectionId) {
+      const { data: section } = await admin
+        .from("classroom_sections" as any)
+        .select("id, classroom_id")
+        .eq("id", sectionId)
+        .maybeSingle();
+      const sectionRow = section as { classroom_id?: string | null } | null;
+      if (!sectionRow || sectionRow.classroom_id !== classroomId) {
+        return NextResponse.json({ error: "Invalid section_id for classroom" }, { status: 400 });
+      }
+    }
+
     const { data: session, error: sessionError } = await admin
       .from("live_sessions")
       .insert({
         classroom_id: classroomId,
+        section_id: sectionId,
         teacher_id: user.id,
         title: title.trim(),
         scheduled_at: scheduledAt,

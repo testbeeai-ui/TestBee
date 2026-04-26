@@ -11,12 +11,12 @@ interface ReferEarnViewProps {
 export default function ReferEarnView({ referStats, onCopyLink }: ReferEarnViewProps) {
   const totalReferred = referStats.teachersReferred + referStats.studentsReferred;
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-4 sm:space-y-5">
+    <div className="w-full space-y-4 sm:space-y-5">
       <div>
-        <h1 className="font-serif text-4xl">
+        <h1 className="font-serif text-3xl sm:text-4xl">
           Refer & <span className="text-emerald-400 italic">Earn</span>
         </h1>
-        <p className="text-sm text-slate-400">
+        <p className="text-xs text-slate-400 sm:text-sm">
           Earn RDM by referring colleagues and growing your EduBlast impact.
         </p>
       </div>
@@ -26,20 +26,22 @@ export default function ReferEarnView({ referStats, onCopyLink }: ReferEarnViewP
           Teacher Refer & Earn
         </div>
         <div className="mb-4 flex flex-col items-center text-center">
-          <div className="mb-1 font-serif text-4xl text-amber-300 sm:text-5xl">
+          <div className="mb-1 font-serif text-3xl text-amber-300 sm:text-4xl lg:text-5xl">
             {referStats.rdmBalance.toLocaleString("en-IN")}
           </div>
-          <div className="text-xl text-slate-200 sm:text-2xl">RDM balance</div>
+          <div className="text-lg text-slate-200 sm:text-xl lg:text-2xl">RDM balance</div>
         </div>
         <div className="grid gap-2.5 sm:grid-cols-3">
           <div className="rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 text-center">
-            <div className="font-serif text-2xl text-emerald-300 sm:text-3xl">{totalReferred}</div>
+            <div className="font-serif text-xl text-emerald-300 sm:text-2xl lg:text-3xl">
+              {totalReferred}
+            </div>
             <div className="text-[10px] uppercase tracking-[0.1em] text-slate-500">
               Total referred
             </div>
           </div>
           <div className="rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 text-center">
-            <div className="font-serif text-2xl text-amber-300 sm:text-3xl">
+            <div className="font-serif text-xl text-amber-300 sm:text-2xl lg:text-3xl">
               +{referStats.teacherRewardRdm}
             </div>
             <div className="text-[10px] uppercase tracking-[0.1em] text-slate-500">
@@ -47,7 +49,7 @@ export default function ReferEarnView({ referStats, onCopyLink }: ReferEarnViewP
             </div>
           </div>
           <div className="rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 text-center">
-            <div className="font-serif text-2xl text-rose-300 sm:text-3xl">
+            <div className="font-serif text-xl text-rose-300 sm:text-2xl lg:text-3xl">
               +{referStats.teacherMilestoneBonusRdm}
             </div>
             <div className="text-[10px] uppercase tracking-[0.1em] text-slate-500">

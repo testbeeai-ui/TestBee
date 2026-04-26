@@ -16,7 +16,7 @@ interface TeacherPortalShellProps {
 
 const sections: Array<{ key: TeacherPortalSection; label: string; icon: typeof LayoutGrid }> = [
   { key: "myClassroom", label: "My Classroom", icon: LayoutGrid },
-  { key: "myClasses", label: "My Classes", icon: GraduationCap },
+  { key: "myClasses", label: "My lessons", icon: GraduationCap },
   { key: "gyanWall", label: "Gyan++ Wall", icon: Star },
   { key: "createTests", label: "Create Tests", icon: BookOpen },
   { key: "referEarn", label: "Refer & Earn", icon: Gift },
@@ -43,7 +43,7 @@ export default function TeacherPortalShell({
   return (
     <div className="min-h-screen bg-[#07070f] text-slate-100">
       <header className="sticky top-0 z-20 border-b border-white/10 bg-[#07070f]/95 backdrop-blur">
-        <div className="flex h-16 items-center gap-3 px-5 lg:px-6">
+        <div className="flex h-14 items-center gap-2 px-4 sm:h-16 sm:gap-3 sm:px-5 lg:px-6">
           <div className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-md border border-emerald-400/40 bg-[#101425]">
               <span className="font-serif text-emerald-300">E</span>
@@ -61,7 +61,7 @@ export default function TeacherPortalShell({
                 key={key}
                 type="button"
                 onClick={() => (key === "createTests" ? onOpenCreateTests() : onSectionChange(key))}
-                className={`inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-semibold transition ${
+                className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-semibold transition sm:px-3 sm:py-2 sm:text-sm ${
                   activeSection === key
                     ? "bg-emerald-500/15 text-emerald-300"
                     : "text-slate-400 hover:bg-white/5 hover:text-white"
@@ -94,8 +94,8 @@ export default function TeacherPortalShell({
         </div>
       </header>
 
-      <div className="grid min-h-[calc(100vh-64px)] grid-cols-1 md:grid-cols-[250px_1fr]">
-        <aside className="border-r border-white/10 bg-[#0d0d1c] p-3.5">
+      <div className="grid min-h-[calc(100vh-3.5rem)] grid-cols-1 sm:min-h-[calc(100vh-4rem)] md:grid-cols-[250px_1fr]">
+        <aside className="border-r border-white/10 bg-[#0d0d1c] p-3 sm:p-3.5">
           <div className="px-2 pb-2 pt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">
             Navigation
           </div>
@@ -105,7 +105,7 @@ export default function TeacherPortalShell({
                 key={`sidebar-${key}`}
                 type="button"
                 onClick={() => (key === "createTests" ? onOpenCreateTests() : onSectionChange(key))}
-                className={`flex w-full items-center gap-2 rounded-lg border px-3 py-2.5 text-left text-sm transition ${
+                className={`flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition sm:py-2.5 ${
                   activeSection === key
                     ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
                     : "border-transparent text-slate-400 hover:border-white/10 hover:bg-white/5 hover:text-white"
@@ -127,14 +127,14 @@ export default function TeacherPortalShell({
           <div className="space-y-1">
             <button
               type="button"
-              className="flex w-full items-center gap-2 rounded-lg border border-transparent px-3 py-2.5 text-left text-sm text-slate-400 hover:border-white/10 hover:bg-white/5 hover:text-white"
+              className="flex w-full items-center gap-2 rounded-lg border border-transparent px-3 py-2 text-left text-sm text-slate-400 hover:border-white/10 hover:bg-white/5 hover:text-white sm:py-2.5"
             >
               <Plus className="h-4 w-4" />
               Create Assignment
             </button>
             <button
               type="button"
-              className="flex w-full items-center gap-2 rounded-lg border border-transparent px-3 py-2.5 text-left text-sm text-slate-400 hover:border-white/10 hover:bg-white/5 hover:text-white"
+              className="flex w-full items-center gap-2 rounded-lg border border-transparent px-3 py-2 text-left text-sm text-slate-400 hover:border-white/10 hover:bg-white/5 hover:text-white sm:py-2.5"
             >
               <Star className="h-4 w-4" />
               Send RDM Boost
@@ -147,7 +147,7 @@ export default function TeacherPortalShell({
               Progress Reports
             </button>
           </div>
-          <div className="mt-4 rounded-xl border border-white/10 bg-[#111325] p-3">
+          <div className="mt-3 rounded-xl border border-white/10 bg-[#111325] p-2.5 sm:mt-4 sm:p-3">
             <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full border border-violet-400/40 bg-violet-500/10 text-sm font-bold text-violet-200">
               {initials}
             </div>
@@ -158,7 +158,9 @@ export default function TeacherPortalShell({
             </div>
           </div>
         </aside>
-        <main className="min-w-0 w-full p-5 text-left lg:p-6">{children}</main>
+        <main className="min-w-0 w-full p-4 text-left sm:p-5 lg:p-6">
+          {children}
+        </main>
       </div>
     </div>
   );

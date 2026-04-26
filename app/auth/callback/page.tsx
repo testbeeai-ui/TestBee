@@ -138,7 +138,7 @@ export default function AuthCallback() {
       const session = await readClientSession();
       if (!session?.user) {
         if (Date.now() < pollUntil) setTimeout(poll, 400);
-        else doRedirect("/select-role", stored);
+        else doRedirect("/auth", stored);
       }
     };
 
@@ -178,7 +178,7 @@ export default function AuthCallback() {
             (fix_handle_new_user_profile).
           </p>
         )}
-        <Button className="rounded-xl" onClick={() => router.replace("/select-role")}>
+        <Button className="rounded-xl" onClick={() => router.replace("/auth")}>
           Try again
         </Button>
       </div>

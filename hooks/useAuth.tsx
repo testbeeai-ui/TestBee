@@ -23,6 +23,7 @@ import { targetExamToExamType } from "@/lib/targetExam";
 import { mergeAllSavedContent } from "@/lib/mergeSavedContent";
 import type { Json } from "@/integrations/supabase/types";
 import { safeGetSession } from "@/lib/safeSession";
+import { profileShouldForceOnboardingComplete } from "@/lib/profileOnboardingRepair";
 
 interface Profile {
   id: string;
@@ -90,14 +91,32 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       .eq("id", userId)
       .maybeSingle();
     if (data) {
-      const p = data as unknown as Profile;
-      // Check if role needs correction based on user's selection
-      let intendedRole: "student" | "teacher" | null = null;
+      let row = data as unknown as Profile;
+      let isSignInFlow = false;
       try {
-        const stored = sessionStorage.getItem("auth_intended_role");
-        if (stored === "teacher" || stored === "student") intendedRole = stored;
+        isSignInFlow = sessionStorage.getItem("auth_mode") === "signin";
       } catch (_) {}
-      if (intendedRole && p.role !== intendedRole && !p.onboarding_complete) {
+      if (profileShouldForceOnboardingComplete(row, { isSignIn: isSignInFlow })) {
+        const { data: repaired, error: repairErr } = await supabase
+          .from("profiles")
+          .update({ onboarding_complete: true })
+          .eq("id", userId)
+          .select()
+          .maybeSingle();
+        if (repairErr) console.error("[auth] repair onboarding_complete:", repairErr.message);
+        if (repaired) row = repaired as unknown as Profile;
+      }
+      // Sign-in with Google: trust the profile row from Supabase — do not realign role
+      // from stale sessionStorage (e.g. a prior "join as student" visit).
+      // Check if role needs correction based on explicit signup role choice only
+      let intendedRole: "student" | "teacher" | null = null;
+      if (!isSignInFlow) {
+        try {
+          const stored = sessionStorage.getItem("auth_intended_role");
+          if (stored === "teacher" || stored === "student") intendedRole = stored;
+        } catch (_) {}
+      }
+      if (intendedRole && row.role !== intendedRole && !row.onboarding_complete) {
         // Update profile to correct role before setting it
         const { data: updated } = await supabase
           .from("profiles")
@@ -113,8 +132,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           return;
         }
       }
-      setProfile(p);
-      if (typeof p.rdm === "number") useUserStore.getState().setRdmFromProfile(p.rdm);
+      setProfile(row);
+      if (typeof row.rdm === "number") useUserStore.getState().setRdmFromProfile(row.rdm);
       return;
     }
     // Profile read failed (RLS, network, or row missing). Do NOT upsert — that would overwrite
@@ -123,11 +142,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // and retry will happen on next auth state change or refresh.
     if (error?.code === "PGRST116" || !data) {
       const name = userMeta?.name || "User";
-      let intendedRole: "student" | "teacher" = "student";
+      let isSignInFlow = false;
       try {
-        const stored = sessionStorage.getItem("auth_intended_role");
-        if (stored === "teacher" || stored === "student") intendedRole = stored;
+        isSignInFlow = sessionStorage.getItem("auth_mode") === "signin";
       } catch (_) {}
+      let intendedRole: "student" | "teacher" = "student";
+      if (!isSignInFlow) {
+        try {
+          const stored = sessionStorage.getItem("auth_intended_role");
+          if (stored === "teacher" || stored === "student") intendedRole = stored;
+        } catch (_) {}
+      }
       const { data: inserted } = await supabase
         .from("profiles")
         .upsert(
@@ -155,9 +180,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           .eq("id", userId)
           .maybeSingle();
         if (refetched) {
-          const p = refetched as unknown as Profile;
-          setProfile(p);
-          if (typeof p.rdm === "number") useUserStore.getState().setRdmFromProfile(p.rdm);
+          let row = refetched as unknown as Profile;
+          let signIn = false;
+          try {
+            signIn = sessionStorage.getItem("auth_mode") === "signin";
+          } catch (_) {}
+          if (profileShouldForceOnboardingComplete(row, { isSignIn: signIn })) {
+            const { data: repaired, error: repairErr } = await supabase
+              .from("profiles")
+              .update({ onboarding_complete: true })
+              .eq("id", userId)
+              .select()
+              .maybeSingle();
+            if (repairErr)
+              console.error("[auth] repair onboarding_complete (refetch):", repairErr.message);
+            if (repaired) row = repaired as unknown as Profile;
+          }
+          setProfile(row);
+          if (typeof row.rdm === "number") useUserStore.getState().setRdmFromProfile(row.rdm);
         } else setProfile(null);
       }
       return;

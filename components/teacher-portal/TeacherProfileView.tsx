@@ -208,16 +208,16 @@ export default function TeacherProfileView({ profile, onSave }: TeacherProfileVi
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4 sm:space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <h1 className="font-serif text-4xl">
+        <h1 className="font-serif text-3xl sm:text-4xl">
           My <span className="text-emerald-400 italic">Profile</span>
         </h1>
         <div className="flex gap-2">
           <button
             type="button"
             onClick={() => setEditing((v) => !v)}
-            className="rounded-full border border-white/15 px-4 py-2 text-sm text-slate-200 hover:bg-white/5"
+            className="rounded-full border border-white/15 px-3 py-1.5 text-xs text-slate-200 hover:bg-white/5 sm:px-4 sm:py-2 sm:text-sm"
           >
             {editing ? "Cancel edit" : "Edit profile"}
           </button>
@@ -226,7 +226,7 @@ export default function TeacherProfileView({ profile, onSave }: TeacherProfileVi
               type="button"
               onClick={() => void save()}
               disabled={saving}
-              className="inline-flex items-center gap-2 rounded-full bg-emerald-500 px-4 py-2 text-sm font-semibold text-black hover:bg-emerald-400 disabled:opacity-60"
+              className="inline-flex items-center gap-2 rounded-full bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-black hover:bg-emerald-400 disabled:opacity-60 sm:px-4 sm:py-2 sm:text-sm"
             >
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               Save
@@ -238,7 +238,7 @@ export default function TeacherProfileView({ profile, onSave }: TeacherProfileVi
                 const { error } = await supabase.auth.signOut();
                 if (!error) router.push("/");
               }}
-              className="inline-flex items-center gap-2 rounded-full border border-rose-400/30 bg-rose-500/10 px-4 py-2 text-sm font-semibold text-rose-300 hover:bg-rose-500/20"
+              className="inline-flex items-center gap-2 rounded-full border border-rose-400/30 bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-300 hover:bg-rose-500/20 sm:px-4 sm:py-2 sm:text-sm"
             >
               <LogOut className="h-4 w-4" /> Log Out
             </button>
@@ -246,7 +246,7 @@ export default function TeacherProfileView({ profile, onSave }: TeacherProfileVi
         </div>
       </div>
 
-      <div className="rounded-2xl border border-white/10 bg-[#15162b] p-6">
+      <div className="rounded-2xl border border-white/10 bg-[#15162b] p-4 sm:p-6">
         {editing ? (
           <div className="mb-4 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-3 py-2 text-sm font-semibold text-emerald-200">
             Edit mode active - update your profile details and save changes.
@@ -262,7 +262,7 @@ export default function TeacherProfileView({ profile, onSave }: TeacherProfileVi
             {initials}
           </div>
           <div className="min-w-0 flex-1">
-            <div className="font-serif text-4xl">{name || profile.name}</div>
+            <div className="font-serif text-3xl sm:text-4xl">{name || profile.name}</div>
             <div className="mt-2 text-sm text-slate-400">
               {subjectsInput
                 .split(",")
@@ -296,7 +296,7 @@ export default function TeacherProfileView({ profile, onSave }: TeacherProfileVi
         </div>
         <div className="mt-4 grid gap-3 md:grid-cols-4">
           <div className="rounded-xl border border-white/10 bg-black/20 p-3 text-center">
-            <div className="font-serif text-3xl text-emerald-300">
+            <div className="font-serif text-2xl text-emerald-300 sm:text-3xl">
               {profile.studentsHelped.toLocaleString("en-IN")}
             </div>
             <div className="text-[10px] uppercase tracking-[0.1em] text-slate-500">
@@ -304,19 +304,19 @@ export default function TeacherProfileView({ profile, onSave }: TeacherProfileVi
             </div>
           </div>
           <div className="rounded-xl border border-white/10 bg-black/20 p-3 text-center">
-            <div className="font-serif text-3xl text-amber-300">
+            <div className="font-serif text-2xl text-amber-300 sm:text-3xl">
               {profile.rdm.toLocaleString("en-IN")}
             </div>
             <div className="text-[10px] uppercase tracking-[0.1em] text-slate-500">RDM earned</div>
           </div>
           <div className="rounded-xl border border-white/10 bg-black/20 p-3 text-center">
-            <div className="font-serif text-3xl">4.9★</div>
+            <div className="font-serif text-2xl sm:text-3xl">4.9★</div>
             <div className="text-[10px] uppercase tracking-[0.1em] text-slate-500">
               Class rating
             </div>
           </div>
           <div className="rounded-xl border border-white/10 bg-black/20 p-3 text-center">
-            <div className="font-serif text-3xl text-violet-300">
+            <div className="font-serif text-2xl text-violet-300 sm:text-3xl">
               {profile.expertAnswers.toLocaleString("en-IN")}
             </div>
             <div className="text-[10px] uppercase tracking-[0.1em] text-slate-500">

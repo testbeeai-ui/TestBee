@@ -16,6 +16,16 @@ export interface TeacherPortalClassroomCard {
   subject: string | null;
   section: string | null;
   description: string | null;
+  /** Optional YouTube/Vimeo intro video for the class home page. */
+  introVideoUrl: string | null;
+  /** Google Meet link from Calendar API when class is synced */
+  googleMeetLink: string | null;
+  /** Nearest upcoming/live session meet link (prefers section-scoped when applicable). */
+  nextMeetLink?: string | null;
+  /** "Whole class" or "Only <Section Name>" for the nearest meet link/session. */
+  nextMeetScopeLabel?: string | null;
+  /** True when a recurring Google Calendar series is linked */
+  googleSeriesLinked: boolean;
   /** Short join code students use to find this class */
   joinCode: string;
   /** When true, teacher portal may show seeded demo students/banners for investor UX */
@@ -35,6 +45,8 @@ export interface TeacherPortalClassroomStudent {
   joinedAt: string;
   lastActiveAt: string | null;
   role: string;
+  /** Section membership inside the classroom (null = Unassigned) */
+  sectionId: string | null;
   rdm: number;
   /** Per-student average score (%); null until backed by real attempt data */
   avgScorePercent: number | null;
@@ -42,9 +54,19 @@ export interface TeacherPortalClassroomStudent {
   status: "active" | "off_streak" | "at_risk";
 }
 
+export interface TeacherPortalClassroomSection {
+  id: string;
+  name: string;
+  sortOrder: number;
+  scheduleLabel: string | null;
+  googleMeetLink: string | null;
+  googleSeriesLinked: boolean;
+}
+
 export interface TeacherPortalMotivationLogItem {
   id: string;
   classroomId: string;
+  sectionId: string | null;
   actionKind: "boost" | "nudge" | "urgent_nudge" | "reward_top_students";
   message: string;
   targetStudentIds: string[];
@@ -90,6 +112,7 @@ export interface TeacherPortalAssignmentItem {
   id: string;
   title: string;
   type: string;
+  sectionId: string | null;
   dueDateIso: string | null;
   dueDateLabel: string;
   assignedToLabel: string;
@@ -112,15 +135,20 @@ export interface TeacherPortalAssignmentItem {
 
 export interface TeacherPortalClassroomDetail {
   classroomId: string;
+  sections: TeacherPortalClassroomSection[];
   students: TeacherPortalClassroomStudent[];
   assignments: TeacherPortalAssignmentItem[];
   motivationLog: TeacherPortalMotivationLogItem[];
   topStreakStudentIds: string[];
 }
 
+export type TeacherPortalSessionWorkKind = "custom" | "concept_focus" | "none";
+
 export interface TeacherPortalSessionItem {
   id: string;
   classroomId: string;
+  sectionId: string | null;
+  sectionName: string | null;
   classroomName: string;
   title: string;
   scheduledAt: string;
@@ -130,8 +158,19 @@ export interface TeacherPortalSessionItem {
   status: string;
   isTrial: boolean;
   rewardRdm: number;
+  /** Legacy checklist lines; prefer `preWorkDisplay` for UI. */
   preWork: string[];
+  /** Legacy checklist lines; prefer `postWorkDisplay` for UI. */
   postWork: string[];
+  /** True when a `session_plan` post matched this session (authoritative work copy). */
+  sessionPlanAttached: boolean;
+  preWorkKind: TeacherPortalSessionWorkKind;
+  postWorkKind: TeacherPortalSessionWorkKind;
+  /** Custom instructions or full concept-focus path for students. */
+  preWorkDisplay: string;
+  postWorkDisplay: string;
+  /** When a plan exists: when post-work unlocks relative to class end. */
+  postWorkReleaseLabel: string | null;
   resources: Array<{ label: string; href: string | null }>;
 }
 
@@ -184,6 +223,8 @@ export interface TeacherPortalProfileView {
 }
 
 export interface TeacherPortalSummary {
+  /** Teacher has completed Google Calendar OAuth (refresh token stored server-side). */
+  googleCalendarConnected: boolean;
   activeClassrooms: number;
   totalStudents: number;
   assignmentsActive: number;

@@ -36,7 +36,7 @@ export default function PricingSection() {
               </div>
 
               <Link
-                href="/auth-choice"
+                href="/auth"
                 className={`block w-full rounded-lg py-2 text-sm font-medium transition-colors ${
                   plan.variant === "green"
                     ? "bg-[#1D9E75] text-white hover:bg-[#178d68]"
