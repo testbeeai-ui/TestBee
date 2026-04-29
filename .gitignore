@@ -47,3 +47,6 @@ tsc_errors*.txt
 modal-rag/.env
 modal-rag/__pycache__/
 modal-rag/.venv/
+
+# supabase local temp state
+supabase/.temp/
