@@ -157,6 +157,13 @@ function TeacherPortalPageContent() {
                   });
                   toast({ title: "Top students rewarded" });
                 }}
+                onScheduleLiveSession={async (input) => {
+                  await createSession({
+                    teacherId: user.id,
+                    ...input,
+                  });
+                  toast({ title: "Class scheduled" });
+                }}
               />
             ) : null}
             {activeSection === "myClasses" ? (

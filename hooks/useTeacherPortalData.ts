@@ -78,6 +78,7 @@ interface UseTeacherPortalDataResult {
     title: string;
     dueDate: string | null;
     assignToLabel: string;
+    targetStudentIds?: string[] | null;
     rewardRdm: number;
     instructions: string;
     tasks?: AssignmentTaskStored[];
@@ -268,6 +269,7 @@ export function useTeacherPortalData(
       title: string;
       dueDate: string | null;
       assignToLabel: string;
+      targetStudentIds?: string[] | null;
       rewardRdm: number;
       instructions: string;
       tasks?: AssignmentTaskStored[];
@@ -292,6 +294,11 @@ export function useTeacherPortalData(
       targetStudentIds: string[];
       message: string;
       rdmDelta: number;
+      relatedPostId?: string;
+      relatedPostTitle?: string;
+      recommendActionId?: "attempt_targeted_mock" | "post_doubt" | "watch_recorded" | "none";
+      recommendActionLabel?: string;
+      recommendActionUrl?: string;
     }) => {
       await createMotivationAction(input);
       await refresh();

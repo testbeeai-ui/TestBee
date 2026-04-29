@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
@@ -22,6 +22,9 @@ const JoinClassroom = () => {
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
   const [showFallback, setShowFallback] = useState(false);
+  const [requestStatus, setRequestStatus] = useState<
+    "none" | "pending" | "approved" | "rejected"
+  >("none");
 
   useEffect(() => {
     if (!classId) return;
@@ -43,7 +46,8 @@ const JoinClassroom = () => {
       </div>
     );
   if (!user) {
-    router.replace("/auth");
+    const next = classId ? `/join/${encodeURIComponent(classId)}` : "/join";
+    router.replace(`/auth?next=${encodeURIComponent(next)}`);
     return null;
   }
   if (!classroom)
@@ -55,28 +59,69 @@ const JoinClassroom = () => {
 
   const isGoogleLinked = classroom.type === "google_linked";
 
-  const handleJoin = async (method: "esm" | "google") => {
-    setJoining(true);
-    const { error } = await supabase
-      .from("classroom_members")
-      .insert({ classroom_id: classroom.id, user_id: user.id, role: "student" });
-    if (error) {
-      if (error.code === "23505") {
-        toast({ title: "Already a member!" });
-        router.push(`/classroom/${classroom.id}`);
-      } else toast({ title: "Error", description: error.message, variant: "destructive" });
-    } else {
-      if (method === "google" && isGoogleLinked) {
-        toast({
-          title: "Joined ESM! 🎉",
-          description: "Google Classroom sync pending — connect Google later in settings.",
-        });
-      } else {
-        toast({ title: "Joined! 🎉" });
+  useEffect(() => {
+    const fetchStatus = async () => {
+      if (!user || !classroom) return;
+      const { data: member } = await supabase
+        .from("classroom_members")
+        .select("user_id")
+        .eq("classroom_id", classroom.id)
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (member) {
+        setRequestStatus("approved");
+        return;
       }
-      router.push(`/classroom/${classroom.id}`);
+      const { data: req } = await supabase
+        .from("classroom_join_requests")
+        .select("status")
+        .eq("classroom_id", classroom.id)
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (req?.status === "pending" || req?.status === "approved" || req?.status === "rejected") {
+        setRequestStatus(req.status);
+      } else {
+        setRequestStatus("none");
+      }
+    };
+    void fetchStatus();
+  }, [user, classroom]);
+
+  const joinButtonLabel = useMemo(() => {
+    if (requestStatus === "approved") return "Open class";
+    if (requestStatus === "pending") return "Request pending";
+    if (requestStatus === "rejected") return "Request rejected";
+    return isGoogleLinked ? "Request ESM access (no Google)" : "Send join request";
+  }, [isGoogleLinked, requestStatus]);
+
+  const handleJoin = async () => {
+    setJoining(true);
+    try {
+      if (requestStatus === "approved") {
+        router.push(`/classroom/${classroom.id}`);
+        return;
+      }
+      if (requestStatus === "pending" || requestStatus === "rejected") return;
+
+      const { error } = await supabase.from("classroom_join_requests").insert({
+        classroom_id: classroom.id,
+        user_id: user.id,
+        status: "pending",
+      });
+      if (error) {
+        if (error.code === "23505") {
+          toast({ title: "Request already exists", description: "Wait for teacher approval." });
+          setRequestStatus("pending");
+        } else {
+          toast({ title: "Error", description: error.message, variant: "destructive" });
+        }
+        return;
+      }
+      toast({ title: "Request sent", description: "The teacher will approve you soon." });
+      setRequestStatus("pending");
+    } finally {
+      setJoining(false);
     }
-    setJoining(false);
   };
 
   return (
@@ -120,30 +165,12 @@ const JoinClassroom = () => {
 
           {!showFallback ? (
             <div className="space-y-3">
-              {isGoogleLinked && (
-                <Button
-                  onClick={() => handleJoin("google")}
-                  disabled={joining}
-                  className="w-full rounded-xl h-12 text-base font-extrabold gap-2 bg-card border-2 border-border text-foreground hover:bg-muted"
-                >
-                  <img
-                    src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
-                    alt="Google"
-                    className="w-5 h-5"
-                  />
-                  {joining ? "Joining..." : "Continue with Google"}
-                </Button>
-              )}
               <Button
-                onClick={() => handleJoin("esm")}
-                disabled={joining}
+                onClick={() => void handleJoin()}
+                disabled={joining || requestStatus === "pending" || requestStatus === "rejected"}
                 className="w-full rounded-xl edu-btn-primary h-12 text-base font-extrabold"
               >
-                {joining
-                  ? "Joining..."
-                  : isGoogleLinked
-                    ? "Join ESM Only (no Google)"
-                    : "Join Classroom 🚀"}
+                {joining ? "Sending..." : joinButtonLabel}
               </Button>
 
               {isGoogleLinked && (
@@ -154,6 +181,11 @@ const JoinClassroom = () => {
                   Having trouble with Google? See alternatives →
                 </button>
               )}
+              {requestStatus === "pending" ? (
+                <p className="text-[11px] text-muted-foreground text-center">
+                  Once approved, the class will appear in your dashboard automatically.
+                </p>
+              ) : null}
             </div>
           ) : (
             <div className="space-y-4">
@@ -165,11 +197,11 @@ const JoinClassroom = () => {
               </div>
 
               <Button
-                onClick={() => handleJoin("esm")}
-                disabled={joining}
+                onClick={() => void handleJoin()}
+                disabled={joining || requestStatus === "pending" || requestStatus === "rejected"}
                 className="w-full rounded-xl edu-btn-primary h-12 font-extrabold"
               >
-                Join ESM Class Only 🚀
+                {joining ? "Sending..." : joinButtonLabel}
               </Button>
 
               {classroom.join_code && (

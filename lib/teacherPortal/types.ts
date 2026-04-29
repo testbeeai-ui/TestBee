@@ -24,6 +24,14 @@ export interface TeacherPortalClassroomCard {
   nextMeetLink?: string | null;
   /** "Whole class" or "Only <Section Name>" for the nearest meet link/session. */
   nextMeetScopeLabel?: string | null;
+  /** ISO timestamp of nearest upcoming/live session (for countdown). */
+  nextSessionAt?: string | null;
+  /** Section id for nearest upcoming/live session (null = whole class). */
+  nextSessionSectionId?: string | null;
+  /** Duration minutes of nearest upcoming/live session (optional; improves live countdown). */
+  nextSessionDurationMinutes?: number | null;
+  /** Upcoming/live Meet sessions for dashboard stacking (supports overlaps). */
+  meetSessions?: TeacherPortalMeetSession[];
   /** True when a recurring Google Calendar series is linked */
   googleSeriesLinked: boolean;
   /** Short join code students use to find this class */
@@ -36,6 +44,16 @@ export interface TeacherPortalClassroomCard {
   avgScorePercent: number | null;
   nextSessionLabel: string;
   scheduleLabel: string;
+}
+
+export interface TeacherPortalMeetSession {
+  id: string;
+  scheduledAt: string;
+  durationMinutes: number;
+  meetLink: string | null;
+  sectionId: string | null;
+  sectionName: string | null;
+  scopeLabel: string | null;
 }
 
 export interface TeacherPortalClassroomStudent {

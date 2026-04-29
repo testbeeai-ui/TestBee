@@ -2,8 +2,6 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/integrations/supabase/server";
 import { createAdminClient } from "@/integrations/supabase/server";
 
-const EXPLORATION_MINUTES = 10;
-
 /** Returns posts and live_sessions for explorers (bypasses RLS). Ensures explorers always see content. */
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id: classroomId } = await params;
@@ -56,21 +54,24 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: "Members use direct access" }, { status: 400 });
   }
 
-  const { data: exploration } = await admin
+  let { data: exploration } = await admin
     .from("class_exploration_sessions")
     .select("started_at")
     .eq("user_id", user.id)
     .eq("classroom_id", classroomId)
     .maybeSingle();
 
-  if (!exploration?.started_at) {
-    return NextResponse.json({ error: "No active exploration" }, { status: 403 });
+  if (!exploration) {
+    const { data: inserted } = await admin
+      .from("class_exploration_sessions")
+      .insert({ user_id: user.id, classroom_id: classroomId })
+      .select("started_at")
+      .single();
+    exploration = inserted ?? null;
   }
 
-  const startedAt = new Date(exploration.started_at).getTime();
-  const expiresAt = startedAt + EXPLORATION_MINUTES * 60 * 1000;
-  if (Date.now() >= expiresAt) {
-    return NextResponse.json({ error: "Exploration ended" }, { status: 403 });
+  if (!exploration?.started_at) {
+    return NextResponse.json({ error: "No active exploration" }, { status: 403 });
   }
 
   const [postsRes, sessionsRes] = await Promise.all([

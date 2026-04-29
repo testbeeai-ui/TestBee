@@ -27,6 +27,7 @@ import {
   assignmentInstructionsFromContentJson,
   getGyanEngagementStudentViewModel,
 } from "@/lib/classroom/gyanEngagementStudentUi";
+import { parseAssignmentTasks, studentVisibleTasks } from "@/lib/classroom/assignmentTasks";
 
 export interface PostDetailData {
   id: string;
@@ -109,16 +110,30 @@ export default function PostDetailModal({
     [post]
   );
 
+  const isAssignmentLike =
+    post?.type === "assignment" ||
+    post?.type === "quiz" ||
+    post?.type === "mock" ||
+    post?.type === "Concept Focus";
+
+  const assignmentTaskHints = useMemo(() => {
+    if (!post || !isAssignmentLike) return { hasLink: false, hasMcq: false, hasCustom: false };
+    const tasks = studentVisibleTasks(
+      parseAssignmentTasks(
+        (post.content_json as unknown as import("@/integrations/supabase/types").Json) ?? null,
+        post.type
+      )
+    );
+    const hasLink = tasks.some((t) => Boolean(t.href));
+    const hasMcq = tasks.some((t) => t.kind === "chapter_quiz" || t.kind === "mock_paper");
+    const hasCustom = tasks.some((t) => t.kind === "free_text" && !t.href);
+    return { hasLink, hasMcq, hasCustom };
+  }, [post, isAssignmentLike]);
+
   if (!post) return null;
 
   const cfg = typeConfig[post.type] || typeConfig.announcement;
   const videoUrl = (post.content_json as { videoUrl?: string } | null)?.videoUrl;
-
-  const isAssignmentLike =
-    post.type === "assignment" ||
-    post.type === "quiz" ||
-    post.type === "mock" ||
-    post.type === "Concept Focus";
 
   const handleSave = async () => {
     setSaving(true);
@@ -151,8 +166,12 @@ export default function PostDetailModal({
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent
-        className={`max-h-[90vh] overflow-y-auto rounded-2xl ${
-          gyanStudent ? "max-w-xl sm:max-w-2xl" : "max-w-lg"
+        className={`max-h-[90vh] overflow-y-auto rounded-2xl w-[96vw] ${
+          gyanStudent
+            ? "max-w-xl sm:max-w-2xl"
+            : isAssignmentLike
+              ? "max-w-5xl"
+              : "max-w-lg"
         }`}
       >
         <DialogHeader>
@@ -313,64 +332,73 @@ export default function PostDetailModal({
                 </div>
               ) : null}
               {isAssignmentLike && !gyanStudent ? (
-                <div className="space-y-4 rounded-2xl border-2 border-primary/25 bg-gradient-to-b from-primary/8 to-background p-4 sm:p-5">
-                  <div className="flex items-start gap-3">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/20 text-primary">
-                      <BookOpen className="h-6 w-6" aria-hidden />
+                <div className="rounded-2xl border-2 border-primary/25 bg-gradient-to-b from-primary/8 to-background p-3 sm:p-5">
+                  <div className="grid gap-3 md:grid-cols-[1.15fr_0.85fr] lg:grid-cols-[1.1fr_0.9fr] md:gap-4">
+                    <div className="space-y-3">
+                      <div className="flex items-start gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/20 text-primary">
+                          <BookOpen className="h-5 w-5" aria-hidden />
+                        </div>
+                        <div className="min-w-0 flex-1 space-y-1">
+                          <p className="text-[11px] font-extrabold uppercase tracking-wider text-primary/80">
+                            How to complete
+                          </p>
+                          <p className="text-sm leading-relaxed text-muted-foreground">
+                            Complete the tasks on the right. You can either{" "}
+                            <span className="font-semibold text-foreground">submit a response</span>{" "}
+                            (text/links) or simply{" "}
+                            <span className="font-semibold text-foreground">Mark as done</span>{" "}
+                            when finished.
+                          </p>
+                        </div>
+                      </div>
+                      <ul className="space-y-2 text-sm leading-relaxed text-foreground/95 sm:text-[15px]">
+                        {assignmentTaskHints.hasLink ? (
+                          <li>- Click the task button on the right to open the link.</li>
+                        ) : null}
+                        {assignmentTaskHints.hasMcq ? (
+                          <li>- For MCQs/mock: submit to record your score (retry anytime to improve).</li>
+                        ) : null}
+                        {assignmentTaskHints.hasCustom ? (
+                          <li>
+                            - For custom response: type your answer and/or paste links, then click{" "}
+                            <span className="font-semibold">Submit response</span>.
+                          </li>
+                        ) : null}
+                        <li>- Complete what the task asks, then come back and you’ll see it tracked.</li>
+                      </ul>
+                      {assignmentInstructions ? (
+                        <div className="rounded-xl border border-border/80 bg-muted/40 px-3 py-3 text-sm">
+                          <p className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground mb-1.5">
+                            Teacher notes
+                          </p>
+                          <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
+                            {assignmentInstructions}
+                          </p>
+                        </div>
+                      ) : null}
+                      {post.description?.trim() && (
+                        <div className="rounded-xl border border-border/80 bg-muted/40 px-3 py-3 text-sm">
+                          <p className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground mb-1.5">
+                            Details
+                          </p>
+                          <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
+                            {post.description.trim()}
+                          </p>
+                        </div>
+                      )}
                     </div>
-                    <div className="min-w-0 flex-1 space-y-1.5">
-                      <p className="text-xs font-extrabold uppercase tracking-wider text-primary/80">
-                        How to complete this assignment
-                      </p>
-                      <p className="text-sm leading-relaxed text-muted-foreground">
-                        Your teacher assigned this{" "}
-                        {post.type === "quiz"
-                          ? "quiz"
-                          : post.type === "mock"
-                            ? "mock test"
-                            : "assignment"}
-                        . Follow the steps below. Your score is recorded automatically when you
-                        finish.
-                      </p>
+                    <div className="min-w-0">
+                      {classroomId &&
+                      (post.type === "assignment" || post.type === "quiz" || post.type === "mock") ? (
+                        <AssignmentTaskChecklist
+                          classroomId={classroomId}
+                          postId={post.id}
+                          isTeacherView={canEdit}
+                        />
+                      ) : null}
                     </div>
                   </div>
-                  <ol className="list-decimal space-y-2 pl-5 text-sm leading-relaxed text-foreground/95 sm:text-[15px]">
-                    <li>
-                      Tap{" "}
-                      <span className="font-semibold">
-                        Open{" "}
-                        {post.type === "quiz"
-                          ? "chapter quiz"
-                          : post.type === "mock"
-                            ? "mock test"
-                            : "activity"}
-                      </span>{" "}
-                      in the task list below.
-                    </li>
-                    <li>Answer all questions. You can change answers before submitting.</li>
-                    <li>Submit the quiz — your score will be saved automatically.</li>
-                    <li>You can retry anytime to improve your score.</li>
-                  </ol>
-                  {assignmentInstructions ? (
-                    <div className="rounded-xl border border-border/80 bg-muted/40 px-3 py-3 text-sm">
-                      <p className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground mb-1.5">
-                        Teacher notes
-                      </p>
-                      <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
-                        {assignmentInstructions}
-                      </p>
-                    </div>
-                  ) : null}
-                  {post.description?.trim() && (
-                    <div className="rounded-xl border border-border/80 bg-muted/40 px-3 py-3 text-sm">
-                      <p className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground mb-1.5">
-                        Details
-                      </p>
-                      <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
-                        {post.description.trim()}
-                      </p>
-                    </div>
-                  )}
                 </div>
               ) : (
                 <>
@@ -412,14 +440,14 @@ export default function PostDetailModal({
                   ))}
                 </div>
               )}
-              {classroomId &&
-              (post.type === "assignment" || post.type === "quiz" || post.type === "mock") ? (
-                <AssignmentTaskChecklist
-                  classroomId={classroomId}
-                  postId={post.id}
-                  isTeacherView={canEdit}
-                />
-              ) : null}
+              {isAssignmentLike && !gyanStudent ? null : classroomId &&
+                (post.type === "assignment" || post.type === "quiz" || post.type === "mock") ? (
+                  <AssignmentTaskChecklist
+                    classroomId={classroomId}
+                    postId={post.id}
+                    isTeacherView={canEdit}
+                  />
+                ) : null}
               <p className="text-[11px] text-muted-foreground/80">
                 {post.profiles?.name || "Teacher"} ·{" "}
                 {format(new Date(post.created_at), "MMM d, yyyy h:mm a")}

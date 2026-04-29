@@ -3,8 +3,6 @@ import { createClient } from "@/integrations/supabase/server";
 import { createAdminClient } from "@/integrations/supabase/server";
 
 const JOIN_FROM_MINUTES_BEFORE = 30;
-const EXPLORATION_MINUTES = 10;
-const EXPLORER_LIVE_MINUTES = 8;
 
 function getRoomNameFromMeetLink(meetLink: string): string {
   try {
@@ -107,14 +105,6 @@ export async function POST(request: Request) {
     if (!exploration?.started_at) {
       return NextResponse.json({ error: "Not a member of this class" }, { status: 403 });
     }
-    const explorationEndsAt =
-      new Date(exploration.started_at).getTime() + EXPLORATION_MINUTES * 60 * 1000;
-    if (now >= explorationEndsAt) {
-      return NextResponse.json(
-        { error: "Your class exploration time has ended. Request to join for full access." },
-        { status: 403 }
-      );
-    }
 
     const { data: existingExplorerJoin } = await admin
       .from("explorer_live_joins")
@@ -123,9 +113,6 @@ export async function POST(request: Request) {
       .eq("user_id", user.id)
       .maybeSingle();
 
-    const explorerJoinedAt = existingExplorerJoin
-      ? new Date(existingExplorerJoin.joined_at).getTime()
-      : now;
     if (!existingExplorerJoin) {
       await admin.from("explorer_live_joins").insert({
         session_id: sessionId,
@@ -135,8 +122,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       roomName,
-      maxLiveMinutes: EXPLORER_LIVE_MINUTES,
-      explorerJoinedAt,
     });
   } catch (e) {
     console.error("live join error", e);
