@@ -32,7 +32,7 @@ import { StarRatingBadge } from "@/components/StarRating";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import ClassFeed, { type Post } from "@/components/ClassFeed";
+import ClassFeed, { type FeedCountsPayload, type Post } from "@/components/ClassFeed";
 import PostComposer from "@/components/PostComposer";
 import PostDetailModal from "@/components/PostDetailModal";
 import InviteStudents from "@/components/InviteStudents";
@@ -65,6 +65,7 @@ interface Member {
   user_id: string;
   role: string;
   joined_at: string;
+  section_id: string | null;
   profiles: { name: string; avatar_url: string | null } | null;
 }
 
@@ -148,6 +149,9 @@ const ClassroomDetail = () => {
   const [savingSettings, setSavingSettings] = useState(false);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [postCount, setPostCount] = useState<number>(0);
+  /** Student-visible post total from ClassFeed (RLS-scoped fetch); overrides sidebar when set. */
+  const [studentSidebarPostTotal, setStudentSidebarPostTotal] = useState<number | null>(null);
+  const [assigningSectionUserId, setAssigningSectionUserId] = useState<string | null>(null);
   const [explorationAllowed, setExplorationAllowed] = useState<boolean | null>(null);
   const [explorerJoinRequestStatus, setExplorerJoinRequestStatus] = useState<
     "none" | "pending" | "rejected" | null
@@ -158,6 +162,34 @@ const ClassroomDetail = () => {
     avg_rating: number;
     review_count: number;
   } | null>(null);
+
+  // Deep-link support: /classroom/:id?tab=posts&post=<postId>
+  useEffect(() => {
+    if (!id) return;
+    const tab = searchParams.get("tab");
+    const postId = searchParams.get("post");
+    if (tab === "posts") setActiveTab("posts");
+    if (!postId?.trim()) return;
+
+    let cancelled = false;
+    const run = async () => {
+      try {
+        const { data } = await supabase
+          .from("posts")
+          .select("*, profiles!posts_teacher_id_fkey(name)")
+          .eq("id", postId.trim())
+          .maybeSingle();
+        if (cancelled) return;
+        if (data) setSelectedPost(data as unknown as Post);
+      } catch {
+        // ignore
+      }
+    };
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [id, searchParams]);
   useEffect(() => {
     if (activeTab === "settings" && classroom) {
       setSettingsIntroVideoUrl(classroom.intro_video_url ?? "");
@@ -173,7 +205,7 @@ const ClassroomDetail = () => {
 
       const { data: m } = await supabase
         .from("classroom_members")
-        .select("user_id, role, joined_at, profiles(name, avatar_url)")
+        .select("user_id, role, joined_at, section_id, profiles(name, avatar_url)")
         .eq("classroom_id", id);
       setMembers((m as Member[]) || []);
 
@@ -283,7 +315,7 @@ const ClassroomDetail = () => {
     if (!id) return;
     const { data, error } = await supabase
       .from("classroom_members")
-      .select("user_id, role, joined_at, profiles(name, avatar_url)")
+      .select("user_id, role, joined_at, section_id, profiles(name, avatar_url)")
       .eq("classroom_id", id);
     if (error) {
       toast({
@@ -296,6 +328,51 @@ const ClassroomDetail = () => {
     setMembers((data as Member[]) || []);
   }, [id, toast]);
 
+  const handleFeedCountsChange = useCallback((counts: FeedCountsPayload) => {
+    setStudentSidebarPostTotal(counts.total);
+  }, []);
+
+  useEffect(() => {
+    setStudentSidebarPostTotal(null);
+  }, [id]);
+
+  const assignMemberTeachingSection = useCallback(
+    async (userId: string, sectionId: string | null) => {
+      if (!id || !session?.access_token) {
+        toast({ title: "Sign in required", variant: "destructive" });
+        return;
+      }
+      setAssigningSectionUserId(userId);
+      try {
+        const res = await fetch(`/api/classroom/${id}/members/assign-section`, {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ userId, sectionId }),
+        });
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        if (!res.ok) {
+          toast({
+            title: "Could not update section",
+            description: data.error ?? "Try again.",
+            variant: "destructive",
+          });
+          return;
+        }
+        await refetchMembers();
+        toast({ title: "Teaching section updated" });
+      } catch {
+        toast({ title: "Network error", variant: "destructive" });
+      } finally {
+        setAssigningSectionUserId(null);
+      }
+    },
+    [id, session?.access_token, refetchMembers, toast]
+  );
+
   const isOwner = classroom?.teacher_id === user?.id;
   const studentPreview = searchParams.get("view") === "student";
   const showTeacherControls = Boolean(isOwner && !studentPreview);
@@ -307,6 +384,40 @@ const ClassroomDetail = () => {
     () => Boolean(user?.id && classroom && !isOwner && !isClassMember),
     [user?.id, classroom, isOwner, isClassMember]
   );
+
+  /** Students only — teachers are not listed as classmates. */
+  const studentMembers = useMemo(
+    () => members.filter((m) => (m.role ?? "").toLowerCase() !== "teacher"),
+    [members]
+  );
+
+  /** Current viewer's section_id if they are a student member. */
+  const currentStudentSectionId = useMemo(() => {
+    if (!user?.id || showTeacherControls) return null;
+    const me = members.find((m) => m.user_id === user.id);
+    if (!me || (me.role ?? "").toLowerCase() === "teacher") return null;
+    return me.section_id ?? null;
+  }, [user?.id, showTeacherControls, members]);
+
+  /**
+   * In student view:
+   * - if unassigned: show the full class roster (students only),
+   * - if assigned to a section: show only classmates in the same section.
+   */
+  const studentVisibleMembers = useMemo(() => {
+    if (!currentStudentSectionId) return studentMembers;
+    return studentMembers.filter((m) => (m.section_id ?? null) === currentStudentSectionId);
+  }, [studentMembers, currentStudentSectionId]);
+
+  /** Logged-in viewer's teaching section (not the class subtitle / batch label). */
+  const studentSectionDisplay = useMemo(() => {
+    if (!user?.id || showTeacherControls) return null;
+    const me = members.find((m) => m.user_id === user.id);
+    if (!me || (me.role ?? "").toLowerCase() === "teacher") return null;
+    if (!me.section_id) return { kind: "unassigned" as const };
+    const name = scheduleSectionOptions.find((s) => s.id === me.section_id)?.name;
+    return { kind: "section" as const, name: name ?? "Section" };
+  }, [user?.id, showTeacherControls, members, scheduleSectionOptions]);
 
   useEffect(() => {
     if (!showTeacherControls && activeTab === "settings") {
@@ -477,6 +588,28 @@ const ClassroomDetail = () => {
     };
   }, [id, user?.id, classroom?.id, isOwner, isClassMember, refetchPostsAndLiveForExplorer]);
 
+  // Best-effort: ensure temporal section history is consistent for members (RLS depends on it).
+  useEffect(() => {
+    if (!id || !session?.access_token) return;
+    if (!isClassMember || showTeacherControls) return;
+    void fetch(`/api/classroom/${id}/ensure-section-history`, {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+      },
+    })
+      .then(async (res) => {
+        if (!res.ok) return;
+        const data = (await res.json().catch(() => ({}))) as { repaired?: boolean };
+        if (data.repaired) setFeedKey((k) => k + 1);
+      })
+      .catch(() => {
+        // best-effort
+      });
+  }, [id, session?.access_token, isClassMember, showTeacherControls]);
+
   // Retry loading posts/live for explorers via API after a short delay
   useEffect(() => {
     if (!id || isOwner || !isGuestExplorer || explorationAllowed !== true) return;
@@ -576,6 +709,7 @@ const ClassroomDetail = () => {
       user_id: userId,
       role: "student",
       joined_at: new Date().toISOString(),
+      section_id: null,
       profiles: { name: studentName ?? "Student", avatar_url: null },
     };
     setMembers((prev) => (prev.some((m) => m.user_id === userId) ? prev : [...prev, newMember]));
@@ -710,6 +844,14 @@ const ClassroomDetail = () => {
               {classroom.section && (
                 <span className="inline-block mt-2 bg-primary-foreground/20 px-3 py-1 rounded-full text-sm font-bold">
                   {classroom.section}
+                </span>
+              )}
+              {studentSectionDisplay && (
+                <span className="inline-block mt-2 ml-0 rounded-full border border-emerald-300/50 bg-emerald-950/50 px-3 py-1 text-xs font-bold text-emerald-50 shadow-sm">
+                  Your section:{" "}
+                  {studentSectionDisplay.kind === "unassigned"
+                    ? "Unassigned"
+                    : studentSectionDisplay.name}
                 </span>
               )}
               {showTeacherControls && (
@@ -982,11 +1124,13 @@ const ClassroomDetail = () => {
                   <h3 className="font-display text-lg text-foreground mb-3">Class Overview</h3>
                   <div className="grid grid-cols-2 gap-2 text-sm mb-4">
                     <div className="bg-muted/30 rounded-xl p-2.5 text-center">
-                      <p className="text-xl font-extrabold text-foreground">{members.length}</p>
+                      <p className="text-xl font-extrabold text-foreground">{studentVisibleMembers.length}</p>
                       <p className="text-muted-foreground text-[10px] font-bold">Members</p>
                     </div>
                     <div className="bg-muted/30 rounded-xl p-2.5 text-center">
-                      <p className="text-xl font-extrabold text-foreground">{postCount}</p>
+                      <p className="text-xl font-extrabold text-foreground">
+                        {showTeacherControls ? postCount : (studentSidebarPostTotal ?? postCount)}
+                      </p>
                       <p className="text-muted-foreground text-[10px] font-bold">Posts</p>
                     </div>
                   </div>
@@ -1006,13 +1150,13 @@ const ClassroomDetail = () => {
                       </button>
                     </div>
                   )}
-                  {members.length > 0 && (
+                  {studentVisibleMembers.length > 0 && (
                     <div>
                       <p className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground mb-2">
                         Recently joined
                       </p>
                       <ul className="space-y-2">
-                        {[...members]
+                        {[...studentVisibleMembers]
                           .sort(
                             (a, b) =>
                               new Date(b.joined_at).getTime() - new Date(a.joined_at).getTime()
@@ -1034,6 +1178,13 @@ const ClassroomDetail = () => {
                                   joined{" "}
                                   {formatDistanceToNow(new Date(m.joined_at), { addSuffix: true })}
                                 </p>
+                                <p className="text-[10px] text-muted-foreground">
+                                  section:{" "}
+                                  {m.section_id
+                                    ? scheduleSectionOptions.find((s) => s.id === m.section_id)
+                                        ?.name ?? "section"
+                                    : "unassigned"}
+                                </p>
                               </div>
                             </li>
                           ))}
@@ -1048,6 +1199,12 @@ const ClassroomDetail = () => {
                 refreshKey={feedKey}
                 onSelectPost={setSelectedPost}
                 initialPosts={!isOwner && explorerPosts !== null ? explorerPosts : undefined}
+                sectionOptions={scheduleSectionOptions}
+                viewerIsTeacher={showTeacherControls}
+                isEnrolledStudent={Boolean(isClassMember && !showTeacherControls)}
+                onFeedCountsChange={
+                  !showTeacherControls && isClassMember ? handleFeedCountsChange : undefined
+                }
               />
             </div>
           )}
@@ -1077,6 +1234,12 @@ const ClassroomDetail = () => {
                 refreshKey={feedKey}
                 onSelectPost={setSelectedPost}
                 initialPosts={!isOwner && explorerPosts !== null ? explorerPosts : undefined}
+                sectionOptions={scheduleSectionOptions}
+                viewerIsTeacher={showTeacherControls}
+                isEnrolledStudent={Boolean(isClassMember && !showTeacherControls)}
+                onFeedCountsChange={
+                  !showTeacherControls && isClassMember ? handleFeedCountsChange : undefined
+                }
               />
             </div>
           )}
@@ -1541,17 +1704,28 @@ const ClassroomDetail = () => {
                   <div className="w-9 h-9 bg-primary/10 rounded-xl flex items-center justify-center">
                     <Users className="w-5 h-5 text-primary" />
                   </div>
-                  <h2 className="text-xl font-display text-foreground">
-                    Members ({members.length})
-                  </h2>
+                  <div className="min-w-0">
+                    <h2 className="text-xl font-display text-foreground">
+                      Members ({studentVisibleMembers.length})
+                    </h2>
+                    {!showTeacherControls && (
+                      <p className="mt-0.5 text-[11px] text-muted-foreground">
+                        Showing:{" "}
+                        {currentStudentSectionId
+                          ? scheduleSectionOptions.find((s) => s.id === currentStudentSectionId)
+                              ?.name ?? "your section"
+                          : "whole class (unassigned)"}
+                      </p>
+                    )}
+                  </div>
                 </div>
-                {members.length === 0 ? (
+                {studentVisibleMembers.length === 0 ? (
                   <p className="text-muted-foreground text-sm text-center py-8">
                     No members yet. Share the join code to invite students!
                   </p>
                 ) : (
                   <div className="grid gap-2">
-                    {members.map((m) => (
+                    {studentVisibleMembers.map((m) => (
                       <div
                         key={m.user_id}
                         className="flex items-center gap-3 bg-muted/40 rounded-xl p-3"
@@ -1563,6 +1737,40 @@ const ClassroomDetail = () => {
                           <p className="font-bold text-sm text-foreground">
                             {m.profiles?.name || "Unknown"}
                           </p>
+                          {showTeacherControls && m.role === "student" ? (
+                            <div className="mt-1 flex flex-wrap items-center gap-2">
+                              <select
+                                className="max-w-[min(100%,220px)] rounded-lg border border-border bg-background px-2 py-1 text-[11px] font-medium text-foreground"
+                                value={m.section_id ?? ""}
+                                disabled={assigningSectionUserId === m.user_id}
+                                onChange={(e) => {
+                                  const v = e.target.value;
+                                  void assignMemberTeachingSection(
+                                    m.user_id,
+                                    v === "" ? null : v
+                                  );
+                                }}
+                                aria-label={`Teaching section for ${m.profiles?.name ?? "student"}`}
+                              >
+                                <option value="">No teaching section</option>
+                                {scheduleSectionOptions.map((s) => (
+                                  <option key={s.id} value={s.id}>
+                                    {s.name}
+                                  </option>
+                                ))}
+                              </select>
+                              {assigningSectionUserId === m.user_id ? (
+                                <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-muted-foreground" />
+                              ) : null}
+                            </div>
+                          ) : (
+                            <p className="mt-0.5 text-[11px] text-muted-foreground">
+                              {m.section_id
+                                ? scheduleSectionOptions.find((s) => s.id === m.section_id)?.name ??
+                                  "Teaching section"
+                                : "No teaching section"}
+                            </p>
+                          )}
                         </div>
                         <span
                           className={`edu-chip text-xs shrink-0 ${m.role === "teacher" ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"}`}
@@ -1672,7 +1880,19 @@ const ClassroomDetail = () => {
           <PostDetailModal
             post={selectedPost}
             open={!!selectedPost}
-            onClose={() => setSelectedPost(null)}
+            onClose={() => {
+              setSelectedPost(null);
+              // Clear deep-link param so back/refresh doesn't reopen the modal.
+              try {
+                const url = new URL(window.location.href);
+                url.searchParams.delete("post");
+                router.replace(
+                  url.pathname + (url.searchParams.toString() ? `?${url.searchParams.toString()}` : "")
+                );
+              } catch {
+                // ignore
+              }
+            }}
             canEdit={!!showTeacherControls}
             onUpdated={() => setFeedKey((k) => k + 1)}
             classroomId={id}

@@ -1,9 +1,8 @@
-import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Copy, Search, UserPlus, Upload, Link2 } from "lucide-react";
+import { Copy, Upload, Link2 } from "lucide-react";
 
 interface Props {
   classroomId: string;
@@ -12,101 +11,26 @@ interface Props {
 
 const InviteStudents = ({ classroomId, joinCode }: Props) => {
   const { toast } = useToast();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<{ id: string; name: string }[]>([]);
-  const [searching, setSearching] = useState(false);
 
-  const joinLink = `${window.location.origin}/join/${classroomId}`;
-
-  const handleSearch = async () => {
-    const query = searchQuery.trim();
-    if (!query) return;
-    if (query.length < 2 || query.length > 50) {
-      toast({ title: "Search must be 2-50 characters" });
-      return;
-    }
-    if (!/^[a-zA-Z0-9\s'\-\.]+$/.test(query)) {
-      toast({ title: "Invalid search characters" });
-      return;
-    }
-    setSearching(true);
-    const { data } = await supabase
-      .from("profiles")
-      .select("id, name")
-      .ilike("name", `%${query}%`)
-      .neq("visibility", "invite_only")
-      .limit(10);
-    setSearchResults((data as { id: string; name: string }[]) || []);
-    setSearching(false);
-  };
-
-  const inviteUser = async (userId: string) => {
-    const { error } = await supabase
-      .from("classroom_members")
-      .insert({ classroom_id: classroomId, user_id: userId, role: "student" });
-    if (error) {
-      if (error.code === "23505") toast({ title: "Already a member!" });
-      else toast({ title: "Error", description: error.message, variant: "destructive" });
-    } else {
-      toast({ title: "Student added! 🎉" });
-      setSearchResults((prev) => prev.filter((u) => u.id !== userId));
-    }
-  };
+  const joinLink = useMemo(() => {
+    if (typeof window === "undefined") return "";
+    const code = (joinCode ?? "").trim();
+    const u = new URL(`${window.location.origin}/join`);
+    if (code) u.searchParams.set("code", code);
+    return u.toString();
+  }, [joinCode]);
 
   return (
     <div className="space-y-6">
-      {/* Method 1: Search */}
-      <div>
-        <h4 className="text-sm font-extrabold text-foreground mb-2 flex items-center gap-1.5">
-          <Search className="w-4 h-4 text-primary" /> Search Users
-        </h4>
-        <p className="text-xs text-muted-foreground mb-2">
-          Search among users in your classroom network
-        </p>
-        <div className="flex gap-2">
-          <Input
-            placeholder="Search by name..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-            className="rounded-xl"
-          />
-          <Button
-            onClick={handleSearch}
-            disabled={searching}
-            variant="outline"
-            className="rounded-xl"
-          >
-            Search
-          </Button>
-        </div>
-        {searchResults.length > 0 && (
-          <div className="mt-2 space-y-1.5">
-            {searchResults.map((u) => (
-              <div
-                key={u.id}
-                className="flex items-center justify-between bg-muted/30 rounded-xl px-3 py-2"
-              >
-                <span className="text-sm font-bold text-foreground">{u.name}</span>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => inviteUser(u.id)}
-                  className="h-7 text-xs gap-1"
-                >
-                  <UserPlus className="w-3 h-3" /> Add
-                </Button>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Method 2: Share link */}
+      {/* Method 1: Share link */}
       <div>
         <h4 className="text-sm font-extrabold text-foreground mb-2 flex items-center gap-1.5">
           <Link2 className="w-4 h-4 text-primary" /> Share Join Link
         </h4>
+        <p className="text-xs text-muted-foreground mb-2">
+          Students will be asked to sign in, then they can send a join request. You approve it from
+          the teacher portal.
+        </p>
         <div className="flex gap-2">
           <Input readOnly value={joinLink} className="rounded-xl text-xs" />
           <Button
@@ -122,7 +46,7 @@ const InviteStudents = ({ classroomId, joinCode }: Props) => {
         </div>
       </div>
 
-      {/* Method 2b: Join code */}
+      {/* Method 2: Join code */}
       <div>
         <h4 className="text-sm font-extrabold text-foreground mb-2">Join Code</h4>
         <button

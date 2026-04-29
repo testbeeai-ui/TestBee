@@ -64,6 +64,8 @@ export default function TeacherProfileView({ profile, onSave }: TeacherProfileVi
   const [validationError, setValidationError] = useState<string | null>(null);
   const [uploadingAadhar, setUploadingAadhar] = useState(false);
   const [uploadingCertificate, setUploadingCertificate] = useState(false);
+  const [openingAadhar, setOpeningAadhar] = useState(false);
+  const [openingCertificate, setOpeningCertificate] = useState(false);
   const aadharFileInputRef = useRef<HTMLInputElement | null>(null);
   const certificateFileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -85,6 +87,8 @@ export default function TeacherProfileView({ profile, onSave }: TeacherProfileVi
     setInstituteCertificatePhotoUrl(profile.details?.docs?.instituteCertificatePhotoUrl ?? "");
     setInstituteCertificateShareLink(profile.details?.docs?.instituteCertificateShareLink ?? "");
     setValidationError(null);
+    setOpeningAadhar(false);
+    setOpeningCertificate(false);
   }, [profile]);
 
   const initials =
@@ -107,6 +111,59 @@ export default function TeacherProfileView({ profile, onSave }: TeacherProfileVi
     });
     if (error) throw error;
     return `storage://teacher-verification-docs/${path}`;
+  };
+
+  const parseTeacherVerificationDocPath = (value: string): string | null => {
+    const trimmed = value.trim();
+    const prefix = "storage://teacher-verification-docs/";
+    if (!trimmed) return null;
+    if (trimmed.startsWith(prefix)) return trimmed.slice(prefix.length);
+    return null;
+  };
+
+  const isTeacherVerificationStorageUri = (value: string) =>
+    value.trim().startsWith("storage://teacher-verification-docs/");
+
+  const maskedTeacherVerificationLabel = (value: string) => {
+    const path = parseTeacherVerificationDocPath(value);
+    if (!path) return value;
+    const tail = path.slice(-10);
+    return `Private upload stored (…${tail})`;
+  };
+
+  const openTeacherVerificationDoc = async (value: string, kind: "aadhar" | "certificate") => {
+    const trimmed = value.trim();
+    if (!trimmed) return;
+
+    setValidationError(null);
+
+    const setOpening = kind === "aadhar" ? setOpeningAadhar : setOpeningCertificate;
+    setOpening(true);
+    try {
+      if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+        window.open(trimmed, "_blank", "noopener,noreferrer");
+        return;
+      }
+
+      const path = parseTeacherVerificationDocPath(trimmed);
+      if (!path) {
+        throw new Error("Unsupported document link. Please upload again or paste a valid link.");
+      }
+
+      const { data, error } = await supabase.storage
+        .from("teacher-verification-docs")
+        .createSignedUrl(path, 60);
+      if (error) throw error;
+      if (!data?.signedUrl) throw new Error("Failed to generate a secure link.");
+
+      window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+    } catch (e) {
+      setValidationError(
+        e instanceof Error ? `Could not open document: ${e.message}` : "Could not open document."
+      );
+    } finally {
+      setOpening(false);
+    }
   };
 
   const onPickAadharFile = async (file: File | null) => {
@@ -441,7 +498,7 @@ export default function TeacherProfileView({ profile, onSave }: TeacherProfileVi
                   <input
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    placeholder="+91 98765 00001"
+                    placeholder="+91 1234567890"
                     className="h-9 w-full rounded-md border border-white/20 bg-[#07070f] px-3 text-sm outline-none focus:border-violet-400"
                   />
                 ) : (
@@ -471,11 +528,28 @@ export default function TeacherProfileView({ profile, onSave }: TeacherProfileVi
                   <>
                     <div className="flex flex-wrap items-center gap-2">
                       <input
-                        value={aadharPhotoUrl}
-                        onChange={(e) => setAadharPhotoUrl(e.target.value)}
+                        value={
+                          isTeacherVerificationStorageUri(aadharPhotoUrl)
+                            ? maskedTeacherVerificationLabel(aadharPhotoUrl)
+                            : aadharPhotoUrl
+                        }
+                        onChange={(e) => {
+                          if (isTeacherVerificationStorageUri(aadharPhotoUrl)) return;
+                          setAadharPhotoUrl(e.target.value);
+                        }}
+                        readOnly={isTeacherVerificationStorageUri(aadharPhotoUrl)}
                         placeholder="Aadhaar photo URL (optional if share link given)"
                         className="h-9 min-w-0 flex-1 rounded-md border border-white/20 bg-[#07070f] px-3 text-sm outline-none focus:border-violet-400"
                       />
+                      <button
+                        type="button"
+                        disabled={openingAadhar || !aadharPhotoUrl.trim()}
+                        onClick={() => void openTeacherVerificationDoc(aadharPhotoUrl, "aadhar")}
+                        className="inline-flex h-9 items-center gap-1 rounded-md border border-white/15 bg-white/5 px-3 text-xs font-semibold text-slate-200 hover:bg-white/10 disabled:opacity-60"
+                      >
+                        {openingAadhar ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                        View
+                      </button>
                       <input
                         ref={aadharFileInputRef}
                         type="file"
@@ -494,7 +568,13 @@ export default function TeacherProfileView({ profile, onSave }: TeacherProfileVi
                         ) : (
                           <Upload className="h-3.5 w-3.5" />
                         )}
-                        Upload
+                        {uploadingAadhar
+                          ? aadharPhotoUrl.trim()
+                            ? "Replacing..."
+                            : "Uploading..."
+                          : aadharPhotoUrl.trim()
+                            ? "Replace"
+                            : "Upload"}
                       </button>
                     </div>
                     <input
@@ -506,8 +586,25 @@ export default function TeacherProfileView({ profile, onSave }: TeacherProfileVi
                   </>
                 ) : (
                   <>
-                    <div>{profile.details?.docs?.aadharPhotoUrl || "—"}</div>
-                    <div>{profile.details?.docs?.aadharShareLink || "—"}</div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        disabled={openingAadhar || !(profile.details?.docs?.aadharPhotoUrl ?? "").trim()}
+                        onClick={() =>
+                          void openTeacherVerificationDoc(profile.details?.docs?.aadharPhotoUrl ?? "", "aadhar")
+                        }
+                        className="inline-flex h-8 items-center gap-1 rounded-md border border-white/15 bg-white/5 px-3 text-xs font-semibold text-slate-200 hover:bg-white/10 disabled:opacity-60"
+                      >
+                        {openingAadhar ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                        View document
+                      </button>
+                      <div className="min-w-0 text-xs text-slate-400">
+                        {profile.details?.docs?.aadharPhotoUrl ? "Private (signed link)" : "—"}
+                      </div>
+                    </div>
+                    <div className="text-xs text-slate-400">
+                      {profile.details?.docs?.aadharShareLink || "—"}
+                    </div>
                   </>
                 )}
               </div>
@@ -519,11 +616,30 @@ export default function TeacherProfileView({ profile, onSave }: TeacherProfileVi
                   <>
                     <div className="flex flex-wrap items-center gap-2">
                       <input
-                        value={instituteCertificatePhotoUrl}
-                        onChange={(e) => setInstituteCertificatePhotoUrl(e.target.value)}
+                        value={
+                          isTeacherVerificationStorageUri(instituteCertificatePhotoUrl)
+                            ? maskedTeacherVerificationLabel(instituteCertificatePhotoUrl)
+                            : instituteCertificatePhotoUrl
+                        }
+                        onChange={(e) => {
+                          if (isTeacherVerificationStorageUri(instituteCertificatePhotoUrl)) return;
+                          setInstituteCertificatePhotoUrl(e.target.value);
+                        }}
+                        readOnly={isTeacherVerificationStorageUri(instituteCertificatePhotoUrl)}
                         placeholder="Certificate photo URL (optional if share link given)"
                         className="h-9 min-w-0 flex-1 rounded-md border border-white/20 bg-[#07070f] px-3 text-sm outline-none focus:border-violet-400"
                       />
+                      <button
+                        type="button"
+                        disabled={openingCertificate || !instituteCertificatePhotoUrl.trim()}
+                        onClick={() =>
+                          void openTeacherVerificationDoc(instituteCertificatePhotoUrl, "certificate")
+                        }
+                        className="inline-flex h-9 items-center gap-1 rounded-md border border-white/15 bg-white/5 px-3 text-xs font-semibold text-slate-200 hover:bg-white/10 disabled:opacity-60"
+                      >
+                        {openingCertificate ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                        View
+                      </button>
                       <input
                         ref={certificateFileInputRef}
                         type="file"
@@ -542,7 +658,13 @@ export default function TeacherProfileView({ profile, onSave }: TeacherProfileVi
                         ) : (
                           <Upload className="h-3.5 w-3.5" />
                         )}
-                        Upload
+                        {uploadingCertificate
+                          ? instituteCertificatePhotoUrl.trim()
+                            ? "Replacing..."
+                            : "Uploading..."
+                          : instituteCertificatePhotoUrl.trim()
+                            ? "Replace"
+                            : "Upload"}
                       </button>
                     </div>
                     <input
@@ -554,8 +676,31 @@ export default function TeacherProfileView({ profile, onSave }: TeacherProfileVi
                   </>
                 ) : (
                   <>
-                    <div>{profile.details?.docs?.instituteCertificatePhotoUrl || "—"}</div>
-                    <div>{profile.details?.docs?.instituteCertificateShareLink || "—"}</div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        disabled={
+                          openingCertificate ||
+                          !(profile.details?.docs?.instituteCertificatePhotoUrl ?? "").trim()
+                        }
+                        onClick={() =>
+                          void openTeacherVerificationDoc(
+                            profile.details?.docs?.instituteCertificatePhotoUrl ?? "",
+                            "certificate"
+                          )
+                        }
+                        className="inline-flex h-8 items-center gap-1 rounded-md border border-white/15 bg-white/5 px-3 text-xs font-semibold text-slate-200 hover:bg-white/10 disabled:opacity-60"
+                      >
+                        {openingCertificate ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                        View document
+                      </button>
+                      <div className="min-w-0 text-xs text-slate-400">
+                        {profile.details?.docs?.instituteCertificatePhotoUrl ? "Private (signed link)" : "—"}
+                      </div>
+                    </div>
+                    <div className="text-xs text-slate-400">
+                      {profile.details?.docs?.instituteCertificateShareLink || "—"}
+                    </div>
                   </>
                 )}
               </div>

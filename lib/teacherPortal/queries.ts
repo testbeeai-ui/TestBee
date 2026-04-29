@@ -34,6 +34,7 @@ import type {
   TeacherPortalDailyDoseStreakRef,
   TeacherPortalDataBundle,
   TeacherPortalGyanEngagementRef,
+  TeacherPortalMeetSession,
   TeacherPortalMockPaperRef,
   TeacherPortalMotivationLogItem,
   TeacherPortalProfileView,
@@ -191,6 +192,97 @@ function formatSessionLabel(iso: string | null): string {
   const time = date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
   return `${weekday} ${day} · ${time}`;
 }
+
+function normalizeScheduleYmd(raw: string): string | null {
+  const date = raw.trim();
+  if (!date) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(date)) return date;
+  const m = /^(\d{2})-(\d{2})-(\d{4})$/.exec(date);
+  if (m) return `${m[3]}-${m[2]}-${m[1]}`;
+  return null;
+}
+
+function localDateFromYmdAndTime(ymd: string, timeStr: string): Date | null {
+  const tm = timeStr.trim().match(/^(\d{1,2}):(\d{2})$/);
+  if (!tm) return null;
+  const hh = String(tm[1]).padStart(2, "0");
+  const mm = tm[2];
+  const d = new Date(`${ymd}T${hh}:${mm}:00`);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+type SectionScheduleInferInput = {
+  schedule_date: string | null;
+  schedule_time: string | null;
+  duration_minutes: unknown;
+  repeat_days: unknown;
+  schedule_end_date: string | null;
+};
+
+/** Next occurrence from stored section schedule when live_sessions rows are missing or stale. */
+function inferNextOccurrenceFromSectionSchedule(
+  s: SectionScheduleInferInput,
+  nowMs: number
+): { iso: string; durationMinutes: number } | null {
+  const dateRaw = typeof s.schedule_date === "string" ? s.schedule_date.trim() : "";
+  const timeRaw = typeof s.schedule_time === "string" ? s.schedule_time.trim() : "";
+  if (!dateRaw || !timeRaw) return null;
+  const anchorYmd = normalizeScheduleYmd(dateRaw);
+  if (!anchorYmd) return null;
+  const dur =
+    typeof s.duration_minutes === "number" &&
+    Number.isFinite(s.duration_minutes) &&
+    s.duration_minutes > 0
+      ? s.duration_minutes
+      : 60;
+  const repeat = Array.isArray(s.repeat_days)
+    ? (s.repeat_days as unknown[]).map((x) => String(x).trim()).filter(Boolean)
+    : [];
+  const endYmdRaw =
+    typeof s.schedule_end_date === "string" && s.schedule_end_date.trim()
+      ? normalizeScheduleYmd(s.schedule_end_date.trim())
+      : null;
+  const endDayMs = endYmdRaw
+    ? (() => {
+        const endMidnight = localDateFromYmdAndTime(endYmdRaw, "23:59");
+        return endMidnight ? endMidnight.getTime() : null;
+      })()
+    : null;
+
+  if (!repeat.length) {
+    const start = localDateFromYmdAndTime(anchorYmd, timeRaw);
+    if (!start) return null;
+    const endT = start.getTime() + dur * 60 * 1000;
+    if (endT < nowMs) return null;
+    if (endDayMs != null && start.getTime() > endDayMs) return null;
+    return { iso: start.toISOString(), durationMinutes: dur };
+  }
+
+  const now = new Date(nowMs);
+  const scanStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  for (let add = 0; add < 120; add++) {
+    const cal = new Date(scanStart);
+    cal.setDate(scanStart.getDate() + add);
+    const label = cal.toLocaleDateString("en-US", { weekday: "short" });
+    if (!repeat.includes(label)) continue;
+    const ymd2 = `${cal.getFullYear()}-${String(cal.getMonth() + 1).padStart(2, "0")}-${String(cal.getDate()).padStart(2, "0")}`;
+    const cand = localDateFromYmdAndTime(ymd2, timeRaw);
+    if (!cand) continue;
+    const ms = cand.getTime();
+    if (ms < nowMs) continue;
+    if (endDayMs != null && ms > endDayMs) continue;
+    return { iso: cand.toISOString(), durationMinutes: dur };
+  }
+  return null;
+}
+
+type InferredCardSession = {
+  iso: string;
+  durationMinutes: number;
+  sectionId: string;
+  sectionName: string;
+  meetLink: string | null;
+};
 
 function startOfTodayIso(): string {
   const d = new Date();
@@ -351,7 +443,7 @@ export async function loadTeacherPortalBundle(userId: string): Promise<TeacherPo
       : Promise.resolve({ data: [], error: null }),
     classroomIds.length
       ? supabase
-          .from("classroom_sections" as any)
+          .from("classroom_sections" as never)
           .select(
             "id, classroom_id, name, sort_order, schedule_date, schedule_time, duration_minutes, repeat_days, schedule_end_date, google_meet_link, google_recurring_event_id"
           )
@@ -412,19 +504,58 @@ export async function loadTeacherPortalBundle(userId: string): Promise<TeacherPo
     memberCountBySectionId.set(sid, (memberCountBySectionId.get(sid) ?? 0) + 1);
   });
 
-  const postCountMap = new Map<string, number>();
+  // Classroom card assignment count should match "Assignments" tab (not all posts like motivation/session plans).
+  const assignmentTypes = new Set(["assignment", "quiz", "mock", "Concept Focus"]);
+  const assignmentCountMap = new Map<string, number>();
   posts.forEach((p) => {
-    postCountMap.set(p.classroom_id, (postCountMap.get(p.classroom_id) ?? 0) + 1);
+    if (!assignmentTypes.has(String((p as { type?: unknown }).type ?? ""))) return;
+    assignmentCountMap.set(p.classroom_id, (assignmentCountMap.get(p.classroom_id) ?? 0) + 1);
   });
 
   const sectionNameById = new Map<string, string>();
+  const sectionMeetById = new Map<string, string | null>();
   for (const list of sectionsByClassroom.values()) {
-    for (const s of list) sectionNameById.set(s.id, s.name);
+    for (const s of list) {
+      sectionNameById.set(s.id, s.name);
+      sectionMeetById.set(s.id, s.google_meet_link ?? null);
+    }
+  }
+
+  const classroomMeetById = new Map<string, string | null>(
+    classrooms.map((c) => [
+      c.id,
+      ((c as { google_meet_link?: string | null }).google_meet_link ?? null) as string | null,
+    ])
+  );
+
+  const nowMs = Date.now();
+  const inferredCardSessionByClassroom = new Map<string, InferredCardSession>();
+  for (const c of classrooms) {
+    const secs = sectionsByClassroom.get(c.id) ?? [];
+    let best: InferredCardSession | null = null;
+    for (const sec of secs) {
+      const hit = inferNextOccurrenceFromSectionSchedule(
+        sec as unknown as SectionScheduleInferInput,
+        nowMs
+      );
+      if (!hit) continue;
+      const t = Date.parse(hit.iso);
+      if (!Number.isFinite(t)) continue;
+      if (!best || t < Date.parse(best.iso)) {
+        best = {
+          iso: hit.iso,
+          durationMinutes: hit.durationMinutes,
+          sectionId: sec.id,
+          sectionName: sec.name,
+          meetLink: (sec as { google_meet_link?: string | null }).google_meet_link ?? null,
+        };
+      }
+    }
+    if (best) inferredCardSessionByClassroom.set(c.id, best);
   }
 
   const nextSessionMap = new Map<string, string>();
-  const nextMeetMap = new Map<string, { meetLink: string | null; scopeLabel: string | null }>();
-  const now = Date.now();
+  const meetSessionsByClassroom = new Map<string, TeacherPortalMeetSession[]>();
   const isCancelled = (status: unknown) => {
     const st = typeof status === "string" ? status.trim().toLowerCase() : "";
     return st === "cancelled" || st === "canceled";
@@ -434,40 +565,114 @@ export async function loadTeacherPortalBundle(userId: string): Promise<TeacherPo
     return Number.isFinite(n) && n > 0 ? n : 60;
   };
   sessions.forEach((s) => {
-    if (nextSessionMap.has(s.classroom_id) && nextMeetMap.has(s.classroom_id)) return;
     if (isCancelled((s as { status?: unknown }).status)) return;
     const start = Date.parse(String((s as { scheduled_at?: unknown }).scheduled_at ?? ""));
     if (!Number.isFinite(start)) return;
-    const end = start + safeDurationMinutes((s as { duration_minutes?: unknown }).duration_minutes) * 60 * 1000;
+    const durMin = safeDurationMinutes((s as { duration_minutes?: unknown }).duration_minutes);
+    const end = start + durMin * 60 * 1000;
     // nearest upcoming/live only
-    if (end < now) return;
+    if (end < nowMs) return;
 
     if (!nextSessionMap.has(s.classroom_id)) nextSessionMap.set(s.classroom_id, String(s.scheduled_at));
-
-    if (!nextMeetMap.has(s.classroom_id)) {
-      const meetLink =
-        typeof (s as { meet_link?: unknown }).meet_link === "string"
-          ? String((s as { meet_link: string }).meet_link)
-          : null;
-      const sid =
-        typeof (s as { section_id?: unknown }).section_id === "string"
-          ? String((s as { section_id: string }).section_id)
-          : null;
-      const scopeLabel = sid ? `Only ${sectionNameById.get(sid) ?? "section"}` : "Whole class";
-      nextMeetMap.set(s.classroom_id, { meetLink, scopeLabel });
+    const sid =
+      typeof (s as { section_id?: unknown }).section_id === "string"
+        ? String((s as { section_id: string }).section_id)
+        : null;
+    let meetLink =
+      typeof (s as { meet_link?: unknown }).meet_link === "string"
+        ? String((s as { meet_link: string }).meet_link)
+        : null;
+    if (!meetLink && sid) meetLink = sectionMeetById.get(sid) ?? null;
+    if (!meetLink) meetLink = classroomMeetById.get(s.classroom_id) ?? null;
+    if (!meetLink) {
+      const list = sectionsByClassroom.get(s.classroom_id) ?? [];
+      for (const sec of list) {
+        const m = (sec as { google_meet_link?: string | null }).google_meet_link ?? null;
+        if (m) {
+          meetLink = m;
+          break;
+        }
+      }
     }
+    const sectionName = sid ? (sectionNameById.get(sid) ?? null) : null;
+    const scopeLabel = sid ? `Only ${sectionName ?? "section"}` : "Whole class";
+    const existing = meetSessionsByClassroom.get(s.classroom_id) ?? [];
+    existing.push({
+      id: String((s as { id?: unknown }).id ?? `${s.classroom_id}:${String(s.scheduled_at)}`),
+      scheduledAt: String(s.scheduled_at),
+      durationMinutes: durMin,
+      meetLink,
+      sectionId: sid,
+      sectionName,
+      scopeLabel,
+    });
+    meetSessionsByClassroom.set(s.classroom_id, existing);
   });
+  for (const [cid, list] of meetSessionsByClassroom.entries()) {
+    list.sort((a, b) => Date.parse(a.scheduledAt) - Date.parse(b.scheduledAt));
+    meetSessionsByClassroom.set(cid, list.slice(0, 8));
+  }
 
   const classroomCards: TeacherPortalClassroomCard[] = classrooms.map((c) => {
     const studentCount = memberCountMap.get(c.id) ?? 0;
-    const assignmentCount = postCountMap.get(c.id) ?? 0;
+    const assignmentCount = assignmentCountMap.get(c.id) ?? 0;
     const avgScorePercent: number | null = null;
     const isDemoShowcase = isTeacherPortalDemoShowcaseClassroom(c.id, c.name);
     const nextSessionIso = nextSessionMap.get(c.id) ?? null;
-    const googleSeriesLinked = Boolean(
-      (c as { google_recurring_event_id?: string | null }).google_recurring_event_id
+    const secs = sectionsByClassroom.get(c.id) ?? [];
+    const sectionSeriesLinked = secs.some((sec) =>
+      Boolean((sec as { google_recurring_event_id?: string | null }).google_recurring_event_id)
     );
-    const nextMeet = nextMeetMap.get(c.id) ?? null;
+    const googleSeriesLinked =
+      Boolean((c as { google_recurring_event_id?: string | null }).google_recurring_event_id) ||
+      sectionSeriesLinked;
+    const meetSessions = meetSessionsByClassroom.get(c.id) ?? [];
+    const nextMeet = meetSessions[0] ?? null;
+    const inferred = inferredCardSessionByClassroom.get(c.id) ?? null;
+    const classMeet = (c as { google_meet_link?: string | null }).google_meet_link ?? null;
+
+    let nextSessionAt: string | null = nextMeet?.scheduledAt ?? nextSessionIso ?? null;
+    let nextSessionDurationMinutes: number | null = nextMeet?.durationMinutes ?? null;
+    let nextMeetScopeLabel: string | null = nextMeet?.scopeLabel ?? null;
+    let nextSessionSectionId: string | null = nextMeet?.sectionId ?? null;
+
+    if (!nextSessionAt && inferred) {
+      nextSessionAt = inferred.iso;
+      if (nextSessionDurationMinutes == null) nextSessionDurationMinutes = inferred.durationMinutes;
+      if (!nextMeetScopeLabel) nextMeetScopeLabel = `Only ${inferred.sectionName}`;
+      if (!nextSessionSectionId) nextSessionSectionId = inferred.sectionId;
+    }
+
+    let nextMeetLink: string | null = nextMeet?.meetLink ?? null;
+    if (!nextMeetLink && inferred?.meetLink) nextMeetLink = inferred.meetLink;
+    if (!nextMeetLink) nextMeetLink = classMeet;
+    if (!nextMeetLink) {
+      for (const sec of secs) {
+        const m = (sec as { google_meet_link?: string | null }).google_meet_link ?? null;
+        if (m) {
+          nextMeetLink = m;
+          break;
+        }
+      }
+    }
+
+    if (nextMeetLink && !nextMeetScopeLabel) {
+      if (classMeet && nextMeetLink === classMeet) nextMeetScopeLabel = "Whole class";
+      else {
+        const secHit = secs.find(
+          (sec) => ((sec as { google_meet_link?: string | null }).google_meet_link ?? null) === nextMeetLink
+        );
+        if (secHit) nextMeetScopeLabel = `Only ${secHit.name}`;
+      }
+    }
+
+    const effectiveNextIso = nextSessionAt;
+    const nextSessionLabel = effectiveNextIso
+      ? formatSessionLabel(effectiveNextIso)
+      : googleSeriesLinked
+        ? "Google Calendar series active"
+        : "No session scheduled";
+
     return {
       id: c.id,
       name: c.name,
@@ -475,21 +680,20 @@ export async function loadTeacherPortalBundle(userId: string): Promise<TeacherPo
       section: c.section,
       description: c.description,
       introVideoUrl: (c as { intro_video_url?: string | null }).intro_video_url ?? null,
-      googleMeetLink: (c as { google_meet_link?: string | null }).google_meet_link ?? null,
-      nextMeetLink: nextMeet?.meetLink ?? null,
-      nextMeetScopeLabel: nextMeet?.scopeLabel ?? null,
+      googleMeetLink: classMeet,
+      nextMeetLink,
+      nextMeetScopeLabel,
+      nextSessionAt,
+      nextSessionSectionId,
+      nextSessionDurationMinutes,
+      meetSessions,
       googleSeriesLinked,
       joinCode: c.join_code,
       isDemoShowcase,
       studentCount,
       assignmentCount,
       avgScorePercent,
-      nextSessionLabel:
-        nextSessionIso != null
-          ? formatSessionLabel(nextSessionIso)
-          : googleSeriesLinked
-            ? "Google Calendar series active"
-            : "No session scheduled",
+      nextSessionLabel,
       scheduleLabel: c.description?.includes("Repeat: ")
         ? (c.description.split("Repeat: ")[1]?.split(" | ")[0] ?? "Mon/Wed/Fri")
         : "Mon/Wed/Fri",
@@ -1474,6 +1678,8 @@ export async function createClassroomAssignment(input: {
   /** Optional exact due datetime (ISO) for timed publishing flows. */
   dueDateIso?: string | null;
   assignToLabel: string;
+  /** When provided, the assignment is visible only to these students (within the selected scope). */
+  targetStudentIds?: string[] | null;
   rewardRdm: number;
   instructions: string;
   /** When empty, defaults are derived from assignment type label */
@@ -1590,6 +1796,14 @@ export async function createClassroomAssignment(input: {
     assignToLabel: input.assignToLabel,
     rewardRdm: input.rewardRdm,
     instructions: input.instructions.trim() || "",
+    ...(Array.isArray(input.targetStudentIds) && input.targetStudentIds.length
+      ? {
+          assignToKind: "custom",
+          targetStudentIds: input.targetStudentIds.filter(
+            (id): id is string => typeof id === "string" && id.trim().length > 0
+          ),
+        }
+      : {}),
     tasks: serializeTasksForContentJson(taskList),
     mockPaper: mock ? { id: mock.id, slug: mock.slug, title: mock.title } : null,
     chapterQuiz: cq
@@ -1701,6 +1915,13 @@ export async function createMotivationAction(input: {
   targetStudentIds: string[];
   message: string;
   rdmDelta: number;
+  /** Optional deep-link target (e.g. assignment post id). */
+  relatedPostId?: string;
+  relatedPostTitle?: string;
+  /** Optional recommended action to show as link in notifications. */
+  recommendActionId?: "attempt_targeted_mock" | "post_doubt" | "watch_recorded" | "none";
+  recommendActionLabel?: string;
+  recommendActionUrl?: string;
 }): Promise<void> {
   const { error } = await supabase.from("posts").insert({
     classroom_id: input.classroomId,
@@ -1715,6 +1936,11 @@ export async function createMotivationAction(input: {
       message: input.message.trim() || "Keep going!",
       targetStudentIds: input.targetStudentIds,
       rdmDelta: input.rdmDelta,
+      ...(input.relatedPostId ? { relatedPostId: input.relatedPostId } : {}),
+      ...(input.relatedPostTitle ? { relatedPostTitle: input.relatedPostTitle } : {}),
+      ...(input.recommendActionId ? { recommendActionId: input.recommendActionId } : {}),
+      ...(input.recommendActionLabel ? { recommendActionLabel: input.recommendActionLabel } : {}),
+      ...(input.recommendActionUrl ? { recommendActionUrl: input.recommendActionUrl } : {}),
     },
   });
   if (error) throw error;

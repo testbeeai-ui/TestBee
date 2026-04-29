@@ -952,7 +952,19 @@ export default function TopicPage() {
   }, [quizPostDrafts, quizPostUsedTemplateIds]);
 
   const reportScoreToAssignment = useCallback(
-    async (score: number, total: number) => {
+    async (
+      score: number,
+      total: number,
+      attemptSnapshot?: {
+        version: 1;
+        items: Array<{
+          question: string;
+          options: string[];
+          correctAnswerIndex: number;
+          selectedAnswerIndex: number;
+        }>;
+      }
+    ) => {
       const postId = searchParams.get("postId");
       const classroomId = searchParams.get("classroomId");
       if (!postId || !classroomId) return;
@@ -967,7 +979,11 @@ export default function TopicPage() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${session.access_token}`,
           },
-          body: JSON.stringify({ submit: true, chapterQuizScore: { score, total } }),
+          body: JSON.stringify({
+            submit: true,
+            chapterQuizScore: { score, total },
+            chapterQuizAttempt: attemptSnapshot ?? null,
+          }),
         });
       } catch (e) {
         console.error("Failed to report assignment score", e);
@@ -5664,6 +5680,21 @@ export default function TopicPage() {
                                               );
                                               const wrongCount = total - correctCount;
                                               if (!topicNode || !subtopicName) return;
+                                              const attemptSnapshot = {
+                                                version: 1 as const,
+                                                items: dbBitsQuestions.map((q, idx) => {
+                                                  const selectedAnswerIndex =
+                                                    typeof bitsSelectedAnswers[idx] === "number"
+                                                      ? (bitsSelectedAnswers[idx] as number)
+                                                      : -1;
+                                                  return {
+                                                    question: q.question,
+                                                    options: q.options,
+                                                    correctAnswerIndex: getCorrectOptionIndex(q),
+                                                    selectedAnswerIndex,
+                                                  };
+                                                }),
+                                              };
                                               const boardName = (
                                                 board === "icse" ? "ICSE" : "CBSE"
                                               ) as Board;
@@ -5693,7 +5724,8 @@ export default function TopicPage() {
                                                     : await saveBitsAttempt(payload);
                                                 void reportScoreToAssignment(
                                                   persisted.correctCount,
-                                                  persisted.totalQuestions
+                                                  persisted.totalQuestions,
+                                                  attemptSnapshot
                                                 );
                                                 setBitsAttempt(persisted);
                                                 setBitsReviewMode(false);
@@ -5742,6 +5774,31 @@ export default function TopicPage() {
                                             }
                                             const wrongCount = sliceLen - correctCount;
                                             if (!topicNode || !subtopicName) return;
+                                            const attemptSnapshot = {
+                                              version: 1 as const,
+                                              items: (() => {
+                                                const items: Array<{
+                                                  question: string;
+                                                  options: string[];
+                                                  correctAnswerIndex: number;
+                                                  selectedAnswerIndex: number;
+                                                }> = [];
+                                                for (let i = start; i < end; i++) {
+                                                  const item = dbBitsQuestions[i];
+                                                  const selectedAnswerIndex =
+                                                    typeof bitsSelectedAnswers[i] === "number"
+                                                      ? (bitsSelectedAnswers[i] as number)
+                                                      : -1;
+                                                  items.push({
+                                                    question: item.question,
+                                                    options: item.options,
+                                                    correctAnswerIndex: getCorrectOptionIndex(item),
+                                                    selectedAnswerIndex,
+                                                  });
+                                                }
+                                                return items;
+                                              })(),
+                                            };
                                             const boardName = (
                                               board === "icse" ? "ICSE" : "CBSE"
                                             ) as Board;
@@ -5772,7 +5829,8 @@ export default function TopicPage() {
                                               });
                                               void reportScoreToAssignment(
                                                 persisted.correctCount,
-                                                persisted.totalQuestions
+                                                persisted.totalQuestions,
+                                                attemptSnapshot
                                               );
                                               setBitsAttemptBySet((prev) => ({
                                                 ...prev,

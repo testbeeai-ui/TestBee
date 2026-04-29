@@ -459,18 +459,20 @@ const Classrooms = () => {
       return;
     }
 
-    const { error } = await supabase
-      .from("classroom_members")
-      .insert({ classroom_id: classroom.id, user_id: user.id, role: "student" });
+    const { error } = await supabase.from("classroom_join_requests").insert({
+      classroom_id: classroom.id,
+      user_id: user.id,
+      status: "pending",
+    });
     if (error) {
-      if (error.code === "23505") toast({ title: "Already joined!" });
+      if (error.code === "23505") toast({ title: "Request already sent!" });
       else toast({ title: "Error", description: error.message, variant: "destructive" });
       return;
     }
     setJoinDialogOpen(false);
     setJoinCode("");
     fetchClassrooms();
-    toast({ title: "Joined classroom! 🎉" });
+    toast({ title: "Request sent", description: "The teacher will approve you soon." });
   };
 
   return (

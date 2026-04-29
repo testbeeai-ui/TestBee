@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import AppLayout from "@/components/AppLayout";
@@ -58,7 +60,9 @@ import { fetchSavedContent } from "@/lib/savedContentService";
 import { mergeAllSavedContent } from "@/lib/mergeSavedContent";
 import { incrementPrepCalendarDay, localDayISO } from "@/lib/prepCalendarClient";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 import katex from "katex";
+import { fireAssignmentTaskSync } from "@/lib/classroom/syncAssignmentTaskProgress";
 
 const QUICK_DURATIONS = [60, 90, 180] as const;
 
@@ -129,6 +133,62 @@ function renderMockLatexToHtml(raw: string): string {
   s = s.replace(/\\{2,}([()[\]{}])/g, "\\$1");
   s = s.replace(/\\{2,}([A-Za-z])/g, "\\$1");
 
+  const hasMathDelimiters =
+    /\\\[[\s\S]+?\\\]/.test(s) ||
+    /\\\([\s\S]+?\\\)/.test(s) ||
+    /\$\$[\s\S]+?\$\$/.test(s) ||
+    /\$[^\n$]+?\$/.test(s);
+
+  const looksLikeLatexBlock =
+    !hasMathDelimiters &&
+    (/[\\][A-Za-z]+/.test(s) || /\\frac\s*\{/.test(s) || /\\sum\b|\\int\b|\\lim\b/.test(s));
+
+  const repairLatex = (inner: string) =>
+    inner
+      // Fix known corrupt tokens seen in some mock exports.
+      .replace(/\\lim_limits\b/g, "\\lim\\limits")
+      .replace(/\\(leftarrow|rightarrow)row\b/g, "\\$1")
+      // Normalize malformed command spacing: \text t -> \text{t}
+      .replace(/\\text\s+([^\\{}]+?)(?=\\[A-Za-z]|$)/g, (_m, g1: string) => `\\text{${g1.trim()}}`)
+      .replace(/\\(mathrm|mathbf|mathit|operatorname)\s+([A-Za-z0-9]+)/g, "\\$1{$2}")
+      // Common payload issues: bare greek words/commands with broken braces
+      .replace(/\\(theta|alpha|beta|gamma|delta|lambda|mu|pi|rho|sigma|phi|omega)\b/g, "\\$1")
+      // Normalize escaped delimiters that leak into inner math
+      .replace(/\\\(/g, "")
+      .replace(/\\\)/g, "")
+      .replace(/\\\[/g, "")
+      .replace(/\\\]/g, "")
+      // Basic corrupted command recovery
+      .replace(/\\{2,}(?=[A-Za-z])/g, "\\")
+      .replace(/\\uparrowrac\b/g, "\\frac")
+      .replace(/\\[A-Za-z^]*rac(?=\s*\{)/g, "\\frac")
+      // Normalize Unicode operators to TeX-friendly forms
+      .replace(/\u2212/g, "-")
+      .replace(/\u00D7/g, "\\times ")
+      .replace(/\u00B7/g, "\\cdot ")
+      // Keep matrix row separators and avoid collapsing meaningful spaces
+      .replace(/[ \t]+/g, " ")
+      .trim();
+
+  // If there's no explicit delimiters but it looks like a LaTeX block,
+  // render the entire payload as display math.
+  if (looksLikeLatexBlock) {
+    const repaired = repairLatex(s);
+    try {
+      const html = katex.renderToString(repaired, {
+        displayMode: true,
+        throwOnError: false,
+        output: "html",
+        strict: false,
+      });
+      if (!html.includes("katex-error")) {
+        return `<span class="block overflow-x-auto my-1 text-center">${html}</span>`;
+      }
+    } catch {
+      // fall through to delimiter-based rendering
+    }
+  }
+
   // 3. Split on math delimiters, render each math block with KaTeX
   const result: string[] = [];
   const pattern = /(\\\[[\s\S]+?\\\]|\\\([\s\S]+?\\\)|\$\$[\s\S]+?\$\$|\$[^\n$]+?\$)/g;
@@ -178,28 +238,7 @@ function renderMockLatexToHtml(raw: string): string {
         );
       } else {
         // Retry with progressively repaired latex (UI-only fix; no DB mutation)
-        const repaired = inner
-          // Normalize malformed command spacing: \text t -> \text{t}
-          .replace(/\\text\s+([A-Za-z0-9]+)/g, "\\text{$1}")
-          .replace(/\\(mathrm|mathbf|mathit|operatorname)\s+([A-Za-z0-9]+)/g, "\\$1{$2}")
-          // Common payload issues: bare greek words/commands with broken braces
-          .replace(/\\(theta|alpha|beta|gamma|delta|lambda|mu|pi|rho|sigma|phi|omega)\b/g, "\\$1")
-          // Normalize escaped delimiters that leak into inner math
-          .replace(/\\\(/g, "")
-          .replace(/\\\)/g, "")
-          .replace(/\\\[/g, "")
-          .replace(/\\\]/g, "")
-          // Basic corrupted command recovery
-          .replace(/\\{2,}(?=[A-Za-z])/g, "\\")
-          .replace(/\\uparrowrac\b/g, "\\frac")
-          .replace(/\\[A-Za-z^]*rac(?=\s*\{)/g, "\\frac")
-          // Normalize Unicode operators to TeX-friendly forms
-          .replace(/\u2212/g, "-")
-          .replace(/\u00D7/g, "\\times ")
-          .replace(/\u00B7/g, "\\cdot ")
-          // Keep matrix row separators and avoid collapsing meaningful spaces
-          .replace(/[ \t]+/g, " ")
-          .trim();
+        const repaired = repairLatex(inner);
 
         const secondPass = katex.renderToString(repaired, {
           displayMode: isDisplay,
@@ -282,6 +321,10 @@ export default function MockPage() {
   const { toast } = useToast();
   const { user: authUser, session, profile } = useAuth();
   const { resolvedTheme } = useTheme();
+  const searchParams = useMemo(() => {
+    if (typeof window === "undefined") return new URLSearchParams();
+    return new URLSearchParams(window.location.search);
+  }, []);
   const ntaSkin: NtaSkin = resolvedTheme === "dark" ? "dark" : "light";
   const user = useUserStore((s) => s.user);
   const allResults = useUserStore((s) => s.allResults);
@@ -321,13 +364,58 @@ export default function MockPage() {
   const [expandedReviewId, setExpandedReviewId] = useState<string | null>(null);
   const [reviewSubjectFilter, setReviewSubjectFilter] = useState<Subject | "all">("all");
 
+  const deepLinkPaperSlug = (searchParams.get("paper") ?? "").trim();
+  const trackingClassroomId = (searchParams.get("classroomId") ?? "").trim();
+  const trackingPostId = (searchParams.get("postId") ?? "").trim();
+  const initialViewParam = (searchParams.get("view") ?? "").trim().toLowerCase();
+  const isReviewMode = false;
+
   const totalSeconds = duration * 60;
   const effectiveSubject = selectedSubject ?? subjects[0] ?? null;
 
-  const handleFinishTest = useCallback(() => {
-    setEndTime(Date.now());
+  const handleFinishTest = useCallback(async () => {
+    const finishedAt = Date.now();
+    setEndTime(finishedAt);
     setView("results");
     setSubmitDialogOpen(false);
+
+    // If the mock was opened from a classroom assignment, persist the attempt so
+    // the classroom feed can show "Done" and teachers can review.
+    if (authUser?.id && trackingClassroomId && trackingPostId && questions.length > 0) {
+      const computedCorrectCount = questions.filter((q) => answers[q.id] === q.correctAnswer).length;
+      const orderedAnswers = questions.map((q) => {
+        const v = answers[q.id];
+        return typeof v === "number" ? v : -1;
+      });
+      try {
+        const genericClient = supabase as unknown as {
+          from: (table: string) => {
+            upsert: (
+              values: Record<string, unknown>,
+              options: { onConflict: string }
+            ) => Promise<{ error?: { message?: string } | null }>;
+          };
+        };
+        await genericClient.from("classroom_generated_test_attempts").upsert(
+          {
+            classroom_id: trackingClassroomId,
+            post_id: trackingPostId,
+            user_id: authUser.id,
+            answers_json: orderedAnswers,
+            score: computedCorrectCount,
+            total: questions.length,
+            submitted_at: new Date(finishedAt).toISOString(),
+          },
+          { onConflict: "post_id,user_id" }
+        );
+        // Immediately sync assignment checklist completion for mock-paper tasks.
+        // This keeps the student "Your tasks" state aligned with the submit action.
+        fireAssignmentTaskSync(["mock_paper"]);
+      } catch {
+        // Non-fatal — student can still see results; tracking can be retried by reopening.
+      }
+    }
+
     if (!mockCalendarLoggedRef.current && authUser?.id) {
       mockCalendarLoggedRef.current = true;
       const day = localDayISO(new Date());
@@ -335,7 +423,14 @@ export default function MockPage() {
         if (ok) setCalendarRefreshKey((k) => k + 1);
       });
     }
-  }, [authUser?.id, session?.access_token]);
+  }, [
+    answers,
+    authUser?.id,
+    questions,
+    session?.access_token,
+    trackingClassroomId,
+    trackingPostId,
+  ]);
 
   useEffect(() => {
     if (view !== "test" || startTime == null) return;
@@ -453,11 +548,50 @@ export default function MockPage() {
     []
   );
 
+  useEffect(() => {
+    if (!deepLinkPaperSlug) return;
+    if (isReviewMode) return;
+    let cancelled = false;
+
+    const ensureCatalogThenOpen = async () => {
+      try {
+        // Ensure papers are available (deep links bypass the landing/setup loaders).
+        const papers = catalogPapers.length > 0 ? catalogPapers : await fetchMockPapersFromSupabase();
+        if (cancelled) return;
+        if (catalogPapers.length === 0) setCatalogPapers(papers);
+
+        const paper = papers.find((p) => p.slug === deepLinkPaperSlug) ?? null;
+        if (!paper) return;
+
+        // Jump straight into the NTA instructions flow (not the Prep+Mock dashboard sections).
+        openNtaInstructionsForPaper(paper, "landing");
+      } catch {
+        // Silent: deep link should not break the page
+      }
+    };
+
+    void ensureCatalogThenOpen();
+    return () => {
+      cancelled = true;
+    };
+  }, [deepLinkPaperSlug, catalogPapers, isReviewMode, openNtaInstructionsForPaper]);
+
+  // Intentionally disable cross-user review via query params (security).
+
   const handleQuickStartMock = useCallback((subject: Subject) => {
     setSelectedSubject(subject);
     setDuration(90);
     setLibraryTab("quick");
     setView("setup");
+  }, []);
+
+  useEffect(() => {
+    // Allow deep-linking straight into the mock test library.
+    if (initialViewParam === "setup") {
+      setView("setup");
+    }
+    // Only run once on mount (searchParams is memoized).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const papersByClassLevel = useMemo(() => {

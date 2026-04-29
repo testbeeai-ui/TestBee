@@ -139,8 +139,8 @@ export default function ConceptFocusAssignmentFields({
     "pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500 sm:right-3 sm:h-4 sm:w-4";
 
   return (
-    <div className="rounded-lg border border-white/5 bg-black/25 p-2 sm:p-2.5">
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-x-2 gap-y-1 border-b border-white/[0.06] pb-2">
+    <div className="rounded-lg border border-white/5 bg-black/25 p-1.5 sm:p-2">
+      <div className="mb-1.5 flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 border-b border-white/[0.06] pb-1.5">
         <span className="text-xs font-semibold text-slate-200">Concept focus</span>
         <span className="text-[10px] font-medium uppercase tracking-[0.06em] text-slate-500">
           <span className="hidden sm:inline">Class · Subject · Chapter · Lesson · Subtopic</span>
@@ -148,7 +148,7 @@ export default function ConceptFocusAssignmentFields({
         </span>
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-1.5 sm:space-y-2">
         {/* Row 1–2: class + subject side by side on md+ */}
         <div
           className={

@@ -1,8 +1,9 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Bell, BookOpen, Gift, GraduationCap, LayoutGrid, Plus, Star, User } from "lucide-react";
+import { Bell, BookOpen, ClipboardList, Gift, GraduationCap, LayoutGrid, Plus, Star, User } from "lucide-react";
 import type { TeacherPortalSection } from "@/lib/teacherPortal/types";
+import { useRouter } from "next/navigation";
 
 interface TeacherPortalShellProps {
   activeSection: TeacherPortalSection;
@@ -32,6 +33,7 @@ export default function TeacherPortalShell({
   onOpenCreateTests,
   children,
 }: TeacherPortalShellProps) {
+  const router = useRouter();
   const initials =
     teacherName
       .split(" ")
@@ -42,6 +44,18 @@ export default function TeacherPortalShell({
 
   return (
     <div className="min-h-screen bg-[#07070f] text-slate-100">
+      <button
+        type="button"
+        onClick={() => {
+          // Reliable open from any tab: navigate with a flag.
+          router.push("/teacher-portal?section=myClassroom&wizard=1");
+        }}
+        className="fixed left-3 top-1/2 z-40 -translate-y-1/2 rounded-2xl border border-violet-400/30 bg-violet-500/10 p-2.5 text-violet-100 shadow-lg backdrop-blur hover:bg-violet-500/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#07070f]"
+        aria-label="Open Teacher Wizard"
+        title="Teacher Wizard"
+      >
+        <ClipboardList className="h-5 w-5" />
+      </button>
       <header className="sticky top-0 z-20 border-b border-white/10 bg-[#07070f]/95 backdrop-blur">
         <div className="flex h-14 items-center gap-2 px-4 sm:h-16 sm:gap-3 sm:px-5 lg:px-6">
           <div className="flex items-center gap-2">

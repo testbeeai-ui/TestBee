@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { safeGetSession } from "@/lib/safeSession";
 import type { AssignmentTaskStored } from "@/lib/classroom/assignmentTasks";
@@ -12,6 +12,13 @@ interface QuizAttemptInfo {
   total: number;
   submittedAt: string;
 }
+
+type TaskResponseRow = {
+  task_id: string;
+  response_text: string | null;
+  links: string[] | null;
+  updated_at: string;
+};
 
 interface AssignmentTaskChecklistProps {
   classroomId: string;
@@ -68,7 +75,10 @@ function withAssignmentTrackingParams(
   classroomId: string,
   postId: string
 ): string {
-  if (!href || task.kind !== "chapter_quiz") return href;
+  if (!href) return href;
+  const shouldTrack =
+    task.kind === "chapter_quiz" || task.kind === "mock_paper" || href.startsWith("/mock");
+  if (!shouldTrack) return href;
   try {
     const isAbsolute = /^https?:\/\//i.test(href);
     const url = isAbsolute ? new URL(href) : new URL(href, "https://edublast.local");
@@ -92,10 +102,23 @@ export default function AssignmentTaskChecklist({
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [quizScores, setQuizScores] = useState<Record<string, QuizAttemptInfo>>({});
+  const [responsesByTaskId, setResponsesByTaskId] = useState<Record<string, TaskResponseRow>>({});
+  const [draftTextByTaskId, setDraftTextByTaskId] = useState<Record<string, string>>({});
+  const [draftLinksByTaskId, setDraftLinksByTaskId] = useState<Record<string, string>>({});
+  const [submitBusyTaskId, setSubmitBusyTaskId] = useState<string | null>(null);
+  const [responsesLoading, setResponsesLoading] = useState(false);
+  const hasLoadedOnceRef = useRef(false);
+  const isInteractingRef = useRef(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+  const responseTasks = useMemo(
+    () => tasks.filter((t) => !t.href && t.kind === "free_text"),
+    [tasks]
+  );
+
+  const load = useCallback(async (opts?: { silent?: boolean }) => {
+    const silent = opts?.silent === true && hasLoadedOnceRef.current;
+    if (!silent) setLoading(true);
+    if (!silent) setError(null);
     try {
       const headers: HeadersInit = {};
       const { session } = await safeGetSession();
@@ -124,6 +147,48 @@ export default function AssignmentTaskChecklist({
       setTasks(loadedTasks);
       setCompleted(loadedCompleted);
       setProgressAvailable(data.progressAvailable !== false);
+      hasLoadedOnceRef.current = true;
+
+      if (!isTeacherView && loadedTasks.length > 0) {
+        setResponsesLoading(true);
+        const respRes = await fetch(`/api/classroom/${classroomId}/posts/${postId}/task-response`, {
+          headers,
+          credentials: "include",
+        });
+        const respData = (await respRes.json().catch(() => ({}))) as {
+          responses?: TaskResponseRow[];
+          error?: string;
+        };
+        if (respRes.ok && Array.isArray(respData.responses)) {
+          const map: Record<string, TaskResponseRow> = {};
+          for (const r of respData.responses) {
+            if (r && typeof r.task_id === "string") map[r.task_id] = r;
+          }
+          setResponsesByTaskId(map);
+          setDraftTextByTaskId((prev) => {
+            const next = { ...prev };
+            for (const t of loadedTasks) {
+              if (t.kind !== "free_text" || t.href) continue;
+              if (next[t.id] != null) continue;
+              next[t.id] = map[t.id]?.response_text ?? "";
+            }
+            return next;
+          });
+          setDraftLinksByTaskId((prev) => {
+            const next = { ...prev };
+            for (const t of loadedTasks) {
+              if (t.kind !== "free_text" || t.href) continue;
+              if (next[t.id] != null) continue;
+              next[t.id] = (map[t.id]?.links ?? []).join("\n");
+            }
+            return next;
+          });
+        } else if (respRes.status !== 404 && respData?.error) {
+          // Non-fatal: keep checklist usable even if response fetch fails.
+          console.warn(respData.error);
+        }
+        setResponsesLoading(false);
+      }
 
       // Auto-detect quiz completion from attempts table for chapter_quiz tasks
       if (!isTeacherView) {
@@ -186,10 +251,10 @@ export default function AssignmentTaskChecklist({
         }
       }
     } catch {
-      setError("Network error");
-      setProgressAvailable(true);
+      if (!silent) setError("Network error");
+      if (!silent) setProgressAvailable(true);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [classroomId, postId, isTeacherView]);
 
@@ -199,11 +264,14 @@ export default function AssignmentTaskChecklist({
 
   useEffect(() => {
     if (isTeacherView) return;
-    const onFocus = () => void load();
+    const onFocus = () => void load({ silent: true });
     const onVisibility = () => {
-      if (!document.hidden) void load();
+      if (!document.hidden) void load({ silent: true });
     };
-    const interval = window.setInterval(() => void load(), 20000);
+    const interval = window.setInterval(() => {
+      if (isInteractingRef.current) return;
+      void load({ silent: true });
+    }, 20000);
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
@@ -250,6 +318,75 @@ export default function AssignmentTaskChecklist({
     }
   };
 
+  const submitResponse = async (taskId: string) => {
+    if (isTeacherView) return;
+    setSubmitBusyTaskId(taskId);
+    setError(null);
+    try {
+      const headers: HeadersInit = { "Content-Type": "application/json" };
+      const { session } = await safeGetSession();
+      if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+      const responseText = (draftTextByTaskId[taskId] ?? "").trim();
+      const linksRaw = (draftLinksByTaskId[taskId] ?? "")
+        .split(/[\n,]+/g)
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .slice(0, 10);
+      const res = await fetch(`/api/classroom/${classroomId}/posts/${postId}/task-response`, {
+        method: "POST",
+        headers,
+        credentials: "include",
+        body: JSON.stringify({
+          taskId,
+          responseText,
+          links: linksRaw,
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        response?: TaskResponseRow;
+        error?: string;
+      };
+      if (!res.ok) {
+        setError(data?.error ?? "Submit failed");
+        return;
+      }
+      if (data.response?.task_id) {
+        setResponsesByTaskId((prev) => ({ ...prev, [data.response!.task_id]: data.response! }));
+      } else {
+        // Refresh if response row isn't returned for some reason.
+        void load();
+      }
+
+      // UX: submitting a response implies the student completed this task.
+      // Mark the task as done so the feed/card shows the completion state.
+      if (!completed.has(taskId) && progressAvailable) {
+        setCompleted((prev) => {
+          const n = new Set(prev);
+          n.add(taskId);
+          return n;
+        });
+        const progRes = await fetch(`/api/classroom/${classroomId}/posts/${postId}/task-progress`, {
+          method: "POST",
+          headers,
+          credentials: "include",
+          body: JSON.stringify({ taskId, completed: true }),
+        });
+        const progData = (await progRes.json().catch(() => ({}))) as {
+          error?: string;
+          progressAvailable?: boolean;
+        };
+        if (progData.progressAvailable === false) setProgressAvailable(false);
+        if (!progRes.ok && progData?.error) {
+          // Non-fatal: response saved; progress tick can be retried manually.
+          console.warn(progData.error);
+        }
+      }
+    } finally {
+      setSubmitBusyTaskId(null);
+    }
+  };
+
   if (loading) return <div className="text-sm text-muted-foreground py-2">Loading checklist…</div>;
   if (error) return <div className="text-sm text-destructive">{error}</div>;
   if (tasks.length === 0) return null;
@@ -262,9 +399,13 @@ export default function AssignmentTaskChecklist({
       <ul className="space-y-3">
         {tasks.map((t) => {
           const isAutoTrackedTask = t.kind === "chapter_quiz";
+          const showResponseBox = !isTeacherView && t.kind === "free_text" && !t.href;
+          const responseRow = responsesByTaskId[t.id] ?? null;
+          const canTick =
+            !isTeacherView && progressAvailable && showResponseBox && submitBusyTaskId !== t.id;
           return (
             <li key={t.id} className="flex items-start gap-3 text-sm">
-              {!isTeacherView && progressAvailable ? (
+              {canTick ? (
                 <Checkbox
                   checked={completed.has(t.id)}
                   disabled={busyId !== null || isAutoTrackedTask}
@@ -284,26 +425,123 @@ export default function AssignmentTaskChecklist({
                       target="_blank"
                       rel="noreferrer"
                       className="mt-2 inline-flex rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-sm font-bold text-primary transition hover:bg-primary/15"
+                      aria-label={`${taskLinkLabel(t)} (open)`}
                     >
-                      {taskLinkLabel(t)}
+                      Open
                     </a>
-                  ) : t.href?.includes("/assignment-test/") || t.href?.includes("panel=quiz") ? (
+                  ) : t.href?.includes("/assignment-test/") ||
+                    t.href?.includes("panel=quiz") ||
+                    t.href?.startsWith("/mock?paper=") ? (
                     <a
                       href={withAssignmentTrackingParams(t.href, t, classroomId, postId)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="mt-2 inline-flex rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-sm font-bold text-primary transition hover:bg-primary/15"
+                      aria-label={`${taskLinkLabel(t)} (open)`}
                     >
-                      {taskLinkLabel(t)}
+                      Open
                     </a>
                   ) : (
                     <Link
                       href={withAssignmentTrackingParams(t.href, t, classroomId, postId)}
                       className="mt-2 inline-flex rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-sm font-bold text-primary transition hover:bg-primary/15"
+                      aria-label={`${taskLinkLabel(t)} (open)`}
                     >
-                      {taskLinkLabel(t)}
+                      Open
                     </Link>
                   )
+                ) : null}
+                {!isTeacherView && t.href ? (
+                  <div className="mt-1 text-[11px] text-muted-foreground">
+                    {t.kind === "chapter_quiz"
+                      ? "Open the quiz, answer all MCQs, and submit to record your score."
+                      : t.kind === "mock_paper"
+                        ? "Open the mock paper and complete it. Submit to record your score."
+                        : "Open the link, complete the task, then come back here."}
+                  </div>
+                ) : null}
+                {showResponseBox ? (
+                  <div className="mt-2 space-y-2 rounded-lg border border-border bg-background/60 p-3">
+                    <div className="text-[11px] text-muted-foreground">
+                      Optional: submit text and/or links. You can still just tick “Mark as done”.
+                    </div>
+                    {responsesLoading ? (
+                      <div className="space-y-2">
+                        <div className="h-22 w-full animate-pulse rounded-md border border-border bg-muted/40" />
+                        <div className="h-14 w-full animate-pulse rounded-md border border-border bg-muted/40" />
+                        <div className="h-9 w-36 animate-pulse rounded-md bg-muted/40" />
+                      </div>
+                    ) : (
+                      <>
+                        <textarea
+                          value={draftTextByTaskId[t.id] ?? ""}
+                          onChange={(e) =>
+                            setDraftTextByTaskId((prev) => ({ ...prev, [t.id]: e.target.value }))
+                          }
+                          onFocus={() => {
+                            isInteractingRef.current = true;
+                          }}
+                          onBlur={() => {
+                            isInteractingRef.current = false;
+                          }}
+                          rows={4}
+                          placeholder="Write your answer here…"
+                          className="w-full resize-y rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/40"
+                          disabled={submitBusyTaskId === t.id}
+                        />
+                        <textarea
+                          value={draftLinksByTaskId[t.id] ?? ""}
+                          onChange={(e) =>
+                            setDraftLinksByTaskId((prev) => ({ ...prev, [t.id]: e.target.value }))
+                          }
+                          onFocus={() => {
+                            isInteractingRef.current = true;
+                          }}
+                          onBlur={() => {
+                            isInteractingRef.current = false;
+                          }}
+                          rows={2}
+                          placeholder="Links (one per line)"
+                          className="w-full resize-y rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/40"
+                          disabled={submitBusyTaskId === t.id}
+                        />
+                      </>
+                    )}
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => void submitResponse(t.id)}
+                        disabled={submitBusyTaskId !== null || responsesLoading}
+                        className="inline-flex items-center rounded-md bg-primary px-3 py-2 text-xs font-extrabold text-primary-foreground disabled:opacity-50"
+                      >
+                        {submitBusyTaskId === t.id ? "Submitting…" : "Submit response"}
+                      </button>
+                      {responseRow?.updated_at ? (
+                        <div className="text-[11px] text-muted-foreground">
+                          Submitted {new Date(responseRow.updated_at).toLocaleString()}
+                        </div>
+                      ) : null}
+                    </div>
+                    {responseRow?.links && responseRow.links.length > 0 ? (
+                      <div className="text-[11px] text-muted-foreground">
+                        Links:
+                        <ul className="mt-1 list-disc pl-5 space-y-0.5">
+                          {responseRow.links.map((l) => (
+                            <li key={l} className="break-all">
+                              <a
+                                href={l}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-primary underline underline-offset-2"
+                              >
+                                {l}
+                              </a>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
+                  </div>
                 ) : null}
                 {!isTeacherView && isAutoTrackedTask ? (
                   <div className="mt-1 text-[11px] text-muted-foreground">

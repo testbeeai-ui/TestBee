@@ -164,6 +164,8 @@ function cappedTestQuestionCount(selected: number, bank: number | null): number 
 }
 
 type CreateTestsViewProps = {
+  /** Teacher Wizard embed: tighter layout, no duplicate page chrome, hide history block below fold. */
+  embedded?: boolean;
   onNavigateToSection?: (section: "myClassroom") => void;
   teacherId?: string;
   classrooms?: TeacherPortalClassroomCard[];
@@ -182,6 +184,7 @@ type CreateTestsViewProps = {
 };
 
 export default function CreateTestsView({
+  embedded = false,
   onNavigateToSection,
   teacherId,
   classrooms = [],
@@ -650,17 +653,47 @@ export default function CreateTestsView({
     `${pillBase} ${active ? "border-violet-400/50 bg-violet-500/12 text-violet-100" : "border-white/10 bg-[#0c1020] text-slate-300 hover:bg-white/[0.04]"}`;
   const pillClassNeutral = (active: boolean) =>
     `${pillBase} ${active ? "border-emerald-400/50 bg-emerald-500/12 text-emerald-100" : "border-white/10 bg-[#0c1020] text-slate-300 hover:bg-white/[0.04]"}`;
-  return (
-    <div className="w-full min-w-0 text-left">
-      <h1 className="font-serif text-2xl tracking-tight sm:text-3xl lg:text-[2.125rem]">
-        Create <span className="text-emerald-400 italic">Tests</span>
-      </h1>
-      <p className="mt-1.5 max-w-[65ch] text-xs leading-relaxed text-slate-400 sm:text-sm">
-        Generate question-bank MCQ papers for <span className="text-slate-200">CBSE Board</span>{" "}
-        today. KCET and JEE Main are on the way.
-      </p>
 
-      <div className="mt-4 overflow-hidden rounded-2xl border border-white/[0.09] bg-[#101428] shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset] sm:mt-5">
+  const stepFooterClass =
+    embedded
+      ? "relative mt-auto flex flex-col gap-2 border-t border-white/[0.06] pt-3 sm:block sm:min-h-[38px] sm:pt-3"
+      : "relative mt-2 flex flex-col gap-3 border-t border-white/[0.06] pt-4 sm:block sm:min-h-[44px] sm:pt-5";
+  const step1FooterClass = embedded
+    ? "relative mt-auto flex flex-col gap-2 border-t border-white/[0.06] pt-3 sm:block sm:min-h-[38px] sm:pt-3"
+    : "relative mt-5 flex flex-col gap-3 border-t border-white/[0.06] pt-4 sm:block sm:min-h-[44px] sm:pt-5";
+  const step5FooterClass = embedded
+    ? "relative mt-auto flex min-h-[38px] flex-col gap-2 border-t border-white/[0.06] pt-3 sm:block"
+    : "relative mt-1 flex min-h-[44px] flex-col gap-3 border-t border-white/[0.06] pt-5 sm:block";
+
+  const stepperPad = embedded ? "px-1.5 py-1.5 sm:px-2 sm:py-2" : "px-2 py-2.5 sm:px-3 sm:py-3";
+  const stepperDot = embedded
+    ? "mx-auto mb-0.5 flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold"
+    : "mx-auto mb-1 flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-bold";
+
+  return (
+    <div className={embedded ? "flex h-full min-h-0 w-full min-w-0 flex-col text-left" : "w-full min-w-0 text-left"}>
+      {embedded ? (
+        <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-white/[0.06] pb-2">
+          <span className="font-serif text-lg font-semibold tracking-tight text-slate-100 sm:text-xl">
+            Create <span className="text-emerald-400 italic">Tests</span>
+          </span>
+          <span className="text-[11px] text-slate-500">CBSE · question bank</span>
+        </div>
+      ) : (
+        <>
+          <h1 className="font-serif text-2xl tracking-tight sm:text-3xl lg:text-[2.125rem]">
+            Create <span className="text-emerald-400 italic">Tests</span>
+          </h1>
+          <p className="mt-1.5 max-w-[65ch] text-xs leading-relaxed text-slate-400 sm:text-sm">
+            Generate question-bank MCQ papers for <span className="text-slate-200">CBSE Board</span>{" "}
+            today. KCET and JEE Main are on the way.
+          </p>
+        </>
+      )}
+
+      <div
+        className={`overflow-hidden rounded-2xl border border-white/[0.09] bg-[#101428] shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset] ${embedded ? "mt-1 flex min-h-0 flex-1 flex-col sm:mt-2" : "mt-4 sm:mt-5"}`}
+      >
         <div className="-mx-px overflow-x-auto border-b border-white/[0.08] sm:mx-0 sm:overflow-visible">
           <div className="grid min-w-[min(100%,28rem)] grid-cols-2 min-[480px]:grid-cols-3 sm:min-w-0 sm:grid-cols-5">
           {stepLabels.map((label, idx) => {
@@ -670,10 +703,10 @@ export default function CreateTestsView({
             return (
               <div
                 key={label}
-                className={`px-2 py-2.5 text-center sm:px-3 sm:py-3 ${active ? "bg-emerald-500/[0.09]" : ""}`}
+                className={`${stepperPad} text-center ${active ? "bg-emerald-500/[0.09]" : ""}`}
               >
                 <div
-                  className={`mx-auto mb-1 flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-bold ${
+                  className={`${stepperDot} ${
                     done
                       ? "bg-emerald-500/25 text-emerald-200"
                       : active
@@ -694,9 +727,15 @@ export default function CreateTestsView({
           </div>
         </div>
 
-        <div className="p-4 sm:p-5">
+        <div
+          className={
+            embedded
+              ? "flex min-h-0 flex-1 flex-col overflow-y-auto p-3 sm:p-4"
+              : "p-4 sm:p-5"
+          }
+        >
           {step === 1 ? (
-            <div>
+            <div className="flex min-h-0 flex-1 flex-col">
               <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500">
                 Choose exam type
               </div>
@@ -745,7 +784,7 @@ export default function CreateTestsView({
                   ))}
                 </div>
               </div>
-              <div className="relative mt-5 flex flex-col gap-3 border-t border-white/[0.06] pt-4 sm:block sm:min-h-[44px] sm:pt-5">
+              <div className={step1FooterClass}>
                 <p className="order-first text-center text-xs text-slate-500 sm:absolute sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2">
                   Step 1 of 5
                 </p>
@@ -763,7 +802,7 @@ export default function CreateTestsView({
           ) : null}
 
           {step === 2 ? (
-            <div className="space-y-4">
+            <div className={embedded ? "flex min-h-0 flex-1 flex-col gap-3" : "space-y-4"}>
               <div>
                 <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500">
                   Class level
@@ -968,7 +1007,7 @@ export default function CreateTestsView({
                 </div>
               ) : null}
 
-              <div className="relative mt-2 flex flex-col gap-3 border-t border-white/[0.06] pt-4 sm:block sm:min-h-[44px] sm:pt-5">
+              <div className={stepFooterClass}>
                 <p className="order-first text-center text-xs text-slate-500 sm:absolute sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2">
                   Step 2 of 5
                 </p>
@@ -994,11 +1033,15 @@ export default function CreateTestsView({
           ) : null}
 
           {step === 3 ? (
-            <div className="space-y-4">
-              <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500">
+            <div className={embedded ? "flex min-h-0 flex-1 flex-col gap-2.5" : "space-y-4"}>
+              <div
+                className={`font-semibold uppercase tracking-[0.1em] text-slate-500 ${embedded ? "mb-1 text-[10px]" : "mb-2 text-[11px]"}`}
+              >
                 Question bank for your scope
               </div>
-              <p className="text-sm leading-relaxed text-slate-400">
+              <p
+                className={`text-slate-400 ${embedded ? "text-xs leading-snug" : "text-sm leading-relaxed"}`}
+              >
                 Fresh questions available for your selected scope.{" "}
                 <span className="font-semibold text-amber-300">Only Advanced-level questions</span>{" "}
                 are used to keep tests challenging. Questions from your previous tests are{" "}
@@ -1016,14 +1059,21 @@ export default function CreateTestsView({
                 </div>
               ) : null}
               {!questionBankLoading && !questionBankError && questionBankCount !== null ? (
-                <div className="rounded-xl border border-white/10 bg-[#0e1325] px-3 py-4 sm:px-4 sm:py-5">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500">
+                <div
+                  className={`rounded-xl border border-white/10 bg-[#0e1325] px-3 ${embedded ? "py-2.5 sm:py-3" : "py-4 sm:px-4 sm:py-5"}`}
+                >
+                  <div
+                    className={`font-semibold uppercase tracking-[0.1em] text-slate-500 ${embedded ? "text-[10px]" : "text-[11px]"}`}
+                  >
                     Questions available
                   </div>
-                  <div className="mt-2 font-serif text-3xl font-bold tracking-tight text-emerald-300 sm:text-4xl">
+                  <div
+                    className={`font-serif font-bold tracking-tight text-emerald-300 ${embedded ? "mt-1 text-2xl sm:text-3xl" : "mt-2 text-3xl sm:text-4xl"}`}
+                  >
                     {questionBankCount}
                   </div>
-                  <p className="mt-2 text-xs leading-relaxed text-slate-500">
+                  <p className={`text-slate-500 ${embedded ? "mt-1 text-[11px] leading-snug" : "mt-2 text-xs leading-relaxed"}`}
+                  >
                     {questionBankCount === 0
                       ? "No matching questions yet for this scope. Try another chapter or topic, or a different unit."
                       : "This is how many questions you can draw from the bank for this configuration."}
@@ -1041,10 +1091,13 @@ export default function CreateTestsView({
               ) : null}
               {!questionBankLoading && !questionBankError && questionBankCount !== null ? (
                 <div>
-                  <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500">
+                  <div
+                    className={`font-semibold uppercase tracking-[0.1em] text-slate-500 ${embedded ? "mb-1 text-[10px]" : "mb-2 text-[11px]"}`}
+                  >
                     How many questions in this test
                   </div>
-                  <p className="mb-2 text-xs text-slate-500">
+                  <p className={`text-slate-500 ${embedded ? "mb-1 text-[11px] leading-snug" : "mb-2 text-xs"}`}
+                  >
                     Use a quick preset or enter any count up to your bank total. Presets above your
                     bank size are disabled.
                   </p>
@@ -1133,7 +1186,7 @@ export default function CreateTestsView({
                   ) : null}
                 </div>
               ) : null}
-              <div className="relative mt-2 flex flex-col gap-3 border-t border-white/[0.06] pt-4 sm:block sm:min-h-[44px] sm:pt-5">
+              <div className={stepFooterClass}>
                 <p className="order-first text-center text-xs text-slate-500 sm:absolute sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2">
                   Step 3 of 5
                 </p>
@@ -1159,7 +1212,7 @@ export default function CreateTestsView({
           ) : null}
 
           {step === 4 ? (
-            <div className="space-y-4">
+            <div className={embedded ? "flex min-h-0 flex-1 flex-col gap-3" : "space-y-4"}>
               <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500">
                 Question source
               </div>
@@ -1253,7 +1306,7 @@ export default function CreateTestsView({
                   className="h-11 w-full max-w-xl rounded-xl border border-white/10 bg-[#0b1020] px-3 text-sm outline-none placeholder:text-slate-500 focus:border-emerald-400"
                 />
               </div>
-              <div className="relative mt-2 flex flex-col gap-3 border-t border-white/[0.06] pt-4 sm:block sm:min-h-[44px] sm:pt-5">
+              <div className={stepFooterClass}>
                 <p className="order-first text-center text-xs text-slate-500 sm:absolute sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2">
                   Step 4 of 5
                 </p>
@@ -1280,30 +1333,34 @@ export default function CreateTestsView({
 
           {step === 5 ? (
             generatedTest ? (
-              <GeneratedTestPreview
-                test={generatedTest}
-                createPdfLoading={createPdfLoading}
-                onEditSettings={() => {
-                  setGeneratedTest(null);
-                  setGenerateError(null);
-                  setStep(4);
-                }}
-                onCreatePdf={() => {
-                  void handleCreatePdf();
-                }}
-                onAssignClassroom={() => {
-                  openAssignDialog();
-                }}
-              />
+              <div className={embedded ? "flex min-h-0 flex-1 flex-col" : undefined}>
+                <GeneratedTestPreview
+                  test={generatedTest}
+                  createPdfLoading={createPdfLoading}
+                  onEditSettings={() => {
+                    setGeneratedTest(null);
+                    setGenerateError(null);
+                    setStep(4);
+                  }}
+                  onCreatePdf={() => {
+                    void handleCreatePdf();
+                  }}
+                  onAssignClassroom={() => {
+                    openAssignDialog();
+                  }}
+                />
+              </div>
             ) : (
-              <div className="space-y-5">
+              <div className={embedded ? "flex min-h-0 flex-1 flex-col gap-3" : "space-y-5"}>
                 <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
                   Review your test configuration
                 </div>
 
                 <div className="overflow-hidden rounded-2xl border border-white/[0.1] bg-[#0c1022] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]">
                   <div className="grid md:grid-cols-2">
-                    <div className="border-b border-white/[0.08] p-5 md:border-b-0 md:border-r md:p-6">
+                    <div
+                      className={`border-b border-white/[0.08] md:border-b-0 md:border-r ${embedded ? "p-4 md:p-4" : "p-5 md:p-6"}`}
+                    >
                       <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
                         Exam type
                       </div>
@@ -1328,7 +1385,7 @@ export default function CreateTestsView({
                       </div>
                     </div>
 
-                    <div className="bg-[#080c18]/80 p-5 md:p-6">
+                    <div className={`bg-[#080c18]/80 ${embedded ? "p-4 md:p-4" : "p-5 md:p-6"}`}>
                       <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
                         Test name
                       </div>
@@ -1384,7 +1441,7 @@ export default function CreateTestsView({
                   </button>
                 </div>
 
-                <div className="relative mt-1 flex min-h-[44px] flex-col gap-3 border-t border-white/[0.06] pt-5 sm:block">
+                <div className={step5FooterClass}>
                   <p className="order-first text-center text-xs text-slate-500 sm:absolute sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2">
                     Step 5 of 5 — Review and generate
                   </p>
@@ -1404,7 +1461,8 @@ export default function CreateTestsView({
         </div>
       </div>
 
-      {/* Test History Section — separate card below the wizard */}
+      {/* Test History Section — separate card below the wizard (full page only) */}
+      {!embedded ? (
       <div className="mt-5 overflow-hidden rounded-2xl border border-white/[0.09] bg-[#101428] shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset] sm:mt-6">
         <div className="border-b border-white/[0.08] px-4 py-3 sm:px-5 sm:py-4 lg:px-6">
           <div className="flex items-center gap-2">
@@ -1574,6 +1632,7 @@ export default function CreateTestsView({
           )}
         </div>
       </div>
+      ) : null}
 
       {assignError ? (
         <div className="mt-3 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-200">
