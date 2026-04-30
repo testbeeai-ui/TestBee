@@ -53,13 +53,26 @@ export async function GET(request: NextRequest) {
   }
 }
 
+async function readPopupPreference(request: NextRequest): Promise<boolean> {
+  const ct = request.headers.get("content-type") ?? "";
+  if (!ct.includes("application/json")) return false;
+  try {
+    const raw = (await request.json()) as unknown;
+    if (!raw || typeof raw !== "object") return false;
+    return (raw as { popup?: unknown }).popup === true;
+  } catch {
+    return false;
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
+    const popup = await readPopupPreference(request);
     const userId = await resolveUserId(request);
     if (!userId) {
       return NextResponse.json({ error: "Sign in required." }, { status: 401 });
     }
-    const state = await signGoogleOAuthState(userId);
+    const state = await signGoogleOAuthState(userId, { popup });
     const { params } = buildGoogleAuthUrl({ userId });
     params.set("state", state);
     const url = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;

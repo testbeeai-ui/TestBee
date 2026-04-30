@@ -165,12 +165,15 @@ export async function GET(
     }
   }
 
-  return NextResponse.json({
-    tasks: tasksForClient,
-    completedTaskIds: Array.from(completedTaskIdSet),
-    isTeacher,
-    progressAvailable: !isMissingProgressTableError(progErr),
-  });
+  return NextResponse.json(
+    {
+      tasks: tasksForClient,
+      completedTaskIds: Array.from(completedTaskIdSet),
+      isTeacher,
+      progressAvailable: !isMissingProgressTableError(progErr),
+    },
+    { headers: { "Cache-Control": "private, max-age=5, stale-while-revalidate=60" } }
+  );
 }
 
 export async function POST(

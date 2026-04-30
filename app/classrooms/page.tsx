@@ -516,11 +516,11 @@ const Classrooms = () => {
                     </DialogHeader>
                     <div className="space-y-4 mt-2">
                       <Input
-                        placeholder="Enter 8-character join code"
+                        placeholder="Enter 6-character join code"
                         value={joinCode}
                         onChange={(e) => setJoinCode(e.target.value)}
                         className="rounded-xl h-12 text-center text-lg tracking-widest font-bold"
-                        maxLength={8}
+                        maxLength={16}
                       />
                       <Button
                         onClick={handleJoin}

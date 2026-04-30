@@ -34,7 +34,7 @@ export default function JoinByCodeClient() {
   useEffect(() => {
     const fetchRoom = async () => {
       const c = code.trim().toUpperCase();
-      if (!c || c.length < 4) {
+      if (!c || c.length < 6) {
         setClassroom(null);
         setLoadingRoom(false);
         return;
@@ -145,7 +145,7 @@ export default function JoinByCodeClient() {
               <Input
                 value={c}
                 onChange={(e) => setCode(e.target.value)}
-                placeholder="Enter 8-character code"
+                placeholder="Enter 6-character code"
                 className="rounded-xl h-12 text-center text-lg tracking-widest font-extrabold"
                 maxLength={16}
               />

@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronLeft, ChevronRight, Lightbulb, X } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { toast as toastFn } from "@/hooks/use-toast";
 import { useTopicTaxonomy } from "@/hooks/useTopicTaxonomy";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,6 +15,7 @@ import {
   type ChapterQuizSelectionState,
 } from "@/lib/teacherPortal/chapterQuizUtils";
 import type { TeacherPortalClassroomCard } from "@/lib/teacherPortal/types";
+import WallTimeSelects from "@/components/teacher-portal/WallTimeSelects";
 
 export type ScheduleLiveSessionPayload = {
   classroomId: string;
@@ -66,6 +67,29 @@ export type ScheduleLiveSessionPanelProps = {
   headingTitle?: string;
   headingSubtitle?: string;
   submitLabel?: string;
+  /** Embedded in Teacher Wizard: autosave draft (sessionStorage) across close/reopen */
+  sessionDraftKey?: string;
+};
+
+type ScheduleLiveEmbeddedDraftV1 = {
+  v: 1;
+  wizardStep: 1 | 2 | 3 | 4 | 5;
+  classroomId: string;
+  sectionId: string | null;
+  title: string;
+  date: string;
+  startTime: string;
+  durationMinutes: number;
+  meetLink: string;
+  allowAdhocTrial: boolean;
+  preWork: string;
+  postWork: string;
+  preWorkMode: "none" | "custom" | "concept_focus";
+  preWorkConceptSel: ConceptFocusSelectionState;
+  postWorkMode: "none" | "custom" | "concept_focus";
+  postWorkConceptSel: ConceptFocusSelectionState;
+  postWorkDelayDays: number;
+  preWorkLinkDraft: string;
 };
 
 export default function ScheduleLiveSessionPanel({
@@ -79,6 +103,7 @@ export default function ScheduleLiveSessionPanel({
   headingTitle = "📅 Schedule a class",
   headingSubtitle = "Schedule a live session for your classroom with pre-work, Google Meet link, and post-work.",
   submitLabel,
+  sessionDraftKey,
 }: ScheduleLiveSessionPanelProps) {
   const [submitting, setSubmitting] = useState(false);
   const [classroomId, setClassroomId] = useState("");
@@ -115,11 +140,117 @@ export default function ScheduleLiveSessionPanel({
     error: curriculumError,
   } = useTopicTaxonomy();
   const dateInputRef = useRef<HTMLInputElement | null>(null);
-  const timeInputRef = useRef<HTMLInputElement | null>(null);
   const selectClassName =
-    "h-10 w-full appearance-none rounded-lg border border-white/15 bg-[#0b1020] px-2.5 pr-9 text-sm outline-none focus:border-emerald-400 sm:rounded-xl sm:px-3 sm:pr-10";
+    "h-9 w-full appearance-none rounded-lg border border-white/15 bg-[#0b1020] px-2.5 pr-9 text-sm outline-none focus:border-emerald-400 sm:h-10 sm:rounded-xl sm:px-3 sm:pr-10";
 
   const panelActive = variant === "embedded" || dialogOpen;
+
+  const lastScheduleEmbeddedDraftMarkerRef = useRef<string>("");
+
+  useLayoutEffect(() => {
+    const key = sessionDraftKey;
+    if (!key || variant !== "embedded") return;
+    const classroomSig = classrooms.map((c) => c.id).sort().join(",");
+    const marker = `${key}|${classroomSig}`;
+    let raw: string | null = null;
+    try {
+      raw = sessionStorage.getItem(key);
+    } catch {
+      return;
+    }
+    if (!raw) {
+      lastScheduleEmbeddedDraftMarkerRef.current = marker;
+      return;
+    }
+    try {
+      const d = JSON.parse(raw) as ScheduleLiveEmbeddedDraftV1;
+      if (d.v !== 1) return;
+      const cid = typeof d.classroomId === "string" ? d.classroomId.trim() : "";
+      if (cid && classrooms.length > 0 && !classrooms.some((c) => c.id === cid)) return;
+      if (lastScheduleEmbeddedDraftMarkerRef.current === marker) return;
+      lastScheduleEmbeddedDraftMarkerRef.current = marker;
+
+      if (typeof d.wizardStep === "number" && d.wizardStep >= 1 && d.wizardStep <= 5)
+        setWizardStep(d.wizardStep as 1 | 2 | 3 | 4 | 5);
+      if (cid && classrooms.some((c) => c.id === cid)) setClassroomId(cid);
+      if (d.sectionId === null || typeof d.sectionId === "string") setSectionId(d.sectionId);
+      if (typeof d.title === "string") setTitle(d.title);
+      if (typeof d.date === "string") setDate(d.date);
+      if (typeof d.startTime === "string") setStartTime(d.startTime);
+      if (typeof d.durationMinutes === "number" && Number.isFinite(d.durationMinutes))
+        setDurationMinutes(d.durationMinutes);
+      if (typeof d.meetLink === "string") setMeetLink(d.meetLink);
+      if (typeof d.allowAdhocTrial === "boolean") setAllowAdhocTrial(d.allowAdhocTrial);
+      if (typeof d.preWork === "string") setPreWork(d.preWork);
+      if (typeof d.postWork === "string") setPostWork(d.postWork);
+      if (d.preWorkMode === "none" || d.preWorkMode === "custom" || d.preWorkMode === "concept_focus")
+        setPreWorkMode(d.preWorkMode);
+      if (d.postWorkMode === "none" || d.postWorkMode === "custom" || d.postWorkMode === "concept_focus")
+        setPostWorkMode(d.postWorkMode);
+      if (d.preWorkConceptSel && typeof d.preWorkConceptSel === "object")
+        setPreWorkConceptSel(d.preWorkConceptSel);
+      if (d.postWorkConceptSel && typeof d.postWorkConceptSel === "object")
+        setPostWorkConceptSel(d.postWorkConceptSel);
+      if (typeof d.postWorkDelayDays === "number" && Number.isFinite(d.postWorkDelayDays))
+        setPostWorkDelayDays(d.postWorkDelayDays);
+      if (typeof d.preWorkLinkDraft === "string") setPreWorkLinkDraft(d.preWorkLinkDraft);
+    } catch {
+      // ignore
+    }
+  }, [sessionDraftKey, variant, classrooms]);
+
+  useEffect(() => {
+    const key = sessionDraftKey;
+    if (!key || variant !== "embedded") return;
+    const payload: ScheduleLiveEmbeddedDraftV1 = {
+      v: 1,
+      wizardStep,
+      classroomId,
+      sectionId,
+      title,
+      date,
+      startTime,
+      durationMinutes,
+      meetLink,
+      allowAdhocTrial,
+      preWork,
+      postWork,
+      preWorkMode,
+      preWorkConceptSel,
+      postWorkMode,
+      postWorkConceptSel,
+      postWorkDelayDays,
+      preWorkLinkDraft,
+    };
+    const id = window.setTimeout(() => {
+      try {
+        sessionStorage.setItem(key, JSON.stringify(payload));
+      } catch {
+        // ignore
+      }
+    }, 400);
+    return () => window.clearTimeout(id);
+  }, [
+    sessionDraftKey,
+    variant,
+    wizardStep,
+    classroomId,
+    sectionId,
+    title,
+    date,
+    startTime,
+    durationMinutes,
+    meetLink,
+    allowAdhocTrial,
+    preWork,
+    postWork,
+    preWorkMode,
+    preWorkConceptSel,
+    postWorkMode,
+    postWorkConceptSel,
+    postWorkDelayDays,
+    preWorkLinkDraft,
+  ]);
 
   useEffect(() => {
     let alive = true;
@@ -132,7 +263,9 @@ export default function ScheduleLiveSessionPanel({
     void supabase
       // Supabase generated types may not include this table yet.
       .from("classroom_sections" as never)
-      .select("id, name, schedule_time, repeat_days, duration_minutes, google_meet_link")
+      .select(
+        "id, name, schedule_time, repeat_days, duration_minutes, google_meet_link, schedule_end_date, is_active"
+      )
       .eq("classroom_id", classroomId)
       .order("sort_order", { ascending: true })
       .order("created_at", { ascending: true })
@@ -146,9 +279,19 @@ export default function ScheduleLiveSessionPanel({
             repeat_days: string[] | null;
             duration_minutes: number | null;
             google_meet_link: string | null;
+            schedule_end_date?: string | null;
+            is_active?: boolean | null;
           }> | null) ?? [];
+        const todayIso = new Date().toISOString().slice(0, 10);
+        const active = opts.filter((s) => {
+          if (typeof s.is_active === "boolean") return s.is_active;
+          const end = typeof s.schedule_end_date === "string" ? s.schedule_end_date.trim() : "";
+          if (!end) return true;
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(end)) return true;
+          return end >= todayIso;
+        });
         setSectionOptions(
-          opts.map((s) => {
+          active.map((s) => {
             const time =
               typeof s.schedule_time === "string" && s.schedule_time.trim()
                 ? s.schedule_time.trim()
@@ -339,6 +482,14 @@ export default function ScheduleLiveSessionPanel({
         postWorkConceptRef: postConceptRef ?? null,
         postWorkDelayDays,
       });
+
+      if (sessionDraftKey) {
+        try {
+          sessionStorage.removeItem(sessionDraftKey);
+        } catch {
+          // ignore
+        }
+      }
 
       try {
         const {
@@ -652,41 +803,36 @@ export default function ScheduleLiveSessionPanel({
                   Whole class = everyone gets notified. Only section = just that section gets notified.
                 </p>
               </div>
-              <div className="grid grid-cols-1 gap-3 min-[520px]:grid-cols-3">
+              <div className="grid grid-cols-1 gap-2 min-[480px]:grid-cols-2 min-[480px]:gap-3">
                 <div className="min-w-0">
-                  <label className="mb-1 block text-xs font-semibold text-slate-300 sm:text-sm">Date *</label>
+                  <label className="mb-0.5 block text-[11px] font-semibold text-slate-300 sm:text-xs">Date *</label>
                   <input
                     ref={dateInputRef}
                     type="date"
                     value={date}
                     onChange={(e) => setDate(e.target.value)}
                     onClick={() => openNativePicker(dateInputRef.current)}
-                    className="h-10 w-full min-w-0 cursor-pointer rounded-lg border border-white/15 bg-[#0b1020] px-2 text-sm outline-none focus:border-emerald-400 sm:rounded-xl sm:px-3"
+                    className="h-9 w-full min-w-0 cursor-pointer rounded-lg border border-white/15 bg-[#0b1020] px-2 text-sm outline-none focus:border-emerald-400 sm:h-10 sm:rounded-xl sm:px-3"
                   />
                 </div>
-                <div className="min-w-0">
-                  <label className="mb-1 block text-xs font-semibold text-slate-300 sm:text-sm">Start time *</label>
-                  <input
-                    ref={timeInputRef}
-                    type="time"
-                    value={startTime}
-                    onChange={(e) => setStartTime(e.target.value)}
-                    onClick={() => openNativePicker(timeInputRef.current)}
-                    className="h-10 w-full min-w-0 cursor-pointer rounded-lg border border-white/15 bg-[#0b1020] px-2 text-sm outline-none focus:border-emerald-400 sm:rounded-xl sm:px-3"
-                  />
-                </div>
-                <div className="min-w-0">
-                  <label className="mb-1 block text-xs font-semibold text-slate-300 sm:text-sm">Duration</label>
-                  <select
-                    value={String(durationMinutes)}
-                    onChange={(e) => setDurationMinutes(Number(e.target.value))}
-                    className={selectClassName}
-                  >
-                    <option value="45">45 mins</option>
-                    <option value="60">60 mins</option>
-                    <option value="90">90 mins</option>
-                    <option value="120">120 mins</option>
-                  </select>
+                <div className="flex min-w-0 flex-col gap-2">
+                  <div className="min-w-0">
+                    <label className="mb-0.5 block text-[11px] font-semibold text-slate-300 sm:text-xs">Start *</label>
+                    <WallTimeSelects value={startTime} onChange={setStartTime} />
+                  </div>
+                  <div className="min-w-0">
+                    <label className="mb-0.5 block text-[11px] font-semibold text-slate-300 sm:text-xs">Duration</label>
+                    <select
+                      value={String(durationMinutes)}
+                      onChange={(e) => setDurationMinutes(Number(e.target.value))}
+                      className={selectClassName}
+                    >
+                      <option value="45">45m</option>
+                      <option value="60">60m</option>
+                      <option value="90">90m</option>
+                      <option value="120">120m</option>
+                    </select>
+                  </div>
                 </div>
               </div>
               <div>
@@ -850,7 +996,7 @@ export default function ScheduleLiveSessionPanel({
           {wizardStep === 5 ? (
             <div className="space-y-2 rounded-xl border border-emerald-400/20 bg-emerald-500/[0.07] p-3 sm:space-y-3 sm:p-4">
               <p className="text-xs leading-snug text-slate-400 sm:text-[13px]">
-                Allow adhoc 10-min trial for EduBlast members?
+                Allow adhoc trial for EduBlast members?
               </p>
               <div>
                 <label className="mb-0.5 block text-xs font-semibold text-slate-300 sm:text-sm">
@@ -861,7 +1007,7 @@ export default function ScheduleLiveSessionPanel({
                   onChange={(e) => setAllowAdhocTrial(e.target.value === "yes")}
                   className={selectClassName}
                 >
-                  <option value="yes">Yes — open trial slots (50 RDM to continue after 10 min)</option>
+                  <option value="yes">Yes — open trial slots (50 RDM to continue)</option>
                   <option value="no">No — enrolled students only</option>
                 </select>
               </div>

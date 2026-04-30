@@ -16,6 +16,7 @@ export default function GeneratedMcqReview({
   submitted,
   showCorrectAnswers,
   onSelectAnswer,
+  density = "normal",
 }: {
   questions: GeneratedMcqReviewQuestion[];
   answers: number[];
@@ -23,25 +24,35 @@ export default function GeneratedMcqReview({
   submitted: boolean;
   showCorrectAnswers: boolean;
   onSelectAnswer?: (questionIndex: number, optionIndex: number) => void;
+  density?: "normal" | "compact";
 }) {
+  const compact = density === "compact";
   return (
-    <div className="space-y-3">
+    <div className={compact ? "space-y-2.5" : "space-y-3"}>
       {questions.map((q, qIdx) => {
         const selected = answers[qIdx] ?? -1;
         return (
           <div
             key={q.id}
-            className="rounded-xl border border-white/10 bg-[#0b1020] p-3 sm:p-4"
+            className={`rounded-xl border border-white/10 bg-[#0b1020] ${
+              compact ? "p-2.5 sm:p-3" : "p-3 sm:p-4"
+            }`}
           >
-            <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500">
+            <div
+              className={`font-bold uppercase tracking-[0.1em] text-slate-500 ${
+                compact ? "mb-1.5 text-[10px]" : "mb-2 text-[11px]"
+              }`}
+            >
               Question {qIdx + 1} of {total}
             </div>
             <PlayQuestionMarkdown
               source={q.question}
               variant="stem"
-              className="mb-3 break-words text-[15px] font-semibold leading-snug text-slate-100"
+              className={`break-words font-semibold leading-snug text-slate-100 ${
+                compact ? "mb-2 text-[13px]" : "mb-3 text-[15px]"
+              }`}
             />
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <div className={`grid grid-cols-1 sm:grid-cols-2 ${compact ? "gap-1.5" : "gap-2"}`}>
               {q.options.map((opt, optIdx) => {
                 const selectedHere = selected === optIdx;
                 const isCorrect = q.correctAnswerIndex === optIdx;
@@ -55,7 +66,9 @@ export default function GeneratedMcqReview({
                     disabled={submitted || !onSelectAnswer}
                     onClick={() => onSelectAnswer?.(qIdx, optIdx)}
                     className={[
-                      "group min-w-0 overflow-hidden rounded-xl border px-3 py-2.5 text-left text-sm transition-all duration-200",
+                      `group min-w-0 overflow-hidden rounded-xl border text-left transition-all duration-200 ${
+                        compact ? "px-2.5 py-2 text-[13px]" : "px-3 py-2.5 text-sm"
+                      }`,
                       submitted || !onSelectAnswer
                         ? "cursor-default opacity-95"
                         : "cursor-pointer hover:-translate-y-0.5 hover:shadow-lg",
@@ -68,10 +81,12 @@ export default function GeneratedMcqReview({
                             : "border-white/[0.15] bg-white/[0.04] text-slate-200 hover:border-white/40 hover:bg-white/[0.08] hover:text-white shadow-sm hover:shadow-md",
                     ].join(" ")}
                   >
-                    <div className="flex items-start gap-2.5">
+                    <div className={`flex items-start ${compact ? "gap-2" : "gap-2.5"}`}>
                       <span
                         className={[
-                          "inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold transition-colors",
+                          `inline-flex shrink-0 items-center justify-center rounded-full font-bold transition-colors ${
+                            compact ? "h-5 w-5 text-[10px]" : "h-6 w-6 text-[11px]"
+                          }`,
                           isCorrectRevealed
                             ? "bg-emerald-500/30 text-emerald-300 border border-emerald-400/40"
                             : isWrongSelected
@@ -86,7 +101,9 @@ export default function GeneratedMcqReview({
                       <PlayQuestionMarkdown
                         source={opt}
                         variant="option"
-                        className="min-w-0 break-words text-sm leading-snug"
+                        className={`min-w-0 break-words leading-snug ${
+                          compact ? "text-[13px]" : "text-sm"
+                        }`}
                       />
                     </div>
                   </button>

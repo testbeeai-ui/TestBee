@@ -4,6 +4,13 @@ import { exchangeAuthorizationCode } from "@/lib/integrations/googleCalendarServ
 import { getGoogleOAuthEnv } from "@/lib/integrations/googleEnv";
 import { verifyGoogleOAuthState } from "@/lib/integrations/googleOAuthState";
 
+function popupCompleteRedirect(request: NextRequest, result: "connected" | "error", reason?: string) {
+  const done = new URL("/integrations/google/oauth-complete", request.url);
+  done.searchParams.set("result", result);
+  if (reason) done.searchParams.set("reason", reason);
+  return NextResponse.redirect(done);
+}
+
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
@@ -13,26 +20,42 @@ export async function GET(request: NextRequest) {
   const redirectBase = new URL("/teacher-portal", request.url);
   redirectBase.searchParams.set("section", "myClassroom");
 
+  let popupFlow = false;
+  try {
+    if (state) {
+      const verifiedEarly = await verifyGoogleOAuthState(state);
+      popupFlow = verifiedEarly.popup;
+    }
+  } catch {
+    // Invalid state — handled again below when code exists, or fail redirect.
+  }
+
+  const finishError = (reason: string) =>
+    popupFlow
+      ? popupCompleteRedirect(request, "error", reason)
+      : NextResponse.redirect(
+          (() => {
+            redirectBase.searchParams.set("google", "error");
+            redirectBase.searchParams.set("reason", reason);
+            return redirectBase;
+          })()
+        );
+
   if (err) {
-    redirectBase.searchParams.set("google", "error");
-    redirectBase.searchParams.set("reason", err);
-    return NextResponse.redirect(redirectBase);
+    return finishError(err);
   }
   if (!code || !state) {
-    redirectBase.searchParams.set("google", "error");
-    redirectBase.searchParams.set("reason", "missing_code");
-    return NextResponse.redirect(redirectBase);
+    return finishError("missing_code");
   }
 
   const admin = createAdminClient();
   if (!admin) {
-    redirectBase.searchParams.set("google", "error");
-    redirectBase.searchParams.set("reason", "server_config");
-    return NextResponse.redirect(redirectBase);
+    return finishError("server_config");
   }
 
   try {
-    const userId = await verifyGoogleOAuthState(state);
+    const { userId, popup } = await verifyGoogleOAuthState(state);
+    popupFlow = popup;
     const { clientId, clientSecret, redirectUri } = getGoogleOAuthEnv();
     const tokens = await exchangeAuthorizationCode({
       code,
@@ -42,9 +65,15 @@ export async function GET(request: NextRequest) {
     });
 
     if (!tokens.refresh_token) {
-      redirectBase.searchParams.set("google", "error");
-      redirectBase.searchParams.set("reason", "no_refresh_token");
-      return NextResponse.redirect(redirectBase);
+      return popupFlow
+        ? popupCompleteRedirect(request, "error", "no_refresh_token")
+        : NextResponse.redirect(
+            (() => {
+              redirectBase.searchParams.set("google", "error");
+              redirectBase.searchParams.set("reason", "no_refresh_token");
+              return redirectBase;
+            })()
+          );
     }
 
     const expiresAt =
@@ -71,11 +100,20 @@ export async function GET(request: NextRequest) {
       .eq("id", userId);
     if (profileErr) throw profileErr;
 
+    if (popupFlow) {
+      return popupCompleteRedirect(request, "connected");
+    }
     redirectBase.searchParams.set("google", "connected");
     return NextResponse.redirect(redirectBase);
   } catch {
-    redirectBase.searchParams.set("google", "error");
-    redirectBase.searchParams.set("reason", "callback_failed");
-    return NextResponse.redirect(redirectBase);
+    return popupFlow
+      ? popupCompleteRedirect(request, "error", "callback_failed")
+      : NextResponse.redirect(
+          (() => {
+            redirectBase.searchParams.set("google", "error");
+            redirectBase.searchParams.set("reason", "callback_failed");
+            return redirectBase;
+          })()
+        );
   }
 }

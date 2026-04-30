@@ -73,19 +73,19 @@ const JOIN_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 function randomJoinCode(): string {
   const c = globalThis.crypto;
   if (c?.getRandomValues) {
-    const bytes = new Uint8Array(8);
+    const bytes = new Uint8Array(6);
     c.getRandomValues(bytes);
     let s = "";
-    for (let i = 0; i < 8; i++) s += JOIN_CODE_ALPHABET[bytes[i]! % JOIN_CODE_ALPHABET.length];
+    for (let i = 0; i < 6; i++) s += JOIN_CODE_ALPHABET[bytes[i]! % JOIN_CODE_ALPHABET.length];
     return s;
   }
   return Array.from(
-    { length: 8 },
+    { length: 6 },
     () => JOIN_CODE_ALPHABET[Math.floor(Math.random() * JOIN_CODE_ALPHABET.length)]
   ).join("");
 }
 
-/** 8-char codes for student join; avoids collisions with a few retries. */
+/** 6-char codes for student join; avoids collisions with a few retries. */
 async function allocateUniqueJoinCode(): Promise<string> {
   for (let attempt = 0; attempt < 16; attempt++) {
     const code = randomJoinCode();
@@ -340,10 +340,12 @@ export async function loadTeacherPortalBundle(userId: string): Promise<TeacherPo
       )
       .eq("id", userId)
       .maybeSingle(),
-    supabase
+    // Supabase generated TS types may not include newly added columns yet (e.g. allow_adhoc_trial).
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- narrow escape hatch until types are regenerated
+    (supabase as any)
       .from("classrooms")
       .select(
-        "id, name, subject, section, description, intro_video_url, teacher_id, join_code, google_meet_link, google_recurring_event_id"
+        "id, name, subject, section, description, intro_video_url, teacher_id, join_code, google_meet_link, google_recurring_event_id, allow_adhoc_trial"
       )
       .eq("teacher_id", userId)
       .order("created_at", { ascending: false }),
@@ -390,8 +392,22 @@ export async function loadTeacherPortalBundle(userId: string): Promise<TeacherPo
     throw new Error("Teacher profile not found.");
   }
 
-  const classroomRowsRaw = classroomsRes.data ?? [];
-  const classrooms: typeof classroomRowsRaw = [];
+  type ClassroomRow = {
+    id: string;
+    name: string;
+    subject: string | null;
+    section: string | null;
+    description: string | null;
+    intro_video_url?: string | null;
+    teacher_id: string;
+    join_code: string;
+    google_meet_link?: string | null;
+    google_recurring_event_id?: string | null;
+    allow_adhoc_trial?: boolean | null;
+  };
+
+  const classroomRowsRaw = (classroomsRes.data ?? []) as ClassroomRow[];
+  const classrooms: ClassroomRow[] = [];
   for (const c of classroomRowsRaw) {
     if (c.join_code?.trim()) {
       classrooms.push(c);
@@ -445,7 +461,7 @@ export async function loadTeacherPortalBundle(userId: string): Promise<TeacherPo
       ? supabase
           .from("classroom_sections" as never)
           .select(
-            "id, classroom_id, name, sort_order, schedule_date, schedule_time, duration_minutes, repeat_days, schedule_end_date, google_meet_link, google_recurring_event_id"
+            "id, classroom_id, name, sort_order, schedule_date, schedule_time, duration_minutes, repeat_days, schedule_end_date, is_active, google_meet_link, google_recurring_event_id"
           )
           .in("classroom_id", classroomIds)
           .order("sort_order", { ascending: true })
@@ -471,6 +487,8 @@ export async function loadTeacherPortalBundle(userId: string): Promise<TeacherPo
       classroom_id: string;
       name: string;
       sort_order: number;
+      schedule_end_date?: string | null;
+      is_active?: boolean | null;
       google_meet_link?: string | null;
       google_recurring_event_id?: string | null;
     }>
@@ -480,6 +498,8 @@ export async function loadTeacherPortalBundle(userId: string): Promise<TeacherPo
     classroom_id: string;
     name: string;
     sort_order: number;
+    schedule_end_date?: string | null;
+    is_active?: boolean | null;
     google_meet_link: string | null;
     google_recurring_event_id: string | null;
   }>) {
@@ -679,6 +699,7 @@ export async function loadTeacherPortalBundle(userId: string): Promise<TeacherPo
       subject: c.subject,
       section: c.section,
       description: c.description,
+      allowAdhocTrial: (c as { allow_adhoc_trial?: boolean | null }).allow_adhoc_trial ?? true,
       introVideoUrl: (c as { intro_video_url?: string | null }).intro_video_url ?? null,
       googleMeetLink: classMeet,
       nextMeetLink,
@@ -944,6 +965,26 @@ export async function loadTeacherPortalBundle(userId: string): Promise<TeacherPo
         id: s.id,
         name: s.name,
         sortOrder: Number(s.sort_order ?? 0),
+        scheduleEndDate:
+          typeof (s as { schedule_end_date?: unknown }).schedule_end_date === "string"
+            ? String((s as { schedule_end_date: string }).schedule_end_date)
+            : null,
+        isActive: (() => {
+          // Prefer DB flag (when available), else compute from schedule_end_date.
+          const flag = (s as { is_active?: unknown }).is_active;
+          if (typeof flag === "boolean") return flag;
+          const end = (s as { schedule_end_date?: unknown }).schedule_end_date;
+          if (typeof end !== "string" || !end.trim()) return true;
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(end.trim())) return true;
+          const today = new Date();
+          const todayIso = new Date(
+            Date.UTC(today.getFullYear(), today.getMonth(), today.getDate())
+          )
+            .toISOString()
+            .slice(0, 10);
+          // Expire after end date passes (end < today).
+          return end.trim() >= todayIso;
+        })(),
         scheduleLabel: (() => {
           const repeat = Array.isArray((s as { repeat_days?: unknown }).repeat_days)
             ? (((s as unknown as { repeat_days: string[] }).repeat_days ?? []) as string[]).filter(Boolean)
@@ -1602,6 +1643,7 @@ export async function createTeacherClassroom(input: {
       description: notes,
       type: "standard",
       join_code,
+      allow_adhoc_trial: input.allowAdhocTrial,
     })
     .select("id")
     .single();

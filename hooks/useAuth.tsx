@@ -42,6 +42,8 @@ interface Profile {
   exam_tags: string[] | null;
   visibility: string;
   google_connected: boolean;
+  /** Supabase auth originally used Google — not the same as Calendar OAuth. */
+  signup_google?: boolean;
   onboarding_complete: boolean;
   rdm?: number;
   saved_bits?: SavedBit[];
@@ -162,7 +164,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             avatar_url: userMeta?.avatar_url ?? null,
             role: intendedRole,
             onboarding_complete: false,
-            google_connected: userMeta?.provider === "google",
+            google_connected: false,
+            signup_google: userMeta?.provider === "google",
           },
           { onConflict: "id", ignoreDuplicates: true }
         )
