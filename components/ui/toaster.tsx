@@ -99,7 +99,7 @@ function DefaultToastIcon({ kind }: { kind: DefaultIconKind }) {
 }
 
 export function Toaster() {
-  const { toasts } = useToast();
+  const { toasts, dismiss } = useToast();
 
   return (
     <ToastProvider>
@@ -172,6 +172,11 @@ export function Toaster() {
             {action}
             {!hideCloseButton && (
               <ToastClose
+                onClick={(e) => {
+                  e.stopPropagation();
+                  dismiss(id);
+                }}
+                aria-label="Close notification"
                 className={
                   isDestructive
                     ? "border-red-300/25 text-red-50 hover:ring-red-400/30"

@@ -26,7 +26,8 @@ export function profileShouldForceOnboardingComplete(
     exam_tags?: string[] | null;
     class_level?: number | null;
     target_exam?: string | null;
-    google_connected?: boolean | null;
+    /** Original Supabase auth provider Google — not Calendar OAuth. */
+    signup_google?: boolean | null;
     created_at?: string | null;
   },
   opts?: { isSignIn?: boolean }
@@ -42,8 +43,8 @@ export function profileShouldForceOnboardingComplete(
     if (hasTeaching) return true;
     // "Welcome back" / ?mode=signin — do not keep them on this screen with an empty teaching JSON row.
     if (opts?.isSignIn === true) return true;
-    // Hard refresh: no sessionStorage, but Google account row is old and flag never flipped.
-    if (p.google_connected === true && profileOlderThanMs(p.created_at ?? null, STALE_PROFILE_MS))
+    // Hard refresh: no sessionStorage, but Google sign-up row is old and flag never flipped.
+    if (p.signup_google === true && profileOlderThanMs(p.created_at ?? null, STALE_PROFILE_MS))
       return true;
     return false;
   }

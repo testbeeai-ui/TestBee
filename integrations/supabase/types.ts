@@ -1246,6 +1246,7 @@ export type Database = {
           exam_tags: string[] | null;
           target_exam: string | null;
           google_connected: boolean;
+          signup_google?: boolean;
           id: string;
           lifetime_answer_rdm: number;
           name: string;
@@ -1275,6 +1276,7 @@ export type Database = {
           exam_tags?: string[] | null;
           target_exam?: string | null;
           google_connected?: boolean;
+          signup_google?: boolean;
           id: string;
           lifetime_answer_rdm?: number;
           name?: string;
@@ -1304,6 +1306,7 @@ export type Database = {
           exam_tags?: string[] | null;
           target_exam?: string | null;
           google_connected?: boolean;
+          signup_google?: boolean;
           id?: string;
           lifetime_answer_rdm?: number;
           name?: string;

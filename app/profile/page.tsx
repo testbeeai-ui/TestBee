@@ -36,7 +36,6 @@ export default function Profile() {
     profile,
     loading: authLoading,
     signOut,
-    signInWithGoogle,
     refreshProfile,
   } = useAuth();
   const storeUser = useUserStore((s) => s.user);
@@ -189,7 +188,12 @@ export default function Profile() {
                       <span>{classLevelDisplay}</span>
                       {examLabel ? <span>· {examLabel}</span> : null}
                       <span>· {subjectCombo}</span>
-                      {profile.google_connected ? <span>· Connected to Google</span> : null}
+                      {(profile as { signup_google?: boolean }).signup_google ? (
+                        <span>· Signed in with Google</span>
+                      ) : null}
+                      {profile.google_connected ? (
+                        <span>· Google Calendar linked</span>
+                      ) : null}
                     </div>
                   </div>
                 </div>
@@ -412,16 +416,6 @@ export default function Profile() {
               </div>
             </div>
             <div className="flex flex-wrap gap-2 pt-2">
-              {!profile.google_connected ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => signInWithGoogle()}
-                  className="rounded-xl border-border bg-muted text-foreground hover:bg-muted/80 dark:border-white/20 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800"
-                >
-                  Connect Google
-                </Button>
-              ) : null}
               <Button
                 variant="outline"
                 onClick={() => router.push("/pricing")}

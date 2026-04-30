@@ -27,7 +27,70 @@ import {
   assignmentInstructionsFromContentJson,
   getGyanEngagementStudentViewModel,
 } from "@/lib/classroom/gyanEngagementStudentUi";
-import { parseAssignmentTasks, studentVisibleTasks } from "@/lib/classroom/assignmentTasks";
+import {
+  parseAssignmentTasks,
+  studentVisibleTasks,
+  type AssignmentTaskStored,
+} from "@/lib/classroom/assignmentTasks";
+
+function parseQuizSetFromHref(href: string): string | null {
+  if (!href) return null;
+  try {
+    const url =
+      href.startsWith("http://") || href.startsWith("https://")
+        ? new URL(href)
+        : new URL(href, "https://edublast.local");
+    const set = url.searchParams.get("quizSet");
+    return set && /^[1-3]$/.test(set) ? set : null;
+  } catch {
+    return null;
+  }
+}
+
+function taskLinkLabel(task: AssignmentTaskStored): string {
+  if (task.label && task.label.trim()) return task.label.trim();
+  switch (task.kind) {
+    case "chapter_quiz": {
+      const set = task.href ? parseQuizSetFromHref(task.href) : null;
+      return set ? `Open chapter quiz — Set ${set}` : "Open chapter quiz";
+    }
+    case "gyan_engagement":
+      return "Open Gyan++";
+    case "mock_paper":
+      return "Open mock test";
+    case "daily_dose":
+      return "Open DailyDose Play";
+    case "topic_path":
+      return "Open theory";
+    case "instacue":
+      return "Open InstaCue cards";
+    case "bits":
+      return "Open numerals practice";
+    default:
+      return "Open activity";
+  }
+}
+
+function withAssignmentTrackingParams(
+  href: string,
+  task: AssignmentTaskStored,
+  classroomId: string,
+  postId: string
+): string {
+  if (!href) return href;
+  const shouldTrack =
+    task.kind === "chapter_quiz" || task.kind === "mock_paper" || href.startsWith("/mock");
+  if (!shouldTrack) return href;
+  try {
+    const isAbsolute = /^https?:\/\//i.test(href);
+    const url = isAbsolute ? new URL(href) : new URL(href, "https://edublast.local");
+    if (!url.searchParams.get("classroomId")) url.searchParams.set("classroomId", classroomId);
+    if (!url.searchParams.get("postId")) url.searchParams.set("postId", postId);
+    return isAbsolute ? url.toString() : `${url.pathname}${url.search}${url.hash}`;
+  } catch {
+    return href;
+  }
+}
 
 export interface PostDetailData {
   id: string;
@@ -110,11 +173,40 @@ export default function PostDetailModal({
     [post]
   );
 
+  /** Parsed tasks for instant checklist shell (server still hydrates progress). */
+  const checklistInitialTasks: AssignmentTaskStored[] | undefined = useMemo(() => {
+    if (!post || !classroomId) return undefined;
+    if (post.type !== "assignment" && post.type !== "quiz" && post.type !== "mock") return undefined;
+    const json = (post.content_json as import("@/integrations/supabase/types").Json) ?? null;
+    const all = parseAssignmentTasks(json, post.type);
+    const list = canEdit ? all : studentVisibleTasks(all);
+    return list.length ? list : undefined;
+  }, [post, classroomId, canEdit]);
+
   const isAssignmentLike =
     post?.type === "assignment" ||
     post?.type === "quiz" ||
     post?.type === "mock" ||
     post?.type === "Concept Focus";
+
+  const teacherResourceLinks = useMemo(() => {
+    if (!post || !classroomId || !canEdit) return [];
+    if (!isAssignmentLike || gyanStudent) return [];
+    const json = (post.content_json as import("@/integrations/supabase/types").Json) ?? null;
+    const tasks = parseAssignmentTasks(json, post.type);
+    return tasks
+      .filter((t) => typeof t.href === "string" && Boolean(t.href.trim()))
+      .map((t) => {
+        const href = withAssignmentTrackingParams(String(t.href), t, classroomId, post.id);
+        const absolute = /^https?:\/\//i.test(href);
+        return {
+          id: t.id,
+          label: taskLinkLabel(t),
+          href,
+          absolute,
+        };
+      });
+  }, [post, classroomId, canEdit, isAssignmentLike, gyanStudent]);
 
   const assignmentTaskHints = useMemo(() => {
     if (!post || !isAssignmentLike) return { hasLink: false, hasMcq: false, hasCustom: false };
@@ -344,17 +436,63 @@ export default function PostDetailModal({
                             How to complete
                           </p>
                           <p className="text-sm leading-relaxed text-muted-foreground">
-                            Complete the tasks on the right. You can either{" "}
-                            <span className="font-semibold text-foreground">submit a response</span>{" "}
-                            (text/links) or simply{" "}
-                            <span className="font-semibold text-foreground">Mark as done</span>{" "}
-                            when finished.
+                            {canEdit
+                              ? "Use the resource buttons below to open the assignment content and review student submissions."
+                              : (
+                                  <>
+                                    Complete the tasks on the right. You can either{" "}
+                                    <span className="font-semibold text-foreground">submit a response</span>{" "}
+                                    (text/links) or simply{" "}
+                                    <span className="font-semibold text-foreground">Mark as done</span>{" "}
+                                    when finished.
+                                  </>
+                                )}
                           </p>
                         </div>
                       </div>
+                      {canEdit && teacherResourceLinks.length > 0 ? (
+                        <div className="rounded-xl border border-border/80 bg-muted/40 px-3 py-3 text-sm">
+                          <p className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground mb-2">
+                            Resources
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            {teacherResourceLinks.map((r) =>
+                              r.absolute ? (
+                                <Button
+                                  key={r.id}
+                                  asChild
+                                  variant="secondary"
+                                  size="sm"
+                                  className="rounded-xl font-bold gap-2"
+                                >
+                                  <a href={r.href} target="_blank" rel="noopener noreferrer">
+                                    {r.label}
+                                  </a>
+                                </Button>
+                              ) : (
+                                <Button
+                                  key={r.id}
+                                  asChild
+                                  variant="secondary"
+                                  size="sm"
+                                  className="rounded-xl font-bold gap-2"
+                                >
+                                  <Link href={r.href} onClick={() => onClose()}>
+                                    {r.label}
+                                  </Link>
+                                </Button>
+                              )
+                            )}
+                          </div>
+                        </div>
+                      ) : null}
                       <ul className="space-y-2 text-sm leading-relaxed text-foreground/95 sm:text-[15px]">
                         {assignmentTaskHints.hasLink ? (
-                          <li>- Click the task button on the right to open the link.</li>
+                          <li>
+                            - {canEdit
+                              ? "Use the Resources buttons above to open the link."
+                              : "Click the task button on the right to open the link."}
+                          </li>
                         ) : null}
                         {assignmentTaskHints.hasMcq ? (
                           <li>- For MCQs/mock: submit to record your score (retry anytime to improve).</li>
@@ -391,11 +529,15 @@ export default function PostDetailModal({
                     <div className="min-w-0">
                       {classroomId &&
                       (post.type === "assignment" || post.type === "quiz" || post.type === "mock") ? (
-                        <AssignmentTaskChecklist
-                          classroomId={classroomId}
-                          postId={post.id}
-                          isTeacherView={canEdit}
-                        />
+                        canEdit ? null : (
+                          <AssignmentTaskChecklist
+                            key={post.id}
+                            classroomId={classroomId}
+                            postId={post.id}
+                            isTeacherView={canEdit}
+                            initialTasks={checklistInitialTasks}
+                          />
+                        )
                       ) : null}
                     </div>
                   </div>
@@ -443,9 +585,11 @@ export default function PostDetailModal({
               {isAssignmentLike && !gyanStudent ? null : classroomId &&
                 (post.type === "assignment" || post.type === "quiz" || post.type === "mock") ? (
                   <AssignmentTaskChecklist
+                    key={post.id}
                     classroomId={classroomId}
                     postId={post.id}
                     isTeacherView={canEdit}
+                    initialTasks={checklistInitialTasks}
                   />
                 ) : null}
               <p className="text-[11px] text-muted-foreground/80">

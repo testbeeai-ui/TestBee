@@ -18,7 +18,7 @@ import {
   WandSparkles,
   X,
 } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import InviteStudents from "@/components/InviteStudents";
 import { useToast } from "@/hooks/use-toast";
@@ -30,6 +30,7 @@ import GeneratedMcqReview from "@/components/classroom/GeneratedMcqReview";
 import { getAdvancedSetBounds } from "@/lib/advancedQuizSets";
 import { fetchSubtopicContent } from "@/lib/subtopicContentService";
 import MeetSessionsStack from "@/components/teacher-portal/MeetSessionsStack";
+import { redirectToGoogleCalendarConsent } from "@/lib/integrations/googleCalendarOAuthClient";
 import {
   buildDefaultTasksForAssignmentType,
   normalizeTaskPositions,
@@ -62,6 +63,7 @@ import {
   trackLabelById,
   type DailyDoseStreakTrackId,
 } from "@/lib/teacherPortal/dailyDoseStreakTracks";
+import WallTimeSelects from "@/components/teacher-portal/WallTimeSelects";
 import type {
   TeacherPortalAssignmentItem,
   TeacherPortalClassroomCard,
@@ -188,18 +190,16 @@ const WIZARD_TASKS: WizardTask[] = [
       { label: "Name your classroom & set subject" },
       { label: "Choose PUC level & exam target" },
       { label: "Add sections (real schedule + calendar sync)" },
-      { label: "Search & invite specific students" },
       { label: "Review & launch classroom" },
     ],
     main: {
       badge: "🏫 Task 1 of 7 · Create classroom",
       title: { before: "Create your ", emphasis: "classroom" },
-      subtitle: "Set up a new classroom batch, add sections, and invite students — all in 5 steps.",
+      subtitle: "Set up a new classroom batch, add sections, and launch — all in 4 steps.",
       stepTabs: [
         "Name & Subject",
         "Level & Target",
         "Add Sections",
-        "Invite Students",
         "Review & Launch",
       ],
     },
@@ -320,6 +320,193 @@ const WIZARD_TASKS: WizardTask[] = [
   },
 ];
 
+/** Persist Teacher Wizard navigation + Task 1 classroom draft across Prev/Next and dialog close (sessionStorage). */
+const TP_WIZARD_SUBJECTS = [
+  "Physics",
+  "Chemistry",
+  "Mathematics",
+  "Physics + Maths",
+  "Full PCM",
+] as const;
+const TP_WIZARD_PUC = ["PUC 1", "PUC 2", "Both"] as const;
+const TP_WIZARD_EXAMS = [
+  "JEE Advanced",
+  "JEE Main",
+  "KCET",
+  "CBSE Board",
+  "State Board",
+  "NEET",
+] as const;
+
+type TPWizardSubject = (typeof TP_WIZARD_SUBJECTS)[number];
+type TPWizardPuc = (typeof TP_WIZARD_PUC)[number];
+type TPWizardExam = (typeof TP_WIZARD_EXAMS)[number];
+
+type WizardSectionDraftPersist = {
+  name: string;
+  scheduleDate: string;
+  scheduleTime: string;
+  durationMinutes: number;
+  repeatDays: string[];
+  scheduleEndDate: string | null;
+};
+
+type WizardShellPersistedV2 = {
+  v: 2;
+  collapsed: boolean;
+  activeTask: number | null;
+  currentSteps: number[];
+  createdSummary: { classroomId: string; joinCode: string; classroomName: string } | null;
+  cwName: string;
+  cwSubject: TPWizardSubject;
+  cwPucLevel: TPWizardPuc;
+  cwExamTarget: TPWizardExam;
+  cwAllowAdhocTrial: boolean;
+  cwSections: WizardSectionDraftPersist[];
+  cwSectionName: string;
+  cwSectionScheduleDate: string;
+  cwSectionScheduleTime: string;
+  cwSectionDurationMinutes: number;
+  cwSectionRepeatDays: string[];
+  cwSectionScheduleEndDate: string;
+};
+
+function coerceTPSubject(v: unknown): TPWizardSubject {
+  return typeof v === "string" && (TP_WIZARD_SUBJECTS as readonly string[]).includes(v)
+    ? (v as TPWizardSubject)
+    : "Physics";
+}
+function coerceTPPuc(v: unknown): TPWizardPuc {
+  return typeof v === "string" && (TP_WIZARD_PUC as readonly string[]).includes(v)
+    ? (v as TPWizardPuc)
+    : "PUC 2";
+}
+function coerceTPExam(v: unknown): TPWizardExam {
+  return typeof v === "string" && (TP_WIZARD_EXAMS as readonly string[]).includes(v)
+    ? (v as TPWizardExam)
+    : "CBSE Board";
+}
+
+function normalizeWizardShellSteps(raw: unknown): number[] {
+  return WIZARD_TASKS.map((task, i) => {
+    const arr = Array.isArray(raw) ? raw : [];
+    const s = typeof arr[i] === "number" ? arr[i] : 0;
+    const max = Math.max(0, task.steps.length - 1);
+    return Math.max(0, Math.min(s, max));
+  });
+}
+
+function readWizardShellPersisted(teacherId: string): WizardShellPersistedV2 | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = sessionStorage.getItem(`teacherPortal.wizardShell.v2:${teacherId}`);
+    if (!raw) return null;
+    const p = JSON.parse(raw) as Partial<WizardShellPersistedV2>;
+    if (p?.v !== 2) return null;
+    const taskCount = WIZARD_TASKS.length;
+    const at =
+      typeof p.activeTask === "number" && p.activeTask >= 0 && p.activeTask < taskCount
+        ? p.activeTask
+        : null;
+    const sections = Array.isArray(p.cwSections)
+      ? p.cwSections
+          .slice(0, 6)
+          .filter((s): s is WizardSectionDraftPersist => Boolean(s && typeof s === "object"))
+          .map((s) => ({
+            name: typeof s.name === "string" ? s.name : "",
+            scheduleDate: typeof s.scheduleDate === "string" ? s.scheduleDate : "",
+            scheduleTime: typeof s.scheduleTime === "string" ? s.scheduleTime : "",
+            durationMinutes:
+              typeof s.durationMinutes === "number" && Number.isFinite(s.durationMinutes)
+                ? s.durationMinutes
+                : 90,
+            repeatDays: Array.isArray(s.repeatDays)
+              ? s.repeatDays.filter((d): d is string => typeof d === "string")
+              : [],
+            scheduleEndDate:
+              typeof s.scheduleEndDate === "string" || s.scheduleEndDate === null
+                ? s.scheduleEndDate
+                : null,
+          }))
+      : [];
+    const summary =
+      p.createdSummary &&
+      typeof (p.createdSummary as { classroomId?: string }).classroomId === "string" &&
+      typeof (p.createdSummary as { classroomName?: string }).classroomName === "string"
+        ? {
+            classroomId: (p.createdSummary as { classroomId: string }).classroomId,
+            joinCode: String((p.createdSummary as { joinCode?: string }).joinCode ?? ""),
+            classroomName: (p.createdSummary as { classroomName: string }).classroomName,
+          }
+        : null;
+    return {
+      v: 2,
+      collapsed: Boolean(p.collapsed),
+      activeTask: at,
+      currentSteps: normalizeWizardShellSteps(p.currentSteps),
+      createdSummary: summary,
+      cwName: typeof p.cwName === "string" ? p.cwName : "",
+      cwSubject: coerceTPSubject(p.cwSubject),
+      cwPucLevel: coerceTPPuc(p.cwPucLevel),
+      cwExamTarget: coerceTPExam(p.cwExamTarget),
+      cwAllowAdhocTrial: p.cwAllowAdhocTrial !== false,
+      cwSections: sections,
+      cwSectionName: typeof p.cwSectionName === "string" ? p.cwSectionName : "",
+      cwSectionScheduleDate:
+        typeof p.cwSectionScheduleDate === "string" ? p.cwSectionScheduleDate : "",
+      cwSectionScheduleTime:
+        typeof p.cwSectionScheduleTime === "string" ? p.cwSectionScheduleTime : "",
+      cwSectionDurationMinutes:
+        typeof p.cwSectionDurationMinutes === "number" &&
+        Number.isFinite(p.cwSectionDurationMinutes)
+          ? p.cwSectionDurationMinutes
+          : 90,
+      cwSectionRepeatDays: Array.isArray(p.cwSectionRepeatDays)
+        ? p.cwSectionRepeatDays.filter((d): d is string => typeof d === "string")
+        : ["Mon", "Wed", "Fri"],
+      cwSectionScheduleEndDate:
+        typeof p.cwSectionScheduleEndDate === "string" ? p.cwSectionScheduleEndDate : "",
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeWizardShellPersisted(teacherId: string, data: WizardShellPersistedV2): void {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.setItem(`teacherPortal.wizardShell.v2:${teacherId}`, JSON.stringify(data));
+  } catch {
+    // ignore
+  }
+}
+
+function defaultWizardShellPersisted(): WizardShellPersistedV2 {
+  return {
+    v: 2,
+    collapsed: false,
+    activeTask: null,
+    currentSteps: WIZARD_TASKS.map(() => 0),
+    createdSummary: null,
+    cwName: "",
+    cwSubject: "Physics",
+    cwPucLevel: "PUC 2",
+    cwExamTarget: "CBSE Board",
+    cwAllowAdhocTrial: true,
+    cwSections: [],
+    cwSectionName: "",
+    cwSectionScheduleDate: "",
+    cwSectionScheduleTime: "",
+    cwSectionDurationMinutes: 90,
+    cwSectionRepeatDays: ["Mon", "Wed", "Fri"],
+    cwSectionScheduleEndDate: "",
+  };
+}
+
+function buildWizardShellInitialState(teacherId: string): WizardShellPersistedV2 {
+  return readWizardShellPersisted(teacherId) ?? defaultWizardShellPersisted();
+}
+
 function TeacherWizardPopup(props: {
   onClose: () => void;
   onHideForever: () => void;
@@ -333,103 +520,236 @@ function TeacherWizardPopup(props: {
   onScheduleLiveSession: MyClassroomViewProps["onScheduleLiveSession"];
   toast: ReturnType<typeof useToast>["toast"];
 }) {
+  const toast = props.toast;
   const GOOGLE_CONNECT_PROMPTED_SESSION_KEY = `teacherPortal.googleConnectPrompted.session.v1:${props.teacherId}`;
+  const GOOGLE_CONNECT_GATE_DISMISSED_SESSION_KEY = `teacherPortal.googleConnectGateDismissed.session.v1:${props.teacherId}`;
 
-  type WizardSectionDraft = {
-    name: string;
-    scheduleDate: string; // yyyy-mm-dd
-    scheduleTime: string; // hh:mm
-    durationMinutes: number;
-    repeatDays: string[];
-    scheduleEndDate: string | null; // yyyy-mm-dd
-  };
+  type WizardSectionDraft = WizardSectionDraftPersist;
 
-  const [collapsed, setCollapsed] = useState(false);
-  const [activeTask, setActiveTask] = useState<number | null>(null);
-  const [currentSteps, setCurrentSteps] = useState<number[]>(() => WIZARD_TASKS.map(() => 0));
+  const embeddedAssignmentDraftKey = `teacherPortal.wizardEmbeddedAssignment.v1:${props.teacherId}`;
+  const embeddedScheduleDraftKey = `teacherPortal.wizardEmbeddedSchedule.v1:${props.teacherId}`;
+
+  const wsInitial = buildWizardShellInitialState(props.teacherId);
+
+  const [collapsed, setCollapsed] = useState(wsInitial.collapsed);
+  const [activeTask, setActiveTask] = useState<number | null>(wsInitial.activeTask);
+  const [currentSteps, setCurrentSteps] = useState<number[]>(wsInitial.currentSteps);
   const [creating, setCreating] = useState(false);
   const [createdSummary, setCreatedSummary] = useState<{
     classroomId: string;
     joinCode: string;
     classroomName: string;
-  } | null>(null);
+  } | null>(wsInitial.createdSummary);
 
-  const [cwName, setCwName] = useState("");
-  const [cwSubject, setCwSubject] = useState<(typeof SUBJECT_OPTIONS)[number]>("Physics");
-  const [cwPucLevel, setCwPucLevel] = useState<(typeof PUC_OPTIONS)[number]>("PUC 2");
-  const [cwExamTarget, setCwExamTarget] = useState<(typeof EXAM_OPTIONS)[number]>("JEE Advanced");
-  const [cwAllowAdhocTrial, setCwAllowAdhocTrial] = useState(true);
-  const [cwSections, setCwSections] = useState<WizardSectionDraft[]>([]);
-  const [cwSectionName, setCwSectionName] = useState("");
-  const [cwSectionScheduleDate, setCwSectionScheduleDate] = useState("");
-  const [cwSectionScheduleTime, setCwSectionScheduleTime] = useState("");
-  const [cwSectionDurationMinutes, setCwSectionDurationMinutes] = useState(90);
-  const [cwSectionRepeatDays, setCwSectionRepeatDays] = useState<string[]>(["Mon", "Wed", "Fri"]);
-  const [cwSectionScheduleEndDate, setCwSectionScheduleEndDate] = useState("");
+  const [cwName, setCwName] = useState(wsInitial.cwName);
+  const [cwSubject, setCwSubject] = useState<(typeof SUBJECT_OPTIONS)[number]>(
+    wsInitial.cwSubject as (typeof SUBJECT_OPTIONS)[number]
+  );
+  const [cwPucLevel, setCwPucLevel] = useState<(typeof PUC_OPTIONS)[number]>(
+    wsInitial.cwPucLevel as (typeof PUC_OPTIONS)[number]
+  );
+  const [cwExamTarget, setCwExamTarget] = useState<(typeof EXAM_OPTIONS)[number]>(
+    wsInitial.cwExamTarget as (typeof EXAM_OPTIONS)[number]
+  );
+  const [cwAllowAdhocTrial, setCwAllowAdhocTrial] = useState(wsInitial.cwAllowAdhocTrial);
+  const [cwSections, setCwSections] = useState<WizardSectionDraft[]>(wsInitial.cwSections);
+  const [cwSectionName, setCwSectionName] = useState(wsInitial.cwSectionName);
+  const [cwSectionScheduleDate, setCwSectionScheduleDate] = useState(wsInitial.cwSectionScheduleDate);
+  const [cwSectionScheduleTime, setCwSectionScheduleTime] = useState(wsInitial.cwSectionScheduleTime);
+  const [cwSectionDurationMinutes, setCwSectionDurationMinutes] = useState(
+    wsInitial.cwSectionDurationMinutes
+  );
+  const [cwSectionRepeatDays, setCwSectionRepeatDays] = useState<string[]>(
+    wsInitial.cwSectionRepeatDays.length ? wsInitial.cwSectionRepeatDays : ["Mon", "Wed", "Fri"]
+  );
+  const [cwSectionScheduleEndDate, setCwSectionScheduleEndDate] = useState(
+    wsInitial.cwSectionScheduleEndDate
+  );
+  const [cwSectionFormOpen, setCwSectionFormOpen] = useState(() => {
+    // If a section is already saved, default to collapsed form (edit via the Saved section card).
+    if (wsInitial.cwSections?.[0]) return false;
+    // If no section is saved yet, show the form by default (fewer clicks).
+    return true;
+  });
 
-  const ensureGoogleConnectPrompted = useCallback(async (): Promise<boolean> => {
-    if (typeof window === "undefined") return true;
+  useEffect(() => {
+    const s = buildWizardShellInitialState(props.teacherId);
+    setCollapsed(s.collapsed);
+    setActiveTask(s.activeTask);
+    setCurrentSteps(s.currentSteps);
+    setCreatedSummary(s.createdSummary);
+    setCwName(s.cwName);
+    setCwSubject(s.cwSubject as (typeof SUBJECT_OPTIONS)[number]);
+    setCwPucLevel(s.cwPucLevel as (typeof PUC_OPTIONS)[number]);
+    setCwExamTarget(s.cwExamTarget as (typeof EXAM_OPTIONS)[number]);
+    setCwAllowAdhocTrial(s.cwAllowAdhocTrial);
+    setCwSections(s.cwSections);
+    setCwSectionName(s.cwSectionName);
+    setCwSectionScheduleDate(s.cwSectionScheduleDate);
+    setCwSectionScheduleTime(s.cwSectionScheduleTime);
+    setCwSectionDurationMinutes(s.cwSectionDurationMinutes);
+    setCwSectionRepeatDays(s.cwSectionRepeatDays.length ? s.cwSectionRepeatDays : ["Mon", "Wed", "Fri"]);
+    setCwSectionScheduleEndDate(s.cwSectionScheduleEndDate);
+    setCwSectionFormOpen(s.cwSections?.[0] ? false : true);
+  }, [props.teacherId]);
+
+  useEffect(() => {
+    const payload: WizardShellPersistedV2 = {
+      v: 2,
+      collapsed,
+      activeTask,
+      currentSteps,
+      createdSummary,
+      cwName,
+      cwSubject: cwSubject as TPWizardSubject,
+      cwPucLevel: cwPucLevel as TPWizardPuc,
+      cwExamTarget: cwExamTarget as TPWizardExam,
+      cwAllowAdhocTrial,
+      cwSections,
+      cwSectionName,
+      cwSectionScheduleDate,
+      cwSectionScheduleTime,
+      cwSectionDurationMinutes,
+      cwSectionRepeatDays,
+      cwSectionScheduleEndDate,
+    };
+    const id = window.setTimeout(() => writeWizardShellPersisted(props.teacherId, payload), 50);
+    return () => window.clearTimeout(id);
+  }, [
+    props.teacherId,
+    collapsed,
+    activeTask,
+    currentSteps,
+    createdSummary,
+    cwName,
+    cwSubject,
+    cwPucLevel,
+    cwExamTarget,
+    cwAllowAdhocTrial,
+    cwSections,
+    cwSectionName,
+    cwSectionScheduleDate,
+    cwSectionScheduleTime,
+    cwSectionDurationMinutes,
+    cwSectionRepeatDays,
+    cwSectionScheduleEndDate,
+  ]);
+
+  const [googleConnected, setGoogleConnected] = useState<boolean | null>(null);
+  const [googleGateOpen, setGoogleGateOpen] = useState(false);
+  const [googleGatePending, setGoogleGatePending] = useState<
+    | null
+    | { kind: "next" }
+    | { kind: "jump"; stepIdx: number }
+    | { kind: "addSection" }
+  >(null);
+
+  const [sectionGateOpen, setSectionGateOpen] = useState(false);
+  const [sectionGatePending, setSectionGatePending] = useState<null | { kind: "next" | "launch" }>(
+    null
+  );
+  const [highlightSectionClear, setHighlightSectionClear] = useState(false);
+  const [singleSectionGateOpen, setSingleSectionGateOpen] = useState(false);
+  const [highlightSectionEdit, setHighlightSectionEdit] = useState(false);
+
+  const getSessionFlag = useCallback((key: string) => {
+    if (typeof window === "undefined") return null;
     try {
-      if (window.sessionStorage.getItem(GOOGLE_CONNECT_PROMPTED_SESSION_KEY) === "1") return true;
+      return window.sessionStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const setSessionFlag = useCallback((key: string, value: string) => {
+    if (typeof window === "undefined") return;
+    try {
+      window.sessionStorage.setItem(key, value);
     } catch {
       // ignore
     }
+  }, []);
 
-    // If already connected, don't prompt (but mark as prompted for this session).
+  const refreshGoogleConnected = useCallback(async () => {
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       const accessToken = sessionData.session?.access_token ?? "";
-      const res = await fetch("/api/integrations/google/status", {
+      const res = await fetch(`/api/integrations/google/status?t=${Date.now()}`, {
         method: "GET",
         credentials: "include",
+        cache: "no-store",
         headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
       });
       const payload = (await res.json().catch(() => ({}))) as { connected?: boolean };
-      if (res.ok && payload.connected) {
-        try {
-          window.sessionStorage.setItem(GOOGLE_CONNECT_PROMPTED_SESSION_KEY, "1");
-        } catch {
-          // ignore
+      if (!res.ok) {
+        setGoogleConnected(false);
+        return;
+      }
+      setGoogleConnected(Boolean(payload.connected));
+    } catch {
+      setGoogleConnected(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshGoogleConnected();
+  }, [refreshGoogleConnected]);
+
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") void refreshGoogleConnected();
+    };
+    const onPageShow = (e: PageTransitionEvent) => {
+      // bfcache: user returned via Back without full reload (e.g. abandoned OAuth tab).
+      if (e.persisted) void refreshGoogleConnected();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pageshow", onPageShow);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pageshow", onPageShow);
+    };
+  }, [refreshGoogleConnected]);
+
+  const startGoogleConnect = useCallback(async () => {
+    try {
+      setSessionFlag(GOOGLE_CONNECT_PROMPTED_SESSION_KEY, "1");
+      const r = await redirectToGoogleCalendarConsent();
+      if (r.mode === "popup") {
+        if (r.connected) {
+          await refreshGoogleConnected();
+          props.toast({ title: "Google Calendar connected" });
+        } else if (r.reason && r.reason !== "closed") {
+          props.toast({
+            title: "Google Calendar not connected",
+            description:
+              r.reason === "no_refresh_token"
+                ? "Try again and accept all requested permissions, or choose the Google account that owns your Calendar."
+                : r.reason,
+            variant: "destructive",
+          });
         }
-        return true;
       }
-    } catch {
-      // best-effort; fall through to prompt
-    }
-
-    const ok = window.confirm(
-      "Connect Google Calendar now?\n\nSections can sync recurring schedules + Meet links to Google Calendar. If you skip, section sync may fail until you connect from My Classrooms."
-    );
-    try {
-      window.sessionStorage.setItem(GOOGLE_CONNECT_PROMPTED_SESSION_KEY, "1");
-    } catch {
-      // ignore
-    }
-    if (!ok) return true;
-
-    try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const accessToken = sessionData.session?.access_token ?? "";
-      const res = await fetch("/api/integrations/google/start", {
-        method: "POST",
-        credentials: "include",
-        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
-      });
-      const payload = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
-      if (!res.ok || !payload.url) {
-        throw new Error(payload.error || `Request failed (${res.status})`);
-      }
-      window.location.href = payload.url;
-      return false; // navigation in-progress
     } catch (err) {
       props.toast({
-        title: "Could not start Google connect",
+        title: "Could not start Google Calendar consent",
         description: err instanceof Error ? err.message : "Please try again.",
         variant: "destructive",
       });
-      return true;
     }
-  }, [GOOGLE_CONNECT_PROMPTED_SESSION_KEY, props]);
+  }, [
+    GOOGLE_CONNECT_PROMPTED_SESSION_KEY,
+    props,
+    refreshGoogleConnected,
+    setSessionFlag,
+  ]);
+
+  const shouldGateGoogle = useCallback(() => {
+    if (googleConnected === true) return false;
+    // One-time per login/session: if dismissed, do not gate again until relogin.
+    if (getSessionFlag(GOOGLE_CONNECT_GATE_DISMISSED_SESSION_KEY) === "1") return false;
+    return true;
+  }, [GOOGLE_CONNECT_GATE_DISMISSED_SESSION_KEY, getSessionFlag, googleConnected]);
 
   const pctFor = useCallback(
     (taskIdx: number) => {
@@ -440,28 +760,121 @@ function TeacherWizardPopup(props: {
     [currentSteps]
   );
 
-  const jumpStep = (taskIdx: number, stepIdx: number) => {
+  const jumpStep = useCallback((taskIdx: number, stepIdx: number) => {
     setCurrentSteps((prev) => {
       const next = [...prev];
       const max = Math.max(0, (WIZARD_TASKS[taskIdx]?.steps.length ?? 1) - 1);
       next[taskIdx] = Math.max(0, Math.min(stepIdx, max));
       return next;
     });
-  };
+  }, []);
 
   const selectTask = (idx: number) => {
     setActiveTask((prev) => (prev === idx ? null : idx));
   };
 
-  const next = () => {
+  const next = useCallback(() => {
     if (activeTask == null) return;
     jumpStep(activeTask, (currentSteps[activeTask] ?? 0) + 1);
-  };
+  }, [activeTask, currentSteps, jumpStep]);
 
-  const prev = () => {
+  const prev = useCallback(() => {
     if (activeTask == null) return;
     jumpStep(activeTask, (currentSteps[activeTask] ?? 0) - 1);
-  };
+  }, [activeTask, currentSteps, jumpStep]);
+
+  const openGoogleGate = useCallback(
+    (pending: NonNullable<typeof googleGatePending>) => {
+      setGoogleGatePending(pending);
+      setGoogleGateOpen(true);
+    },
+    []
+  );
+
+  const clearSectionFormAndDraft = useCallback(() => {
+    setCwSectionName("");
+    setCwSectionScheduleDate("");
+    setCwSectionScheduleTime("");
+    setCwSectionDurationMinutes(90);
+    setCwSectionRepeatDays(["Mon", "Wed", "Fri"]);
+    setCwSectionScheduleEndDate("");
+    setCwSectionFormOpen(false);
+  }, []);
+
+  const loadSavedSectionIntoForm = useCallback(() => {
+    const d = cwSections[0];
+    if (!d) return;
+    setCwSectionFormOpen(true);
+    setCwSectionName(d.name);
+    setCwSectionScheduleDate(d.scheduleDate);
+    setCwSectionScheduleTime(d.scheduleTime);
+    setCwSectionDurationMinutes(d.durationMinutes);
+    setCwSectionRepeatDays(d.repeatDays);
+    setCwSectionScheduleEndDate(d.scheduleEndDate ?? "");
+    setHighlightSectionEdit(true);
+    window.setTimeout(() => setHighlightSectionEdit(false), 4000);
+  }, [cwSections]);
+
+  const openSectionGate = useCallback((pending: NonNullable<typeof sectionGatePending>) => {
+    setSectionGatePending(pending);
+    setSectionGateOpen(true);
+    setHighlightSectionClear(true);
+    window.setTimeout(() => setHighlightSectionClear(false), 4000);
+  }, []);
+
+  const guardedNext = useCallback(() => {
+    if (activeTask === 0 && shouldGateGoogle()) {
+      openGoogleGate({ kind: "next" });
+      return;
+    }
+
+    if (activeTask === 0) {
+      const step = currentSteps[0] ?? 0;
+      const hasSavedSection = Boolean(cwSections[0]);
+      const sectionFormHasAny =
+        Boolean(cwSectionName.trim()) ||
+        Boolean(cwSectionScheduleDate.trim()) ||
+        Boolean(cwSectionScheduleTime.trim()) ||
+        Boolean(cwSectionScheduleEndDate.trim());
+
+      if (step === 0 && !cwName.trim()) {
+        toast({ title: "Classroom name required", variant: "destructive" });
+        return;
+      }
+
+      // Step 3: if teacher started entering a section, they must save it.
+      if ((step === 2 || step === 3) && sectionFormHasAny && !hasSavedSection) {
+        openSectionGate({ kind: "next" });
+        return;
+      }
+    }
+    next();
+  }, [
+    activeTask,
+    cwName,
+    cwSectionName,
+    cwSectionScheduleDate,
+    cwSectionScheduleEndDate,
+    cwSectionScheduleTime,
+    cwSections,
+    currentSteps,
+    next,
+    openGoogleGate,
+    openSectionGate,
+    shouldGateGoogle,
+    toast,
+  ]);
+
+  const guardedJumpStep = useCallback(
+    (taskIdx: number, stepIdx: number) => {
+      if (taskIdx === 0 && stepIdx > 0 && shouldGateGoogle()) {
+        openGoogleGate({ kind: "jump", stepIdx });
+        return;
+      }
+      jumpStep(taskIdx, stepIdx);
+    },
+    [jumpStep, openGoogleGate, shouldGateGoogle]
+  );
 
   const resetCreateClassroomWizard = () => {
     setCreatedSummary(null);
@@ -521,7 +934,7 @@ function TeacherWizardPopup(props: {
       const joinCode = String(newest.join_code ?? "");
       const classroomName = String(newest.name ?? name);
 
-      const sectionDrafts = cwSections.slice(0, 6);
+      const sectionDrafts = cwSections.slice(0, 1);
       if (sectionDrafts.length > 0) {
         const { data: sessionData } = await supabase.auth.getSession();
         const accessToken = sessionData.session?.access_token ?? "";
@@ -595,11 +1008,61 @@ function TeacherWizardPopup(props: {
     }
   };
 
+  const beginAddSectionDraft = useCallback(() => {
+    const name = cwSectionName.trim();
+    if (!name) {
+      props.toast({ title: "Section name required", variant: "destructive" });
+      return;
+    }
+    if (!cwSectionScheduleDate.trim() || !cwSectionScheduleTime.trim()) {
+      props.toast({
+        title: "Schedule required",
+        description: "Pick a start date and time for this section schedule.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (cwSectionRepeatDays.length === 0) {
+      props.toast({
+        title: "Repeat days required",
+        description: "Select at least one repeat day.",
+        variant: "destructive",
+      });
+      return;
+    }
+    // Investor UX: this step supports a single section draft. Re-adding replaces the existing draft.
+    setCwSections([
+      {
+        name,
+        scheduleDate: cwSectionScheduleDate,
+        scheduleTime: cwSectionScheduleTime,
+        durationMinutes: cwSectionDurationMinutes,
+        repeatDays: cwSectionRepeatDays,
+        scheduleEndDate: cwSectionScheduleEndDate.trim() || null,
+      },
+    ]);
+    setCwSectionName("");
+    setCwSectionScheduleDate("");
+    setCwSectionScheduleTime("");
+    setCwSectionDurationMinutes(90);
+    setCwSectionRepeatDays(["Mon", "Wed", "Fri"]);
+    setCwSectionScheduleEndDate("");
+    setCwSectionFormOpen(false);
+  }, [
+    cwSectionDurationMinutes,
+    cwSectionName,
+    cwSectionRepeatDays,
+    cwSectionScheduleDate,
+    cwSectionScheduleEndDate,
+    cwSectionScheduleTime,
+    props,
+  ]);
+
   return (
     <div className="flex h-full min-h-0 w-full text-[12.5px] sm:text-sm">
       <aside
         className={`relative flex min-h-0 shrink-0 flex-col border-r border-white/10 bg-[#0d0d1c] transition-[width] duration-300 ${
-          collapsed ? "w-12 sm:w-14" : "w-[260px] md:w-[300px] lg:w-[320px]"
+          collapsed ? "w-11 sm:w-12" : "w-[200px] sm:w-[220px] md:w-[248px] lg:w-[268px]"
         }`}
       >
         <div className="flex items-center justify-between gap-2 border-b border-white/10 px-2.5 py-2 sm:px-3 sm:py-2.5">
@@ -756,9 +1219,13 @@ function TeacherWizardPopup(props: {
         </div>
 
         <div
-          className={`flex-1 px-3 py-2.5 sm:px-5 sm:py-4 ${
-            activeTask === 1 || activeTask === 2 || activeTask === 3 || activeTask === 5
-              ? "overflow-hidden"
+          className={`flex min-h-0 flex-1 flex-col px-2 py-2 sm:px-3 sm:py-3 ${
+            activeTask === 0 ||
+            activeTask === 1 ||
+            activeTask === 2 ||
+            activeTask === 3 ||
+            activeTask === 5
+              ? "min-h-0 overflow-hidden"
               : "overflow-y-auto"
           }`}
         >
@@ -807,6 +1274,7 @@ function TeacherWizardPopup(props: {
                       classroomDetails={props.classroomDetails}
                       initialClassroomId={createdSummary?.classroomId ?? null}
                       variant="embedded"
+                      sessionDraftKey={embeddedAssignmentDraftKey}
                       onCancel={() => {
                         setActiveTask(null);
                       }}
@@ -828,6 +1296,7 @@ function TeacherWizardPopup(props: {
                   <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#12162a] sm:rounded-3xl">
                     <ScheduleLiveSessionPanel
                       variant="embedded"
+                      sessionDraftKey={embeddedScheduleDraftKey}
                       classrooms={props.classrooms}
                       toast={props.toast}
                       headingTitle="Schedule a lesson / webinar"
@@ -929,68 +1398,87 @@ function TeacherWizardPopup(props: {
               }
 
               return (
-                <div className="rounded-3xl border border-white/10 bg-[#15162b]">
-                  <div className="flex flex-wrap items-start justify-between gap-3 px-5 py-5 sm:px-7 sm:py-6">
-                    <div className="min-w-0">
-                      <div className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-[#0d0d1c] px-3 py-1 text-xs text-slate-300">
+                <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#15162b] sm:rounded-3xl">
+                  {/** Create-classroom step gating: if section form has partial values, require save before Next/Launch. */}
+                  <div className="flex shrink-0 flex-wrap items-start justify-between gap-2 border-b border-white/10 px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-3">
+                    <div className="min-w-0 max-w-[min(100%,52vw)]">
+                      <div className="inline-flex items-center gap-1.5 rounded-full border border-white/12 bg-[#0d0d1c] px-2 py-0.5 text-[10px] text-slate-300 sm:text-[11px]">
                         {t.main.badge}
                       </div>
-                      <div className="mt-3 font-serif text-2xl sm:text-3xl">
+                      <div className="mt-1.5 font-serif text-lg leading-tight text-slate-100 sm:text-xl md:text-2xl">
                         {t.main.title.before}
                         <span className="italic text-emerald-300">{t.main.title.emphasis}</span>
                         {t.main.title.after ?? ""}
                       </div>
-                      <div className="mt-2 max-w-2xl text-sm text-slate-300">{t.main.subtitle}</div>
+                      <div className="mt-1 line-clamp-2 max-w-xl text-[11px] text-slate-400 sm:text-xs">
+                        {t.main.subtitle}
+                      </div>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setActiveTask(null)}
-                        className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-semibold text-slate-200 hover:bg-white/10"
-                      >
-                        ← Back
-                      </button>
+                    <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5 sm:gap-2">
                       <button
                         type="button"
                         onClick={prev}
                         disabled={stepIdx === 0}
-                        className="inline-flex items-center gap-2 rounded-full bg-emerald-500 px-4 py-2 text-xs font-semibold text-black hover:bg-emerald-400 disabled:opacity-60"
+                        className="inline-flex items-center gap-1 rounded-full bg-emerald-500 px-3 py-1.5 text-[11px] font-semibold text-black hover:bg-emerald-400 disabled:opacity-60 sm:px-3.5 sm:text-xs"
                       >
                         ← Prev
                       </button>
+                      {activeTask === 0 ? (
+                        googleConnected === null ? (
+                          <span className="inline-flex h-8 items-center rounded-full border border-white/10 bg-white/[0.04] px-2.5 text-[10px] text-slate-400 sm:h-9 sm:text-xs">
+                            Calendar…
+                          </span>
+                        ) : googleConnected ? (
+                          <span
+                            className="inline-flex h-8 shrink-0 items-center gap-1 rounded-full border border-emerald-500/35 bg-emerald-500/10 px-2 py-0 text-[10px] font-semibold text-emerald-200 sm:h-9 sm:px-2.5 sm:text-xs"
+                            title="Google Calendar connected. Manage from My Classrooms."
+                          >
+                            <Check className="h-3 w-3 shrink-0 sm:h-3.5 sm:w-3.5" aria-hidden />
+                            Connected
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => void startGoogleConnect()}
+                            className="inline-flex h-8 items-center justify-center rounded-full border border-sky-400/35 bg-sky-500/10 px-3 text-[10px] font-semibold text-sky-100 hover:bg-sky-500/15 sm:h-9 sm:text-xs"
+                          >
+                            Connect Calendar
+                          </button>
+                        )
+                      ) : null}
                       <button
                         type="button"
-                        onClick={next}
+                        onClick={guardedNext}
                         disabled={stepIdx >= stepCount - 1}
-                        className="inline-flex items-center gap-2 rounded-full bg-emerald-500 px-4 py-2 text-xs font-semibold text-black hover:bg-emerald-400 disabled:opacity-60"
+                        className="inline-flex items-center gap-1 rounded-full bg-emerald-500 px-3 py-1.5 text-[11px] font-semibold text-black hover:bg-emerald-400 disabled:opacity-60 sm:text-xs"
                       >
                         Next →
                       </button>
                     </div>
                   </div>
 
-                  <div className="px-5 pb-5 sm:px-7 sm:pb-7">
-                    <div className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-white/10 bg-[#0d0d1c] px-4 py-3">
-                      <div className="text-xs text-slate-300">Progress</div>
-                      <div className="h-1.5 min-w-[160px] flex-1 overflow-hidden rounded-full bg-white/10">
+                  <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 pb-2 sm:px-4 sm:pb-3">
+                    <div className="mb-2 flex shrink-0 flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-[#0d0d1c] px-2.5 py-2 sm:rounded-2xl sm:px-3">
+                      <div className="text-[10px] text-slate-400 sm:text-xs">Progress</div>
+                      <div className="h-1 min-w-[100px] flex-1 overflow-hidden rounded-full bg-white/10 sm:h-1.5">
                         <div
                           className="h-full rounded-full bg-emerald-400 transition-[width]"
                           style={{ width: `${pctFor(activeTask)}%` }}
                         />
                       </div>
-                      <div className="text-xs font-semibold text-emerald-200">
-                        Step {stepIdx + 1} of {stepCount}
+                      <div className="text-[10px] font-semibold text-emerald-200 sm:text-xs">
+                        {stepIdx + 1}/{stepCount}
                       </div>
                     </div>
 
-                    <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#0d0d1c]">
-                      <div className="flex w-full overflow-x-auto border-b border-white/10 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-white/10 bg-[#0d0d1c] sm:rounded-2xl">
+                      <div className="flex w-full shrink-0 overflow-x-auto border-b border-white/10 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                         {t.main.stepTabs.map((tab, i) => (
                           <button
                             key={tab}
                             type="button"
-                            onClick={() => jumpStep(activeTask, i)}
-                            className={`inline-flex shrink-0 items-center gap-2 border-r border-white/10 px-4 py-3 text-xs font-semibold transition ${
+                            onClick={() => guardedJumpStep(activeTask, i)}
+                            className={`inline-flex shrink-0 items-center gap-1.5 border-r border-white/10 px-2.5 py-2 text-[10px] font-semibold transition sm:gap-2 sm:px-3 sm:text-xs ${
                               i === stepIdx
                                 ? "bg-emerald-500/10 text-emerald-200"
                                 : i < stepIdx
@@ -999,7 +1487,7 @@ function TeacherWizardPopup(props: {
                             }`}
                           >
                             <span
-                              className={`inline-flex h-5 w-5 items-center justify-center rounded-full border text-[10px] font-bold ${
+                              className={`inline-flex h-4 w-4 items-center justify-center rounded-full border text-[9px] font-bold sm:h-5 sm:w-5 sm:text-[10px] ${
                                 i < stepIdx
                                   ? "border-emerald-400 bg-emerald-400 text-black"
                                   : i === stepIdx
@@ -1009,32 +1497,32 @@ function TeacherWizardPopup(props: {
                             >
                               {i + 1}
                             </span>
-                            {tab}
+                            <span className="max-w-[5.5rem] truncate sm:max-w-none">{tab}</span>
                           </button>
                         ))}
                       </div>
 
-                      <div className="px-4 py-5 sm:px-6 sm:py-6">
-                        <div className="text-base font-semibold text-slate-100">
+                      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-3 sm:px-4 sm:py-4">
+                        <div className="text-sm font-semibold text-slate-100 sm:text-[15px]">
                           Step {stepIdx + 1} — {t.steps[stepIdx]?.label}
                         </div>
                         {activeTask === 0 ? (
                           <>
                             {stepIdx === 0 ? (
-                              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                              <div className="mt-2.5 grid gap-2 md:grid-cols-2 sm:mt-3 sm:gap-3">
                                 <div className="md:col-span-2">
-                                  <label className="mb-1 block text-sm font-semibold text-slate-300">
+                                  <label className="mb-0.5 block text-xs font-semibold text-slate-300 sm:text-sm">
                                     Classroom name <span className="text-rose-300">*</span>
                                   </label>
                                   <input
                                     value={cwName}
                                     onChange={(e) => setCwName(e.target.value)}
                                     placeholder="e.g. JEE Advanced Batch A — 2026"
-                                    className="h-10 w-full rounded-xl border border-white/15 bg-[#070b17] px-3 text-sm outline-none placeholder:text-slate-500 focus:border-emerald-400"
+                                    className="h-9 w-full rounded-lg border border-white/15 bg-[#070b17] px-2.5 text-sm outline-none placeholder:text-slate-500 focus:border-emerald-400 sm:h-10 sm:rounded-xl sm:px-3"
                                   />
                                 </div>
                                 <div>
-                                  <label className="mb-1 block text-sm font-semibold text-slate-300">
+                                  <label className="mb-0.5 block text-xs font-semibold text-slate-300 sm:text-sm">
                                     Subject <span className="text-rose-300">*</span>
                                   </label>
                                   <select
@@ -1044,7 +1532,7 @@ function TeacherWizardPopup(props: {
                                         e.target.value as (typeof SUBJECT_OPTIONS)[number]
                                       )
                                     }
-                                    className="h-10 w-full rounded-xl border border-white/15 bg-[#070b17] px-3 text-sm outline-none focus:border-emerald-400"
+                                    className="h-9 w-full rounded-lg border border-white/15 bg-[#070b17] px-2.5 text-sm outline-none focus:border-emerald-400 sm:h-10 sm:rounded-xl sm:px-3"
                                   >
                                     {SUBJECT_OPTIONS.map((s) => (
                                       <option key={s} value={s}>
@@ -1053,17 +1541,16 @@ function TeacherWizardPopup(props: {
                                     ))}
                                   </select>
                                 </div>
-                                <div className="md:col-span-2 rounded-xl border border-emerald-400/15 bg-emerald-500/5 px-4 py-3 text-sm text-slate-300">
-                                  Tip: A good classroom name includes the batch identifier (A/B),
-                                  exam target, and year so students can find it instantly.
+                                <div className="md:col-span-2 rounded-lg border border-emerald-400/15 bg-emerald-500/5 px-3 py-2 text-[11px] leading-snug text-slate-300 sm:rounded-xl sm:px-4 sm:py-2.5 sm:text-xs">
+                                  Tip: Include batch (A/B), exam target, and year so students recognize the class.
                                 </div>
                               </div>
                             ) : null}
 
                             {stepIdx === 1 ? (
-                              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                              <div className="mt-2.5 grid gap-2 md:grid-cols-2 sm:mt-3 sm:gap-3">
                                 <div>
-                                  <label className="mb-1 block text-sm font-semibold text-slate-300">
+                                  <label className="mb-0.5 block text-xs font-semibold text-slate-300 sm:text-sm">
                                     PUC level <span className="text-rose-300">*</span>
                                   </label>
                                   <select
@@ -1071,7 +1558,7 @@ function TeacherWizardPopup(props: {
                                     onChange={(e) =>
                                       setCwPucLevel(e.target.value as (typeof PUC_OPTIONS)[number])
                                     }
-                                    className="h-10 w-full rounded-xl border border-white/15 bg-[#070b17] px-3 text-sm outline-none focus:border-emerald-400"
+                                    className="h-9 w-full rounded-lg border border-white/15 bg-[#070b17] px-2.5 text-sm outline-none focus:border-emerald-400 sm:h-10 sm:rounded-xl sm:px-3"
                                   >
                                     {PUC_OPTIONS.map((p) => (
                                       <option key={p} value={p}>
@@ -1081,7 +1568,7 @@ function TeacherWizardPopup(props: {
                                   </select>
                                 </div>
                                 <div>
-                                  <label className="mb-1 block text-sm font-semibold text-slate-300">
+                                  <label className="mb-0.5 block text-xs font-semibold text-slate-300 sm:text-sm">
                                     Primary exam target <span className="text-rose-300">*</span>
                                   </label>
                                   <select
@@ -1091,7 +1578,7 @@ function TeacherWizardPopup(props: {
                                         e.target.value as (typeof EXAM_OPTIONS)[number]
                                       )
                                     }
-                                    className="h-10 w-full rounded-xl border border-white/15 bg-[#070b17] px-3 text-sm outline-none focus:border-emerald-400"
+                                    className="h-9 w-full rounded-lg border border-white/15 bg-[#070b17] px-2.5 text-sm outline-none focus:border-emerald-400 sm:h-10 sm:rounded-xl sm:px-3"
                                   >
                                     {EXAM_OPTIONS.map((x) => (
                                       <option key={x} value={x}>
@@ -1101,16 +1588,16 @@ function TeacherWizardPopup(props: {
                                   </select>
                                 </div>
                                 <div className="md:col-span-2">
-                                  <label className="mb-1 block text-sm font-semibold text-slate-300">
-                                    Allow ad-hoc 10-min trial for EduBlast members?
+                                  <label className="mb-0.5 block text-xs font-semibold text-slate-300 sm:text-sm">
+                                    Allow trial access for new students?
                                   </label>
                                   <select
                                     value={cwAllowAdhocTrial ? "yes" : "no"}
                                     onChange={(e) => setCwAllowAdhocTrial(e.target.value === "yes")}
-                                    className="h-10 w-full rounded-xl border border-white/15 bg-[#070b17] px-3 text-sm outline-none focus:border-emerald-400"
+                                    className="h-9 w-full rounded-lg border border-white/15 bg-[#070b17] px-2.5 text-sm outline-none focus:border-emerald-400 sm:h-10 sm:rounded-xl sm:px-3"
                                   >
                                     <option value="yes">
-                                      Yes — open to all students (50 RDM to continue)
+                                      Yes — allow anyone to request access (50 RDM to continue)
                                     </option>
                                     <option value="no">No — enrolled students only</option>
                                   </select>
@@ -1119,267 +1606,283 @@ function TeacherWizardPopup(props: {
                             ) : null}
 
                             {stepIdx === 2 ? (
-                              <div className="mt-4 space-y-3">
-                                <div className="rounded-xl border border-white/10 bg-white/[0.02] px-4 py-3 text-sm text-slate-300">
-                                  <span className="font-semibold text-slate-100">
-                                    Sections are optional.
-                                  </span>{" "}
-                                  You can skip this step and create sections later from{" "}
-                                  <span className="font-semibold text-slate-100">
-                                    Sections &amp; Google Calendar
-                                  </span>
-                                  .
+                              <div className="mt-3 space-y-2 sm:mt-4 sm:space-y-3">
+                                <div className="rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2 text-xs leading-snug text-slate-300 sm:rounded-xl sm:px-4 sm:text-[13px]">
+                                  <span className="font-semibold text-slate-100">Sections are optional.</span>{" "}
+                                  Skip and add later under Sections &amp; Google Calendar.
                                 </div>
 
-                                <div className="grid gap-3">
-                                  <div className="rounded-2xl border border-white/10 bg-[#0d0d1c] p-4">
-                                    <div className="grid gap-3">
-                                      <div>
-                                        <label className="mb-1 block text-sm font-semibold text-slate-300">
-                                          Section name <span className="text-rose-300">*</span>
-                                        </label>
-                                        <input
-                                          value={cwSectionName}
-                                          onChange={(e) => setCwSectionName(e.target.value)}
-                                          placeholder="e.g. Morning batch, Section A"
-                                          className="h-10 w-full rounded-xl border border-white/15 bg-[#070b17] px-3 text-sm outline-none placeholder:text-slate-500 focus:border-emerald-400"
-                                        />
-                                      </div>
-
-                                      <div className="grid gap-3 lg:grid-cols-3">
-                                        <div className="grid gap-3">
-                                          <div>
-                                            <label className="mb-1 block text-sm font-semibold text-slate-300">
-                                              Start date <span className="text-rose-300">*</span>
-                                            </label>
-                                            <input
-                                              type="date"
-                                              value={cwSectionScheduleDate}
-                                              onChange={(e) => setCwSectionScheduleDate(e.target.value)}
-                                              className="h-10 w-full rounded-xl border border-white/15 bg-[#070b17] px-3 text-sm outline-none focus:border-emerald-400"
-                                            />
-                                          </div>
-                                          <div>
-                                            <label className="mb-1 block text-sm font-semibold text-slate-300">
-                                              End date (optional)
-                                            </label>
-                                            <input
-                                              type="date"
-                                              value={cwSectionScheduleEndDate}
-                                              onChange={(e) => setCwSectionScheduleEndDate(e.target.value)}
-                                              className="h-10 w-full rounded-xl border border-white/15 bg-[#070b17] px-3 text-sm outline-none focus:border-emerald-400"
-                                            />
-                                          </div>
-                                        </div>
-
-                                        <div className="grid gap-3">
-                                          <div>
-                                            <label className="mb-1 block text-sm font-semibold text-slate-300">
-                                              Start time <span className="text-rose-300">*</span>
-                                            </label>
-                                            <input
-                                              type="time"
-                                              value={cwSectionScheduleTime}
-                                              onChange={(e) => setCwSectionScheduleTime(e.target.value)}
-                                              className="h-10 w-full rounded-xl border border-white/15 bg-[#070b17] px-3 text-sm outline-none focus:border-emerald-400"
-                                            />
-                                          </div>
-                                          <div>
-                                            <label className="mb-1 block text-sm font-semibold text-slate-300">
-                                              Duration
-                                            </label>
-                                            <select
-                                              value={String(cwSectionDurationMinutes)}
-                                              onChange={(e) =>
-                                                setCwSectionDurationMinutes(Number(e.target.value))
-                                              }
-                                              className="h-10 w-full rounded-xl border border-white/15 bg-[#070b17] px-3 text-sm outline-none focus:border-emerald-400"
-                                            >
-                                              {[60, 75, 90, 105, 120].map((m) => (
-                                                <option key={m} value={String(m)}>
-                                                  {m} mins
-                                                </option>
-                                              ))}
-                                            </select>
-                                          </div>
-                                        </div>
-
+                                <div className="grid gap-2 sm:gap-3">
+                                  {cwSectionFormOpen ? (
+                                    <div className="rounded-xl border border-white/10 bg-[#0d0d1c] p-3 sm:rounded-2xl sm:p-4">
+                                      <div className="grid gap-2 sm:gap-3">
                                         <div>
-                                          <div className="mb-1 text-xs font-bold uppercase tracking-widest text-slate-500">
-                                            Repeat days
+                                          <label className="mb-0.5 block text-xs font-semibold text-slate-300 sm:text-sm">
+                                            Section name <span className="text-rose-300">*</span>
+                                          </label>
+                                          <input
+                                            value={cwSectionName}
+                                            onChange={(e) => setCwSectionName(e.target.value)}
+                                            placeholder="e.g. Morning batch, Section A"
+                                            className="h-9 w-full rounded-lg border border-white/15 bg-[#070b17] px-3 text-sm outline-none placeholder:text-slate-500 focus:border-emerald-400 sm:h-10 sm:rounded-xl"
+                                          />
+                                        </div>
+
+                                        <div className="grid gap-2 sm:gap-3 lg:grid-cols-3">
+                                          <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-1 lg:grid-rows-2">
+                                            <div>
+                                              <label className="mb-0.5 block text-[11px] font-semibold text-slate-300 sm:text-xs sm:text-sm">
+                                                Start date <span className="text-rose-300">*</span>
+                                              </label>
+                                              <input
+                                                type="date"
+                                                value={cwSectionScheduleDate}
+                                                onChange={(e) => setCwSectionScheduleDate(e.target.value)}
+                                                className="h-9 w-full min-w-0 rounded-lg border border-white/15 bg-[#070b17] px-2 text-sm outline-none focus:border-emerald-400 sm:h-10 sm:rounded-xl sm:px-3"
+                                              />
+                                            </div>
+                                            <div>
+                                              <label className="mb-0.5 block text-[11px] font-semibold text-slate-300 sm:text-xs sm:text-sm">
+                                                End (optional)
+                                              </label>
+                                              <input
+                                                type="date"
+                                                value={cwSectionScheduleEndDate}
+                                                onChange={(e) =>
+                                                  setCwSectionScheduleEndDate(e.target.value)
+                                                }
+                                                className="h-9 w-full min-w-0 rounded-lg border border-white/15 bg-[#070b17] px-2 text-sm outline-none focus:border-emerald-400 sm:h-10 sm:rounded-xl sm:px-3"
+                                              />
+                                            </div>
                                           </div>
-                                          <div className="flex flex-wrap gap-2">
-                                            {WEEKDAYS.map((day) => {
-                                              const on = cwSectionRepeatDays.includes(day);
-                                              return (
-                                                <button
-                                                  key={day}
-                                                  type="button"
-                                                  onClick={() =>
-                                                    setCwSectionRepeatDays((prev) =>
-                                                      prev.includes(day)
-                                                        ? prev.filter((d) => d !== day)
-                                                        : [...prev, day]
-                                                    )
+
+                                          <div className="flex min-w-0 flex-col gap-2 sm:gap-3">
+                                            <div className="min-w-0">
+                                              <label className="mb-0.5 block text-[11px] font-semibold text-slate-300 sm:text-xs sm:text-sm">
+                                                Start <span className="text-rose-300">*</span>
+                                              </label>
+                                              <WallTimeSelects
+                                                value={cwSectionScheduleTime}
+                                                onChange={setCwSectionScheduleTime}
+                                              />
+                                            </div>
+                                            <div className="min-w-0">
+                                              <label className="mb-0.5 block text-[11px] font-semibold text-slate-300 sm:text-xs sm:text-sm">
+                                                Duration
+                                              </label>
+                                              <div className="relative">
+                                                <select
+                                                  value={String(cwSectionDurationMinutes)}
+                                                  onChange={(e) =>
+                                                    setCwSectionDurationMinutes(Number(e.target.value))
                                                   }
-                                                  className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
-                                                    on
-                                                      ? "border-emerald-400/40 bg-emerald-500/10 text-emerald-200"
-                                                      : "border-white/15 bg-white/[0.03] text-slate-300 hover:bg-white/[0.06]"
-                                                  }`}
+                                                  className="h-9 w-full appearance-none rounded-lg border border-white/15 bg-[#070b17] px-2 pr-8 text-sm outline-none focus:border-emerald-400 sm:h-10 sm:rounded-xl sm:px-3 sm:pr-9"
                                                 >
-                                                  {day}
-                                                </button>
-                                              );
-                                            })}
+                                                  {[60, 75, 90, 105, 120].map((m) => (
+                                                    <option key={m} value={String(m)}>
+                                                      {m}m
+                                                    </option>
+                                                  ))}
+                                                </select>
+                                                <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500 sm:right-3" />
+                                              </div>
+                                            </div>
+                                          </div>
+
+                                          <div>
+                                            <div className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-500 sm:text-xs">
+                                              Repeat days
+                                            </div>
+                                            <div className="flex flex-wrap gap-1 sm:gap-1.5">
+                                              {WEEKDAYS.map((day) => {
+                                                const on = cwSectionRepeatDays.includes(day);
+                                                return (
+                                                  <button
+                                                    key={day}
+                                                    type="button"
+                                                    onClick={() =>
+                                                      setCwSectionRepeatDays((prev) =>
+                                                        prev.includes(day)
+                                                          ? prev.filter((d) => d !== day)
+                                                          : [...prev, day]
+                                                      )
+                                                    }
+                                                    className={`rounded-full border px-2 py-1 text-[10px] font-semibold transition sm:px-2.5 sm:py-1 sm:text-xs ${
+                                                      on
+                                                        ? "border-emerald-400/40 bg-emerald-500/10 text-emerald-200"
+                                                        : "border-white/15 bg-white/[0.03] text-slate-300 hover:bg-white/[0.06]"
+                                                    }`}
+                                                  >
+                                                    {day}
+                                                  </button>
+                                                );
+                                              })}
+                                            </div>
                                           </div>
                                         </div>
-                                      </div>
 
-                                      <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-                                        <div className="text-xs text-slate-400">
-                                          {cwSections.length}/6 sections added
+                                        <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                                          <div className="text-xs text-slate-400">
+                                            {cwSections.length}/1 section saved
+                                          </div>
+                                          <div className="flex gap-2">
+                                            <button
+                                              type="button"
+                                              onClick={clearSectionFormAndDraft}
+                                              className={`inline-flex items-center justify-center rounded-full border bg-white/5 px-4 py-2 text-xs font-semibold text-slate-200 hover:bg-white/10 ${
+                                                highlightSectionClear
+                                                  ? "border-emerald-400/70 ring-2 ring-emerald-400/35"
+                                                  : "border-white/15"
+                                              }`}
+                                            >
+                                              Clear
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onClick={async () => {
+                                                if (activeTask === 0 && shouldGateGoogle()) {
+                                                  openGoogleGate({ kind: "addSection" });
+                                                  return;
+                                                }
+                                                beginAddSectionDraft();
+                                                setCwSectionFormOpen(false);
+                                              }}
+                                              className="inline-flex items-center justify-center rounded-full bg-emerald-500 px-4 py-2 text-xs font-semibold text-black hover:bg-emerald-400 disabled:opacity-60"
+                                            >
+                                              {cwSections[0] ? "Save changes" : "+ Add section"}
+                                            </button>
+                                          </div>
+                                        </div>
+
+                                        <div className="text-[11px] leading-snug text-slate-500 sm:text-xs">
+                                          One section only. Syncs to Google Calendar when you launch.
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ) : null}
+
+                                  {cwSections[0] ? (
+                                    <div className="rounded-xl border border-emerald-400/25 bg-emerald-500/[0.06] p-3 sm:rounded-2xl sm:p-3.5">
+                                      <div className="flex flex-wrap items-start justify-between gap-2">
+                                        <div className="min-w-0">
+                                          <div className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
+                                            Saved section
+                                          </div>
+                                          <div className="mt-1 text-sm font-semibold text-emerald-200">
+                                            {cwSections[0].name}
+                                          </div>
                                         </div>
                                         <div className="flex gap-2">
                                           <button
                                             type="button"
-                                            onClick={() => {
-                                              setCwSectionName("");
-                                              setCwSectionScheduleDate("");
-                                              setCwSectionScheduleTime("");
-                                              setCwSectionDurationMinutes(90);
-                                              setCwSectionRepeatDays(["Mon", "Wed", "Fri"]);
-                                              setCwSectionScheduleEndDate("");
-                                            }}
-                                            className="inline-flex items-center justify-center rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-semibold text-slate-200 hover:bg-white/10"
+                                            onClick={loadSavedSectionIntoForm}
+                                            className={`inline-flex items-center justify-center rounded-full border bg-white/5 px-3 py-1.5 text-[11px] font-semibold text-slate-100 hover:bg-white/10 sm:text-xs ${
+                                              highlightSectionEdit
+                                                ? "border-emerald-400/70 ring-2 ring-emerald-400/35"
+                                                : "border-white/15"
+                                            }`}
                                           >
-                                            Clear
+                                            Edit
                                           </button>
                                           <button
                                             type="button"
-                                            onClick={async () => {
-                                              const proceed = await ensureGoogleConnectPrompted();
-                                              if (!proceed) return;
-
-                                              const name = cwSectionName.trim();
-                                              if (!name) {
-                                                props.toast({
-                                                  title: "Section name required",
-                                                  variant: "destructive",
-                                                });
-                                                return;
-                                              }
-                                              if (
-                                                !cwSectionScheduleDate.trim() ||
-                                                !cwSectionScheduleTime.trim()
-                                              ) {
-                                                props.toast({
-                                                  title: "Schedule required",
-                                                  description:
-                                                    "Pick a start date and time for this section schedule.",
-                                                  variant: "destructive",
-                                                });
-                                                return;
-                                              }
-                                              if (cwSectionRepeatDays.length === 0) {
-                                                props.toast({
-                                                  title: "Repeat days required",
-                                                  description: "Select at least one repeat day.",
-                                                  variant: "destructive",
-                                                });
-                                                return;
-                                              }
-                                              setCwSections((prev) => {
-                                                if (prev.length >= 6) return prev;
-                                                return [
-                                                  ...prev,
-                                                  {
-                                                    name,
-                                                    scheduleDate: cwSectionScheduleDate,
-                                                    scheduleTime: cwSectionScheduleTime,
-                                                    durationMinutes: cwSectionDurationMinutes,
-                                                    repeatDays: cwSectionRepeatDays,
-                                                    scheduleEndDate:
-                                                      cwSectionScheduleEndDate.trim() || null,
-                                                  },
-                                                ];
-                                              });
+                                            onClick={() => {
+                                              setCwSections([]);
                                               setCwSectionName("");
                                               setCwSectionScheduleDate("");
                                               setCwSectionScheduleTime("");
                                               setCwSectionDurationMinutes(90);
                                               setCwSectionRepeatDays(["Mon", "Wed", "Fri"]);
                                               setCwSectionScheduleEndDate("");
+                                              setCwSectionFormOpen(false);
                                             }}
-                                            disabled={cwSections.length >= 6}
-                                            className="inline-flex items-center justify-center rounded-full bg-emerald-500 px-4 py-2 text-xs font-semibold text-black hover:bg-emerald-400 disabled:opacity-60"
+                                            className="inline-flex items-center justify-center rounded-full border border-rose-400/30 bg-rose-500/10 px-3 py-1.5 text-[11px] font-semibold text-rose-100 hover:bg-rose-500/15 sm:text-xs"
                                           >
-                                            + Add section
+                                            Remove
                                           </button>
                                         </div>
                                       </div>
 
-                                      <div className="text-xs leading-relaxed text-slate-400">
-                                        Add up to{" "}
-                                        <span className="font-semibold text-slate-200">
-                                          6 sections
-                                        </span>
-                                        . These use the same fields as your real “Add section” flow
-                                        and will sync a recurring schedule to Google Calendar on
-                                        launch.
+                                      <div className="mt-2 grid gap-1.5 text-[11px] text-slate-200 sm:grid-cols-2 sm:text-xs">
+                                        <div className="min-w-0">
+                                          <span className="text-slate-500">Start:</span>{" "}
+                                          <span className="font-semibold">{cwSections[0].scheduleDate}</span>{" "}
+                                          <span className="text-slate-400">·</span>{" "}
+                                          <span className="font-semibold">{cwSections[0].scheduleTime}</span>
+                                        </div>
+                                        <div className="min-w-0">
+                                          <span className="text-slate-500">Duration:</span>{" "}
+                                          <span className="font-semibold">{cwSections[0].durationMinutes}m</span>
+                                        </div>
+                                        <div className="min-w-0 sm:col-span-2">
+                                          <span className="text-slate-500">Repeat:</span>{" "}
+                                          <span className="font-semibold">
+                                            {cwSections[0].repeatDays?.length ? cwSections[0].repeatDays.join(", ") : "—"}
+                                          </span>
+                                        </div>
+                                        {cwSections[0].scheduleEndDate ? (
+                                          <div className="min-w-0 sm:col-span-2">
+                                            <span className="text-slate-500">End:</span>{" "}
+                                            <span className="font-semibold">{cwSections[0].scheduleEndDate}</span>
+                                          </div>
+                                        ) : null}
                                       </div>
                                     </div>
-                                  </div>
-
+                                  ) : null}
                                 </div>
                               </div>
                             ) : null}
 
                             {stepIdx === 3 ? (
-                              <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.02] px-4 py-4 text-sm text-slate-300">
-                                Student invites are already supported in the classroom page. After
-                                launch, share the join code (step 5) so students can request access.
-                              </div>
-                            ) : null}
-
-                            {stepIdx === 4 ? (
-                              <div className="mt-4 space-y-3">
-                                <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/5 p-4">
-                                  <div className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-500">
+                              <div className="mt-3 space-y-3">
+                                <div className="rounded-xl border border-emerald-400/25 bg-emerald-500/[0.06] p-3 sm:p-3.5">
+                                  <div className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
                                     Review
                                   </div>
-                                  <div className="mt-2 grid gap-2 text-sm text-slate-200 sm:grid-cols-2">
-                                    <div>
-                                      <span className="text-slate-400">Classroom name:</span>{" "}
+                                  <div className="mt-2 grid gap-x-3 gap-y-1.5 text-[12px] text-slate-200 sm:grid-cols-2 sm:text-sm">
+                                    <div className="min-w-0">
+                                      <span className="text-slate-500">Name:</span>{" "}
                                       <span className="font-semibold">{cwName.trim() || "—"}</span>
                                     </div>
-                                    <div>
-                                      <span className="text-slate-400">Subject:</span>{" "}
+                                    <div className="min-w-0">
+                                      <span className="text-slate-500">Subject:</span>{" "}
                                       <span className="font-semibold">{cwSubject}</span>
                                     </div>
-                                    <div>
-                                      <span className="text-slate-400">PUC level:</span>{" "}
+                                    <div className="min-w-0">
+                                      <span className="text-slate-500">PUC:</span>{" "}
                                       <span className="font-semibold">{cwPucLevel}</span>
                                     </div>
-                                    <div>
-                                      <span className="text-slate-400">Exam target:</span>{" "}
+                                    <div className="min-w-0">
+                                      <span className="text-slate-500">Exam:</span>{" "}
                                       <span className="font-semibold">{cwExamTarget}</span>
                                     </div>
-                                    <div className="sm:col-span-2">
-                                      <span className="text-slate-400">Sections:</span>{" "}
+                                    <div className="min-w-0 sm:col-span-2">
+                                      <span className="text-slate-500">Section:</span>{" "}
                                       <span className="font-semibold">
-                                        {cwSections.length
-                                          ? cwSections.map((s) => s.name).join(", ")
-                                          : "None"}
+                                        {cwSections[0]?.name ? cwSections[0].name : "None"}
                                       </span>
                                     </div>
                                   </div>
                                 </div>
                                 <button
                                   type="button"
-                                  onClick={() => void createClassroomFromWizard()}
-                                  disabled={creating || !cwName.trim()}
-                                  className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-emerald-500 px-5 py-3 text-sm font-semibold text-black hover:bg-emerald-400 disabled:opacity-60"
+                                  onClick={() => {
+                                    const sectionFormHasAny =
+                                      Boolean(cwSectionName.trim()) ||
+                                      Boolean(cwSectionScheduleDate.trim()) ||
+                                      Boolean(cwSectionScheduleTime.trim()) ||
+                                      Boolean(cwSectionScheduleEndDate.trim());
+                                    if (sectionFormHasAny && !Boolean(cwSections[0])) {
+                                      openSectionGate({ kind: "launch" });
+                                      return;
+                                    }
+                                    void createClassroomFromWizard();
+                                  }}
+                                  disabled={
+                                    creating ||
+                                    !cwName.trim()
+                                  }
+                                  className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-emerald-500 px-4 py-2.5 text-xs font-semibold text-black hover:bg-emerald-400 disabled:opacity-60 sm:text-sm"
                                 >
                                   {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                                   {creating ? "Launching..." : "Launch classroom"}
@@ -1423,42 +1926,36 @@ function TeacherWizardPopup(props: {
                           </div>
                         )}
 
-                        <div className="mt-5 flex flex-wrap items-center justify-between gap-2 border-t border-white/10 pt-4">
-                          <div className="text-xs text-slate-400">
-                            Step {stepIdx + 1} of {stepCount}
-                          </div>
-                          <div className="flex gap-2">
-                            <button
-                              type="button"
-                              onClick={prev}
-                              disabled={stepIdx === 0}
-                              className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-semibold text-slate-200 hover:bg-white/10 disabled:opacity-60"
-                            >
-                              ← Back
-                            </button>
-                            {activeTask === 4 || activeTask === 6 ? (
-                              stepIdx >= stepCount - 1 ? null : (
+                        {activeTask !== 0 ? (
+                          <div className="mt-4 flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-white/10 pt-3">
+                            <div className="text-[11px] text-slate-400 sm:text-xs">
+                              Step {stepIdx + 1} of {stepCount}
+                            </div>
+                            <div className="flex gap-2">
+                              {activeTask === 4 || activeTask === 6 ? (
+                                stepIdx >= stepCount - 1 ? null : (
+                                  <button
+                                    type="button"
+                                    onClick={guardedNext}
+                                    disabled={stepIdx >= stepCount - 1}
+                                    className="inline-flex items-center gap-2 rounded-full bg-emerald-500 px-4 py-2 text-xs font-semibold text-black hover:bg-emerald-400 disabled:opacity-60"
+                                  >
+                                    {`Next: ${t.steps[stepIdx + 1]?.label ?? "Next"} →`}
+                                  </button>
+                                )
+                              ) : (
                                 <button
                                   type="button"
-                                  onClick={next}
+                                  onClick={guardedNext}
                                   disabled={stepIdx >= stepCount - 1}
                                   className="inline-flex items-center gap-2 rounded-full bg-emerald-500 px-4 py-2 text-xs font-semibold text-black hover:bg-emerald-400 disabled:opacity-60"
                                 >
-                                  {`Next: ${t.steps[stepIdx + 1]?.label ?? "Next"} →`}
+                                  Next →
                                 </button>
-                              )
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={next}
-                                disabled={stepIdx >= stepCount - 1}
-                                className="inline-flex items-center gap-2 rounded-full bg-emerald-500 px-4 py-2 text-xs font-semibold text-black hover:bg-emerald-400 disabled:opacity-60"
-                              >
-                                Next →
-                              </button>
-                            )}
+                              )}
+                            </div>
                           </div>
-                        </div>
+                        ) : null}
                       </div>
                     </div>
                   </div>
@@ -1467,9 +1964,287 @@ function TeacherWizardPopup(props: {
             })()
           )}
         </div>
+
+        <Dialog open={googleGateOpen} onOpenChange={() => {}}>
+          <DialogContent
+            hideClose
+            overlayClassName="z-[300]"
+            onInteractOutside={(e) => e.preventDefault()}
+            onPointerDownOutside={(e) => e.preventDefault()}
+            onEscapeKeyDown={(e) => e.preventDefault()}
+            className="z-[301] w-[94vw] max-w-xl rounded-3xl border border-white/15 bg-[#0f1329] p-0 text-slate-100 shadow-2xl"
+          >
+            <DialogHeader className="border-b border-white/10 p-4 pb-3 sm:p-5 sm:pb-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <DialogTitle className="font-serif text-xl sm:text-2xl">Connect Google Calendar</DialogTitle>
+                  <p className="mt-1 text-sm text-slate-300">
+                    Make sure to connect Google Calendar to work the class properly.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setGoogleGateOpen(false);
+                    setGoogleGatePending(null);
+                  }}
+                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/5 text-slate-200 hover:bg-white/10"
+                  aria-label="Close"
+                >
+                  <X className="h-4 w-4" aria-hidden />
+                </button>
+              </div>
+            </DialogHeader>
+            <div className="p-4 sm:p-5">
+              <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSessionFlag(GOOGLE_CONNECT_GATE_DISMISSED_SESSION_KEY, "1");
+                    setGoogleGateOpen(false);
+                    const pending = googleGatePending;
+                    setGoogleGatePending(null);
+                    if (!pending) return;
+                    if (pending.kind === "next") next();
+                    if (pending.kind === "jump") jumpStep(0, pending.stepIdx);
+                    if (pending.kind === "addSection") beginAddSectionDraft();
+                  }}
+                  className="inline-flex h-10 items-center justify-center rounded-full border border-white/15 bg-white/5 px-5 text-sm font-semibold text-slate-200 hover:bg-white/10"
+                >
+                  Continue without connecting
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void startGoogleConnect()}
+                  className="inline-flex h-10 items-center justify-center rounded-full bg-sky-500 px-5 text-sm font-semibold text-black hover:bg-sky-400"
+                >
+                  Connect Google Calendar
+                </button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={sectionGateOpen} onOpenChange={() => {}}>
+          <DialogContent
+            hideClose
+            overlayClassName="z-[302]"
+            onInteractOutside={(e) => e.preventDefault()}
+            onPointerDownOutside={(e) => e.preventDefault()}
+            onEscapeKeyDown={(e) => e.preventDefault()}
+            className="z-[303] w-[94vw] max-w-lg rounded-3xl border border-white/15 bg-[#0f1329] p-0 text-slate-100 shadow-2xl"
+          >
+            <DialogHeader className="border-b border-white/10 p-4 pb-3 sm:p-5 sm:pb-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <DialogTitle className="font-serif text-xl sm:text-2xl">
+                    Incomplete section details
+                  </DialogTitle>
+                  <p className="mt-1 text-sm text-slate-300">
+                    You started typing section info. For a clean setup, either{" "}
+                    <span className="font-semibold text-slate-100">Clear</span> it, or complete the
+                    fields and click <span className="font-semibold text-slate-100">“+ Add section”</span>{" "}
+                    to save.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSectionGateOpen(false);
+                    setSectionGatePending(null);
+                    setHighlightSectionClear(true);
+                    window.setTimeout(() => setHighlightSectionClear(false), 4000);
+                  }}
+                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/5 text-slate-200 hover:bg-white/10"
+                  aria-label="Close"
+                >
+                  <X className="h-4 w-4" aria-hidden />
+                </button>
+              </div>
+            </DialogHeader>
+            <div className="p-4 sm:p-5">
+              <div className="rounded-xl border border-emerald-400/20 bg-emerald-500/5 p-3 text-sm text-slate-200">
+                Tip: The <span className="font-semibold text-emerald-200">Clear</span> button is in
+                Step 3 (Add sections). It’s highlighted for you.
+              </div>
+              <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSectionGateOpen(false);
+                    setSectionGatePending(null);
+                    setHighlightSectionClear(true);
+                    window.setTimeout(() => setHighlightSectionClear(false), 4000);
+                  }}
+                  className="inline-flex h-10 items-center justify-center rounded-full border border-white/15 bg-white/5 px-5 text-sm font-semibold text-slate-200 hover:bg-white/10"
+                >
+                  Go back & fix / save
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const pending = sectionGatePending;
+                    clearSectionFormAndDraft();
+                    setSectionGateOpen(false);
+                    setSectionGatePending(null);
+                    if (!pending) return;
+                    if (pending.kind === "next") next();
+                    if (pending.kind === "launch") void createClassroomFromWizard();
+                  }}
+                  className="inline-flex h-10 items-center justify-center rounded-full bg-emerald-500 px-5 text-sm font-semibold text-black hover:bg-emerald-400"
+                >
+                  Clear & continue
+                </button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={singleSectionGateOpen} onOpenChange={() => {}}>
+          <DialogContent
+            hideClose
+            overlayClassName="z-[304]"
+            onInteractOutside={(e) => e.preventDefault()}
+            onPointerDownOutside={(e) => e.preventDefault()}
+            onEscapeKeyDown={(e) => e.preventDefault()}
+            className="z-[305] w-[94vw] max-w-lg rounded-3xl border border-white/15 bg-[#0f1329] p-0 text-slate-100 shadow-2xl"
+          >
+            <DialogHeader className="border-b border-white/10 p-4 pb-3 sm:p-5 sm:pb-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <DialogTitle className="font-serif text-xl sm:text-2xl">
+                    Only one section per class
+                  </DialogTitle>
+                  <p className="mt-1 text-sm text-slate-300">
+                    This class already has a saved section. To change it, click{" "}
+                    <span className="font-semibold text-slate-100">Edit</span> and update the
+                    details—don’t add a new one.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSingleSectionGateOpen(false);
+                    setHighlightSectionEdit(true);
+                    window.setTimeout(() => setHighlightSectionEdit(false), 4000);
+                  }}
+                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/5 text-slate-200 hover:bg-white/10"
+                  aria-label="Close"
+                >
+                  <X className="h-4 w-4" aria-hidden />
+                </button>
+              </div>
+            </DialogHeader>
+            <div className="p-4 sm:p-5">
+              <div className="rounded-xl border border-emerald-400/20 bg-emerald-500/5 p-3 text-sm text-slate-200">
+                Tip: The <span className="font-semibold text-emerald-200">Edit</span> button is on
+                the “Saved section” card below. It’s highlighted for you.
+              </div>
+              <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSingleSectionGateOpen(false);
+                    setHighlightSectionEdit(true);
+                    window.setTimeout(() => setHighlightSectionEdit(false), 4000);
+                  }}
+                  className="inline-flex h-10 items-center justify-center rounded-full border border-white/15 bg-white/5 px-5 text-sm font-semibold text-slate-200 hover:bg-white/10"
+                >
+                  Got it
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    loadSavedSectionIntoForm();
+                    setSingleSectionGateOpen(false);
+                  }}
+                  className="inline-flex h-10 items-center justify-center rounded-full bg-emerald-500 px-5 text-sm font-semibold text-black hover:bg-emerald-400"
+                >
+                  Edit saved section
+                </button>
+              </div>
+              <div className="mt-3 text-[11px] text-slate-500">
+                If you truly need a different section, remove the saved one first and then add
+                again.
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </main>
     </div>
   );
+}
+
+/** Same localStorage key as assignment detail modal — shared submission score cache */
+const TEACHER_ASSIGNMENT_SCORES_CACHE_LS = "teacherPortal.assignmentScoresCache.v1";
+
+type TeacherWizardScoreRow = {
+  userId: string;
+  score: number;
+  total: number;
+  submittedAt: string | null;
+};
+
+function mergeTeacherWizardScores(
+  prev: TeacherWizardScoreRow[],
+  incoming: TeacherWizardScoreRow[]
+): TeacherWizardScoreRow[] {
+  const byUserId = new Map<string, TeacherWizardScoreRow>();
+  for (const row of prev) byUserId.set(row.userId, row);
+  for (const next of incoming) {
+    const existing = byUserId.get(next.userId);
+    if (!existing) {
+      byUserId.set(next.userId, next);
+      continue;
+    }
+    const existingTs = existing.submittedAt ? new Date(existing.submittedAt).getTime() : -1;
+    const nextTs = next.submittedAt ? new Date(next.submittedAt).getTime() : -1;
+    byUserId.set(next.userId, nextTs >= existingTs ? next : existing);
+  }
+  return Array.from(byUserId.values()).sort((a, b) => {
+    const aTs = a.submittedAt ? new Date(a.submittedAt).getTime() : 0;
+    const bTs = b.submittedAt ? new Date(b.submittedAt).getTime() : 0;
+    return bTs - aTs;
+  });
+}
+
+function readTeacherWizardScoresCache(cacheId: string): {
+  scores: TeacherWizardScoreRow[];
+  updatedAt: string;
+} | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(TEACHER_ASSIGNMENT_SCORES_CACHE_LS);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Record<
+      string,
+      { scores: TeacherWizardScoreRow[]; updatedAt: string }
+    >;
+    const row = parsed[cacheId];
+    if (!row?.scores) return null;
+    return { scores: row.scores, updatedAt: row.updatedAt };
+  } catch {
+    return null;
+  }
+}
+
+function writeTeacherWizardScoresCache(
+  cacheId: string,
+  scores: TeacherWizardScoreRow[],
+  updatedAt: string
+) {
+  if (typeof window === "undefined") return;
+  try {
+    const raw = window.localStorage.getItem(TEACHER_ASSIGNMENT_SCORES_CACHE_LS);
+    const parsed = (raw ? JSON.parse(raw) : {}) as Record<
+      string,
+      { scores: TeacherWizardScoreRow[]; updatedAt: string }
+    >;
+    parsed[cacheId] = { scores, updatedAt };
+    window.localStorage.setItem(TEACHER_ASSIGNMENT_SCORES_CACHE_LS, JSON.stringify(parsed));
+  } catch {
+    // ignore quota / private mode
+  }
 }
 
 function TeacherAssignmentProgressWizard(props: {
@@ -1484,18 +2259,15 @@ function TeacherAssignmentProgressWizard(props: {
 }) {
   const { toast } = props;
 
-  type AssignmentScoreRow = {
-    userId: string;
-    score: number;
-    total: number;
-    submittedAt: string | null;
-  };
+  type AssignmentScoreRow = TeacherWizardScoreRow;
 
   const [classroomId, setClassroomId] = useState<string>("");
   const [sectionId, setSectionId] = useState<string | null>(null);
   const [assignmentId, setAssignmentId] = useState<string>("");
 
   const [scoresLoading, setScoresLoading] = useState(false);
+  const [scoresRefreshing, setScoresRefreshing] = useState(false);
+  const [scoresReady, setScoresReady] = useState(false);
   const [scores, setScores] = useState<AssignmentScoreRow[]>([]);
   const [scoresError, setScoresError] = useState<string | null>(null);
   const [scoresLastUpdatedAt, setScoresLastUpdatedAt] = useState<string | null>(null);
@@ -1519,6 +2291,14 @@ function TeacherAssignmentProgressWizard(props: {
     return students.filter((s) => (s.sectionId ?? null) === sectionId);
   }, [detail, sectionId]);
 
+  const scoresRef = useRef(scores);
+  scoresRef.current = scores;
+  const rosterRef = useRef(roster);
+  rosterRef.current = roster;
+  const scoresReadyRef = useRef(scoresReady);
+  scoresReadyRef.current = scoresReady;
+  const lastWizardPollAtRef = useRef(0);
+
   const scopedAssignments = useMemo(() => {
     if (!detail) return [];
     // Scope filtering:
@@ -1529,17 +2309,13 @@ function TeacherAssignmentProgressWizard(props: {
   }, [detail, sectionId]);
 
   const pendingStudents = useMemo(() => {
-    if (!detail) return [];
-    if (!scores.length) {
-      // If we haven't loaded scores yet, still show full roster as "pending" to keep UI usable.
-      return roster;
-    }
+    if (!detail || !scoresReady) return [];
     const submittedIds = new Set(scores.map((s) => s.userId));
     return roster.filter((s) => !submittedIds.has(s.userId));
-  }, [detail, roster, scores]);
+  }, [detail, roster, scores, scoresReady]);
 
   const submittedStudents = useMemo(() => {
-    if (!detail) return [];
+    if (!detail || !scoresReady) return [];
     const byUser = new Map<string, AssignmentScoreRow>();
     for (const s of scores) byUser.set(s.userId, s);
     return scores
@@ -1554,7 +2330,7 @@ function TeacherAssignmentProgressWizard(props: {
         scoreRow: byUser.get(s.userId)!, // exists by construction
       }))
       .filter((x) => x.student !== null);
-  }, [detail, roster, scores]);
+  }, [detail, roster, scores, scoresReady]);
 
   const computedMessage = useMemo(() => {
     if (!assignmentDraft) return "";
@@ -1585,14 +2361,36 @@ function TeacherAssignmentProgressWizard(props: {
     setMessage(computedMessage);
   }, [assignmentDraft, computedMessage, messageTouched]);
 
-  // Fetch scores when we enter step 2+.
+  // Hydrate from shared cache + fetch as soon as classroom + assignment are chosen (step 1 prefetch).
   useEffect(() => {
-    if (props.stepIdx < 1) return;
-    if (!classroomId || !assignmentId) return;
+    if (!classroomId || !assignmentId) {
+      setScores([]);
+      setScoresReady(false);
+      setScoresError(null);
+      setScoresLastUpdatedAt(null);
+      setScoresLoading(false);
+      setScoresRefreshing(false);
+      return;
+    }
+
+    const cacheId = `${classroomId}:${assignmentId}`;
+    lastWizardPollAtRef.current = 0;
+    const cached = readTeacherWizardScoresCache(cacheId);
+    if (cached?.scores?.length) {
+      setScores(cached.scores);
+      setScoresLastUpdatedAt(cached.updatedAt);
+      setScoresReady(true);
+    } else {
+      setScores([]);
+      setScoresReady(false);
+      setScoresLastUpdatedAt(null);
+    }
+
     let cancelled = false;
 
-    const run = async () => {
-      setScoresLoading(true);
+    const run = async (silent: boolean) => {
+      if (silent) setScoresRefreshing(true);
+      else if (!cached?.scores?.length) setScoresLoading(true);
       setScoresError(null);
       try {
         const { session } = await safeGetSession();
@@ -1616,21 +2414,95 @@ function TeacherAssignmentProgressWizard(props: {
         };
         if (!res.ok) throw new Error(data.error ?? `Failed to load scores (${res.status}).`);
         if (cancelled) return;
-        setScores(Array.isArray(data.scores) ? (data.scores as AssignmentScoreRow[]) : []);
-        setScoresLastUpdatedAt(new Date().toISOString());
+        const incoming = Array.isArray(data.scores) ? (data.scores as AssignmentScoreRow[]) : [];
+        const now = new Date().toISOString();
+        setScores((prev) => {
+          const merged = mergeTeacherWizardScores(prev, incoming);
+          writeTeacherWizardScoresCache(cacheId, merged, now);
+          return merged;
+        });
+        setScoresLastUpdatedAt(now);
+        setScoresReady(true);
       } catch (e) {
         if (cancelled) return;
         setScoresError(e instanceof Error ? e.message : "Failed to load scores.");
-        setScores([]);
+        if (!cached?.scores?.length) {
+          setScores([]);
+          setScoresReady(false);
+        }
       } finally {
-        if (!cancelled) setScoresLoading(false);
+        if (!cancelled) {
+          setScoresLoading(false);
+          setScoresRefreshing(false);
+        }
       }
     };
 
-    void run();
+    void run(false);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [assignmentId, classroomId]);
+
+  // Background refresh while on steps 2–3 (~30s). When no one is pending, throttle to ~90s.
+  useEffect(() => {
+    if (props.stepIdx < 1) return;
+    if (!classroomId || !assignmentId) return;
+
+    const cacheId = `${classroomId}:${assignmentId}`;
+    let cancelled = false;
+
+    const tick = async () => {
+      if (cancelled) return;
+      const rosterLen = rosterRef.current.length;
+      const sc = scoresRef.current;
+      const sr = scoresReadyRef.current;
+      const pendingApprox =
+        sr && rosterLen > 0 ? rosterLen - new Set(sc.map((x) => x.userId)).size : 1;
+      const now = Date.now();
+      if (sr && rosterLen > 0 && pendingApprox <= 0) {
+        if (now - lastWizardPollAtRef.current < 90_000) return;
+      }
+      lastWizardPollAtRef.current = now;
+
+      setScoresRefreshing(true);
+      try {
+        const { session } = await safeGetSession();
+        const res = await fetch(
+          `/api/classroom/${classroomId}/posts/${assignmentId}/generated-test-scores`,
+          {
+            headers: session?.access_token
+              ? { Authorization: `Bearer ${session.access_token}` }
+              : {},
+            credentials: "include",
+          }
+        );
+        const data = (await res.json().catch(() => ({}))) as {
+          error?: string;
+          scores?: AssignmentScoreRow[];
+        };
+        if (!res.ok) throw new Error(data.error ?? `Failed to load scores (${res.status}).`);
+        if (cancelled) return;
+        const incoming = Array.isArray(data.scores) ? data.scores : [];
+        const iso = new Date().toISOString();
+        setScores((prev) => {
+          const merged = mergeTeacherWizardScores(prev, incoming);
+          writeTeacherWizardScoresCache(cacheId, merged, iso);
+          return merged;
+        });
+        setScoresLastUpdatedAt(iso);
+        setScoresReady(true);
+      } catch {
+        // silent refresh — keep last known scores
+      } finally {
+        if (!cancelled) setScoresRefreshing(false);
+      }
+    };
+
     const intervalId = window.setInterval(() => {
-      if (!cancelled) void run();
-    }, 15_000);
+      void tick();
+    }, 30_000);
 
     return () => {
       cancelled = true;
@@ -1640,12 +2512,16 @@ function TeacherAssignmentProgressWizard(props: {
 
   const completion = useMemo(() => {
     const total = roster.length;
+    if (!scoresReady) {
+      return { total, completed: null as number | null, pct: null as number | null };
+    }
     const completed = scores.length;
     const pct = total > 0 ? Math.round((completed / Math.max(1, total)) * 100) : 0;
     return { total, completed, pct };
-  }, [roster.length, scores.length]);
+  }, [roster.length, scores.length, scoresReady]);
 
   const visibleRows = useMemo(() => {
+    if (!scoresReady) return [];
     const rosterSorted = [...roster].sort((a, b) => a.name.localeCompare(b.name));
     const submittedIds = new Set(scores.map((s) => s.userId));
     // Submitted first (sorted by submittedAt), then pending.
@@ -1657,7 +2533,7 @@ function TeacherAssignmentProgressWizard(props: {
       if (!submittedIds.has(st.userId)) merged.push({ student: st, row: null });
     }
     return merged;
-  }, [roster, scores, submittedStudents]);
+  }, [roster, scores, submittedStudents, scoresReady]);
 
   const hiddenRows = useMemo(() => {
     return visibleRows.length > 5 ? visibleRows.slice(5) : [];
@@ -1721,6 +2597,7 @@ function TeacherAssignmentProgressWizard(props: {
               setSectionId(null);
               setAssignmentId("");
               setScores([]);
+              setScoresReady(false);
               setScoresError(null);
               setScoresLastUpdatedAt(null);
               setReminderTarget("all_pending");
@@ -1749,6 +2626,7 @@ function TeacherAssignmentProgressWizard(props: {
               // Keep step data consistent with the chosen scope.
               setAssignmentId("");
               setScores([]);
+              setScoresReady(false);
               setScoresError(null);
               setScoresLastUpdatedAt(null);
               setReminderTarget("all_pending");
@@ -1777,6 +2655,7 @@ function TeacherAssignmentProgressWizard(props: {
             const next = e.target.value;
             setAssignmentId(next);
             setScores([]);
+            setScoresReady(false);
             setScoresError(null);
             setScoresLastUpdatedAt(null);
             setReminderTarget("all_pending");
@@ -1853,19 +2732,35 @@ function TeacherAssignmentProgressWizard(props: {
           <div className="mt-2 flex items-center gap-2">
             <div className="h-1.5 w-56 overflow-hidden rounded-full bg-white/10">
               <div
-                className="h-full rounded-full bg-emerald-400"
-                style={{ width: `${completion.pct}%` }}
+                className="h-full rounded-full bg-emerald-400 transition-[width] duration-300"
+                style={{
+                  width: `${completion.pct == null ? 0 : completion.pct}%`,
+                }}
               />
             </div>
-            <div className="text-xs font-semibold text-emerald-200">{completion.pct}%</div>
+            <div className="text-xs font-semibold text-emerald-200">
+              {completion.pct == null ? "—" : `${completion.pct}%`}
+            </div>
           </div>
           <div className="mt-1 text-[11px] text-slate-400">
-            {completion.completed}/{completion.total} submitted
+            {completion.completed == null ? (
+              <>Submission status syncing…</>
+            ) : (
+              <>
+                {completion.completed}/{completion.total} submitted
+              </>
+            )}
           </div>
         </div>
         <div className="flex-shrink-0 text-right">
           <div className="text-[11px] text-slate-500">
-            {scoresLoading ? "Checking for new submissions…" : scoresLastUpdatedAt ? `Updated ${formatRelativeTime(scoresLastUpdatedAt)}` : ""}
+            {scoresLoading
+              ? "Loading submissions…"
+              : scoresRefreshing
+                ? "Updating…"
+                : scoresLastUpdatedAt
+                  ? `Updated ${formatRelativeTime(scoresLastUpdatedAt)}`
+                  : ""}
           </div>
           {scoresError ? <div className="mt-2 text-[11px] text-rose-200">{scoresError}</div> : null}
         </div>
@@ -1876,9 +2771,19 @@ function TeacherAssignmentProgressWizard(props: {
           Submission status
         </div>
 
-        {visibleRows.length === 0 ? (
+        {!scoresReady ? (
           <div className="rounded-lg border border-dashed border-white/10 bg-black/10 p-4 text-center text-xs text-slate-400">
-            {scoresLoading ? "Loading…" : "No students found in this scope."}
+            {roster.length === 0
+              ? "No students found in this scope."
+              : scoresError
+                ? scoresError
+                : scoresLoading
+                  ? "Loading submission status…"
+                  : "Syncing…"}
+          </div>
+        ) : visibleRows.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-white/10 bg-black/10 p-4 text-center text-xs text-slate-400">
+            No students found in this scope.
           </div>
         ) : (
           <div className="space-y-2">
@@ -1928,7 +2833,13 @@ function TeacherAssignmentProgressWizard(props: {
   const step3Reminder = (
     <div className="space-y-3">
       <div className="rounded-xl border border-white/10 bg-[#0d0d1c] p-3 text-xs text-slate-300">
-        {pendingCount} student{pendingCount === 1 ? "" : "s"} haven&apos;t submitted yet. Send them a quick reminder.
+        {!scoresReady ? (
+          <>Checking who still needs to submit…</>
+        ) : (
+          <>
+            {pendingCount} student{pendingCount === 1 ? "" : "s"} haven&apos;t submitted yet. Send them a quick reminder.
+          </>
+        )}
       </div>
 
       {sentToastKey > 0 ? (
@@ -1951,9 +2862,14 @@ function TeacherAssignmentProgressWizard(props: {
               onChange={(e) => setReminderTarget(e.target.value)}
               className={selectCompactClassName}
             >
-              <option value="all_pending">All {pendingCount} pending students</option>
-              <option value="preferred_pending" disabled={!preferredPendingStudents.length}>
-                Preferred {preferredPendingStudents.length} pending students
+              <option value="all_pending">
+                All {!scoresReady ? "…" : pendingCount} pending students
+              </option>
+              <option
+                value="preferred_pending"
+                disabled={!scoresReady || !preferredPendingStudents.length}
+              >
+                Preferred {!scoresReady ? "…" : preferredPendingStudents.length} pending students
               </option>
               {pendingStudents.map((s) => (
                 <option key={s.userId} value={s.userId}>
@@ -3135,9 +4051,9 @@ const EXAM_OPTIONS = [
   "KCET",
   "CBSE Board",
   "State Board",
-  "NEET",
 ] as const;
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
+
 const SHOW_CLASSROOM_SCHEDULE_FORM = false;
 
 type DetailTab = "students" | "assignments" | "progress" | "streaks" | "settings";
@@ -3296,32 +4212,34 @@ function AssignmentCard({
     <button
       type="button"
       onClick={onOpen}
-      className="group flex h-full min-h-[160px] w-full flex-col rounded-2xl border border-white/10 bg-black/25 p-3.5 text-left shadow-[0_12px_32px_-18px_rgba(0,0,0,0.65)] transition hover:border-violet-400/30 hover:bg-black/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/55 focus-visible:ring-offset-2 focus-visible:ring-offset-[#15162b] sm:min-h-[188px] sm:p-4"
+      className="group flex h-full min-h-[138px] w-full flex-col rounded-2xl border border-white/10 bg-black/25 p-3 text-left shadow-[0_12px_32px_-18px_rgba(0,0,0,0.65)] transition hover:border-violet-400/30 hover:bg-black/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/55 focus-visible:ring-offset-2 focus-visible:ring-offset-[#15162b] sm:min-h-[160px] sm:p-3.5"
     >
-      <div className="mb-2 flex items-start justify-between gap-2">
-        <span className="text-xs font-medium tracking-tight text-violet-200/90">{dateLine}</span>
+      <div className="mb-1.5 flex items-start justify-between gap-2">
+        <span className="text-[11px] font-medium tracking-tight text-violet-200/90 sm:text-xs">
+          {dateLine}
+        </span>
         <span
           className={`max-w-[52%] shrink-0 truncate rounded border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${badge.color}`}
         >
           {badge.label}
         </span>
       </div>
-      <div className="line-clamp-2 min-h-[2.5rem] text-sm font-semibold leading-snug text-white">
+      <div className="line-clamp-2 min-h-[2.25rem] text-[13px] font-semibold leading-snug text-white sm:min-h-[2.5rem] sm:text-sm">
         {title}
       </div>
-      <p className="mt-1.5">
+      <p className="mt-1">
         <span className="inline-flex max-w-full truncate rounded-md border border-sky-500/30 bg-sky-500/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-sky-100">
           {feedScopeLabel}
         </span>
       </p>
-      <p className="mt-2 line-clamp-1 text-[11px] leading-relaxed text-slate-400">{metaLine}</p>
+      <p className="mt-1.5 line-clamp-1 text-[11px] leading-relaxed text-slate-400">{metaLine}</p>
       {item.rewardRdm > 0 ? (
         <p className="mt-0.5 text-[11px] text-amber-200/80">{item.rewardRdm} RDM reward</p>
       ) : null}
-      <div className="min-h-2 flex-1" aria-hidden />
-      <div className="mt-3 space-y-2 border-t border-white/10 pt-3">
-        <div className="flex items-center justify-between gap-2 text-xs">
-          <span className="font-bold text-emerald-300">{completionPercent}%</span>
+      <div className="min-h-1.5 flex-1" aria-hidden />
+      <div className="mt-2.5 space-y-1.5 border-t border-white/10 pt-2.5">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs font-bold text-emerald-300">{completionPercent}%</span>
           <span className="shrink-0 text-[11px] text-slate-500">
             {completedCount}/{totalCount} done
           </span>
@@ -3528,58 +4446,6 @@ export default function MyClassroomView({
     }
   }, [qpWizard]);
 
-  const openTaskPreview = useCallback((href: string, label: string) => {
-    const raw = href.trim();
-    if (!raw) return;
-    // Normalize relative hrefs so previews don't resolve under /teacher-portal/...
-    // Examples:
-    // - "cbse/chemistry/..." -> "/cbse/chemistry/..."
-    // - "/cbse/chemistry/..." stays as-is
-    // - "https://..." stays as-is
-    const normalizedHref =
-      raw.startsWith("http://") || raw.startsWith("https://")
-        ? raw
-        : raw.startsWith("/")
-          ? raw
-          : `/${raw}`;
-
-    const isAssignmentTest = /\/classroom\/[^/]+\/assignment-test\/[^/?#]+/i.test(normalizedHref);
-    const isClassroomLinkedTask = (() => {
-      try {
-        const url =
-          normalizedHref.startsWith("http://") || normalizedHref.startsWith("https://")
-            ? new URL(normalizedHref)
-            : new URL(normalizedHref, "https://edublast.local");
-        return Boolean(
-          url.searchParams.get("classroomId")?.trim() && url.searchParams.get("postId")?.trim()
-        );
-      } catch {
-        return false;
-      }
-    })();
-    const isMockPaper = (() => {
-      try {
-        const url =
-          normalizedHref.startsWith("http://") || normalizedHref.startsWith("https://")
-            ? new URL(normalizedHref)
-            : new URL(normalizedHref, "https://edublast.local");
-        return url.pathname === "/mock" && Boolean(url.searchParams.get("paper")?.trim());
-      } catch {
-        return false;
-      }
-    })();
-    setTaskPreview({
-      open: true,
-      href: normalizedHref,
-      mode:
-        isAssignmentTest || isClassroomLinkedTask
-          ? "assignment-test"
-          : isMockPaper
-            ? "mock-paper"
-            : "iframe",
-      title: label || "Task preview",
-    });
-  }, []);
   const assignmentScoresCacheRef = useRef<
     Record<string, { scores: AssignmentScoreRow[]; updatedAt: string }>
   >({});
@@ -3648,6 +4514,7 @@ export default function MyClassroomView({
   const [assignmentInstructions, setAssignmentInstructions] = useState("");
   const [sectionPickerStudentId, setSectionPickerStudentId] = useState<string | null>(null);
   const assignmentScopeTouchedRef = useRef(false);
+  const assignmentDraftHydratingRef = useRef(false);
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [settingsName, setSettingsName] = useState("");
   const [settingsSubject, setSettingsSubject] = useState("");
@@ -3891,6 +4758,10 @@ export default function MyClassroomView({
   };
 
   const activeClassroom = classrooms.find((c) => c.id === activeClassroomId) ?? null;
+  const assignmentDraftKey = useMemo(() => {
+    if (!activeClassroomId) return null;
+    return `teacherPortal.setAssignmentDraft.v1:${teacherId}:${activeClassroomId}`;
+  }, [activeClassroomId, teacherId]);
 
   useEffect(() => {
     if (!qpClassroom || classrooms.length === 0) return;
@@ -3985,23 +4856,125 @@ export default function MyClassroomView({
 
   useEffect(() => {
     if (!assignmentOpen) return;
+    const tryRestoreDraft = () => {
+      if (!assignmentDraftKey) return false;
+      const raw = window.sessionStorage.getItem(assignmentDraftKey);
+      if (!raw) return false;
+      try {
+        const parsed = JSON.parse(raw) as unknown;
+        if (!parsed || typeof parsed !== "object") return false;
+        const d = parsed as Record<string, unknown>;
+        if (d.v !== 1) return false;
+        assignmentDraftHydratingRef.current = true;
+
+        if (typeof d.assignmentType === "string") setAssignmentType(d.assignmentType);
+        if (typeof d.assignmentTitle === "string") setAssignmentTitle(d.assignmentTitle);
+        if (typeof d.assignmentDueDate === "string") setAssignmentDueDate(d.assignmentDueDate);
+        if (typeof d.assignToLabel === "string") setAssignToLabel(d.assignToLabel);
+        if (typeof d.rewardRdm === "number") setRewardRdm(d.rewardRdm);
+        if (typeof d.assignmentInstructions === "string")
+          setAssignmentInstructions(d.assignmentInstructions);
+        if (typeof d.assignmentTargetSectionId === "string" || d.assignmentTargetSectionId === null)
+          setAssignmentTargetSectionId(d.assignmentTargetSectionId as string | null);
+        if (Array.isArray(d.assignmentCustomStudentIds))
+          setAssignmentCustomStudentIds(
+            d.assignmentCustomStudentIds.filter((x): x is string => typeof x === "string")
+          );
+        if (typeof d.assignmentCustomSearch === "string")
+          setAssignmentCustomSearch(d.assignmentCustomSearch);
+        if (typeof d.selectedMockPaperId === "string" || d.selectedMockPaperId === null)
+          setSelectedMockPaperId(d.selectedMockPaperId as string | null);
+
+        if (d.chapterQuizSel && typeof d.chapterQuizSel === "object")
+          setChapterQuizSel(d.chapterQuizSel as ChapterQuizSelectionState);
+        if (d.conceptFocusSel && typeof d.conceptFocusSel === "object")
+          setConceptFocusSel(d.conceptFocusSel as ConceptFocusSelectionState);
+        if (typeof d.dailyDoseTrackId === "string")
+          setDailyDoseTrackId(d.dailyDoseTrackId as DailyDoseStreakTrackId);
+        if (typeof d.gyanTopicFocus === "string") setGyanTopicFocus(d.gyanTopicFocus);
+        if (typeof d.gyanSubtopicHint === "string") setGyanSubtopicHint(d.gyanSubtopicHint);
+
+        window.setTimeout(() => {
+          assignmentDraftHydratingRef.current = false;
+        }, 0);
+        return true;
+      } catch {
+        return false;
+      }
+    };
+
+    const restored = tryRestoreDraft();
     setAssignToLabel((prev) => {
       const v = prev.trim().toLowerCase();
       if (v === "top performers" || v === "off-streak students") return "All students";
       return prev;
     });
-    setChapterQuizSel(initialChapterQuizSelection());
-    setConceptFocusSel(initialConceptFocusSelection());
-    setDailyDoseTrackId(DAILYDOSE_STREAK_TRACK_IDS[0]);
-    setGyanTopicFocus("");
-    setGyanSubtopicHint("");
-    setAssignmentTargetSectionId(cohortTab.kind === "section" ? cohortTab.id : null);
-    assignmentScopeTouchedRef.current = false;
-    setAssignmentCustomStudentIds([]);
-    setAssignmentCustomSearch("");
+    if (!restored) {
+      setChapterQuizSel(initialChapterQuizSelection());
+      setConceptFocusSel(initialConceptFocusSelection());
+      setDailyDoseTrackId(DAILYDOSE_STREAK_TRACK_IDS[0]);
+      setGyanTopicFocus("");
+      setGyanSubtopicHint("");
+      setAssignmentTargetSectionId(cohortTab.kind === "section" ? cohortTab.id : null);
+      assignmentScopeTouchedRef.current = false;
+      setAssignmentCustomStudentIds([]);
+      setAssignmentCustomSearch("");
+      setSelectedMockPaperId(null);
+      setRewardRdm(15);
+    }
     // Only reset when dialog opens; cohortTab is read from the open transition render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [assignmentOpen]);
+  }, [assignmentOpen, assignmentDraftKey]);
+
+  useEffect(() => {
+    if (!assignmentOpen) return;
+    if (!assignmentDraftKey) return;
+    if (assignmentDraftHydratingRef.current) return;
+    const t = window.setTimeout(() => {
+      try {
+        const draft = {
+          v: 1,
+          assignmentType,
+          assignmentTitle,
+          assignmentDueDate,
+          assignToLabel,
+          assignmentTargetSectionId,
+          assignmentCustomStudentIds,
+          assignmentCustomSearch,
+          rewardRdm,
+          assignmentInstructions,
+          selectedMockPaperId,
+          chapterQuizSel,
+          conceptFocusSel,
+          dailyDoseTrackId,
+          gyanTopicFocus,
+          gyanSubtopicHint,
+        };
+        window.sessionStorage.setItem(assignmentDraftKey, JSON.stringify(draft));
+      } catch {
+        // ignore
+      }
+    }, 250);
+    return () => window.clearTimeout(t);
+  }, [
+    assignmentOpen,
+    assignmentDraftKey,
+    assignmentType,
+    assignmentTitle,
+    assignmentDueDate,
+    assignToLabel,
+    assignmentTargetSectionId,
+    assignmentCustomStudentIds,
+    assignmentCustomSearch,
+    rewardRdm,
+    assignmentInstructions,
+    selectedMockPaperId,
+    chapterQuizSel,
+    conceptFocusSel,
+    dailyDoseTrackId,
+    gyanTopicFocus,
+    gyanSubtopicHint,
+  ]);
 
   useEffect(() => {
     if (!assignmentOpen) return;
@@ -4616,18 +5589,37 @@ export default function MyClassroomView({
       // cached portal flags (googleSeriesLinked), which can be stale.
       if (sectionSeriesId) {
         setGoogleSeriesStopping(true);
-        const res = await fetchWithClientAuth(
-          `/api/integrations/google/classrooms/${activeClassroomId}/stop`,
-          {
-            method: "POST",
-            credentials: "include",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ mode: "delete_series", sectionId }),
+        try {
+          const res = await fetchWithClientAuth(
+            `/api/integrations/google/classrooms/${activeClassroomId}/stop`,
+            {
+              method: "POST",
+              credentials: "include",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ mode: "delete_series", sectionId }),
+            }
+          );
+          const payload = (await res.json().catch(() => ({}))) as { error?: string };
+          // If Calendar isn't connected or nothing is linked, allow deletion to proceed.
+          if (!res.ok && res.status !== 409) {
+            toast({
+              title: "Section deleted, but Google reminders may continue",
+              description:
+                payload.error ||
+                `We couldn't remove the Google Calendar series (${res.status}). If needed, reconnect Google and use “Stop future dates”.`,
+              variant: "destructive",
+            });
           }
-        );
-        const payload = (await res.json().catch(() => ({}))) as { error?: string };
-        if (!res.ok)
-          throw new Error(payload.error || `Failed to remove Google series (${res.status})`);
+        } catch (e) {
+          toast({
+            title: "Section deleted, but Google reminders may continue",
+            description:
+              e instanceof Error
+                ? e.message
+                : "We couldn't remove the Google Calendar series. If needed, reconnect Google and use “Stop future dates”.",
+            variant: "destructive",
+          });
+        }
       }
 
       // Remove section-scoped content BEFORE deleting the section, otherwise FK ON DELETE SET NULL
@@ -4919,6 +5911,7 @@ export default function MyClassroomView({
       setAssignmentTitle("");
       setAssignmentDueDate("");
       setAssignmentInstructions("");
+      if (assignmentDraftKey) window.sessionStorage.removeItem(assignmentDraftKey);
     } finally {
       setAssignmentSubmitting(false);
     }
@@ -5021,16 +6014,71 @@ export default function MyClassroomView({
     }
   };
 
+  const stopGoogleCalendarSeriesForDelete = async (): Promise<{
+    attempted: number;
+    removed: number;
+    failed: Array<{ scope: "classroom" | "section"; sectionId?: string | null; error: string }>;
+  }> => {
+    if (!activeClassroom) return { attempted: 0, removed: 0, failed: [] };
+    const classroomId = activeClassroom.id;
+    const linkedSections = (activeDetail?.sections ?? []).filter((s) => s.googleSeriesLinked);
+    const targets: Array<{ scope: "classroom" | "section"; sectionId: string | null }> = [
+      { scope: "classroom" as const, sectionId: null },
+      ...linkedSections.map((s) => ({ scope: "section" as const, sectionId: s.id })),
+    ];
+
+    let removed = 0;
+    const failed: Array<{ scope: "classroom" | "section"; sectionId?: string | null; error: string }> = [];
+    for (const t of targets) {
+      try {
+        const res = await fetchWithClientAuth(`/api/integrations/google/classrooms/${classroomId}/stop`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mode: "delete_series", sectionId: t.sectionId }),
+        });
+        if (res.ok) {
+          removed += 1;
+          continue;
+        }
+        const payload = (await res.json().catch(() => ({}))) as { error?: string };
+        // If Calendar isn't connected or nothing is linked, we still allow deleting the classroom.
+        if (res.status === 409) continue;
+        failed.push({
+          scope: t.scope,
+          sectionId: t.sectionId,
+          error: payload.error || `Request failed (${res.status})`,
+        });
+      } catch (e) {
+        failed.push({
+          scope: t.scope,
+          sectionId: t.sectionId,
+          error: e instanceof Error ? e.message : "Request failed",
+        });
+      }
+    }
+    return { attempted: targets.length, removed, failed };
+  };
+
   const removeClassroom = async () => {
     if (!activeClassroom || !teacherId) return;
     const ok =
       typeof window !== "undefined" &&
       window.confirm(
-        `Delete "${activeClassroom.name}"? Students lose access and enrollments are removed. This cannot be undone.`
+        `Delete "${activeClassroom.name}"? Students lose access and enrollments are removed. We'll also try to remove Google Calendar reminders for this class. This cannot be undone.`
       );
     if (!ok) return;
     setSettingsDeleting(true);
     try {
+      const calendarRes = await stopGoogleCalendarSeriesForDelete();
+      if (calendarRes.failed.length) {
+        toast({
+          title: "Deleted class, but calendar cleanup had issues",
+          description:
+            "Some Google Calendar reminders may still appear because we couldn't remove all linked series (try: Meet & Google Calendar → Stop future dates / Reset Google).",
+          variant: "destructive",
+        });
+      }
       await onDeleteClassroom({ classroomId: activeClassroom.id });
       setActiveClassroomId(null);
       setDetailTab("students");
@@ -5220,8 +6268,69 @@ export default function MyClassroomView({
     }
   };
 
+  const connectGoogleCalendarFromToolbar = async () => {
+    try {
+      const r = await redirectToGoogleCalendarConsent();
+      if (r.mode === "popup" && r.connected) {
+        toast({ title: "Google Calendar connected" });
+        await onRefreshTeacherPortal({ silent: true });
+      }
+    } catch (err) {
+      toast({
+        title: "Could not start Google connect",
+        description: err instanceof Error ? err.message : "Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const selectClassName =
-    "h-10 w-full appearance-none rounded-xl border border-white/15 bg-[#070b17] px-3 pr-10 text-sm outline-none focus:border-emerald-400";
+    "h-10 sm:h-11 w-full appearance-none rounded-xl border border-white/15 bg-[#070b17] px-3 pr-10 text-sm outline-none focus:border-emerald-400";
+
+  const HelpChip = ({
+    title,
+    children,
+    tone = "slate",
+  }: {
+    title: string;
+    children: React.ReactNode;
+    tone?: "slate" | "amber";
+  }) => {
+    const [open, setOpen] = useState(false);
+    const chip =
+      tone === "amber"
+        ? "border-amber-400/30 bg-amber-500/10 text-amber-100 hover:bg-amber-500/15"
+        : "border-white/15 bg-white/5 text-slate-200 hover:bg-white/10";
+
+    return (
+      <div
+        onMouseEnter={() => setOpen(true)}
+        onMouseLeave={() => setOpen(false)}
+        className="inline-flex"
+      >
+        <Popover open={open} onOpenChange={setOpen}>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              aria-label={`Help: ${title}`}
+              className={`inline-flex h-5 w-5 items-center justify-center rounded-full border text-[11px] font-extrabold leading-none ${chip}`}
+            >
+              ?
+            </button>
+          </PopoverTrigger>
+          <PopoverContent
+            align="end"
+            className="w-[280px] border-white/10 bg-[#15162b] p-3 text-sm text-slate-200 shadow-xl"
+          >
+            <div className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-slate-400">
+              {title}
+            </div>
+            <div className="mt-2 text-[13px] leading-snug text-slate-200">{children}</div>
+          </PopoverContent>
+        </Popover>
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-3 sm:space-y-5">
@@ -5246,69 +6355,40 @@ export default function MyClassroomView({
                 Send Group RDM
               </button>
               {summary.googleCalendarConnected ? (
-                <>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      try {
-                        const res = await fetchWithClientAuth("/api/integrations/google/start", {
-                          method: "POST",
-                          credentials: "include",
-                        });
-                        const payload = (await res.json().catch(() => ({}))) as {
-                          url?: string;
-                          error?: string;
-                        };
-                        if (!res.ok || !payload.url) {
-                          throw new Error(payload.error || `Request failed (${res.status})`);
-                        }
-                        window.location.href = payload.url;
-                      } catch (err) {
-                        toast({
-                          title: "Could not start Google connect",
-                          description: err instanceof Error ? err.message : "Please try again.",
-                          variant: "destructive",
-                        });
-                      }
-                    }}
-                    className="inline-flex items-center gap-2 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-200 hover:bg-emerald-500/15 sm:px-4 sm:py-2.5 sm:text-sm"
-                  >
-                    Reconnect Google
-                  </button>
-                  <button
-                    type="button"
-                    disabled={googleDisconnecting}
-                    onClick={() => void disconnectGoogleCalendar()}
-                    className="inline-flex items-center gap-2 rounded-full border border-white/20 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-white/5 disabled:opacity-50 sm:px-4 sm:py-2.5 sm:text-sm"
-                  >
-                    {googleDisconnecting ? "Disconnecting…" : "Disconnect Google"}
-                  </button>
-                </>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      className="inline-flex h-10 items-center gap-1.5 rounded-full border border-emerald-500/35 bg-emerald-500/10 px-3 text-xs font-semibold text-emerald-200 hover:bg-emerald-500/15 sm:h-11 sm:px-3.5 sm:text-sm"
+                      title="Google Calendar connected"
+                    >
+                      <Check className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                      Connected
+                      <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-60" aria-hidden />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent align="end" className="w-52 border-white/10 bg-[#15162b] p-1 shadow-xl">
+                    <button
+                      type="button"
+                      onClick={() => void connectGoogleCalendarFromToolbar()}
+                      className="flex w-full items-center rounded-lg px-3 py-2 text-left text-sm font-medium text-slate-200 hover:bg-white/10"
+                    >
+                      Reconnect Google
+                    </button>
+                    <button
+                      type="button"
+                      disabled={googleDisconnecting}
+                      onClick={() => void disconnectGoogleCalendar()}
+                      className="flex w-full items-center rounded-lg px-3 py-2 text-left text-sm font-medium text-slate-300 hover:bg-white/10 disabled:opacity-50"
+                    >
+                      {googleDisconnecting ? "Disconnecting…" : "Disconnect Google"}
+                    </button>
+                  </PopoverContent>
+                </Popover>
               ) : (
                 <button
                   type="button"
-                  onClick={async () => {
-                    try {
-                      const res = await fetchWithClientAuth("/api/integrations/google/start", {
-                        method: "POST",
-                        credentials: "include",
-                      });
-                      const payload = (await res.json().catch(() => ({}))) as {
-                        url?: string;
-                        error?: string;
-                      };
-                      if (!res.ok || !payload.url) {
-                        throw new Error(payload.error || `Request failed (${res.status})`);
-                      }
-                      window.location.href = payload.url;
-                    } catch (err) {
-                      toast({
-                        title: "Could not start Google connect",
-                        description: err instanceof Error ? err.message : "Please try again.",
-                        variant: "destructive",
-                      });
-                    }
-                  }}
+                  onClick={() => void connectGoogleCalendarFromToolbar()}
                   className="inline-flex items-center gap-2 rounded-full border border-sky-500/40 bg-sky-500/10 px-3 py-2 text-xs font-semibold text-sky-100 hover:bg-sky-500/15 sm:px-4 sm:py-2.5 sm:text-sm"
                 >
                   Connect Google Calendar
@@ -5787,19 +6867,19 @@ export default function MyClassroomView({
             </div>
           ) : null}
           {detailTab === "assignments" ? (
-            <div className="rounded-xl border border-white/10 bg-[#15162b] p-3.5 sm:p-4">
-              <div className="mb-3 flex items-center justify-between">
+            <div className="rounded-xl border border-white/10 bg-[#15162b] p-3 sm:p-4">
+              <div className="mb-2.5 flex items-center justify-between sm:mb-3">
                 <div className="text-sm font-semibold">Active Assignments</div>
                 <button
                   type="button"
                   onClick={() => setAssignmentOpen(true)}
                   disabled={cohortTab.kind === "unassigned"}
-                  className="rounded-full bg-violet-500 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+                  className="rounded-full bg-violet-500 px-3 py-1.5 text-[11px] font-semibold text-white disabled:opacity-50 sm:text-xs"
                 >
                   + New Assignment
                 </button>
               </div>
-              <div className="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2 xl:grid-cols-3">
+              <div className="grid grid-cols-1 gap-2.5 sm:gap-3 md:grid-cols-2 xl:grid-cols-3">
                 {cohortAssignments.length === 0 ? (
                   <div className="col-span-full rounded-xl border border-dashed border-white/10 bg-black/20 px-4 py-8 text-center text-sm text-slate-400">
                     {cohortTab.kind === "unassigned"
@@ -6334,54 +7414,70 @@ export default function MyClassroomView({
                           </div>
                         ) : (
                           <ul className="space-y-2">
-                            {activeDetail.sections.map((sec) => (
-                              <li
-                                key={sec.id}
-                                className="rounded-xl border border-white/10 bg-[#15162b] p-3 sm:p-3.5"
-                              >
-                                <div className="flex flex-wrap items-end justify-between gap-3">
-                                  <label className="min-w-[200px] flex-1 text-xs font-medium text-slate-400">
-                                    Section name
-                                    <input
-                                      value={sectionNameDrafts[sec.id] ?? sec.name}
-                                      onChange={(e) =>
-                                        setSectionNameDrafts((prev) => ({
-                                          ...prev,
-                                          [sec.id]: e.target.value,
-                                        }))
-                                      }
-                                      className="mt-1.5 w-full rounded-lg border border-white/10 bg-[#0c1020] px-3 py-2 text-sm text-slate-200 outline-none focus:border-violet-500/50"
-                                    />
-                                  </label>
-                                  <div className="flex shrink-0 flex-wrap gap-2">
-                                    <button
-                                      type="button"
-                                      onClick={() => void saveSectionName(sec.id)}
-                                      disabled={
-                                        sectionNameSavingId === sec.id ||
-                                        sectionDeletingId === sec.id
-                                      }
-                                      className="rounded-full bg-violet-500 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
-                                    >
-                                      {sectionNameSavingId === sec.id ? "Saving…" : "Save"}
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => void deleteSection(sec.id)}
-                                      disabled={
-                                        sectionNameSavingId === sec.id ||
-                                        sectionDeletingId === sec.id
-                                      }
-                                      className="rounded-full border border-rose-500/40 bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-100 hover:bg-rose-500/20 disabled:opacity-50"
-                                    >
-                                      {sectionDeletingId === sec.id
-                                        ? "Deleting…"
-                                        : "Delete section"}
-                                    </button>
+                            {activeDetail.sections.map((sec) => {
+                              const expired = sec.isActive === false;
+                              return (
+                                <li
+                                  key={sec.id}
+                                  className={`rounded-xl border border-white/10 bg-[#15162b] p-3 sm:p-3.5 ${
+                                    expired ? "opacity-60 grayscale-[0.2]" : ""
+                                  }`}
+                                >
+                                  <div className="flex flex-wrap items-end justify-between gap-3">
+                                    <label className="min-w-[200px] flex-1 text-xs font-medium text-slate-400">
+                                      Section name
+                                      <input
+                                        value={sectionNameDrafts[sec.id] ?? sec.name}
+                                        onChange={(e) =>
+                                          setSectionNameDrafts((prev) => ({
+                                            ...prev,
+                                            [sec.id]: e.target.value,
+                                          }))
+                                        }
+                                        disabled={expired}
+                                        className="mt-1.5 w-full rounded-lg border border-white/10 bg-[#0c1020] px-3 py-2 text-sm text-slate-200 outline-none focus:border-violet-500/50"
+                                      />
+                                    </label>
+                                    <div className="flex shrink-0 flex-wrap gap-2">
+                                      {expired ? (
+                                        <span className="inline-flex items-center rounded-full border border-amber-400/30 bg-amber-500/10 px-3 py-1.5 text-[11px] font-semibold text-amber-200">
+                                          Expired
+                                        </span>
+                                      ) : null}
+                                      <button
+                                        type="button"
+                                        onClick={() => void saveSectionName(sec.id)}
+                                        disabled={
+                                          sectionNameSavingId === sec.id ||
+                                          sectionDeletingId === sec.id ||
+                                          expired
+                                        }
+                                        className="rounded-full bg-violet-500 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
+                                      >
+                                        {sectionNameSavingId === sec.id ? "Saving…" : "Save"}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => void deleteSection(sec.id)}
+                                        disabled={
+                                          sectionNameSavingId === sec.id ||
+                                          sectionDeletingId === sec.id
+                                        }
+                                        className="rounded-full border border-rose-500/40 bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-100 hover:bg-rose-500/20 disabled:opacity-50"
+                                      >
+                                        {sectionDeletingId === sec.id ? "Deleting…" : "Delete section"}
+                                      </button>
+                                    </div>
                                   </div>
-                                </div>
-                              </li>
-                            ))}
+                                  {expired ? (
+                                    <div className="mt-2 text-[11px] leading-snug text-slate-400">
+                                      This section is inactive (end date passed). Move students to an active section to
+                                      resume section-based assignments, messages, and scheduling.
+                                    </div>
+                                  ) : null}
+                                </li>
+                              );
+                            })}
                           </ul>
                         )}
                       </div>
@@ -6732,12 +7828,7 @@ export default function MyClassroomView({
                     />
                   </div>
                   <div className="relative">
-                    <input
-                      type="time"
-                      value={scheduleTime}
-                      onChange={(e) => setScheduleTime(e.target.value)}
-                      className="h-11 w-full rounded-xl border border-white/15 bg-[#070b17] px-3 text-sm outline-none focus:border-emerald-400"
-                    />
+                    <WallTimeSelects value={scheduleTime} onChange={setScheduleTime} />
                   </div>
                   <div className="relative">
                     <select
@@ -6849,6 +7940,14 @@ export default function MyClassroomView({
       >
         <DialogContent
           hideClose
+          onInteractOutside={(e) => {
+            // Investor request: wizard should only close via explicit Close (X).
+            e.preventDefault();
+          }}
+          onEscapeKeyDown={(e) => {
+            // Avoid accidental close on small screens.
+            e.preventDefault();
+          }}
           className="left-0 top-0 grid h-[100vh] max-h-[100vh] w-screen sm:w-[96vw] max-w-[980px] translate-x-0 translate-y-0 overflow-hidden rounded-none border-r border-white/20 bg-[#07070f] p-0 text-slate-100 shadow-2xl data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left sm:rounded-r-3xl md:max-w-[1240px] lg:max-w-[1320px]"
         >
           <DialogHeader className="sr-only">
@@ -6897,52 +7996,60 @@ export default function MyClassroomView({
                 className="h-11 w-full rounded-xl border border-white/15 bg-[#070b17] px-3 text-sm outline-none placeholder:text-slate-500 focus:border-emerald-400"
               />
             </div>
-            <div className="rounded-2xl border border-white/10 bg-[#0d1121] p-4">
-              <label className="mb-2 block text-sm font-semibold text-slate-300">
-                Section schedule (easy calendar)
+            <div className="rounded-xl border border-white/10 bg-[#0d1121] p-3 sm:rounded-2xl sm:p-4">
+              <label className="mb-2 block text-xs font-semibold text-slate-300 sm:text-sm">
+                Section schedule
               </label>
-              <div className="grid gap-3 md:grid-cols-3">
+              <div className="grid grid-cols-1 gap-2 min-[480px]:grid-cols-2 sm:gap-3">
                 <div className="relative">
+                  <label className="mb-1 block text-[10px] font-semibold text-slate-500 sm:text-xs">
+                    Start date
+                  </label>
                   <input
                     type="date"
                     value={sectionScheduleDate}
                     onChange={(e) => setSectionScheduleDate(e.target.value)}
-                    className="h-11 w-full rounded-xl border border-white/15 bg-[#070b17] px-3 text-sm outline-none focus:border-emerald-400"
+                    className="h-10 w-full rounded-xl border border-white/15 bg-[#070b17] px-3 text-sm outline-none focus:border-emerald-400 sm:h-11"
                   />
                 </div>
-                <div className="relative">
-                  <input
-                    type="time"
-                    value={sectionScheduleTime}
-                    onChange={(e) => setSectionScheduleTime(e.target.value)}
-                    className="h-11 w-full rounded-xl border border-white/15 bg-[#070b17] px-3 text-sm outline-none focus:border-emerald-400"
-                  />
-                </div>
-                <div className="relative">
-                  <select
-                    value={String(sectionDurationMinutes)}
-                    onChange={(e) => setSectionDurationMinutes(Number(e.target.value))}
-                    className={selectClassName}
-                  >
-                    <option value="45">45 mins</option>
-                    <option value="60">60 mins</option>
-                    <option value="90">90 mins</option>
-                    <option value="120">120 mins</option>
-                  </select>
-                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                <div className="relative flex min-w-0 flex-col gap-2">
+                  <div className="min-w-0">
+                    <label className="mb-1 block text-[10px] font-semibold text-slate-500 sm:text-xs">
+                      Start time
+                    </label>
+                    <WallTimeSelects value={sectionScheduleTime} onChange={setSectionScheduleTime} />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-[10px] font-semibold text-slate-500 sm:text-xs">
+                      Duration
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={String(sectionDurationMinutes)}
+                        onChange={(e) => setSectionDurationMinutes(Number(e.target.value))}
+                        className={selectClassName}
+                      >
+                        <option value="45">45m</option>
+                        <option value="60">60m</option>
+                        <option value="90">90m</option>
+                        <option value="120">120m</option>
+                      </select>
+                      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div className="mt-3">
-                <div className="mb-1 text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
+              <div className="mt-2">
+                <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500 sm:text-xs">
                   Repeat days
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1 sm:gap-1.5">
                   {WEEKDAYS.map((day) => (
                     <button
                       key={day}
                       type="button"
                       onClick={() => toggleSectionRepeat(day)}
-                      className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                      className={`rounded-full border px-2 py-1 text-[10px] font-semibold sm:px-2.5 sm:text-xs ${
                         sectionRepeatDays.includes(day)
                           ? "border-emerald-400/40 bg-emerald-500/15 text-emerald-200"
                           : "border-white/15 text-slate-400 hover:border-white/25 hover:text-slate-200"
@@ -6953,15 +8060,15 @@ export default function MyClassroomView({
                   ))}
                 </div>
               </div>
-              <div className="mt-3">
-                <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
+              <div className="mt-2">
+                <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-slate-500 sm:text-xs">
                   End date (optional)
                 </label>
                 <input
                   type="date"
                   value={sectionScheduleEndDate}
                   onChange={(e) => setSectionScheduleEndDate(e.target.value)}
-                  className="h-11 w-full max-w-xs rounded-xl border border-white/15 bg-[#070b17] px-3 text-sm outline-none focus:border-emerald-400"
+                  className="h-10 w-full max-w-xs rounded-xl border border-white/15 bg-[#070b17] px-3 text-sm outline-none focus:border-emerald-400 sm:h-11"
                 />
               </div>
             </div>
@@ -6994,13 +8101,13 @@ export default function MyClassroomView({
             isConceptFocusTemplate ||
             isDailyDoseAssignmentTemplate ||
             isGyanEngagementTemplate
-              ? "max-h-[min(92vh,820px)] max-w-270"
-              : "max-h-[90vh] max-w-180"
+              ? "max-h-[min(88vh,720px)] max-w-[920px]"
+              : "max-h-[86vh] max-w-[680px]"
           }`}
         >
-          <DialogHeader className="shrink-0 border-b border-white/10 p-4 pb-3 sm:p-5 sm:pb-4">
-            <DialogTitle className="font-serif text-2xl sm:text-3xl">Set assignment</DialogTitle>
-            <p className="mt-1 text-sm text-slate-400">
+          <DialogHeader className="shrink-0 border-b border-white/10 p-3 pb-2 sm:p-4 sm:pb-3">
+            <DialogTitle className="font-serif text-lg sm:text-2xl">Set assignment</DialogTitle>
+            <p className="mt-1 text-[11px] leading-relaxed text-slate-400 sm:text-sm">
               Pick a template and details. A default activity checklist is created from the type so
               students can track progress; class completion updates in Assignments.
             </p>
@@ -7014,7 +8121,7 @@ export default function MyClassroomView({
             <div className="grid min-h-0 flex-1 grid-cols-1 divide-y divide-white/10 lg:grid-cols-2 lg:divide-x lg:divide-y-0">
               {/* Left “page”: assignment details */}
               <div className="flex min-h-0 flex-col lg:max-h-[min(72vh,700px)]">
-                <div className="border-b border-white/5 px-4 py-2 sm:px-5">
+                <div className="border-b border-white/5 px-3 py-2 sm:px-4">
                   <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
                     Assignment
                   </p>
@@ -7022,9 +8129,9 @@ export default function MyClassroomView({
                     Title, due date, class scope, and notes
                   </p>
                 </div>
-                <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain p-4 sm:p-5">
+                <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain p-3 sm:space-y-3 sm:p-4">
                   <div>
-                    <label className="mb-1 block text-sm font-semibold text-slate-300">
+                    <label className="mb-1 block text-xs font-semibold text-slate-300 sm:text-sm">
                       Assignment type *
                     </label>
                     <div className="relative">
@@ -7043,32 +8150,46 @@ export default function MyClassroomView({
                     </div>
                   </div>
                   <div>
-                    <label className="mb-1 block text-sm font-semibold text-slate-300">
+                    <label className="mb-1 block text-xs font-semibold text-slate-300 sm:text-sm">
                       Title *
                     </label>
                     <input
                       value={assignmentTitle}
                       onChange={(e) => setAssignmentTitle(e.target.value)}
                       placeholder="e.g. Electrostatics — Gauss's Law Quiz"
-                      className="h-11 w-full rounded-xl border border-white/15 bg-[#070b17] px-3 text-sm outline-none placeholder:text-slate-500 focus:border-emerald-400"
+                      className="h-10 w-full rounded-xl border border-white/15 bg-[#070b17] px-3 text-[13px] outline-none placeholder:text-slate-500 focus:border-emerald-400 sm:h-11 sm:text-sm"
                     />
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div>
-                      <label className="mb-1 block text-sm font-semibold text-slate-300">
+                      <label className="mb-1 block text-xs font-semibold text-slate-300 sm:text-sm">
                         Due date *
                       </label>
                       <input
                         type="date"
                         value={assignmentDueDate}
                         onChange={(e) => setAssignmentDueDate(e.target.value)}
-                        className="h-11 w-full rounded-xl border border-white/15 bg-[#070b17] px-3 text-sm outline-none focus:border-emerald-400"
+                        className="h-10 w-full rounded-xl border border-white/15 bg-[#070b17] px-3 text-[13px] outline-none focus:border-emerald-400 sm:h-11 sm:text-sm"
                       />
                     </div>
                     <div>
-                      <label className="mb-1 block text-sm font-semibold text-slate-300">
-                        Audience
-                      </label>
+                      <div className="mb-1 flex items-center justify-between gap-2">
+                        <label className="block text-xs font-semibold text-slate-300 sm:text-sm">
+                          Audience
+                        </label>
+                        <HelpChip title="Audience">
+                          <div className="space-y-2">
+                            <p>
+                              <span className="font-semibold">All students</span> sends the
+                              assignment to everyone in the chosen scope.
+                            </p>
+                            <p>
+                              <span className="font-semibold">Custom</span> lets you pick preferred
+                              students within that scope.
+                            </p>
+                          </div>
+                        </HelpChip>
+                      </div>
                       <div className="relative">
                         <select
                           value={assignToLabel}
@@ -7160,9 +8281,25 @@ export default function MyClassroomView({
                     </div>
                   ) : null}
                   <div>
-                    <label className="mb-1 block text-sm font-semibold text-slate-300">
-                      Assign to (class / section)
-                    </label>
+                    <div className="mb-1 flex items-center justify-between gap-2">
+                      <label className="block text-xs font-semibold text-slate-300 sm:text-sm">
+                        Assign to (class / section)
+                      </label>
+                      <HelpChip title="Class vs section">
+                        <div className="space-y-2">
+                          <p>
+                            <span className="font-semibold">Class</span> = post is visible to every
+                            enrolled student (recommended with{" "}
+                            <span className="font-semibold">Audience</span> = “All students”).
+                          </p>
+                          <p>
+                            <span className="font-semibold">Section</span> = only students whose{" "}
+                            <span className="italic">teaching section</span> matches this section
+                            see it in <span className="font-semibold">Classroom → Posts</span>.
+                          </p>
+                        </div>
+                      </HelpChip>
+                    </div>
                     <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                       <button
                         type="button"
@@ -7170,7 +8307,7 @@ export default function MyClassroomView({
                           assignmentScopeTouchedRef.current = true;
                           setAssignmentTargetSectionId(null);
                         }}
-                        className={`shrink-0 rounded-xl border px-3 py-2 text-left text-xs font-semibold ${
+                        className={`shrink-0 rounded-xl border px-2.5 py-1.5 text-left text-[11px] font-semibold sm:px-3 sm:py-2 sm:text-xs ${
                           assignmentTargetSectionId == null
                             ? "border-emerald-400/40 bg-emerald-500/10 text-emerald-200"
                             : "border-white/10 bg-black/20 text-slate-300 hover:border-white/20"
@@ -7190,7 +8327,7 @@ export default function MyClassroomView({
                             assignmentScopeTouchedRef.current = true;
                             setAssignmentTargetSectionId(sec.id);
                           }}
-                          className={`shrink-0 min-w-[180px] rounded-xl border px-3 py-2 text-left text-xs font-semibold ${
+                          className={`shrink-0 min-w-[155px] rounded-xl border px-2.5 py-1.5 text-left text-[11px] font-semibold sm:min-w-[180px] sm:px-3 sm:py-2 sm:text-xs ${
                             assignmentTargetSectionId === sec.id
                               ? "border-emerald-400/40 bg-emerald-500/10 text-emerald-200"
                               : "border-white/10 bg-black/20 text-slate-300 hover:border-white/20"
@@ -7204,23 +8341,20 @@ export default function MyClassroomView({
                         </button>
                       ))}
                     </div>
-                    <p className="mt-1 text-[11px] text-slate-500">
-                      <span className="font-semibold text-slate-400">Class</span> = post is visible
-                      to every enrolled student (recommended when Audience is &quot;All
-                      students&quot;).{" "}
-                      <span className="font-semibold text-slate-400">A section</span> = only
-                      students whose <span className="italic">teaching section</span> in Members
-                      matches this section see it in{" "}
-                      <span className="font-semibold">Classroom → Posts</span>.
-                    </p>
                     {assignToLabel.trim().toLowerCase() === "all students" &&
                     assignmentTargetSectionId != null ? (
-                      <p className="mt-2 rounded-lg border border-amber-400/30 bg-amber-500/10 px-2 py-1.5 text-[11px] font-semibold text-amber-100">
-                        Audience says &quot;All students&quot;, but you have a{" "}
-                        <span className="italic">section</span> selected below — only students in
-                        that teaching section will see this in Posts. Choose{" "}
-                        <span className="font-bold">Class</span> for a true whole-class assignment.
-                      </p>
+                      <div className="mt-2 flex items-center justify-between gap-2 rounded-lg border border-amber-400/30 bg-amber-500/10 px-2 py-1.5">
+                        <div className="text-[11px] font-semibold text-amber-100">
+                          Section selected while Audience is “All students”
+                        </div>
+                        <HelpChip title="Visibility note" tone="amber">
+                          Audience says “All students”, but you have a{" "}
+                          <span className="italic">section</span> selected — only students in that
+                          teaching section will see this in Posts. Choose{" "}
+                          <span className="font-bold">Class</span> for a true whole-class
+                          assignment.
+                        </HelpChip>
+                      </div>
                     ) : null}
                   </div>
                   <div>
@@ -7242,15 +8376,15 @@ export default function MyClassroomView({
                     </div>
                   </div>
                   <div>
-                    <label className="mb-1 block text-sm font-semibold text-slate-300">
+                    <label className="mb-1 block text-xs font-semibold text-slate-300 sm:text-sm">
                       Instructions to students
                     </label>
                     <textarea
                       value={assignmentInstructions}
                       onChange={(e) => setAssignmentInstructions(e.target.value)}
-                      rows={4}
+                      rows={3}
                       placeholder="Add any specific instructions, hints, or context for students..."
-                      className="w-full rounded-xl border border-white/15 bg-[#070b17] px-3 py-2 text-sm outline-none placeholder:text-slate-500 focus:border-emerald-400"
+                      className="w-full rounded-xl border border-white/15 bg-[#070b17] px-3 py-2 text-[13px] outline-none placeholder:text-slate-500 focus:border-emerald-400 sm:py-2.5 sm:text-sm"
                     />
                   </div>
                 </div>
@@ -7258,7 +8392,7 @@ export default function MyClassroomView({
 
               {/* Right “page”: mock paper or chapter quiz path */}
               <div className="flex min-h-0 flex-col lg:max-h-[min(72vh,700px)]">
-                <div className="border-b border-white/5 px-4 py-2 sm:px-5">
+                <div className="border-b border-white/5 px-3 py-2 sm:px-4">
                   <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
                     {isMockAssignmentTemplate
                       ? "Mock test"
@@ -7278,10 +8412,10 @@ export default function MyClassroomView({
                           : "Choose which of the five Funbrain streak lanes this class should focus on; the task links to Play."}
                   </p>
                 </div>
-                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-5">
+                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 sm:p-4">
                   {isMockAssignmentTemplate ? (
                     <div>
-                      <label className="mb-1 block text-sm font-semibold text-slate-300">
+                      <label className="mb-1 block text-xs font-semibold text-slate-300 sm:text-sm">
                         Mock paper *
                       </label>
                       {mockPapersLoading ? (
@@ -7321,7 +8455,7 @@ export default function MyClassroomView({
                       </p>
                     </div>
                   ) : isQuizAssignmentTemplate ? (
-                    <div className="space-y-4">
+                    <div className="space-y-3 sm:space-y-4">
                       <ChapterQuizAssignmentFields
                         taxonomy={curriculumTaxonomy}
                         taxonomyLoading={curriculumLoading}
@@ -7331,7 +8465,7 @@ export default function MyClassroomView({
                         selectClassName={selectClassName}
                       />
 
-                      <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                      <div className="rounded-2xl border border-white/10 bg-black/20 p-3 sm:p-4">
                         <div className="mb-2 text-[10px] font-extrabold uppercase tracking-[0.14em] text-slate-500">
                           Quiz preview
                         </div>
@@ -7392,9 +8526,9 @@ export default function MyClassroomView({
               </div>
             </div>
           ) : (
-            <div className="max-h-[min(78vh,640px)] space-y-3 overflow-y-auto overscroll-contain p-4 sm:p-5">
+            <div className="max-h-[min(76vh,600px)] space-y-2 overflow-y-auto overscroll-contain p-3 sm:space-y-3 sm:p-4">
               <div>
-                <label className="mb-1 block text-sm font-semibold text-slate-300">
+                <label className="mb-1 block text-xs font-semibold text-slate-300 sm:text-sm">
                   Assignment type *
                 </label>
                 <div className="relative">
@@ -7413,28 +8547,30 @@ export default function MyClassroomView({
                 </div>
               </div>
               <div>
-                <label className="mb-1 block text-sm font-semibold text-slate-300">Title *</label>
+                <label className="mb-1 block text-xs font-semibold text-slate-300 sm:text-sm">
+                  Title *
+                </label>
                 <input
                   value={assignmentTitle}
                   onChange={(e) => setAssignmentTitle(e.target.value)}
                   placeholder="e.g. Electrostatics — Gauss's Law Quiz"
-                  className="h-11 w-full rounded-xl border border-white/15 bg-[#070b17] px-3 text-sm outline-none placeholder:text-slate-500 focus:border-emerald-400"
+                  className="h-10 w-full rounded-xl border border-white/15 bg-[#070b17] px-3 text-sm outline-none placeholder:text-slate-500 focus:border-emerald-400 sm:h-11"
                 />
               </div>
               <div className="grid gap-3 md:grid-cols-2">
                 <div>
-                  <label className="mb-1 block text-sm font-semibold text-slate-300">
+                  <label className="mb-1 block text-xs font-semibold text-slate-300 sm:text-sm">
                     Due date *
                   </label>
                   <input
                     type="date"
                     value={assignmentDueDate}
                     onChange={(e) => setAssignmentDueDate(e.target.value)}
-                    className="h-11 w-full rounded-xl border border-white/15 bg-[#070b17] px-3 text-sm outline-none focus:border-emerald-400"
+                    className="h-10 w-full rounded-xl border border-white/15 bg-[#070b17] px-3 text-sm outline-none focus:border-emerald-400 sm:h-11"
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-semibold text-slate-300">
+                  <label className="mb-1 block text-xs font-semibold text-slate-300 sm:text-sm">
                     Assign to
                   </label>
                   <div className="relative">
@@ -7527,7 +8663,7 @@ export default function MyClassroomView({
                 </div>
               ) : null}
               <div>
-                <label className="mb-1 block text-sm font-semibold text-slate-300">
+                <label className="mb-1 block text-xs font-semibold text-slate-300 sm:text-sm">
                   RDM reward for completion
                 </label>
                 <div className="relative">
@@ -7545,7 +8681,7 @@ export default function MyClassroomView({
                 </div>
               </div>
               <div>
-                <label className="mb-1 block text-sm font-semibold text-slate-300">
+                <label className="mb-1 block text-xs font-semibold text-slate-300 sm:text-sm">
                   Instructions to students
                 </label>
                 <textarea
@@ -7559,11 +8695,11 @@ export default function MyClassroomView({
             </div>
           )}
 
-          <div className="flex shrink-0 flex-col-reverse items-stretch justify-end gap-3 border-t border-white/10 p-4 sm:flex-row sm:items-center">
+          <div className="flex shrink-0 flex-col-reverse items-stretch justify-end gap-2 border-t border-white/10 p-3 sm:flex-row sm:items-center sm:gap-3 sm:p-4">
             <button
               type="button"
               onClick={() => setAssignmentOpen(false)}
-              className="rounded-full border border-white/20 px-5 py-2 text-sm font-semibold text-slate-300 hover:bg-white/5 sm:min-w-27.5"
+              className="rounded-full border border-white/20 px-4 py-2 text-xs font-semibold text-slate-300 hover:bg-white/5 sm:min-w-27.5 sm:px-5 sm:text-sm"
             >
               Cancel
             </button>
@@ -7582,7 +8718,7 @@ export default function MyClassroomView({
                   (curriculumLoading ||
                     !chapterQuizSelectionComplete(chapterQuizSel, curriculumTaxonomy)))
               }
-              className="rounded-full bg-violet-500 px-6 py-2 text-sm font-semibold text-white hover:bg-violet-400 disabled:cursor-not-allowed disabled:opacity-60 sm:min-w-40"
+              className="rounded-full bg-violet-500 px-5 py-2 text-xs font-semibold text-white hover:bg-violet-400 disabled:cursor-not-allowed disabled:opacity-60 sm:min-w-40 sm:px-6 sm:text-sm"
             >
               {assignmentSubmitting ? "Creating..." : "Create assignment"}
             </button>
@@ -7769,10 +8905,22 @@ export default function MyClassroomView({
           }
         }}
       >
-        <DialogContent className="max-h-[90vh] w-[94vw] max-w-190 overflow-hidden rounded-3xl border border-white/20 bg-[#0f1329] p-0 text-slate-100 shadow-2xl">
-          <DialogHeader className="border-b border-white/10 bg-linear-to-r from-[#111428] to-[#1a1f3d] p-4 pr-14 sm:p-5">
+        <DialogContent
+          hideClose
+          className="max-h-[86vh] w-[94vw] max-w-[900px] overflow-hidden rounded-2xl border border-white/20 bg-[#0f1329] p-0 text-slate-100 shadow-2xl sm:max-h-[90vh] sm:rounded-3xl"
+        >
+          <DialogHeader className="relative border-b border-white/10 bg-linear-to-r from-[#111428] to-[#1a1f3d] p-3 pr-12 sm:p-4 sm:pr-14">
+            <DialogClose asChild>
+              <button
+                type="button"
+                className="absolute right-3 top-3 inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/15 bg-white/5 text-slate-200 hover:bg-white/10 sm:right-4 sm:top-4"
+                aria-label="Close"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </DialogClose>
             <div className="flex items-start justify-between gap-3">
-              <DialogTitle className="font-serif text-xl leading-tight sm:text-2xl lg:text-3xl">
+              <DialogTitle className="font-serif text-lg leading-tight sm:text-xl lg:text-2xl">
                 {assignmentDetail?.title ?? "Assignment details"}
               </DialogTitle>
               {assignmentDetail ? (
@@ -7793,43 +8941,39 @@ export default function MyClassroomView({
             </div>
           </DialogHeader>
           {assignmentDetail ? (
-            <div className="max-h-[calc(90vh-100px)] overflow-y-auto overflow-x-hidden">
-              <div className="grid min-w-0 gap-4 p-5 text-sm">
-                {/* Quick Info Grid */}
-                <div className="grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-4">
-                  <div className="rounded-xl border border-white/10 bg-[#151b35] p-3 text-center">
-                    <div className="text-[10px] uppercase tracking-[0.08em] text-slate-500">
+            <div className="max-h-[calc(90vh-88px)] overflow-y-auto overflow-x-hidden">
+              <div className="grid min-w-0 gap-3 p-3 text-sm sm:gap-4 sm:p-4">
+                {/* Compact stat chips */}
+                <div className="flex flex-wrap gap-2">
+                  <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-[#151b35] px-3 py-1.5 text-xs text-slate-200">
+                    <span className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-500">
                       Type
-                    </div>
-                    <div className="mt-1 font-semibold capitalize text-sky-300">
-                      {assignmentDetail.type}
-                    </div>
+                    </span>
+                    <span className="font-semibold text-sky-300">{assignmentDetail.type}</span>
                   </div>
-                  <div className="rounded-xl border border-white/10 bg-[#151b35] p-3 text-center">
-                    <div className="text-[10px] uppercase tracking-[0.08em] text-slate-500">
+                  <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-[#151b35] px-3 py-1.5 text-xs text-slate-200">
+                    <span className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-500">
                       Due
-                    </div>
-                    <div className="mt-1 font-semibold text-slate-200">
-                      {assignmentDetail.dueDateLabel}
-                    </div>
+                    </span>
+                    <span className="font-semibold">{assignmentDetail.dueDateLabel}</span>
                   </div>
-                  <div className="rounded-xl border border-white/10 bg-[#151b35] p-3 text-center">
-                    <div className="text-[10px] uppercase tracking-[0.08em] text-slate-500">
+                  <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-[#151b35] px-3 py-1.5 text-xs text-slate-200">
+                    <span className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-500">
                       Submitted
-                    </div>
-                    <div className="mt-1 font-semibold text-emerald-300">
-                      {assignmentScores.length > 0
+                    </span>
+                    <span className="font-semibold text-emerald-300">
+                      {(assignmentScores.length > 0
                         ? assignmentScores.length
-                        : (assignmentProgressCacheRef.current[assignmentDetail.id]
-                            ?.completedCount ?? assignmentDetail.completedCount)}
+                        : (assignmentProgressCacheRef.current[assignmentDetail.id]?.completedCount ??
+                          assignmentDetail.completedCount)) ?? 0}
                       /{cohortStudents.length}
-                    </div>
+                    </span>
                   </div>
-                  <div className="rounded-xl border border-white/10 bg-[#151b35] p-3 text-center">
-                    <div className="text-[10px] uppercase tracking-[0.08em] text-slate-500">
-                      Avg Score
-                    </div>
-                    <div className="mt-1 font-semibold text-violet-300">
+                  <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-[#151b35] px-3 py-1.5 text-xs text-slate-200">
+                    <span className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-500">
+                      Avg score
+                    </span>
+                    <span className="font-semibold text-violet-300">
                       {assignmentScores.length > 0
                         ? `${
                             Math.round(
@@ -7842,36 +8986,51 @@ export default function MyClassroomView({
                             ) / 10
                           }%`
                         : `${
-                            assignmentProgressCacheRef.current[assignmentDetail.id]
-                              ?.completionPercent ?? assignmentDetail.completionPercent
+                            assignmentProgressCacheRef.current[assignmentDetail.id]?.completionPercent ??
+                            assignmentDetail.completionPercent
                           }%`}
-                    </div>
+                    </span>
                   </div>
                 </div>
-                <div className="rounded-xl border border-sky-500/25 bg-sky-500/10 px-4 py-2 text-xs text-sky-100">
-                  <span className="font-semibold text-sky-200">Student Posts feed:</span>{" "}
-                  {assignmentDetail.sectionId == null
-                    ? "Whole class — every enrolled student can see this post."
-                    : `${activeDetail.sections.find((s) => s.id === assignmentDetail.sectionId)?.name?.trim() || "This teaching section"} — only students placed in that section see it.`}
-                </div>
-                <div className="rounded-xl border border-white/10 bg-[#121833] px-4 py-3 text-xs text-slate-300">
-                  <span className="font-semibold text-slate-200">Assigned to:</span>{" "}
-                  {assignmentDetail.assignedToLabel}
-                  <span className="mx-2 text-slate-500">•</span>
-                  <span className="font-semibold text-amber-300">Reward:</span> +
-                  {assignmentDetail.rewardRdm} RDM
-                  <span className="mx-2 text-slate-500">•</span>
-                  <span className="font-semibold text-sky-300">Completion:</span>{" "}
-                  {cohortStudents.length > 0
-                    ? `${Math.round(
-                        ((assignmentScores.length > 0
-                          ? assignmentScores.length
-                          : (assignmentProgressCacheRef.current[assignmentDetail.id]
-                              ?.completedCount ?? assignmentDetail.completedCount)) /
-                          Math.max(1, cohortStudents.length)) *
-                          100
-                      )}%`
-                    : "0%"}
+
+                {/* Visibility + assignment meta */}
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <div className="rounded-xl border border-sky-500/25 bg-sky-500/10 px-4 py-2 text-xs text-sky-100">
+                    <div className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-sky-200/80">
+                      Student visibility
+                    </div>
+                    <div className="mt-1 leading-snug">
+                      {assignmentDetail.sectionId == null
+                        ? "Whole class — every enrolled student can see this post."
+                        : `${activeDetail.sections.find((s) => s.id === assignmentDetail.sectionId)?.name?.trim() || "This teaching section"} — only students placed in that section see it.`}
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-white/10 bg-[#121833] px-4 py-2 text-xs text-slate-300">
+                    <div className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-500">
+                      Assignment details
+                    </div>
+                    <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <span className="text-slate-400">Assigned:</span>
+                      <span className="font-semibold text-slate-200">{assignmentDetail.assignedToLabel}</span>
+                      <span className="text-slate-600">•</span>
+                      <span className="text-slate-400">Reward:</span>
+                      <span className="font-semibold text-amber-300">+{assignmentDetail.rewardRdm} RDM</span>
+                      <span className="text-slate-600">•</span>
+                      <span className="text-slate-400">Completion:</span>
+                      <span className="font-semibold text-sky-200">
+                        {cohortStudents.length > 0
+                          ? `${Math.round(
+                              ((assignmentScores.length > 0
+                                ? assignmentScores.length
+                                : (assignmentProgressCacheRef.current[assignmentDetail.id]?.completedCount ??
+                                  assignmentDetail.completedCount)) /
+                                Math.max(1, cohortStudents.length)) *
+                                100
+                            )}%`
+                          : "0%"}
+                      </span>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Dynamic content cards */}
@@ -7899,12 +9058,61 @@ export default function MyClassroomView({
                       {assignmentDetail.chapterQuiz.subject} ·{" "}
                       {assignmentDetail.chapterQuiz.subtopicName}
                     </div>
-                    <div className="mt-1 text-[11px] leading-relaxed text-slate-400">
-                      Chapter: {assignmentDetail.chapterQuiz.chapterTitle || "(not set)"} · Lesson:{" "}
-                      {assignmentDetail.chapterQuiz.topic}
-                      {assignmentDetail.chapterQuiz.advancedSet
-                        ? ` · Set ${assignmentDetail.chapterQuiz.advancedSet}`
-                        : ""}
+                    <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
+                      <div className="text-[11px] leading-relaxed text-slate-400">
+                        Chapter: {assignmentDetail.chapterQuiz.chapterTitle || "(not set)"} · Lesson:{" "}
+                        {assignmentDetail.chapterQuiz.topic}
+                        {assignmentDetail.chapterQuiz.advancedSet
+                          ? ` · Set ${assignmentDetail.chapterQuiz.advancedSet}`
+                          : ""}
+                      </div>
+                      {(() => {
+                        const chapterTask = assignmentDetail.tasks?.find(
+                          (t) => t.kind === "chapter_quiz" && Boolean(t.href)
+                        );
+                        if (!chapterTask?.href) return null;
+                        return (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const rawHref = chapterTask.href ?? "";
+                              const postId = assignmentDetail?.id ?? "";
+                              const classroomId = activeClassroomId ?? "";
+                              const resolved = rawHref
+                                .replace(/\{\{POST_ID\}\}/g, postId)
+                                .replace(/\{\{CLASSROOM_ID\}\}/g, classroomId)
+                                .replace(/%7B%7BPOST_ID%7D%7D/gi, encodeURIComponent(postId))
+                                .replace(
+                                  /%7B%7BCLASSROOM_ID%7D%7D/gi,
+                                  encodeURIComponent(classroomId)
+                                );
+                              const ref = assignmentDetail?.chapterQuiz ?? null;
+                              setTaskPreview({
+                                open: true,
+                                href: resolved,
+                                mode: "chapter-quiz-preview",
+                                title: chapterTask.label || "Chapter quiz",
+                                ...(ref
+                                  ? {
+                                      chapterQuizRef: {
+                                        board: ref.board,
+                                        subject: ref.subject,
+                                        classLevel: ref.classLevel,
+                                        topic: ref.topic,
+                                        subtopicName: ref.subtopicName,
+                                        level: ref.level,
+                                        advancedSet: ref.advancedSet,
+                                      },
+                                    }
+                                  : {}),
+                              });
+                            }}
+                            className="inline-flex h-8 items-center justify-center rounded-full border border-emerald-400/25 bg-emerald-500/10 px-3 text-[11px] font-semibold text-emerald-200 hover:bg-emerald-500/15"
+                          >
+                            Open link →
+                          </button>
+                        );
+                      })()}
                     </div>
                   </div>
                 ) : null}
@@ -7952,124 +9160,7 @@ export default function MyClassroomView({
                   </div>
                 ) : null}
 
-                {/* Instructions */}
-                <div className="relative overflow-hidden rounded-xl border border-white/10 bg-linear-to-br from-[#151b35] to-[#11152a] p-5">
-                  <div className="absolute left-0 top-0 h-full w-1 bg-amber-500/40" />
-                  <div className="mb-3 flex items-center gap-2 text-xs font-extrabold uppercase tracking-[0.12em] text-amber-400/80">
-                    <ClipboardList className="h-4 w-4 text-amber-400/70" />
-                    Teacher&apos;s Instructions
-                  </div>
-                  <div className="text-sm leading-relaxed text-slate-200">
-                    {assignmentDetail.instructions}
-                  </div>
-                </div>
-
-                {/* Tasks */}
-                {assignmentDetail.tasks?.length ? (
-                  <div className="rounded-xl border border-white/10 bg-[#151b35] p-4">
-                    <div className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.08em] text-slate-500">
-                      <Check className="h-4 w-4" /> Tasks ({assignmentDetail.tasks.length})
-                    </div>
-                    <div className="grid gap-2">
-                      {assignmentDetail.tasks.map((t, i) => (
-                        <div
-                          key={t.id}
-                          className="flex items-start gap-3 rounded-lg border border-white/5 bg-black/20 p-3 transition hover:border-white/10"
-                        >
-                          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-violet-500/15 text-[11px] font-bold text-violet-300">
-                            {i + 1}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className="font-medium text-slate-200">
-                                {assignmentDetail.type === "Concept Focus"
-                                  ? t.kind === "topic_path"
-                                    ? "Spend atleast 10 minutes on this sub topic"
-                                    : t.kind === "chapter_quiz"
-                                      ? "Answer all questions in the Quiz even if it's wrong"
-                                      : t.kind === "instacue"
-                                        ? "Scroll and see all Insta Que cards"
-                                        : t.kind === "bits"
-                                          ? "Click all formulae and practice the numerals"
-                                          : t.label
-                                  : t.label}
-                              </span>
-                              {!t.visible_to_student ? (
-                                <span className="rounded border border-amber-400/30 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-bold text-amber-300">
-                                  Hidden
-                                </span>
-                              ) : null}
-                              {t.reward_rdm != null && t.reward_rdm > 0 ? (
-                                <span className="rounded border border-emerald-400/30 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-bold text-emerald-300">
-                                  +{t.reward_rdm} RDM
-                                </span>
-                              ) : null}
-                              {t.kind === "chapter_quiz" ? (
-                                <span className="rounded border border-sky-400/30 bg-sky-500/10 px-1.5 py-0.5 text-[10px] font-bold text-sky-300">
-                                  {assignmentScores.length}/{cohortStudents.length} submitted
-                                </span>
-                              ) : null}
-                            </div>
-                            {t.href && assignmentDetail.type !== "Concept Focus" ? (
-                              <div className="mt-1 flex items-center gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const rawHref = t.href ?? "";
-                                    const postId = assignmentDetail?.id ?? "";
-                                    const classroomId = activeClassroomId ?? "";
-                                    const resolved = rawHref
-                                      .replace(/\{\{POST_ID\}\}/g, postId)
-                                      .replace(/\{\{CLASSROOM_ID\}\}/g, classroomId)
-                                      // Also replace URL-encoded placeholder tokens if present
-                                      .replace(/%7B%7BPOST_ID%7D%7D/gi, encodeURIComponent(postId))
-                                      .replace(
-                                        /%7B%7BCLASSROOM_ID%7D%7D/gi,
-                                        encodeURIComponent(classroomId)
-                                      );
-                                    if (t.kind === "chapter_quiz") {
-                                      const ref = assignmentDetail?.chapterQuiz ?? null;
-                                      setTaskPreview({
-                                        open: true,
-                                        href: resolved,
-                                        mode: "chapter-quiz-preview",
-                                        title: t.label || "Task preview",
-                                        ...(ref
-                                          ? {
-                                              chapterQuizRef: {
-                                                board: ref.board,
-                                                subject: ref.subject,
-                                                classLevel: ref.classLevel,
-                                                topic: ref.topic,
-                                                subtopicName: ref.subtopicName,
-                                                level: ref.level,
-                                                advancedSet: ref.advancedSet,
-                                              },
-                                            }
-                                          : {}),
-                                      });
-                                      return;
-                                    }
-                                    openTaskPreview(resolved, t.label);
-                                  }}
-                                  className="inline-flex items-center gap-1 rounded-md border border-violet-400/30 bg-violet-500/10 px-2 py-1 text-[11px] font-semibold text-violet-300 hover:bg-violet-500/20"
-                                >
-                                  <ExternalLink className="h-3 w-3" /> Open task link
-                                </button>
-                                <span
-                                  className="max-w-90 truncate text-[11px] text-slate-500"
-                                  title={t.href}
-                                >
-                                  {t.href}
-                                </span>
-                              </div>
-                            ) : null}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
+                {/* Resources (task links) hidden in teacher popup (per investor feedback) */}
 
                 {/* Student responses (custom text/links) */}
                 {assignmentDetail.tasks?.some((t) => !t.href && t.kind === "free_text") ? (
@@ -8584,12 +9675,12 @@ function TaskPreviewBody(props: {
 
   return (
     <div className="flex max-h-[86vh] flex-col sm:max-h-[90vh]">
-      <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3 sm:px-5 sm:py-4">
+      <div className="flex items-center justify-between gap-3 border-b border-white/10 px-3 py-2.5 sm:px-5 sm:py-4">
         <div className="min-w-0">
           <div className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-500">
             Task preview
           </div>
-          <div className="mt-1 truncate font-serif text-lg text-slate-50 sm:text-xl">
+          <div className="mt-1 truncate font-serif text-base text-slate-50 sm:text-xl">
             {payload?.testTitle ?? props.title}
           </div>
         </div>
@@ -8630,7 +9721,7 @@ function TaskPreviewBody(props: {
           />
         </div>
       ) : (
-        <div className="min-h-[40vh] px-4 py-4 sm:px-5 sm:py-5">
+        <div className="min-h-[40vh] px-3 py-3 sm:px-5 sm:py-5">
           {loading ? (
             <div className="flex min-h-[34vh] items-center justify-center gap-2 text-sm text-slate-400">
               <Loader2 className="h-4 w-4 animate-spin" /> Loading questions…
@@ -8654,6 +9745,7 @@ function TaskPreviewBody(props: {
                 total={payload.questions.length}
                 submitted={false}
                 showCorrectAnswers={false}
+                density="compact"
               />
             </div>
           ) : (

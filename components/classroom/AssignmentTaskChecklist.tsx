@@ -7,6 +7,33 @@ import { safeGetSession } from "@/lib/safeSession";
 import type { AssignmentTaskStored } from "@/lib/classroom/assignmentTasks";
 import { supabase } from "@/integrations/supabase/client";
 
+/** Short TTL GET dedupe for task-progress (reduces polling churn). Cleared on local mutations. */
+const TASK_PROGRESS_GET_TTL_MS = 45_000;
+const taskProgressGetCache = new Map<
+  string,
+  {
+    expiresAt: number;
+    data: {
+      tasks: AssignmentTaskStored[];
+      completedTaskIds: string[];
+      progressAvailable: boolean;
+    };
+  }
+>();
+
+function taskProgressCacheKey(classroomId: string, postId: string, userId: string) {
+  return `${classroomId}:${postId}:${userId}`;
+}
+
+function sameTaskList(a: AssignmentTaskStored[], b: AssignmentTaskStored[]): boolean {
+  if (a.length !== b.length) return false;
+  const ids = new Set(a.map((t) => t.id));
+  for (const t of b) {
+    if (!ids.has(t.id)) return false;
+  }
+  return true;
+}
+
 interface QuizAttemptInfo {
   score: number;
   total: number;
@@ -25,6 +52,8 @@ interface AssignmentTaskChecklistProps {
   postId: string;
   /** When true, show all tasks (including teacher-only) without checkboxes */
   isTeacherView: boolean;
+  /** When set, render checklist immediately; progress hydrates from API in the background */
+  initialTasks?: AssignmentTaskStored[];
 }
 
 function parseQuizSetFromHref(href: string): string | null {
@@ -94,11 +123,13 @@ export default function AssignmentTaskChecklist({
   classroomId,
   postId,
   isTeacherView,
+  initialTasks,
 }: AssignmentTaskChecklistProps) {
-  const [tasks, setTasks] = useState<AssignmentTaskStored[]>([]);
+  const hasInitialShell = Boolean(initialTasks?.length);
+  const [tasks, setTasks] = useState<AssignmentTaskStored[]>(() => initialTasks ?? []);
   const [completed, setCompleted] = useState<Set<string>>(() => new Set());
   const [progressAvailable, setProgressAvailable] = useState(true);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !Boolean(initialTasks?.length));
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [quizScores, setQuizScores] = useState<Record<string, QuizAttemptInfo>>({});
@@ -115,148 +146,204 @@ export default function AssignmentTaskChecklist({
     [tasks]
   );
 
-  const load = useCallback(async (opts?: { silent?: boolean }) => {
-    const silent = opts?.silent === true && hasLoadedOnceRef.current;
-    if (!silent) setLoading(true);
-    if (!silent) setError(null);
-    try {
-      const headers: HeadersInit = {};
-      const { session } = await safeGetSession();
-      if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
-      const res = await fetch(`/api/classroom/${classroomId}/posts/${postId}/task-progress`, {
-        headers,
-        credentials: "include",
-      });
-      const data = (await res.json()) as {
-        tasks?: AssignmentTaskStored[];
-        completedTaskIds?: string[];
-        progressAvailable?: boolean;
-        error?: string;
-      };
-      if (!res.ok) {
-        setError(data?.error ?? "Could not load tasks");
-        setTasks([]);
-        setCompleted(new Set());
-        setProgressAvailable(true);
-        return;
-      }
-      const loadedTasks = Array.isArray(data.tasks) ? data.tasks : [];
-      const loadedCompleted = new Set(
-        Array.isArray(data.completedTaskIds) ? data.completedTaskIds : []
-      );
-      setTasks(loadedTasks);
-      setCompleted(loadedCompleted);
-      setProgressAvailable(data.progressAvailable !== false);
-      hasLoadedOnceRef.current = true;
+  const responsesHydratedRef = useRef(false);
 
-      if (!isTeacherView && loadedTasks.length > 0) {
-        setResponsesLoading(true);
-        const respRes = await fetch(`/api/classroom/${classroomId}/posts/${postId}/task-response`, {
+  useEffect(() => {
+    responsesHydratedRef.current = false;
+  }, [postId]);
+
+  useEffect(() => {
+    if (initialTasks?.length) setTasks(initialTasks);
+  }, [initialTasks]);
+
+  const load = useCallback(
+    async (opts?: { silent?: boolean; bypassCache?: boolean }) => {
+      const silent = opts?.silent === true && hasLoadedOnceRef.current;
+      const bypassCache = opts?.bypassCache === true;
+
+      if (!silent) {
+        setError(null);
+        if (!hasInitialShell) setLoading(true);
+      }
+
+      try {
+        const headers: HeadersInit = {};
+        const { session } = await safeGetSession();
+        const uid = session?.user?.id ?? "";
+        if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+
+        const ck = taskProgressCacheKey(classroomId, postId, uid);
+        if (silent && !bypassCache && uid) {
+          const hit = taskProgressGetCache.get(ck);
+          if (hit && Date.now() < hit.expiresAt) {
+            const { tasks: cachedTasks, completedTaskIds, progressAvailable: pa } = hit.data;
+            const loadedCompleted = new Set(completedTaskIds);
+            setTasks((prev) => (sameTaskList(prev, cachedTasks) ? prev : cachedTasks));
+            setCompleted(loadedCompleted);
+            setProgressAvailable(pa);
+            hasLoadedOnceRef.current = true;
+            return;
+          }
+        }
+
+        const res = await fetch(`/api/classroom/${classroomId}/posts/${postId}/task-progress`, {
           headers,
           credentials: "include",
         });
-        const respData = (await respRes.json().catch(() => ({}))) as {
-          responses?: TaskResponseRow[];
+        const data = (await res.json()) as {
+          tasks?: AssignmentTaskStored[];
+          completedTaskIds?: string[];
+          progressAvailable?: boolean;
           error?: string;
         };
-        if (respRes.ok && Array.isArray(respData.responses)) {
-          const map: Record<string, TaskResponseRow> = {};
-          for (const r of respData.responses) {
-            if (r && typeof r.task_id === "string") map[r.task_id] = r;
+        if (!res.ok) {
+          if (!silent) {
+            setError(data?.error ?? "Could not load tasks");
+            setTasks([]);
+            setCompleted(new Set());
+            setProgressAvailable(true);
           }
-          setResponsesByTaskId(map);
-          setDraftTextByTaskId((prev) => {
-            const next = { ...prev };
-            for (const t of loadedTasks) {
-              if (t.kind !== "free_text" || t.href) continue;
-              if (next[t.id] != null) continue;
-              next[t.id] = map[t.id]?.response_text ?? "";
-            }
-            return next;
-          });
-          setDraftLinksByTaskId((prev) => {
-            const next = { ...prev };
-            for (const t of loadedTasks) {
-              if (t.kind !== "free_text" || t.href) continue;
-              if (next[t.id] != null) continue;
-              next[t.id] = (map[t.id]?.links ?? []).join("\n");
-            }
-            return next;
-          });
-        } else if (respRes.status !== 404 && respData?.error) {
-          // Non-fatal: keep checklist usable even if response fetch fails.
-          console.warn(respData.error);
+          return;
         }
-        setResponsesLoading(false);
-      }
+        const loadedTasks = Array.isArray(data.tasks) ? data.tasks : [];
+        const loadedCompleted = new Set(
+          Array.isArray(data.completedTaskIds) ? data.completedTaskIds : []
+        );
 
-      // Auto-detect quiz completion from attempts table for chapter_quiz tasks
-      if (!isTeacherView) {
-        const quizTask = loadedTasks.find((t) => t.kind === "chapter_quiz");
-        if (quizTask) {
-          try {
-            const {
-              data: { user },
-            } = await supabase.auth.getUser();
-            if (user) {
-              const genericClient = supabase as unknown as {
-                from: (table: string) => {
-                  select: (columns: string) => {
-                    eq: (
-                      column: string,
-                      value: string
-                    ) => {
+        if (uid) {
+          taskProgressGetCache.set(ck, {
+            expiresAt: Date.now() + TASK_PROGRESS_GET_TTL_MS,
+            data: {
+              tasks: loadedTasks,
+              completedTaskIds: Array.from(loadedCompleted),
+              progressAvailable: data.progressAvailable !== false,
+            },
+          });
+        }
+
+        if (silent && hasLoadedOnceRef.current) {
+          setTasks((prev) => (sameTaskList(prev, loadedTasks) ? prev : loadedTasks));
+        } else {
+          setTasks(loadedTasks);
+        }
+        setCompleted(loadedCompleted);
+        setProgressAvailable(data.progressAvailable !== false);
+        hasLoadedOnceRef.current = true;
+
+        const needsResponses =
+          !isTeacherView &&
+          loadedTasks.some((t) => !t.href && t.kind === "free_text") &&
+          (!silent || !responsesHydratedRef.current);
+
+        if (needsResponses) {
+          setResponsesLoading(true);
+          const respRes = await fetch(`/api/classroom/${classroomId}/posts/${postId}/task-response`, {
+            headers,
+            credentials: "include",
+          });
+          const respData = (await respRes.json().catch(() => ({}))) as {
+            responses?: TaskResponseRow[];
+            error?: string;
+          };
+          if (respRes.ok && Array.isArray(respData.responses)) {
+            responsesHydratedRef.current = true;
+            const map: Record<string, TaskResponseRow> = {};
+            for (const r of respData.responses) {
+              if (r && typeof r.task_id === "string") map[r.task_id] = r;
+            }
+            setResponsesByTaskId(map);
+            setDraftTextByTaskId((prev) => {
+              const next = { ...prev };
+              for (const t of loadedTasks) {
+                if (t.kind !== "free_text" || t.href) continue;
+                if (next[t.id] != null) continue;
+                next[t.id] = map[t.id]?.response_text ?? "";
+              }
+              return next;
+            });
+            setDraftLinksByTaskId((prev) => {
+              const next = { ...prev };
+              for (const t of loadedTasks) {
+                if (t.kind !== "free_text" || t.href) continue;
+                if (next[t.id] != null) continue;
+                next[t.id] = (map[t.id]?.links ?? []).join("\n");
+              }
+              return next;
+            });
+          } else if (respRes.status !== 404 && respData?.error) {
+            console.warn(respData.error);
+          }
+          setResponsesLoading(false);
+        }
+
+        if (!isTeacherView) {
+          const quizTask = loadedTasks.find((t) => t.kind === "chapter_quiz");
+          if (quizTask) {
+            try {
+              const {
+                data: { user },
+              } = await supabase.auth.getUser();
+              if (user) {
+                const genericClient = supabase as unknown as {
+                  from: (table: string) => {
+                    select: (columns: string) => {
                       eq: (
                         column: string,
                         value: string
                       ) => {
-                        maybeSingle: () => Promise<{
-                          data: {
-                            score?: number | null;
-                            total?: number | null;
-                            submitted_at?: string | null;
-                          } | null;
-                        }>;
+                        eq: (
+                          column: string,
+                          value: string
+                        ) => {
+                          maybeSingle: () => Promise<{
+                            data: {
+                              score?: number | null;
+                              total?: number | null;
+                              submitted_at?: string | null;
+                            } | null;
+                          }>;
+                        };
                       };
                     };
                   };
                 };
-              };
-              const { data: attemptData } = await genericClient
-                .from("classroom_generated_test_attempts")
-                .select("score,total,submitted_at")
-                .eq("post_id", postId)
-                .eq("user_id", user.id)
-                .maybeSingle();
-              const attemptRow = attemptData as {
-                score?: number | null;
-                total?: number | null;
-                submitted_at?: string | null;
-              } | null;
-              if (attemptRow?.submitted_at) {
-                setQuizScores({
-                  [quizTask.id]: {
-                    score: Number(attemptRow.score) || 0,
-                    total: Number(attemptRow.total) || 0,
-                    submittedAt: attemptRow.submitted_at,
-                  },
-                });
-                loadedCompleted.add(quizTask.id);
-                setCompleted(new Set(loadedCompleted));
+                const { data: attemptData } = await genericClient
+                  .from("classroom_generated_test_attempts")
+                  .select("score,total,submitted_at")
+                  .eq("post_id", postId)
+                  .eq("user_id", user.id)
+                  .maybeSingle();
+                const attemptRow = attemptData as {
+                  score?: number | null;
+                  total?: number | null;
+                  submitted_at?: string | null;
+                } | null;
+                if (attemptRow?.submitted_at) {
+                  setQuizScores({
+                    [quizTask.id]: {
+                      score: Number(attemptRow.score) || 0,
+                      total: Number(attemptRow.total) || 0,
+                      submittedAt: attemptRow.submitted_at,
+                    },
+                  });
+                  loadedCompleted.add(quizTask.id);
+                  setCompleted(new Set(loadedCompleted));
+                }
               }
+            } catch {
+              // silent fail — attempt detection is best-effort
             }
-          } catch {
-            // silent fail — attempt detection is best-effort
           }
         }
+      } catch {
+        if (!silent) setError("Network error");
+        if (!silent) setProgressAvailable(true);
+      } finally {
+        if (!silent) setLoading(false);
       }
-    } catch {
-      if (!silent) setError("Network error");
-      if (!silent) setProgressAvailable(true);
-    } finally {
-      if (!silent) setLoading(false);
-    }
-  }, [classroomId, postId, isTeacherView]);
+    },
+    [classroomId, postId, isTeacherView, hasInitialShell]
+  );
 
   useEffect(() => {
     void load();
@@ -264,14 +351,14 @@ export default function AssignmentTaskChecklist({
 
   useEffect(() => {
     if (isTeacherView) return;
-    const onFocus = () => void load({ silent: true });
+    const onFocus = () => void load({ silent: true, bypassCache: true });
     const onVisibility = () => {
-      if (!document.hidden) void load({ silent: true });
+      if (!document.hidden) void load({ silent: true, bypassCache: true });
     };
     const interval = window.setInterval(() => {
       if (isInteractingRef.current) return;
       void load({ silent: true });
-    }, 20000);
+    }, 60_000);
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
@@ -313,6 +400,8 @@ export default function AssignmentTaskChecklist({
         else n.delete(taskId);
         return n;
       });
+      const uid = session?.user?.id ?? "";
+      if (uid) taskProgressGetCache.delete(taskProgressCacheKey(classroomId, postId, uid));
     } finally {
       setBusyId(null);
     }
@@ -382,12 +471,15 @@ export default function AssignmentTaskChecklist({
           console.warn(progData.error);
         }
       }
+      const uid = session?.user?.id ?? "";
+      if (uid) taskProgressGetCache.delete(taskProgressCacheKey(classroomId, postId, uid));
     } finally {
       setSubmitBusyTaskId(null);
     }
   };
 
-  if (loading) return <div className="text-sm text-muted-foreground py-2">Loading checklist…</div>;
+  if (loading && !hasInitialShell)
+    return <div className="text-sm text-muted-foreground py-2">Loading checklist…</div>;
   if (error) return <div className="text-sm text-destructive">{error}</div>;
   if (tasks.length === 0) return null;
 

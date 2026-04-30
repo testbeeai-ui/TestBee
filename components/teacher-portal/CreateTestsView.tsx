@@ -644,7 +644,8 @@ export default function CreateTestsView({
     }
     return `${examType} — ${ch}`;
   }, [chapterId, curriculumUnits, examType, scope, selectedTopicId, selectedUnitId, testName]);
-  const pillBase = "rounded-full border px-3.5 py-1.5 text-sm font-semibold transition-colors";
+  const pillBase =
+    "rounded-full border px-3 py-1 text-[13px] font-semibold transition-colors sm:px-3.5 sm:py-1.5 sm:text-sm";
   const pillClassLevel = (active: boolean) =>
     `${pillBase} ${active ? "border-sky-400/55 bg-sky-500/12 text-sky-100" : "border-white/10 bg-[#0c1020] text-slate-300 hover:bg-white/[0.04]"}`;
   const pillClassScope = (active: boolean) =>
@@ -665,13 +666,19 @@ export default function CreateTestsView({
     ? "relative mt-auto flex min-h-[38px] flex-col gap-2 border-t border-white/[0.06] pt-3 sm:block"
     : "relative mt-1 flex min-h-[44px] flex-col gap-3 border-t border-white/[0.06] pt-5 sm:block";
 
-  const stepperPad = embedded ? "px-1.5 py-1.5 sm:px-2 sm:py-2" : "px-2 py-2.5 sm:px-3 sm:py-3";
+  const stepperPad = embedded
+    ? "px-1.5 py-1.5 sm:px-2 sm:py-2"
+    : "px-2 py-2 sm:px-3 sm:py-3";
   const stepperDot = embedded
     ? "mx-auto mb-0.5 flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold"
-    : "mx-auto mb-1 flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-bold";
+    : "mx-auto mb-1 flex h-5.5 w-5.5 items-center justify-center rounded-full text-[10px] font-bold sm:h-6 sm:w-6 sm:text-[11px]";
 
   return (
-    <div className={embedded ? "flex h-full min-h-0 w-full min-w-0 flex-col text-left" : "w-full min-w-0 text-left"}>
+    <div
+      className={
+        embedded ? "flex h-full min-h-0 w-full min-w-0 flex-col text-left" : "w-full min-w-0 text-left"
+      }
+    >
       {embedded ? (
         <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-white/[0.06] pb-2">
           <span className="font-serif text-lg font-semibold tracking-tight text-slate-100 sm:text-xl">
@@ -681,19 +688,21 @@ export default function CreateTestsView({
         </div>
       ) : (
         <>
-          <h1 className="font-serif text-2xl tracking-tight sm:text-3xl lg:text-[2.125rem]">
+          <h1 className="font-serif text-xl tracking-tight sm:text-3xl lg:text-[2.125rem]">
             Create <span className="text-emerald-400 italic">Tests</span>
           </h1>
-          <p className="mt-1.5 max-w-[65ch] text-xs leading-relaxed text-slate-400 sm:text-sm">
+          <p className="mt-1 max-w-[65ch] text-[11px] leading-relaxed text-slate-400 sm:text-sm">
             Generate question-bank MCQ papers for <span className="text-slate-200">CBSE Board</span>{" "}
             today. KCET and JEE Main are on the way.
           </p>
         </>
       )}
 
-      <div
-        className={`overflow-hidden rounded-2xl border border-white/[0.09] bg-[#101428] shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset] ${embedded ? "mt-1 flex min-h-0 flex-1 flex-col sm:mt-2" : "mt-4 sm:mt-5"}`}
-      >
+        <div
+          className={`overflow-hidden rounded-2xl border border-white/[0.09] bg-[#101428] shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset] ${
+            embedded ? "mt-1 flex min-h-0 flex-1 flex-col sm:mt-2" : "mt-3 sm:mt-5"
+          }`}
+        >
         <div className="-mx-px overflow-x-auto border-b border-white/[0.08] sm:mx-0 sm:overflow-visible">
           <div className="grid min-w-[min(100%,28rem)] grid-cols-2 min-[480px]:grid-cols-3 sm:min-w-0 sm:grid-cols-5">
           {stepLabels.map((label, idx) => {
@@ -731,7 +740,7 @@ export default function CreateTestsView({
           className={
             embedded
               ? "flex min-h-0 flex-1 flex-col overflow-y-auto p-3 sm:p-4"
-              : "p-4 sm:p-5"
+              : "p-3 sm:p-5"
           }
         >
           {step === 1 ? (
@@ -743,7 +752,7 @@ export default function CreateTestsView({
                 <div
                   role="status"
                   aria-current="true"
-                  className="flex min-w-0 flex-1 flex-col justify-center rounded-xl border border-emerald-400/40 bg-emerald-500/[0.08] px-4 py-3.5 sm:min-w-0"
+                  className="flex min-w-0 flex-1 flex-col justify-center rounded-xl border border-emerald-400/40 bg-emerald-500/[0.08] px-3 py-3 sm:min-w-0 sm:px-4 sm:py-3.5"
                 >
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-lg" aria-hidden>
@@ -753,7 +762,7 @@ export default function CreateTestsView({
                       Available
                     </span>
                   </div>
-                  <div className="mt-1.5 font-serif text-lg font-bold text-emerald-50 sm:text-xl">
+                  <div className="mt-1 font-serif text-lg font-bold text-emerald-50 sm:text-xl">
                     CBSE Board
                   </div>
                   <p className="mt-1 text-xs leading-snug text-slate-400 sm:text-[13px]">
@@ -792,7 +801,7 @@ export default function CreateTestsView({
                   <button
                     type="button"
                     onClick={() => setStep(2)}
-                    className="inline-flex h-10 w-full items-center justify-center rounded-full bg-emerald-500 px-5 text-sm font-semibold text-black sm:w-auto"
+                    className="inline-flex h-10 w-full items-center justify-center rounded-full bg-emerald-500 px-4 text-sm font-semibold text-black sm:w-auto sm:px-5"
                   >
                     Next: Class & Scope <ChevronRight className="ml-1 h-4 w-4" />
                   </button>
@@ -889,7 +898,7 @@ export default function CreateTestsView({
                       value={chapterId}
                       onChange={(e) => setChapterId(e.target.value)}
                       disabled={curriculumLoading || flatChapters.length === 0}
-                      className="h-11 w-full rounded-xl border border-white/10 bg-[#0b1020] px-3 text-sm outline-none focus:border-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="h-10 w-full rounded-xl border border-white/10 bg-[#0b1020] px-3 text-sm outline-none focus:border-emerald-400 disabled:cursor-not-allowed disabled:opacity-50 sm:h-11"
                     >
                       {flatChapters.length === 0 ? (
                         <option value="">No chapters available</option>
@@ -913,7 +922,7 @@ export default function CreateTestsView({
                       value={selectedTopicId}
                       onChange={(e) => setSelectedTopicId(e.target.value)}
                       disabled={curriculumLoading || topicsForSelectedChapter.length === 0}
-                      className="h-11 w-full rounded-xl border border-white/10 bg-[#0b1020] px-3 text-sm outline-none focus:border-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="h-10 w-full rounded-xl border border-white/10 bg-[#0b1020] px-3 text-sm outline-none focus:border-emerald-400 disabled:cursor-not-allowed disabled:opacity-50 sm:h-11"
                     >
                       {topicsForSelectedChapter.length === 0 ? (
                         <option value="">No topics for this chapter</option>
@@ -949,7 +958,7 @@ export default function CreateTestsView({
                           setChapterId(c0 ? compositeChapterId(uid, c0.id) : "");
                         }}
                         disabled={curriculumLoading || unitsForClass.length === 0}
-                        className="h-11 w-full rounded-xl border border-white/10 bg-[#0b1020] px-3 text-sm outline-none focus:border-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
+                        className="h-10 w-full rounded-xl border border-white/10 bg-[#0b1020] px-3 text-sm outline-none focus:border-emerald-400 disabled:cursor-not-allowed disabled:opacity-50 sm:h-11"
                       >
                         {unitsForClass.map((u) => (
                           <option key={u.id} value={u.id}>
@@ -970,7 +979,7 @@ export default function CreateTestsView({
                         value={chapterId}
                         onChange={(e) => setChapterId(e.target.value)}
                         disabled={curriculumLoading || chaptersInSelectedUnit.length === 0}
-                        className="h-11 w-full rounded-xl border border-white/10 bg-[#0b1020] px-3 text-sm outline-none focus:border-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
+                        className="h-10 w-full rounded-xl border border-white/10 bg-[#0b1020] px-3 text-sm outline-none focus:border-emerald-400 disabled:cursor-not-allowed disabled:opacity-50 sm:h-11"
                       >
                         {chaptersInSelectedUnit.map((ch) => (
                           <option key={ch.id} value={compositeChapterId(selectedUnitId, ch.id)}>
@@ -992,7 +1001,7 @@ export default function CreateTestsView({
                       value={selectedTopicId}
                       onChange={(e) => setSelectedTopicId(e.target.value)}
                       disabled={curriculumLoading || topicsForSelectedChapter.length === 0}
-                      className="h-11 w-full rounded-xl border border-white/10 bg-[#0b1020] px-3 text-sm outline-none focus:border-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="h-10 w-full rounded-xl border border-white/10 bg-[#0b1020] px-3 text-sm outline-none focus:border-emerald-400 disabled:cursor-not-allowed disabled:opacity-50 sm:h-11"
                     >
                       {topicsForSelectedChapter.length === 0 ? (
                         <option value="">No topics for this chapter</option>
@@ -1015,7 +1024,7 @@ export default function CreateTestsView({
                   <button
                     type="button"
                     onClick={() => setStep(1)}
-                    className="rounded-full border border-white/10 px-5 py-2 text-sm text-slate-300"
+                    className="rounded-full border border-white/10 px-4 py-2 text-[13px] text-slate-300 sm:px-5 sm:text-sm"
                   >
                     ← Back
                   </button>
@@ -1194,7 +1203,7 @@ export default function CreateTestsView({
                   <button
                     type="button"
                     onClick={() => setStep(2)}
-                    className="rounded-full border border-white/10 px-5 py-2 text-sm text-slate-300"
+                    className="rounded-full border border-white/10 px-4 py-2 text-[13px] text-slate-300 sm:px-5 sm:text-sm"
                   >
                     ← Back
                   </button>
@@ -1218,7 +1227,7 @@ export default function CreateTestsView({
               </div>
               <div className="grid gap-3 md:grid-cols-2">
                 <div
-                  className="rounded-xl border border-dashed border-white/15 bg-white/[0.02] p-4 text-left"
+                  className="rounded-xl border border-dashed border-white/15 bg-white/[0.02] p-3 text-left sm:p-4"
                   aria-disabled="true"
                 >
                   <div className="mb-2 flex flex-wrap items-center gap-2">
@@ -1234,7 +1243,7 @@ export default function CreateTestsView({
                     Auto-generated papers are not available yet. Use the question bank for now.
                   </p>
                 </div>
-                <div className="rounded-xl border border-emerald-400/45 bg-emerald-500/10 p-4 text-left ring-1 ring-emerald-400/15">
+                <div className="rounded-xl border border-emerald-400/45 bg-emerald-500/10 p-3 text-left ring-1 ring-emerald-400/15 sm:p-4">
                   <div className="mb-1 text-lg" aria-hidden>
                     📚
                   </div>
@@ -1243,7 +1252,7 @@ export default function CreateTestsView({
                 </div>
               </div>
               <div
-                className={`rounded-xl border p-4 transition-colors ${
+                className={`rounded-xl border p-3 transition-colors sm:p-4 ${
                   duration === null
                     ? "border-amber-400/50 bg-amber-500/[0.07] ring-1 ring-amber-400/25"
                     : "border-white/10 bg-[#0e1325]"
@@ -1303,7 +1312,7 @@ export default function CreateTestsView({
                   value={testName}
                   onChange={(e) => setTestName(e.target.value)}
                   placeholder={`e.g. ${examType} - ${scope} Test - April 2026`}
-                  className="h-11 w-full max-w-xl rounded-xl border border-white/10 bg-[#0b1020] px-3 text-sm outline-none placeholder:text-slate-500 focus:border-emerald-400"
+                  className="h-10 w-full max-w-xl rounded-xl border border-white/10 bg-[#0b1020] px-3 text-sm outline-none placeholder:text-slate-500 focus:border-emerald-400 sm:h-11"
                 />
               </div>
               <div className={stepFooterClass}>
@@ -1314,7 +1323,7 @@ export default function CreateTestsView({
                   <button
                     type="button"
                     onClick={() => setStep(3)}
-                    className="rounded-full border border-white/10 px-5 py-2 text-sm text-slate-300"
+                    className="rounded-full border border-white/10 px-4 py-2 text-[13px] text-slate-300 sm:px-5 sm:text-sm"
                   >
                     ← Back
                   </button>
@@ -1463,8 +1472,8 @@ export default function CreateTestsView({
 
       {/* Test History Section — separate card below the wizard (full page only) */}
       {!embedded ? (
-      <div className="mt-5 overflow-hidden rounded-2xl border border-white/[0.09] bg-[#101428] shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset] sm:mt-6">
-        <div className="border-b border-white/[0.08] px-4 py-3 sm:px-5 sm:py-4 lg:px-6">
+      <div className="mt-4 overflow-hidden rounded-2xl border border-white/[0.09] bg-[#101428] shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset] sm:mt-6">
+        <div className="border-b border-white/[0.08] px-3 py-2.5 sm:px-5 sm:py-4 lg:px-6">
           <div className="flex items-center gap-2">
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-violet-500/15 text-violet-300">
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1479,14 +1488,14 @@ export default function CreateTestsView({
             <h3 className="text-sm font-semibold text-slate-200">Your Generated Test History</h3>
           </div>
         </div>
-        <div className="p-4 sm:p-5 lg:p-6">
+        <div className="p-3 sm:p-5 lg:p-6">
           {historyLoading ? (
             <div className="flex items-center gap-2 text-sm text-slate-500">
               <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-600 border-t-slate-300" />
               Loading history...
             </div>
           ) : testHistory.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-white/10 bg-[#0c1020] p-4 text-center sm:p-6">
+            <div className="rounded-xl border border-dashed border-white/10 bg-[#0c1020] p-3 text-center sm:p-6">
               <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-slate-800/50 text-slate-500">
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path

@@ -22,16 +22,29 @@ export async function GET(request: Request) {
     const admin = createAdminClient();
     const db = admin ?? auth.supabase;
 
-    const { data: allClassrooms, error: cErr } = await db
+    // Supabase generated TS types may not include newly added columns yet (e.g. allow_adhoc_trial).
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- narrow escape hatch until types are regenerated
+    const { data: allClassrooms, error: cErr } = await (db as any)
       .from("classrooms")
-      .select("id, name, subject, section, description, type, teacher_id")
+      .select("id, name, subject, section, description, type, teacher_id, allow_adhoc_trial")
       .order("created_at", { ascending: false });
 
     if (cErr) {
       return NextResponse.json({ error: cErr.message }, { status: 500 });
     }
 
-    const list = allClassrooms ?? [];
+    type Row = {
+      id: string;
+      name: string;
+      subject: string | null;
+      section: string | null;
+      description: string | null;
+      type: string;
+      teacher_id: string;
+      allow_adhoc_trial?: boolean | null;
+    };
+
+    const list = (allClassrooms ?? []) as Row[];
     if (list.length === 0) {
       return NextResponse.json({ classrooms: [] });
     }
@@ -51,9 +64,8 @@ export async function GET(request: Request) {
       (teacherProfiles ?? []).forEach((p) => profileMap.set(p.id, p));
     }
 
-    type Row = (typeof list)[number];
     const withTeacher = list
-      .map((c: Row) => {
+      .map((c) => {
         const p = profileMap.get(c.teacher_id);
         return {
           ...c,
@@ -61,7 +73,9 @@ export async function GET(request: Request) {
           teacher_visibility: p?.visibility ?? null,
         };
       })
-      .filter((c) => c.teacher_visibility !== "invite_only");
+      .filter((c) => c.teacher_visibility !== "invite_only")
+      // Reliable: if teacher disables trial access, hide from Explore list.
+      .filter((c) => c.allow_adhoc_trial !== false);
 
     const classroomIds = withTeacher.map((c) => c.id);
     const ratingMap = new Map<string, { sum: number; count: number }>();

@@ -238,6 +238,35 @@
   line-height: 1.65;
   overflow-x: auto;
 }
+.doubt-markdown-compact {
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+.doubt-markdown-compact p {
+  margin: 0 0 0.35rem 0;
+}
+.doubt-markdown-compact ul,
+.doubt-markdown-compact ol {
+  padding-left: 1.15rem;
+  margin: 0.25rem 0;
+}
+.doubt-markdown-compact li {
+  margin: 0.12rem 0;
+}
+.doubt-markdown-compact pre {
+  padding: 0.6rem;
+  border-radius: 0.65rem;
+}
+.doubt-markdown-compact .katex {
+  font-size: 1em;
+}
+.doubt-markdown-compact .katex-display {
+  padding: 0.55rem 0.85rem;
+  border-radius: 0.6rem;
+}
+.doubt-markdown-compact .katex-display > .katex {
+  font-size: 1.05em;
+}
 .doubt-markdown p {
   margin: 0 0 0.5rem 0;
 }

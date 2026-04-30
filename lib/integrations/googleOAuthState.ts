@@ -8,8 +8,13 @@ function stateSecret(): Uint8Array {
   return encoder.encode(raw);
 }
 
-export async function signGoogleOAuthState(userId: string): Promise<string> {
-  return new SignJWT({ purpose: "google_calendar_oauth" })
+export async function signGoogleOAuthState(
+  userId: string,
+  options?: { popup?: boolean }
+): Promise<string> {
+  const body: Record<string, unknown> = { purpose: "google_calendar_oauth" };
+  if (options?.popup === true) body.popup = true;
+  return new SignJWT(body)
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(userId)
     .setIssuedAt()
@@ -17,12 +22,12 @@ export async function signGoogleOAuthState(userId: string): Promise<string> {
     .sign(stateSecret());
 }
 
-export async function verifyGoogleOAuthState(token: string): Promise<string> {
+export async function verifyGoogleOAuthState(token: string): Promise<{ userId: string; popup: boolean }> {
   const { payload } = await jwtVerify(token, stateSecret(), {
     algorithms: ["HS256"],
   });
   if (payload.purpose !== "google_calendar_oauth" || typeof payload.sub !== "string") {
     throw new Error("Invalid OAuth state payload.");
   }
-  return payload.sub;
+  return { userId: payload.sub, popup: payload.popup === true };
 }

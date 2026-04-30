@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, ChevronLeft, Check, Loader2 } from "lucide-react";
 import type {
   TeacherPortalChapterQuizRef,
@@ -98,12 +98,35 @@ function sectionTitle(step: number) {
   return "Set due date, RDM reward & publish";
 }
 
+type EmbeddedAssignmentDraftV1 = {
+  v: 1;
+  step: 1 | 2 | 3 | 4;
+  typeKey: WizardTypeKey;
+  title: string;
+  titleTouched: boolean;
+  chapterQuizSel: ChapterQuizSelectionState;
+  conceptFocusSel: ConceptFocusSelectionState;
+  gyanTopicFocus: string;
+  gyanSubtopicHint: string;
+  selectedMockPaperId: string | null;
+  classroomId: string;
+  scope: AssignScope;
+  sectionId: string | null;
+  studentIds: string[];
+  studentSearch: string;
+  dueDate: string;
+  rewardRdm: number;
+  instructions: string;
+};
+
 export default function CreateAssignmentWizard(props: {
   teacherId: string;
   classrooms: TeacherPortalClassroomCard[];
   classroomDetails: Record<string, TeacherPortalClassroomDetail>;
   initialClassroomId?: string | null;
   variant?: "page" | "embedded";
+  /** When set (e.g. Teacher Wizard embedded), draft survives closing the wizard (sessionStorage). */
+  sessionDraftKey?: string;
   onCancel: () => void;
   onPublish: (input: Omit<PublishInput, "title"> & { title: string }) => Promise<void>;
 }) {
@@ -139,6 +162,10 @@ export default function CreateAssignmentWizard(props: {
     return props.classrooms[0]?.id ?? "";
   });
   const detail = classroomId ? props.classroomDetails[classroomId] : undefined;
+  const activeSections = useMemo(
+    () => (detail?.sections ?? []).filter((s) => s.isActive !== false),
+    [detail?.sections]
+  );
 
   const [scope, setScope] = useState<AssignScope>("full");
   const [sectionId, setSectionId] = useState<string | null>(null);
@@ -149,6 +176,107 @@ export default function CreateAssignmentWizard(props: {
   const [rewardRdm, setRewardRdm] = useState<number>(15);
   const [instructions, setInstructions] = useState<string>("");
   const [publishing, setPublishing] = useState(false);
+
+  const lastEmbeddedAssignmentDraftMarkerRef = useRef<string>("");
+
+  useLayoutEffect(() => {
+    const key = props.sessionDraftKey;
+    if (!key || props.variant !== "embedded") return;
+    const classroomSig = props.classrooms.map((c) => c.id).sort().join(",");
+    const marker = `${key}|${classroomSig}`;
+    let raw: string | null = null;
+    try {
+      raw = sessionStorage.getItem(key);
+    } catch {
+      return;
+    }
+    if (!raw) {
+      lastEmbeddedAssignmentDraftMarkerRef.current = marker;
+      return;
+    }
+    try {
+      const d = JSON.parse(raw) as EmbeddedAssignmentDraftV1;
+      if (d.v !== 1) return;
+      const cid = typeof d.classroomId === "string" ? d.classroomId.trim() : "";
+      if (cid && props.classrooms.length > 0 && !props.classrooms.some((c) => c.id === cid)) return;
+      if (lastEmbeddedAssignmentDraftMarkerRef.current === marker) return;
+      lastEmbeddedAssignmentDraftMarkerRef.current = marker;
+
+      if (typeof d.step === "number" && d.step >= 1 && d.step <= 4) setStep(d.step as 1 | 2 | 3 | 4);
+      if (d.typeKey === "quiz" || d.typeKey === "concept_focus" || d.typeKey === "gyan" || d.typeKey === "mock")
+        setTypeKey(d.typeKey);
+      if (typeof d.title === "string") setTitle(d.title);
+      titleTouchedRef.current = Boolean(d.titleTouched);
+      if (d.chapterQuizSel && typeof d.chapterQuizSel === "object") setChapterQuizSel(d.chapterQuizSel);
+      if (d.conceptFocusSel && typeof d.conceptFocusSel === "object") setConceptFocusSel(d.conceptFocusSel);
+      if (typeof d.gyanTopicFocus === "string") setGyanTopicFocus(d.gyanTopicFocus);
+      if (typeof d.gyanSubtopicHint === "string") setGyanSubtopicHint(d.gyanSubtopicHint);
+      if (d.selectedMockPaperId === null || typeof d.selectedMockPaperId === "string")
+        setSelectedMockPaperId(d.selectedMockPaperId);
+      if (cid && props.classrooms.some((c) => c.id === cid)) setClassroomId(cid);
+      if (d.scope === "full" || d.scope === "section" || d.scope === "students") setScope(d.scope);
+      if (d.sectionId === null || typeof d.sectionId === "string") setSectionId(d.sectionId);
+      if (Array.isArray(d.studentIds)) setStudentIds(d.studentIds.filter((x): x is string => typeof x === "string"));
+      if (typeof d.studentSearch === "string") setStudentSearch(d.studentSearch);
+      if (typeof d.dueDate === "string") setDueDate(d.dueDate);
+      if (typeof d.rewardRdm === "number" && Number.isFinite(d.rewardRdm)) setRewardRdm(d.rewardRdm);
+      if (typeof d.instructions === "string") setInstructions(d.instructions);
+    } catch {
+      // ignore corrupt draft
+    }
+  }, [props.sessionDraftKey, props.variant, props.classrooms]);
+
+  useEffect(() => {
+    const key = props.sessionDraftKey;
+    if (!key || props.variant !== "embedded") return;
+    const payload: EmbeddedAssignmentDraftV1 = {
+      v: 1,
+      step,
+      typeKey,
+      title,
+      titleTouched: titleTouchedRef.current,
+      chapterQuizSel,
+      conceptFocusSel,
+      gyanTopicFocus,
+      gyanSubtopicHint,
+      selectedMockPaperId,
+      classroomId,
+      scope,
+      sectionId,
+      studentIds,
+      studentSearch,
+      dueDate,
+      rewardRdm,
+      instructions,
+    };
+    const id = window.setTimeout(() => {
+      try {
+        sessionStorage.setItem(key, JSON.stringify(payload));
+      } catch {
+        // ignore
+      }
+    }, 400);
+    return () => window.clearTimeout(id);
+  }, [
+    props.sessionDraftKey,
+    props.variant,
+    step,
+    typeKey,
+    title,
+    chapterQuizSel,
+    conceptFocusSel,
+    gyanTopicFocus,
+    gyanSubtopicHint,
+    selectedMockPaperId,
+    classroomId,
+    scope,
+    sectionId,
+    studentIds,
+    studentSearch,
+    dueDate,
+    rewardRdm,
+    instructions,
+  ]);
 
   useEffect(() => {
     const base = meta.assignmentTypeLabel;
@@ -286,6 +414,13 @@ export default function CreateAssignmentWizard(props: {
         chapterQuiz: meta.derivedType === "quiz" || meta.derivedType === "Concept Focus" ? chapterQuizRef : null,
         gyanEngagement,
       });
+      if (props.sessionDraftKey) {
+        try {
+          sessionStorage.removeItem(props.sessionDraftKey);
+        } catch {
+          // ignore
+        }
+      }
     } finally {
       setPublishing(false);
     }
@@ -313,14 +448,6 @@ export default function CreateAssignmentWizard(props: {
               <div className="mt-0.5 text-xs text-slate-400">{meta.subtitle}</div>
             </div>
             <div className="flex shrink-0 flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={props.onCancel}
-                className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-white/[0.06]"
-              >
-                <ChevronLeft className="h-4 w-4" />
-                Back
-              </button>
               <button
                 type="button"
                 onClick={() => setStep((s) => (s > 1 ? ((s - 1) as 1 | 2 | 3 | 4) : s))}
@@ -378,14 +505,6 @@ export default function CreateAssignmentWizard(props: {
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              <button
-                type="button"
-                onClick={props.onCancel}
-                className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-white/[0.06]"
-              >
-                <ChevronLeft className="h-4 w-4" />
-                Back
-              </button>
               <button
                 type="button"
                 onClick={() => setStep((s) => (s > 1 ? ((s - 1) as 1 | 2 | 3 | 4) : s))}
@@ -614,7 +733,7 @@ export default function CreateAssignmentWizard(props: {
                     className="w-full appearance-none rounded-xl border border-white/15 bg-[#070b17] px-3 py-2 text-sm text-slate-100 outline-none focus:border-emerald-400"
                   >
                     <option value="">Select section…</option>
-                    {(detail?.sections ?? []).map((s) => (
+                    {activeSections.map((s) => (
                       <option key={s.id} value={s.id}>
                         {s.name}
                       </option>

@@ -50,23 +50,23 @@ export default function TeacherPortalShell({
           // Reliable open from any tab: navigate with a flag.
           router.push("/teacher-portal?section=myClassroom&wizard=1");
         }}
-        className="fixed left-3 top-1/2 z-40 -translate-y-1/2 rounded-2xl border border-violet-400/30 bg-violet-500/10 p-2.5 text-violet-100 shadow-lg backdrop-blur hover:bg-violet-500/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#07070f]"
+        className="fixed left-2.5 top-1/2 z-40 -translate-y-1/2 rounded-2xl border border-violet-400/30 bg-violet-500/10 p-2 text-violet-100 shadow-lg backdrop-blur hover:bg-violet-500/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#07070f] sm:left-3 sm:p-2.5"
         aria-label="Open Teacher Wizard"
         title="Teacher Wizard"
       >
-        <ClipboardList className="h-5 w-5" />
+        <ClipboardList className="h-4.5 w-4.5 sm:h-5 sm:w-5" />
       </button>
       <header className="sticky top-0 z-20 border-b border-white/10 bg-[#07070f]/95 backdrop-blur">
-        <div className="flex h-14 items-center gap-2 px-4 sm:h-16 sm:gap-3 sm:px-5 lg:px-6">
+        <div className="flex h-11 items-center gap-2 px-3 sm:h-14 sm:gap-3 sm:px-5 lg:px-6">
           <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-md border border-emerald-400/40 bg-[#101425]">
+            <div className="flex h-7 w-7 items-center justify-center rounded-md border border-emerald-400/40 bg-[#101425] sm:h-8 sm:w-8">
               <span className="font-serif text-emerald-300">E</span>
             </div>
-            <div className="font-serif text-lg">
+            <div className="font-serif text-base sm:text-lg">
               Edu<span className="text-emerald-400 italic">Blast</span>
             </div>
           </div>
-          <div className="rounded-full border border-violet-400/30 bg-violet-500/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-violet-200">
+          <div className="rounded-full border border-violet-400/30 bg-violet-500/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-violet-200 sm:px-3 sm:py-1 sm:text-[11px]">
             Teacher Portal
           </div>
           <nav className="ml-4 hidden items-center gap-1 md:flex">
@@ -75,7 +75,7 @@ export default function TeacherPortalShell({
                 key={key}
                 type="button"
                 onClick={() => (key === "createTests" ? onOpenCreateTests() : onSectionChange(key))}
-                className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-semibold transition sm:px-3 sm:py-2 sm:text-sm ${
+                className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 text-[11px] font-semibold transition sm:px-3 sm:py-2 sm:text-sm ${
                   activeSection === key
                     ? "bg-emerald-500/15 text-emerald-300"
                     : "text-slate-400 hover:bg-white/5 hover:text-white"
@@ -92,40 +92,40 @@ export default function TeacherPortalShell({
             ))}
           </nav>
           <div className="ml-auto flex items-center gap-2">
-            <div className="rounded-full border border-amber-400/30 bg-amber-400/10 px-3 py-1 text-xs font-bold text-amber-200">
+            <div className="rounded-full border border-amber-400/30 bg-amber-400/10 px-2.5 py-0.5 text-[11px] font-bold text-amber-200 sm:px-3 sm:py-1 sm:text-xs">
               {rdmBalance.toLocaleString("en-IN")} RDM
             </div>
             <button
               type="button"
-              className="rounded-md border border-white/10 bg-[#11152a] p-2 text-slate-400 hover:text-white"
+              className="rounded-md border border-white/10 bg-[#11152a] p-1.5 text-slate-400 hover:text-white sm:p-2"
             >
               <Bell className="h-4 w-4" />
             </button>
-            <div className="flex h-8 w-8 items-center justify-center rounded-full border border-violet-400/40 bg-violet-500/10 text-xs font-bold text-violet-200">
+            <div className="flex h-7 w-7 items-center justify-center rounded-full border border-violet-400/40 bg-violet-500/10 text-[11px] font-bold text-violet-200 sm:h-8 sm:w-8 sm:text-xs">
               {initials}
             </div>
           </div>
         </div>
       </header>
 
-      <div className="grid min-h-[calc(100vh-3.5rem)] grid-cols-1 sm:min-h-[calc(100vh-4rem)] md:grid-cols-[250px_1fr]">
-        <aside className="border-r border-white/10 bg-[#0d0d1c] p-3 sm:p-3.5">
+      <div className="grid min-h-[calc(100vh-2.75rem)] grid-cols-1 sm:min-h-[calc(100vh-3.5rem)] md:grid-cols-[208px_1fr] lg:grid-cols-[240px_1fr]">
+        <aside className="border-r border-white/10 bg-[#0d0d1c] p-2 sm:p-3">
           <div className="px-2 pb-2 pt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">
             Navigation
           </div>
-          <div className="space-y-1">
+          <div className="space-y-0.5">
             {sections.map(({ key, label, icon: Icon }) => (
               <button
                 key={`sidebar-${key}`}
                 type="button"
                 onClick={() => (key === "createTests" ? onOpenCreateTests() : onSectionChange(key))}
-                className={`flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition sm:py-2.5 ${
+                className={`flex w-full items-center gap-2 rounded-lg border px-2.5 py-1.5 text-left text-[11.5px] transition sm:px-3 sm:py-2 sm:text-sm ${
                   activeSection === key
                     ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
                     : "border-transparent text-slate-400 hover:border-white/10 hover:bg-white/5 hover:text-white"
                 }`}
               >
-                <Icon className="h-4 w-4" />
+                <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 <span>{label}</span>
                 {key === "createTests" ? (
                   <span className="ml-auto rounded bg-rose-500/25 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.08em] text-rose-200">
@@ -141,38 +141,38 @@ export default function TeacherPortalShell({
           <div className="space-y-1">
             <button
               type="button"
-              className="flex w-full items-center gap-2 rounded-lg border border-transparent px-3 py-2 text-left text-sm text-slate-400 hover:border-white/10 hover:bg-white/5 hover:text-white sm:py-2.5"
+              className="flex w-full items-center gap-2 rounded-lg border border-transparent px-2.5 py-1.5 text-left text-[12px] text-slate-400 hover:border-white/10 hover:bg-white/5 hover:text-white sm:px-3 sm:py-2 sm:text-sm"
             >
-              <Plus className="h-4 w-4" />
+              <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               Create Assignment
             </button>
             <button
               type="button"
-              className="flex w-full items-center gap-2 rounded-lg border border-transparent px-3 py-2 text-left text-sm text-slate-400 hover:border-white/10 hover:bg-white/5 hover:text-white sm:py-2.5"
+              className="flex w-full items-center gap-2 rounded-lg border border-transparent px-2.5 py-1.5 text-left text-[12px] text-slate-400 hover:border-white/10 hover:bg-white/5 hover:text-white sm:px-3 sm:py-2 sm:text-sm"
             >
-              <Star className="h-4 w-4" />
+              <Star className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               Send RDM Boost
             </button>
             <button
               type="button"
-              className="flex w-full items-center gap-2 rounded-lg border border-transparent px-2.5 py-2 text-left text-sm text-slate-400 hover:border-white/10 hover:bg-white/5 hover:text-white"
+              className="flex w-full items-center gap-2 rounded-lg border border-transparent px-2.5 py-1.5 text-left text-[12px] text-slate-400 hover:border-white/10 hover:bg-white/5 hover:text-white sm:py-2 sm:text-sm"
             >
-              <BookOpen className="h-4 w-4" />
+              <BookOpen className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               Progress Reports
             </button>
           </div>
           <div className="mt-3 rounded-xl border border-white/10 bg-[#111325] p-2.5 sm:mt-4 sm:p-3">
-            <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full border border-violet-400/40 bg-violet-500/10 text-sm font-bold text-violet-200">
+            <div className="mx-auto mb-2 flex h-9 w-9 items-center justify-center rounded-full border border-violet-400/40 bg-violet-500/10 text-xs font-bold text-violet-200 sm:h-10 sm:w-10 sm:text-sm">
               {initials}
             </div>
-            <div className="text-center text-sm font-semibold">{teacherName}</div>
-            <div className="text-center text-xs text-slate-400">{teacherSubtitle}</div>
-            <div className="mt-2 text-center text-xs font-semibold text-amber-300">
+            <div className="text-center text-[12px] font-semibold sm:text-sm">{teacherName}</div>
+            <div className="text-center text-[11px] text-slate-400 sm:text-xs">{teacherSubtitle}</div>
+            <div className="mt-2 text-center text-[11px] font-semibold text-amber-300 sm:text-xs">
               {rdmBalance.toLocaleString("en-IN")} RDM earned
             </div>
           </div>
         </aside>
-        <main className="min-w-0 w-full p-4 text-left sm:p-5 lg:p-6">
+        <main className="min-w-0 w-full p-2.5 text-left sm:p-5 lg:p-6">
           {children}
         </main>
       </div>

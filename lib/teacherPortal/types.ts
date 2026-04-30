@@ -16,6 +16,8 @@ export interface TeacherPortalClassroomCard {
   subject: string | null;
   section: string | null;
   description: string | null;
+  /** False => classroom hidden from Explore (/classrooms) listings. */
+  allowAdhocTrial?: boolean;
   /** Optional YouTube/Vimeo intro video for the class home page. */
   introVideoUrl: string | null;
   /** Google Meet link from Calendar API when class is synced */
@@ -77,6 +79,10 @@ export interface TeacherPortalClassroomSection {
   name: string;
   sortOrder: number;
   scheduleLabel: string | null;
+  /** ISO date (YYYY-MM-DD) when the schedule stops; null means ongoing. */
+  scheduleEndDate?: string | null;
+  /** False when the section is expired/archived (no new assignments/messages/sessions). */
+  isActive?: boolean;
   googleMeetLink: string | null;
   googleSeriesLinked: boolean;
 }
