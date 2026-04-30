@@ -113,12 +113,15 @@ import {
 } from "@/lib/subtopicCompleteness";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { fuzzySubtopicKey } from "@/lib/utils";
+import { cn, fuzzySubtopicKey } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import {
   fetchBitsAttempt,
   saveBitsAttempt,
   clearBitsAttemptSet,
+  fetchFormulaPracticeAttempt,
+  saveFormulaPracticeAttempt,
+  clearFormulaPracticeAttempt,
   type BitsAttemptRecord,
 } from "@/lib/bitsAttemptService";
 import {
@@ -140,6 +143,7 @@ import {
 import { getClientApiAuthHeaders } from "@/lib/clientApiAuth";
 import { localDayKeyFromDate, startOfLocalDay } from "@/lib/dashboardDayActivity";
 import { makeSubtopicEngagementStorageKey } from "@/lib/subtopicEngagementStorageKey";
+import { dispatchClassroomAssignmentProgressChanged } from "@/lib/classroom/assignmentProgressSync";
 import SubtopicWheelDialog from "@/components/SubtopicWheelDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -491,6 +495,14 @@ export default function TopicPage() {
   const [lessonChecklistMarkedCompleteAt, setLessonChecklistMarkedCompleteAt] = useState<
     string | null
   >(null);
+  /**
+   * True only after the 10-minute focus timer actually reaches 0 (countdown), or when Supabase
+   * hydration shows a finished timer that passes strict `everStarted` (or legacy snapshots without
+   * that field). Avoids treating `00:00` as "Done" when seconds were never run down.
+   */
+  const [focusTimerNaturallyFinished, setFocusTimerNaturallyFinished] = useState(false);
+  /** Persisted as `lessonFocusTimer.everStarted`; used so `0s / not running` alone cannot mean Done. */
+  const [focusTimerEverStarted, setFocusTimerEverStarted] = useState(false);
   /** When this changes (subtopic / level / quiz set), lesson timer resets until Supabase hydration applies. */
   const lastLessonTimerScopeRef = useRef<string>("");
   const focusTimerSecondsRef = useRef(focusTimerSeconds);
@@ -581,11 +593,16 @@ export default function TopicPage() {
   }, [focusTimerSeconds, focusTimerRunning]);
 
   useEffect(() => {
+    if (focusTimerRunning) setFocusTimerEverStarted(true);
+  }, [focusTimerRunning]);
+
+  useEffect(() => {
     if (isOverview || !focusTimerRunning) return;
     const interval = setInterval(() => {
       setFocusTimerSeconds((prev) => {
         if (prev <= 1) {
           setFocusTimerRunning(false);
+          setFocusTimerNaturallyFinished(true);
           return 0;
         }
         return prev - 1;
@@ -769,6 +786,11 @@ export default function TopicPage() {
   const [formulaQuestionsOverride, setFormulaQuestionsOverride] = useState<
     Record<number, ArtifactBitsQuestion[]>
   >({});
+  const [formulaNumeralsAttemptByIdx, setFormulaNumeralsAttemptByIdx] = useState<
+    Partial<Record<number, BitsAttemptRecord>>
+  >({});
+  const [formulaNumeralsReviewMode, setFormulaNumeralsReviewMode] = useState(false);
+  const [submittingFormulaNumerals, setSubmittingFormulaNumerals] = useState(false);
   const [artifactRunLog, setArtifactRunLog] = useState<string[]>([]);
   const [artifactRunStatus, setArtifactRunStatus] = useState<
     "idle" | "running" | "success" | "partial" | "failed"
@@ -1104,6 +1126,39 @@ export default function TopicPage() {
       subtopicName,
     });
   }, [dbPracticeFormulas, topicNode, subtopicName]);
+
+  const selectedFormulaPracticeQuestions = useMemo((): ArtifactBitsQuestion[] => {
+    if (selectedFormulaIdx === null) return [];
+    const formula = practiceFormulasForUi[selectedFormulaIdx];
+    if (!formula) return [];
+    return formulaQuestionsOverride[selectedFormulaIdx] ?? formula.bitsQuestions ?? [];
+  }, [selectedFormulaIdx, practiceFormulasForUi, formulaQuestionsOverride]);
+
+  const selectedFormulaNumeralsSignature = useMemo(
+    () => getBitsSignature(selectedFormulaPracticeQuestions),
+    [selectedFormulaPracticeQuestions]
+  );
+
+  /** Stable key when practice formula sets / question hashes change (for hydrating attempt ticks). */
+  const numeralsAttemptHydrateKey = useMemo(() => {
+    if (dbPracticeFormulas.length === 0) return "";
+    return dbPracticeFormulas
+      .map((f, i) => {
+        const qs = formulaQuestionsOverride[i] ?? f.bitsQuestions ?? [];
+        return `${i}:${getBitsSignature(qs)}`;
+      })
+      .join("¦");
+  }, [dbPracticeFormulas, formulaQuestionsOverride]);
+
+  const numeralCardCompleted = useMemo(() => {
+    return dbPracticeFormulas.map((f, i) => {
+      const qs = formulaQuestionsOverride[i] ?? f.bitsQuestions ?? [];
+      if (qs.length === 0) return false;
+      const sig = getBitsSignature(qs);
+      const att = formulaNumeralsAttemptByIdx[i];
+      return Boolean(att && att.bitsSignature === sig);
+    });
+  }, [dbPracticeFormulas, formulaQuestionsOverride, formulaNumeralsAttemptByIdx]);
 
   const currentFormulaQuestion = useMemo(() => {
     if (selectedFormulaIdx === null) return null;
@@ -1984,6 +2039,8 @@ export default function TopicPage() {
     lastLessonTimerScopeRef.current = lessonTimerScopeKey;
     setFocusTimerSeconds(FOCUS_TIMER_INITIAL_SECONDS);
     setFocusTimerRunning(false);
+    setFocusTimerNaturallyFinished(false);
+    setFocusTimerEverStarted(false);
     setLessonChecklistMarkedCompleteAt(null);
   }, [lessonTimerScopeKey, isOverview]);
 
@@ -2110,12 +2167,27 @@ export default function TopicPage() {
             e.lessonChecklistMarkedCompleteAt?.trim() ? e.lessonChecklistMarkedCompleteAt : null
           );
           if (e.lessonFocusTimer && typeof e.lessonFocusTimer.secondsRemaining === "number") {
+            const lt = e.lessonFocusTimer;
             const sec = Math.max(
               0,
-              Math.min(FOCUS_TIMER_INITIAL_SECONDS, Math.round(e.lessonFocusTimer.secondsRemaining))
+              Math.min(FOCUS_TIMER_INITIAL_SECONDS, Math.round(lt.secondsRemaining))
             );
+            const running = Boolean(lt.running) && sec > 0;
             setFocusTimerSeconds(sec);
-            setFocusTimerRunning(Boolean(e.lessonFocusTimer.running) && sec > 0);
+            setFocusTimerRunning(running);
+            const hasStrictEverStarted = "everStarted" in lt;
+            if (hasStrictEverStarted) {
+              setFocusTimerEverStarted(Boolean(lt.everStarted));
+              setFocusTimerNaturallyFinished(
+                Boolean(lt.everStarted) && sec === 0 && !Boolean(lt.running)
+              );
+            } else {
+              setFocusTimerEverStarted(sec < FOCUS_TIMER_INITIAL_SECONDS || running);
+              setFocusTimerNaturallyFinished(sec === 0 && !Boolean(lt.running));
+            }
+          } else {
+            setFocusTimerNaturallyFinished(false);
+            setFocusTimerEverStarted(false);
           }
         } catch {
           /* column may be missing on older DBs */
@@ -2142,6 +2214,127 @@ export default function TopicPage() {
     dbBitsQuestions.length,
     engagementScope,
     session?.access_token,
+  ]);
+
+  useEffect(() => {
+    if (
+      !formulasDialogOpen ||
+      selectedFormulaIdx === null ||
+      !topicNode ||
+      !subtopicName ||
+      isOverview ||
+      selectedFormulaPracticeQuestions.length === 0
+    ) {
+      return;
+    }
+    let cancelled = false;
+    const boardName = (board === "icse" ? "ICSE" : "CBSE") as Board;
+    const fi = selectedFormulaIdx;
+    const sig = selectedFormulaNumeralsSignature;
+    void (async () => {
+      try {
+        const attempt = await fetchFormulaPracticeAttempt(
+          {
+            board: boardName,
+            subject: topicNode.subject,
+            classLevel: topicNode.classLevel,
+            topic: topicNode.topic,
+            subtopicName,
+            level: difficultyLevel,
+          },
+          fi
+        );
+        if (cancelled) return;
+        setFormulaNumeralsAttemptByIdx((prev) => {
+          if (!attempt || attempt.bitsSignature !== sig) {
+            const next = { ...prev };
+            delete next[fi];
+            return next;
+          }
+          return { ...prev, [fi]: attempt };
+        });
+      } catch {
+        if (!cancelled) {
+          setFormulaNumeralsAttemptByIdx((prev) => {
+            const next = { ...prev };
+            delete next[fi];
+            return next;
+          });
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    formulasDialogOpen,
+    selectedFormulaIdx,
+    topicNode,
+    subtopicName,
+    difficultyLevel,
+    board,
+    isOverview,
+    selectedFormulaNumeralsSignature,
+    selectedFormulaPracticeQuestions.length,
+  ]);
+
+  // Hydrate per-card completion ticks; `numeralsAttemptHydrateKey` fingerprints `dbPracticeFormulas` + overrides.
+  useEffect(() => {
+    if (!topicNode || !subtopicName || isOverview || !numeralsAttemptHydrateKey) return;
+    let cancelled = false;
+    const boardName = (board === "icse" ? "ICSE" : "CBSE") as Board;
+    const scope = {
+      board: boardName,
+      subject: topicNode.subject,
+      classLevel: topicNode.classLevel,
+      topic: topicNode.topic,
+      subtopicName,
+      level: difficultyLevel,
+    } as const;
+
+    void Promise.all(
+      dbPracticeFormulas.map(async (_, fi) => {
+        const f = dbPracticeFormulas[fi];
+        if (!f || cancelled) return;
+        const qs = formulaQuestionsOverride[fi] ?? f.bitsQuestions ?? [];
+        if (qs.length === 0) return;
+        const sig = getBitsSignature(qs);
+        try {
+          const attempt = await fetchFormulaPracticeAttempt(scope, fi);
+          if (cancelled) return;
+          setFormulaNumeralsAttemptByIdx((prev) => {
+            if (!attempt || attempt.bitsSignature !== sig) {
+              if (!prev[fi]) return prev;
+              const next = { ...prev };
+              delete next[fi];
+              return next;
+            }
+            return { ...prev, [fi]: attempt };
+          });
+        } catch {
+          if (!cancelled) {
+            setFormulaNumeralsAttemptByIdx((prev) => {
+              if (!prev[fi]) return prev;
+              const next = { ...prev };
+              delete next[fi];
+              return next;
+            });
+          }
+        }
+      })
+    );
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed by numeralsAttemptHydrateKey only to avoid ref-churn reruns
+  }, [
+    numeralsAttemptHydrateKey,
+    topicNode,
+    subtopicName,
+    difficultyLevel,
+    board,
+    isOverview,
   ]);
 
   useEffect(() => {
@@ -2338,27 +2531,21 @@ export default function TopicPage() {
   }, [instaCueValidatedIndices, instaCueNavIndices]);
   const instaCueChecklistProgress = Math.min(instaCueCoverageCount, instaCueChecklistTotal);
 
+  /** Step 4: one unit per formula that has practice questions; "done" = submitted numerals attempt for that index (same as card Done ticks), not draft taps in the dialog. */
   const formulaProgressAggregate = useMemo(() => {
-    if (practiceFormulasForUi.length === 0) return { answered: 0, total: 5 };
-    let answered = 0;
+    if (practiceFormulasForUi.length === 0) return { answered: 0, total: 0 };
+    let completed = 0;
     let total = 0;
     practiceFormulasForUi.forEach((f, fi) => {
       const qs = formulaQuestionsOverride[fi] ?? f.bitsQuestions ?? [];
-      const t = qs.length;
-      if (t <= 0) return;
-      total += t;
-      const pack = formulaByIdx[fi];
-      const n = pack ? Object.keys(pack.answers).length : 0;
-      answered += Math.min(n, t);
+      if (qs.length <= 0) return;
+      total += 1;
+      const sig = getBitsSignature(qs);
+      const att = formulaNumeralsAttemptByIdx[fi];
+      if (att && att.bitsSignature === sig) completed += 1;
     });
-    if (total === 0) {
-      return {
-        answered: Object.keys(formulaBitsSelectedAnswers).length,
-        total: 5,
-      };
-    }
-    return { answered, total };
-  }, [practiceFormulasForUi, formulaQuestionsOverride, formulaByIdx, formulaBitsSelectedAnswers]);
+    return { answered: completed, total };
+  }, [practiceFormulasForUi, formulaQuestionsOverride, formulaNumeralsAttemptByIdx]);
 
   const formulaChecklistTotal = formulaProgressAggregate.total;
   const formulaChecklistProgress = Math.min(
@@ -2407,7 +2594,7 @@ export default function TopicPage() {
   const lessonProgressMarkedDone = Boolean(lessonChecklistMarkedCompleteAt);
 
   const allChecklistComplete =
-    focusTimerSeconds === 0 &&
+    focusTimerNaturallyFinished &&
     bitsChecklistProgress >= bitsChecklistTotal &&
     instaCueChecklistProgress >= instaCueChecklistTotal &&
     formulaChecklistProgress >= formulaChecklistTotal &&
@@ -2513,10 +2700,14 @@ export default function TopicPage() {
     const conceptsPages = Array.from(viewedConceptPages.values()).sort((a, b) => a - b);
     const lessonAt = lessonChecklistMarkedCompleteAt;
     const lessonFocusTimerSnap =
-      focusTimerRunning || focusTimerSeconds !== FOCUS_TIMER_INITIAL_SECONDS
+      focusTimerRunning ||
+      focusTimerSeconds !== FOCUS_TIMER_INITIAL_SECONDS ||
+      focusTimerNaturallyFinished ||
+      focusTimerEverStarted
         ? {
             secondsRemaining: Math.max(0, Math.min(FOCUS_TIMER_INITIAL_SECONDS, focusTimerSeconds)),
             running: focusTimerRunning,
+            everStarted: focusTimerEverStarted || focusTimerRunning,
           }
         : undefined;
     return {
@@ -2551,7 +2742,47 @@ export default function TopicPage() {
     activeQuizSet,
     focusTimerSeconds,
     focusTimerRunning,
+    focusTimerNaturallyFinished,
+    focusTimerEverStarted,
     lessonChecklistMarkedCompleteAt,
+  ]);
+
+  // Drop stale "marked complete" from Supabase when the real checklist is not satisfied (e.g. after
+  // content reload, signature change, or older buggy saves). Keeps UI + teacher analytics honest.
+  useEffect(() => {
+    if (isOverview) return;
+    if (!lessonChecklistMarkedCompleteAt) return;
+    if (dbBitsQuestions.length === 0) return;
+    if (allChecklistComplete) return;
+    if (!engagementScope || !session?.access_token) {
+      setLessonChecklistMarkedCompleteAt(null);
+      return;
+    }
+    const snap = buildEngagementSnapshot();
+    if (!snap) {
+      setLessonChecklistMarkedCompleteAt(null);
+      return;
+    }
+    const persistSnap: SubtopicEngagementSnapshot = { ...snap };
+    delete persistSnap.lessonChecklistMarkedCompleteAt;
+    setLessonChecklistMarkedCompleteAt(null);
+    void (async () => {
+      try {
+        await saveSubtopicEngagement(engagementScope, persistSnap);
+        await syncDailyChecklistLessonBCredit("revoke");
+      } catch {
+        /* non-fatal */
+      }
+    })();
+  }, [
+    allChecklistComplete,
+    buildEngagementSnapshot,
+    dbBitsQuestions.length,
+    engagementScope,
+    isOverview,
+    lessonChecklistMarkedCompleteAt,
+    session?.access_token,
+    syncDailyChecklistLessonBCredit,
   ]);
 
   const flushSubtopicEngagementNow = useCallback(() => {
@@ -2586,9 +2817,12 @@ export default function TopicPage() {
       const snap = buildEngagementSnapshot();
       if (!snap) return;
       const sec = Math.max(0, Math.min(FOCUS_TIMER_INITIAL_SECONDS, focusTimerSecondsRef.current));
+      const lt = snap.lessonFocusTimer;
       void saveSubtopicEngagement(engagementScope, {
         ...snap,
-        lessonFocusTimer: { secondsRemaining: sec, running: false },
+        lessonFocusTimer: lt
+          ? { ...lt, secondsRemaining: sec, running: false }
+          : { secondsRemaining: sec, running: false, everStarted: focusTimerEverStarted },
         updatedAt: new Date().toISOString(),
       }).catch(() => {});
     };
@@ -2615,7 +2849,13 @@ export default function TopicPage() {
       document.removeEventListener("visibilitychange", onVis);
       window.removeEventListener("pagehide", onPageHide);
     };
-  }, [isOverview, engagementScope, session?.access_token, buildEngagementSnapshot]);
+  }, [
+    isOverview,
+    engagementScope,
+    session?.access_token,
+    buildEngagementSnapshot,
+    focusTimerEverStarted,
+  ]);
 
   // Refs for scroll-sync between theory and concepts panel
   const conceptsScrollRef = useRef<HTMLDivElement>(null);
@@ -3078,7 +3318,9 @@ export default function TopicPage() {
                               <p className="text-[13px] font-semibold leading-5 text-foreground">
                                 {item.number === 3
                                   ? `Scroll and see all ${instaCueChecklistTotal} Insta Que cards`
-                                  : item.text}
+                                  : item.number === 4 && formulaChecklistTotal > 0
+                                    ? `${item.text} (${formulaChecklistTotal} formulae — submit each set)`
+                                    : item.text}
                               </p>
                             </div>
                             {item.number === 1 ? (
@@ -3086,7 +3328,7 @@ export default function TopicPage() {
                                 <span className="rounded-md border border-blue-400/40 bg-blue-500/10 px-2 py-1 text-[11px] font-bold text-blue-300 tabular-nums">
                                   {formatFocusTimer(focusTimerSeconds)}
                                 </span>
-                                {focusTimerSeconds === 0 ? (
+                                {focusTimerNaturallyFinished ? (
                                   <span className="inline-flex h-7 items-center gap-1 rounded-md border border-emerald-400/40 bg-emerald-500/15 px-2 text-[11px] font-bold text-emerald-300">
                                     <CheckCircle2 className="h-3.5 w-3.5" />
                                     Done
@@ -3112,6 +3354,7 @@ export default function TopicPage() {
                                     <button
                                       type="button"
                                       onClick={() => {
+                                        setFocusTimerNaturallyFinished(false);
                                         setFocusTimerSeconds(FOCUS_TIMER_INITIAL_SECONDS);
                                         setFocusTimerRunning(true);
                                       }}
@@ -3137,19 +3380,53 @@ export default function TopicPage() {
                                     {bitsQuizAggregate.correct}
                                   </span>
                                 ) : null}
+                                {bitsChecklistTotal > 0 &&
+                                bitsChecklistProgress >= bitsChecklistTotal ? (
+                                  <span className="inline-flex h-7 items-center gap-1 rounded-md border border-emerald-400/40 bg-emerald-500/15 px-2 text-[11px] font-bold text-emerald-300">
+                                    <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
+                                    Done
+                                  </span>
+                                ) : null}
                               </div>
                             ) : item.number === 3 ? (
-                              <span className="shrink-0 rounded-md border border-emerald-400/40 bg-emerald-500/10 px-2 py-1 text-[11px] font-bold text-emerald-300 tabular-nums">
-                                {instaCueChecklistProgress}/{instaCueChecklistTotal}
-                              </span>
+                              <div className="shrink-0 flex flex-wrap items-center justify-end gap-1.5">
+                                <span className="rounded-md border border-emerald-400/40 bg-emerald-500/10 px-2 py-1 text-[11px] font-bold text-emerald-300 tabular-nums">
+                                  {instaCueChecklistProgress}/{instaCueChecklistTotal}
+                                </span>
+                                {instaCueChecklistTotal > 0 &&
+                                instaCueChecklistProgress >= instaCueChecklistTotal ? (
+                                  <span className="inline-flex h-7 items-center gap-1 rounded-md border border-emerald-400/40 bg-emerald-500/15 px-2 text-[11px] font-bold text-emerald-300">
+                                    <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
+                                    Done
+                                  </span>
+                                ) : null}
+                              </div>
                             ) : item.number === 4 ? (
-                              <span className="shrink-0 rounded-md border border-amber-400/40 bg-amber-500/10 px-2 py-1 text-[11px] font-bold text-amber-300 tabular-nums">
-                                {formulaChecklistProgress}/{formulaChecklistTotal}
-                              </span>
+                              <div className="shrink-0 flex flex-wrap items-center justify-end gap-1.5">
+                                <span className="rounded-md border border-amber-400/40 bg-amber-500/10 px-2 py-1 text-[11px] font-bold text-amber-300 tabular-nums">
+                                  {formulaChecklistProgress}/{formulaChecklistTotal}
+                                </span>
+                                {formulaChecklistTotal > 0 &&
+                                formulaChecklistProgress >= formulaChecklistTotal ? (
+                                  <span className="inline-flex h-7 items-center gap-1 rounded-md border border-emerald-400/40 bg-emerald-500/15 px-2 text-[11px] font-bold text-emerald-300">
+                                    <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
+                                    Done
+                                  </span>
+                                ) : null}
+                              </div>
                             ) : item.number === 5 ? (
-                              <span className="shrink-0 rounded-md border border-rose-400/40 bg-rose-500/10 px-2 py-1 text-[11px] font-bold text-rose-200 tabular-nums">
-                                {conceptsChecklistProgress}/{conceptsChecklistTotal}
-                              </span>
+                              <div className="shrink-0 flex flex-wrap items-center justify-end gap-1.5">
+                                <span className="rounded-md border border-rose-400/40 bg-rose-500/10 px-2 py-1 text-[11px] font-bold text-rose-200 tabular-nums">
+                                  {conceptsChecklistProgress}/{conceptsChecklistTotal}
+                                </span>
+                                {conceptsChecklistTotal > 0 &&
+                                conceptsChecklistProgress >= conceptsChecklistTotal ? (
+                                  <span className="inline-flex h-7 items-center gap-1 rounded-md border border-emerald-400/40 bg-emerald-500/15 px-2 text-[11px] font-bold text-emerald-300">
+                                    <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
+                                    Done
+                                  </span>
+                                ) : null}
+                              </div>
                             ) : null}
                           </div>
                         </li>
@@ -3208,10 +3485,49 @@ export default function TopicPage() {
                                 ...snap,
                                 lessonChecklistMarkedCompleteAt: markedAt,
                               });
+                              const assignPostId = searchParams.get("postId");
+                              const assignClassroomId = searchParams.get("classroomId");
+                              if (assignPostId && assignClassroomId && session?.access_token) {
+                                try {
+                                  const progRes = await fetch(
+                                    `/api/classroom/${assignClassroomId}/posts/${assignPostId}/task-progress`,
+                                    {
+                                      method: "POST",
+                                      headers: {
+                                        "Content-Type": "application/json",
+                                        Authorization: `Bearer ${session.access_token}`,
+                                      },
+                                      body: JSON.stringify({
+                                        taskId: "concept-focus-subtopic",
+                                        completed: true,
+                                      }),
+                                    }
+                                  );
+                                  if (!progRes.ok) {
+                                    const errJson = (await progRes.json().catch(() => ({}))) as {
+                                      error?: string;
+                                    };
+                                    console.warn(
+                                      "Assignment task-progress sync:",
+                                      errJson.error ?? progRes.status
+                                    );
+                                  }
+                                } catch (e) {
+                                  console.warn("Assignment task-progress sync failed", e);
+                                }
+                              }
+                              if (assignPostId && assignClassroomId) {
+                                dispatchClassroomAssignmentProgressChanged({
+                                  classroomId: assignClassroomId,
+                                  postId: assignPostId,
+                                });
+                              }
                               await syncDailyChecklistLessonBCredit("credit");
                               toast({
                                 title: "Topic marked as complete!",
-                                description: "Saved to your progress for today’s checklist.",
+                                description: assignPostId
+                                  ? "Saved. Your class assignment for this post is updated to Done."
+                                  : "Saved to your progress for today’s checklist.",
                               });
                             } catch {
                               setLessonChecklistMarkedCompleteAt(null);
@@ -3243,6 +3559,8 @@ export default function TopicPage() {
                         variant="outline"
                         className="rounded-xl font-bold"
                         onClick={() => {
+                          setFocusTimerNaturallyFinished(false);
+                          setFocusTimerEverStarted(false);
                           setFocusTimerSeconds(FOCUS_TIMER_INITIAL_SECONDS);
                           setFocusTimerRunning(false);
                           setBitsVisitedIndices(new Set());
@@ -5963,8 +6281,13 @@ export default function TopicPage() {
                           </p>
                         </div>
                       ) : (
-                        <div className="space-y-2">
-                          {dbPracticeFormulas.map((formula, i) => (
+                        <div
+                          className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-2 overflow-y-auto no-scrollbar pb-1"
+                          style={{ maxHeight: "calc(100vh - 220px)" }}
+                        >
+                          {dbPracticeFormulas.map((formula, i) => {
+                            const numeralDone = numeralCardCompleted[i] ?? false;
+                            return (
                             <button
                               key={i}
                               type="button"
@@ -5995,24 +6318,42 @@ export default function TopicPage() {
                                   }
                                 ).catch(() => {});
                                 // #endregion
+                                setFormulaNumeralsReviewMode(false);
                                 setSelectedFormulaIdx(i);
                                 setFormulasDialogOpen(true);
                               }}
-                              className="edu-card w-full p-3 rounded-xl border border-border/60 text-left transition-colors hover:border-primary/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
-                              aria-label={`Open numeral ${i + 1}: ${formula.name}`}
+                              className={cn(
+                                "edu-card relative w-full h-full p-2.5 sm:p-3 rounded-xl border text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60",
+                                numeralDone
+                                  ? "border-green-500/40 bg-green-500/[0.07] hover:border-green-500/55"
+                                  : "border-border/60 hover:border-primary/45"
+                              )}
+                              aria-label={`Open numeral ${i + 1}: ${formula.name}${numeralDone ? " (completed)" : ""}`}
                             >
-                              <p className="text-[10px] font-extrabold text-primary uppercase mb-1">
-                                Numeral {i + 1}
-                              </p>
-                              <p className="font-bold text-sm mb-1">{formula.name}</p>
-                              <p className="text-xs text-muted-foreground mb-2 line-clamp-2">
+                              <div className="flex items-start justify-between gap-2 mb-1">
+                                <p className="text-[9px] sm:text-[10px] font-extrabold text-primary uppercase">
+                                  Numeral {i + 1}
+                                </p>
+                                {numeralDone ? (
+                                  <span
+                                    className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-green-500/20 px-1.5 py-0.5 text-[10px] font-bold text-green-700 dark:text-green-400"
+                                    title="Numerals submitted"
+                                  >
+                                    <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
+                                    Done
+                                  </span>
+                                ) : null}
+                              </div>
+                              <p className="font-bold text-xs sm:text-sm mb-1">{formula.name}</p>
+                              <p className="text-[11px] sm:text-xs text-muted-foreground mb-1.5 line-clamp-2">
                                 {formula.description}
                               </p>
-                              <span className="text-primary text-xs font-bold hover:underline">
+                              <span className="text-primary text-[11px] sm:text-xs font-bold hover:underline">
                                 Try this →
                               </span>
                             </button>
-                          ))}
+                          );
+                          })}
                         </div>
                       )}
                     </TabsContent>
@@ -6125,6 +6466,8 @@ export default function TopicPage() {
                     // #endregion
                     setFormulasDialogOpen(open);
                     if (!open) {
+                      setFormulaNumeralsReviewMode(false);
+                      setSubmittingFormulaNumerals(false);
                       if (selectedFormulaIdx !== null) {
                         setFormulaByIdx((prev) => ({
                           ...prev,
@@ -6141,9 +6484,27 @@ export default function TopicPage() {
                     }
                   }}
                 >
-                  <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-                    <DialogHeader>
-                      <DialogTitle>
+                  <DialogContent
+                    className={cn(
+                      practiceFormulasForUi.length > 0 && selectedFormulaIdx !== null
+                        ? "flex min-h-0 max-h-[92vh] w-[min(100vw-1.25rem,56rem)] max-w-5xl flex-col gap-3 overflow-hidden p-4 sm:p-5"
+                        : "max-h-[85vh] max-w-2xl overflow-y-auto"
+                    )}
+                  >
+                    <DialogHeader
+                      className={
+                        practiceFormulasForUi.length > 0 && selectedFormulaIdx !== null
+                          ? "shrink-0 space-y-1 pr-8"
+                          : undefined
+                      }
+                    >
+                      <DialogTitle
+                        className={
+                          practiceFormulasForUi.length > 0 && selectedFormulaIdx !== null
+                            ? "text-base leading-tight sm:text-lg"
+                            : undefined
+                        }
+                      >
                         {selectedFormulaIdx === null
                           ? "Which formula do you want to practice?"
                           : (practiceFormulasForUi[selectedFormulaIdx]?.name ?? "Practice Formula")}
@@ -6229,6 +6590,7 @@ export default function TopicPage() {
                               }
                               const d = merged[fi];
                               setFormulaByIdx(merged);
+                              setFormulaNumeralsReviewMode(false);
                               setSelectedFormulaIdx(fi);
                               setFormulaBitsCurrentIdx(d?.qIdx ?? 0);
                               setFormulaBitsSelectedAnswers(d?.answers ? { ...d.answers } : {});
@@ -6256,25 +6618,175 @@ export default function TopicPage() {
                           formulaQuestionsOverride[selectedFormulaIdx] ??
                           formula.bitsQuestions ??
                           [];
-                        const q = formulaQuestions[formulaBitsCurrentIdx];
-                        if (!q) {
+                        if (formulaQuestions.length === 0) {
                           return (
                             <div className="py-6 text-center text-sm text-muted-foreground">
                               No practice questions available for this formula.
                             </div>
                           );
                         }
+                        const numeralsSig = getBitsSignature(formulaQuestions);
+                        const storedAttempt =
+                          selectedFormulaIdx !== null
+                            ? formulaNumeralsAttemptByIdx[selectedFormulaIdx]
+                            : undefined;
+                        const showNumeralsResults =
+                          !formulaNumeralsReviewMode &&
+                          !!storedAttempt &&
+                          storedAttempt.bitsSignature === numeralsSig;
+                        const boardNameNum = (board === "icse" ? "ICSE" : "CBSE") as Board;
+
+                        if (showNumeralsResults && storedAttempt) {
+                          return (
+                            <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pr-0.5 md:pr-1">
+                              <button
+                                type="button"
+                                className="inline-flex w-fit shrink-0 items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground sm:text-sm"
+                                onClick={() => {
+                                  if (selectedFormulaIdx !== null) {
+                                    setFormulaByIdx((prev) => ({
+                                      ...prev,
+                                      [selectedFormulaIdx]: {
+                                        qIdx: formulaBitsCurrentIdx,
+                                        answers: { ...formulaBitsSelectedAnswers },
+                                      },
+                                    }));
+                                  }
+                                  setSelectedFormulaIdx(null);
+                                  setFormulaBitsCurrentIdx(0);
+                                  setFormulaBitsSelectedAnswers({});
+                                  setFormulaNumeralsReviewMode(false);
+                                }}
+                              >
+                                <ArrowLeft className="h-4 w-4 shrink-0" />
+                                Back to Formulas
+                              </button>
+                              <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
+                                <p className="text-lg font-bold text-foreground">
+                                  Numerals results
+                                </p>
+                                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                                  <div className="rounded-xl border border-green-500/30 bg-green-500/10 p-3">
+                                    <p className="text-xs text-muted-foreground">Correct</p>
+                                    <p className="text-xl font-bold text-green-700 dark:text-green-300">
+                                      {storedAttempt.correctCount}
+                                    </p>
+                                  </div>
+                                  <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-3">
+                                    <p className="text-xs text-muted-foreground">Wrong</p>
+                                    <p className="text-xl font-bold text-destructive">
+                                      {storedAttempt.wrongCount}
+                                    </p>
+                                  </div>
+                                  <div className="rounded-xl border border-border bg-muted p-3">
+                                    <p className="text-xs text-muted-foreground">Score</p>
+                                    <p className="text-xl font-bold text-foreground">
+                                      {storedAttempt.totalQuestions > 0
+                                        ? `${Math.round(
+                                            (storedAttempt.correctCount /
+                                              storedAttempt.totalQuestions) *
+                                              100
+                                          )}%`
+                                        : "0%"}
+                                    </p>
+                                  </div>
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                  Submitted on{" "}
+                                  {new Date(storedAttempt.submittedAt).toLocaleString()}
+                                </p>
+                                <div className="grid grid-cols-1 gap-2 pt-1 sm:grid-cols-2 sm:items-center">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="rounded-xl h-8 px-3 text-xs sm:justify-self-start"
+                                    onClick={() => {
+                                      const selected: Record<number, number> = {};
+                                      for (const [k, v] of Object.entries(
+                                        storedAttempt.selectedAnswers
+                                      )) {
+                                        const idx = Number(k);
+                                        if (Number.isInteger(idx)) selected[idx] = v;
+                                      }
+                                      setFormulaBitsSelectedAnswers(selected);
+                                      setFormulaBitsCurrentIdx(0);
+                                      setFormulaNumeralsReviewMode(true);
+                                    }}
+                                  >
+                                    Review submitted answers
+                                  </Button>
+                                  <Button
+                                    variant="default"
+                                    size="sm"
+                                    className="rounded-xl h-8 px-3 text-xs sm:justify-self-end"
+                                    onClick={async () => {
+                                      if (!topicNode || !subtopicName || selectedFormulaIdx === null)
+                                        return;
+                                      try {
+                                        await clearFormulaPracticeAttempt(
+                                          {
+                                            board: boardNameNum,
+                                            subject: topicNode.subject,
+                                            classLevel: topicNode.classLevel,
+                                            topic: topicNode.topic,
+                                            subtopicName,
+                                            level: difficultyLevel,
+                                          },
+                                          selectedFormulaIdx
+                                        );
+                                        setFormulaNumeralsAttemptByIdx((prev) => {
+                                          const n = { ...prev };
+                                          delete n[selectedFormulaIdx!];
+                                          return n;
+                                        });
+                                        setFormulaBitsSelectedAnswers({});
+                                        setFormulaBitsCurrentIdx(0);
+                                        setFormulaNumeralsReviewMode(false);
+                                        window.setTimeout(() => flushSubtopicEngagementNow(), 0);
+                                        toast({
+                                          title: "Ready for another try",
+                                          description: "Your saved numerals score was cleared.",
+                                        });
+                                      } catch {
+                                        toast({
+                                          title: "Could not reset attempt",
+                                          description: "Please try again.",
+                                          variant: "destructive",
+                                        });
+                                      }
+                                    }}
+                                  >
+                                    Take test another time
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        const q = formulaQuestions[formulaBitsCurrentIdx];
+                        if (!q) return null;
                         const selected = formulaBitsSelectedAnswers[formulaBitsCurrentIdx];
                         const answered = typeof selected === "number";
                         const isCorrectSelection =
                           answered && q.options[selected] === q.correctAnswer;
                         const useTwoColumns = shouldUseTwoColumnOptions(q.options);
+                        const isLastFormulaQ =
+                          formulaBitsCurrentIdx >= formulaQuestions.length - 1;
+                        let formulaNumeralsFilledCount = 0;
+                        for (let i = 0; i < formulaQuestions.length; i++) {
+                          if (typeof formulaBitsSelectedAnswers[i] === "number") {
+                            formulaNumeralsFilledCount++;
+                          }
+                        }
+                        const allFormulaNumeralsAnswered =
+                          formulaNumeralsFilledCount >= formulaQuestions.length;
 
                         return (
-                          <div className="space-y-4">
+                          <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pr-0.5 md:pr-1">
                             <button
                               type="button"
-                              className="inline-flex items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-foreground"
+                              className="inline-flex w-fit shrink-0 items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground sm:text-sm"
                               onClick={() => {
                                 if (selectedFormulaIdx !== null) {
                                   setFormulaByIdx((prev) => ({
@@ -6288,36 +6800,46 @@ export default function TopicPage() {
                                 setSelectedFormulaIdx(null);
                                 setFormulaBitsCurrentIdx(0);
                                 setFormulaBitsSelectedAnswers({});
+                                setFormulaNumeralsReviewMode(false);
                               }}
                             >
-                              <ArrowLeft className="w-4 h-4" />
+                              <ArrowLeft className="h-4 w-4 shrink-0" />
                               Back to Formulas
                             </button>
-                            <p className="text-sm text-muted-foreground [&_.katex]:text-[0.95em]">
+                            <p className="max-w-prose text-xs text-muted-foreground [&_.katex]:text-[0.92em] sm:text-sm">
                               <MathText>{formula.description}</MathText>
                             </p>
-                            <div className="rounded-lg bg-muted/60 px-3 py-2 text-primary overflow-x-auto [&_.katex]:text-[1.05em]">
+                            <div className="flex justify-center overflow-x-auto rounded-lg bg-muted/60 px-3 py-2 text-primary [&_.katex-display]:mx-auto [&_.katex]:text-[0.98em]">
                               <MathText>{`$$${stripFormulaDelimiters(formula.formulaLatex)}$$`}</MathText>
                             </div>
 
-                            <div className="flex items-center gap-1.5">
-                              <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-blue-500/15 text-blue-700 dark:text-blue-300">
+                            <div className="flex items-center justify-center">
+                              <span
+                                className="text-xs font-semibold text-muted-foreground"
+                                aria-live="polite"
+                              >
+                                Question {formulaBitsCurrentIdx + 1} of {formulaQuestions.length}
+                              </span>
+                            </div>
+
+                            <div className="flex min-w-0 max-w-full flex-wrap items-center gap-1.5">
+                              <span className="inline-flex shrink-0 items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-blue-500/15 text-blue-700 dark:text-blue-300">
                                 {topicNode?.subject ?? "Subject"}
                               </span>
-                              <span className="text-xs font-medium text-foreground/80">
+                              <span className="min-w-0 break-words text-xs font-medium text-foreground/80">
                                 {topicNode?.topic ?? "Topic"}
                               </span>
                             </div>
 
-                            <div className="rounded-2xl border border-border p-4 space-y-3 bg-card">
-                              <h3 className="text-[1.05rem] font-bold leading-snug text-foreground">
+                            <div className="min-w-0 max-w-full rounded-2xl border border-border bg-card p-4 space-y-3">
+                              <h3 className="min-w-0 max-w-full text-[1.05rem] font-bold leading-snug text-foreground [overflow-wrap:anywhere] break-words">
                                 <MathText>{normalizeQuizDisplayMath(q.question)}</MathText>
                               </h3>
                               <div
                                 className={
                                   useTwoColumns
-                                    ? "grid grid-cols-1 sm:grid-cols-2 gap-2"
-                                    : "space-y-2"
+                                    ? "grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2"
+                                    : "min-w-0 space-y-2"
                                 }
                                 role="radiogroup"
                                 aria-label={`Formula answers for question ${formulaBitsCurrentIdx + 1}`}
@@ -6330,175 +6852,317 @@ export default function TopicPage() {
                                     if (isCorrect)
                                       cls = "bg-green-500/12 border-green-500 text-foreground";
                                     else if (selected === oi && !isCorrectSelection)
-                                      cls = "bg-destructive/10 border-destructive text-foreground";
+                                      cls =
+                                        "bg-destructive/10 border-destructive text-foreground";
                                     else cls = "bg-muted/60 text-muted-foreground border-border";
                                   }
                                   return (
                                     <button
                                       key={oi}
                                       type="button"
-                                      disabled={answered}
+                                      disabled={answered || formulaNumeralsReviewMode}
                                       onClick={() =>
                                         setFormulaBitsSelectedAnswers((prev) => ({
                                           ...prev,
                                           [formulaBitsCurrentIdx]: oi,
                                         }))
                                       }
-                                      className={`w-full text-left px-3 py-2 rounded-xl text-sm border transition-colors flex items-center gap-2.5 ${cls}`}
+                                      role="radio"
+                                      aria-checked={selected === oi}
+                                      className={`flex min-w-0 w-full max-w-full items-center gap-2.5 rounded-xl border px-3 py-2 text-left text-sm transition-colors ${cls}`}
                                     >
-                                      <span className="w-7 h-7 rounded-full bg-background/90 flex items-center justify-center text-sm shrink-0 font-bold">
+                                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-background/90 text-sm font-bold">
                                         {String.fromCharCode(65 + oi)}
                                       </span>
-                                      <MathText>{normalizeQuizDisplayMath(opt)}</MathText>
+                                      <span className="min-w-0 flex-1 [overflow-wrap:anywhere] break-words">
+                                        <MathText>{normalizeQuizDisplayMath(opt)}</MathText>
+                                      </span>
                                       {answered && isCorrect && (
-                                        <CheckCircle2 className="inline w-4 h-4 ml-auto text-green-600" />
+                                        <CheckCircle2 className="inline w-4 h-4 ml-auto shrink-0 text-green-600" />
                                       )}
                                     </button>
                                   );
                                 })}
                               </div>
-                              {answered && q.solution && (
-                                <div className="mt-2 p-3 rounded-xl bg-muted/50 text-sm text-muted-foreground">
-                                  <p className="font-bold text-foreground mb-1">Explanation</p>
-                                  <MathText>{normalizeQuizDisplayMath(q.solution)}</MathText>
-                                </div>
-                              )}
-                              <div className="space-y-2 pt-1">
-                                <div className="flex items-center justify-between gap-2">
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="rounded-full h-9 px-3 text-xs min-w-24"
-                                    onClick={() =>
-                                      setFormulaBitsCurrentIdx((i) => Math.max(0, i - 1))
+
+                              <div className="flex items-center justify-between gap-2 pt-1">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="rounded-xl h-8 px-3 text-xs min-w-24 font-semibold border-primary/35 bg-primary/[0.06] text-foreground shadow-sm ring-1 ring-primary/10 hover:bg-primary/10 hover:border-primary/50 hover:ring-primary/18 disabled:border-border/40 disabled:bg-muted/40 disabled:text-muted-foreground disabled:ring-0 dark:bg-primary/10 dark:ring-primary/15"
+                                  onClick={() =>
+                                    setFormulaBitsCurrentIdx((i) => Math.max(0, i - 1))
+                                  }
+                                  disabled={formulaBitsCurrentIdx === 0}
+                                >
+                                  <ChevronLeft className="w-4 h-4 mr-1" /> Previous
+                                </Button>
+                                <span className="text-xs font-semibold tabular-nums text-muted-foreground">
+                                  Q{formulaBitsCurrentIdx + 1}/{formulaQuestions.length}
+                                </span>
+                                <Button
+                                  variant={isLastFormulaQ ? "default" : "outline"}
+                                  size="sm"
+                                  className={
+                                    isLastFormulaQ
+                                      ? "rounded-xl h-8 px-3 text-xs min-w-24 font-semibold shadow-sm ring-1 ring-primary/25"
+                                      : "rounded-xl h-8 px-3 text-xs min-w-24 font-semibold border-primary/35 bg-primary/[0.06] text-foreground shadow-sm ring-1 ring-primary/10 hover:bg-primary/10 hover:border-primary/50 hover:ring-primary/18 disabled:border-border/40 disabled:bg-muted/40 disabled:text-muted-foreground disabled:ring-0 dark:bg-primary/10 dark:ring-primary/15"
+                                  }
+                                  disabled={
+                                    formulaNumeralsReviewMode
+                                      ? isLastFormulaQ
+                                      : isLastFormulaQ
+                                        ? !allFormulaNumeralsAnswered || submittingFormulaNumerals
+                                        : false
+                                  }
+                                  onClick={async () => {
+                                    if (formulaNumeralsReviewMode) {
+                                      if (!isLastFormulaQ) {
+                                        setFormulaBitsCurrentIdx((i) =>
+                                          Math.min(formulaQuestions.length - 1, i + 1)
+                                        );
+                                      }
+                                      return;
                                     }
-                                    disabled={formulaBitsCurrentIdx === 0}
-                                  >
-                                    <ChevronLeft className="w-4 h-4 mr-1" /> Previous
-                                  </Button>
-                                  <span className="text-xs font-semibold text-muted-foreground">
-                                    Question {formulaBitsCurrentIdx + 1} of{" "}
-                                    {formulaQuestions.length}
-                                  </span>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="rounded-full h-9 px-3 text-xs min-w-24"
-                                    onClick={() =>
+                                    if (!isLastFormulaQ) {
                                       setFormulaBitsCurrentIdx((i) =>
                                         Math.min(formulaQuestions.length - 1, i + 1)
-                                      )
-                                    }
-                                    disabled={formulaBitsCurrentIdx === formulaQuestions.length - 1}
-                                  >
-                                    Next <ChevronRight className="w-4 h-4 ml-1" />
-                                  </Button>
-                                </div>
-                                <div className="mx-auto grid w-full max-w-[620px] grid-cols-1 gap-2 sm:grid-cols-2">
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="rounded-full h-10 gap-2 font-semibold border-emerald-600/45 bg-emerald-500/12 text-emerald-950 ring-2 ring-emerald-500/35 shadow-[0_0_18px_rgba(16,185,129,0.18)] hover:bg-emerald-500/20 hover:border-emerald-600/60 dark:border-emerald-400/60 dark:text-emerald-50 dark:ring-emerald-400/40 dark:hover:border-emerald-400/80"
-                                    onClick={() => {
-                                      if (!topicNode || !subtopicName || !currentFormulaQuestion)
-                                        return;
-                                      if (savedFormulaIdForCurrentQuestion) {
-                                        unsaveFormula(savedFormulaIdForCurrentQuestion);
-                                        persistSavedContent();
-                                        toast({ title: "Removed from Saved Formulas" });
-                                        return;
-                                      }
-                                      const { formula: activeFormula, question: activeQuestion } =
-                                        currentFormulaQuestion;
-                                      const payload: SavedFormula = {
-                                        id: `formula-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-                                        name: activeFormula.name,
-                                        formulaLatex: activeFormula.formulaLatex,
-                                        description: activeFormula.description,
-                                        bitsQuestions: [
-                                          {
-                                            question: activeQuestion.question,
-                                            options: activeQuestion.options,
-                                            correctAnswer: getCorrectOptionIndex(activeQuestion),
-                                            solution: activeQuestion.solution,
-                                          },
-                                        ],
-                                        subject: topicNode.subject,
-                                        topic: topicNode.topic,
-                                        subtopicName,
-                                        classLevel: topicNode.classLevel,
-                                        unitName: topicNode.topic,
-                                        level: difficultyLevel,
-                                        board: (board === "icse" ? "ICSE" : "CBSE") as Board,
-                                        sectionIndex: subtopicIndex,
-                                      };
-                                      saveFormula(payload);
-                                      persistSavedContent();
-                                      toast({ title: "Saved to Saved Formulas" });
-                                    }}
-                                  >
-                                    <Bookmark
-                                      className={`w-4 h-4 ${savedFormulaIdForCurrentQuestion ? "fill-current" : ""}`}
-                                    />
-                                    {savedFormulaIdForCurrentQuestion ? "Saved" : "Save"}
-                                  </Button>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    disabled
-                                    title="Regenerate is coming soon"
-                                    className="rounded-full h-10 gap-2 font-semibold border-amber-400/70 text-amber-100 bg-amber-500/15 ring-2 ring-amber-400/45 shadow-[0_0_18px_rgba(251,191,36,0.2)] hover:bg-amber-500/15 disabled:opacity-100 disabled:pointer-events-none cursor-not-allowed"
-                                    onClick={async () => {
-                                      const next = regenerateFormulaBitsAlgorithmic(
-                                        formula.name,
-                                        formula.bitsQuestions ?? []
                                       );
-                                      if (next.length > 0) {
-                                        const updatedFormulas = practiceFormulasForUi.map((f, i) =>
-                                          i === selectedFormulaIdx
-                                            ? { ...f, bitsQuestions: next }
-                                            : f
-                                        );
-                                        setFormulaQuestionsOverride((prev) => ({
-                                          ...prev,
-                                          [selectedFormulaIdx]: next,
-                                        }));
-                                        setDbPracticeFormulas(updatedFormulas);
-                                        setFormulaBitsCurrentIdx(0);
-                                        setFormulaBitsSelectedAnswers({});
-                                        try {
-                                          if (topicNode && subtopicName) {
-                                            await saveFormulaPractice({
-                                              board: (board === "icse" ? "ICSE" : "CBSE") as Board,
-                                              subject: topicNode.subject as Subject,
-                                              classLevel: topicNode.classLevel as 11 | 12,
-                                              topic: topicNode.topic,
-                                              subtopicName,
-                                              level: difficultyLevel,
-                                              practiceFormulas: updatedFormulas,
-                                            });
-                                          }
-                                          toast({
-                                            title: "Regenerated and saved",
-                                            description:
-                                              "Stored in Supabase. Reopening will show this updated set.",
-                                          });
-                                        } catch (e) {
-                                          toast({
-                                            title: e instanceof Error ? e.message : "Save failed",
-                                            description:
-                                              "Regenerated locally, but Supabase save failed.",
-                                            variant: "destructive",
-                                          });
-                                        }
-                                      }
-                                    }}
-                                  >
-                                    <RefreshCw className="w-4 h-4 opacity-80" />
-                                    Regenerate (coming soon)
-                                  </Button>
-                                </div>
+                                      return;
+                                    }
+                                    if (!allFormulaNumeralsAnswered) {
+                                      toast({
+                                        title: "Answer all questions before submit",
+                                        description: `${formulaNumeralsFilledCount}/${formulaQuestions.length} answered`,
+                                      });
+                                      return;
+                                    }
+                                    if (!topicNode || !subtopicName || selectedFormulaIdx === null)
+                                      return;
+                                    const total = formulaQuestions.length;
+                                    const correctCount = formulaQuestions.reduce((acc, item, idx) => {
+                                      const si = formulaBitsSelectedAnswers[idx];
+                                      if (typeof si !== "number") return acc;
+                                      return item.options[si] === item.correctAnswer ? acc + 1 : acc;
+                                    }, 0);
+                                    const wrongCount = total - correctCount;
+                                    const attemptSnapshot = {
+                                      version: 1 as const,
+                                      items: formulaQuestions.map((fq, idx) => {
+                                        const selectedAnswerIndex =
+                                          typeof formulaBitsSelectedAnswers[idx] === "number"
+                                            ? (formulaBitsSelectedAnswers[idx] as number)
+                                            : -1;
+                                        return {
+                                          question: fq.question,
+                                          options: fq.options,
+                                          correctAnswerIndex: getCorrectOptionIndex(fq),
+                                          selectedAnswerIndex,
+                                        };
+                                      }),
+                                    };
+                                    const payload: BitsAttemptRecord = {
+                                      board: boardNameNum,
+                                      subject: topicNode.subject,
+                                      classLevel: topicNode.classLevel,
+                                      topic: topicNode.topic,
+                                      subtopicName,
+                                      level: difficultyLevel,
+                                      bitsSignature: numeralsSig,
+                                      totalQuestions: total,
+                                      correctCount,
+                                      wrongCount,
+                                      selectedAnswers: Object.fromEntries(
+                                        Object.entries(formulaBitsSelectedAnswers).map(([k, v]) => [
+                                          String(k),
+                                          v,
+                                        ])
+                                      ),
+                                      submittedAt: new Date().toISOString(),
+                                    };
+                                    setSubmittingFormulaNumerals(true);
+                                    try {
+                                      const persisted = await saveFormulaPracticeAttempt(
+                                        payload,
+                                        selectedFormulaIdx
+                                      );
+                                      void reportScoreToAssignment(
+                                        persisted.correctCount,
+                                        persisted.totalQuestions,
+                                        attemptSnapshot
+                                      );
+                                      setFormulaNumeralsAttemptByIdx((prev) => ({
+                                        ...prev,
+                                        [selectedFormulaIdx]: persisted,
+                                      }));
+                                      setFormulaNumeralsReviewMode(false);
+                                      setFormulaBitsCurrentIdx(0);
+                                      setFormulaBitsSelectedAnswers({});
+                                      window.setTimeout(() => flushSubtopicEngagementNow(), 0);
+                                      toast({
+                                        title: "Numerals submitted",
+                                        description: `Correct: ${correctCount}, Wrong: ${wrongCount}`,
+                                      });
+                                    } catch (e) {
+                                      toast({
+                                        title:
+                                          e instanceof Error ? e.message : "Failed to save result",
+                                        description: "Please retry submit.",
+                                        variant: "destructive",
+                                      });
+                                    } finally {
+                                      setSubmittingFormulaNumerals(false);
+                                    }
+                                  }}
+                                >
+                                  {formulaNumeralsReviewMode ? (
+                                    isLastFormulaQ ? (
+                                      "Done"
+                                    ) : (
+                                      <>
+                                        Next <ChevronRight className="w-4 h-4 ml-1" />
+                                      </>
+                                    )
+                                  ) : isLastFormulaQ ? (
+                                    submittingFormulaNumerals ? (
+                                      <>
+                                        <Loader2 className="w-4 h-4 mr-1 animate-spin" />{" "}
+                                        Submitting
+                                      </>
+                                    ) : (
+                                      "Submit"
+                                    )
+                                  ) : (
+                                    <>
+                                      Next <ChevronRight className="w-4 h-4 ml-1" />
+                                    </>
+                                  )}
+                                </Button>
                               </div>
+
+                              {answered && q.solution && (
+                                <div className="bits-quiz-explanation mt-2 rounded-xl bg-muted/50 p-3 text-sm text-muted-foreground">
+                                  <p className="mb-1 font-bold text-foreground">Explanation</p>
+                                  <div className="min-w-0 max-w-full text-foreground/90">
+                                    <MathText as="div">
+                                      {normalizeQuizDisplayMath(q.solution)}
+                                    </MathText>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="flex flex-wrap items-center justify-center gap-2 rounded-xl border border-border/50 bg-card/40 p-3 shadow-sm sm:justify-end">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-9 shrink-0 gap-1.5 rounded-full font-semibold border-emerald-600/45 bg-emerald-500/12 text-emerald-950 text-[11px] ring-2 ring-emerald-500/35 shadow-[0_0_18px_rgba(16,185,129,0.18)] hover:bg-emerald-500/20 hover:border-emerald-600/60 dark:border-emerald-400/60 dark:text-emerald-50 dark:ring-emerald-400/40 dark:hover:border-emerald-400/80 sm:h-10 sm:gap-2 sm:text-sm"
+                                onClick={() => {
+                                  if (!topicNode || !subtopicName || !currentFormulaQuestion)
+                                    return;
+                                  if (savedFormulaIdForCurrentQuestion) {
+                                    unsaveFormula(savedFormulaIdForCurrentQuestion);
+                                    persistSavedContent();
+                                    toast({ title: "Removed from Saved Formulas" });
+                                    return;
+                                  }
+                                  const {
+                                    formula: activeFormula,
+                                    question: activeQuestion,
+                                  } = currentFormulaQuestion;
+                                  const payload: SavedFormula = {
+                                    id: `formula-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+                                    name: activeFormula.name,
+                                    formulaLatex: activeFormula.formulaLatex,
+                                    description: activeFormula.description,
+                                    bitsQuestions: [
+                                      {
+                                        question: activeQuestion.question,
+                                        options: activeQuestion.options,
+                                        correctAnswer: getCorrectOptionIndex(activeQuestion),
+                                        solution: activeQuestion.solution,
+                                      },
+                                    ],
+                                    subject: topicNode.subject,
+                                    topic: topicNode.topic,
+                                    subtopicName,
+                                    classLevel: topicNode.classLevel,
+                                    unitName: topicNode.topic,
+                                    level: difficultyLevel,
+                                    board: (board === "icse" ? "ICSE" : "CBSE") as Board,
+                                    sectionIndex: subtopicIndex,
+                                  };
+                                  saveFormula(payload);
+                                  persistSavedContent();
+                                  toast({ title: "Saved to Saved Formulas" });
+                                }}
+                              >
+                                <Bookmark
+                                  className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${savedFormulaIdForCurrentQuestion ? "fill-current" : ""}`}
+                                />
+                                {savedFormulaIdForCurrentQuestion ? "Saved" : "Save"}
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                disabled
+                                title="Regenerate is coming soon"
+                                className="h-9 shrink-0 cursor-not-allowed gap-1.5 rounded-full border-amber-400/70 bg-amber-500/15 font-semibold text-[11px] text-amber-100 ring-2 ring-amber-400/45 shadow-[0_0_18px_rgba(251,191,36,0.2)] hover:bg-amber-500/15 disabled:pointer-events-none disabled:opacity-100 sm:h-10 sm:gap-2 sm:text-sm"
+                                onClick={async () => {
+                                  const next = regenerateFormulaBitsAlgorithmic(
+                                    formula.name,
+                                    formula.bitsQuestions ?? []
+                                  );
+                                  if (next.length > 0) {
+                                    const updatedFormulas = practiceFormulasForUi.map((f, i) =>
+                                      i === selectedFormulaIdx
+                                        ? { ...f, bitsQuestions: next }
+                                        : f
+                                    );
+                                    setFormulaQuestionsOverride((prev) => ({
+                                      ...prev,
+                                      [selectedFormulaIdx]: next,
+                                    }));
+                                    setDbPracticeFormulas(updatedFormulas);
+                                    setFormulaBitsCurrentIdx(0);
+                                    setFormulaBitsSelectedAnswers({});
+                                    setFormulaNumeralsAttemptByIdx((prev) => {
+                                      const n = { ...prev };
+                                      if (selectedFormulaIdx !== null) delete n[selectedFormulaIdx];
+                                      return n;
+                                    });
+                                    try {
+                                      if (topicNode && subtopicName) {
+                                        await saveFormulaPractice({
+                                          board: (board === "icse" ? "ICSE" : "CBSE") as Board,
+                                          subject: topicNode.subject as Subject,
+                                          classLevel: topicNode.classLevel as 11 | 12,
+                                          topic: topicNode.topic,
+                                          subtopicName,
+                                          level: difficultyLevel,
+                                          practiceFormulas: updatedFormulas,
+                                        });
+                                      }
+                                      toast({
+                                        title: "Regenerated and saved",
+                                        description:
+                                          "Stored in Supabase. Reopening will show this updated set.",
+                                      });
+                                    } catch (e) {
+                                      toast({
+                                        title:
+                                          e instanceof Error ? e.message : "Save failed",
+                                        description:
+                                          "Regenerated locally, but Supabase save failed.",
+                                        variant: "destructive",
+                                      });
+                                    }
+                                  }
+                                }}
+                              >
+                                <RefreshCw className="h-3.5 w-3.5 opacity-80 sm:h-4 sm:w-4" />
+                                Regenerate (soon)
+                              </Button>
                             </div>
                           </div>
                         );

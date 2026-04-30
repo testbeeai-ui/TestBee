@@ -69,6 +69,9 @@ export type ScheduleLiveSessionPanelProps = {
   submitLabel?: string;
   /** Embedded in Teacher Wizard: autosave draft (sessionStorage) across close/reopen */
   sessionDraftKey?: string;
+  /** Teacher Wizard: keep left/right step in sync. */
+  externalStep?: 1 | 2 | 3 | 4 | 5;
+  onStepChange?: (step: 1 | 2 | 3 | 4 | 5) => void;
 };
 
 type ScheduleLiveEmbeddedDraftV1 = {
@@ -104,6 +107,8 @@ export default function ScheduleLiveSessionPanel({
   headingSubtitle = "Schedule a live session for your classroom with pre-work, Google Meet link, and post-work.",
   submitLabel,
   sessionDraftKey,
+  externalStep,
+  onStepChange,
 }: ScheduleLiveSessionPanelProps) {
   const [submitting, setSubmitting] = useState(false);
   const [classroomId, setClassroomId] = useState("");
@@ -133,6 +138,17 @@ export default function ScheduleLiveSessionPanel({
   const [preWorkLinkDraft, setPreWorkLinkDraft] = useState("");
   /** Wizard steps 1–5 — matches horizontal stepper (one pane at a time). */
   const [wizardStep, setWizardStep] = useState<1 | 2 | 3 | 4 | 5>(1);
+
+  useEffect(() => {
+    if (!externalStep) return;
+    if (externalStep === wizardStep) return;
+    setWizardStep(externalStep);
+  }, [externalStep, wizardStep]);
+
+  const setWizardStepSynced = (next: 1 | 2 | 3 | 4 | 5) => {
+    setWizardStep(next);
+    onStepChange?.(next);
+  };
 
   const {
     taxonomy: curriculumTaxonomy,
@@ -662,7 +678,7 @@ export default function ScheduleLiveSessionPanel({
                   <button
                     key={tabLabel}
                     type="button"
-                    onClick={() => setWizardStep(stepNum as 1 | 2 | 3 | 4 | 5)}
+                    onClick={() => setWizardStepSynced(stepNum as 1 | 2 | 3 | 4 | 5)}
                     className={`inline-flex shrink-0 items-center gap-2 border-r border-white/10 px-4 py-3 text-xs font-semibold transition ${
                       isActive
                         ? "bg-emerald-500/10 text-emerald-200"
@@ -707,7 +723,7 @@ export default function ScheduleLiveSessionPanel({
                 <button
                   key={n}
                   type="button"
-                  onClick={() => setWizardStep(n)}
+                  onClick={() => setWizardStepSynced(n)}
                   className={`shrink-0 border-b-2 px-2 py-1.5 text-left text-[10px] font-semibold transition sm:px-3 sm:py-2 sm:text-xs ${
                     active
                       ? "border-emerald-400 text-emerald-300"
@@ -1028,7 +1044,11 @@ export default function ScheduleLiveSessionPanel({
           {wizardStep > 1 ? (
             <button
               type="button"
-              onClick={() => setWizardStep((s) => Math.max(1, s - 1) as 1 | 2 | 3 | 4 | 5)}
+              onClick={() =>
+                setWizardStepSynced(
+                  (Math.max(1, wizardStep - 1) as unknown) as 1 | 2 | 3 | 4 | 5
+                )
+              }
               className="inline-flex h-9 items-center justify-center rounded-full border border-white/15 px-3 text-xs font-semibold text-slate-200 hover:bg-white/5 sm:h-9 sm:min-w-[92px] sm:px-4 sm:text-sm"
             >
               <ChevronLeft className="mr-0.5 h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden />
@@ -1046,7 +1066,10 @@ export default function ScheduleLiveSessionPanel({
             <button
               type="button"
               onClick={() => {
-                if (canGoNext) setWizardStep((s) => Math.min(stepCount, s + 1) as 1 | 2 | 3 | 4 | 5);
+                if (canGoNext)
+                  setWizardStepSynced(
+                    (Math.min(stepCount, wizardStep + 1) as unknown) as 1 | 2 | 3 | 4 | 5
+                  );
               }}
               disabled={!canGoNext}
               className="inline-flex h-9 items-center justify-center rounded-full bg-emerald-500 px-4 text-xs font-semibold text-black hover:bg-emerald-400 disabled:opacity-50 sm:h-9 sm:min-w-[128px] sm:px-5 sm:text-sm"
@@ -1087,7 +1110,11 @@ export default function ScheduleLiveSessionPanel({
               {wizardStep > 1 ? (
                 <button
                   type="button"
-                  onClick={() => setWizardStep((s) => Math.max(1, s - 1) as 1 | 2 | 3 | 4 | 5)}
+                  onClick={() =>
+                    setWizardStepSynced(
+                      (Math.max(1, wizardStep - 1) as unknown) as 1 | 2 | 3 | 4 | 5
+                    )
+                  }
                   className="inline-flex h-9 items-center justify-center rounded-full border border-white/15 px-3 text-xs font-semibold text-slate-200 hover:bg-white/5 sm:h-9 sm:min-w-[92px] sm:px-4 sm:text-sm"
                 >
                   <ChevronLeft className="mr-0.5 h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden />
@@ -1100,7 +1127,10 @@ export default function ScheduleLiveSessionPanel({
             <button
               type="button"
               onClick={() => {
-                if (canGoNext) setWizardStep((s) => Math.min(stepCount, s + 1) as 1 | 2 | 3 | 4 | 5);
+                if (canGoNext)
+                  setWizardStepSynced(
+                    (Math.min(stepCount, wizardStep + 1) as unknown) as 1 | 2 | 3 | 4 | 5
+                  );
               }}
               disabled={!canGoNext}
               className="inline-flex h-9 w-full shrink-0 items-center justify-center rounded-full bg-emerald-500 px-4 text-xs font-semibold text-black hover:bg-emerald-400 disabled:opacity-50 sm:h-9 sm:w-auto sm:min-w-[128px] sm:px-5 sm:text-sm"

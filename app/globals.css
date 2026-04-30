@@ -646,6 +646,7 @@
   .edu-chip {
     @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold;
   }
+
   .edu-btn-primary {
     @apply rounded-xl font-bold text-primary-foreground border-0 shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all;
     background: var(--gradient-primary);

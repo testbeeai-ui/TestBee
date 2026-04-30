@@ -43,7 +43,7 @@ export default function TeacherPortalShell({
       .slice(0, 2) || "T";
 
   return (
-    <div className="min-h-screen bg-[#07070f] text-slate-100">
+    <div className="h-screen overflow-hidden bg-[#07070f] text-slate-100">
       <button
         type="button"
         onClick={() => {
@@ -108,8 +108,8 @@ export default function TeacherPortalShell({
         </div>
       </header>
 
-      <div className="grid min-h-[calc(100vh-2.75rem)] grid-cols-1 sm:min-h-[calc(100vh-3.5rem)] md:grid-cols-[208px_1fr] lg:grid-cols-[240px_1fr]">
-        <aside className="border-r border-white/10 bg-[#0d0d1c] p-2 sm:p-3">
+      <div className="grid h-[calc(100vh-2.75rem)] min-h-0 grid-cols-1 sm:h-[calc(100vh-3.5rem)] md:grid-cols-[200px_1fr] lg:grid-cols-[232px_1fr]">
+        <aside className="min-h-0 overflow-y-auto border-r border-white/10 bg-[#0d0d1c] p-2 sm:p-3">
           <div className="px-2 pb-2 pt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">
             Navigation
           </div>
@@ -172,7 +172,7 @@ export default function TeacherPortalShell({
             </div>
           </div>
         </aside>
-        <main className="min-w-0 w-full p-2.5 text-left sm:p-5 lg:p-6">
+        <main className="min-h-0 min-w-0 w-full overflow-y-auto p-2.5 text-left sm:p-5 lg:p-6">
           {children}
         </main>
       </div>

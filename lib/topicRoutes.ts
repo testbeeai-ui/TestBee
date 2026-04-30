@@ -24,10 +24,20 @@ function routeBoardSlug(board: string): string {
 export function appendQueryParams(path: string, params: Record<string, string>): string {
   const pairs = Object.entries(params).filter(([, v]) => v !== undefined && v !== "");
   if (pairs.length === 0) return path;
-  const qs = new URLSearchParams();
+
+  const hashIdx = path.indexOf("#");
+  const baseAndQuery = hashIdx >= 0 ? path.slice(0, hashIdx) : path;
+  const hash = hashIdx >= 0 ? path.slice(hashIdx) : "";
+
+  const qIdx = baseAndQuery.indexOf("?");
+  const base = qIdx >= 0 ? baseAndQuery.slice(0, qIdx) : baseAndQuery;
+  const existing = qIdx >= 0 ? baseAndQuery.slice(qIdx + 1) : "";
+
+  const qs = new URLSearchParams(existing);
   for (const [k, v] of pairs) qs.set(k, v);
-  const sep = path.includes("?") ? "&" : "?";
-  return `${path}${sep}${qs.toString()}`;
+
+  const s = qs.toString();
+  return s ? `${base}?${s}${hash}` : `${base}${hash}`;
 }
 
 export interface ResolvedTopic {

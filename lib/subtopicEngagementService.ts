@@ -56,6 +56,11 @@ export type SubtopicEngagementSnapshot = {
   lessonFocusTimer?: {
     secondsRemaining: number;
     running: boolean;
+    /**
+     * When present, clients must not treat `secondsRemaining === 0` as "Done" unless this is true
+     * (avoids bogus exhausted timer rows that never ran). Omitted on older snapshots = legacy read.
+     */
+    everStarted?: boolean;
   } | null;
 };
 

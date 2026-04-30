@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useLayoutEffect, useState } from "react";
 import type { AssignmentTaskStored } from "@/lib/classroom/assignmentTasks";
 import type { Json } from "@/integrations/supabase/types";
 import { fetchWithClientAuth } from "@/lib/clientApiAuth";
@@ -23,6 +23,28 @@ import type {
   TeacherPortalGyanEngagementRef,
   TeacherPortalMockPaperRef,
 } from "@/lib/teacherPortal/types";
+
+const TEACHER_PORTAL_BUNDLE_SNAPSHOT_PREFIX = "teacherPortal.bundleSnapshot.v1:";
+
+function persistTeacherPortalBundleSnapshot(userId: string, bundle: TeacherPortalDataBundle) {
+  try {
+    sessionStorage.setItem(`${TEACHER_PORTAL_BUNDLE_SNAPSHOT_PREFIX}${userId}`, JSON.stringify(bundle));
+  } catch {
+    // Quota / private mode
+  }
+}
+
+function readTeacherPortalBundleSnapshot(userId: string): TeacherPortalDataBundle | null {
+  try {
+    const raw = sessionStorage.getItem(`${TEACHER_PORTAL_BUNDLE_SNAPSHOT_PREFIX}${userId}`);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as TeacherPortalDataBundle;
+    if (!parsed || !Array.isArray(parsed.classrooms)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
 
 interface UseTeacherPortalDataResult {
   data: TeacherPortalDataBundle | null;
@@ -165,6 +187,7 @@ export function useTeacherPortalData(
       try {
         const next = await loadTeacherPortalBundle(userId);
         setData(next);
+        persistTeacherPortalBundleSnapshot(userId, next);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Could not load teacher portal.");
       } finally {
@@ -174,9 +197,16 @@ export function useTeacherPortalData(
     [userId]
   );
 
-  useEffect(() => {
-    void refresh();
-  }, [refresh]);
+  useLayoutEffect(() => {
+    if (!userId) {
+      setData(null);
+      return;
+    }
+    const cached = readTeacherPortalBundleSnapshot(userId);
+    if (cached) setData(cached);
+    if (cached) void refresh({ silent: true });
+    else void refresh();
+  }, [userId, refresh]);
 
   const submitTeacherSection = useCallback(
     async (input: { doubtId: string; teacherId: string; body: string }) => {

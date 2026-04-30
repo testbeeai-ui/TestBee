@@ -162,7 +162,7 @@ function TeacherPortalPageContent() {
                     teacherId: user.id,
                     ...input,
                   });
-                  toast({ title: "Class scheduled" });
+                  toast({ title: "Lesson scheduled" });
                 }}
               />
             ) : null}
@@ -175,7 +175,7 @@ function TeacherPortalPageContent() {
                     teacherId: user.id,
                     ...input,
                   });
-                  toast({ title: "Class scheduled" });
+                  toast({ title: "Lesson scheduled" });
                 }}
               />
             ) : null}

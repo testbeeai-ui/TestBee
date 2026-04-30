@@ -2,9 +2,14 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { BookOpen, CheckCircle2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { safeGetSession } from "@/lib/safeSession";
 import type { AssignmentTaskStored } from "@/lib/classroom/assignmentTasks";
+import {
+  CLASSROOM_ASSIGNMENT_PROGRESS_EVENT,
+  type ClassroomAssignmentProgressDetail,
+} from "@/lib/classroom/assignmentProgressSync";
 import { supabase } from "@/integrations/supabase/client";
 
 /** Short TTL GET dedupe for task-progress (reduces polling churn). Cleared on local mutations. */
@@ -50,10 +55,50 @@ type TaskResponseRow = {
 interface AssignmentTaskChecklistProps {
   classroomId: string;
   postId: string;
+  /** Post type for UX decisions (e.g. Concept Focus collapses to one task). */
+  postType?: string;
+  /** Optional post title for labeling a collapsed single-task view. */
+  postTitle?: string;
   /** When true, show all tasks (including teacher-only) without checkboxes */
   isTeacherView: boolean;
   /** When set, render checklist immediately; progress hydrates from API in the background */
   initialTasks?: AssignmentTaskStored[];
+}
+
+function collapseConceptFocusTasks(input: {
+  tasks: AssignmentTaskStored[];
+  postTitle?: string;
+}): AssignmentTaskStored[] {
+  const list = input.tasks;
+  if (list.length <= 1) return list;
+  const pick =
+    list.find((t) => t.kind === "topic_path" && typeof t.href === "string" && t.href.trim()) ??
+    list.find((t) => typeof t.href === "string" && t.href.trim()) ??
+    null;
+  if (!pick?.href) return list;
+
+  const normalizeHref = (href: string) => {
+    try {
+      const url = href.startsWith("http") ? new URL(href) : new URL(href, "https://edublast.local");
+      if (url.searchParams.get("panel") === "quiz") url.searchParams.set("panel", "concepts");
+      return href.startsWith("http") ? url.toString() : `${url.pathname}${url.search}${url.hash}`;
+    } catch {
+      return href;
+    }
+  };
+
+  const title = (input.postTitle ?? "").trim();
+  return [
+    {
+      id: "concept-focus-subtopic",
+      kind: "topic_path",
+      label: title ? `Open subtopic: ${title}` : "Open subtopic",
+      href: normalizeHref(pick.href),
+      visible_to_student: true,
+      position: 0,
+      reward_rdm: null,
+    },
+  ];
 }
 
 function parseQuizSetFromHref(href: string): string | null {
@@ -122,10 +167,13 @@ function withAssignmentTrackingParams(
 export default function AssignmentTaskChecklist({
   classroomId,
   postId,
+  postType,
+  postTitle,
   isTeacherView,
   initialTasks,
 }: AssignmentTaskChecklistProps) {
   const hasInitialShell = Boolean(initialTasks?.length);
+  const shouldCollapseConceptFocus = !isTeacherView && postType === "Concept Focus";
   const [tasks, setTasks] = useState<AssignmentTaskStored[]>(() => initialTasks ?? []);
   const [completed, setCompleted] = useState<Set<string>>(() => new Set());
   const [progressAvailable, setProgressAvailable] = useState(true);
@@ -153,8 +201,9 @@ export default function AssignmentTaskChecklist({
   }, [postId]);
 
   useEffect(() => {
-    if (initialTasks?.length) setTasks(initialTasks);
-  }, [initialTasks]);
+    if (!initialTasks?.length) return;
+    setTasks(shouldCollapseConceptFocus ? collapseConceptFocusTasks({ tasks: initialTasks, postTitle }) : initialTasks);
+  }, [initialTasks, postTitle, shouldCollapseConceptFocus]);
 
   const load = useCallback(
     async (opts?: { silent?: boolean; bypassCache?: boolean }) => {
@@ -206,6 +255,9 @@ export default function AssignmentTaskChecklist({
           return;
         }
         const loadedTasks = Array.isArray(data.tasks) ? data.tasks : [];
+        const nextTasks = shouldCollapseConceptFocus
+          ? collapseConceptFocusTasks({ tasks: loadedTasks, postTitle })
+          : loadedTasks;
         const loadedCompleted = new Set(
           Array.isArray(data.completedTaskIds) ? data.completedTaskIds : []
         );
@@ -214,7 +266,7 @@ export default function AssignmentTaskChecklist({
           taskProgressGetCache.set(ck, {
             expiresAt: Date.now() + TASK_PROGRESS_GET_TTL_MS,
             data: {
-              tasks: loadedTasks,
+              tasks: nextTasks,
               completedTaskIds: Array.from(loadedCompleted),
               progressAvailable: data.progressAvailable !== false,
             },
@@ -222,9 +274,9 @@ export default function AssignmentTaskChecklist({
         }
 
         if (silent && hasLoadedOnceRef.current) {
-          setTasks((prev) => (sameTaskList(prev, loadedTasks) ? prev : loadedTasks));
+          setTasks((prev) => (sameTaskList(prev, nextTasks) ? prev : nextTasks));
         } else {
-          setTasks(loadedTasks);
+          setTasks(nextTasks);
         }
         setCompleted(loadedCompleted);
         setProgressAvailable(data.progressAvailable !== false);
@@ -232,7 +284,7 @@ export default function AssignmentTaskChecklist({
 
         const needsResponses =
           !isTeacherView &&
-          loadedTasks.some((t) => !t.href && t.kind === "free_text") &&
+          nextTasks.some((t) => !t.href && t.kind === "free_text") &&
           (!silent || !responsesHydratedRef.current);
 
         if (needsResponses) {
@@ -254,7 +306,7 @@ export default function AssignmentTaskChecklist({
             setResponsesByTaskId(map);
             setDraftTextByTaskId((prev) => {
               const next = { ...prev };
-              for (const t of loadedTasks) {
+              for (const t of nextTasks) {
                 if (t.kind !== "free_text" || t.href) continue;
                 if (next[t.id] != null) continue;
                 next[t.id] = map[t.id]?.response_text ?? "";
@@ -263,7 +315,7 @@ export default function AssignmentTaskChecklist({
             });
             setDraftLinksByTaskId((prev) => {
               const next = { ...prev };
-              for (const t of loadedTasks) {
+              for (const t of nextTasks) {
                 if (t.kind !== "free_text" || t.href) continue;
                 if (next[t.id] != null) continue;
                 next[t.id] = (map[t.id]?.links ?? []).join("\n");
@@ -348,6 +400,17 @@ export default function AssignmentTaskChecklist({
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (isTeacherView) return;
+    const onProgress = (ev: Event) => {
+      const d = (ev as CustomEvent<ClassroomAssignmentProgressDetail>).detail;
+      if (!d || d.classroomId !== classroomId || d.postId !== postId) return;
+      void load({ silent: true, bypassCache: true });
+    };
+    window.addEventListener(CLASSROOM_ASSIGNMENT_PROGRESS_EVENT, onProgress);
+    return () => window.removeEventListener(CLASSROOM_ASSIGNMENT_PROGRESS_EVENT, onProgress);
+  }, [classroomId, postId, isTeacherView, load]);
 
   useEffect(() => {
     if (isTeacherView) return;
@@ -483,10 +546,31 @@ export default function AssignmentTaskChecklist({
   if (error) return <div className="text-sm text-destructive">{error}</div>;
   if (tasks.length === 0) return null;
 
+  const conceptFocusStudentDone =
+    !isTeacherView &&
+    postType === "Concept Focus" &&
+    tasks.some((t) => completed.has(t.id));
+
+  const conceptFocusDisplayTitle = (() => {
+    const raw = (postTitle ?? "").trim();
+    if (raw) return raw;
+    const pick = tasks.find((t) => t.id === "concept-focus-subtopic") ?? tasks[0];
+    const lab = (pick?.label ?? "").replace(/^Open subtopic:\s*/i, "").trim();
+    return lab || "Subtopic";
+  })();
+
   return (
     <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-3">
-      <div className="text-xs font-extrabold uppercase tracking-wider text-muted-foreground">
-        {isTeacherView ? "Task list (class view)" : "Your tasks"}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="text-xs font-extrabold uppercase tracking-wider text-muted-foreground">
+          {isTeacherView ? "Task list (class view)" : postType === "Concept Focus" ? "Your subtopic" : "Your tasks"}
+        </div>
+        {!isTeacherView && postType === "Concept Focus" && conceptFocusStudentDone ? (
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/35 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-bold text-emerald-800 dark:text-emerald-300">
+            <CheckCircle2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
+            Done for class
+          </span>
+        ) : null}
       </div>
       <ul className="space-y-3">
         {tasks.map((t) => {
@@ -510,7 +594,32 @@ export default function AssignmentTaskChecklist({
               ) : null}
               <div className="flex-1 min-w-0">
                 <div className="font-semibold text-foreground">{t.label}</div>
-                {t.href ? (
+                {!isTeacherView &&
+                postType === "Concept Focus" &&
+                completed.has(t.id) &&
+                t.href ? (
+                  <div className="mt-2 rounded-xl border border-pink-500/25 bg-linear-to-br from-pink-500/8 to-transparent px-3 py-2.5 dark:border-pink-400/20 dark:from-pink-950/30">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-[0.1em] text-pink-600 dark:text-pink-300">
+                          <BookOpen className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                          Subtopic
+                        </div>
+                        <p className="mt-1 text-sm font-semibold leading-snug text-foreground">
+                          {conceptFocusDisplayTitle}
+                        </p>
+                        <p className="mt-1 text-[11px] text-muted-foreground">
+                          You finished the lesson checklist and marked complete. Your teacher sees this as
+                          submitted.
+                        </p>
+                      </div>
+                      <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-emerald-500/35 bg-emerald-500/12 px-2.5 py-1.5 text-[11px] font-semibold text-emerald-800 dark:border-emerald-400/30 dark:bg-emerald-500/15 dark:text-emerald-200">
+                        <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden />
+                        Done
+                      </span>
+                    </div>
+                  </div>
+                ) : t.href ? (
                   /^https?:\/\//i.test(t.href) ? (
                     <a
                       href={withAssignmentTrackingParams(t.href, t, classroomId, postId)}
@@ -519,7 +628,7 @@ export default function AssignmentTaskChecklist({
                       className="mt-2 inline-flex rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-sm font-bold text-primary transition hover:bg-primary/15"
                       aria-label={`${taskLinkLabel(t)} (open)`}
                     >
-                      Open
+                      {postType === "Concept Focus" ? "Open lesson" : "Open"}
                     </a>
                   ) : t.href?.includes("/assignment-test/") ||
                     t.href?.includes("panel=quiz") ||
@@ -531,7 +640,7 @@ export default function AssignmentTaskChecklist({
                       className="mt-2 inline-flex rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-sm font-bold text-primary transition hover:bg-primary/15"
                       aria-label={`${taskLinkLabel(t)} (open)`}
                     >
-                      Open
+                      {postType === "Concept Focus" ? "Open lesson" : "Open"}
                     </a>
                   ) : (
                     <Link
@@ -539,17 +648,21 @@ export default function AssignmentTaskChecklist({
                       className="mt-2 inline-flex rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-sm font-bold text-primary transition hover:bg-primary/15"
                       aria-label={`${taskLinkLabel(t)} (open)`}
                     >
-                      Open
+                      {postType === "Concept Focus" ? "Open lesson" : "Open"}
                     </Link>
                   )
                 ) : null}
-                {!isTeacherView && t.href ? (
+                {!isTeacherView &&
+                t.href &&
+                !(postType === "Concept Focus" && completed.has(t.id)) ? (
                   <div className="mt-1 text-[11px] text-muted-foreground">
                     {t.kind === "chapter_quiz"
                       ? "Open the quiz, answer all MCQs, and submit to record your score."
                       : t.kind === "mock_paper"
                         ? "Open the mock paper and complete it. Submit to record your score."
-                        : "Open the link, complete the task, then come back here."}
+                        : postType === "Concept Focus"
+                          ? "Open the lesson, complete the checklist, then tap Mark as complete on the topic page."
+                          : "Open the link, complete the task, then come back here."}
                   </div>
                 ) : null}
                 {showResponseBox ? (

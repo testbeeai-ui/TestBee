@@ -127,6 +127,9 @@ export default function CreateAssignmentWizard(props: {
   variant?: "page" | "embedded";
   /** When set (e.g. Teacher Wizard embedded), draft survives closing the wizard (sessionStorage). */
   sessionDraftKey?: string;
+  /** Teacher Wizard: keep left/right step in sync. */
+  externalStep?: 1 | 2 | 3 | 4;
+  onStepChange?: (step: 1 | 2 | 3 | 4) => void;
   onCancel: () => void;
   onPublish: (input: Omit<PublishInput, "title"> & { title: string }) => Promise<void>;
 }) {
@@ -134,6 +137,17 @@ export default function CreateAssignmentWizard(props: {
   const variant = props.variant ?? "page";
 
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+  useEffect(() => {
+    if (!props.externalStep) return;
+    if (props.externalStep === step) return;
+    setStep(props.externalStep);
+  }, [props.externalStep, step]);
+
+  const setStepSynced = (next: 1 | 2 | 3 | 4) => {
+    setStep(next);
+    props.onStepChange?.(next);
+  };
+
   const [typeKey, setTypeKey] = useState<WizardTypeKey>("quiz");
   const meta = TYPE_META[typeKey];
 
@@ -450,7 +464,7 @@ export default function CreateAssignmentWizard(props: {
             <div className="flex shrink-0 flex-wrap items-center gap-2">
               <button
                 type="button"
-                onClick={() => setStep((s) => (s > 1 ? ((s - 1) as 1 | 2 | 3 | 4) : s))}
+                onClick={() => setStepSynced((step > 1 ? ((step - 1) as 1 | 2 | 3 | 4) : step))}
                 disabled={step === 1}
                 className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-2 text-xs font-semibold text-slate-200 enabled:hover:bg-white/[0.06] disabled:opacity-50"
               >
@@ -459,9 +473,9 @@ export default function CreateAssignmentWizard(props: {
               <button
                 type="button"
                 onClick={() => {
-                  if (step === 1) setStep(2);
-                  else if (step === 2 && canContinueStep2) setStep(3);
-                  else if (step === 3 && canContinueStep3) setStep(4);
+                  if (step === 1) setStepSynced(2);
+                  else if (step === 2 && canContinueStep2) setStepSynced(3);
+                  else if (step === 3 && canContinueStep3) setStepSynced(4);
                 }}
                 disabled={step === 2 ? !canContinueStep2 : step === 3 ? !canContinueStep3 : step === 4}
                 className="rounded-full border border-emerald-400/30 bg-emerald-500/15 px-3 py-2 text-xs font-semibold text-emerald-100 enabled:hover:bg-emerald-500/20 disabled:opacity-50"
@@ -484,7 +498,7 @@ export default function CreateAssignmentWizard(props: {
                 <button
                   key={s.id}
                   type="button"
-                  onClick={() => setStep(s.id as 1 | 2 | 3 | 4)}
+                  onClick={() => setStepSynced(s.id as 1 | 2 | 3 | 4)}
                   className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${pill(step === s.id)}`}
                 >
                   {s.id}. {s.label}
@@ -507,7 +521,7 @@ export default function CreateAssignmentWizard(props: {
             <div className="flex shrink-0 items-center gap-2">
               <button
                 type="button"
-                onClick={() => setStep((s) => (s > 1 ? ((s - 1) as 1 | 2 | 3 | 4) : s))}
+                onClick={() => setStepSynced((step > 1 ? ((step - 1) as 1 | 2 | 3 | 4) : step))}
                 disabled={step === 1}
                 className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-2 text-xs font-semibold text-slate-200 enabled:hover:bg-white/[0.06] disabled:opacity-50"
               >
@@ -516,9 +530,9 @@ export default function CreateAssignmentWizard(props: {
               <button
                 type="button"
                 onClick={() => {
-                  if (step === 1) setStep(2);
-                  else if (step === 2 && canContinueStep2) setStep(3);
-                  else if (step === 3 && canContinueStep3) setStep(4);
+                  if (step === 1) setStepSynced(2);
+                  else if (step === 2 && canContinueStep2) setStepSynced(3);
+                  else if (step === 3 && canContinueStep3) setStepSynced(4);
                 }}
                 disabled={step === 2 ? !canContinueStep2 : step === 3 ? !canContinueStep3 : step === 4}
                 className="rounded-full border border-emerald-400/30 bg-emerald-500/15 px-3 py-2 text-xs font-semibold text-emerald-100 enabled:hover:bg-emerald-500/20 disabled:opacity-50"
@@ -534,7 +548,7 @@ export default function CreateAssignmentWizard(props: {
                 <button
                   key={s.id}
                   type="button"
-                  onClick={() => setStep(s.id as 1 | 2 | 3 | 4)}
+                  onClick={() => setStepSynced(s.id as 1 | 2 | 3 | 4)}
                   className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${pill(step === s.id)}`}
                 >
                   {s.id}. {s.label}

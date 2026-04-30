@@ -176,11 +176,50 @@ export default function PostDetailModal({
   /** Parsed tasks for instant checklist shell (server still hydrates progress). */
   const checklistInitialTasks: AssignmentTaskStored[] | undefined = useMemo(() => {
     if (!post || !classroomId) return undefined;
-    if (post.type !== "assignment" && post.type !== "quiz" && post.type !== "mock") return undefined;
+    if (
+      post.type !== "assignment" &&
+      post.type !== "quiz" &&
+      post.type !== "mock" &&
+      post.type !== "Concept Focus"
+    )
+      return undefined;
     const json = (post.content_json as import("@/integrations/supabase/types").Json) ?? null;
     const all = parseAssignmentTasks(json, post.type);
     const list = canEdit ? all : studentVisibleTasks(all);
-    return list.length ? list : undefined;
+    if (!list.length) return undefined;
+
+    // Student view: Concept Focus should feel like one guided subtopic, not 4 separate tasks.
+    if (!canEdit && post.type === "Concept Focus") {
+      const pick =
+        list.find((t) => t.kind === "topic_path" && typeof t.href === "string" && t.href.trim()) ??
+        list.find((t) => typeof t.href === "string" && t.href.trim()) ??
+        null;
+      if (!pick?.href) return list;
+
+      const normalizeHref = (href: string) => {
+        try {
+          const url = href.startsWith("http") ? new URL(href) : new URL(href, "https://edublast.local");
+          if (url.searchParams.get("panel") === "quiz") url.searchParams.set("panel", "concepts");
+          return href.startsWith("http") ? url.toString() : `${url.pathname}${url.search}${url.hash}`;
+        } catch {
+          return href;
+        }
+      };
+
+      return [
+        {
+          id: "concept-focus-subtopic",
+          kind: "topic_path",
+          label: `Open subtopic: ${post.title}`.trim(),
+          href: normalizeHref(pick.href),
+          visible_to_student: true,
+          position: 0,
+          reward_rdm: null,
+        },
+      ];
+    }
+
+    return list;
   }, [post, classroomId, canEdit]);
 
   const isAssignmentLike =
@@ -528,12 +567,17 @@ export default function PostDetailModal({
                     </div>
                     <div className="min-w-0">
                       {classroomId &&
-                      (post.type === "assignment" || post.type === "quiz" || post.type === "mock") ? (
+                      (post.type === "assignment" ||
+                        post.type === "quiz" ||
+                        post.type === "mock" ||
+                        post.type === "Concept Focus") ? (
                         canEdit ? null : (
                           <AssignmentTaskChecklist
                             key={post.id}
                             classroomId={classroomId}
                             postId={post.id}
+                            postType={post.type}
+                            postTitle={post.title}
                             isTeacherView={canEdit}
                             initialTasks={checklistInitialTasks}
                           />
@@ -583,11 +627,16 @@ export default function PostDetailModal({
                 </div>
               )}
               {isAssignmentLike && !gyanStudent ? null : classroomId &&
-                (post.type === "assignment" || post.type === "quiz" || post.type === "mock") ? (
+                (post.type === "assignment" ||
+                  post.type === "quiz" ||
+                  post.type === "mock" ||
+                  post.type === "Concept Focus") ? (
                   <AssignmentTaskChecklist
                     key={post.id}
                     classroomId={classroomId}
                     postId={post.id}
+                    postType={post.type}
+                    postTitle={post.title}
                     isTeacherView={canEdit}
                     initialTasks={checklistInitialTasks}
                   />

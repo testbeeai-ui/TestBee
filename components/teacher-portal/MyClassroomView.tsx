@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import {
   BookOpen,
   Check,
+  CheckCircle2,
   ChevronDown,
   ChevronLeft,
   ClipboardList,
@@ -14,6 +15,7 @@ import {
   Plus,
   Settings,
   Star,
+  Users,
   UserPlus,
   WandSparkles,
   X,
@@ -42,6 +44,7 @@ import ConceptFocusAssignmentFields, {
   initialConceptFocusSelection,
   conceptFocusSelectionComplete,
 } from "@/components/teacher-portal/ConceptFocusAssignmentFields";
+import ConceptFocusSubtopicPreview from "@/components/teacher-portal/ConceptFocusSubtopicPreview";
 import DailyDoseStreakAssignmentFields from "@/components/teacher-portal/DailyDoseStreakAssignmentFields";
 import GyanEngagementAssignmentFields from "@/components/teacher-portal/GyanEngagementAssignmentFields";
 import CreateAssignmentWizard from "@/components/teacher-portal/CreateAssignmentWizard";
@@ -916,7 +919,8 @@ function TeacherWizardPopup(props: {
         durationMinutes: 90,
         repeatDays: [],
         scheduleEndDate: null,
-        allowAdhocTrial: cwAllowAdhocTrial,
+        // Investor requirement: classrooms remain public for join requests regardless of UI choice.
+        allowAdhocTrial: true,
       });
 
       const { data: newest, error: newestErr } = await supabase
@@ -1275,6 +1279,8 @@ function TeacherWizardPopup(props: {
                       initialClassroomId={createdSummary?.classroomId ?? null}
                       variant="embedded"
                       sessionDraftKey={embeddedAssignmentDraftKey}
+                      externalStep={Math.max(1, Math.min(4, (currentSteps[1] ?? 0) + 1)) as 1 | 2 | 3 | 4}
+                      onStepChange={(s) => jumpStep(1, s - 1)}
                       onCancel={() => {
                         setActiveTask(null);
                       }}
@@ -1297,6 +1303,8 @@ function TeacherWizardPopup(props: {
                     <ScheduleLiveSessionPanel
                       variant="embedded"
                       sessionDraftKey={embeddedScheduleDraftKey}
+                      externalStep={Math.max(1, Math.min(5, (currentSteps[2] ?? 0) + 1)) as 1 | 2 | 3 | 4 | 5}
+                      onStepChange={(s) => jumpStep(2, s - 1)}
                       classrooms={props.classrooms}
                       toast={props.toast}
                       headingTitle="Schedule a lesson / webinar"
@@ -1318,6 +1326,8 @@ function TeacherWizardPopup(props: {
                   <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl border border-white/10 bg-[#15162b] p-3 sm:p-4">
                     <CreateTestsView
                       embedded
+                      externalStep={Math.max(1, Math.min(5, (currentSteps[3] ?? 0) + 1)) as 1 | 2 | 3 | 4 | 5}
+                      onStepChange={(s) => jumpStep(3, s - 1)}
                       teacherId={props.teacherId}
                       classrooms={props.classrooms}
                       onCreateAssignment={async (input) => {
@@ -1415,14 +1425,6 @@ function TeacherWizardPopup(props: {
                       </div>
                     </div>
                     <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5 sm:gap-2">
-                      <button
-                        type="button"
-                        onClick={prev}
-                        disabled={stepIdx === 0}
-                        className="inline-flex items-center gap-1 rounded-full bg-emerald-500 px-3 py-1.5 text-[11px] font-semibold text-black hover:bg-emerald-400 disabled:opacity-60 sm:px-3.5 sm:text-xs"
-                      >
-                        ← Prev
-                      </button>
                       {activeTask === 0 ? (
                         googleConnected === null ? (
                           <span className="inline-flex h-8 items-center rounded-full border border-white/10 bg-white/[0.04] px-2.5 text-[10px] text-slate-400 sm:h-9 sm:text-xs">
@@ -1446,14 +1448,6 @@ function TeacherWizardPopup(props: {
                           </button>
                         )
                       ) : null}
-                      <button
-                        type="button"
-                        onClick={guardedNext}
-                        disabled={stepIdx >= stepCount - 1}
-                        className="inline-flex items-center gap-1 rounded-full bg-emerald-500 px-3 py-1.5 text-[11px] font-semibold text-black hover:bg-emerald-400 disabled:opacity-60 sm:text-xs"
-                      >
-                        Next →
-                      </button>
                     </div>
                   </div>
 
@@ -1587,21 +1581,7 @@ function TeacherWizardPopup(props: {
                                     ))}
                                   </select>
                                 </div>
-                                <div className="md:col-span-2">
-                                  <label className="mb-0.5 block text-xs font-semibold text-slate-300 sm:text-sm">
-                                    Allow trial access for new students?
-                                  </label>
-                                  <select
-                                    value={cwAllowAdhocTrial ? "yes" : "no"}
-                                    onChange={(e) => setCwAllowAdhocTrial(e.target.value === "yes")}
-                                    className="h-9 w-full rounded-lg border border-white/15 bg-[#070b17] px-2.5 text-sm outline-none focus:border-emerald-400 sm:h-10 sm:rounded-xl sm:px-3"
-                                  >
-                                    <option value="yes">
-                                      Yes — allow anyone to request access (50 RDM to continue)
-                                    </option>
-                                    <option value="no">No — enrolled students only</option>
-                                  </select>
-                                </div>
+                                {/* Public access is enforced by backend; keep UI clean here. */}
                               </div>
                             ) : null}
 
@@ -1906,6 +1886,7 @@ function TeacherWizardPopup(props: {
                             classroomDetails={props.classroomDetails}
                             onMotivateStudents={props.onMotivateStudents}
                             toast={props.toast}
+                            onJumpToStep={(i) => guardedJumpStep(6, i)}
                             onDone={() => setActiveTask(null)}
                           />
                         ) : activeTask === 5 ? (
@@ -1926,36 +1907,54 @@ function TeacherWizardPopup(props: {
                           </div>
                         )}
 
-                        {activeTask !== 0 ? (
-                          <div className="mt-4 flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-white/10 pt-3">
-                            <div className="text-[11px] text-slate-400 sm:text-xs">
-                              Step {stepIdx + 1} of {stepCount}
-                            </div>
-                            <div className="flex gap-2">
-                              {activeTask === 4 || activeTask === 6 ? (
-                                stepIdx >= stepCount - 1 ? null : (
+                        <div className="mt-4 flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-white/10 pt-3">
+                          <div className="text-[11px] text-slate-400 sm:text-xs">
+                            Step {stepIdx + 1} of {stepCount}
+                          </div>
+                          <div className="flex gap-2">
+                            {activeTask === 0 ? (
+                              <>
+                                {stepIdx === 0 ? null : (
                                   <button
                                     type="button"
-                                    onClick={guardedNext}
-                                    disabled={stepIdx >= stepCount - 1}
-                                    className="inline-flex items-center gap-2 rounded-full bg-emerald-500 px-4 py-2 text-xs font-semibold text-black hover:bg-emerald-400 disabled:opacity-60"
+                                    onClick={prev}
+                                    className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-semibold text-slate-200 hover:bg-white/10"
                                   >
-                                    {`Next: ${t.steps[stepIdx + 1]?.label ?? "Next"} →`}
+                                    ← Prev
                                   </button>
-                                )
-                              ) : (
+                                )}
                                 <button
                                   type="button"
                                   onClick={guardedNext}
                                   disabled={stepIdx >= stepCount - 1}
                                   className="inline-flex items-center gap-2 rounded-full bg-emerald-500 px-4 py-2 text-xs font-semibold text-black hover:bg-emerald-400 disabled:opacity-60"
                                 >
-                                  Next →
+                                  {stepIdx === 0 ? "Save classroom →" : "Next →"}
                                 </button>
-                              )}
-                            </div>
+                              </>
+                            ) : activeTask === 4 || activeTask === 6 ? (
+                              stepIdx >= stepCount - 1 ? null : (
+                                <button
+                                  type="button"
+                                  onClick={guardedNext}
+                                  disabled={stepIdx >= stepCount - 1}
+                                  className="inline-flex items-center gap-2 rounded-full bg-emerald-500 px-4 py-2 text-xs font-semibold text-black hover:bg-emerald-400 disabled:opacity-60"
+                                >
+                                  {`Next: ${t.steps[stepIdx + 1]?.label ?? "Next"} →`}
+                                </button>
+                              )
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={guardedNext}
+                                disabled={stepIdx >= stepCount - 1}
+                                className="inline-flex items-center gap-2 rounded-full bg-emerald-500 px-4 py-2 text-xs font-semibold text-black hover:bg-emerald-400 disabled:opacity-60"
+                              >
+                                Next →
+                              </button>
+                            )}
                           </div>
-                        ) : null}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -2515,10 +2514,11 @@ function TeacherAssignmentProgressWizard(props: {
     if (!scoresReady) {
       return { total, completed: null as number | null, pct: null as number | null };
     }
-    const completed = scores.length;
+    const rosterIds = new Set(roster.map((s) => s.userId));
+    const completed = scores.filter((s) => rosterIds.has(s.userId)).length;
     const pct = total > 0 ? Math.round((completed / Math.max(1, total)) * 100) : 0;
     return { total, completed, pct };
-  }, [roster.length, scores.length, scoresReady]);
+  }, [roster, scores, scoresReady]);
 
   const visibleRows = useMemo(() => {
     if (!scoresReady) return [];
@@ -2679,9 +2679,9 @@ function TeacherAssignmentProgressWizard(props: {
       <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3 text-xs text-slate-400">
         {assignmentDraft ? (
           (() => {
-            const total = Math.max(0, assignmentDraft.totalCount ?? assignmentDraft.completedCount ?? 0);
-            const completed = Math.max(0, assignmentDraft.completedCount ?? 0);
-            const pending = Math.max(0, total - completed);
+            const total = Math.max(0, roster.length);
+            const completed = scoresReady && completion.completed != null ? Math.max(0, completion.completed) : null;
+            const pending = completed == null ? null : Math.max(0, total - completed);
             const dueIso = assignmentDraft.dueDateIso;
             const dueInDays =
               dueIso != null
@@ -2702,10 +2702,16 @@ function TeacherAssignmentProgressWizard(props: {
                   </span>
                 ) : null}
                 <span className="rounded-full border border-emerald-400/20 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-200">
-                  {completed}/{total} submitted
+                  {completed == null ? (
+                    <>Syncing…</>
+                  ) : (
+                    <>
+                      {completed}/{total} submitted
+                    </>
+                  )}
                 </span>
                 <span className="rounded-full border border-rose-400/20 bg-rose-500/10 px-2 py-0.5 text-[11px] font-semibold text-rose-200">
-                  {pending} pending
+                  {pending == null ? <>Syncing…</> : <>{pending} pending</>}
                 </span>
                 {dueInDays != null ? (
                   <span className="text-[11px] text-slate-500">
@@ -2914,8 +2920,17 @@ function TeacherAssignmentProgressWizard(props: {
       </div>
 
       <div className="flex items-center justify-end gap-2">
+        {(() => {
+          const canSendReminder =
+            Boolean(assignmentDraft) &&
+            !sendingReminder &&
+            pendingCount > 0 &&
+            targetIds.length > 0 &&
+            message.trim().length > 0;
+          return (
         <button
           type="button"
+          disabled={!canSendReminder}
           onClick={async () => {
             if (!assignmentDraft) return;
             if (sendingReminder) return;
@@ -2965,8 +2980,8 @@ function TeacherAssignmentProgressWizard(props: {
               setSendingReminder(false);
             }
           }}
-          className={`group inline-flex items-center justify-center gap-2 rounded-full bg-emerald-500 px-5 py-2 text-xs font-semibold text-black transition hover:bg-emerald-400 active:scale-[0.99] ${
-            sendingReminder ? "cursor-not-allowed opacity-80" : ""
+          className={`group inline-flex items-center justify-center gap-2 rounded-full bg-emerald-500 px-5 py-2 text-xs font-semibold text-black transition hover:bg-emerald-400 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 ${
+            !canSendReminder ? "pointer-events-none blur-[0.2px]" : ""
           }`}
         >
           {sendingReminder ? (
@@ -2980,6 +2995,8 @@ function TeacherAssignmentProgressWizard(props: {
             "Send reminder"
           )}
         </button>
+          );
+        })()}
       </div>
     </div>
   );
@@ -3436,6 +3453,7 @@ function TeacherCounselStudentWizard(props: {
   onMotivateStudents: MyClassroomViewProps["onMotivateStudents"];
   toast: ReturnType<typeof useToast>["toast"];
   onDone: () => void;
+  onJumpToStep?: (stepIdx: number) => void;
 }) {
   const { toast } = props;
   const selectClassName =
@@ -3464,7 +3482,8 @@ function TeacherCounselStudentWizard(props: {
     [roster]
   );
 
-  const [studentId, setStudentId] = useState<string>(() => sortedRoster[0]?.userId ?? "");
+  // IMPORTANT UX: start with no student selected. Don't auto-pick a student implicitly.
+  const [studentId, setStudentId] = useState<string>("");
   const selectedStudent = useMemo(
     () => rosterAll.find((s) => s.userId === studentId) ?? null,
     [rosterAll, studentId]
@@ -3473,12 +3492,14 @@ function TeacherCounselStudentWizard(props: {
   useEffect(() => {
     // When classroom changes, reset scope + student selection.
     setScope({ kind: "class" });
+    setStudentId("");
   }, [classroomId]);
 
   useEffect(() => {
-    // Keep selected student valid for current roster/scope.
-    if (studentId && rosterAll.some((s) => s.userId === studentId)) return;
-    setStudentId(sortedRoster[0]?.userId ?? rosterAll[0]?.userId ?? "");
+    // If current selection isn't in roster anymore (scope/classroom changed), clear it.
+    if (!studentId) return;
+    if (rosterAll.some((s) => s.userId === studentId)) return;
+    setStudentId("");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [classroomId, scope.kind, "id" in scope ? scope.id : "", sortedRoster.length, rosterAll.length]);
 
@@ -3558,6 +3579,10 @@ function TeacherCounselStudentWizard(props: {
 
   useEffect(() => {
     if (adviceTouched) return;
+    if (!selectedStudent) {
+      setAdvice("");
+      return;
+    }
     const name = selectedStudent?.name?.trim() || "there";
     const firstName = name.split(" ")[0] || name;
     const avg = avgScore != null ? `${Math.round(avgScore)}%` : "your recent score";
@@ -3697,12 +3722,24 @@ function TeacherCounselStudentWizard(props: {
             setAdviceTouched(false);
           }}
           className={selectClassName}
+          disabled={sortedRoster.length === 0}
         >
-          {sortedRoster.map((s) => (
-            <option key={s.userId} value={s.userId}>
-              {s.name} — {s.status.replaceAll("_", " ")} {s.streakDays} days
+          {sortedRoster.length === 0 ? (
+            <option value="" disabled>
+              No students in this scope
             </option>
-          ))}
+          ) : (
+            <>
+              <option value="" disabled>
+                Select a student…
+              </option>
+              {sortedRoster.map((s) => (
+                <option key={s.userId} value={s.userId}>
+                  {s.name} — {s.status.replaceAll("_", " ")} {s.streakDays} days
+                </option>
+              ))}
+            </>
+          )}
         </select>
       </div>
 
@@ -3725,11 +3762,31 @@ function TeacherCounselStudentWizard(props: {
             </div>
           </div>
         </div>
-      ) : (
+      ) : sortedRoster.length === 0 ? (
         <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 text-sm text-slate-300">
           No students found in this scope.
         </div>
+      ) : (
+        <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 text-sm text-slate-300">
+          No student selected yet. Pick a student to continue.
+        </div>
       )}
+    </div>
+  );
+
+  const emptyState = (body: string) => (
+    <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 text-sm text-slate-300">
+      <div className="font-semibold text-slate-100">No student selected</div>
+      <div className="mt-1 text-slate-300">{body}</div>
+      {props.onJumpToStep ? (
+        <button
+          type="button"
+          onClick={() => props.onJumpToStep?.(0)}
+          className="mt-3 inline-flex items-center justify-center rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-semibold text-slate-200 hover:bg-white/10"
+        >
+          Go to Step 1 — Select student
+        </button>
+      ) : null}
     </div>
   );
 
@@ -3740,9 +3797,7 @@ function TeacherCounselStudentWizard(props: {
       </div>
 
       {!selectedStudent ? (
-        <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 text-sm text-slate-300">
-          Select a student in step 1 first.
-        </div>
+        emptyState("Pick a student in Step 1 to review their scores, streaks, and weak areas.")
       ) : (
         <div className="grid gap-2 sm:gap-3 md:grid-cols-2">
           <div className="rounded-2xl border border-white/10 bg-[#0d0d1c] p-3 sm:p-4">
@@ -3829,39 +3884,45 @@ function TeacherCounselStudentWizard(props: {
         Choose a counselling approach (4 options) and write your personalised advice.
       </div>
 
-      <div>
-        <label className="mb-1 block text-xs font-semibold text-slate-300">Counselling approach</label>
-        <select
-          value={approach}
-          onChange={(e) => {
-            setApproach(e.target.value as CounsellingApproach);
-            setAdviceTouched(false);
-          }}
-          className={selectClassName}
-        >
-          <option value="remotivate">🔥 Re-motivate after break</option>
-          <option value="weak_areas">📉 Address weak areas</option>
-          <option value="celebrate">🏆 Celebrate progress</option>
-          <option value="custom">✍ Write your own</option>
-        </select>
-      </div>
+      {!selectedStudent ? (
+        emptyState("Pick a student in Step 1 to draft a counselling note.")
+      ) : (
+        <>
+          <div>
+            <label className="mb-1 block text-xs font-semibold text-slate-300">Counselling approach</label>
+            <select
+              value={approach}
+              onChange={(e) => {
+                setApproach(e.target.value as CounsellingApproach);
+                setAdviceTouched(false);
+              }}
+              className={selectClassName}
+            >
+              <option value="remotivate">🔥 Re-motivate after break</option>
+              <option value="weak_areas">📉 Address weak areas</option>
+              <option value="celebrate">🏆 Celebrate progress</option>
+              <option value="custom">✍ Write your own</option>
+            </select>
+          </div>
 
-      <div>
-        <label className="mb-1 block text-xs font-semibold text-slate-300">
-          Your advice {selectedStudent ? `to ${selectedStudent.name.split(" ")[0]}` : ""}{" "}
-          <span className="text-rose-400">*</span>
-        </label>
-        <textarea
-          rows={5}
-          value={advice}
-          onChange={(e) => {
-            setAdviceTouched(true);
-            setAdvice(e.target.value);
-          }}
-          placeholder="Write your counselling note…"
-          className="w-full rounded-xl border border-white/15 bg-[#070b17] px-3 py-2 text-[13px] leading-relaxed outline-none placeholder:text-slate-500 focus:border-emerald-400 sm:text-sm"
-        />
-      </div>
+          <div>
+            <label className="mb-1 block text-xs font-semibold text-slate-300">
+              Your advice {selectedStudent ? `to ${selectedStudent.name.split(" ")[0]}` : ""}{" "}
+              <span className="text-rose-400">*</span>
+            </label>
+            <textarea
+              rows={5}
+              value={advice}
+              onChange={(e) => {
+                setAdviceTouched(true);
+                setAdvice(e.target.value);
+              }}
+              placeholder="Write your counselling note…"
+              className="w-full rounded-xl border border-white/15 bg-[#070b17] px-3 py-2 text-[13px] leading-relaxed outline-none placeholder:text-slate-500 focus:border-emerald-400 sm:text-sm"
+            />
+          </div>
+        </>
+      )}
     </div>
   );
 
@@ -3871,6 +3932,12 @@ function TeacherCounselStudentWizard(props: {
         Send your message with optional RDM encouragement. (Recommended actions list excludes Instacue as requested.)
       </div>
 
+      {!selectedStudent ? (
+        emptyState(
+          "Select a student first. Once a student is chosen, you can send the reminder and optional RDM encouragement here."
+        )
+      ) : (
+        <>
       <div>
         <div className="mb-1 text-xs font-semibold text-slate-300">Add RDM encouragement?</div>
         <div className="flex flex-wrap gap-2">
@@ -4020,6 +4087,8 @@ function TeacherCounselStudentWizard(props: {
           {sending ? "Sending…" : "Send message + RDM"}
         </button>
       </div>
+        </>
+      )}
     </div>
   );
 
@@ -4322,7 +4391,7 @@ export default function MyClassroomView({
   const [taskPreview, setTaskPreview] = useState<{
     open: boolean;
     href: string;
-    mode: "assignment-test" | "mock-paper" | "chapter-quiz-preview" | "iframe";
+    mode: "assignment-test" | "mock-paper" | "chapter-quiz-preview" | "concept-focus-preview" | "iframe";
     title: string;
     chapterQuizRef?: {
       board: string;
@@ -4353,6 +4422,17 @@ export default function MyClassroomView({
   const [assignmentScoresLastUpdatedAt, setAssignmentScoresLastUpdatedAt] = useState<string | null>(
     null
   );
+  type ConceptFocusCompletionRowApi = {
+    userId: string;
+    completed: boolean;
+    completedAt: string | null;
+    sources?: { assignmentProgress: boolean; lessonMarkedComplete: boolean };
+  };
+  const [conceptFocusCompletion, setConceptFocusCompletion] = useState<ConceptFocusCompletionRowApi[]>(
+    []
+  );
+  const [conceptFocusCompletionLoading, setConceptFocusCompletionLoading] = useState(false);
+  const [conceptFocusCompletionError, setConceptFocusCompletionError] = useState<string | null>(null);
   const ASSIGNMENT_SCORES_CACHE_KEY = "teacherPortal.assignmentScoresCache.v1";
 
   const wizardAutoOpenOnceRef = useRef(false);
@@ -4808,6 +4888,19 @@ export default function MyClassroomView({
     return roster.filter((s) => s.sectionId === cohortTab.id);
   }, [activeDetail.students, cohortTab]);
 
+  const conceptFocusRosterRows = useMemo(() => {
+    if (!conceptFocusCompletion.length) return [];
+    return [...conceptFocusCompletion]
+      .map((r) => {
+        const st = activeDetail.students.find((s) => s.userId === r.userId);
+        return {
+          ...r,
+          name: st?.name?.trim() || "Student",
+        };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+  }, [conceptFocusCompletion, activeDetail.students]);
+
   const cohortAssignments = useMemo(() => {
     if (cohortTab.kind === "class")
       return activeDetail.assignments.filter((a) => a.sectionId == null);
@@ -5029,6 +5122,41 @@ export default function MyClassroomView({
     }
   }, []);
 
+  /** Concept Focus: merge server bundle + local progress cache so refresh never “forgets” completion history. */
+  useEffect(() => {
+    if (!activeClassroomId) return;
+    let dirty = false;
+    for (const a of activeDetail.assignments) {
+      if (a.type !== "Concept Focus") continue;
+      const prev = assignmentProgressCacheRef.current[a.id];
+      const bundleCount = Math.max(0, Number(a.completedCount) || 0);
+      const cachedCount = Math.max(0, Number(prev?.completedCount) || 0);
+      const mergedCount = Math.max(bundleCount, cachedCount);
+      const total = Math.max(1, Number(a.totalCount) || Number(prev?.totalCount) || 1);
+      const mergedPct = Math.min(100, Math.round((100 * mergedCount) / total));
+      const prevPct = prev?.completionPercent ?? -1;
+      if (!prev || prev.completedCount !== mergedCount || prevPct !== mergedPct || prev.totalCount !== total) {
+        assignmentProgressCacheRef.current[a.id] = {
+          completedCount: mergedCount,
+          completionPercent: mergedPct,
+          totalCount: total,
+        };
+        dirty = true;
+      }
+    }
+    if (dirty) {
+      setAssignmentProgressCacheVersion((v) => v + 1);
+      try {
+        window.localStorage.setItem(
+          ASSIGNMENT_PROGRESS_CACHE_KEY,
+          JSON.stringify(assignmentProgressCacheRef.current)
+        );
+      } catch {
+        // ignore
+      }
+    }
+  }, [activeClassroomId, activeDetail.assignments]);
+
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem(ASSIGNMENT_SCORES_CACHE_KEY);
@@ -5105,14 +5233,17 @@ export default function MyClassroomView({
 
   useEffect(() => {
     if (!assignmentDetail || !activeClassroomId) return;
-    const hasGeneratedTest = assignmentDetail.tasks?.some(
-      (t) =>
-        t.kind === "chapter_quiz" ||
-        t.kind === "mock_paper" ||
-        t.href?.includes("/assignment-test/") ||
-        t.href?.includes("panel=quiz") ||
-        t.href?.includes("/mock")
-    );
+    // Concept Focus uses engagement / "marked complete", not generated-test rows or bits scores.
+    const hasGeneratedTest =
+      assignmentDetail.type !== "Concept Focus" &&
+      assignmentDetail.tasks?.some(
+        (t) =>
+          t.kind === "chapter_quiz" ||
+          t.kind === "mock_paper" ||
+          t.href?.includes("/assignment-test/") ||
+          t.href?.includes("panel=quiz") ||
+          t.href?.includes("/mock")
+      );
     if (!hasGeneratedTest) {
       setAssignmentScores([]);
       setAssignmentScoresError(null);
@@ -5204,6 +5335,61 @@ export default function MyClassroomView({
     ASSIGNMENT_PROGRESS_CACHE_KEY,
     mergeAssignmentScores,
   ]);
+
+  useEffect(() => {
+    if (!assignmentDetail || !activeClassroomId) return;
+    if (assignmentDetail.type !== "Concept Focus") {
+      setConceptFocusCompletion([]);
+      setConceptFocusCompletionError(null);
+      setConceptFocusCompletionLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setConceptFocusCompletion([]);
+    const load = async () => {
+      if (!cancelled) {
+        setConceptFocusCompletionLoading(true);
+        setConceptFocusCompletionError(null);
+      }
+      try {
+        const { session } = await safeGetSession();
+        const res = await fetch(
+          `/api/classroom/${activeClassroomId}/posts/${assignmentDetail.id}/concept-focus-completion`,
+          {
+            headers: session?.access_token
+              ? { Authorization: `Bearer ${session.access_token}` }
+              : {},
+            credentials: "include",
+          }
+        );
+        const data = (await res.json().catch(() => ({}))) as {
+          error?: string;
+          students?: ConceptFocusCompletionRowApi[];
+        };
+        if (!res.ok) {
+          if (!cancelled) {
+            setConceptFocusCompletionError(data.error ?? "Failed to load lesson completion.");
+            setConceptFocusCompletion([]);
+          }
+          return;
+        }
+        if (!cancelled) setConceptFocusCompletion(Array.isArray(data.students) ? data.students : []);
+      } catch {
+        if (!cancelled) {
+          setConceptFocusCompletionError("Network error while loading lesson completion.");
+          setConceptFocusCompletion([]);
+        }
+      } finally {
+        if (!cancelled) setConceptFocusCompletionLoading(false);
+      }
+    };
+    void load();
+    const intervalId = window.setInterval(() => void load(), 15_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [assignmentDetail, activeClassroomId]);
 
   useEffect(() => {
     if (!assignmentDetail || !activeClassroomId) return;
@@ -8122,12 +8308,14 @@ export default function MyClassroomView({
               {/* Left “page”: assignment details */}
               <div className="flex min-h-0 flex-col lg:max-h-[min(72vh,700px)]">
                 <div className="border-b border-white/5 px-3 py-2 sm:px-4">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
-                    Assignment
-                  </p>
-                  <p className="text-[11px] text-slate-500">
-                    Title, due date, class scope, and notes
-                  </p>
+                  <div className="inline-flex items-center gap-2">
+                    <span className="rounded-full border border-emerald-400/25 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-[0.14em] text-emerald-200">
+                      Step-1
+                    </span>
+                    <span className="text-[11px] font-semibold text-slate-300">
+                      Assignment details
+                    </span>
+                  </div>
                 </div>
                 <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain p-3 sm:space-y-3 sm:p-4">
                   <div>
@@ -8393,24 +8581,14 @@ export default function MyClassroomView({
               {/* Right “page”: mock paper or chapter quiz path */}
               <div className="flex min-h-0 flex-col lg:max-h-[min(72vh,700px)]">
                 <div className="border-b border-white/5 px-3 py-2 sm:px-4">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
-                    {isMockAssignmentTemplate
-                      ? "Mock test"
-                      : isQuizAssignmentTemplate
-                        ? "Chapter quiz"
-                        : isGyanEngagementTemplate
-                          ? "Gyan++"
-                          : "DailyDose streak"}
-                  </p>
-                  <p className="text-[11px] text-slate-500">
-                    {isMockAssignmentTemplate
-                      ? "Pick the published paper students should attempt."
-                      : isQuizAssignmentTemplate
-                        ? "Walk class → subject → chapter → lesson → subtopic, then practice set."
-                        : isGyanEngagementTemplate
-                          ? "Optional lesson focus; students post doubts from the checklist link."
-                          : "Choose which of the five Funbrain streak lanes this class should focus on; the task links to Play."}
-                  </p>
+                  <div className="inline-flex items-center gap-2">
+                    <span className="rounded-full border border-violet-400/25 bg-violet-500/10 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-[0.14em] text-violet-200">
+                      Step-2
+                    </span>
+                    <span className="text-[11px] font-semibold text-slate-300">
+                      Activity details
+                    </span>
+                  </div>
                 </div>
                 <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 sm:p-4">
                   {isMockAssignmentTemplate ? (
@@ -8902,6 +9080,9 @@ export default function MyClassroomView({
             setAssignmentDetail(null);
             setAssignmentScores([]);
             setAssignmentScoresError(null);
+            setConceptFocusCompletion([]);
+            setConceptFocusCompletionError(null);
+            setConceptFocusCompletionLoading(false);
           }
         }}
       >
@@ -8962,35 +9143,50 @@ export default function MyClassroomView({
                       Submitted
                     </span>
                     <span className="font-semibold text-emerald-300">
-                      {(assignmentScores.length > 0
-                        ? assignmentScores.length
-                        : (assignmentProgressCacheRef.current[assignmentDetail.id]?.completedCount ??
-                          assignmentDetail.completedCount)) ?? 0}
+                      {(() => {
+                        // UX: For Concept Focus, "Submitted" should reflect "Marked complete" (reads/finishes subtopic),
+                        // not just MCQ submissions. The completion stats already include `lessonChecklistMarkedCompleteAt`.
+                        if (assignmentDetail.type === "Concept Focus") {
+                          const completed =
+                            assignmentProgressCacheRef.current[assignmentDetail.id]?.completedCount ??
+                            assignmentDetail.completedCount ??
+                            0;
+                          return completed;
+                        }
+                        return (
+                          (assignmentScores.length > 0
+                            ? assignmentScores.length
+                            : (assignmentProgressCacheRef.current[assignmentDetail.id]?.completedCount ??
+                              assignmentDetail.completedCount)) ?? 0
+                        );
+                      })()}
                       /{cohortStudents.length}
                     </span>
                   </div>
-                  <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-[#151b35] px-3 py-1.5 text-xs text-slate-200">
-                    <span className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-500">
-                      Avg score
-                    </span>
-                    <span className="font-semibold text-violet-300">
-                      {assignmentScores.length > 0
-                        ? `${
-                            Math.round(
-                              (assignmentScores.reduce(
-                                (acc, s) => acc + (s.total > 0 ? (s.score / s.total) * 100 : 0),
-                                0
-                              ) /
-                                assignmentScores.length) *
-                                10
-                            ) / 10
-                          }%`
-                        : `${
-                            assignmentProgressCacheRef.current[assignmentDetail.id]?.completionPercent ??
-                            assignmentDetail.completionPercent
-                          }%`}
-                    </span>
-                  </div>
+                  {assignmentDetail.type !== "Concept Focus" ? (
+                    <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-[#151b35] px-3 py-1.5 text-xs text-slate-200">
+                      <span className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-500">
+                        Avg score
+                      </span>
+                      <span className="font-semibold text-violet-300">
+                        {assignmentScores.length > 0
+                          ? `${
+                              Math.round(
+                                (assignmentScores.reduce(
+                                  (acc, s) => acc + (s.total > 0 ? (s.score / s.total) * 100 : 0),
+                                  0
+                                ) /
+                                  assignmentScores.length) *
+                                  10
+                              ) / 10
+                            }%`
+                          : `${
+                              assignmentProgressCacheRef.current[assignmentDetail.id]?.completionPercent ??
+                              assignmentDetail.completionPercent
+                            }%`}
+                      </span>
+                    </div>
+                  ) : null}
                 </div>
 
                 {/* Visibility + assignment meta */}
@@ -9051,66 +9247,132 @@ export default function MyClassroomView({
                 {assignmentDetail.chapterQuiz ? (
                   <div className="rounded-xl border border-pink-500/20 bg-linear-to-br from-pink-500/10 to-transparent p-4">
                     <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.08em] text-pink-400">
-                      <BookOpen className="h-4 w-4" /> Chapter Quiz
+                      <BookOpen className="h-4 w-4" />{" "}
+                      {assignmentDetail.type === "Concept Focus" ? "Subtopic" : "Chapter Quiz"}
                     </div>
                     <div className="mt-2 font-semibold text-slate-100">
-                      Class {assignmentDetail.chapterQuiz.classLevel} ·{" "}
-                      {assignmentDetail.chapterQuiz.subject} ·{" "}
-                      {assignmentDetail.chapterQuiz.subtopicName}
+                      {assignmentDetail.type === "Concept Focus"
+                        ? assignmentDetail.chapterQuiz.subtopicName
+                        : `Class ${assignmentDetail.chapterQuiz.classLevel} · ${assignmentDetail.chapterQuiz.subject} · ${assignmentDetail.chapterQuiz.subtopicName}`}
                     </div>
                     <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
                       <div className="text-[11px] leading-relaxed text-slate-400">
-                        Chapter: {assignmentDetail.chapterQuiz.chapterTitle || "(not set)"} · Lesson:{" "}
-                        {assignmentDetail.chapterQuiz.topic}
-                        {assignmentDetail.chapterQuiz.advancedSet
-                          ? ` · Set ${assignmentDetail.chapterQuiz.advancedSet}`
-                          : ""}
+                        {assignmentDetail.type === "Concept Focus" ? (
+                          <>
+                            Focus path · {assignmentDetail.chapterQuiz.subject} · Class{" "}
+                            {assignmentDetail.chapterQuiz.classLevel} · Lesson:{" "}
+                            {assignmentDetail.chapterQuiz.topic}
+                          </>
+                        ) : (
+                          <>
+                            Chapter: {assignmentDetail.chapterQuiz.chapterTitle || "(not set)"} ·
+                            Lesson: {assignmentDetail.chapterQuiz.topic}
+                            {assignmentDetail.chapterQuiz.advancedSet
+                              ? ` · Set ${assignmentDetail.chapterQuiz.advancedSet}`
+                              : ""}
+                          </>
+                        )}
                       </div>
                       {(() => {
-                        const chapterTask = assignmentDetail.tasks?.find(
-                          (t) => t.kind === "chapter_quiz" && Boolean(t.href)
-                        );
-                        if (!chapterTask?.href) return null;
+                        const primaryHrefTask =
+                          assignmentDetail.type === "Concept Focus"
+                            ? // For Concept Focus, the teacher expects the subtopic preview / concepts first,
+                              // not the MCQ quiz panel.
+                              (assignmentDetail.tasks?.find((t) => t.kind === "topic_path" && Boolean(t.href)) ??
+                                assignmentDetail.tasks?.find((t) => t.kind === "instacue" && Boolean(t.href)) ??
+                                assignmentDetail.tasks?.find((t) => t.kind === "bits" && Boolean(t.href)) ??
+                                assignmentDetail.tasks?.find((t) => Boolean(t.href)))
+                            : assignmentDetail.tasks?.find(
+                                (t) => t.kind === "chapter_quiz" && Boolean(t.href)
+                              ) ?? assignmentDetail.tasks?.find((t) => Boolean(t.href));
+                        if (!primaryHrefTask?.href) return null;
+                        const cfCompleted =
+                          assignmentDetail.type === "Concept Focus"
+                            ? (assignmentProgressCacheRef.current[assignmentDetail.id]?.completedCount ??
+                                assignmentDetail.completedCount ??
+                                0)
+                            : 0;
+                        const conceptFocusClassDone =
+                          assignmentDetail.type === "Concept Focus" &&
+                          cohortStudents.length > 0 &&
+                          cfCompleted >= cohortStudents.length;
+                        const openPreview = () => {
+                          const rawHref = primaryHrefTask.href ?? "";
+                          const postId = assignmentDetail?.id ?? "";
+                          const classroomId = activeClassroomId ?? "";
+                          const resolved = rawHref
+                            .replace(/\{\{POST_ID\}\}/g, postId)
+                            .replace(/\{\{CLASSROOM_ID\}\}/g, classroomId)
+                            .replace(/%7B%7BPOST_ID%7D%7D/gi, encodeURIComponent(postId))
+                            .replace(
+                              /%7B%7BCLASSROOM_ID%7D%7D/gi,
+                              encodeURIComponent(classroomId)
+                            );
+                          const safeResolved = (() => {
+                            // If a Concept Focus link accidentally points at `panel=quiz`, force the concepts panel.
+                            if (assignmentDetail.type !== "Concept Focus") return resolved;
+                            try {
+                              const url = resolved.startsWith("http")
+                                ? new URL(resolved)
+                                : new URL(resolved, "https://edublast.local");
+                              if (url.searchParams.get("panel") === "quiz") url.searchParams.set("panel", "concepts");
+                              return resolved.startsWith("http")
+                                ? url.toString()
+                                : `${url.pathname}${url.search}${url.hash}`;
+                            } catch {
+                              return resolved;
+                            }
+                          })();
+                          const ref = assignmentDetail?.chapterQuiz ?? null;
+                          setTaskPreview({
+                            open: true,
+                            href: safeResolved,
+                            mode:
+                              assignmentDetail.type === "Concept Focus"
+                                ? "concept-focus-preview"
+                                : "chapter-quiz-preview",
+                            title:
+                              primaryHrefTask.label ||
+                              (assignmentDetail.type === "Concept Focus"
+                                ? "Concept focus"
+                                : "Chapter quiz"),
+                            ...(ref
+                              ? {
+                                  chapterQuizRef: {
+                                    board: ref.board,
+                                    subject: ref.subject,
+                                    classLevel: ref.classLevel,
+                                    topic: ref.topic,
+                                    subtopicName: ref.subtopicName,
+                                    level: ref.level,
+                                    advancedSet: ref.advancedSet,
+                                  },
+                                }
+                              : {}),
+                          });
+                        };
+                        if (assignmentDetail.type === "Concept Focus" && conceptFocusClassDone) {
+                          return (
+                            <div className="flex flex-wrap items-center justify-end gap-2">
+                              <span className="inline-flex h-8 items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-500/15 px-3 text-[11px] font-semibold text-emerald-100">
+                                <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden />
+                                Done
+                              </span>
+                            </div>
+                          );
+                        }
                         return (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const rawHref = chapterTask.href ?? "";
-                              const postId = assignmentDetail?.id ?? "";
-                              const classroomId = activeClassroomId ?? "";
-                              const resolved = rawHref
-                                .replace(/\{\{POST_ID\}\}/g, postId)
-                                .replace(/\{\{CLASSROOM_ID\}\}/g, classroomId)
-                                .replace(/%7B%7BPOST_ID%7D%7D/gi, encodeURIComponent(postId))
-                                .replace(
-                                  /%7B%7BCLASSROOM_ID%7D%7D/gi,
-                                  encodeURIComponent(classroomId)
-                                );
-                              const ref = assignmentDetail?.chapterQuiz ?? null;
-                              setTaskPreview({
-                                open: true,
-                                href: resolved,
-                                mode: "chapter-quiz-preview",
-                                title: chapterTask.label || "Chapter quiz",
-                                ...(ref
-                                  ? {
-                                      chapterQuizRef: {
-                                        board: ref.board,
-                                        subject: ref.subject,
-                                        classLevel: ref.classLevel,
-                                        topic: ref.topic,
-                                        subtopicName: ref.subtopicName,
-                                        level: ref.level,
-                                        advancedSet: ref.advancedSet,
-                                      },
-                                    }
-                                  : {}),
-                              });
-                            }}
-                            className="inline-flex h-8 items-center justify-center rounded-full border border-emerald-400/25 bg-emerald-500/10 px-3 text-[11px] font-semibold text-emerald-200 hover:bg-emerald-500/15"
-                          >
-                            Open link →
-                          </button>
+                          <div className="flex flex-wrap items-center justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={openPreview}
+                              className="inline-flex h-8 items-center justify-center rounded-full border border-emerald-400/25 bg-emerald-500/10 px-3 text-[11px] font-semibold text-emerald-200 hover:bg-emerald-500/15"
+                            >
+                              {assignmentDetail.type === "Concept Focus"
+                                ? "Open lesson →"
+                                : "Open link →"}
+                            </button>
+                          </div>
                         );
                       })()}
                     </div>
@@ -9246,8 +9508,9 @@ export default function MyClassroomView({
                   </div>
                 ) : null}
 
-                {/* Student Scores */}
-                {assignmentDetail.tasks?.some(
+                {/* Student Scores (quizzes / mocks only — not Concept Focus lesson completion) */}
+                {assignmentDetail.type !== "Concept Focus" &&
+                assignmentDetail.tasks?.some(
                   (t) =>
                     t.kind === "chapter_quiz" ||
                     t.kind === "mock_paper" ||
@@ -9364,7 +9627,9 @@ export default function MyClassroomView({
                         </div>
                       </div>
                     )}
-                    {!assignmentScoresLoading && cohortStudents.length > assignmentScores.length ? (
+                    {!assignmentScoresLoading &&
+                    assignmentDetail.type !== "Concept Focus" &&
+                    cohortStudents.length > assignmentScores.length ? (
                       <div className="mt-3 rounded-lg border border-amber-400/20 bg-amber-500/10 p-3">
                         <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.08em] text-amber-300">
                           Pending submissions
@@ -9385,6 +9650,96 @@ export default function MyClassroomView({
                         </div>
                       </div>
                     ) : null}
+
+                  </div>
+                ) : null}
+
+                {assignmentDetail.type === "Concept Focus" ? (
+                  <div className="space-y-4 rounded-xl border border-white/10 bg-[#151b35] p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.08em] text-slate-500">
+                        <Users className="h-4 w-4 shrink-0" /> Student progress
+                      </div>
+                      <div className="text-[11px] text-slate-500">
+                        {conceptFocusCompletionLoading && conceptFocusRosterRows.length === 0
+                          ? "Loading…"
+                          : conceptFocusRosterRows.length === 0
+                            ? "—"
+                            : `${conceptFocusRosterRows.filter((r) => r.completed).length}/${conceptFocusRosterRows.length} done`}
+                      </div>
+                    </div>
+                    {conceptFocusCompletionError ? (
+                      <div className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">
+                        {conceptFocusCompletionError}
+                      </div>
+                    ) : null}
+                    {!conceptFocusCompletionLoading &&
+                    conceptFocusRosterRows.length === 0 &&
+                    !conceptFocusCompletionError ? (
+                      <div className="rounded-lg border border-dashed border-white/10 bg-black/10 px-4 py-6 text-center text-xs text-slate-400">
+                        No students match this assignment&apos;s audience (section or targeted list).
+                      </div>
+                    ) : conceptFocusRosterRows.length > 0 ? (
+                      <div className="max-h-80 overflow-y-auto overflow-x-hidden rounded-lg border border-white/5">
+                        <div className="sticky top-0 z-10 grid grid-cols-[1fr_auto_auto] gap-2 border-b border-white/10 bg-[#1a1f3d] px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                          <div>Student</div>
+                          <div className="text-right">Status</div>
+                          <div className="hidden text-right sm:block">When</div>
+                        </div>
+                        <div className="divide-y divide-white/5">
+                          {conceptFocusRosterRows.map((r) => (
+                            <div
+                              key={r.userId}
+                              className="grid grid-cols-[1fr_auto_auto] items-center gap-2 px-3 py-2.5 transition hover:bg-white/[0.02]"
+                            >
+                              <div className="flex min-w-0 items-center gap-2">
+                                <div
+                                  className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
+                                    r.completed
+                                      ? "bg-emerald-500/15 text-emerald-300"
+                                      : "bg-slate-600/25 text-slate-400"
+                                  }`}
+                                >
+                                  {initials(r.name)}
+                                </div>
+                                <span className="truncate text-sm font-medium text-slate-200">
+                                  {r.name}
+                                </span>
+                              </div>
+                              <div className="text-right">
+                                {r.completed ? (
+                                  <span className="inline-flex items-center gap-1 rounded-full border border-emerald-400/25 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-200">
+                                    <Check className="h-3 w-3 shrink-0" /> Done
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex rounded-full border border-white/10 bg-white/[0.03] px-2 py-0.5 text-[11px] font-semibold text-slate-400">
+                                    Pending
+                                  </span>
+                                )}
+                              </div>
+                              <div className="hidden items-center justify-end sm:flex">
+                                {r.completedAt ? (
+                                  <span className="text-[10px] text-slate-500">
+                                    {formatRelativeTime(r.completedAt)}
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] text-slate-600">—</span>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : conceptFocusCompletionLoading ? (
+                      <div className="flex items-center gap-2 rounded-lg border border-white/5 bg-black/10 px-4 py-6 text-xs text-slate-400">
+                        <Loader2 className="h-4 w-4 shrink-0 animate-spin" /> Loading student progress…
+                      </div>
+                    ) : null}
+                    <div className="border-t border-white/5 pt-3 text-[11px] leading-relaxed text-slate-300">
+                      <span className="font-semibold text-slate-100">Concept Focus</span> is tracked by{" "}
+                      <span className="font-semibold">Mark as complete</span> on the subtopic lesson (not quiz
+                      scores). Rows reflect lesson checklist and assignment sync when both exist.
+                    </div>
                   </div>
                 ) : null}
 
@@ -9515,7 +9870,7 @@ function restoreLatexEscapes(input: string): string {
 
 function TaskPreviewBody(props: {
   href: string;
-  mode: "assignment-test" | "mock-paper" | "chapter-quiz-preview" | "iframe";
+  mode: "assignment-test" | "mock-paper" | "chapter-quiz-preview" | "concept-focus-preview" | "iframe";
   title: string;
   chapterQuizRef?: {
     board: string;
@@ -9540,8 +9895,30 @@ function TaskPreviewBody(props: {
     }>;
   } | null>(null);
 
+  const conceptPreviewProps = useMemo(() => {
+    if (props.mode !== "concept-focus-preview") return null;
+    const ref = props.chapterQuizRef ?? null;
+    const subject = (ref?.subject ?? "").trim().toLowerCase();
+    const topic = (ref?.topic ?? "").trim();
+    const subtopicName = (ref?.subtopicName ?? "").trim();
+    const classLevelRaw = Number(ref?.classLevel);
+    const boardUpper =
+      (ref?.board ?? "cbse").trim().toLowerCase() === "icse" ? ("ICSE" as const) : ("CBSE" as const);
+    if (!subject || !topic || !subtopicName) return null;
+    return {
+      board: boardUpper,
+      subject:
+        subject === "physics" || subject === "chemistry" || subject === "math"
+          ? (subject as "physics" | "chemistry" | "math")
+          : ("physics" as const),
+      classLevel: (classLevelRaw === 11 ? 11 : 12) as 11 | 12,
+      topic,
+      subtopicName,
+    };
+  }, [props.mode, props.chapterQuizRef]);
+
   useEffect(() => {
-    if (props.mode === "iframe") return;
+    if (props.mode === "iframe" || props.mode === "concept-focus-preview") return;
     let cancelled = false;
     const run = async () => {
       setLoading(true);
@@ -9673,6 +10050,16 @@ function TaskPreviewBody(props: {
     };
   }, [props.href, props.mode, props.title, props.chapterQuizRef]);
 
+  if (props.mode === "concept-focus-preview") {
+    return conceptPreviewProps ? (
+      <div className="h-[86vh] w-full overflow-hidden sm:h-[90vh]">
+        <ConceptFocusSubtopicPreview {...conceptPreviewProps} />
+      </div>
+    ) : (
+      <div className="p-6 text-sm text-slate-400">Preview unavailable.</div>
+    );
+  }
+
   return (
     <div className="flex max-h-[86vh] flex-col sm:max-h-[90vh]">
       <div className="flex items-center justify-between gap-3 border-b border-white/10 px-3 py-2.5 sm:px-5 sm:py-4">
@@ -9688,35 +10075,10 @@ function TaskPreviewBody(props: {
 
       {props.mode === "iframe" ? (
         <div className="flex-1">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 bg-black/20 px-4 py-2.5 sm:px-5 sm:py-3">
-            <div className="min-w-0 truncate text-xs text-slate-400">{props.href}</div>
-            <div className="flex shrink-0 flex-wrap gap-2">
-              <button
-                type="button"
-                className="inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-200 hover:bg-emerald-500/15"
-                onClick={() => window.open(props.href, "_blank", "noopener,noreferrer")}
-              >
-                <ExternalLink className="h-4 w-4" />
-                Open
-              </button>
-              <button
-                type="button"
-                className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-white/10"
-                onClick={async () => {
-                  try {
-                    await navigator.clipboard.writeText(props.href);
-                  } catch {
-                    // ignore
-                  }
-                }}
-              >
-                Copy
-              </button>
-            </div>
-          </div>
           <iframe
             src={props.href}
-            className="h-[62vh] w-full bg-[#07070f] sm:h-[72vh]"
+            title={props.title}
+            className="h-[74vh] w-full bg-[#07070f] sm:h-[82vh]"
             sandbox="allow-same-origin allow-scripts allow-forms allow-popups"
           />
         </div>

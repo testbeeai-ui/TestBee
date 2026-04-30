@@ -61,6 +61,27 @@ function makeAttemptKey(params: {
   return base;
 }
 
+/** Numerals / formula-practice attempts: one stored result per formula card index within the subtopic. */
+function makeFormulaPracticeAttemptKey(params: {
+  board: string;
+  subject: string;
+  classLevel: number;
+  topic: string;
+  subtopicName: string;
+  level: string;
+  formulaPracticeIndex: number;
+}) {
+  const base = makeAttemptKey({
+    board: params.board,
+    subject: params.subject,
+    classLevel: params.classLevel,
+    topic: params.topic,
+    subtopicName: params.subtopicName,
+    level: params.level,
+  });
+  return `${base}||fp:${params.formulaPracticeIndex}`;
+}
+
 function parseAttemptsStore(raw: unknown): Record<string, BitsAttemptRecord> {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
   const out: Record<string, BitsAttemptRecord> = {};
@@ -130,6 +151,18 @@ export async function GET(request: Request) {
     const topic = sanitize(searchParams.get("topic"), 300);
     const subtopicName = sanitize(searchParams.get("subtopicName"), 300);
     const level = sanitize(searchParams.get("level"), 30).toLowerCase();
+    const formulaPracticeIndexRaw = searchParams.get("formulaPracticeIndex");
+    let formulaPracticeIndex: number | undefined;
+    if (formulaPracticeIndexRaw != null && formulaPracticeIndexRaw !== "") {
+      const fi = Number(formulaPracticeIndexRaw);
+      if (!Number.isInteger(fi) || fi < 0 || fi > 500) {
+        return NextResponse.json(
+          { error: "Invalid formulaPracticeIndex (0–500)" },
+          { status: 400 }
+        );
+      }
+      formulaPracticeIndex = fi;
+    }
     const setRaw = searchParams.get("set");
     let set: 1 | 2 | 3 | undefined;
     if (setRaw != null && setRaw !== "") {
@@ -167,6 +200,18 @@ export async function GET(request: Request) {
 
     const row = data as ProfileBitsRow | null;
     const store = parseAttemptsStore(row?.bits_test_attempts);
+    if (formulaPracticeIndex != null) {
+      const fpKey = makeFormulaPracticeAttemptKey({
+        board,
+        subject,
+        classLevel,
+        topic,
+        subtopicName,
+        level,
+        formulaPracticeIndex,
+      });
+      return NextResponse.json({ attempt: store[fpKey] ?? null });
+    }
     const baseKey = makeAttemptKey({ board, subject, classLevel, topic, subtopicName, level });
     if (level === "advanced" && set != null) {
       const keyed = makeAttemptKey({ board, subject, classLevel, topic, subtopicName, level, set });
@@ -259,6 +304,54 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true });
     }
 
+    /** Remove one formula-practice (Numerals) attempt for `formulaPracticeIndex`. */
+    if (body?.clearFormulaAttempt === true) {
+      const fi = Number(body?.formulaPracticeIndex);
+      if (!Number.isInteger(fi) || fi < 0 || fi > 500) {
+        return NextResponse.json(
+          { error: "formulaPracticeIndex is required (0–500)" },
+          { status: 400 }
+        );
+      }
+      if (
+        !board ||
+        !subject ||
+        !topic ||
+        !subtopicName ||
+        Number.isNaN(classLevel) ||
+        ![11, 12].includes(classLevel) ||
+        !ALLOWED_LEVELS.has(level)
+      ) {
+        return NextResponse.json({ error: "Missing or invalid fields" }, { status: 400 });
+      }
+      const fpKey = makeFormulaPracticeAttemptKey({
+        board,
+        subject,
+        classLevel,
+        topic,
+        subtopicName,
+        level,
+        formulaPracticeIndex: fi,
+      });
+      const { data: profile, error: readErr } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (readErr) return NextResponse.json({ error: readErr.message }, { status: 500 });
+      const profileRow = profile as ProfileBitsRow | null;
+      const current = parseAttemptsStore(profileRow?.bits_test_attempts);
+      const next = { ...current };
+      delete next[fpKey];
+      const trimmed = trimAttemptStore(next);
+      const { error: writeErr } = await supabase
+        .from("profiles")
+        .update({ bits_test_attempts: trimmed } as never)
+        .eq("id", user.id);
+      if (writeErr) return NextResponse.json({ error: writeErr.message }, { status: 500 });
+      return NextResponse.json({ ok: true });
+    }
+
     const bitsSignature = sanitize(body?.bitsSignature, 200);
     const totalQuestions = Number(body?.totalQuestions);
     const correctCount = Number(body?.correctCount);
@@ -309,7 +402,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Missing or invalid fields" }, { status: 400 });
     }
 
-    if (level === "advanced" && set == null) {
+    const formulaPracticeIndexBody = body?.formulaPracticeIndex;
+    let formulaPracticeIndexPost: number | undefined;
+    if (formulaPracticeIndexBody != null && formulaPracticeIndexBody !== "") {
+      const fi = Number(formulaPracticeIndexBody);
+      if (!Number.isInteger(fi) || fi < 0 || fi > 500) {
+        return NextResponse.json(
+          { error: "Invalid formulaPracticeIndex (0–500)" },
+          { status: 400 }
+        );
+      }
+      formulaPracticeIndexPost = fi;
+    }
+
+    if (level === "advanced" && set == null && formulaPracticeIndexPost == null) {
       return NextResponse.json(
         { error: "set is required for advanced level attempts" },
         { status: 400 }
@@ -331,7 +437,18 @@ export async function POST(request: Request) {
       submittedAt: new Date().toISOString(),
     };
 
-    const key = makeAttemptKey({ board, subject, classLevel, topic, subtopicName, level, set });
+    const key =
+      formulaPracticeIndexPost != null
+        ? makeFormulaPracticeAttemptKey({
+            board,
+            subject,
+            classLevel,
+            topic,
+            subtopicName,
+            level,
+            formulaPracticeIndex: formulaPracticeIndexPost,
+          })
+        : makeAttemptKey({ board, subject, classLevel, topic, subtopicName, level, set });
     const { data: profile, error: readErr } = await supabase
       .from("profiles")
       .select("*")

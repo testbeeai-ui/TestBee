@@ -151,10 +151,14 @@ function parseEngagementStore(raw: unknown): Record<string, SubtopicEngagementSn
       const sec = Number(lt.secondsRemaining);
       const running = Boolean(lt.running);
       if (Number.isFinite(sec)) {
-        snap.lessonFocusTimer = {
+        const base = {
           secondsRemaining: Math.max(0, Math.min(60 * 60, Math.round(sec))),
           running,
         };
+        snap.lessonFocusTimer =
+          "everStarted" in lt
+            ? { ...base, everStarted: Boolean(lt.everStarted) }
+            : base;
       }
     }
     out[key] = snap;

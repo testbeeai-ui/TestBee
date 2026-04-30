@@ -69,7 +69,7 @@ export async function GET(
   // Verify user is the teacher of this classroom/post
   const { data: post, error: postErr } = await authedClient
     .from("posts")
-    .select("id, classroom_id, teacher_id, content_json")
+    .select("id, classroom_id, teacher_id, type, content_json")
     .eq("id", postId)
     .maybeSingle();
 
@@ -81,6 +81,14 @@ export async function GET(
   }
   if (post.teacher_id !== user.id) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  // Concept Focus is lesson checklist completion, not a scored quiz — never surface bits/MCQ marks here.
+  if ((post as { type?: string }).type === "Concept Focus") {
+    return NextResponse.json(
+      { scores: [] },
+      { headers: { "Cache-Control": "private, max-age=5, stale-while-revalidate=30" } }
+    );
   }
 
   const genericClient = authedClient as unknown as GenericFrom;
