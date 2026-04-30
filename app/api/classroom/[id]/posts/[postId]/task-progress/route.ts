@@ -5,6 +5,7 @@ import {
   createClientWithToken,
 } from "@/integrations/supabase/server";
 import { parseAssignmentTasks, studentVisibleTasks } from "@/lib/classroom/assignmentTasks";
+import { isConceptFocusLessonChecklistComplete } from "@/lib/classroom/conceptFocusLessonCompletion";
 import { parseBitsTestAttemptsStore } from "@/lib/parseBitsTestAttemptsStore";
 
 function isMissingProgressTableError(err: { code?: string; message?: string } | null | undefined) {
@@ -163,6 +164,20 @@ export async function GET(
         }
       }
     }
+
+    // Concept Focus: collapsed client task id `concept-focus-subtopic` — infer from lesson checklist
+    // saved on the subtopic page (profiles.subtopic_engagement.lessonChecklistMarkedCompleteAt).
+    if (post.type === "Concept Focus") {
+      const { data: profileRow } = await authedClient
+        .from("profiles")
+        .select("subtopic_engagement")
+        .eq("id", user.id)
+        .maybeSingle();
+      const engagement = (profileRow as { subtopic_engagement?: unknown } | null)?.subtopic_engagement;
+      if (isConceptFocusLessonChecklistComplete(engagement, post.content_json)) {
+        completedTaskIdSet.add("concept-focus-subtopic");
+      }
+    }
   }
 
   return NextResponse.json(
@@ -222,8 +237,28 @@ export async function POST(
   if (!mem) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const visible = studentVisibleTasks(parseAssignmentTasks(post.content_json, post.type));
-  if (!visible.some((t) => t.id === taskId)) {
+  const isConceptFocusSynthetic =
+    post.type === "Concept Focus" && taskId === "concept-focus-subtopic";
+  if (!visible.some((t) => t.id === taskId) && !isConceptFocusSynthetic) {
     return NextResponse.json({ error: "Unknown or hidden task" }, { status: 400 });
+  }
+
+  if (isConceptFocusSynthetic && completed) {
+    const { data: profileRow } = await authedClient
+      .from("profiles")
+      .select("subtopic_engagement")
+      .eq("id", user.id)
+      .maybeSingle();
+    const engagement = (profileRow as { subtopic_engagement?: unknown } | null)?.subtopic_engagement;
+    if (!isConceptFocusLessonChecklistComplete(engagement, post.content_json)) {
+      return NextResponse.json(
+        {
+          error:
+            "Finish the subtopic lesson checklist and tap Mark as complete on the topic page first.",
+        },
+        { status: 400 }
+      );
+    }
   }
 
   if (completed) {

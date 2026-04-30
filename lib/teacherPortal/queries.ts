@@ -1813,7 +1813,7 @@ export async function createClassroomAssignment(input: {
         return {
           ...t,
           label: `Theory: ${cq.subtopicName}`,
-          href: appendQueryParams(path, { ...extra, panel: "theory" }),
+          href: appendQueryParams(path, { ...extra, panel: "concepts" }),
         };
       }
       if (t.kind === "instacue" && input.assignmentType === "Concept Focus") {

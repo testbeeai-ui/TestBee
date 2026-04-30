@@ -166,6 +166,9 @@ function cappedTestQuestionCount(selected: number, bank: number | null): number 
 type CreateTestsViewProps = {
   /** Teacher Wizard embed: tighter layout, no duplicate page chrome, hide history block below fold. */
   embedded?: boolean;
+  /** Teacher Wizard: keep left/right step in sync. */
+  externalStep?: 1 | 2 | 3 | 4 | 5;
+  onStepChange?: (step: 1 | 2 | 3 | 4 | 5) => void;
   onNavigateToSection?: (section: "myClassroom") => void;
   teacherId?: string;
   classrooms?: TeacherPortalClassroomCard[];
@@ -185,12 +188,25 @@ type CreateTestsViewProps = {
 
 export default function CreateTestsView({
   embedded = false,
+  externalStep,
+  onStepChange,
   onNavigateToSection,
   teacherId,
   classrooms = [],
   onCreateAssignment,
 }: CreateTestsViewProps) {
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
+
+  useEffect(() => {
+    if (!externalStep) return;
+    if (externalStep === step) return;
+    setStep(externalStep);
+  }, [externalStep, step]);
+
+  const setStepSynced = (next: 1 | 2 | 3 | 4 | 5) => {
+    setStep(next);
+    onStepChange?.(next);
+  };
   const [examType] = useState<ExamType>("CBSE Board");
   const [classLevel, setClassLevel] = useState<ClassLevel>("Class 11 (PUC 1)");
   const [scope, setScope] = useState<TestScope>("Topic-wise");
@@ -800,7 +816,7 @@ export default function CreateTestsView({
                 <div className="flex justify-end">
                   <button
                     type="button"
-                    onClick={() => setStep(2)}
+                    onClick={() => setStepSynced(2)}
                     className="inline-flex h-10 w-full items-center justify-center rounded-full bg-emerald-500 px-4 text-sm font-semibold text-black sm:w-auto sm:px-5"
                   >
                     Next: Class & Scope <ChevronRight className="ml-1 h-4 w-4" />
@@ -1023,7 +1039,7 @@ export default function CreateTestsView({
                 <div className="flex items-center justify-between gap-3">
                   <button
                     type="button"
-                    onClick={() => setStep(1)}
+                    onClick={() => setStepSynced(1)}
                     className="rounded-full border border-white/10 px-4 py-2 text-[13px] text-slate-300 sm:px-5 sm:text-sm"
                   >
                     ← Back
@@ -1031,7 +1047,7 @@ export default function CreateTestsView({
                   <button
                     type="button"
                     disabled={!canProceedStep2}
-                    onClick={() => setStep(3)}
+                    onClick={() => setStepSynced(3)}
                     className="inline-flex h-10 items-center rounded-full bg-emerald-500 px-5 text-sm font-semibold text-black disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Next: Questions <ChevronRight className="ml-1 h-4 w-4" />
@@ -1202,7 +1218,7 @@ export default function CreateTestsView({
                 <div className="flex items-center justify-between gap-3">
                   <button
                     type="button"
-                    onClick={() => setStep(2)}
+                    onClick={() => setStepSynced(2)}
                     className="rounded-full border border-white/10 px-4 py-2 text-[13px] text-slate-300 sm:px-5 sm:text-sm"
                   >
                     ← Back
@@ -1210,7 +1226,7 @@ export default function CreateTestsView({
                   <button
                     type="button"
                     disabled={!canProceedStep3}
-                    onClick={() => setStep(4)}
+                    onClick={() => setStepSynced(4)}
                     className="inline-flex h-10 items-center rounded-full bg-emerald-500 px-5 text-sm font-semibold text-black disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Next: Source & Duration <ChevronRight className="ml-1 h-4 w-4" />
@@ -1322,7 +1338,7 @@ export default function CreateTestsView({
                 <div className="flex items-center justify-between gap-3">
                   <button
                     type="button"
-                    onClick={() => setStep(3)}
+                    onClick={() => setStepSynced(3)}
                     className="rounded-full border border-white/10 px-4 py-2 text-[13px] text-slate-300 sm:px-5 sm:text-sm"
                   >
                     ← Back
@@ -1330,7 +1346,7 @@ export default function CreateTestsView({
                   <button
                     type="button"
                     disabled={!canProceedStep4}
-                    onClick={() => setStep(5)}
+                    onClick={() => setStepSynced(5)}
                     className="inline-flex h-10 items-center rounded-full bg-emerald-500 px-5 text-sm font-semibold text-black disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Preview & Generate <ChevronRight className="ml-1 h-4 w-4" />
@@ -1349,7 +1365,7 @@ export default function CreateTestsView({
                   onEditSettings={() => {
                     setGeneratedTest(null);
                     setGenerateError(null);
-                    setStep(4);
+                    setStepSynced(4);
                   }}
                   onCreatePdf={() => {
                     void handleCreatePdf();
@@ -1457,7 +1473,7 @@ export default function CreateTestsView({
                   <div className="flex justify-start">
                     <button
                       type="button"
-                      onClick={() => setStep(4)}
+                      onClick={() => setStepSynced(4)}
                       className="rounded-full border border-white/10 px-5 py-2.5 text-sm text-slate-300 hover:border-white/20 hover:bg-white/[0.04]"
                     >
                       ← Back to settings

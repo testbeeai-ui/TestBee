@@ -2,14 +2,11 @@
 
 import { useState } from "react";
 import { Compass } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
 import { useTopicTaxonomy } from "@/hooks/useTopicTaxonomy";
-import { useExploreHubData } from "@/hooks/useExploreHubData";
 import type { Subject, ExamType } from "@/types";
 import type { TopicNode } from "@/data/topicTaxonomy";
 
 import ExploreHubSidebar from "./ExploreHubSidebar";
-import ExploreStatsBar from "./ExploreStatsBar";
 import SubjectChips from "./SubjectChips";
 import RawPostComposer from "./RawPostComposer";
 import RawCommunityFeed from "./RawCommunityFeed";
@@ -29,10 +26,8 @@ export default function ExploreHubDashboard({
   onNavigateToTopic,
   onNavigateToSubjectWithExam,
 }: ExploreHubDashboardProps) {
-  const { user, profile } = useAuth();
   const { taxonomy } = useTopicTaxonomy();
   const [rawFeedRefresh, setRawFeedRefresh] = useState(0);
-  const { stats, loading } = useExploreHubData(user?.id, profile?.rdm ?? 0);
 
   const handleDirectTopic = (node: TopicNode) => {
     if (onNavigateToTopic) {
@@ -60,9 +55,7 @@ export default function ExploreHubDashboard({
         <ExploreHubSidebar />
 
         {/* Main content */}
-        <div className="flex-1 min-w-0 space-y-6">
-          <ExploreStatsBar stats={stats} loading={loading} />
-          <RawPostComposer onPosted={() => setRawFeedRefresh((k) => k + 1)} />
+        <div className="flex-1 min-w-0 space-y-4 sm:space-y-5 lg:space-y-6">
           <SubjectChips
             onSelectSubject={(subject, exam) => {
               if (onNavigateToSubjectWithExam) {
@@ -72,6 +65,7 @@ export default function ExploreHubDashboard({
               }
             }}
           />
+          <RawPostComposer onPosted={() => setRawFeedRefresh((k) => k + 1)} />
 
           {/* Two-column: feed + sidebar widgets */}
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">

@@ -14,6 +14,11 @@ import { UserHoverCard } from "@/components/UserHoverCard";
 import { format } from "date-fns";
 import { getGyanEngagementStudentViewModel } from "@/lib/classroom/gyanEngagementStudentUi";
 import { parseAssignmentTasks, studentVisibleTasks } from "@/lib/classroom/assignmentTasks";
+import { isConceptFocusLessonChecklistComplete } from "@/lib/classroom/conceptFocusLessonCompletion";
+import {
+  CLASSROOM_ASSIGNMENT_PROGRESS_EVENT,
+  type ClassroomAssignmentProgressDetail,
+} from "@/lib/classroom/assignmentProgressSync";
 import { cn } from "@/lib/utils";
 
 export interface Post {
@@ -152,6 +157,8 @@ const ClassFeed = ({
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [nowMs, setNowMs] = useState(0);
   const [feedTab, setFeedTab] = useState<FeedTab>("active");
+  /** Bumped when a student completes a linked assignment from the topic page so Done/Active tabs refresh. */
+  const [assignmentProgressBump, setAssignmentProgressBump] = useState(0);
   const onFeedCountsChangeRef = useRef(onFeedCountsChange);
   useEffect(() => {
     onFeedCountsChangeRef.current = onFeedCountsChange;
@@ -238,13 +245,27 @@ const ClassFeed = ({
       if (!user) return;
 
       const assignmentLike = posts.filter(
-        (p) => p.type === "assignment" || p.type === "quiz" || p.type === "mock"
+        (p) =>
+          p.type === "assignment" ||
+          p.type === "quiz" ||
+          p.type === "mock" ||
+          p.type === "Concept Focus"
       );
       if (assignmentLike.length === 0) {
         setDonePostIds(new Set(submittedPostIds));
         return;
       }
       const postIds = assignmentLike.map((p) => p.id);
+
+      let subtopicEngagement: unknown = null;
+      if (posts.some((p) => p.type === "Concept Focus")) {
+        const { data: profileRow } = await supabase
+          .from("profiles")
+          .select("subtopic_engagement")
+          .eq("id", user.id)
+          .maybeSingle();
+        subtopicEngagement = profileRow?.subtopic_engagement ?? null;
+      }
 
       const genericClient = supabase as unknown as {
         from: (table: string) => {
@@ -274,6 +295,16 @@ const ClassFeed = ({
 
       const done = new Set<string>(submittedPostIds);
       for (const p of assignmentLike) {
+        if (p.type === "Concept Focus") {
+          const completed = completedByPost.get(p.id) ?? new Set<string>();
+          if (
+            completed.has("concept-focus-subtopic") ||
+            isConceptFocusLessonChecklistComplete(subtopicEngagement, p.content_json)
+          ) {
+            done.add(p.id);
+          }
+          continue;
+        }
         const tasks = studentVisibleTasks(
           parseAssignmentTasks(
             (p.content_json as unknown as import("@/integrations/supabase/types").Json) ?? null,
@@ -295,7 +326,18 @@ const ClassFeed = ({
       setDonePostIds(done);
     };
     void fetchTaskProgressDone();
-  }, [classroomId, posts, submittedPostIds, viewerIsTeacher]);
+  }, [classroomId, posts, submittedPostIds, viewerIsTeacher, assignmentProgressBump]);
+
+  useEffect(() => {
+    if (viewerIsTeacher) return;
+    const onProgress = (ev: Event) => {
+      const d = (ev as CustomEvent<ClassroomAssignmentProgressDetail>).detail;
+      if (!d || d.classroomId !== classroomId) return;
+      setAssignmentProgressBump((n) => n + 1);
+    };
+    window.addEventListener(CLASSROOM_ASSIGNMENT_PROGRESS_EVENT, onProgress);
+    return () => window.removeEventListener(CLASSROOM_ASSIGNMENT_PROGRESS_EVENT, onProgress);
+  }, [classroomId, viewerIsTeacher]);
 
   const visiblePosts = useMemo(() => {
     // Students should see reminders only in Notifications, not inside Posts feed.
@@ -419,6 +461,7 @@ const ClassFeed = ({
             );
             const linkTask = tasks.find((t) => t.href && t.visible_to_student);
             if (!linkTask) return null;
+            if (post.type === "Concept Focus" && isDone) return null;
             const trackedHref = withAssignmentTrackingParams(
               linkTask.href!,
               post.id,
@@ -430,6 +473,7 @@ const ClassFeed = ({
               isExternal ||
               linkTask.href?.includes("/assignment-test/") ||
               linkTask.href?.includes("panel=quiz");
+            const primaryCtaLabel = post.type === "Concept Focus" ? "Open lesson" : "Open link";
             return (
               <div className="mt-2 flex items-center gap-2">
                 {isNewTab ? (
@@ -440,7 +484,7 @@ const ClassFeed = ({
                     className="inline-flex items-center rounded-lg bg-primary px-3 py-1.5 text-[11px] font-bold text-primary-foreground hover:bg-primary/90"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    Open link
+                    {primaryCtaLabel}
                   </a>
                 ) : (
                   <span
@@ -450,7 +494,7 @@ const ClassFeed = ({
                       window.location.href = trackedHref;
                     }}
                   >
-                    Open link
+                    {primaryCtaLabel}
                   </span>
                 )}
               </div>

@@ -1,17 +1,16 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { ChevronDown, Eye, Loader2, BookOpen, Layers, Target, Calculator } from "lucide-react";
-import TheoryContent from "@/components/TheoryContent";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ChevronDown, Eye, Loader2 } from "lucide-react";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import type { TopicNode } from "@/data/topicTaxonomy";
 import {
   topicOptionLabel,
   topicsForChapter,
   uniqueChaptersFor,
 } from "@/lib/teacherPortal/chapterQuizUtils";
-import { fetchSubtopicContent, type SubtopicContentResponse } from "@/lib/subtopicContentService";
 import type { Board, ClassLevel, Subject } from "@/types";
+import ConceptFocusSubtopicPreview from "@/components/teacher-portal/ConceptFocusSubtopicPreview";
 
 export type ConceptFocusSelectionState = {
   classLevel: ClassLevel | null;
@@ -74,9 +73,7 @@ export default function ConceptFocusAssignmentFields({
   selectClassName,
 }: Props) {
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [previewLoading, setPreviewLoading] = useState(false);
-  const [previewError, setPreviewError] = useState<string | null>(null);
-  const [previewData, setPreviewData] = useState<SubtopicContentResponse | null>(null);
+  // Preview UI is rendered by `ConceptFocusSubtopicPreview` (self-fetching).
 
   const chapters =
     value.subject && value.classLevel
@@ -98,24 +95,7 @@ export default function ConceptFocusAssignmentFields({
   const openPreview = useCallback(async () => {
     if (!selectedNode?.topic || !value.subtopicName || !value.subject || !value.classLevel) return;
     setPreviewOpen(true);
-    setPreviewLoading(true);
-    setPreviewError(null);
-    setPreviewData(null);
-    try {
-      const data = await fetchSubtopicContent({
-        board: "CBSE" as Board,
-        subject: value.subject,
-        classLevel: value.classLevel,
-        topic: selectedNode.topic,
-        subtopicName: value.subtopicName.trim(),
-        level: "advanced",
-      });
-      setPreviewData(data);
-    } catch (e) {
-      setPreviewError(e instanceof Error ? e.message : "Could not load preview");
-    } finally {
-      setPreviewLoading(false);
-    }
+    // Fetching happens inside the preview component.
   }, [selectedNode?.topic, value.classLevel, value.subject, value.subtopicName]);
 
   if (taxonomyLoading) {
@@ -333,91 +313,17 @@ export default function ConceptFocusAssignmentFields({
       </div>
 
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-        <DialogContent className="max-h-[85vh] w-[95vw] max-w-4xl overflow-hidden border-white/10 bg-[#0c1020] p-0 text-slate-100 flex flex-col">
-          <DialogHeader className="p-5 border-b border-white/5 shrink-0">
-            <DialogTitle className="text-xl font-bold text-slate-100">
-              {value.subtopicName}
-            </DialogTitle>
-            <div className="text-sm text-slate-400 mt-1 flex flex-wrap gap-2 items-center">
-              <span>
-                {value.subject && value.subject.charAt(0).toUpperCase() + value.subject.slice(1)}
-              </span>
-              <span>•</span>
-              <span>{selectedNode?.topic}</span>
-            </div>
-          </DialogHeader>
-
-          <div className="flex-1 overflow-y-auto p-5 sm:p-6 bg-[#070a14]">
-            {previewLoading ? (
-              <div className="flex flex-col items-center justify-center min-h-[30vh] gap-3 text-slate-400">
-                <Loader2 className="h-8 w-8 animate-spin text-violet-500" />
-                <p>Loading subtopic content…</p>
-              </div>
-            ) : previewError ? (
-              <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-200">
-                {previewError}
-              </div>
-            ) : previewData ? (
-              <div className="space-y-8">
-                {/* Content Summary Dashboard */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <div className="rounded-xl border border-white/5 bg-[#0c1020] p-3 flex flex-col items-center text-center">
-                    <BookOpen className="w-5 h-5 text-sky-400 mb-2" />
-                    <span className="text-2xl font-bold text-slate-200">
-                      {previewData.theory ? "Yes" : "No"}
-                    </span>
-                    <span className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold mt-1">
-                      Theory
-                    </span>
-                  </div>
-                  <div className="rounded-xl border border-white/5 bg-[#0c1020] p-3 flex flex-col items-center text-center">
-                    <Layers className="w-5 h-5 text-emerald-400 mb-2" />
-                    <span className="text-2xl font-bold text-slate-200">
-                      {previewData.instacueCards.length}
-                    </span>
-                    <span className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold mt-1">
-                      InstaCue Cards
-                    </span>
-                  </div>
-                  <div className="rounded-xl border border-white/5 bg-[#0c1020] p-3 flex flex-col items-center text-center">
-                    <Target className="w-5 h-5 text-violet-400 mb-2" />
-                    <span className="text-2xl font-bold text-slate-200">
-                      {previewData.bitsQuestions.length}
-                    </span>
-                    <span className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold mt-1">
-                      Quiz Questions
-                    </span>
-                  </div>
-                  <div className="rounded-xl border border-white/5 bg-[#0c1020] p-3 flex flex-col items-center text-center">
-                    <Calculator className="w-5 h-5 text-amber-400 mb-2" />
-                    <span className="text-2xl font-bold text-slate-200">
-                      {previewData.practiceFormulas.length}
-                    </span>
-                    <span className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold mt-1">
-                      Numerals
-                    </span>
-                  </div>
-                </div>
-
-                {/* Theory Preview */}
-                {previewData.theory ? (
-                  <div className="rounded-2xl border border-white/10 bg-[#0c1020] p-5 sm:p-7 shadow-lg">
-                    <div className="flex items-center gap-2 mb-6 border-b border-white/10 pb-4">
-                      <BookOpen className="w-5 h-5 text-sky-400" />
-                      <h3 className="text-lg font-bold text-slate-100">Theory Preview</h3>
-                    </div>
-                    <div className="prose prose-invert max-w-none prose-p:text-slate-300 prose-headings:text-slate-100 [&_.katex]:!text-[1.1em]">
-                      <TheoryContent theory={previewData.theory} />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="rounded-xl border border-white/5 bg-[#0c1020] p-6 text-center text-sm text-slate-500">
-                    No theory content available for this subtopic yet.
-                  </div>
-                )}
-              </div>
-            ) : null}
-          </div>
+        <DialogContent className="flex max-h-[85vh] w-[95vw] max-w-4xl flex-col overflow-hidden border-white/10 bg-[#0c1020] p-0 text-slate-100">
+          {value.subject && value.classLevel && selectedNode?.topic && value.subtopicName ? (
+            <ConceptFocusSubtopicPreview
+              subject={value.subject}
+              classLevel={value.classLevel}
+              topic={selectedNode.topic}
+              subtopicName={value.subtopicName}
+            />
+          ) : (
+            <div className="p-6 text-sm text-slate-400">Preview unavailable.</div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
