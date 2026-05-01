@@ -118,7 +118,7 @@ export interface TeacherPortalGyanEngagementRef {
   subtopicHint: string;
 }
 
-/** Chapter quiz (Bits) anchor — matches syllabus + subtopic-engagement / bits-attempts scope. */
+/** Chapter quiz anchor — matches syllabus + subtopic-engagement / bits-attempts scope. */
 export interface TeacherPortalChapterQuizRef {
   board: string;
   subject: Subject;

@@ -14,11 +14,13 @@ import {
 import { Button } from "@/components/ui/button";
 import TheoryContent from "@/components/TheoryContent";
 import { useUserStore } from "@/store/useUserStore";
+import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { InstaCueCard, InstaCueCardType, InstaCueLevel } from "@/data/instaCueCards";
 import type { SavedRevisionCard } from "@/types";
 import { syncAllSavedContent } from "@/lib/savedContentService";
+import { reportInstacueCardRead } from "@/lib/reportInstacueCardRead";
 
 const TYPE_CONFIG: Record<
   InstaCueCardType,
@@ -256,6 +258,7 @@ export default function InstaCue({
   onCardValidated,
   compact,
 }: InstaCueProps) {
+  const { profile } = useAuth();
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
   const [addModalOpen, setAddModalOpen] = useState(false);
@@ -266,6 +269,7 @@ export default function InstaCue({
 
   const onCardIndexChangeRef = useRef(onCardIndexChange);
   onCardIndexChangeRef.current = onCardIndexChange;
+  const instacueReadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const effectiveSubtopic = selectedSubtopic ?? (localSubtopic || (subtopicOptions?.[0] ?? ""));
   const filteredCards =
@@ -303,12 +307,19 @@ export default function InstaCue({
   const displayCard = filteredCards[safeIndex];
   const visibleDots = getVisibleDotIndexes(filteredCards.length, safeIndex);
 
-  const handleFlip = () =>
-    setFlipped((f) => {
-      const next = !f;
-      if (next) onCardValidated?.(safeIndex, filteredCards.length);
-      return next;
+  const handleFlip = () => {
+    setFlipped((wasFlipped) => {
+      const willShowBack = !wasFlipped;
+      if (willShowBack) {
+        const idx = safeIndex;
+        const len = filteredCards.length;
+        queueMicrotask(() => {
+          onCardValidated?.(idx, len);
+        });
+      }
+      return !wasFlipped;
     });
+  };
 
   useEffect(() => {
     if (index >= filteredCards.length && filteredCards.length > 0) {
@@ -323,6 +334,19 @@ export default function InstaCue({
     if (filteredCards.length <= 0) return;
     onCardIndexChangeRef.current?.(safeIndex, filteredCards.length);
   }, [safeIndex, filteredCards.length]);
+
+  useEffect(() => {
+    if (!profile?.id || !displayCard?.id) return;
+    const cardId = displayCard.id;
+    if (instacueReadTimerRef.current) clearTimeout(instacueReadTimerRef.current);
+    instacueReadTimerRef.current = setTimeout(() => {
+      instacueReadTimerRef.current = null;
+      void reportInstacueCardRead(cardId);
+    }, 600);
+    return () => {
+      if (instacueReadTimerRef.current) clearTimeout(instacueReadTimerRef.current);
+    };
+  }, [profile?.id, displayCard?.id]);
 
   const handleAddCard = () => {
     if (!front.trim() || !back.trim() || !onAddCard) return;

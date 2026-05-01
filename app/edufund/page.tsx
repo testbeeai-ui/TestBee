@@ -32,7 +32,18 @@ import {
   Laptop,
   BookOpen,
   FlaskConical,
+  Lock,
+  Sparkles,
 } from "lucide-react";
+import {
+  EDUFUND_RDM_GATES,
+  estimateDaysToEarnRdmAtDailyRate,
+  getEdufundNextGate,
+  getEdufundRdmShortfallToNext,
+} from "@/lib/dashboardSidebarMetrics";
+
+/** Illustrative daily earn rate for “days to next tier” copy (not a guarantee). */
+const ASSUMED_DAILY_RDM = 100;
 
 const CATEGORY_OPTIONS: { value: ProposalCategory; label: string; Icon: typeof Laptop }[] = [
   { value: "Learning Device", label: "Learning Device", Icon: Laptop },
@@ -221,6 +232,7 @@ function ProposalCard({
 export default function EduFundPage() {
   const { user, profile } = useAuth();
   const { toast } = useToast();
+  const [requirementsOpen, setRequirementsOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [supportingId, setSupportingId] = useState<string | null>(null);
   const [donationAmount, setDonationAmount] = useState(0);
@@ -233,6 +245,13 @@ export default function EduFundPage() {
 
   const currentUserName = profile?.name ?? user?.user_metadata?.name ?? "Student";
   const currentUserId = user?.id ?? "";
+  const userRdm = Math.max(0, Math.floor(Number(profile?.rdm ?? 0)));
+  const nextGate = getEdufundNextGate(userRdm);
+  const shortfallToNext = getEdufundRdmShortfallToNext(userRdm);
+  const daysToNextAtRate =
+    nextGate != null
+      ? estimateDaysToEarnRdmAtDailyRate(shortfallToNext, ASSUMED_DAILY_RDM)
+      : null;
   const [communityMembers, setCommunityMembers] = useState<{ id: string; name: string }[]>([]);
 
   useEffect(() => {
@@ -338,7 +357,7 @@ export default function EduFundPage() {
 
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 2xl:gap-4 2xl:mb-6">
               <Button
-                onClick={() => setCreateOpen(true)}
+                onClick={() => setRequirementsOpen(true)}
                 className="edu-btn-primary flex items-center gap-2"
               >
                 <Heart className="w-4 h-4" />
@@ -443,11 +462,139 @@ export default function EduFundPage() {
                 </li>
               </ul>
               <p className="text-xs text-muted-foreground mt-4 pt-3 border-t border-border">
-                Meet all criteria to create your own proposal.
+                When self-serve proposals open, you will need all of the above. You cannot submit from the
+                app yet — use Create Proposal only to review tier progress for now.
               </p>
             </div>
           </aside>
         </div>
+
+        <Dialog open={requirementsOpen} onOpenChange={setRequirementsOpen}>
+          <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 font-display text-xl">
+                <Lock className="h-5 w-5 text-primary shrink-0" />
+                Requirements to Unlock
+              </DialogTitle>
+              <DialogDescription className="text-left space-y-3 pt-1">
+                <span className="block text-muted-foreground">
+                  EduFund proposals unlock step‑by‑step as you earn{" "}
+                  <strong className="text-foreground">RDM</strong> (Reward &amp; Drive Marks) through
+                  learning activity on the platform.
+                </span>
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-2">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">
+                  EduFund tiers (RDM thresholds)
+                </p>
+                <ul className="rounded-xl border border-border divide-y divide-border overflow-hidden text-sm">
+                  {EDUFUND_RDM_GATES.map((g) => (
+                    <li
+                      key={g.name}
+                      className="flex items-center justify-between gap-3 px-3 py-2.5 bg-muted/30"
+                    >
+                      <span className="font-semibold text-foreground flex items-center gap-2">
+                        <Sparkles className="h-3.5 w-3.5 text-edu-yellow shrink-0" />
+                        {g.name}
+                      </span>
+                      <span className="text-muted-foreground tabular-nums">
+                        {g.need.toLocaleString("en-IN")} RDM
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-xs text-muted-foreground mt-2">
+                  <strong className="text-foreground">Sprout</strong>,{" "}
+                  <strong className="text-foreground">Scholar</strong>, and{" "}
+                  <strong className="text-foreground">Champion</strong> mark EduFund benefit tiers on the
+                  platform. Starting a proposal from this screen is not turned on yet — these thresholds
+                  still describe how RDM maps to future grants and visibility.
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-primary/25 bg-primary/5 p-4 space-y-3">
+                <div className="flex justify-between gap-3 text-sm">
+                  <span className="text-muted-foreground">Your current RDM</span>
+                  <span className="font-bold text-foreground tabular-nums">
+                    {userRdm.toLocaleString("en-IN")}
+                  </span>
+                </div>
+                {nextGate ? (
+                  <>
+                    <div className="flex justify-between gap-3 text-sm">
+                      <span className="text-muted-foreground">
+                        Nearest tier slab (<strong className="text-foreground">{nextGate.name}</strong>)
+                      </span>
+                      <span className="font-semibold text-foreground tabular-nums">
+                        {nextGate.need.toLocaleString("en-IN")} RDM
+                      </span>
+                    </div>
+                    <div className="flex justify-between gap-3 text-sm border-t border-border/60 pt-3">
+                      <span className="text-muted-foreground">Your eligibility shortfall</span>
+                      <span className="font-bold text-destructive tabular-nums">
+                        {shortfallToNext.toLocaleString("en-IN")} RDM
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      If you earn about{" "}
+                      <strong className="text-foreground">{ASSUMED_DAILY_RDM} RDM per day</strong>, you
+                      could reach the <strong className="text-foreground">{nextGate.name}</strong> tier
+                      in approximately{" "}
+                      <strong className="text-foreground">
+                        {daysToNextAtRate != null ? daysToNextAtRate : "—"}
+                      </strong>{" "}
+                      day
+                      {daysToNextAtRate === 1 ? "" : "s"}
+                      {daysToNextAtRate == null ? " (set a positive earn rate)" : ""}. Actual pace
+                      depends on how much you study and engage.
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    You are at or above the highest RDM tier shown here (
+                    {EDUFUND_RDM_GATES[EDUFUND_RDM_GATES.length - 1]?.name}
+                    ). In-app proposal submission remains closed until we enable it for everyone.
+                  </p>
+                )}
+              </div>
+
+              <p className="text-xs text-muted-foreground border-t border-border pt-3">
+                When proposals open for applications, publishing will require good standing (e.g. accepted
+                answers, account age) like in the eligibility panel. For now, self-serve proposal creation
+                is unavailable here regardless of RDM.
+              </p>
+            </div>
+
+            <DialogFooter className="flex-col sm:flex-row gap-2 sm:justify-between">
+              <Button variant="outline" className="rounded-xl font-bold" asChild>
+                <Link href="/refer-earn">Earn RDM</Link>
+              </Button>
+              <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                <Button
+                  variant="ghost"
+                  className="rounded-xl font-bold"
+                  onClick={() => setRequirementsOpen(false)}
+                >
+                  Close
+                </Button>
+                <Button
+                  className="edu-btn-primary rounded-xl font-bold"
+                  disabled
+                  title="Proposal creation from this page is not available yet"
+                >
+                  Continue to proposal
+                </Button>
+              </div>
+            </DialogFooter>
+            <p className="text-center text-xs text-destructive -mt-1 pb-1">
+              You cannot start a proposal from here yet — even at Sprout or above. Watch this space for when
+              applications open.
+            </p>
+          </DialogContent>
+        </Dialog>
 
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogContent className="sm:max-w-md">

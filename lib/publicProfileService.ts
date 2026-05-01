@@ -16,7 +16,10 @@ export interface Achievement {
   name: string;
   level: "School" | "District" | "State" | "National" | "International";
   year: number;
+  /** Rank, medal, placement (DB column `result`). */
   result: string;
+  percentage: string;
+  verified: "verified" | "pending" | "unverified";
 }
 
 export interface RdmBreakdown {
@@ -190,10 +193,17 @@ export async function getPublicProfile(
     async () =>
       await db
         .from("profile_achievements")
-        .select("name, level, year, result")
+        .select("name, level, year, result, percentage, verified")
         .eq("user_id", userId)
         .order("year", { ascending: false }),
-    [] as { name: string; level: string; year: number; result: string }[]
+    [] as {
+      name: string;
+      level: string;
+      year: number;
+      result: string;
+      percentage: string | null;
+      verified: string | null;
+    }[]
   );
 
   const doubts = doubtsRes.data ?? [];
@@ -257,23 +267,25 @@ export async function getPublicProfile(
     doubtsAsked: questionsAsked,
   };
 
-  const academics: AcademicRecord[] = (Array.isArray(academicsRes) ? academicsRes : []).map(
-    (a) => ({
+  const academics: AcademicRecord[] = (Array.isArray(academicsRes) ? academicsRes : [])
+    .filter((a) => (a.verified ?? "") === "verified")
+    .map((a) => ({
       exam: a.exam ?? "",
       board: a.board ?? "",
       score: a.score ?? "",
       verified: (a.verified as AcademicRecord["verified"]) ?? "unverified",
-    })
-  );
+    }));
 
-  const achievements: Achievement[] = (Array.isArray(achievementsRes) ? achievementsRes : []).map(
-    (a) => ({
+  const achievements: Achievement[] = (Array.isArray(achievementsRes) ? achievementsRes : [])
+    .filter((a) => (a.verified ?? "") === "verified")
+    .map((a) => ({
       name: a.name ?? "",
       level: (a.level as Achievement["level"]) ?? "School",
       year: a.year ?? new Date().getFullYear(),
       result: a.result ?? "",
-    })
-  );
+      percentage: a.percentage ?? "",
+      verified: (a.verified as Achievement["verified"]) ?? "unverified",
+    }));
 
   const recentAnswersWithTitles = answers.slice(0, 3).map((a) => ({
     id: a.id,
@@ -381,10 +393,17 @@ export async function getPublicProfileWithProfileRow(
     async () =>
       await db
         .from("profile_achievements")
-        .select("name, level, year, result")
+        .select("name, level, year, result, percentage, verified")
         .eq("user_id", userId)
         .order("year", { ascending: false }),
-    [] as { name: string; level: string; year: number; result: string }[]
+    [] as {
+      name: string;
+      level: string;
+      year: number;
+      result: string;
+      percentage: string | null;
+      verified: string | null;
+    }[]
   );
 
   const doubts = doubtsRes.data ?? [];
@@ -445,23 +464,25 @@ export async function getPublicProfileWithProfileRow(
     doubtsAsked: questionsAsked,
   };
 
-  const academics: AcademicRecord[] = (Array.isArray(academicsRes) ? academicsRes : []).map(
-    (a) => ({
+  const academics: AcademicRecord[] = (Array.isArray(academicsRes) ? academicsRes : [])
+    .filter((a) => (a.verified ?? "") === "verified")
+    .map((a) => ({
       exam: a.exam ?? "",
       board: a.board ?? "",
       score: a.score ?? "",
       verified: (a.verified as AcademicRecord["verified"]) ?? "unverified",
-    })
-  );
+    }));
 
-  const achievements: Achievement[] = (Array.isArray(achievementsRes) ? achievementsRes : []).map(
-    (a) => ({
+  const achievements: Achievement[] = (Array.isArray(achievementsRes) ? achievementsRes : [])
+    .filter((a) => (a.verified ?? "") === "verified")
+    .map((a) => ({
       name: a.name ?? "",
       level: (a.level as Achievement["level"]) ?? "School",
       year: a.year ?? new Date().getFullYear(),
       result: a.result ?? "",
-    })
-  );
+      percentage: a.percentage ?? "",
+      verified: (a.verified as Achievement["verified"]) ?? "unverified",
+    }));
 
   const recentAnswersWithTitles = answers.slice(0, 3).map((a) => ({
     id: a.id,

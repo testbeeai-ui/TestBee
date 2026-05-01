@@ -6,7 +6,7 @@ import { useParams } from "next/navigation";
 import { motion } from "framer-motion";
 import AppLayout from "@/components/AppLayout";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import type { PublicProfile } from "@/lib/publicProfileService";
+import type { Achievement, PublicProfile } from "@/lib/publicProfileService";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
@@ -22,8 +22,6 @@ import {
   CheckCircle2,
   Target,
   ShieldCheck,
-  ShieldQuestion,
-  ShieldAlert,
   Flame,
   Star,
   Calendar,
@@ -48,18 +46,6 @@ const LEVEL_COLORS: Record<string, string> = {
   State: "bg-green-500/15 text-green-600",
   National: "bg-purple-500/15 text-purple-600",
   International: "bg-amber-500/15 text-amber-600",
-};
-
-const VERIFICATION_ICONS = {
-  verified: ShieldCheck,
-  pending: ShieldQuestion,
-  unverified: ShieldAlert,
-};
-
-const VERIFICATION_COLORS = {
-  verified: "text-edu-green",
-  pending: "text-amber-500",
-  unverified: "text-muted-foreground",
 };
 
 export default function PublicProfilePage() {
@@ -123,12 +109,7 @@ export default function PublicProfilePage() {
       score: string;
       verified: "verified" | "pending" | "unverified";
     }[],
-    achievements: [] as {
-      name: string;
-      level: "School" | "District" | "State" | "National" | "International";
-      year: number;
-      result: string;
-    }[],
+    achievements: [] as Achievement[],
     rdmBreakdown: {
       answersGiven: 0,
       acceptedBonus: 0,
@@ -261,28 +242,22 @@ export default function PublicProfilePage() {
                   {!profile ? "No marks" : "No records yet"}
                 </p>
               ) : (
-                displayProfile.academics.map((a, i) => {
-                  const Icon = VERIFICATION_ICONS[a.verified];
-                  const colorClass = VERIFICATION_COLORS[a.verified];
-                  return (
-                    <div
-                      key={i}
-                      className="flex items-center justify-between gap-4 py-2 border-b border-border last:border-0"
-                    >
-                      <div>
-                        <p className="font-semibold text-foreground">
-                          {a.exam} — {a.board}
-                        </p>
-                        <p className="text-sm text-muted-foreground">{a.score}</p>
-                      </div>
-                      <span
-                        className={`flex items-center gap-1 text-xs font-medium capitalize ${colorClass}`}
-                      >
-                        <Icon className="w-4 h-4" /> {a.verified}
-                      </span>
+                displayProfile.academics.map((a, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center justify-between gap-4 py-2 border-b border-border last:border-0"
+                  >
+                    <div>
+                      <p className="font-semibold text-foreground">
+                        {a.exam} — {a.board}
+                      </p>
+                      <p className="text-sm text-muted-foreground">{a.score}</p>
                     </div>
-                  );
-                })
+                    <span className="flex items-center gap-1 text-xs font-medium text-edu-green">
+                      <ShieldCheck className="w-4 h-4" /> Verified
+                    </span>
+                  </div>
+                ))
               )}
             </div>
           </div>
@@ -310,8 +285,9 @@ export default function PublicProfilePage() {
                       >
                         {a.level}
                       </span>
-                      <span className="text-sm text-muted-foreground">
+                      <span className="text-sm text-muted-foreground text-right">
                         {a.year} — {a.result}
+                        {a.percentage?.trim() ? ` · ${a.percentage}` : ""}
                       </span>
                     </div>
                   </div>

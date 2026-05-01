@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useParams, useSearchParams, useRouter } from "next/navigation";
+import { useParams, useSearchParams, useRouter, usePathname } from "next/navigation";
 import AppLayout from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -113,6 +113,8 @@ import {
 } from "@/lib/subtopicCompleteness";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { useLearningDwellTelemetry } from "@/hooks/useLearningDwellTelemetry";
+import { normalizeBoardParam } from "@/lib/learningDwellTelemetry";
 import { cn, fuzzySubtopicKey } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -141,6 +143,7 @@ import {
   type SubtopicEngagementSnapshot,
 } from "@/lib/subtopicEngagementService";
 import { getClientApiAuthHeaders } from "@/lib/clientApiAuth";
+import { reportInstacueCardReadBatch } from "@/lib/reportInstacueCardRead";
 import { localDayKeyFromDate, startOfLocalDay } from "@/lib/dashboardDayActivity";
 import { makeSubtopicEngagementStorageKey } from "@/lib/subtopicEngagementStorageKey";
 import { dispatchClassroomAssignmentProgressChanged } from "@/lib/classroom/assignmentProgressSync";
@@ -150,7 +153,60 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 const SUBTOPIC_STACK_PREVIEW_CHARS = 420;
 
 /**
- * Manual “AI artifacts” pipeline (InstaCue → Bits → Formulas) lives in `runAiArtifactPipeline` below.
+ * Cycle accent borders for subtopic navigation — thin outlines + soft tints (readable in light/dark).
+ */
+const SUBTOPIC_NAV_ACCENTS: Array<{
+  border: string;
+  bg: string;
+  hover: string;
+  num: string;
+}> = [
+  {
+    border: "border-violet-500/45 dark:border-violet-400/40",
+    bg: "bg-violet-500/[0.07] dark:bg-violet-950/45",
+    hover:
+      "hover:border-violet-400/70 hover:bg-violet-500/[0.11] dark:hover:border-violet-300/50 dark:hover:bg-violet-950/65",
+    num: "text-violet-600 dark:text-violet-300",
+  },
+  {
+    border: "border-sky-500/45 dark:border-sky-400/38",
+    bg: "bg-sky-500/[0.07] dark:bg-sky-950/40",
+    hover:
+      "hover:border-sky-400/70 hover:bg-sky-500/[0.11] dark:hover:border-sky-300/48 dark:hover:bg-sky-950/58",
+    num: "text-sky-600 dark:text-sky-300",
+  },
+  {
+    border: "border-emerald-500/45 dark:border-emerald-400/38",
+    bg: "bg-emerald-500/[0.07] dark:bg-emerald-950/40",
+    hover:
+      "hover:border-emerald-400/70 hover:bg-emerald-500/[0.11] dark:hover:border-emerald-300/48 dark:hover:bg-emerald-950/55",
+    num: "text-emerald-600 dark:text-emerald-300",
+  },
+  {
+    border: "border-amber-500/45 dark:border-amber-400/40",
+    bg: "bg-amber-500/[0.08] dark:bg-amber-950/35",
+    hover:
+      "hover:border-amber-400/70 hover:bg-amber-500/[0.13] dark:hover:border-amber-300/50 dark:hover:bg-amber-950/50",
+    num: "text-amber-700 dark:text-amber-300",
+  },
+  {
+    border: "border-rose-500/45 dark:border-rose-400/38",
+    bg: "bg-rose-500/[0.07] dark:bg-rose-950/40",
+    hover:
+      "hover:border-rose-400/70 hover:bg-rose-500/[0.11] dark:hover:border-rose-300/48 dark:hover:bg-rose-950/55",
+    num: "text-rose-600 dark:text-rose-300",
+  },
+  {
+    border: "border-cyan-500/45 dark:border-cyan-400/38",
+    bg: "bg-cyan-500/[0.07] dark:bg-cyan-950/40",
+    hover:
+      "hover:border-cyan-400/70 hover:bg-cyan-500/[0.11] dark:hover:border-cyan-300/48 dark:hover:bg-cyan-950/55",
+    num: "text-cyan-600 dark:text-cyan-300",
+  },
+];
+
+/**
+ * Manual “AI artifacts” pipeline (InstaCue → Quiz → Formulas) lives in `runAiArtifactPipeline` below.
  * Tune these delays to space out Vertex/Gemini calls and reduce ECONNRESET / rate limits.
  */
 const ARTIFACT_PIPELINE_BETWEEN_STEPS_MS = 15_000;
@@ -393,6 +449,13 @@ const LEVELS: { value: DifficultyLevel; label: string }[] = [
   { value: "advanced", label: "Advanced" },
 ];
 
+/** Basic & Intermediate are admin-preview until public launch; learners use Advanced only. */
+const LEVEL_PREVIEW_ROLES: ReadonlySet<DifficultyLevel> = new Set(["basics", "intermediate"]);
+
+function isAdminRole(role: string | undefined | null): boolean {
+  return role === "admin";
+}
+
 /** Subtopic focus timer: 10 minutes */
 const FOCUS_TIMER_INITIAL_SECONDS = 600;
 
@@ -457,9 +520,13 @@ export default function TopicPage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
+  const pathname = usePathname();
   const isRandomMode = searchParams.get("mode") === "random";
   const isMagicWallSource = searchParams.get("source") === "magic-wall";
   const panelParam = searchParams.get("panel");
+  /** Primitives only — do not put `searchParams` in effect deps (new object ref most renders; wiped InstaCue lesson progress to 0/32). */
+  const quizSetParam = searchParams.get("quizSet");
+  const postIdParam = searchParams.get("postId");
   type PanelTab = "instacue" | "quiz" | "numerals" | "concepts";
   const initialPanelTab: PanelTab =
     panelParam === "quiz" || panelParam === "numerals" || panelParam === "concepts"
@@ -485,6 +552,8 @@ export default function TopicPage() {
   const [rightPanelTab, setRightPanelTab] = useState<PanelTab>(initialPanelTab);
   /** Cards the learner has landed on in the carousel (scroll / dots), not only flipped. */
   const [instaCueNavIndices, setInstaCueNavIndices] = useState<Set<number>>(new Set());
+  /** Dedupe syncing full InstaCue deck reads to daily checklist when Lessons shows 32/32 coverage. */
+  const instacueDeckSyncedToDailyKeyRef = useRef<string | null>(null);
   /** Per-formula numerals draft in the formulas dialog (key = formula index). */
   const [formulaByIdx, setFormulaByIdx] = useState<
     Record<number, { qIdx: number; answers: Record<number, number> }>
@@ -630,7 +699,30 @@ export default function TopicPage() {
   const saveRevisionUnit = useUserStore((s) => s.saveRevisionUnit);
   const unsaveRevisionUnit = useUserStore((s) => s.unsaveRevisionUnit);
   const { toast } = useToast();
-  const { loading: authLoading, session } = useAuth();
+  const { loading: authLoading, session, profile } = useAuth();
+
+  const isAdminUser = useMemo(() => isAdminRole(profile?.role), [profile?.role]);
+
+  /** Non-admins cannot open Basic / Intermediate URLs; send them to Advanced (same topic/subtopic, query preserved). */
+  useEffect(() => {
+    if (authLoading || !topicNode) return;
+    if (isAdminUser) return;
+    if (difficultyLevel !== "basics" && difficultyLevel !== "intermediate") return;
+
+    const replaced = pathname.replace(/\/(basics|intermediate)(?=\/|$)/, "/advanced");
+    if (replaced === pathname) return;
+    const q = searchParams.toString();
+    router.replace(q ? `${replaced}?${q}` : replaced);
+  }, [
+    authLoading,
+    topicNode,
+    isAdminUser,
+    difficultyLevel,
+    pathname,
+    router,
+    searchParams,
+  ]);
+
   const [dbTheory, setDbTheory] = useState<string>("");
   const [dbTheoryExists, setDbTheoryExists] = useState(false);
   const [canEditTheory, setCanEditTheory] = useState(false);
@@ -731,7 +823,7 @@ export default function TopicPage() {
     persistSavedContent,
   ]);
 
-  // Artifact state (InstaCue AI, Bits, Formulas)
+  // Artifact state (InstaCue AI, Quiz, Formulas)
   const [dbInstacueCards, setDbInstacueCards] = useState<ArtifactInstaCueCard[]>([]);
   const [dbBitsQuestions, setDbBitsQuestions] = useState<ArtifactBitsQuestion[]>([]);
   const [dbPracticeFormulas, setDbPracticeFormulas] = useState<ArtifactFormula[]>([]);
@@ -746,6 +838,26 @@ export default function TopicPage() {
   const [viewedConceptPages, setViewedConceptPages] = useState<Set<number>>(() => new Set([0]));
   const [formulasDialogOpen, setFormulasDialogOpen] = useState(false);
   const [bitsCurrentIdx, setBitsCurrentIdx] = useState(0);
+
+  const dwellScope = useMemo(() => {
+    if (!topicNode || isOverview || !subtopicName) return null;
+    return {
+      board: normalizeBoardParam(board),
+      subject: topicNode.subject,
+      classLevel: topicNode.classLevel as 11 | 12,
+      topic: topicNode.topic,
+      subtopicName,
+      level: difficultyLevel,
+    };
+  }, [topicNode, isOverview, subtopicName, board, difficultyLevel]);
+
+  useLearningDwellTelemetry({
+    enabled: Boolean(!authLoading && !!session?.user && dwellScope),
+    scope: dwellScope,
+    panelTab: rightPanelTab,
+    bitsQuestionIndex: bitsCurrentIdx,
+  });
+
   const [bitsSelectedAnswers, setBitsSelectedAnswers] = useState<Record<number, number>>({});
   const [submittingBits, setSubmittingBits] = useState(false);
   const [bitsReviewMode, setBitsReviewMode] = useState(false);
@@ -821,7 +933,7 @@ export default function TopicPage() {
 
   useEffect(() => {
     if (!topicNode?.topic) return;
-    if (searchParams.get("panel") === "quiz") {
+    if (panelParam === "quiz") {
       setRightPanelTab("quiz");
     }
     setBitsVisitedIndices(new Set());
@@ -830,9 +942,9 @@ export default function TopicPage() {
     setBitsDialogOpen(false);
     setBitsReviewMode(false);
     setBitsAttemptBySet({});
-    const qs = searchParams.get("quizSet");
+    const qs = quizSetParam;
     const fromAssignmentLink =
-      searchParams.get("panel") === "quiz" &&
+      panelParam === "quiz" &&
       difficultyLevel === "advanced" &&
       (qs === "1" || qs === "2" || qs === "3");
     setActiveQuizSet(fromAssignmentLink ? (Number(qs) as AdvancedQuizSetIndex) : 1);
@@ -842,7 +954,15 @@ export default function TopicPage() {
     engagementHydratedRef.current = null;
     setConceptsPage(0);
     setViewedConceptPages(new Set([0]));
-  }, [board, topicNode?.topic, subtopicName, difficultyLevel, searchParams]);
+  }, [
+    board,
+    topicNode?.topic,
+    subtopicName,
+    difficultyLevel,
+    panelParam,
+    quizSetParam,
+    postIdParam,
+  ]);
 
   const hasAutoOpenedQuizRef = useRef(false);
   useEffect(() => {
@@ -1200,7 +1320,7 @@ export default function TopicPage() {
     return hit?.id ?? null;
   }, [topicNode, subtopicName, currentFormulaQuestion, user?.savedFormulas, difficultyLevel]);
 
-  /** InstaCue / Bits / Formulas need persisted theory unless this subtopic level already has DB artifacts to regenerate from. */
+  /** InstaCue / Quiz / Formulas need persisted theory unless this subtopic level already has DB artifacts to regenerate from. */
   const hasDeepDiveForAiArtifacts = useMemo(() => {
     if (hasPersistedAiArtifacts) return true;
     if (!dbTheoryExists) return false;
@@ -1227,7 +1347,7 @@ export default function TopicPage() {
     };
   }, [dbInstacueCards.length, dbBitsQuestions.length, dbPracticeFormulas.length]);
 
-  /** InstaCue → Bits → Practice Formulas (manual run from dedicated AI buttons). */
+  /** InstaCue → Quiz → Practice Formulas (manual run from dedicated AI buttons). */
   const runAiArtifactPipeline = useCallback(
     async (opts?: { skipDeepDiveGate?: boolean }) => {
       if (!topicNode || !subtopicName) return;
@@ -1245,9 +1365,9 @@ export default function TopicPage() {
       setArtifactRunStatus("running");
       setArtifactLastRunAt(new Date().toLocaleString());
       setArtifactRunLog([]);
-      appendArtifactLog("Run started manually: InstaCue → Bits → Formulas.");
+      appendArtifactLog("Run started manually: InstaCue → Quiz → Formulas.");
       appendArtifactLog(
-        `Current counts before run -> InstaCue: ${beforeInsta}, Bits: ${beforeBits}, Practice Formulas: ${beforeFormulas}.`
+        `Current counts before run -> InstaCue: ${beforeInsta}, Quiz: ${beforeBits}, Practice Formulas: ${beforeFormulas}.`
       );
       setGeneratingInstacue(true);
       const stepErrors: string[] = [];
@@ -1277,7 +1397,7 @@ export default function TopicPage() {
           );
           toast({
             title: `Generated ${out.items.length} InstaCue cards`,
-            description: "Starting Bits generation…",
+            description: "Starting Quiz generation…",
           });
         } else {
           stepErrors.push(instaRes.error);
@@ -1286,17 +1406,17 @@ export default function TopicPage() {
         }
 
         appendArtifactLog(
-          `Waiting ${Math.round(ARTIFACT_PIPELINE_BETWEEN_STEPS_MS / 1000)}s before Bits (step gap — edit ARTIFACT_PIPELINE_BETWEEN_STEPS_MS in page.tsx to change).`
+          `Waiting ${Math.round(ARTIFACT_PIPELINE_BETWEEN_STEPS_MS / 1000)}s before Quiz (step gap — edit ARTIFACT_PIPELINE_BETWEEN_STEPS_MS in page.tsx to change).`
         );
         await delay(ARTIFACT_PIPELINE_BETWEEN_STEPS_MS);
 
         setGeneratingBits(true);
         try {
-          runLog.push("Started Bits");
+          runLog.push("Started Quiz");
           appendArtifactLog(
-            `Step 2/3: Generating Bits questions (up to ${ARTIFACT_STEP_MAX_ATTEMPTS} attempts).`
+            `Step 2/3: Generating Quiz questions (up to ${ARTIFACT_STEP_MAX_ATTEMPTS} attempts).`
           );
-          const bitsRes = await runArtifactStepWithRetries("Bits", () =>
+          const bitsRes = await runArtifactStepWithRetries("Quiz", () =>
             generateBitsQuestions({
               board: boardName,
               subject: topicNode.subject as Subject,
@@ -1313,17 +1433,17 @@ export default function TopicPage() {
             nextBits = bitsOut.items.length;
             setBitsCurrentIdx(0);
             setBitsSelectedAnswers({});
-            runLog.push(`Finished Bits (${bitsOut.items.length})`);
+            runLog.push(`Finished Quiz (${bitsOut.items.length})`);
             appendArtifactLog(
-              `Step 2/3 complete: Bits generated ${bitsOut.items.length} questions (was ${beforeBits}).`
+              `Step 2/3 complete: Quiz generated ${bitsOut.items.length} questions (was ${beforeBits}).`
             );
             toast({
-              title: `Generated ${bitsOut.items.length} Bits questions`,
+              title: `Generated ${bitsOut.items.length} Quiz questions`,
               description: "Starting formula practice generation…",
             });
           } else {
             stepErrors.push(bitsRes.error);
-            runLog.push("Bits failed");
+            runLog.push("Quiz step failed");
             appendArtifactLog(`Step 2/3 failed after retries: ${bitsRes.error}`);
           }
         } finally {
@@ -1374,7 +1494,7 @@ export default function TopicPage() {
         }
 
         appendArtifactLog(
-          `Run finished -> InstaCue: ${nextInsta}, Bits: ${nextBits}, Practice Formulas: ${nextFormulas}. Errors: ${stepErrors.length}.`
+          `Run finished -> InstaCue: ${nextInsta}, Quiz: ${nextBits}, Practice Formulas: ${nextFormulas}. Errors: ${stepErrors.length}.`
         );
         if (stepErrors.length === 0) {
           setArtifactRunStatus("success");
@@ -1455,10 +1575,10 @@ export default function TopicPage() {
               ? `${subtopicName} (${difficultyLevel}) · Saved to Supabase · RAG passages used: ${out.ragChunks}. `
               : `${subtopicName} (${difficultyLevel}) · Saved to Supabase. `) +
             (opts?.fromSubtopicAi
-              ? "Starting InstaCue, Bits, and formula practice."
+              ? "Starting InstaCue, Quiz, and formula practice."
               : canEditTheory
-                ? "Now use Generate Subtopic AI to create InstaCue, Bits, and formula practice."
-                : "Use the section generate buttons to build InstaCue, Bits, and formulas."),
+                ? "Now use Generate Subtopic AI to create InstaCue, Quiz, and formula practice."
+                : "Use the section generate buttons to build InstaCue, Quiz, and formulas."),
         });
         return true;
       } catch (e) {
@@ -1524,7 +1644,7 @@ export default function TopicPage() {
     setArtifactRunStatus("running");
     setArtifactLastRunAt(new Date().toLocaleString());
     setArtifactRunLog([]);
-    appendArtifactLog("Manual run started: Bits only.");
+    appendArtifactLog("Manual run started: Quiz only.");
     setGeneratingBits(true);
     try {
       const bitsOut = await generateBitsQuestions({
@@ -1539,14 +1659,14 @@ export default function TopicPage() {
       setDbBitsQuestions(bitsOut.items);
       setBitsCurrentIdx(0);
       setBitsSelectedAnswers({});
-      appendArtifactLog(`Bits complete: generated ${bitsOut.items.length} questions.`);
+      appendArtifactLog(`Quiz complete: generated ${bitsOut.items.length} questions.`);
       setArtifactRunStatus("success");
-      toast({ title: `Generated ${bitsOut.items.length} Bits questions` });
+      toast({ title: `Generated ${bitsOut.items.length} Quiz questions` });
     } catch (e) {
-      appendArtifactLog(`Bits failed: ${e instanceof Error ? e.message : "Unknown error"}`);
+      appendArtifactLog(`Quiz failed: ${e instanceof Error ? e.message : "Unknown error"}`);
       setArtifactRunStatus("failed");
       toast({
-        title: e instanceof Error ? e.message : "Bits generation failed",
+        title: e instanceof Error ? e.message : "Quiz generation failed",
         variant: "destructive",
       });
     } finally {
@@ -2531,6 +2651,36 @@ export default function TopicPage() {
   }, [instaCueValidatedIndices, instaCueNavIndices]);
   const instaCueChecklistProgress = Math.min(instaCueCoverageCount, instaCueChecklistTotal);
 
+  useEffect(() => {
+    if (isOverview || !topicNode || !subtopicName) {
+      instacueDeckSyncedToDailyKeyRef.current = null;
+      return;
+    }
+    const total = instaCueChecklistTotal;
+    const progress = instaCueChecklistProgress;
+    if (total <= 0 || progress < total) {
+      instacueDeckSyncedToDailyKeyRef.current = null;
+      return;
+    }
+    const rawIds = sidebarInstaCueCards
+      .map((c) => c.id)
+      .filter((id): id is string => typeof id === "string" && id.trim().length > 0);
+    const ids = [...new Set(rawIds.map((id) => id.trim()))];
+    if (ids.length === 0) return;
+    const scopeKey = [topicNode.topic, subtopicName, difficultyLevel, ...ids.sort()].join("\0");
+    if (instacueDeckSyncedToDailyKeyRef.current === scopeKey) return;
+    instacueDeckSyncedToDailyKeyRef.current = scopeKey;
+    void reportInstacueCardReadBatch(ids);
+  }, [
+    isOverview,
+    topicNode,
+    subtopicName,
+    difficultyLevel,
+    instaCueChecklistProgress,
+    instaCueChecklistTotal,
+    sidebarInstaCueCards,
+  ]);
+
   /** Step 4: one unit per formula that has practice questions; "done" = submitted numerals attempt for that index (same as card Done ticks), not draft taps in the dialog. */
   const formulaProgressAggregate = useMemo(() => {
     if (practiceFormulasForUi.length === 0) return { answered: 0, total: 0 };
@@ -3061,7 +3211,7 @@ export default function TopicPage() {
   const backHref = isMagicWallSource
     ? "/magic-wall"
     : `/explore-1?subject=${topicNode.subject}&class=${topicNode.classLevel}&unit=${unitSlug}`;
-  const spinAgainHref = `/explore-1?subject=${topicNode.subject}&class=${topicNode.classLevel}&unit=${unitSlug}&spin=1`;
+  const spinAgainHref = `/explore-1?subject=${topicNode.subject}&class=${topicNode.classLevel}&unit=${unitSlug}`;
 
   const allStackPlaceholders =
     subtopicStackRows.length > 0 && subtopicStackRows.every((r) => r.isPh);
@@ -3142,8 +3292,8 @@ export default function TopicPage() {
             aria-controls="magic-wall-queue-sheet"
           >
             <Sparkles className="h-5 w-5 shrink-0" aria-hidden />
-            <span className="text-[9px] font-extrabold uppercase tracking-tight leading-tight text-center px-0.5">
-              Wall
+            <span className="text-[9px] font-extrabold tracking-tight leading-tight text-center px-0.5">
+              List
             </span>
           </button>
 
@@ -3485,6 +3635,9 @@ export default function TopicPage() {
                                 ...snap,
                                 lessonChecklistMarkedCompleteAt: markedAt,
                               });
+                              void reportInstacueCardReadBatch(
+                                sidebarInstaCueCards.map((c) => c.id).filter(Boolean)
+                              );
                               const assignPostId = searchParams.get("postId");
                               const assignClassroomId = searchParams.get("classroomId");
                               if (assignPostId && assignClassroomId && session?.access_token) {
@@ -3725,7 +3878,7 @@ export default function TopicPage() {
                     Learning Flow
                   </p>
                   <p className="text-[11px] text-foreground/80 leading-snug">
-                    Open a subtopic below to access InstaCue cards, Quiz (Bits), Numerals, and
+                    Open a subtopic below to access InstaCue cards, Quiz, Numerals, and
                     Concepts.
                   </p>
                 </div>
@@ -3832,49 +3985,95 @@ export default function TopicPage() {
             >
               {isOverview ? (
                 <>
-                  <div className="flex justify-end mb-3">
-                    <span className="text-sm font-extrabold text-muted-foreground">Topic hub</span>
-                  </div>
                   <h1 className="font-black text-3xl tracking-tight text-foreground mb-4">
                     {topicNode.topic}
                   </h1>
 
                   {mode === "linear" && (
-                    <div className="flex flex-wrap gap-2 mb-6">
-                      {LEVELS.map(({ value, label }) => {
-                        const href = appendQueryParams(
-                          buildTopicOverviewPath(
-                            board,
-                            topicNode.subject,
-                            topicNode.classLevel,
-                            topicNode.topic,
-                            value,
-                            isRandomMode ? "random" : undefined
-                          ),
-                          isMagicWallSource ? { source: "magic-wall" } : {}
-                        );
-                        const isActive = difficultyLevel === value;
-                        return (
-                          <Link
-                            key={value}
-                            href={href}
-                            className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${
-                              isActive
-                                ? "bg-primary text-primary-foreground shadow-md"
-                                : "bg-muted text-muted-foreground hover:bg-muted/80"
-                            }`}
-                          >
-                            {label}
-                          </Link>
-                        );
-                      })}
+                    <div className="flex flex-col gap-2 mb-6">
+                      <div className="flex flex-wrap gap-2">
+                        {LEVELS.map(({ value, label }) => {
+                          const href = appendQueryParams(
+                            buildTopicOverviewPath(
+                              board,
+                              topicNode.subject,
+                              topicNode.classLevel,
+                              topicNode.topic,
+                              value,
+                              isRandomMode ? "random" : undefined
+                            ),
+                            isMagicWallSource ? { source: "magic-wall" } : {}
+                          );
+                          const isActive = difficultyLevel === value;
+                          const isPreviewOnlyLevel =
+                            LEVEL_PREVIEW_ROLES.has(value) &&
+                            !authLoading &&
+                            !isAdminUser;
+
+                          if (isPreviewOnlyLevel) {
+                            return (
+                              <span
+                                key={value}
+                                role="note"
+                                title="Coming soon for all learners"
+                                className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold border border-dashed transition-colors cursor-not-allowed select-none ${
+                                  isActive
+                                    ? "border-amber-500/45 bg-amber-500/10 text-amber-100"
+                                    : "border-muted-foreground/35 bg-muted/25 text-muted-foreground"
+                                }`}
+                              >
+                                <span>{label}</span>
+                                <span className="text-[10px] font-extrabold uppercase tracking-wide text-amber-400/95">
+                                  Soon
+                                </span>
+                              </span>
+                            );
+                          }
+
+                          return (
+                            <Link
+                              key={value}
+                              href={href}
+                              title={
+                                isAdminUser && LEVEL_PREVIEW_ROLES.has(value)
+                                  ? "Admin preview — not public yet"
+                                  : undefined
+                              }
+                              className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold transition-all ${
+                                isActive
+                                  ? "bg-primary text-primary-foreground shadow-md"
+                                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+                              } ${
+                                isAdminUser && LEVEL_PREVIEW_ROLES.has(value)
+                                  ? "ring-1 ring-amber-400/45 ring-offset-2 ring-offset-background"
+                                  : ""
+                              }`}
+                            >
+                              {label}
+                              {isAdminUser && LEVEL_PREVIEW_ROLES.has(value) ? (
+                                <span className="text-[9px] font-extrabold uppercase tracking-wide text-amber-200/90">
+                                  Admin
+                                </span>
+                              ) : null}
+                            </Link>
+                          );
+                        })}
+                      </div>
+                      {!authLoading && !isAdminUser ? (
+                        <p className="text-[11px] text-muted-foreground leading-snug max-w-xl">
+                          <span className="font-semibold text-foreground/90">Basic</span> and{" "}
+                          <span className="font-semibold text-foreground/90">Intermediate</span>{" "}
+                          are rolling out soon. Continue with{" "}
+                          <span className="font-semibold text-primary">Advanced</span> for now.
+                        </p>
+                      ) : null}
                     </div>
                   )}
 
                   <section className="mb-8 pb-6 border-b border-border">
                     <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                       <h2 className="text-base font-extrabold text-primary uppercase tracking-wide">
-                        Topic hub
+                        Topic
                       </h2>
                       {canEditTopicContent ? (
                         <div className="flex items-center gap-2">
@@ -4419,7 +4618,7 @@ export default function TopicPage() {
                                 loadingDbTheory ||
                                 completingSubtopicAll
                               }
-                              title="Generate this subtopic Deep Dive, then InstaCue, Bits, and practice formulas."
+                              title="Generate this subtopic Deep Dive, then InstaCue, Quiz, and practice formulas."
                               onClick={() => void runSubtopicAiGeneration()}
                             >
                               {generatingInstacue || generatingBits || generatingFormulas ? (
@@ -4469,7 +4668,7 @@ export default function TopicPage() {
                                 generatingBits ||
                                 generatingFormulas
                               }
-                              title="Server fallback: fill missing Deep Dive, InstaCue, Bits, and formulas for this subtopic on Basics, Intermediate, and Advanced (topic hub must exist for all three)."
+                              title="Server fallback: fill missing Deep Dive, InstaCue, Quiz, and formulas for this subtopic on Basics, Intermediate, and Advanced (topic hub must exist for all three)."
                               onClick={() => void runCompleteSubtopicAll()}
                             >
                               {completingSubtopicAll ? (
@@ -4713,7 +4912,7 @@ export default function TopicPage() {
                     variant="outline"
                     className="rounded-xl gap-2 font-bold w-fit"
                   >
-                    <Link href={spinAgainHref}>Spin topic wheel</Link>
+                    <Link href={spinAgainHref}>Open unit on Explore</Link>
                   </Button>
                 </div>
               )}
@@ -4914,7 +5113,7 @@ export default function TopicPage() {
                   <TabsContent value="quiz" className="mt-0">
                     <div className="rounded-xl border border-border bg-muted/20 px-3 py-2">
                       <p className="text-xs text-muted-foreground">
-                        Go through the subtopic level to see Quiz (Bits).
+                        Go through the subtopic level to see Quiz.
                       </p>
                     </div>
                   </TabsContent>
@@ -4937,14 +5136,15 @@ export default function TopicPage() {
                 </Tabs>
 
                 {!isRandomMode && (
-                  <section className="rounded-2xl border border-border bg-muted/20 p-4 sm:p-5">
+                  <section className="rounded-2xl border border-border/80 bg-muted/15 p-4 sm:p-5 dark:bg-muted/10">
                     <p className="text-sm font-bold text-foreground mb-1">Continue to subtopics</p>
                     <p className="text-xs text-muted-foreground mb-3">
-                      Open each subtopic to view InstaCue cards, Quiz (Bits), Numerals, and
+                      Open each subtopic to view InstaCue cards, Quiz, Numerals, and
                       Concepts.
                     </p>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-col gap-2.5">
                       {topicNode.subtopics.map((st, idx) => {
+                        const accent = SUBTOPIC_NAV_ACCENTS[idx % SUBTOPIC_NAV_ACCENTS.length];
                         const href = appendQueryParams(
                           buildTopicPath(
                             board,
@@ -4961,13 +5161,24 @@ export default function TopicPage() {
                           <Link
                             key={st.name}
                             href={href}
-                            className="inline-flex items-center rounded-lg px-3 py-2 text-xs font-semibold transition-colors bg-muted hover:bg-muted/80 text-foreground/90"
+                            className={cn(
+                              "group inline-flex min-h-[2.75rem] w-full items-start gap-2 rounded-xl border px-3 py-2.5 text-left text-xs font-semibold text-foreground/95 shadow-sm transition-all duration-200",
+                              accent.border,
+                              accent.bg,
+                              accent.hover,
+                              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                            )}
                             title={subtopicNavPreviewLine(st.name)}
                           >
-                            <span className="mr-1.5 text-[10px] font-bold text-muted-foreground">
-                              {idx + 1}.
+                            <span
+                              className={cn(
+                                "mt-0.5 inline-flex h-5 min-w-[1.35rem] shrink-0 items-center justify-center rounded-md border border-current/20 bg-background/60 text-[10px] font-extrabold tabular-nums dark:bg-background/40",
+                                accent.num
+                              )}
+                            >
+                              {idx + 1}
                             </span>
-                            <MathText className="[&_.katex]:!text-[0.85em]">
+                            <MathText className="min-w-0 flex-1 leading-snug [&_.katex]:!text-[0.85em]">
                               {subtopicMathTextLabel(st.name)}
                             </MathText>
                           </Link>
@@ -4993,14 +5204,25 @@ export default function TopicPage() {
                       Preview list for this chapter. Use the numbered buttons below to open each
                       subtopic page.
                     </p>
-                    <ul className="space-y-2 text-sm">
+                    <ul className="space-y-2.5 text-sm">
                       {topicNode.subtopics.map((st, idx) => {
+                        const accent = SUBTOPIC_NAV_ACCENTS[idx % SUBTOPIC_NAV_ACCENTS.length];
                         return (
                           <li
                             key={st.name}
-                            className="subtopic-title-text flex gap-3 min-w-0 rounded-xl border border-border/70 bg-background/70 px-3 py-2"
+                            className={cn(
+                              "subtopic-title-text flex gap-3 min-w-0 rounded-xl border px-3 py-2.5 shadow-sm transition-colors",
+                              accent.border,
+                              accent.bg,
+                              accent.hover
+                            )}
                           >
-                            <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-md bg-muted text-[11px] font-extrabold text-foreground shrink-0">
+                            <span
+                              className={cn(
+                                "inline-flex h-6 min-w-6 shrink-0 items-center justify-center rounded-md border border-current/15 bg-background/55 text-[11px] font-extrabold dark:bg-background/35",
+                                accent.num
+                              )}
+                            >
                               {idx + 1}
                             </span>
                             <div className="min-w-0 flex-1">
@@ -5139,7 +5361,7 @@ export default function TopicPage() {
                             className="rounded-lg gap-1.5 text-xs font-bold text-primary disabled:opacity-50"
                             title={
                               hasDeepDiveForAiArtifacts
-                                ? "Runs the full pack: InstaCue cards, then Bits (MCQs), then practice formulas — same pipeline as Generate Subtopic AI step 2."
+                                ? "Runs the full pack: InstaCue cards, then Quiz (MCQs), then practice formulas — same pipeline as Generate Subtopic AI step 2."
                                 : "Generate Deep Dive first, then run AI cards."
                             }
                             disabled={
@@ -5161,14 +5383,14 @@ export default function TopicPage() {
                             {generatingFormulas
                               ? "Generating formulas…"
                               : generatingBits
-                                ? "Generating Bits…"
+                                ? "Generating Quiz…"
                                 : generatingInstacue
                                   ? "Generating InstaCue…"
                                   : dbInstacueCards.length > 0 ||
                                       dbBitsQuestions.length > 0 ||
                                       dbPracticeFormulas.length > 0
                                     ? "Regenerate AI pack"
-                                    : "Generate InstaCue + Bits + Formulas"}
+                                    : "Generate InstaCue + Quiz + Formulas"}
                           </Button>
                           {!hasDeepDiveForAiArtifacts && !generatingDeepDive && (
                             <p className="text-[10px] text-muted-foreground text-right max-w-[14rem] leading-snug">
@@ -5215,13 +5437,13 @@ export default function TopicPage() {
                           </div>
                           <p className="text-[11px] text-muted-foreground mb-2">
                             Last run: {artifactLastRunAt ?? "—"} · Current data: InstaCue{" "}
-                            {dbInstacueCards.length}, Bits {dbBitsQuestions.length}, Practice
+                            {dbInstacueCards.length}, Quiz {dbBitsQuestions.length}, Practice
                             Formulas {dbPracticeFormulas.length}
                           </p>
                           <p className="text-[10px] text-muted-foreground mb-2 leading-snug">
                             Manual run:{" "}
                             <span className="font-semibold text-foreground">
-                              Generate InstaCue + Bits + Formulas
+                              Generate InstaCue + Quiz + Formulas
                             </span>{" "}
                             or{" "}
                             <span className="font-semibold text-foreground">
@@ -5274,10 +5496,10 @@ export default function TopicPage() {
                               <Sparkles className="w-3.5 h-3.5" />
                             )}
                             {generatingBits
-                              ? "Generating Bits..."
+                              ? "Generating Quiz..."
                               : dbBitsQuestions.length > 0
-                                ? "Regenerate Bits"
-                                : "Generate Bits"}
+                                ? "Regenerate Quiz"
+                                : "Generate Quiz"}
                           </Button>
                         </div>
                       )}
@@ -5858,7 +6080,7 @@ export default function TopicPage() {
                                               if (currentQuizSavedBitId) {
                                                 unsaveBit(currentQuizSavedBitId);
                                                 persistSavedContent();
-                                                toast({ title: "Removed from Saved Bits" });
+                                                toast({ title: "Removed from saved quizzes" });
                                               }
                                               return;
                                             }
@@ -5879,7 +6101,7 @@ export default function TopicPage() {
                                             };
                                             saveBit(bit);
                                             persistSavedContent();
-                                            toast({ title: "Saved to Saved Bits" });
+                                            toast({ title: "Saved to your quizzes" });
                                           }}
                                           title={
                                             isCurrentQuizBitSaved
@@ -6519,7 +6741,7 @@ export default function TopicPage() {
                               </MathText>
                             </>
                           ) : (
-                            "Practice questions in the same Bits structure"
+                            "Practice questions in the same quiz structure"
                           )}
                         </div>
                       </DialogDescription>

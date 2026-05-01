@@ -13,7 +13,13 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import PlayQuestionCard from "@/components/PlayQuestionCard";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import type { PlayQuestionRow, PlayDomain, AcademicCategory, FunbrainCategory } from "@/types";
+import type {
+  PlayGauntletAnswerPayload,
+  PlayQuestionRow,
+  PlayDomain,
+  AcademicCategory,
+  FunbrainCategory,
+} from "@/types";
 import {
   Flame,
   Trophy,
@@ -228,12 +234,8 @@ function PlayPageContent() {
   // Daily Gauntlet
   const [gauntletQuestions, setGauntletQuestions] = useState<PlayQuestionRow[]>([]);
   const [gauntletIndex, setGauntletIndex] = useState(0);
-  const [gauntletResults, setGauntletResults] = useState<
-    { question_id: string; is_correct: boolean; time_taken_ms: number }[]
-  >([]);
-  const gauntletResultsRef = useRef<
-    { question_id: string; is_correct: boolean; time_taken_ms: number }[]
-  >([]);
+  const [gauntletResults, setGauntletResults] = useState<PlayGauntletAnswerPayload[]>([]);
+  const gauntletResultsRef = useRef<PlayGauntletAnswerPayload[]>([]);
   useEffect(() => {
     gauntletResultsRef.current = gauntletResults;
   }, [gauntletResults]);
@@ -524,6 +526,7 @@ function PlayPageContent() {
       p_time_taken_ms: timeTakenMs,
       p_category: null,
       p_pool_key: streakPoolForDomain(selectedDomain),
+      p_selected_answer_index: selectedIndex,
     });
     void bumpUserStudyDayMs(timeTakenMs);
     if (selectedDomain === "funbrain" && streakQuestion.category === "mental_math") {
@@ -659,7 +662,12 @@ function PlayPageContent() {
     if (!gauntletQuestions[gauntletIndex]) return;
     const q = gauntletQuestions[gauntletIndex];
     const isCorrect = selectedIndex === q.correct_answer_index;
-    const newResult = { question_id: q.id, is_correct: isCorrect, time_taken_ms: timeTakenMs };
+    const newResult: PlayGauntletAnswerPayload = {
+      question_id: q.id,
+      is_correct: isCorrect,
+      time_taken_ms: timeTakenMs,
+      selected_answer_index: selectedIndex,
+    };
     const fullSoFar = [...gauntletResultsRef.current, newResult];
     setGauntletResults(fullSoFar);
   };
@@ -667,7 +675,7 @@ function PlayPageContent() {
   const currentGauntletFinished = gauntletIndex >= gauntletQuestions.length - 1;
 
   const submitGauntlet = useCallback(
-    async (results: { question_id: string; is_correct: boolean; time_taken_ms: number }[]) => {
+    async (results: PlayGauntletAnswerPayload[]) => {
       if (gauntletSubmitLockRef.current) return;
       gauntletSubmitLockRef.current = true;
       const today = todayDate();
@@ -716,7 +724,12 @@ function PlayPageContent() {
     if (!q) return;
     const prev = gauntletResultsRef.current;
     if (prev.some((r) => r.question_id === q.id)) return;
-    const row = { question_id: q.id, is_correct: false, time_taken_ms: GAUNTLET_Q_SEC * 1000 };
+    const row: PlayGauntletAnswerPayload = {
+      question_id: q.id,
+      is_correct: false,
+      time_taken_ms: GAUNTLET_Q_SEC * 1000,
+      selected_answer_index: null,
+    };
     const next = [...prev, row];
     gauntletResultsRef.current = next;
     setGauntletResults(next);
@@ -754,6 +767,7 @@ function PlayPageContent() {
         question_id: qs[i]!.id,
         is_correct: false,
         time_taken_ms: GAUNTLET_Q_SEC * 1000,
+        selected_answer_index: null,
       });
     }
     gauntletResultsRef.current = existing;

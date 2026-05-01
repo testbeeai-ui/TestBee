@@ -390,7 +390,7 @@ export default function AgentOrchestratorRunner() {
         if (!runInstacue && !runBits) {
           appendLog(
             job.id,
-            `InstaCue and Bits for ${subtopicName} (${level}) already present. Skipping generation.`
+            `InstaCue and Quiz for ${subtopicName} (${level}) already present. Skipping generation.`
           );
         } else if (runInstacue && runBits) {
           // Run sequentially to reduce Vertex quota burst (429 RESOURCE_EXHAUSTED).
@@ -412,12 +412,12 @@ export default function AgentOrchestratorRunner() {
           }
           if ((subtopicContent.bitsQuestions?.length ?? 0) === 0) {
             throw new Error(
-              `Bits generation returned no questions for ${subtopicName} (${level}).`
+              `Quiz generation returned no questions for ${subtopicName} (${level}).`
             );
           }
           appendLog(
             job.id,
-            `InstaCue + Bits completed sequentially for ${subtopicName} (${level}).`
+            `InstaCue + Quiz completed sequentially for ${subtopicName} (${level}).`
           );
         } else if (runInstacue) {
           await generateInstaCueCards({
@@ -453,10 +453,10 @@ export default function AgentOrchestratorRunner() {
           });
           if ((subtopicContent.bitsQuestions?.length ?? 0) === 0) {
             throw new Error(
-              `Bits generation returned no questions for ${subtopicName} (${level}).`
+              `Quiz generation returned no questions for ${subtopicName} (${level}).`
             );
           }
-          appendLog(job.id, `Bits completed for ${subtopicName} (${level}).`);
+          appendLog(job.id, `Quiz completed for ${subtopicName} (${level}).`);
         }
       } else if (needInstacue) {
         if (!isRegenerate) {
@@ -524,7 +524,7 @@ export default function AgentOrchestratorRunner() {
           if (!assess.bitsGap) {
             appendLog(
               job.id,
-              `Bits for ${subtopicName} (${level}) already present. Skipping generation.`
+              `Quiz for ${subtopicName} (${level}) already present. Skipping generation.`
             );
           } else {
             await generateBitsQuestions({
@@ -541,10 +541,10 @@ export default function AgentOrchestratorRunner() {
             });
             if ((subtopicContent.bitsQuestions?.length ?? 0) === 0) {
               throw new Error(
-                `Bits generation returned no questions for ${subtopicName} (${level}).`
+                `Quiz generation returned no questions for ${subtopicName} (${level}).`
               );
             }
-            appendLog(job.id, `Bits completed for ${subtopicName} (${level}).`);
+            appendLog(job.id, `Quiz completed for ${subtopicName} (${level}).`);
           }
         } else {
           await generateBitsQuestions({
@@ -561,15 +561,15 @@ export default function AgentOrchestratorRunner() {
           });
           if ((subtopicContent.bitsQuestions?.length ?? 0) === 0) {
             throw new Error(
-              `Bits generation returned no questions for ${subtopicName} (${level}).`
+              `Quiz generation returned no questions for ${subtopicName} (${level}).`
             );
           }
-          appendLog(job.id, `Bits completed for ${subtopicName} (${level}).`);
+          appendLog(job.id, `Quiz completed for ${subtopicName} (${level}).`);
         }
       } else {
         appendLog(
           job.id,
-          `InstaCue and Bits already exist for ${subtopicName} (${level}). Skipping.`
+          `InstaCue and Quiz already exist for ${subtopicName} (${level}). Skipping.`
         );
       }
 

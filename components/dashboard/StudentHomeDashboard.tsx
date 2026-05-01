@@ -327,7 +327,6 @@ export default function StudentHomeDashboard() {
     "idle" | "loading" | "ready" | "error"
   >("idle");
   const dailyChecklistCommittedRef = useRef(false);
-  const [instacueAckLoading, setInstacueAckLoading] = useState(false);
 
   const loadDailyChecklist = useCallback(async () => {
     await Promise.resolve();
@@ -398,10 +397,11 @@ export default function StudentHomeDashboard() {
     if (dailyChecklist.subtopicRoutineDone) n++;
     if (dailyChecklist.gyanPlusDone) n++;
     if (dailyChecklist.instacueSessionDone) n++;
+    if (dailyChecklist.challengeYourselfDone) n++;
     return n;
   }, [dailyChecklist]);
 
-  /** Single-line checklist hint for the greeting strip (items a–d from GET /api/user/daily-checklist). */
+  /** Single-line checklist hint for the greeting strip (items a–e from GET /api/user/daily-checklist). */
   const greetingChecklistLine = useMemo(() => {
     if (!profile?.id) {
       return {
@@ -424,12 +424,13 @@ export default function StudentHomeDashboard() {
         text: "Please go through and complete the checklist below.",
       };
     }
-    if (checklistDoneCount < 4) {
+    if (checklistDoneCount < 5) {
       const labels: string[] = [];
       if (!dailyChecklist.dailyDoseDone) labels.push("DailyDose");
       if (!dailyChecklist.subtopicRoutineDone) labels.push("Subtopic routine");
       if (!dailyChecklist.gyanPlusDone) labels.push("Gyan++");
       if (!dailyChecklist.instacueSessionDone) labels.push("Instacue");
+      if (!dailyChecklist.challengeYourselfDone) labels.push("Challenge yourself");
       const rest = formatRemainingChecklistLabels(labels);
       return {
         tone: "muted" as const,
@@ -443,25 +444,6 @@ export default function StudentHomeDashboard() {
       text: "You've completed today's checklist — great work. Keep your streak going.",
     };
   }, [profile?.id, dailyChecklistStatus, dailyChecklist, checklistDoneCount]);
-
-  const acknowledgeInstacueSession = useCallback(async () => {
-    if (!profile?.id || instacueAckLoading) return;
-    const { today } = localDayBoundsIso(now);
-    setInstacueAckLoading(true);
-    try {
-      const headers = await getClientApiAuthHeaders();
-      const res = await fetchWithClientAuth("/api/user/daily-checklist", {
-        method: "PATCH",
-        headers: { ...headers, "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "instacue_ack", today }),
-      });
-      if (!res.ok) return;
-      await refreshProfile();
-      await loadDailyChecklist();
-    } finally {
-      setInstacueAckLoading(false);
-    }
-  }, [profile?.id, instacueAckLoading, now, refreshProfile, loadDailyChecklist]);
 
   const lowestChapter = useMemo(() => {
     const started = chapterRows.filter((r) => r.completed > 0);
@@ -628,31 +610,18 @@ export default function StudentHomeDashboard() {
         </p>
       </div>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="font-serif text-3xl font-bold tracking-tight text-foreground md:text-4xl">
-            My dashboard
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">{classLine}</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="rounded-full font-bold"
-            onClick={() => router.push("/play")}
-          >
-            AI coach advice
-          </Button>
-        </div>
+      <div>
+        <h1 className="font-serif text-3xl font-bold tracking-tight text-foreground md:text-4xl">
+          My dashboard
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">{classLine}</p>
       </div>
 
       {/* Stat cards */}
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[
           {
-            label: "STATE RANK",
+            label: "RDM RANK",
             value: "#14",
             sub: "+ Up 3 places this week",
             subClass: "text-emerald-500",
@@ -704,7 +673,7 @@ export default function StudentHomeDashboard() {
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <CalendarDays className="h-5 w-5 text-teal-500" />
-            <h2 className="text-lg font-bold text-foreground">Study streak — time on site map</h2>
+            <h2 className="text-lg font-bold text-foreground">Study streak</h2>
           </div>
           <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-1 text-[11px] font-bold text-amber-600 dark:text-amber-300">
             <Flame className="h-3.5 w-3.5" />
@@ -824,8 +793,7 @@ export default function StudentHomeDashboard() {
             quizzes). A dash means no on-site time that day;{" "}
             <span className="font-mono">{"<1m"}</span> means under one minute on site. Streak =
             consecutive calendar days with any saved study time, counted through your most recent
-            active day on or before today (so the map can look quiet while your streak continues if
-            you have not opened the app long enough to sync).
+            active day on or before today.
           </span>
         </div>
       </section>
@@ -851,12 +819,12 @@ export default function StudentHomeDashboard() {
           {[
             {
               id: "a",
-              text: "Do your Daily Routine — complete DailyDose (10 questions, academic)",
+              text: "Do your Daily Routine — complete DailyDose (10 questions, academic, 5 mins) and complete Funbrain Forge (10 questions, non-academic, 5 minutes)",
               done: Boolean(dailyChecklist?.dailyDoseDone),
             },
             {
               id: "b",
-              text: "Read at least 1 sub-topic per subject with quiz and numerals today (a submitted topic quiz in each subject), or tap Mark as complete in Lessons/Progress after finishing all five steps there",
+              text: "At least 1 topic and 1 sub-topic per subject – Physics, Chemistry and Mathematics (a submitted topic quiz in each subject), & tap Mark as complete in Lessons/Progress after finishing all five steps there",
               done: Boolean(dailyChecklist?.subtopicRoutineDone),
             },
             {
@@ -866,21 +834,18 @@ export default function StudentHomeDashboard() {
             },
             {
               id: "d",
-              text: "Instacue: save 32 revision cards today (count resets each calendar day), then confirm you finished one revision session",
+              text: "Instacue: scroll through all 32 cards for your chapter (same checklist as Lessons / Progress; count resets each calendar day)",
               done: Boolean(dailyChecklist?.instacueSessionDone),
             },
             {
               id: "e",
-              text: "Run one MentaMill 60-second blitz (coming soon)",
-              done: false,
+              text: "Try your luck at the Challenge Yourself and win RDM",
+              done: Boolean(dailyChecklist?.challengeYourselfDone),
             },
           ].map((item) => (
             <li
               key={item.id}
-              className={cn(
-                "flex flex-wrap items-start justify-between gap-2 rounded-xl border border-border/60 bg-background/50 px-3 py-2.5 dark:bg-slate-900/40",
-                item.id === "e" ? "opacity-50" : ""
-              )}
+              className="flex flex-wrap items-start justify-between gap-2 rounded-xl border border-border/60 bg-background/50 px-3 py-2.5 dark:bg-slate-900/40"
             >
               <div className="flex min-w-0 flex-1 gap-2">
                 {item.done ? (
@@ -904,38 +869,28 @@ export default function StudentHomeDashboard() {
                       </Link>
                     </>
                   ) : null}
-                  {item.id === "d" &&
-                  dailyChecklist &&
-                  !dailyChecklist.instacueSessionDone &&
-                  dailyChecklist.savedRevisionCardCount >= 32 ? (
-                    <span className="mt-2 block">
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="secondary"
-                        className="rounded-lg font-bold"
-                        disabled={instacueAckLoading}
-                        onClick={() => void acknowledgeInstacueSession()}
-                      >
-                        {instacueAckLoading ? "Saving…" : "Mark Instacue session done"}
-                      </Button>
-                    </span>
+                  {item.id === "e" ? (
+                    <>
+                      {" "}
+                      <Link href="/refer-earn" className="font-bold text-primary hover:underline">
+                        Open Challenge Yourself
+                      </Link>
+                    </>
                   ) : null}
                   {item.id === "d" &&
                   dailyChecklist &&
                   !dailyChecklist.instacueSessionDone &&
-                  dailyChecklist.savedRevisionCardCount < 32 ? (
+                  dailyChecklist.instacueCombinedCount < 32 ? (
                     <span className="mt-1 block text-[11px] text-muted-foreground">
-                      Today&apos;s Instacue saves: {dailyChecklist.savedRevisionCardCount}/32
-                      {typeof dailyChecklist.savedRevisionCardsDeckTotal === "number" &&
-                      dailyChecklist.savedRevisionCardsDeckTotal !==
-                        dailyChecklist.savedRevisionCardCount ? (
+                      InstaCue reads logged: {dailyChecklist.instacueReadCount}/32
+                      {dailyChecklist.instacueCombinedCount !==
+                      dailyChecklist.instacueReadCount ? (
                         <>
                           {" "}
-                          · Bank total {dailyChecklist.savedRevisionCardsDeckTotal} (not day-scoped)
+                          · {dailyChecklist.instacueCombinedCount}/32 toward unlock (includes
+                          today&apos;s revision saves)
                         </>
-                      ) : null}{" "}
-                      — save more in Instacue to unlock confirmation.
+                      ) : null}
                     </span>
                   ) : null}
                 </span>
@@ -950,7 +905,7 @@ export default function StudentHomeDashboard() {
             </span>
           ) : (
             <>
-              <span className="font-semibold text-foreground">{checklistDoneCount} of 4 done</span>
+              <span className="font-semibold text-foreground">{checklistDoneCount} of 5 done</span>
               {" · "}
               Gyan++ today:{" "}
               {dailyChecklist
@@ -958,7 +913,8 @@ export default function StudentHomeDashboard() {
                 : "—"}{" "}
               on feed, {dailyChecklist?.gyanPlusProgress.savesToday ?? "—"} saves,{" "}
               {dailyChecklist?.gyanPlusProgress.communityActionsToday ?? "—"} community actions
-              (items a–d are live; rewards later).
+              (items a–e are tracked live; Challenge Yourself completes after any Refer &amp; Earn
+              challenge run ends today).
             </>
           )}
         </p>
@@ -1152,9 +1108,6 @@ export default function StudentHomeDashboard() {
                 </li>
               ))}
             </ul>
-            <p className="mt-2 text-[11px] text-muted-foreground">
-              Mock schedule shown for investors — will go live with calendar integration.
-            </p>
           </div>
 
           <div className="rounded-2xl border border-border bg-card/90 p-4 shadow-sm dark:bg-slate-950/60">

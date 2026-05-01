@@ -51,7 +51,7 @@ interface Profile {
   saved_revision_cards?: SavedRevisionCard[];
   saved_revision_units?: SavedRevisionUnit[];
   saved_community_posts?: SavedCommunityPost[];
-  /** Submitted topic-quiz (Bits) attempts keyed like bits-attempts API; retakes overwrite same key. */
+  /** Submitted topic-quiz attempts keyed like bits-attempts API; retakes overwrite same key. */
   bits_test_attempts?: Json | null;
   /** Per-lesson engagement snapshots (in-progress quiz draft lives under bits + graded). */
   subtopic_engagement?: Json | null;

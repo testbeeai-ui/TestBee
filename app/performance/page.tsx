@@ -1,7 +1,6 @@
 "use client";
 
 import { type ComponentType, useEffect, useMemo } from "react";
-import { buildActivityHeatmapModel, contributionDayKeyFromTimestamp } from "@/lib/activityHeatmap";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserStore } from "@/store/useUserStore";
@@ -30,7 +29,7 @@ import { parseEngagementDraftDashboardContributions } from "@/lib/parseEngagemen
 
 type SubjectStat = {
   subject: Subject;
-  /** Topic quizzes (Bits) submitted for this subject — each key is one quiz; retakes count once. */
+  /** Topic quizzes submitted for this subject — each key is one quiz; retakes count once. */
   quizCount: number;
   /** All graded answers: play / Question Gun + topic quiz questions. */
   total: number;
@@ -239,7 +238,7 @@ function SubjectBreakdownCard({ stat }: { stat: SubjectStat }) {
 }
 
 export default function PerformancePage() {
-  const { profile, session, refreshProfile } = useAuth();
+  const { profile, refreshProfile } = useAuth();
 
   useEffect(() => {
     void refreshProfile();
@@ -320,98 +319,9 @@ export default function PerformancePage() {
   const totalAnswered = bitsAnsweredGlobal + allResults.length;
   const totalCorrect = bitsCorrectGlobal + allResults.filter((r) => r.isCorrect).length;
   const overallAccuracy = totalAnswered > 0 ? Math.round((totalCorrect / totalAnswered) * 100) : 0;
-  const totalWrong = totalAnswered - totalCorrect;
-  const totalSkipped = subjectStats.reduce((sum, s) => sum + s.skipped, 0);
   const totalTopicQuizzesTaken = useMemo(
     () => bitsAttemptRows.length + engagementDraftRows.length,
     [bitsAttemptRows, engagementDraftRows]
-  );
-
-  const accountStartForHeatmap = useMemo(() => {
-    const raw = profile?.created_at ?? session?.user?.created_at;
-    if (!raw || typeof raw !== "string") return null;
-    const d = new Date(raw);
-    return Number.isNaN(d.getTime()) ? null : d;
-  }, [profile?.created_at, session?.user?.created_at]);
-
-  const heatmapBitsDayExtras = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const row of bitsAttemptRows) {
-      if (typeof row.submittedAtMs !== "number") continue;
-      const n = row.correctCount + row.wrongCount;
-      if (n <= 0) continue;
-      const key = contributionDayKeyFromTimestamp(row.submittedAtMs);
-      m.set(key, (m.get(key) ?? 0) + n);
-    }
-    return m;
-  }, [bitsAttemptRows]);
-
-  const heatmapEngagementDayExtras = useMemo(() => {
-    const m = new Map<string, number>();
-    const raw = profile?.subtopic_engagement;
-    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return m;
-    for (const [engKey, value] of Object.entries(raw as Record<string, unknown>)) {
-      if (submittedBitsKeys.has(engKey)) continue;
-      if (!value || typeof value !== "object" || Array.isArray(value)) continue;
-      const row = value as Record<string, unknown>;
-      if (Number(row.v) !== 1) continue;
-      const updatedAt = typeof row.updatedAt === "string" ? row.updatedAt : "";
-      const t = Date.parse(updatedAt);
-      if (!Number.isFinite(t)) continue;
-      const bits = row.bits;
-      if (!bits || typeof bits !== "object" || Array.isArray(bits)) continue;
-      const graded = (bits as Record<string, unknown>).graded;
-      if (!graded || typeof graded !== "object" || Array.isArray(graded)) continue;
-      const answered = Number((graded as Record<string, unknown>).answered);
-      if (!Number.isFinite(answered) || answered <= 0) continue;
-      const key = contributionDayKeyFromTimestamp(t);
-      m.set(key, (m.get(key) ?? 0) + Math.min(Math.trunc(answered), 200));
-    }
-    return m;
-  }, [profile?.subtopic_engagement, submittedBitsKeys]);
-
-  const heatmapMergedDayExtras = useMemo(() => {
-    const out = new Map(heatmapBitsDayExtras);
-    for (const [k, v] of heatmapEngagementDayExtras) {
-      out.set(k, (out.get(k) ?? 0) + v);
-    }
-    return out;
-  }, [heatmapBitsDayExtras, heatmapEngagementDayExtras]);
-
-  const activityHeatmap = useMemo(
-    () =>
-      buildActivityHeatmapModel(
-        allResults,
-        accountStartForHeatmap,
-        new Date(),
-        heatmapMergedDayExtras
-      ),
-    [allResults, accountStartForHeatmap, heatmapMergedDayExtras]
-  );
-
-  if (profile?.role === "teacher") {
-    return (
-      <ProtectedRoute>
-        <TeacherDashboard />
-      </ProtectedRoute>
-    );
-  }
-
-  /** GitHub-style fixed squares — avoids 1fr row/column stretch into wide bars. */
-  const HEATMAP_CELL_PX = 14;
-  const HEATMAP_GAP_PX = 4;
-  const heatmapNumWeeks = activityHeatmap.numWeeks;
-  const heatmapColTemplate = `repeat(${heatmapNumWeeks}, ${HEATMAP_CELL_PX}px)`;
-  const heatmapGridW =
-    heatmapNumWeeks * HEATMAP_CELL_PX + Math.max(0, heatmapNumWeeks - 1) * HEATMAP_GAP_PX;
-  const heatmapGridH = 7 * HEATMAP_CELL_PX + 6 * HEATMAP_GAP_PX;
-  const heatmapMonthLabelPositions = useMemo(
-    () =>
-      activityHeatmap.monthTicks.map((tick) => ({
-        ...tick,
-        left: tick.weekIndex * (HEATMAP_CELL_PX + HEATMAP_GAP_PX),
-      })),
-    [activityHeatmap.monthTicks]
   );
 
   const motivationalTips = [
@@ -433,6 +343,14 @@ export default function PerformancePage() {
     const sf = user.savedFormulas?.length ?? 0;
     return sq + sc + sb + sf;
   }, [user]);
+
+  if (profile?.role === "teacher") {
+    return (
+      <ProtectedRoute>
+        <TeacherDashboard />
+      </ProtectedRoute>
+    );
+  }
 
   const statCards = [
     {
@@ -636,142 +554,6 @@ export default function PerformancePage() {
                   </div>
                 </div>
               ))}
-            </div>
-          </section>
-
-          <section className="rounded-2xl border border-border bg-card/90 p-3 shadow-sm dark:bg-slate-950/60 2xl:rounded-3xl 2xl:p-4">
-            <div className="mb-2 flex items-center gap-2 2xl:mb-3">
-              <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-violet-500/12 text-violet-600 dark:bg-violet-500/20 dark:text-violet-300 2xl:h-8 2xl:w-8">
-                <CalendarDays className="h-4 w-4 2xl:h-[18px] 2xl:w-[18px]" />
-              </span>
-              <h2 className="text-xl font-bold tracking-tight text-foreground 2xl:text-2xl">
-                Activity heatmap
-              </h2>
-            </div>
-
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-stretch lg:gap-4 2xl:gap-5">
-              <div className="min-w-0 flex-1 space-y-2">
-                <div className="text-xs text-muted-foreground sm:text-sm">
-                  <p className="font-medium text-foreground/90">
-                    {activityHeatmap.contributionsInRange} contribution
-                    {activityHeatmap.contributionsInRange === 1 ? "" : "s"} in Jan–Jun
-                  </p>
-                  <p className="break-words" title={activityHeatmap.rangeLabel}>
-                    {activityHeatmap.rangeLabel}
-                  </p>
-                </div>
-
-                <div className="max-w-full overflow-x-auto">
-                  <div className="inline-block rounded-xl border border-border/70 bg-background/70 p-3 pb-2 align-middle dark:bg-slate-900/45">
-                    <div className="relative mb-1.5 h-4" style={{ width: heatmapGridW }}>
-                      {heatmapMonthLabelPositions.map((tick) => (
-                        <span
-                          key={`${tick.weekIndex}-${tick.label}`}
-                          className="absolute top-0 text-left text-[10px] font-medium leading-none text-muted-foreground sm:text-[11px]"
-                          style={{ left: tick.left }}
-                        >
-                          {tick.label}
-                        </span>
-                      ))}
-                    </div>
-
-                    <div className="flex gap-2">
-                      <div
-                        className="grid w-7 shrink-0 text-[9px] font-medium leading-none text-muted-foreground select-none sm:w-8 sm:text-[10px]"
-                        style={{
-                          gridTemplateRows: `repeat(7, ${HEATMAP_CELL_PX}px)`,
-                          rowGap: HEATMAP_GAP_PX,
-                          height: heatmapGridH,
-                          alignContent: "start",
-                        }}
-                      >
-                        {(["Sun", "", "Tue", "", "Thu", "", "Sat"] as const).map((label, i) => (
-                          <div key={i} className="flex items-center justify-end pr-0.5">
-                            {label}
-                          </div>
-                        ))}
-                      </div>
-
-                      <div
-                        className="grid shrink-0 grid-flow-col"
-                        style={{
-                          gridTemplateColumns: heatmapColTemplate,
-                          gridTemplateRows: `repeat(7, ${HEATMAP_CELL_PX}px)`,
-                          gap: HEATMAP_GAP_PX,
-                          width: heatmapGridW,
-                          height: heatmapGridH,
-                        }}
-                      >
-                        {activityHeatmap.cells.map((cell, idx) => {
-                          const intensity = cell.intensity;
-                          const title = cell.isFuture
-                            ? `${cell.day.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })} · Upcoming`
-                            : `${cell.day.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })} · ${cell.count} activit${cell.count === 1 ? "y" : "ies"}`;
-                          const base =
-                            "min-h-0 min-w-0 rounded-[2px] outline outline-1 -outline-offset-1 transition-colors";
-                          const tone = cell.isFuture
-                            ? "bg-muted/30 opacity-45 outline-transparent"
-                            : intensity === 0
-                              ? "bg-muted/80 outline-border/40 dark:bg-slate-800/90 dark:outline-white/10"
-                              : intensity === 1
-                                ? "bg-violet-300/95 outline-violet-500/25 dark:bg-violet-950 dark:outline-violet-500/20"
-                                : intensity === 2
-                                  ? "bg-violet-400/95 outline-violet-500/30 dark:bg-violet-800 dark:outline-violet-400/25"
-                                  : intensity === 3
-                                    ? "bg-violet-500/95 outline-violet-400/35 dark:bg-violet-600 dark:outline-violet-300/30"
-                                    : "bg-violet-600 text-white outline-violet-300/40 dark:bg-violet-400 dark:outline-violet-200/35";
-                          return (
-                            <div
-                              key={idx}
-                              className={`${base} ${tone} h-full w-full`}
-                              title={title}
-                              role="img"
-                              aria-label={title}
-                            />
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                  <span>Less</span>
-                  <span className="h-3 w-3 rounded-sm bg-muted/80 outline outline-1 -outline-offset-1 outline-border/40 sm:h-3.5 sm:w-3.5 dark:bg-slate-800/90" />
-                  <span className="h-3 w-3 rounded-sm bg-violet-300/95 outline outline-1 -outline-offset-1 outline-violet-500/25 sm:h-3.5 sm:w-3.5 dark:bg-violet-950" />
-                  <span className="h-3 w-3 rounded-sm bg-violet-400/95 outline outline-1 -outline-offset-1 outline-violet-500/30 sm:h-3.5 sm:w-3.5 dark:bg-violet-800" />
-                  <span className="h-3 w-3 rounded-sm bg-violet-500/95 outline outline-1 -outline-offset-1 outline-violet-400/35 sm:h-3.5 sm:w-3.5 dark:bg-violet-600" />
-                  <span className="h-3 w-3 rounded-sm bg-violet-600 outline outline-1 -outline-offset-1 outline-violet-300/40 sm:h-3.5 sm:w-3.5 dark:bg-violet-400" />
-                  <span>More</span>
-                </div>
-              </div>
-
-              <div className="grid shrink-0 grid-cols-2 gap-2 sm:gap-3 lg:w-[min(100%,280px)] lg:min-w-[220px]">
-                <div className="rounded-xl border border-border bg-background/80 px-3 py-2.5 dark:bg-slate-900/55">
-                  <p className="text-[11px] text-muted-foreground">Overall Correct</p>
-                  <p className="text-xl font-bold tabular-nums text-emerald-500 sm:text-2xl">
-                    {totalCorrect}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-border bg-background/80 px-3 py-2.5 dark:bg-slate-900/55">
-                  <p className="text-[11px] text-muted-foreground">Overall Wrong</p>
-                  <p className="text-xl font-bold tabular-nums text-rose-500 sm:text-2xl">
-                    {totalWrong}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-border bg-background/80 px-3 py-2.5 dark:bg-slate-900/55">
-                  <p className="text-[11px] text-muted-foreground">Overall Skipped</p>
-                  <p className="text-xl font-bold tabular-nums text-muted-foreground sm:text-2xl">
-                    {totalSkipped}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-border bg-background/80 px-3 py-2.5 dark:bg-slate-900/55">
-                  <p className="text-[11px] text-muted-foreground">Daily Momentum</p>
-                  <p className="text-xl font-bold tabular-nums text-amber-500 sm:text-2xl">
-                    {Math.max(1, Math.min(7, Math.floor(totalAnswered / 5) || 1))}x
-                  </p>
-                </div>
-              </div>
             </div>
           </section>
         </div>

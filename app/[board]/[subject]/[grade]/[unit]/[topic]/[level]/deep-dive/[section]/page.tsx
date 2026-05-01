@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, useSearchParams, useRouter, usePathname } from "next/navigation";
 import AppLayout from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { getDeepDiveContent } from "@/data/deepDiveContent";
@@ -40,6 +40,7 @@ import { syncAllSavedContent } from "@/lib/savedContentService";
 import MathText from "@/components/MathText";
 import { stripFormulaDelimiters } from "@/lib/stripFormulaDelimiters";
 import { subtopicMathTextLabel } from "@/lib/subtopicTitles";
+import { useAuth } from "@/hooks/useAuth";
 
 /** Check if a BitsQuestion matches a SavedBit (same content). */
 function isBitSaved(question: BitsQuestion, savedBits: SavedBit[]): boolean {
@@ -64,7 +65,7 @@ function getSavedBitId(question: BitsQuestion, savedBits: SavedBit[]): string | 
   return hit?.id ?? null;
 }
 
-/** One-question-at-a-time Bits quiz (like explore Bits / second image reference). */
+/** One-question-at-a-time topic quiz (like explore quick quiz / second image reference). */
 function BitsQuiz({
   questions,
   subject,
@@ -291,6 +292,9 @@ function BitsQuiz({
 export default function DeepDivePage() {
   const params = useParams();
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const { loading: authLoading, profile } = useAuth();
   const fromRandom = searchParams.get("mode") === "random";
   const board = params.board as string;
   const subject = params.subject as string;
@@ -302,6 +306,8 @@ export default function DeepDivePage() {
   const sectionIndex = parseInt(sectionParam ?? "0", 10);
 
   const { taxonomy, loading: taxonomyLoading, error: taxonomyError } = useTopicTaxonomy();
+
+  const isAdminUser = useMemo(() => profile?.role === "admin", [profile?.role]);
 
   const resolved = useMemo(
     () =>
@@ -317,6 +323,27 @@ export default function DeepDivePage() {
       ),
     [board, subject, grade, unitSlug, topicSlug, level, taxonomy, searchParams]
   );
+
+  /** Match topic page: Basic / Intermediate are admin-preview only until launch. */
+  useEffect(() => {
+    if (taxonomyLoading || authLoading) return;
+    if (!resolved?.topicNode) return;
+    if (isAdminUser) return;
+    if (level !== "basics" && level !== "intermediate") return;
+    const replaced = pathname.replace(/\/(basics|intermediate)(?=\/|$)/, "/advanced");
+    if (replaced === pathname) return;
+    const q = searchParams.toString();
+    router.replace(q ? `${replaced}?${q}` : replaced);
+  }, [
+    taxonomyLoading,
+    authLoading,
+    resolved?.topicNode,
+    isAdminUser,
+    level,
+    pathname,
+    router,
+    searchParams,
+  ]);
 
   const user = useUserStore((s) => s.user);
   const savedBits = user?.savedBits ?? [];
@@ -612,7 +639,7 @@ export default function DeepDivePage() {
                   onClick={() => setBitsDialogOpen(true)}
                 >
                   <Zap className="w-4 h-4" />
-                  Bits
+                  Quiz
                 </Button>
                 <>
                   <p className="text-sm font-medium text-foreground mt-3 mb-2">
@@ -641,7 +668,7 @@ export default function DeepDivePage() {
             <DialogHeader>
               <DialogTitle className="flex flex-wrap items-center gap-x-2 gap-y-1">
                 <Zap className="w-5 h-5 text-primary shrink-0" />
-                <span>Bits — Subtopic {sectionIndex + 1}: </span>
+                <span>Quiz — Subtopic {sectionIndex + 1}: </span>
                 <MathText as="span" className="min-w-0">
                   {subtopicMathTextLabel(subtopicName)}
                 </MathText>

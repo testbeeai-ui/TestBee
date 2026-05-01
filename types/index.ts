@@ -245,3 +245,12 @@ export interface DailyGauntletLeaderboardRow {
   total_time_ms: number;
   completed_at: string;
 }
+
+/** Payload row for `submit_daily_gauntlet` RPC (`p_results` JSON array). */
+export type PlayGauntletAnswerPayload = {
+  question_id: string;
+  is_correct: boolean;
+  time_taken_ms: number;
+  /** MCQ option index at submit time; omit or null on timeout / no tap. */
+  selected_answer_index?: number | null;
+};

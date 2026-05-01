@@ -400,7 +400,7 @@ export function bitsResponseSchema() {
     properties: {
       items: {
         type: Type.ARRAY,
-        description: "Array of MCQ questions (Bits).",
+        description: "Array of MCQ quiz questions.",
         items: {
           type: Type.OBJECT,
           properties: {

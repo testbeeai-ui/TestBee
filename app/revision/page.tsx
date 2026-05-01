@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState, useEffect, useMemo, useRef } from "react";
+import { Suspense, useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
@@ -32,6 +32,7 @@ import { buildDeepDivePath } from "@/lib/topicRoutes";
 import { fetchSavedContent, syncAllSavedContent } from "@/lib/savedContentService";
 import { mergeAllSavedContent } from "@/lib/mergeSavedContent";
 import { useAuth } from "@/hooks/useAuth";
+import { cn } from "@/lib/utils";
 
 const DEMO_CARDS: SavedRevisionCard[] = [
   {
@@ -72,7 +73,7 @@ const DEMO_CARDS: SavedRevisionCard[] = [
   },
 ];
 
-type RevisionTab = "instacue" | "units" | "saved" | "community";
+type RevisionTab = "instacue" | "units" | "saved" | "community" | "questions";
 
 /** Show only the subtopic name: strip "Subtopic 1.1:" prefix and " (Level: ...)" suffix. */
 function subtopicDisplayName(sectionTitle: string): string {
@@ -83,6 +84,14 @@ function subtopicDisplayName(sectionTitle: string): string {
       .trim() || sectionTitle
   );
 }
+
+const VALID_REVISION_TABS: RevisionTab[] = [
+  "instacue",
+  "units",
+  "saved",
+  "community",
+  "questions",
+];
 
 const RevisionContent = () => {
   const searchParams = useSearchParams();
@@ -95,18 +104,22 @@ const RevisionContent = () => {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<RevisionTab>("instacue");
-  const deepLinkTabAppliedRef = useRef(false);
 
   useEffect(() => {
-    if (deepLinkTabAppliedRef.current) return;
-    deepLinkTabAppliedRef.current = true;
     const tab = searchParams.get("tab");
-    if (tab === "community") {
-      setActiveTab("community");
+    if (tab && VALID_REVISION_TABS.includes(tab as RevisionTab)) {
+      setActiveTab(tab as RevisionTab);
     }
   }, [searchParams]);
 
-  const savedQuestions = questions.filter((q) => user?.savedQuestions.includes(q.id));
+  const savedQuestionsCount = useMemo(
+    () => new Set(user?.savedQuestions ?? []).size,
+    [user?.savedQuestions]
+  );
+  const savedQuestions = useMemo(
+    () => questions.filter((q) => (user?.savedQuestions ?? []).includes(q.id)),
+    [user?.savedQuestions]
+  );
   const savedCards = user?.savedRevisionCards ?? [];
   const signedIn = Boolean(authUser);
   const displayCards = signedIn ? savedCards : savedCards.length > 0 ? savedCards : DEMO_CARDS;
@@ -265,92 +278,112 @@ const RevisionContent = () => {
     syncAllSavedContent().catch(() => {});
   };
 
+  const revisionNavItems = useMemo(
+    () => [
+      { id: "instacue" as const, label: "InstaCue Cards", count: displayCards.length },
+      { id: "units" as const, label: "Unit Revision", count: savedRevisionUnits.length },
+      { id: "saved" as const, label: "Saved Bits & Formulas", count: savedTabBadgeCount },
+      {
+        id: "community" as const,
+        label: "Community Posts",
+        count: savedCommunityPostsStoreCount,
+      },
+      { id: "questions" as const, label: "Saved Questions", count: savedQuestionsCount },
+    ],
+    [
+      displayCards.length,
+      savedRevisionUnits.length,
+      savedTabBadgeCount,
+      savedCommunityPostsStoreCount,
+      savedQuestionsCount,
+    ]
+  );
+
+  const sectionTitle =
+    activeTab === "instacue"
+      ? "InstaCue Cards"
+      : activeTab === "units"
+        ? "Unit Revision"
+        : activeTab === "saved"
+          ? "Saved Bits & Formulas"
+          : activeTab === "community"
+            ? "Community Posts"
+            : "Saved Questions";
+
   return (
     <ProtectedRoute>
       <AppLayout>
         <div className="max-w-4xl mx-auto px-4 pt-1 pb-8">
-          {/* Header + Tabs — title reflects active section (two separate “pages”) */}
-          <div className="mb-5">
-            <div className="flex flex-wrap items-center gap-3 mb-2">
-              {activeTab === "instacue" ? (
-                <h1 className="text-[24px] font-bold text-[#1e293b] tracking-tight">
-                  <span className="text-[#f59e0b] font-extrabold">Insta</span>
-                  <span className="text-[#1e293b] font-extrabold">Cue</span>
-                  <span className="text-[#1e293b] font-bold"> Cards</span>
-                </h1>
-              ) : activeTab === "units" ? (
-                <h1 className="text-[24px] font-bold text-[#1e293b] tracking-tight">
-                  <span className="text-[#1e293b] font-extrabold">Unit Revision</span>
-                </h1>
-              ) : activeTab === "saved" ? (
-                <h1 className="text-[24px] font-bold text-[#1e293b] tracking-tight">
-                  <span className="text-[#1e293b] font-extrabold">Saved Bits & Formulas</span>
-                </h1>
-              ) : (
-                <h1 className="text-[24px] font-bold text-[#1e293b] tracking-tight">
-                  <span className="text-[#1e293b] font-extrabold">Community Posts</span>
-                </h1>
+          <div className="mb-6 space-y-4">
+            <div>
+              <h1 className="text-2xl font-black tracking-tight text-foreground">
+                {activeTab === "instacue" ? (
+                  <>
+                    <span className="text-orange-500 dark:text-orange-400">Insta</span>
+                    <span className="text-slate-400 dark:text-slate-400">Cue Cards</span>
+                  </>
+                ) : (
+                  sectionTitle
+                )}
+              </h1>
+              <p className="text-muted-foreground text-sm mt-1 font-medium">
+                {activeTab === "instacue"
+                  ? "Quick revision flashcards with active recall and spaced repetition"
+                  : activeTab === "units"
+                    ? "Deep Dive sections you marked for revision"
+                    : activeTab === "saved"
+                      ? "Quiz and formula practice you saved from Deep Dive"
+                      : activeTab === "community"
+                        ? "Community feed posts you saved for revision"
+                        : "Your personal stash of MCQs and numeric problems from Practice and Explore — saved in one tap, reviewed anytime."}
+              </p>
+              {activeTab === "questions" && (
+                <p className="text-muted-foreground/90 text-xs mt-2 leading-relaxed max-w-2xl">
+                  Save while you practice: each bookmark lands here and updates the{" "}
+                  <strong className="text-foreground font-semibold">Saved Questions</strong> count on
+                  your dashboard Revision strip right away. Open a card to practice again or remove it
+                  when you no longer need it.
+                </p>
               )}
-              <div className="inline-flex rounded-full border-2 border-border bg-muted/30 p-0.5 flex-wrap">
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("instacue")}
-                  className={`rounded-full px-4 py-1.5 text-sm font-bold transition-colors inline-flex items-center gap-1.5 ${activeTab === "instacue" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-                >
-                  InstaCue Cards
-                  <span
-                    className={`tabular-nums rounded-full px-1.5 py-0.5 text-[11px] font-extrabold ${activeTab === "instacue" ? "bg-primary-foreground/20" : "bg-muted"}`}
-                  >
-                    {savedCards.length}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("units")}
-                  className={`rounded-full px-4 py-1.5 text-sm font-bold transition-colors inline-flex items-center gap-1.5 ${activeTab === "units" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-                >
-                  Unit Revision
-                  <span
-                    className={`tabular-nums rounded-full px-1.5 py-0.5 text-[11px] font-extrabold ${activeTab === "units" ? "bg-primary-foreground/20" : "bg-muted"}`}
-                  >
-                    {savedRevisionUnits.length}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("saved")}
-                  className={`rounded-full px-4 py-1.5 text-sm font-bold transition-colors inline-flex items-center gap-1.5 ${activeTab === "saved" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-                >
-                  Saved Bits & Formulas
-                  <span
-                    className={`tabular-nums rounded-full px-1.5 py-0.5 text-[11px] font-extrabold ${activeTab === "saved" ? "bg-primary-foreground/20" : "bg-muted"}`}
-                  >
-                    {savedTabBadgeCount}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("community")}
-                  className={`rounded-full px-4 py-1.5 text-sm font-bold transition-colors inline-flex items-center gap-1.5 ${activeTab === "community" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-                >
-                  Community Posts
-                  <span
-                    className={`tabular-nums rounded-full px-1.5 py-0.5 text-[11px] font-extrabold ${activeTab === "community" ? "bg-primary-foreground/20" : "bg-muted"}`}
-                  >
-                    {savedCommunityPostsStoreCount}
-                  </span>
-                </button>
-              </div>
             </div>
-            <p className="text-[#64748b] text-[13px] mt-0.5 font-medium">
-              {activeTab === "instacue"
-                ? "Quick revision flashcards with active recall and spaced repetition"
-                : activeTab === "units"
-                  ? "Deep Dive sections you marked for revision"
-                  : activeTab === "saved"
-                    ? "Bits and formula practice you saved from Deep Dive"
-                    : "Community feed posts you saved for revision"}
-            </p>
+
+            <nav className="-mx-1 px-1 pb-0.5" aria-label="Revision sections">
+              <div className="rounded-2xl border border-border bg-muted/30 p-2 sm:p-3 dark:bg-black/25">
+                <div className="flex w-full min-w-0 flex-nowrap gap-1 sm:gap-1.5">
+                  {revisionNavItems.map((item) => {
+                    const isActive = activeTab === item.id;
+                    return (
+                      <Link
+                        key={item.id}
+                        href={`/revision?tab=${item.id}`}
+                        replace
+                        scroll={false}
+                        aria-current={isActive ? "page" : undefined}
+                        title={item.label}
+                        className={cn(
+                          "flex min-w-0 flex-1 items-center justify-center gap-1 rounded-full border px-1.5 py-1.5 text-[10px] font-bold transition-all sm:gap-1.5 sm:px-2 sm:py-2 sm:text-xs md:text-sm",
+                          isActive
+                            ? "border-transparent bg-primary text-primary-foreground shadow-md"
+                            : "border-border/70 bg-background/60 text-muted-foreground hover:bg-muted hover:text-foreground"
+                        )}
+                      >
+                        <span className="min-w-0 truncate text-center leading-tight">{item.label}</span>
+                        <span
+                          className={cn(
+                            "shrink-0 tabular-nums rounded-full px-1.5 py-0.5 text-[9px] font-extrabold sm:min-w-[1.5rem] sm:px-2 sm:text-[11px]",
+                            isActive
+                              ? "bg-white/20 text-primary-foreground"
+                              : "border border-border/60 bg-muted text-foreground"
+                          )}
+                        >
+                          {item.count}
+                        </span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            </nav>
           </div>
 
           {activeTab === "instacue" && (
@@ -372,60 +405,122 @@ const RevisionContent = () => {
               ) : (
                 <InstaCuePlayer cards={displayCards} onClose={() => {}} />
               )}
-
-              {/* Saved Questions section below if any */}
-              {savedQuestions.length > 0 && (
-                <section className="mt-16">
-                  <h3 className="text-[13px] font-bold text-[#94a3b8] mb-4 uppercase tracking-wider">
-                    Saved Questions
-                  </h3>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {savedQuestions.map((q, i) => (
-                      <motion.div
-                        key={q.id}
-                        layout
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: i * 0.05 }}
-                      >
-                        {activeId === q.id ? (
-                          <div className="sm:col-span-2">
-                            <QuestionCard question={q} onNext={() => setActiveId(null)} />
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => setActiveId(q.id)}
-                            className="w-full edu-card p-5 text-left"
-                          >
-                            <div className="flex items-start justify-between gap-2">
-                              <div>
-                                <span className="edu-chip bg-primary/10 text-primary mb-2">
-                                  {q.subject} · {q.topic}
-                                </span>
-                                <p className="text-sm font-bold text-foreground mt-2 line-clamp-2">
-                                  {q.question}
-                                </p>
-                              </div>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  unsaveQuestion(q.id);
-                                }}
-                                className="shrink-0 rounded-xl hover:bg-destructive/10 hover:text-destructive"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          </button>
-                        )}
-                      </motion.div>
-                    ))}
-                  </div>
-                </section>
-              )}
             </>
+          )}
+
+          {activeTab === "questions" && (
+            <section className="space-y-4">
+              {savedQuestionsCount === 0 ? (
+                <div className="edu-card p-8 sm:p-10 text-center rounded-2xl border-2 border-dashed border-border">
+                  <BookMarked className="w-12 h-12 mx-auto text-muted-foreground mb-4" aria-hidden />
+                  <h2 className="text-lg font-bold text-foreground tracking-tight">
+                    No saved questions yet
+                  </h2>
+                  <p className="text-sm text-muted-foreground mt-2 mb-5 max-w-md mx-auto leading-relaxed">
+                    Anything you save from the question bank while practising shows up in this list — same
+                    layout you see here: title, short context, and your count in the tab above.
+                  </p>
+                  <div className="text-left max-w-md mx-auto rounded-xl border border-border/60 bg-muted/20 px-4 py-3 mb-6 text-sm text-muted-foreground space-y-2">
+                    <p className="font-semibold text-foreground text-xs uppercase tracking-wide">
+                      How it works
+                    </p>
+                    <ol className="list-decimal list-inside space-y-1.5 leading-relaxed">
+                      <li>Go to Practice or open a topic with MCQs.</li>
+                      <li>Tap <strong className="text-foreground">Save</strong> on any question you want to revisit.</li>
+                      <li>Return here to swipe through saved items or tap one to practice in full.</li>
+                    </ol>
+                  </div>
+                  <Button variant="outline" className="rounded-xl font-semibold" asChild>
+                    <Link href="/play">
+                      Go to practice <ChevronRight className="w-4 h-4 ml-1" />
+                    </Link>
+                  </Button>
+                </div>
+              ) : savedQuestions.length === 0 ? (
+                <div className="edu-card p-8 sm:p-10 text-center rounded-2xl border-2 border-dashed border-border">
+                  <BookMarked className="w-12 h-12 mx-auto text-muted-foreground mb-4" aria-hidden />
+                  <h2 className="text-lg font-bold text-foreground tracking-tight">
+                    {savedQuestionsCount} saved question{savedQuestionsCount === 1 ? "" : "s"} on your
+                    account
+                  </h2>
+                  <p className="text-sm text-muted-foreground mt-2 mb-5 max-w-lg mx-auto leading-relaxed">
+                    The counter above is correct — those bookmarks are stored for you. This preview list
+                    only renders questions that exist in the on-device catalog, so very new or custom IDs
+                    may not appear as cards yet.
+                  </p>
+                  <p className="text-xs text-muted-foreground mb-6 max-w-md mx-auto leading-relaxed">
+                    Open <strong className="text-foreground">Explore</strong> or{" "}
+                    <strong className="text-foreground">Practice</strong> where you originally saved the
+                    question to work it again; your Revision dashboard badge still updates as soon as you
+                    save.
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-2 justify-center items-center">
+                    <Button variant="outline" className="rounded-xl font-semibold" asChild>
+                      <Link href="/play">
+                        Go to practice <ChevronRight className="w-4 h-4 ml-1" />
+                      </Link>
+                    </Button>
+                    <Button variant="ghost" className="rounded-xl font-semibold" asChild>
+                      <Link href="/explore-1">
+                        Go to Explore <ChevronRight className="w-4 h-4 ml-1" />
+                      </Link>
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <p className="text-sm text-muted-foreground leading-relaxed max-w-2xl">
+                    Below are the questions you saved, in the same card style as the rest of Revision: tap
+                    a row to open the full question, or use the trash icon to remove it from your bank.
+                  </p>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                  {savedQuestions.map((q, i) => (
+                    <motion.div
+                      key={q.id}
+                      layout
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.05 }}
+                    >
+                      {activeId === q.id ? (
+                        <div className="sm:col-span-2">
+                          <QuestionCard question={q} onNext={() => setActiveId(null)} />
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setActiveId(q.id)}
+                          className="w-full edu-card p-5 text-left border border-border rounded-xl"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <span className="edu-chip bg-primary/10 text-primary mb-2">
+                                {q.subject} · {q.topic}
+                              </span>
+                              <p className="text-sm font-bold text-foreground mt-2 line-clamp-2">
+                                {q.question}
+                              </p>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                unsaveQuestion(q.id);
+                              }}
+                              className="shrink-0 rounded-xl hover:bg-destructive/10 hover:text-destructive"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </button>
+                      )}
+                    </motion.div>
+                  ))}
+                </div>
+                </>
+              )}
+            </section>
           )}
 
           {activeTab === "saved" && (
@@ -441,9 +536,9 @@ const RevisionContent = () => {
               ) : savedBits.length === 0 && savedFormulas.length === 0 ? (
                 <div className="edu-card p-10 text-center rounded-2xl border-2 border-dashed border-border">
                   <BookMarked className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
-                  <p className="text-muted-foreground font-medium">No saved Bits or formulas yet</p>
+                  <p className="text-muted-foreground font-medium">No saved quizzes or formulas yet</p>
                   <p className="text-sm text-muted-foreground mt-1 mb-4">
-                    Use the Save button (bookmark icon) on Bits or Practice Formulas in any Deep
+                    Use the Save button (bookmark icon) on quizzes or Practice Formulas in any Deep
                     Dive section to add them here.
                   </p>
                   <Button variant="outline" className="rounded-xl" asChild>
@@ -458,7 +553,7 @@ const RevisionContent = () => {
                     <div>
                       <h3 className="text-[13px] font-bold text-[#94a3b8] mb-4 uppercase tracking-wider flex items-center gap-2">
                         <Zap className="w-4 h-4" />
-                        Saved Bits
+                        Saved quizzes
                       </h3>
                       <Accordion
                         type="multiple"

@@ -11,7 +11,7 @@ import { bumpUserStudyDayMs } from "@/lib/studyDayBump";
 import { fireAssignmentTaskSync } from "@/lib/classroom/syncAssignmentTaskProgress";
 import { shufflePlayQuestionOptions } from "@/lib/shufflePlayQuestionOptions";
 import { cn } from "@/lib/utils";
-import type { PlayDomain, PlayQuestionRow } from "@/types";
+import type { PlayDomain, PlayGauntletAnswerPayload, PlayQuestionRow } from "@/types";
 import { fetchDailyGauntletQuestionsWithFallback } from "@/lib/fetchPlayQuestionsAdaptiveWithFallback";
 import { Clock, Loader2 } from "lucide-react";
 
@@ -60,9 +60,7 @@ export default function InlineDailyGauntlet({
   const [bootLoading, setBootLoading] = useState(true);
   const [gauntletQuestions, setGauntletQuestions] = useState<PlayQuestionRow[]>([]);
   const [gauntletIndex, setGauntletIndex] = useState(0);
-  const [gauntletResults, setGauntletResults] = useState<
-    { question_id: string; is_correct: boolean; time_taken_ms: number }[]
-  >([]);
+  const [gauntletResults, setGauntletResults] = useState<PlayGauntletAnswerPayload[]>([]);
   const gauntletResultsRef = useRef(gauntletResults);
   useEffect(() => {
     gauntletResultsRef.current = gauntletResults;
@@ -96,7 +94,7 @@ export default function InlineDailyGauntlet({
   }, []);
 
   const submitGauntlet = useCallback(
-    async (results: { question_id: string; is_correct: boolean; time_taken_ms: number }[]) => {
+    async (results: PlayGauntletAnswerPayload[]) => {
       if (gauntletSubmitLockRef.current) return;
       gauntletSubmitLockRef.current = true;
       const today = todayUtc();
@@ -142,7 +140,12 @@ export default function InlineDailyGauntlet({
     if (!q) return;
     const prev = gauntletResultsRef.current;
     if (prev.some((r) => r.question_id === q.id)) return;
-    const row = { question_id: q.id, is_correct: false, time_taken_ms: GAUNTLET_Q_SEC * 1000 };
+    const row: PlayGauntletAnswerPayload = {
+      question_id: q.id,
+      is_correct: false,
+      time_taken_ms: GAUNTLET_Q_SEC * 1000,
+      selected_answer_index: null,
+    };
     const next = [...prev, row];
     gauntletResultsRef.current = next;
     setGauntletResults(next);
@@ -179,6 +182,7 @@ export default function InlineDailyGauntlet({
         question_id: qs[i]!.id,
         is_correct: false,
         time_taken_ms: GAUNTLET_Q_SEC * 1000,
+        selected_answer_index: null,
       });
     }
     gauntletResultsRef.current = existing;
@@ -246,7 +250,12 @@ export default function InlineDailyGauntlet({
     if (!gauntletQuestions[gauntletIndex]) return;
     const q = gauntletQuestions[gauntletIndex];
     const isCorrect = selectedIndex === q.correct_answer_index;
-    const newResult = { question_id: q.id, is_correct: isCorrect, time_taken_ms: timeTakenMs };
+    const newResult: PlayGauntletAnswerPayload = {
+      question_id: q.id,
+      is_correct: isCorrect,
+      time_taken_ms: timeTakenMs,
+      selected_answer_index: selectedIndex,
+    };
     const fullSoFar = [...gauntletResultsRef.current, newResult];
     setGauntletResults(fullSoFar);
   };

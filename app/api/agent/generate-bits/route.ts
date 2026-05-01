@@ -138,7 +138,7 @@ export async function POST(request: Request) {
       ? `\n\nRAG CONTEXT (trusted textbook snippets):\n${rag.formattedContext}`
       : "";
 
-    const baseSystemInstruction = `You are an expert ${subject} educator for CBSE Class ${classLevel}. Generate multiple-choice questions (Bits) from the provided subtopic theory.
+    const baseSystemInstruction = `You are an expert ${subject} educator for CBSE Class ${classLevel}. Generate multiple-choice quiz questions from the provided subtopic theory.
 Each question has:
 - question: The MCQ question text
 - options: Array of exactly 4 answer choices
@@ -229,7 +229,7 @@ ${existing.theory.slice(0, 16000)}${ragBlock}`;
     if (items.length < minBits) {
       return NextResponse.json(
         {
-          error: `Generated only ${items.length} Bits; minimum required is ${minBits}. Try regenerate again.`,
+          error: `Generated only ${items.length} quiz questions; minimum required is ${minBits}. Try regenerate again.`,
           code: "INSUFFICIENT_BITS",
           minRequired: minBits,
           generated: items.length,
@@ -269,7 +269,7 @@ ${existing.theory.slice(0, 16000)}${ragBlock}`;
           rag?.formattedContext
             ? `Fetch RAG context (${rag?.chunkCount ?? 0} chunks).`
             : "RAG returned no context.",
-          `Call Gemini "${modelId}" with Bits MCQ schema.`,
+          `Call Gemini "${modelId}" with quiz MCQ schema.`,
           `Generated ${items.length} questions. Saved to subtopic_content.bits_questions.`,
         ],
         prompts: { systemInstruction: baseSystemInstruction, userPrompt: baseUserPrompt },

@@ -18,6 +18,7 @@ import {
   type ReferChallengePublicSpec,
   type ReferClaimKey,
 } from "@/lib/referEarnChallenges";
+import { reportChallengeYourselfAttempt } from "@/lib/reportChallengeYourselfAttempt";
 import { cn } from "@/lib/utils";
 import type { PlayDomain } from "@/types";
 import {
@@ -273,7 +274,8 @@ export default function ReferEarnPage() {
     dailyRdmEarned + selectedCard.totalRdm > DAILY_CHALLENGE_RDM_CAP;
 
   const handleReferChallengeTerminal = useCallback(
-    (info: { claimKey: ReferClaimKey; outcome: "won" | "lost" }) => {
+    (_info: { claimKey: ReferClaimKey; outcome: "won" | "lost" }) => {
+      void reportChallengeYourselfAttempt();
       void loadGauntletMeta();
     },
     [loadGauntletMeta]

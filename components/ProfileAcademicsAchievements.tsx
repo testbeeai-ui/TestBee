@@ -14,11 +14,32 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { GraduationCap, Medal, Plus, Pencil, Trash2 } from "lucide-react";
+import {
+  GraduationCap,
+  Medal,
+  Plus,
+  Pencil,
+  Trash2,
+  Upload,
+  ExternalLink,
+  Loader2,
+} from "lucide-react";
 import type { AcademicRecord, Achievement } from "@/lib/publicProfileService";
+import { cn } from "@/lib/utils";
 
-type AcademicRow = { id: string } & AcademicRecord;
-type AchievementRow = { id: string } & Achievement;
+type AcademicRow = { id: string; marksheet_path: string | null } & AcademicRecord;
+type AchievementRow = { id: string; marksheet_path: string | null } & Achievement;
+
+const ACHIEVEMENT_MARKSHEET_BUCKET = "achievement-marksheets";
+const ACADEMIC_MARKSHEET_BUCKET = "academic-marksheets";
+
+type VerifiedStatus = AcademicRecord["verified"];
+
+const verificationChipClass: Record<VerifiedStatus, string> = {
+  verified: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
+  pending: "bg-amber-500/15 text-amber-700 dark:text-amber-400",
+  unverified: "bg-muted text-muted-foreground",
+} satisfies Record<VerifiedStatus, string>;
 
 const ACHIEVEMENT_LEVELS = ["School", "District", "State", "National", "International"] as const;
 
@@ -56,6 +77,7 @@ export default function ProfileAcademicsAchievements({ userId }: { userId: strin
           board: r.board,
           score: r.score,
           verified: r.verified as AcademicRecord["verified"],
+          marksheet_path: (r as { marksheet_path?: string | null }).marksheet_path ?? null,
         }))
       );
       setAchievements(
@@ -65,6 +87,9 @@ export default function ProfileAcademicsAchievements({ userId }: { userId: strin
           level: r.level as Achievement["level"],
           year: r.year,
           result: r.result ?? "",
+          percentage: (r as { percentage?: string }).percentage ?? "",
+          verified: ((r as { verified?: string }).verified ?? "pending") as Achievement["verified"],
+          marksheet_path: (r as { marksheet_path?: string | null }).marksheet_path ?? null,
         }))
       );
     } finally {
@@ -76,34 +101,82 @@ export default function ProfileAcademicsAchievements({ userId }: { userId: strin
     load();
   }, [userId]);
 
-  const handleAddAcademic = async (data: Omit<AcademicRecord, never>) => {
-    const { error } = await supabase.from("profile_academics").insert({
-      user_id: userId,
-      exam: data.exam,
-      board: data.board,
-      score: data.score,
-      verified: data.verified,
-    });
-    if (!error) {
-      setAcademicDialog({ open: false });
-      load();
+  const handleAddAcademic = async (
+    data: Pick<AcademicRecord, "exam" | "board" | "score">,
+    marksheetFile: File | null
+  ) => {
+    const { data: inserted, error } = await supabase
+      .from("profile_academics")
+      .insert({
+        user_id: userId,
+        exam: data.exam,
+        board: data.board,
+        score: data.score,
+        verified: "pending",
+      })
+      .select("id")
+      .single();
+
+    if (error || !inserted?.id) return;
+
+    if (marksheetFile) {
+      const safeName = marksheetFile.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const path = `${userId}/${inserted.id}/${Date.now()}-${safeName}`;
+      const { error: uploadErr } = await supabase.storage
+        .from(ACADEMIC_MARKSHEET_BUCKET)
+        .upload(path, marksheetFile, {
+          contentType: marksheetFile.type || undefined,
+        });
+      if (!uploadErr) {
+        await supabase.from("profile_academics").update({ marksheet_path: path }).eq("id", inserted.id);
+      }
     }
+
+    setAcademicDialog({ open: false });
+    load();
   };
 
-  const handleUpdateAcademic = async (id: string, data: AcademicRecord) => {
+  const handleUpdateAcademic = async (
+    id: string,
+    data: Pick<AcademicRecord, "exam" | "board" | "score">,
+    marksheetFile: File | null
+  ) => {
+    let newPath: string | undefined;
+    if (marksheetFile) {
+      const safeName = marksheetFile.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+      newPath = `${userId}/${id}/${Date.now()}-${safeName}`;
+      const { error: uploadErr } = await supabase.storage
+        .from(ACADEMIC_MARKSHEET_BUCKET)
+        .upload(newPath, marksheetFile, {
+          contentType: marksheetFile.type || undefined,
+        });
+      if (uploadErr) newPath = undefined;
+    }
+
     const { error } = await supabase
       .from("profile_academics")
       .update({
         exam: data.exam,
         board: data.board,
         score: data.score,
-        verified: data.verified,
+        ...(newPath !== undefined ? { marksheet_path: newPath } : {}),
+        verified: "pending",
         updated_at: new Date().toISOString(),
       })
       .eq("id", id);
+
     if (!error) {
       setAcademicDialog({ open: false });
       load();
+    }
+  };
+
+  const openAcademicMarksheet = async (path: string) => {
+    const { data, error } = await supabase.storage
+      .from(ACADEMIC_MARKSHEET_BUCKET)
+      .createSignedUrl(path, 120);
+    if (!error && data?.signedUrl) {
+      window.open(data.signedUrl, "_blank", "noopener,noreferrer");
     }
   };
 
@@ -112,21 +185,53 @@ export default function ProfileAcademicsAchievements({ userId }: { userId: strin
     load();
   };
 
-  const handleAddAchievement = async (data: Achievement) => {
-    const { error } = await supabase.from("profile_achievements").insert({
-      user_id: userId,
-      name: data.name,
-      level: data.level,
-      year: data.year,
-      result: data.result,
-    });
-    if (!error) {
-      setAchievementDialog({ open: false });
-      load();
+  const handleAddAchievement = async (data: Achievement, marksheetFile: File | null) => {
+    const { data: inserted, error } = await supabase
+      .from("profile_achievements")
+      .insert({
+        user_id: userId,
+        name: data.name,
+        level: data.level,
+        year: data.year,
+        result: data.result,
+        percentage: data.percentage,
+        verified: "pending",
+      })
+      .select("id")
+      .single();
+
+    if (error || !inserted?.id) return;
+
+    if (marksheetFile) {
+      const safeName = marksheetFile.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const path = `${userId}/${inserted.id}/${Date.now()}-${safeName}`;
+      const { error: uploadErr } = await supabase.storage
+        .from(ACHIEVEMENT_MARKSHEET_BUCKET)
+        .upload(path, marksheetFile, {
+          contentType: marksheetFile.type || undefined,
+        });
+      if (!uploadErr) {
+        await supabase.from("profile_achievements").update({ marksheet_path: path }).eq("id", inserted.id);
+      }
     }
+
+    setAchievementDialog({ open: false });
+    load();
   };
 
-  const handleUpdateAchievement = async (id: string, data: Achievement) => {
+  const handleUpdateAchievement = async (id: string, data: Achievement, marksheetFile: File | null) => {
+    let newPath: string | undefined;
+    if (marksheetFile) {
+      const safeName = marksheetFile.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+      newPath = `${userId}/${id}/${Date.now()}-${safeName}`;
+      const { error: uploadErr } = await supabase.storage
+        .from(ACHIEVEMENT_MARKSHEET_BUCKET)
+        .upload(newPath, marksheetFile, {
+          contentType: marksheetFile.type || undefined,
+        });
+      if (uploadErr) newPath = undefined;
+    }
+
     const { error } = await supabase
       .from("profile_achievements")
       .update({
@@ -134,9 +239,13 @@ export default function ProfileAcademicsAchievements({ userId }: { userId: strin
         level: data.level,
         year: data.year,
         result: data.result,
+        percentage: data.percentage,
+        ...(newPath !== undefined ? { marksheet_path: newPath } : {}),
+        verified: "pending",
         updated_at: new Date().toISOString(),
       })
       .eq("id", id);
+
     if (!error) {
       setAchievementDialog({ open: false });
       load();
@@ -146,6 +255,15 @@ export default function ProfileAcademicsAchievements({ userId }: { userId: strin
   const handleDeleteAchievement = async (id: string) => {
     await supabase.from("profile_achievements").delete().eq("id", id);
     load();
+  };
+
+  const openAchievementMarksheet = async (path: string) => {
+    const { data, error } = await supabase.storage
+      .from(ACHIEVEMENT_MARKSHEET_BUCKET)
+      .createSignedUrl(path, 120);
+    if (!error && data?.signedUrl) {
+      window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+    }
   };
 
   return (
@@ -181,15 +299,37 @@ export default function ProfileAcademicsAchievements({ userId }: { userId: strin
             {academics.map((a) => (
               <div
                 key={a.id}
-                className="flex items-center justify-between py-2 border-b border-border last:border-0 dark:border-white/10"
+                className="flex flex-col gap-2 py-3 border-b border-border last:border-0 dark:border-white/10 sm:flex-row sm:items-center sm:justify-between"
               >
-                <p className="font-semibold text-foreground dark:text-slate-100">
-                  {a.exam} — {a.board}
-                </p>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground dark:text-slate-400">
-                    {a.score}
-                  </span>
+                <div className="min-w-0 space-y-1">
+                  <p className="font-semibold text-foreground dark:text-slate-100">
+                    {a.exam} — {a.board}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span
+                      className={cn(
+                        "rounded-full px-2 py-0.5 text-[10px] font-bold capitalize",
+                        verificationChipClass[a.verified]
+                      )}
+                    >
+                      {a.verified}
+                    </span>
+                  </div>
+                  <p className="text-sm text-muted-foreground dark:text-slate-400">{a.score}</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                  {a.marksheet_path ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-8 rounded-xl text-xs font-bold gap-1"
+                      onClick={() => openAcademicMarksheet(a.marksheet_path!)}
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      Marksheet
+                    </Button>
+                  ) : null}
                   <Button
                     size="sm"
                     variant="ghost"
@@ -252,16 +392,42 @@ export default function ProfileAcademicsAchievements({ userId }: { userId: strin
             {achievements.map((a) => (
               <div
                 key={a.id}
-                className="flex items-center justify-between py-2 border-b border-border last:border-0 dark:border-white/10"
+                className="flex flex-col gap-2 py-3 border-b border-border last:border-0 dark:border-white/10 sm:flex-row sm:items-center sm:justify-between"
               >
-                <p className="font-semibold text-foreground dark:text-slate-100">{a.name}</p>
-                <div className="flex items-center gap-2">
-                  <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-bold text-muted-foreground dark:bg-slate-800 dark:text-slate-300">
-                    {a.level}
-                  </span>
-                  <span className="text-sm text-muted-foreground dark:text-slate-400">
-                    {a.year} — {a.result}
-                  </span>
+                <div className="min-w-0 space-y-1">
+                  <p className="font-semibold text-foreground dark:text-slate-100">{a.name}</p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-bold text-muted-foreground dark:bg-slate-800 dark:text-slate-300">
+                      {a.level}
+                    </span>
+                    <span
+                      className={cn(
+                        "rounded-full px-2 py-0.5 text-[10px] font-bold capitalize",
+                        verificationChipClass[a.verified]
+                      )}
+                    >
+                      {a.verified}
+                    </span>
+                  </div>
+                  <p className="text-sm text-muted-foreground dark:text-slate-400">
+                    {a.year}
+                    {a.result?.trim() ? ` · ${a.result}` : ""}
+                    {a.percentage?.trim() ? ` · ${a.percentage}` : ""}
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                  {a.marksheet_path ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-8 rounded-xl text-xs font-bold gap-1"
+                      onClick={() => openAchievementMarksheet(a.marksheet_path!)}
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      Marksheet
+                    </Button>
+                  ) : null}
                   <Button
                     size="sm"
                     variant="ghost"
@@ -289,21 +455,23 @@ export default function ProfileAcademicsAchievements({ userId }: { userId: strin
         open={academicDialog.open}
         edit={academicDialog.edit}
         onClose={() => setAcademicDialog({ open: false })}
-        onSave={(d) =>
+        onSave={(d, marksheetFile) =>
           academicDialog.edit
-            ? handleUpdateAcademic(academicDialog.edit.id, d)
-            : handleAddAcademic(d)
+            ? handleUpdateAcademic(academicDialog.edit.id, d, marksheetFile)
+            : handleAddAcademic(d, marksheetFile)
         }
+        onOpenMarksheet={openAcademicMarksheet}
       />
       <AchievementFormDialog
         open={achievementDialog.open}
         edit={achievementDialog.edit}
         onClose={() => setAchievementDialog({ open: false })}
-        onSave={(d) =>
+        onSave={(d, marksheetFile) =>
           achievementDialog.edit
-            ? handleUpdateAchievement(achievementDialog.edit.id, d)
-            : handleAddAchievement(d)
+            ? handleUpdateAchievement(achievementDialog.edit.id, d, marksheetFile)
+            : handleAddAchievement(d, marksheetFile)
         }
+        onOpenMarksheet={openAchievementMarksheet}
       />
     </>
   );
@@ -314,27 +482,40 @@ function AcademicFormDialog({
   edit,
   onClose,
   onSave,
+  onOpenMarksheet,
 }: {
   open: boolean;
   edit?: AcademicRow;
   onClose: () => void;
-  onSave: (d: AcademicRecord) => void;
+  onSave: (d: Pick<AcademicRecord, "exam" | "board" | "score">, marksheetFile: File | null) => void | Promise<void>;
+  onOpenMarksheet: (path: string) => void | Promise<void>;
 }) {
   const [exam, setExam] = useState("");
   const [board, setBoard] = useState("");
   const [score, setScore] = useState("");
-  const [verified, setVerified] = useState<AcademicRecord["verified"]>("unverified");
+  const [marksheetFile, setMarksheetFile] = useState<File | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const reset = () => {
     setExam(edit?.exam ?? "");
     setBoard(edit?.board ?? "");
     setScore(edit?.score ?? "");
-    setVerified(edit?.verified ?? "unverified");
+    setMarksheetFile(null);
+    setSaving(false);
   };
 
   const handleOpenChange = (o: boolean) => {
     if (o) reset();
     if (!o) onClose();
+  };
+
+  const handleSubmit = async () => {
+    setSaving(true);
+    try {
+      await onSave({ exam, board, score }, marksheetFile);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -375,26 +556,57 @@ function AcademicFormDialog({
             />
           </div>
           <div>
-            <Label htmlFor="verified">Verification</Label>
-            <select
-              id="verified"
-              aria-label="Verification status"
-              value={verified}
-              onChange={(e) => setVerified(e.target.value as AcademicRecord["verified"])}
-              className="mt-1 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm"
-            >
-              <option value="unverified">Unverified</option>
-              <option value="pending">Pending</option>
-              <option value="verified">Verified</option>
-            </select>
+            <Label className="flex items-center justify-between gap-2">
+              <span>Marksheet</span>
+              {edit?.marksheet_path ? (
+                <button
+                  type="button"
+                  className="text-xs font-bold text-primary hover:underline"
+                  onClick={() => onOpenMarksheet(edit.marksheet_path!)}
+                >
+                  View current
+                </button>
+              ) : null}
+            </Label>
+            <div className="mt-1 flex flex-col gap-2 sm:flex-row sm:items-center">
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp,application/pdf"
+                className="hidden"
+                id="academic-marksheet-file"
+                onChange={(e) => setMarksheetFile(e.target.files?.[0] ?? null)}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-xl font-bold gap-2 w-full sm:w-auto"
+                onClick={() => document.getElementById("academic-marksheet-file")?.click()}
+              >
+                <Upload className="w-4 h-4" />
+                {marksheetFile ? "Change file" : "Upload"}
+              </Button>
+              <span className="text-xs text-muted-foreground truncate">
+                {marksheetFile ? marksheetFile.name : "JPEG, PNG, WebP, or PDF · max 10 MB"}
+              </span>
+            </div>
           </div>
+          <p className="text-[11px] text-muted-foreground leading-snug">
+            Submissions are reviewed by admins before appearing on your public profile.
+          </p>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} className="rounded-xl">
+          <Button variant="outline" onClick={onClose} className="rounded-xl" disabled={saving}>
             Cancel
           </Button>
-          <Button onClick={() => onSave({ exam, board, score, verified })} className="rounded-xl">
-            Save
+          <Button onClick={() => void handleSubmit()} className="rounded-xl" disabled={saving}>
+            {saving ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                Saving…
+              </>
+            ) : (
+              "Save"
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -407,27 +619,54 @@ function AchievementFormDialog({
   edit,
   onClose,
   onSave,
+  onOpenMarksheet,
 }: {
   open: boolean;
   edit?: AchievementRow;
   onClose: () => void;
-  onSave: (d: Achievement) => void;
+  onSave: (d: Achievement, marksheetFile: File | null) => void | Promise<void>;
+  onOpenMarksheet: (path: string) => void | Promise<void>;
 }) {
   const [name, setName] = useState("");
   const [level, setLevel] = useState<Achievement["level"]>("School");
   const [year, setYear] = useState(String(new Date().getFullYear()));
   const [result, setResult] = useState("");
+  const [percentage, setPercentage] = useState("");
+  const [marksheetFile, setMarksheetFile] = useState<File | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const reset = () => {
     setName(edit?.name ?? "");
     setLevel(edit?.level ?? "School");
     setYear(String(edit?.year ?? new Date().getFullYear()));
     setResult(edit?.result ?? "");
+    setPercentage(edit?.percentage ?? "");
+    setMarksheetFile(null);
+    setSaving(false);
   };
 
   const handleOpenChange = (o: boolean) => {
     if (o) reset();
     if (!o) onClose();
+  };
+
+  const handleSubmit = async () => {
+    setSaving(true);
+    try {
+      await onSave(
+        {
+          name,
+          level,
+          year: parseInt(year, 10) || new Date().getFullYear(),
+          result,
+          percentage,
+          verified: edit?.verified ?? "pending",
+        },
+        marksheetFile
+      );
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -475,27 +714,74 @@ function AchievementFormDialog({
             />
           </div>
           <div>
-            <Label htmlFor="result">Result</Label>
+            <Label htmlFor="achievement-result">Rank/Medal</Label>
             <Input
-              id="result"
+              id="achievement-result"
               value={result}
               onChange={(e) => setResult(e.target.value)}
               placeholder="e.g. Gold Medal, 2nd Place"
               className="mt-1 rounded-xl"
             />
           </div>
+          <div>
+            <Label htmlFor="achievement-percentage">Percentage</Label>
+            <Input
+              id="achievement-percentage"
+              value={percentage}
+              onChange={(e) => setPercentage(e.target.value)}
+              placeholder="e.g. 95%, 450/500"
+              className="mt-1 rounded-xl"
+            />
+          </div>
+          <div>
+            <Label className="flex items-center justify-between gap-2">
+              <span>Marksheet</span>
+              {edit?.marksheet_path ? (
+                <button
+                  type="button"
+                  className="text-xs font-bold text-primary hover:underline"
+                  onClick={() => onOpenMarksheet(edit.marksheet_path!)}
+                >
+                  View current
+                </button>
+              ) : null}
+            </Label>
+            <div className="mt-1 flex flex-col gap-2 sm:flex-row sm:items-center">
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp,application/pdf"
+                className="hidden"
+                id="achievement-marksheet"
+                onChange={(e) => setMarksheetFile(e.target.files?.[0] ?? null)}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-xl font-bold gap-2 w-full sm:w-auto"
+                onClick={() => document.getElementById("achievement-marksheet")?.click()}
+              >
+                <Upload className="w-4 h-4" />
+                {marksheetFile ? "Change file" : "Upload"}
+              </Button>
+              <span className="text-xs text-muted-foreground truncate">
+                {marksheetFile ? marksheetFile.name : "JPEG, PNG, WebP, or PDF · max 10 MB"}
+              </span>
+            </div>
+          </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} className="rounded-xl">
+          <Button variant="outline" onClick={onClose} className="rounded-xl" disabled={saving}>
             Cancel
           </Button>
-          <Button
-            onClick={() =>
-              onSave({ name, level, year: parseInt(year, 10) || new Date().getFullYear(), result })
-            }
-            className="rounded-xl"
-          >
-            Save
+          <Button onClick={() => void handleSubmit()} className="rounded-xl" disabled={saving}>
+            {saving ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                Saving…
+              </>
+            ) : (
+              "Save"
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

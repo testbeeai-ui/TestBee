@@ -100,6 +100,11 @@ export default function AdminDashboardPage() {
     if (!data) return [];
     return [
       { label: "Total Users", value: formatNumber(data.kpis.totalUsers) },
+      {
+        label: "Teachers",
+        value: formatNumber(data.kpis.teacherUsers),
+        href: "/admin/teacher-portal/teachers",
+      },
       { label: "Active (30d)", value: formatNumber(data.kpis.active30d) },
       { label: "Total Doubts", value: formatNumber(data.kpis.totalDoubts) },
       { label: "Resolved Doubts", value: formatNumber(data.kpis.resolvedDoubts) },
@@ -141,9 +146,23 @@ export default function AdminDashboardPage() {
         <>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {kpiCards.map((item) => (
-              <Card key={item.label} size="sm">
+              <Card
+                key={item.label}
+                size="sm"
+                className={("href" in item ? "transition-colors hover:bg-muted/40" : "") as string}
+              >
                 <CardHeader className="pb-2">
-                  <CardDescription>{item.label}</CardDescription>
+                  <CardDescription className="flex items-center justify-between">
+                    <span>{item.label}</span>
+                    {"href" in item ? (
+                      <a
+                        href={item.href}
+                        className="text-xs font-medium text-primary hover:underline"
+                      >
+                        View
+                      </a>
+                    ) : null}
+                  </CardDescription>
                   <CardTitle className="text-2xl font-bold">{item.value}</CardTitle>
                 </CardHeader>
               </Card>

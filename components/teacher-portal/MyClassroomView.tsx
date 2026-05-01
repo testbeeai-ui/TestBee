@@ -9859,7 +9859,7 @@ export default function MyClassroomView({
 
 function restoreLatexEscapes(input: string): string {
   // If LaTeX was stored in JSON with single backslashes, sequences like "\text" become "\t" (TAB) + "ext".
-  // This restores the common ones we see in Bits questions.
+  // This restores the common ones we see in quiz questions.
   return input
     .replace(/\t(?=ext\{)/g, "\\\\t") // \text{...}
     .replace(/\u000c(?=rac\{)/g, "\\\\f") // \frac{...}{...}
@@ -9962,7 +9962,7 @@ function TaskPreviewBody(props: {
           if (!cancelled) setPayload({ testTitle: data.testTitle ?? props.title, questions });
         } else if (props.mode === "chapter-quiz-preview") {
           // Questions-only preview (no attempts). Use the same subtopic-content fetch + set slicing
-          // logic as `ChapterQuizAssignmentFields` (the "Bits preview" modal).
+          // logic as `ChapterQuizAssignmentFields` (the quiz preview modal).
           const ref = props.chapterQuizRef ?? null;
           const subject = (ref?.subject ?? "").trim().toLowerCase();
           const classLevelRaw = Number(ref?.classLevel);

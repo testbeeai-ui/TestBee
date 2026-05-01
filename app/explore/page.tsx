@@ -297,7 +297,7 @@ function TopicIntroQuiz({
   return (
     <div className="space-y-3">
       <p className="text-sm text-muted-foreground">
-        Quick Bits — see how much you already know before diving into the theory. Useful for
+        Quick quiz — see how much you already know before diving into the theory. Useful for
         revision!
       </p>
       <h4 className="font-semibold text-foreground text-sm">
@@ -702,7 +702,7 @@ const Explore = () => {
                 Units & Topics
               </h2>
               <p className="edu-page-desc mb-6 text-sm">
-                Click a unit to read theory by topic, use Bits to revise, then practice questions
+                Click a unit to read theory by topic, use quizzes to revise, then practice questions
               </p>
 
               {/* Topics by Class */}
@@ -833,7 +833,7 @@ const Explore = () => {
                   ))}
               </Accordion>
 
-              {/* Topic Intro Bits Dialog - Physical World and Measurement */}
+              {/* Topic intro quiz dialog */}
               <Dialog
                 open={!!topicIntroState}
                 onOpenChange={(open) => !open && setTopicIntroState(null)}
@@ -841,7 +841,7 @@ const Explore = () => {
                 <DialogContent className="rounded-2xl max-w-lg max-h-[85vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
-                      <Zap className="w-5 h-5 text-primary" /> Bits
+                      <Zap className="w-5 h-5 text-primary" /> Quiz
                       {topicIntroState && (
                         <span className="font-normal text-muted-foreground">
                           — {topicIntroState.topicNode.unitLabel} {topicIntroState.topicNode.topic}
@@ -931,7 +931,7 @@ const Explore = () => {
                   </span>
                   {/* 
                 <Button size="sm" variant="outline" onClick={() => setBitsAllPopup(true)} className="rounded-xl gap-1.5 font-bold">
-                  <Zap className="w-3.5 h-3.5 text-primary" /> Bits
+                  <Zap className="w-3.5 h-3.5 text-primary" /> Quiz
                 </Button>
                 */}
                   {getTopicCount(selectedSubject, selectedTopicNode.topic) > 0 && (
@@ -1124,7 +1124,7 @@ const Explore = () => {
                             onClick={() => setBitsPopup({ subtopicName: st.name, topicNode: selectedTopicNode, classLevel: selectedTopicClassLevel })}
                             className="rounded-xl gap-1.5 font-bold"
                           >
-                            <Zap className="w-3.5 h-3.5 text-primary" /> Bits
+                            <Zap className="w-3.5 h-3.5 text-primary" /> Quiz
                           </Button>
                           */}
                             {st.name === "Distance & Displacement" && (
@@ -1179,7 +1179,7 @@ const Explore = () => {
                   <DialogContent className="rounded-2xl max-w-lg max-h-[85vh] overflow-y-auto">
                     <DialogHeader>
                       <DialogTitle className="flex items-center gap-2">
-                        <Zap className="w-5 h-5 text-primary" /> Bits — {selectedTopicNode?.topic}
+                        <Zap className="w-5 h-5 text-primary" /> Quiz — {selectedTopicNode?.topic}
                       </DialogTitle>
                     </DialogHeader>
                     <p className="text-sm text-muted-foreground">
@@ -1192,7 +1192,7 @@ const Explore = () => {
                   <DialogContent className="rounded-2xl max-w-lg max-h-[85vh] overflow-y-auto">
                     <DialogHeader>
                       <DialogTitle className="flex items-center gap-2">
-                        <Zap className="w-5 h-5 text-primary" /> Bits
+                        <Zap className="w-5 h-5 text-primary" /> Quiz
                         {bitsPopup && (
                           <span className="font-normal text-muted-foreground">
                             — {bitsPopup.subtopicName}

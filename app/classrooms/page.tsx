@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,9 +17,24 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useRouter, usePathname } from "next/navigation";
-import { Plus, Users, Copy, BookOpen, School, Loader2, RotateCw } from "lucide-react";
+import {
+  Plus,
+  Users,
+  Copy,
+  BookOpen,
+  School,
+  Loader2,
+  RotateCw,
+  Check,
+  Search,
+  SlidersHorizontal,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { StarRatingBadge } from "@/components/StarRating";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { cn } from "@/lib/utils";
 
 interface Classroom {
   id: string;
@@ -47,7 +62,88 @@ interface ExploreClassroom {
   review_count?: number;
 }
 
-import { ProtectedRoute } from "@/components/ProtectedRoute";
+/** Normalized text from class fields for client-side filter/search (lowercase). */
+function exploreHaystack(c: ExploreClassroom): string {
+  return [c.name, c.subject, c.section, c.description]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+/**
+ * Quick filters for Explore — matches against name, subject, section, and description.
+ * (NEET is intentionally omitted from this list per product direction.)
+ */
+const EXPLORE_CLASS_FILTERS: { id: string; label: string; match: (hay: string) => boolean }[] = [
+  {
+    id: "puc-1",
+    label: "PUC-1",
+    match: (hay) =>
+      /\bpuc[\s_-]?1\b/.test(hay) ||
+      hay.includes("1st puc") ||
+      hay.includes("first puc") ||
+      hay.includes("i puc"),
+  },
+  {
+    id: "puc-2",
+    label: "PUC-2",
+    match: (hay) =>
+      /\bpuc[\s_-]?2\b/.test(hay) ||
+      hay.includes("2nd puc") ||
+      hay.includes("second puc") ||
+      hay.includes("ii puc"),
+  },
+  {
+    id: "physics",
+    label: "Physics",
+    match: (hay) => hay.includes("physics") || /\bphy\b/.test(hay),
+  },
+  {
+    id: "chemistry",
+    label: "Chemistry",
+    match: (hay) => hay.includes("chemistry") || /\bchem\b/.test(hay),
+  },
+  {
+    id: "mathematics",
+    label: "Mathematics",
+    match: (hay) =>
+      hay.includes("mathematics") || hay.includes("maths") || /\bmath\b/.test(hay),
+  },
+  {
+    id: "pcm",
+    label: "PCM",
+    match: (hay) =>
+      hay.includes("pcm") ||
+      (hay.includes("physics") &&
+        (hay.includes("chemistry") || hay.includes("chem")) &&
+        (hay.includes("math") || hay.includes("mathematics") || hay.includes("maths"))),
+  },
+  {
+    id: "cbse",
+    label: "CBSE",
+    match: (hay) => hay.includes("cbse"),
+  },
+  {
+    id: "jee",
+    label: "JEE",
+    match: (hay) => hay.includes("jee"),
+  },
+  {
+    id: "kcet",
+    label: "KCET",
+    match: (hay) => hay.includes("kcet"),
+  },
+];
+
+/** Visual groups only — same AND logic as selecting any combination of tags. */
+const EXPLORE_FILTER_GROUPS: { title: string; filterIds: string[] }[] = [
+  { title: "Grade / year", filterIds: ["puc-1", "puc-2"] },
+  { title: "Subjects", filterIds: ["physics", "chemistry", "mathematics"] },
+  { title: "Combo", filterIds: ["pcm"] },
+  { title: "Board & exams", filterIds: ["cbse", "jee", "kcet"] },
+];
+
+const QUICK_FILTERS_EXPANDED_STORAGE_KEY = "testbee:classrooms-explore-quick-filters-expanded";
 
 function ExploreClassesSection({
   exploreClassrooms,
@@ -59,7 +155,7 @@ function ExploreClassesSection({
   onOpenClass,
   onRefreshStatus,
   sectionTitle = "Explore classes",
-  sectionSubtitle = "Browse classes from teachers. Request to join — you'll be in once the teacher approves.",
+  sectionSubtitle = "Browse classes from teachers and express interest. You will be added once the teacher approves.",
   emptyStateTitle = "No classes to explore yet",
   emptyStateSubtitle = "Teachers with public profiles will show their classes here. Check back later or join with a code from your teacher.",
 }: {
@@ -78,6 +174,59 @@ function ExploreClassesSection({
   emptyStateTitle?: string;
   emptyStateSubtitle?: string;
 }) {
+  const [exploreSearch, setExploreSearch] = useState("");
+  const [selectedFilterIds, setSelectedFilterIds] = useState<string[]>([]);
+  const [quickFiltersOpen, setQuickFiltersOpen] = useState(true);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(QUICK_FILTERS_EXPANDED_STORAGE_KEY);
+      if (raw === "false") setQuickFiltersOpen(false);
+      if (raw === "true") setQuickFiltersOpen(true);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const toggleQuickFiltersOpen = useCallback(() => {
+    setQuickFiltersOpen((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem(QUICK_FILTERS_EXPANDED_STORAGE_KEY, String(next));
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  }, []);
+
+  const filteredExploreClassrooms = useMemo(() => {
+    const q = exploreSearch.trim().toLowerCase();
+    return exploreClassrooms.filter((c) => {
+      const hay = exploreHaystack(c);
+      if (q && !hay.includes(q)) return false;
+      for (const id of selectedFilterIds) {
+        const def = EXPLORE_CLASS_FILTERS.find((f) => f.id === id);
+        if (def && !def.match(hay)) return false;
+      }
+      return true;
+    });
+  }, [exploreClassrooms, exploreSearch, selectedFilterIds]);
+
+  const hasActiveFilters =
+    exploreSearch.trim().length > 0 || selectedFilterIds.length > 0;
+
+  const clearExploreFilters = () => {
+    setExploreSearch("");
+    setSelectedFilterIds([]);
+  };
+
+  const toggleExploreFilter = (id: string) => {
+    setSelectedFilterIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
   return (
     <div className="space-y-4">
       <div>
@@ -110,8 +259,161 @@ function ExploreClassesSection({
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {exploreClassrooms.map((c) => {
+          <div className="edu-card rounded-2xl border border-border p-4 space-y-3">
+            <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+              <div className="relative flex-1 min-w-0 max-w-xl">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                <Input
+                  type="search"
+                  placeholder="Search name, subject, board, exam…"
+                  value={exploreSearch}
+                  onChange={(e) => setExploreSearch(e.target.value)}
+                  className="pl-9 rounded-xl h-10 bg-background"
+                  aria-label="Search classes"
+                />
+              </div>
+              {hasActiveFilters && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="shrink-0 rounded-xl font-bold text-muted-foreground"
+                  onClick={clearExploreFilters}
+                >
+                  Clear filters
+                </Button>
+              )}
+            </div>
+            <div className="rounded-xl border border-border/70 bg-muted/20 overflow-hidden">
+              <button
+                type="button"
+                id="explore-quick-filters-trigger"
+                aria-expanded={quickFiltersOpen}
+                aria-controls="explore-quick-filters-panel"
+                onClick={toggleQuickFiltersOpen}
+                className={cn(
+                  "flex w-full items-center justify-between gap-3 text-left",
+                  "px-3 py-3 sm:px-4 sm:py-3.5 transition-colors",
+                  "hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                )}
+              >
+                <div className="flex min-w-0 flex-1 items-center gap-2 flex-wrap">
+                  <SlidersHorizontal className="w-4 h-4 text-primary shrink-0" aria-hidden />
+                  <span className="text-xs font-bold uppercase tracking-wide text-foreground">
+                    Quick filters
+                  </span>
+                  {selectedFilterIds.length > 0 ? (
+                    <span className="inline-flex items-center rounded-full bg-primary/15 px-2.5 py-0.5 text-[11px] font-extrabold text-primary">
+                      {selectedFilterIds.length} selected
+                    </span>
+                  ) : null}
+                  {!quickFiltersOpen && (
+                    <span className="hidden sm:inline text-[11px] text-muted-foreground font-medium truncate">
+                      Tap to expand and narrow results
+                    </span>
+                  )}
+                </div>
+                <span className="flex shrink-0 items-center gap-1 text-xs font-bold text-primary">
+                  {quickFiltersOpen ? (
+                    <>
+                      Hide
+                      <ChevronUp className="h-4 w-4" aria-hidden />
+                    </>
+                  ) : (
+                    <>
+                      Show
+                      <ChevronDown className="h-4 w-4" aria-hidden />
+                    </>
+                  )}
+                </span>
+              </button>
+
+              {quickFiltersOpen ? (
+                <div
+                  id="explore-quick-filters-panel"
+                  role="region"
+                  aria-labelledby="explore-quick-filters-trigger"
+                  className="border-t border-border/60 px-3 pb-3 pt-0 sm:px-4 sm:pb-4 space-y-4"
+                >
+                  <p className="text-[11px] text-muted-foreground leading-snug max-w-xl pt-3">
+                    Tap any tag to add or remove it.{" "}
+                    <span className="font-semibold text-foreground/90">
+                      All selected tags apply together
+                    </span>{" "}
+                    (class text must match each one — like narrowing down step by step).
+                  </p>
+
+                  <div className="space-y-3.5">
+                    {EXPLORE_FILTER_GROUPS.map((group) => (
+                      <div key={group.title}>
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/90 mb-2">
+                          {group.title}
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {group.filterIds.map((fid) => {
+                            const f = EXPLORE_CLASS_FILTERS.find((x) => x.id === fid);
+                            if (!f) return null;
+                            const on = selectedFilterIds.includes(f.id);
+                            return (
+                              <button
+                                key={f.id}
+                                type="button"
+                                aria-pressed={on}
+                                title={on ? "Remove filter" : "Add filter"}
+                                onClick={() => toggleExploreFilter(f.id)}
+                                className={cn(
+                                  "inline-flex items-center justify-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold transition-all min-h-[42px] sm:min-h-[40px]",
+                                  on
+                                    ? "border-primary bg-primary text-primary-foreground shadow-md ring-1 ring-primary/30"
+                                    : "border-border/80 bg-background/80 text-muted-foreground hover:border-primary/40 hover:bg-muted/60 hover:text-foreground active:scale-[0.98]"
+                                )}
+                              >
+                                <span
+                                  className={cn(
+                                    "flex h-5 w-5 shrink-0 items-center justify-center rounded border transition-colors",
+                                    on
+                                      ? "border-white/40 bg-white/20"
+                                      : "border-border bg-muted/50"
+                                  )}
+                                  aria-hidden
+                                >
+                                  {on ? <Check className="h-3 w-3 stroke-[3]" /> : null}
+                                </span>
+                                {f.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          </div>
+
+          {filteredExploreClassrooms.length === 0 ? (
+            <div className="text-center py-12 edu-card p-8 rounded-2xl border border-dashed border-border">
+              <School className="w-12 h-12 text-muted-foreground/50 mx-auto mb-3" />
+              <h3 className="font-display text-lg text-foreground mb-1">No matching classes</h3>
+              <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                Try different keywords or quick filters. Teachers label classes in the title, subject,
+                section, or description — matching is based on those fields.
+              </p>
+              {hasActiveFilters && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="mt-4 rounded-xl font-bold"
+                  onClick={clearExploreFilters}
+                >
+                  Clear search and filters
+                </Button>
+              )}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {filteredExploreClassrooms.map((c) => {
               const isMember = myMemberClassroomIds.has(c.id);
               const requestStatus = myRequestMap[c.id];
               return (
@@ -150,28 +452,40 @@ function ExploreClassesSection({
                       >
                         Open class
                       </Button>
+                    ) : requestStatus === "pending" ? (
+                      <Button
+                        type="button"
+                        disabled
+                        size="sm"
+                        variant="secondary"
+                        className="w-full rounded-xl font-bold gap-2 border border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                      >
+                        <Check className="w-4 h-4 shrink-0" />
+                        Sent
+                      </Button>
                     ) : (
                       <>
                         <Button
-                          onClick={() => onOpenClass(c.id)}
+                          type="button"
+                          onClick={() => onRequestJoin(c.id)}
+                          disabled={requestingId === c.id}
                           size="sm"
                           className="w-full rounded-xl font-bold gap-2 edu-btn-primary"
                         >
-                          Explore class
+                          {requestingId === c.id ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                              Sending…
+                            </>
+                          ) : (
+                            "Express interest"
+                          )}
                         </Button>
-                        {requestStatus === "pending" ? (
+                        {requestStatus === "rejected" ? (
                           <p className="text-xs text-center text-muted-foreground mt-2">
-                            Request sent · Pending. You can still explore.
+                            Your previous request was not approved. You can send interest again.
                           </p>
-                        ) : requestStatus === "rejected" ? (
-                          <p className="text-xs text-center text-muted-foreground mt-2">
-                            Reapply to join from inside the class.
-                          </p>
-                        ) : (
-                          <p className="text-xs text-center text-muted-foreground mt-2">
-                            Request to join from inside the class.
-                          </p>
-                        )}
+                        ) : null}
                       </>
                     )}
                   </div>
@@ -179,6 +493,7 @@ function ExploreClassesSection({
               );
             })}
           </div>
+          )}
         </>
       )}
     </div>
@@ -677,7 +992,7 @@ const Classrooms = () => {
               onRequestJoin={handleRequestJoin}
               onWithdrawRequest={handleWithdrawRequest}
               onOpenClass={(id) => router.push(`/classroom/${id}`)}
-              sectionSubtitle="Browse classes below and request to join, or use a code from your teacher with the button above."
+              sectionSubtitle="Browse classes below and express interest, or use a code from your teacher with the button above."
               onRefreshStatus={async () => {
                 await refetchExploreClassrooms({ silent: false, toastOnFailure: true });
                 await refetchMyRequestMap();

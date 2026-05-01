@@ -7,6 +7,8 @@ import {
   parseIsoDay,
   appendSubtopicBCompleteKey,
   removeSubtopicBCompleteKey,
+  appendInstacueReadCardIds,
+  sanitizeInstacueCardId,
   type DailyChecklistApiResponse,
 } from "@/lib/dailyChecklistState";
 import type { Subject } from "@/types";
@@ -46,6 +48,39 @@ function revisionCardsHaveAnySavedAt(rawCards: unknown): boolean {
     if (typeof at === "string" && at.trim() && Number.isFinite(Date.parse(at.trim()))) return true;
   }
   return false;
+}
+
+/** Card ids with savedAt in the local day window (timestamp-scoped saves). */
+function collectRevisionCardIdsSavedInRange(
+  rawCards: unknown,
+  dayStartMs: number,
+  dayEndMs: number
+): Set<string> {
+  const set = new Set<string>();
+  if (!Array.isArray(rawCards)) return set;
+  for (const c of rawCards) {
+    if (!c || typeof c !== "object" || Array.isArray(c)) continue;
+    const idRaw = (c as { id?: unknown }).id;
+    const at = (c as { savedAt?: unknown }).savedAt;
+    const id = sanitizeInstacueCardId(idRaw);
+    if (!id || typeof at !== "string") continue;
+    const ms = Date.parse(at.trim());
+    if (!Number.isFinite(ms)) continue;
+    if (ms >= dayStartMs && ms < dayEndMs) set.add(id);
+  }
+  return set;
+}
+
+/** All revision card ids in profile deck — used with legacy checklist counting when no savedAt exists. */
+function collectAllRevisionCardIds(rawCards: unknown): Set<string> {
+  const set = new Set<string>();
+  if (!Array.isArray(rawCards)) return set;
+  for (const c of rawCards) {
+    if (!c || typeof c !== "object" || Array.isArray(c)) continue;
+    const id = sanitizeInstacueCardId((c as { id?: unknown }).id);
+    if (id) set.add(id);
+  }
+  return set;
 }
 
 function engagementHasLessonCompleteInRange(
@@ -243,11 +278,26 @@ export async function GET(req: NextRequest) {
   const savedRevisionCardsDeckTotal = cards.length;
   const savedToday = countInstacueCardsSavedInRange(cards, dayStartMs, dayEndMs);
   const usesDailySavedAt = revisionCardsHaveAnySavedAt(cards);
+  /** Scalar “saves toward checklist” before reads union — legacy uses entire deck size. */
   const savedRevisionCardCount = usesDailySavedAt ? savedToday : savedRevisionCardsDeckTotal;
-  const instacueSessionDone =
-    savedRevisionCardCount >= MIN_SAVED_CARDS_INSTACUE && dayState.instacueSessionAck === true;
+
+  const readIdsStored = dayState.instacueReadCardIds ?? [];
+  const instacueReadCount = readIdsStored.length;
+
+  const saveIdSet = usesDailySavedAt
+    ? collectRevisionCardIdsSavedInRange(cards, dayStartMs, dayEndMs)
+    : collectAllRevisionCardIds(cards);
+  const readSet = new Set(readIdsStored);
+  const unionInstacue = new Set<string>([...saveIdSet, ...readSet]);
+  const instacueCombinedCount = unionInstacue.size;
+
+  /** Same bar as Lessons / Progress InstaCue row: 32 distinct cards (reads ∪ saves) today — no separate acknowledgement. */
+  const instacueSessionDone = instacueCombinedCount >= MIN_SAVED_CARDS_INSTACUE;
 
   const gyanPlusDone = focusMs >= FIVE_MIN_MS && savesToday >= 1 && communityActionsToday >= 1;
+
+  /** Checklist (e): any Refer & Earn challenge run completed today (win/lose on summary). */
+  const challengeYourselfDone = dayState.challengeYourselfAttempt === true;
 
   const body: DailyChecklistApiResponse = {
     today,
@@ -255,12 +305,15 @@ export async function GET(req: NextRequest) {
     subtopicRoutineDone,
     gyanPlusDone,
     instacueSessionDone,
+    challengeYourselfDone,
     gyanPlusProgress: {
       focusMs,
       savesToday,
       communityActionsToday,
     },
+    instacueCombinedCount,
     savedRevisionCardCount,
+    instacueReadCount,
     savedRevisionCardsDeckTotal,
   };
 
@@ -269,9 +322,14 @@ export async function GET(req: NextRequest) {
 
 type PatchBody =
   | { action: "instacue_ack"; today: string }
+  | { action: "instacue_read"; today: string; cardId: string }
+  | { action: "instacue_read_batch"; today: string; cardIds: string[] }
+  | { action: "challenge_yourself_attempt"; today: string }
   | { action: "doubts_focus"; today: string; addMs: number }
   | { action: "subtopic_b_credit"; today: string; engagementKey: string }
   | { action: "subtopic_b_revoke"; today: string; engagementKey: string };
+
+const MAX_INSTACUE_READ_BATCH = 100;
 
 const MAX_ADD_MS = 120_000;
 const MAX_DAY_FOCUS_MS = 86_400_000;
@@ -310,6 +368,45 @@ export async function PATCH(req: NextRequest) {
 
   if (body.action === "instacue_ack") {
     const next = mergeDayState(current, today, { instacueSessionAck: true });
+    const { error: wErr } = await sb
+      .from("profiles")
+      .update({ daily_checklist_state: next })
+      .eq("id", uid);
+    if (wErr) return NextResponse.json({ error: wErr.message }, { status: 500 });
+    return NextResponse.json({ ok: true });
+  }
+
+  if (body.action === "challenge_yourself_attempt") {
+    const next = mergeDayState(current, today, { challengeYourselfAttempt: true });
+    const { error: wErr } = await sb
+      .from("profiles")
+      .update({ daily_checklist_state: next })
+      .eq("id", uid);
+    if (wErr) return NextResponse.json({ error: wErr.message }, { status: 500 });
+    return NextResponse.json({ ok: true });
+  }
+
+  if (body.action === "instacue_read") {
+    const cardId = sanitizeInstacueCardId(body.cardId);
+    if (!cardId) {
+      return NextResponse.json({ error: "cardId required" }, { status: 400 });
+    }
+    const next = appendInstacueReadCardIds(current, today, [cardId]);
+    const { error: wErr } = await sb
+      .from("profiles")
+      .update({ daily_checklist_state: next })
+      .eq("id", uid);
+    if (wErr) return NextResponse.json({ error: wErr.message }, { status: 500 });
+    return NextResponse.json({ ok: true });
+  }
+
+  if (body.action === "instacue_read_batch") {
+    const raw = body.cardIds;
+    if (!Array.isArray(raw)) {
+      return NextResponse.json({ error: "cardIds must be an array" }, { status: 400 });
+    }
+    const slice = raw.slice(0, MAX_INSTACUE_READ_BATCH);
+    const next = appendInstacueReadCardIds(current, today, slice);
     const { error: wErr } = await sb
       .from("profiles")
       .update({ daily_checklist_state: next })

@@ -8,9 +8,30 @@ const DEMO_ACADEMICS = [
 ];
 
 const DEMO_ACHIEVEMENTS = [
-  { name: "Physics Olympiad", level: "State", year: 2024, result: "Bronze Medal" },
-  { name: "Science Fair", level: "School", year: 2023, result: "Best Project" },
-  { name: "Mock Test Topper", level: "District", year: 2025, result: "Rank 1" },
+  {
+    name: "Physics Olympiad",
+    level: "State",
+    year: 2024,
+    result: "Bronze Medal",
+    percentage: "Top 5%",
+    verified: "verified" as const,
+  },
+  {
+    name: "Science Fair",
+    level: "School",
+    year: 2023,
+    result: "Best Project",
+    percentage: "",
+    verified: "verified" as const,
+  },
+  {
+    name: "Mock Test Topper",
+    level: "District",
+    year: 2025,
+    result: "Rank 1",
+    percentage: "98%",
+    verified: "verified" as const,
+  },
 ];
 
 /**
@@ -124,6 +145,8 @@ export async function POST(request: Request) {
             level: a.level,
             year: a.year,
             result: a.result,
+            percentage: a.percentage,
+            verified: a.verified,
           });
           if (!error) achievementsCount++;
         }

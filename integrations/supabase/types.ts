@@ -732,6 +732,62 @@ export type Database = {
           },
         ];
       };
+      magic_wall_basket_items: {
+        Row: {
+          id: string;
+          user_id: string;
+          topic_key: string;
+          board: string;
+          subject: string;
+          class_level: number;
+          exam_type: string | null;
+          unit_name: string | null;
+          chapter_title: string | null;
+          topic_name: string;
+          source: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          topic_key: string;
+          board?: string;
+          subject: string;
+          class_level: number;
+          exam_type?: string | null;
+          unit_name?: string | null;
+          chapter_title?: string | null;
+          topic_name: string;
+          source?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          topic_key?: string;
+          board?: string;
+          subject?: string;
+          class_level?: number;
+          exam_type?: string | null;
+          unit_name?: string | null;
+          chapter_title?: string | null;
+          topic_name?: string;
+          source?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "magic_wall_basket_items_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       mock_papers: {
         Row: {
           id: string;
@@ -1161,6 +1217,50 @@ export type Database = {
           },
         ];
       };
+      refer_challenge_claims: {
+        Row: {
+          user_id: string;
+          claim_date: string;
+          challenge_key: string;
+          win_claimed: boolean;
+          share_claimed: boolean;
+          win_claimed_at: string | null;
+          share_claimed_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          claim_date: string;
+          challenge_key: string;
+          win_claimed?: boolean;
+          share_claimed?: boolean;
+          win_claimed_at?: string | null;
+          share_claimed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          user_id?: string;
+          claim_date?: string;
+          challenge_key?: string;
+          win_claimed?: boolean;
+          share_claimed?: boolean;
+          win_claimed_at?: string | null;
+          share_claimed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "refer_challenge_claims_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       posts: {
         Row: {
           classroom_id: string;
@@ -1326,6 +1426,62 @@ export type Database = {
           visibility?: string;
         };
         Relationships: [];
+      };
+      student_learning_dwell_events: {
+        Row: {
+          id: string;
+          user_id: string;
+          occurred_at: string;
+          board: string;
+          subject: string;
+          class_level: number;
+          topic: string;
+          subtopic_name: string;
+          level: string;
+          panel: string;
+          delta_ms: number;
+          bits_question_index: number | null;
+          client_session_id: string | null;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          occurred_at?: string;
+          board: string;
+          subject: string;
+          class_level: number;
+          topic: string;
+          subtopic_name: string;
+          level: string;
+          panel: string;
+          delta_ms: number;
+          bits_question_index?: number | null;
+          client_session_id?: string | null;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          occurred_at?: string;
+          board?: string;
+          subject?: string;
+          class_level?: number;
+          topic?: string;
+          subtopic_name?: string;
+          level?: string;
+          panel?: string;
+          delta_ms?: number;
+          bits_question_index?: number | null;
+          client_session_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "student_learning_dwell_events_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       subject_topic_chat_messages: {
         Row: {
@@ -1964,6 +2120,8 @@ export type Database = {
           question_id: string;
           is_correct: boolean;
           time_taken_ms: number | null;
+          pool_key: string | null;
+          selected_answer_index: number | null;
           created_at: string;
         };
         Insert: {
@@ -1972,6 +2130,8 @@ export type Database = {
           question_id: string;
           is_correct: boolean;
           time_taken_ms?: number | null;
+          pool_key?: string | null;
+          selected_answer_index?: number | null;
           created_at?: string;
         };
         Update: {
@@ -1980,6 +2140,8 @@ export type Database = {
           question_id?: string;
           is_correct?: boolean;
           time_taken_ms?: number | null;
+          pool_key?: string | null;
+          selected_answer_index?: number | null;
           created_at?: string;
         };
         Relationships: [
@@ -2042,6 +2204,7 @@ export type Database = {
           board: string;
           score: string;
           verified: string;
+          marksheet_path: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -2052,6 +2215,7 @@ export type Database = {
           board?: string;
           score?: string;
           verified?: string;
+          marksheet_path?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -2062,6 +2226,7 @@ export type Database = {
           board?: string;
           score?: string;
           verified?: string;
+          marksheet_path?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -2083,6 +2248,9 @@ export type Database = {
           level: string;
           year: number;
           result: string;
+          percentage: string;
+          marksheet_path: string | null;
+          verified: string;
           created_at: string;
           updated_at: string;
         };
@@ -2093,6 +2261,9 @@ export type Database = {
           level: string;
           year: number;
           result?: string;
+          percentage?: string;
+          marksheet_path?: string | null;
+          verified?: string;
           created_at?: string;
           updated_at?: string;
         };
@@ -2103,6 +2274,9 @@ export type Database = {
           level?: string;
           year?: number;
           result?: string;
+          percentage?: string;
+          marksheet_path?: string | null;
+          verified?: string;
           created_at?: string;
           updated_at?: string;
         };
@@ -2242,6 +2416,7 @@ export type Database = {
           p_time_taken_ms?: number | null;
           p_category?: string | null;
           p_pool_key?: string | null;
+          p_selected_answer_index?: number | null;
         };
         Returns: undefined;
       };

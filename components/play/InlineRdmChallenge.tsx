@@ -203,6 +203,7 @@ export default function InlineRdmChallenge({
       p_time_taken_ms: timeTakenMs,
       p_category: null,
       p_pool_key: spec.playCategory,
+      p_selected_answer_index: selectedIndex,
     });
     void bumpUserStudyDayMs(timeTakenMs);
     const row = { question_id: q.id, is_correct: isCorrect, time_taken_ms: timeTakenMs };

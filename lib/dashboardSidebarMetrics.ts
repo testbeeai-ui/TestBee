@@ -7,11 +7,40 @@ export function countInstacueRevisionDue(cards: SavedRevisionCard[] | undefined 
 }
 
 /** RDM gates for EduFund tier labels (aligned with dashboard tier story; amounts are UI hints only). */
-const EDUFUND_RDM_GATES = [
+export const EDUFUND_RDM_GATES = [
   { need: 1000, name: "Sprout" },
   { need: 3000, name: "Scholar" },
   { need: 8000, name: "Champion" },
 ] as const;
+
+/** Minimum RDM (Sprout) required to compose an EduFund proposal in the app UI. */
+export const EDUFUND_MIN_RDM_CREATE_PROPOSAL = EDUFUND_RDM_GATES[0].need;
+
+/** Next tier gate if below Champion; null if already at or above final gate. */
+export function getEdufundNextGate(
+  rdm: number
+): (typeof EDUFUND_RDM_GATES)[number] | null {
+  const n = Math.max(0, Math.floor(rdm));
+  return EDUFUND_RDM_GATES.find((g) => n < g.need) ?? null;
+}
+
+/** RDM still needed to reach the next tier (0 if at max tier). */
+export function getEdufundRdmShortfallToNext(rdm: number): number {
+  const next = getEdufundNextGate(rdm);
+  if (!next) return 0;
+  const n = Math.max(0, Math.floor(rdm));
+  return Math.max(0, next.need - n);
+}
+
+/** Whole days needed at a steady daily earn rate (ceil); null if rate invalid. */
+export function estimateDaysToEarnRdmAtDailyRate(
+  rdmNeeded: number,
+  dailyRdm: number
+): number | null {
+  if (rdmNeeded <= 0) return 0;
+  if (dailyRdm <= 0) return null;
+  return Math.ceil(rdmNeeded / dailyRdm);
+}
 
 /** Short badge: RDM remaining to next named tier, or null if at/over final gate. */
 export function formatEdufundRdmBadge(rdm: number): string | null {
