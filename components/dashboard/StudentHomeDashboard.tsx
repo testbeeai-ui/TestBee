@@ -883,8 +883,7 @@ export default function StudentHomeDashboard() {
                   dailyChecklist.instacueCombinedCount < 32 ? (
                     <span className="mt-1 block text-[11px] text-muted-foreground">
                       InstaCue reads logged: {dailyChecklist.instacueReadCount}/32
-                      {dailyChecklist.instacueCombinedCount !==
-                      dailyChecklist.instacueReadCount ? (
+                      {dailyChecklist.instacueCombinedCount !== dailyChecklist.instacueReadCount ? (
                         <>
                           {" "}
                           · {dailyChecklist.instacueCombinedCount}/32 toward unlock (includes
