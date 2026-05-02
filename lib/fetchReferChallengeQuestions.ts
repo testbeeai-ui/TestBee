@@ -6,7 +6,7 @@ import { fetchPlayQuestionsDomainRandom } from "@/lib/fetchPlayQuestionsDomainRa
 import type { PlayDomain, PlayQuestionRow } from "@/types";
 
 /**
- * Refer & Earn inline challenges — fixed pools (do not rely on spec.playCategory alone):
+ * Earn & Learn inline challenges — fixed pools (do not rely on spec.playCategory alone):
  * - MentaMill (5 RDM): **mental_math only** (same domain as Funbrain, single category).
  * - FunBrain Quiz (10 RDM): **entire funbrain domain** (verbal, quant, analytical, puzzles, GK, mental math, …)
  *   via `funbrain_all` adaptive pool (separate cycle key from Daily Gauntlet’s `funbrain_gauntlet`).

@@ -282,7 +282,7 @@ const RevisionContent = () => {
     () => [
       { id: "instacue" as const, label: "InstaCue Cards", count: displayCards.length },
       { id: "units" as const, label: "Unit Revision", count: savedRevisionUnits.length },
-      { id: "saved" as const, label: "Saved Bits & Formulas", count: savedTabBadgeCount },
+      { id: "saved" as const, label: "Saved Quiz & Formulas", count: savedTabBadgeCount },
       {
         id: "community" as const,
         label: "Community Posts",
@@ -305,7 +305,7 @@ const RevisionContent = () => {
       : activeTab === "units"
         ? "Unit Revision"
         : activeTab === "saved"
-          ? "Saved Bits & Formulas"
+          ? "Saved Quiz & Formulas"
           : activeTab === "community"
             ? "Community Posts"
             : "Saved Questions";

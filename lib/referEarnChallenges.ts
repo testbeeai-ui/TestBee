@@ -2,7 +2,7 @@ import type { PlayDomain } from "@/types";
 
 export type ReferClaimKey = "5" | "10" | "20" | "50";
 
-/** Refer & Earn RDM targets — separate rules from /play Daily Gauntlet or streak. */
+/** Earn & Learn (refer-earn) RDM targets — separate rules from /play Daily Gauntlet or streak. */
 export type ReferChallengePublicSpec = {
   key: ReferClaimKey;
   /** Win reward (claim once/day/challenge after passing). */

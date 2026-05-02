@@ -29,6 +29,7 @@ import {
   GraduationCap,
   ChevronRight,
   Flame,
+  IndianRupee,
   Laptop,
   BookOpen,
   FlaskConical,
@@ -44,6 +45,15 @@ import {
 
 /** Illustrative daily earn rate for “days to next tier” copy (not a guarantee). */
 const ASSUMED_DAILY_RDM = 100;
+
+/** Investor-aligned proposal unlock amount shown at each EduFund tier. */
+const EDUFUND_UNLOCK_AMOUNT_BY_TIER = {
+  Sprout: 3000,
+  Scholar: 15000,
+  Champion: 50000,
+  Elite: 100000,
+  MasterBlaster: 200000,
+} as const;
 
 const CATEGORY_OPTIONS: { value: ProposalCategory; label: string; Icon: typeof Laptop }[] = [
   { value: "Learning Device", label: "Learning Device", Icon: Laptop },
@@ -251,6 +261,12 @@ export default function EduFundPage() {
   const daysToNextAtRate =
     nextGate != null
       ? estimateDaysToEarnRdmAtDailyRate(shortfallToNext, ASSUMED_DAILY_RDM)
+      : null;
+  const unlockAmountAtNextTier =
+    nextGate != null
+      ? EDUFUND_UNLOCK_AMOUNT_BY_TIER[
+          nextGate.name as keyof typeof EDUFUND_UNLOCK_AMOUNT_BY_TIER
+        ] ?? null
       : null;
   const [communityMembers, setCommunityMembers] = useState<{ id: string; name: string }[]>([]);
 
@@ -470,7 +486,7 @@ export default function EduFundPage() {
         </div>
 
         <Dialog open={requirementsOpen} onOpenChange={setRequirementsOpen}>
-          <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl">
+          <DialogContent className="w-[calc(100vw-1rem)] max-w-[1360px] max-h-[92vh] overflow-y-auto rounded-2xl p-3 sm:w-[min(96vw,1360px)] sm:p-4 lg:p-5">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 font-display text-xl">
                 <Lock className="h-5 w-5 text-primary shrink-0" />
@@ -478,97 +494,155 @@ export default function EduFundPage() {
               </DialogTitle>
               <DialogDescription className="text-left space-y-3 pt-1">
                 <span className="block text-muted-foreground">
-                  EduFund proposals unlock step‑by‑step as you earn{" "}
-                  <strong className="text-foreground">RDM</strong> (Reward &amp; Drive Marks) through
-                  learning activity on the platform.
+                  EduFund proposals unlock step by step as you earn{" "}
+                  <strong className="text-foreground">RDM</strong> through learning and engagement activity on
+                  the platform.
                 </span>
               </DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-4 py-2">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">
-                  EduFund tiers (RDM thresholds)
+            <div className="grid grid-cols-1 gap-2.5 py-1 sm:gap-3 lg:grid-cols-2 lg:items-start">
+              <section className="h-full rounded-xl border border-border/70 bg-muted/10 p-2.5 sm:p-3 lg:p-4">
+                <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                  EduFund tiers (RDM thresholds + unlocked amount)
                 </p>
-                <ul className="rounded-xl border border-border divide-y divide-border overflow-hidden text-sm">
-                  {EDUFUND_RDM_GATES.map((g) => (
-                    <li
-                      key={g.name}
-                      className="flex items-center justify-between gap-3 px-3 py-2.5 bg-muted/30"
-                    >
-                      <span className="font-semibold text-foreground flex items-center gap-2">
-                        <Sparkles className="h-3.5 w-3.5 text-edu-yellow shrink-0" />
-                        {g.name}
-                      </span>
-                      <span className="text-muted-foreground tabular-nums">
-                        {g.need.toLocaleString("en-IN")} RDM
-                      </span>
-                    </li>
-                  ))}
+                <ul className="mt-2 space-y-2 text-sm">
+                  {EDUFUND_RDM_GATES.map((g) => {
+                    const tierUnlockAmount =
+                      EDUFUND_UNLOCK_AMOUNT_BY_TIER[
+                        g.name as keyof typeof EDUFUND_UNLOCK_AMOUNT_BY_TIER
+                      ] ?? 0;
+                    return (
+                      <li key={g.name} className="rounded-lg border border-border/80 bg-card/40 px-3 py-2.5">
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="font-semibold text-foreground flex items-center gap-2">
+                            <Sparkles className="h-3.5 w-3.5 text-edu-yellow shrink-0" />
+                            {g.name}
+                          </span>
+                          <span className="text-muted-foreground tabular-nums">
+                            {g.need.toLocaleString("en-IN")} RDM
+                          </span>
+                        </div>
+                        <div className="mt-1.5 flex items-center justify-between rounded-md border border-emerald-500/25 bg-emerald-500/10 px-2 py-1">
+                          <span className="inline-flex items-center gap-1 text-[11px] sm:text-xs font-medium text-emerald-200">
+                            <IndianRupee className="h-3 w-3" />
+                            Amount unlocked
+                          </span>
+                          <span className="text-sm font-bold tabular-nums text-emerald-300">
+                            {formatAmount(tierUnlockAmount)}
+                          </span>
+                        </div>
+                      </li>
+                    );
+                  })}
                 </ul>
-                <p className="text-xs text-muted-foreground mt-2">
+                <p className="mt-2 text-[11px] sm:text-xs leading-snug text-muted-foreground">
                   <strong className="text-foreground">Sprout</strong>,{" "}
-                  <strong className="text-foreground">Scholar</strong>, and{" "}
-                  <strong className="text-foreground">Champion</strong> mark EduFund benefit tiers on the
-                  platform. Starting a proposal from this screen is not turned on yet — these thresholds
-                  still describe how RDM maps to future grants and visibility.
+                  <strong className="text-foreground">Scholar</strong>,{" "}
+                  <strong className="text-foreground">Champion</strong>,{" "}
+                  <strong className="text-foreground">Elite</strong>, and{" "}
+                  <strong className="text-foreground">MasterBlaster</strong> mark EduFund benefit tiers on
+                  the platform. Starting a proposal from this screen is not turned on yet — these
+                  thresholds still describe how RDM maps to future grants and visibility.
                 </p>
-              </div>
+              </section>
 
-              <div className="rounded-xl border border-primary/25 bg-primary/5 p-4 space-y-3">
-                <div className="flex justify-between gap-3 text-sm">
-                  <span className="text-muted-foreground">Your current RDM</span>
-                  <span className="font-bold text-foreground tabular-nums">
-                    {userRdm.toLocaleString("en-IN")}
-                  </span>
-                </div>
-                {nextGate ? (
-                  <>
-                    <div className="flex justify-between gap-3 text-sm">
-                      <span className="text-muted-foreground">
-                        Nearest tier slab (<strong className="text-foreground">{nextGate.name}</strong>)
-                      </span>
-                      <span className="font-semibold text-foreground tabular-nums">
-                        {nextGate.need.toLocaleString("en-IN")} RDM
-                      </span>
-                    </div>
-                    <div className="flex justify-between gap-3 text-sm border-t border-border/60 pt-3">
-                      <span className="text-muted-foreground">Your eligibility shortfall</span>
-                      <span className="font-bold text-destructive tabular-nums">
-                        {shortfallToNext.toLocaleString("en-IN")} RDM
-                      </span>
-                    </div>
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      If you earn about{" "}
-                      <strong className="text-foreground">{ASSUMED_DAILY_RDM} RDM per day</strong>, you
-                      could reach the <strong className="text-foreground">{nextGate.name}</strong> tier
-                      in approximately{" "}
-                      <strong className="text-foreground">
-                        {daysToNextAtRate != null ? daysToNextAtRate : "—"}
-                      </strong>{" "}
-                      day
-                      {daysToNextAtRate === 1 ? "" : "s"}
-                      {daysToNextAtRate == null ? " (set a positive earn rate)" : ""}. Actual pace
-                      depends on how much you study and engage.
-                    </p>
-                  </>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    You are at or above the highest RDM tier shown here (
-                    {EDUFUND_RDM_GATES[EDUFUND_RDM_GATES.length - 1]?.name}
-                    ). In-app proposal submission remains closed until we enable it for everyone.
+              <section className="h-full rounded-xl border border-border/70 bg-muted/20 p-2.5 text-[11px] sm:text-xs leading-snug text-muted-foreground space-y-2.5 sm:space-y-3 sm:p-3 lg:p-4">
+                <div className="rounded-xl border border-primary/25 bg-primary/5 p-3 space-y-2">
+                  <p className="text-[11px] sm:text-xs font-bold uppercase tracking-wide text-primary/90">
+                    Eligibility Snapshot
                   </p>
-                )}
-              </div>
+                  <div className="flex justify-between gap-3 text-sm">
+                    <span className="text-muted-foreground">Your current RDM</span>
+                    <span className="font-bold text-foreground tabular-nums">
+                      {userRdm.toLocaleString("en-IN")}
+                    </span>
+                  </div>
+                  {nextGate ? (
+                    <>
+                      <div className="flex justify-between gap-3 text-sm">
+                        <span className="text-muted-foreground">
+                          Nearest tier slab (<strong className="text-foreground">{nextGate.name}</strong>)
+                        </span>
+                        <span className="font-semibold text-foreground tabular-nums">
+                          {nextGate.need.toLocaleString("en-IN")} RDM
+                        </span>
+                      </div>
+                      <div className="flex justify-between gap-3 text-sm border-t border-border/60 pt-2.5">
+                        <span className="text-muted-foreground">Your eligibility shortfall</span>
+                        <span className="font-bold text-destructive tabular-nums">
+                          {shortfallToNext.toLocaleString("en-IN")} RDM
+                        </span>
+                      </div>
+                      {unlockAmountAtNextTier != null ? (
+                        <div className="flex justify-between gap-3 text-sm border-t border-border/60 pt-2.5">
+                          <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                            <IndianRupee className="h-3.5 w-3.5 text-emerald-300" />
+                            Amount unlocked at{" "}
+                            <strong className="text-foreground">{nextGate.name}</strong>
+                          </span>
+                          <span className="font-bold tabular-nums text-emerald-300">
+                            {formatAmount(unlockAmountAtNextTier)}
+                          </span>
+                        </div>
+                      ) : null}
+                      <p className="text-[11px] sm:text-xs leading-snug text-muted-foreground">
+                        At about <strong className="text-foreground">{ASSUMED_DAILY_RDM} RDM/day</strong>,
+                        you may reach <strong className="text-foreground">{nextGate.name}</strong> in{" "}
+                        <strong className="text-foreground">
+                          {daysToNextAtRate != null ? daysToNextAtRate : "—"}
+                        </strong>{" "}
+                        day{daysToNextAtRate === 1 ? "" : "s"}
+                        {daysToNextAtRate == null ? " (set a positive earn rate)" : ""}. Unlocking{" "}
+                        <strong className="text-foreground">{nextGate.name}</strong> can open up to{" "}
+                        <strong className="text-foreground">
+                          {unlockAmountAtNextTier != null ? formatAmount(unlockAmountAtNextTier) : "—"}
+                        </strong>{" "}
+                        proposal amount.
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      You are at or above the highest RDM tier shown here (
+                      {EDUFUND_RDM_GATES[EDUFUND_RDM_GATES.length - 1]?.name}). In-app proposal submission
+                      remains closed until we enable it for everyone.
+                    </p>
+                  )}
+                </div>
 
-              <p className="text-xs text-muted-foreground border-t border-border pt-3">
-                When proposals open for applications, publishing will require good standing (e.g. accepted
-                answers, account age) like in the eligibility panel. For now, self-serve proposal creation
-                is unavailable here regardless of RDM.
-              </p>
+                <div className="rounded-xl border border-border/70 bg-card/30 p-3 space-y-1.5">
+                  <p className="text-[11px] sm:text-xs font-bold uppercase tracking-wide text-primary/90">
+                    Investor Notes
+                  </p>
+                  <p>
+                    <strong className="text-foreground">Note:</strong> MasterBlaster can unlock scholarships
+                    upto INR 10L once they get a Rank in recognized college.
+                  </p>
+                  <p>
+                    <strong className="text-foreground">Imp:</strong> Although you can unlock funds, such
+                    diligence on its own can make a student get a high Board marks + a Rank in recognized
+                    competitive exam.
+                  </p>
+                  <p>
+                    <strong className="text-foreground">Total EduFund grants:</strong>{" "}
+                    <strong className="text-foreground">₹90,000</strong> can be raised through consistent
+                    learning alone in <strong className="text-foreground">12 months</strong>.
+                  </p>
+                  <p>
+                    <strong className="text-foreground">Note:</strong> The unlocked amount is the amount for
+                    which the student can create proposal to raise fund from philanthropists and/or NGOs.
+                  </p>
+                </div>
+
+                <p className="text-[11px] sm:text-xs leading-snug text-muted-foreground border-t border-border pt-2.5">
+                  <strong className="text-foreground">Policy:</strong> You can&apos;t submit a proposal from
+                  this screen yet — even if your RDM is high. When applications open, we&apos;ll ask for a
+                  healthy account (similar checks to the eligibility panel on this page).
+                </p>
+              </section>
             </div>
 
-            <DialogFooter className="flex-col sm:flex-row gap-2 sm:justify-between">
+            <DialogFooter className="flex-col gap-2 pt-1 sm:flex-row sm:justify-between">
               <Button variant="outline" className="rounded-xl font-bold" asChild>
                 <Link href="/refer-earn">Earn RDM</Link>
               </Button>
@@ -589,10 +663,6 @@ export default function EduFundPage() {
                 </Button>
               </div>
             </DialogFooter>
-            <p className="text-center text-xs text-destructive -mt-1 pb-1">
-              You cannot start a proposal from here yet — even at Sprout or above. Watch this space for when
-              applications open.
-            </p>
           </DialogContent>
         </Dialog>
 

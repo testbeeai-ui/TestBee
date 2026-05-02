@@ -296,7 +296,7 @@ export async function GET(req: NextRequest) {
 
   const gyanPlusDone = focusMs >= FIVE_MIN_MS && savesToday >= 1 && communityActionsToday >= 1;
 
-  /** Checklist (e): any Refer & Earn challenge run completed today (win/lose on summary). */
+  /** Checklist (e): any Earn & Learn challenge run completed today (win/lose on summary). */
   const challengeYourselfDone = dayState.challengeYourselfAttempt === true;
 
   const body: DailyChecklistApiResponse = {

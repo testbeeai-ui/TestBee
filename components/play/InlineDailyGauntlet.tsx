@@ -47,7 +47,7 @@ type LbRow = {
 };
 
 /**
- * Full Daily Gauntlet session embedded on pages like Refer & Earn (no redirect to /play).
+ * Full Daily Gauntlet session embedded on pages like Earn & Learn (no redirect to /play).
  * Mirrors `app/play/page.tsx` gauntlet RPCs, timers, and submit behavior.
  */
 export default function InlineDailyGauntlet({

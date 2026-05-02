@@ -8,9 +8,11 @@ export function countInstacueRevisionDue(cards: SavedRevisionCard[] | undefined 
 
 /** RDM gates for EduFund tier labels (aligned with dashboard tier story; amounts are UI hints only). */
 export const EDUFUND_RDM_GATES = [
-  { need: 1000, name: "Sprout" },
-  { need: 3000, name: "Scholar" },
-  { need: 8000, name: "Champion" },
+  { need: 3000, name: "Sprout" },
+  { need: 12000, name: "Scholar" },
+  { need: 25000, name: "Champion" },
+  { need: 50000, name: "Elite" },
+  { need: 100000, name: "MasterBlaster" },
 ] as const;
 
 /** Minimum RDM (Sprout) required to compose an EduFund proposal in the app UI. */

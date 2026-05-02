@@ -5,7 +5,7 @@ export type DailyChecklistApiResponse = {
   subtopicRoutineDone: boolean;
   gyanPlusDone: boolean;
   instacueSessionDone: boolean;
-  /** Refer & Earn “Challenge Yourself” style completion today — wire when product defines the rule. */
+  /** Earn & Learn “Challenge Yourself” style completion today — wire when product defines the rule. */
   challengeYourselfDone: boolean;
   gyanPlusProgress: {
     focusMs: number;
@@ -30,7 +30,7 @@ export type DailyChecklistApiResponse = {
  */
 export type DailyChecklistDayState = {
   instacueSessionAck?: boolean;
-  /** Refer & Earn Challenge Yourself: finished a run today (win or loss — terminal only; quit excluded). */
+  /** Earn & Learn Challenge Yourself: finished a run today (win or loss — terminal only; quit excluded). */
   challengeYourselfAttempt?: boolean;
   /** Cumulative focused ms on Gyan++ (/doubts), capped per day server-side. */
   doubtsFocusMs?: number;

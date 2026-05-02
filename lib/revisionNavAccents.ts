@@ -42,7 +42,7 @@ export type RevisionNavTabId =
 export const REVISION_NAV_LINKS: { id: RevisionNavTabId; label: string }[] = [
   { id: "instacue", label: "InstaCue Cards" },
   { id: "units", label: "Unit Revision" },
-  { id: "saved", label: "Saved Bits & Formulas" },
+  { id: "saved", label: "Saved Quiz & Formulas" },
   { id: "community", label: "Community Posts" },
   { id: "questions", label: "Saved Questions" },
 ];

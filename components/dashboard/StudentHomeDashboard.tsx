@@ -29,6 +29,12 @@ import { useTopicTaxonomy } from "@/hooks/useTopicTaxonomy";
 import type { Subject, SubjectCombo } from "@/types";
 import RawCommunityFeed from "@/components/explore/RawCommunityFeed";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useSitePresenceLiveMsToday } from "@/components/providers/SitePresenceProvider";
 import { cn } from "@/lib/utils";
 import { CalendarDays, CheckCircle2, Flame, LineChart, Sprout, Star } from "lucide-react";
@@ -127,7 +133,7 @@ function greenCellClass(level: 0 | 1 | 2 | 3 | 4, isToday: boolean): string {
 
 export default function StudentHomeDashboard() {
   const router = useRouter();
-  const { profile, refreshProfile } = useAuth();
+  const { profile } = useAuth();
   const storeUser = useUserStore((s) => s.user);
   const [heatmapMode, setHeatmapMode] = useState<HeatmapMode>("7");
   const [studyMsByDay, setStudyMsByDay] = useState<Map<string, number>>(() => new Map());
@@ -327,6 +333,7 @@ export default function StudentHomeDashboard() {
     "idle" | "loading" | "ready" | "error"
   >("idle");
   const dailyChecklistCommittedRef = useRef(false);
+  const [isChecklistOpen, setIsChecklistOpen] = useState(true);
 
   const loadDailyChecklist = useCallback(async () => {
     await Promise.resolve();
@@ -400,6 +407,79 @@ export default function StudentHomeDashboard() {
     if (dailyChecklist.challengeYourselfDone) n++;
     return n;
   }, [dailyChecklist]);
+
+  const checklistItems = useMemo(
+    () => [
+      {
+        id: "a",
+        text: "Do your Daily Routine — complete DailyDose (10 questions, academic, 5 mins) and complete Funbrain Forge (10 questions, non-academic, 5 minutes)",
+        done: Boolean(dailyChecklist?.dailyDoseDone),
+      },
+      {
+        id: "b",
+        text: "At least 1 topic and 1 sub-topic per subject – Physics, Chemistry and Mathematics (a submitted topic quiz in each subject), & tap Mark as complete in Lessons/Progress after finishing all five steps there",
+        done: Boolean(dailyChecklist?.subtopicRoutineDone),
+      },
+      {
+        id: "c",
+        text: "Gyan++: stay on the feed at least 5 minutes, save at least 1 doubt for revision, and upvote or comment on someone else’s post today.",
+        done: Boolean(dailyChecklist?.gyanPlusDone),
+      },
+      {
+        id: "d",
+        text: "Instacue: scroll through all 32 cards for your chapter (same checklist as Lessons / Progress; count resets each calendar day)",
+        done: Boolean(dailyChecklist?.instacueSessionDone),
+      },
+      {
+        id: "e",
+        text: "Try your luck at the Challenge Yourself and win RDM",
+        done: Boolean(dailyChecklist?.challengeYourselfDone),
+      },
+    ],
+    [dailyChecklist]
+  );
+
+  /**
+   * Checklist strip + Gyan++ line: lead with progress (gain framing); avoid a lone row of zeros,
+   * which reads as failure (loss aversion). When Gyan++ metrics are all still at 0, use autonomy-
+   * supportive, “not yet” wording (growth mindset / SDT) instead of deficit tallies.
+   */
+  const checklistStripSummary = useMemo(() => {
+    if (dailyChecklistStatus === "error") return null;
+
+    const pending =
+      dailyChecklistStatus === "idle" ||
+      dailyChecklistStatus === "loading" ||
+      dailyChecklist == null;
+
+    if (pending) {
+      return {
+        progressLine: "Loading today's checklist…",
+        gyanLine: null as string | null,
+      };
+    }
+
+    let progressLine: string;
+    if (checklistDoneCount >= 5) {
+      progressLine = "All 5 daily habits complete today — nice work.";
+    } else if (checklistDoneCount > 0) {
+      progressLine = `${checklistDoneCount} of 5 habits checked off today`;
+    } else {
+      progressLine =
+        "0 of 5 habits yet — open the checklist when you're ready; no rush.";
+    }
+
+    const m = Math.round(dailyChecklist.gyanPlusProgress.focusMs / 60000);
+    const s = dailyChecklist.gyanPlusProgress.savesToday;
+    const c = dailyChecklist.gyanPlusProgress.communityActionsToday;
+    const gyanAllZero = m === 0 && s === 0 && c === 0;
+
+    const gyanLine = gyanAllZero
+      ? "Gyan++: when you have a moment, browse the feed, save a doubt, or react to a post — small steps count."
+      : `Gyan++ so far today: ${m} min on the feed · ${s} doubt${s === 1 ? "" : "s"} saved · ${c} community action${c === 1 ? "" : "s"}`;
+
+    return { progressLine, gyanLine };
+  }, [dailyChecklist, dailyChecklistStatus, checklistDoneCount]);
 
   /** Single-line checklist hint for the greeting strip (items a–e from GET /api/user/daily-checklist). */
   const greetingChecklistLine = useMemo(() => {
@@ -798,126 +878,174 @@ export default function StudentHomeDashboard() {
         </div>
       </section>
 
-      {/* Checklist */}
+      {/* Checklist trigger */}
       <section className="rounded-2xl border border-border bg-card/90 p-4 shadow-sm dark:bg-slate-950/60">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-            <h2 className="text-lg font-bold">Today&apos;s checklist and what is done</h2>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+              <h2 className="text-lg font-bold">Today&apos;s checklist</h2>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {dailyChecklistStatus === "error" ? (
+                <span className="text-rose-300">
+                  Could not load checklist status. Refresh and try again.
+                </span>
+              ) : checklistStripSummary ? (
+                <>
+                  <span className="font-semibold text-foreground">
+                    {checklistStripSummary.progressLine}
+                  </span>
+                  {checklistStripSummary.gyanLine ? (
+                    <>
+                      {" · "}
+                      {checklistStripSummary.gyanLine}
+                    </>
+                  ) : null}
+                </>
+              ) : null}
+            </p>
           </div>
           <Button
             type="button"
             size="sm"
-            className="gap-1 rounded-full font-bold"
-            onClick={() => router.push("/play")}
+            className="rounded-full font-bold"
+            onClick={() => setIsChecklistOpen(true)}
           >
-            <Flame className="h-4 w-4" />
-            Start streak for today
+            View checklist
           </Button>
         </div>
-        <ul className="space-y-2">
-          {[
-            {
-              id: "a",
-              text: "Do your Daily Routine — complete DailyDose (10 questions, academic, 5 mins) and complete Funbrain Forge (10 questions, non-academic, 5 minutes)",
-              done: Boolean(dailyChecklist?.dailyDoseDone),
-            },
-            {
-              id: "b",
-              text: "At least 1 topic and 1 sub-topic per subject – Physics, Chemistry and Mathematics (a submitted topic quiz in each subject), & tap Mark as complete in Lessons/Progress after finishing all five steps there",
-              done: Boolean(dailyChecklist?.subtopicRoutineDone),
-            },
-            {
-              id: "c",
-              text: "Gyan++: stay on the feed at least 5 minutes, save at least 1 doubt for revision, and upvote or comment on someone else’s post today.",
-              done: Boolean(dailyChecklist?.gyanPlusDone),
-            },
-            {
-              id: "d",
-              text: "Instacue: scroll through all 32 cards for your chapter (same checklist as Lessons / Progress; count resets each calendar day)",
-              done: Boolean(dailyChecklist?.instacueSessionDone),
-            },
-            {
-              id: "e",
-              text: "Try your luck at the Challenge Yourself and win RDM",
-              done: Boolean(dailyChecklist?.challengeYourselfDone),
-            },
-          ].map((item) => (
-            <li
-              key={item.id}
-              className="flex flex-wrap items-start justify-between gap-2 rounded-xl border border-border/60 bg-background/50 px-3 py-2.5 dark:bg-slate-900/40"
-            >
-              <div className="flex min-w-0 flex-1 gap-2">
-                {item.done ? (
-                  <CheckCircle2
-                    className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500"
-                    aria-label="Done"
-                  />
-                ) : (
-                  <span
-                    className="mt-0.5 inline-flex h-4 w-4 shrink-0 rounded border border-dashed border-muted-foreground/50"
-                    aria-hidden
-                  />
-                )}
-                <span className="text-sm text-foreground">
-                  <span className="font-bold">{item.id}.</span> {item.text}
-                  {item.id === "c" ? (
-                    <>
-                      {" "}
-                      <Link href="/doubts" className="font-bold text-primary hover:underline">
-                        Open Gyan++
-                      </Link>
-                    </>
-                  ) : null}
-                  {item.id === "e" ? (
-                    <>
-                      {" "}
-                      <Link href="/refer-earn" className="font-bold text-primary hover:underline">
-                        Open Challenge Yourself
-                      </Link>
-                    </>
-                  ) : null}
-                  {item.id === "d" &&
-                  dailyChecklist &&
-                  !dailyChecklist.instacueSessionDone &&
-                  dailyChecklist.instacueCombinedCount < 32 ? (
-                    <span className="mt-1 block text-[11px] text-muted-foreground">
-                      InstaCue reads logged: {dailyChecklist.instacueReadCount}/32
-                      {dailyChecklist.instacueCombinedCount !== dailyChecklist.instacueReadCount ? (
+      </section>
+
+      <Dialog open={isChecklistOpen} onOpenChange={setIsChecklistOpen}>
+        <DialogContent
+          className={
+            "flex w-full max-w-3xl flex-col gap-0 overflow-hidden border-border/70 bg-card p-0 shadow-2xl " +
+            "ring-1 ring-black/5 dark:border-white/10 dark:bg-[#070b14] dark:ring-white/10 " +
+            "max-h-[min(92dvh,56rem)] " +
+            /* Small screens: anchored bottom sheet — easier thumb reach, stable on notches */
+            "max-sm:inset-x-0 max-sm:bottom-0 max-sm:left-0 max-sm:right-0 max-sm:top-auto " +
+            "max-sm:max-h-[min(90dvh,56rem)] max-sm:w-full max-sm:translate-x-0 max-sm:translate-y-0 " +
+            "max-sm:rounded-b-none max-sm:rounded-t-3xl max-sm:border-x-0 max-sm:border-b-0 " +
+            /* sm+: classic centered modal */
+            "sm:left-1/2 sm:top-1/2 sm:w-[calc(100vw-1.5rem)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl sm:border " +
+            "pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+          }
+        >
+          {/* Header: fixed height region; close (X) stays in component chrome; pr-* clears it */}
+          <div className="shrink-0 border-b border-border/60 bg-gradient-to-b from-muted/50 to-transparent px-4 pb-4 pt-6 sm:px-6 sm:pb-5 sm:pt-7 dark:from-slate-900/90">
+            <DialogHeader className="space-y-3 text-left">
+              <div className="flex items-start gap-2.5 pr-11 sm:gap-3 sm:pr-12">
+                <CheckCircle2
+                  className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500 sm:h-5 sm:w-5"
+                  aria-hidden
+                />
+                <DialogTitle className="text-left text-base font-bold leading-snug tracking-tight sm:text-lg">
+                  Today&apos;s checklist and what is done
+                </DialogTitle>
+              </div>
+              <div className="flex flex-col gap-2 sm:gap-2.5">
+                <Button
+                  type="button"
+                  size="default"
+                  className="h-11 w-full min-h-[44px] gap-2 rounded-full font-bold sm:h-10 sm:w-fit sm:min-h-0"
+                  onClick={() => router.push("/play")}
+                >
+                  <Flame className="h-4 w-4 shrink-0" aria-hidden />
+                  Start streak for today
+                </Button>
+                <p className="text-[11px] leading-relaxed text-muted-foreground sm:text-xs">
+                  Esc or the top-right close exits — away from the button above.
+                </p>
+              </div>
+            </DialogHeader>
+          </div>
+
+          {/* Scrollable list: avoids whole-modal scroll jank on short phones */}
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 py-3 sm:px-6 sm:py-4">
+            <ul className="space-y-2 sm:space-y-2.5">
+              {checklistItems.map((item) => (
+                <li
+                  key={item.id}
+                  className="flex flex-wrap items-start justify-between gap-2 rounded-xl border border-border/60 bg-background/60 px-3 py-3 dark:bg-slate-900/50 sm:px-3.5 sm:py-2.5"
+                >
+                  <div className="flex min-w-0 flex-1 gap-2.5 sm:gap-2">
+                    {item.done ? (
+                      <CheckCircle2
+                        className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500 sm:h-4 sm:w-4"
+                        aria-label="Done"
+                      />
+                    ) : (
+                      <span
+                        className="mt-0.5 inline-flex h-4 w-4 shrink-0 rounded border border-dashed border-muted-foreground/50"
+                        aria-hidden
+                      />
+                    )}
+                    <span className="text-[13px] leading-relaxed text-foreground sm:text-sm sm:leading-normal">
+                      <span className="font-bold">{item.id}.</span> {item.text}
+                      {item.id === "c" ? (
                         <>
                           {" "}
-                          · {dailyChecklist.instacueCombinedCount}/32 toward unlock (includes
-                          today&apos;s revision saves)
+                          <Link href="/doubts" className="font-bold text-primary hover:underline">
+                            Open Gyan++
+                          </Link>
                         </>
                       ) : null}
+                      {item.id === "e" ? (
+                        <>
+                          {" "}
+                          <Link href="/refer-earn" className="font-bold text-primary hover:underline">
+                            Open Challenge Yourself
+                          </Link>
+                        </>
+                      ) : null}
+                      {item.id === "d" &&
+                      dailyChecklist &&
+                      !dailyChecklist.instacueSessionDone &&
+                      dailyChecklist.instacueCombinedCount < 32 ? (
+                        <span className="mt-1.5 block text-[11px] leading-snug text-muted-foreground sm:text-xs">
+                          InstaCue reads logged: {dailyChecklist.instacueReadCount}/32
+                          {dailyChecklist.instacueCombinedCount !== dailyChecklist.instacueReadCount ? (
+                            <>
+                              {" "}
+                              · {dailyChecklist.instacueCombinedCount}/32 toward unlock (includes
+                              today&apos;s revision saves)
+                            </>
+                          ) : null}
+                        </span>
+                      ) : null}
                     </span>
-                  ) : null}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="shrink-0 border-t border-border/60 bg-muted/25 px-4 py-3 sm:px-6 dark:bg-slate-950/80">
+            <p className="text-[11px] leading-relaxed text-muted-foreground sm:text-xs">
+              {dailyChecklistStatus === "error" ? (
+                <span className="text-rose-300">
+                  Could not load checklist status. Refresh and try again.
                 </span>
-              </div>
-            </li>
-          ))}
-        </ul>
-        <p className="mt-3 text-xs text-muted-foreground">
-          {dailyChecklistStatus === "error" ? (
-            <span className="text-rose-300">
-              Could not load checklist status. Refresh and try again.
-            </span>
-          ) : (
-            <>
-              <span className="font-semibold text-foreground">{checklistDoneCount} of 5 done</span>
-              {" · "}
-              Gyan++ today:{" "}
-              {dailyChecklist
-                ? `${Math.round(dailyChecklist.gyanPlusProgress.focusMs / 60000)}m`
-                : "—"}{" "}
-              on feed, {dailyChecklist?.gyanPlusProgress.savesToday ?? "—"} saves,{" "}
-              {dailyChecklist?.gyanPlusProgress.communityActionsToday ?? "—"} community actions
-              (items a–e are tracked live; Challenge Yourself completes after any Refer &amp; Earn
-              challenge run ends today).
-            </>
-          )}
-        </p>
-      </section>
+              ) : checklistStripSummary ? (
+                <>
+                  <span className="font-semibold text-foreground">
+                    {checklistStripSummary.progressLine}
+                  </span>
+                  {checklistStripSummary.gyanLine ? (
+                    <>
+                      {" · "}
+                      {checklistStripSummary.gyanLine}
+                    </>
+                  ) : null}{" "}
+                  (Items a–e are tracked live; Challenge Yourself completes after any Earn &amp;
+                  Learn challenge run ends today).
+                </>
+              ) : null}
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Subject accuracy + Leaderboard */}
       <section className="grid gap-4 lg:grid-cols-2">

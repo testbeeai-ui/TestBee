@@ -1041,8 +1041,8 @@ function PlaySessionExtendedAuditPanel({
     <div className="space-y-3">
       <p className="leading-relaxed text-muted-foreground">
         Technical fields for support tickets and exports. Quiz passages tied to{" "}
-        <span className="font-medium text-foreground">Refer &amp; earn</span> claims (questions + share trail) are
-        opened from this user&apos;s <span className="font-medium text-foreground">Refer &amp; earn</span> tab — click
+        <span className="font-medium text-foreground">Earn &amp; Learn</span> claims (questions + share trail) are
+        opened from this user&apos;s <span className="font-medium text-foreground">Earn &amp; Learn</span> tab — click
         the matching claim row.
       </p>
       <div>
@@ -6635,7 +6635,7 @@ export default function AdminUserDetailPage() {
               <>
                 <Card>
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-base">Refer &amp; earn — challenge claims</CardTitle>
+                    <CardTitle className="text-base">Earn &amp; Learn — challenge claims</CardTitle>
                     <CardDescription className="text-xs leading-relaxed sm:text-sm">
                       Rows come from <span className="font-mono">refer_challenge_claims</span>: one row per{" "}
                       <span className="font-medium text-foreground">calendar day (UTC)</span> and{" "}

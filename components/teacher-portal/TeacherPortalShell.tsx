@@ -20,7 +20,7 @@ const sections: Array<{ key: TeacherPortalSection; label: string; icon: typeof L
   { key: "myClasses", label: "My lessons", icon: GraduationCap },
   { key: "gyanWall", label: "Gyan++ Wall", icon: Star },
   { key: "createTests", label: "Create Tests", icon: BookOpen },
-  { key: "referEarn", label: "Refer & Earn", icon: Gift },
+  { key: "referEarn", label: "Earn & Learn", icon: Gift },
   { key: "profile", label: "Profile", icon: User },
 ];
 

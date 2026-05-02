@@ -3,7 +3,7 @@ import { localDayBoundsIso } from "@/lib/dashboardDayActivity";
 import { dispatchStudyDayBumped } from "@/lib/studyDayBumpEvents";
 
 /**
- * Marks daily checklist (e) after a Refer & Earn “Challenge Yourself” run ends (win or loss).
+ * Marks daily checklist (e) after an Earn & Learn “Challenge Yourself” run ends (win or loss).
  * Idempotent for the day; fire-and-forget on failure.
  */
 export async function reportChallengeYourselfAttempt(): Promise<void> {

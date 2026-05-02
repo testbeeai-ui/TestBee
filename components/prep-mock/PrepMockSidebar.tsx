@@ -59,12 +59,6 @@ const sections: SidebarSection[] = [
   },
 ];
 
-const addOns = [
-  { label: "Testbee", color: "bg-blue-50 text-blue-700 border-blue-200" },
-  { label: "DailyDose", color: "bg-amber-50 text-amber-700 border-amber-200" },
-  { label: "MentaMill", color: "bg-purple-50 text-purple-700 border-purple-200" },
-];
-
 export default function PrepMockSidebar() {
   const pathname = usePathname();
 
@@ -107,23 +101,6 @@ export default function PrepMockSidebar() {
               </ul>
             </div>
           ))}
-
-          {/* Add-ons */}
-          <div>
-            <h4 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2 px-2">
-              Add-ons
-            </h4>
-            <div className="flex flex-wrap gap-1.5 px-1">
-              {addOns.map((a) => (
-                <span
-                  key={a.label}
-                  className={`text-xs font-bold px-2 py-0.5 rounded-full border ${a.color}`}
-                >
-                  {a.label}
-                </span>
-              ))}
-            </div>
-          </div>
         </div>
       </nav>
 

@@ -54,7 +54,7 @@ const baseNavItems = [
   { path: "/mock", icon: GraduationCap, label: "Prep + Mock", emoji: "🎓" },
   { path: "/doubts", icon: HelpCircle, label: "Gyan++", emoji: "💡" },
   { path: "/edufund", icon: Heart, label: "EduFund", emoji: "💛" },
-  { path: "/refer-earn", icon: Gift, label: "Refer & Earn", emoji: "🎁" },
+  { path: "/refer-earn", icon: Gift, label: "Earn & Learn", emoji: "🎁" },
   { path: "/profile", icon: User, label: "Profile", emoji: "👤" },
 ];
 
@@ -81,7 +81,7 @@ const AppLayout = ({
         {/* Top Navigation Bar */}
         {!hideTopNav && (
           <header className="sticky top-0 z-40 bg-card/80 backdrop-blur-xl border-b border-border/60">
-            <div className="max-w-7xl mx-auto flex items-center justify-between px-4 py-2.5 lg:px-5 lg:py-3 2xl:px-6">
+            <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-2.5 lg:max-w-[min(100%,90rem)] lg:px-5 lg:py-3 xl:max-w-[min(100%,96rem)] 2xl:px-6">
               {/* Logo */}
               <Link
                 href="/home"

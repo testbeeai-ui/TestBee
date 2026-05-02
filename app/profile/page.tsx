@@ -175,12 +175,12 @@ export default function Profile() {
             className="rounded-2xl border border-border bg-card p-4 text-foreground shadow-lg md:p-5 2xl:rounded-3xl 2xl:p-7 dark:border-white/10 dark:bg-[#070b14] dark:text-slate-100 dark:shadow-[0_24px_60px_rgba(2,8,23,0.65)]"
           >
             <div className="space-y-4 2xl:space-y-5">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between 2xl:gap-4">
-                <div className="flex items-start gap-3 2xl:gap-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4 2xl:gap-4">
+                <div className="flex min-w-0 items-start gap-3 2xl:gap-4">
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-blue-500 text-lg font-black text-white shadow-lg shadow-violet-500/30 2xl:h-14 2xl:w-14 2xl:text-xl">
                     {(displayName?.[0] ?? "S").toUpperCase()}
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <h2 className="text-xl font-black leading-tight text-foreground dark:text-white 2xl:text-2xl">
                       {displayName}
                     </h2>
@@ -197,15 +197,35 @@ export default function Profile() {
                     </div>
                   </div>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => router.push(`/user/${profile.id}`)}
-                  className="rounded-lg border-violet-300/60 bg-violet-50 px-3 text-foreground hover:bg-violet-100 dark:border-violet-400/30 dark:bg-violet-500/10 dark:text-violet-100 dark:hover:bg-violet-500/20 dark:hover:text-white 2xl:rounded-xl 2xl:px-4"
-                >
-                  <Bookmark className="mr-1.5 h-3.5 w-3.5 2xl:mr-2 2xl:h-4 2xl:w-4" /> View public
-                  profile
-                </Button>
+                <div className="flex w-full shrink-0 flex-wrap items-center justify-start gap-2 sm:w-auto sm:justify-end">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => router.push("/pricing")}
+                    className="rounded-lg border-amber-300/55 bg-amber-50 px-3 text-foreground hover:bg-amber-100 dark:border-amber-400/35 dark:bg-amber-500/10 dark:text-amber-100 dark:hover:bg-amber-500/20 dark:hover:text-white 2xl:rounded-xl 2xl:px-4"
+                  >
+                    <Coins className="mr-1.5 h-3.5 w-3.5 shrink-0 2xl:mr-2 2xl:h-4 2xl:w-4" />
+                    Top up
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => router.push(`/user/${profile.id}`)}
+                    className="rounded-lg border-violet-300/60 bg-violet-50 px-3 text-foreground hover:bg-violet-100 dark:border-violet-400/30 dark:bg-violet-500/10 dark:text-violet-100 dark:hover:bg-violet-500/20 dark:hover:text-white 2xl:rounded-xl 2xl:px-4"
+                  >
+                    <Bookmark className="mr-1.5 h-3.5 w-3.5 shrink-0 2xl:mr-2 2xl:h-4 2xl:w-4" /> View public
+                    profile
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="rounded-lg border-rose-300/55 bg-rose-50 px-3 text-foreground hover:bg-rose-100 dark:border-rose-400/35 dark:bg-rose-500/12 dark:text-rose-100 dark:hover:bg-rose-500/22 dark:hover:text-white 2xl:rounded-xl 2xl:px-4"
+                    onClick={handleLogout}
+                  >
+                    <LogOut className="mr-1.5 h-3.5 w-3.5 shrink-0 2xl:mr-2 2xl:h-4 2xl:w-4" />
+                    Log out
+                  </Button>
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-2 md:grid-cols-4 2xl:gap-3">
                 {[
@@ -414,22 +434,6 @@ export default function Profile() {
                   </Button>
                 </div>
               </div>
-            </div>
-            <div className="flex flex-wrap gap-2 pt-2">
-              <Button
-                variant="outline"
-                onClick={() => router.push("/pricing")}
-                className="rounded-xl border-border bg-muted text-foreground hover:bg-muted/80 dark:border-white/20 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800"
-              >
-                <Coins className="mr-2 h-4 w-4" /> Top Up
-              </Button>
-              <Button
-                variant="outline"
-                className="rounded-xl border-rose-400/30 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20 hover:text-rose-200"
-                onClick={handleLogout}
-              >
-                <LogOut className="mr-2 h-4 w-4" /> Log Out
-              </Button>
             </div>
           </div>
         </div>

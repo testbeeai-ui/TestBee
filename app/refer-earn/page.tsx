@@ -103,9 +103,11 @@ const REWARD_USES = [
 
 /** EduFund-style grant tiers (RDM thresholds); ₹ copy matches investor mock. */
 const GRANT_TIERS = [
-  { key: "sprout", name: "Sprout", threshold: 1000, grant: "₹3,000", icon: "🌱" },
-  { key: "scholar", name: "Scholar", threshold: 3000, grant: "₹12,000", icon: "📚" },
-  { key: "champion", name: "Champion", threshold: 8000, grant: "₹50,000", icon: "🏆" },
+  { key: "sprout", name: "Sprout", threshold: 3000, grant: "₹3,000", icon: "🌱" },
+  { key: "scholar", name: "Scholar", threshold: 12000, grant: "₹15,000", icon: "📚" },
+  { key: "champion", name: "Champion", threshold: 25000, grant: "₹50,000", icon: "🏆" },
+  { key: "elite", name: "Elite", threshold: 50000, grant: "₹1,00,000", icon: "🚀" },
+  { key: "masterblaster", name: "MasterBlaster", threshold: 100000, grant: "₹2,00,000", icon: "👑" },
 ] as const;
 
 const DAILY_CHALLENGE_RDM_CAP = 50;
@@ -114,7 +116,7 @@ function referMinPct(spec: ReferChallengePublicSpec): number {
   return Math.round((spec.minCorrect / spec.questionCount) * 100);
 }
 
-/** Refer & Earn page typography (single sans scale). */
+/** Earn & Learn page typography (single sans scale). */
 const reLabel = "text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500";
 const reBody = "text-xs leading-relaxed text-slate-400";
 const reTitle = "text-sm font-semibold text-white";
@@ -324,7 +326,7 @@ export default function ReferEarnPage() {
               >
                 <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-violet-500/35 bg-violet-500/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-violet-300">
                   <Sparkles className="h-3 w-3" />
-                  Refer &amp; Earn RDM
+                  Earn &amp; Learn RDM
                 </div>
                 <div className="flex flex-wrap items-baseline justify-center gap-2 sm:justify-start">
                   <span className="font-sans text-3xl font-semibold tabular-nums text-[var(--re-amber)] md:text-4xl">

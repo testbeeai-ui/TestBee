@@ -14,7 +14,7 @@ export default function ReferEarnView({ referStats, onCopyLink }: ReferEarnViewP
     <div className="w-full space-y-4 sm:space-y-5">
       <div>
         <h1 className="font-serif text-3xl sm:text-4xl">
-          Refer & <span className="text-emerald-400 italic">Earn</span>
+          Earn & <span className="text-emerald-400 italic">Learn</span>
         </h1>
         <p className="text-xs text-slate-400 sm:text-sm">
           Earn RDM by referring colleagues and growing your EduBlast impact.
@@ -23,7 +23,7 @@ export default function ReferEarnView({ referStats, onCopyLink }: ReferEarnViewP
 
       <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#0d0d22] to-[#10122a] p-4 sm:p-5">
         <div className="mb-2 inline-flex rounded-full border border-violet-400/30 bg-violet-500/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-violet-200">
-          Teacher Refer & Earn
+          Teacher Earn & Learn
         </div>
         <div className="mb-4 flex flex-col items-center text-center">
           <div className="mb-1 font-serif text-3xl text-amber-300 sm:text-4xl lg:text-5xl">
