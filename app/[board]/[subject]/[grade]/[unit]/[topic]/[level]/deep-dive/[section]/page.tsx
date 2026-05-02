@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useSearchParams, useRouter, usePathname } from "next/navigation";
 import AppLayout from "@/components/AppLayout";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Button } from "@/components/ui/button";
 import { getDeepDiveContent } from "@/data/deepDiveContent";
 import { getTheoryOrPlaceholder } from "@/data/topicTheory";
@@ -289,7 +290,7 @@ function BitsQuiz({
  * Changes here never affect the topic overview page.
  */
 
-export default function DeepDivePage() {
+function DeepDivePageInner() {
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -979,5 +980,13 @@ export default function DeepDivePage() {
         />
       </div>
     </AppLayout>
+  );
+}
+
+export default function DeepDivePage() {
+  return (
+    <ProtectedRoute>
+      <DeepDivePageInner />
+    </ProtectedRoute>
   );
 }

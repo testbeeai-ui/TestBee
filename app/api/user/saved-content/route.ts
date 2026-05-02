@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient, createClientWithToken } from "@/integrations/supabase/server";
+import { enforceSameOriginForCookieAuth } from "@/lib/securityGuards";
 import type {
   SavedBit,
   SavedFormula,
@@ -67,6 +68,9 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const csrf = enforceSameOriginForCookieAuth(request);
+    if (csrf) return csrf;
+
     const ctx = await getSupabaseAndUser(request);
     if (!ctx) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

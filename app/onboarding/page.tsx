@@ -26,6 +26,7 @@ import {
 } from "@/lib/profileTeacherOptions";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { readPendingDeepLink, clearPendingDeepLink } from "@/lib/auth/safeNextPath";
 import { useToast } from "@/hooks/use-toast";
 
 const subjects = ["Physics", "Chemistry", "Math"];
@@ -120,7 +121,11 @@ function OnboardingContent() {
     if (loading) return;
     if (!user) router.replace("/auth");
     else if (profile?.onboarding_complete) {
-      router.replace(profile?.role === "teacher" ? "/teacher-portal" : "/home");
+      const pending = readPendingDeepLink();
+      const dest =
+        pending ?? (profile?.role === "teacher" ? "/teacher-portal" : "/home");
+      clearPendingDeepLink();
+      router.replace(dest);
     }
   }, [user, profile?.onboarding_complete, profile?.role, loading, router]);
 
@@ -262,7 +267,11 @@ function OnboardingContent() {
       import("canvas-confetti").then((c) =>
         c.default({ particleCount: 150, spread: 80, origin: { y: 0.6 } })
       );
-      router.replace(role === "teacher" ? "/teacher-portal" : "/home");
+      const pending = readPendingDeepLink();
+      const dest =
+        pending ?? (role === "teacher" ? "/teacher-portal" : "/home");
+      clearPendingDeepLink();
+      router.replace(dest);
     } finally {
       setSaving(false);
     }

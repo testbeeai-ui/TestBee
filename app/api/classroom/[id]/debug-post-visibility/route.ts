@@ -21,12 +21,7 @@ export async function GET(request: NextRequest, ctx: { params: Promise<{ id: str
 
   const headerAuth = request.headers.get("authorization") || "";
   const bearer = headerAuth.toLowerCase().startsWith("bearer ") ? headerAuth.slice(7).trim() : "";
-  const tokenFromQuery = (url.searchParams.get("token") ?? "").trim();
-  const supabaseUser = bearer
-    ? createClientWithToken(bearer)
-    : tokenFromQuery
-      ? createClientWithToken(tokenFromQuery)
-      : await createClient();
+  const supabaseUser = bearer ? createClientWithToken(bearer) : await createClient();
   const {
     data: { user },
   } = await supabaseUser.auth.getUser();

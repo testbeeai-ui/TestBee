@@ -18,6 +18,12 @@ import {
   BookOpen,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
+import {
+  getSafeInternalNextPath,
+  persistPendingDeepLink,
+  readPendingDeepLink,
+  clearPendingDeepLink,
+} from "@/lib/auth/safeNextPath";
 
 function GoogleGlyph({ className }: { className?: string }) {
   return (
@@ -63,6 +69,8 @@ function AuthContent() {
   const searchParams = useSearchParams();
   const roleParam = searchParams.get("role");
   const modeParam = searchParams.get("mode");
+  const nextParam = searchParams.get("next");
+  const safeNext = getSafeInternalNextPath(nextParam);
   const [profileWaitDone, setProfileWaitDone] = useState(false);
 
   const modeFromUrl =
@@ -102,6 +110,10 @@ function AuthContent() {
   }, [roleParam, modeParam]);
 
   useEffect(() => {
+    if (safeNext) persistPendingDeepLink(safeNext);
+  }, [safeNext]);
+
+  useEffect(() => {
     if (typeof window === "undefined") return;
     const hash = window.location.hash;
     if (hash && hash.includes("access_token")) {
@@ -120,7 +132,10 @@ function AuthContent() {
     if (loading) return;
     const isTeacher = profile?.role === "teacher";
     if (user && profile?.onboarding_complete) {
-      router.replace(isTeacher ? "/teacher-portal" : "/home");
+      const pending = readPendingDeepLink();
+      const dest = pending ?? (isTeacher ? "/teacher-portal" : "/home");
+      clearPendingDeepLink();
+      router.replace(dest);
     }
     // Do not auto-send incomplete users to /auth → onboarding loop; show resume UI instead.
   }, [user, profile, profile?.onboarding_complete, profile?.role, loading, router]);

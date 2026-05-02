@@ -24,6 +24,7 @@ import { mergeAllSavedContent } from "@/lib/mergeSavedContent";
 import type { Json } from "@/integrations/supabase/types";
 import { safeGetSession } from "@/lib/safeSession";
 import { profileShouldForceOnboardingComplete } from "@/lib/profileOnboardingRepair";
+import { readPendingDeepLink } from "@/lib/auth/safeNextPath";
 
 interface Profile {
   id: string;
@@ -335,7 +336,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signInWithGoogle = async (redirectPath: string = "/onboarding") => {
     const normalized = redirectPath.startsWith("/") ? redirectPath : `/${redirectPath}`;
     try {
-      sessionStorage.setItem("auth_redirect_after_login", normalized);
+      const pendingLesson = readPendingDeepLink();
+      sessionStorage.setItem("auth_redirect_after_login", pendingLesson ?? normalized);
     } catch (_) {}
     await safeGetSession();
     const redirectTo = `${window.location.origin}/auth/callback`;
@@ -366,6 +368,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signOut = async () => {
     await supabase.auth.signOut();
+    useUserStore.getState().logout();
     setProfile(null);
   };
 

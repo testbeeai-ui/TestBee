@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useSearchParams, useRouter, usePathname } from "next/navigation";
 import AppLayout from "@/components/AppLayout";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -516,7 +517,7 @@ function normalizeQuizDisplayMath(text: string): string {
     .replace(/\\Omega/g, "Ω");
 }
 
-export default function TopicPage() {
+function TopicPageInner() {
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -7414,5 +7415,13 @@ export default function TopicPage() {
         onSelect={handleWheelSelect}
       />
     </AppLayout>
+  );
+}
+
+export default function TopicPage() {
+  return (
+    <ProtectedRoute>
+      <TopicPageInner />
+    </ProtectedRoute>
   );
 }

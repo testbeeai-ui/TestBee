@@ -7,12 +7,20 @@
  */
 import { NextResponse } from "next/server";
 import * as jose from "jose";
+import { createClient } from "@/integrations/supabase/server";
+import { enforceSameOriginForCookieAuth, requireAuthenticatedUser } from "@/lib/securityGuards";
 
 const APP_ID = process.env.NEXT_PUBLIC_JITSI_APP_ID || process.env.JITSI_JAAS_APP_ID || "";
 const KID = process.env.JITSI_JAAS_KID || "";
 const PRIVATE_KEY_PEM = process.env.JITSI_JAAS_PRIVATE_KEY || "";
 
 export async function POST(request: Request) {
+  const csrf = enforceSameOriginForCookieAuth(request);
+  if (csrf) return csrf;
+
+  const auth = await requireAuthenticatedUser(request);
+  if ("response" in auth) return auth.response;
+
   const body = await request.json().catch(() => ({}));
 
   if (!APP_ID || !KID || !PRIVATE_KEY_PEM) {
@@ -31,27 +39,48 @@ export async function POST(request: Request) {
   }
 
   try {
-    const displayName = typeof body.displayName === "string" ? body.displayName : "Participant";
-    const userId = typeof body.userId === "string" ? body.userId : `user-${Date.now()}`;
+    const roomName = typeof body.roomName === "string" ? body.roomName.trim() : "";
+    if (
+      !roomName ||
+      roomName === "*" ||
+      roomName.length > 160 ||
+      !/^[a-zA-Z0-9/_-]+$/.test(roomName)
+    ) {
+      return NextResponse.json({ error: "Invalid roomName." }, { status: 400 });
+    }
+
+    const supabase = await createClient();
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("name, role")
+      .eq("id", auth.user.id)
+      .maybeSingle();
+    const profileName = typeof profile?.name === "string" ? profile.name.trim() : "";
+    const displayName =
+      typeof body.displayName === "string" && body.displayName.trim()
+        ? body.displayName.trim().slice(0, 80)
+        : profileName || auth.user.user_metadata?.full_name || "Participant";
+    const role = profile?.role;
+    const canModerate = role === "teacher" || role === "admin";
 
     const now = Math.floor(Date.now() / 1000);
-    const exp = now + 2 * 60 * 60; // 2 hours
+    const exp = now + 10 * 60; // 10 minutes
     const nbf = now - 60; // 1 min skew
 
     const payload = {
       aud: "jitsi",
       iss: "chat",
       sub: APP_ID,
-      room: "*", // wildcard: allow joining any room (avoids "not allowed to join" when room name format differs)
+      room: roomName,
       exp,
       nbf,
       context: {
         user: {
-          id: userId,
+          id: auth.user.id,
           name: displayName,
           avatar: "",
-          email: "",
-          moderator: "true", // so meeting starts without "Log-in" prompt
+          email: auth.user.email ?? "",
+          moderator: canModerate ? "true" : "false",
         },
         features: {
           livestreaming: "false",
