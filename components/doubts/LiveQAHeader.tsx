@@ -37,7 +37,7 @@ export default function LiveQAHeader({ todayCount, onAskClick }: LiveQAHeaderPro
             className="rounded-xl h-11 flex-1 sm:flex-initial font-bold px-5"
             onClick={onAskClick}
           >
-            <Plus className="w-4 h-4 mr-1.5" /> Ask
+            <Plus className="w-4 h-4 mr-1.5" /> Ask (+5 RDM)
           </Button>
           <Button
             variant="outline"

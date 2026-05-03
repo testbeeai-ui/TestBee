@@ -31,6 +31,9 @@ import DoubtLeftSidebar from "@/components/doubts/DoubtLeftSidebar";
 import DoubtRightSidebar from "@/components/doubts/DoubtRightSidebar";
 import { GyanDoubtsFocusTracker } from "@/components/doubts/GyanDoubtsFocusTracker";
 import { GyanDailyChecklistTracker } from "@/components/doubts/GyanDailyChecklistTracker";
+import GyanFeedPagination, {
+  GYAN_FEED_PAGE_SIZE,
+} from "@/components/doubts/GyanFeedPagination";
 import { dispatchStudyDayBumped } from "@/lib/studyDayBumpEvents";
 
 type SimpleDoubtRow = {
@@ -42,7 +45,7 @@ type SimpleDoubtRow = {
 };
 
 function DoubtsPageContent() {
-  const { user } = useAuth();
+  const { user, refreshProfile } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -59,7 +62,6 @@ function DoubtsPageContent() {
   const [myVotes, setMyVotes] = useState<Map<string, number>>(new Map());
 
   // Sidebar data
-  const [bountyBoard, setBountyBoard] = useState<SimpleDoubtRow[]>([]);
   const [trending, setTrending] = useState<SimpleDoubtRow[]>([]);
   const [topContributors, setTopContributors] = useState<
     {
@@ -92,6 +94,9 @@ function DoubtsPageContent() {
   const [isAdmin, setIsAdmin] = useState(false);
   /** Doubt ids we just posted; show Prof-Pi story strip until an AI answer exists or timeout */
   const [profPiPendingByDoubtId, setProfPiPendingByDoubtId] = useState<Record<string, number>>({});
+  /** Paginated feed (10 per page) — client-side slice of filteredAndSorted */
+  const [feedPage, setFeedPage] = useState(1);
+  const feedTopRef = useRef<HTMLDivElement>(null);
 
   // ─── Data fetching ───────────────────────────────────────────
 
@@ -186,17 +191,6 @@ function DoubtsPageContent() {
     setMyVotes(map);
   };
 
-  const fetchBountyBoard = async () => {
-    const { data } = await supabase
-      .from("doubts")
-      .select("id, title, bounty_rdm, subject")
-      .eq("is_resolved", false)
-      .gt("bounty_rdm", 0)
-      .order("bounty_rdm", { ascending: false })
-      .limit(5);
-    setBountyBoard((data as SimpleDoubtRow[]) || []);
-  };
-
   const fetchTrending = async () => {
     const since = new Date();
     since.setDate(since.getDate() - 7);
@@ -265,25 +259,13 @@ function DoubtsPageContent() {
 
   const fetchUserRdmToday = async () => {
     if (!user?.id) return;
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    const from = todayStart.toISOString();
-
-    const [{ data: payouts }, { data: answersToday }] = await Promise.all([
-      supabase
-        .from("accepted_answer_payouts")
-        .select("rdm_paid")
-        .eq("user_id", user.id)
-        .gte("paid_at", from),
-      supabase.from("doubt_answers").select("id").eq("user_id", user.id).gte("created_at", from),
-    ]);
-
-    const payoutRdm = (payouts ?? []).reduce(
-      (sum: number, row: { rdm_paid: number }) => sum + Number(row.rdm_paid ?? 0),
-      0
-    );
-    const answerRewardRdm = (answersToday ?? []).length * 5;
-    setUserRdmToday(payoutRdm + answerRewardRdm);
+    const { data, error } = await supabase.rpc("get_daily_rdm_earned_ist", {});
+    if (error) {
+      console.warn("[doubts] get_daily_rdm_earned_ist", error.message);
+      setUserRdmToday(0);
+      return;
+    }
+    setUserRdmToday(typeof data === "number" ? data : Number(data ?? 0));
   };
 
   // ─── Effects ─────────────────────────────────────────────────
@@ -362,7 +344,6 @@ function DoubtsPageContent() {
     };
   }, [user?.id]);
   useEffect(() => {
-    fetchBountyBoard();
     fetchTrending();
     fetchTopContributors();
   }, []);
@@ -396,7 +377,6 @@ function DoubtsPageContent() {
         (d.doubt_answers ?? []).some((a) => a.profiles?.role === "teacher")
       );
     else if (activeTab === "revision") list = list.filter((d) => savedDoubtIds.has(d.id));
-    else if (activeTab === "bounties") list = list.filter((d) => (d.bounty_rdm ?? 0) > 0);
     else if (activeTab === "ai") {
       list = list.filter(
         (d) =>
@@ -445,6 +425,30 @@ function DoubtsPageContent() {
     savedDoubtIds,
     answeredDoubtIds,
   ]);
+
+  const feedTotalPages = Math.max(1, Math.ceil(filteredAndSorted.length / GYAN_FEED_PAGE_SIZE));
+
+  const paginatedFeed = useMemo(() => {
+    const start = (feedPage - 1) * GYAN_FEED_PAGE_SIZE;
+    return filteredAndSorted.slice(start, start + GYAN_FEED_PAGE_SIZE);
+  }, [filteredAndSorted, feedPage]);
+
+  /** Reset to page 1 when filters / sort change so users don’t land on empty pages */
+  useEffect(() => {
+    setFeedPage(1);
+  }, [activeTab, activityView, unansweredOnly, sort, subjectFilters, user?.id]);
+
+  /** Clamp current page if the filtered list shrinks */
+  useEffect(() => {
+    setFeedPage((p) => Math.min(p, feedTotalPages));
+  }, [feedTotalPages]);
+
+  const handleFeedPageChange = useCallback((next: number) => {
+    setFeedPage(next);
+    queueMicrotask(() => {
+      feedTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, []);
 
   const askedCount = useMemo(
     () => (user?.id ? doubts.filter((d) => d.user_id === user.id).length : 0),
@@ -538,13 +542,25 @@ function DoubtsPageContent() {
     });
     if (!error && (data as { ok?: boolean })?.ok) {
       // Update with actual server counts
-      const res = data as { ok: boolean; upvotes?: number; downvotes?: number };
+      const res = data as {
+        ok: boolean;
+        upvotes?: number;
+        downvotes?: number;
+        voter_daily_rdm?: { awarded?: boolean; amount?: number };
+      };
       if (res.upvotes !== undefined && res.downvotes !== undefined) {
         setDoubts((prev) =>
           prev.map((d) =>
             d.id === doubtId ? { ...d, upvotes: res.upvotes!, downvotes: res.downvotes! } : d
           )
         );
+      }
+      if (res.voter_daily_rdm?.awarded && res.voter_daily_rdm.amount) {
+        toast({
+          title: `+${res.voter_daily_rdm.amount} RDM`,
+          description: "First upvote milestone today (IST).",
+        });
+        void refreshProfile();
       }
       dispatchStudyDayBumped({ day: "", deltaMs: 0 });
     }
@@ -571,9 +587,34 @@ function DoubtsPageContent() {
       toast({ title: "Removed from saved" });
       dispatchStudyDayBumped({ day: "", deltaMs: 0 });
     } else {
-      await supabase.from("doubt_saves").insert({ user_id: user.id, doubt_id: doubtId });
+      const { data: beforeBal } = await supabase
+        .from("profiles")
+        .select("rdm")
+        .eq("id", user.id)
+        .maybeSingle();
+      const beforeRdm = (beforeBal as { rdm?: number } | null)?.rdm ?? 0;
+      const { error: insErr } = await supabase
+        .from("doubt_saves")
+        .insert({ user_id: user.id, doubt_id: doubtId });
+      if (insErr) {
+        toast({ title: "Could not save", description: insErr.message, variant: "destructive" });
+        return;
+      }
       setSavedDoubtIds((prev) => new Set(prev).add(doubtId));
-      toast({ title: "Saved!" });
+      const { data: afterBal } = await supabase
+        .from("profiles")
+        .select("rdm")
+        .eq("id", user.id)
+        .maybeSingle();
+      const afterRdm = (afterBal as { rdm?: number } | null)?.rdm ?? beforeRdm;
+      const gained = afterRdm - beforeRdm;
+      toast({
+        title: "Saved for revision",
+        description:
+          gained >= 3 ? "+3 RDM — first save milestone today (IST)." : undefined,
+      });
+      void refreshProfile();
+      void fetchUserRdmToday();
       dispatchStudyDayBumped({ day: "", deltaMs: 0 });
     }
   };
@@ -584,7 +625,7 @@ function DoubtsPageContent() {
     }
     void fetchDoubts();
     void fetchProfile();
-    void fetchBountyBoard();
+    void refreshProfile();
     void fetchTrending();
     void fetchTopContributors();
     void fetchUserRdmToday();
@@ -649,26 +690,35 @@ function DoubtsPageContent() {
                     </div>
                   </div>
                 ) : (
-                  <div className="space-y-3">
-                    {filteredAndSorted.map((d, i) => (
-                      <DoubtFeedCard
-                        key={d.id}
-                        doubt={d}
-                        index={i}
-                        isSaved={savedDoubtIds.has(d.id)}
-                        onToggleSave={toggleSave}
-                        onRefresh={() => void fetchDoubts()}
-                        profileAvatarUrl={profile?.avatar_url}
-                        profileName={profile?.name}
-                        myVote={myVotes.get(d.id) ?? 0}
-                        onVote={handleVoteFeed}
-                        currentUserId={user?.id ?? null}
-                        isAdmin={isAdmin}
-                        expectProfPiAnswer={Boolean(profPiPendingByDoubtId[d.id])}
-                        currentUserRole={profile?.role ?? null}
-                      />
-                    ))}
-                  </div>
+                  <>
+                    <div ref={feedTopRef} className="scroll-mt-20 space-y-3">
+                      {paginatedFeed.map((d, i) => (
+                        <DoubtFeedCard
+                          key={d.id}
+                          doubt={d}
+                          index={(feedPage - 1) * GYAN_FEED_PAGE_SIZE + i}
+                          isSaved={savedDoubtIds.has(d.id)}
+                          onToggleSave={toggleSave}
+                          onRefresh={() => void fetchDoubts()}
+                          profileAvatarUrl={profile?.avatar_url}
+                          profileName={profile?.name}
+                          myVote={myVotes.get(d.id) ?? 0}
+                          onVote={handleVoteFeed}
+                          currentUserId={user?.id ?? null}
+                          isAdmin={isAdmin}
+                          expectProfPiAnswer={Boolean(profPiPendingByDoubtId[d.id])}
+                          currentUserRole={profile?.role ?? null}
+                        />
+                      ))}
+                    </div>
+                    <GyanFeedPagination
+                      page={Math.min(feedPage, feedTotalPages)}
+                      totalPages={feedTotalPages}
+                      totalItems={filteredAndSorted.length}
+                      pageSize={GYAN_FEED_PAGE_SIZE}
+                      onPageChange={handleFeedPageChange}
+                    />
+                  </>
                 )}
               </main>
 
@@ -678,7 +728,6 @@ function DoubtsPageContent() {
                 aiGeneratedCount={aiAuthoredDoubtCount}
                 teacherTaggedCount={teacherTaggedCount}
                 userRdmToday={userRdmToday}
-                bountyBoard={bountyBoard}
                 trending={trending}
                 topContributors={topContributors}
                 topTeachers={topTeachers}
@@ -690,7 +739,6 @@ function DoubtsPageContent() {
           <AskDoubtDialog
             open={askOpen}
             onOpenChange={setAskOpen}
-            profile={profile}
             onDoubtPosted={handleDoubtPosted}
           />
         </GyanDoubtsFocusTracker>

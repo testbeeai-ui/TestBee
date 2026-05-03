@@ -356,8 +356,8 @@ export default function DoubtFeedCard({
                     <ArrowBigUp className="h-[18px] w-[18px]" strokeWidth={1.75} aria-hidden />
                   </button>
                 </TooltipTrigger>
-                <TooltipContent side="bottom" className="text-xs font-semibold">
-                  Upvote
+                <TooltipContent side="bottom" className="text-xs font-semibold max-w-[14rem]">
+                  Upvote · +2 RDM first upvote today (IST)
                 </TooltipContent>
               </Tooltip>
               <div
@@ -402,7 +402,7 @@ export default function DoubtFeedCard({
               <Bookmark
                 className={`w-3.5 h-3.5 mr-1 ${isSaved ? "fill-current text-primary" : ""}`}
               />
-              {isSaved ? "Saved" : "Save for revision"}
+              {isSaved ? "Saved" : "Save for revision (+3 RDM)"}
             </Button>
             <Popover open={subjectPopoverOpen} onOpenChange={setSubjectPopoverOpen}>
               <PopoverTrigger asChild>
@@ -701,11 +701,6 @@ export default function DoubtFeedCard({
                       <span className="text-xs text-muted-foreground">
                         {formatTimeAgo(ans.created_at)}
                       </span>
-                      {!commentIsAI && (
-                        <span className="text-[10px] font-bold text-emerald-600 bg-emerald-500/10 px-1.5 py-0.5 rounded-full">
-                          +5 RDM earned
-                        </span>
-                      )}
                       {aNet > 0 && (
                         <span className="inline-flex items-center gap-0.5 text-xs text-muted-foreground">
                           <ChevronUp className="w-3 h-3" /> {aNet}

@@ -129,7 +129,7 @@ export default function DoubtDetailPage() {
   const params = useParams();
   const router = useRouter();
   const id = params?.id as string;
-  const { user, profile } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
   const { toast } = useToast();
   const [doubt, setDoubt] = useState<Doubt | null>(null);
   const [answers, setAnswers] = useState<Answer[]>([]);
@@ -293,8 +293,21 @@ export default function DoubtDetailPage() {
         p_vote_type: voteType,
       });
       if (error) throw error;
-      const res = data as { ok: boolean; upvotes?: number; downvotes?: number; error?: string };
+      const res = data as {
+        ok: boolean;
+        upvotes?: number;
+        downvotes?: number;
+        error?: string;
+        voter_daily_rdm?: { awarded?: boolean; amount?: number };
+      };
       if (res?.ok) {
+        if (res.voter_daily_rdm?.awarded && res.voter_daily_rdm.amount) {
+          toast({
+            title: `+${res.voter_daily_rdm.amount} RDM`,
+            description: "First upvote milestone today (IST).",
+          });
+          void refreshProfile();
+        }
         refetchAll();
         dispatchStudyDayBumped({ day: "", deltaMs: 0 });
       } else {
@@ -330,6 +343,7 @@ export default function DoubtDetailPage() {
         toast({
           title: "Answer accepted!" + (res.rdm_paid ? ` ${res.rdm_paid} RDM to the answerer.` : ""),
         });
+        void refreshProfile();
         refetchAll();
       } else {
         toast({
@@ -357,13 +371,31 @@ export default function DoubtDetailPage() {
     const body = answerBody.trim();
     setSubmitLoading(true);
     try {
+      const { data: beforeBal } = await supabase
+        .from("profiles")
+        .select("rdm")
+        .eq("id", user.id)
+        .maybeSingle();
+      const beforeRdm = (beforeBal as { rdm?: number } | null)?.rdm ?? 0;
       const { error } = await supabase.from("doubt_answers").insert({
         doubt_id: id,
         user_id: user.id,
         body,
       });
       if (error) throw error;
-      toast({ title: "Answer posted!" });
+      const { data: afterBal } = await supabase
+        .from("profiles")
+        .select("rdm")
+        .eq("id", user.id)
+        .maybeSingle();
+      const afterRdm = (afterBal as { rdm?: number } | null)?.rdm ?? beforeRdm;
+      const gained = afterRdm - beforeRdm;
+      toast({
+        title: "Answer posted!",
+        description:
+          gained >= 5 ? "+5 RDM — first comment milestone today (IST)." : undefined,
+      });
+      void refreshProfile();
       setAnswerBody("");
       refetchAll();
     } catch (error: unknown) {

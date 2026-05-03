@@ -45,6 +45,8 @@ function formatTimeAgo(iso: string): string {
 export interface RawFeedPostCardProps {
   post: RawPostRow;
   index: number;
+  /** Tighter padding/typography for full feed page (small laptop screens). */
+  compact?: boolean;
   isSavedForRevision?: boolean;
   myVote: -1 | 0 | 1;
   threadOpen: boolean;
@@ -82,6 +84,7 @@ export default function RawFeedPostCard({
   onSaveForRevision,
   onOpenSourceLink,
   canOpenSourceLink = false,
+  compact = false,
 }: RawFeedPostCardProps) {
   const name = post.profiles?.name || "Learner";
   const initials = name
@@ -143,16 +146,21 @@ export default function RawFeedPostCard({
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.03, duration: 0.25 }}
-      className="p-4"
+      className={cn("p-4", compact && "p-3 sm:p-3.5")}
     >
-      <div className="flex gap-3">
-        <Avatar className="h-10 w-10 shrink-0">
+      <div className={cn("flex gap-3", compact && "gap-2.5")}>
+        <Avatar className={cn("shrink-0", compact ? "h-9 w-9" : "h-10 w-10")}>
           <AvatarFallback className="bg-primary/10 text-xs font-bold text-primary">
             {initials}
           </AvatarFallback>
         </Avatar>
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-1.5 text-sm">
+          <div
+            className={cn(
+              "flex flex-wrap items-center gap-1.5 text-sm",
+              compact && "text-[13px] sm:text-sm"
+            )}
+          >
             <span className="font-bold text-foreground">{name}</span>
             <span className="text-muted-foreground">·</span>
             <span className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground">
@@ -178,17 +186,32 @@ export default function RawFeedPostCard({
           ) : null}
           {post.title && post.title.trim().length > 0 ? (
             <>
-              <p className="mt-2 text-sm font-bold leading-snug text-foreground">
+              <p
+                className={cn(
+                  "mt-2 font-bold leading-snug text-foreground",
+                  compact ? "text-[13px] sm:text-sm" : "text-sm"
+                )}
+              >
                 {post.title.trim()}
               </p>
               {post.content.trim().length > 0 ? (
-                <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-foreground">
+                <p
+                  className={cn(
+                    "mt-1 whitespace-pre-wrap leading-relaxed text-foreground",
+                    compact ? "text-[13px] sm:text-sm" : "text-sm"
+                  )}
+                >
                   {post.content}
                 </p>
               ) : null}
             </>
           ) : (
-            <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-foreground">
+            <p
+              className={cn(
+                "mt-2 whitespace-pre-wrap leading-relaxed text-foreground",
+                compact ? "text-[13px] sm:text-sm" : "text-sm"
+              )}
+            >
               {post.content}
             </p>
           )}
@@ -198,7 +221,8 @@ export default function RawFeedPostCard({
                 <span
                   key={chip.key}
                   className={cn(
-                    "inline-flex min-w-0 items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ring-inset",
+                    "inline-flex min-w-0 items-center gap-1 rounded-full px-2 py-0.5 font-semibold ring-1 ring-inset",
+                    compact ? "text-[11px] sm:text-xs" : "text-[11px]",
                     chip.key === "subject" && "max-w-[120px]",
                     chip.key === "chapter" && "max-w-[170px]",
                     chip.key === "topic" && "max-w-[160px]",
@@ -214,7 +238,12 @@ export default function RawFeedPostCard({
             </div>
           ) : null}
 
-          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+          <div
+            className={cn(
+              "mt-3 flex flex-wrap items-center gap-x-4 gap-y-2",
+              compact && "mt-2.5 gap-x-3 gap-y-1.5"
+            )}
+          >
             <div
               className="inline-flex items-stretch overflow-hidden rounded-full border border-sky-500/45 text-xs tabular-nums dark:border-sky-400/35"
               role="group"
@@ -225,13 +254,19 @@ export default function RawFeedPostCard({
                 onClick={() => onVote(1)}
                 className={cn(
                   "flex items-center justify-center px-2 py-1 transition-colors hover:bg-sky-500/15",
+                  compact && "min-h-10 min-w-[2.75rem]",
                   myVote === 1 && "bg-sky-500/25 text-sky-200"
                 )}
                 aria-label="Upvote"
               >
                 <ChevronUp className="h-4 w-4" />
               </button>
-              <div className="flex min-w-[2.25rem] items-center justify-center border-x border-sky-500/45 bg-muted/40 px-2 py-1 font-bold text-foreground dark:border-sky-400/35 dark:bg-slate-900/60">
+              <div
+                className={cn(
+                  "flex min-w-[2.25rem] items-center justify-center border-x border-sky-500/45 bg-muted/40 px-2 py-1 font-bold text-foreground dark:border-sky-400/35 dark:bg-slate-900/60",
+                  compact && "min-h-10"
+                )}
+              >
                 {score}
               </div>
               <button
@@ -239,6 +274,7 @@ export default function RawFeedPostCard({
                 onClick={() => onVote(-1)}
                 className={cn(
                   "flex items-center justify-center px-2 py-1 transition-colors hover:bg-slate-500/15",
+                  compact && "min-h-10 min-w-[2.75rem]",
                   myVote === -1 && "bg-slate-600/40 text-slate-100"
                 )}
                 aria-label="Downvote"

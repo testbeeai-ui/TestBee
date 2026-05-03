@@ -24,7 +24,7 @@ export default function CommentInput({
   userName,
   variant = "student",
 }: CommentInputProps) {
-  const { user } = useAuth();
+  const { user, refreshProfile } = useAuth();
   const { toast } = useToast();
   const [text, setText] = useState("");
   const [posting, setPosting] = useState(false);
@@ -40,17 +40,35 @@ export default function CommentInput({
     if (!body) return;
     setPosting(true);
     try {
+      const { data: beforeBal } = await supabase
+        .from("profiles")
+        .select("rdm")
+        .eq("id", user.id)
+        .maybeSingle();
+      const beforeRdm = (beforeBal as { rdm?: number } | null)?.rdm ?? 0;
       const { error } = await supabase.from("doubt_answers").insert({
         doubt_id: doubtId,
         user_id: user.id,
         body,
       });
       if (error) throw error;
+      const { data: afterBal } = await supabase
+        .from("profiles")
+        .select("rdm")
+        .eq("id", user.id)
+        .maybeSingle();
+      const afterRdm = (afterBal as { rdm?: number } | null)?.rdm ?? beforeRdm;
+      const gained = afterRdm - beforeRdm;
       setText("");
       setExpanded(false);
       toast({
-        title: variant === "teacher" ? "Teacher note posted!" : "+5 RDM earned for commenting!",
+        title: variant === "teacher" ? "Teacher note posted!" : "Comment posted!",
+        description:
+          variant !== "teacher" && gained >= 5
+            ? "+5 RDM — first comment milestone today (IST)."
+            : undefined,
       });
+      void refreshProfile();
       onCommentPosted();
     } catch (error: unknown) {
       const description =
@@ -82,7 +100,7 @@ export default function CommentInput({
           placeholder={
             variant === "teacher"
               ? "Add a teacher note (exam tips, corrections)…"
-              : "Add a comment — earn +5 RDM..."
+              : "Add a comment — up to +5 RDM once today (IST)..."
           }
           className="w-full text-sm bg-transparent border-0 outline-none text-foreground placeholder:text-muted-foreground py-1"
           disabled={posting}

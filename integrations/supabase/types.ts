@@ -1261,6 +1261,86 @@ export type Database = {
           },
         ];
       };
+      referral_attributions: {
+        Row: {
+          id: string;
+          referee_user_id: string;
+          referrer_user_id: string;
+          ref_code: string;
+          credited_at: string;
+          credited_week_start_ist: string;
+          referrer_rdm: number;
+          referee_rdm: number;
+        };
+        Insert: {
+          id?: string;
+          referee_user_id: string;
+          referrer_user_id: string;
+          ref_code: string;
+          credited_at?: string;
+          credited_week_start_ist: string;
+          referrer_rdm?: number;
+          referee_rdm?: number;
+        };
+        Update: {
+          id?: string;
+          referee_user_id?: string;
+          referrer_user_id?: string;
+          ref_code?: string;
+          credited_at?: string;
+          credited_week_start_ist?: string;
+          referrer_rdm?: number;
+          referee_rdm?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "referral_attributions_referee_user_id_fkey";
+            columns: ["referee_user_id"];
+            isOneToOne: true;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "referral_attributions_referrer_user_id_fkey";
+            columns: ["referrer_user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      referral_weekly_bonuses: {
+        Row: {
+          id: string;
+          referrer_user_id: string;
+          week_start_ist: string;
+          rdm_awarded: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          referrer_user_id: string;
+          week_start_ist: string;
+          rdm_awarded?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          referrer_user_id?: string;
+          week_start_ist?: string;
+          rdm_awarded?: number;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "referral_weekly_bonuses_referrer_user_id_fkey";
+            columns: ["referrer_user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       posts: {
         Row: {
           classroom_id: string;
@@ -1842,6 +1922,41 @@ export type Database = {
           },
         ];
       };
+      daily_reward_claims: {
+        Row: {
+          id: string;
+          user_id: string;
+          action_type: string;
+          claim_date_ist: string;
+          points_awarded: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          action_type: string;
+          claim_date_ist: string;
+          points_awarded: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          action_type?: string;
+          claim_date_ist?: string;
+          points_awarded?: number;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "daily_reward_claims_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       doubts: {
         Row: {
           id: string;
@@ -2397,6 +2512,10 @@ export type Database = {
         Args: { p_target_type: string; p_target_id: string; p_vote_type: number };
         Returns: Json;
       };
+      get_daily_rdm_earned_ist: {
+        Args: Record<PropertyKey, never>;
+        Returns: number;
+      };
       get_adaptive_play_questions: {
         Args: { p_domain: string; p_category: string; p_count?: number };
         Returns: {
@@ -2465,6 +2584,10 @@ export type Database = {
       };
       claim_refer_challenge_reward: {
         Args: { p_challenge_key: string; p_reward_type: string; p_claim_date?: string };
+        Returns: Json;
+      };
+      claim_referral_attribution: {
+        Args: { p_ref_code: string; p_referee_id: string };
         Returns: Json;
       };
       get_prep_calendar_summary: {

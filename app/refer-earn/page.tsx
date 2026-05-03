@@ -20,6 +20,12 @@ import {
 } from "@/lib/referEarnChallenges";
 import { reportChallengeYourselfAttempt } from "@/lib/reportChallengeYourselfAttempt";
 import { cn } from "@/lib/utils";
+import {
+  REFERRAL_RDM_REFERRER,
+  REFERRAL_RDM_REFEREE_WELCOME,
+  REFERRAL_WEEKLY_BONUS_AT_COUNT,
+  REFERRAL_WEEKLY_BONUS_RDM,
+} from "@/lib/referralRewards";
 import type { PlayDomain } from "@/types";
 import {
   BarChart3,
@@ -58,11 +64,11 @@ const FAQ_ITEMS = [
   },
   {
     q: "How many RDM do I get per referral?",
-    a: "You earn 50 RDM when your friend signs up using your link. You get an additional 100 RDM bonus when you hit 5 referrals in a week.",
+    a: `You earn ${REFERRAL_RDM_REFERRER} RDM when your friend signs up using your link. You get an additional ${REFERRAL_WEEKLY_BONUS_RDM} RDM bonus when you hit ${REFERRAL_WEEKLY_BONUS_AT_COUNT} referrals in a week.`,
   },
   {
     q: "Does my friend also get RDM?",
-    a: "Yes! Your friend gets 25 RDM as a welcome bonus when they sign up through your link. It appears in their balance after onboarding.",
+    a: `Yes! Your friend gets ${REFERRAL_RDM_REFEREE_WELCOME} RDM as a welcome bonus when they sign up through your link. It appears in their balance after onboarding.`,
   },
   {
     q: "When does the leaderboard reset?",
@@ -129,6 +135,17 @@ function formatInt(n: number): string {
   return n.toLocaleString("en-IN");
 }
 
+function formatReferralCreditedAt(iso: string): string {
+  try {
+    return new Date(iso).toLocaleString("en-IN", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
+  } catch {
+    return iso;
+  }
+}
+
 export default function ReferEarnPage() {
   const { profile } = useAuth();
   const user = useUserStore((s) => s.user);
@@ -149,11 +166,25 @@ export default function ReferEarnPage() {
   const detailPanelRef = useRef<HTMLDivElement>(null);
   const inlineChallengeRef = useRef<HTMLDivElement>(null);
   const [activeReferClaim, setActiveReferClaim] = useState<ReferClaimKey | null>(null);
+  const [friendsReferred, setFriendsReferred] = useState(0);
+  const [weeklyReferrals, setWeeklyReferrals] = useState(0);
+  const [leaderboardRows, setLeaderboardRows] = useState<
+    { rank: number; userId: string; name: string; referralCount: number }[]
+  >([]);
+  const [leaderboardWeekLabel, setLeaderboardWeekLabel] = useState<string | null>(null);
+  const [referralStatsLoading, setReferralStatsLoading] = useState(false);
+  const [myReferralHistory, setMyReferralHistory] = useState<
+    {
+      id: string;
+      creditedAt: string;
+      creditedWeekStartIst: string;
+      refereeName: string;
+    }[]
+  >([]);
 
   const rdm = profile?.rdm ?? user?.rdm ?? 0;
-  const friendsReferred = 0;
-  const perReferral = 50;
-  const bonusAtFive = 100;
+  const perReferral = REFERRAL_RDM_REFERRER;
+  const bonusAtFive = REFERRAL_WEEKLY_BONUS_RDM;
 
   const refCode = useMemo(() => {
     const fallbackHandle = (user?.name || "guest").replace(/\s+/g, "").slice(0, 7);
@@ -238,6 +269,81 @@ export default function ReferEarnPage() {
     void loadGauntletMeta();
   }, [loadGauntletMeta]);
 
+  const loadReferralStats = useCallback(async () => {
+    if (!profile?.id) {
+      setFriendsReferred(0);
+      setWeeklyReferrals(0);
+      setLeaderboardRows([]);
+      setLeaderboardWeekLabel(null);
+      setMyReferralHistory([]);
+      return;
+    }
+    setReferralStatsLoading(true);
+    try {
+      const [statsRes, lbRes, mineRes] = await Promise.all([
+        fetch("/api/referral/stats", { credentials: "include", cache: "no-store" }),
+        fetch("/api/referral/leaderboard", { cache: "no-store" }),
+        fetch("/api/referral/my-referrals", { credentials: "include", cache: "no-store" }),
+      ]);
+      if (statsRes.ok) {
+        const j = (await statsRes.json()) as {
+          totalReferrals?: number;
+          weeklyReferrals?: number;
+        };
+        setFriendsReferred(typeof j.totalReferrals === "number" ? j.totalReferrals : 0);
+        setWeeklyReferrals(typeof j.weeklyReferrals === "number" ? j.weeklyReferrals : 0);
+      }
+      if (lbRes.ok) {
+        const j = (await lbRes.json()) as {
+          entries?: { rank: number; userId: string; name: string; referralCount: number }[];
+          weekStartIst?: string;
+        };
+        setLeaderboardRows(Array.isArray(j.entries) ? j.entries : []);
+        setLeaderboardWeekLabel(typeof j.weekStartIst === "string" ? j.weekStartIst : null);
+      }
+      if (mineRes.ok) {
+        const j = (await mineRes.json()) as {
+          entries?: {
+            id: string;
+            creditedAt: string;
+            creditedWeekStartIst: string;
+            refereeName: string;
+          }[];
+        };
+        setMyReferralHistory(Array.isArray(j.entries) ? j.entries : []);
+      } else {
+        setMyReferralHistory([]);
+      }
+    } catch {
+      setFriendsReferred(0);
+      setWeeklyReferrals(0);
+      setMyReferralHistory([]);
+    } finally {
+      setReferralStatsLoading(false);
+    }
+  }, [profile?.id]);
+
+  useEffect(() => {
+    void loadReferralStats();
+  }, [loadReferralStats, profile?.rdm]);
+
+  useEffect(() => {
+    if (tab === "leaderboard") void loadReferralStats();
+  }, [tab, loadReferralStats]);
+
+  useEffect(() => {
+    const refresh = () => {
+      if (document.visibilityState === "visible") void loadReferralStats();
+    };
+    const onFocus = () => void loadReferralStats();
+    document.addEventListener("visibilitychange", refresh);
+    window.addEventListener("focus", onFocus);
+    return () => {
+      document.removeEventListener("visibilitychange", refresh);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [loadReferralStats]);
+
   useLayoutEffect(() => {
     if (!activeReferClaim) return;
     requestAnimationFrame(() => {
@@ -292,6 +398,10 @@ export default function ReferEarnPage() {
   }, [rdm, perReferral]);
 
   const userDisplayName = profile?.name || user?.name || "You";
+  const myLeaderboardEntry = useMemo(
+    () => leaderboardRows.find((e) => e.userId === profile?.id),
+    [leaderboardRows, profile?.id]
+  );
 
   return (
     <ProtectedRoute>
@@ -351,7 +461,7 @@ export default function ReferEarnPage() {
                   </div>
                   <div className="rounded-lg border border-white/10 bg-black/20 px-2 py-2.5 text-center">
                     <p className="text-xl font-bold tabular-nums text-amber-400">+{bonusAtFive}</p>
-                    <p className={reLabel}>Bonus at 5 friends</p>
+                    <p className={reLabel}>Bonus at {REFERRAL_WEEKLY_BONUS_AT_COUNT} / week</p>
                   </div>
                 </div>
               </section>
@@ -573,48 +683,175 @@ export default function ReferEarnPage() {
 
               {tab === "leaderboard" ? (
                 <div className="space-y-3">
-                  <p className={cn("flex items-center gap-2", reLabel)}>
+                  <p className={cn("flex flex-wrap items-center gap-2", reLabel)}>
                     <span>Top referrers this week</span>
-                    <span className="h-px flex-1 bg-white/10" />
+                    {referralStatsLoading ? (
+                      <span className="font-normal normal-case tracking-normal text-violet-400/90">
+                        Updating…
+                      </span>
+                    ) : null}
+                    <span className="h-px min-w-[2rem] flex-1 bg-white/10" />
                   </p>
-                  <p
-                    className={cn(
-                      "rounded-lg border border-dashed border-white/15 bg-black/20 px-3 py-5 text-center",
-                      reBody
-                    )}
-                  >
-                    Referral rankings will appear here once referral events are stored. Your invites
-                    still help friends join — share your link above.
-                  </p>
-                  <div className="rounded-[12px] border border-teal-500/35 bg-teal-500/10 p-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex min-w-0 items-center gap-2">
-                        <span className="w-8 text-center text-sm font-bold text-teal-400">—</span>
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-teal-500/20 text-[10px] font-bold text-teal-200">
-                          {userDisplayName
-                            .split(/\s+/)
-                            .filter(Boolean)
-                            .map((p) => p[0])
-                            .join("")
-                            .slice(0, 2)
-                            .toUpperCase() || "YOU"}
-                        </div>
-                        <div className="min-w-0">
-                          <p className={cn("truncate", reTitle)}>
-                            You — {userDisplayName}{" "}
-                            <span className="ml-1 rounded bg-teal-500/25 px-1.5 py-0.5 text-[10px] text-teal-200">
-                              YOU
+                  {leaderboardWeekLabel ? (
+                    <div className="space-y-1">
+                      <p className={cn("text-[11px] text-slate-500")}>
+                        Week starting {leaderboardWeekLabel} (IST)
+                      </p>
+                      <p className={cn("text-[11px] text-slate-500/90")}>
+                        This ranking counts only referrals <span className="text-slate-400">credited in that IST week</span>{" "}
+                        (for the weekly leaderboard &amp; +100 bonus). Your full history is below.
+                      </p>
+                    </div>
+                  ) : null}
+                  {leaderboardRows.length === 0 ? (
+                    <p
+                      className={cn(
+                        "rounded-lg border border-dashed border-white/15 bg-black/20 px-3 py-5 text-center",
+                        reBody
+                      )}
+                    >
+                      No referrals this week yet. Share your link — the first names will show up
+                      here.
+                    </p>
+                  ) : (
+                    <ul className="space-y-2">
+                      {leaderboardRows.map((row) => {
+                        const isYou = row.userId === profile?.id;
+                        return (
+                          <li
+                            key={row.userId}
+                            className={cn(
+                              "flex items-center justify-between gap-2 rounded-[12px] border px-3 py-2.5",
+                              isYou
+                                ? "border-teal-500/40 bg-teal-500/10"
+                                : "border-white/10 bg-[var(--re-card)]"
+                            )}
+                          >
+                            <div className="flex min-w-0 flex-1 items-center gap-2">
+                              <span className="w-7 shrink-0 text-center text-sm font-bold text-slate-400">
+                                {row.rank}
+                              </span>
+                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-500/20 text-[10px] font-bold text-violet-200">
+                                {row.name
+                                  .split(/\s+/)
+                                  .filter(Boolean)
+                                  .map((p) => p[0])
+                                  .join("")
+                                  .slice(0, 2)
+                                  .toUpperCase() || "?"}
+                              </div>
+                              <div className="min-w-0">
+                                <p className={cn("truncate", reTitle)}>
+                                  {row.name}
+                                  {isYou ? (
+                                    <span className="ml-1 rounded bg-teal-500/25 px-1.5 py-0.5 text-[10px] text-teal-200">
+                                      YOU
+                                    </span>
+                                  ) : null}
+                                </p>
+                                {isYou ? (
+                                  <p className={cn(reBody, "mt-0.5 text-[11px] text-slate-500")}>
+                                    {friendsReferred} all-time · {formatInt(rdm)} RDM balance
+                                  </p>
+                                ) : null}
+                              </div>
+                            </div>
+                            <span className="shrink-0 text-sm font-semibold tabular-nums text-teal-300">
+                              {row.referralCount}
                             </span>
-                          </p>
-                          <p className={cn(reBody, "text-[11px]")}>
-                            {friendsReferred} friends · {formatInt(rdm)} RDM balance
-                          </p>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+
+                  <div className="border-t border-white/10 pt-4">
+                    <p className={cn("flex flex-wrap items-center gap-2", reLabel)}>
+                      <span>Your referrals (all time)</span>
+                      <span className="h-px min-w-[2rem] flex-1 bg-white/10" />
+                    </p>
+                    <p className={cn("mt-1 text-[11px] text-slate-500")}>
+                      Everyone who finished onboarding through your link — newest first. Includes every week, not only
+                      the current one.
+                    </p>
+                    {myReferralHistory.length === 0 ? (
+                      <p
+                        className={cn(
+                          "mt-3 rounded-lg border border-dashed border-white/15 bg-black/20 px-3 py-4 text-center",
+                          reBody
+                        )}
+                      >
+                        No completed referrals yet. When friends use your link and finish setup, they appear here.
+                      </p>
+                    ) : (
+                      <ul className="mt-3 max-h-[min(360px,50vh)] space-y-2 overflow-y-auto pr-1">
+                        {myReferralHistory.map((row) => (
+                          <li
+                            key={row.id}
+                            className="flex flex-col gap-1 rounded-[12px] border border-white/10 bg-[var(--re-card)] px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3"
+                          >
+                            <div className="flex min-w-0 items-center gap-2">
+                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-600/40 text-[10px] font-bold text-slate-200">
+                                {row.refereeName
+                                  .split(/\s+/)
+                                  .filter(Boolean)
+                                  .map((p) => p[0])
+                                  .join("")
+                                  .slice(0, 2)
+                                  .toUpperCase() || "?"}
+                              </div>
+                              <div className="min-w-0">
+                                <p className={cn("truncate", reTitle)}>{row.refereeName}</p>
+                                <p className={cn(reBody, "text-[11px] text-slate-500")}>
+                                  Credited {formatReferralCreditedAt(row.creditedAt)}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="shrink-0 text-left sm:text-right">
+                              <p className={cn(reBody, "text-[11px] text-slate-500")}>IST week (for bonus)</p>
+                              <p className="text-xs font-medium tabular-nums text-slate-300">
+                                {row.creditedWeekStartIst}
+                              </p>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+
+                  {myLeaderboardEntry ? null : (
+                    <div className="rounded-[12px] border border-teal-500/35 bg-teal-500/10 p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <span className="w-8 text-center text-sm font-bold text-teal-400">—</span>
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-teal-500/20 text-[10px] font-bold text-teal-200">
+                            {userDisplayName
+                              .split(/\s+/)
+                              .filter(Boolean)
+                              .map((p) => p[0])
+                              .join("")
+                              .slice(0, 2)
+                              .toUpperCase() || "YOU"}
+                          </div>
+                          <div className="min-w-0">
+                            <p className={cn("truncate", reTitle)}>
+                              You — {userDisplayName}{" "}
+                              <span className="ml-1 rounded bg-teal-500/25 px-1.5 py-0.5 text-[10px] text-teal-200">
+                                YOU
+                              </span>
+                            </p>
+                            <p className={cn(reBody, "text-[11px]")}>
+                              Not in the top 20 this week yet · {weeklyReferrals} this week ·{" "}
+                              {friendsReferred} all-time · {formatInt(rdm)} RDM balance
+                            </p>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
+                  )}
                   <p className="border-t border-white/10 pt-3 text-center text-[11px] text-slate-500">
-                    Refer 5 friends to jump into the top 5 · Leaderboard resets every Monday
+                    Refer {REFERRAL_WEEKLY_BONUS_AT_COUNT} friends in a week for +{bonusAtFive} RDM
+                    bonus · Leaderboard resets every Monday (IST)
                   </p>
                 </div>
               ) : null}

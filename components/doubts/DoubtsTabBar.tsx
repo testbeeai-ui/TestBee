@@ -8,7 +8,6 @@ const tabs: { value: TabFilter; label: string }[] = [
   { value: "ai", label: "Prof-Pi & AI" },
   { value: "teacher", label: "Teacher tagged" },
   { value: "revision", label: "Revision picks" },
-  { value: "bounties", label: "Bounties" },
 ];
 
 interface DoubtsTabBarProps {
