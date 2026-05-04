@@ -46,6 +46,8 @@ interface Profile {
   /** Supabase auth originally used Google — not the same as Calendar OAuth. */
   signup_google?: boolean;
   onboarding_complete: boolean;
+  /** Consecutive days (same gauntlet_date) completing both academic + funbrain DailyDose. */
+  daily_dose_streak?: number;
   rdm?: number;
   saved_bits?: SavedBit[];
   saved_formulas?: SavedFormula[];

@@ -38,6 +38,8 @@ import type { BitsQuestion, PracticeFormula } from "@/data/deepDiveContent";
 import { canRegenerate, generateFormulaQuestions } from "@/lib/formulaQuestionGenerators";
 import PremiumFeatureDialog from "@/components/PremiumFeatureDialog";
 import { syncAllSavedContent } from "@/lib/savedContentService";
+import { applyInstacueCreateDailyRdmReward } from "@/lib/applyInstacueCreateDailyRdmReward";
+import { useToast } from "@/hooks/use-toast";
 import MathText from "@/components/MathText";
 import { stripFormulaDelimiters } from "@/lib/stripFormulaDelimiters";
 import { subtopicMathTextLabel } from "@/lib/subtopicTitles";
@@ -295,7 +297,8 @@ function DeepDivePageInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
-  const { loading: authLoading, profile } = useAuth();
+  const { loading: authLoading, profile, refreshProfile } = useAuth();
+  const { toast } = useToast();
   const fromRandom = searchParams.get("mode") === "random";
   const board = params.board as string;
   const subject = params.subject as string;
@@ -616,7 +619,7 @@ function DeepDivePageInner() {
                 classLevel={topicNode.classLevel}
                 onAddCard={
                   user
-                    ? (card) => {
+                    ? async (card) => {
                         const id = `user-${Date.now()}-${Math.random().toString(36).slice(2)}`;
                         saveRevisionCard({
                           ...card,
@@ -624,7 +627,28 @@ function DeepDivePageInner() {
                           sectionIndex,
                           board: (board === "icse" ? "ICSE" : "CBSE") as Board,
                         } as Parameters<typeof saveRevisionCard>[0]);
-                        syncAllSavedContent().catch(() => {});
+                        try {
+                          await syncAllSavedContent();
+                        } catch {
+                          /* best-effort */
+                        }
+                        const reward = await applyInstacueCreateDailyRdmReward({ refreshProfile });
+                        if (reward.awarded) {
+                          toast({
+                            title: "+5 RDM",
+                            description: "First InstaCue card you created today (IST).",
+                          });
+                        } else if (
+                          reward.reason &&
+                          reward.reason !== "already_claimed_today" &&
+                          reward.reason !== "not_authenticated"
+                        ) {
+                          toast({
+                            variant: "destructive",
+                            title: "Could not apply RDM bonus",
+                            description: reward.reason,
+                          });
+                        }
                       }
                     : undefined
                 }

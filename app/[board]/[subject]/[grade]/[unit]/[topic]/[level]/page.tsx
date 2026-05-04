@@ -75,6 +75,8 @@ import { getInstaCueCards, type InstaCueCard } from "@/data/instaCueCards";
 import { useUserStore } from "@/store/useUserStore";
 import type { Board, Subject, SavedBit, SavedFormula, SavedRevisionUnit } from "@/types";
 import { syncAllSavedContent } from "@/lib/savedContentService";
+import { applyInstacueCreateDailyRdmReward } from "@/lib/applyInstacueCreateDailyRdmReward";
+import { applyTopicQuizAdvancedDailyRdmReward } from "@/lib/applyTopicQuizAdvancedDailyRdmReward";
 import {
   fetchSubtopicContent,
   upsertSubtopicContent,
@@ -132,6 +134,8 @@ import {
   isAdvancedMultiSet,
   type AdvancedQuizSetIndex,
 } from "@/lib/advancedQuizSets";
+import { getBitsSignature } from "@/lib/bitsSignature";
+import { claimNumeralsPackCompleteDailyRdm } from "@/lib/claimNumeralsPackDailyRdm";
 import {
   buildQuizPostDrafts,
   pickRandomQuizPostDraft,
@@ -322,17 +326,6 @@ function getSavedBitId(question: ArtifactBitsQuestion, savedBits: SavedBit[]): s
       b.correctAnswer === correctIdx
   );
   return hit?.id ?? null;
-}
-
-function getBitsSignature(items: ArtifactBitsQuestion[]): string {
-  const raw = items
-    .map((q, idx) => `${idx + 1}|${q.question}|${q.correctAnswer}|${q.options.join("||")}`)
-    .join("###");
-  let hash = 0;
-  for (let i = 0; i < raw.length; i += 1) {
-    hash = (hash * 31 + raw.charCodeAt(i)) | 0;
-  }
-  return `v1-${items.length}-${Math.abs(hash)}`;
 }
 
 function subtopicNavPreviewLine(raw: string): string {
@@ -692,6 +685,7 @@ function TopicPageInner() {
   // Approved topic-hub layout override for all overview pages.
   const isInvestorTopicHubLayout = isOverview;
   const user = useUserStore((s) => s.user);
+  const setRdmFromProfile = useUserStore((s) => s.setRdmFromProfile);
   const saveRevisionCard = useUserStore((s) => s.saveRevisionCard);
   const saveBit = useUserStore((s) => s.saveBit);
   const unsaveBit = useUserStore((s) => s.unsaveBit);
@@ -700,7 +694,7 @@ function TopicPageInner() {
   const saveRevisionUnit = useUserStore((s) => s.saveRevisionUnit);
   const unsaveRevisionUnit = useUserStore((s) => s.unsaveRevisionUnit);
   const { toast } = useToast();
-  const { loading: authLoading, session, profile } = useAuth();
+  const { loading: authLoading, session, profile, refreshProfile } = useAuth();
 
   const isAdminUser = useMemo(() => isAdminRole(profile?.role), [profile?.role]);
 
@@ -1279,6 +1273,45 @@ function TopicPageInner() {
       const att = formulaNumeralsAttemptByIdx[i];
       return Boolean(att && att.bitsSignature === sig);
     });
+  }, [dbPracticeFormulas, formulaQuestionsOverride, formulaNumeralsAttemptByIdx]);
+
+  /** Cumulative % (correct ÷ total questions) across submitted numerals only; remaining = numerals not yet submitted. */
+  const numeralsOverallBarStats = useMemo(() => {
+    if (dbPracticeFormulas.length === 0) {
+      return {
+        withQuestionsCount: 0,
+        submittedCount: 0,
+        totalCorrect: 0,
+        totalQuestions: 0,
+        remaining: 0,
+        overallPct: null as number | null,
+      };
+    }
+    let withQ = 0;
+    let submitted = 0;
+    let totalCorrect = 0;
+    let totalQuestions = 0;
+    dbPracticeFormulas.forEach((f, i) => {
+      const qs = formulaQuestionsOverride[i] ?? f.bitsQuestions ?? [];
+      if (qs.length === 0) return;
+      withQ += 1;
+      const sig = getBitsSignature(qs);
+      const att = formulaNumeralsAttemptByIdx[i];
+      if (att && att.bitsSignature === sig) {
+        submitted += 1;
+        totalCorrect += att.correctCount;
+        totalQuestions += att.totalQuestions;
+      }
+    });
+    return {
+      withQuestionsCount: withQ,
+      submittedCount: submitted,
+      totalCorrect,
+      totalQuestions,
+      remaining: withQ - submitted,
+      overallPct:
+        totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : null,
+    };
   }, [dbPracticeFormulas, formulaQuestionsOverride, formulaNumeralsAttemptByIdx]);
 
   const currentFormulaQuestion = useMemo(() => {
@@ -5342,14 +5375,37 @@ function TopicPageInner() {
                         onCardValidated={handleInstaCueValidated}
                         onAddCard={
                           user && canEditTheory
-                            ? (card) => {
+                            ? async (card) => {
                                 const id = `user-${Date.now()}-${Math.random().toString(36).slice(2)}`;
                                 saveRevisionCard({
                                   ...card,
                                   id,
                                   board: (board === "icse" ? "ICSE" : "CBSE") as Board,
                                 } as Parameters<typeof saveRevisionCard>[0]);
-                                syncAllSavedContent().catch(() => {});
+                                try {
+                                  await syncAllSavedContent();
+                                } catch {
+                                  /* best-effort */
+                                }
+                                const reward = await applyInstacueCreateDailyRdmReward({
+                                  refreshProfile,
+                                });
+                                if (reward.awarded) {
+                                  toast({
+                                    title: "+5 RDM",
+                                    description: "First InstaCue card you created today (IST).",
+                                  });
+                                } else if (
+                                  reward.reason &&
+                                  reward.reason !== "already_claimed_today" &&
+                                  reward.reason !== "not_authenticated"
+                                ) {
+                                  toast({
+                                    variant: "destructive",
+                                    title: "Could not apply RDM bonus",
+                                    description: reward.reason,
+                                  });
+                                }
                               }
                             : undefined
                         }
@@ -6392,6 +6448,49 @@ function TopicPageInner() {
                                                 title: "Set submitted",
                                                 description: `Correct: ${correctCount}, Wrong: ${wrongCount}`,
                                               });
+                                              if (activeQuizSet === 3 && topicNode && subtopicName) {
+                                                try {
+                                                  const reward =
+                                                    await applyTopicQuizAdvancedDailyRdmReward(
+                                                      {
+                                                        board: boardName,
+                                                        subject: topicNode.subject,
+                                                        classLevel: topicNode.classLevel,
+                                                        topic: topicNode.topic,
+                                                        subtopicName,
+                                                      },
+                                                      { refreshProfile }
+                                                    );
+                                                  if (reward.awarded) {
+                                                    toast({
+                                                      title: "+15 RDM",
+                                                      description:
+                                                        "Advanced topic quiz: ≥60% overall with all sets complete. Credited for today (IST).",
+                                                    });
+                                                  } else if (
+                                                    reward.reason === "already_claimed_today"
+                                                  ) {
+                                                    toast({
+                                                      title: "Daily topic-quiz bonus already used",
+                                                      description:
+                                                        "You already earned +15 RDM from an advanced topic quiz today (IST).",
+                                                    });
+                                                  } else if (
+                                                    reward.reason &&
+                                                    reward.reason !== "below_threshold" &&
+                                                    reward.reason !== "not_multiset_advanced" &&
+                                                    reward.reason !== "content_not_found"
+                                                  ) {
+                                                    toast({
+                                                      variant: "destructive",
+                                                      title: "Topic quiz RDM",
+                                                      description: reward.reason,
+                                                    });
+                                                  }
+                                                } catch {
+                                                  /* best-effort bonus */
+                                                }
+                                              }
                                             } catch {
                                               toast({
                                                 title: "Failed to save result",
@@ -6467,6 +6566,50 @@ function TopicPageInner() {
 
                     {/* Tab 3: Numerals */}
                     <TabsContent value="numerals" className="space-y-3 mt-0">
+                      {numeralsOverallBarStats.withQuestionsCount > 0 && (
+                        <div
+                          className="grid grid-cols-2 gap-1.5 rounded-lg border border-border/60 bg-muted/30 px-1.5 py-1 sm:gap-2 sm:px-2"
+                          aria-label="Numerals overall progress"
+                        >
+                          <div className="min-w-0 rounded-md border border-border/40 bg-background/50 px-1.5 py-1">
+                            <p className="text-[9px] font-bold uppercase leading-none tracking-wide text-muted-foreground">
+                              Overall score
+                            </p>
+                            <p className="text-base font-extrabold leading-none text-foreground tabular-nums mt-0.5">
+                              {numeralsOverallBarStats.overallPct !== null
+                                ? `${numeralsOverallBarStats.overallPct}%`
+                                : "—"}
+                            </p>
+                            {numeralsOverallBarStats.submittedCount > 0 ? (
+                              <p className="mt-0.5 text-[10px] leading-tight text-muted-foreground">
+                                {numeralsOverallBarStats.totalCorrect}/
+                                {numeralsOverallBarStats.totalQuestions} correct ·{" "}
+                                {numeralsOverallBarStats.submittedCount} numeral
+                                {numeralsOverallBarStats.submittedCount !== 1 ? "s" : ""}
+                              </p>
+                            ) : (
+                              <p className="mt-0.5 text-[10px] leading-tight text-muted-foreground">
+                                Submit one to see %.
+                              </p>
+                            )}
+                          </div>
+                          <div className="min-w-0 rounded-md border border-border/40 bg-background/50 px-1.5 py-1 text-right">
+                            <p className="text-[9px] font-bold uppercase leading-none tracking-wide text-muted-foreground">
+                              Remaining
+                            </p>
+                            <p className="text-base font-extrabold leading-none text-primary tabular-nums mt-0.5">
+                              {numeralsOverallBarStats.remaining === 0
+                                ? "0"
+                                : numeralsOverallBarStats.remaining}
+                            </p>
+                            <p className="mt-0.5 text-[10px] leading-tight text-muted-foreground">
+                              {numeralsOverallBarStats.remaining === 0
+                                ? "All submitted."
+                                : `${numeralsOverallBarStats.withQuestionsCount} total`}
+                            </p>
+                          </div>
+                        </div>
+                      )}
                       {canEditTheory && (
                         <div className="flex justify-end mb-1">
                           <Button
@@ -6504,6 +6647,7 @@ function TopicPageInner() {
                           </p>
                         </div>
                       ) : (
+                        <>
                         <div
                           className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-2 overflow-y-auto no-scrollbar pb-1"
                           style={{ maxHeight: "calc(100vh - 220px)" }}
@@ -6568,9 +6712,6 @@ function TopicPageInner() {
                                 ) : null}
                               </div>
                               <p className="font-bold text-xs sm:text-sm mb-1">{formula.name}</p>
-                              <p className="text-[11px] sm:text-xs text-muted-foreground mb-1.5 line-clamp-2">
-                                {formula.description}
-                              </p>
                               <span className="text-primary text-[11px] sm:text-xs font-bold hover:underline">
                                 Try this →
                               </span>
@@ -6578,6 +6719,7 @@ function TopicPageInner() {
                           );
                           })}
                         </div>
+                        </>
                       )}
                     </TabsContent>
 
@@ -7029,9 +7171,6 @@ function TopicPageInner() {
                               <ArrowLeft className="h-4 w-4 shrink-0" />
                               Back to Formulas
                             </button>
-                            <p className="max-w-prose text-xs text-muted-foreground [&_.katex]:text-[0.92em] sm:text-sm">
-                              <MathText>{formula.description}</MathText>
-                            </p>
                             <div className="flex justify-center overflow-x-auto rounded-lg bg-muted/60 px-3 py-2 text-primary [&_.katex-display]:mx-auto [&_.katex]:text-[0.98em]">
                               <MathText>{`$$${stripFormulaDelimiters(formula.formulaLatex)}$$`}</MathText>
                             </div>
@@ -7218,6 +7357,62 @@ function TopicPageInner() {
                                         ...prev,
                                         [selectedFormulaIdx]: persisted,
                                       }));
+                                      const nextAttempts: Partial<
+                                        Record<number, BitsAttemptRecord>
+                                      > = {
+                                        ...formulaNumeralsAttemptByIdx,
+                                        [selectedFormulaIdx]: persisted,
+                                      };
+                                      let allWithQuestionsSubmitted = true;
+                                      for (let fi = 0; fi < dbPracticeFormulas.length; fi++) {
+                                        const pf = dbPracticeFormulas[fi];
+                                        const fqs =
+                                          formulaQuestionsOverride[fi] ?? pf.bitsQuestions ?? [];
+                                        if (fqs.length === 0) continue;
+                                        const fSig = getBitsSignature(fqs);
+                                        const fAtt = nextAttempts[fi];
+                                        if (!fAtt || fAtt.bitsSignature !== fSig) {
+                                          allWithQuestionsSubmitted = false;
+                                          break;
+                                        }
+                                      }
+                                      if (allWithQuestionsSubmitted && topicNode && subtopicName) {
+                                        const packClaim = await claimNumeralsPackCompleteDailyRdm({
+                                          board: boardNameNum,
+                                          subject: topicNode.subject,
+                                          classLevel: topicNode.classLevel as 11 | 12,
+                                          topic: topicNode.topic,
+                                          subtopicName,
+                                          level: difficultyLevel,
+                                        });
+                                        if (packClaim.awarded && packClaim.balance != null) {
+                                          setRdmFromProfile(packClaim.balance);
+                                          void refreshProfile();
+                                          toast({
+                                            title: "+20 RDM",
+                                            description:
+                                              "Numerals: ≥60% overall with every formula submitted. Credited once per IST day across subtopics.",
+                                          });
+                                        } else if (
+                                          packClaim.reason === "already_claimed_today"
+                                        ) {
+                                          toast({
+                                            title: "Daily numerals bonus already used",
+                                            description:
+                                              "You already earned +20 RDM from numerals today (IST).",
+                                          });
+                                        } else if (
+                                          packClaim.reason &&
+                                          packClaim.reason !== "below_threshold" &&
+                                          packClaim.reason !== "incomplete_numerals"
+                                        ) {
+                                          toast({
+                                            variant: "destructive",
+                                            title: "Numerals RDM",
+                                            description: packClaim.reason,
+                                          });
+                                        }
+                                      }
                                       setFormulaNumeralsReviewMode(false);
                                       setFormulaBitsCurrentIdx(0);
                                       setFormulaBitsSelectedAnswers({});

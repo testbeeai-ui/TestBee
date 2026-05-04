@@ -16,6 +16,14 @@ import { NtaExamShell } from "@/components/prep-mock/nta/NtaExamShell";
 import { NtaSubmitModal } from "@/components/prep-mock/nta/NtaSubmitModal";
 import { Button } from "@/components/ui/button";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { ToastAction } from "@/components/ui/toast";
+import {
   ClipboardList,
   Clock,
   BookOpen,
@@ -33,6 +41,10 @@ import {
   GraduationCap,
   ShieldCheck,
   ListOrdered,
+  Loader2,
+  MessageCircle,
+  Shuffle,
+  Users,
 } from "lucide-react";
 import type { MockPaper, Question, Subject } from "@/types";
 import {
@@ -63,6 +75,12 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import katex from "katex";
 import { fireAssignmentTaskSync } from "@/lib/classroom/syncAssignmentTaskProgress";
+import { buildWhatsAppShareUrl } from "@/lib/referChallengeShareUrls";
+import {
+  buildMockShareTemplates,
+  getMockShareOutcome,
+  pickNextMockShareTemplate,
+} from "@/lib/mockTestShareTemplates";
 
 const QUICK_DURATIONS = [60, 90, 180] as const;
 
@@ -319,7 +337,8 @@ function formatTime(seconds: number): string {
 
 export default function MockPage() {
   const { toast } = useToast();
-  const { user: authUser, session, profile } = useAuth();
+  const { user: authUser, session, profile, refreshProfile } = useAuth();
+  const setRdmFromProfile = useUserStore((s) => s.setRdmFromProfile);
   const { resolvedTheme } = useTheme();
   const searchParams = useMemo(() => {
     if (typeof window === "undefined") return new URLSearchParams();
@@ -332,6 +351,8 @@ export default function MockPage() {
   const [nextClassInfo, setNextClassInfo] = useState<{ name: string; time: string } | null>(null);
   const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
   const mockCalendarLoggedRef = useRef(false);
+  /** Dedupes bonus claim effect (e.g. React Strict Mode) per finished attempt. */
+  const mockRdmBonusClaimEndTimeRef = useRef<number | null>(null);
 
   const subjects: Subject[] = useMemo(() => ["physics", "chemistry", "math"], []);
 
@@ -353,6 +374,8 @@ export default function MockPage() {
   const [ntaWarningOpen, setNtaWarningOpen] = useState(false);
   const [visitedQuestionIds, setVisitedQuestionIds] = useState<Set<string>>(() => new Set());
   const [activeExamTitle, setActiveExamTitle] = useState<string | null>(null);
+  /** Set for catalog papers only; used for server-verified +50 RDM bonus (>=60% score). */
+  const [activePaperId, setActivePaperId] = useState<string | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, number>>({});
@@ -363,6 +386,9 @@ export default function MockPage() {
   const [submitDialogOpen, setSubmitDialogOpen] = useState(false);
   const [expandedReviewId, setExpandedReviewId] = useState<string | null>(null);
   const [reviewSubjectFilter, setReviewSubjectFilter] = useState<Subject | "all">("all");
+  const [mockShareTemplateIndex, setMockShareTemplateIndex] = useState(0);
+  const [mockPostPreviewOpen, setMockPostPreviewOpen] = useState(false);
+  const [mockPostingToFeed, setMockPostingToFeed] = useState(false);
 
   const deepLinkPaperSlug = (searchParams.get("paper") ?? "").trim();
   const trackingClassroomId = (searchParams.get("classroomId") ?? "").trim();
@@ -508,6 +534,7 @@ export default function MockPage() {
         }
 
         mockCalendarLoggedRef.current = false;
+        mockRdmBonusClaimEndTimeRef.current = null;
         setDuration(durationMin);
         if (subjectsForSession.length === 1) setSelectedSubject(subjectsForSession[0]!);
         setQuestions(qs);
@@ -519,6 +546,11 @@ export default function MockPage() {
         setEndTime(null);
         setSecondsLeft(durationMin * 60);
         setActiveExamTitle(examTitle);
+        if (meta.kind === "paper" && meta.paper) {
+          setActivePaperId(meta.paper.id);
+        } else {
+          setActivePaperId(null);
+        }
         setNtaPendingMeta(null);
         setView("test");
       } catch (err: unknown) {
@@ -719,10 +751,270 @@ export default function MockPage() {
   const timeTakenSeconds =
     startTime != null && endTime != null ? Math.floor((endTime - startTime) / 1000) : 0;
 
+  useEffect(() => {
+    if (view !== "results") return;
+    setMockShareTemplateIndex(0);
+    setMockPostPreviewOpen(false);
+    setMockPostingToFeed(false);
+  }, [view, endTime]);
+
+  const mockShareOutcome = useMemo(
+    () =>
+      view === "results" && questions.length > 0
+        ? getMockShareOutcome(correctCount, questions.length)
+        : ("lose" as const),
+    [view, questions.length, correctCount]
+  );
+
+  const mockShareTemplates = useMemo(() => {
+    if (view !== "results" || questions.length === 0) return [];
+    const total = questions.length;
+    const accuracyPct = total > 0 ? Math.round((correctCount / total) * 100) : 0;
+    const appUrl =
+      typeof window !== "undefined"
+        ? `${window.location.origin}/mock`
+        : "https://edublast.in/mock";
+    return buildMockShareTemplates({
+      examName: activeExamTitle ?? "Quick mock",
+      correct: correctCount,
+      total,
+      accuracyPct,
+      timeTakenLabel: formatTime(timeTakenSeconds),
+      appUrl,
+      outcome: mockShareOutcome,
+    });
+  }, [view, questions, correctCount, timeTakenSeconds, activeExamTitle, mockShareOutcome]);
+
+  const activeMockShareTemplate =
+    mockShareTemplates.length > 0
+      ? mockShareTemplates[mockShareTemplateIndex % mockShareTemplates.length]!
+      : null;
+
+  const handleMockPostToCommunity = useCallback(async () => {
+    if (!authUser?.id) {
+      toast({
+        title: "Sign in required",
+        description: "Log in to post your mock result to the community.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (endTime == null) {
+      toast({
+        title: "Cannot post yet",
+        description: "Finish the mock to enable community sharing and RDM tracking.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const tmpl =
+      mockShareTemplates[mockShareTemplateIndex % Math.max(1, mockShareTemplates.length)];
+    if (!tmpl) return;
+
+    const attemptKey = `${String(endTime)}:${activePaperId ?? "quick"}`;
+
+    setMockPostingToFeed(true);
+    try {
+      const { data, error } = await supabase
+        .from("lessons_raw_posts")
+        .insert({
+          user_id: authUser.id,
+          kind: "post",
+          title: tmpl.title.length > 200 ? `${tmpl.title.slice(0, 197)}…` : tmpl.title,
+          content: tmpl.text,
+          tags: ["mock_test", "prep-mock"],
+          subject: null,
+          source_type: "mock_test",
+          source_payload: {
+            templateId: tmpl.id,
+            paperId: activePaperId,
+            correct: correctCount,
+            total: questions.length,
+            tone: tmpl.tone,
+            outcome: mockShareOutcome,
+            attemptKey,
+          },
+        })
+        .select("id")
+        .single();
+      if (error) throw new Error(error.message);
+      if (!data?.id) throw new Error("Post created but ID was not returned.");
+      const postId = String(data.id);
+      setMockPostPreviewOpen(false);
+
+      const communityRdmMessages: Record<string, string> = {
+        already_claimed_session:
+          "You already received +40 RDM for sharing this mock run. Your new post is still live.",
+        missing_attempt_key: "This post could not be tied to a finished attempt for the bonus.",
+        invalid_source: "This post did not qualify for the community share bonus. Contact support if that seems wrong.",
+        wrong_owner: "Account mismatch while claiming RDM.",
+        post_not_found: "Post was not found when claiming RDM.",
+        unauthenticated: "Sign in to claim RDM.",
+      };
+
+      const { data: claimRaw, error: claimRpcError } = await supabase.rpc(
+        "claim_mock_community_share_rdm",
+        { p_post_id: postId }
+      );
+
+      let rdmLine = "";
+      if (claimRpcError) {
+        rdmLine =
+          " Bonus RDM could not be verified right now—you can refresh or contact support if it should apply.";
+      } else {
+        const claim = claimRaw as Record<string, unknown> | null;
+        if (claim?.ok === true) {
+          const bal = claim.new_rdm_balance;
+          if (typeof bal === "number" && Number.isFinite(bal)) {
+            setRdmFromProfile(bal);
+          } else {
+            void refreshProfile();
+          }
+          rdmLine = " +40 RDM added for sharing.";
+        } else {
+          const reason =
+            typeof claim?.denial_reason === "string" ? claim.denial_reason : "unknown";
+          rdmLine = ` ${communityRdmMessages[reason] ?? `No bonus RDM (${reason}).`}`;
+        }
+      }
+
+      toast({
+        title: "Posted to community",
+        description: `Your mock result is live on the feed.${rdmLine}`,
+        action: (
+          <ToastAction
+            altText="View post"
+            onClick={() => {
+              window.location.href = `/home?focusPost=${encodeURIComponent(postId)}`;
+            }}
+          >
+            View post
+          </ToastAction>
+        ),
+      });
+    } catch (err) {
+      toast({
+        title: "Community post failed",
+        description: err instanceof Error ? err.message : "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setMockPostingToFeed(false);
+    }
+  }, [
+    authUser?.id,
+    endTime,
+    mockShareTemplates,
+    mockShareTemplateIndex,
+    mockShareOutcome,
+    activePaperId,
+    correctCount,
+    questions.length,
+    supabase,
+    toast,
+    setRdmFromProfile,
+    refreshProfile,
+  ]);
+
+  const handleMockShareWhatsApp = useCallback(() => {
+    const tmpl =
+      mockShareTemplates[mockShareTemplateIndex % Math.max(1, mockShareTemplates.length)];
+    if (!tmpl) return;
+    if (typeof window === "undefined") return;
+    const url = buildWhatsAppShareUrl(tmpl.whatsappText);
+    const win = window.open(url, "_blank", "noopener,noreferrer");
+    if (!win) {
+      toast({
+        title: "Popup blocked",
+        description: "Allow popups to open WhatsApp, or copy the message manually.",
+      });
+    }
+  }, [mockShareTemplates, mockShareTemplateIndex, toast]);
+
   const reviewQuestions = useMemo(() => {
     if (reviewSubjectFilter === "all") return questions;
     return questions.filter((q) => q.subject === reviewSubjectFilter);
   }, [questions, reviewSubjectFilter]);
+
+  /** Catalog mock: optional +50 RDM when server confirms score >= 60% (IST day + per-paper rules). */
+  useEffect(() => {
+    if (view !== "results") return;
+    if (!activePaperId || questions.length === 0 || endTime == null) return;
+    if (!authUser?.id) return;
+    if (100 * correctCount < 60 * questions.length) return;
+    if (mockRdmBonusClaimEndTimeRef.current === endTime) return;
+    mockRdmBonusClaimEndTimeRef.current = endTime;
+
+    const orderedAnswers = questions.map((q) =>
+      typeof answers[q.id] === "number" ? answers[q.id]! : -1
+    );
+
+    const headers: HeadersInit = { "Content-Type": "application/json" };
+    const token = session?.access_token;
+    if (token) headers.Authorization = `Bearer ${token}`;
+
+    void fetch("/api/mock/claim-rdm-bonus", {
+      method: "POST",
+      credentials: "include",
+      headers,
+      body: JSON.stringify({ paperId: activePaperId, answers: orderedAnswers }),
+    })
+      .then(async (res) => {
+        const data = (await res.json()) as Record<string, unknown>;
+        if (!res.ok) {
+          toast({
+            title: "Mock bonus (RDM)",
+            description: typeof data.error === "string" ? data.error : "Request failed",
+            variant: "destructive",
+          });
+          return;
+        }
+        if (data.ok === true) {
+          const bal = data.new_rdm_balance;
+          if (typeof bal === "number" && Number.isFinite(bal)) {
+            setRdmFromProfile(bal);
+          } else {
+            void refreshProfile();
+          }
+          toast({
+            title: "+50 RDM",
+            description: `Score ${String(data.score_percent ?? "")}% on this paper — bonus applied. One +50 mock bonus per IST day; one per paper lifetime.`,
+          });
+          return;
+        }
+        const reason = typeof data.denial_reason === "string" ? data.denial_reason : "unknown";
+        const messages: Record<string, string> = {
+          below_60: "Need at least 60% (correct ÷ total questions) for this bonus.",
+          already_claimed_paper: "You already received the +50 RDM bonus for this catalog paper.",
+          already_claimed_today:
+            "You already claimed a catalog mock +50 RDM bonus today (India time). Try another paper tomorrow.",
+          paper_not_found: "This paper is not eligible for the bonus.",
+          invalid_payload: "Could not verify answers with the server.",
+          no_questions: "This paper has no questions in the database.",
+          unauthenticated: "Sign in to claim RDM bonuses.",
+        };
+        toast({ title: "Mock bonus (RDM)", description: messages[reason] ?? `No bonus: ${reason}` });
+      })
+      .catch(() => {
+        toast({
+          title: "Mock bonus (RDM)",
+          description: "Network error. Refresh this page if your bonus should apply.",
+          variant: "destructive",
+        });
+      });
+  }, [
+    view,
+    activePaperId,
+    questions,
+    answers,
+    correctCount,
+    endTime,
+    authUser?.id,
+    session?.access_token,
+    toast,
+    setRdmFromProfile,
+    refreshProfile,
+  ]);
 
   // Dashboard derived data
   const overallAccuracy = useMemo(() => {
@@ -1291,6 +1583,113 @@ export default function MockPage() {
                 </div>
               </div>
 
+              {activeMockShareTemplate && mockShareTemplates.length > 0 ? (
+                <div className="edu-card rounded-2xl border border-border bg-muted/20 p-4 shadow-inner sm:p-5 dark:border-white/10 dark:bg-black/35">
+                  <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground dark:text-slate-400">
+                        Share this result
+                      </p>
+                      <p className="mt-0.5 text-[11px] text-muted-foreground dark:text-slate-500">
+                        {mockShareOutcome === "win" ? "Win" : "Loss"} set · Community caption{" "}
+                        {mockShareTemplateIndex + 1}/20 · {activeMockShareTemplate.tone}
+                        <span className="text-foreground/70 dark:text-slate-400">
+                          {" "}
+                          · WhatsApp uses a different message for this slot.
+                        </span>
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-8 shrink-0 text-[11px] dark:border-white/20 dark:bg-transparent dark:text-slate-100 dark:hover:bg-white/10"
+                      disabled={mockPostingToFeed}
+                      onClick={() => {
+                        if (mockShareTemplates.length <= 1) return;
+                        setMockShareTemplateIndex((prev) =>
+                          pickNextMockShareTemplate(prev, mockShareTemplates.length)
+                        );
+                      }}
+                    >
+                      <Shuffle className="mr-1 h-3.5 w-3.5" />
+                      Shuffle template
+                    </Button>
+                  </div>
+                  <p className="whitespace-pre-line text-sm leading-relaxed text-foreground dark:text-slate-300">
+                    {activeMockShareTemplate.text}
+                  </p>
+                  {!authUser?.id ? (
+                    <p className="mt-3 text-[11px] text-muted-foreground dark:text-slate-500">
+                      Sign in to post to the community. WhatsApp still works from this device.
+                    </p>
+                  ) : null}
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-9 border-amber-500/40 bg-amber-500/10 font-semibold text-amber-950 hover:bg-amber-500/20 dark:border-amber-400/30 dark:bg-amber-500/10 dark:text-amber-100 dark:hover:bg-amber-500/20"
+                      disabled={mockPostingToFeed || !authUser?.id}
+                      onClick={() => setMockPostPreviewOpen(true)}
+                    >
+                      <Users className="mr-1.5 h-4 w-4" />
+                      Post to Community
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-9 dark:border-white/20 dark:bg-transparent dark:text-white dark:hover:bg-white/10"
+                      onClick={() => handleMockShareWhatsApp()}
+                    >
+                      <MessageCircle className="mr-1.5 h-4 w-4" />
+                      WhatsApp
+                    </Button>
+                  </div>
+                  <Dialog open={mockPostPreviewOpen} onOpenChange={setMockPostPreviewOpen}>
+                    <DialogContent className="max-w-xl border-border bg-background dark:border-white/15 dark:bg-[#0d0f1d] dark:text-white">
+                      <DialogHeader>
+                        <DialogTitle>Preview community post</DialogTitle>
+                        <DialogDescription className="text-muted-foreground dark:text-slate-400">
+                          This template posts only after you click{" "}
+                          <strong className="text-foreground dark:text-slate-200">Post now</strong>.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="rounded-xl border border-border bg-muted/30 p-3 dark:border-white/10 dark:bg-black/30">
+                        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground dark:text-slate-400">
+                          {activeMockShareTemplate.title}
+                        </p>
+                        <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-foreground dark:text-slate-200">
+                          {activeMockShareTemplate.text}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap items-center justify-end gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setMockPostPreviewOpen(false)}
+                          className="dark:border-white/20 dark:bg-transparent dark:text-white"
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          type="button"
+                          className="bg-amber-500 font-semibold text-amber-950 hover:bg-amber-400"
+                          disabled={mockPostingToFeed}
+                          onClick={() => void handleMockPostToCommunity()}
+                        >
+                          {mockPostingToFeed ? (
+                            <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                          ) : null}
+                          Post now
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              ) : null}
+
               {Object.keys(sectionBreakdown).length > 0 && (
                 <div className="edu-card p-6 rounded-2xl">
                   <h3 className="font-display font-bold text-foreground mb-4">By subject</h3>
@@ -1417,6 +1816,8 @@ export default function MockPage() {
                     setQuestions([]);
                     setAnswers({});
                     setActiveExamTitle(null);
+                    setActivePaperId(null);
+                    mockRdmBonusClaimEndTimeRef.current = null;
                     setVisitedQuestionIds(new Set());
                   }}
                 >

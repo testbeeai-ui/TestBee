@@ -895,6 +895,107 @@ export type Database = {
           },
         ];
       };
+      mock_rdm_bonus_attempts: {
+        Row: {
+          id: string;
+          user_id: string;
+          paper_id: string;
+          ist_claim_date: string;
+          eligible: boolean;
+          score_percent: number | null;
+          correct_count: number | null;
+          total_questions: number | null;
+          denial_reason: string | null;
+          rdm_awarded: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          paper_id: string;
+          ist_claim_date: string;
+          eligible?: boolean;
+          score_percent?: number | null;
+          correct_count?: number | null;
+          total_questions?: number | null;
+          denial_reason?: string | null;
+          rdm_awarded?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          paper_id?: string;
+          ist_claim_date?: string;
+          eligible?: boolean;
+          score_percent?: number | null;
+          correct_count?: number | null;
+          total_questions?: number | null;
+          denial_reason?: string | null;
+          rdm_awarded?: number;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "mock_rdm_bonus_attempts_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      mock_rdm_bonus_claims: {
+        Row: {
+          id: string;
+          user_id: string;
+          paper_id: string;
+          ist_claim_date: string;
+          score_percent: number;
+          correct_count: number;
+          total_questions: number;
+          rdm_amount: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          paper_id: string;
+          ist_claim_date: string;
+          score_percent: number;
+          correct_count: number;
+          total_questions: number;
+          rdm_amount?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          paper_id?: string;
+          ist_claim_date?: string;
+          score_percent?: number;
+          correct_count?: number;
+          total_questions?: number;
+          rdm_amount?: number;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "mock_rdm_bonus_claims_paper_id_fkey";
+            columns: ["paper_id"];
+            isOneToOne: false;
+            referencedRelation: "mock_papers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "mock_rdm_bonus_claims_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       live_sessions: {
         Row: {
           attendance_code: string | null;
@@ -1423,7 +1524,9 @@ export type Database = {
           daily_checklist_state: Json;
           class_level: number | null;
           created_at: string;
+          daily_dose_streak: number;
           exam_tags: string[] | null;
+          last_daily_dose_streak_date: string | null;
           target_exam: string | null;
           google_connected: boolean;
           signup_google?: boolean;
@@ -1453,7 +1556,9 @@ export type Database = {
           daily_checklist_state?: Json;
           class_level?: number | null;
           created_at?: string;
+          daily_dose_streak?: number;
           exam_tags?: string[] | null;
+          last_daily_dose_streak_date?: string | null;
           target_exam?: string | null;
           google_connected?: boolean;
           signup_google?: boolean;
@@ -1483,7 +1588,9 @@ export type Database = {
           daily_checklist_state?: Json;
           class_level?: number | null;
           created_at?: string;
+          daily_dose_streak?: number;
           exam_tags?: string[] | null;
+          last_daily_dose_streak_date?: string | null;
           target_exam?: string | null;
           google_connected?: boolean;
           signup_google?: boolean;
@@ -2516,6 +2623,35 @@ export type Database = {
         Args: Record<PropertyKey, never>;
         Returns: number;
       };
+      claim_instacue_create_daily_rdm: {
+        Args: Record<PropertyKey, never>;
+        Returns: Json;
+      };
+      claim_topic_quiz_advanced_daily_rdm: {
+        Args: {
+          p_board: string;
+          p_subject: string;
+          p_class_level: number;
+          p_topic: string;
+          p_subtopic_name: string;
+        };
+        Returns: Json;
+      };
+      claim_numerals_pack_complete_daily_rdm: {
+        Args: {
+          p_board: string;
+          p_subject: string;
+          p_class_level: number;
+          p_topic: string;
+          p_subtopic_name: string;
+          p_level: string;
+        };
+        Returns: Json;
+      };
+      bits_signature_v1: {
+        Args: { bits_questions: Json };
+        Returns: string;
+      };
       get_adaptive_play_questions: {
         Args: { p_domain: string; p_category: string; p_count?: number };
         Returns: {
@@ -2584,6 +2720,14 @@ export type Database = {
       };
       claim_refer_challenge_reward: {
         Args: { p_challenge_key: string; p_reward_type: string; p_claim_date?: string };
+        Returns: Json;
+      };
+      claim_mock_community_share_rdm: {
+        Args: { p_post_id: string };
+        Returns: Json;
+      };
+      claim_mock_rdm_bonus: {
+        Args: { p_answer_indices: number[]; p_paper_id: string };
         Returns: Json;
       };
       claim_referral_attribution: {

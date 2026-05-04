@@ -55,7 +55,7 @@ export default function InlineDailyGauntlet({
   onClose,
   onSessionComplete,
 }: InlineDailyGauntletProps) {
-  const { user } = useAuth();
+  const { user, refreshProfile } = useAuth();
   const isPlayAdmin = useIsAppAdmin();
   const [bootLoading, setBootLoading] = useState(true);
   const [gauntletQuestions, setGauntletQuestions] = useState<PlayQuestionRow[]>([]);
@@ -117,6 +117,8 @@ export default function InlineDailyGauntlet({
         return;
       }
 
+      void refreshProfile();
+
       if (uid && !isPlayAdmin) {
         try {
           localStorage.setItem(playGauntletDayDoneKey(uid, today, domain), "1");
@@ -130,7 +132,7 @@ export default function InlineDailyGauntlet({
       void fetchLeaderboard(today, domain);
       onSessionComplete?.();
     },
-    [domain, fetchLeaderboard, onSessionComplete, user?.id, isPlayAdmin]
+    [domain, fetchLeaderboard, onSessionComplete, user?.id, isPlayAdmin, refreshProfile]
   );
 
   const handleGauntletTimeout = useCallback(() => {
