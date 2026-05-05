@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Shield, Users, FileClock, GraduationCap, Medal } from "lucide-react";
+import { BarChart3, Shield, Users, FileClock, GraduationCap, Medal, Coins } from "lucide-react";
 import { AdminRoute } from "@/components/AdminRoute";
 import { cn } from "@/lib/utils";
 
@@ -12,6 +12,7 @@ const navItems = [
   { href: "/admin/student-achievements", label: "Student submissions", icon: Medal },
   { href: "/admin/teacher-portal", label: "Teacher Portal", icon: GraduationCap },
   { href: "/admin/token-logs", label: "Token Logs", icon: FileClock },
+  { href: "/admin/rdm-table", label: "RDM Table", icon: Coins },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

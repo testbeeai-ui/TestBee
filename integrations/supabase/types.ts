@@ -1410,6 +1410,27 @@ export type Database = {
           },
         ];
       };
+      rdm_config: {
+        Row: {
+          key: string;
+          value: number;
+          description: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          key: string;
+          value: number;
+          description?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          key?: string;
+          value?: number;
+          description?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       referral_weekly_bonuses: {
         Row: {
           id: string;

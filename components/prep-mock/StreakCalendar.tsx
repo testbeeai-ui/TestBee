@@ -42,14 +42,9 @@ function cap(n: number, max = 6) {
   return Math.min(Math.max(n, 0), max);
 }
 
-/** Flatten counts into a list of dot colors (order: class → revision → mock → doubt). */
+/** One marker per activity type (order: class → revision → mock → doubt). */
 function dotsForDay(t: DayTotals): (keyof DayTotals)[] {
-  const out: (keyof DayTotals)[] = [];
-  (["class", "revision", "mock", "doubt"] as const).forEach((k) => {
-    const n = cap(t[k]);
-    for (let i = 0; i < n; i++) out.push(k);
-  });
-  return out;
+  return (["class", "revision", "mock", "doubt"] as const).filter((k) => cap(t[k]) > 0);
 }
 
 interface StreakCalendarProps {

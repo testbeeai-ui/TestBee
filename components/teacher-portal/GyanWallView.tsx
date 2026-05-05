@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Loader2, Sparkles } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import type { TeacherPortalSummary, TeacherPortalWallItem } from "@/lib/teacherPortal/types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DEFAULT_RDM_CONFIG, fetchRdmConfig } from "@/lib/rdmConfig";
 
 interface GyanWallViewProps {
   summary: TeacherPortalSummary;
@@ -40,6 +41,11 @@ export default function GyanWallView({
   const [postingId, setPostingId] = useState<string | null>(null);
   const [activeComposerDoubtId, setActiveComposerDoubtId] = useState<string | null>(null);
   const [expandedAiById, setExpandedAiById] = useState<Record<string, boolean>>({});
+  const [teacherRewardRdm, setTeacherRewardRdm] = useState(DEFAULT_RDM_CONFIG.gyan_teacher_answer_rdm);
+
+  useEffect(() => {
+    void fetchRdmConfig().then((cfg) => setTeacherRewardRdm(cfg.gyan_teacher_answer_rdm));
+  }, []);
 
   const submit = async (doubtId: string) => {
     const body = draftById[doubtId]?.trim();
@@ -62,7 +68,7 @@ export default function GyanWallView({
             Gyan++ <span className="text-emerald-400 italic">Teacher Wall</span>
           </h1>
           <p className="text-xs sm:text-sm text-slate-400">
-            Add expert Teacher Sections to student doubts. Earn +30 RDM per upvoted answer.
+            Add expert Teacher Sections to student doubts. Earn +{teacherRewardRdm} RDM per teacher section.
           </p>
         </div>
         <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-semibold text-emerald-200 sm:px-3 sm:py-1.5 sm:text-xs">
@@ -170,7 +176,7 @@ export default function GyanWallView({
                       {item.teacherAnswersCount} teacher sections
                     </span>
                     <span className="rounded bg-amber-500/10 px-2 py-1 text-amber-200">
-                      +30 RDM if you add Teacher Section
+                      +{teacherRewardRdm} RDM if you add Teacher Section
                     </span>
                   </div>
                 </div>
@@ -198,7 +204,7 @@ export default function GyanWallView({
                         onClick={() => setActiveComposerDoubtId(item.doubtId)}
                         className="inline-flex min-h-9 items-center gap-2 rounded-full bg-violet-500 px-3 py-2 text-[10.5px] font-semibold text-white hover:bg-violet-400 sm:min-h-10 sm:px-4 sm:py-2.5 sm:text-xs"
                       >
-                        Post Teacher Section (+30 RDM)
+                        Post Teacher Section (+{teacherRewardRdm} RDM)
                       </button>
                     </div>
                   )}
@@ -280,7 +286,7 @@ export default function GyanWallView({
                       {postingId === active.doubtId ? (
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
                       ) : null}
-                      Post Teacher Section (+30 RDM)
+                      Post Teacher Section (+{teacherRewardRdm} RDM)
                     </button>
                   </div>
                 </div>

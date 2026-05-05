@@ -4,6 +4,7 @@ import type { PlayDomain, PlayQuestionRow } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
 import { safeGetSession } from "@/lib/safeSession";
 import { fetchPlayQuestionsDomainRandom } from "@/lib/fetchPlayQuestionsDomainRandom";
+import { clampPlayDailydoseQuestionCount } from "@/lib/rdmConfig";
 
 const TOKEN_BUFFER_MS = 120_000;
 
@@ -148,8 +149,6 @@ export async function fetchPlayQuestionsAdaptiveWithFallback(
   return [];
 }
 
-const GAUNTLET_QUESTION_COUNT = 10;
-
 async function rpcDailyGauntlet(
   client: SupabaseClient<Database>,
   p_date: string,
@@ -159,15 +158,16 @@ async function rpcDailyGauntlet(
 }
 
 /**
- * DailyDose boot: same JWT / RPC issues as streak adaptive. Bearer client + retry, then 10 stratified
- * domain questions so Funbrain / Academic DailyDose always opens when the bank has rows.
+ * DailyDose boot: same JWT / RPC issues as streak adaptive. Bearer client + retry, then stratified
+ * domain fallback for `questionCount` rows (default 10) so DailyDose opens when the bank has rows.
  */
 export async function fetchDailyGauntletQuestionsWithFallback(
   sb: SupabaseClient<Database>,
-  params: { domain: PlayDomain; dateIso: string }
+  params: { domain: PlayDomain; dateIso: string; questionCount?: number }
 ): Promise<PlayQuestionRow[]> {
   const domain = params.domain;
   const p_date = params.dateIso.trim();
+  const questionCount = clampPlayDailydoseQuestionCount(params.questionCount ?? 10);
 
   let token = await readAccessToken();
   const tryOnce = async (access: string | null) => {
@@ -179,17 +179,21 @@ export async function fetchDailyGauntletQuestionsWithFallback(
 
   let { data, error } = await tryOnce(token);
   let rows = normalizeRows(data);
-  if (!error && rows.length > 0) return rows;
+  if (!error && rows.length > 0) {
+    return rows.length > questionCount ? rows.slice(0, questionCount) : rows;
+  }
 
   await supabase.auth.refreshSession();
   token = await readAccessToken();
   ({ data, error } = await tryOnce(token));
   rows = normalizeRows(data);
-  if (!error && rows.length > 0) return rows;
+  if (!error && rows.length > 0) {
+    return rows.length > questionCount ? rows.slice(0, questionCount) : rows;
+  }
 
   const random = await fetchPlayQuestionsDomainRandom(sb, {
     domain,
-    count: GAUNTLET_QUESTION_COUNT,
+    count: questionCount,
   });
   if (random.length > 0) {
     if (process.env.NODE_ENV === "development") {
@@ -198,7 +202,7 @@ export async function fetchDailyGauntletQuestionsWithFallback(
         rpcError: error != null ? serializeRpcError(error) : null,
       });
     }
-    return random.slice(0, GAUNTLET_QUESTION_COUNT);
+    return random.slice(0, questionCount);
   }
 
   if (process.env.NODE_ENV === "development") {

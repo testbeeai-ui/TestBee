@@ -15,6 +15,7 @@ interface CommentInputProps {
   userName?: string | null;
   /** Teachers post into the teacher section (same table); copy matches that area. */
   variant?: "student" | "teacher";
+  commentRewardRdm?: number;
 }
 
 export default function CommentInput({
@@ -23,6 +24,7 @@ export default function CommentInput({
   avatarUrl,
   userName,
   variant = "student",
+  commentRewardRdm = 5,
 }: CommentInputProps) {
   const { user, refreshProfile } = useAuth();
   const { toast } = useToast();
@@ -64,8 +66,8 @@ export default function CommentInput({
       toast({
         title: variant === "teacher" ? "Teacher note posted!" : "Comment posted!",
         description:
-          variant !== "teacher" && gained >= 5
-            ? "+5 RDM — first comment milestone today (IST)."
+          variant !== "teacher" && gained >= commentRewardRdm
+            ? `+${commentRewardRdm} RDM — first comment milestone today (IST).`
             : undefined,
       });
       void refreshProfile();
@@ -100,7 +102,7 @@ export default function CommentInput({
           placeholder={
             variant === "teacher"
               ? "Add a teacher note (exam tips, corrections)…"
-              : "Add a comment — up to +5 RDM once today (IST)..."
+              : `Add a comment — up to +${commentRewardRdm} RDM once today (IST)...`
           }
           className="w-full text-sm bg-transparent border-0 outline-none text-foreground placeholder:text-muted-foreground py-1"
           disabled={posting}

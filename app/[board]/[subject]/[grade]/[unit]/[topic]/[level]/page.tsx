@@ -137,10 +137,21 @@ import {
 import { getBitsSignature } from "@/lib/bitsSignature";
 import { claimNumeralsPackCompleteDailyRdm } from "@/lib/claimNumeralsPackDailyRdm";
 import {
+  DEFAULT_RDM_CONFIG,
+  fetchRdmConfig,
+  rdmConfigShallowEqual,
+  type RdmConfigParams,
+} from "@/lib/rdmConfig";
+import {
   buildQuizPostDrafts,
   pickRandomQuizPostDraft,
   type QuizPostDraft,
 } from "@/lib/quizPostTemplates";
+import {
+  buildNumeralsPostDrafts,
+  pickRandomNumeralsPostDraft,
+  type NumeralsPostDraft,
+} from "@/lib/numeralsPostTemplates";
 import {
   fetchSubtopicEngagement,
   saveSubtopicEngagement,
@@ -546,6 +557,7 @@ function TopicPageInner() {
   const [rightPanelTab, setRightPanelTab] = useState<PanelTab>(initialPanelTab);
   /** Cards the learner has landed on in the carousel (scroll / dots), not only flipped. */
   const [instaCueNavIndices, setInstaCueNavIndices] = useState<Set<number>>(new Set());
+  const [rdmConfig, setRdmConfig] = useState<RdmConfigParams>(() => ({ ...DEFAULT_RDM_CONFIG }));
   /** Dedupe syncing full InstaCue deck reads to daily checklist when Lessons shows 32/32 coverage. */
   const instacueDeckSyncedToDailyKeyRef = useRef<string | null>(null);
   /** Per-formula numerals draft in the formulas dialog (key = formula index). */
@@ -595,6 +607,25 @@ function TopicPageInner() {
       cancelled = true;
     };
   }, [isMagicWallSource]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      const next = await fetchRdmConfig();
+      if (!cancelled) {
+        setRdmConfig((prev) => (rdmConfigShallowEqual(prev, next) ? prev : next));
+      }
+    };
+    void load();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void load();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, []);
 
   const { taxonomy, loading: taxonomyLoading, error: taxonomyError } = useTopicTaxonomy();
 
@@ -869,6 +900,15 @@ function TopicPageInner() {
   const [quizPostTitle, setQuizPostTitle] = useState("");
   const [quizPostDetails, setQuizPostDetails] = useState("");
   const [publishingQuizPost, setPublishingQuizPost] = useState(false);
+  const [numeralsPostDialogOpen, setNumeralsPostDialogOpen] = useState(false);
+  const [numeralsPostDrafts, setNumeralsPostDrafts] = useState<NumeralsPostDraft[]>([]);
+  const [numeralsPostUsedTemplateIds, setNumeralsPostUsedTemplateIds] = useState<Set<string>>(
+    new Set()
+  );
+  const [numeralsPostTemplateId, setNumeralsPostTemplateId] = useState<string>("");
+  const [numeralsPostTitle, setNumeralsPostTitle] = useState("");
+  const [numeralsPostDetails, setNumeralsPostDetails] = useState("");
+  const [publishingNumeralsPost, setPublishingNumeralsPost] = useState(false);
   const useAdvancedSetsUi = useMemo(
     () => isAdvancedMultiSet(difficultyLevel, dbBitsQuestions.length),
     [difficultyLevel, dbBitsQuestions.length]
@@ -1087,6 +1127,189 @@ function TopicPageInner() {
       return updated;
     });
   }, [quizPostDrafts, quizPostUsedTemplateIds]);
+
+  const buildInitialNumeralsDraft = useCallback(() => {
+    if (selectedFormulaIdx === null) return null;
+    const attempt = formulaNumeralsAttemptByIdx[selectedFormulaIdx];
+    if (!attempt) return null;
+    const scorePercent =
+      attempt.totalQuestions > 0 ? Math.round((attempt.correctCount / attempt.totalQuestions) * 100) : 0;
+    const drafts = buildNumeralsPostDrafts({
+      subject: topicNode?.subject ?? subject,
+      chapter: topicNode?.topic ?? unitSlug,
+      topic: topicNode?.topic ?? topicSlug,
+      subtopic: subtopicName,
+      formulaTitle: dbPracticeFormulas[selectedFormulaIdx]?.name ?? null,
+      scorePercent,
+      correctCount: attempt.correctCount,
+      wrongCount: attempt.wrongCount,
+      totalQuestions: attempt.totalQuestions,
+    });
+    const first = pickRandomNumeralsPostDraft(drafts, new Set());
+    return { drafts, first, attempt };
+  }, [
+    selectedFormulaIdx,
+    formulaNumeralsAttemptByIdx,
+    dbPracticeFormulas,
+    topicNode?.subject,
+    topicNode?.topic,
+    subject,
+    unitSlug,
+    topicSlug,
+    subtopicName,
+  ]);
+
+  const handleOpenNumeralsPostDialog = useCallback(() => {
+    if (selectedFormulaIdx === null) {
+      toast({
+        title: "No numerals result found",
+        description: "Submit a numerals test once before posting.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!session?.user?.id) {
+      toast({
+        title: "Sign in required",
+        description: "Please sign in to post your numerals result.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const seeded = buildInitialNumeralsDraft();
+    if (!seeded) {
+      toast({
+        title: "No numerals result found",
+        description: "Submit this numerals set first, then post your result.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setNumeralsPostDrafts(seeded.drafts);
+    setNumeralsPostUsedTemplateIds(new Set([seeded.first.templateId]));
+    setNumeralsPostTemplateId(seeded.first.templateId);
+    setNumeralsPostTitle(seeded.first.title);
+    setNumeralsPostDetails(seeded.first.details);
+    setNumeralsPostDialogOpen(true);
+  }, [selectedFormulaIdx, session?.user?.id, toast, buildInitialNumeralsDraft]);
+
+  const handleShuffleNumeralsTemplate = useCallback(() => {
+    if (!numeralsPostDrafts.length) return;
+    const next = pickRandomNumeralsPostDraft(numeralsPostDrafts, numeralsPostUsedTemplateIds);
+    setNumeralsPostTemplateId(next.templateId);
+    setNumeralsPostTitle(next.title);
+    setNumeralsPostDetails(next.details);
+    setNumeralsPostUsedTemplateIds((prev) => {
+      const updated = new Set(prev);
+      updated.add(next.templateId);
+      return updated;
+    });
+  }, [numeralsPostDrafts, numeralsPostUsedTemplateIds]);
+
+  const handlePublishNumeralsPost = useCallback(async () => {
+    if (!session?.user?.id || selectedFormulaIdx === null) return;
+    const attempt = formulaNumeralsAttemptByIdx[selectedFormulaIdx];
+    if (!attempt) return;
+    const scorePercent =
+      attempt.totalQuestions > 0 ? Math.round((attempt.correctCount / attempt.totalQuestions) * 100) : 0;
+    const correctTotalLine = `${attempt.correctCount}/${attempt.totalQuestions}`;
+    const titleWithMetrics = /\d{1,3}%/.test(numeralsPostTitle)
+      ? numeralsPostTitle.trim()
+      : `${numeralsPostTitle.trim()} | ${scorePercent}%`;
+    const detailsWithScorePercent = /\d{1,3}%/.test(numeralsPostDetails)
+      ? numeralsPostDetails.trim()
+      : `${numeralsPostDetails.trim()} Score: ${scorePercent}%.`;
+    const detailsWithMetrics = /\b\d+\s*\/\s*\d+\b/.test(detailsWithScorePercent)
+      ? detailsWithScorePercent
+      : `${detailsWithScorePercent} Correct/Total: ${correctTotalLine}.`;
+    const cleanTitle = titleWithMetrics.trim();
+    const cleanDetails = detailsWithMetrics.trim();
+    if (cleanTitle.length < 3) {
+      toast({
+        title: "Title too short",
+        description: "Use at least 3 characters in your post title.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setPublishingNumeralsPost(true);
+    const sourceSubject = (topicNode?.subject ?? subject ?? "physics").toLowerCase();
+    const selectedTemplate = numeralsPostDrafts.find((d) => d.templateId === numeralsPostTemplateId);
+    const tags = selectedTemplate?.tags ?? ["numerals"];
+    const payload = {
+      templateId: numeralsPostTemplateId,
+      scorePercent,
+      correctCount: attempt.correctCount,
+      wrongCount: attempt.wrongCount,
+      totalQuestions: attempt.totalQuestions,
+      submittedAt: attempt.submittedAt,
+      formulaIndex: selectedFormulaIdx,
+      formulaName: dbPracticeFormulas[selectedFormulaIdx]?.name ?? null,
+    };
+
+    const { data, error } = await supabase
+      .from("lessons_raw_posts")
+      .insert({
+        user_id: session.user.id,
+        kind: "post",
+        title: cleanTitle,
+        content: cleanDetails,
+        tags,
+        subject: sourceSubject,
+        chapter_ref: topicNode?.topic ?? null,
+        board_ref: board,
+        grade_ref: grade,
+        unit_ref: unitSlug,
+        topic_ref: topicNode?.topic ?? topicSlug,
+        subtopic_ref: subtopicName || null,
+        source_type: "numerals_post",
+        source_payload: payload,
+      })
+      .select("id")
+      .single();
+
+    setPublishingNumeralsPost(false);
+    if (error) {
+      toast({ title: "Could not publish", description: error.message, variant: "destructive" });
+      return;
+    }
+    const postId = data?.id;
+    setNumeralsPostDialogOpen(false);
+    toast({
+      title: "Numerals post published",
+      description: (
+        <div className="mt-1 space-y-2">
+          <p>Your numerals result is now live in Lessons.</p>
+          <button
+            type="button"
+            className="inline-flex items-center rounded-md border border-primary/55 bg-primary/25 px-3.5 py-1.5 text-sm font-semibold text-white shadow-[0_0_0_1px_rgba(59,130,246,0.25)] transition-all hover:border-primary/80 hover:bg-primary/40 hover:text-white"
+            onClick={() => router.push(`/explore-1?focusPost=${postId ?? ""}#raw-community-feed`)}
+          >
+            See your post
+          </button>
+        </div>
+      ),
+    });
+  }, [
+    session?.user?.id,
+    selectedFormulaIdx,
+    formulaNumeralsAttemptByIdx,
+    numeralsPostTitle,
+    numeralsPostDetails,
+    numeralsPostDrafts,
+    numeralsPostTemplateId,
+    dbPracticeFormulas,
+    topicNode?.subject,
+    topicNode?.topic,
+    subject,
+    subtopicName,
+    board,
+    grade,
+    unitSlug,
+    topicSlug,
+    toast,
+    router,
+  ]);
 
   const reportScoreToAssignment = useCallback(
     async (
@@ -5352,7 +5575,7 @@ function TopicPageInner() {
                         {canEditTheory ? "+ InstaCue" : "InstaCue"}
                       </TabsTrigger>
                       <TabsTrigger value="quiz" className="text-xs">
-                        Quiz{dbBitsQuestions.length > 0 ? ` (${dbBitsQuestions.length})` : ""}
+                        {`Quiz${dbBitsQuestions.length > 0 ? ` (${dbBitsQuestions.length})` : ""}`}
                       </TabsTrigger>
                       <TabsTrigger value="numerals" className="text-xs">
                         Numerals
@@ -6463,7 +6686,7 @@ function TopicPageInner() {
                                                     );
                                                   if (reward.awarded) {
                                                     toast({
-                                                      title: "+15 RDM",
+                                                      title: `+${rdmConfig.subtopic_quiz_advanced_rdm} RDM`,
                                                       description:
                                                         "Advanced topic quiz: ≥60% overall with all sets complete. Credited for today (IST).",
                                                     });
@@ -6472,8 +6695,7 @@ function TopicPageInner() {
                                                   ) {
                                                     toast({
                                                       title: "Daily topic-quiz bonus already used",
-                                                      description:
-                                                        "You already earned +15 RDM from an advanced topic quiz today (IST).",
+                                                      description: `You already earned +${rdmConfig.subtopic_quiz_advanced_rdm} RDM from an advanced topic quiz today (IST).`,
                                                     });
                                                   } else if (
                                                     reward.reason &&
@@ -7060,7 +7282,7 @@ function TopicPageInner() {
                                   Submitted on{" "}
                                   {new Date(storedAttempt.submittedAt).toLocaleString()}
                                 </p>
-                                <div className="grid grid-cols-1 gap-2 pt-1 sm:grid-cols-2 sm:items-center">
+                                <div className="grid grid-cols-1 gap-2 pt-1 sm:grid-cols-3 sm:items-center">
                                   <Button
                                     variant="outline"
                                     size="sm"
@@ -7083,7 +7305,7 @@ function TopicPageInner() {
                                   <Button
                                     variant="default"
                                     size="sm"
-                                    className="rounded-xl h-8 px-3 text-xs sm:justify-self-end"
+                                    className="rounded-xl h-8 px-3 text-xs sm:justify-self-center"
                                     onClick={async () => {
                                       if (!topicNode || !subtopicName || selectedFormulaIdx === null)
                                         return;
@@ -7123,7 +7345,96 @@ function TopicPageInner() {
                                   >
                                     Take test another time
                                   </Button>
+                                  <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    className="h-8 rounded-xl border border-primary/35 bg-primary/12 px-3 text-xs font-semibold text-primary shadow-[0_0_0_1px_rgba(59,130,246,0.18)] transition hover:bg-primary/18 sm:justify-self-end"
+                                    onClick={handleOpenNumeralsPostDialog}
+                                  >
+                                    Post numerals
+                                  </Button>
                                 </div>
+                                <Dialog
+                                  open={numeralsPostDialogOpen}
+                                  onOpenChange={setNumeralsPostDialogOpen}
+                                >
+                                  <DialogContent className="w-[min(42rem,calc(100vw-1.5rem))] max-w-2xl rounded-2xl p-4 sm:p-6">
+                                    <DialogHeader>
+                                      <DialogTitle>Post numerals result</DialogTitle>
+                                      <DialogDescription>
+                                        Pick a ready format, edit if needed, then publish to
+                                        Lessons.
+                                      </DialogDescription>
+                                    </DialogHeader>
+
+                                    <div className="rounded-xl border border-border bg-muted/25 p-3 text-xs text-muted-foreground">
+                                      <p className="font-semibold text-foreground">Context</p>
+                                      <div className="mt-2 flex flex-wrap gap-1.5">
+                                        {quizContextChips.map((chip) => (
+                                          <span
+                                            key={`numerals-${chip}`}
+                                            className="rounded-full border border-border bg-background px-2 py-0.5 text-[11px]"
+                                          >
+                                            {chip}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                      <div className="flex items-center justify-between gap-2">
+                                        <Label className="text-xs font-semibold">
+                                          Template preview
+                                        </Label>
+                                        <Button
+                                          type="button"
+                                          variant="outline"
+                                          size="sm"
+                                          className="h-8 rounded-lg"
+                                          onClick={handleShuffleNumeralsTemplate}
+                                          disabled={publishingNumeralsPost}
+                                        >
+                                          <Shuffle className="mr-1 h-3.5 w-3.5" />
+                                          Shuffle template
+                                        </Button>
+                                      </div>
+                                      <input
+                                        value={numeralsPostTitle}
+                                        onChange={(e) => setNumeralsPostTitle(e.target.value)}
+                                        className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+                                        placeholder="Post title"
+                                        disabled={publishingNumeralsPost}
+                                      />
+                                      <Textarea
+                                        value={numeralsPostDetails}
+                                        onChange={(e) => setNumeralsPostDetails(e.target.value)}
+                                        className="min-h-[120px] rounded-xl"
+                                        placeholder="Details (optional)"
+                                        disabled={publishingNumeralsPost}
+                                      />
+                                    </div>
+
+                                    <DialogFooter className="gap-2 sm:gap-0">
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        className="rounded-xl"
+                                        disabled={publishingNumeralsPost}
+                                        onClick={() => setNumeralsPostDialogOpen(false)}
+                                      >
+                                        Cancel
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        className="rounded-xl"
+                                        disabled={publishingNumeralsPost}
+                                        onClick={() => void handlePublishNumeralsPost()}
+                                      >
+                                        {publishingNumeralsPost ? "Publishing..." : "Post"}
+                                      </Button>
+                                    </DialogFooter>
+                                  </DialogContent>
+                                </Dialog>
                               </div>
                             </div>
                           );
@@ -7389,7 +7700,7 @@ function TopicPageInner() {
                                           setRdmFromProfile(packClaim.balance);
                                           void refreshProfile();
                                           toast({
-                                            title: "+20 RDM",
+                                            title: `+${rdmConfig.subtopic_numerals_pack_rdm} RDM`,
                                             description:
                                               "Numerals: ≥60% overall with every formula submitted. Credited once per IST day across subtopics.",
                                           });
@@ -7398,8 +7709,7 @@ function TopicPageInner() {
                                         ) {
                                           toast({
                                             title: "Daily numerals bonus already used",
-                                            description:
-                                              "You already earned +20 RDM from numerals today (IST).",
+                                            description: `You already earned +${rdmConfig.subtopic_numerals_pack_rdm} RDM from numerals today (IST).`,
                                           });
                                         } else if (
                                           packClaim.reason &&

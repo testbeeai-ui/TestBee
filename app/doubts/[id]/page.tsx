@@ -63,6 +63,7 @@ import {
 } from "@/lib/normalizePastedDoubtMath";
 import { UserHoverCard } from "@/components/UserHoverCard";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { DEFAULT_RDM_CONFIG, fetchRdmConfig } from "@/lib/rdmConfig";
 
 type Doubt = {
   id: string;
@@ -154,6 +155,7 @@ export default function DoubtDetailPage() {
   const [editAnswerSaving, setEditAnswerSaving] = useState(false);
   const [deleteAnswerId, setDeleteAnswerId] = useState<string | null>(null);
   const [deleteAnswerLoading, setDeleteAnswerLoading] = useState(false);
+  const [commentRewardRdm, setCommentRewardRdm] = useState(DEFAULT_RDM_CONFIG.gyan_comment_rdm);
   const [similarDoubts, setSimilarDoubts] = useState<
     { id: string; title: string; similarity_score: number }[]
   >([]);
@@ -231,6 +233,10 @@ export default function DoubtDetailPage() {
       Promise.all([fetchDoubt(), fetchAnswers()]).then(() => setLoading(false));
     });
   }, [id, fetchDoubt, fetchAnswers]);
+
+  useEffect(() => {
+    void fetchRdmConfig().then((cfg) => setCommentRewardRdm(cfg.gyan_comment_rdm));
+  }, []);
 
   useEffect(() => {
     if (id) supabase.rpc("increment_doubt_views", { p_doubt_id: id }).then(() => {});
@@ -393,7 +399,9 @@ export default function DoubtDetailPage() {
       toast({
         title: "Answer posted!",
         description:
-          gained >= 5 ? "+5 RDM — first comment milestone today (IST)." : undefined,
+          gained >= commentRewardRdm
+            ? `+${commentRewardRdm} RDM — first comment milestone today (IST).`
+            : undefined,
       });
       void refreshProfile();
       setAnswerBody("");

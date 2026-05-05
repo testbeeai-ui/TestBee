@@ -389,6 +389,8 @@ export default function MockPage() {
   const [mockShareTemplateIndex, setMockShareTemplateIndex] = useState(0);
   const [mockPostPreviewOpen, setMockPostPreviewOpen] = useState(false);
   const [mockPostingToFeed, setMockPostingToFeed] = useState(false);
+  const [mockShareRewardRdm, setMockShareRewardRdm] = useState(40);
+  const [mockScoreBonusRdm, setMockScoreBonusRdm] = useState(50);
 
   const deepLinkPaperSlug = (searchParams.get("paper") ?? "").trim();
   const trackingClassroomId = (searchParams.get("classroomId") ?? "").trim();
@@ -618,6 +620,27 @@ export default function MockPage() {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+    void supabase
+      .from("rdm_config")
+      .select("value")
+      .eq("key", "mock_score_bonus_rdm")
+      .maybeSingle()
+      .then(
+        ({ data }) => {
+          if (cancelled) return;
+          if (typeof data?.value === "number" && Number.isFinite(data.value)) {
+            setMockScoreBonusRdm(Math.max(1, Math.trunc(data.value)));
+          }
+        },
+        () => {}
+      );
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
     // Allow deep-linking straight into the mock test library.
     if (initialViewParam === "setup") {
       setView("setup");
@@ -758,6 +781,27 @@ export default function MockPage() {
     setMockPostingToFeed(false);
   }, [view, endTime]);
 
+  useEffect(() => {
+    let cancelled = false;
+    void supabase
+      .from("rdm_config")
+      .select("value")
+      .eq("key", "mock_community_share_rdm")
+      .maybeSingle()
+      .then(
+        ({ data }) => {
+          if (cancelled) return;
+          if (typeof data?.value === "number" && Number.isFinite(data.value)) {
+            setMockShareRewardRdm(Math.max(1, Math.trunc(data.value)));
+          }
+        },
+        () => {}
+      );
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const mockShareOutcome = useMemo(
     () =>
       view === "results" && questions.length > 0
@@ -842,9 +886,9 @@ export default function MockPage() {
       const postId = String(data.id);
       setMockPostPreviewOpen(false);
 
+      const rewardLabel = `+${mockShareRewardRdm} RDM`;
       const communityRdmMessages: Record<string, string> = {
-        already_claimed_session:
-          "You already received +40 RDM for sharing this mock run. Your new post is still live.",
+        already_claimed_session: `You already received ${rewardLabel} for sharing this mock run. Your new post is still live.`,
         missing_attempt_key: "This post could not be tied to a finished attempt for the bonus.",
         invalid_source: "This post did not qualify for the community share bonus. Contact support if that seems wrong.",
         wrong_owner: "Account mismatch while claiming RDM.",
@@ -865,12 +909,16 @@ export default function MockPage() {
         const claim = claimRaw as Record<string, unknown> | null;
         if (claim?.ok === true) {
           const bal = claim.new_rdm_balance;
+          const awarded =
+            typeof claim.rdm_awarded === "number" && Number.isFinite(claim.rdm_awarded)
+              ? Math.max(1, Math.trunc(claim.rdm_awarded))
+              : mockShareRewardRdm;
           if (typeof bal === "number" && Number.isFinite(bal)) {
             setRdmFromProfile(bal);
           } else {
             void refreshProfile();
           }
-          rdmLine = " +40 RDM added for sharing.";
+          rdmLine = ` +${awarded} RDM added for sharing.`;
         } else {
           const reason =
             typeof claim?.denial_reason === "string" ? claim.denial_reason : "unknown";
@@ -910,6 +958,7 @@ export default function MockPage() {
     activePaperId,
     correctCount,
     questions.length,
+    mockShareRewardRdm,
     supabase,
     toast,
     setRdmFromProfile,
@@ -971,23 +1020,27 @@ export default function MockPage() {
         }
         if (data.ok === true) {
           const bal = data.new_rdm_balance;
+          const awarded =
+            typeof data.rdm_awarded === "number" && Number.isFinite(data.rdm_awarded)
+              ? Math.max(1, Math.trunc(data.rdm_awarded))
+              : mockScoreBonusRdm;
           if (typeof bal === "number" && Number.isFinite(bal)) {
             setRdmFromProfile(bal);
           } else {
             void refreshProfile();
           }
           toast({
-            title: "+50 RDM",
-            description: `Score ${String(data.score_percent ?? "")}% on this paper — bonus applied. One +50 mock bonus per IST day; one per paper lifetime.`,
+            title: `+${awarded} RDM`,
+            description: `Score ${String(data.score_percent ?? "")}% on this paper — bonus applied. One +${awarded} mock bonus per IST day; one per paper lifetime.`,
           });
           return;
         }
         const reason = typeof data.denial_reason === "string" ? data.denial_reason : "unknown";
         const messages: Record<string, string> = {
           below_60: "Need at least 60% (correct ÷ total questions) for this bonus.",
-          already_claimed_paper: "You already received the +50 RDM bonus for this catalog paper.",
+          already_claimed_paper: `You already received the +${mockScoreBonusRdm} RDM bonus for this catalog paper.`,
           already_claimed_today:
-            "You already claimed a catalog mock +50 RDM bonus today (India time). Try another paper tomorrow.",
+            `You already claimed a catalog mock +${mockScoreBonusRdm} RDM bonus today (India time). Try another paper tomorrow.`,
           paper_not_found: "This paper is not eligible for the bonus.",
           invalid_payload: "Could not verify answers with the server.",
           no_questions: "This paper has no questions in the database.",
@@ -1014,6 +1067,7 @@ export default function MockPage() {
     toast,
     setRdmFromProfile,
     refreshProfile,
+    mockScoreBonusRdm,
   ]);
 
   // Dashboard derived data
@@ -1647,6 +1701,11 @@ export default function MockPage() {
                       WhatsApp
                     </Button>
                   </div>
+                  <p className="mt-2 text-sm font-semibold text-foreground dark:text-slate-200">
+                    <strong>Share bonus today:</strong> up to <strong>{`+${mockShareRewardRdm} RDM`}</strong> on a
+                    verified <strong>Post to Community</strong> share. <strong>WhatsApp</strong> is for
+                    external sharing only.
+                  </p>
                   <Dialog open={mockPostPreviewOpen} onOpenChange={setMockPostPreviewOpen}>
                     <DialogContent className="max-w-xl border-border bg-background dark:border-white/15 dark:bg-[#0d0f1d] dark:text-white">
                       <DialogHeader>

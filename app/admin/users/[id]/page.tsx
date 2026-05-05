@@ -56,10 +56,11 @@ import {
 } from "@/lib/adminPlaySessions";
 import { MAX_CHAT_MESSAGES } from "@/lib/adminStudentInsights";
 import {
-  REFER_CHALLENGE_SPECS,
+  getReferChallengeSpecs,
   referChallengeSpec,
   type ReferClaimKey,
 } from "@/lib/referEarnChallenges";
+import { DEFAULT_RDM_CONFIG, fetchRdmConfig, type RdmConfigParams } from "@/lib/rdmConfig";
 import { cn } from "@/lib/utils";
 import {
   ArrowBigDown,
@@ -1230,6 +1231,7 @@ function ReferSessionSectionTitle({ children }: { children: ReactNode }) {
 function AdminReferChallengeSessionSheetInner({
   selection,
   loadState,
+  rdmConfig,
 }: {
   selection: { claim_date: string; challenge_key: string };
   loadState: {
@@ -1237,6 +1239,7 @@ function AdminReferChallengeSessionSheetInner({
     error: string;
     data: ReferChallengeSessionApiResponse | null;
   };
+  rdmConfig: RdmConfigParams | null;
 }) {
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const copyText = useCallback(async (key: string, text: string) => {
@@ -1249,7 +1252,10 @@ function AdminReferChallengeSessionSheetInner({
     }
   }, []);
 
-  const spec = referChallengeSpec(selection.challenge_key as ReferClaimKey);
+  const spec = referChallengeSpec(
+    selection.challenge_key as ReferClaimKey,
+    rdmConfig ?? DEFAULT_RDM_CONFIG
+  );
 
   return (
     <>
@@ -1850,8 +1856,11 @@ function referClaimEarnedRdm(c: {
   challenge_key: string;
   win_claimed: boolean;
   share_claimed: boolean;
-}): number {
-  const spec = referChallengeSpec(c.challenge_key as ReferClaimKey);
+}, config: RdmConfigParams | null): number {
+  const spec = referChallengeSpec(
+    c.challenge_key as ReferClaimKey,
+    config ?? DEFAULT_RDM_CONFIG
+  );
   if (!spec) return 0;
   return (c.win_claimed ? spec.winRdm : 0) + (c.share_claimed ? spec.shareRdm : 0);
 }
@@ -2092,6 +2101,11 @@ export default function AdminUserDetailPage() {
     "all" | "bit" | "formula" | "instacue_card" | "revision_unit" | "community_post"
   >("all");
   const [savedDetail, setSavedDetail] = useState<SavedItemRow | null>(null);
+  const [rdmConfig, setRdmConfig] = useState<RdmConfigParams | null>(null);
+
+  useEffect(() => {
+    fetchRdmConfig().then(setRdmConfig);
+  }, []);
 
   type SeenState = {
     lastTab: typeof activeTab;
@@ -6658,7 +6672,7 @@ export default function AdminUserDetailPage() {
                     <span className="text-muted-foreground">
                       RDM from wins + shares (this snapshot):{" "}
                       <span className="font-semibold tabular-nums text-foreground">
-                        {studentInsights.referEarn.claims.reduce((s, c) => s + referClaimEarnedRdm(c), 0)}
+                        {studentInsights.referEarn.claims.reduce((s, c) => s + referClaimEarnedRdm(c, rdmConfig), 0)}
                       </span>
                     </span>
                     <span className="text-muted-foreground">
@@ -6692,11 +6706,11 @@ export default function AdminUserDetailPage() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {REFER_CHALLENGE_SPECS.map((spec) => {
+                          {getReferChallengeSpecs(rdmConfig ?? DEFAULT_RDM_CONFIG).map((spec) => {
                             const rows = referEarnClaimsAggregate.counts.get(spec.key) ?? 0;
                             const rdm = studentInsights.referEarn.claims
                               .filter((c) => c.challenge_key === spec.key)
-                              .reduce((s, c) => s + referClaimEarnedRdm(c), 0);
+                              .reduce((s, c) => s + referClaimEarnedRdm(c, rdmConfig), 0);
                             return (
                               <TableRow key={spec.key}>
                                 <TableCell className="font-mono text-xs">{spec.key}</TableCell>
@@ -6749,8 +6763,11 @@ export default function AdminUserDetailPage() {
                         </TableRow>
                       ) : (
                         studentInsights.referEarn.claims.map((c) => {
-                          const spec = referChallengeSpec(c.challenge_key as ReferClaimKey);
-                          const earned = referClaimEarnedRdm(c);
+                          const spec = referChallengeSpec(
+                            c.challenge_key as ReferClaimKey,
+                            rdmConfig ?? DEFAULT_RDM_CONFIG
+                          );
+                          const earned = referClaimEarnedRdm(c, rdmConfig);
                           return (
                             <TableRow
                               key={`${c.claim_date}-${c.challenge_key}`}
@@ -6835,6 +6852,7 @@ export default function AdminUserDetailPage() {
               <AdminReferChallengeSessionSheetInner
                 selection={referClaimSheet}
                 loadState={referSessionLoad}
+                rdmConfig={rdmConfig}
               />
             ) : null}
           </SheetContent>

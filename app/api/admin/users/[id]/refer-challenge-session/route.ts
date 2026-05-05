@@ -7,6 +7,7 @@ import { getSupabaseAndUser } from "@/lib/apiAuth";
 import { isAdminUser } from "@/lib/admin";
 import { createAdminClient } from "@/integrations/supabase/server";
 import { referChallengeSpec, type ReferClaimKey } from "@/lib/referEarnChallenges";
+import { fetchRdmConfig } from "@/lib/rdmConfig";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const VALID_KEYS = new Set<string>(["5", "10", "20", "50"]);
@@ -33,7 +34,8 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       return NextResponse.json({ error: "Invalid challenge_key" }, { status: 400 });
     }
 
-    const spec = referChallengeSpec(challengeKey as ReferClaimKey);
+    const config = await fetchRdmConfig();
+    const spec = referChallengeSpec(challengeKey as ReferClaimKey, config);
     if (!spec) {
       return NextResponse.json({ error: "Unknown challenge spec" }, { status: 400 });
     }

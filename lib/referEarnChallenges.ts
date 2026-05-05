@@ -1,13 +1,14 @@
 import type { PlayDomain } from "@/types";
+import { type RdmConfigParams } from "@/lib/rdmConfig";
 
 export type ReferClaimKey = "5" | "10" | "20" | "50";
 
 /** Earn & Learn (refer-earn) RDM targets — separate rules from /play Daily Gauntlet or streak. */
 export type ReferChallengePublicSpec = {
   key: ReferClaimKey;
-  /** Win reward (claim once/day/challenge after passing). */
+  /** Win reward (auto-credited once/day/challenge after passing). */
   winRdm: number;
-  /** Share reward (claim once/day/challenge after posting/sharing). */
+  /** Share reward (auto-credited once/day/challenge after you share). */
   shareRdm: number;
   /** Total potential reward = win + share; used for daily cap UX. */
   totalRdm: number;
@@ -30,13 +31,11 @@ export type ReferChallengePublicSpec = {
   categoryPill: string;
 };
 
-export const REFER_CHALLENGE_SPECS: ReferChallengePublicSpec[] = [
+// Base definitions without the dynamic RDM values
+const BASE_SPECS = [
   {
-    key: "5",
-    winRdm: 3,
-    shareRdm: 2,
-    totalRdm: 5,
-    domain: "funbrain",
+    key: "5" as ReferClaimKey,
+    domain: "funbrain" as PlayDomain,
     playCategory: "mental_math",
     questionCount: 10,
     sessionMinutes: 5,
@@ -51,12 +50,8 @@ export const REFER_CHALLENGE_SPECS: ReferChallengePublicSpec[] = [
     categoryPill: "Non-academic",
   },
   {
-    key: "10",
-    winRdm: 7,
-    shareRdm: 3,
-    totalRdm: 10,
-    domain: "funbrain",
-    /** Mixed pool; refer fetch uses `funbrain_all` (see `fetchReferChallengeQuestions`). */
+    key: "10" as ReferClaimKey,
+    domain: "funbrain" as PlayDomain,
     playCategory: "funbrain_all",
     questionCount: 15,
     sessionMinutes: 7,
@@ -71,11 +66,8 @@ export const REFER_CHALLENGE_SPECS: ReferChallengePublicSpec[] = [
     categoryPill: "Non-academic",
   },
   {
-    key: "20",
-    winRdm: 15,
-    shareRdm: 5,
-    totalRdm: 20,
-    domain: "academic",
+    key: "20" as ReferClaimKey,
+    domain: "academic" as PlayDomain,
     playCategory: "academic_all",
     questionCount: 10,
     sessionMinutes: 10,
@@ -90,11 +82,8 @@ export const REFER_CHALLENGE_SPECS: ReferChallengePublicSpec[] = [
     categoryPill: "PCM academic",
   },
   {
-    key: "50",
-    winRdm: 30,
-    shareRdm: 20,
-    totalRdm: 50,
-    domain: "academic",
+    key: "50" as ReferClaimKey,
+    domain: "academic" as PlayDomain,
     playCategory: "academic_all",
     questionCount: 25,
     sessionMinutes: 25,
@@ -110,8 +99,26 @@ export const REFER_CHALLENGE_SPECS: ReferChallengePublicSpec[] = [
   },
 ];
 
-export function referChallengeSpec(key: ReferClaimKey): ReferChallengePublicSpec | undefined {
-  return REFER_CHALLENGE_SPECS.find((s) => s.key === key);
+export function getReferChallengeSpecs(config: RdmConfigParams): ReferChallengePublicSpec[] {
+  return BASE_SPECS.map(base => {
+    let winRdm = 0;
+    let shareRdm = 0;
+    if (base.key === "5") { winRdm = config.challenge_5_win; shareRdm = config.challenge_5_share; }
+    if (base.key === "10") { winRdm = config.challenge_10_win; shareRdm = config.challenge_10_share; }
+    if (base.key === "20") { winRdm = config.challenge_20_win; shareRdm = config.challenge_20_share; }
+    if (base.key === "50") { winRdm = config.challenge_50_win; shareRdm = config.challenge_50_share; }
+
+    return {
+      ...base,
+      winRdm,
+      shareRdm,
+      totalRdm: winRdm + shareRdm
+    };
+  });
+}
+
+export function referChallengeSpec(key: ReferClaimKey, config: RdmConfigParams): ReferChallengePublicSpec | undefined {
+  return getReferChallengeSpecs(config).find((s) => s.key === key);
 }
 
 export function referChallengeDayKey(userId: string, day: string): string {

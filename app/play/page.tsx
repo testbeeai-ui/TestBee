@@ -47,6 +47,12 @@ import {
   DAILYDOSE_STREAK_TRACKS,
   isDailyDoseStreakTrackId,
 } from "@/lib/teacherPortal/dailyDoseStreakTracks";
+import {
+  DEFAULT_RDM_CONFIG,
+  fetchRdmConfig,
+  rdmConfigShallowEqual,
+  type RdmConfigParams,
+} from "@/lib/rdmConfig";
 
 /** PCM only — matches Gyan++ / investor spec. */
 const PCM_CATEGORIES = [
@@ -61,10 +67,6 @@ const FUNBRAIN_STREAK_POOL = "funbrain_all";
 
 /** Streak survival: up to this many questions per run (5 min session cap). */
 const STREAK_SESSION_QUESTIONS = 15;
-
-/** DailyDose RDM on full run; keep in sync with `submit_daily_gauntlet` in Supabase. */
-const ACADEMIC_DAILYDOSE_RDM = 15;
-const FUNBRAIN_DAILYDOSE_RDM = 10;
 
 function streakPoolForDomain(domain: PlayDomain): string {
   return domain === "academic" ? ACADEMIC_STREAK_POOL : FUNBRAIN_STREAK_POOL;
@@ -182,6 +184,8 @@ function PlayPageContent() {
   const isPlayAdmin = useIsAppAdmin();
   const searchParams = useSearchParams();
   const streakTimer = useStreakTimer();
+
+  const [rdmConfig, setRdmConfig] = useState<RdmConfigParams>(() => ({ ...DEFAULT_RDM_CONFIG }));
 
   const [view, setView] = useState<View>("dashboard");
   const [userStats, setUserStats] = useState<
@@ -342,6 +346,25 @@ function PlayPageContent() {
     },
     [user]
   );
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      const next = await fetchRdmConfig();
+      if (!cancelled) {
+        setRdmConfig((prev) => (rdmConfigShallowEqual(prev, next) ? prev : next));
+      }
+    };
+    void load();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void load();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, []);
 
   const todayDate = () => {
     const d = new Date();
@@ -617,6 +640,7 @@ function PlayPageContent() {
     const questions = await fetchDailyGauntletQuestionsWithFallback(supabase, {
       domain,
       dateIso: today,
+      questionCount: rdmConfig.play_dailydose_min_questions_for_rdm,
     });
     setGauntletLoading(false);
     if (questions.length === 0) {
@@ -1091,14 +1115,14 @@ function PlayPageContent() {
                     {academicDoseLocked ? (
                       <>
                         <Check className="h-4 w-4 shrink-0" strokeWidth={2.5} />
-                        DailyDose — Done (+{ACADEMIC_DAILYDOSE_RDM} RDM)
+                        DailyDose — Done (+{rdmConfig.play_dailydose_academic_rdm} RDM)
                       </>
                     ) : gauntletLoading && selectedDomain === "academic" ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
                       <>
                         <Clock className="h-4 w-4 opacity-80" />
-                        DailyDose — all subjects (+{ACADEMIC_DAILYDOSE_RDM} RDM)
+                        DailyDose — all subjects (+{rdmConfig.play_dailydose_academic_rdm} RDM)
                       </>
                     )}
                   </button>
@@ -1107,7 +1131,7 @@ function PlayPageContent() {
                     <span>
                       {isPlayAdmin
                         ? "DailyDose 20s/Q · Streak 15 Q/5 min · manual Next · unlimited (admin)"
-                        : `DailyDose +${ACADEMIC_DAILYDOSE_RDM} RDM (full run) · 20s/Q · 1/day · Streak 15 Q/5 min · Next · 1/day`}
+                        : `DailyDose +${rdmConfig.play_dailydose_academic_rdm} RDM (full run) · 20s/Q · 1/day · Streak 15 Q/5 min · Next · 1/day`}
                     </span>
                     <button
                       type="button"
@@ -1396,14 +1420,14 @@ function PlayPageContent() {
                     {funbrainDoseLocked ? (
                       <>
                         <Check className="h-4 w-4 shrink-0" strokeWidth={2.5} />
-                        DailyDose — Done (+{FUNBRAIN_DAILYDOSE_RDM} RDM)
+                        DailyDose — Done (+{rdmConfig.play_dailydose_funbrain_rdm} RDM)
                       </>
                     ) : gauntletLoading && selectedDomain === "funbrain" ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
                       <>
                         <Trophy className="h-4 w-4 opacity-80" />
-                        DailyDose — all modes (+{FUNBRAIN_DAILYDOSE_RDM} RDM)
+                        DailyDose — all modes (+{rdmConfig.play_dailydose_funbrain_rdm} RDM)
                       </>
                     )}
                   </button>
@@ -1412,7 +1436,7 @@ function PlayPageContent() {
                     <span>
                       {isPlayAdmin
                         ? "DailyDose 20s/Q · ranked · Streak 15 Q/5 min · manual Next · unlimited (admin)"
-                        : `DailyDose +${FUNBRAIN_DAILYDOSE_RDM} RDM (full run) · ranked · 20s/Q · Streak 15 Q/5 min · Next · 1/day each`}
+                        : `DailyDose +${rdmConfig.play_dailydose_funbrain_rdm} RDM (full run) · ranked · 20s/Q · Streak 15 Q/5 min · Next · 1/day each`}
                     </span>
                     <button
                       type="button"

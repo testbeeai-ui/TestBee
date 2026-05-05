@@ -35,6 +35,7 @@ import GyanFeedPagination, {
   GYAN_FEED_PAGE_SIZE,
 } from "@/components/doubts/GyanFeedPagination";
 import { dispatchStudyDayBumped } from "@/lib/studyDayBumpEvents";
+import { DEFAULT_RDM_CONFIG, fetchRdmConfig } from "@/lib/rdmConfig";
 
 type SimpleDoubtRow = {
   id: string;
@@ -92,6 +93,13 @@ function DoubtsPageContent() {
   const [activeTab, setActiveTab] = useState<TabFilter>("all");
   const [userRdmToday, setUserRdmToday] = useState(0);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [gyanRdm, setGyanRdm] = useState({
+    post: DEFAULT_RDM_CONFIG.gyan_post_rdm,
+    comment: DEFAULT_RDM_CONFIG.gyan_comment_rdm,
+    upvote: DEFAULT_RDM_CONFIG.gyan_upvote_rdm,
+    save: DEFAULT_RDM_CONFIG.gyan_save_rdm,
+    teacher: DEFAULT_RDM_CONFIG.gyan_teacher_answer_rdm,
+  });
   /** Doubt ids we just posted; show Prof-Pi story strip until an AI answer exists or timeout */
   const [profPiPendingByDoubtId, setProfPiPendingByDoubtId] = useState<Record<string, number>>({});
   /** Paginated feed (10 per page) — client-side slice of filteredAndSorted */
@@ -323,6 +331,18 @@ function DoubtsPageContent() {
     fetchMyVotes();
     fetchUserRdmToday();
   }, [user?.id]);
+
+  useEffect(() => {
+    void fetchRdmConfig().then((cfg) => {
+      setGyanRdm({
+        post: cfg.gyan_post_rdm,
+        comment: cfg.gyan_comment_rdm,
+        upvote: cfg.gyan_upvote_rdm,
+        save: cfg.gyan_save_rdm,
+        teacher: cfg.gyan_teacher_answer_rdm,
+      });
+    });
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -611,7 +631,7 @@ function DoubtsPageContent() {
       toast({
         title: "Saved for revision",
         description:
-          gained >= 3 ? "+3 RDM — first save milestone today (IST)." : undefined,
+          gained >= gyanRdm.save ? `+${gyanRdm.save} RDM — first save milestone today (IST).` : undefined,
       });
       void refreshProfile();
       void fetchUserRdmToday();
@@ -664,7 +684,11 @@ function DoubtsPageContent() {
 
               {/* Center: header + tabs + feed */}
               <main className="lg:col-span-6 order-1 lg:order-2 min-w-0">
-                <LiveQAHeader todayCount={todayCount} onAskClick={() => setAskOpen(true)} />
+                <LiveQAHeader
+                  todayCount={todayCount}
+                  onAskClick={() => setAskOpen(true)}
+                  askRewardRdm={gyanRdm.post}
+                />
                 {isAdmin ? (
                   <div className="mb-4">
                     <GyanBotAdminPanel />
@@ -708,6 +732,10 @@ function DoubtsPageContent() {
                           isAdmin={isAdmin}
                           expectProfPiAnswer={Boolean(profPiPendingByDoubtId[d.id])}
                           currentUserRole={profile?.role ?? null}
+                          upvoteRewardRdm={gyanRdm.upvote}
+                          saveRewardRdm={gyanRdm.save}
+                          teacherRewardRdm={gyanRdm.teacher}
+                          commentRewardRdm={gyanRdm.comment}
                         />
                       ))}
                     </div>
@@ -732,6 +760,7 @@ function DoubtsPageContent() {
                 topContributors={topContributors}
                 topTeachers={topTeachers}
                 onAskClick={() => setAskOpen(true)}
+                postRewardRdm={gyanRdm.post}
               />
             </div>
           </div>

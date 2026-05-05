@@ -8,9 +8,14 @@ import { useToast } from "@/hooks/use-toast";
 interface LiveQAHeaderProps {
   todayCount: number;
   onAskClick: () => void;
+  askRewardRdm?: number;
 }
 
-export default function LiveQAHeader({ todayCount, onAskClick }: LiveQAHeaderProps) {
+export default function LiveQAHeader({
+  todayCount,
+  onAskClick,
+  askRewardRdm = 5,
+}: LiveQAHeaderProps) {
   const { toast } = useToast();
 
   return (
@@ -37,7 +42,7 @@ export default function LiveQAHeader({ todayCount, onAskClick }: LiveQAHeaderPro
             className="rounded-xl h-11 flex-1 sm:flex-initial font-bold px-5"
             onClick={onAskClick}
           >
-            <Plus className="w-4 h-4 mr-1.5" /> Ask (+5 RDM)
+            <Plus className="w-4 h-4 mr-1.5" /> Ask (+{askRewardRdm} RDM)
           </Button>
           <Button
             variant="outline"

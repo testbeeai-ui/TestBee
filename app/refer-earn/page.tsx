@@ -13,19 +13,20 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { supabase } from "@/integrations/supabase/client";
 import { computeStreakDays } from "@/lib/gauntletStreak";
 import {
-  REFER_CHALLENGE_SPECS,
+  getReferChallengeSpecs,
   referChallengeSpec,
   type ReferChallengePublicSpec,
   type ReferClaimKey,
 } from "@/lib/referEarnChallenges";
 import { reportChallengeYourselfAttempt } from "@/lib/reportChallengeYourselfAttempt";
 import { cn } from "@/lib/utils";
+import { EARN_LEARN_AUTO_CLAIM_LINE } from "@/lib/referEarnAutoClaimCopy";
 import {
-  REFERRAL_RDM_REFERRER,
-  REFERRAL_RDM_REFEREE_WELCOME,
-  REFERRAL_WEEKLY_BONUS_AT_COUNT,
-  REFERRAL_WEEKLY_BONUS_RDM,
-} from "@/lib/referralRewards";
+  DEFAULT_RDM_CONFIG,
+  fetchRdmConfig,
+  rdmConfigShallowEqual,
+  type RdmConfigParams,
+} from "@/lib/rdmConfig";
 import type { PlayDomain } from "@/types";
 import {
   BarChart3,
@@ -57,53 +58,46 @@ const TAB_ITEMS: {
   { key: "faq", label: "FAQ", icon: Info },
 ];
 
-const FAQ_ITEMS = [
-  {
-    q: "What uses RDM?",
-    a: "RDM can be redeemed for Practice Packs, Full Mock Tests, Analytics Pro, and EduFund scholarship entries. More rewards are added regularly.",
-  },
-  {
-    q: "How many RDM do I get per referral?",
-    a: `You earn ${REFERRAL_RDM_REFERRER} RDM when your friend signs up using your link. You get an additional ${REFERRAL_WEEKLY_BONUS_RDM} RDM bonus when you hit ${REFERRAL_WEEKLY_BONUS_AT_COUNT} referrals in a week.`,
-  },
-  {
-    q: "Does my friend also get RDM?",
-    a: `Yes! Your friend gets ${REFERRAL_RDM_REFEREE_WELCOME} RDM as a welcome bonus when they sign up through your link. It appears in their balance after onboarding.`,
-  },
-  {
-    q: "When does the leaderboard reset?",
-    a: "The referral leaderboard resets every Monday at 12:00 AM IST. Your total RDM balance never resets — only the weekly ranking does.",
-  },
-];
+type RedeemMarketingKey =
+  | "redeem_practice_packs_from_rdm"
+  | "redeem_mock_tests_from_rdm"
+  | "redeem_analytics_pro_from_rdm"
+  | "redeem_edufund_entry_from_rdm";
 
-const REWARD_USES = [
+const REWARD_USE_BASE: ReadonlyArray<{
+  title: string;
+  emoji: string;
+  titleClass: string;
+  borderClass: string;
+  configKey: RedeemMarketingKey;
+}> = [
   {
     title: "Practice Packs",
-    from: "from 50 RDM",
     emoji: "🎁",
     titleClass: "text-violet-300",
     borderClass: "border-violet-500/30",
+    configKey: "redeem_practice_packs_from_rdm",
   },
   {
     title: "Mock Tests",
-    from: "from 100 RDM",
     emoji: "📝",
     titleClass: "text-amber-300",
     borderClass: "border-amber-500/30",
+    configKey: "redeem_mock_tests_from_rdm",
   },
   {
     title: "Analytics Pro",
-    from: "from 200 RDM",
     emoji: "📊",
     titleClass: "text-teal-300",
     borderClass: "border-teal-500/30",
+    configKey: "redeem_analytics_pro_from_rdm",
   },
   {
     title: "EduFund Entry",
-    from: "from 500 RDM",
     emoji: "🏆",
     titleClass: "text-rose-300",
     borderClass: "border-rose-500/30",
+    configKey: "redeem_edufund_entry_from_rdm",
   },
 ];
 
@@ -115,8 +109,6 @@ const GRANT_TIERS = [
   { key: "elite", name: "Elite", threshold: 50000, grant: "₹1,00,000", icon: "🚀" },
   { key: "masterblaster", name: "MasterBlaster", threshold: 100000, grant: "₹2,00,000", icon: "👑" },
 ] as const;
-
-const DAILY_CHALLENGE_RDM_CAP = 50;
 
 function referMinPct(spec: ReferChallengePublicSpec): number {
   return Math.round((spec.minCorrect / spec.questionCount) * 100);
@@ -166,6 +158,10 @@ export default function ReferEarnPage() {
   const detailPanelRef = useRef<HTMLDivElement>(null);
   const inlineChallengeRef = useRef<HTMLDivElement>(null);
   const [activeReferClaim, setActiveReferClaim] = useState<ReferClaimKey | null>(null);
+  /** Snapshot at challenge start so `rdmConfig` refetches do not replace `spec` and reset MCQ state. */
+  const [challengeSessionSpec, setChallengeSessionSpec] =
+    useState<ReferChallengePublicSpec | null>(null);
+  const challengeActiveRef = useRef(false);
   const [friendsReferred, setFriendsReferred] = useState(0);
   const [weeklyReferrals, setWeeklyReferrals] = useState(0);
   const [leaderboardRows, setLeaderboardRows] = useState<
@@ -181,10 +177,106 @@ export default function ReferEarnPage() {
       refereeName: string;
     }[]
   >([]);
+  const [rdmConfig, setRdmConfig] = useState<RdmConfigParams>(() => ({ ...DEFAULT_RDM_CONFIG }));
+
+  useEffect(() => {
+    challengeActiveRef.current = activeReferClaim !== null;
+  }, [activeReferClaim]);
+
+  const mergeRdmConfig = useCallback((next: RdmConfigParams) => {
+    setRdmConfig((prev) => (rdmConfigShallowEqual(prev, next) ? prev : next));
+  }, []);
+
+  useEffect(() => {
+    void fetchRdmConfig().then(mergeRdmConfig);
+  }, [mergeRdmConfig]);
+
+  /** Refresh config when the tab becomes visible again — not during an active challenge (avoids MCQ reset). No `window` focus listener (too noisy). */
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState !== "visible") return;
+      void fetchRdmConfig().then((next) => {
+        if (challengeActiveRef.current) return;
+        mergeRdmConfig(next);
+      });
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, [mergeRdmConfig]);
 
   const rdm = profile?.rdm ?? user?.rdm ?? 0;
-  const perReferral = REFERRAL_RDM_REFERRER;
-  const bonusAtFive = REFERRAL_WEEKLY_BONUS_RDM;
+  const perReferral = rdmConfig.referral_referrer_reward;
+  const bonusAtFive = rdmConfig.referral_weekly_bonus_rdm;
+  const weeklyTarget = rdmConfig.referral_weekly_bonus_threshold;
+  const refereeWelcome = rdmConfig.referral_referee_welcome;
+  const dailyChallengeRdmCap = rdmConfig.refer_challenge_daily_rdm_cap;
+
+  const currentChallengeSpecs = useMemo(() => getReferChallengeSpecs(rdmConfig), [rdmConfig]);
+
+  const rewardUsesDisplay = useMemo(
+    () =>
+      REWARD_USE_BASE.map((item) => ({
+        ...item,
+        from: `from ${formatInt(rdmConfig[item.configKey])} RDM`,
+      })),
+    [rdmConfig]
+  );
+
+  const howItWorksSteps = useMemo(
+    () => [
+      {
+        n: 1,
+        title: "Copy your link",
+        body: "Your unique referral link is ready above. Tap copy — it takes 1 second.",
+        icon: Link2,
+        ring: "text-violet-400",
+      },
+      {
+        n: 2,
+        title: "Share with friends",
+        body: "Send via WhatsApp or your study groups. Works best when it’s personal.",
+        icon: Send,
+        ring: "text-teal-400",
+      },
+      {
+        n: 3,
+        title: "Both of you earn",
+        body: `You get ${perReferral} RDM when referrals are tracked. Your friend gets ${refereeWelcome} RDM as a welcome bonus after onboarding.`,
+        icon: Sparkles,
+        ring: "text-amber-400",
+      },
+    ],
+    [perReferral, refereeWelcome]
+  );
+
+  const FAQ_ITEMS = useMemo(() => {
+    const pp = rdmConfig.redeem_practice_packs_from_rdm;
+    const mt = rdmConfig.redeem_mock_tests_from_rdm;
+    const ap = rdmConfig.redeem_analytics_pro_from_rdm;
+    const ef = rdmConfig.redeem_edufund_entry_from_rdm;
+    return [
+      {
+        q: "What uses RDM?",
+        a: `RDM can be redeemed for Practice Packs (from ${formatInt(pp)} RDM), Full Mock Tests (from ${formatInt(mt)} RDM), Analytics Pro (from ${formatInt(ap)} RDM), and EduFund scholarship entries (from ${formatInt(ef)} RDM). More rewards are added regularly.`,
+      },
+      {
+        q: "How many RDM do I get per referral?",
+        a: `You earn ${perReferral} RDM when your friend signs up using your link. You get an additional ${bonusAtFive} RDM bonus when you hit ${weeklyTarget} referrals in a week.`,
+      },
+      {
+        q: "Does my friend also get RDM?",
+        a: `Yes! Your friend gets ${refereeWelcome} RDM as a welcome bonus when they sign up through your link. It appears in their balance after onboarding.`,
+      },
+      {
+        q: "When does the leaderboard reset?",
+        a: "The referral leaderboard resets every Monday at 12:00 AM IST. Your total RDM balance never resets — only the weekly ranking does.",
+      },
+      {
+        q: "How do challenge RDM rewards work (MentaMill / FunBrain / Arena)?",
+        a: `${EARN_LEARN_AUTO_CLAIM_LINE} Referral bonuses from your invite link are credited when referrals are tracked, separately from challenge RDM.`,
+      },
+    ];
+  }, [rdmConfig, perReferral, bonusAtFive, weeklyTarget, refereeWelcome]);
 
   const refCode = useMemo(() => {
     const fallbackHandle = (user?.name || "guest").replace(/\s+/g, "").slice(0, 7);
@@ -372,14 +464,14 @@ export default function ReferEarnPage() {
   const waHref = `https://api.whatsapp.com/send?text=${shareText}`;
 
   const selectedCard: ReferChallengePublicSpec | null = selectedClaim
-    ? (referChallengeSpec(selectedClaim) ?? null)
+    ? (referChallengeSpec(selectedClaim, rdmConfig) ?? null)
     : null;
   const selectedClaimState = selectedClaim ? referClaims[selectedClaim] : undefined;
   const playedForSelected = Boolean(selectedClaimState?.winClaimed);
   const startChallengeLocked =
     !isReferAdmin &&
     !!selectedCard &&
-    dailyRdmEarned + selectedCard.totalRdm > DAILY_CHALLENGE_RDM_CAP;
+    dailyRdmEarned + selectedCard.totalRdm > dailyChallengeRdmCap;
 
   const handleReferChallengeTerminal = useCallback(
     (_info: { claimKey: ReferClaimKey; outcome: "won" | "lost" }) => {
@@ -448,22 +540,22 @@ export default function ReferEarnPage() {
                   RDM (Reward Miles) unlock practice packs, mock tests &amp; exclusive study tools.
                   Share EduBlast and earn more with every friend who joins.
                 </p>
-                <div className="mt-3 grid grid-cols-3 gap-2">
-                  <div className="rounded-lg border border-white/10 bg-black/20 px-2 py-2.5 text-center">
-                    <p className="text-xl font-bold tabular-nums text-slate-300">
-                      {friendsReferred}
-                    </p>
-                    <p className={reLabel}>Friends referred</p>
+                  <div className="mt-3 grid grid-cols-3 gap-2">
+                    <div className="rounded-lg border border-white/10 bg-black/20 px-2 py-2.5 text-center">
+                      <p className="text-xl font-bold tabular-nums text-slate-300">
+                        {friendsReferred}
+                      </p>
+                      <p className={reLabel}>Friends referred</p>
+                    </div>
+                    <div className="rounded-lg border border-white/10 bg-black/20 px-2 py-2.5 text-center">
+                      <p className="text-xl font-bold tabular-nums text-teal-400">+{perReferral}</p>
+                      <p className={reLabel}>RDM per referral</p>
+                    </div>
+                    <div className="rounded-lg border border-white/10 bg-black/20 px-2 py-2.5 text-center">
+                      <p className="text-xl font-bold tabular-nums text-amber-400">+{bonusAtFive}</p>
+                      <p className={reLabel}>Bonus at {weeklyTarget} / week</p>
+                    </div>
                   </div>
-                  <div className="rounded-lg border border-white/10 bg-black/20 px-2 py-2.5 text-center">
-                    <p className="text-xl font-bold tabular-nums text-teal-400">+{perReferral}</p>
-                    <p className={reLabel}>RDM per referral</p>
-                  </div>
-                  <div className="rounded-lg border border-white/10 bg-black/20 px-2 py-2.5 text-center">
-                    <p className="text-xl font-bold tabular-nums text-amber-400">+{bonusAtFive}</p>
-                    <p className={reLabel}>Bonus at {REFERRAL_WEEKLY_BONUS_AT_COUNT} / week</p>
-                  </div>
-                </div>
               </section>
 
               <div>
@@ -535,29 +627,7 @@ export default function ReferEarnPage() {
                     <span className="h-px flex-1 bg-white/10" />
                   </p>
                   <div className="grid gap-3 sm:grid-cols-3">
-                    {[
-                      {
-                        n: 1,
-                        title: "Copy your link",
-                        body: "Your unique referral link is ready above. Tap copy — it takes 1 second.",
-                        icon: Link2,
-                        ring: "text-violet-400",
-                      },
-                      {
-                        n: 2,
-                        title: "Share with friends",
-                        body: "Send via WhatsApp or your study groups. Works best when it’s personal.",
-                        icon: Send,
-                        ring: "text-teal-400",
-                      },
-                      {
-                        n: 3,
-                        title: "Both of you earn",
-                        body: "You get 50 RDM when referrals are tracked. Your friend gets a welcome bonus after onboarding.",
-                        icon: Sparkles,
-                        ring: "text-amber-400",
-                      },
-                    ].map((s) => (
+                    {howItWorksSteps.map((s) => (
                       <div
                         key={s.n}
                         className="rounded-[12px] border border-white/10 bg-[var(--re-card)] p-4"
@@ -577,7 +647,7 @@ export default function ReferEarnPage() {
                     <span className="h-px flex-1 bg-white/10" />
                   </p>
                   <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
-                    {REWARD_USES.map((item) => (
+                    {rewardUsesDisplay.map((item) => (
                       <div
                         key={item.title}
                         className={cn(
@@ -850,7 +920,7 @@ export default function ReferEarnPage() {
                     </div>
                   )}
                   <p className="border-t border-white/10 pt-3 text-center text-[11px] text-slate-500">
-                    Refer {REFERRAL_WEEKLY_BONUS_AT_COUNT} friends in a week for +{bonusAtFive} RDM
+                    Refer {weeklyTarget} friends in a week for +{bonusAtFive} RDM
                     bonus · Leaderboard resets every Monday (IST)
                   </p>
                 </div>
@@ -901,7 +971,7 @@ export default function ReferEarnPage() {
                         Start a challenge below (separate from the{" "}
                         <strong className="text-white">Play</strong> hub). Max{" "}
                         <strong className="text-[var(--re-amber)]">
-                          {DAILY_CHALLENGE_RDM_CAP} RDM
+                          {dailyChallengeRdmCap} RDM
                         </strong>{" "}
                         per day from challenges once RDM tracking is enabled.
                       </p>
@@ -923,20 +993,20 @@ export default function ReferEarnPage() {
                             <div
                               className="h-full rounded-full bg-gradient-to-r from-[var(--re-amber)] to-fuchsia-500"
                               style={{
-                                width: `${Math.min(100, (dailyRdmEarned / DAILY_CHALLENGE_RDM_CAP) * 100)}%`,
+                                width: `${Math.min(100, (dailyRdmEarned / dailyChallengeRdmCap) * 100)}%`,
                               }}
                             />
                           </div>
                         </div>
                         <span className="text-xs font-bold text-[var(--re-amber)]">
-                          {dailyRdmEarned} / {DAILY_CHALLENGE_RDM_CAP} RDM
+                          {dailyRdmEarned} / {dailyChallengeRdmCap} RDM
                         </span>
                       </div>
                     </TooltipTrigger>
                     <TooltipContent side="bottom" className="max-w-xs text-xs">
-                      Challenge claims are tracked separately from /play DailyDose and streak. A
-                      challenge card is locked when its total (win + share) would exceed your
-                      remaining daily cap.
+                      Auto-claim RDM is tracked separately from /play DailyDose and streak.{" "}
+                      {EARN_LEARN_AUTO_CLAIM_LINE} A challenge card is locked when its total (win +
+                      share) would exceed your remaining daily cap.
                     </TooltipContent>
                   </Tooltip>
 
@@ -946,7 +1016,7 @@ export default function ReferEarnPage() {
                       reLabel
                     )}
                   >
-                    <span className="text-slate-300">STEP 1 · CHOOSE YOUR RDM CLAIM TARGET</span>
+                    <span className="text-slate-300">STEP 1 · CHOOSE YOUR CHALLENGE (AUTO-CLAIM RDM)</span>
                     <span className="h-px flex-1 bg-white/10" />
                   </p>
                   {isReferAdmin ? (
@@ -956,12 +1026,12 @@ export default function ReferEarnPage() {
                   ) : null}
 
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    {REFER_CHALLENGE_SPECS.map((c) => {
+                    {currentChallengeSpecs.map((c) => {
                       const sel = selectedClaim === c.key;
                       const claimState = referClaims[c.key];
                       const done = Boolean(claimState?.winClaimed && claimState?.shareClaimed);
                       const lockedByCap =
-                        !isReferAdmin && dailyRdmEarned + c.totalRdm > DAILY_CHALLENGE_RDM_CAP;
+                        !isReferAdmin && dailyRdmEarned + c.totalRdm > dailyChallengeRdmCap;
                       const minPct = referMinPct(c);
                       return (
                         <button
@@ -1027,7 +1097,7 @@ export default function ReferEarnPage() {
                             Min {minPct}% to win
                           </span>
                           <span className="mt-1 inline-flex items-center justify-center gap-1 rounded-full border border-white/10 bg-white/[0.03] px-2 py-0.5 text-[10px] font-semibold text-slate-300">
-                            Win +{c.winRdm} · Share +{c.shareRdm}
+                            Win +{c.winRdm} · Share +{c.shareRdm} · Auto-claim
                           </span>
                           {lockedByCap ? (
                             <span className="absolute left-2 top-2 rounded-full bg-rose-500/20 px-2 py-0.5 text-[10px] font-bold text-rose-200">
@@ -1036,7 +1106,7 @@ export default function ReferEarnPage() {
                           ) : null}
                           {done ? (
                             <span className="absolute right-2 top-2 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
-                              Fully claimed
+                              Win + share credited
                             </span>
                           ) : null}
                         </button>
@@ -1068,7 +1138,7 @@ export default function ReferEarnPage() {
                             <div>
                               <p className={cn(reTitle, "text-base")}>{selectedCard.name}</p>
                               <p className="mt-0.5 text-[10px] font-medium uppercase tracking-wider text-slate-500">
-                                {selectedCard.headerEmoji} Claim details
+                                {selectedCard.headerEmoji} Auto-claim rewards
                               </p>
                             </div>
                           </div>
@@ -1079,6 +1149,7 @@ export default function ReferEarnPage() {
                             )}
                           >
                             +{selectedCard.winRdm} RDM on win · +{selectedCard.shareRdm} on share
+                            (auto-claim)
                           </span>
                         </div>
 
@@ -1146,11 +1217,10 @@ export default function ReferEarnPage() {
                               strokeWidth={2.25}
                             />
                             <span>
-                              Claim{" "}
-                              <strong className="text-white">{selectedCard.winRdm} RDM</strong> on
-                              pass, then{" "}
+                              <strong className="text-white">{selectedCard.winRdm} RDM</strong>{" "}
+                              credits when you pass the bar;{" "}
                               <strong className="text-white">{selectedCard.shareRdm} RDM</strong>{" "}
-                              after sharing.
+                              may credit after a verified share (Earn &amp; Learn).
                             </span>
                           </li>
                           <li className="flex gap-2.5">
@@ -1182,6 +1252,7 @@ export default function ReferEarnPage() {
                               "ring-2 ring-violet-300/45 ring-offset-2 ring-offset-[var(--re-card)]"
                             )}
                             onClick={() => {
+                              setChallengeSessionSpec(selectedCard);
                               setActiveReferClaim(selectedCard.key);
                             }}
                           >
@@ -1193,7 +1264,7 @@ export default function ReferEarnPage() {
                         </div>
                         {startChallengeLocked ? (
                           <p className="mt-2 text-center text-[11px] text-rose-200/90">
-                            You have {dailyRdmEarned}/{DAILY_CHALLENGE_RDM_CAP} RDM today. This card
+                            You have {dailyRdmEarned}/{dailyChallengeRdmCap} RDM today. This card
                             needs {selectedCard.totalRdm} total (win + share), so it is locked.
                           </p>
                         ) : null}
@@ -1212,16 +1283,19 @@ export default function ReferEarnPage() {
                 </>
               ) : null}
 
-              {activeReferClaim && referChallengeSpec(activeReferClaim) ? (
+              {activeReferClaim && challengeSessionSpec ? (
                 <div ref={inlineChallengeRef} className="scroll-mt-28">
                   <InlineRdmChallenge
                     key={activeReferClaim}
-                    spec={referChallengeSpec(activeReferClaim)!}
-                    onClose={() => setActiveReferClaim(null)}
+                    spec={challengeSessionSpec}
+                    onClose={() => {
+                      setActiveReferClaim(null);
+                      setChallengeSessionSpec(null);
+                    }}
                     onTerminal={handleReferChallengeTerminal}
                     streakDays={streakDays}
                     dailyRdmEarned={dailyRdmEarned}
-                    dailyRdmCap={DAILY_CHALLENGE_RDM_CAP}
+                    dailyRdmCap={dailyChallengeRdmCap}
                     onClaimsUpdated={loadGauntletMeta}
                   />
                 </div>

@@ -41,6 +41,7 @@ interface DoubtRightSidebarProps {
   topContributors: TopContributor[];
   topTeachers: TopTeacher[];
   onAskClick: () => void;
+  postRewardRdm?: number;
 }
 
 export default function DoubtRightSidebar({
@@ -52,6 +53,7 @@ export default function DoubtRightSidebar({
   topContributors,
   topTeachers,
   onAskClick,
+  postRewardRdm = 5,
 }: DoubtRightSidebarProps) {
   return (
     <aside className="lg:col-span-3 order-3 min-w-0 max-w-full">
@@ -216,7 +218,7 @@ export default function DoubtRightSidebar({
           className="w-full rounded-2xl h-11 font-bold text-sm bg-edu-orange hover:bg-edu-orange/90 text-white border-0"
           onClick={onAskClick}
         >
-          <Plus className="w-4 h-4 mr-1.5" /> Post (+5 RDM)
+          <Plus className="w-4 h-4 mr-1.5" /> Post (+{postRewardRdm} RDM)
         </Button>
       </div>
     </aside>

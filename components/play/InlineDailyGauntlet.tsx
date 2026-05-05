@@ -13,6 +13,7 @@ import { shufflePlayQuestionOptions } from "@/lib/shufflePlayQuestionOptions";
 import { cn } from "@/lib/utils";
 import type { PlayDomain, PlayGauntletAnswerPayload, PlayQuestionRow } from "@/types";
 import { fetchDailyGauntletQuestionsWithFallback } from "@/lib/fetchPlayQuestionsAdaptiveWithFallback";
+import { fetchRdmConfig } from "@/lib/rdmConfig";
 import { Clock, Loader2 } from "lucide-react";
 
 const GAUNTLET_SESSION_SEC = 300;
@@ -222,9 +223,11 @@ export default function InlineDailyGauntlet({
         setBootLoading(false);
         return;
       }
+      const rdm = await fetchRdmConfig();
       const questions = await fetchDailyGauntletQuestionsWithFallback(supabase, {
         domain,
         dateIso: today,
+        questionCount: rdm.play_dailydose_min_questions_for_rdm,
       });
       if (cancelled) return;
       setBootLoading(false);
