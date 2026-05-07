@@ -38,6 +38,9 @@ interface AppLayoutProps {
 /** Curriculum browser: URL stays `/explore-1`; UI label is "Lessons". */
 export const EXPLORE_APP_PATH = "/explore-1" as const;
 
+/** Main app nav wordmark — transparent bg, white text (see `scripts/remove-white-logo-bg.mjs`). */
+const EDUBLAST_WORDMARK_SRC = "/images/edublast-wordmark-nobg.png";
+
 /** Prep + Mock hub: highlight when user is on mock, revision, or class flows (Exam Prep removed from top nav). */
 function isPrepMockActive(pathname: string): boolean {
   if (pathname === "/mock" || pathname === "/exam-prep") return true;
@@ -75,28 +78,25 @@ const AppLayout = ({
       ? baseNavItems
       : baseNavItems.filter((item) => item.path !== "/teacher-portal");
 
+  const settingsHref = profile?.role === "teacher" ? "/profile" : "/settings";
+  const isSettingsPageActive = pathname === "/settings";
+
   return (
     <SitePresenceProvider userId={profile?.id ?? null}>
       <div className="min-h-screen bg-background flex flex-col">
         {/* Top Navigation Bar */}
         {!hideTopNav && (
           <header className="sticky top-0 z-40 bg-card/80 backdrop-blur-xl border-b border-border/60">
-            <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-2.5 lg:max-w-[min(100%,90rem)] lg:px-5 lg:py-3 xl:max-w-[min(100%,96rem)] 2xl:px-6">
-              {/* Logo */}
+            <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-2 sm:py-2 lg:max-w-[min(100%,90rem)] lg:px-5 lg:py-2.5 xl:max-w-[min(100%,96rem)] 2xl:px-6">
+              {/* Logo — user-provided wordmark; height capped so bar stays compact */}
               <Link
                 href="/home"
-                className="flex items-center hover:opacity-80 transition-opacity group"
+                className="flex shrink-0 items-center hover:opacity-80 transition-opacity group"
               >
                 <img
-                  src="/edublast-wordmark-light.png"
+                  src={EDUBLAST_WORDMARK_SRC}
                   alt="EduBlast"
-                  className="h-8 w-auto sm:h-9 2xl:h-10 dark:hidden"
-                  draggable={false}
-                />
-                <img
-                  src="/edublast-wordmark-transparent.png"
-                  alt="EduBlast"
-                  className="hidden h-8 w-auto sm:h-9 2xl:h-10 dark:block"
+                  className="h-9 w-auto sm:h-10 2xl:h-11"
                   draggable={false}
                 />
               </Link>
@@ -152,11 +152,21 @@ const AppLayout = ({
                 )}
                 <NotificationBell />
                 <Link
-                  href="/profile"
-                  className="w-8 h-8 rounded-lg bg-muted/60 hover:bg-muted flex items-center justify-center transition-colors 2xl:w-9 2xl:h-9 2xl:rounded-xl"
+                  href={settingsHref}
+                  className={cn(
+                    "flex h-8 w-8 items-center justify-center rounded-lg transition-colors 2xl:h-9 2xl:w-9 2xl:rounded-xl",
+                    isSettingsPageActive
+                      ? "bg-card text-primary shadow-sm ring-1 ring-primary/25"
+                      : "bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground"
+                  )}
+                  aria-label="Settings"
+                  aria-current={isSettingsPageActive ? "page" : undefined}
                 >
                   <Settings
-                    className="w-4 h-4 text-muted-foreground 2xl:w-[18px] 2xl:h-[18px]"
+                    className={cn(
+                      "h-4 w-4 2xl:h-[18px] 2xl:w-[18px]",
+                      isSettingsPageActive ? "text-primary" : ""
+                    )}
                     suppressHydrationWarning
                   />
                 </Link>

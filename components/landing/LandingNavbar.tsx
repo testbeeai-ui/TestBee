@@ -7,6 +7,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { withNextQuery } from "@/lib/auth/safeNextPath";
 import { NAV_LINKS } from "./landing-constants";
 
+const EDUBLAST_WORDMARK_SRC = "/images/edublast-wordmark-nobg.png";
+
 type NavItem = { label: string; href: string };
 
 export default function LandingNavbar({
@@ -39,19 +41,15 @@ export default function LandingNavbar({
           !isDark ? "justify-between" : ""
         }`}
       >
-        {/* Logo — full wordmark (teal mark + glow); light/dark raster variants */}
+        {/* Logo — same asset as main app nav */}
         <Link
           href="/"
           className="relative z-10 flex shrink-0 items-center hover:opacity-90 transition-opacity"
         >
           <img
-            src={
-              isDark
-                ? "/edublast-wordmark-transparent.png"
-                : "/edublast-wordmark-light.png"
-            }
+            src={EDUBLAST_WORDMARK_SRC}
             alt="EduBlast"
-            className={isDark ? "h-9 w-auto sm:h-10" : "h-8 w-auto sm:h-9"}
+            className="h-9 w-auto sm:h-10"
             draggable={false}
           />
         </Link>
