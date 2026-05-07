@@ -13,7 +13,9 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { supabase } from "@/integrations/supabase/client";
 import { computeStreakDays } from "@/lib/gauntletStreak";
 import {
+  formatReferDurationMmSs,
   getReferChallengeSpecs,
+  referChallengeSessionDurationSec,
   referChallengeSpec,
   type ReferChallengePublicSpec,
   type ReferClaimKey,
@@ -1156,11 +1158,22 @@ export default function ReferEarnPage() {
                         <div className="mt-3 flex flex-wrap gap-2">
                           <span className="inline-flex items-center gap-1.5 rounded-full border border-white/12 bg-black/35 px-2.5 py-1 text-[11px] font-semibold text-slate-200">
                             <Clock className="h-3.5 w-3.5 shrink-0 text-amber-400" />
-                            {selectedCard.sessionMinutes} minutes
+                            <span className="font-mono tabular-nums text-amber-100/95">
+                              {formatReferDurationMmSs(referChallengeSessionDurationSec(selectedCard))}
+                            </span>
+                            <span className="font-normal text-slate-400">session</span>
                           </span>
                           <span className="inline-flex items-center gap-1.5 rounded-full border border-white/12 bg-black/35 px-2.5 py-1 text-[11px] font-semibold text-slate-200">
                             <FileText className="h-3.5 w-3.5 shrink-0 text-sky-400" />
                             {selectedCard.questionCount} questions
+                          </span>
+                          <span className="inline-flex items-center gap-1.5 rounded-full border border-white/12 bg-black/35 px-2.5 py-1 font-mono text-[11px] font-semibold tabular-nums text-slate-200">
+                            <Timer className="h-3.5 w-3.5 shrink-0 text-sky-400" />
+                            {formatReferDurationMmSs(selectedCard.readPhaseSec)} stem
+                          </span>
+                          <span className="inline-flex items-center gap-1.5 rounded-full border border-white/12 bg-black/35 px-2.5 py-1 font-mono text-[11px] font-semibold tabular-nums text-slate-200">
+                            <Timer className="h-3.5 w-3.5 shrink-0 text-violet-300" />
+                            {formatReferDurationMmSs(selectedCard.optionsPhaseSec)} choices
                           </span>
                           <span
                             className={cn(
@@ -1204,11 +1217,46 @@ export default function ReferEarnPage() {
                               strokeWidth={2.25}
                             />
                             <span>
-                              Complete within{" "}
-                              <strong className="text-white">
-                                {selectedCard.sessionMinutes} minutes
+                              Finish before the session timer hits{" "}
+                              <strong className="font-mono text-white tabular-nums">
+                                {formatReferDurationMmSs(
+                                  referChallengeSessionDurationSec(selectedCard)
+                                )}
                               </strong>{" "}
-                              — time runs out, quiz ends
+                              — at zero, the run ends.
+                            </span>
+                          </li>
+                          <li className="flex gap-2.5">
+                            <Timer
+                              className="mt-0.5 h-4 w-4 shrink-0 text-sky-400"
+                              strokeWidth={2.25}
+                            />
+                            <span>
+                              Each question:{" "}
+                              <strong className="font-mono text-white tabular-nums">
+                                {formatReferDurationMmSs(selectedCard.readPhaseSec)}
+                              </strong>
+                              <span className="text-slate-500"> + </span>
+                              <strong className="font-mono text-violet-200 tabular-nums">
+                                {formatReferDurationMmSs(selectedCard.optionsPhaseSec)}
+                              </strong>
+                              <span className="text-slate-500">
+                                {" "}
+                                {selectedCard.readPhaseSec >= 50
+                                  ? "(Academic Arena & Pro)"
+                                  : "(FunBrain & MentaMill)"}
+                              </span>
+                              {selectedCard.key === "10" ? (
+                                <>
+                                  {" "}
+                                  · Session{" "}
+                                  <strong className="font-mono text-amber-200 tabular-nums">
+                                    {formatReferDurationMmSs(
+                                      referChallengeSessionDurationSec(selectedCard)
+                                    )}
+                                  </strong>
+                                </>
+                              ) : null}
                             </span>
                           </li>
                           <li className="flex gap-2.5">
@@ -1229,8 +1277,8 @@ export default function ReferEarnPage() {
                             </span>
                             <span>
                               <strong className="text-white">Strikes 3/3</strong> — three wrong
-                              answers end the run. No auto-next: tap{" "}
-                              <strong className="text-white">Next</strong> after each answer.
+                              answers end the run. Tap <strong className="text-white">Next</strong>{" "}
+                              after you answer; if time runs out on a question, it auto-advances.
                             </span>
                           </li>
                         </ul>

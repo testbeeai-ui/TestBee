@@ -17,6 +17,12 @@ export type ReferChallengePublicSpec = {
   playCategory: string;
   questionCount: number;
   sessionMinutes: number;
+  /** Added to `sessionMinutes * 60` so sessions can be e.g. 07:20 (FunBrain Quiz). */
+  sessionTailSeconds?: number;
+  /** Stem-only phase before options appear (wall-clock, same pattern as mentamill doc). */
+  readPhaseSec: number;
+  /** Options visible for this many seconds at the end of each question window. */
+  optionsPhaseSec: number;
   /** Minimum correct answers required to “win” (RDM copy / investor spec). */
   minCorrect: number;
   typeLabel: string;
@@ -39,10 +45,12 @@ const BASE_SPECS = [
     playCategory: "mental_math",
     questionCount: 10,
     sessionMinutes: 5,
+    readPhaseSec: 20,
+    optionsPhaseSec: 10,
     minCorrect: 6,
     typeLabel: "Non-Academic",
     name: "MentaMill Blitz",
-    cardDesc: "Mental math only · 10 questions · 5 minutes",
+    cardDesc: "Mental math only · 10 questions · 05:00",
     cardSubline: "Medium difficulty",
     accent: "text-sky-400",
     selClass: "ring-sky-500/50 after:bg-sky-500/20",
@@ -55,11 +63,14 @@ const BASE_SPECS = [
     playCategory: "funbrain_all",
     questionCount: 15,
     sessionMinutes: 7,
+    sessionTailSeconds: 20,
+    readPhaseSec: 20,
+    optionsPhaseSec: 10,
     minCorrect: 9,
     typeLabel: "Non-Academic",
     name: "FunBrain Quiz",
     cardDesc: "All Funbrain topics — verbal, quant, analytical, puzzles, GK, mental math",
-    cardSubline: "15 questions · 7 minutes",
+    cardSubline: "15 questions · 07:20",
     accent: "text-emerald-400",
     selClass: "ring-emerald-500/50 after:bg-emerald-500/20",
     headerEmoji: "🧠",
@@ -71,11 +82,13 @@ const BASE_SPECS = [
     playCategory: "academic_all",
     questionCount: 10,
     sessionMinutes: 10,
+    readPhaseSec: 50,
+    optionsPhaseSec: 10,
     minCorrect: 6,
     typeLabel: "Academic",
     name: "Academic Arena",
     cardDesc: "PCM assorted · Medium difficulty",
-    cardSubline: "10 questions · 10 minutes",
+    cardSubline: "10 questions · 10:00",
     accent: "text-violet-400",
     selClass: "ring-violet-500/50 after:bg-violet-500/20",
     headerEmoji: "🎓",
@@ -87,17 +100,39 @@ const BASE_SPECS = [
     playCategory: "academic_all",
     questionCount: 25,
     sessionMinutes: 25,
+    readPhaseSec: 50,
+    optionsPhaseSec: 10,
     minCorrect: 15,
     typeLabel: "Academic",
     name: "Academic Arena Pro",
     cardDesc: "PCM assorted · Medium + tough difficulty",
-    cardSubline: "25 questions · 25 minutes",
+    cardSubline: "25 questions · 25:00",
     accent: "text-amber-400",
     selClass: "ring-amber-500/50 after:bg-amber-500/20",
     headerEmoji: "🏆",
     categoryPill: "PCM academic",
   },
 ];
+
+/** Total session length in seconds (includes optional tail, e.g. 7×60+20 for FunBrain). */
+export function referChallengeSessionDurationSec(
+  spec: Pick<ReferChallengePublicSpec, "sessionMinutes" | "sessionTailSeconds">
+): number {
+  return spec.sessionMinutes * 60 + (spec.sessionTailSeconds ?? 0);
+}
+
+/** Per-question wall-clock window: read phase + options phase. */
+export function referChallengePerQuestionTotalSec(
+  spec: Pick<ReferChallengePublicSpec, "readPhaseSec" | "optionsPhaseSec">
+): number {
+  return spec.readPhaseSec + spec.optionsPhaseSec;
+}
+
+/** MM:SS for timers and cards (keep digits in clock tokens, not spelled-out units). */
+export function formatReferDurationMmSs(sec: number): string {
+  const s = Math.max(0, Math.floor(sec));
+  return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+}
 
 export function getReferChallengeSpecs(config: RdmConfigParams): ReferChallengePublicSpec[] {
   return BASE_SPECS.map(base => {

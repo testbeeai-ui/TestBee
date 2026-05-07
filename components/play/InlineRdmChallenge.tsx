@@ -1,6 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { useReferChallengeAntiCapture } from "@/hooks/useReferChallengeAntiCapture";
+import { useScreenshotFilterEnabled } from "@/hooks/useScreenshotFilterEnabled";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -27,10 +30,16 @@ import {
 } from "@/lib/referChallengeShareTemplates";
 import { bumpUserStudyDayMs } from "@/lib/studyDayBump";
 import { shufflePlayQuestionOptions } from "@/lib/shufflePlayQuestionOptions";
-import type { ReferChallengePublicSpec, ReferClaimKey } from "@/lib/referEarnChallenges";
+import {
+  referChallengePerQuestionTotalSec,
+  referChallengeSessionDurationSec,
+  type ReferChallengePublicSpec,
+  type ReferClaimKey,
+} from "@/lib/referEarnChallenges";
 import { cn } from "@/lib/utils";
 import type { PlayQuestionRow } from "@/types";
 import {
+  CameraOff,
   Clock,
   Flame,
   Loader2,
@@ -73,7 +82,10 @@ export default function InlineRdmChallenge({
 }: InlineRdmChallengeProps) {
   const { user, refreshProfile } = useAuth();
   const { toast } = useToast();
-  const sessionSec = spec.sessionMinutes * 60;
+  const sessionSec = referChallengeSessionDurationSec(spec);
+  const perQuestionTotalSec = referChallengePerQuestionTotalSec(spec);
+  const optionsPhaseSec = spec.optionsPhaseSec;
+  const readPhaseSec = spec.readPhaseSec;
   const [bootLoading, setBootLoading] = useState(true);
   const [questions, setQuestions] = useState<PlayQuestionRow[]>([]);
   /** When the bank returns fewer than requested, scale the pass bar (same ratio as spec). */
@@ -99,6 +111,8 @@ export default function InlineRdmChallenge({
   const [postPreviewOpen, setPostPreviewOpen] = useState(false);
   const [communityDraftTitle, setCommunityDraftTitle] = useState("");
   const [communityDraftBody, setCommunityDraftBody] = useState("");
+  const [perQuestionLeft, setPerQuestionLeft] = useState(perQuestionTotalSec);
+  const [timeoutResolving, setTimeoutResolving] = useState(false);
   const terminalFiredRef = useRef(false);
   const winAutoClaimAttemptedRef = useRef(false);
   const sessionEndRef = useRef(false);
@@ -106,10 +120,18 @@ export default function InlineRdmChallenge({
   const shareCardRef = useRef<HTMLDivElement | null>(null);
   const questionsRef = useRef(questions);
   const indexRef = useRef(index);
+  const phaseRef = useRef(phase);
+  const questionRoundDeadlineRef = useRef<number | null>(null);
+  const questionRoundStartedAtRef = useRef<number | null>(null);
+  const answeredThisRoundRef = useRef(false);
+  const questionTimeoutFiredRef = useRef(false);
   useEffect(() => {
     questionsRef.current = questions;
     indexRef.current = index;
   }, [questions, index]);
+  useEffect(() => {
+    phaseRef.current = phase;
+  }, [phase]);
 
   const fireTerminal = useCallback(
     (outcome: "won" | "lost") => {
@@ -188,56 +210,153 @@ export default function InlineRdmChallenge({
     [fireTerminal, minPassCorrect]
   );
 
-  useEffect(() => {
-    if (phase !== "playing" || questions.length === 0) return;
-    const t = setInterval(() => {
-      setSessionLeft((s) => {
-        if (s <= 0) return 0;
-        const next = s - 1;
-        if (next === 0 && !sessionEndRef.current) {
-          sessionEndRef.current = true;
-          finalizeRun("time");
-        }
-        return next;
+  const recordPlayResult = useCallback(
+    async (selectedIndex: number, timeTakenMs: number) => {
+      const q = questionsRef.current[indexRef.current];
+      if (!q || phaseRef.current !== "playing") return;
+      const isCorrect = selectedIndex === q.correct_answer_index;
+      await supabase.rpc("record_play_result", {
+        p_question_id: q.id,
+        p_is_correct: isCorrect,
+        p_time_taken_ms: timeTakenMs,
+        p_category: null,
+        p_pool_key: spec.playCategory,
+        p_selected_answer_index: selectedIndex,
       });
-    }, 1000);
-    return () => clearInterval(t);
-  }, [phase, questions.length, finalizeRun]);
+      void bumpUserStudyDayMs(timeTakenMs);
+      const row = { question_id: q.id, is_correct: isCorrect, time_taken_ms: timeTakenMs };
+      const next = [...resultsRef.current, row];
+      resultsRef.current = next;
+      setResults(next);
+    },
+    [spec.playCategory]
+  );
 
-  const handleAnswer = async (selectedIndex: number, timeTakenMs: number) => {
-    const q = questions[indexRef.current];
-    if (!q || phase !== "playing") return;
-    const isCorrect = selectedIndex === q.correct_answer_index;
-    await supabase.rpc("record_play_result", {
-      p_question_id: q.id,
-      p_is_correct: isCorrect,
-      p_time_taken_ms: timeTakenMs,
-      p_category: null,
-      p_pool_key: spec.playCategory,
-      p_selected_answer_index: selectedIndex,
-    });
-    void bumpUserStudyDayMs(timeTakenMs);
-    const row = { question_id: q.id, is_correct: isCorrect, time_taken_ms: timeTakenMs };
-    const next = [...resultsRef.current, row];
-    resultsRef.current = next;
-    setResults(next);
-  };
-
-  const handleNext = () => {
-    if (phase !== "playing") return;
+  const proceedAfterAnswer = useCallback(() => {
+    if (phaseRef.current !== "playing") return;
     const misses = resultsRef.current.filter((r) => !r.is_correct).length;
     if (misses >= MAX_STRIKES) {
       finalizeRun("strikes");
       return;
     }
-    const idx = indexRef.current;
+    const curIdx = indexRef.current;
     const qs = questionsRef.current;
-    if (idx >= qs.length - 1) {
+    if (curIdx >= qs.length - 1) {
       finalizeRun("finish");
       return;
     }
-    setIndex(idx + 1);
+    setIndex(curIdx + 1);
+  }, [finalizeRun]);
+
+  const handleQuestionTimeout = useCallback(async () => {
+    const q = questionsRef.current[indexRef.current];
+    if (!q || phaseRef.current !== "playing") return;
+    setTimeoutResolving(true);
+    answeredThisRoundRef.current = true;
+    questionRoundDeadlineRef.current = null;
+    const nOpt = Array.isArray(q.options) ? q.options.length : 4;
+    const wrongPick =
+      Array.from({ length: nOpt }, (_, i) => i).find((i) => i !== q.correct_answer_index) ?? 0;
+    const started = questionRoundStartedAtRef.current ?? Date.now();
+    const elapsed = Date.now() - started;
+    try {
+      await recordPlayResult(wrongPick, elapsed);
+    } catch {
+      // Auto-advance must not depend on network: count as wrong locally if RPC fails.
+      if (!resultsRef.current.some((r) => r.question_id === q.id)) {
+        const row = {
+          question_id: q.id,
+          is_correct: false,
+          time_taken_ms: elapsed,
+        };
+        const next = [...resultsRef.current, row];
+        resultsRef.current = next;
+        setResults(next);
+      }
+      void bumpUserStudyDayMs(elapsed);
+    } finally {
+      proceedAfterAnswer();
+      setTimeoutResolving(false);
+    }
+  }, [recordPlayResult, proceedAfterAnswer]);
+
+  useEffect(() => {
+    if (phase !== "playing" || questions.length === 0) {
+      questionRoundDeadlineRef.current = null;
+      setPerQuestionLeft(perQuestionTotalSec);
+      return;
+    }
+    questionRoundDeadlineRef.current = Date.now() + perQuestionTotalSec * 1000;
+    questionRoundStartedAtRef.current = Date.now();
+    answeredThisRoundRef.current = false;
+    questionTimeoutFiredRef.current = false;
+    setPerQuestionLeft(perQuestionTotalSec);
+  }, [phase, index, questions.length, perQuestionTotalSec]);
+
+  useEffect(() => {
+    if (phase !== "playing" || questions.length === 0) return;
+    const sessionStart = sessionStartedAtRef.current;
+    if (!sessionStart) return;
+
+    let timeoutInFlight = false;
+
+    const tick = () => {
+      if (phaseRef.current !== "playing") return;
+
+      const sessionEndMs = sessionStart + sessionSec * 1000;
+      const nextSessionLeft = Math.max(0, Math.ceil((sessionEndMs - Date.now()) / 1000));
+      setSessionLeft(nextSessionLeft);
+      if (nextSessionLeft === 0 && !sessionEndRef.current) {
+        sessionEndRef.current = true;
+        finalizeRun("time");
+        return;
+      }
+
+      const qEnd = questionRoundDeadlineRef.current;
+      if (qEnd && !answeredThisRoundRef.current) {
+        const qLeft = Math.max(0, Math.ceil((qEnd - Date.now()) / 1000));
+        setPerQuestionLeft(qLeft);
+        if (qLeft === 0 && !questionTimeoutFiredRef.current && !timeoutInFlight) {
+          questionTimeoutFiredRef.current = true;
+          timeoutInFlight = true;
+          void handleQuestionTimeout().finally(() => {
+            timeoutInFlight = false;
+          });
+        }
+      }
+    };
+
+    const id = window.setInterval(tick, 250);
+    tick();
+    return () => window.clearInterval(id);
+  }, [phase, questions.length, index, sessionSec, finalizeRun, handleQuestionTimeout]);
+
+  const handleAnswer = async (selectedIndex: number, timeTakenMs: number) => {
+    questionRoundDeadlineRef.current = null;
+    answeredThisRoundRef.current = true;
+    await recordPlayResult(selectedIndex, timeTakenMs);
   };
+
+  const handleNext = () => {
+    proceedAfterAnswer();
+  };
+
+  const screenshotFilterEnabled = useScreenshotFilterEnabled();
+  const { showCaptureBlockOverlay, dismissCaptureBlockOverlay } = useReferChallengeAntiCapture({
+    enabled:
+      screenshotFilterEnabled &&
+      phase === "playing" &&
+      questions.length > 0 &&
+      !bootLoading,
+    clipboardMessage:
+      "Screenshots and screen capture are not available during this Earn & Learn challenge.",
+  });
+
+  /** `document.body` — portal mounts before paint so `fixed` isn’t trapped by challenge card ancestors. */
+  const [capturePortalReady, setCapturePortalReady] = useState(false);
+  useLayoutEffect(() => {
+    setCapturePortalReady(true);
+  }, []);
 
   const handleQuit = () => {
     setPhase("summary");
@@ -1050,10 +1169,19 @@ export default function InlineRdmChallenge({
 
   const wrongSoFar = results.filter((r) => !r.is_correct).length;
   const displayStrikes = Math.min(MAX_STRIKES, wrongSoFar);
-  const answeredCount = results.length;
-  const scoreLabel = answeredCount === 0 ? "0 / 0" : `${correctCount} / ${answeredCount}`;
+  /** Denominator is full challenge length so skips/timeouts still count toward the bar (same as summary %). */
+  const scoreLabel = tot > 0 ? `${correctCount} / ${tot}` : "0 / 0";
+  const accuracyPctRunning = tot > 0 ? Math.round((correctCount / tot) * 100) : 0;
   const questionTrackPct = tot > 0 ? Math.min(100, ((idx + 1) / tot) * 100) : 0;
   const rdmBarPctPlay = dailyRdmCap > 0 ? Math.min(100, (dailyRdmEarned / dailyRdmCap) * 100) : 0;
+  const awaitingAdvance = results.length > idx;
+  const optionsRevealCountdown = perQuestionLeft > optionsPhaseSec;
+  const untilChoicesSec = Math.max(0, perQuestionLeft - optionsPhaseSec);
+  const pacePhaseLabel = optionsRevealCountdown ? "Stem · read only" : "Choices · tap an option";
+  const questionPacePct =
+    perQuestionTotalSec > 0
+      ? Math.min(100, Math.round((perQuestionLeft / perQuestionTotalSec) * 100))
+      : 100;
 
   return (
     <div className="dark mt-3 space-y-4">
@@ -1098,36 +1226,87 @@ export default function InlineRdmChallenge({
         </div>
 
         <div className="mt-5 rounded-[14px] border border-white/[0.1] bg-[#0f0e1c]/95 p-4 shadow-inner shadow-black/30 sm:p-5">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-3">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-200">
-              <span className="font-semibold tabular-nums text-white">
-                Question {idx + 1} of {tot}
-              </span>
-              <span className="inline-flex items-center gap-1.5 text-slate-400">
-                <Clock className="h-4 w-4 text-slate-500" />
-                <span
-                  className={cn(
-                    "font-mono text-sm tabular-nums",
-                    sessionLeft <= 30 ? "text-red-400" : "text-amber-300"
-                  )}
-                >
-                  {formatClock(sessionLeft)}
+          <div className="space-y-2 border-b border-white/10 pb-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-200">
+                <span className="font-semibold tabular-nums text-white">
+                  Question {idx + 1} of {tot}
                 </span>
-              </span>
+                <span className="inline-flex items-center gap-1.5 text-slate-400">
+                  <Clock className="h-4 w-4 text-slate-500" />
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                    Session
+                  </span>
+                  <span
+                    className={cn(
+                      "font-mono text-sm tabular-nums",
+                      sessionLeft <= 30 ? "text-red-400" : "text-amber-300"
+                    )}
+                  >
+                    {formatClock(sessionLeft)}
+                  </span>
+                </span>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm font-semibold tabular-nums text-emerald-400/95">
+                  Score: {scoreLabel}
+                  {tot > 0 ? (
+                    <span className="ml-1.5 font-normal text-slate-400">({accuracyPctRunning}%)</span>
+                  ) : null}
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-9 rounded-full border-white/20 bg-black/30 px-4 text-xs font-semibold text-white hover:bg-white/10"
+                  onClick={handleQuit}
+                >
+                  Quit
+                </Button>
+              </div>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-sm font-semibold tabular-nums text-emerald-400/95">
-                Score: {scoreLabel}
-              </span>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-9 rounded-full border-white/20 bg-black/30 px-4 text-xs font-semibold text-white hover:bg-white/10"
-                onClick={handleQuit}
-              >
-                Quit
-              </Button>
+            <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
+              {awaitingAdvance ? (
+                <p className="text-[11px] leading-snug text-slate-400">
+                  <span className="font-semibold text-emerald-200/90">Recorded</span> · Tap{" "}
+                  <span className="font-semibold text-white">Next</span> to continue. Session clock
+                  still runs.
+                </p>
+              ) : (
+                <>
+                  <div className="flex flex-col gap-1.5 sm:flex-row sm:items-end sm:justify-between">
+                    <p className="text-[11px] leading-snug text-slate-400">
+                      <span className="font-semibold text-slate-200">Question clock</span>
+                      <span className="text-slate-600"> · </span>
+                      <span
+                        className={cn(
+                          "font-mono tabular-nums",
+                          optionsRevealCountdown ? "text-sky-300" : "text-violet-300"
+                        )}
+                      >
+                        {formatClock(perQuestionLeft)}
+                      </span>
+                      <span className="text-slate-600"> · </span>
+                      <span className="text-slate-300">{pacePhaseLabel}</span>
+                    </p>
+                    <p className="text-[10px] tabular-nums text-slate-600 sm:text-right">
+                      <span className="font-mono text-slate-400">{formatClock(readPhaseSec)}</span>
+                      <span className="mx-1 text-slate-600">+</span>
+                      <span className="font-mono text-slate-400">{formatClock(optionsPhaseSec)}</span>
+                      <span className="ml-1.5 text-slate-600">per question</span>
+                    </p>
+                  </div>
+                  <div className="h-1 w-full max-w-[220px] shrink-0 overflow-hidden rounded-full bg-white/10 sm:ml-auto">
+                    <div
+                      className={cn(
+                        "h-full rounded-full transition-[width] duration-300",
+                        optionsRevealCountdown ? "bg-sky-500/90" : "bg-violet-500/90"
+                      )}
+                      style={{ width: `${questionPacePct}%` }}
+                    />
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
@@ -1151,19 +1330,32 @@ export default function InlineRdmChallenge({
             </div>
           </div>
 
-          <div className="mt-4 rounded-[12px] border border-white/[0.08] bg-black/25 p-2 sm:p-3">
-            {questions[idx] ? (
-              <PlayQuestionCard
-                question={questions[idx]!}
-                onAnswer={handleAnswer}
-                onNext={handleNext}
-                timerSeconds={0}
-                showExplanation
-                optionLayout="grid"
-                hideInlineTimer
-                disableAutoAdvance
-              />
-            ) : null}
+          <div className="relative mt-4 overflow-hidden rounded-[12px] border border-white/[0.08] bg-black/25 p-2 sm:p-3">
+            <div
+              className="demo-mm-cap-shield-soft pointer-events-none absolute inset-0 z-0 rounded-[10px]"
+              aria-hidden
+            />
+            <div className="relative z-10">
+              {questions[idx] ? (
+                <PlayQuestionCard
+                  question={questions[idx]!}
+                  onAnswer={handleAnswer}
+                  onNext={handleNext}
+                  timerSeconds={0}
+                  showExplanation
+                  optionLayout="grid"
+                  hideInlineTimer
+                  disableAutoAdvance
+                  optionsConcealed={!awaitingAdvance && perQuestionLeft > optionsPhaseSec}
+                  optionsConcealedQuestionClock={formatClock(perQuestionLeft)}
+                  optionsConcealedUntilChoicesClock={
+                    optionsRevealCountdown ? formatClock(untilChoicesSec) : undefined
+                  }
+                  optionsConcealedHint="Same clocks as the challenge header."
+                  disableInteraction={timeoutResolving}
+                />
+              ) : null}
+            </div>
           </div>
 
           <div className="mt-3 rounded-lg border border-white/5 bg-black/20 px-3 py-2">
@@ -1182,12 +1374,47 @@ export default function InlineRdmChallenge({
                 style={{ width: `${sessionPct}%` }}
               />
             </div>
-            <p className="mt-1.5 text-[10px] text-slate-500">
-              Tap an answer, then Next — three wrong answers end the run.
+            <p className="mt-1.5 text-[10px] leading-relaxed text-slate-500">
+              Stem, then choices. No pick before the question clock hits zero counts as wrong and
+              advances. Tap <span className="font-semibold text-slate-400">Next</span> after you
+              answer. Three strikes end the run.
             </p>
           </div>
         </div>
       </div>
+
+      {capturePortalReady && showCaptureBlockOverlay
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-[2147483647] flex items-center justify-center bg-slate-950 px-6"
+              role="status"
+              aria-live="polite"
+              style={{ isolation: "isolate" }}
+            >
+              <div className="relative max-w-md rounded-2xl border border-white/15 bg-slate-900/55 px-6 py-8 text-center shadow-2xl">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="absolute right-3 top-3 h-8 rounded-full border-white/20 bg-black/30 px-3 text-xs font-semibold text-white hover:bg-white/10"
+                  onClick={dismissCaptureBlockOverlay}
+                >
+                  OK
+                </Button>
+                <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-slate-100">
+                  <CameraOff className="h-6 w-6" aria-hidden />
+                </div>
+                <p className="text-base font-semibold tracking-tight text-slate-50">
+                  Screenshots and screencapture are not allowed here.
+                </p>
+                <p className="mt-3 text-sm leading-relaxed text-slate-300/95">
+                  Press OK to go back to your question.
+                </p>
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
     </div>
   );
 }

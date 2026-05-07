@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Bell } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -32,6 +32,7 @@ const NotificationBell = () => {
   const router = useRouter();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [open, setOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<"unread" | "read">("unread");
   const [detailOpen, setDetailOpen] = useState(false);
   const [selected, setSelected] = useState<Notification | null>(null);
   const seenKey = useMemo(
@@ -39,6 +40,11 @@ const NotificationBell = () => {
     [user?.id]
   );
   const [seenIds, setSeenIds] = useState<Set<string>>(new Set());
+  const seenIdsRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    seenIdsRef.current = seenIds;
+  }, [seenIds]);
 
   useEffect(() => {
     if (!seenKey) return;
@@ -55,15 +61,28 @@ const NotificationBell = () => {
 
   const load = async () => {
     if (!user) return;
-    let mounted = true;
     try {
+      let persistedSeen = seenIdsRef.current;
+      if (seenKey) {
+        try {
+          const raw = window.localStorage.getItem(seenKey);
+          const ids = raw ? (JSON.parse(raw) as unknown) : null;
+          if (Array.isArray(ids)) {
+            persistedSeen = new Set(ids.filter((x): x is string => typeof x === "string"));
+            seenIdsRef.current = persistedSeen;
+            setSeenIds(persistedSeen);
+          }
+        } catch {
+          // ignore parse/storage issues
+        }
+      }
+
       const { data } = await supabase
         .from("posts")
         .select("id, title, created_at, classroom_id, content_json")
         .eq("type", "motivation")
         .order("created_at", { ascending: false })
         .limit(60);
-      if (!mounted) return;
 
       const rows =
         (data as unknown as Array<{
@@ -130,7 +149,7 @@ const NotificationBell = () => {
                 : "Assignment reminder"
               : "Advice from teacher",
             body: message || null,
-            read: seenIds.has(p.id),
+            read: persistedSeen.has(p.id),
             action_url: actionUrl,
             created_at: p.created_at,
             type: "motivation",
@@ -155,9 +174,6 @@ const NotificationBell = () => {
     } catch {
       // ignore
     }
-    return () => {
-      mounted = false;
-    };
   };
 
   useEffect(() => {
@@ -172,7 +188,19 @@ const NotificationBell = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  const unread = notifications.filter((n) => !n.read).length;
+  useEffect(() => {
+    setNotifications((prev) =>
+      prev.map((n) => ({
+        ...n,
+        read: seenIds.has(n.id),
+      }))
+    );
+  }, [seenIds]);
+
+  const unreadNotifications = notifications.filter((n) => !n.read);
+  const readNotifications = notifications.filter((n) => n.read);
+  const visibleNotifications = activeTab === "unread" ? unreadNotifications : readNotifications;
+  const unread = unreadNotifications.length;
 
   const normalizeExternalUrl = (raw: string): string | null => {
     let s = raw.trim();
@@ -228,25 +256,51 @@ const NotificationBell = () => {
           </button>
         </PopoverTrigger>
         <PopoverContent align="end" className="w-80 p-0 rounded-2xl">
-          <div className="p-4 border-b border-border/60">
+          <div className="p-4 border-b border-border/60 flex items-center justify-between gap-2">
             <h3 className="font-display text-sm text-foreground">Notifications</h3>
+            <div className="inline-flex items-center rounded-lg border border-border/60 bg-muted/40 p-0.5">
+              <button
+                type="button"
+                onClick={() => setActiveTab("unread")}
+                className={`rounded-md px-2.5 py-1 text-[11px] font-bold transition-colors ${
+                  activeTab === "unread"
+                    ? "bg-card text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Unread
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("read")}
+                className={`rounded-md px-2.5 py-1 text-[11px] font-bold transition-colors ${
+                  activeTab === "read"
+                    ? "bg-card text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Read
+              </button>
+            </div>
           </div>
           <div className="max-h-72 overflow-y-auto">
-            {notifications.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-8">No notifications yet</p>
+            {visibleNotifications.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-8">
+                {activeTab === "unread" ? "No unread notifications" : "No read notifications"}
+              </p>
             ) : (
-              notifications.map((n) => (
+              visibleNotifications.map((n) => (
                 <button
                   key={n.id}
                   onClick={() => {
                     openDetail(n);
                     setOpen(false);
                   }}
-                  className={`w-full text-left px-4 py-3 border-b border-border/30 hover:bg-muted/40 transition-colors ${!n.read ? "bg-primary/5" : ""}`}
+                  className={`w-full text-left px-4 py-3 border-b border-border/30 hover:bg-muted/40 transition-colors ${
+                    n.read ? "" : "bg-primary/5"
+                  }`}
                 >
-                  <p
-                    className={`text-sm font-bold ${!n.read ? "text-foreground" : "text-muted-foreground"}`}
-                  >
+                  <p className={`text-sm font-bold ${n.read ? "text-muted-foreground" : "text-foreground"}`}>
                     {n.title}
                   </p>
                   {n.body && (

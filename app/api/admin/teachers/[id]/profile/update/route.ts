@@ -12,6 +12,7 @@ type Body = {
   subjects?: string[];
   examTags?: string[];
   teachingLevels?: number[];
+  avatarUrl?: string | null;
   details?: Record<string, unknown>;
   notes?: string;
 };
@@ -59,9 +60,11 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         teachingLevels: Array.isArray(body.teachingLevels)
           ? body.teachingLevels.filter((n): n is number => typeof n === "number" && Number.isFinite(n))
           : [],
-        details: (body.details ?? undefined) as any,
+        avatarUrl: body.avatarUrl !== undefined ? body.avatarUrl : undefined,
+        details: body.details as Body["details"],
+        bypassVerificationLock: true,
       },
-      admin as any
+      admin
     );
 
     await auditAdminTeacherAction({

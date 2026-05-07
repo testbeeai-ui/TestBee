@@ -40,6 +40,7 @@ interface UseAdminTeacherPortalDataResult {
     subjects: string[];
     examTags: string[];
     teachingLevels: number[];
+    avatarUrl?: string | null;
     details?: Record<string, unknown>;
   }) => Promise<void>;
   createClassroom: (input: {

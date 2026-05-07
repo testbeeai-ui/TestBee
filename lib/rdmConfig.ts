@@ -36,6 +36,10 @@ export type RdmConfigParams = {
   subtopic_quiz_advanced_rdm: number;
   /** Lessons subtopic: numerals pack complete daily RDM (claim_numerals_pack_complete_daily_rdm) */
   subtopic_numerals_pack_rdm: number;
+  /** Lessons subtopic: quiz result community-share bonus (claim_quiz_community_share_rdm) */
+  quiz_community_share_rdm: number;
+  /** Lessons subtopic: numerals result community-share bonus (claim_numerals_community_share_rdm) */
+  numerals_community_share_rdm: number;
 
   /** Gyan++: ask / post doubt daily milestone reward (IST first ASK) */
   gyan_post_rdm: number;
@@ -79,6 +83,8 @@ export const DEFAULT_RDM_CONFIG: RdmConfigParams = {
 
   subtopic_quiz_advanced_rdm: 15,
   subtopic_numerals_pack_rdm: 20,
+  quiz_community_share_rdm: 5,
+  numerals_community_share_rdm: 5,
 
   gyan_post_rdm: 5,
   gyan_comment_rdm: 5,

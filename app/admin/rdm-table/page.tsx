@@ -74,7 +74,50 @@ const PLAY_HUB_KEYS = [
 const SUBTOPIC_RDM_KEYS = [
   "subtopic_quiz_advanced_rdm",
   "subtopic_numerals_pack_rdm",
+  "quiz_community_share_rdm",
+  "numerals_community_share_rdm",
 ] as const;
+
+/** Admin labels + claim RPCs — keeps UI aligned with lesson “Post & earn” even if DB `description` differs. */
+const SUBTOPIC_RDM_META: Record<
+  (typeof SUBTOPIC_RDM_KEYS)[number],
+  { title: string; claimRpc: string; hint?: string }
+> = {
+  subtopic_quiz_advanced_rdm: {
+    title: "Subtopic - Advanced quiz (3-set, ≥60%) daily RDM",
+    claimRpc: "claim_topic_quiz_advanced_daily_rdm",
+    hint: "Awarded once per IST day when the advanced 3-set quiz meets the score threshold.",
+  },
+  subtopic_numerals_pack_rdm: {
+    title: "Subtopic - Numerals pack complete (≥60%) daily RDM",
+    claimRpc: "claim_numerals_pack_complete_daily_rdm",
+    hint: "Awarded once per IST day when the numerals pack meets the score threshold.",
+  },
+  quiz_community_share_rdm: {
+    title: "Lessons - Quiz result share bonus RDM (once per set per subtopic)",
+    claimRpc: "claim_quiz_community_share_rdm",
+    hint: "After posting a quiz result to Lessons; one claim per quiz set number per subtopic.",
+  },
+  numerals_community_share_rdm: {
+    title: "Lessons - Numerals result share bonus RDM (once per numeral per subtopic)",
+    claimRpc: "claim_numerals_community_share_rdm",
+    hint: "After posting a numerals result to Lessons; one claim per formula index per subtopic.",
+  },
+};
+
+const SUBTOPIC_RDM_SUBSECTIONS: {
+  heading: string;
+  subheadingKeys: readonly (typeof SUBTOPIC_RDM_KEYS)[number][];
+}[] = [
+  {
+    heading: "Daily completion",
+    subheadingKeys: ["subtopic_quiz_advanced_rdm", "subtopic_numerals_pack_rdm"],
+  },
+  {
+    heading: "Community share (Post & earn)",
+    subheadingKeys: ["quiz_community_share_rdm", "numerals_community_share_rdm"],
+  },
+];
 
 const GYAN_RDM_KEYS = [
   "gyan_post_rdm",
@@ -94,51 +137,83 @@ function SubtopicRdmGroupBlock({
   drafts: Record<string, string>;
   onDraftChange: (key: string, value: string) => void;
 }) {
+  function renderCard(key: (typeof SUBTOPIC_RDM_KEYS)[number]) {
+    const row = configs[key];
+    const meta = SUBTOPIC_RDM_META[key];
+    if (!row) {
+      return (
+        <div key={key} className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">
+          Missing row <span className="font-mono">{key}</span> — apply migration{" "}
+          <span className="font-mono">20260521120000_subtopic_rdm_config</span> or{" "}
+          <span className="font-mono">20260524120000_quiz_numerals_share_rdm</span>.
+        </div>
+      );
+    }
+    return (
+      <div key={key} className="flex flex-col gap-1.5 rounded-lg border bg-muted/10 p-3">
+        <label className="text-sm font-medium text-foreground">{meta.title}</label>
+        <div className="space-y-0.5 font-mono text-[11px] text-muted-foreground">
+          <div>
+            Config key: <span className="text-foreground/90">{key}</span>
+          </div>
+          <div>
+            Server claim: <span className="text-sky-400/90">{meta.claimRpc}</span>
+          </div>
+        </div>
+        {meta.hint ? <p className="text-[11px] leading-snug text-muted-foreground">{meta.hint}</p> : null}
+        <div className="flex items-center gap-2">
+          <Input
+            type="number"
+            value={drafts[key] || ""}
+            onChange={(e) => onDraftChange(key, e.target.value)}
+            className="bg-background font-mono"
+          />
+          <span className="shrink-0 text-sm font-semibold text-amber-400">RDM</span>
+        </div>
+        <div className="mt-1 text-[10px] text-muted-foreground">
+          Last updated: {new Date(row.updated_at).toLocaleString()}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="scroll-mt-20 rounded-xl border bg-card overflow-hidden">
       <div className="border-b bg-muted/40 px-4 py-3">
-        <h2 className="text-lg font-semibold">Subtopic · Lessons (Quiz &amp; Numerals)</h2>
+        <h2 className="text-lg font-semibold">Subtopic - Lessons (Quiz &amp; Numerals)</h2>
         <p className="mt-1 text-xs text-muted-foreground">
-          Rewards for advanced topic quiz (<span className="font-mono">claim_topic_quiz_advanced_daily_rdm</span>) and
-          numerals pack complete (<span className="font-mono">claim_numerals_pack_complete_daily_rdm</span>) — once per
-          IST day each, with server-side rules unchanged.
+          <span className="font-semibold text-foreground/90">Config keys</span> in{" "}
+          <span className="font-mono">rdm_config</span> drive amounts;{" "}
+          <span className="font-semibold text-foreground/90">claims</span> are enforced by the RPCs below (not by the
+          client).
         </p>
+        <ul className="mt-2 list-inside list-disc text-[11px] text-muted-foreground space-y-0.5">
+          <li>
+            Daily:{" "}
+            <span className="font-mono text-sky-400/90">claim_topic_quiz_advanced_daily_rdm</span>,{" "}
+            <span className="font-mono text-sky-400/90">claim_numerals_pack_complete_daily_rdm</span>
+          </li>
+          <li>
+            Post &amp; earn / share:{" "}
+            <span className="font-mono text-sky-400/90">claim_quiz_community_share_rdm</span>,{" "}
+            <span className="font-mono text-sky-400/90">claim_numerals_community_share_rdm</span>
+          </li>
+        </ul>
       </div>
-      <div className="p-4">
-        <div className="grid gap-4 md:grid-cols-2">
-          {SUBTOPIC_RDM_KEYS.map((key) => {
-            const row = configs[key];
-            if (!row) {
-              return (
-                <div
-                  key={key}
-                  className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground"
-                >
-                  Missing row <span className="font-mono">{key}</span> — apply migration{" "}
-                  <span className="font-mono">20260521120000_subtopic_rdm_config</span>.
-                </div>
-              );
-            }
-            return (
-              <div key={key} className="flex flex-col gap-1.5 rounded-lg border bg-muted/10 p-3">
-                <label className="text-sm font-medium text-foreground">{row.description || key}</label>
-                <div className="mb-1 font-mono text-xs text-muted-foreground">{key}</div>
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="number"
-                    value={drafts[key] || ""}
-                    onChange={(e) => onDraftChange(key, e.target.value)}
-                    className="bg-background font-mono"
-                  />
-                  <span className="shrink-0 text-sm font-semibold text-amber-400">RDM</span>
-                </div>
-                <div className="mt-1 text-[10px] text-muted-foreground">
-                  Last updated: {new Date(row.updated_at).toLocaleString()}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+      <div className="p-4 space-y-8">
+        {SUBTOPIC_RDM_SUBSECTIONS.map((section) => (
+          <div key={section.heading} className="space-y-3">
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">{section.heading}</h3>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">
+                {section.heading.startsWith("Community")
+                  ? "Bonus RDM when learners share results to the Lessons community (dedupe rules on the server)."
+                  : "Milestone RDM for completing quiz / numerals targets (daily window on the server)."}
+              </p>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">{section.subheadingKeys.map((k) => renderCard(k))}</div>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -662,8 +737,10 @@ export default function RdmTablePage() {
         <div className="rounded-lg border border-sky-500/25 bg-sky-500/5 px-4 py-3">
           <p className="text-sm font-semibold text-foreground">Subtopic (Lessons)</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Advanced quiz and numerals pack daily RDM shown on lesson pages. Use{" "}
-            <span className="font-semibold">Save Changes</span> at the top to persist values.
+            Lesson-page rewards: daily quiz/numerals completion and{" "}
+            <span className="font-semibold text-foreground/90">Post &amp; earn</span> share bonuses (quiz per set,
+            numerals per formula). Use <span className="font-semibold">Save Changes</span> at the top to persist
+            values.
           </p>
         </div>
         <SubtopicRdmGroupBlock configs={configs} drafts={drafts} onDraftChange={onDraftChange} />

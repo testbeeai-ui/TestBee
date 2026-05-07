@@ -39,32 +39,21 @@ export default function LandingNavbar({
           !isDark ? "justify-between" : ""
         }`}
       >
-        {/* Logo */}
-        <Link href="/" className="relative z-10 flex shrink-0 items-center gap-2.5">
-          <span
-            className={
+        {/* Logo — full wordmark (teal mark + glow); light/dark raster variants */}
+        <Link
+          href="/"
+          className="relative z-10 flex shrink-0 items-center hover:opacity-90 transition-opacity"
+        >
+          <img
+            src={
               isDark
-                ? "flex h-9 w-9 items-center justify-center rounded-[10px] bg-[#34f5a4] text-[15px] font-semibold text-neutral-950"
-                : "flex h-8 w-8 items-center justify-center rounded-[9px] bg-[#1D9E75] text-sm font-medium text-white"
+                ? "/edublast-wordmark-transparent.png"
+                : "/edublast-wordmark-light.png"
             }
-          >
-            E
-          </span>
-          <span
-            className={
-              isDark
-                ? "text-[17px] font-semibold tracking-tight text-white"
-                : "text-lg font-medium tracking-tight text-gray-900"
-            }
-          >
-            {isDark ? (
-              "EduBlast"
-            ) : (
-              <>
-                Edu<span className="text-[#34d399]">Blast</span>
-              </>
-            )}
-          </span>
+            alt="EduBlast"
+            className={isDark ? "h-9 w-auto sm:h-10" : "h-8 w-auto sm:h-9"}
+            draggable={false}
+          />
         </Link>
 
         {/* Desktop links — centered in bar (investor shell) */}

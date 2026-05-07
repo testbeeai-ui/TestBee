@@ -184,6 +184,7 @@ type CreateTestsViewProps = {
     tasks?: AssignmentTaskStored[];
     extraContentJson?: Record<string, Json> | null;
   }) => Promise<void>;
+  onRequireVerifiedAction?: (actionLabel: string) => Promise<boolean>;
 };
 
 export default function CreateTestsView({
@@ -194,6 +195,7 @@ export default function CreateTestsView({
   teacherId,
   classrooms = [],
   onCreateAssignment,
+  onRequireVerifiedAction,
 }: CreateTestsViewProps) {
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
 
@@ -488,6 +490,10 @@ export default function CreateTestsView({
 
   const handleGenerateTestNow = async () => {
     if (!canGenerateNow || !currentMatch || duration === null) return;
+    if (onRequireVerifiedAction) {
+      const allowed = await onRequireVerifiedAction("Generate test");
+      if (!allowed) return;
+    }
     setGenerateLoading(true);
     setGenerateError(null);
     const rowsResult = await fetchTeacherTestBankRows({
@@ -579,6 +585,26 @@ export default function CreateTestsView({
   };
 
   const openAssignDialog = () => {
+    if (onRequireVerifiedAction) {
+      void onRequireVerifiedAction("Assign test").then((allowed) => {
+        if (!allowed) return;
+        setAssignError(null);
+        setAssignSuccess(null);
+        if (!canAssignToClassroom) {
+          setGenerateError(
+            "Assignment flow is unavailable. Please open My Classroom and create from there."
+          );
+          return;
+        }
+        if (!generatedTest) return;
+        setAssignInstructions(
+          "Read each question carefully. Submit once when finished. Review correct answers after submission to learn from mistakes."
+        );
+        setAssignDueDate("");
+        setAssignDialogOpen(true);
+      });
+      return;
+    }
     setAssignError(null);
     setAssignSuccess(null);
     if (!canAssignToClassroom) {

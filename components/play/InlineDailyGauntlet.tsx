@@ -516,6 +516,7 @@ export default function InlineDailyGauntlet({
             hideInlineTimer
             showExplanation
             optionLayout="grid"
+            watermarkText={`tb ${String(user?.id ?? "anon").slice(0, 8)} · ${domain} · ${formatClock(gauntletSessionLeft)} · q${gauntletIndex + 1}`}
           />
         </div>
       ) : null}

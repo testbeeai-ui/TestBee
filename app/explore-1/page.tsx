@@ -789,9 +789,6 @@ function UnitRoadmap({
             </div>
           </div>
           <div className="hidden sm:flex flex-col items-end shrink-0">
-            <span className="text-3xl font-extrabold text-primary leading-none">
-              {unitCountLabel.split(" ")[0]}
-            </span>
             <span className="text-[11px] font-extrabold tracking-widest uppercase text-muted-foreground">
               Units · {classBadgeLabel}
             </span>

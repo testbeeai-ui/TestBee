@@ -67,7 +67,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         instructions: typeof body.instructions === "string" ? body.instructions : "",
         extraContentJson: (body.extraContentJson ?? null) as any,
       },
-      admin as any
+      admin as any,
+      { skipVerificationCheck: true }
     );
 
     await auditAdminTeacherAction({

@@ -31,13 +31,7 @@ import { parseBitsTestAttemptsStore } from "@/lib/parseBitsTestAttemptsStore";
 import { parseEngagementDraftDashboardContributions } from "@/lib/parseEngagementDraftDashboardContributions";
 
 export default function Profile() {
-  const {
-    user: authUser,
-    profile,
-    loading: authLoading,
-    signOut,
-    refreshProfile,
-  } = useAuth();
+  const { user: authUser, profile, loading: authLoading, signOut, refreshProfile } = useAuth();
   const storeUser = useUserStore((s) => s.user);
   const storeLogout = useUserStore((s) => s.logout);
   const allResults = useUserStore((s) => s.allResults);
@@ -191,9 +185,7 @@ export default function Profile() {
                       {(profile as { signup_google?: boolean }).signup_google ? (
                         <span>· Signed in with Google</span>
                       ) : null}
-                      {profile.google_connected ? (
-                        <span>· Google Calendar linked</span>
-                      ) : null}
+                      {profile.google_connected ? <span>· Google Calendar linked</span> : null}
                     </div>
                   </div>
                 </div>
@@ -213,8 +205,8 @@ export default function Profile() {
                     onClick={() => router.push(`/user/${profile.id}`)}
                     className="rounded-lg border-violet-300/60 bg-violet-50 px-3 text-foreground hover:bg-violet-100 dark:border-violet-400/30 dark:bg-violet-500/10 dark:text-violet-100 dark:hover:bg-violet-500/20 dark:hover:text-white 2xl:rounded-xl 2xl:px-4"
                   >
-                    <Bookmark className="mr-1.5 h-3.5 w-3.5 shrink-0 2xl:mr-2 2xl:h-4 2xl:w-4" /> View public
-                    profile
+                    <Bookmark className="mr-1.5 h-3.5 w-3.5 shrink-0 2xl:mr-2 2xl:h-4 2xl:w-4" />{" "}
+                    View public profile
                   </Button>
                   <Button
                     variant="outline"

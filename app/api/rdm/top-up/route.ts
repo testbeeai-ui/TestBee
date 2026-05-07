@@ -29,17 +29,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Server configuration error" }, { status: 500 });
     }
 
-    const { data: row } = await admin.from("profiles").select("rdm").eq("id", targetUserId).single();
-    const currentRdm = (row?.rdm ?? 0) as number;
-    const newRdm = currentRdm + amount;
+    const { data: newRdm, error: rpcErr } = await admin.rpc("add_rdm", {
+      uid: targetUserId,
+      amt: amount,
+    });
 
-    const { error: updateErr } = await admin
-      .from("profiles")
-      .update({ rdm: newRdm })
-      .eq("id", targetUserId);
-
-    if (updateErr) {
-      return NextResponse.json({ error: updateErr.message }, { status: 500 });
+    if (rpcErr) {
+      return NextResponse.json({ error: rpcErr.message }, { status: 500 });
     }
 
     return NextResponse.json({ userId: targetUserId, rdm: newRdm, amountAdded: amount });

@@ -53,8 +53,8 @@ const baseNavItems = [
   { path: EXPLORE_APP_PATH, icon: Compass, label: "Lessons", emoji: "🧭" },
   { path: "/mock", icon: GraduationCap, label: "Prep + Mock", emoji: "🎓" },
   { path: "/doubts", icon: HelpCircle, label: "Gyan++", emoji: "💡" },
-  { path: "/edufund", icon: Heart, label: "EduFund", emoji: "💛" },
   { path: "/refer-earn", icon: Gift, label: "Earn & Learn", emoji: "🎁" },
+  { path: "/edufund", icon: Heart, label: "EduFund", emoji: "💛" },
   { path: "/profile", icon: User, label: "Profile", emoji: "👤" },
 ];
 
@@ -85,21 +85,20 @@ const AppLayout = ({
               {/* Logo */}
               <Link
                 href="/home"
-                className="flex items-center gap-2 hover:opacity-80 transition-opacity group 2xl:gap-2.5"
+                className="flex items-center hover:opacity-80 transition-opacity group"
               >
-                <span className="text-xl group-hover:scale-110 transition-transform 2xl:text-2xl">
-                  🎯
-                </span>
-                <h1
-                  className="text-xl font-display bg-clip-text text-transparent 2xl:text-2xl"
-                  style={{
-                    background: "var(--gradient-primary)",
-                    WebkitBackgroundClip: "text",
-                    WebkitTextFillColor: "transparent",
-                  }}
-                >
-                  EduBlast
-                </h1>
+                <img
+                  src="/edublast-wordmark-light.png"
+                  alt="EduBlast"
+                  className="h-8 w-auto sm:h-9 2xl:h-10 dark:hidden"
+                  draggable={false}
+                />
+                <img
+                  src="/edublast-wordmark-transparent.png"
+                  alt="EduBlast"
+                  className="hidden h-8 w-auto sm:h-9 2xl:h-10 dark:block"
+                  draggable={false}
+                />
               </Link>
 
               {/* Nav Links - Desktop */}

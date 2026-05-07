@@ -58,7 +58,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         introVideoUrl:
           typeof body.introVideoUrl === "string" ? body.introVideoUrl : body.introVideoUrl ?? classroom.intro_video_url,
       },
-      admin as any
+      admin as any,
+      { skipVerificationCheck: true }
     );
 
     await auditAdminTeacherAction({

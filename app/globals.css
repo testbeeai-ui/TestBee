@@ -730,3 +730,62 @@
 .investor-marquee-x {
   animation: investor-marquee-x 45s linear infinite;
 }
+
+/* Demo Mentamill (refer-earn mock): subtle moving interference layer — hurts clean screenshots more than live reading */
+@keyframes demo-mm-cap-drift {
+  0% {
+    background-position: 0% 0%, 100% 100%;
+    opacity: 0.07;
+  }
+  50% {
+    background-position: 100% 40%, 0% 60%;
+    opacity: 0.14;
+  }
+  100% {
+    background-position: 0% 0%, 100% 100%;
+    opacity: 0.07;
+  }
+}
+
+.demo-mm-cap-shield {
+  pointer-events: none;
+  background-image:
+    repeating-linear-gradient(
+      125deg,
+      rgba(255, 255, 255, 0.14) 0px,
+      rgba(255, 255, 255, 0.14) 1px,
+      rgba(0, 0, 0, 0) 5px,
+      rgba(0, 0, 0, 0) 11px
+    ),
+    repeating-linear-gradient(
+      -55deg,
+      rgba(124, 107, 255, 0.11) 0px,
+      rgba(124, 107, 255, 0.11) 1px,
+      rgba(0, 0, 0, 0) 7px,
+      rgba(0, 0, 0, 0) 14px
+    );
+  background-size: 240% 240%, 260% 260%;
+  animation: demo-mm-cap-drift 14s ease-in-out infinite;
+}
+
+/*
+ * Question/options: static soft tint only (no motion — avoids moiré / “moving bars” on some displays).
+ */
+.demo-mm-cap-shield-soft {
+  pointer-events: none;
+  background-image:
+    radial-gradient(
+      ellipse 120% 95% at 32% 38%,
+      rgba(34, 211, 238, 0.09),
+      transparent 62%
+    ),
+    radial-gradient(
+      ellipse 110% 90% at 68% 62%,
+      rgba(124, 107, 255, 0.07),
+      transparent 60%
+    );
+  background-size: 100% 100%, 100% 100%;
+  background-repeat: no-repeat;
+  mix-blend-mode: soft-light;
+  opacity: 0.92;
+}

@@ -44,7 +44,9 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       return NextResponse.json({ error: "Classroom does not belong to this teacher" }, { status: 400 });
     }
 
-    await deleteTeacherClassroom({ teacherId, classroomId }, admin as any);
+    await deleteTeacherClassroom({ teacherId, classroomId }, admin as any, {
+      skipVerificationCheck: true,
+    });
 
     await auditAdminTeacherAction({
       admin,

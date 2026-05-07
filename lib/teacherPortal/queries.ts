@@ -44,6 +44,7 @@ import type {
   TeacherPortalSessionItem,
   TeacherPortalSessionWorkKind,
   TeacherPortalSummary,
+  TeacherVerificationStatus,
   TeacherPortalWallItem,
 } from "@/lib/teacherPortal/types";
 
@@ -70,6 +71,71 @@ function ensureError(err: unknown): Error {
   }
   if (typeof err === "string" && err.trim()) return new Error(err.trim());
   return new Error("Request failed");
+}
+
+export const TEACHER_VERIFICATION_REQUIRED_ERROR =
+  "Teacher verification approval is required before performing this action.";
+
+type TeacherMutationGuardOptions = {
+  skipVerificationCheck?: boolean;
+};
+
+async function assertTeacherApprovedForMutations(
+  teacherId: string,
+  db: DbClient,
+  options?: TeacherMutationGuardOptions
+): Promise<void> {
+  if (options?.skipVerificationCheck) return;
+  const trimmedTeacherId = teacherId.trim();
+  if (!trimmedTeacherId) throw new Error("Teacher id is required.");
+  const { data, error } = await (
+    db as unknown as {
+      from: (table: string) => {
+        select: (columns: string) => {
+          eq: (column: string, value: string) => {
+            maybeSingle: () => Promise<{
+              data: { verification_status?: TeacherVerificationStatus | null } | null;
+              error: { message?: string } | null;
+            }>;
+          };
+        };
+      };
+    }
+  )
+    .from("teacher_profile_details")
+    .select("verification_status")
+    .eq("teacher_id", trimmedTeacherId)
+    .maybeSingle();
+  if (error) throw ensureError(error);
+  if ((data?.verification_status ?? "unverified") !== "approved") {
+    throw new Error(TEACHER_VERIFICATION_REQUIRED_ERROR);
+  }
+}
+
+function normalizeIndianPhone(raw: string | null | undefined): string {
+  const digits = (raw ?? "").replace(/\D/g, "");
+  const core = digits.startsWith("91") && digits.length >= 12 ? digits.slice(2, 12) : digits.slice(0, 10);
+  return core.length === 10 ? `+91 ${core}` : "";
+}
+
+function isValidIndianPhone(raw: string | null | undefined): boolean {
+  return normalizeIndianPhone(raw).length > 0;
+}
+
+function hasValue(raw: string | null | undefined): boolean {
+  return Boolean(raw && raw.trim());
+}
+
+function hasIdentityDocs(input: {
+  aadhar_photo_url?: string | null;
+  aadhar_share_link?: string | null;
+  institute_certificate_photo_url?: string | null;
+  institute_certificate_share_link?: string | null;
+}): boolean {
+  return (
+    (hasValue(input.aadhar_photo_url) || hasValue(input.aadhar_share_link)) &&
+    (hasValue(input.institute_certificate_photo_url) || hasValue(input.institute_certificate_share_link))
+  );
 }
 
 const JOIN_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -1427,6 +1493,14 @@ export async function loadTeacherPortalBundle(
     aadhar_share_link: string | null;
     institute_certificate_photo_url: string | null;
     institute_certificate_share_link: string | null;
+    contact_email_verified_at: string | null;
+    verified_contact_email: string | null;
+    verification_status: TeacherVerificationStatus | null;
+    admin_notes: string | null;
+    submitted_at: string | null;
+    reviewed_at: string | null;
+    approved_at: string | null;
+    rejected_at: string | null;
   };
 
   const { data: teacherDetailsRowRaw } = await (
@@ -1448,7 +1522,7 @@ export async function loadTeacherPortalBundle(
   )
     .from("teacher_profile_details")
     .select(
-      "teacher_id, location, qualification, experience, email, phone, youtube_or_social, aadhar_photo_url, aadhar_share_link, institute_certificate_photo_url, institute_certificate_share_link"
+      "teacher_id, location, qualification, experience, email, phone, youtube_or_social, aadhar_photo_url, aadhar_share_link, institute_certificate_photo_url, institute_certificate_share_link, contact_email_verified_at, verified_contact_email, verification_status, admin_notes, submitted_at, reviewed_at, approved_at, rejected_at"
     )
     .eq("teacher_id", profile.id)
     .maybeSingle();
@@ -1492,6 +1566,14 @@ export async function loadTeacherPortalBundle(
       qualification: details.qualification ?? null,
       experience: details.experience ?? null,
       email: details.email ?? null,
+      verifiedContactEmail: teacherDetailsRowRaw?.verified_contact_email ?? null,
+      contactEmailVerifiedAt: teacherDetailsRowRaw?.contact_email_verified_at ?? null,
+      verificationStatus: teacherDetailsRowRaw?.verification_status ?? "unverified",
+      adminNotes: teacherDetailsRowRaw?.admin_notes ?? null,
+      submittedAt: teacherDetailsRowRaw?.submitted_at ?? null,
+      reviewedAt: teacherDetailsRowRaw?.reviewed_at ?? null,
+      approvedAt: teacherDetailsRowRaw?.approved_at ?? null,
+      rejectedAt: teacherDetailsRowRaw?.rejected_at ?? null,
       phone: details.phone ?? null,
       youtubeOrSocial: details.youtubeOrSocial ?? null,
       docs: {
@@ -1530,9 +1612,11 @@ export async function postTeacherSection(
   teacherId: string;
   body: string;
 },
-  client?: DbClient
+  client?: DbClient,
+  options?: TeacherMutationGuardOptions
 ): Promise<void> {
   const db = client ?? supabase;
+  await assertTeacherApprovedForMutations(input.teacherId, db, options);
   const trimmed = input.body.trim();
   if (!trimmed) throw new Error("Teacher section cannot be empty.");
   const { error } = await db.from("doubt_answers").insert({
@@ -1552,7 +1636,10 @@ export async function updateTeacherProfile(
   subjects: string[];
   examTags: string[];
   teachingLevels: number[];
+  /** Full public URL (e.g. Supabase Storage public URL or OAuth picture URL). */
+  avatarUrl?: string | null;
   details?: TeacherProfileDetails;
+  bypassVerificationLock?: boolean;
 },
   client?: DbClient
 ): Promise<void> {
@@ -1570,35 +1657,161 @@ export async function updateTeacherProfile(
     details: input.details ?? {},
   });
 
-  const { error } = await db
-    .from("profiles")
-    .update({
-      name: input.name.trim(),
-      bio: encodedBio.trim() || null,
-      visibility: input.visibility,
-      subjects: cleanSubjects,
-      exam_tags: cleanExamTags,
-      teaching_levels: cleanLevels,
-    })
-    .eq("id", input.userId);
-  if (error) throw error;
+  const profilePatch: Record<string, unknown> = {
+    name: input.name.trim(),
+    bio: encodedBio.trim() || null,
+    visibility: input.visibility,
+    subjects: cleanSubjects,
+    exam_tags: cleanExamTags,
+    teaching_levels: cleanLevels,
+  };
+  if (input.avatarUrl !== undefined) {
+    profilePatch.avatar_url = input.avatarUrl;
+  }
 
   const d = input.details ?? {};
   const docs = d.docs ?? {};
 
+  const dbAny = db as unknown as {
+    from: (t: string) => {
+      select: (cols: string) => {
+        eq: (c: string, v: string) => {
+          maybeSingle: () => Promise<{
+            data: {
+              verified_contact_email?: string | null;
+              verification_status?: TeacherVerificationStatus | null;
+              name?: string | null;
+              subjects?: string[] | null;
+              exam_tags?: string[] | null;
+              location?: string | null;
+              qualification?: string | null;
+              experience?: string | null;
+              phone?: string | null;
+              aadhar_photo_url?: string | null;
+              aadhar_share_link?: string | null;
+              institute_certificate_photo_url?: string | null;
+              institute_certificate_share_link?: string | null;
+            } | null;
+          }>;
+        };
+      };
+    };
+  };
+  const { data: prevTeacherDetails } = await dbAny
+    .from("teacher_profile_details")
+    .select(
+      "verified_contact_email, verification_status, location, qualification, experience, phone, aadhar_photo_url, aadhar_share_link, institute_certificate_photo_url, institute_certificate_share_link"
+    )
+    .eq("teacher_id", input.userId)
+    .maybeSingle();
+  const { data: prevProfileCore } = await dbAny
+    .from("profiles")
+    .select("name, subjects, exam_tags")
+    .eq("id", input.userId)
+    .maybeSingle();
+
+  const nextEmailNorm = (d.email ?? "").trim().toLowerCase();
+  const prevVerifiedNorm = (
+    (prevTeacherDetails as { verified_contact_email?: string | null } | null)?.verified_contact_email ?? ""
+  )
+    .trim()
+    .toLowerCase();
+
+  const verificationPatch: Record<string, unknown> = {};
+  if (!nextEmailNorm) {
+    verificationPatch.contact_email_verified_at = null;
+    verificationPatch.verified_contact_email = null;
+  } else if (prevVerifiedNorm && prevVerifiedNorm !== nextEmailNorm) {
+    verificationPatch.contact_email_verified_at = null;
+    verificationPatch.verified_contact_email = null;
+  }
+
+  const nextProfileName = input.name.trim();
+  const nextSubjects = cleanSubjects;
+  const nextExamTags = cleanExamTags;
+  const nextLocation = d.location?.trim() || "";
+  const nextQualification = d.qualification?.trim() || "";
+  const nextExperience = d.experience?.trim() || "";
+  const nextPhone = normalizeIndianPhone(d.phone ?? "");
   const detailsPayload = {
     teacher_id: input.userId,
-    location: d.location?.trim() || null,
-    qualification: d.qualification?.trim() || null,
-    experience: d.experience?.trim() || null,
+    location: nextLocation || null,
+    qualification: nextQualification || null,
+    experience: nextExperience || null,
     email: d.email?.trim() || null,
-    phone: d.phone?.trim() || null,
+    phone: nextPhone || null,
     youtube_or_social: d.youtubeOrSocial?.trim() || null,
     aadhar_photo_url: docs.aadharPhotoUrl?.trim() || null,
     aadhar_share_link: docs.aadharShareLink?.trim() || null,
     institute_certificate_photo_url: docs.instituteCertificatePhotoUrl?.trim() || null,
     institute_certificate_share_link: docs.instituteCertificateShareLink?.trim() || null,
+    ...verificationPatch,
   };
+
+  const verificationStatus = prevTeacherDetails?.verification_status ?? "unverified";
+  const approvedLocked = verificationStatus === "approved" && !input.bypassVerificationLock;
+
+  if (approvedLocked) {
+    const prevName = (prevProfileCore?.name ?? "").trim();
+    const prevSubjects = (prevProfileCore?.subjects ?? []).map((s) => s.trim());
+    const prevExamTags = (prevProfileCore?.exam_tags ?? []).map((s) => s.trim());
+    const prevLocation = (prevTeacherDetails?.location ?? "").trim();
+    const prevQualification = (prevTeacherDetails?.qualification ?? "").trim();
+    const prevExperience = (prevTeacherDetails?.experience ?? "").trim();
+    const prevPhone = normalizeIndianPhone(prevTeacherDetails?.phone ?? "");
+    const prevAadharPhoto = (prevTeacherDetails?.aadhar_photo_url ?? "").trim();
+    const prevAadharShare = (prevTeacherDetails?.aadhar_share_link ?? "").trim();
+    const prevCertPhoto = (prevTeacherDetails?.institute_certificate_photo_url ?? "").trim();
+    const prevCertShare = (prevTeacherDetails?.institute_certificate_share_link ?? "").trim();
+    const changedCoreIdentity =
+      prevName !== nextProfileName ||
+      prevSubjects.join("|") !== nextSubjects.join("|") ||
+      prevExamTags.join("|") !== nextExamTags.join("|") ||
+      prevLocation !== nextLocation ||
+      prevQualification !== nextQualification ||
+      prevExperience !== nextExperience ||
+      prevPhone !== nextPhone ||
+      prevAadharPhoto !== (detailsPayload.aadhar_photo_url ?? "") ||
+      prevAadharShare !== (detailsPayload.aadhar_share_link ?? "") ||
+      prevCertPhoto !== (detailsPayload.institute_certificate_photo_url ?? "") ||
+      prevCertShare !== (detailsPayload.institute_certificate_share_link ?? "");
+    if (changedCoreIdentity) {
+      throw new Error(
+        "Your profile is verified. Core identity fields are locked; contact admin for corrections."
+      );
+    }
+  }
+
+  const hasMandatoryFields =
+    hasValue(nextProfileName) &&
+    nextSubjects.length > 0 &&
+    nextExamTags.length > 0 &&
+    hasValue(nextLocation) &&
+    hasValue(nextQualification) &&
+    hasValue(nextExperience) &&
+    isValidIndianPhone(nextPhone) &&
+    hasIdentityDocs(detailsPayload);
+
+  if (!input.bypassVerificationLock && !hasMandatoryFields) {
+    throw new Error(
+      "Complete full name, phone (+91 10 digits), subjects, specialisation, location, qualification, experience, and both identity documents."
+    );
+  }
+
+  if (verificationStatus !== "approved" && hasMandatoryFields) {
+    (detailsPayload as Record<string, unknown>).verification_status = "pending";
+    (detailsPayload as Record<string, unknown>).submitted_at = new Date().toISOString();
+    if (verificationStatus === "rejected") {
+      (detailsPayload as Record<string, unknown>).admin_notes = null;
+      (detailsPayload as Record<string, unknown>).rejected_at = null;
+      (detailsPayload as Record<string, unknown>).reviewed_at = null;
+    }
+  } else if (!approvedLocked && verificationStatus === "unverified") {
+    (detailsPayload as Record<string, unknown>).verification_status = "unverified";
+  }
+
+  const { error } = await db.from("profiles").update(profilePatch).eq("id", input.userId);
+  if (error) throw error;
 
   const { error: detailsErr } = await (
     db as unknown as {
@@ -1631,9 +1844,11 @@ export async function createTeacherClassroom(
   scheduleEndDate?: string | null;
   allowAdhocTrial: boolean;
 },
-  client?: DbClient
+  client?: DbClient,
+  options?: TeacherMutationGuardOptions
 ): Promise<{ classroomId: string }> {
   const db = client ?? supabase;
+  await assertTeacherApprovedForMutations(input.userId, db, options);
   const className = input.name.trim();
   if (!className) throw new Error("Classroom name is required.");
 
@@ -1704,9 +1919,11 @@ export async function updateTeacherClassroom(
   section: string | null;
   introVideoUrl?: string | null;
 },
-  client?: DbClient
+  client?: DbClient,
+  options?: TeacherMutationGuardOptions
 ): Promise<void> {
   const db = client ?? supabase;
+  await assertTeacherApprovedForMutations(input.teacherId, db, options);
   const name = input.name.trim();
   if (!name) throw new Error("Classroom name is required.");
   const { error } = await db
@@ -1727,9 +1944,11 @@ export async function deleteTeacherClassroom(
   teacherId: string;
   classroomId: string;
 },
-  client?: DbClient
+  client?: DbClient,
+  options?: TeacherMutationGuardOptions
 ): Promise<void> {
   const db = client ?? supabase;
+  await assertTeacherApprovedForMutations(input.teacherId, db, options);
   const { error } = await db
     .from("classrooms")
     .delete()
@@ -1768,9 +1987,11 @@ export async function createClassroomAssignment(
   /** Optional visibility override (default: classroom). */
   visibility?: string;
 },
-  client?: DbClient
+  client?: DbClient,
+  options?: TeacherMutationGuardOptions
 ): Promise<{ id: string }> {
   const db = client ?? supabase;
+  await assertTeacherApprovedForMutations(input.teacherId, db, options);
   const title = input.title.trim();
   if (!title) throw new Error("Assignment title is required.");
   let taskList = normalizeTaskPositions(
@@ -1998,9 +2219,11 @@ export async function createMotivationAction(
   recommendActionLabel?: string;
   recommendActionUrl?: string;
 },
-  client?: DbClient
+  client?: DbClient,
+  options?: TeacherMutationGuardOptions
 ): Promise<void> {
   const db = client ?? supabase;
+  await assertTeacherApprovedForMutations(input.teacherId, db, options);
   const { error } = await db.from("posts").insert({
     classroom_id: input.classroomId,
     section_id: input.sectionId ?? null,
@@ -2033,9 +2256,11 @@ export async function createRewardTopStudentsAction(
   message: string;
   rdmDelta: number;
 },
-  client?: DbClient
+  client?: DbClient,
+  options?: TeacherMutationGuardOptions
 ): Promise<void> {
   const db = client ?? supabase;
+  await assertTeacherApprovedForMutations(input.teacherId, db, options);
   const { error } = await db.from("posts").insert({
     classroom_id: input.classroomId,
     section_id: input.sectionId ?? null,
@@ -2129,9 +2354,11 @@ export async function createTeacherLiveSession(
   } | null;
   postWorkDelayDays?: number;
 },
-  client?: DbClient
+  client?: DbClient,
+  options?: TeacherMutationGuardOptions
 ): Promise<void> {
   const db = client ?? supabase;
+  await assertTeacherApprovedForMutations(input.teacherId, db, options);
   const sessionTitle = input.title.trim();
   if (!sessionTitle) throw new Error("Session topic is required.");
   if (!input.classroomId) throw new Error("Classroom is required.");
@@ -2255,7 +2482,8 @@ export async function createTeacherLiveSession(
         sessionDurationMinutes: input.durationMinutes,
       },
       },
-      db
+      db,
+      options
     );
     preAssignmentPostId = created.id;
   } else if (input.preWork.trim()) {
@@ -2281,7 +2509,8 @@ export async function createTeacherLiveSession(
         sessionDurationMinutes: input.durationMinutes,
       },
       },
-      db
+      db,
+      options
     );
     preAssignmentPostId = created.id;
   }
@@ -2326,7 +2555,8 @@ export async function createTeacherLiveSession(
         sessionDurationMinutes: input.durationMinutes,
       },
       },
-      db
+      db,
+      options
     );
     postAssignmentPostId = created.id;
   } else if (input.postWork.trim()) {
@@ -2354,7 +2584,8 @@ export async function createTeacherLiveSession(
         sessionDurationMinutes: input.durationMinutes,
       },
       },
-      db
+      db,
+      options
     );
     postAssignmentPostId = created.id;
   }

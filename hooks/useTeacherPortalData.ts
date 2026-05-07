@@ -65,6 +65,7 @@ interface UseTeacherPortalDataResult {
     subjects: string[];
     examTags: string[];
     teachingLevels: number[];
+    avatarUrl?: string | null;
     details?: {
       location?: string;
       qualification?: string;
@@ -225,6 +226,7 @@ export function useTeacherPortalData(
       subjects: string[];
       examTags: string[];
       teachingLevels: number[];
+      avatarUrl?: string | null;
       details?: {
         location?: string;
         qualification?: string;

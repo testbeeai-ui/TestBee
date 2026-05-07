@@ -81,7 +81,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
           message,
           rdmDelta,
         },
-        admin as any
+        admin as any,
+        { skipVerificationCheck: true }
       );
     } else {
       await createMotivationAction(
@@ -94,7 +95,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
           message,
           rdmDelta,
         },
-        admin as any
+        admin as any,
+        { skipVerificationCheck: true }
       );
     }
 

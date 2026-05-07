@@ -6,7 +6,11 @@ import { NextResponse } from "next/server";
 import { getSupabaseAndUser } from "@/lib/apiAuth";
 import { isAdminUser } from "@/lib/admin";
 import { createAdminClient } from "@/integrations/supabase/server";
-import { referChallengeSpec, type ReferClaimKey } from "@/lib/referEarnChallenges";
+import {
+  referChallengeSessionDurationSec,
+  referChallengeSpec,
+  type ReferClaimKey,
+} from "@/lib/referEarnChallenges";
 import { fetchRdmConfig } from "@/lib/rdmConfig";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -70,7 +74,8 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       claim.share_claimed_at ??
       `${claim.claim_date}T12:00:00.000Z`;
     const anchorMs = new Date(anchorIso).getTime();
-    const padMinutes = spec.sessionMinutes + 30;
+    const sessionTotalMin = Math.ceil(referChallengeSessionDurationSec(spec) / 60);
+    const padMinutes = sessionTotalMin + 30;
     const windowStart = new Date(anchorMs - padMinutes * 60 * 1000).toISOString();
     const windowEnd = new Date(anchorMs + 8 * 60 * 1000).toISOString();
 

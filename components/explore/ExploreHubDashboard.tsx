@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Compass } from "lucide-react";
 import { useTopicTaxonomy } from "@/hooks/useTopicTaxonomy";
-import type { Subject, ExamType } from "@/types";
+import type { Subject, ExamType, ClassLevel } from "@/types";
 import type { TopicNode } from "@/data/topicTaxonomy";
 
 import ExploreHubSidebar from "./ExploreHubSidebar";
@@ -17,7 +17,11 @@ interface ExploreHubDashboardProps {
   onNavigateToSubjects: () => void;
   onNavigateToSubject: (subject: Subject) => void;
   onNavigateToTopic?: (node: TopicNode) => void;
-  onNavigateToSubjectWithExam?: (subject: Subject, exam: ExamType | null) => void;
+  onNavigateToSubjectWithExam?: (
+    subject: Subject,
+    exam: ExamType | null,
+    classLevel: ClassLevel
+  ) => void;
 }
 
 export default function ExploreHubDashboard({
@@ -57,9 +61,9 @@ export default function ExploreHubDashboard({
         {/* Main content */}
         <div className="flex-1 min-w-0 space-y-4 sm:space-y-5 lg:space-y-6">
           <SubjectChips
-            onSelectSubject={(subject, exam) => {
+            onSelectSubject={(subject, exam, classLevel) => {
               if (onNavigateToSubjectWithExam) {
-                onNavigateToSubjectWithExam(subject, exam);
+                onNavigateToSubjectWithExam(subject, exam, classLevel);
               } else {
                 onNavigateToSubject(subject);
               }

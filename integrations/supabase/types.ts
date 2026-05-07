@@ -1431,6 +1431,96 @@ export type Database = {
         };
         Relationships: [];
       };
+      quiz_community_share_rdm_claims: {
+        Row: {
+          user_id: string;
+          topic_ref: string;
+          subtopic_ref: string;
+          quiz_set: number;
+          post_id: string;
+          rdm_amount: number;
+          claimed_at: string;
+        };
+        Insert: {
+          user_id: string;
+          topic_ref: string;
+          subtopic_ref: string;
+          quiz_set: number;
+          post_id: string;
+          rdm_amount: number;
+          claimed_at?: string;
+        };
+        Update: {
+          user_id?: string;
+          topic_ref?: string;
+          subtopic_ref?: string;
+          quiz_set?: number;
+          post_id?: string;
+          rdm_amount?: number;
+          claimed_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "quiz_community_share_rdm_claims_post_id_fkey";
+            columns: ["post_id"];
+            isOneToOne: false;
+            referencedRelation: "lessons_raw_posts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "quiz_community_share_rdm_claims_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      numerals_community_share_rdm_claims: {
+        Row: {
+          user_id: string;
+          topic_ref: string;
+          subtopic_ref: string;
+          formula_index: number;
+          post_id: string;
+          rdm_amount: number;
+          claimed_at: string;
+        };
+        Insert: {
+          user_id: string;
+          topic_ref: string;
+          subtopic_ref: string;
+          formula_index: number;
+          post_id: string;
+          rdm_amount: number;
+          claimed_at?: string;
+        };
+        Update: {
+          user_id?: string;
+          topic_ref?: string;
+          subtopic_ref?: string;
+          formula_index?: number;
+          post_id?: string;
+          rdm_amount?: number;
+          claimed_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "numerals_community_share_rdm_claims_post_id_fkey";
+            columns: ["post_id"];
+            isOneToOne: false;
+            referencedRelation: "lessons_raw_posts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "numerals_community_share_rdm_claims_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       referral_weekly_bonuses: {
         Row: {
           id: string;
@@ -2744,6 +2834,14 @@ export type Database = {
         Returns: Json;
       };
       claim_mock_community_share_rdm: {
+        Args: { p_post_id: string };
+        Returns: Json;
+      };
+      claim_quiz_community_share_rdm: {
+        Args: { p_post_id: string };
+        Returns: Json;
+      };
+      claim_numerals_community_share_rdm: {
         Args: { p_post_id: string };
         Returns: Json;
       };

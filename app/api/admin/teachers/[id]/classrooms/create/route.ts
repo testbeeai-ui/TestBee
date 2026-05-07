@@ -69,7 +69,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         scheduleEndDate: typeof body.scheduleEndDate === "string" ? body.scheduleEndDate : null,
         allowAdhocTrial: Boolean(body.allowAdhocTrial),
       },
-      admin as any
+      admin as any,
+      { skipVerificationCheck: true }
     );
 
     await auditAdminTeacherAction({

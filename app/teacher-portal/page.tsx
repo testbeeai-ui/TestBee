@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -15,7 +15,10 @@ import GyanWallView from "@/components/teacher-portal/GyanWallView";
 import ReferEarnView from "@/components/teacher-portal/ReferEarnView";
 import TeacherProfileView from "@/components/teacher-portal/TeacherProfileView";
 import CreateTestsView from "@/components/teacher-portal/CreateTestsView";
+import TeacherVerificationGate from "@/components/teacher-portal/TeacherVerificationGate";
 import { useToast } from "@/hooks/use-toast";
+import { useTeacherVerificationActionGuard } from "@/hooks/useTeacherVerificationActionGuard";
+import { TEACHER_VERIFICATION_REQUIRED_ERROR } from "@/lib/teacherPortal/queries";
 
 function TeacherPortalPageContent() {
   const router = useRouter();
@@ -96,6 +99,8 @@ function TeacherPortalPageContent() {
   ]);
 
   const sectionParam = searchParams.get("section");
+  const editParam = searchParams.get("edit");
+  const autoEditProfile = editParam === "1";
   const paramSection =
     sectionParam === "myClassroom" ||
     sectionParam === "myClasses" ||
@@ -113,6 +118,45 @@ function TeacherPortalPageContent() {
     }
     setSection(next);
   };
+  const verificationStatus = activeHook.data?.profile.details.verificationStatus ?? "unverified";
+  const { guardAction, isGateOpen, blockedActionLabel, closeGate } = useTeacherVerificationActionGuard({
+    verificationStatus,
+    isAdminImpersonation,
+  });
+  useEffect(() => {
+    if (isGateOpen && verificationStatus === "approved") {
+      closeGate();
+    }
+  }, [closeGate, isGateOpen, verificationStatus]);
+
+  const handleOpenVerificationProfile = useCallback(() => {
+    setSection("profile");
+    closeGate();
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.set("section", "profile");
+    nextParams.set("edit", "1");
+    const nextQuery = nextParams.toString();
+    router.replace(nextQuery ? `/teacher-portal?${nextQuery}` : "/teacher-portal");
+  }, [closeGate, router, searchParams]);
+
+  const handleRefreshVerificationStatus = useCallback(async () => {
+    await activeHook.refresh();
+  }, [activeHook]);
+  const requireVerifiedAction = useCallback(
+    async (action: () => Promise<void>, actionLabel: string) => {
+      const result = await guardAction(
+        async () => {
+          await action();
+          return true;
+        },
+        { actionLabel }
+      );
+      if (result !== true) {
+        throw new Error(TEACHER_VERIFICATION_REQUIRED_ERROR);
+      }
+    },
+    [guardAction]
+  );
 
   if (!user) {
     return (
@@ -176,53 +220,71 @@ function TeacherPortalPageContent() {
                 classroomDetails={activeHook.data.classroomDetails}
                 teacherId={targetTeacherId ?? ""}
                 onRefreshTeacherPortal={activeHook.refresh}
+                onRequireVerifiedAction={async (actionLabel) => {
+                  const result = await guardAction(async () => true, { actionLabel });
+                  return result === true;
+                }}
                 onCreateClassroom={async (input) => {
-                  await activeHook.createClassroom({
-                    userId: targetTeacherId ?? "",
-                    ...input,
-                  });
+                  await requireVerifiedAction(async () => {
+                    await activeHook.createClassroom({
+                      userId: targetTeacherId ?? "",
+                      ...input,
+                    });
+                  }, "Create classroom");
                 }}
                 onUpdateClassroom={async (input) => {
-                  await activeHook.updateClassroom({
-                    teacherId: targetTeacherId ?? "",
-                    ...input,
-                  });
-                  toast({ title: "Classroom updated" });
+                  await requireVerifiedAction(async () => {
+                    await activeHook.updateClassroom({
+                      teacherId: targetTeacherId ?? "",
+                      ...input,
+                    });
+                    toast({ title: "Classroom updated" });
+                  }, "Update classroom");
                 }}
                 onDeleteClassroom={async (input) => {
-                  await activeHook.deleteClassroom({
-                    teacherId: targetTeacherId ?? "",
-                    ...input,
-                  });
-                  toast({ title: "Classroom deleted" });
+                  await requireVerifiedAction(async () => {
+                    await activeHook.deleteClassroom({
+                      teacherId: targetTeacherId ?? "",
+                      ...input,
+                    });
+                    toast({ title: "Classroom deleted" });
+                  }, "Delete classroom");
                 }}
                 onCreateAssignment={async (input) => {
-                  await activeHook.createAssignment({
-                    teacherId: targetTeacherId ?? "",
-                    ...input,
-                  });
-                  toast({ title: "Assignment created" });
+                  await requireVerifiedAction(async () => {
+                    await activeHook.createAssignment({
+                      teacherId: targetTeacherId ?? "",
+                      ...input,
+                    });
+                    toast({ title: "Assignment created" });
+                  }, "Create assignment");
                 }}
                 onMotivateStudents={async (input) => {
-                  await activeHook.motivateStudents({
-                    teacherId: targetTeacherId ?? "",
-                    ...input,
-                  });
-                  toast({ title: "Motivation sent" });
+                  await requireVerifiedAction(async () => {
+                    await activeHook.motivateStudents({
+                      teacherId: targetTeacherId ?? "",
+                      ...input,
+                    });
+                    toast({ title: "Motivation sent" });
+                  }, "Motivate students");
                 }}
                 onRewardTopStudents={async (input) => {
-                  await activeHook.rewardTopStudents({
-                    teacherId: targetTeacherId ?? "",
-                    ...input,
-                  });
-                  toast({ title: "Top students rewarded" });
+                  await requireVerifiedAction(async () => {
+                    await activeHook.rewardTopStudents({
+                      teacherId: targetTeacherId ?? "",
+                      ...input,
+                    });
+                    toast({ title: "Top students rewarded" });
+                  }, "Reward top students");
                 }}
                 onScheduleLiveSession={async (input) => {
-                  await activeHook.createSession({
-                    teacherId: targetTeacherId ?? "",
-                    ...input,
-                  });
-                  toast({ title: "Lesson scheduled" });
+                  await requireVerifiedAction(async () => {
+                    await activeHook.createSession({
+                      teacherId: targetTeacherId ?? "",
+                      ...input,
+                    });
+                    toast({ title: "Lesson scheduled" });
+                  }, "Create session");
                 }}
               />
             ) : null}
@@ -231,11 +293,13 @@ function TeacherPortalPageContent() {
                 sessions={activeHook.data.sessions}
                 classrooms={activeHook.data.classrooms}
                 onScheduleClass={async (input) => {
-                  await activeHook.createSession({
-                    teacherId: targetTeacherId ?? "",
-                    ...input,
-                  });
-                  toast({ title: "Lesson scheduled" });
+                  await requireVerifiedAction(async () => {
+                    await activeHook.createSession({
+                      teacherId: targetTeacherId ?? "",
+                      ...input,
+                    });
+                    toast({ title: "Lesson scheduled" });
+                  }, "Create session");
                 }}
               />
             ) : null}
@@ -244,7 +308,11 @@ function TeacherPortalPageContent() {
                 summary={activeHook.data.summary}
                 wallItems={activeHook.data.wallItems}
                 teacherId={targetTeacherId ?? ""}
-                onPostTeacherSection={activeHook.submitTeacherSection}
+                onPostTeacherSection={async (input) => {
+                  await requireVerifiedAction(async () => {
+                    await activeHook.submitTeacherSection(input);
+                  }, "Post teacher section");
+                }}
               />
             ) : null}
             {activeSection === "createTests" ? (
@@ -252,9 +320,18 @@ function TeacherPortalPageContent() {
                 onNavigateToSection={handleSectionChange}
                 teacherId={targetTeacherId ?? ""}
                 classrooms={activeHook.data.classrooms}
+                onRequireVerifiedAction={async (actionLabel) => {
+                  const result = await guardAction(
+                    async () => true,
+                    { actionLabel }
+                  );
+                  return result === true;
+                }}
                 onCreateAssignment={async (input) => {
-                  await activeHook.createAssignment(input);
-                  toast({ title: "Assignment created" });
+                  await requireVerifiedAction(async () => {
+                    await activeHook.createAssignment(input);
+                    toast({ title: "Assignment created" });
+                  }, "Create assignment");
                 }}
               />
             ) : null}
@@ -268,11 +345,30 @@ function TeacherPortalPageContent() {
               />
             ) : null}
             {activeSection === "profile" ? (
-              <TeacherProfileView profile={activeHook.data.profile} onSave={activeHook.saveProfile} />
+              <TeacherProfileView
+                profile={activeHook.data.profile}
+                autoStartEditing={autoEditProfile}
+                onSave={async (input) => {
+                  await activeHook.saveProfile(input);
+                }}
+                allowAvatarUpload={!isAdminImpersonation}
+                onAvatarUpdated={() => activeHook.refresh({ silent: true })}
+              />
             ) : null}
           </>
         ) : null}
       </TeacherPortalShell>
+      {isGateOpen ? (
+        <TeacherVerificationGate
+          status={verificationStatus}
+          adminNotes={activeHook.data?.profile.details.adminNotes ?? null}
+          actionLabel={blockedActionLabel}
+          mode="modal"
+          onGoToProfile={handleOpenVerificationProfile}
+          onRefresh={handleRefreshVerificationStatus}
+          onClose={closeGate}
+        />
+      ) : null}
     </ProtectedRoute>
   );
 }

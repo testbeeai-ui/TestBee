@@ -89,7 +89,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         postWorkConceptRef: (body.postWorkConceptRef ?? null) as any,
         postWorkDelayDays: body.postWorkDelayDays,
       },
-      admin as any
+      admin as any,
+      { skipVerificationCheck: true }
     );
 
     await auditAdminTeacherAction({

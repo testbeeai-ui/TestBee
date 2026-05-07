@@ -8,6 +8,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import {
   Table,
   TableBody,
   TableCell,
@@ -60,6 +69,59 @@ export default function AdminUsersPage() {
   const [error, setError] = useState("");
   const [actingUserId, setActingUserId] = useState<string | null>(null);
   const [suspendDaysByUser, setSuspendDaysByUser] = useState<Record<string, number>>({});
+  const [screenshotFilterOpen, setScreenshotFilterOpen] = useState(false);
+  const [screenshotFilterEnabled, setScreenshotFilterEnabled] = useState(true);
+  const [screenshotFilterLoading, setScreenshotFilterLoading] = useState(false);
+  const [screenshotFilterSaving, setScreenshotFilterSaving] = useState(false);
+  const [screenshotFilterError, setScreenshotFilterError] = useState("");
+
+  const loadScreenshotFilterSetting = useCallback(async () => {
+    setScreenshotFilterLoading(true);
+    setScreenshotFilterError("");
+    try {
+      const { session } = await safeGetSession();
+      if (!session?.access_token) throw new Error("Missing session token");
+      const res = await fetch("/api/admin/screenshot-filter", {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+        cache: "no-store",
+      });
+      const body = (await res.json()) as { enabled?: boolean; error?: string };
+      if (!res.ok) throw new Error(body.error || "Failed to load screenshot filter setting");
+      setScreenshotFilterEnabled(Boolean(body.enabled));
+    } catch (e) {
+      setScreenshotFilterError(e instanceof Error ? e.message : "Unknown error");
+    } finally {
+      setScreenshotFilterLoading(false);
+    }
+  }, []);
+
+  const saveScreenshotFilterSetting = useCallback(
+    async (enabled: boolean) => {
+      setScreenshotFilterSaving(true);
+      setScreenshotFilterError("");
+      try {
+        const { session } = await safeGetSession();
+        if (!session?.access_token) throw new Error("Missing session token");
+        const res = await fetch("/api/admin/screenshot-filter", {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ enabled }),
+        });
+        const body = (await res.json()) as { enabled?: boolean; error?: string };
+        if (!res.ok) throw new Error(body.error || "Failed to update screenshot filter");
+        setScreenshotFilterEnabled(Boolean(body.enabled));
+      } catch (e) {
+        setScreenshotFilterError(e instanceof Error ? e.message : "Unknown error");
+        await loadScreenshotFilterSetting();
+      } finally {
+        setScreenshotFilterSaving(false);
+      }
+    },
+    [loadScreenshotFilterSetting]
+  );
 
   const loadUsers = useCallback(async () => {
     setLoading(true);
@@ -153,10 +215,70 @@ export default function AdminUsersPage() {
   return (
     <div className="space-y-4">
       <div className="rounded-2xl border bg-card p-5">
-        <h1 className="text-2xl font-bold">User Management</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Full governance: suspend, ban, soft delete, restore, and open user analytics.
-        </p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">User Management</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Full governance: suspend, ban, soft delete, restore, and open user analytics.
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            className="shrink-0"
+            onClick={() => {
+              setScreenshotFilterOpen(true);
+              void loadScreenshotFilterSetting();
+            }}
+          >
+            Screenshot filter
+          </Button>
+        </div>
+        <Dialog
+          open={screenshotFilterOpen}
+          onOpenChange={(open) => {
+            setScreenshotFilterOpen(open);
+            if (open) void loadScreenshotFilterSetting();
+          }}
+        >
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Screenshot filter</DialogTitle>
+              <DialogDescription className="text-left">
+                When enabled, Play Arena and Earn & Learn show a security veil and a short block modal
+                when the browser reports a capture attempt. This deters casual screenshots; it is not
+                a cryptographic guarantee.
+              </DialogDescription>
+            </DialogHeader>
+            {screenshotFilterError ? (
+              <p className="text-sm text-destructive">{screenshotFilterError}</p>
+            ) : null}
+            <div className="flex items-center justify-between gap-4 rounded-lg border bg-background/50 p-3">
+              <div className="space-y-0.5">
+                <Label htmlFor="screenshot-filter-switch" className="text-sm font-medium">
+                  Screenshot deterrence
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  {screenshotFilterEnabled ? "On for all signed-in clients." : "Off — capture UI disabled."}
+                </p>
+              </div>
+              <Switch
+                id="screenshot-filter-switch"
+                checked={screenshotFilterEnabled}
+                disabled={screenshotFilterLoading || screenshotFilterSaving}
+                onCheckedChange={(v) => {
+                  setScreenshotFilterEnabled(v);
+                  void saveScreenshotFilterSetting(v);
+                }}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Only administrators can change this from the Admin Console. Learners cannot toggle it in
+              the app. This setting controls our client-side behavior only; a modified client could
+              bypass it.
+            </p>
+          </DialogContent>
+        </Dialog>
         <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
           <div className="rounded-xl border bg-background p-3 text-sm">
             Students: <span className="font-semibold">{stats.students}</span>

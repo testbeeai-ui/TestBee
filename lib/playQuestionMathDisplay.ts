@@ -134,6 +134,14 @@ export function repairGluedWordsInString(s: string): string {
     [/slopeofthe/gi, "slope of the"],
     [/ofthenormal/gi, "of the normal"],
     [/negative reciprocal/gi, "negative reciprocal"],
+    [/Theexpressionis/gi, "The expression is"],
+    [/thenewquotientis/gi, "the new quotient is"],
+    [/increasesbyafactorof(\d+)/gi, "increases by a factor of $1"],
+    [/decreasesbyafactorof(\d+)/gi, "decreases by a factor of $1"],
+    [/increasesby/gi, "increases by"],
+    [/decreasesby/gi, "decreases by"],
+    [/byafactorof/gi, "by a factor of"],
+    [/factorof(\d+)/gi, "factor of $1"],
   ];
   for (const [re, rep] of gluedPhrases) {
     t = t.replace(re, rep);
@@ -141,9 +149,52 @@ export function repairGluedWordsInString(s: string): string {
   return t;
 }
 
+/**
+ * Curriculum banks sometimes wrap prose + math in a single `$...$`. KaTeX math mode strips spaces
+ * (e.g. `$Q_cincreasesbyafactorof2$`). Split a leading `X_y` / `X_{y}` math atom from glued English.
+ */
+function tryDemoteGluedProseFromDollarInner(inner: string): string | null {
+  const t = inner.trim();
+  const m1 = t.match(/^([A-Za-z])_([a-z])((?:[a-z]){4,})$/);
+  if (m1) {
+    return `$${m1[1]}_{${m1[2]}}$ ${repairGluedWordsInString(m1[3]!)}`;
+  }
+  const m2 = t.match(/^([A-Za-z])_\{([A-Za-z]{1,3})\}([a-z][a-z]{3,})$/);
+  if (m2 && /^[A-Za-z]+$/.test(m2[2]!)) {
+    return `$${m2[1]}_{${m2[2]}}$ ${repairGluedWordsInString(m2[3]!)}`;
+  }
+  return null;
+}
+
+export function demoteInlineMathDollarSegments(text: string): string {
+  return text.replace(/\$([^$\n]+)\$/g, (full, inner: string) => {
+    const d = tryDemoteGluedProseFromDollarInner(String(inner).trim());
+    return d ?? full;
+  });
+}
+
+/** `Q_c`, `K_eq`, … in plain text → inline math so subscripts render. */
+function wrapReactionQuotientPlainSubscripts(text: string): string {
+  const t = text.trim();
+  if (!t || /\$/.test(t)) return text;
+  return t.replace(/\b([AQK])_(c|p|eq|new|old)\b/gi, (_m, a: string, s: string) => {
+    return `$${a}_{${String(s).toLowerCase()}}$`;
+  });
+}
+
+/** `[A]^2` concentration-style notation in plain text → inline KaTeX. */
+function wrapChemBracketPowers(text: string): string {
+  if (!text.includes("^") || /\$/.test(text)) return text;
+  return text.replace(
+    /\[\s*([A-Za-z])\s*\]\s*\^\s*\{?\s*(\d+)\s*\}?/g,
+    (_m, el: string, pow: string) => `$[\\mathrm{${el}}]^{${pow}}$`
+  );
+}
+
 /** Apply {@link repairGluedWordsInString} inside each `$...$` / `$$...$$` pair only. */
 export function repairPlayQuestionDollarSegments(text: string): string {
-  return text
+  const pass0 = demoteInlineMathDollarSegments(text);
+  return pass0
     .replace(/\$\$([^$]+)\$\$/g, (_, inner: string) => {
       const x = repairGluedWordsInString(String(inner));
       return `$$${x}$$`;
@@ -201,7 +252,9 @@ export function unwrapNestedInlineMathInPowers(text: string): string {
 export function formatPlayQuestionStemForDisplay(text: string): string {
   const s = String(text ?? "").trim();
   if (!s) return s;
-  const withNakedMath = preprocessNakedMath(s);
+  let t = wrapReactionQuotientPlainSubscripts(s);
+  t = wrapChemBracketPowers(t);
+  const withNakedMath = preprocessNakedMath(t);
   return repairPlayQuestionDollarSegments(
     unwrapNestedInlineMathInPowers(unicodePowToTeX(withNakedMath))
   );

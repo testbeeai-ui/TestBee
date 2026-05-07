@@ -73,7 +73,10 @@ interface AuthContextType {
     email: string,
     password: string,
     name: string
-  ) => Promise<{ error: AuthError | null }>;
+  ) => Promise<{ error: AuthError | null; needsEmailConfirmation: boolean }>;
+  /** After email/password sign-up (confirmations on), user enters the code from email. */
+  verifySignUpEmailOtp: (email: string, token: string) => Promise<{ error: AuthError | null }>;
+  resendSignUpEmailOtp: (email: string) => Promise<{ error: AuthError | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -357,13 +360,32 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signUpWithEmail = async (email: string, password: string, name: string) => {
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        emailRedirectTo: window.location.origin,
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
         data: { full_name: name },
       },
+    });
+    const needsEmailConfirmation = Boolean(!error && data?.user && !data?.session);
+    return { error, needsEmailConfirmation };
+  };
+
+  const verifySignUpEmailOtp = async (email: string, token: string) => {
+    const cleaned = token.replace(/\s/g, "");
+    const { error } = await supabase.auth.verifyOtp({
+      email: email.trim(),
+      token: cleaned,
+      type: "signup",
+    });
+    return { error };
+  };
+
+  const resendSignUpEmailOtp = async (email: string) => {
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email: email.trim(),
     });
     return { error };
   };
@@ -392,6 +414,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         signInWithGoogle,
         signInWithEmail,
         signUpWithEmail,
+        verifySignUpEmailOtp,
+        resendSignUpEmailOtp,
         signOut,
         refreshProfile,
       }}
