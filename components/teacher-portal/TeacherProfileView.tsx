@@ -754,7 +754,7 @@ export default function TeacherProfileView({
       </div>
 
       <div className="rounded-2xl border border-white/10 bg-[#15162b] p-4 sm:p-6">
-        {editing ? (
+        {editing && !isApproved ? (
           <div className="mb-4 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-3 py-2 text-sm font-semibold text-emerald-200">
             Edit mode active - update your profile details and save changes.
           </div>

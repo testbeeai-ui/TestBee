@@ -46,15 +46,6 @@ import {
 /** Illustrative daily earn rate for “days to next tier” copy (not a guarantee). */
 const ASSUMED_DAILY_RDM = 100;
 
-/** Investor-aligned proposal unlock amount shown at each EduFund tier. */
-const EDUFUND_UNLOCK_AMOUNT_BY_TIER = {
-  Sprout: 3000,
-  Scholar: 15000,
-  Champion: 50000,
-  Elite: 100000,
-  MasterBlaster: 200000,
-} as const;
-
 const CATEGORY_OPTIONS: { value: ProposalCategory; label: string; Icon: typeof Laptop }[] = [
   { value: "Learning Device", label: "Learning Device", Icon: Laptop },
   { value: "Books & Materials", label: "Books & Materials", Icon: BookOpen },
@@ -262,12 +253,7 @@ export default function EduFundPage() {
     nextGate != null
       ? estimateDaysToEarnRdmAtDailyRate(shortfallToNext, ASSUMED_DAILY_RDM)
       : null;
-  const unlockAmountAtNextTier =
-    nextGate != null
-      ? EDUFUND_UNLOCK_AMOUNT_BY_TIER[
-          nextGate.name as keyof typeof EDUFUND_UNLOCK_AMOUNT_BY_TIER
-        ] ?? null
-      : null;
+  const unlockAmountAtNextTier = nextGate != null ? nextGate.unlockInrAmount : null;
   const canContinueToProposal = userRdm >= EDUFUND_MIN_RDM_CREATE_PROPOSAL;
   const [communityMembers, setCommunityMembers] = useState<{ id: string; name: string }[]>([]);
 
@@ -520,10 +506,7 @@ export default function EduFundPage() {
                       </thead>
                       <tbody>
                         {EDUFUND_RDM_GATES.map((g) => {
-                          const tierUnlockAmount =
-                            EDUFUND_UNLOCK_AMOUNT_BY_TIER[
-                              g.name as keyof typeof EDUFUND_UNLOCK_AMOUNT_BY_TIER
-                            ] ?? 0;
+                          const tierUnlockAmount = g.unlockInrAmount;
                           return (
                             <tr
                               key={g.name}

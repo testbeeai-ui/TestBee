@@ -29,6 +29,10 @@ export type RdmConfigParams = {
   play_dailydose_funbrain_rdm: number;
   play_dual_streak_7_rdm: number;
   play_dual_streak_30_rdm: number;
+  /** Dashboard badge copy only: week number shown for study streak bonus callout. */
+  study_streak_bonus_week_number: number;
+  /** Dashboard badge copy only: RDM amount shown for study streak bonus callout. */
+  study_streak_bonus_rdm: number;
   /** Min questions in submit payload to award DailyDose RDM; keep in sync with question fetch */
   play_dailydose_min_questions_for_rdm: number;
 
@@ -79,6 +83,8 @@ export const DEFAULT_RDM_CONFIG: RdmConfigParams = {
   play_dailydose_funbrain_rdm: 10,
   play_dual_streak_7_rdm: 50,
   play_dual_streak_30_rdm: 200,
+  study_streak_bonus_week_number: 3,
+  study_streak_bonus_rdm: 150,
   play_dailydose_min_questions_for_rdm: 10,
 
   subtopic_quiz_advanced_rdm: 15,

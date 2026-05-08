@@ -654,7 +654,7 @@ function DoubtsPageContent() {
   // ─── Render ──────────────────────────────────────────────────
 
   return (
-    <ProtectedRoute>
+    <ProtectedRoute allowRoles={["student"]}>
       <AppLayout>
         <GyanDoubtsFocusTracker>
           <GyanDailyChecklistTracker />

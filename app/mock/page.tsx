@@ -1120,7 +1120,7 @@ export default function MockPage() {
   const ntaSubjectPaperLine = activeExamTitle ?? "Quick mock — timed practice";
 
   return (
-    <ProtectedRoute>
+    <ProtectedRoute allowRoles={["student"]}>
       <AppLayout hideTopNav={immersiveNta} wideMain={immersiveNta}>
         <AnimatePresence mode="wait">
           {/* ── DASHBOARD (landing) ── */}

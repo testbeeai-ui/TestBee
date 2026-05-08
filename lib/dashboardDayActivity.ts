@@ -89,22 +89,20 @@ export function estimatedStudyMinutesFromCount(count: number): number {
   return Math.max(0, Math.trunc(count)) * 10;
 }
 
-export function activityGreenLevel(estimatedMinutes: number): 0 | 1 | 2 | 3 | 4 {
+/** Heat tiers: 0 = none or under 10m (red), 1 = 10–30m, 2 = 30m–2h, 3 = over 2h (darkest green). */
+export type ActivityHeatLevel = 0 | 1 | 2 | 3;
+
+export function activityGreenLevel(estimatedMinutes: number): ActivityHeatLevel {
   if (estimatedMinutes < 10) return 0;
   if (estimatedMinutes < 30) return 1;
-  if (estimatedMinutes < 60) return 2;
-  if (estimatedMinutes < 90) return 3;
-  return 4;
+  if (estimatedMinutes <= 120) return 2;
+  return 3;
 }
 
-/** Heatmap intensity from saved `active_ms` (matches streak: any ms > 0 is a non-empty day). */
-export function activityGreenLevelFromStudyMs(activeMs: number): 0 | 1 | 2 | 3 | 4 {
+/** Heatmap intensity from max(on-site dwell, saved study ms): same buckets as `activityGreenLevel`. */
+export function activityGreenLevelFromStudyMs(activeMs: number): ActivityHeatLevel {
   if (!Number.isFinite(activeMs) || activeMs <= 0) return 0;
-  const minutes = activeMs / 60_000;
-  if (minutes < 10) return 1;
-  if (minutes < 30) return 2;
-  if (minutes < 60) return 3;
-  return 4;
+  return activityGreenLevel(activeMs / 60_000);
 }
 
 /** Short label for a heatmap cell (sub-minute still visible). */

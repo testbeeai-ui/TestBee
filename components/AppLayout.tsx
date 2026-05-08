@@ -38,8 +38,8 @@ interface AppLayoutProps {
 /** Curriculum browser: URL stays `/explore-1`; UI label is "Lessons". */
 export const EXPLORE_APP_PATH = "/explore-1" as const;
 
-/** Main app nav wordmark — transparent bg, white text (see `scripts/remove-white-logo-bg.mjs`). */
-const EDUBLAST_WORDMARK_SRC = "/images/edublast-wordmark-nobg.png";
+/** Header nav brand image — new resized logo at `public/images/logo-2.png` (served as `/images/logo-2.png`). */
+const EDUBLAST_WORDMARK_SRC = "/images/logo-2.png";
 
 /** Prep + Mock hub: highlight when user is on mock, revision, or class flows (Exam Prep removed from top nav). */
 function isPrepMockActive(pathname: string): boolean {
@@ -49,9 +49,8 @@ function isPrepMockActive(pathname: string): boolean {
   return false;
 }
 
-const baseNavItems = [
+const studentNavItems = [
   { path: "/home", icon: LayoutDashboard, label: "Dashboard", emoji: "📊" },
-  { path: "/teacher-portal", icon: GraduationCap, label: "Teacher Portal", emoji: "🧑‍🏫" },
   { path: "/magic-wall", icon: Sparkles, label: "Magic Wall", emoji: "✨" },
   { path: EXPLORE_APP_PATH, icon: Compass, label: "Lessons", emoji: "🧭" },
   { path: "/mock", icon: GraduationCap, label: "Prep + Mock", emoji: "🎓" },
@@ -59,6 +58,10 @@ const baseNavItems = [
   { path: "/refer-earn", icon: Gift, label: "Earn & Learn", emoji: "🎁" },
   { path: "/edufund", icon: Heart, label: "EduFund", emoji: "💛" },
   { path: "/profile", icon: User, label: "Profile", emoji: "👤" },
+];
+
+const teacherNavItems = [
+  { path: "/teacher-portal", icon: GraduationCap, label: "Teacher Portal", emoji: "🧑‍🏫" },
 ];
 
 const AppLayout = ({
@@ -73,13 +76,12 @@ const AppLayout = ({
   const user = useUserStore((s) => s.user);
   const rdm = profile?.rdm ?? user?.rdm ?? 0;
   const allResults = useUserStore((s) => s.allResults);
-  const navItems =
-    profile?.role === "teacher"
-      ? baseNavItems
-      : baseNavItems.filter((item) => item.path !== "/teacher-portal");
+  const isTeacher = profile?.role === "teacher";
+  const navItems = isTeacher ? teacherNavItems : studentNavItems;
 
-  const settingsHref = profile?.role === "teacher" ? "/profile" : "/settings";
-  const isSettingsPageActive = pathname === "/settings";
+  const settingsHref = isTeacher ? "/teacher-portal?section=profile" : "/settings";
+  const isSettingsPageActive =
+    pathname === "/settings" || (isTeacher && pathname === "/teacher-portal");
 
   return (
     <SitePresenceProvider userId={profile?.id ?? null}>
@@ -87,16 +89,19 @@ const AppLayout = ({
         {/* Top Navigation Bar */}
         {!hideTopNav && (
           <header className="sticky top-0 z-40 bg-card/80 backdrop-blur-xl border-b border-border/60">
-            <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-2 sm:py-2 lg:max-w-[min(100%,90rem)] lg:px-5 lg:py-2.5 xl:max-w-[min(100%,96rem)] 2xl:px-6">
-              {/* Logo — user-provided wordmark; height capped so bar stays compact */}
+            <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-0.5 lg:max-w-[min(100%,90rem)] lg:px-5 lg:py-1 xl:max-w-[min(100%,96rem)] 2xl:px-6">
+              {/* Logo — layout box stays compact; scale() enlarges artwork without growing nav flex height */}
               <Link
-                href="/home"
-                className="flex shrink-0 items-center hover:opacity-80 transition-opacity group"
+                href={isTeacher ? "/teacher-portal" : "/home"}
+                className="relative z-10 flex shrink-0 items-center hover:opacity-80 transition-opacity"
               >
                 <img
                   src={EDUBLAST_WORDMARK_SRC}
                   alt="EduBlast"
-                  className="h-9 w-auto sm:h-10 2xl:h-11"
+                  className={cn(
+                    "h-12 w-auto origin-left sm:h-[52px] 2xl:h-14",
+                    "scale-[1.09] sm:scale-[1.05] 2xl:scale-[1.05]"
+                  )}
                   draggable={false}
                 />
               </Link>
@@ -113,7 +118,7 @@ const AppLayout = ({
                     <Link
                       key={path}
                       href={path}
-                      className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold transition-all 2xl:gap-2 2xl:rounded-xl 2xl:px-4 2xl:py-2 2xl:text-sm ${
+                      className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-bold transition-all 2xl:gap-2 2xl:rounded-xl 2xl:px-4 2xl:py-1.5 2xl:text-sm ${
                         isActive
                           ? "bg-card text-primary shadow-sm"
                           : "text-muted-foreground hover:text-foreground"
@@ -141,7 +146,7 @@ const AppLayout = ({
                 {(user || profile) && (
                   <Link
                     href="/pricing"
-                    className="flex items-center gap-1.5 bg-edu-yellow/15 hover:bg-edu-yellow/25 px-2.5 py-1.5 rounded-full transition-colors 2xl:px-3.5 2xl:py-2"
+                    className="flex items-center gap-1.5 bg-edu-yellow/15 hover:bg-edu-yellow/25 px-2.5 py-1 rounded-full transition-colors 2xl:px-3.5 2xl:py-1.5"
                   >
                     <Coins className="w-4 h-4 text-edu-orange" suppressHydrationWarning />
                     <span className="font-extrabold text-sm text-foreground">{rdm}</span>
@@ -234,31 +239,33 @@ const AppLayout = ({
         <AgentOrchestratorRunner />
 
         {/* Footer */}
-        <footer className="border-t border-border/60 bg-card/40 py-3 lg:py-4 2xl:py-5">
-          <div className="max-w-7xl mx-auto px-4 lg:px-5 2xl:px-6 flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-3 text-xs text-muted-foreground">
-            <span className="font-bold">© 2026 EduBlast — Learn thru Questions 🎯</span>
-            <div className="flex gap-6">
-              <Link href="/pricing" className="hover:text-foreground transition-colors font-bold">
-                Pricing
-              </Link>
-              <Link href="/profile" className="hover:text-foreground transition-colors font-bold">
-                Profile
-              </Link>
-              <Link
-                href={EXPLORE_APP_PATH}
-                className="hover:text-foreground transition-colors font-bold"
-              >
-                Lessons
-              </Link>
-              <Link
-                href={`/contact?from=${encodeURIComponent(pathname || "/home")}`}
-                className="hover:text-foreground transition-colors font-bold"
-              >
-                Contact Us
-              </Link>
+        {!isTeacher ? (
+          <footer className="border-t border-border/60 bg-card/40 py-3 lg:py-4 2xl:py-5">
+            <div className="max-w-7xl mx-auto px-4 lg:px-5 2xl:px-6 flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-3 text-xs text-muted-foreground">
+              <span className="font-bold">© 2026 EduBlast — Learn thru Questions 🎯</span>
+              <div className="flex gap-6">
+                <Link href="/pricing" className="hover:text-foreground transition-colors font-bold">
+                  Pricing
+                </Link>
+                <Link href="/profile" className="hover:text-foreground transition-colors font-bold">
+                  Profile
+                </Link>
+                <Link
+                  href={EXPLORE_APP_PATH}
+                  className="hover:text-foreground transition-colors font-bold"
+                >
+                  Lessons
+                </Link>
+                <Link
+                  href={`/contact?from=${encodeURIComponent(pathname || "/home")}`}
+                  className="hover:text-foreground transition-colors font-bold"
+                >
+                  Contact Us
+                </Link>
+              </div>
             </div>
-          </div>
-        </footer>
+          </footer>
+        ) : null}
       </div>
     </SitePresenceProvider>
   );

@@ -461,10 +461,18 @@ export async function loadTeacherPortalBundle(
       .gte("paid_at", startOfWeekIso()),
   ]);
 
-  const profile = profileRes.data;
-  if (!profile) {
-    throw new Error("Teacher profile not found.");
-  }
+  const profile = profileRes.data ?? {
+    id: userId,
+    name: "Teacher",
+    avatar_url: null,
+    bio: null,
+    subjects: null,
+    exam_tags: null,
+    teaching_levels: null,
+    visibility: "public",
+    rdm: 0,
+    google_connected: false,
+  };
 
   type ClassroomRow = {
     id: string;
@@ -1556,7 +1564,7 @@ export async function loadTeacherPortalBundle(
     subjects: profile.subjects ?? [],
     examTags: profile.exam_tags ?? [],
     teachingLevels: profile.teaching_levels ?? [],
-    visibility: profile.visibility,
+    visibility: profile.visibility ?? "public",
     rdm: profile.rdm ?? 0,
     studentsHelped: summary.totalStudents,
     expertAnswers: summary.teacherSectionsWritten,

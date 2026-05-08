@@ -30,6 +30,7 @@ import {
   type RdmConfigParams,
 } from "@/lib/rdmConfig";
 import type { PlayDomain } from "@/types";
+import { EDUFUND_RDM_GATES } from "@/lib/dashboardSidebarMetrics";
 import {
   BarChart3,
   Check,
@@ -103,14 +104,17 @@ const REWARD_USE_BASE: ReadonlyArray<{
   },
 ];
 
-/** EduFund-style grant tiers (RDM thresholds); ₹ copy matches investor mock. */
-const GRANT_TIERS = [
-  { key: "sprout", name: "Sprout", threshold: 3000, grant: "₹3,000", icon: "🌱" },
-  { key: "scholar", name: "Scholar", threshold: 12000, grant: "₹15,000", icon: "📚" },
-  { key: "champion", name: "Champion", threshold: 25000, grant: "₹50,000", icon: "🏆" },
-  { key: "elite", name: "Elite", threshold: 50000, grant: "₹1,00,000", icon: "🚀" },
-  { key: "masterblaster", name: "MasterBlaster", threshold: 100000, grant: "₹2,00,000", icon: "👑" },
-] as const;
+const GRANT_TIER_KEYS = ["sprout", "scholar", "champion", "elite", "masterblaster"] as const;
+const GRANT_TIER_ICONS = ["🌱", "📚", "🏆", "🚀", "👑"] as const;
+
+/** EduFund grant tiers — thresholds and ₹ unlocked from `EDUFUND_RDM_GATES` only. */
+const GRANT_TIERS = EDUFUND_RDM_GATES.map((g, i) => ({
+  key: GRANT_TIER_KEYS[i]!,
+  name: g.name,
+  threshold: g.need,
+  grant: "₹" + g.unlockInrAmount.toLocaleString("en-IN"),
+  icon: GRANT_TIER_ICONS[i]!,
+}));
 
 function referMinPct(spec: ReferChallengePublicSpec): number {
   return Math.round((spec.minCorrect / spec.questionCount) * 100);
@@ -673,28 +677,23 @@ export default function ReferEarnPage() {
                     <span className="h-px flex-1 bg-white/10" />
                   </p>
                   <div className="space-y-2">
-                    {GRANT_TIERS.map((tier) => {
+                    {GRANT_TIERS.map((tier, tierIdx) => {
                       const pct = Math.min(100, Math.round((rdm / tier.threshold) * 100));
                       const more = Math.max(0, tier.threshold - rdm);
-                      let unlocked = false;
-                      let inProgress = false;
-                      if (tier.key === "sprout") {
-                        unlocked = rdm >= tier.threshold;
-                        inProgress = !unlocked;
-                      } else if (tier.key === "scholar") {
-                        unlocked = rdm >= tier.threshold;
-                        inProgress = !unlocked && rdm >= 1000;
-                      } else {
-                        unlocked = rdm >= tier.threshold;
-                        inProgress = !unlocked && rdm >= 3000;
-                      }
+                      const prevThreshold = tierIdx === 0 ? 0 : GRANT_TIERS[tierIdx - 1].threshold;
+                      const unlocked = rdm >= tier.threshold;
+                      const inProgress = !unlocked && rdm >= prevThreshold;
                       const badge = unlocked ? "Unlocked" : inProgress ? "In progress" : "Locked";
                       const fill =
                         tier.key === "sprout"
                           ? "bg-teal-500"
                           : tier.key === "scholar"
                             ? "bg-[var(--re-purple)]"
-                            : "bg-[var(--re-amber)]";
+                            : tier.key === "champion"
+                              ? "bg-[var(--re-amber)]"
+                              : tier.key === "elite"
+                                ? "bg-sky-500"
+                                : "bg-orange-500";
                       return (
                         <div
                           key={tier.key}

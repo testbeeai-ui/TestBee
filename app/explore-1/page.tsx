@@ -1851,7 +1851,7 @@ const Explore = () => {
     topicTaxonomy.length > 0;
 
   return (
-    <ProtectedRoute>
+    <ProtectedRoute allowRoles={["student"]}>
       <AppLayout>
         <AnimatePresence initial={false}>
           {showExploreResumeSkeleton && (

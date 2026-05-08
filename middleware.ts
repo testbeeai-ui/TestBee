@@ -3,6 +3,24 @@ import type { NextRequest } from "next/server";
 import { isPublicPath } from "@/lib/auth/publicPaths";
 import { createSupabaseMiddleware } from "@/lib/supabase/middleware";
 
+const STUDENT_ONLY_PREFIXES = [
+  "/home",
+  "/play",
+  "/mock",
+  "/revision",
+  "/explore-1",
+  "/explore",
+  "/magic-wall",
+  "/doubts",
+  "/exam-prep",
+] as const;
+
+function isStudentOnlyPath(pathname: string): boolean {
+  return STUDENT_ONLY_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+  );
+}
+
 /**
  * PKCE (Google OAuth) stores a code verifier in the browser per-origin.
  * localhost:3000 and 127.0.0.1:3000 are different origins — mixing them causes
@@ -41,6 +59,21 @@ export async function middleware(request: NextRequest) {
     url.pathname = "/";
     url.searchParams.set("next", `${pathname}${request.nextUrl.search}`);
     return NextResponse.redirect(url);
+  }
+
+  const needsStudentRole = isStudentOnlyPath(pathname);
+  if (needsStudentRole) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (profile?.role === "teacher") {
+      const url = request.nextUrl.clone();
+      url.pathname = "/teacher-portal";
+      url.search = "";
+      return NextResponse.redirect(url);
+    }
   }
 
   return getResponse();

@@ -2,26 +2,23 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 import AppLayout from "@/components/AppLayout";
-import { useAuth } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import StudentProfilePersonalHub from "@/components/profile/StudentProfilePersonalHub";
+import { useAuth } from "@/hooks/useAuth";
+import StudentSettingsHub from "@/components/profile/StudentSettingsHub";
 
-export default function Profile() {
+export default function SettingsPage() {
   const router = useRouter();
-  const { user: authUser, profile, loading: authLoading, refreshProfile } = useAuth();
+  const { user: authUser, profile, loading: authLoading } = useAuth();
 
   useEffect(() => {
     if (authLoading) return;
     if (!authUser) return;
-    void refreshProfile();
-  }, [authLoading, authUser, refreshProfile]);
-
-  useEffect(() => {
-    if (authLoading) return;
-    if (profile?.role !== "teacher") return;
-    router.replace("/teacher-portal?section=profile");
-  }, [authLoading, profile?.role, router]);
+    if (profile?.role === "teacher") {
+      router.replace("/profile");
+    }
+  }, [authLoading, authUser, profile?.role, router]);
 
   if (authLoading || (authUser && !profile)) {
     return (
@@ -43,7 +40,7 @@ export default function Profile() {
     );
   }
 
-  if (!profile || !authUser) {
+  if (!profile) {
     return (
       <ProtectedRoute>
         <div className="min-h-screen flex items-center justify-center">
@@ -55,13 +52,18 @@ export default function Profile() {
 
   return (
     <ProtectedRoute>
-      <AppLayout wideMain>
-        <div className="mx-auto w-full min-w-0 max-w-[1920px]">
-          <StudentProfilePersonalHub
-            profile={profile}
-            authUser={authUser}
-            onProfileUpdated={refreshProfile}
-          />
+      <AppLayout>
+        <div className="mx-auto w-full max-w-6xl px-0">
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="rounded-2xl border border-border bg-card/50 p-4 dark:border-white/10 dark:bg-[#070b14]/80 md:p-5 2xl:rounded-3xl 2xl:p-7"
+          >
+            <p className="mb-3 text-xs font-bold uppercase tracking-wider text-muted-foreground dark:text-slate-500 2xl:mb-4">
+              Account
+            </p>
+            <StudentSettingsHub />
+          </motion.div>
         </div>
       </AppLayout>
     </ProtectedRoute>

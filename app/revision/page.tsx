@@ -311,7 +311,7 @@ const RevisionContent = () => {
             : "Saved Questions";
 
   return (
-    <ProtectedRoute>
+    <ProtectedRoute allowRoles={["student"]}>
       <AppLayout>
         <div className="max-w-4xl mx-auto px-4 pt-1 pb-8">
           <div className="mb-6 space-y-4">

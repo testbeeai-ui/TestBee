@@ -5,9 +5,11 @@ import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { withNextQuery } from "@/lib/auth/safeNextPath";
+import { cn } from "@/lib/utils";
 import { NAV_LINKS } from "./landing-constants";
 
-const EDUBLAST_WORDMARK_SRC = "/images/edublast-wordmark-nobg.png";
+/** Landing nav — same resized logo as main app (`public/images/logo-2.png`). */
+const EDUBLAST_WORDMARK_SRC = "/images/logo-2.png";
 
 type NavItem = { label: string; href: string };
 
@@ -41,7 +43,7 @@ export default function LandingNavbar({
           !isDark ? "justify-between" : ""
         }`}
       >
-        {/* Logo — same asset as main app nav */}
+        {/* Logo — logo-2.png (resized), matches AppLayout */}
         <Link
           href="/"
           className="relative z-10 flex shrink-0 items-center hover:opacity-90 transition-opacity"
@@ -49,7 +51,7 @@ export default function LandingNavbar({
           <img
             src={EDUBLAST_WORDMARK_SRC}
             alt="EduBlast"
-            className="h-9 w-auto sm:h-10"
+            className={cn("h-12 w-auto origin-left sm:h-[52px]", "scale-[1.05] sm:scale-[1.05]")}
             draggable={false}
           />
         </Link>
@@ -65,9 +67,7 @@ export default function LandingNavbar({
           {links.map((l) => (
             <a
               key={l.label}
-              href={
-                l.href.startsWith("/auth") ? withNextQuery(l.href, sharedNext) : l.href
-              }
+              href={l.href.startsWith("/auth") ? withNextQuery(l.href, sharedNext) : l.href}
               className={
                 isDark
                   ? "pointer-events-auto shrink-0 text-[11px] font-medium tracking-wide text-zinc-400 transition-colors hover:text-white md:text-[12px] xl:text-[13px]"
@@ -90,7 +90,9 @@ export default function LandingNavbar({
           {authLoading ? (
             <span
               className={
-                isDark ? "h-9 w-24 rounded-full bg-white/10 animate-pulse" : "h-9 w-24 rounded-lg bg-gray-200 animate-pulse"
+                isDark
+                  ? "h-9 w-24 rounded-full bg-white/10 animate-pulse"
+                  : "h-9 w-24 rounded-lg bg-gray-200 animate-pulse"
               }
               aria-hidden
             />
@@ -157,9 +159,7 @@ export default function LandingNavbar({
           {links.map((l) => (
             <a
               key={l.label}
-              href={
-                l.href.startsWith("/auth") ? withNextQuery(l.href, sharedNext) : l.href
-              }
+              href={l.href.startsWith("/auth") ? withNextQuery(l.href, sharedNext) : l.href}
               className={
                 isDark
                   ? "block text-[15px] text-zinc-300 py-1"

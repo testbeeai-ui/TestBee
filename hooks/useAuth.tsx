@@ -26,11 +26,23 @@ import { safeGetSession } from "@/lib/safeSession";
 import { profileShouldForceOnboardingComplete } from "@/lib/profileOnboardingRepair";
 import { readPendingDeepLink } from "@/lib/auth/safeNextPath";
 
-interface Profile {
+export interface Profile {
   id: string;
   /** Profile row creation time from Supabase (ISO). */
   created_at?: string | null;
   name: string;
+  first_name?: string | null;
+  last_name?: string | null;
+  state?: string | null;
+  city?: string | null;
+  /** 10-digit national number without +91. */
+  phone?: string | null;
+  gender?: string | null;
+  category?: string | null;
+  date_of_birth?: string | null;
+  institution_name?: string | null;
+  board?: string | null;
+  current_class_label?: string | null;
   role: "student" | "teacher" | "admin";
   class_level: number | null;
   target_exam?: string | null;
@@ -60,6 +72,8 @@ interface Profile {
   subtopic_engagement?: Json | null;
   /** Dashboard daily checklist acks / Gyan++ focus ms by local date key. */
   daily_checklist_state?: Json | null;
+  /** Optional Class X subject marks + coaching (JSON on profiles row). */
+  academic_record_extras?: Json | null;
 }
 
 interface AuthContextType {

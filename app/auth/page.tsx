@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect, Suspense, type FormEvent } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { DM_Sans } from "next/font/google";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   getSafeInternalNextPath,
@@ -14,10 +14,6 @@ import {
   readPendingDeepLink,
   clearPendingDeepLink,
 } from "@/lib/auth/safeNextPath";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
-import { useToast } from "@/hooks/use-toast";
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
@@ -58,18 +54,7 @@ export default function Auth() {
 }
 
 function AuthContent() {
-  const {
-    user,
-    profile,
-    loading,
-    signInWithGoogle,
-    signOut,
-    signUpWithEmail,
-    verifySignUpEmailOtp,
-    resendSignUpEmailOtp,
-    signInWithEmail,
-  } = useAuth();
-  const { toast } = useToast();
+  const { user, profile, loading, signInWithGoogle, signOut } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const roleParam = searchParams.get("role");
@@ -85,21 +70,6 @@ function AuthContent() {
   const [activePanel, setActivePanel] = useState<"signin" | "signup">(() =>
     modeParam === "signup" ? "signup" : "signin"
   );
-
-  const [emailSignupFlow, setEmailSignupFlow] = useState<"idle" | "form" | "otp">("idle");
-  const [suName, setSuName] = useState("");
-  const [suEmail, setSuEmail] = useState("");
-  const [suPassword, setSuPassword] = useState("");
-  const [otpValue, setOtpValue] = useState("");
-  const [otpEmail, setOtpEmail] = useState("");
-  const [signupSubmitting, setSignupSubmitting] = useState(false);
-  const [otpBusy, setOtpBusy] = useState(false);
-  const [resendCooldown, setResendCooldown] = useState(0);
-
-  const [signInEmailOpen, setSignInEmailOpen] = useState(false);
-  const [siEmail, setSiEmail] = useState("");
-  const [siPassword, setSiPassword] = useState("");
-  const [signInSubmitting, setSignInSubmitting] = useState(false);
 
   useEffect(() => {
     if (roleParam) {
@@ -126,21 +96,6 @@ function AuthContent() {
   useEffect(() => {
     if (safeNext) persistPendingDeepLink(safeNext);
   }, [safeNext]);
-
-  useEffect(() => {
-    setEmailSignupFlow("idle");
-    setOtpValue("");
-    setSuPassword("");
-    setSuName("");
-    setSuEmail("");
-    setOtpEmail("");
-  }, [activePanel]);
-
-  useEffect(() => {
-    if (resendCooldown <= 0) return;
-    const t = window.setInterval(() => setResendCooldown((s) => Math.max(0, s - 1)), 1000);
-    return () => window.clearInterval(t);
-  }, [resendCooldown]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -197,91 +152,6 @@ function AuthContent() {
     const path =
       effectiveSignupRole === "teacher" ? "/onboarding?role=teacher" : "/onboarding?role=student";
     await signInWithGoogle(path);
-  };
-
-  const submitEmailSignup = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!suEmail.trim() || !suPassword || !suName.trim()) {
-      toast({ title: "Fill all fields", variant: "destructive" });
-      return;
-    }
-    try {
-      sessionStorage.setItem("auth_mode", "signup");
-      sessionStorage.setItem("auth_intended_role", effectiveSignupRole);
-    } catch {
-      /* ignore */
-    }
-    setSignupSubmitting(true);
-    const { error, needsEmailConfirmation } = await signUpWithEmail(
-      suEmail.trim(),
-      suPassword,
-      suName.trim()
-    );
-    setSignupSubmitting(false);
-    if (error) {
-      toast({ title: "Sign up failed", description: error.message, variant: "destructive" });
-      return;
-    }
-    if (needsEmailConfirmation) {
-      setSuPassword("");
-      setOtpEmail(suEmail.trim());
-      setEmailSignupFlow("otp");
-      setOtpValue("");
-      toast({ title: "Check your email", description: "Enter the verification code we sent." });
-      setResendCooldown(45);
-      return;
-    }
-    toast({ title: "Welcome!", description: "Your account is ready." });
-  };
-
-  const submitEmailSignIn = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!siEmail.trim() || !siPassword) {
-      toast({ title: "Enter email and password", variant: "destructive" });
-      return;
-    }
-    try {
-      sessionStorage.setItem("auth_mode", "signin");
-    } catch {
-      /* ignore */
-    }
-    setSignInSubmitting(true);
-    const { error } = await signInWithEmail(siEmail.trim(), siPassword);
-    setSignInSubmitting(false);
-    if (error) {
-      toast({ title: "Sign in failed", description: error.message, variant: "destructive" });
-      return;
-    }
-  };
-
-  const submitSignupOtp = async (e: FormEvent) => {
-    e.preventDefault();
-    const digits = otpValue.replace(/\s/g, "");
-    if (digits.length !== 6) {
-      toast({ title: "Enter the 6-digit code", variant: "destructive" });
-      return;
-    }
-    setOtpBusy(true);
-    const { error } = await verifySignUpEmailOtp(otpEmail, digits);
-    setOtpBusy(false);
-    if (error) {
-      toast({ title: "Could not verify", description: error.message, variant: "destructive" });
-      return;
-    }
-    toast({ title: "Email verified" });
-    setEmailSignupFlow("idle");
-    setOtpValue("");
-  };
-
-  const resendSignupOtp = async () => {
-    if (resendCooldown > 0) return;
-    const { error } = await resendSignUpEmailOtp(otpEmail);
-    if (error) {
-      toast({ title: "Could not resend", description: error.message, variant: "destructive" });
-      return;
-    }
-    toast({ title: "New code sent" });
-    setResendCooldown(45);
   };
 
   if (user && profile !== null && !profile.onboarding_complete) {
@@ -357,13 +227,13 @@ function AuthContent() {
             animate={{ opacity: 1, y: 0 }}
             className="flex w-full min-h-[min(52vh,26rem)] flex-col justify-center rounded-3xl border border-white/10 bg-[#161b27] px-7 py-10 shadow-xl sm:min-h-[min(50vh,28rem)] sm:px-10 sm:py-12 md:min-h-[min(48vh,30rem)] md:px-12 md:py-14"
           >
-            <div className="mb-8 flex items-center justify-center gap-3 sm:mb-10 sm:gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#e0496a] to-[#7c3aed] text-2xl leading-none sm:h-14 sm:w-14 sm:text-[1.65rem]">
-                🎯
-              </div>
-              <span className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">
-                EduBlast
-              </span>
+            <div className="mb-10 flex items-center justify-center sm:mb-12">
+              <img
+                src="/images/logo-2.png"
+                alt="EduBlast"
+                className="h-14 w-[220px] object-contain sm:h-16 sm:w-[280px] md:h-20 md:w-[340px]"
+                draggable={false}
+              />
             </div>
 
             {activePanel === "signin" ? (
@@ -390,71 +260,6 @@ function AuthContent() {
                   Continue with Google
                 </button>
 
-                <div className="my-6 flex items-center gap-3 text-sm text-white/25 sm:my-8">
-                  <span className="h-px flex-1 bg-white/10" aria-hidden />
-                  <span>or email</span>
-                  <span className="h-px flex-1 bg-white/10" aria-hidden />
-                </div>
-
-                {!signInEmailOpen ? (
-                  <button
-                    type="button"
-                    onClick={() => setSignInEmailOpen(true)}
-                    className="flex h-11 w-full items-center justify-center rounded-xl border border-white/12 bg-transparent text-sm font-medium text-white/70 transition-colors hover:border-violet-500/40 hover:bg-white/[0.04] hover:text-white sm:h-12 sm:text-base"
-                  >
-                    Sign in with email & password
-                  </button>
-                ) : (
-                  <form onSubmit={(e) => void submitEmailSignIn(e)} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="si-email" className="text-white/70">
-                        Email
-                      </Label>
-                      <Input
-                        id="si-email"
-                        type="email"
-                        autoComplete="email"
-                        value={siEmail}
-                        onChange={(e) => setSiEmail(e.target.value)}
-                        className="h-11 border-white/15 bg-white/[0.06] text-white placeholder:text-white/35"
-                        placeholder="you@school.edu"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="si-password" className="text-white/70">
-                        Password
-                      </Label>
-                      <Input
-                        id="si-password"
-                        type="password"
-                        autoComplete="current-password"
-                        value={siPassword}
-                        onChange={(e) => setSiPassword(e.target.value)}
-                        className="h-11 border-white/15 bg-white/[0.06] text-white placeholder:text-white/35"
-                      />
-                    </div>
-                    <button
-                      type="submit"
-                      disabled={signInSubmitting}
-                      className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-violet-600 text-sm font-semibold text-white transition-opacity hover:bg-violet-500 disabled:opacity-60 sm:h-12 sm:text-base"
-                    >
-                      {signInSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                      Sign in
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSignInEmailOpen(false);
-                        setSiEmail("");
-                        setSiPassword("");
-                      }}
-                      className="w-full text-center text-sm text-white/45 hover:text-white/75"
-                    >
-                      Cancel
-                    </button>
-                  </form>
-                )}
-
                 <div className="my-8 flex items-center gap-3 text-sm text-white/25 sm:my-10 sm:text-base">
                   <span className="h-px flex-1 bg-white/10" aria-hidden />
                   <span>new here?</span>
@@ -479,215 +284,71 @@ function AuthContent() {
               </div>
             ) : (
               <div className="flex flex-1 flex-col justify-center">
-                {emailSignupFlow === "otp" ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEmailSignupFlow("form");
-                        setOtpValue("");
-                      }}
-                      className="mb-6 flex items-center gap-2 bg-transparent p-0 text-sm text-white/45 transition-colors hover:text-white/85 sm:mb-8 sm:text-base"
-                    >
-                      ← Edit email & details
-                    </button>
-                    <p className="text-xl font-semibold text-white sm:text-2xl">Verify your email</p>
-                    <p className="mb-6 mt-2 text-sm leading-relaxed text-white/[0.38] sm:mb-8 sm:text-base">
-                      Enter the 6-digit code we sent to{" "}
-                      <span className="font-medium text-white/90">{otpEmail}</span>. Check spam if you
-                      don&apos;t see it.
-                    </p>
-                    <form onSubmit={(e) => void submitSignupOtp(e)} className="space-y-6">
-                      <div className="flex justify-center">
-                        <InputOTP
-                          maxLength={6}
-                          value={otpValue}
-                          onChange={setOtpValue}
-                          containerClassName="gap-2 sm:gap-2.5"
-                          pattern="^[0-9]*$"
-                          inputMode="numeric"
-                          autoComplete="one-time-code"
-                        >
-                          <InputOTPGroup>
-                            {([0, 1, 2, 3, 4, 5] as const).map((i) => (
-                              <InputOTPSlot
-                                key={i}
-                                index={i}
-                                className="h-11 w-10 border-white/15 bg-white/[0.06] text-lg text-white sm:h-12 sm:w-11"
-                              />
-                            ))}
-                          </InputOTPGroup>
-                        </InputOTP>
-                      </div>
-                      <button
-                        type="submit"
-                        disabled={otpBusy || otpValue.replace(/\s/g, "").length !== 6}
-                        className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 text-base font-semibold text-black transition-opacity hover:bg-emerald-400 disabled:opacity-50 sm:h-14"
-                      >
-                        {otpBusy ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
-                        Verify & continue
-                      </button>
-                      <div className="flex flex-col items-center gap-2 text-center">
-                        <button
-                          type="button"
-                          onClick={() => void resendSignupOtp()}
-                          disabled={resendCooldown > 0}
-                          className="text-sm font-medium text-violet-400 hover:text-violet-300 disabled:text-white/25"
-                        >
-                          {resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : "Resend code"}
-                        </button>
-                      </div>
-                    </form>
-                  </>
-                ) : (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setActivePanel("signin");
-                        const p = new URLSearchParams(searchParams.toString());
-                        p.set("mode", "signin");
-                        router.replace(`/auth?${p.toString()}`, { scroll: false });
-                      }}
-                      className="mb-6 flex items-center gap-2 bg-transparent p-0 text-sm text-white/45 transition-colors hover:text-white/85 sm:mb-8 sm:text-base"
-                    >
-                      ← Back to sign in
-                    </button>
-                    <p className="text-xl font-semibold text-white sm:text-2xl">Create your account</p>
-                    <p className="mb-6 mt-2 text-sm leading-relaxed text-white/[0.38] sm:mb-8 sm:text-base">
-                      Pick your role — then continue with Google or email (we&apos;ll send a verification
-                      code).
-                    </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActivePanel("signin");
+                    const p = new URLSearchParams(searchParams.toString());
+                    p.set("mode", "signin");
+                    router.replace(`/auth?${p.toString()}`, { scroll: false });
+                  }}
+                  className="mb-6 flex items-center gap-2 bg-transparent p-0 text-sm text-white/45 transition-colors hover:text-white/85 sm:mb-8 sm:text-base"
+                >
+                  ← Back to sign in
+                </button>
+                <p className="text-xl font-semibold text-white sm:text-2xl">Create your account</p>
+                <p className="mb-6 mt-2 text-sm leading-relaxed text-white/[0.38] sm:mb-8 sm:text-base">
+                  Pick your role — then continue with Google. We&apos;ll set up your profile on the next
+                  step.
+                </p>
 
-                    <div className="mb-8 grid grid-cols-2 gap-3 sm:mb-10 sm:gap-4">
-                      <button
-                        type="button"
-                        onClick={() => setSignupRolePick("student")}
-                        className={`flex flex-col items-center gap-2 rounded-xl border px-3 py-5 transition-colors hover:bg-white/[0.03] sm:gap-2.5 sm:px-4 sm:py-6 ${
-                          effectiveSignupRole === "student"
-                            ? "border-[#7c3aed] bg-violet-600/10"
-                            : "border-white/10 bg-transparent"
-                        }`}
-                      >
-                        <span className="text-2xl leading-none sm:text-3xl" aria-hidden>
-                          🎓
-                        </span>
-                        <span className="text-base font-medium text-white sm:text-lg">Student</span>
-                        <span className="text-center text-xs leading-snug text-white/35 sm:text-sm">
-                          Learn & take quizzes
-                        </span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setSignupRolePick("teacher")}
-                        className={`flex flex-col items-center gap-2 rounded-xl border px-3 py-5 transition-colors hover:bg-white/[0.03] sm:gap-2.5 sm:px-4 sm:py-6 ${
-                          effectiveSignupRole === "teacher"
-                            ? "border-[#7c3aed] bg-violet-600/10"
-                            : "border-white/10 bg-transparent"
-                        }`}
-                      >
-                        <span className="text-2xl leading-none sm:text-3xl" aria-hidden>
-                          📚
-                        </span>
-                        <span className="text-base font-medium text-white sm:text-lg">Teacher</span>
-                        <span className="text-center text-xs leading-snug text-white/35 sm:text-sm">
-                          Create & manage classes
-                        </span>
-                      </button>
-                    </div>
+                <div className="mb-8 grid grid-cols-2 gap-3 sm:mb-10 sm:gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setSignupRolePick("student")}
+                    className={`flex flex-col items-center gap-2 rounded-xl border px-3 py-5 transition-colors hover:bg-white/[0.03] sm:gap-2.5 sm:px-4 sm:py-6 ${
+                      effectiveSignupRole === "student"
+                        ? "border-[#7c3aed] bg-violet-600/10"
+                        : "border-white/10 bg-transparent"
+                    }`}
+                  >
+                    <span className="text-2xl leading-none sm:text-3xl" aria-hidden>
+                      🎓
+                    </span>
+                    <span className="text-base font-medium text-white sm:text-lg">Student</span>
+                    <span className="text-center text-xs leading-snug text-white/35 sm:text-sm">
+                      Learn & take quizzes
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSignupRolePick("teacher")}
+                    className={`flex flex-col items-center gap-2 rounded-xl border px-3 py-5 transition-colors hover:bg-white/[0.03] sm:gap-2.5 sm:px-4 sm:py-6 ${
+                      effectiveSignupRole === "teacher"
+                        ? "border-[#7c3aed] bg-violet-600/10"
+                        : "border-white/10 bg-transparent"
+                    }`}
+                  >
+                    <span className="text-2xl leading-none sm:text-3xl" aria-hidden>
+                      📚
+                    </span>
+                    <span className="text-base font-medium text-white sm:text-lg">Teacher</span>
+                    <span className="text-center text-xs leading-snug text-white/35 sm:text-sm">
+                      Create & manage classes
+                    </span>
+                  </button>
+                </div>
 
-                    <button
-                      type="button"
-                      onClick={() => void startGoogleSignUp()}
-                      className="flex h-12 w-full items-center justify-center gap-2.5 rounded-xl border-0 bg-gradient-to-br from-[#7c3aed] to-[#e0496a] px-3 text-base font-medium text-white transition-opacity hover:opacity-[0.88] sm:h-14 sm:gap-3 sm:text-lg"
-                    >
-                      <GoogleGlyph cta className="h-5 w-5 shrink-0 sm:h-6 sm:w-6" />
-                      <span className="text-center leading-tight">
-                        Sign up as {signupRoleLabel} with Google
-                      </span>
-                    </button>
-
-                    <div className="my-6 flex items-center gap-3 text-sm text-white/25 sm:my-8">
-                      <span className="h-px flex-1 bg-white/10" aria-hidden />
-                      <span>or email</span>
-                      <span className="h-px flex-1 bg-white/10" aria-hidden />
-                    </div>
-
-                    {emailSignupFlow === "idle" ? (
-                      <button
-                        type="button"
-                        onClick={() => setEmailSignupFlow("form")}
-                        className="flex h-11 w-full items-center justify-center rounded-xl border border-white/12 bg-transparent text-sm font-medium text-white/70 transition-colors hover:border-violet-500/40 hover:bg-white/[0.04] hover:text-white sm:h-12 sm:text-base"
-                      >
-                        Sign up with email
-                      </button>
-                    ) : (
-                      <form onSubmit={(e) => void submitEmailSignup(e)} className="space-y-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="su-name" className="text-white/70">
-                            Full name
-                          </Label>
-                          <Input
-                            id="su-name"
-                            autoComplete="name"
-                            value={suName}
-                            onChange={(e) => setSuName(e.target.value)}
-                            className="h-11 border-white/15 bg-white/[0.06] text-white placeholder:text-white/35"
-                            placeholder="Your name"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="su-email" className="text-white/70">
-                            Email
-                          </Label>
-                          <Input
-                            id="su-email"
-                            type="email"
-                            autoComplete="email"
-                            value={suEmail}
-                            onChange={(e) => setSuEmail(e.target.value)}
-                            className="h-11 border-white/15 bg-white/[0.06] text-white placeholder:text-white/35"
-                            placeholder="you@school.edu"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="su-password" className="text-white/70">
-                            Password
-                          </Label>
-                          <Input
-                            id="su-password"
-                            type="password"
-                            autoComplete="new-password"
-                            value={suPassword}
-                            onChange={(e) => setSuPassword(e.target.value)}
-                            className="h-11 border-white/15 bg-white/[0.06] text-white placeholder:text-white/35"
-                            placeholder="At least 6 characters"
-                          />
-                        </div>
-                        <button
-                          type="submit"
-                          disabled={signupSubmitting}
-                          className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-violet-600 text-sm font-semibold text-white hover:bg-violet-500 disabled:opacity-60 sm:h-12 sm:text-base"
-                        >
-                          {signupSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                          Send verification code
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEmailSignupFlow("idle");
-                            setSuName("");
-                            setSuEmail("");
-                            setSuPassword("");
-                          }}
-                          className="w-full text-center text-sm text-white/45 hover:text-white/75"
-                        >
-                          Cancel
-                        </button>
-                      </form>
-                    )}
-                  </>
-                )}
+                <button
+                  type="button"
+                  onClick={() => void startGoogleSignUp()}
+                  className="flex h-12 w-full items-center justify-center gap-2.5 rounded-xl border-0 bg-gradient-to-br from-[#7c3aed] to-[#e0496a] px-3 text-base font-medium text-white transition-opacity hover:opacity-[0.88] sm:h-14 sm:gap-3 sm:text-lg"
+                >
+                  <GoogleGlyph cta className="h-5 w-5 shrink-0 sm:h-6 sm:w-6" />
+                  <span className="text-center leading-tight">
+                    Sign up as {signupRoleLabel} with Google
+                  </span>
+                </button>
               </div>
             )}
           </motion.div>

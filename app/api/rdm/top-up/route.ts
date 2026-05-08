@@ -4,6 +4,7 @@ import {
   enforceSameOriginForCookieAuth,
   isDangerousRouteEnabled,
   requireAdminUser,
+  requireAuthenticatedUser,
 } from "@/lib/securityGuards";
 
 export async function POST(request: Request) {
@@ -13,7 +14,10 @@ export async function POST(request: Request) {
     }
     const csrf = enforceSameOriginForCookieAuth(request);
     if (csrf) return csrf;
-    const auth = await requireAdminUser(request);
+    // In dev/staging we allow the signed-in user to top up themselves so UI can be tested end-to-end.
+    // In production, keep admin-only behavior for safety.
+    const isProd = process.env.NODE_ENV === "production";
+    const auth = isProd ? await requireAdminUser(request) : await requireAuthenticatedUser(request);
     if ("response" in auth) return auth.response;
 
     const body = await request.json();
@@ -22,7 +26,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Valid amount required" }, { status: 400 });
     }
     const targetUserId =
-      typeof body?.userId === "string" && body.userId.trim() ? body.userId.trim() : auth.user.id;
+      isProd && typeof body?.userId === "string" && body.userId.trim() ? body.userId.trim() : auth.user.id;
 
     const admin = createAdminClient();
     if (!admin) {

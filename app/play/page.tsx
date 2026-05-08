@@ -902,7 +902,7 @@ function PlayPageContent() {
   });
 
   return (
-    <ProtectedRoute>
+    <ProtectedRoute allowRoles={["student"]}>
       <AppLayout streakTimer={streakTimer}>
         <div className="max-w-5xl mx-auto px-3 py-3 sm:px-4 sm:py-4 2xl:py-6">
           <motion.div
@@ -1968,7 +1968,7 @@ export default function PlayPage() {
   return (
     <Suspense
       fallback={
-        <ProtectedRoute>
+        <ProtectedRoute allowRoles={["student"]}>
           <AppLayout>
             <div className="flex min-h-[50vh] items-center justify-center">
               <Loader2 className="h-10 w-10 animate-spin text-violet-500" aria-hidden />

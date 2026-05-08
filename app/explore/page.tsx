@@ -542,7 +542,7 @@ const Explore = () => {
   const subjectMeta = subjects.find((s) => s.value === selectedSubject);
 
   return (
-    <ProtectedRoute>
+    <ProtectedRoute allowRoles={["student"]}>
       <AppLayout>
         <AnimatePresence mode="wait">
           {view === "hub" && (

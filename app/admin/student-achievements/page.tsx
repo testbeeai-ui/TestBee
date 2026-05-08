@@ -45,6 +45,65 @@ type AcademicAdminRow = {
 };
 
 type Section = "achievements" | "academics";
+type AcademicClassXDetails = {
+  user_id: string;
+  student_name: string | null;
+  classX: {
+    board: string | null;
+    year: string | null;
+    score: string | null;
+    verified: string | null;
+  } | null;
+  classXSubjects: {
+    physicsScience?: string;
+    mathematics?: string;
+    chemistry?: string;
+    english?: string;
+    socialScience?: string;
+    secondLanguage?: string;
+  } | null;
+  classXI: {
+    board: string | null;
+    year: string | null;
+    score: string | null;
+    verified: string | null;
+  } | null;
+  classXISubjects: {
+    physicsScience?: string;
+    mathematics?: string;
+    chemistry?: string;
+    english?: string;
+    socialScience?: string;
+    secondLanguage?: string;
+  } | null;
+  classXII: {
+    board: string | null;
+    year: string | null;
+    score: string | null;
+    verified: string | null;
+  } | null;
+  classXIISubjects: {
+    physicsScience?: string;
+    mathematics?: string;
+    chemistry?: string;
+    english?: string;
+    socialScience?: string;
+    secondLanguage?: string;
+  } | null;
+  coaching: {
+    instituteName?: string;
+    attendingSince?: string;
+  } | null;
+  coachingXI: {
+    instituteName?: string;
+    attendingSince?: string;
+  } | null;
+  coachingXII: {
+    instituteName?: string;
+    attendingSince?: string;
+  } | null;
+  puc2InternalsPercent?: string;
+};
 
 export default function AdminStudentAchievementsPage() {
   const [section, setSection] = useState<Section>("achievements");
@@ -54,6 +113,9 @@ export default function AdminStudentAchievementsPage() {
   const [academicRows, setAcademicRows] = useState<AcademicAdminRow[]>([]);
   const [filter, setFilter] = useState<"pending" | "all">("pending");
   const [actingId, setActingId] = useState<string | null>(null);
+  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
+  const [studentDetails, setStudentDetails] = useState<AcademicClassXDetails | null>(null);
+  const [detailsLoading, setDetailsLoading] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -171,6 +233,35 @@ export default function AdminStudentAchievementsPage() {
   };
 
   const rows = section === "achievements" ? achievementRows : academicRows;
+  const subjectFields = [
+    ["physicsScience", "Physics / Science"],
+    ["mathematics", "Mathematics"],
+    ["chemistry", "Chemistry"],
+    ["english", "English"],
+    ["socialScience", "Social Science"],
+    ["secondLanguage", "Second language"],
+  ] as const;
+
+  const openStudentDetails = useCallback(async (userId: string) => {
+    setSelectedStudentId(userId);
+    setStudentDetails(null);
+    setDetailsLoading(true);
+    setErrorMsg("");
+    try {
+      const res = await fetch(`/api/admin/student-academics/user/${userId}`, {
+        credentials: "include",
+        cache: "no-store",
+        headers: await getAdminAuthHeaders(false),
+      });
+      const body = (await res.json()) as AcademicClassXDetails & { error?: string };
+      if (!res.ok) throw new Error(body?.error || `Failed to load (${res.status})`);
+      setStudentDetails(body);
+    } catch (e) {
+      setErrorMsg(e instanceof Error ? e.message : "Failed to load student details");
+    } finally {
+      setDetailsLoading(false);
+    }
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -409,6 +500,92 @@ export default function AdminStudentAchievementsPage() {
           </div>
         )}
       </div>
+
+      {section === "academics" && selectedStudentId ? (
+        <div className="rounded-2xl border bg-card p-4">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h3 className="text-sm font-bold">Selected student details</h3>
+            <Button type="button" variant="outline" size="sm" onClick={() => setSelectedStudentId(null)}>
+              Close
+            </Button>
+          </div>
+          {detailsLoading ? (
+            <p className="text-sm text-muted-foreground">Loading details…</p>
+          ) : !studentDetails ? (
+            <p className="text-sm text-muted-foreground">No details available.</p>
+          ) : (
+            <div className="space-y-4 text-sm">
+              <div className="rounded-xl border p-3">
+                <p className="font-semibold">{studentDetails.student_name ?? "Student"}</p>
+                <p className="text-xs text-muted-foreground">Academic snapshots (Class X / XI / XII)</p>
+              </div>
+
+              {(
+                [
+                  {
+                    label: "Class X",
+                    row: studentDetails.classX,
+                    subjects: studentDetails.classXSubjects,
+                    coaching: studentDetails.coaching,
+                  },
+                  {
+                    label: "Class XI",
+                    row: studentDetails.classXI,
+                    subjects: studentDetails.classXISubjects,
+                    coaching: studentDetails.coachingXI,
+                  },
+                  {
+                    label: "Class XII",
+                    row: studentDetails.classXII,
+                    subjects: studentDetails.classXIISubjects,
+                    coaching: studentDetails.coachingXII,
+                  },
+                ] as const
+              ).map((sec) => (
+                <div key={sec.label} className="rounded-xl border p-3">
+                  <p className="font-semibold text-xs uppercase tracking-wide text-muted-foreground">
+                    {sec.label} details
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {sec.row ? `${sec.row.board ?? "—"} · ${sec.row.year ?? "—"} · ${sec.row.score ?? "—"}` : "No row"}
+                  </p>
+                  {sec.label === "Class XII" ? (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      PUC II internals: {studentDetails.puc2InternalsPercent?.trim() || "—"}
+                    </p>
+                  ) : null}
+
+                  <p className="mt-3 font-semibold text-xs uppercase tracking-wide text-muted-foreground">
+                    Subject-wise marks — {sec.label}
+                  </p>
+                  <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    {subjectFields.map(([key, label]) => (
+                      <div key={`${sec.label}-${key}`} className="rounded-md border p-2">
+                        <p className="text-[11px] font-semibold">{label}</p>
+                        <p className="text-xs text-muted-foreground">{sec.subjects?.[key]?.trim() || "—"}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <p className="mt-3 font-semibold text-xs uppercase tracking-wide text-muted-foreground">
+                    Coaching class / tuition ({sec.label})
+                  </p>
+                  <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <div className="rounded-md border p-2">
+                      <p className="text-[11px] font-semibold">Coaching institute name</p>
+                      <p className="text-xs text-muted-foreground">{sec.coaching?.instituteName?.trim() || "—"}</p>
+                    </div>
+                    <div className="rounded-md border p-2">
+                      <p className="text-[11px] font-semibold">Attending since</p>
+                      <p className="text-xs text-muted-foreground">{sec.coaching?.attendingSince?.trim() || "—"}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : null}
     </div>
   );
 }

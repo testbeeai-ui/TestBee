@@ -1,9 +1,20 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Bell, BookOpen, ClipboardList, Gift, GraduationCap, LayoutGrid, Plus, Star, User } from "lucide-react";
+import {
+  Bell,
+  BookOpen,
+  ClipboardList,
+  Gift,
+  GraduationCap,
+  LayoutGrid,
+  Plus,
+  Star,
+  User,
+} from "lucide-react";
 import type { TeacherPortalSection } from "@/lib/teacherPortal/types";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 interface TeacherPortalShellProps {
   activeSection: TeacherPortalSection;
@@ -23,6 +34,10 @@ const sections: Array<{ key: TeacherPortalSection; label: string; icon: typeof L
   { key: "referEarn", label: "Earn & Learn", icon: Gift },
   { key: "profile", label: "Profile", icon: User },
 ];
+
+const EDUBLAST_WORDMARK_SRC = "/images/logo-2.png";
+/** Teacher portal only: larger visual logo without increasing header height. */
+const TEACHER_LOGO_CLASSNAME = "h-8 w-auto origin-left scale-[1.28] sm:h-9 sm:scale-[1.3]";
 
 export default function TeacherPortalShell({
   activeSection,
@@ -58,18 +73,19 @@ export default function TeacherPortalShell({
       </button>
       <header className="sticky top-0 z-20 border-b border-white/10 bg-[#07070f]/95 backdrop-blur">
         <div className="flex h-11 items-center gap-2 px-3 sm:h-14 sm:gap-3 sm:px-5 lg:px-6">
-          <div className="flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-md border border-emerald-400/40 bg-[#101425] sm:h-8 sm:w-8">
-              <span className="font-serif text-emerald-300">E</span>
-            </div>
-            <div className="font-serif text-base sm:text-lg">
-              Edu<span className="text-emerald-400 italic">Blast</span>
-            </div>
-          </div>
-          <div className="rounded-full border border-violet-400/30 bg-violet-500/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-violet-200 sm:px-3 sm:py-1 sm:text-[11px]">
-            Teacher Portal
-          </div>
-          <nav className="ml-4 hidden items-center gap-1 md:flex">
+          <Link
+            href="/teacher-portal"
+            className="relative z-10 flex shrink-0 items-center hover:opacity-90 transition-opacity"
+            aria-label="EduBlast Home"
+          >
+            <img
+              src={EDUBLAST_WORDMARK_SRC}
+              alt="EduBlast"
+              className={TEACHER_LOGO_CLASSNAME}
+              draggable={false}
+            />
+          </Link>
+          <nav className="ml-10 hidden items-center gap-1 md:flex">
             {sections.map(({ key, label, icon: Icon }) => (
               <button
                 key={key}
@@ -166,7 +182,9 @@ export default function TeacherPortalShell({
               {initials}
             </div>
             <div className="text-center text-[12px] font-semibold sm:text-sm">{teacherName}</div>
-            <div className="text-center text-[11px] text-slate-400 sm:text-xs">{teacherSubtitle}</div>
+            <div className="text-center text-[11px] text-slate-400 sm:text-xs">
+              {teacherSubtitle}
+            </div>
             <div className="mt-2 text-center text-[11px] font-semibold text-amber-300 sm:text-xs">
               {rdmBalance.toLocaleString("en-IN")} RDM earned
             </div>

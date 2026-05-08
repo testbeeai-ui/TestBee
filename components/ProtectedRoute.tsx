@@ -4,7 +4,17 @@ import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
 
-export function ProtectedRoute({ children }: { children: ReactNode }) {
+type AppRole = "student" | "teacher" | "admin";
+
+export function ProtectedRoute({
+  children,
+  allowRoles,
+  redirectTo,
+}: {
+  children: ReactNode;
+  allowRoles?: readonly AppRole[];
+  redirectTo?: string;
+}) {
   const { user, profile, loading } = useAuth();
   const router = useRouter();
 
@@ -19,7 +29,15 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
       router.replace(`/onboarding?role=${role}`);
       return;
     }
-  }, [user, profile, profile?.onboarding_complete, loading, router]);
+    if (
+      profile !== null &&
+      Array.isArray(allowRoles) &&
+      allowRoles.length > 0 &&
+      !allowRoles.includes(profile.role)
+    ) {
+      router.replace(redirectTo ?? (profile.role === "teacher" ? "/teacher-portal" : "/home"));
+    }
+  }, [user, profile, profile?.onboarding_complete, loading, allowRoles, redirectTo, router]);
 
   if (loading)
     return (
@@ -35,5 +53,11 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
       </div>
     );
   if (!profile?.onboarding_complete) return null;
+  if (
+    Array.isArray(allowRoles) &&
+    allowRoles.length > 0 &&
+    !allowRoles.includes(profile.role)
+  )
+    return null;
   return <>{children}</>;
 }

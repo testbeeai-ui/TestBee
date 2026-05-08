@@ -27,6 +27,8 @@ import { EDUBLAST_STUDY_DAYS_REFRESH } from "@/lib/studyDayBumpEvents";
 import { supabase } from "@/integrations/supabase/client";
 import { useTopicTaxonomy } from "@/hooks/useTopicTaxonomy";
 import type { Subject, SubjectCombo } from "@/types";
+import { DEFAULT_RDM_CONFIG, fetchRdmConfig } from "@/lib/rdmConfig";
+import { EDUFUND_RDM_GATES } from "@/lib/dashboardSidebarMetrics";
 import RawCommunityFeed from "@/components/explore/RawCommunityFeed";
 import { Button } from "@/components/ui/button";
 import {
@@ -87,48 +89,26 @@ const UPCOMING_MOCKS = [
   },
 ] as const;
 
-const EDUFUND_TIERS = [
-  {
-    name: "Sprout",
-    status: "Unlocked" as const,
-    detail: "1,000 RDM threshold",
-    progress: 1,
-    amount: "₹3,000",
-    tone: "text-emerald-500",
-  },
-  {
-    name: "Scholar",
-    status: "In progress" as const,
-    detail: "3,000 RDM needed · 1,260 more to go",
-    progress: 0.58,
-    amount: "₹12,000",
-    tone: "text-indigo-400",
-  },
-  {
-    name: "Champion",
-    status: "Locked" as const,
-    detail: "8,000 RDM needed · 6,260 more to go",
-    progress: 0.22,
-    amount: "₹50,000",
-    tone: "text-orange-400",
-  },
-] as const;
-
-function greenCellClass(level: 0 | 1 | 2 | 3 | 4, isToday: boolean): string {
+function greenCellClass(level: 0 | 1 | 2 | 3, isToday: boolean): string {
   const ring = isToday ? "ring-2 ring-teal-400 ring-offset-2 ring-offset-background" : "";
   const base = "rounded-lg border transition-colors " + ring;
   switch (level) {
     case 0:
-      return cn(base, "border-border/60 bg-muted/40 dark:bg-slate-900/80");
+      return cn(base, "border-red-500/35 bg-red-950/55 text-red-100");
     case 1:
-      return cn(base, "border-emerald-500/25 bg-emerald-950/50 text-emerald-100");
+      return cn(base, "border-emerald-400/45 bg-emerald-400/28 text-emerald-950 dark:text-emerald-50");
     case 2:
-      return cn(base, "border-emerald-400/35 bg-emerald-800/60 text-emerald-50");
+      return cn(base, "border-emerald-500/45 bg-emerald-600/60 text-white");
     case 3:
-      return cn(base, "border-emerald-300/40 bg-emerald-600/70 text-white");
-    default:
-      return cn(base, "border-emerald-200/50 bg-emerald-400 text-emerald-950");
+      return cn(base, "border-emerald-700/50 bg-emerald-950/90 text-emerald-50");
   }
+}
+
+function heatmapLoadingCellClass(isToday: boolean): string {
+  const ring = isToday ? "ring-2 ring-teal-400 ring-offset-2 ring-offset-background" : "";
+  return cn(
+    "rounded-lg border border-border/60 bg-muted/35 text-muted-foreground/90 transition-colors " + ring
+  );
 }
 
 export default function StudentHomeDashboard() {
@@ -144,6 +124,12 @@ export default function StudentHomeDashboard() {
   } | null>(null);
   const [studyDaysStatus, setStudyDaysStatus] = useState<"idle" | "loading" | "ready" | "error">(
     "idle"
+  );
+  const [studyStreakBonusWeek, setStudyStreakBonusWeek] = useState(
+    DEFAULT_RDM_CONFIG.study_streak_bonus_week_number
+  );
+  const [studyStreakBonusRdm, setStudyStreakBonusRdm] = useState(
+    DEFAULT_RDM_CONFIG.study_streak_bonus_rdm
   );
   /** After first successful fetch, refetches stay quiet (no greeting/stat "…" flicker). */
   const studyDaysCommittedRef = useRef(false);
@@ -179,7 +165,48 @@ export default function StudentHomeDashboard() {
     return () => clearInterval(id);
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    void fetchRdmConfig().then((cfg) => {
+      if (cancelled) return;
+      setStudyStreakBonusWeek(Math.max(1, Math.round(cfg.study_streak_bonus_week_number)));
+      setStudyStreakBonusRdm(Math.max(0, Math.round(cfg.study_streak_bonus_rdm)));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const rdm = profile?.rdm ?? storeUser?.rdm ?? 0;
+  const edufundTiers = useMemo(() => {
+    const wallet = Math.max(0, Math.floor(Number(rdm) || 0));
+    const tierGates = EDUFUND_RDM_GATES.slice(0, 3);
+    const firstLockedIdx = tierGates.findIndex((g) => wallet < g.need);
+    return tierGates.map((gate, idx) => {
+      const prevNeed = idx === 0 ? 0 : tierGates[idx - 1]!.need;
+      const span = Math.max(1, gate.need - prevNeed);
+      const progress = Math.max(0, Math.min(1, (wallet - prevNeed) / span));
+      const unlocked = wallet >= gate.need;
+      const inProgress = !unlocked && firstLockedIdx === idx;
+      const status = unlocked ? "Unlocked" : inProgress ? "In progress" : "Locked";
+      const detail = unlocked
+        ? `${gate.need.toLocaleString("en-IN")} RDM threshold met`
+        : `${gate.need.toLocaleString("en-IN")} RDM needed · ${Math.max(0, gate.need - wallet).toLocaleString("en-IN")} more to go`;
+      return {
+        name: gate.name,
+        status,
+        detail,
+        progress: unlocked ? 1 : progress,
+        amount: `₹${gate.unlockInrAmount.toLocaleString("en-IN")}`,
+        tone:
+          status === "Unlocked"
+            ? "text-emerald-500"
+            : status === "In progress"
+              ? "text-indigo-400"
+              : "text-orange-400",
+      };
+    });
+  }, [rdm]);
 
   const streakDays = streakSummary?.streak ?? 0;
   const activeDaysThisMonth = streakSummary?.activeDaysThisMonth ?? 0;
@@ -539,7 +566,7 @@ export default function StudentHomeDashboard() {
       key: string;
       activeMs: number;
       presenceMs: number;
-      level: 0 | 1 | 2 | 3 | 4;
+      level: 0 | 1 | 2 | 3;
       label: string;
       tooltipTitle: string;
     }[] = [];
@@ -576,7 +603,7 @@ export default function StudentHomeDashboard() {
       key: string | null;
       activeMs: number;
       presenceMs: number;
-      level: 0 | 1 | 2 | 3 | 4;
+      level: 0 | 1 | 2 | 3;
       label: string;
       tooltipTitle: string | null;
     }[] = [];
@@ -757,7 +784,7 @@ export default function StudentHomeDashboard() {
           </div>
           <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-1 text-[11px] font-bold text-amber-600 dark:text-amber-300">
             <Flame className="h-3.5 w-3.5" />
-            Week 3 bonus: +150 RDM
+            Week {studyStreakBonusWeek} bonus: +{studyStreakBonusRdm.toLocaleString("en-IN")} RDM
           </span>
         </div>
 
@@ -808,19 +835,26 @@ export default function StudentHomeDashboard() {
             {last7Series.map((cell) => {
               const isToday =
                 localDayKeyFromDate(cell.date) === localDayKeyFromDate(startOfLocalDay(now));
+              const isReady = studyDaysStatus === "ready";
               return (
                 <div
                   key={cell.key}
-                  title={`${cell.tooltipTitle} · Daily RDM: coming soon`}
+                  title={
+                    isReady
+                      ? `${cell.tooltipTitle} · Daily RDM: coming soon`
+                      : "Loading activity…"
+                  }
                   className={cn(
                     "flex min-h-[72px] min-w-[72px] flex-1 flex-col items-center justify-center gap-0.5 px-2 py-2 sm:min-w-[88px]",
-                    greenCellClass(cell.level, isToday)
+                    isReady ? greenCellClass(cell.level, isToday) : heatmapLoadingCellClass(isToday)
                   )}
                 >
                   <span className="text-[10px] font-bold uppercase text-muted-foreground">
                     {cell.date.toLocaleDateString(undefined, { weekday: "short" })}
                   </span>
-                  <span className="text-sm font-extrabold tabular-nums">{cell.label}</span>
+                  <span className="text-sm font-extrabold tabular-nums">
+                    {isReady ? cell.label : "…"}
+                  </span>
                   {isToday ? (
                     <span className="text-[10px] font-semibold text-teal-400">Today</span>
                   ) : null}
@@ -847,14 +881,22 @@ export default function StudentHomeDashboard() {
                 return (
                   <div
                     key={cell.key}
-                    title={cell.tooltipTitle ? `${cell.tooltipTitle} · RDM: later` : undefined}
+                    title={
+                      studyDaysStatus === "ready" && cell.tooltipTitle
+                        ? `${cell.tooltipTitle} · RDM: later`
+                        : undefined
+                    }
                     className={cn(
                       "flex aspect-square flex-col items-center justify-center gap-0.5 p-1 text-[10px] font-bold",
-                      greenCellClass(cell.level, isToday)
+                      studyDaysStatus === "ready"
+                        ? greenCellClass(cell.level, isToday)
+                        : heatmapLoadingCellClass(isToday)
                     )}
                   >
                     <span>{cell.day}</span>
-                    <span className="text-[9px] opacity-90">{cell.label}</span>
+                    <span className="text-[9px] opacity-90">
+                      {studyDaysStatus === "ready" ? cell.label : "…"}
+                    </span>
                     {isToday ? <span className="text-[8px] text-teal-300">Today</span> : null}
                   </div>
                 );
@@ -865,12 +907,13 @@ export default function StudentHomeDashboard() {
 
         <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
           <span>Less</span>
-          <span className="h-3 w-8 rounded bg-gradient-to-r from-muted to-emerald-400" />
+          <span className="h-3 w-8 rounded bg-gradient-to-r from-red-950/70 via-emerald-500/60 to-emerald-950" />
           <span>More</span>
           <span className="ml-2">
-            Cell numbers show time on EduBlast with this tab in the foreground (pauses when you
-            switch tabs). Tooltips also show saved study time toward your streak (play + topic
-            quizzes). A dash means no on-site time that day;{" "}
+            Red = no focus or under 10 minutes that day; light → dark green = longer focus (same as
+            your profile heatmap). Cell numbers show time on EduBlast with this tab in the foreground
+            (pauses when you switch tabs). Tooltips also show saved study time toward your streak
+            (play + topic quizzes). A dash means no on-site time that day;{" "}
             <span className="font-mono">{"<1m"}</span> means under one minute on site. Streak =
             consecutive calendar days with any saved study time, counted through your most recent
             active day on or before today.
@@ -1248,7 +1291,7 @@ export default function StudentHomeDashboard() {
               </Link>
             </div>
             <ul className="space-y-4">
-              {EDUFUND_TIERS.map((tier) => (
+              {edufundTiers.map((tier) => (
                 <li key={tier.name}>
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="font-bold">{tier.name}</p>
@@ -1277,7 +1320,7 @@ export default function StudentHomeDashboard() {
               ))}
             </ul>
             <p className="mt-2 text-[11px] text-muted-foreground">
-              Tiers shown as mock milestones — ties to RDM & grants later.
+              Uses your live RDM balance and real EduFund tier thresholds.
             </p>
           </div>
         </div>

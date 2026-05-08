@@ -69,7 +69,41 @@ const PLAY_HUB_KEYS = [
   "play_dailydose_funbrain_rdm",
   "play_dual_streak_7_rdm",
   "play_dual_streak_30_rdm",
+  "study_streak_bonus_week_number",
+  "study_streak_bonus_rdm",
 ] as const;
+
+const PLAY_HUB_META: Record<
+  (typeof PLAY_HUB_KEYS)[number],
+  { title: string; unit: "RDM" | "week"; hint?: string }
+> = {
+  play_dailydose_academic_rdm: {
+    title: "Play hub · DailyDose academic (full run, IST) RDM",
+    unit: "RDM",
+  },
+  play_dailydose_funbrain_rdm: {
+    title: "Play hub · DailyDose funbrain (full run, IST) RDM",
+    unit: "RDM",
+  },
+  play_dual_streak_7_rdm: {
+    title: "Play hub · Dual-domain DailyDose streak every 7 days RDM",
+    unit: "RDM",
+  },
+  play_dual_streak_30_rdm: {
+    title: "Play hub · Dual-domain DailyDose streak every 30 days RDM",
+    unit: "RDM",
+  },
+  study_streak_bonus_week_number: {
+    title: "Dashboard · Study streak bonus week label",
+    unit: "week",
+    hint: "UI badge copy only (does not trigger wallet payout by itself).",
+  },
+  study_streak_bonus_rdm: {
+    title: "Dashboard · Study streak bonus amount label",
+    unit: "RDM",
+    hint: "UI badge copy only (does not trigger wallet payout by itself).",
+  },
+};
 
 const SUBTOPIC_RDM_KEYS = [
   "subtopic_quiz_advanced_rdm",
@@ -361,6 +395,7 @@ function PlayHubGroupBlock({
         <div className="grid gap-4 md:grid-cols-2">
           {PLAY_HUB_KEYS.map((key) => {
             const row = configs[key];
+            const meta = PLAY_HUB_META[key];
             if (!row) {
               return (
                 <div
@@ -368,14 +403,21 @@ function PlayHubGroupBlock({
                   className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground"
                 >
                   Missing row <span className="font-mono">{key}</span> — apply migration{" "}
-                  <span className="font-mono">20260520120000_play_hub_rdm_config</span>.
+                  <span className="font-mono">20260520120000_play_hub_rdm_config</span>
+                  {", "}
+                  <span className="font-mono">20260508143000_study_streak_bonus_badge_config</span>.
                 </div>
               );
             }
             return (
               <div key={key} className="flex flex-col gap-1.5 rounded-lg border bg-muted/10 p-3">
-                <label className="text-sm font-medium text-foreground">{row.description || key}</label>
+                <label className="text-sm font-medium text-foreground">
+                  {meta?.title ?? row.description ?? key}
+                </label>
                 <div className="mb-1 font-mono text-xs text-muted-foreground">{key}</div>
+                {meta?.hint ? (
+                  <p className="text-[11px] leading-snug text-muted-foreground">{meta.hint}</p>
+                ) : null}
                 <div className="flex items-center gap-2">
                   <Input
                     type="number"
@@ -383,7 +425,9 @@ function PlayHubGroupBlock({
                     onChange={(e) => onDraftChange(key, e.target.value)}
                     className="bg-background font-mono"
                   />
-                  <span className="shrink-0 text-sm font-semibold text-amber-400">RDM</span>
+                  <span className="shrink-0 text-sm font-semibold text-amber-400">
+                    {meta?.unit === "week" ? "week" : "RDM"}
+                  </span>
                 </div>
                 <div className="mt-1 text-[10px] text-muted-foreground">
                   Last updated: {new Date(row.updated_at).toLocaleString()}
@@ -704,6 +748,10 @@ export default function RdmTablePage() {
           <p className="mt-1 text-xs text-muted-foreground">
             DailyDose RDM (academic and funbrain full runs) and dual-domain streak milestones (7- and 30-day). Use{" "}
             <span className="font-semibold">Save Changes</span> at the top to persist values.
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Also includes the Student Dashboard <span className="font-semibold">Study streak bonus</span> badge copy
+            (week number + RDM label).
           </p>
         </div>
         <PlayHubGroupBlock configs={configs} drafts={drafts} onDraftChange={onDraftChange} />

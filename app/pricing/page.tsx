@@ -119,19 +119,7 @@ const Pricing = () => {
                     </li>
                   ))}
                 </ul>
-                {plan.id !== "free" && (
-                  <Button
-                    onClick={() => handlePurchase(plan.id, plan.rdmAmount)}
-                    disabled={purchased === plan.id || loading}
-                    className="w-full edu-btn-primary"
-                  >
-                    {purchased === plan.id
-                      ? "✅ Done!"
-                      : loading
-                        ? "..."
-                        : `Get ${plan.rdmAmount} RDM`}
-                  </Button>
-                )}
+                {/* Intentionally no top-up CTA buttons on this screen. */}
               </motion.div>
             ))}
           </div>

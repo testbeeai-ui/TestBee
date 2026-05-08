@@ -6,13 +6,16 @@ export function countInstacueRevisionDue(cards: SavedRevisionCard[] | undefined 
   return cards.filter((c) => c && c.status !== "know_it").length;
 }
 
-/** RDM gates for EduFund tier labels (aligned with dashboard tier story; amounts are UI hints only). */
+/**
+ * EduFund tiers: cumulative wallet RDM threshold and investor-facing proposal amount unlocked at that tier.
+ * Keep in sync with product spec (single source of truth for thresholds + ₹ unlocked).
+ */
 export const EDUFUND_RDM_GATES = [
-  { need: 3000, name: "Sprout" },
-  { need: 12000, name: "Scholar" },
-  { need: 25000, name: "Champion" },
-  { need: 50000, name: "Elite" },
-  { need: 100000, name: "MasterBlaster" },
+  { need: 3000, name: "Sprout", unlockInrAmount: 3000 },
+  { need: 12000, name: "Scholar", unlockInrAmount: 15000 },
+  { need: 25000, name: "Champion", unlockInrAmount: 50000 },
+  { need: 50000, name: "Elite", unlockInrAmount: 100000 },
+  { need: 100000, name: "MasterBlaster", unlockInrAmount: 200000 },
 ] as const;
 
 /** Minimum RDM (Sprout) required to compose an EduFund proposal in the app UI. */

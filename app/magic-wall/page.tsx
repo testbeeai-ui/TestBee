@@ -600,7 +600,7 @@ export default function MagicWallPage() {
   const classPill = "rounded-xl border border-border bg-card/80 px-3 py-2 text-sm font-bold";
 
   return (
-    <ProtectedRoute>
+    <ProtectedRoute allowRoles={["student"]}>
       <AppLayout>
         <div className="mx-auto flex min-h-0 w-full max-w-full flex-1 flex-col space-y-2 pb-2 sm:space-y-3 lg:space-y-1.5">
           {/*
