@@ -6,6 +6,7 @@ import { Loader2 } from "lucide-react";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { useAuth } from "@/hooks/useAuth";
 import { useTeacherPortalData } from "@/hooks/useTeacherPortalData";
+import { useTeacherPortalBundleAutoRefresh } from "@/hooks/useTeacherPortalBundleAutoRefresh";
 import { useAdminTeacherPortalData } from "@/hooks/useAdminTeacherPortalData";
 import type { TeacherPortalSection } from "@/lib/teacherPortal/types";
 import TeacherPortalShell from "@/components/teacher-portal/TeacherPortalShell";
@@ -19,12 +20,16 @@ import TeacherVerificationGate from "@/components/teacher-portal/TeacherVerifica
 import { useToast } from "@/hooks/use-toast";
 import { useTeacherVerificationActionGuard } from "@/hooks/useTeacherVerificationActionGuard";
 import { TEACHER_VERIFICATION_REQUIRED_ERROR } from "@/lib/teacherPortal/queries";
+import { TEACHER_PORTAL_CLASSROOMS_URL } from "@/lib/teacherPortal/routes";
 
 function TeacherPortalPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
-  const { user, profile } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth();
+  const normalizedRole = (profile?.role ?? "").toLowerCase().trim();
+  const isTeacherRole = normalizedRole === "teacher";
+  const isAdminRole = normalizedRole === "admin";
   const [section, setSection] = useState<TeacherPortalSection>("myClassroom");
   const adminTeacherIdRaw = searchParams.get("adminTeacherId")?.trim() ?? "";
   const isAdminImpersonation = Boolean(adminTeacherIdRaw) && profile?.role === "admin";
@@ -112,13 +117,33 @@ function TeacherPortalPageContent() {
       : null;
   const activeSection = (paramSection ?? section) as TeacherPortalSection;
 
-  const handleSectionChange = (next: TeacherPortalSection) => {
-    if (paramSection) {
-      router.replace("/teacher-portal");
-    }
-    setSection(next);
-  };
+  /** Keep `section` query in sync so `activeSection` (URL-first) matches the tab you clicked. */
+  const handleSectionChange = useCallback(
+    (next: TeacherPortalSection) => {
+      setSection(next);
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("section", next);
+      if (next !== "myClassroom") {
+        params.delete("wizard");
+        params.delete("classroom");
+        params.delete("portalDetail");
+        params.delete("google");
+        params.delete("reason");
+      }
+      const qs = params.toString();
+      router.replace(qs ? `/teacher-portal?${qs}` : "/teacher-portal");
+    },
+    [router, searchParams]
+  );
   const verificationStatus = activeHook.data?.profile.details.verificationStatus ?? "unverified";
+
+  useTeacherPortalBundleAutoRefresh({
+    teacherUserId: targetTeacherId,
+    enabled: Boolean(activeHook.data),
+    skipRealtime: isAdminImpersonation,
+    refresh: activeHook.refresh,
+  });
+
   const { guardAction, isGateOpen, blockedActionLabel, closeGate } = useTeacherVerificationActionGuard({
     verificationStatus,
     isAdminImpersonation,
@@ -129,6 +154,24 @@ function TeacherPortalPageContent() {
     }
   }, [closeGate, isGateOpen, verificationStatus]);
 
+  useEffect(() => {
+    if (!user || authLoading) return;
+    if (isAdminImpersonation || isTeacherRole) return;
+    if (isAdminRole && !adminTeacherIdRaw) {
+      router.replace("/admin/teacher-portal");
+      return;
+    }
+    router.replace("/home");
+  }, [
+    user,
+    authLoading,
+    isAdminImpersonation,
+    isTeacherRole,
+    isAdminRole,
+    adminTeacherIdRaw,
+    router,
+  ]);
+
   const handleOpenVerificationProfile = useCallback(() => {
     setSection("profile");
     closeGate();
@@ -136,24 +179,21 @@ function TeacherPortalPageContent() {
     nextParams.set("section", "profile");
     nextParams.set("edit", "1");
     const nextQuery = nextParams.toString();
-    router.replace(nextQuery ? `/teacher-portal?${nextQuery}` : "/teacher-portal");
+    router.replace(
+      nextQuery ? `/teacher-portal?${nextQuery}` : TEACHER_PORTAL_CLASSROOMS_URL
+    );
   }, [closeGate, router, searchParams]);
 
   const handleRefreshVerificationStatus = useCallback(async () => {
     await activeHook.refresh();
   }, [activeHook]);
   const requireVerifiedAction = useCallback(
-    async (action: () => Promise<void>, actionLabel: string) => {
-      const result = await guardAction(
-        async () => {
-          await action();
-          return true;
-        },
-        { actionLabel }
-      );
-      if (result !== true) {
+    async <T,>(action: () => Promise<T>, actionLabel: string): Promise<T> => {
+      const result = await guardAction(action, { actionLabel });
+      if (result === null) {
         throw new Error(TEACHER_VERIFICATION_REQUIRED_ERROR);
       }
+      return result;
     },
     [guardAction]
   );
@@ -166,22 +206,21 @@ function TeacherPortalPageContent() {
     );
   }
 
-  if (!isAdminImpersonation && profile?.role !== "teacher") {
+  if (authLoading) {
     return (
       <ProtectedRoute>
         <div className="flex min-h-screen items-center justify-center bg-[#07070f] text-slate-200">
-          <div className="text-center">
-            <h1 className="mb-2 text-xl font-semibold">
-              Teacher portal is only for teacher accounts.
-            </h1>
-            <button
-              type="button"
-              onClick={() => router.push("/home")}
-              className="rounded-full border border-white/20 px-4 py-2 text-sm hover:bg-white/5"
-            >
-              Go to dashboard
-            </button>
-          </div>
+          <Loader2 className="h-8 w-8 animate-spin text-slate-400" aria-hidden />
+        </div>
+      </ProtectedRoute>
+    );
+  }
+
+  if (!isAdminImpersonation && !isTeacherRole) {
+    return (
+      <ProtectedRoute>
+        <div className="flex min-h-screen items-center justify-center bg-[#07070f] text-slate-200">
+          <Loader2 className="h-8 w-8 animate-spin text-slate-400" aria-hidden />
         </div>
       </ProtectedRoute>
     );
@@ -189,9 +228,11 @@ function TeacherPortalPageContent() {
 
   const teacherName =
     activeHook.data?.profile.name ??
-    (isAdminImpersonation ? "Teacher" : profile.name ?? "Teacher");
-  const teacherSubtitle = activeHook.data?.profile.subjects.join(" · ") || "EduBlast Teacher";
-  const rdmBalance = activeHook.data?.profile.rdm ?? (isAdminImpersonation ? 0 : profile.rdm ?? 0);
+    (isAdminImpersonation ? "Teacher" : profile?.name ?? "Teacher");
+  const teacherSubtitle =
+    activeHook.data?.profile?.subjects.join(" · ") || "EduBlast Teacher";
+  const rdmBalance =
+    activeHook.data?.profile.rdm ?? (isAdminImpersonation ? 0 : profile?.rdm ?? 0);
 
   return (
     <ProtectedRoute>
@@ -218,6 +259,12 @@ function TeacherPortalPageContent() {
                 summary={activeHook.data.summary}
                 classrooms={activeHook.data.classrooms}
                 classroomDetails={activeHook.data.classroomDetails}
+                mockPostIdsAssignedThisWeek={activeHook.data.mockPostIdsAssignedThisWeek}
+                mockNudgeLowScorersByPostId={activeHook.data.mockNudgeLowScorersByPostId}
+                mockNudgeSubmittedAttemptsByPostId={
+                  activeHook.data.mockNudgeSubmittedAttemptsByPostId
+                }
+                allowNudgeStructuredAssignmentCreate={!isAdminImpersonation}
                 teacherId={targetTeacherId ?? ""}
                 onRefreshTeacherPortal={activeHook.refresh}
                 onRequireVerifiedAction={async (actionLabel) => {
@@ -251,12 +298,13 @@ function TeacherPortalPageContent() {
                   }, "Delete classroom");
                 }}
                 onCreateAssignment={async (input) => {
-                  await requireVerifiedAction(async () => {
-                    await activeHook.createAssignment({
+                  return await requireVerifiedAction(async () => {
+                    const created = await activeHook.createAssignment({
                       teacherId: targetTeacherId ?? "",
                       ...input,
                     });
                     toast({ title: "Assignment created" });
+                    return created;
                   }, "Create assignment");
                 }}
                 onMotivateStudents={async (input) => {
@@ -328,9 +376,10 @@ function TeacherPortalPageContent() {
                   return result === true;
                 }}
                 onCreateAssignment={async (input) => {
-                  await requireVerifiedAction(async () => {
-                    await activeHook.createAssignment(input);
+                  return await requireVerifiedAction(async () => {
+                    const created = await activeHook.createAssignment(input);
                     toast({ title: "Assignment created" });
+                    return created;
                   }, "Create assignment");
                 }}
               />

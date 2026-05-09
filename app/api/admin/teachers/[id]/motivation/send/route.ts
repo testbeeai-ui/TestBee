@@ -16,6 +16,24 @@ type Body = {
   message?: string;
   rdmDelta?: number;
   notes?: string;
+  relatedPostId?: string;
+  relatedPostTitle?: string;
+  recommendActionId?:
+    | "attempt_targeted_mock"
+    | "post_doubt"
+    | "watch_recorded"
+    | "concept_focus_resource"
+    | "none";
+  recommendActionLabel?: string;
+  recommendActionUrl?: string;
+  notificationTitle?: string;
+  nudgeGoal?:
+    | "restart_streak"
+    | "complete_pending_assignment"
+    | "attempt_mock"
+    | "answer_doubts"
+    | "revise_chapter"
+    | "watch_recorded_class";
 };
 
 function parseKind(value: unknown): NonNullable<Body["actionKind"]> {
@@ -94,6 +112,37 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
           targetStudentIds,
           message,
           rdmDelta,
+          ...(typeof body.relatedPostId === "string" && body.relatedPostId.trim()
+            ? { relatedPostId: body.relatedPostId.trim() }
+            : {}),
+          ...(typeof body.relatedPostTitle === "string" && body.relatedPostTitle.trim()
+            ? { relatedPostTitle: body.relatedPostTitle.trim() }
+            : {}),
+          ...(body.recommendActionId &&
+          (body.recommendActionId === "attempt_targeted_mock" ||
+            body.recommendActionId === "post_doubt" ||
+            body.recommendActionId === "watch_recorded" ||
+            body.recommendActionId === "concept_focus_resource" ||
+            body.recommendActionId === "none")
+            ? { recommendActionId: body.recommendActionId }
+            : {}),
+          ...(typeof body.recommendActionLabel === "string" && body.recommendActionLabel.trim()
+            ? { recommendActionLabel: body.recommendActionLabel.trim() }
+            : {}),
+          ...(typeof body.recommendActionUrl === "string" && body.recommendActionUrl.trim()
+            ? { recommendActionUrl: body.recommendActionUrl.trim() }
+            : {}),
+          ...(typeof body.notificationTitle === "string" && body.notificationTitle.trim()
+            ? { notificationTitle: body.notificationTitle.trim() }
+            : {}),
+          ...(body.nudgeGoal === "restart_streak" ||
+          body.nudgeGoal === "complete_pending_assignment" ||
+          body.nudgeGoal === "attempt_mock" ||
+          body.nudgeGoal === "answer_doubts" ||
+          body.nudgeGoal === "revise_chapter" ||
+          body.nudgeGoal === "watch_recorded_class"
+            ? { nudgeGoal: body.nudgeGoal }
+            : {}),
         },
         admin as any,
         { skipVerificationCheck: true }

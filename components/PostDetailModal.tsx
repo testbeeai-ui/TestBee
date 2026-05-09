@@ -58,6 +58,8 @@ function taskLinkLabel(task: AssignmentTaskStored): string {
       return "Open Gyan++";
     case "mock_paper":
       return "Open mock test";
+    case "past_paper":
+      return "Open past paper";
     case "daily_dose":
       return "Open DailyDose Play";
     case "topic_path":
@@ -79,7 +81,10 @@ function withAssignmentTrackingParams(
 ): string {
   if (!href) return href;
   const shouldTrack =
-    task.kind === "chapter_quiz" || task.kind === "mock_paper" || href.startsWith("/mock");
+    task.kind === "chapter_quiz" ||
+    task.kind === "mock_paper" ||
+    task.kind === "past_paper" ||
+    href.startsWith("/mock");
   if (!shouldTrack) return href;
   try {
     const isAbsolute = /^https?:\/\//i.test(href);
@@ -111,6 +116,7 @@ const typeConfig: Record<string, { icon: typeof FileText; emoji: string; color: 
   quiz: { icon: HelpCircle, emoji: "❓", color: "bg-amber-500/10 text-amber-600" },
   assignment: { icon: ClipboardList, emoji: "📝", color: "bg-green-500/10 text-green-600" },
   mock: { icon: ClipboardList, emoji: "📋", color: "bg-emerald-500/10 text-emerald-700" },
+  past_paper: { icon: ClipboardList, emoji: "📜", color: "bg-emerald-500/10 text-teal-700" },
   poll: { icon: BarChart3, emoji: "📊", color: "bg-pink-500/10 text-pink-600" },
   announcement: { icon: Megaphone, emoji: "📢", color: "bg-orange-500/10 text-orange-600" },
   "Concept Focus": { icon: FileText, emoji: "🎯", color: "bg-violet-500/10 text-violet-600" },
@@ -180,6 +186,7 @@ export default function PostDetailModal({
       post.type !== "assignment" &&
       post.type !== "quiz" &&
       post.type !== "mock" &&
+      post.type !== "past_paper" &&
       post.type !== "Concept Focus"
     )
       return undefined;
@@ -226,6 +233,7 @@ export default function PostDetailModal({
     post?.type === "assignment" ||
     post?.type === "quiz" ||
     post?.type === "mock" ||
+    post?.type === "past_paper" ||
     post?.type === "Concept Focus";
 
   const teacherResourceLinks = useMemo(() => {
@@ -256,7 +264,9 @@ export default function PostDetailModal({
       )
     );
     const hasLink = tasks.some((t) => Boolean(t.href));
-    const hasMcq = tasks.some((t) => t.kind === "chapter_quiz" || t.kind === "mock_paper");
+    const hasMcq = tasks.some(
+      (t) => t.kind === "chapter_quiz" || t.kind === "mock_paper" || t.kind === "past_paper"
+    );
     const hasCustom = tasks.some((t) => t.kind === "free_text" && !t.href);
     return { hasLink, hasMcq, hasCustom };
   }, [post, isAssignmentLike]);
@@ -570,6 +580,7 @@ export default function PostDetailModal({
                       (post.type === "assignment" ||
                         post.type === "quiz" ||
                         post.type === "mock" ||
+                        post.type === "past_paper" ||
                         post.type === "Concept Focus") ? (
                         canEdit ? null : (
                           <AssignmentTaskChecklist
@@ -630,6 +641,7 @@ export default function PostDetailModal({
                 (post.type === "assignment" ||
                   post.type === "quiz" ||
                   post.type === "mock" ||
+                  post.type === "past_paper" ||
                   post.type === "Concept Focus") ? (
                   <AssignmentTaskChecklist
                     key={post.id}

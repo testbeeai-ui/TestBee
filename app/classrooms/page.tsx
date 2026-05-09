@@ -718,6 +718,31 @@ const Classrooms = () => {
 
   const createClassroom = async () => {
     if (!newName.trim() || !user) return;
+    const { data: verifyRow } = await (
+      supabase as unknown as {
+        from: (name: string) => {
+          select: (cols: string) => {
+            eq: (col: string, val: string) => {
+              maybeSingle: () => Promise<{ data: { verification_status?: string | null } | null }>;
+            };
+          };
+        };
+      }
+    )
+      .from("teacher_profile_details")
+      .select("verification_status")
+      .eq("teacher_id", user.id)
+      .maybeSingle();
+    const vStatus = (verifyRow?.verification_status as string | undefined) ?? "unverified";
+    if (vStatus !== "approved") {
+      toast({
+        title: "Teacher verification required",
+        description:
+          "Complete verification under Teacher Portal → Profile. An admin must approve your account before you can create classes.",
+        variant: "destructive",
+      });
+      return;
+    }
     const { error } = await supabase.from("classrooms").insert({
       teacher_id: user.id,
       name: newName.trim(),

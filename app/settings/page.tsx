@@ -20,6 +20,15 @@ export default function SettingsPage() {
     }
   }, [authLoading, authUser, profile?.role, router]);
 
+  // After logout, profile is cleared before session updates — don't treat "no profile" as loading when signed out.
+  if (!authLoading && !authUser) {
+    return (
+      <ProtectedRoute>
+        {null}
+      </ProtectedRoute>
+    );
+  }
+
   if (authLoading || (authUser && !profile)) {
     return (
       <ProtectedRoute>
@@ -31,16 +40,6 @@ export default function SettingsPage() {
   }
 
   if (profile?.role === "teacher") {
-    return (
-      <ProtectedRoute>
-        <div className="min-h-screen flex items-center justify-center">
-          <span className="text-4xl animate-pulse">🎯</span>
-        </div>
-      </ProtectedRoute>
-    );
-  }
-
-  if (!profile) {
     return (
       <ProtectedRoute>
         <div className="min-h-screen flex items-center justify-center">

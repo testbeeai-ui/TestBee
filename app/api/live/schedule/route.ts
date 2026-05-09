@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/integrations/supabase/server";
 import { createAdminClient } from "@/integrations/supabase/server";
+import { assertTeacherApprovedForMutations } from "@/lib/teacherPortal/queries";
 
 export async function POST(request: Request) {
   try {
@@ -51,6 +52,13 @@ export async function POST(request: Request) {
         { error: "Only the class teacher can schedule a live session" },
         { status: 403 }
       );
+    }
+
+    try {
+      await assertTeacherApprovedForMutations(user.id, admin);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Verification required";
+      return NextResponse.json({ error: msg }, { status: 403 });
     }
 
     const sectionId =

@@ -1,6 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useSearchParams } from "next/navigation";
 import {
   BookOpen,
@@ -20,7 +28,15 @@ import {
   WandSparkles,
   X,
 } from "lucide-react";
-import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import InviteStudents from "@/components/InviteStudents";
 import { useToast } from "@/hooks/use-toast";
@@ -55,12 +71,16 @@ import {
   fetchMockPapersFromSupabase,
   fetchMockQuestionsForPaper,
 } from "@/lib/mockPapersFromSupabase";
+import { fetchPastPapersFromSupabase } from "@/lib/pastPapersFromSupabase";
 import {
   chapterQuizSelectionComplete,
   chapterQuizToRef,
   initialChapterQuizSelection,
+  topicOptionLabel,
+  topicsForChapter,
   type ChapterQuizSelectionState,
 } from "@/lib/teacherPortal/chapterQuizUtils";
+import type { MotivationNudgeGoal, MotivationRecommendActionId } from "@/lib/teacherPortal/queries";
 import {
   DAILYDOSE_STREAK_TRACK_IDS,
   trackLabelById,
@@ -76,15 +96,59 @@ import type {
   TeacherPortalChapterQuizRef,
   TeacherPortalDailyDoseStreakRef,
   TeacherPortalGyanEngagementRef,
+  TeacherPortalMockNudgeLowScorer,
+  TeacherPortalMockNudgeSubmittedAttempt,
   TeacherPortalMockPaperRef,
+  TeacherPortalPastPaperRef,
   TeacherPortalSummary,
 } from "@/lib/teacherPortal/types";
-import type { MockPaper } from "@/types";
+import type { MockPaper, PastPaper } from "@/types";
+import { assignmentPostDueStillActive } from "@/lib/teacherPortal/assignmentDueActive";
+import { assignmentItemIsNudgeMcqTarget } from "@/lib/teacherPortal/nudgeMcqPosts";
+
+/** Same URL cleanup as counselling wizard — http(s) links only. */
+function normalizeTeacherMotivationExternalUrl(raw: string): string | null {
+  let s = raw.trim();
+  if (!s) return null;
+  while (s.startsWith("/")) s = s.slice(1);
+  const httpIdx = s.indexOf("http");
+  if (httpIdx > 0) s = s.slice(httpIdx);
+  if (/^https\/\//i.test(s) === false && /^https\//i.test(s)) {
+    s = s.replace(/^https\//i, "https://");
+  }
+  if (/^http\/\//i.test(s) === false && /^http\//i.test(s)) {
+    s = s.replace(/^http\//i, "http://");
+  }
+  if (/^https:\/\//i.test(s) === false && /^https:/i.test(s)) {
+    s = s.replace(/^https:/i, "https://");
+  }
+  if (/^http:\/\//i.test(s) === false && /^http:/i.test(s)) {
+    s = s.replace(/^http:/i, "http://");
+  }
+  if (/^www\./i.test(s)) s = `https://${s}`;
+  try {
+    const u = new URL(s);
+    if (u.protocol !== "http:" && u.protocol !== "https:") return null;
+    return u.toString();
+  } catch {
+    return null;
+  }
+}
+
+function defaultDueDateIsoDaysAhead(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
 
 interface MyClassroomViewProps {
   summary: TeacherPortalSummary;
   classrooms: TeacherPortalClassroomCard[];
   classroomDetails: Record<string, TeacherPortalClassroomDetail>;
+  /** Mock, chapter quiz, or generated MCQ post ids this IST week; nudge “low scorers” flow. */
+  mockPostIdsAssignedThisWeek?: string[];
+  mockNudgeLowScorersByPostId?: Record<string, TeacherPortalMockNudgeLowScorer[]>;
+  mockNudgeSubmittedAttemptsByPostId?: Record<string, TeacherPortalMockNudgeSubmittedAttempt[]>;
   onCreateClassroom: (input: {
     name: string;
     subject: string;
@@ -112,7 +176,7 @@ interface MyClassroomViewProps {
     chapterQuiz?: TeacherPortalChapterQuizRef | null;
     dailyDoseStreak?: TeacherPortalDailyDoseStreakRef | null;
     gyanEngagement?: TeacherPortalGyanEngagementRef | null;
-  }) => Promise<void>;
+  }) => Promise<{ id: string }>;
   onMotivateStudents: (input: {
     classroomId: string;
     actionKind: "boost" | "nudge" | "urgent_nudge";
@@ -122,9 +186,11 @@ interface MyClassroomViewProps {
     sectionId?: string | null;
     relatedPostId?: string;
     relatedPostTitle?: string;
-    recommendActionId?: "attempt_targeted_mock" | "post_doubt" | "watch_recorded" | "none";
+    recommendActionId?: MotivationRecommendActionId;
     recommendActionLabel?: string;
     recommendActionUrl?: string;
+    notificationTitle?: string;
+    nudgeGoal?: MotivationNudgeGoal;
   }) => Promise<void>;
   onRewardTopStudents: (input: {
     classroomId: string;
@@ -144,6 +210,11 @@ interface MyClassroomViewProps {
   onDeleteClassroom: (input: { classroomId: string }) => Promise<void>;
   /** Reload portal bundle; use `{ silent: true }` from polling so the page does not flash the loading state. */
   onRefreshTeacherPortal: (opts?: { silent?: boolean }) => Promise<void>;
+  /**
+   * When false (e.g. admin impersonation), the nudge wizard cannot inline-create mock/quiz assignments
+   * — teachers must pick an existing mock/quiz post from the class wall.
+   */
+  allowNudgeStructuredAssignmentCreate?: boolean;
   /** Schedule live session (same payload as My Classes → createSession). */
   onScheduleLiveSession: (input: ScheduleLiveSessionPayload) => Promise<void>;
   onRequireVerifiedAction?: (actionLabel: string) => Promise<boolean>;
@@ -517,6 +588,9 @@ function TeacherWizardPopup(props: {
   teacherId: string;
   classrooms: TeacherPortalClassroomCard[];
   classroomDetails: Record<string, TeacherPortalClassroomDetail>;
+  mockPostIdsAssignedThisWeek: string[];
+  mockNudgeLowScorersByPostId: Record<string, TeacherPortalMockNudgeLowScorer[]>;
+  mockNudgeSubmittedAttemptsByPostId: Record<string, TeacherPortalMockNudgeSubmittedAttempt[]>;
   onCreateAssignment: MyClassroomViewProps["onCreateAssignment"];
   onCreateClassroom: MyClassroomViewProps["onCreateClassroom"];
   onRefreshTeacherPortal: MyClassroomViewProps["onRefreshTeacherPortal"];
@@ -524,8 +598,11 @@ function TeacherWizardPopup(props: {
   onScheduleLiveSession: MyClassroomViewProps["onScheduleLiveSession"];
   onRequireVerifiedAction?: MyClassroomViewProps["onRequireVerifiedAction"];
   toast: ReturnType<typeof useToast>["toast"];
+  /** When false, nudge wizard cannot inline-create mock/quiz assignments (e.g. admin impersonation). */
+  allowNudgeStructuredAssignmentCreate?: boolean;
 }) {
   const toast = props.toast;
+  const nudgeWizardRef = useRef<TeacherNudgeWithRdmWizardHandle>(null);
   const GOOGLE_CONNECT_PROMPTED_SESSION_KEY = `teacherPortal.googleConnectPrompted.session.v1:${props.teacherId}`;
   const GOOGLE_CONNECT_GATE_DISMISSED_SESSION_KEY = `teacherPortal.googleConnectGateDismissed.session.v1:${props.teacherId}`;
 
@@ -837,6 +914,18 @@ function TeacherWizardPopup(props: {
       const isVerified = await ensureVerifiedForClassroomFlow();
       if (!isVerified) return;
     }
+    if (activeTask === 4) {
+      const stepIdx = currentSteps[4] ?? 0;
+      const gate = nudgeWizardRef.current?.canProceedFromStep(stepIdx);
+      if (gate && !gate.ok) {
+        toast({
+          title: gate.message ?? "Complete this step first",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     if (activeTask === 0 && shouldGateGoogle()) {
       openGoogleGate({ kind: "next" });
       return;
@@ -1347,11 +1436,12 @@ function TeacherWizardPopup(props: {
                       teacherId={props.teacherId}
                       classrooms={props.classrooms}
                       onCreateAssignment={async (input) => {
-                        await props.onCreateAssignment(
+                        const created = await props.onCreateAssignment(
                           input as Parameters<MyClassroomViewProps["onCreateAssignment"]>[0]
                         );
                         props.toast({ title: "Test assigned to classroom" });
                         await props.onRefreshTeacherPortal({ silent: true });
+                        return created;
                       }}
                     />
                   </div>
@@ -1892,12 +1982,23 @@ function TeacherWizardPopup(props: {
                           </>
                         ) : activeTask === 4 ? (
                           <TeacherNudgeWithRdmWizard
+                            ref={nudgeWizardRef}
                             stepIdx={stepIdx}
+                            teacherId={props.teacherId}
                             classrooms={props.classrooms}
                             classroomDetails={props.classroomDetails}
+                            mockPostIdsAssignedThisWeek={props.mockPostIdsAssignedThisWeek}
+                            mockNudgeLowScorersByPostId={props.mockNudgeLowScorersByPostId}
+                            mockNudgeSubmittedAttemptsByPostId={
+                              props.mockNudgeSubmittedAttemptsByPostId
+                            }
+                            onCreateAssignment={props.onCreateAssignment}
+                            allowStructuredAssignmentCreate={props.allowNudgeStructuredAssignmentCreate !== false}
+                            onRequireVerifiedAction={props.onRequireVerifiedAction}
                             onMotivateStudents={props.onMotivateStudents}
                             toast={props.toast}
                             onDone={() => setActiveTask(null)}
+                            onJumpToStep={(i) => void guardedJumpStep(4, i)}
                           />
                         ) : activeTask === 6 ? (
                           <TeacherCounselStudentWizard
@@ -2979,6 +3080,10 @@ function TeacherAssignmentProgressWizard(props: {
                 rdmDelta: extraRdm,
                 relatedPostId: assignmentId,
                 relatedPostTitle: assignmentDraft.title,
+                nudgeGoal: "complete_pending_assignment",
+                notificationTitle: assignmentDraft.title?.trim()
+                  ? `Teacher nudge: complete this assignment — ${assignmentDraft.title.trim()}`
+                  : "Teacher nudge: complete this assignment",
               });
               toast({
                 title: targetIds.length > 1 ? "Reminders sent" : "Reminder sent",
@@ -3032,17 +3137,37 @@ function TeacherAssignmentProgressWizard(props: {
   return props.stepIdx === 0 ? step1 : props.stepIdx === 1 ? step2View : step3Reminder;
 }
 
-function TeacherNudgeWithRdmWizard(props: {
-  stepIdx: number; // 0..3
+const EMPTY_MOCK_LOW_SCORER_ROWS: TeacherPortalMockNudgeLowScorer[] = [];
+const EMPTY_SUBMITTED_ATTEMPT_ROWS: TeacherPortalMockNudgeSubmittedAttempt[] = [];
+
+type TeacherNudgeWithRdmWizardProps = {
+  stepIdx: number;
   classrooms: TeacherPortalClassroomCard[];
   classroomDetails: Record<string, TeacherPortalClassroomDetail>;
+  mockPostIdsAssignedThisWeek: string[];
+  mockNudgeLowScorersByPostId: Record<string, TeacherPortalMockNudgeLowScorer[]>;
+  mockNudgeSubmittedAttemptsByPostId: Record<string, TeacherPortalMockNudgeSubmittedAttempt[]>;
+  teacherId: string;
+  onCreateAssignment: MyClassroomViewProps["onCreateAssignment"];
+  /** When false, hide inline mock/quiz creation (admin impersonation). */
+  allowStructuredAssignmentCreate: boolean;
+  onRequireVerifiedAction?: MyClassroomViewProps["onRequireVerifiedAction"];
   onMotivateStudents: MyClassroomViewProps["onMotivateStudents"];
   toast: ReturnType<typeof useToast>["toast"];
   onDone: () => void;
-}) {
-  const { toast } = props;
+  /** Jump wizard steps from modals (e.g. back to Choose who when no recipients). */
+  onJumpToStep?: (stepIdx: number) => void;
+};
 
-  type NudgeTarget = "off_streak" | "low_scorers" | "specific_student" | "full_classroom";
+export type TeacherNudgeWithRdmWizardHandle = {
+  canProceedFromStep: (stepIdx: number) => { ok: boolean; message?: string };
+};
+
+const TeacherNudgeWithRdmWizard = forwardRef<TeacherNudgeWithRdmWizardHandle, TeacherNudgeWithRdmWizardProps>(
+  function TeacherNudgeWithRdmWizard(props, ref) {
+  const { toast, onCreateAssignment, onRequireVerifiedAction } = props;
+
+  type NudgeTarget = "off_streak" | "low_scorers" | "specific_student";
   type NudgeGoal =
     | "restart_streak"
     | "complete_pending_assignment"
@@ -3051,10 +3176,13 @@ function TeacherNudgeWithRdmWizard(props: {
     | "revise_chapter"
     | "watch_recorded_class";
 
-  type NudgeTemplateId = "streak_reengagement";
+  const { taxonomy, loading: taxonomyLoading, error: taxonomyError } = useTopicTaxonomy();
 
   const selectCompactClassName =
     "h-10 w-full rounded-xl border border-white/15 bg-[#070b17] px-3 text-[13px] outline-none focus:border-emerald-400 sm:text-sm";
+
+  /** Hidden in UI for now; keep `attemptMockMode === "create"` branch below for easy re-enable. */
+  const NUDGE_MOCK_SHOW_INLINE_CREATE = false;
 
   const rdmOptions: Array<{ label: string; value: number }> = [
     { label: "+5 RDM", value: 5 },
@@ -3069,56 +3197,181 @@ function TeacherNudgeWithRdmWizard(props: {
     { id: "complete_pending_assignment", label: "Complete pending assignment" },
     { id: "attempt_mock", label: "Attempt a Testbee mock" },
     { id: "answer_doubts", label: "Answer doubts on Gyan++" },
-    { id: "revise_chapter", label: "Revise a specific chapter" },
+    { id: "revise_chapter", label: "Concept focus" },
     { id: "watch_recorded_class", label: "Watch the recorded class" },
   ];
 
-  const nudgeTemplateOptions: Array<{ id: NudgeTemplateId; label: string }> = [
-    { id: "streak_reengagement", label: "🔥 Streak re-engagement" },
-  ];
-
   const defaultClassroomId = props.classrooms[0]?.id ?? "";
-  const [classroomId] = useState(defaultClassroomId);
+  const [classroomId, setClassroomId] = useState(defaultClassroomId);
+  const [target, setTarget] = useState<NudgeTarget>("off_streak");
+
+  const weekMockClassroomIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const postId of props.mockPostIdsAssignedThisWeek) {
+      for (const [cid, detail] of Object.entries(props.classroomDetails)) {
+        if (detail.assignments.some((a) => a.id === postId && assignmentItemIsNudgeMcqTarget(a))) {
+          ids.add(cid);
+        }
+      }
+    }
+    return ids;
+  }, [props.mockPostIdsAssignedThisWeek, props.classroomDetails]);
+
+  const classroomSelectList = useMemo(() => {
+    if (target === "low_scorers") {
+      return props.classrooms.filter((c) => weekMockClassroomIds.has(c.id));
+    }
+    return props.classrooms;
+  }, [target, props.classrooms, weekMockClassroomIds]);
 
   const detail = props.classroomDetails[classroomId];
   const students: TeacherPortalClassroomStudent[] = (detail?.students ?? []).filter(
     (s) => s.role !== "teacher"
   );
 
-  const twoDaysAgoMs = Date.now() - 48 * 60 * 60 * 1000;
-  const offStreakStudents = students.filter((s) => {
-    if (!(s.status === "off_streak" || s.status === "at_risk")) return false;
-    if (!s.lastActiveAt) return false;
-    const ts = new Date(s.lastActiveAt).getTime();
-    return Number.isFinite(ts) && ts <= twoDaysAgoMs;
-  });
-
-  const lowScorers = students.filter(
-    (s) => typeof s.avgScorePercent === "number" && s.avgScorePercent < 60
+  const offStreakStudents = useMemo(
+    () => students.filter((s) => s.status === "off_streak"),
+    [students]
   );
 
-  const [target, setTarget] = useState<NudgeTarget>("off_streak");
-  const [specificStudentId, setSpecificStudentId] = useState<string>(
-    lowScorers[0]?.userId ?? students[0]?.userId ?? ""
-  );
+  const offStreakIdsKey = useMemo(() => {
+    const roster = props.classroomDetails[classroomId]?.students ?? [];
+    return roster
+      .filter((s) => s.role !== "teacher" && s.status === "off_streak")
+      .map((s) => s.userId)
+      .sort()
+      .join("|");
+  }, [classroomId, props.classroomDetails]);
+
+  const weekMocksForClassroom = useMemo(() => {
+    const d = props.classroomDetails[classroomId];
+    if (!d) return [];
+    const ids = new Set(props.mockPostIdsAssignedThisWeek);
+    return d.assignments.filter((a) => ids.has(a.id) && assignmentItemIsNudgeMcqTarget(a));
+  }, [classroomId, props.classroomDetails, props.mockPostIdsAssignedThisWeek]);
+
+  const [selectedMockPostId, setSelectedMockPostId] = useState("");
+  const [selectedOffStreakIds, setSelectedOffStreakIds] = useState<Set<string>>(new Set());
+  const [selectedLowScorerIds, setSelectedLowScorerIds] = useState<Set<string>>(new Set());
+  const [selectedSpecificIds, setSelectedSpecificIds] = useState<Set<string>>(new Set());
   const [goal, setGoal] = useState<NudgeGoal>("restart_streak");
-  const [templateId, setTemplateId] = useState<NudgeTemplateId>("streak_reengagement");
-  const [topicHint, setTopicHint] = useState("");
+  const [pendingAssignmentPostId, setPendingAssignmentPostId] = useState("");
+  /** Hub-only mock link removed from UI; state kept so stale bundles / partial HMR cannot ReferenceError. Always false. */
+  const [attemptMockHubOnly, setAttemptMockHubOnly] = useState(false);
+  const [attemptMockMode, setAttemptMockMode] = useState<"existing" | "create">("existing");
+
+  useEffect(() => {
+    if (!attemptMockHubOnly) return;
+    setAttemptMockHubOnly(false);
+  }, [attemptMockHubOnly, setAttemptMockHubOnly]);
+  const [mockExistingPostId, setMockExistingPostId] = useState("");
+  const [mockCreateKind, setMockCreateKind] = useState<"mock" | "quiz">("quiz");
+  const [chapterQuizSel, setChapterQuizSel] = useState<ChapterQuizSelectionState>(() =>
+    initialChapterQuizSelection()
+  );
+  const [mockPapers, setMockPapers] = useState<MockPaper[]>([]);
+  const [mockPapersLoading, setMockPapersLoading] = useState(false);
+  const [mockPapersError, setMockPapersError] = useState<string | null>(null);
+  const [selectedMockPaperId, setSelectedMockPaperId] = useState<string | null>(null);
+  const [inlineCreateTitle, setInlineCreateTitle] = useState("");
+  const [inlineCreateDueDate, setInlineCreateDueDate] = useState(() => defaultDueDateIsoDaysAhead(7));
+  const [nudgeCreatedPostId, setNudgeCreatedPostId] = useState("");
+  const [nudgeCreatedTitle, setNudgeCreatedTitle] = useState("");
+  const [creatingInlineAssignment, setCreatingInlineAssignment] = useState(false);
+  const [reviseConceptFocusSel, setReviseConceptFocusSel] = useState<ConceptFocusSelectionState>(() =>
+    initialConceptFocusSelection()
+  );
+  const [watchRecordedUrl, setWatchRecordedUrl] = useState("");
   const [rdmDelta, setRdmDelta] = useState(10);
   const [messageTouched, setMessageTouched] = useState(false);
   const [message, setMessage] = useState(
     "Hey [name]! I noticed you haven't studied in 2 days. Your last score was great — don't let the streak break now. Come back today and I'm giving you a RDM boost to restart! 🔥"
   );
   const [sending, setSending] = useState(false);
+  const [noRecipientsDialogOpen, setNoRecipientsDialogOpen] = useState(false);
+
+  const lowScorerRows = useMemo(() => {
+    const rows = props.mockNudgeLowScorersByPostId[selectedMockPostId];
+    return rows ?? EMPTY_MOCK_LOW_SCORER_ROWS;
+  }, [props.mockNudgeLowScorersByPostId, selectedMockPostId]);
+
+  const lowScorerIdsKey = useMemo(
+    () =>
+      lowScorerRows
+        .map((r) => r.userId)
+        .sort()
+        .join("|"),
+    [lowScorerRows]
+  );
+
+  useEffect(() => {
+    if (target === "low_scorers") {
+      if (classroomSelectList.length === 0) return;
+      if (!classroomSelectList.some((c) => c.id === classroomId)) {
+        setClassroomId(classroomSelectList[0].id);
+      }
+      return;
+    }
+    if (props.classrooms.length === 0) return;
+    if (!props.classrooms.some((c) => c.id === classroomId)) {
+      setClassroomId(props.classrooms[0].id);
+    }
+  }, [target, classroomId, classroomSelectList, props.classrooms]);
+
+  useEffect(() => {
+    if (target !== "low_scorers") return;
+    const mocks = weekMocksForClassroom;
+    if (mocks.length === 0) {
+      setSelectedMockPostId("");
+      return;
+    }
+    if (!mocks.some((m) => m.id === selectedMockPostId)) {
+      setSelectedMockPostId(mocks[0].id);
+    }
+  }, [target, classroomId, weekMocksForClassroom, selectedMockPostId]);
+
+  useEffect(() => {
+    if (target !== "off_streak") return;
+    const ids = offStreakIdsKey ? offStreakIdsKey.split("|").filter(Boolean) : [];
+    setSelectedOffStreakIds(new Set(ids));
+  }, [target, classroomId, offStreakIdsKey]);
+
+  useEffect(() => {
+    if (target !== "low_scorers") return;
+    const ids = lowScorerIdsKey ? lowScorerIdsKey.split("|").filter(Boolean) : [];
+    setSelectedLowScorerIds(new Set(ids));
+  }, [target, classroomId, selectedMockPostId, lowScorerIdsKey]);
+
+  useEffect(() => {
+    if (target !== "specific_student") return;
+    setSelectedSpecificIds(new Set());
+  }, [target, classroomId]);
 
   const selectedTargetStudentIds = useMemo(() => {
-    if (target === "off_streak") return offStreakStudents.map((s) => s.userId);
-    if (target === "low_scorers") return lowScorers.map((s) => s.userId);
-    if (target === "specific_student") {
-      return specificStudentId ? [specificStudentId] : [];
+    if (target === "off_streak") {
+      return offStreakStudents.filter((s) => selectedOffStreakIds.has(s.userId)).map((s) => s.userId);
     }
-    return students.map((s) => s.userId);
-  }, [target, offStreakStudents, lowScorers, specificStudentId, students]);
+    if (target === "low_scorers") {
+      const allowed = new Set(lowScorerRows.map((r) => r.userId));
+      return [...selectedLowScorerIds].filter((id) => allowed.has(id));
+    }
+    if (target === "specific_student") {
+      return [...selectedSpecificIds].filter((id) => students.some((s) => s.userId === id));
+    }
+    return [];
+  }, [
+    target,
+    offStreakStudents,
+    selectedOffStreakIds,
+    lowScorerRows,
+    selectedLowScorerIds,
+    selectedSpecificIds,
+    students,
+  ]);
+
+  useEffect(() => {
+    if (selectedTargetStudentIds.length > 0) setNoRecipientsDialogOpen(false);
+  }, [selectedTargetStudentIds.length]);
 
   const actionKind = useMemo<"boost" | "nudge" | "urgent_nudge">(() => {
     const anyAtRisk = selectedTargetStudentIds.some((id) => {
@@ -3128,38 +3381,451 @@ function TeacherNudgeWithRdmWizard(props: {
     return anyAtRisk ? "urgent_nudge" : "nudge";
   }, [selectedTargetStudentIds, students]);
 
+  const classroomAssignments = useMemo(
+    () => detail?.assignments ?? [],
+    [detail?.assignments]
+  );
+
+  /** Pending-assignment nudge: omit past-due posts so teachers only pick still-active work. */
+  const activePendingAssignments = useMemo(
+    () => classroomAssignments.filter(assignmentPostDueStillActive),
+    [classroomAssignments]
+  );
+
+  const mcqTargetAssignments = useMemo(
+    () => classroomAssignments.filter((a) => assignmentItemIsNudgeMcqTarget(a)),
+    [classroomAssignments]
+  );
+
+  const reviseConceptFocusSummary = useMemo(() => {
+    const sel = reviseConceptFocusSel;
+    if (!conceptFocusSelectionComplete(sel, taxonomy)) return "";
+    if (sel.classLevel == null || !sel.subject || sel.chapterTitle == null || sel.topicIndex == null) return "";
+    const topicRows = topicsForChapter(taxonomy, sel.subject, sel.classLevel, sel.chapterTitle);
+    const node = topicRows[sel.topicIndex];
+    const topicLbl = node ? topicOptionLabel(node) : "";
+    const st = sel.subtopicName?.trim() ?? "";
+    return [sel.chapterTitle, topicLbl, st].filter(Boolean).join(" · ");
+  }, [reviseConceptFocusSel, taxonomy]);
+
   useEffect(() => {
-    // Keep specific selection valid.
-    if (target !== "specific_student") return;
-    if (specificStudentId && students.some((s) => s.userId === specificStudentId)) return;
-    setSpecificStudentId(students[0]?.userId ?? "");
-  }, [target, specificStudentId, students]);
+    if (goal !== "attempt_mock" || mockCreateKind !== "mock") return;
+    if (!props.allowStructuredAssignmentCreate) return;
+    let cancelled = false;
+    const run = async () => {
+      setMockPapersLoading(true);
+      setMockPapersError(null);
+      try {
+        const rows = await fetchMockPapersFromSupabase();
+        if (!cancelled) {
+          setMockPapers(rows);
+          setSelectedMockPaperId((prev) => (prev && rows.some((r) => r.id === prev) ? prev : rows[0]?.id ?? null));
+        }
+      } catch (e) {
+        if (!cancelled) setMockPapersError(e instanceof Error ? e.message : "Could not load mock papers.");
+      } finally {
+        if (!cancelled) setMockPapersLoading(false);
+      }
+    };
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [goal, mockCreateKind, props.allowStructuredAssignmentCreate]);
+
+  useEffect(() => {
+    if (goal !== "complete_pending_assignment") return;
+    if (activePendingAssignments.length === 0) {
+      setPendingAssignmentPostId("");
+      return;
+    }
+    setPendingAssignmentPostId((prev) =>
+      prev && activePendingAssignments.some((a) => a.id === prev)
+        ? prev
+        : activePendingAssignments[0].id
+    );
+  }, [goal, activePendingAssignments]);
+
+  useEffect(() => {
+    if (goal === "attempt_mock" && !NUDGE_MOCK_SHOW_INLINE_CREATE && attemptMockMode === "create") {
+      setAttemptMockMode("existing");
+      setNudgeCreatedPostId("");
+      setNudgeCreatedTitle("");
+    }
+  }, [goal, attemptMockMode, NUDGE_MOCK_SHOW_INLINE_CREATE]);
+
+  useEffect(() => {
+    if (goal !== "attempt_mock" || attemptMockMode !== "existing") return;
+    if (mcqTargetAssignments.length === 0) {
+      setMockExistingPostId("");
+      return;
+    }
+    setMockExistingPostId((prev) =>
+      prev && mcqTargetAssignments.some((a) => a.id === prev) ? prev : mcqTargetAssignments[0].id
+    );
+  }, [goal, attemptMockMode, mcqTargetAssignments]);
+
+  useEffect(() => {
+    setNudgeCreatedPostId("");
+    setNudgeCreatedTitle("");
+    setAttemptMockMode("existing");
+    setAttemptMockHubOnly(false);
+    setReviseConceptFocusSel(initialConceptFocusSelection());
+  }, [classroomId]);
+
+  useImperativeHandle(ref, () => ({
+    canProceedFromStep(stepIdx: number) {
+      if (stepIdx === 0) {
+        if (selectedTargetStudentIds.length === 0) {
+          return { ok: false, message: "Select at least one student to nudge." };
+        }
+        return { ok: true };
+      }
+      if (stepIdx === 1) {
+        switch (goal) {
+          case "complete_pending_assignment":
+            if (activePendingAssignments.length === 0) {
+              return {
+                ok: false,
+                message:
+                  "No active assignments (due date passed). Extend due dates in My Classroom or pick another goal.",
+              };
+            }
+            if (
+              !pendingAssignmentPostId ||
+              !activePendingAssignments.some((a) => a.id === pendingAssignmentPostId)
+            ) {
+              return { ok: false, message: "Choose one active assignment for everyone to complete." };
+            }
+            return { ok: true };
+          case "attempt_mock":
+            if (attemptMockMode === "existing") {
+              if (!mockExistingPostId || !mcqTargetAssignments.some((a) => a.id === mockExistingPostId)) {
+                return {
+                  ok: false,
+                  message:
+                    mcqTargetAssignments.length === 0
+                      ? "No mock, chapter quiz, or MCQ assignment in this class to link. Add one from My Classroom, or pick another goal."
+                      : "Choose a mock or quiz assignment.",
+                };
+              }
+              return { ok: true };
+            }
+            if (!props.allowStructuredAssignmentCreate) {
+              return { ok: false, message: "Inline assignment creation is unavailable in this mode." };
+            }
+            if (!nudgeCreatedPostId) {
+              return { ok: false, message: 'Use "Create & attach assignment" before continuing.' };
+            }
+            return { ok: true };
+          case "revise_chapter":
+            if (!conceptFocusSelectionComplete(reviseConceptFocusSel, taxonomy)) {
+              return {
+                ok: false,
+                message: "Complete Concept focus: class, subject, chapter, lesson, and subtopic.",
+              };
+            }
+            return { ok: true };
+          case "watch_recorded_class":
+            if (!normalizeTeacherMotivationExternalUrl(watchRecordedUrl)) {
+              return { ok: false, message: "Paste a valid http(s) link for the recorded class." };
+            }
+            return { ok: true };
+          default:
+            return { ok: true };
+        }
+      }
+      return { ok: true };
+    },
+  }), [
+    goal,
+    activePendingAssignments,
+    pendingAssignmentPostId,
+    attemptMockMode,
+    mockExistingPostId,
+    mcqTargetAssignments,
+    props.allowStructuredAssignmentCreate,
+    nudgeCreatedPostId,
+    reviseConceptFocusSel,
+    taxonomy,
+    watchRecordedUrl,
+    selectedTargetStudentIds,
+  ]);
 
   useEffect(() => {
     if (messageTouched) return;
     const rdmPart = rdmDelta > 0 ? ` (+${rdmDelta} RDM)` : "";
-    // Screenshot reference template: uses [name] token.
+    const pendingTitle =
+      classroomAssignments.find((a) => a.id === pendingAssignmentPostId)?.title?.trim() ?? "";
+    const mockTitle =
+      attemptMockMode === "existing"
+        ? classroomAssignments.find((a) => a.id === mockExistingPostId)?.title?.trim() ?? ""
+        : nudgeCreatedTitle.trim();
+    const reviseBit = reviseConceptFocusSummary;
     const base = (() => {
       switch (goal) {
         case "restart_streak":
-          return `Hey [name]! I noticed you haven't studied in 2 days. Your last score was great — don't let the streak break now. Come back today and I'm giving you a RDM boost to restart${rdmPart}! 🔥`;
+          return `Hey [name]! Let's keep the momentum going — continuing the streak you've started together really matters. Come back today and I'm giving you a RDM boost${rdmPart}! 🔥`;
         case "complete_pending_assignment":
-          return `Hey [name]! Your pending assignment is waiting. Complete it today and I'm giving you a RDM boost${rdmPart}! You'll be back on track fast.`;
+          return `Hey [name]!${pendingTitle ? ` Please complete "${pendingTitle}"` : " Your pending assignment is waiting"} — finish it today and I'm giving you a RDM boost${rdmPart}!`;
         case "attempt_mock":
-          return `Hey [name]! I recommend a quick Testbee mock to build momentum. Attempt it today and I'm giving you a RDM boost${rdmPart}!`;
+          return mockTitle
+            ? `Hey [name]! Please attempt "${mockTitle}" today — I'm giving you a RDM boost${rdmPart}!`
+            : `Hey [name]! I recommend a quick Testbee mock or chapter quiz to build momentum. Attempt it today and I'm giving you a RDM boost${rdmPart}!`;
         case "answer_doubts":
-          return `Hey [name]! I saw you might have doubts. Answer them on Gyan++ today and I'm giving you a RDM boost${rdmPart}!`;
+          return `Hey [name]! Post your doubts on Gyan++ today so we can clear them together — I'm giving you a RDM boost${rdmPart}!`;
         case "revise_chapter":
-          return `Hey [name]! Let's revise to lock in concepts. Based on your goal, I'm encouraging a quick revision${topicHint.trim() ? `: ${topicHint.trim()}` : ""} today — and I'm giving you a RDM boost${rdmPart}!`;
+          return reviseBit
+            ? `Hey [name]! Let's focus on ${reviseBit} and lock in concepts today — I'm giving you a RDM boost${rdmPart}!`
+            : `Hey [name]! Let's lock in today's concept focus — I'm giving you a RDM boost${rdmPart}!`;
         case "watch_recorded_class":
-          return `Hey [name]! A recorded lesson can help you catch up quickly. Watch it today and I'm giving you a RDM boost${rdmPart}!`;
+          return `Hey [name]! Watch the recorded lesson${watchRecordedUrl.trim() ? " I've linked" : ""} and catch up quickly — I'm giving you a RDM boost${rdmPart}!`;
         default:
           return `Hey [name]! I'm nudging you to keep learning momentum going. Complete the next step and earn${rdmPart} 🎯`;
       }
     })();
 
     setMessage(base);
-  }, [goal, rdmDelta, messageTouched, topicHint]);
+  }, [
+    goal,
+    rdmDelta,
+    messageTouched,
+    classroomAssignments,
+    pendingAssignmentPostId,
+    attemptMockMode,
+    mockExistingPostId,
+    nudgeCreatedTitle,
+    reviseConceptFocusSummary,
+    watchRecordedUrl,
+  ]);
+
+  const step2GoalSummaryDetail = useMemo(() => {
+    switch (goal) {
+      case "restart_streak":
+        return "";
+      case "complete_pending_assignment":
+        return classroomAssignments.find((a) => a.id === pendingAssignmentPostId)?.title ?? "";
+      case "attempt_mock":
+        if (attemptMockMode === "existing") {
+          return classroomAssignments.find((a) => a.id === mockExistingPostId)?.title ?? "";
+        }
+        return nudgeCreatedTitle.trim() || (nudgeCreatedPostId ? "New assignment attached" : "");
+      case "answer_doubts":
+        return "/doubts";
+      case "revise_chapter":
+        return reviseConceptFocusSummary;
+      case "watch_recorded_class":
+        return watchRecordedUrl.trim();
+      default:
+        return "";
+    }
+  }, [
+    goal,
+    classroomAssignments,
+    pendingAssignmentPostId,
+    attemptMockMode,
+    mockExistingPostId,
+    nudgeCreatedTitle,
+    nudgeCreatedPostId,
+    reviseConceptFocusSummary,
+    watchRecordedUrl,
+  ]);
+
+  const motivationNudgeMeta = useMemo((): {
+    nudgeGoal: MotivationNudgeGoal;
+    notificationTitle?: string;
+  } => {
+    switch (goal) {
+      case "restart_streak":
+        return {
+          nudgeGoal: "restart_streak",
+          notificationTitle: "Teacher nudge: get back on your study streak",
+        };
+      case "complete_pending_assignment": {
+        const t =
+          classroomAssignments.find((a) => a.id === pendingAssignmentPostId)?.title?.trim() ?? "";
+        return {
+          nudgeGoal: "complete_pending_assignment",
+          notificationTitle: t
+            ? `Teacher nudge: complete this assignment — ${t}`
+            : "Teacher nudge: complete this assignment",
+        };
+      }
+      case "attempt_mock":
+        return { nudgeGoal: "attempt_mock" };
+      case "answer_doubts":
+        return {
+          nudgeGoal: "answer_doubts",
+          notificationTitle: "Teacher nudge: share your doubt on Gyan++",
+        };
+      case "revise_chapter":
+        return {
+          nudgeGoal: "revise_chapter",
+          notificationTitle: "Teacher nudge: focus this topic",
+        };
+      case "watch_recorded_class":
+        return {
+          nudgeGoal: "watch_recorded_class",
+          notificationTitle: "Teacher nudge: watch the class recording",
+        };
+    }
+  }, [goal, classroomAssignments, pendingAssignmentPostId]);
+
+  const motivateExtras = useMemo(() => {
+    switch (goal) {
+      case "restart_streak":
+        return {};
+      case "complete_pending_assignment": {
+        const a = classroomAssignments.find((x) => x.id === pendingAssignmentPostId);
+        return {
+          relatedPostId: pendingAssignmentPostId,
+          relatedPostTitle: a?.title,
+        };
+      }
+      case "attempt_mock": {
+        const postId = attemptMockMode === "existing" ? mockExistingPostId : nudgeCreatedPostId;
+        const a = classroomAssignments.find((x) => x.id === postId);
+        const title = a?.title ?? nudgeCreatedTitle.trim() ?? "";
+        return { relatedPostId: postId, relatedPostTitle: title };
+      }
+      case "answer_doubts":
+        return {
+          recommendActionId: "post_doubt" as const,
+          recommendActionLabel: "Open Gyan++",
+          recommendActionUrl: "/doubts",
+        };
+      case "revise_chapter":
+        return {};
+      case "watch_recorded_class": {
+        const u = normalizeTeacherMotivationExternalUrl(watchRecordedUrl);
+        if (!u) return {};
+        return {
+          recommendActionId: "watch_recorded" as const,
+          recommendActionLabel: "Open link",
+          recommendActionUrl: u,
+        };
+      }
+      default:
+        return {};
+    }
+  }, [
+    goal,
+    classroomAssignments,
+    pendingAssignmentPostId,
+    attemptMockMode,
+    mockExistingPostId,
+    nudgeCreatedPostId,
+    nudgeCreatedTitle,
+    watchRecordedUrl,
+  ]);
+
+  const selectedMockPaper = useMemo(
+    () => mockPapers.find((p) => p.id === selectedMockPaperId) ?? null,
+    [mockPapers, selectedMockPaperId]
+  );
+
+  const chapterQuizRefForCreate = useMemo(() => {
+    if (mockCreateKind !== "quiz") return null;
+    return chapterQuizToRef(chapterQuizSel, taxonomy);
+  }, [mockCreateKind, chapterQuizSel, taxonomy]);
+
+  const canSubmitInlineCreate = useMemo(() => {
+    if (!props.allowStructuredAssignmentCreate) return false;
+    if (attemptMockMode !== "create" || goal !== "attempt_mock") return false;
+    if (mockCreateKind === "quiz") return chapterQuizSelectionComplete(chapterQuizSel, taxonomy);
+    return Boolean(!mockPapersLoading && selectedMockPaper);
+  }, [
+    props.allowStructuredAssignmentCreate,
+    attemptMockMode,
+    goal,
+    mockCreateKind,
+    chapterQuizSel,
+    taxonomy,
+    mockPapersLoading,
+    selectedMockPaper,
+  ]);
+
+  const runInlineCreateAssignment = useCallback(async () => {
+    if (!canSubmitInlineCreate || selectedTargetStudentIds.length === 0) return;
+    if (onRequireVerifiedAction) {
+      const ok = await onRequireVerifiedAction("Create assignment");
+      if (!ok) return;
+    }
+    setCreatingInlineAssignment(true);
+    try {
+      const assignLabel =
+        selectedTargetStudentIds.length === students.length
+          ? "All students"
+          : `Custom (${selectedTargetStudentIds.length})`;
+      if (mockCreateKind === "quiz") {
+        const cq = chapterQuizRefForCreate;
+        if (!cq) throw new Error("Chapter quiz selection incomplete.");
+        const title = inlineCreateTitle.trim() || "Chapter Quiz (MCQs)";
+        const tasks = normalizeTaskPositions(buildDefaultTasksForAssignmentType("Chapter Quiz (MCQs)"));
+        const created = await onCreateAssignment({
+          classroomId,
+          sectionId: null,
+          assignmentType: "quiz",
+          title,
+          dueDate: inlineCreateDueDate.trim() || null,
+          assignToLabel: assignLabel,
+          targetStudentIds: selectedTargetStudentIds,
+          rewardRdm: 15,
+          instructions: "",
+          tasks,
+          chapterQuiz: cq,
+        });
+        setNudgeCreatedPostId(created.id);
+        setNudgeCreatedTitle(title);
+      } else {
+        if (!selectedMockPaper) throw new Error("Choose a mock paper.");
+        const title =
+          inlineCreateTitle.trim() || selectedMockPaper.title.trim() || "Mock Paper (full length)";
+        const tasks = normalizeTaskPositions(buildDefaultTasksForAssignmentType("Mock Paper (full length)"));
+        const created = await onCreateAssignment({
+          classroomId,
+          sectionId: null,
+          assignmentType: "mock",
+          title,
+          dueDate: inlineCreateDueDate.trim() || null,
+          assignToLabel: assignLabel,
+          targetStudentIds: selectedTargetStudentIds,
+          rewardRdm: 15,
+          instructions: "",
+          tasks,
+          mockPaper: {
+            id: selectedMockPaper.id,
+            slug: (selectedMockPaper.slug ?? selectedMockPaper.id).trim(),
+            title: selectedMockPaper.title.trim(),
+          },
+        });
+        setNudgeCreatedPostId(created.id);
+        setNudgeCreatedTitle(title);
+      }
+      toast({ title: "Assignment created", description: "It’s linked to this nudge." });
+    } catch (e) {
+      toast({
+        title: "Could not create assignment",
+        description: e instanceof Error ? e.message : "Try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setCreatingInlineAssignment(false);
+    }
+  }, [
+    canSubmitInlineCreate,
+    selectedTargetStudentIds,
+    students.length,
+    onCreateAssignment,
+    onRequireVerifiedAction,
+    mockCreateKind,
+    chapterQuizRefForCreate,
+    inlineCreateTitle,
+    inlineCreateDueDate,
+    classroomId,
+    selectedMockPaper,
+    toast,
+  ]);
 
   const targetCount = selectedTargetStudentIds.length;
 
@@ -3168,11 +3834,92 @@ function TeacherNudgeWithRdmWizard(props: {
     .map((s) => s.name.split(" ")[0]?.trim())
     .filter(Boolean);
 
+  const rosterById = useMemo(() => new Map(students.map((s) => [s.userId, s])), [students]);
+
+  /** Latest submitted score per student for selected test — used when nobody is under 60%. */
+  const submittedAttemptRowsSorted = useMemo(() => {
+    const raw =
+      props.mockNudgeSubmittedAttemptsByPostId?.[selectedMockPostId] ??
+      EMPTY_SUBMITTED_ATTEMPT_ROWS;
+    return [...raw].sort((a, b) => {
+      const na = rosterById.get(a.userId)?.name?.trim() ?? "";
+      const nb = rosterById.get(b.userId)?.name?.trim() ?? "";
+      const cmp = na.localeCompare(nb, undefined, { sensitivity: "base" });
+      if (cmp !== 0) return cmp;
+      return b.pct - a.pct;
+    });
+  }, [props.mockNudgeSubmittedAttemptsByPostId, selectedMockPostId, rosterById]);
+
+  const sectionNameById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const sec of detail?.sections ?? []) {
+      m.set(sec.id, sec.name);
+    }
+    return m;
+  }, [detail?.sections]);
+
+  const nudgeStudentSectionLabel = (s: TeacherPortalClassroomStudent) => {
+    if (!s.sectionId) return "Unassigned";
+    return sectionNameById.get(s.sectionId) ?? "Section";
+  };
+
+  const nudgeToggleButtonClass =
+    "rounded-lg border border-white/15 bg-[#0d0d1c] px-2.5 py-1 text-[11px] font-semibold text-emerald-200 hover:bg-white/[0.04]";
+
   const step1 = (
     <div className="mt-3 space-y-2 sm:space-y-3">
       <div className="text-xs leading-relaxed text-slate-300">
-        You can target the students who need it most — off-streak, low scorers, or the whole class.
+        Choose a classroom, then who gets this nudge. Low scorers uses mocks, chapter quizzes, or generated MCQ tests assigned
+        this calendar week (Mon–Sun, Asia/Kolkata).
       </div>
+
+      {props.classrooms.length === 0 ? (
+        <div
+          role="status"
+          className="rounded-xl border border-sky-500/35 bg-sky-950/40 px-3 py-3 text-[12px] leading-snug text-sky-100 sm:text-sm"
+        >
+          <span className="font-semibold text-sky-50">No classrooms yet.</span> Create a class first — then you can send nudges.
+        </div>
+      ) : null}
+
+      <div>
+        <label className="mb-1 block text-xs font-semibold text-slate-300">Classroom</label>
+        <select
+          value={classroomSelectList.length === 0 ? "" : classroomId}
+          onChange={(e) => setClassroomId(e.target.value)}
+          disabled={classroomSelectList.length === 0}
+          className={`${selectCompactClassName} disabled:cursor-not-allowed disabled:opacity-60`}
+        >
+          {classroomSelectList.length === 0 ? (
+            <option value="">
+              {props.classrooms.length === 0 ? "No classrooms yet" : "No class with a test this week"}
+            </option>
+          ) : (
+            classroomSelectList.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))
+          )}
+        </select>
+        <p className="mt-1 text-[11px] text-slate-500 sm:text-xs">
+          Roster includes <span className="text-slate-400">all students in this class</span> (every section).
+        </p>
+      </div>
+
+      {target === "low_scorers" && classroomSelectList.length === 0 && props.classrooms.length > 0 ? (
+        <div
+          role="status"
+          className="rounded-xl border border-amber-400/50 bg-gradient-to-br from-amber-500/25 via-amber-600/15 to-transparent px-3 py-3 text-[12px] leading-snug shadow-[0_0_28px_-10px_rgba(251,191,36,0.45)] sm:px-4 sm:text-sm"
+        >
+          <p className="font-semibold text-amber-50">No test assigned this calendar week.</p>
+          <p className="mt-1.5 text-amber-100/95">
+            Use <span className="font-medium text-amber-50">Create assignment</span> (mock or chapter quiz) or{" "}
+            <span className="font-medium text-amber-50">Create tests</span> (generated MCQ). Or switch to Off-streak or Specific
+            students.
+          </p>
+        </div>
+      ) : null}
 
       <div className="grid gap-2 sm:gap-3 sm:grid-cols-2">
         <button
@@ -3186,7 +3933,11 @@ function TeacherNudgeWithRdmWizard(props: {
         >
           <div className="text-[13px] font-semibold text-slate-100 sm:text-sm">Off-streak students</div>
           <div className="mt-0.5 text-[11px] text-slate-400 sm:mt-1 sm:text-xs">
-            {offStreakStudents.length} students haven&apos;t studied in 2+ days
+            {offStreakStudents.length === 0
+              ? "No students are off-streak for 48+ hours in this class"
+              : offStreakStudents.length === 1
+                ? "1 student is 48+ hours off streak in this class"
+                : `${offStreakStudents.length} students are 48+ hours off streak in this class`}
           </div>
         </button>
 
@@ -3201,7 +3952,7 @@ function TeacherNudgeWithRdmWizard(props: {
         >
           <div className="text-[13px] font-semibold text-slate-100 sm:text-sm">Low scorers this week</div>
           <div className="mt-0.5 text-[11px] text-slate-400 sm:mt-1 sm:text-xs">
-            Below 60% average on last mock
+            Under 60% on a test assigned this week (mock, chapter quiz, or generated MCQ — submitted attempt)
           </div>
         </button>
 
@@ -3214,53 +3965,234 @@ function TeacherNudgeWithRdmWizard(props: {
               : "border-white/10 bg-[#0d0d1c] hover:bg-white/[0.03]"
           } sm:col-span-2`}
         >
-          <div className="text-[13px] font-semibold text-slate-100 sm:text-sm">Specific student</div>
-          <div className="mt-0.5 text-[11px] text-slate-400 sm:mt-1 sm:text-xs">Pick one student by name</div>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setTarget("full_classroom")}
-          className={`rounded-2xl border p-3 text-left transition sm:p-4 ${
-            target === "full_classroom"
-              ? "border-emerald-400/40 bg-emerald-500/10"
-              : "border-white/10 bg-[#0d0d1c] hover:bg-white/[0.03]"
-          } sm:col-span-2`}
-        >
-          <div className="text-[13px] font-semibold text-slate-100 sm:text-sm">Full classroom</div>
+          <div className="text-[13px] font-semibold text-slate-100 sm:text-sm">Specific students</div>
           <div className="mt-0.5 text-[11px] text-slate-400 sm:mt-1 sm:text-xs">
-            Broadcast to all {students.length} students
+            Pick one or more students from this class roster
           </div>
         </button>
       </div>
 
       {target === "off_streak" && offStreakStudents.length > 0 ? (
-        <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-3 py-2.5 text-[11px] leading-relaxed text-rose-200 sm:px-4 sm:py-3 sm:text-xs">
-          <span className="font-semibold">⚠ Off-streak alert:</span>{" "}
-          {offStreakAlertNames.join(", ")}
-          {offStreakStudents.length > offStreakAlertNames.length ? "…" : ""} — haven&apos;t logged in for
-          2+ days.
-        </div>
+        <>
+          <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-3 py-2.5 text-[11px] leading-relaxed text-rose-200 sm:px-4 sm:py-3 sm:text-xs">
+            <span className="font-semibold">⚠ Off-streak alert:</span>{" "}
+            {offStreakAlertNames.join(", ")}
+            {offStreakStudents.length > offStreakAlertNames.length ? "…" : ""} — need a nudge in this
+            class.
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              className={nudgeToggleButtonClass}
+              onClick={() =>
+                setSelectedOffStreakIds(new Set(offStreakStudents.map((s) => s.userId)))
+              }
+            >
+              Select all
+            </button>
+            <button type="button" className={nudgeToggleButtonClass} onClick={() => setSelectedOffStreakIds(new Set())}>
+              Clear
+            </button>
+          </div>
+          <div className="max-h-48 space-y-1.5 overflow-y-auto pr-1">
+            {[...offStreakStudents]
+              .sort((a, b) => a.name.localeCompare(b.name))
+              .map((s) => (
+                <label
+                  key={s.userId}
+                  className="flex cursor-pointer items-center gap-2 rounded-lg border border-white/10 bg-[#0d0d1c] px-2 py-2 text-[12px] text-slate-200"
+                >
+                  <input
+                    type="checkbox"
+                    className="rounded border-white/20"
+                    checked={selectedOffStreakIds.has(s.userId)}
+                    onChange={() => {
+                      setSelectedOffStreakIds((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(s.userId)) next.delete(s.userId);
+                        else next.add(s.userId);
+                        return next;
+                      });
+                    }}
+                  />
+                  <span className="min-w-0 flex-1 truncate">{s.name}</span>
+                  <span className="shrink-0 text-[10px] text-slate-500">{nudgeStudentSectionLabel(s)}</span>
+                </label>
+              ))}
+          </div>
+        </>
+      ) : null}
+
+      {target === "low_scorers" && classroomSelectList.length > 0 ? (
+        <>
+          {weekMocksForClassroom.length > 0 ? (
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-slate-300">Test (this week)</label>
+              <select
+                value={selectedMockPostId}
+                onChange={(e) => setSelectedMockPostId(e.target.value)}
+                className={selectCompactClassName}
+              >
+                {weekMocksForClassroom.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.title}
+                    {m.dueDateLabel ? ` · due ${m.dueDateLabel}` : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <div className="text-[11px] text-slate-500 sm:text-xs">
+              No qualifying test posted this week for this class.
+            </div>
+          )}
+
+          {weekMocksForClassroom.length > 0 && lowScorerRows.length === 0 ? (
+            submittedAttemptRowsSorted.length > 0 ? (
+              <div className="space-y-2 rounded-xl border border-sky-500/30 bg-sky-500/10 px-3 py-3 sm:px-4">
+                <p className="text-[12px] font-semibold text-sky-100 sm:text-sm">
+                  No students under 60% for this test
+                </p>
+                <p className="text-[11px] leading-relaxed text-sky-200/95 sm:text-xs">
+                  Everyone who submitted scored <span className="font-semibold text-sky-50">60% or above</span>.
+                  Latest attempt per student:
+                </p>
+                <ul className="max-h-52 space-y-1.5 overflow-y-auto pr-1">
+                  {submittedAttemptRowsSorted.map((r) => {
+                    const stu = rosterById.get(r.userId);
+                    const name = stu?.name?.trim() || "Student";
+                    return (
+                      <li
+                        key={r.userId}
+                        className="flex items-center gap-2 rounded-lg border border-white/10 bg-[#0d0d1c] px-2 py-2 text-[12px] text-slate-200"
+                      >
+                        <span className="min-w-0 flex-1 truncate">{name}</span>
+                        <span className="shrink-0 text-[10px] text-slate-500">
+                          {stu ? nudgeStudentSectionLabel(stu) : "—"}
+                        </span>
+                        <span className="shrink-0 text-[11px] font-semibold text-emerald-300 tabular-nums">
+                          {r.pct}%
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+                <p className="text-[10px] text-sky-300/80">
+                  Low scorers nudges only include students below 60%. Use Specific students to message anyone above that bar.
+                </p>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5 text-[11px] leading-relaxed text-slate-400 sm:text-xs">
+                <p className="font-semibold text-slate-300">No submitted attempts yet</p>
+                <p className="mt-1">
+                  No scored attempt is recorded for this test in this class yet. Students who haven&apos;t submitted
+                  won&apos;t appear here. If they completed it outside this classroom flow, scores may not sync.
+                </p>
+              </div>
+            )
+          ) : null}
+
+          {weekMocksForClassroom.length > 0 && lowScorerRows.length > 0 ? (
+            <>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className={nudgeToggleButtonClass}
+                  onClick={() =>
+                    setSelectedLowScorerIds(new Set(lowScorerRows.map((r) => r.userId)))
+                  }
+                >
+                  Select all under 60%
+                </button>
+                <button
+                  type="button"
+                  className={nudgeToggleButtonClass}
+                  onClick={() => setSelectedLowScorerIds(new Set())}
+                >
+                  Clear
+                </button>
+              </div>
+              <div className="max-h-48 space-y-1.5 overflow-y-auto pr-1">
+                {lowScorerRows.map((r) => {
+                  const stu = rosterById.get(r.userId);
+                  const name = stu?.name ?? "Student";
+                  return (
+                    <label
+                      key={r.userId}
+                      className="flex cursor-pointer items-center gap-2 rounded-lg border border-white/10 bg-[#0d0d1c] px-2 py-2 text-[12px] text-slate-200"
+                    >
+                      <input
+                        type="checkbox"
+                        className="rounded border-white/20"
+                        checked={selectedLowScorerIds.has(r.userId)}
+                        onChange={() => {
+                          setSelectedLowScorerIds((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(r.userId)) next.delete(r.userId);
+                            else next.add(r.userId);
+                            return next;
+                          });
+                        }}
+                      />
+                      <span className="min-w-0 flex-1 truncate">{name}</span>
+                      <span className="shrink-0 text-[10px] text-slate-500">
+                        {stu ? nudgeStudentSectionLabel(stu) : "—"}
+                      </span>
+                      <span className="shrink-0 text-[11px] text-slate-500">{r.pct}%</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </>
+          ) : null}
+        </>
       ) : null}
 
       {target === "specific_student" ? (
-        <div>
-          <label className="mb-1 block text-xs font-semibold text-slate-300">Pick student</label>
-          <select
-            value={specificStudentId}
-            onChange={(e) => setSpecificStudentId(e.target.value)}
-            className={selectCompactClassName}
-          >
-            {students
-              .slice()
+        <>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              className={nudgeToggleButtonClass}
+              onClick={() => setSelectedSpecificIds(new Set(students.map((s) => s.userId)))}
+            >
+              Select all
+            </button>
+            <button
+              type="button"
+              className={nudgeToggleButtonClass}
+              onClick={() => setSelectedSpecificIds(new Set())}
+            >
+              Clear
+            </button>
+          </div>
+          <div className="max-h-48 space-y-1.5 overflow-y-auto pr-1">
+            {[...students]
               .sort((a, b) => a.name.localeCompare(b.name))
               .map((s) => (
-                <option key={s.userId} value={s.userId}>
-                  {s.name}
-                </option>
+                <label
+                  key={s.userId}
+                  className="flex cursor-pointer items-center gap-2 rounded-lg border border-white/10 bg-[#0d0d1c] px-2 py-2 text-[12px] text-slate-200"
+                >
+                  <input
+                    type="checkbox"
+                    className="rounded border-white/20"
+                    checked={selectedSpecificIds.has(s.userId)}
+                    onChange={() => {
+                      setSelectedSpecificIds((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(s.userId)) next.delete(s.userId);
+                        else next.add(s.userId);
+                        return next;
+                      });
+                    }}
+                  />
+                  <span className="min-w-0 flex-1 truncate">{s.name}</span>
+                  <span className="shrink-0 text-[10px] text-slate-500">{nudgeStudentSectionLabel(s)}</span>
+                </label>
               ))}
-          </select>
-        </div>
+          </div>
+        </>
       ) : null}
     </div>
   );
@@ -3289,40 +4221,291 @@ function TeacherNudgeWithRdmWizard(props: {
         })}
       </div>
 
-      <div>
-        <label className="mb-1 block text-xs font-semibold text-slate-300">
-          Specific chapter or topic <span className="text-slate-500">(optional)</span>
-        </label>
-        <input
-          value={topicHint}
-          onChange={(e) => setTopicHint(e.target.value)}
-          placeholder="e.g. Electrostatics — Gauss's Law"
-          className={selectCompactClassName}
-        />
-      </div>
+      {goal === "restart_streak" ? (
+        <div className="rounded-xl border border-amber-400/25 bg-amber-500/10 px-3 py-2.5 text-[11px] leading-relaxed text-amber-100 sm:text-xs">
+          Small consistency beats a perfect plan — nudge them back before the habit fades. The message below
+          defaults to streak-focused copy you can edit in the next step.
+        </div>
+      ) : null}
+
+      {goal === "complete_pending_assignment" ? (
+        classroomAssignments.length === 0 ? (
+          <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-[11px] text-rose-100 sm:text-xs">
+            No assignments in this classroom yet. Create one from My Classroom, or pick another goal.
+          </div>
+        ) : activePendingAssignments.length === 0 ? (
+          <div className="rounded-xl border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-[11px] leading-relaxed text-amber-100 sm:text-xs">
+            No <span className="font-semibold text-amber-50">active</span> assignments (everything here is past due).
+            Update due dates on older posts in My Classroom, or pick another goal.
+          </div>
+        ) : (
+          <div>
+            <label className="mb-1 block text-xs font-semibold text-slate-300">
+              Assignment <span className="text-rose-400">*</span>
+            </label>
+            <select
+              value={pendingAssignmentPostId}
+              onChange={(e) => setPendingAssignmentPostId(e.target.value)}
+              className={selectCompactClassName}
+            >
+              {activePendingAssignments.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.title}
+                  {a.dueDateLabel ? ` · due ${a.dueDateLabel}` : ""}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-[11px] text-slate-500">
+              Active assignments only — past due dates are hidden. One assignment applies to all recipients in this
+              nudge.
+            </p>
+          </div>
+        )
+      ) : null}
+
+      {goal === "attempt_mock" ? (
+        <div className="space-y-3">
+          <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAttemptMockMode("existing");
+                    setNudgeCreatedPostId("");
+                    setNudgeCreatedTitle("");
+                  }}
+                  className={`rounded-full border px-3 py-2 text-xs font-semibold transition ${
+                    attemptMockMode === "existing"
+                      ? "border-emerald-400/40 bg-emerald-500/10 text-emerald-200"
+                      : "border-white/10 bg-[#0d0d1c] text-slate-300 hover:bg-white/[0.03]"
+                  }`}
+                >
+                  Existing assignment
+                </button>
+                {NUDGE_MOCK_SHOW_INLINE_CREATE && props.allowStructuredAssignmentCreate ? (
+                  <button
+                    type="button"
+                    onClick={() => setAttemptMockMode("create")}
+                    className={`rounded-full border px-3 py-2 text-xs font-semibold transition ${
+                      attemptMockMode === "create"
+                        ? "border-emerald-400/40 bg-emerald-500/10 text-emerald-200"
+                        : "border-white/10 bg-[#0d0d1c] text-slate-300 hover:bg-white/[0.03]"
+                    }`}
+                  >
+                    Create assignment
+                  </button>
+                ) : NUDGE_MOCK_SHOW_INLINE_CREATE && !props.allowStructuredAssignmentCreate ? (
+                  <span className="self-center text-[11px] text-slate-500">
+                    (Create assignment needs a full teacher login — pick an existing assignment from the list.)
+                  </span>
+                ) : null}
+          </div>
+
+              {attemptMockMode === "existing" ? (
+                mcqTargetAssignments.length === 0 ? (
+                  <div className="rounded-xl border border-amber-400/30 bg-amber-500/10 px-3 py-2.5 text-[11px] leading-relaxed text-amber-100 sm:text-xs">
+                    <p className="font-semibold text-amber-50">No mock, chapter quiz, or MCQ assignment to link</p>
+                    <p className="mt-1.5">
+                      This list only includes assignments already on this class wall (full mock, chapter quiz, or
+                      generated MCQ).
+                    </p>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold text-slate-300">
+                      Mock or quiz assignment <span className="text-rose-400">*</span>
+                    </label>
+                    <select
+                      value={mockExistingPostId}
+                      onChange={(e) => setMockExistingPostId(e.target.value)}
+                      className={selectCompactClassName}
+                    >
+                      {mcqTargetAssignments.map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.title}
+                          {a.dueDateLabel ? ` · due ${a.dueDateLabel}` : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )
+              ) : (
+                <div className="space-y-3 rounded-xl border border-white/10 bg-[#0a0f1c] p-3 sm:p-4">
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setMockCreateKind("quiz")}
+                      className={`rounded-full border px-3 py-2 text-xs font-semibold transition ${
+                        mockCreateKind === "quiz"
+                          ? "border-violet-400/40 bg-violet-500/10 text-violet-100"
+                          : "border-white/10 bg-[#0d0d1c] text-slate-300"
+                      }`}
+                    >
+                      Chapter quiz (MCQs)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMockCreateKind("mock")}
+                      className={`rounded-full border px-3 py-2 text-xs font-semibold transition ${
+                        mockCreateKind === "mock"
+                          ? "border-violet-400/40 bg-violet-500/10 text-violet-100"
+                          : "border-white/10 bg-[#0d0d1c] text-slate-300"
+                      }`}
+                    >
+                      Full mock paper
+                    </button>
+                  </div>
+
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <div>
+                      <label className="mb-1 block text-[11px] font-semibold text-slate-400">Title</label>
+                      <input
+                        value={inlineCreateTitle}
+                        onChange={(e) => setInlineCreateTitle(e.target.value)}
+                        placeholder={mockCreateKind === "quiz" ? "Chapter Quiz (MCQs)" : "Mock title"}
+                        className={selectCompactClassName}
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-[11px] font-semibold text-slate-400">Due date</label>
+                      <input
+                        type="date"
+                        value={inlineCreateDueDate}
+                        onChange={(e) => setInlineCreateDueDate(e.target.value)}
+                        className={selectCompactClassName}
+                      />
+                    </div>
+                  </div>
+
+                  {mockCreateKind === "quiz" ? (
+                    <ChapterQuizAssignmentFields
+                      taxonomy={taxonomy}
+                      taxonomyLoading={taxonomyLoading}
+                      taxonomyError={taxonomyError}
+                      value={chapterQuizSel}
+                      onChange={setChapterQuizSel}
+                      selectClassName={selectCompactClassName}
+                    />
+                  ) : (
+                    <div className="space-y-2">
+                      {mockPapersLoading ? (
+                        <div className="flex items-center gap-2 text-xs text-slate-400">
+                          <Loader2 className="h-4 w-4 animate-spin" /> Loading mock papers…
+                        </div>
+                      ) : null}
+                      {mockPapersError ? (
+                        <div className="text-xs text-rose-300">{mockPapersError}</div>
+                      ) : null}
+                      {!mockPapersLoading && mockPapers.length === 0 ? (
+                        <div className="text-xs text-slate-500">No mock papers available.</div>
+                      ) : null}
+                      {mockPapers.length > 0 ? (
+                        <div>
+                          <label className="mb-1 block text-xs font-semibold text-slate-300">Mock paper</label>
+                          <select
+                            value={selectedMockPaperId ?? ""}
+                            onChange={(e) => setSelectedMockPaperId(e.target.value || null)}
+                            className={selectCompactClassName}
+                          >
+                            {mockPapers.map((p) => (
+                              <option key={p.id} value={p.id}>
+                                {p.title}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      ) : null}
+                    </div>
+                  )}
+
+                  {nudgeCreatedPostId ? (
+                    <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-[11px] text-emerald-100">
+                      Attached: <span className="font-semibold">{nudgeCreatedTitle || "Assignment"}</span>
+                    </div>
+                  ) : null}
+
+                  <button
+                    type="button"
+                    disabled={!canSubmitInlineCreate || creatingInlineAssignment || selectedTargetStudentIds.length === 0}
+                    onClick={() => void runInlineCreateAssignment()}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-emerald-500 px-4 py-2.5 text-xs font-semibold text-black hover:bg-emerald-400 disabled:opacity-60 sm:text-sm"
+                  >
+                    {creatingInlineAssignment ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                    {creatingInlineAssignment ? "Creating…" : "Create & attach assignment"}
+                  </button>
+                  {selectedTargetStudentIds.length === 0 ? (
+                    <p className="text-[11px] text-rose-300">Select students in step 1 first.</p>
+                  ) : null}
+                </div>
+              )}
+        </div>
+      ) : null}
+
+      {goal === "answer_doubts" ? (
+        <div className="rounded-xl border border-sky-500/25 bg-sky-500/10 px-3 py-2.5 text-[11px] leading-relaxed text-sky-100 sm:text-xs">
+          Encourage them to post on Gyan++. The notification will include a shortcut to{" "}
+          <span className="font-mono text-[11px]">/doubts</span>.
+        </div>
+      ) : null}
+
+      {goal === "revise_chapter" ? (
+        <div className="space-y-3">
+          <p className="text-[11px] leading-relaxed text-slate-400 sm:text-xs">
+            Same syllabus picker as <span className="font-semibold text-slate-300">Concept Focus</span> assignments —
+            class, subject, chapter, lesson, and subtopic.
+          </p>
+          <p className="text-[11px] leading-relaxed text-slate-500 sm:text-xs">
+            In step 1, pick students from the <span className="font-semibold text-slate-300">whole class roster</span>{" "}
+            (all sections). When you send, we create <span className="font-semibold text-slate-300">one assignment</span>{" "}
+            scoped to the class with only the students you selected — including if they sit in different sections.
+          </p>
+          <ConceptFocusAssignmentFields
+            taxonomy={taxonomy}
+            taxonomyLoading={taxonomyLoading}
+            taxonomyError={taxonomyError}
+            value={reviseConceptFocusSel}
+            onChange={setReviseConceptFocusSel}
+            selectClassName={selectCompactClassName}
+          />
+        </div>
+      ) : null}
+
+      {goal === "watch_recorded_class" ? (
+        <div>
+          <label className="mb-1 block text-xs font-semibold text-slate-300">
+            Recorded class URL <span className="text-rose-400">*</span>
+          </label>
+          <input
+            value={watchRecordedUrl}
+            onChange={(e) => setWatchRecordedUrl(e.target.value)}
+            placeholder="Paste a YouTube, Google Drive, Meet recording, or other https link…"
+            className={selectCompactClassName}
+          />
+          <p className="mt-1 text-[11px] text-slate-500">
+            Must be a full web address starting with <span className="font-mono text-slate-400">https://</span>
+          </p>
+          {!normalizeTeacherMotivationExternalUrl(watchRecordedUrl) && watchRecordedUrl.trim() ? (
+            <div className="mt-1 text-[11px] text-rose-300">Enter a valid http(s) link.</div>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 
   const step3 = (
     <div className="mt-3 space-y-2 sm:space-y-3">
       <div className="text-xs leading-relaxed text-slate-300">
-        Your message will appear as a personal notification from you. Students respond much
-        better to personal messages than generic alerts.
+        Your message will appear as a personal notification from you. Students respond much better to personal
+        messages than generic alerts.
       </div>
 
-      <div>
-        <label className="mb-1 block text-xs font-semibold text-slate-300">Message template</label>
-        <select
-          value={templateId}
-          onChange={(e) => setTemplateId(e.target.value as NudgeTemplateId)}
-          className={selectCompactClassName}
-        >
-          {nudgeTemplateOptions.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.label}
-            </option>
-          ))}
-        </select>
+      <div className="rounded-2xl border border-white/10 bg-[#070b17] p-3 sm:p-4">
+        <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Step 2 — Nudge goal</div>
+        <div className="mt-1 text-sm font-semibold text-slate-100">
+          {goalOptions.find((g) => g.id === goal)?.label ?? "—"}
+        </div>
+        {step2GoalSummaryDetail ? (
+          <div className="mt-2 text-[12px] leading-relaxed text-slate-400 break-words">{step2GoalSummaryDetail}</div>
+        ) : null}
       </div>
 
       <div>
@@ -3361,7 +4544,6 @@ function TeacherNudgeWithRdmWizard(props: {
                 type="button"
                 onClick={() => {
                   setRdmDelta(o.value);
-                  setMessageTouched(false);
                 }}
                 className={`rounded-full border px-3 py-2 text-xs font-semibold transition ${
                   on ? "border-emerald-400/40 bg-emerald-500/10 text-emerald-200" : "border-white/10 bg-[#0d0d1c] text-slate-300 hover:bg-white/[0.03]"
@@ -3382,10 +4564,8 @@ function TeacherNudgeWithRdmWizard(props: {
               {target === "off_streak"
                 ? `Off-streak students (${targetCount} students)`
                 : target === "low_scorers"
-                  ? `Low scorers (${targetCount} students)`
-                  : target === "specific_student"
-                    ? `Selected student`
-                    : `Full classroom (${targetCount} students)`}
+                  ? `Low mock scores (${targetCount} students)`
+                  : `Selected students (${targetCount})`}
             </span>
           </div>
           <div className="flex items-start justify-between gap-3">
@@ -3417,39 +4597,166 @@ function TeacherNudgeWithRdmWizard(props: {
       <div className="flex items-center justify-end gap-3">
         <button
           type="button"
-          disabled={!targetCount || !message.trim() || sending}
+          disabled={sending || (targetCount > 0 && !message.trim())}
           onClick={async () => {
-            if (!targetCount) return;
+            if (selectedTargetStudentIds.length === 0) {
+              setNoRecipientsDialogOpen(true);
+              return;
+            }
             if (!message.trim()) return;
             if (!classroomId) return;
             setSending(true);
             try {
-              await props.onMotivateStudents({
+              const metaNotificationTitle = motivationNudgeMeta.notificationTitle;
+              const baseMotivate = {
                 classroomId,
                 actionKind,
                 targetStudentIds: selectedTargetStudentIds,
                 message,
                 rdmDelta,
-                sectionId: null,
-              });
+                sectionId: null as string | null,
+                ...motivateExtras,
+                nudgeGoal: motivationNudgeMeta.nudgeGoal,
+              };
+
+              if (goal === "revise_chapter" && props.allowStructuredAssignmentCreate) {
+                if (onRequireVerifiedAction) {
+                  const ok = await onRequireVerifiedAction("Create assignment");
+                  if (!ok) return;
+                }
+                const cqRef = chapterQuizToRef(
+                  {
+                    ...reviseConceptFocusSel,
+                    level: "advanced",
+                    advancedSet: 1,
+                  } as ChapterQuizSelectionState,
+                  taxonomy
+                );
+                if (!cqRef) {
+                  throw new Error("Concept focus selection is incomplete — go back to step 2 and finish the syllabus.");
+                }
+                const subtopicLabel = cqRef.subtopicName?.trim() || reviseConceptFocusSummary || "Concept Focus";
+                const assignTitle = `Concept Focus · ${subtopicLabel}`;
+                const defaultTasks = normalizeTaskPositions(
+                  buildDefaultTasksForAssignmentType("Concept Focus").filter((t) => t.label.trim())
+                );
+                const created = await onCreateAssignment({
+                  classroomId,
+                  /** Class-wide post + explicit roster — works across teaching sections (RLS + targetStudentIds). */
+                  sectionId: null,
+                  assignmentType: "Concept Focus",
+                  title: assignTitle,
+                  dueDate: defaultDueDateIsoDaysAhead(7),
+                  assignToLabel: `Selected students (${selectedTargetStudentIds.length})`,
+                  targetStudentIds: selectedTargetStudentIds,
+                  rewardRdm: 15,
+                  instructions: "",
+                  tasks: defaultTasks.length ? defaultTasks : undefined,
+                  chapterQuiz: cqRef,
+                });
+                await props.onMotivateStudents({
+                  ...baseMotivate,
+                  relatedPostId: created.id,
+                  relatedPostTitle: assignTitle,
+                  recommendActionId: "concept_focus_resource",
+                  recommendActionLabel: "Open lesson",
+                  recommendActionUrl: `/classroom/${encodeURIComponent(classroomId)}?tab=posts&post=${encodeURIComponent(created.id)}`,
+                  notificationTitle:
+                    metaNotificationTitle ??
+                    `Teacher nudge: focus — ${subtopicLabel.length > 72 ? `${subtopicLabel.slice(0, 69)}…` : subtopicLabel}`,
+                });
+              } else {
+                await props.onMotivateStudents({
+                  ...baseMotivate,
+                  ...(metaNotificationTitle ? { notificationTitle: metaNotificationTitle } : {}),
+                });
+              }
               toast({ title: "Nudges sent" });
               props.onDone();
             } catch (e) {
+              const msg = e instanceof Error ? e.message : "Try again.";
               toast({
                 title: "Could not send nudges",
-                description: e instanceof Error ? e.message : "Try again.",
+                description:
+                  msg === "Failed to fetch"
+                    ? "Network error — check your connection, VPN, or ad-blockers, then retry."
+                    : msg,
                 variant: "destructive",
               });
             } finally {
               setSending(false);
             }
           }}
-          className="rounded-full bg-amber-500 px-5 py-2.5 text-xs font-semibold text-black hover:bg-amber-400 disabled:opacity-60 sm:px-6 sm:py-3"
+          className={`rounded-full bg-amber-500 px-5 py-2.5 text-xs font-semibold text-black hover:bg-amber-400 sm:px-6 sm:py-3 ${
+            sending || (targetCount > 0 && !message.trim()) ? "disabled:cursor-not-allowed disabled:opacity-60" : ""
+          } ${targetCount === 0 && !sending ? "ring-1 ring-amber-400/50 ring-offset-2 ring-offset-[#0a0a12]" : ""}`}
         >
           {sending ? "Sending…" : "Send nudges + RDM →"}
         </button>
       </div>
     </div>
+  );
+
+  const noRecipientsDialog = (
+    <Dialog open={noRecipientsDialogOpen} onOpenChange={setNoRecipientsDialogOpen}>
+      <DialogContent className="max-w-md rounded-2xl border border-white/10 bg-[#0d1020] text-slate-100">
+        <DialogHeader>
+          <DialogTitle className="text-left text-base text-slate-50 sm:text-lg">Select at least one student</DialogTitle>
+          <DialogDescription asChild>
+            <div className="space-y-3 pt-1 text-left text-[13px] leading-relaxed text-slate-300 sm:text-sm">
+              <p>
+                Nudges are not sent until <span className="font-semibold text-slate-100">at least one student</span> is
+                in the recipient list. Use <span className="font-semibold text-slate-100">step 1 — Choose who</span> and
+                pick a classroom and mode that actually has students to nudge.
+              </p>
+              <ul className="list-inside list-disc space-y-1.5 pl-0.5 text-slate-300">
+                <li>
+                  <span className="font-semibold text-slate-100">Off-streak</span> — class has students 48+ hours off
+                  their study streak; select who to include.
+                </li>
+                <li>
+                  <span className="font-semibold text-slate-100">Low scorers this week</span> — a test (mock, chapter
+                  quiz, or generated MCQ) was assigned this week and at least one student is under 60% on the attempt.
+                </li>
+                <li>
+                  <span className="font-semibold text-slate-100">Mock / MCQ context</span> — &quot;Low scorers&quot;
+                  depends on that weekly assignment; switch classroom or assign a test first if the list is empty.
+                </li>
+                <li>
+                  <span className="font-semibold text-slate-100">Custom</span> — choose{" "}
+                  <span className="font-semibold text-slate-100">Specific students</span> and tick one or more names from
+                  the roster.
+                </li>
+              </ul>
+              <p className="text-slate-400">
+                After students appear under your chosen mode, select them and continue —{" "}
+                <span className="font-medium text-slate-200">Send nudges + RDM</span> will work once the count is above
+                zero.
+              </p>
+            </div>
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter className="gap-2 sm:justify-between">
+          <button
+            type="button"
+            className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-semibold text-slate-200 hover:bg-white/10 sm:text-sm"
+            onClick={() => setNoRecipientsDialogOpen(false)}
+          >
+            Close
+          </button>
+          <button
+            type="button"
+            className="rounded-full bg-emerald-500 px-4 py-2 text-xs font-semibold text-black hover:bg-emerald-400 sm:text-sm"
+            onClick={() => {
+              setNoRecipientsDialogOpen(false);
+              props.onJumpToStep?.(0);
+            }}
+          >
+            Go to step 1 — Choose who
+          </button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 
   if (!classroomId) {
@@ -3460,11 +4767,16 @@ function TeacherNudgeWithRdmWizard(props: {
     );
   }
 
-  if (props.stepIdx === 0) return step1;
-  if (props.stepIdx === 1) return step2;
-  if (props.stepIdx === 2) return step3;
-  return step4;
-}
+  const stepBody =
+    props.stepIdx === 0 ? step1 : props.stepIdx === 1 ? step2 : props.stepIdx === 2 ? step3 : step4;
+
+  return (
+    <>
+      {stepBody}
+      {noRecipientsDialog}
+    </>
+  );
+});
 
 function TeacherCounselStudentWizard(props: {
   stepIdx: number; // 0..3
@@ -3636,44 +4948,6 @@ function TeacherCounselStudentWizard(props: {
   const [recommendAction, setRecommendAction] = useState<RecommendActionId>("attempt_targeted_mock");
   const [recommendUrl, setRecommendUrl] = useState("");
   const [sending, setSending] = useState(false);
-
-  const normalizeExternalUrl = useCallback((raw: string): string | null => {
-    let s = raw.trim();
-    if (!s) return null;
-
-    // If a relative-looking /https/... slipped in, strip leading slashes.
-    while (s.startsWith("/")) s = s.slice(1);
-
-    // If someone pasted a full localhost-prefixed path like http://localhost:3000/https/www...
-    const httpIdx = s.indexOf("http");
-    if (httpIdx > 0) s = s.slice(httpIdx);
-
-    // Common paste mistakes: "https/www..." or "https//www..."
-    if (/^https\/\//i.test(s) === false && /^https\//i.test(s)) {
-      s = s.replace(/^https\//i, "https://");
-    }
-    if (/^http\/\//i.test(s) === false && /^http\//i.test(s)) {
-      s = s.replace(/^http\//i, "http://");
-    }
-    if (/^https:\/\//i.test(s) === false && /^https:/i.test(s)) {
-      s = s.replace(/^https:/i, "https://");
-    }
-    if (/^http:\/\//i.test(s) === false && /^http:/i.test(s)) {
-      s = s.replace(/^http:/i, "http://");
-    }
-
-    // If teacher pasted "www.youtube.com/..." without protocol, make it https.
-    if (/^www\./i.test(s)) s = `https://${s}`;
-
-    // Final validation: accept only http(s).
-    try {
-      const u = new URL(s);
-      if (u.protocol !== "http:" && u.protocol !== "https:") return null;
-      return u.toString();
-    } catch {
-      return null;
-    }
-  }, []);
 
   const actionKind = useMemo<"boost" | "nudge" | "urgent_nudge">(() => {
     if (!selectedStudent) return "nudge";
@@ -4062,7 +5336,7 @@ function TeacherCounselStudentWizard(props: {
               const actionText = recommendActions.find((a) => a.id === recommendAction)?.label ?? "";
               const recordedUrl =
                 recommendAction === "watch_recorded"
-                  ? normalizeExternalUrl(recommendUrl)
+                  ? normalizeTeacherMotivationExternalUrl(recommendUrl)
                   : null;
               if (recommendAction === "watch_recorded" && !recordedUrl) {
                 toast({
@@ -4249,6 +5523,15 @@ function formatAssignmentCardDate(iso: string | null): string | null {
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 }
 
+/** Due datetime is strictly before now — surfaces under Past due. Open-ended (no due date) stays Active. */
+function isTeacherAssignmentPastDue(item: TeacherPortalAssignmentItem, nowMs: number): boolean {
+  const raw = item.dueDateIso;
+  if (typeof raw !== "string" || !raw.trim()) return false;
+  const t = Date.parse(raw);
+  if (!Number.isFinite(t)) return false;
+  return t < nowMs;
+}
+
 function primaryAssignmentBadge(item: TeacherPortalAssignmentItem): {
   label: string;
   color: string;
@@ -4360,6 +5643,9 @@ export default function MyClassroomView({
   summary,
   classrooms,
   classroomDetails,
+  mockPostIdsAssignedThisWeek = [],
+  mockNudgeLowScorersByPostId = {},
+  mockNudgeSubmittedAttemptsByPostId = {},
   onCreateClassroom,
   onCreateAssignment,
   onMotivateStudents,
@@ -4370,6 +5656,7 @@ export default function MyClassroomView({
   onRefreshTeacherPortal,
   onScheduleLiveSession,
   onRequireVerifiedAction,
+  allowNudgeStructuredAssignmentCreate = true,
 }: MyClassroomViewProps) {
   const { toast } = useToast();
   const searchParams = useSearchParams();
@@ -4626,6 +5913,8 @@ export default function MyClassroomView({
   const [joinRequests, setJoinRequests] = useState<JoinRequestRow[]>([]);
   const [actingJoinRequestId, setActingJoinRequestId] = useState<string | null>(null);
   const [cohortTab, setCohortTab] = useState<ClassroomCohortTab>({ kind: "class" });
+  /** Assignments tab: default Active assignments; Past due = deadline passed */
+  const [assignmentDueBucket, setAssignmentDueBucket] = useState<"active" | "pastDue">("active");
   const [sectionDialogOpen, setSectionDialogOpen] = useState(false);
   const [newSectionName, setNewSectionName] = useState("");
   const [sectionScheduleDate, setSectionScheduleDate] = useState("");
@@ -4641,6 +5930,10 @@ export default function MyClassroomView({
   const [mockPapersLoading, setMockPapersLoading] = useState(false);
   const [mockPapersLoadError, setMockPapersLoadError] = useState<string | null>(null);
   const [selectedMockPaperId, setSelectedMockPaperId] = useState<string | null>(null);
+  const [pastPapers, setPastPapers] = useState<PastPaper[]>([]);
+  const [pastPapersLoading, setPastPapersLoading] = useState(false);
+  const [pastPapersLoadError, setPastPapersLoadError] = useState<string | null>(null);
+  const [selectedPastPaperId, setSelectedPastPaperId] = useState<string | null>(null);
   const [chapterQuizSel, setChapterQuizSel] = useState<ChapterQuizSelectionState>(() =>
     initialChapterQuizSelection()
   );
@@ -4785,6 +6078,7 @@ export default function MyClassroomView({
   }, [assignmentType, chapterQuizSel, curriculumTaxonomy]);
 
   const isMockAssignmentTemplate = assignmentType.toLowerCase().includes("mock");
+  const isPastPaperAssignmentTemplate = assignmentType.toLowerCase().includes("past paper");
   const isQuizAssignmentTemplate =
     assignmentType.toLowerCase().includes("quiz") && !assignmentType.toLowerCase().includes("mock");
   const isConceptFocusTemplate = assignmentType === "Concept Focus";
@@ -4865,10 +6159,19 @@ export default function MyClassroomView({
   }, [activeClassroomId, teacherId]);
 
   useEffect(() => {
-    if (!qpClassroom || classrooms.length === 0) return;
-    if (!classrooms.some((c) => c.id === qpClassroom)) return;
-    setActiveClassroomId(qpClassroom);
-    if (qpDetail) setDetailTab(qpDetail);
+    if (classrooms.length === 0) return;
+
+    if (qpClassroom && classrooms.some((c) => c.id === qpClassroom)) {
+      setActiveClassroomId(qpClassroom);
+      if (qpDetail) setDetailTab(qpDetail);
+      return;
+    }
+
+    // Sidebar / deep link: portalDetail without classroom (e.g. Progress Reports) → first class + tab
+    if (qpDetail && !qpClassroom) {
+      setActiveClassroomId((prev) => prev ?? classrooms[0]!.id);
+      setDetailTab(qpDetail);
+    }
   }, [qpClassroom, qpDetail, classrooms]);
 
   useEffect(() => {
@@ -4928,6 +6231,31 @@ export default function MyClassroomView({
     if (cohortTab.kind === "unassigned") return [];
     return activeDetail.assignments.filter((a) => a.sectionId === cohortTab.id);
   }, [activeDetail.assignments, cohortTab]);
+
+  const assignmentDueCounts = useMemo(() => {
+    const now = Date.now();
+    let active = 0;
+    let pastDue = 0;
+    for (const a of cohortAssignments) {
+      if (isTeacherAssignmentPastDue(a, now)) pastDue += 1;
+      else active += 1;
+    }
+    return { active, pastDue };
+  }, [cohortAssignments]);
+
+  const displayedCohortAssignments = useMemo(() => {
+    const now = Date.now();
+    return cohortAssignments.filter((a) =>
+      assignmentDueBucket === "pastDue"
+        ? isTeacherAssignmentPastDue(a, now)
+        : !isTeacherAssignmentPastDue(a, now)
+    );
+  }, [cohortAssignments, assignmentDueBucket]);
+
+  const cohortTabSectionKey = cohortTab.kind === "section" ? cohortTab.id : "";
+  useEffect(() => {
+    setAssignmentDueBucket("active");
+  }, [activeClassroomId, cohortTab.kind, cohortTabSectionKey]);
 
   const cohortMotivationLog = useMemo(() => {
     if (cohortTab.kind === "class")
@@ -5227,31 +6555,6 @@ export default function MyClassroomView({
     assignmentScoresLastUpdatedAt,
   ]);
 
-  const mergeAssignmentScores = useCallback(
-    (prev: AssignmentScoreRow[], incoming: AssignmentScoreRow[]) => {
-      const byUserId = new Map<string, AssignmentScoreRow>();
-      for (const row of prev) byUserId.set(row.userId, row);
-
-      for (const next of incoming) {
-        const existing = byUserId.get(next.userId);
-        if (!existing) {
-          byUserId.set(next.userId, next);
-          continue;
-        }
-        const existingTs = existing.submittedAt ? new Date(existing.submittedAt).getTime() : -1;
-        const nextTs = next.submittedAt ? new Date(next.submittedAt).getTime() : -1;
-        byUserId.set(next.userId, nextTs >= existingTs ? next : existing);
-      }
-
-      return Array.from(byUserId.values()).sort((a, b) => {
-        const aTs = a.submittedAt ? new Date(a.submittedAt).getTime() : 0;
-        const bTs = b.submittedAt ? new Date(b.submittedAt).getTime() : 0;
-        return bTs - aTs;
-      });
-    },
-    []
-  );
-
   useEffect(() => {
     if (!assignmentDetail || !activeClassroomId) return;
     // Concept Focus uses engagement / "marked complete", not generated-test rows or bits scores.
@@ -5261,6 +6564,7 @@ export default function MyClassroomView({
         (t) =>
           t.kind === "chapter_quiz" ||
           t.kind === "mock_paper" ||
+          t.kind === "past_paper" ||
           t.href?.includes("/assignment-test/") ||
           t.href?.includes("panel=quiz") ||
           t.href?.includes("/mock")
@@ -5311,7 +6615,7 @@ export default function MyClassroomView({
         }
         if (!cancelled) {
           const scores = (data.scores ?? []) as AssignmentScoreRow[];
-          setAssignmentScores((prev) => mergeAssignmentScores(prev, scores));
+          setAssignmentScores(scores);
           setAssignmentScoresLastUpdatedAt(new Date().toISOString());
 
           const totalStudents = cohortStudents.length;
@@ -5354,7 +6658,6 @@ export default function MyClassroomView({
     activeClassroomId,
     cohortStudents.length,
     ASSIGNMENT_PROGRESS_CACHE_KEY,
-    mergeAssignmentScores,
   ]);
 
   useEffect(() => {
@@ -5534,6 +6837,8 @@ export default function MyClassroomView({
     let cancelled = false;
     setMockPapersLoading(true);
     setMockPapersLoadError(null);
+    setPastPapersLoading(true);
+    setPastPapersLoadError(null);
     void fetchMockPapersFromSupabase()
       .then((papers) => {
         if (cancelled) return;
@@ -5551,6 +6856,24 @@ export default function MyClassroomView({
       })
       .finally(() => {
         if (!cancelled) setMockPapersLoading(false);
+      });
+    void fetchPastPapersFromSupabase()
+      .then((papers) => {
+        if (cancelled) return;
+        setPastPapers(papers);
+        setSelectedPastPaperId((prev) => {
+          if (prev && papers.some((p) => p.id === prev)) return prev;
+          return papers[0]?.id ?? null;
+        });
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setPastPapersLoadError(err instanceof Error ? err.message : "Could not load past papers");
+        setPastPapers([]);
+        setSelectedPastPaperId(null);
+      })
+      .finally(() => {
+        if (!cancelled) setPastPapersLoading(false);
       });
     return () => {
       cancelled = true;
@@ -7075,17 +8398,76 @@ export default function MyClassroomView({
           ) : null}
           {detailTab === "assignments" ? (
             <div className="rounded-xl border border-white/10 bg-[#15162b] p-3 sm:p-4">
-              <div className="mb-2.5 flex items-center justify-between sm:mb-3">
-                <div className="text-sm font-semibold">Active Assignments</div>
+              <div className="mb-2.5 flex flex-col gap-3 sm:mb-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                    View
+                  </span>
+                  <div
+                    className="inline-flex max-w-full rounded-xl border border-white/10 bg-black/30 p-0.5"
+                    role="tablist"
+                    aria-label="Assignment due status"
+                  >
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={assignmentDueBucket === "active"}
+                      onClick={() => setAssignmentDueBucket("active")}
+                      className={`flex min-h-[36px] flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-left text-[11px] font-semibold transition sm:flex-initial sm:px-3.5 sm:text-xs ${
+                        assignmentDueBucket === "active"
+                          ? "bg-emerald-500/20 text-emerald-100 shadow-sm ring-1 ring-emerald-400/35"
+                          : "text-slate-400 hover:bg-white/5 hover:text-slate-200"
+                      }`}
+                    >
+                      Active assignments
+                      <span
+                        className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold tabular-nums ${
+                          assignmentDueBucket === "active"
+                            ? "bg-emerald-500/25 text-emerald-200"
+                            : "bg-white/10 text-slate-400"
+                        }`}
+                      >
+                        {assignmentDueCounts.active}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={assignmentDueBucket === "pastDue"}
+                      onClick={() => setAssignmentDueBucket("pastDue")}
+                      className={`flex min-h-[36px] flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-left text-[11px] font-semibold transition sm:flex-initial sm:px-3.5 sm:text-xs ${
+                        assignmentDueBucket === "pastDue"
+                          ? "bg-amber-500/15 text-amber-100 shadow-sm ring-1 ring-amber-400/35"
+                          : "text-slate-400 hover:bg-white/5 hover:text-slate-200"
+                      }`}
+                    >
+                      Past due
+                      <span
+                        className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold tabular-nums ${
+                          assignmentDueBucket === "pastDue"
+                            ? "bg-amber-500/25 text-amber-200"
+                            : "bg-white/10 text-slate-400"
+                        }`}
+                      >
+                        {assignmentDueCounts.pastDue}
+                      </span>
+                    </button>
+                  </div>
+                </div>
                 <button
                   type="button"
                   onClick={() => setAssignmentOpen(true)}
                   disabled={cohortTab.kind === "unassigned"}
-                  className="rounded-full bg-violet-500 px-3 py-1.5 text-[11px] font-semibold text-white disabled:opacity-50 sm:text-xs"
+                  className="shrink-0 rounded-full bg-violet-500 px-3 py-1.5 text-[11px] font-semibold text-white disabled:opacity-50 sm:text-xs"
                 >
                   + New Assignment
                 </button>
               </div>
+              <p className="mb-3 text-[11px] leading-relaxed text-slate-500 sm:text-xs">
+                {assignmentDueBucket === "active"
+                  ? "Within due window or no deadline set — students should still complete these."
+                  : "Deadline has passed — review completion and follow up as needed."}
+              </p>
               <div className="grid grid-cols-1 gap-2.5 sm:gap-3 md:grid-cols-2 xl:grid-cols-3">
                 {cohortAssignments.length === 0 ? (
                   <div className="col-span-full rounded-xl border border-dashed border-white/10 bg-black/20 px-4 py-8 text-center text-sm text-slate-400">
@@ -7093,8 +8475,14 @@ export default function MyClassroomView({
                       ? "Unassigned students do not receive section assignments. Assign students to a section first."
                       : "No assignments yet. Create your first assignment to start tracking completion."}
                   </div>
+                ) : displayedCohortAssignments.length === 0 ? (
+                  <div className="col-span-full rounded-xl border border-dashed border-white/10 bg-black/20 px-4 py-8 text-center text-sm text-slate-400">
+                    {assignmentDueBucket === "pastDue"
+                      ? "Nothing past due yet — either deadlines haven’t passed or assignments have no due date."
+                      : "No active assignments in this view. Check Past due or create a new assignment."}
+                  </div>
                 ) : (
-                  [...cohortAssignments]
+                  [...displayedCohortAssignments]
                     .sort((a, b) => {
                       const da = a.dueDateIso ? new Date(a.dueDateIso).getTime() : 0;
                       const db = b.dueDateIso ? new Date(b.dueDateIso).getTime() : 0;
@@ -8170,6 +9558,9 @@ export default function MyClassroomView({
             teacherId={teacherId}
             classrooms={classrooms}
             classroomDetails={classroomDetails}
+            mockPostIdsAssignedThisWeek={mockPostIdsAssignedThisWeek}
+            mockNudgeLowScorersByPostId={mockNudgeLowScorersByPostId}
+            mockNudgeSubmittedAttemptsByPostId={mockNudgeSubmittedAttemptsByPostId}
             onCreateAssignment={onCreateAssignment}
             onCreateClassroom={onCreateClassroom}
             onRefreshTeacherPortal={onRefreshTeacherPortal}
@@ -8177,6 +9568,7 @@ export default function MyClassroomView({
             onScheduleLiveSession={onScheduleLiveSession}
             onRequireVerifiedAction={onRequireVerifiedAction}
             toast={toast}
+            allowNudgeStructuredAssignmentCreate={allowNudgeStructuredAssignmentCreate}
           />
         </DialogContent>
       </Dialog>
@@ -8305,6 +9697,7 @@ export default function MyClassroomView({
         <DialogContent
           className={`flex flex-col overflow-hidden border-white/20 bg-[#0f1329] p-0 text-slate-100 sm:rounded-3xl ${
             isMockAssignmentTemplate ||
+            isPastPaperAssignmentTemplate ||
             isQuizAssignmentTemplate ||
             isConceptFocusTemplate ||
             isDailyDoseAssignmentTemplate ||
@@ -8322,6 +9715,7 @@ export default function MyClassroomView({
           </DialogHeader>
 
           {isMockAssignmentTemplate ||
+          isPastPaperAssignmentTemplate ||
           isQuizAssignmentTemplate ||
           isConceptFocusTemplate ||
           isDailyDoseAssignmentTemplate ||
@@ -8351,6 +9745,7 @@ export default function MyClassroomView({
                         className={selectClassName}
                       >
                         <option>Mock Paper (full length)</option>
+                        <option>Past Paper</option>
                         <option>Chapter Quiz (MCQs)</option>
                         <option>Concept Focus</option>
                         <option>Gyan++ engagement</option>
@@ -8654,6 +10049,44 @@ export default function MyClassroomView({
                         teachers confirm the exact test.
                       </p>
                     </div>
+                  ) : isPastPaperAssignmentTemplate ? (
+                    <div>
+                      <label className="mb-1 block text-xs font-semibold text-slate-300 sm:text-sm">
+                        Past paper *
+                      </label>
+                      {pastPapersLoading ? (
+                        <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-[#070b17] px-3 py-3 text-sm text-slate-400">
+                          <Loader2 className="h-4 w-4 shrink-0 animate-spin text-violet-400" />
+                          Loading published past papers…
+                        </div>
+                      ) : pastPapersLoadError ? (
+                        <p className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-200">
+                          {pastPapersLoadError}
+                        </p>
+                      ) : pastPapers.length === 0 ? (
+                        <p className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-sm text-amber-100/90">
+                          No published past papers in the bank yet.
+                        </p>
+                      ) : (
+                        <div className="relative">
+                          <select
+                            value={selectedPastPaperId ?? ""}
+                            onChange={(e) => setSelectedPastPaperId(e.target.value || null)}
+                            className={selectClassName}
+                          >
+                            {pastPapers.map((p) => (
+                              <option key={p.id} value={p.id}>
+                                {p.title} · {p.durationMinutes} min · Class {p.classLevel}
+                              </option>
+                            ))}
+                          </select>
+                          <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                        </div>
+                      )}
+                      <p className="mt-2 text-[11px] text-slate-500">
+                        Same catalog as the Past papers section in Mock test library.
+                      </p>
+                    </div>
                   ) : isQuizAssignmentTemplate ? (
                     <div className="space-y-3 sm:space-y-4">
                       <ChapterQuizAssignmentFields
@@ -8738,6 +10171,7 @@ export default function MyClassroomView({
                     className={selectClassName}
                   >
                     <option>Mock Paper (full length)</option>
+                    <option>Past Paper</option>
                     <option>Chapter Quiz (MCQs)</option>
                     <option>Concept Focus</option>
                     <option>Gyan++ engagement</option>
@@ -9536,6 +10970,7 @@ export default function MyClassroomView({
                   (t) =>
                     t.kind === "chapter_quiz" ||
                     t.kind === "mock_paper" ||
+                    t.kind === "past_paper" ||
                     t.href?.includes("/assignment-test/") ||
                     t.href?.includes("panel=quiz") ||
                     t.href?.includes("/mock")

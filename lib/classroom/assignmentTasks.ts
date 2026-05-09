@@ -2,6 +2,7 @@ import type { Json } from "@/integrations/supabase/types";
 
 export type AssignmentTaskKind =
   | "mock_paper"
+  | "past_paper"
   | "chapter_quiz"
   | "daily_dose"
   | "gyan_engagement"
@@ -26,6 +27,7 @@ export interface AssignmentTaskStored {
 
 const KINDS = new Set<AssignmentTaskKind>([
   "mock_paper",
+  "past_paper",
   "chapter_quiz",
   "daily_dose",
   "gyan_engagement",
@@ -63,6 +65,7 @@ export const ASSIGNMENT_TASK_PRESETS: Array<{
   defaultHref: string | null;
 }> = [
   { kind: "mock_paper", label: "Full mock paper", defaultHref: "/mock" },
+  { kind: "past_paper", label: "Past paper", defaultHref: "/mock" },
   { kind: "chapter_quiz", label: "Chapter quiz (MCQs)", defaultHref: "/exam-prep" },
   { kind: "daily_dose", label: "DailyDose / streak practice", defaultHref: "/play" },
   { kind: "gyan_engagement", label: "Post doubt on Gyan++", defaultHref: "/doubts" },
@@ -99,10 +102,18 @@ function legacyTasksFromPayload(
   const lines = [...pre, ...post].filter(Boolean);
   if (lines.length === 0) {
     const kind: AssignmentTaskKind =
-      postType === "mock" ? "mock_paper" : postType === "quiz" ? "chapter_quiz" : "free_text";
+      postType === "mock"
+        ? "mock_paper"
+        : postType === "past_paper"
+          ? "past_paper"
+          : postType === "quiz"
+            ? "chapter_quiz"
+            : "free_text";
     const label =
       postType === "mock"
         ? "Complete mock paper"
+        : postType === "past_paper"
+          ? "Complete past paper"
         : postType === "quiz"
           ? "Complete chapter quiz"
           : "Complete assignment";
@@ -111,7 +122,7 @@ function legacyTasksFromPayload(
         id: "legacy-0",
         kind,
         label,
-        href: postType === "mock" ? "/mock" : "/exam-prep",
+        href: postType === "mock" || postType === "past_paper" ? "/mock" : "/exam-prep",
         visible_to_student: true,
         position: 0,
         reward_rdm: null,
@@ -195,6 +206,7 @@ export function buildDefaultTasksForAssignmentType(
     ];
   }
   if (t.includes("mock")) return [createEmptyTask("mock_paper", 0)];
+  if (t.includes("past paper")) return [createEmptyTask("past_paper", 0)];
   if (t.includes("quiz")) return [createEmptyTask("chapter_quiz", 0)];
   if (t.includes("gyan")) return [createEmptyTask("gyan_engagement", 0)];
   if (t.includes("daily") || t.includes("streak")) return [createEmptyTask("daily_dose", 0)];

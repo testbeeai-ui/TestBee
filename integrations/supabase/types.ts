@@ -842,6 +842,60 @@ export type Database = {
         };
         Relationships: [];
       };
+      past_papers: {
+        Row: {
+          id: string;
+          slug: string;
+          title: string;
+          exam_name: string | null;
+          exam_set_name: string | null;
+          paper_type: string;
+          duration_minutes: number;
+          total_marks: number;
+          question_count: number;
+          marking_scheme: string;
+          class_level: number;
+          tags: string[];
+          subjects_covered: string[];
+          published: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          slug: string;
+          title: string;
+          exam_name?: string | null;
+          exam_set_name?: string | null;
+          paper_type?: string;
+          duration_minutes?: number;
+          total_marks?: number;
+          question_count?: number;
+          marking_scheme?: string;
+          class_level?: number;
+          tags?: string[];
+          subjects_covered?: string[];
+          published?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          slug?: string;
+          title?: string;
+          exam_name?: string | null;
+          exam_set_name?: string | null;
+          paper_type?: string;
+          duration_minutes?: number;
+          total_marks?: number;
+          question_count?: number;
+          marking_scheme?: string;
+          class_level?: number;
+          tags?: string[];
+          subjects_covered?: string[];
+          published?: boolean;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       mock_questions: {
         Row: {
           id: string;
@@ -891,6 +945,59 @@ export type Database = {
             columns: ["paper_id"];
             isOneToOne: false;
             referencedRelation: "mock_papers";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      past_paper_questions: {
+        Row: {
+          id: string;
+          paper_id: string;
+          sort_order: number;
+          source_question_id: string | null;
+          subject: string;
+          topic: string | null;
+          chapter: string | null;
+          difficulty: string | null;
+          question_html: string;
+          solution_html: string | null;
+          correct_letter: string;
+          options_json: Json;
+        };
+        Insert: {
+          id?: string;
+          paper_id: string;
+          sort_order: number;
+          source_question_id?: string | null;
+          subject: string;
+          topic?: string | null;
+          chapter?: string | null;
+          difficulty?: string | null;
+          question_html: string;
+          solution_html?: string | null;
+          correct_letter: string;
+          options_json: Json;
+        };
+        Update: {
+          id?: string;
+          paper_id?: string;
+          sort_order?: number;
+          source_question_id?: string | null;
+          subject?: string;
+          topic?: string | null;
+          chapter?: string | null;
+          difficulty?: string | null;
+          question_html?: string;
+          solution_html?: string | null;
+          correct_letter?: string;
+          options_json?: Json;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "past_paper_questions_paper_id_fkey";
+            columns: ["paper_id"];
+            isOneToOne: false;
+            referencedRelation: "past_papers";
             referencedColumns: ["id"];
           },
         ];
@@ -2016,6 +2123,38 @@ export type Database = {
           topic?: string;
         };
         Relationships: [];
+      };
+      saved_questions: {
+        Row: {
+          id: string;
+          user_id: string;
+          question_id: string;
+          source_type: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          question_id: string;
+          source_type: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          question_id?: string;
+          source_type?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "saved_questions_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       session_attendance: {
         Row: {

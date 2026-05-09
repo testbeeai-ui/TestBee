@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, ChevronLeft, Check, Loader2 } from "lucide-react";
+import { ChevronDown, Check, Loader2 } from "lucide-react";
 import type {
   TeacherPortalChapterQuizRef,
   TeacherPortalClassroomCard,
   TeacherPortalClassroomDetail,
   TeacherPortalGyanEngagementRef,
   TeacherPortalMockPaperRef,
+  TeacherPortalPastPaperRef,
 } from "@/lib/teacherPortal/types";
 import type { AssignmentTaskStored } from "@/lib/classroom/assignmentTasks";
 import {
@@ -29,9 +30,10 @@ import {
 } from "@/lib/teacherPortal/chapterQuizUtils";
 import { useTopicTaxonomy } from "@/hooks/useTopicTaxonomy";
 import { fetchMockPapersFromSupabase } from "@/lib/mockPapersFromSupabase";
-import type { MockPaper } from "@/types";
+import { fetchPastPapersFromSupabase } from "@/lib/pastPapersFromSupabase";
+import type { MockPaper, PastPaper } from "@/types";
 
-type WizardTypeKey = "quiz" | "concept_focus" | "gyan" | "mock";
+type WizardTypeKey = "quiz" | "concept_focus" | "gyan" | "mock" | "past_paper";
 type AssignScope = "full" | "section" | "students";
 
 type PublishInput = {
@@ -46,6 +48,7 @@ type PublishInput = {
   instructions: string;
   tasks?: AssignmentTaskStored[];
   mockPaper?: TeacherPortalMockPaperRef | null;
+  pastPaper?: TeacherPortalPastPaperRef | null;
   chapterQuiz?: TeacherPortalChapterQuizRef | null;
   gyanEngagement?: TeacherPortalGyanEngagementRef | null;
 };
@@ -56,7 +59,7 @@ const TYPE_META: Record<
     label: string;
     subtitle: string;
     assignmentTypeLabel: string;
-    derivedType: "mock" | "quiz" | "Concept Focus" | "assignment";
+    derivedType: "mock" | "past_paper" | "quiz" | "Concept Focus" | "assignment";
   }
 > = {
   quiz: {
@@ -82,6 +85,12 @@ const TYPE_META: Record<
     subtitle: "40–90 question full-length test in exam pattern",
     assignmentTypeLabel: "Mock Paper (full length)",
     derivedType: "mock",
+  },
+  past_paper: {
+    label: "Past Paper",
+    subtitle: "Assign previous year paper with same exam flow + review",
+    assignmentTypeLabel: "Past Paper",
+    derivedType: "past_paper",
   },
 };
 
@@ -109,6 +118,7 @@ type EmbeddedAssignmentDraftV1 = {
   gyanTopicFocus: string;
   gyanSubtopicHint: string;
   selectedMockPaperId: string | null;
+  selectedPastPaperId: string | null;
   classroomId: string;
   scope: AssignScope;
   sectionId: string | null;
@@ -169,6 +179,10 @@ export default function CreateAssignmentWizard(props: {
   const [mockPapersLoading, setMockPapersLoading] = useState(false);
   const [mockPapersError, setMockPapersError] = useState<string | null>(null);
   const [selectedMockPaperId, setSelectedMockPaperId] = useState<string | null>(null);
+  const [pastPapers, setPastPapers] = useState<PastPaper[]>([]);
+  const [pastPapersLoading, setPastPapersLoading] = useState(false);
+  const [pastPapersError, setPastPapersError] = useState<string | null>(null);
+  const [selectedPastPaperId, setSelectedPastPaperId] = useState<string | null>(null);
 
   const [classroomId, setClassroomId] = useState<string>(() => {
     const preferred = (props.initialClassroomId ?? "").trim();
@@ -217,7 +231,13 @@ export default function CreateAssignmentWizard(props: {
       lastEmbeddedAssignmentDraftMarkerRef.current = marker;
 
       if (typeof d.step === "number" && d.step >= 1 && d.step <= 4) setStep(d.step as 1 | 2 | 3 | 4);
-      if (d.typeKey === "quiz" || d.typeKey === "concept_focus" || d.typeKey === "gyan" || d.typeKey === "mock")
+      if (
+        d.typeKey === "quiz" ||
+        d.typeKey === "concept_focus" ||
+        d.typeKey === "gyan" ||
+        d.typeKey === "mock" ||
+        d.typeKey === "past_paper"
+      )
         setTypeKey(d.typeKey);
       if (typeof d.title === "string") setTitle(d.title);
       titleTouchedRef.current = Boolean(d.titleTouched);
@@ -227,6 +247,8 @@ export default function CreateAssignmentWizard(props: {
       if (typeof d.gyanSubtopicHint === "string") setGyanSubtopicHint(d.gyanSubtopicHint);
       if (d.selectedMockPaperId === null || typeof d.selectedMockPaperId === "string")
         setSelectedMockPaperId(d.selectedMockPaperId);
+      if (d.selectedPastPaperId === null || typeof d.selectedPastPaperId === "string")
+        setSelectedPastPaperId(d.selectedPastPaperId);
       if (cid && props.classrooms.some((c) => c.id === cid)) setClassroomId(cid);
       if (d.scope === "full" || d.scope === "section" || d.scope === "students") setScope(d.scope);
       if (d.sectionId === null || typeof d.sectionId === "string") setSectionId(d.sectionId);
@@ -254,6 +276,7 @@ export default function CreateAssignmentWizard(props: {
       gyanTopicFocus,
       gyanSubtopicHint,
       selectedMockPaperId,
+      selectedPastPaperId,
       classroomId,
       scope,
       sectionId,
@@ -282,6 +305,7 @@ export default function CreateAssignmentWizard(props: {
     gyanTopicFocus,
     gyanSubtopicHint,
     selectedMockPaperId,
+    selectedPastPaperId,
     classroomId,
     scope,
     sectionId,
@@ -305,28 +329,47 @@ export default function CreateAssignmentWizard(props: {
   }, [meta.assignmentTypeLabel]);
 
   useEffect(() => {
-    if (typeKey !== "mock") return;
+    if (typeKey !== "mock" && typeKey !== "past_paper") return;
     let cancelled = false;
     const run = async () => {
-      setMockPapersLoading(true);
-      setMockPapersError(null);
+      if (typeKey === "mock") {
+        setMockPapersLoading(true);
+        setMockPapersError(null);
+      } else {
+        setPastPapersLoading(true);
+        setPastPapersError(null);
+      }
       try {
-        const rows = await fetchMockPapersFromSupabase();
+        const rows =
+          typeKey === "mock" ? await fetchMockPapersFromSupabase() : await fetchPastPapersFromSupabase();
         if (cancelled) return;
-        setMockPapers(rows);
-        if (!selectedMockPaperId && rows.length) setSelectedMockPaperId(rows[0].id);
+        if (typeKey === "mock") {
+          setMockPapers(rows as MockPaper[]);
+          if (!selectedMockPaperId && rows.length) setSelectedMockPaperId(rows[0]!.id);
+        } else {
+          setPastPapers(rows as PastPaper[]);
+          if (!selectedPastPaperId && rows.length) setSelectedPastPaperId(rows[0]!.id);
+        }
       } catch (e) {
-        if (!cancelled) setMockPapersError(e instanceof Error ? e.message : "Could not load mock papers.");
+        if (!cancelled) {
+          if (typeKey === "mock") {
+            setMockPapersError(e instanceof Error ? e.message : "Could not load mock papers.");
+          } else {
+            setPastPapersError(e instanceof Error ? e.message : "Could not load past papers.");
+          }
+        }
       } finally {
-        if (!cancelled) setMockPapersLoading(false);
+        if (!cancelled) {
+          if (typeKey === "mock") setMockPapersLoading(false);
+          else setPastPapersLoading(false);
+        }
       }
     };
     void run();
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [typeKey]);
+  }, [typeKey, selectedMockPaperId, selectedPastPaperId]);
 
   const steps = useMemo(
     () => [
@@ -343,6 +386,8 @@ export default function CreateAssignmentWizard(props: {
     if (typeKey === "concept_focus") return conceptFocusSelectionComplete(conceptFocusSel, taxonomy);
     if (typeKey === "gyan") return true;
     if (typeKey === "mock") return !mockPapersLoading && (mockPapers.length === 0 || Boolean(selectedMockPaperId));
+    if (typeKey === "past_paper")
+      return !pastPapersLoading && (pastPapers.length === 0 || Boolean(selectedPastPaperId));
     return true;
   }, [
     chapterQuizSel,
@@ -350,6 +395,9 @@ export default function CreateAssignmentWizard(props: {
     mockPapers.length,
     mockPapersLoading,
     selectedMockPaperId,
+    pastPapers.length,
+    pastPapersLoading,
+    selectedPastPaperId,
     taxonomy,
     typeKey,
   ]);
@@ -373,6 +421,10 @@ export default function CreateAssignmentWizard(props: {
   const selectedMock = useMemo(() => mockPapers.find((p) => p.id === selectedMockPaperId) ?? null, [
     mockPapers,
     selectedMockPaperId,
+  ]);
+  const selectedPast = useMemo(() => pastPapers.find((p) => p.id === selectedPastPaperId) ?? null, [
+    pastPapers,
+    selectedPastPaperId,
   ]);
 
   const chapterQuizRef: TeacherPortalChapterQuizRef | null = useMemo(() => {
@@ -413,6 +465,14 @@ export default function CreateAssignmentWizard(props: {
               title: selectedMock.title.trim(),
             }
           : null;
+      const pastPaper: TeacherPortalPastPaperRef | null =
+        typeKey === "past_paper" && selectedPast
+          ? {
+              id: selectedPast.id,
+              slug: (selectedPast.slug ?? selectedPast.id).trim(),
+              title: selectedPast.title.trim(),
+            }
+          : null;
       await props.onPublish({
         classroomId,
         sectionId: scope === "section" ? sectionId : null,
@@ -425,6 +485,7 @@ export default function CreateAssignmentWizard(props: {
         instructions,
         tasks,
         mockPaper: meta.derivedType === "mock" ? mockPaper : null,
+        pastPaper: meta.derivedType === "past_paper" ? pastPaper : null,
         chapterQuiz: meta.derivedType === "quiz" || meta.derivedType === "Concept Focus" ? chapterQuizRef : null,
         gyanEngagement,
       });
@@ -649,7 +710,7 @@ export default function CreateAssignmentWizard(props: {
                 onTopicFocusChange={setGyanTopicFocus}
                 onSubtopicHintChange={setGyanSubtopicHint}
               />
-            ) : (
+            ) : typeKey === "mock" ? (
               <div>
                 <label className="mb-1 block text-sm font-semibold text-slate-300">Mock paper *</label>
                 {mockPapersLoading ? (
@@ -673,6 +734,39 @@ export default function CreateAssignmentWizard(props: {
                       className="w-full appearance-none rounded-xl border border-white/15 bg-[#070b17] px-3 py-2 text-sm text-slate-100 outline-none focus:border-emerald-400"
                     >
                       {mockPapers.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.title} · {p.durationMinutes} min · Class {p.classLevel}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div>
+                <label className="mb-1 block text-sm font-semibold text-slate-300">Past paper *</label>
+                {pastPapersLoading ? (
+                  <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-[#070b17] px-3 py-3 text-sm text-slate-400">
+                    <Loader2 className="h-4 w-4 shrink-0 animate-spin text-emerald-300" />
+                    Loading published past papers…
+                  </div>
+                ) : pastPapersError ? (
+                  <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-200">
+                    {pastPapersError}
+                  </div>
+                ) : pastPapers.length === 0 ? (
+                  <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-sm text-amber-100/90">
+                    No published past papers in the bank yet.
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <select
+                      value={selectedPastPaperId ?? ""}
+                      onChange={(e) => setSelectedPastPaperId(e.target.value || null)}
+                      className="w-full appearance-none rounded-xl border border-white/15 bg-[#070b17] px-3 py-2 text-sm text-slate-100 outline-none focus:border-emerald-400"
+                    >
+                      {pastPapers.map((p) => (
                         <option key={p.id} value={p.id}>
                           {p.title} · {p.durationMinutes} min · Class {p.classLevel}
                         </option>

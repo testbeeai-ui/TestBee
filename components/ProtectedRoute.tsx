@@ -3,6 +3,7 @@
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
+import { TEACHER_PORTAL_CLASSROOMS_URL } from "@/lib/teacherPortal/routes";
 
 type AppRole = "student" | "teacher" | "admin";
 
@@ -55,7 +56,7 @@ export function ProtectedRoute({
     }
     if (profile !== null && !isRoleAllowed(profile.role, allowRoles)) {
       const normalized = normalizeAppRole(profile.role);
-      router.replace(redirectTo ?? (normalized === "teacher" ? "/teacher-portal" : "/home"));
+      router.replace(redirectTo ?? (normalized === "teacher" ? TEACHER_PORTAL_CLASSROOMS_URL : "/home"));
     }
   }, [user, profile, profile?.onboarding_complete, profile?.role, loading, allowRolesKey, redirectTo, router]);
 

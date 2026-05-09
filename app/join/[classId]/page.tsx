@@ -39,26 +39,6 @@ const JoinClassroom = () => {
       });
   }, [classId]);
 
-  if (authLoading || loading)
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <span className="text-4xl animate-pulse">📚</span>
-      </div>
-    );
-  if (!user) {
-    const next = classId ? `/join/${encodeURIComponent(classId)}` : "/join";
-    router.replace(`/auth?next=${encodeURIComponent(next)}`);
-    return null;
-  }
-  if (!classroom)
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <h2 className="font-display text-2xl">Classroom not found</h2>
-      </div>
-    );
-
-  const isGoogleLinked = classroom.type === "google_linked";
-
   useEffect(() => {
     const fetchStatus = async () => {
       if (!user || !classroom) return;
@@ -88,11 +68,33 @@ const JoinClassroom = () => {
   }, [user, classroom]);
 
   const joinButtonLabel = useMemo(() => {
+    if (!classroom) return "";
     if (requestStatus === "approved") return "Open class";
     if (requestStatus === "pending") return "Request pending";
     if (requestStatus === "rejected") return "Request rejected";
-    return isGoogleLinked ? "Request ESM access (no Google)" : "Send join request";
-  }, [isGoogleLinked, requestStatus]);
+    const googleLinked = classroom.type === "google_linked";
+    return googleLinked ? "Request ESM access (no Google)" : "Send join request";
+  }, [classroom, requestStatus]);
+
+  if (authLoading || loading)
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <span className="text-4xl animate-pulse">📚</span>
+      </div>
+    );
+  if (!user) {
+    const next = classId ? `/join/${encodeURIComponent(classId)}` : "/join";
+    router.replace(`/auth?next=${encodeURIComponent(next)}`);
+    return null;
+  }
+  if (!classroom)
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <h2 className="font-display text-2xl">Classroom not found</h2>
+      </div>
+    );
+
+  const isGoogleLinked = classroom.type === "google_linked";
 
   const handleJoin = async () => {
     setJoining(true);

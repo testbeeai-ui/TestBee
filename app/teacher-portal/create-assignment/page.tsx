@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -16,7 +16,20 @@ function CreateAssignmentPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
-  const { user, profile } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth();
+  const normalizedRole = (profile?.role ?? "").toLowerCase().trim();
+  const isTeacherRole = normalizedRole === "teacher";
+  const isAdminRole = normalizedRole === "admin";
+
+  useEffect(() => {
+    if (!user || authLoading) return;
+    if (isTeacherRole) return;
+    if (isAdminRole) {
+      router.replace("/admin/teacher-portal");
+      return;
+    }
+    router.replace("/home");
+  }, [user, authLoading, isTeacherRole, isAdminRole, router]);
   const { data, loading, error, createAssignment } = useTeacherPortalData(user?.id);
   const verificationStatus = data?.profile.details.verificationStatus ?? "unverified";
   const { guardAction } = useTeacherVerificationActionGuard({
@@ -33,28 +46,19 @@ function CreateAssignmentPageContent() {
     );
   }
 
-  if (profile?.role !== "teacher") {
+  if (authLoading || !isTeacherRole) {
     return (
       <ProtectedRoute>
         <div className="flex min-h-screen items-center justify-center bg-[#07070f] text-slate-200">
-          <div className="text-center">
-            <h1 className="mb-2 text-xl font-semibold">Teacher portal is only for teacher accounts.</h1>
-            <button
-              type="button"
-              onClick={() => router.push("/home")}
-              className="rounded-full border border-white/20 px-4 py-2 text-sm hover:bg-white/5"
-            >
-              Go to dashboard
-            </button>
-          </div>
+          <Loader2 className="h-8 w-8 animate-spin text-slate-400" aria-hidden />
         </div>
       </ProtectedRoute>
     );
   }
 
-  const teacherName = data?.profile.name ?? profile.name ?? "Teacher";
-  const teacherSubtitle = data?.profile.subjects.join(" · ") || "EduBlast Teacher";
-  const rdmBalance = data?.profile.rdm ?? profile.rdm ?? 0;
+  const teacherName = data?.profile.name ?? profile?.name ?? "Teacher";
+  const teacherSubtitle = data?.profile?.subjects.join(" · ") || "EduBlast Teacher";
+  const rdmBalance = data?.profile.rdm ?? profile?.rdm ?? 0;
 
   return (
     <ProtectedRoute>

@@ -60,7 +60,13 @@
 }
 
 :root {
-  --font-sans: var(--font-app-sans), system-ui, sans-serif;
+  /* App UI: Geist (bundled via `geist` package on <html>) + system sans — not Google Fonts. */
+  --font-app-sans: var(--font-geist-sans, ui-sans-serif), system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  /* Investor landing only — Playfair + Caveat from @fontsource (bundled woff2). */
+  --font-landing-serif: "Playfair Display Variable", ui-serif, Georgia, serif;
+  --font-landing-script: "Caveat", cursive;
+  --font-sans: var(--font-app-sans);
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -163,9 +169,9 @@
     0 0 40px -10px color-mix(in oklab, var(--destructive) 28%, transparent) !important;
 }
 
-/* ── Landing page font scope (keep landing unchanged) ──── */
+/* ── Landing page default text: unchanged (Geist); investor serif/script via component styles ──── */
 .landing-page {
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-family: var(--font-geist-sans, ui-sans-serif), system-ui, sans-serif;
 }
 
 /* ── Chat markdown + KaTeX rendering ───────────────────────────── */
@@ -734,15 +740,21 @@
 /* Demo Mentamill (refer-earn mock): subtle moving interference layer — hurts clean screenshots more than live reading */
 @keyframes demo-mm-cap-drift {
   0% {
-    background-position: 0% 0%, 100% 100%;
+    background-position:
+      0% 0%,
+      100% 100%;
     opacity: 0.07;
   }
   50% {
-    background-position: 100% 40%, 0% 60%;
+    background-position:
+      100% 40%,
+      0% 60%;
     opacity: 0.14;
   }
   100% {
-    background-position: 0% 0%, 100% 100%;
+    background-position:
+      0% 0%,
+      100% 100%;
     opacity: 0.07;
   }
 }
@@ -764,7 +776,9 @@
       rgba(0, 0, 0, 0) 7px,
       rgba(0, 0, 0, 0) 14px
     );
-  background-size: 240% 240%, 260% 260%;
+  background-size:
+    240% 240%,
+    260% 260%;
   animation: demo-mm-cap-drift 14s ease-in-out infinite;
 }
 
@@ -774,17 +788,11 @@
 .demo-mm-cap-shield-soft {
   pointer-events: none;
   background-image:
-    radial-gradient(
-      ellipse 120% 95% at 32% 38%,
-      rgba(34, 211, 238, 0.09),
-      transparent 62%
-    ),
-    radial-gradient(
-      ellipse 110% 90% at 68% 62%,
-      rgba(124, 107, 255, 0.07),
-      transparent 60%
-    );
-  background-size: 100% 100%, 100% 100%;
+    radial-gradient(ellipse 120% 95% at 32% 38%, rgba(34, 211, 238, 0.09), transparent 62%),
+    radial-gradient(ellipse 110% 90% at 68% 62%, rgba(124, 107, 255, 0.07), transparent 60%);
+  background-size:
+    100% 100%,
+    100% 100%;
   background-repeat: no-repeat;
   mix-blend-mode: soft-light;
   opacity: 0.92;

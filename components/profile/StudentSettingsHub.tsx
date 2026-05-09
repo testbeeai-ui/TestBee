@@ -24,7 +24,9 @@ export default function StudentSettingsHub() {
     setLoggingOut(true);
     try {
       await signOut();
-      router.push("/");
+    } catch (e) {
+      console.error("[settings] signOut", e);
+      router.replace("/");
       router.refresh();
     } finally {
       setLoggingOut(false);

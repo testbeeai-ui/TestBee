@@ -2,6 +2,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Bell } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import {
+  personalizeTeacherMotivationMessage,
+  studentFirstNameForMotivationGreeting,
+} from "@/lib/teacherPortal/motivationMessagePersonalization";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useRouter } from "next/navigation";
 import {
@@ -22,13 +26,29 @@ interface Notification {
   kind: "assignment_reminder" | "counsel_message";
   rdmDelta?: number;
   actionKind?: string;
-  recommendActionId?: "attempt_targeted_mock" | "post_doubt" | "watch_recorded" | "none";
+  recommendActionId?:
+    | "attempt_targeted_mock"
+    | "post_doubt"
+    | "watch_recorded"
+    | "concept_focus_resource"
+    | "none";
   recommendActionLabel?: string;
   recommendActionUrl?: string;
 }
 
 const NotificationBell = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  const motivationStudentFirstName = useMemo(
+    () =>
+      studentFirstNameForMotivationGreeting({
+        profileFirstName: profile?.first_name,
+        profileFullName: profile?.name,
+        userMetaFullName:
+          typeof user?.user_metadata?.full_name === "string" ? user.user_metadata.full_name : undefined,
+        userMetaName: typeof user?.user_metadata?.name === "string" ? user.user_metadata.name : undefined,
+      }),
+    [profile?.first_name, profile?.name, user?.user_metadata?.full_name, user?.user_metadata?.name]
+  );
   const router = useRouter();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [open, setOpen] = useState(false);
@@ -135,19 +155,36 @@ const NotificationBell = () => {
               ? o.recommendActionUrl.trim()
               : null;
 
+          const nudgeGoalRaw = typeof o?.nudgeGoal === "string" ? o.nudgeGoal.trim() : "";
+          const notificationTitle =
+            typeof o?.notificationTitle === "string" && o.notificationTitle.trim()
+              ? o.notificationTitle.trim()
+              : null;
+
           const actionUrl = isAssignmentReminder
             ? `/classroom/${encodeURIComponent(
                 p.classroom_id
               )}?tab=posts&post=${encodeURIComponent(relatedPostId ?? p.id)}`
-            : null;
+            : nudgeGoalRaw === "restart_streak"
+              ? "/home"
+              : null;
+
+          let title: string;
+          if (isAssignmentReminder) {
+            if (nudgeGoalRaw === "attempt_mock") {
+              title = relatedTitle ? `Reminder: ${relatedTitle}` : "Assignment reminder";
+            } else if (notificationTitle) {
+              title = notificationTitle;
+            } else {
+              title = relatedTitle ? `Reminder: ${relatedTitle}` : "Assignment reminder";
+            }
+          } else {
+            title = notificationTitle ?? "Advice from teacher";
+          }
 
           const notif: Notification = {
             id: p.id,
-            title: isAssignmentReminder
-              ? relatedTitle
-                ? `Reminder: ${relatedTitle}`
-                : "Assignment reminder"
-              : "Advice from teacher",
+            title,
             body: message || null,
             read: persistedSeen.has(p.id),
             action_url: actionUrl,
@@ -160,6 +197,7 @@ const NotificationBell = () => {
               recommendActionId === "attempt_targeted_mock" ||
               recommendActionId === "post_doubt" ||
               recommendActionId === "watch_recorded" ||
+              recommendActionId === "concept_focus_resource" ||
               recommendActionId === "none"
                 ? recommendActionId
                 : undefined,
@@ -219,6 +257,21 @@ const NotificationBell = () => {
       return null;
     }
   };
+
+  /** Single primary destination: in-app `action_url` first, else teacher-recommended link. */
+  const primaryOpenHref = useMemo(() => {
+    if (!selected) return null;
+    const action = selected.action_url?.trim();
+    if (action) return action;
+    if (
+      selected.recommendActionId &&
+      selected.recommendActionId !== "none" &&
+      selected.recommendActionUrl?.trim()
+    ) {
+      return selected.recommendActionUrl.trim();
+    }
+    return null;
+  }, [selected]);
 
   const markRead = (id: string) => {
     if (seenKey) {
@@ -304,7 +357,9 @@ const NotificationBell = () => {
                     {n.title}
                   </p>
                   {n.body && (
-                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{n.body}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                      {personalizeTeacherMotivationMessage(n.body, motivationStudentFirstName)}
+                    </p>
                   )}
                 </button>
               ))
@@ -331,40 +386,10 @@ const NotificationBell = () => {
               {selected.kind === "counsel_message" ? (
                 <>
                   <div className="rounded-2xl border border-border/60 bg-muted/20 p-4 text-sm leading-relaxed whitespace-pre-wrap text-foreground shadow-sm">
-                    {selected.body ?? ""}
+                    {selected.body
+                      ? personalizeTeacherMotivationMessage(selected.body, motivationStudentFirstName)
+                      : ""}
                   </div>
-                  {selected.recommendActionUrl && selected.recommendActionId && selected.recommendActionId !== "none" ? (
-                    <div className="rounded-2xl border border-border/60 bg-background p-3">
-                      <div className="text-xs font-semibold text-muted-foreground">
-                        Recommended action
-                      </div>
-                      <button
-                        type="button"
-                        className="mt-2 w-full rounded-xl bg-primary px-4 py-2.5 text-xs font-extrabold text-primary-foreground hover:opacity-90"
-                        onClick={() => {
-                          const href = selected.recommendActionUrl!;
-                          // internal links ("/mock", "/doubts") use router
-                          if (href.startsWith("/")) {
-                            router.push(href);
-                            setDetailOpen(false);
-                            return;
-                          }
-                          // external links open in a new tab
-                          const normalized = normalizeExternalUrl(href) ?? href;
-                          window.open(normalized, "_blank", "noopener,noreferrer");
-                        }}
-                      >
-                        {selected.recommendActionLabel?.trim()
-                          ? selected.recommendActionLabel
-                          : selected.recommendActionId === "attempt_targeted_mock"
-                            ? "Open mock tests"
-                            : selected.recommendActionId === "post_doubt"
-                              ? "Open Gyan++"
-                              : "Open link"}
-                        {"  "}→
-                      </button>
-                    </div>
-                  ) : null}
                   <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-3 text-xs font-semibold text-amber-100">
                     {typeof selected.rdmDelta === "number" && selected.rdmDelta > 0
                       ? `+${selected.rdmDelta} RDM encouragement included`
@@ -373,7 +398,9 @@ const NotificationBell = () => {
                 </>
               ) : (
                 <div className="text-sm text-muted-foreground whitespace-pre-wrap">
-                  {selected.body ?? ""}
+                  {selected.body
+                    ? personalizeTeacherMotivationMessage(selected.body, motivationStudentFirstName)
+                    : ""}
                 </div>
               )}
             </div>
@@ -386,13 +413,18 @@ const NotificationBell = () => {
             >
               Close
             </button>
-            {selected?.action_url ? (
+            {primaryOpenHref ? (
               <button
                 type="button"
                 className="rounded-full bg-primary px-4 py-2 text-xs font-bold text-primary-foreground hover:opacity-90"
                 onClick={() => {
-                  if (!selected?.action_url) return;
-                  router.push(selected.action_url);
+                  if (!primaryOpenHref) return;
+                  if (primaryOpenHref.startsWith("/")) {
+                    router.push(primaryOpenHref);
+                  } else {
+                    const normalized = normalizeExternalUrl(primaryOpenHref) ?? primaryOpenHref;
+                    window.open(normalized, "_blank", "noopener,noreferrer");
+                  }
                   setDetailOpen(false);
                   setOpen(false);
                 }}

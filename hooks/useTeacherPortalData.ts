@@ -15,6 +15,8 @@ import {
   updateTeacherClassroom,
   postTeacherSection,
   updateTeacherProfile,
+  type MotivationNudgeGoal,
+  type MotivationRecommendActionId,
 } from "@/lib/teacherPortal/queries";
 import type {
   TeacherPortalChapterQuizRef,
@@ -40,7 +42,12 @@ function readTeacherPortalBundleSnapshot(userId: string): TeacherPortalDataBundl
     if (!raw) return null;
     const parsed = JSON.parse(raw) as TeacherPortalDataBundle;
     if (!parsed || !Array.isArray(parsed.classrooms)) return null;
-    return parsed;
+    return {
+      ...parsed,
+      mockPostIdsAssignedThisWeek: parsed.mockPostIdsAssignedThisWeek ?? [],
+      mockNudgeLowScorersByPostId: parsed.mockNudgeLowScorersByPostId ?? {},
+      mockNudgeSubmittedAttemptsByPostId: parsed.mockNudgeSubmittedAttemptsByPostId ?? {},
+    };
   } catch {
     return null;
   }
@@ -110,7 +117,7 @@ interface UseTeacherPortalDataResult {
     dailyDoseStreak?: TeacherPortalDailyDoseStreakRef | null;
     gyanEngagement?: TeacherPortalGyanEngagementRef | null;
     extraContentJson?: Record<string, Json> | null;
-  }) => Promise<void>;
+  }) => Promise<{ id: string }>;
   motivateStudents: (input: {
     teacherId: string;
     classroomId: string;
@@ -118,6 +125,14 @@ interface UseTeacherPortalDataResult {
     targetStudentIds: string[];
     message: string;
     rdmDelta: number;
+    sectionId?: string | null;
+    relatedPostId?: string;
+    relatedPostTitle?: string;
+    recommendActionId?: MotivationRecommendActionId;
+    recommendActionLabel?: string;
+    recommendActionUrl?: string;
+    notificationTitle?: string;
+    nudgeGoal?: MotivationNudgeGoal;
   }) => Promise<void>;
   rewardTopStudents: (input: {
     teacherId: string;
@@ -311,8 +326,9 @@ export function useTeacherPortalData(
       gyanEngagement?: TeacherPortalGyanEngagementRef | null;
       extraContentJson?: Record<string, Json> | null;
     }) => {
-      await createClassroomAssignment(input);
+      const created = await createClassroomAssignment(input);
       await refresh();
+      return created;
     },
     [refresh]
   );
@@ -328,9 +344,11 @@ export function useTeacherPortalData(
       rdmDelta: number;
       relatedPostId?: string;
       relatedPostTitle?: string;
-      recommendActionId?: "attempt_targeted_mock" | "post_doubt" | "watch_recorded" | "none";
+      recommendActionId?: MotivationRecommendActionId;
       recommendActionLabel?: string;
       recommendActionUrl?: string;
+      notificationTitle?: string;
+      nudgeGoal?: MotivationNudgeGoal;
     }) => {
       await createMotivationAction(input);
       await refresh();

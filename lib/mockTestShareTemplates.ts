@@ -2,15 +2,27 @@ export type MockTestShareTone = "achievement" | "progress" | "comeback";
 
 export type MockTestShareOutcome = "win" | "lose";
 
+/** Percentage string for display (e.g. "1.11", "100.00"). */
+export function formatMockAccuracyPercent(correct: number, total: number): string {
+  if (total <= 0) return "0.00";
+  return ((correct / total) * 100).toFixed(2);
+}
+
+/** Catalog timed paper vs PYQ — drives copy (no "mock" wording on past-paper shares). */
+export type SharePaperKind = "catalog_mock" | "past_paper";
+
 export type MockTestSharePayload = {
   examName: string;
   correct: number;
   total: number;
-  accuracyPct: number;
+  /** Formatted with two decimal places for cards and share copy. */
+  accuracyPct: string;
   timeTakenLabel: string;
   appUrl: string;
   /** Drives which bank of 20 paired templates (community + WhatsApp each) is used. */
   outcome: MockTestShareOutcome;
+  /** Default `catalog_mock` when omitted (backward compatible). */
+  sharePaperKind?: SharePaperKind;
 };
 
 export type MockTestShareTemplate = {
@@ -19,7 +31,12 @@ export type MockTestShareTemplate = {
   title: string;
   body: string;
   cta: string;
-  /** Full text for community feed (title + body + cta). */
+  /**
+   * Community feed **body** only (line 2: score/time, line 3: CTA link).
+   * Title is stored separately so the UI does not repeat the headline.
+   */
+  communityContent: string;
+  /** @deprecated Prefer `title` + `communityContent` for feed; kept as alias of `communityContent`. */
   text: string;
   waTitle: string;
   waBody: string;
@@ -49,16 +66,95 @@ function fillMockPattern(pattern: string, payload: MockTestSharePayload): string
     .replaceAll("{examName}", payload.examName)
     .replaceAll("{correct}", String(payload.correct))
     .replaceAll("{total}", String(payload.total))
-    .replaceAll("{accuracyPct}", String(payload.accuracyPct))
+    .replaceAll("{accuracyPct}", payload.accuracyPct)
     .replaceAll("{timeTakenLabel}", payload.timeTakenLabel)
     .replaceAll("{appUrl}", payload.appUrl);
+}
+
+/**
+ * Past-paper share strings: remove awkward "mock" wording.
+ * Preserves URL paths like `.../mock` (lookbehind skips `/`).
+ */
+function pastPaperizeShareString(s: string): string {
+  let t = s;
+  const pairs: [RegExp, string][] = [
+    [/Mock test wrap:\s*/gi, "Past paper — "],
+    [/Strong mock:\s*/gi, "Strong run: "],
+    [/Main-character mock/gi, "Main-character paper"],
+    [/Momentum mock/gi, "Momentum paper"],
+    [/Institute-style mock W:/gi, "Institute-style paper —"],
+    [/Institute-style mock/gi, "Institute-style paper"],
+    [/Institute mock/gi, "Institute paper"],
+    [/Full-length mock/gi, "Full-length paper"],
+    [/Full mock/gi, "Full paper"],
+    [/Weekly mock/gi, "Weekly paper"],
+    [/Another mock down/gi, "Another paper down"],
+    [/Mock result \(honest\)/gi, "Result (honest)"],
+    [/Mock archive entry/gi, "Archive entry"],
+    [/Mock reality check/gi, "Reality check"],
+    [/Mock complete/gi, "Paper complete"],
+    [/JEE-style sit \(mock\)/gi, "JEE-style sit"],
+    [/PYQ \/ catalog mock/gi, "PYQ / catalog paper"],
+    [/JEE-mode mock/gi, "JEE-mode paper"],
+    [/Prep \+ mocks/gi, "Past papers"],
+    [/Prep \+ Mock/gi, "Prep hub"],
+    [/Stack mocks/gi, "Stack papers"],
+    [/Catalog mocks/gi, "Catalog papers"],
+    [/Community \+ mocks/gi, "Community + papers"],
+    [/Log your mock/gi, "Log your paper"],
+    [/Practice timed mocks/gi, "Practice timed papers"],
+    [/Lock in with mocks/gi, "Lock in with papers"],
+    [/Join me on mocks/gi, "Join me on papers"],
+    [/Run your own mock/gi, "Run your own paper"],
+    [/Open the mock library/gi, "Open the paper library"],
+    [/Queue your next mock/gi, "Queue your next paper"],
+    [/Mocks live here:/gi, "Papers live here:"],
+    [/Ran an institute-style mock/gi, "Ran an institute-style paper"],
+    [/Deep work block → mock →/gi, "Deep work block → paper →"],
+    [/Deep work → mock →/gi, "Deep work → paper →"],
+    [/Flexing a good \{examName\} mock \(respectfully\)/gi, "Flexing a good {examName} run (respectfully)"],
+    [/Sharing my \{examName\} mock result/gi, "Sharing my {examName} past-paper result"],
+    [/mock W:/gi, "Win:"],
+  ];
+  for (const [re, rep] of pairs) {
+    t = t.replace(re, rep);
+  }
+  t = t.replace(/(?<!\/)mocks\b/gi, "papers");
+  t = t.replace(/(?<!\/)mock\b/gi, "paper");
+  t = t.replace(/paper paper/gi, "paper");
+  return t;
+}
+
+/** Strip "Mock …" from catalog-style paper titles when sharing a PYQ attempt. */
+export function formatExamNameForPastPaperShare(examName: string): string {
+  return examName
+    .replace(/\bMock\s+/gi, "")
+    .replace(/\bmocks\b/gi, "papers")
+    .replace(/\bmock\b/gi, "paper")
+    .replace(/\bpaper\s+paper\b/gi, "paper")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+function cloneDefForPastPaper(def: MockTestTemplateDef): MockTestTemplateDef {
+  return {
+    id: def.id.replace(/^mock_/, "past_"),
+    tone: def.tone,
+    hook: pastPaperizeShareString(def.hook),
+    bodyPattern: pastPaperizeShareString(def.bodyPattern),
+    ctaPattern: pastPaperizeShareString(def.ctaPattern),
+    waHook: pastPaperizeShareString(def.waHook),
+    waBodyPattern: pastPaperizeShareString(def.waBodyPattern),
+    waCtaPattern: pastPaperizeShareString(def.waCtaPattern),
+  };
 }
 
 function makeMockTemplate(def: MockTestTemplateDef, payload: MockTestSharePayload): MockTestShareTemplate {
   const title = fillMockPattern(def.hook, payload);
   const body = fillMockPattern(def.bodyPattern, payload);
   const cta = fillMockPattern(def.ctaPattern, payload);
-  const text = [title, body, cta].join("\n\n");
+  /** Feed body: score line + CTA only (title is separate — avoids duplicate headline). */
+  const communityContent = [body, cta].join("\n\n");
 
   const waTitle = fillMockPattern(def.waHook, payload);
   const waBody = fillMockPattern(def.waBodyPattern, payload);
@@ -71,7 +167,8 @@ function makeMockTemplate(def: MockTestTemplateDef, payload: MockTestSharePayloa
     title,
     body,
     cta,
-    text,
+    communityContent,
+    text: communityContent,
     waTitle,
     waBody,
     waCta,
@@ -526,9 +623,24 @@ const MOCK_LOSS_DEFS: MockTestTemplateDef[] = [
   },
 ];
 
+const PAST_WIN_DEFS: MockTestTemplateDef[] = MOCK_WIN_DEFS.map(cloneDefForPastPaper);
+const PAST_LOSS_DEFS: MockTestTemplateDef[] = MOCK_LOSS_DEFS.map(cloneDefForPastPaper);
+
 export function buildMockShareTemplates(payload: MockTestSharePayload): MockTestShareTemplate[] {
-  const defs = payload.outcome === "win" ? MOCK_WIN_DEFS : MOCK_LOSS_DEFS;
-  return defs.map((def) => makeMockTemplate(def, payload));
+  const kind: SharePaperKind = payload.sharePaperKind ?? "catalog_mock";
+  const payloadForTemplates: MockTestSharePayload =
+    kind === "past_paper"
+      ? { ...payload, examName: formatExamNameForPastPaperShare(payload.examName) }
+      : payload;
+  const defs =
+    kind === "past_paper"
+      ? payload.outcome === "win"
+        ? PAST_WIN_DEFS
+        : PAST_LOSS_DEFS
+      : payload.outcome === "win"
+        ? MOCK_WIN_DEFS
+        : MOCK_LOSS_DEFS;
+  return defs.map((def) => makeMockTemplate(def, payloadForTemplates));
 }
 
 export function pickNextMockShareTemplate(currentIndex: number, templateCount: number): number {

@@ -15,7 +15,14 @@ export interface RawPostRow {
   topic_ref?: string | null;
   subtopic_ref?: string | null;
   source_type?: string | null;
-  source_payload?: { level?: string | null } | null;
+  /** e.g. mock result shares include `paperSlug` for `/mock?paper=` deep links */
+  source_payload?: {
+    level?: string | null;
+    paperSlug?: string | null;
+    paperId?: string | null;
+    sharePaperKind?: string | null;
+    attemptKey?: string | null;
+  } | null;
   boost_count: number;
   upvote_count: number;
   downvote_count: number;

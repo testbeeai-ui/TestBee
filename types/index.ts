@@ -3,7 +3,9 @@ export const CORE_SUBJECTS = ["physics", "chemistry", "math"] as const;
 export type Subject = (typeof CORE_SUBJECTS)[number];
 
 /** Category for curated mock papers (library); maps to Supabase later. */
-export type MockPaperType = "pyq" | "ncert" | "chapter" | "full";
+export type MockPaperType = "ncert" | "chapter" | "full" | "mock";
+/** Past papers are PYQ-only and managed separately from mock papers. */
+export type PastPaperType = "pyq";
 
 /** Catalog entry for institute-style mock tests. */
 export interface MockPaper {
@@ -24,6 +26,43 @@ export interface MockPaper {
   classLevel: ClassLevel;
   /** Short line for instructions modal, e.g. "+4 for correct, −1 for incorrect" */
   markingScheme: string;
+}
+
+/** Catalog entry for institute-style past papers (PYQ). */
+export interface PastPaper {
+  id: string;
+  /** Stable catalog key from Supabase (optional for legacy rows). */
+  slug?: string;
+  title: string;
+  type: PastPaperType;
+  /** Primary subject for display; use subjectsCovered when the paper is multi-subject. */
+  subject: Subject;
+  /** JEE-style shifts: filter matches if user picked any of these subjects. */
+  subjectsCovered?: Subject[];
+  durationMinutes: number;
+  questionsCount: number;
+  totalMarks: number;
+  difficulty: "Easy" | "Moderate" | "Hard";
+  tags: string[];
+  classLevel: ClassLevel;
+  /** Short line for instructions modal, e.g. "+4 for correct, −1 for incorrect" */
+  markingScheme: string;
+}
+
+/** Question row payload for past paper catalogs. */
+export interface PastPaperQuestion {
+  id: string;
+  paperId: string;
+  sortOrder: number;
+  sourceQuestionId?: string | null;
+  subject: Subject;
+  topic?: string | null;
+  chapter?: string | null;
+  difficulty?: string | null;
+  questionHtml: string;
+  solutionHtml?: string | null;
+  correctLetter: "A" | "B" | "C" | "D";
+  optionsJson: string[];
 }
 export type Stream = "science" | "commerce" | "arts";
 export type SubjectCombo = "PCM";

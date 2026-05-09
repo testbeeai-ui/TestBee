@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import Link from "next/link";
 import { Bookmark, ChevronDown, ChevronUp, Link2, MessageSquare, Tag } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,10 @@ import {
   SUBJECT_FEED_ICON_CLASS as subjectIconClass,
 } from "./subjectFeedIcons";
 import type { RawPostRow } from "./rawFeedTypes";
+import {
+  getMockPaperSlugFromCommunityPost,
+  hrefForMockPaperCommunityShare,
+} from "@/lib/mockPaperCommunityLink";
 
 const subjectLabel: Record<string, string> = {
   physics: "Physics",
@@ -100,6 +105,10 @@ export default function RawFeedPostCard({
   const n = post.comment_count ?? 0;
   const threadLabel = n === 0 ? "Thread" : n === 1 ? "Thread (1 reply)" : `Thread (${n} replies)`;
   const isQuizPost = post.source_type === "quiz_post";
+  const mockPaperShareSlug = getMockPaperSlugFromCommunityPost(
+    post.source_type,
+    post.source_payload
+  );
   const contextChips: { key: string; label: string; value: string; tone: string }[] = [];
   if (post.subject) {
     contextChips.push({
@@ -313,6 +322,22 @@ export default function RawFeedPostCard({
               <MessageSquare className="h-4 w-4 shrink-0" />
               {threadLabel}
             </button>
+            {mockPaperShareSlug ? (
+              <Link
+                href={hrefForMockPaperCommunityShare(mockPaperShareSlug)}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold transition-all",
+                  "border-amber-500/45 bg-amber-500/12 text-amber-950 shadow-[0_0_0_1px_rgba(245,158,11,0.15)]",
+                  "hover:bg-amber-500/20 hover:border-amber-500/60 dark:text-amber-100 dark:shadow-[0_0_0_1px_rgba(251,191,36,0.2)]",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/45 focus-visible:ring-offset-1 focus-visible:ring-offset-background"
+                )}
+                title="Open this paper on Prep"
+                aria-label="Open this paper on Prep"
+              >
+                <Link2 className="h-4 w-4 shrink-0" />
+                Open paper
+              </Link>
+            ) : null}
             {canOpenSourceLink ? (
               <button
                 type="button"

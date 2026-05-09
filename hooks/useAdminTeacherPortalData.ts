@@ -5,6 +5,10 @@ import type { AssignmentTaskStored } from "@/lib/classroom/assignmentTasks";
 import type { Json } from "@/integrations/supabase/types";
 import { safeGetSession } from "@/lib/safeSession";
 import type {
+  MotivationNudgeGoal,
+  MotivationRecommendActionId,
+} from "@/lib/teacherPortal/queries";
+import type {
   TeacherPortalChapterQuizRef,
   TeacherPortalDailyDoseStreakRef,
   TeacherPortalDataBundle,
@@ -72,7 +76,7 @@ interface UseAdminTeacherPortalDataResult {
     dailyDoseStreak?: TeacherPortalDailyDoseStreakRef | null;
     gyanEngagement?: TeacherPortalGyanEngagementRef | null;
     extraContentJson?: Record<string, Json> | null;
-  }) => Promise<void>;
+  }) => Promise<{ id: string }>;
   motivateStudents: (input: {
     teacherId: string;
     classroomId: string;
@@ -80,6 +84,14 @@ interface UseAdminTeacherPortalDataResult {
     targetStudentIds: string[];
     message: string;
     rdmDelta: number;
+    sectionId?: string | null;
+    relatedPostId?: string;
+    relatedPostTitle?: string;
+    recommendActionId?: MotivationRecommendActionId;
+    recommendActionLabel?: string;
+    recommendActionUrl?: string;
+    notificationTitle?: string;
+    nudgeGoal?: MotivationNudgeGoal;
   }) => Promise<void>;
   rewardTopStudents: (input: {
     teacherId: string;
@@ -131,7 +143,17 @@ export function useAdminTeacherPortalData(teacherId: string | null | undefined):
         const res = await adminFetch(`/api/admin/teachers/${teacherId}/bundle`);
         const body = (await res.json()) as { bundle?: TeacherPortalDataBundle; error?: string };
         if (!res.ok) throw new Error(body.error || "Could not load teacher portal bundle.");
-        setData(body.bundle ?? null);
+        const b = body.bundle;
+        setData(
+          b
+            ? {
+                ...b,
+                mockPostIdsAssignedThisWeek: b.mockPostIdsAssignedThisWeek ?? [],
+                mockNudgeLowScorersByPostId: b.mockNudgeLowScorersByPostId ?? {},
+                mockNudgeSubmittedAttemptsByPostId: b.mockNudgeSubmittedAttemptsByPostId ?? {},
+              }
+            : null
+        );
       } catch (err) {
         setError(err instanceof Error ? err.message : "Could not load teacher portal bundle.");
       } finally {
@@ -217,9 +239,12 @@ export function useAdminTeacherPortalData(teacherId: string | null | undefined):
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...input, notes: DEFAULT_ADMIN_NOTES }),
       });
-      const body = (await res.json().catch(() => ({}))) as { error?: string };
+      const body = (await res.json().catch(() => ({}))) as { error?: string; id?: string };
       if (!res.ok) throw new Error(body.error || "Failed to create assignment");
+      const postId = typeof body.id === "string" ? body.id.trim() : "";
+      if (!postId) throw new Error("Assignment created but id was not returned.");
       await refresh();
+      return { id: postId };
     },
     [teacherId, refresh]
   );

@@ -1492,7 +1492,7 @@ function TopicPageInner() {
           data: { session },
         } = await supabase.auth.getSession();
         if (!session?.access_token) return;
-        await fetch(`/api/classroom/${classroomId}/posts/${postId}/generated-test-attempt`, {
+        const res = await fetch(`/api/classroom/${classroomId}/posts/${postId}/generated-test-attempt`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -1504,6 +1504,9 @@ function TopicPageInner() {
             chapterQuizAttempt: attemptSnapshot ?? null,
           }),
         });
+        if (res.ok) {
+          dispatchClassroomAssignmentProgressChanged({ classroomId, postId });
+        }
       } catch (e) {
         console.error("Failed to report assignment score", e);
       }

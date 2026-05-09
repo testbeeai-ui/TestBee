@@ -68,7 +68,7 @@ export async function fetchWithClientAuth(
   init: RequestInit = {}
 ): Promise<Response> {
   const auth = await getClientApiAuthHeaders();
-  let res = await fetch(input, mergeAuthHeaders(init, auth));
+  const res = await fetch(input, mergeAuthHeaders(init, auth));
   if (res.status !== 401) return res;
 
   const refreshed = await refreshSessionDeduped();

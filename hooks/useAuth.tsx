@@ -7,6 +7,7 @@ import {
   useState,
   ReactNode,
 } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/integrations/supabase/client";
 import type { AuthError, User, Session } from "@supabase/supabase-js";
 import { useUserStore } from "@/store/useUserStore";
@@ -91,13 +92,15 @@ interface AuthContextType {
   /** After email/password sign-up (confirmations on), user enters the code from email. */
   verifySignUpEmailOtp: (email: string, token: string) => Promise<{ error: AuthError | null }>;
   resendSignUpEmailOtp: (email: string) => Promise<{ error: AuthError | null }>;
-  signOut: () => Promise<void>;
+  /** Clears session; navigates to `redirectAfter` or `/` (marketing landing). */
+  signOut: (redirectAfter?: string) => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -404,10 +407,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return { error };
   };
 
-  const signOut = async () => {
-    await supabase.auth.signOut();
+  const signOut = async (redirectAfter?: string) => {
+    try {
+      // Local scope avoids a server round-trip (works offline; prevents hang on network errors).
+      await supabase.auth.signOut({ scope: "local" });
+    } catch {
+      await supabase.auth.signOut({ scope: "local" }).catch(() => {});
+    }
     useUserStore.getState().logout();
     setProfile(null);
+    setSession(null);
+    setUser(null);
+    const dest = redirectAfter ?? "/";
+    router.replace(dest.startsWith("/") ? dest : `/${dest}`);
+    router.refresh();
   };
 
   const fetchProfileRef = useRef(fetchProfile);

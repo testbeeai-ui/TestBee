@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { CheckCircle2, Loader2, LogOut, Upload } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { TeacherPortalProfileView } from "@/lib/teacherPortal/types";
@@ -87,8 +86,7 @@ export default function TeacherProfileView({
   allowAvatarUpload = true,
   onAvatarUpdated,
 }: TeacherProfileViewProps) {
-  const router = useRouter();
-  const { user, refreshProfile } = useAuth();
+  const { user, refreshProfile, signOut } = useAuth();
   const { toast } = useToast();
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -742,8 +740,7 @@ export default function TeacherProfileView({
             <button
               type="button"
               onClick={async () => {
-                const { error } = await supabase.auth.signOut();
-                if (!error) router.push("/");
+                await signOut();
               }}
               className="inline-flex items-center gap-2 rounded-full border border-rose-400/30 bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-300 hover:bg-rose-500/20 sm:px-4 sm:py-2 sm:text-sm"
             >

@@ -15,6 +15,7 @@ import {
 import type { TeacherPortalSection } from "@/lib/teacherPortal/types";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { TEACHER_PORTAL_CLASSROOMS_URL } from "@/lib/teacherPortal/routes";
 
 interface TeacherPortalShellProps {
   activeSection: TeacherPortalSection;
@@ -31,7 +32,8 @@ const sections: Array<{ key: TeacherPortalSection; label: string; icon: typeof L
   { key: "myClasses", label: "My lessons", icon: GraduationCap },
   { key: "gyanWall", label: "Gyan++ Wall", icon: Star },
   { key: "createTests", label: "Create Tests", icon: BookOpen },
-  { key: "referEarn", label: "Earn & Learn", icon: Gift },
+  /** Teacher referrals & challenges — not the student /refer-earn hub */
+  { key: "referEarn", label: "Refer & earn", icon: Gift },
   { key: "profile", label: "Profile", icon: User },
 ];
 
@@ -74,7 +76,7 @@ export default function TeacherPortalShell({
       <header className="sticky top-0 z-20 border-b border-white/10 bg-[#07070f]/95 backdrop-blur">
         <div className="flex h-11 items-center gap-2 px-3 sm:h-14 sm:gap-3 sm:px-5 lg:px-6">
           <Link
-            href="/teacher-portal"
+            href={TEACHER_PORTAL_CLASSROOMS_URL}
             className="relative z-10 flex shrink-0 items-center hover:opacity-90 transition-opacity"
             aria-label="EduBlast Home"
           >
@@ -157,6 +159,7 @@ export default function TeacherPortalShell({
           <div className="space-y-1">
             <button
               type="button"
+              onClick={() => router.push("/teacher-portal/create-assignment")}
               className="flex w-full items-center gap-2 rounded-lg border border-transparent px-2.5 py-1.5 text-left text-[12px] text-slate-400 hover:border-white/10 hover:bg-white/5 hover:text-white sm:px-3 sm:py-2 sm:text-sm"
             >
               <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
@@ -164,6 +167,9 @@ export default function TeacherPortalShell({
             </button>
             <button
               type="button"
+              onClick={() =>
+                router.push("/teacher-portal?section=myClassroom&wizard=1")
+              }
               className="flex w-full items-center gap-2 rounded-lg border border-transparent px-2.5 py-1.5 text-left text-[12px] text-slate-400 hover:border-white/10 hover:bg-white/5 hover:text-white sm:px-3 sm:py-2 sm:text-sm"
             >
               <Star className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
@@ -171,6 +177,9 @@ export default function TeacherPortalShell({
             </button>
             <button
               type="button"
+              onClick={() =>
+                router.push("/teacher-portal?section=myClassroom&portalDetail=progress")
+              }
               className="flex w-full items-center gap-2 rounded-lg border border-transparent px-2.5 py-1.5 text-left text-[12px] text-slate-400 hover:border-white/10 hover:bg-white/5 hover:text-white sm:py-2 sm:text-sm"
             >
               <BookOpen className="h-3.5 w-3.5 sm:h-4 sm:w-4" />

@@ -23,6 +23,14 @@ export default function Profile() {
     router.replace("/teacher-portal?section=profile");
   }, [authLoading, profile?.role, router]);
 
+  if (!authLoading && !authUser) {
+    return (
+      <ProtectedRoute>
+        {null}
+      </ProtectedRoute>
+    );
+  }
+
   if (authLoading || (authUser && !profile)) {
     return (
       <ProtectedRoute>
@@ -43,12 +51,10 @@ export default function Profile() {
     );
   }
 
-  if (!profile || !authUser) {
+  if (!authUser || !profile) {
     return (
       <ProtectedRoute>
-        <div className="min-h-screen flex items-center justify-center">
-          <span className="text-4xl animate-pulse">🎯</span>
-        </div>
+        {null}
       </ProtectedRoute>
     );
   }

@@ -7,6 +7,7 @@ import { useStreakTimer } from "@/hooks/useStreakTimer";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import StudentHomeDashboard from "@/components/dashboard/StudentHomeDashboard";
+import { TEACHER_PORTAL_CLASSROOMS_URL } from "@/lib/teacherPortal/routes";
 
 export default function HomePage() {
   const { profile, refreshProfile } = useAuth();
@@ -19,7 +20,7 @@ export default function HomePage() {
 
   useEffect(() => {
     if (profile?.role === "teacher") {
-      router.replace("/teacher-portal");
+      router.replace(TEACHER_PORTAL_CLASSROOMS_URL);
     }
   }, [profile?.role, router]);
 

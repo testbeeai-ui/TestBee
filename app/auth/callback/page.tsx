@@ -14,6 +14,7 @@ import {
   clearPendingDeepLink,
   destinationFromOAuthStored,
 } from "@/lib/auth/safeNextPath";
+import { TEACHER_PORTAL_CLASSROOMS_URL } from "@/lib/teacherPortal/routes";
 
 async function readClientSession() {
   try {
@@ -115,7 +116,7 @@ export default function AuthCallback() {
       typeof window !== "undefined" ? sessionStorage.getItem("auth_redirect_after_login") : null;
 
     const isTeacher = profile?.role === "teacher";
-    const postOnboardPath = isTeacher ? "/teacher-portal" : "/home";
+    const postOnboardPath = isTeacher ? TEACHER_PORTAL_CLASSROOMS_URL : "/home";
     const onboardPath = isTeacher ? "/onboarding?role=teacher" : "/onboarding?role=student";
 
     if (user && profile?.onboarding_complete) {

@@ -131,15 +131,17 @@ export const useUserStore = create<UserState>()(
         })),
 
       saveQuestion: (questionId) =>
-        set((state) => ({
-          user: state.user
-            ? {
-                ...state.user,
-                savedQuestions: [...state.user.savedQuestions, questionId],
-                rdm: state.user.rdm + 2, // bonus for saving
-              }
-            : null,
-        })),
+        set((state) => {
+          if (!state.user) return state;
+          if (state.user.savedQuestions.includes(questionId)) return state;
+          return {
+            user: {
+              ...state.user,
+              savedQuestions: [...state.user.savedQuestions, questionId],
+              rdm: state.user.rdm + 2, // bonus for saving
+            },
+          };
+        }),
 
       unsaveQuestion: (questionId) =>
         set((state) => ({

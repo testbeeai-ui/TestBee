@@ -27,6 +27,7 @@ import {
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { readPendingDeepLink, clearPendingDeepLink } from "@/lib/auth/safeNextPath";
+import { TEACHER_PORTAL_CLASSROOMS_URL } from "@/lib/teacherPortal/routes";
 import { useToast } from "@/hooks/use-toast";
 import { clearPendingReferralRef, resolvePendingReferralRef } from "@/lib/referralClient";
 
@@ -72,8 +73,7 @@ function OnboardingContent() {
   const { toast } = useToast();
 
   const signOutAndReturnToLogin = async () => {
-    await signOut();
-    router.replace("/auth?mode=signin");
+    await signOut("/auth?mode=signin");
   };
 
   const [role, setRole] = useState<"student" | "teacher" | null>(null);
@@ -124,7 +124,7 @@ function OnboardingContent() {
     else if (profile?.onboarding_complete) {
       const pending = readPendingDeepLink();
       const dest =
-        pending ?? (profile?.role === "teacher" ? "/teacher-portal" : "/home");
+        pending ?? (profile?.role === "teacher" ? TEACHER_PORTAL_CLASSROOMS_URL : "/home");
       clearPendingDeepLink();
       router.replace(dest);
     }
@@ -287,7 +287,7 @@ function OnboardingContent() {
       );
       const pending = readPendingDeepLink();
       const dest =
-        pending ?? (role === "teacher" ? "/teacher-portal" : "/home");
+        pending ?? (role === "teacher" ? TEACHER_PORTAL_CLASSROOMS_URL : "/home");
       clearPendingDeepLink();
       router.replace(dest);
     } finally {
