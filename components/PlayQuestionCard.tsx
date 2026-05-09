@@ -33,6 +33,22 @@ interface PlayQuestionCardProps {
   optionLayout?: "stack" | "grid";
   /** When true, Next is only via the button (no 2.5s auto-advance). */
   disableAutoAdvance?: boolean;
+  /** When true and not yet answered, hide MCQ options (question-first reveal). */
+  optionsConcealed?: boolean;
+  /** Shown in the dashed placeholder while options are concealed. */
+  optionsConcealedHint?: string;
+  /**
+   * Full question countdown (MM:SS) — must match the parent header “Question clock” while stem-only.
+   */
+  optionsConcealedQuestionClock?: string;
+  /**
+   * Secondary line: time until the choice segment begins (MM:SS). Derived from total − options phase.
+   */
+  optionsConcealedUntilChoicesClock?: string;
+  /** Disables option buttons (e.g. while resolving a server-side timeout). */
+  disableInteraction?: boolean;
+  /** Optional persistent watermark rendered over the question card. */
+  watermarkText?: string;
 }
 
 export default function PlayQuestionCard({
@@ -46,6 +62,12 @@ export default function PlayQuestionCard({
   hideInlineTimer = false,
   optionLayout = "stack",
   disableAutoAdvance = false,
+  optionsConcealed = false,
+  optionsConcealedHint = "Options will appear when the timer reaches the unlock window.",
+  optionsConcealedQuestionClock,
+  optionsConcealedUntilChoicesClock,
+  disableInteraction = false,
+  watermarkText,
 }: PlayQuestionCardProps) {
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [answered, setAnswered] = useState(false);
@@ -146,10 +168,18 @@ export default function PlayQuestionCard({
       )}
       <div
         className={cn(
-          "bg-card rounded-2xl p-5 shadow-lg border border-border",
+          "relative bg-card rounded-2xl p-5 shadow-lg border border-border",
           optGrid && "p-4 sm:p-5"
         )}
       >
+        {watermarkText ? (
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-x-3 top-1/2 -translate-y-1/2 select-none text-center text-[10px] font-semibold uppercase tracking-[0.2em] text-white/10"
+          >
+            {watermarkText}
+          </div>
+        ) : null}
         <PlayQuestionMarkdown
           variant="stem"
           source={text}
@@ -159,6 +189,56 @@ export default function PlayQuestionCard({
             "[&_.katex]:text-[1em] [&_.katex-display]:my-1"
           )}
         />
+        {optionsConcealed && !answered ? (
+          optionsConcealedQuestionClock || optionsConcealedUntilChoicesClock ? (
+            <div
+              role="status"
+              aria-live="polite"
+              aria-label={
+                optionsConcealedQuestionClock && optionsConcealedUntilChoicesClock
+                  ? `Read-only phase. Question clock ${optionsConcealedQuestionClock}. Choices unlock in ${optionsConcealedUntilChoicesClock}.`
+                  : `Read-only phase. ${optionsConcealedQuestionClock ?? optionsConcealedUntilChoicesClock ?? ""}`
+              }
+              className="rounded-xl border border-dashed border-sky-500/30 bg-gradient-to-b from-sky-950/30 to-slate-950/40 px-5 py-8 text-center shadow-inner shadow-black/20 dark:from-sky-950/25 dark:to-black/30"
+            >
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-sky-200/90">
+                Read-only phase
+              </p>
+              <p className="mt-3 font-mono text-[1.75rem] font-semibold tabular-nums leading-none tracking-tight text-sky-50 sm:text-[2rem]">
+                {optionsConcealedQuestionClock ?? optionsConcealedUntilChoicesClock}
+              </p>
+              <p className="mt-2 text-xs font-medium text-sky-200/70">
+                {optionsConcealedQuestionClock ? (
+                  <>
+                    Matches header
+                    {optionsConcealedUntilChoicesClock ? (
+                      <>
+                        <span className="mx-1 text-sky-300/50">·</span>
+                        <span className="text-sky-200/85">
+                          Choices in{" "}
+                          <span className="font-mono tabular-nums text-sky-100">
+                            {optionsConcealedUntilChoicesClock}
+                          </span>
+                        </span>
+                      </>
+                    ) : null}
+                  </>
+                ) : (
+                  "Until choices appear below"
+                )}
+              </p>
+              {optionsConcealedHint ? (
+                <p className="mx-auto mt-5 max-w-sm text-[11px] leading-relaxed text-slate-400">
+                  {optionsConcealedHint}
+                </p>
+              ) : null}
+            </div>
+          ) : (
+            <div className="rounded-xl border border-dashed border-muted-foreground/35 bg-muted/20 px-4 py-6 text-center text-sm font-medium text-muted-foreground">
+              {optionsConcealedHint}
+            </div>
+          )
+        ) : (
         <div className={cn(optGrid ? "grid grid-cols-1 sm:grid-cols-2 gap-2" : "space-y-2")}>
           {options.map((option, i) => {
             let optionClass = "bg-muted hover:bg-muted/80 text-foreground";
@@ -173,7 +253,7 @@ export default function PlayQuestionCard({
               <motion.button
                 key={i}
                 onClick={() => handleAnswer(i)}
-                disabled={answered}
+                disabled={answered || disableInteraction}
                 whileTap={!answered ? { scale: 0.98 } : undefined}
                 className={cn(
                   "w-full text-left rounded-xl font-semibold text-sm transition-all flex items-center gap-2",
@@ -209,6 +289,7 @@ export default function PlayQuestionCard({
             );
           })}
         </div>
+        )}
         {answered && showExplanation && question.explanation && (
           <div className="mt-4 overflow-x-auto rounded-xl border border-emerald-500/25 bg-emerald-500/[0.07] p-3 dark:border-emerald-500/30 dark:bg-emerald-950/25">
             <PlayQuestionMarkdown

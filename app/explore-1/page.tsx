@@ -27,8 +27,6 @@ import {
   CheckCircle2,
   XCircle,
   Bot,
-  ListOrdered,
-  Shuffle,
   Filter,
 } from "lucide-react";
 import { getTheoryOrPlaceholder, type InteractiveBlock } from "@/data/topicTheory";
@@ -51,8 +49,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import TopicRoulette from "@/components/TopicRoulette";
-import { buildTopicPath, buildTopicOverviewPath, buildDeepDivePath } from "@/lib/topicRoutes";
+import { buildTopicOverviewPath, buildDeepDivePath } from "@/lib/topicRoutes";
 import { slugify } from "@/lib/slugs";
 import TheoryContent from "@/components/TheoryContent";
 import TopicAgentTracePanel from "@/components/TopicAgentTracePanel";
@@ -792,9 +789,6 @@ function UnitRoadmap({
             </div>
           </div>
           <div className="hidden sm:flex flex-col items-end shrink-0">
-            <span className="text-3xl font-extrabold text-primary leading-none">
-              {unitCountLabel.split(" ")[0]}
-            </span>
             <span className="text-[11px] font-extrabold tracking-widest uppercase text-muted-foreground">
               Units · {classBadgeLabel}
             </span>
@@ -1220,11 +1214,7 @@ const Explore = () => {
   const [hoveredSubject, setHoveredSubject] = useState<string | null>(null);
   const [expandedTheoryKeys, setExpandedTheoryKeys] = useState<Set<string>>(new Set());
   const [practicePopupBlock, setPracticePopupBlock] = useState<InteractiveBlock | null>(null);
-  const [practiceModePopupOpen, setPracticeModePopupOpen] = useState(false);
   const [focusedSubtopicIndex, setFocusedSubtopicIndex] = useState<number | null>(null);
-  const [rouletteOpen, setRouletteOpen] = useState(false);
-  const [rouletteMode, setRouletteMode] = useState<"topics" | "subtopics">("subtopics");
-  const [rouletteChapterTopics, setRouletteChapterTopics] = useState<TopicNode[] | null>(null);
   const [selectedChapterName, setSelectedChapterName] = useState<string | null>(null);
   const [selectedChapterTopicName, setSelectedChapterTopicName] = useState<string | null>(null);
   const [topicWhyStudy, setTopicWhyStudy] = useState("");
@@ -1272,12 +1262,11 @@ const Explore = () => {
   );
   const classesToRender = classLevel != null ? [classLevel] : VISIBLE_CLASSES;
 
-  // Open unit and optionally roulette from URL (?subject=&class=&unit=&spin=1)
+  // Open unit from URL (?subject=&class=&unit=)
   useEffect(() => {
     const sub = searchParams.get("subject") as Subject | null;
     const cls = searchParams.get("class");
     const unitSlug = searchParams.get("unit");
-    const spin = searchParams.get("spin") === "1";
     if (!sub || !cls || !unitSlug) return;
     const classNum = parseInt(cls, 10);
     if (classNum < 11 || classNum > 12) return;
@@ -1292,7 +1281,6 @@ const Explore = () => {
     setSelectedChapterTopicName(topicNode.topic);
     setView("topic-detail");
     setFocusedSubtopicIndex(null);
-    if (spin) setRouletteOpen(true);
   }, [searchParams, topicTaxonomy]);
 
   // Get question count for a specific subject
@@ -1797,7 +1785,6 @@ const Explore = () => {
   ]);
 
   const handleLinearMode = useCallback(() => {
-    setPracticeModePopupOpen(false);
     if (!selectedSubject || !selectedTopicClassLevel) return;
     const effectiveTopic = isDetailedUnitView
       ? (selectedChapterTopic ?? selectedChapterGroup?.topics?.[0] ?? null)
@@ -1824,110 +1811,6 @@ const Explore = () => {
     selectedChapterTopic,
     boardSlug,
   ]);
-
-  const handleRandomMode = useCallback(() => {
-    setPracticeModePopupOpen(false);
-    if (!selectedSubject || !selectedTopicClassLevel) return;
-    if (isDetailedUnitView && selectedChapterGroup?.topics?.length) {
-      const topics = selectedChapterGroup.topics;
-      if (topics.length <= 1) {
-        const t = topics[0];
-        if (t?.subtopics[0])
-          router.push(
-            buildTopicPath(
-              "cbse",
-              selectedSubject,
-              selectedTopicClassLevel,
-              t.topic,
-              t.subtopics[0].name,
-              "basics",
-              "random",
-              t.chapterTitle
-            )
-          );
-        return;
-      }
-      setRouletteMode("topics");
-      setRouletteChapterTopics(topics);
-      setRouletteOpen(true);
-      return;
-    }
-    if (!selectedTopicNode) return;
-    if (selectedTopicNode.subtopics.length <= 1) {
-      const st = selectedTopicNode.subtopics[0];
-      if (st)
-        router.push(
-          buildTopicPath(
-            "cbse",
-            selectedSubject,
-            selectedTopicClassLevel,
-            selectedTopicNode.topic,
-            st.name,
-            "basics",
-            "random",
-            selectedTopicNode.chapterTitle
-          )
-        );
-      return;
-    }
-    setRouletteMode("subtopics");
-    setRouletteChapterTopics(null);
-    setRouletteOpen(true);
-  }, [
-    router,
-    selectedSubject,
-    selectedTopicClassLevel,
-    selectedTopicNode,
-    isDetailedUnitView,
-    selectedChapterGroup,
-  ]);
-
-  const handleRouletteSelect = useCallback(
-    (index: number, level: "basics" | "intermediate" | "advanced") => {
-      setRouletteOpen(false);
-      if (!selectedSubject || !selectedTopicClassLevel) return;
-      if (rouletteMode === "topics" && rouletteChapterTopics?.length) {
-        const topicNode = rouletteChapterTopics[index];
-        if (!topicNode) return;
-        router.push(
-          buildTopicOverviewPath(
-            "cbse",
-            selectedSubject,
-            selectedTopicClassLevel,
-            topicNode.topic,
-            level,
-            "random",
-            topicNode.chapterTitle
-          )
-        );
-        setRouletteChapterTopics(null);
-        return;
-      }
-      if (!selectedTopicNode) return;
-      const st = selectedTopicNode.subtopics[index];
-      if (!st) return;
-      router.push(
-        buildTopicPath(
-          "cbse",
-          selectedSubject,
-          selectedTopicClassLevel,
-          selectedTopicNode.topic,
-          st.name,
-          level,
-          "random",
-          selectedTopicNode.chapterTitle
-        )
-      );
-    },
-    [
-      router,
-      selectedSubject,
-      selectedTopicClassLevel,
-      selectedTopicNode,
-      rouletteMode,
-      rouletteChapterTopics,
-    ]
-  );
 
   /** `/explore-1?subject=&class=&unit=` — resume chapter/topic after returning from a topic URL. */
   const exploreResumeLink = useMemo(() => {
@@ -1968,7 +1851,7 @@ const Explore = () => {
     topicTaxonomy.length > 0;
 
   return (
-    <ProtectedRoute>
+    <ProtectedRoute allowRoles={["student"]}>
       <AppLayout>
         <AnimatePresence initial={false}>
           {showExploreResumeSkeleton && (
@@ -2460,7 +2343,7 @@ const Explore = () => {
                                     <Button
                                       type="button"
                                       size="sm"
-                                      onClick={() => setPracticeModePopupOpen(true)}
+                                      onClick={() => handleLinearMode()}
                                       className="rounded-xl gap-2 edu-btn-primary shrink-0"
                                     >
                                       <Play className="w-4 h-4" /> Start Chapter
@@ -2633,7 +2516,7 @@ const Explore = () => {
                               {isDetailedUnitView ? (
                                 <Button
                                   size="sm"
-                                  onClick={() => setPracticeModePopupOpen(true)}
+                                  onClick={() => handleLinearMode()}
                                   className="rounded-xl gap-2 edu-btn-primary shrink-0"
                                 >
                                   <Play className="w-4 h-4" /> Start Chapter
@@ -2723,7 +2606,7 @@ const Explore = () => {
                               {isDetailedUnitView ? (
                                 <Button
                                   size="sm"
-                                  onClick={() => setPracticeModePopupOpen(true)}
+                                  onClick={() => handleLinearMode()}
                                   className="rounded-xl gap-2 edu-btn-primary shrink-0"
                                 >
                                   <Play className="w-4 h-4" /> Start Chapter
@@ -2769,7 +2652,7 @@ const Explore = () => {
                           {!isDetailedUnitView && (
                             <Button
                               size="lg"
-                              onClick={() => setPracticeModePopupOpen(true)}
+                              onClick={() => handleLinearMode()}
                               className="rounded-xl gap-2 edu-btn-primary w-full sm:w-auto"
                             >
                               <Play className="w-4 h-4" /> Start
@@ -3104,93 +2987,11 @@ const Explore = () => {
                   </aside>
                 </div>
 
-                <Dialog open={practiceModePopupOpen} onOpenChange={setPracticeModePopupOpen}>
-                  <DialogContent className="rounded-2xl max-w-2xl p-0 overflow-hidden border-2 border-primary/20 shadow-2xl">
-                    <div className="bg-gradient-to-br from-primary/5 via-background to-teal-500/5 p-6">
-                      <DialogHeader className="text-center mb-6">
-                        <p className="text-xs font-bold uppercase tracking-widest text-primary/80 mb-1">
-                          Select your path
-                        </p>
-                        <DialogTitle className="text-xl font-black text-foreground">
-                          Choose practice mode
-                        </DialogTitle>
-                      </DialogHeader>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <motion.button
-                          type="button"
-                          onClick={handleLinearMode}
-                          whileHover={{ scale: 1.03, y: -2 }}
-                          whileTap={{ scale: 0.98 }}
-                          className="group relative overflow-hidden rounded-2xl border-2 border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 p-6 text-left shadow-lg hover:border-emerald-500/60 hover:shadow-emerald-500/20 hover:shadow-xl transition-all duration-200"
-                        >
-                          <div className="absolute top-3 right-3 w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center group-hover:bg-emerald-500/30 transition-colors">
-                            <ListOrdered className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                          </div>
-                          <div className="flex items-center gap-3 mb-3">
-                            <span className="text-3xl">📖</span>
-                            <h3 className="text-lg font-black text-foreground">Linear</h3>
-                          </div>
-                          <p className="text-sm text-muted-foreground leading-relaxed mb-4">
-                            Continuous, line-by-line topics — like reading a book. Topics flow in a
-                            fixed, logical order.
-                          </p>
-                          <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                            Steady progress · Build foundations
-                          </span>
-                        </motion.button>
-                        <motion.button
-                          type="button"
-                          onClick={handleRandomMode}
-                          whileHover={{ scale: 1.03, y: -2 }}
-                          whileTap={{ scale: 0.98 }}
-                          className="group relative overflow-hidden rounded-2xl border-2 border-amber-500/30 bg-gradient-to-br from-amber-500/10 to-orange-500/10 p-6 text-left shadow-lg hover:border-amber-500/60 hover:shadow-amber-500/20 hover:shadow-xl transition-all duration-200"
-                        >
-                          <div className="absolute top-3 right-3 w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center group-hover:bg-amber-500/30 transition-colors">
-                            <Shuffle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-                          </div>
-                          <div className="flex items-center gap-3 mb-3">
-                            <span className="text-3xl">🎲</span>
-                            <h3 className="text-lg font-black text-foreground">Random</h3>
-                          </div>
-                          <p className="text-sm text-muted-foreground leading-relaxed mb-4">
-                            Random topics — shuffled for variety. Makes practice more interesting
-                            and helps build retention.
-                          </p>
-                          <span className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-600 dark:text-amber-400">
-                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                            High engagement · Test your recall
-                          </span>
-                        </motion.button>
-                      </div>
-                    </div>
-                  </DialogContent>
-                </Dialog>
-
-                {rouletteOpen &&
-                  selectedSubject &&
-                  (rouletteMode === "topics" && rouletteChapterTopics?.length ? (
-                    <TopicRoulette
-                      subtopics={rouletteChapterTopics.map((t) => ({ name: t.topic }))}
-                      onSelect={handleRouletteSelect}
-                      onClose={() => {
-                        setRouletteOpen(false);
-                        setRouletteChapterTopics(null);
-                      }}
-                    />
-                  ) : selectedTopicNode ? (
-                    <TopicRoulette
-                      subtopics={selectedTopicNode.subtopics}
-                      onSelect={handleRouletteSelect}
-                      onClose={() => setRouletteOpen(false)}
-                    />
-                  ) : null)}
-
                 <Dialog open={bitsAllPopup} onOpenChange={setBitsAllPopup}>
                   <DialogContent className="rounded-2xl max-w-lg max-h-[85vh] overflow-y-auto">
                     <DialogHeader>
                       <DialogTitle className="flex items-center gap-2">
-                        <Zap className="w-5 h-5 text-primary" /> Bits — {selectedTopicNode?.topic}
+                        <Zap className="w-5 h-5 text-primary" /> Quiz — {selectedTopicNode?.topic}
                       </DialogTitle>
                     </DialogHeader>
                     <p className="text-sm text-muted-foreground">
@@ -3203,7 +3004,7 @@ const Explore = () => {
                   <DialogContent className="rounded-2xl max-w-lg max-h-[85vh] overflow-y-auto">
                     <DialogHeader>
                       <DialogTitle className="flex items-center gap-2">
-                        <Zap className="w-5 h-5 text-primary" /> Bits
+                        <Zap className="w-5 h-5 text-primary" /> Quiz
                         {bitsPopup && (
                           <span className="font-normal text-muted-foreground">
                             — {bitsPopup.subtopicName}

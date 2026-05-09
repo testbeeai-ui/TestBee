@@ -146,6 +146,7 @@ interface MyClassroomViewProps {
   onRefreshTeacherPortal: (opts?: { silent?: boolean }) => Promise<void>;
   /** Schedule live session (same payload as My Classes → createSession). */
   onScheduleLiveSession: (input: ScheduleLiveSessionPayload) => Promise<void>;
+  onRequireVerifiedAction?: (actionLabel: string) => Promise<boolean>;
 }
 
 type JoinRequestRow = {
@@ -521,6 +522,7 @@ function TeacherWizardPopup(props: {
   onRefreshTeacherPortal: MyClassroomViewProps["onRefreshTeacherPortal"];
   onMotivateStudents: MyClassroomViewProps["onMotivateStudents"];
   onScheduleLiveSession: MyClassroomViewProps["onScheduleLiveSession"];
+  onRequireVerifiedAction?: MyClassroomViewProps["onRequireVerifiedAction"];
   toast: ReturnType<typeof useToast>["toast"];
 }) {
   const toast = props.toast;
@@ -825,7 +827,16 @@ function TeacherWizardPopup(props: {
     window.setTimeout(() => setHighlightSectionClear(false), 4000);
   }, []);
 
-  const guardedNext = useCallback(() => {
+  const ensureVerifiedForClassroomFlow = useCallback(async () => {
+    if (!props.onRequireVerifiedAction) return true;
+    return props.onRequireVerifiedAction("Create classroom");
+  }, [props]);
+
+  const guardedNext = useCallback(async () => {
+    if (activeTask === 0) {
+      const isVerified = await ensureVerifiedForClassroomFlow();
+      if (!isVerified) return;
+    }
     if (activeTask === 0 && shouldGateGoogle()) {
       openGoogleGate({ kind: "next" });
       return;
@@ -861,6 +872,7 @@ function TeacherWizardPopup(props: {
     cwSectionScheduleTime,
     cwSections,
     currentSteps,
+    ensureVerifiedForClassroomFlow,
     next,
     openGoogleGate,
     openSectionGate,
@@ -869,14 +881,18 @@ function TeacherWizardPopup(props: {
   ]);
 
   const guardedJumpStep = useCallback(
-    (taskIdx: number, stepIdx: number) => {
+    async (taskIdx: number, stepIdx: number) => {
+      if (taskIdx === 0) {
+        const isVerified = await ensureVerifiedForClassroomFlow();
+        if (!isVerified) return;
+      }
       if (taskIdx === 0 && stepIdx > 0 && shouldGateGoogle()) {
         openGoogleGate({ kind: "jump", stepIdx });
         return;
       }
       jumpStep(taskIdx, stepIdx);
     },
-    [jumpStep, openGoogleGate, shouldGateGoogle]
+    [ensureVerifiedForClassroomFlow, jumpStep, openGoogleGate, shouldGateGoogle]
   );
 
   const resetCreateClassroomWizard = () => {
@@ -1720,6 +1736,8 @@ function TeacherWizardPopup(props: {
                                             <button
                                               type="button"
                                               onClick={async () => {
+                                                const isVerified = await ensureVerifiedForClassroomFlow();
+                                                if (!isVerified) return;
                                                 if (activeTask === 0 && shouldGateGoogle()) {
                                                   openGoogleGate({ kind: "addSection" });
                                                   return;
@@ -1846,7 +1864,9 @@ function TeacherWizardPopup(props: {
                                 </div>
                                 <button
                                   type="button"
-                                  onClick={() => {
+                                  onClick={async () => {
+                                    const isVerified = await ensureVerifiedForClassroomFlow();
+                                    if (!isVerified) return;
                                     const sectionFormHasAny =
                                       Boolean(cwSectionName.trim()) ||
                                       Boolean(cwSectionScheduleDate.trim()) ||
@@ -1925,7 +1945,7 @@ function TeacherWizardPopup(props: {
                                 )}
                                 <button
                                   type="button"
-                                  onClick={guardedNext}
+                                    onClick={() => void guardedNext()}
                                   disabled={stepIdx >= stepCount - 1}
                                   className="inline-flex items-center gap-2 rounded-full bg-emerald-500 px-4 py-2 text-xs font-semibold text-black hover:bg-emerald-400 disabled:opacity-60"
                                 >
@@ -1936,7 +1956,7 @@ function TeacherWizardPopup(props: {
                               stepIdx >= stepCount - 1 ? null : (
                                 <button
                                   type="button"
-                                  onClick={guardedNext}
+                                  onClick={() => void guardedNext()}
                                   disabled={stepIdx >= stepCount - 1}
                                   className="inline-flex items-center gap-2 rounded-full bg-emerald-500 px-4 py-2 text-xs font-semibold text-black hover:bg-emerald-400 disabled:opacity-60"
                                 >
@@ -1946,7 +1966,7 @@ function TeacherWizardPopup(props: {
                             ) : (
                               <button
                                 type="button"
-                                onClick={guardedNext}
+                                onClick={() => void guardedNext()}
                                 disabled={stepIdx >= stepCount - 1}
                                 className="inline-flex items-center gap-2 rounded-full bg-emerald-500 px-4 py-2 text-xs font-semibold text-black hover:bg-emerald-400 disabled:opacity-60"
                               >
@@ -4349,6 +4369,7 @@ export default function MyClassroomView({
   onDeleteClassroom,
   onRefreshTeacherPortal,
   onScheduleLiveSession,
+  onRequireVerifiedAction,
 }: MyClassroomViewProps) {
   const { toast } = useToast();
   const searchParams = useSearchParams();
@@ -8154,6 +8175,7 @@ export default function MyClassroomView({
             onRefreshTeacherPortal={onRefreshTeacherPortal}
             onMotivateStudents={onMotivateStudents}
             onScheduleLiveSession={onScheduleLiveSession}
+            onRequireVerifiedAction={onRequireVerifiedAction}
             toast={toast}
           />
         </DialogContent>
@@ -9859,7 +9881,7 @@ export default function MyClassroomView({
 
 function restoreLatexEscapes(input: string): string {
   // If LaTeX was stored in JSON with single backslashes, sequences like "\text" become "\t" (TAB) + "ext".
-  // This restores the common ones we see in Bits questions.
+  // This restores the common ones we see in quiz questions.
   return input
     .replace(/\t(?=ext\{)/g, "\\\\t") // \text{...}
     .replace(/\u000c(?=rac\{)/g, "\\\\f") // \frac{...}{...}
@@ -9962,7 +9984,7 @@ function TaskPreviewBody(props: {
           if (!cancelled) setPayload({ testTitle: data.testTitle ?? props.title, questions });
         } else if (props.mode === "chapter-quiz-preview") {
           // Questions-only preview (no attempts). Use the same subtopic-content fetch + set slicing
-          // logic as `ChapterQuizAssignmentFields` (the "Bits preview" modal).
+          // logic as `ChapterQuizAssignmentFields` (the quiz preview modal).
           const ref = props.chapterQuizRef ?? null;
           const subject = (ref?.subject ?? "").trim().toLowerCase();
           const classLevelRaw = Number(ref?.classLevel);

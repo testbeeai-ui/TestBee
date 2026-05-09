@@ -3,20 +3,31 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Menu, X } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { withNextQuery } from "@/lib/auth/safeNextPath";
+import { cn } from "@/lib/utils";
 import { NAV_LINKS } from "./landing-constants";
+
+/** Landing nav — same resized logo as main app (`public/images/logo-2.png`). */
+const EDUBLAST_WORDMARK_SRC = "/images/logo-2.png";
 
 type NavItem = { label: string; href: string };
 
 export default function LandingNavbar({
   variant = "light",
   navLinks,
+  /** When user opened a shared lesson link, preserve it on Sign in / auth nav. */
+  sharedNext,
 }: {
   variant?: "light" | "dark";
   navLinks?: NavItem[];
+  sharedNext?: string | null;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { user, profile, loading: authLoading } = useAuth();
   const links = navLinks ?? NAV_LINKS;
   const isDark = variant === "dark";
+  const isSignedIn = Boolean(user && profile?.onboarding_complete);
 
   return (
     <nav
@@ -32,32 +43,17 @@ export default function LandingNavbar({
           !isDark ? "justify-between" : ""
         }`}
       >
-        {/* Logo */}
-        <Link href="/" className="relative z-10 flex shrink-0 items-center gap-2.5">
-          <span
-            className={
-              isDark
-                ? "flex h-9 w-9 items-center justify-center rounded-[10px] bg-[#34f5a4] text-[15px] font-semibold text-neutral-950"
-                : "flex h-8 w-8 items-center justify-center rounded-[9px] bg-[#1D9E75] text-sm font-medium text-white"
-            }
-          >
-            E
-          </span>
-          <span
-            className={
-              isDark
-                ? "text-[17px] font-semibold tracking-tight text-white"
-                : "text-lg font-medium tracking-tight text-gray-900"
-            }
-          >
-            {isDark ? (
-              "EduBlast"
-            ) : (
-              <>
-                Edu<span className="text-[#34d399]">Blast</span>
-              </>
-            )}
-          </span>
+        {/* Logo — logo-2.png (resized), matches AppLayout */}
+        <Link
+          href="/"
+          className="relative z-10 flex shrink-0 items-center hover:opacity-90 transition-opacity"
+        >
+          <img
+            src={EDUBLAST_WORDMARK_SRC}
+            alt="EduBlast"
+            className={cn("h-12 w-auto origin-left sm:h-[52px]", "scale-[1.05] sm:scale-[1.05]")}
+            draggable={false}
+          />
         </Link>
 
         {/* Desktop links — centered in bar (investor shell) */}
@@ -71,7 +67,7 @@ export default function LandingNavbar({
           {links.map((l) => (
             <a
               key={l.label}
-              href={l.href}
+              href={l.href.startsWith("/auth") ? withNextQuery(l.href, sharedNext) : l.href}
               className={
                 isDark
                   ? "pointer-events-auto shrink-0 text-[11px] font-medium tracking-wide text-zinc-400 transition-colors hover:text-white md:text-[12px] xl:text-[13px]"
@@ -91,26 +87,50 @@ export default function LandingNavbar({
               : "hidden shrink-0 items-center gap-2 md:flex"
           }
         >
-          <Link
-            href="/auth?mode=signin"
-            className={
-              isDark
-                ? "rounded-full border border-white/25 bg-transparent px-3 py-2 text-[11px] font-medium text-zinc-200 transition-colors hover:border-white/45 hover:text-white md:px-4 md:text-[12px] xl:text-[13px]"
-                : "border border-gray-300 rounded-lg px-4 py-[7px] text-sm text-gray-500 hover:text-gray-900 hover:border-gray-400 transition-colors"
-            }
-          >
-            Sign in
-          </Link>
-          <Link
-            href="/auth"
-            className={
-              isDark
-                ? "inline-flex items-center gap-1.5 rounded-full bg-[#34f5a4] px-3.5 py-2 text-[11px] font-bold text-neutral-950 shadow-[0_0_24px_rgba(52,245,164,0.22)] transition-colors hover:bg-[#2ee89a] md:px-5 md:py-2.5 md:text-[12px] xl:text-[13px]"
-                : "bg-[#1D9E75] text-white rounded-lg px-[18px] py-2 text-sm font-medium hover:bg-[#178d68] transition-colors"
-            }
-          >
-            Start free <span aria-hidden>↗</span>
-          </Link>
+          {authLoading ? (
+            <span
+              className={
+                isDark
+                  ? "h-9 w-24 rounded-full bg-white/10 animate-pulse"
+                  : "h-9 w-24 rounded-lg bg-gray-200 animate-pulse"
+              }
+              aria-hidden
+            />
+          ) : isSignedIn ? (
+            <Link
+              href={profile?.role === "teacher" ? "/teacher-portal" : "/home"}
+              className={
+                isDark
+                  ? "inline-flex items-center gap-1.5 rounded-full bg-[#34f5a4] px-3.5 py-2 text-[11px] font-bold text-neutral-950 shadow-[0_0_24px_rgba(52,245,164,0.22)] transition-colors hover:bg-[#2ee89a] md:px-5 md:py-2.5 md:text-[12px] xl:text-[13px]"
+                  : "bg-[#1D9E75] text-white rounded-lg px-[18px] py-2 text-sm font-medium hover:bg-[#178d68] transition-colors"
+              }
+            >
+              Open app <span aria-hidden>↗</span>
+            </Link>
+          ) : (
+            <>
+              <Link
+                href={withNextQuery("/auth?mode=signin", sharedNext)}
+                className={
+                  isDark
+                    ? "rounded-full border border-white/25 bg-transparent px-3 py-2 text-[11px] font-medium text-zinc-200 transition-colors hover:border-white/45 hover:text-white md:px-4 md:text-[12px] xl:text-[13px]"
+                    : "border border-gray-300 rounded-lg px-4 py-[7px] text-sm text-gray-500 hover:text-gray-900 hover:border-gray-400 transition-colors"
+                }
+              >
+                Sign in
+              </Link>
+              <Link
+                href={withNextQuery("/auth", sharedNext)}
+                className={
+                  isDark
+                    ? "inline-flex items-center gap-1.5 rounded-full bg-[#34f5a4] px-3.5 py-2 text-[11px] font-bold text-neutral-950 shadow-[0_0_24px_rgba(52,245,164,0.22)] transition-colors hover:bg-[#2ee89a] md:px-5 md:py-2.5 md:text-[12px] xl:text-[13px]"
+                    : "bg-[#1D9E75] text-white rounded-lg px-[18px] py-2 text-sm font-medium hover:bg-[#178d68] transition-colors"
+                }
+              >
+                Start free <span aria-hidden>↗</span>
+              </Link>
+            </>
+          )}
         </div>
 
         {/* Mobile hamburger */}
@@ -139,7 +159,7 @@ export default function LandingNavbar({
           {links.map((l) => (
             <a
               key={l.label}
-              href={l.href}
+              href={l.href.startsWith("/auth") ? withNextQuery(l.href, sharedNext) : l.href}
               className={
                 isDark
                   ? "block text-[15px] text-zinc-300 py-1"
@@ -151,28 +171,44 @@ export default function LandingNavbar({
             </a>
           ))}
           <div className="flex gap-2 pt-2">
-            <Link
-              href="/auth?mode=signin"
-              className={
-                isDark
-                  ? "rounded-full border border-white/20 px-4 py-2 text-sm text-zinc-200 flex-1 text-center"
-                  : "border border-gray-300 rounded-lg px-4 py-2 text-sm text-gray-500 flex-1 text-center"
-              }
-              onClick={() => setMobileOpen(false)}
-            >
-              Sign in
-            </Link>
-            <Link
-              href="/auth"
-              className={
-                isDark
-                  ? "rounded-full bg-[#34f5a4] px-4 py-2 text-sm font-semibold text-neutral-950 flex-1 text-center"
-                  : "bg-[#1D9E75] text-white rounded-lg px-4 py-2 text-sm font-medium flex-1 text-center"
-              }
-              onClick={() => setMobileOpen(false)}
-            >
-              Start free
-            </Link>
+            {authLoading ? null : isSignedIn ? (
+              <Link
+                href={profile?.role === "teacher" ? "/teacher-portal" : "/home"}
+                className={
+                  isDark
+                    ? "rounded-full bg-[#34f5a4] px-4 py-2 text-sm font-semibold text-neutral-950 flex-1 text-center"
+                    : "bg-[#1D9E75] text-white rounded-lg px-4 py-2 text-sm font-medium flex-1 text-center"
+                }
+                onClick={() => setMobileOpen(false)}
+              >
+                Open app
+              </Link>
+            ) : (
+              <>
+                <Link
+                  href={withNextQuery("/auth?mode=signin", sharedNext)}
+                  className={
+                    isDark
+                      ? "rounded-full border border-white/20 px-4 py-2 text-sm text-zinc-200 flex-1 text-center"
+                      : "border border-gray-300 rounded-lg px-4 py-2 text-sm text-gray-500 flex-1 text-center"
+                  }
+                  onClick={() => setMobileOpen(false)}
+                >
+                  Sign in
+                </Link>
+                <Link
+                  href={withNextQuery("/auth", sharedNext)}
+                  className={
+                    isDark
+                      ? "rounded-full bg-[#34f5a4] px-4 py-2 text-sm font-semibold text-neutral-950 flex-1 text-center"
+                      : "bg-[#1D9E75] text-white rounded-lg px-4 py-2 text-sm font-medium flex-1 text-center"
+                  }
+                  onClick={() => setMobileOpen(false)}
+                >
+                  Start free
+                </Link>
+              </>
+            )}
           </div>
         </div>
       )}

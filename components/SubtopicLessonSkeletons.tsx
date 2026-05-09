@@ -42,7 +42,7 @@ export function BitsCardSkeleton() {
       <div className="flex items-center gap-2 mb-3">
         <Lightbulb className="w-4 h-4 text-emerald-600 shrink-0" />
         <span className="text-xs font-extrabold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">
-          Bits
+          Quiz
         </span>
       </div>
       <p className="text-[11px] text-muted-foreground mb-3">Byte-sized takeaways — coming soon</p>

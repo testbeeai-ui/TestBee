@@ -297,7 +297,7 @@ function TopicIntroQuiz({
   return (
     <div className="space-y-3">
       <p className="text-sm text-muted-foreground">
-        Quick Bits — see how much you already know before diving into the theory. Useful for
+        Quick quiz — see how much you already know before diving into the theory. Useful for
         revision!
       </p>
       <h4 className="font-semibold text-foreground text-sm">
@@ -369,6 +369,7 @@ const Explore = () => {
 
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
   const [selectedExam, setSelectedExam] = useState<ExamType | null>(null);
+  const [subjectEntryClassLevel, setSubjectEntryClassLevel] = useState<ClassLevel | null>(null);
   const [selectedTopicNode, setSelectedTopicNode] = useState<TopicNode | null>(null);
   const [selectedTopicClassLevel, setSelectedTopicClassLevel] = useState<ClassLevel | null>(null);
   const [bitsPopup, setBitsPopup] = useState<{
@@ -400,6 +401,7 @@ const Explore = () => {
 
   const visibleExamTypes = getVisibleExamTypes(classLevel);
   const visibleSubjectValues = getVisibleSubjects(classLevel, subjectCombo);
+  const activeClassLevel = subjectEntryClassLevel ?? classLevel;
   const visibleExams = useMemo(
     () => exams.filter((e) => visibleExamTypes.includes(e.value)),
     [visibleExamTypes]
@@ -418,7 +420,8 @@ const Explore = () => {
   const getSubjectCount = (subject: Subject) => {
     let filtered = questions.filter((q) => q.subject === subject);
     if (selectedExam) filtered = filtered.filter((q) => q.examType.includes(selectedExam));
-    if (classLevel != null) filtered = filtered.filter((q) => q.classLevel <= classLevel);
+    if (activeClassLevel != null)
+      filtered = filtered.filter((q) => q.classLevel <= activeClassLevel);
     return filtered.length;
   };
 
@@ -428,7 +431,7 @@ const Explore = () => {
       (q) =>
         q.subject === subject &&
         q.topic === topic &&
-        (classLevel == null || q.classLevel <= classLevel)
+        (activeClassLevel == null || q.classLevel <= activeClassLevel)
     ).length;
   };
 
@@ -439,7 +442,7 @@ const Explore = () => {
       (t) =>
         t.subject === selectedSubject &&
         t.classLevel >= 11 &&
-        (classLevel == null || classLevel >= 11) &&
+        (activeClassLevel == null || activeClassLevel >= 11) &&
         (!selectedExam ||
           selectedExam === "other" ||
           t.examRelevance.length === 0 ||
@@ -451,7 +454,7 @@ const Explore = () => {
       grouped[t.classLevel].push(t);
     }
     return grouped;
-  }, [selectedSubject, selectedExam, classLevel, topicTaxonomy]);
+  }, [selectedSubject, selectedExam, activeClassLevel, topicTaxonomy]);
 
   const groupedTopicsByClass = useMemo(() => {
     const out: Partial<Record<ClassLevel, ExploreUnitGroup[]>> = {};
@@ -490,7 +493,8 @@ const Explore = () => {
       (q) => q.subject === selectedSubject && q.topic === selectedTopicNode.topic
     );
     if (selectedExam) filtered = filtered.filter((q) => q.examType.includes(selectedExam));
-    if (classLevel != null) filtered = filtered.filter((q) => q.classLevel <= classLevel);
+    if (activeClassLevel != null)
+      filtered = filtered.filter((q) => q.classLevel <= activeClassLevel);
     if (filtered.length > 0) {
       setFilteredQuestions(filtered.sort(() => Math.random() - 0.5));
       setCurrentIndex(0);
@@ -511,7 +515,8 @@ const Explore = () => {
     if (!selectedSubject) return;
     let filtered = questions.filter((q) => q.subject === selectedSubject && q.topic === topic);
     if (selectedExam) filtered = filtered.filter((q) => q.examType.includes(selectedExam));
-    if (classLevel != null) filtered = filtered.filter((q) => q.classLevel <= classLevel);
+    if (activeClassLevel != null)
+      filtered = filtered.filter((q) => q.classLevel <= activeClassLevel);
     if (filtered.length === 0) return;
     setFilteredQuestions(filtered.sort(() => Math.random() - 0.5));
     setCurrentIndex(0);
@@ -520,6 +525,7 @@ const Explore = () => {
 
   const handleBackToSubjects = () => {
     setSelectedSubject(null);
+    setSubjectEntryClassLevel(null);
     setView("hub");
   };
 
@@ -536,7 +542,7 @@ const Explore = () => {
   const subjectMeta = subjects.find((s) => s.value === selectedSubject);
 
   return (
-    <ProtectedRoute>
+    <ProtectedRoute allowRoles={["student"]}>
       <AppLayout>
         <AnimatePresence mode="wait">
           {view === "hub" && (
@@ -553,9 +559,10 @@ const Explore = () => {
                   setSelectedSubject(node.subject);
                   handleTopicClick(node, node.classLevel);
                 }}
-                onNavigateToSubjectWithExam={(subject, exam) => {
+                onNavigateToSubjectWithExam={(subject, exam, classLevel) => {
                   setSelectedExam(exam);
                   setSelectedSubject(subject);
+                  setSubjectEntryClassLevel(classLevel);
                   setView("topics");
                 }}
               />
@@ -702,7 +709,7 @@ const Explore = () => {
                 Units & Topics
               </h2>
               <p className="edu-page-desc mb-6 text-sm">
-                Click a unit to read theory by topic, use Bits to revise, then practice questions
+                Click a unit to read theory by topic, use quizzes to revise, then practice questions
               </p>
 
               {/* Topics by Class */}
@@ -833,7 +840,7 @@ const Explore = () => {
                   ))}
               </Accordion>
 
-              {/* Topic Intro Bits Dialog - Physical World and Measurement */}
+              {/* Topic intro quiz dialog */}
               <Dialog
                 open={!!topicIntroState}
                 onOpenChange={(open) => !open && setTopicIntroState(null)}
@@ -841,7 +848,7 @@ const Explore = () => {
                 <DialogContent className="rounded-2xl max-w-lg max-h-[85vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
-                      <Zap className="w-5 h-5 text-primary" /> Bits
+                      <Zap className="w-5 h-5 text-primary" /> Quiz
                       {topicIntroState && (
                         <span className="font-normal text-muted-foreground">
                           — {topicIntroState.topicNode.unitLabel} {topicIntroState.topicNode.topic}
@@ -856,7 +863,7 @@ const Explore = () => {
                         (q) =>
                           q.subject === selectedSubject &&
                           q.topic === topicIntroState.topicNode.topic &&
-                          (classLevel == null || q.classLevel <= topicIntroState.classLevel)
+                          (activeClassLevel == null || q.classLevel <= topicIntroState.classLevel)
                       );
                       if (selectedExam)
                         topicQs = topicQs.filter((q) => q.examType.includes(selectedExam));
@@ -931,7 +938,7 @@ const Explore = () => {
                   </span>
                   {/* 
                 <Button size="sm" variant="outline" onClick={() => setBitsAllPopup(true)} className="rounded-xl gap-1.5 font-bold">
-                  <Zap className="w-3.5 h-3.5 text-primary" /> Bits
+                  <Zap className="w-3.5 h-3.5 text-primary" /> Quiz
                 </Button>
                 */}
                   {getTopicCount(selectedSubject, selectedTopicNode.topic) > 0 && (
@@ -1124,7 +1131,7 @@ const Explore = () => {
                             onClick={() => setBitsPopup({ subtopicName: st.name, topicNode: selectedTopicNode, classLevel: selectedTopicClassLevel })}
                             className="rounded-xl gap-1.5 font-bold"
                           >
-                            <Zap className="w-3.5 h-3.5 text-primary" /> Bits
+                            <Zap className="w-3.5 h-3.5 text-primary" /> Quiz
                           </Button>
                           */}
                             {st.name === "Distance & Displacement" && (
@@ -1179,7 +1186,7 @@ const Explore = () => {
                   <DialogContent className="rounded-2xl max-w-lg max-h-[85vh] overflow-y-auto">
                     <DialogHeader>
                       <DialogTitle className="flex items-center gap-2">
-                        <Zap className="w-5 h-5 text-primary" /> Bits — {selectedTopicNode?.topic}
+                        <Zap className="w-5 h-5 text-primary" /> Quiz — {selectedTopicNode?.topic}
                       </DialogTitle>
                     </DialogHeader>
                     <p className="text-sm text-muted-foreground">
@@ -1192,7 +1199,7 @@ const Explore = () => {
                   <DialogContent className="rounded-2xl max-w-lg max-h-[85vh] overflow-y-auto">
                     <DialogHeader>
                       <DialogTitle className="flex items-center gap-2">
-                        <Zap className="w-5 h-5 text-primary" /> Bits
+                        <Zap className="w-5 h-5 text-primary" /> Quiz
                         {bitsPopup && (
                           <span className="font-normal text-muted-foreground">
                             — {bitsPopup.subtopicName}

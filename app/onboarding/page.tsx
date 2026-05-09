@@ -26,7 +26,9 @@ import {
 } from "@/lib/profileTeacherOptions";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { readPendingDeepLink, clearPendingDeepLink } from "@/lib/auth/safeNextPath";
 import { useToast } from "@/hooks/use-toast";
+import { clearPendingReferralRef, resolvePendingReferralRef } from "@/lib/referralClient";
 
 const subjects = ["Physics", "Chemistry", "Math"];
 const studentExamTargets: { key: TargetExamKey; label: string; tag?: string; locked?: boolean }[] =
@@ -120,7 +122,11 @@ function OnboardingContent() {
     if (loading) return;
     if (!user) router.replace("/auth");
     else if (profile?.onboarding_complete) {
-      router.replace(profile?.role === "teacher" ? "/teacher-portal" : "/home");
+      const pending = readPendingDeepLink();
+      const dest =
+        pending ?? (profile?.role === "teacher" ? "/teacher-portal" : "/home");
+      clearPendingDeepLink();
+      router.replace(dest);
     }
   }, [user, profile?.onboarding_complete, profile?.role, loading, router]);
 
@@ -259,10 +265,31 @@ function OnboardingContent() {
 
       await refreshProfile();
 
+      const pendingRef = resolvePendingReferralRef(readPendingDeepLink());
+      if (pendingRef) {
+        try {
+          const res = await fetch("/api/referral/complete", {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ref: pendingRef }),
+          });
+          if (res.ok) {
+            await refreshProfile();
+          }
+        } finally {
+          clearPendingReferralRef();
+        }
+      }
+
       import("canvas-confetti").then((c) =>
         c.default({ particleCount: 150, spread: 80, origin: { y: 0.6 } })
       );
-      router.replace(role === "teacher" ? "/teacher-portal" : "/home");
+      const pending = readPendingDeepLink();
+      const dest =
+        pending ?? (role === "teacher" ? "/teacher-portal" : "/home");
+      clearPendingDeepLink();
+      router.replace(dest);
     } finally {
       setSaving(false);
     }

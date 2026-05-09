@@ -66,7 +66,7 @@ export const ASSIGNMENT_TASK_PRESETS: Array<{
   { kind: "chapter_quiz", label: "Chapter quiz (MCQs)", defaultHref: "/exam-prep" },
   { kind: "daily_dose", label: "DailyDose / streak practice", defaultHref: "/play" },
   { kind: "gyan_engagement", label: "Post doubt on Gyan++", defaultHref: "/doubts" },
-  { kind: "bits", label: "Bits practice", defaultHref: "/exam-prep" },
+  { kind: "bits", label: "Quiz practice", defaultHref: "/exam-prep" },
   { kind: "instacue", label: "InstaCue / subtopic revision", defaultHref: "/exam-prep" },
   { kind: "topic_path", label: "Topic path (pick unit in Explore)", defaultHref: "/explore" },
   { kind: "external_link", label: "External link", defaultHref: null },

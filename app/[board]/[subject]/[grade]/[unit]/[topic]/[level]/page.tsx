@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useParams, useSearchParams, useRouter } from "next/navigation";
+import { useParams, useSearchParams, useRouter, usePathname } from "next/navigation";
 import AppLayout from "@/components/AppLayout";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -74,6 +75,8 @@ import { getInstaCueCards, type InstaCueCard } from "@/data/instaCueCards";
 import { useUserStore } from "@/store/useUserStore";
 import type { Board, Subject, SavedBit, SavedFormula, SavedRevisionUnit } from "@/types";
 import { syncAllSavedContent } from "@/lib/savedContentService";
+import { applyInstacueCreateDailyRdmReward } from "@/lib/applyInstacueCreateDailyRdmReward";
+import { applyTopicQuizAdvancedDailyRdmReward } from "@/lib/applyTopicQuizAdvancedDailyRdmReward";
 import {
   fetchSubtopicContent,
   upsertSubtopicContent,
@@ -113,6 +116,8 @@ import {
 } from "@/lib/subtopicCompleteness";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { useLearningDwellTelemetry } from "@/hooks/useLearningDwellTelemetry";
+import { normalizeBoardParam } from "@/lib/learningDwellTelemetry";
 import { cn, fuzzySubtopicKey } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -129,11 +134,29 @@ import {
   isAdvancedMultiSet,
   type AdvancedQuizSetIndex,
 } from "@/lib/advancedQuizSets";
+import { getBitsSignature } from "@/lib/bitsSignature";
+import { claimNumeralsPackCompleteDailyRdm } from "@/lib/claimNumeralsPackDailyRdm";
+import {
+  DEFAULT_RDM_CONFIG,
+  fetchRdmConfig,
+  rdmConfigShallowEqual,
+  type RdmConfigParams,
+} from "@/lib/rdmConfig";
 import {
   buildQuizPostDrafts,
   pickRandomQuizPostDraft,
   type QuizPostDraft,
 } from "@/lib/quizPostTemplates";
+import {
+  buildNumeralsPostDrafts,
+  pickRandomNumeralsPostDraft,
+  type NumeralsPostDraft,
+} from "@/lib/numeralsPostTemplates";
+import {
+  fixGreekInsideTextBlocks,
+  formatPlayQuestionStemForDisplay,
+  splitGluedGreekCommands,
+} from "@/lib/playQuestionMathDisplay";
 import {
   fetchSubtopicEngagement,
   saveSubtopicEngagement,
@@ -141,6 +164,7 @@ import {
   type SubtopicEngagementSnapshot,
 } from "@/lib/subtopicEngagementService";
 import { getClientApiAuthHeaders } from "@/lib/clientApiAuth";
+import { reportInstacueCardReadBatch } from "@/lib/reportInstacueCardRead";
 import { localDayKeyFromDate, startOfLocalDay } from "@/lib/dashboardDayActivity";
 import { makeSubtopicEngagementStorageKey } from "@/lib/subtopicEngagementStorageKey";
 import { dispatchClassroomAssignmentProgressChanged } from "@/lib/classroom/assignmentProgressSync";
@@ -150,7 +174,60 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 const SUBTOPIC_STACK_PREVIEW_CHARS = 420;
 
 /**
- * Manual “AI artifacts” pipeline (InstaCue → Bits → Formulas) lives in `runAiArtifactPipeline` below.
+ * Cycle accent borders for subtopic navigation — thin outlines + soft tints (readable in light/dark).
+ */
+const SUBTOPIC_NAV_ACCENTS: Array<{
+  border: string;
+  bg: string;
+  hover: string;
+  num: string;
+}> = [
+  {
+    border: "border-violet-500/45 dark:border-violet-400/40",
+    bg: "bg-violet-500/[0.07] dark:bg-violet-950/45",
+    hover:
+      "hover:border-violet-400/70 hover:bg-violet-500/[0.11] dark:hover:border-violet-300/50 dark:hover:bg-violet-950/65",
+    num: "text-violet-600 dark:text-violet-300",
+  },
+  {
+    border: "border-sky-500/45 dark:border-sky-400/38",
+    bg: "bg-sky-500/[0.07] dark:bg-sky-950/40",
+    hover:
+      "hover:border-sky-400/70 hover:bg-sky-500/[0.11] dark:hover:border-sky-300/48 dark:hover:bg-sky-950/58",
+    num: "text-sky-600 dark:text-sky-300",
+  },
+  {
+    border: "border-emerald-500/45 dark:border-emerald-400/38",
+    bg: "bg-emerald-500/[0.07] dark:bg-emerald-950/40",
+    hover:
+      "hover:border-emerald-400/70 hover:bg-emerald-500/[0.11] dark:hover:border-emerald-300/48 dark:hover:bg-emerald-950/55",
+    num: "text-emerald-600 dark:text-emerald-300",
+  },
+  {
+    border: "border-amber-500/45 dark:border-amber-400/40",
+    bg: "bg-amber-500/[0.08] dark:bg-amber-950/35",
+    hover:
+      "hover:border-amber-400/70 hover:bg-amber-500/[0.13] dark:hover:border-amber-300/50 dark:hover:bg-amber-950/50",
+    num: "text-amber-700 dark:text-amber-300",
+  },
+  {
+    border: "border-rose-500/45 dark:border-rose-400/38",
+    bg: "bg-rose-500/[0.07] dark:bg-rose-950/40",
+    hover:
+      "hover:border-rose-400/70 hover:bg-rose-500/[0.11] dark:hover:border-rose-300/48 dark:hover:bg-rose-950/55",
+    num: "text-rose-600 dark:text-rose-300",
+  },
+  {
+    border: "border-cyan-500/45 dark:border-cyan-400/38",
+    bg: "bg-cyan-500/[0.07] dark:bg-cyan-950/40",
+    hover:
+      "hover:border-cyan-400/70 hover:bg-cyan-500/[0.11] dark:hover:border-cyan-300/48 dark:hover:bg-cyan-950/55",
+    num: "text-cyan-600 dark:text-cyan-300",
+  },
+];
+
+/**
+ * Manual “AI artifacts” pipeline (InstaCue → Quiz → Formulas) lives in `runAiArtifactPipeline` below.
  * Tune these delays to space out Vertex/Gemini calls and reduce ECONNRESET / rate limits.
  */
 const ARTIFACT_PIPELINE_BETWEEN_STEPS_MS = 15_000;
@@ -158,6 +235,7 @@ const ARTIFACT_PIPELINE_BETWEEN_STEPS_MS = 15_000;
 const ARTIFACT_PIPELINE_AFTER_DEEP_DIVE_SETTLE_MS = 1_200;
 const ARTIFACT_STEP_MAX_ATTEMPTS = 3;
 const ARTIFACT_STEP_RETRY_DELAY_MS = 3_000;
+const TOPIC_HUB_GUIDE_STORAGE_PREFIX = "hasSeenTopicHubGuide";
 
 function truncateForStack(text: string, max: number): string {
   if (text.length <= max) return text;
@@ -265,17 +343,6 @@ function getSavedBitId(question: ArtifactBitsQuestion, savedBits: SavedBit[]): s
       b.correctAnswer === correctIdx
   );
   return hit?.id ?? null;
-}
-
-function getBitsSignature(items: ArtifactBitsQuestion[]): string {
-  const raw = items
-    .map((q, idx) => `${idx + 1}|${q.question}|${q.correctAnswer}|${q.options.join("||")}`)
-    .join("###");
-  let hash = 0;
-  for (let i = 0; i < raw.length; i += 1) {
-    hash = (hash * 31 + raw.charCodeAt(i)) | 0;
-  }
-  return `v1-${items.length}-${Math.abs(hash)}`;
 }
 
 function subtopicNavPreviewLine(raw: string): string {
@@ -393,6 +460,13 @@ const LEVELS: { value: DifficultyLevel; label: string }[] = [
   { value: "advanced", label: "Advanced" },
 ];
 
+/** Basic & Intermediate are admin-preview until public launch; learners use Advanced only. */
+const LEVEL_PREVIEW_ROLES: ReadonlySet<DifficultyLevel> = new Set(["basics", "intermediate"]);
+
+function isAdminRole(role: string | undefined | null): boolean {
+  return role === "admin";
+}
+
 /** Subtopic focus timer: 10 minutes */
 const FOCUS_TIMER_INITIAL_SECONDS = 600;
 
@@ -444,22 +518,28 @@ function formatFocusTimer(totalSeconds: number): string {
 }
 
 /**
- * Quiz payloads sometimes include malformed micro-unit latex like "\muC" that KaTeX
- * can render as red error text in mixed prose. Normalize to plain UTF units for stable UI.
+ * Quiz / numerals payloads: repair glued `$…$` prose, `\muC`-style units, and plain `Q_c` / `[A]^2`
+ * before MathText (same pipeline as adaptive play stems).
  */
 function normalizeQuizDisplayMath(text: string): string {
-  return String(text ?? "")
+  let s = String(text ?? "")
     .replace(/\\mu\s*([A-Za-z]+)/g, "μ$1")
     .replace(/\\Omega/g, "Ω");
+  s = splitGluedGreekCommands(fixGreekInsideTextBlocks(s));
+  return formatPlayQuestionStemForDisplay(s);
 }
 
-export default function TopicPage() {
+function TopicPageInner() {
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
+  const pathname = usePathname();
   const isRandomMode = searchParams.get("mode") === "random";
   const isMagicWallSource = searchParams.get("source") === "magic-wall";
   const panelParam = searchParams.get("panel");
+  /** Primitives only — do not put `searchParams` in effect deps (new object ref most renders; wiped InstaCue lesson progress to 0/32). */
+  const quizSetParam = searchParams.get("quizSet");
+  const postIdParam = searchParams.get("postId");
   type PanelTab = "instacue" | "quiz" | "numerals" | "concepts";
   const initialPanelTab: PanelTab =
     panelParam === "quiz" || panelParam === "numerals" || panelParam === "concepts"
@@ -473,6 +553,11 @@ export default function TopicPage() {
   const unitSlug = params.unit as string;
   const topicSlug = params.topic as string;
   const level = params.level as string;
+  const topicHubGuideStorageKey = useMemo(
+    () =>
+      `${TOPIC_HUB_GUIDE_STORAGE_PREFIX}:${board}:${subject}:${grade}:${unitSlug}:${topicSlug}`.toLowerCase(),
+    [board, subject, grade, unitSlug, topicSlug]
+  );
 
   const [magicWallBasket, setMagicWallBasket] = useState<MagicWallBasketItem[]>([]);
   const [loadingMagicWallBasket, setLoadingMagicWallBasket] = useState(false);
@@ -483,8 +568,12 @@ export default function TopicPage() {
   const [bitsVisitedIndices, setBitsVisitedIndices] = useState<Set<number>>(new Set());
   const [instaCueValidatedIndices, setInstaCueValidatedIndices] = useState<Set<number>>(new Set());
   const [rightPanelTab, setRightPanelTab] = useState<PanelTab>(initialPanelTab);
+  const [showSubtopicGuide, setShowSubtopicGuide] = useState(false);
   /** Cards the learner has landed on in the carousel (scroll / dots), not only flipped. */
   const [instaCueNavIndices, setInstaCueNavIndices] = useState<Set<number>>(new Set());
+  const [rdmConfig, setRdmConfig] = useState<RdmConfigParams>(() => ({ ...DEFAULT_RDM_CONFIG }));
+  /** Dedupe syncing full InstaCue deck reads to daily checklist when Lessons shows 32/32 coverage. */
+  const instacueDeckSyncedToDailyKeyRef = useRef<string | null>(null);
   /** Per-formula numerals draft in the formulas dialog (key = formula index). */
   const [formulaByIdx, setFormulaByIdx] = useState<
     Record<number, { qIdx: number; answers: Record<number, number> }>
@@ -515,6 +604,19 @@ export default function TopicPage() {
   }, [initialPanelTab, board, subject, grade, unitSlug, topicSlug, level]);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    setShowSubtopicGuide(window.localStorage.getItem(topicHubGuideStorageKey) !== "1");
+  }, [topicHubGuideStorageKey]);
+
+  const dismissSubtopicGuide = useCallback(() => {
+    if (!showSubtopicGuide) return;
+    setShowSubtopicGuide(false);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(topicHubGuideStorageKey, "1");
+    }
+  }, [showSubtopicGuide, topicHubGuideStorageKey]);
+
+  useEffect(() => {
     if (!isMagicWallSource) return;
     let cancelled = false;
     setLoadingMagicWallBasket(true);
@@ -532,6 +634,25 @@ export default function TopicPage() {
       cancelled = true;
     };
   }, [isMagicWallSource]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      const next = await fetchRdmConfig();
+      if (!cancelled) {
+        setRdmConfig((prev) => (rdmConfigShallowEqual(prev, next) ? prev : next));
+      }
+    };
+    void load();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void load();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, []);
 
   const { taxonomy, loading: taxonomyLoading, error: taxonomyError } = useTopicTaxonomy();
 
@@ -585,6 +706,8 @@ export default function TopicPage() {
   const isOverview = resolved?.isOverview === true;
   const subtopicIndex = resolved?.subtopicIndex ?? 0;
   const subtopicName = resolved?.subtopicName ?? "";
+  const topicRefForShareClaim = (topicNode?.topic ?? topicSlug).trim();
+  const subtopicRefForShareClaim = subtopicName.trim();
   const difficultyLevel = (resolved?.level ?? "basics") as DifficultyLevel;
 
   useEffect(() => {
@@ -622,6 +745,7 @@ export default function TopicPage() {
   // Approved topic-hub layout override for all overview pages.
   const isInvestorTopicHubLayout = isOverview;
   const user = useUserStore((s) => s.user);
+  const setRdmFromProfile = useUserStore((s) => s.setRdmFromProfile);
   const saveRevisionCard = useUserStore((s) => s.saveRevisionCard);
   const saveBit = useUserStore((s) => s.saveBit);
   const unsaveBit = useUserStore((s) => s.unsaveBit);
@@ -630,7 +754,94 @@ export default function TopicPage() {
   const saveRevisionUnit = useUserStore((s) => s.saveRevisionUnit);
   const unsaveRevisionUnit = useUserStore((s) => s.unsaveRevisionUnit);
   const { toast } = useToast();
-  const { loading: authLoading, session } = useAuth();
+  const { loading: authLoading, session, profile, refreshProfile } = useAuth();
+  const handleTopicHubUnavailablePanelChange = useCallback(
+    (nextTab: PanelTab) => {
+      if (nextTab === "instacue") {
+        setRightPanelTab("instacue");
+        return;
+      }
+      toast({
+        title: "Only available at subtopic level",
+        description: "Open any subtopic below to access this section.",
+      });
+      setRightPanelTab("instacue");
+    },
+    [toast]
+  );
+
+  const isAdminUser = useMemo(() => isAdminRole(profile?.role), [profile?.role]);
+
+  useEffect(() => {
+    if (!session?.user?.id || !topicRefForShareClaim || !subtopicRefForShareClaim) {
+      setClaimedQuizShareSets({});
+      setClaimedNumeralsShareFormulaIdx({});
+      return;
+    }
+
+    let cancelled = false;
+    const loadClaims = async () => {
+      const [quizRes, numeralsRes] = await Promise.all([
+        supabase
+          .from("quiz_community_share_rdm_claims")
+          .select("quiz_set")
+          .eq("topic_ref", topicRefForShareClaim)
+          .eq("subtopic_ref", subtopicRefForShareClaim),
+        supabase
+          .from("numerals_community_share_rdm_claims")
+          .select("formula_index")
+          .eq("topic_ref", topicRefForShareClaim)
+          .eq("subtopic_ref", subtopicRefForShareClaim),
+      ]);
+      if (cancelled) return;
+
+      if (!quizRes.error && Array.isArray(quizRes.data)) {
+        const map: Record<number, true> = {};
+        for (const row of quizRes.data) {
+          if (typeof row.quiz_set === "number" && Number.isFinite(row.quiz_set)) {
+            map[Math.trunc(row.quiz_set)] = true;
+          }
+        }
+        setClaimedQuizShareSets(map);
+      }
+
+      if (!numeralsRes.error && Array.isArray(numeralsRes.data)) {
+        const map: Record<number, true> = {};
+        for (const row of numeralsRes.data) {
+          if (typeof row.formula_index === "number" && Number.isFinite(row.formula_index)) {
+            map[Math.trunc(row.formula_index)] = true;
+          }
+        }
+        setClaimedNumeralsShareFormulaIdx(map);
+      }
+    };
+
+    void loadClaims();
+    return () => {
+      cancelled = true;
+    };
+  }, [session?.user?.id, topicRefForShareClaim, subtopicRefForShareClaim]);
+
+  /** Non-admins cannot open Basic / Intermediate URLs; send them to Advanced (same topic/subtopic, query preserved). */
+  useEffect(() => {
+    if (authLoading || !topicNode) return;
+    if (isAdminUser) return;
+    if (difficultyLevel !== "basics" && difficultyLevel !== "intermediate") return;
+
+    const replaced = pathname.replace(/\/(basics|intermediate)(?=\/|$)/, "/advanced");
+    if (replaced === pathname) return;
+    const q = searchParams.toString();
+    router.replace(q ? `${replaced}?${q}` : replaced);
+  }, [
+    authLoading,
+    topicNode,
+    isAdminUser,
+    difficultyLevel,
+    pathname,
+    router,
+    searchParams,
+  ]);
+
   const [dbTheory, setDbTheory] = useState<string>("");
   const [dbTheoryExists, setDbTheoryExists] = useState(false);
   const [canEditTheory, setCanEditTheory] = useState(false);
@@ -731,7 +942,7 @@ export default function TopicPage() {
     persistSavedContent,
   ]);
 
-  // Artifact state (InstaCue AI, Bits, Formulas)
+  // Artifact state (InstaCue AI, Quiz, Formulas)
   const [dbInstacueCards, setDbInstacueCards] = useState<ArtifactInstaCueCard[]>([]);
   const [dbBitsQuestions, setDbBitsQuestions] = useState<ArtifactBitsQuestion[]>([]);
   const [dbPracticeFormulas, setDbPracticeFormulas] = useState<ArtifactFormula[]>([]);
@@ -746,6 +957,26 @@ export default function TopicPage() {
   const [viewedConceptPages, setViewedConceptPages] = useState<Set<number>>(() => new Set([0]));
   const [formulasDialogOpen, setFormulasDialogOpen] = useState(false);
   const [bitsCurrentIdx, setBitsCurrentIdx] = useState(0);
+
+  const dwellScope = useMemo(() => {
+    if (!topicNode || isOverview || !subtopicName) return null;
+    return {
+      board: normalizeBoardParam(board),
+      subject: topicNode.subject,
+      classLevel: topicNode.classLevel as 11 | 12,
+      topic: topicNode.topic,
+      subtopicName,
+      level: difficultyLevel,
+    };
+  }, [topicNode, isOverview, subtopicName, board, difficultyLevel]);
+
+  useLearningDwellTelemetry({
+    enabled: Boolean(!authLoading && !!session?.user && dwellScope),
+    scope: dwellScope,
+    panelTab: rightPanelTab,
+    bitsQuestionIndex: bitsCurrentIdx,
+  });
+
   const [bitsSelectedAnswers, setBitsSelectedAnswers] = useState<Record<number, number>>({});
   const [submittingBits, setSubmittingBits] = useState(false);
   const [bitsReviewMode, setBitsReviewMode] = useState(false);
@@ -762,6 +993,19 @@ export default function TopicPage() {
   const [quizPostTitle, setQuizPostTitle] = useState("");
   const [quizPostDetails, setQuizPostDetails] = useState("");
   const [publishingQuizPost, setPublishingQuizPost] = useState(false);
+  const [claimedQuizShareSets, setClaimedQuizShareSets] = useState<Record<number, true>>({});
+  const [numeralsPostDialogOpen, setNumeralsPostDialogOpen] = useState(false);
+  const [numeralsPostDrafts, setNumeralsPostDrafts] = useState<NumeralsPostDraft[]>([]);
+  const [numeralsPostUsedTemplateIds, setNumeralsPostUsedTemplateIds] = useState<Set<string>>(
+    new Set()
+  );
+  const [numeralsPostTemplateId, setNumeralsPostTemplateId] = useState<string>("");
+  const [numeralsPostTitle, setNumeralsPostTitle] = useState("");
+  const [numeralsPostDetails, setNumeralsPostDetails] = useState("");
+  const [publishingNumeralsPost, setPublishingNumeralsPost] = useState(false);
+  const [claimedNumeralsShareFormulaIdx, setClaimedNumeralsShareFormulaIdx] = useState<
+    Record<number, true>
+  >({});
   const useAdvancedSetsUi = useMemo(
     () => isAdvancedMultiSet(difficultyLevel, dbBitsQuestions.length),
     [difficultyLevel, dbBitsQuestions.length]
@@ -776,6 +1020,7 @@ export default function TopicPage() {
     if (!useAdvancedSetsUi) return bitsAttempt;
     return bitsAttemptBySet[activeQuizSet] ?? null;
   }, [useAdvancedSetsUi, bitsAttempt, bitsAttemptBySet, activeQuizSet]);
+  const isActiveQuizSetShareClaimed = Boolean(claimedQuizShareSets[activeQuizSet]);
 
   const showPreviousQuizAttempt = Boolean(displayBitsAttempt);
   const [selectedFormulaIdx, setSelectedFormulaIdx] = useState<number | null>(null);
@@ -790,6 +1035,8 @@ export default function TopicPage() {
     Partial<Record<number, BitsAttemptRecord>>
   >({});
   const [formulaNumeralsReviewMode, setFormulaNumeralsReviewMode] = useState(false);
+  const isSelectedNumeralShareClaimed =
+    selectedFormulaIdx !== null && Boolean(claimedNumeralsShareFormulaIdx[selectedFormulaIdx]);
   const [submittingFormulaNumerals, setSubmittingFormulaNumerals] = useState(false);
   const [artifactRunLog, setArtifactRunLog] = useState<string[]>([]);
   const [artifactRunStatus, setArtifactRunStatus] = useState<
@@ -821,7 +1068,7 @@ export default function TopicPage() {
 
   useEffect(() => {
     if (!topicNode?.topic) return;
-    if (searchParams.get("panel") === "quiz") {
+    if (panelParam === "quiz") {
       setRightPanelTab("quiz");
     }
     setBitsVisitedIndices(new Set());
@@ -830,9 +1077,9 @@ export default function TopicPage() {
     setBitsDialogOpen(false);
     setBitsReviewMode(false);
     setBitsAttemptBySet({});
-    const qs = searchParams.get("quizSet");
+    const qs = quizSetParam;
     const fromAssignmentLink =
-      searchParams.get("panel") === "quiz" &&
+      panelParam === "quiz" &&
       difficultyLevel === "advanced" &&
       (qs === "1" || qs === "2" || qs === "3");
     setActiveQuizSet(fromAssignmentLink ? (Number(qs) as AdvancedQuizSetIndex) : 1);
@@ -842,7 +1089,15 @@ export default function TopicPage() {
     engagementHydratedRef.current = null;
     setConceptsPage(0);
     setViewedConceptPages(new Set([0]));
-  }, [board, topicNode?.topic, subtopicName, difficultyLevel, searchParams]);
+  }, [
+    board,
+    topicNode?.topic,
+    subtopicName,
+    difficultyLevel,
+    panelParam,
+    quizSetParam,
+    postIdParam,
+  ]);
 
   const hasAutoOpenedQuizRef = useRef(false);
   useEffect(() => {
@@ -950,6 +1205,13 @@ export default function TopicPage() {
       });
       return;
     }
+    if (isActiveQuizSetShareClaimed) {
+      toast({
+        title: "Already claimed",
+        description: "Share bonus for this quiz set is already claimed.",
+      });
+      return;
+    }
     const seeded = buildInitialQuizDraft();
     if (!seeded) return;
     setQuizPostDrafts(seeded.drafts);
@@ -958,7 +1220,13 @@ export default function TopicPage() {
     setQuizPostTitle(seeded.first.title);
     setQuizPostDetails(seeded.first.details);
     setQuizPostDialogOpen(true);
-  }, [displayBitsAttempt, session?.user?.id, toast, buildInitialQuizDraft]);
+  }, [
+    displayBitsAttempt,
+    session?.user?.id,
+    isActiveQuizSetShareClaimed,
+    toast,
+    buildInitialQuizDraft,
+  ]);
 
   const handleShuffleQuizTemplate = useCallback(() => {
     if (!quizPostDrafts.length) return;
@@ -972,6 +1240,235 @@ export default function TopicPage() {
       return updated;
     });
   }, [quizPostDrafts, quizPostUsedTemplateIds]);
+
+  const buildInitialNumeralsDraft = useCallback(() => {
+    if (selectedFormulaIdx === null) return null;
+    const attempt = formulaNumeralsAttemptByIdx[selectedFormulaIdx];
+    if (!attempt) return null;
+    const scorePercent =
+      attempt.totalQuestions > 0 ? Math.round((attempt.correctCount / attempt.totalQuestions) * 100) : 0;
+    const drafts = buildNumeralsPostDrafts({
+      subject: topicNode?.subject ?? subject,
+      chapter: topicNode?.topic ?? unitSlug,
+      topic: topicNode?.topic ?? topicSlug,
+      subtopic: subtopicName,
+      formulaTitle: dbPracticeFormulas[selectedFormulaIdx]?.name ?? null,
+      scorePercent,
+      correctCount: attempt.correctCount,
+      wrongCount: attempt.wrongCount,
+      totalQuestions: attempt.totalQuestions,
+    });
+    const first = pickRandomNumeralsPostDraft(drafts, new Set());
+    return { drafts, first, attempt };
+  }, [
+    selectedFormulaIdx,
+    formulaNumeralsAttemptByIdx,
+    dbPracticeFormulas,
+    topicNode?.subject,
+    topicNode?.topic,
+    subject,
+    unitSlug,
+    topicSlug,
+    subtopicName,
+  ]);
+
+  const handleOpenNumeralsPostDialog = useCallback(() => {
+    if (selectedFormulaIdx === null) {
+      toast({
+        title: "No numerals result found",
+        description: "Submit a numerals test once before posting.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!session?.user?.id) {
+      toast({
+        title: "Sign in required",
+        description: "Please sign in to post your numerals result.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (isSelectedNumeralShareClaimed) {
+      toast({
+        title: "Already claimed",
+        description: "Share bonus for this numeral is already claimed.",
+      });
+      return;
+    }
+    const seeded = buildInitialNumeralsDraft();
+    if (!seeded) {
+      toast({
+        title: "No numerals result found",
+        description: "Submit this numerals set first, then post your result.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setNumeralsPostDrafts(seeded.drafts);
+    setNumeralsPostUsedTemplateIds(new Set([seeded.first.templateId]));
+    setNumeralsPostTemplateId(seeded.first.templateId);
+    setNumeralsPostTitle(seeded.first.title);
+    setNumeralsPostDetails(seeded.first.details);
+    setNumeralsPostDialogOpen(true);
+  }, [
+    selectedFormulaIdx,
+    session?.user?.id,
+    isSelectedNumeralShareClaimed,
+    toast,
+    buildInitialNumeralsDraft,
+  ]);
+
+  const handleShuffleNumeralsTemplate = useCallback(() => {
+    if (!numeralsPostDrafts.length) return;
+    const next = pickRandomNumeralsPostDraft(numeralsPostDrafts, numeralsPostUsedTemplateIds);
+    setNumeralsPostTemplateId(next.templateId);
+    setNumeralsPostTitle(next.title);
+    setNumeralsPostDetails(next.details);
+    setNumeralsPostUsedTemplateIds((prev) => {
+      const updated = new Set(prev);
+      updated.add(next.templateId);
+      return updated;
+    });
+  }, [numeralsPostDrafts, numeralsPostUsedTemplateIds]);
+
+  const handlePublishNumeralsPost = useCallback(async () => {
+    if (!session?.user?.id || selectedFormulaIdx === null) return;
+    const attempt = formulaNumeralsAttemptByIdx[selectedFormulaIdx];
+    if (!attempt) return;
+    const scorePercent =
+      attempt.totalQuestions > 0 ? Math.round((attempt.correctCount / attempt.totalQuestions) * 100) : 0;
+    const correctTotalLine = `${attempt.correctCount}/${attempt.totalQuestions}`;
+    const titleWithMetrics = /\d{1,3}%/.test(numeralsPostTitle)
+      ? numeralsPostTitle.trim()
+      : `${numeralsPostTitle.trim()} | ${scorePercent}%`;
+    const detailsWithScorePercent = /\d{1,3}%/.test(numeralsPostDetails)
+      ? numeralsPostDetails.trim()
+      : `${numeralsPostDetails.trim()} Score: ${scorePercent}%.`;
+    const detailsWithMetrics = /\b\d+\s*\/\s*\d+\b/.test(detailsWithScorePercent)
+      ? detailsWithScorePercent
+      : `${detailsWithScorePercent} Correct/Total: ${correctTotalLine}.`;
+    const cleanTitle = titleWithMetrics.trim();
+    const cleanDetails = detailsWithMetrics.trim();
+    if (cleanTitle.length < 3) {
+      toast({
+        title: "Title too short",
+        description: "Use at least 3 characters in your post title.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setPublishingNumeralsPost(true);
+    const sourceSubject = (topicNode?.subject ?? subject ?? "physics").toLowerCase();
+    const selectedTemplate = numeralsPostDrafts.find((d) => d.templateId === numeralsPostTemplateId);
+    const tags = selectedTemplate?.tags ?? ["numerals"];
+    const payload = {
+      templateId: numeralsPostTemplateId,
+      scorePercent,
+      correctCount: attempt.correctCount,
+      wrongCount: attempt.wrongCount,
+      totalQuestions: attempt.totalQuestions,
+      submittedAt: attempt.submittedAt,
+      formulaIndex: selectedFormulaIdx,
+      formulaName: dbPracticeFormulas[selectedFormulaIdx]?.name ?? null,
+    };
+
+    const { data, error } = await supabase
+      .from("lessons_raw_posts")
+      .insert({
+        user_id: session.user.id,
+        kind: "post",
+        title: cleanTitle,
+        content: cleanDetails,
+        tags,
+        subject: sourceSubject,
+        chapter_ref: topicNode?.topic ?? null,
+        board_ref: board,
+        grade_ref: grade,
+        unit_ref: unitSlug,
+        topic_ref: topicNode?.topic ?? topicSlug,
+        subtopic_ref: subtopicName || null,
+        source_type: "numerals_post",
+        source_payload: payload,
+      })
+      .select("id")
+      .single();
+
+    setPublishingNumeralsPost(false);
+    if (error) {
+      toast({ title: "Could not publish", description: error.message, variant: "destructive" });
+      return;
+    }
+    const postId = data?.id;
+    let numeralsShareClaimNote = `+${rdmConfig.numerals_community_share_rdm} RDM share bonus claimed.`;
+    if (postId) {
+      const { data: claimRaw, error: claimError } = await supabase.rpc(
+        "claim_numerals_community_share_rdm",
+        {
+          p_post_id: postId,
+        }
+      );
+      if (claimError) {
+        numeralsShareClaimNote = "Post published, but share bonus claim failed. Try again shortly.";
+      } else {
+        const claim = (claimRaw ?? {}) as Record<string, unknown>;
+        const claimOk = claim.ok === true;
+        const denial = typeof claim.denial_reason === "string" ? claim.denial_reason : "";
+        if (claimOk) {
+          const awarded =
+            typeof claim.rdm_awarded === "number" && Number.isFinite(claim.rdm_awarded)
+              ? Math.max(1, Math.trunc(claim.rdm_awarded))
+              : rdmConfig.numerals_community_share_rdm;
+          await refreshProfile();
+          setClaimedNumeralsShareFormulaIdx((prev) => ({ ...prev, [selectedFormulaIdx]: true }));
+          numeralsShareClaimNote = `+${awarded} RDM share bonus claimed.`;
+        } else if (denial === "already_claimed_numeral") {
+          setClaimedNumeralsShareFormulaIdx((prev) => ({ ...prev, [selectedFormulaIdx]: true }));
+          numeralsShareClaimNote = "You already claimed the share bonus for this numeral.";
+        } else {
+          numeralsShareClaimNote = "Post published, but share bonus was not granted.";
+        }
+      }
+    }
+    setNumeralsPostDialogOpen(false);
+    toast({
+      title: "Numerals post published",
+      description: (
+        <div className="mt-1 space-y-2">
+          <p>Your numerals result is now live in Lessons.</p>
+          <p className="text-xs text-muted-foreground">{numeralsShareClaimNote}</p>
+          <button
+            type="button"
+            className="inline-flex items-center rounded-md border border-primary/55 bg-primary/25 px-3.5 py-1.5 text-sm font-semibold text-white shadow-[0_0_0_1px_rgba(59,130,246,0.25)] transition-all hover:border-primary/80 hover:bg-primary/40 hover:text-white"
+            onClick={() => router.push(`/explore-1?focusPost=${postId ?? ""}#raw-community-feed`)}
+          >
+            See your post
+          </button>
+        </div>
+      ),
+    });
+  }, [
+    session?.user?.id,
+    selectedFormulaIdx,
+    formulaNumeralsAttemptByIdx,
+    numeralsPostTitle,
+    numeralsPostDetails,
+    numeralsPostDrafts,
+    numeralsPostTemplateId,
+    dbPracticeFormulas,
+    topicNode?.subject,
+    topicNode?.topic,
+    subject,
+    subtopicName,
+    board,
+    grade,
+    unitSlug,
+    topicSlug,
+    rdmConfig.numerals_community_share_rdm,
+    toast,
+    router,
+    refreshProfile,
+  ]);
 
   const reportScoreToAssignment = useCallback(
     async (
@@ -1047,6 +1544,7 @@ export default function TopicPage() {
     const payload = {
       templateId: quizPostTemplateId,
       level,
+      quizSetNumber: activeQuizSet,
       scorePercent,
       correctCount: displayBitsAttempt.correctCount,
       wrongCount: displayBitsAttempt.wrongCount,
@@ -1081,12 +1579,40 @@ export default function TopicPage() {
       return;
     }
     const postId = data?.id;
+    let quizShareClaimNote = `+${rdmConfig.quiz_community_share_rdm} RDM share bonus claimed.`;
+    if (postId) {
+      const { data: claimRaw, error: claimError } = await supabase.rpc("claim_quiz_community_share_rdm", {
+        p_post_id: postId,
+      });
+      if (claimError) {
+        quizShareClaimNote = "Post published, but share bonus claim failed. Try again shortly.";
+      } else {
+        const claim = (claimRaw ?? {}) as Record<string, unknown>;
+        const claimOk = claim.ok === true;
+        const denial = typeof claim.denial_reason === "string" ? claim.denial_reason : "";
+        if (claimOk) {
+          const awarded =
+            typeof claim.rdm_awarded === "number" && Number.isFinite(claim.rdm_awarded)
+              ? Math.max(1, Math.trunc(claim.rdm_awarded))
+              : rdmConfig.quiz_community_share_rdm;
+          await refreshProfile();
+          setClaimedQuizShareSets((prev) => ({ ...prev, [activeQuizSet]: true }));
+          quizShareClaimNote = `+${awarded} RDM share bonus claimed.`;
+        } else if (denial === "already_claimed_set") {
+          setClaimedQuizShareSets((prev) => ({ ...prev, [activeQuizSet]: true }));
+          quizShareClaimNote = "You already claimed the share bonus for this set.";
+        } else {
+          quizShareClaimNote = "Post published, but share bonus was not granted.";
+        }
+      }
+    }
     setQuizPostDialogOpen(false);
     toast({
       title: "Quiz post published",
       description: (
         <div className="mt-1 space-y-2">
           <p>Your quiz result is now live in Lessons.</p>
+          <p className="text-xs text-muted-foreground">{quizShareClaimNote}</p>
           <button
             type="button"
             className="inline-flex items-center rounded-md border border-primary/55 bg-primary/25 px-3.5 py-1.5 text-sm font-semibold text-white shadow-[0_0_0_1px_rgba(59,130,246,0.25)] transition-all hover:border-primary/80 hover:bg-primary/40 hover:text-white"
@@ -1113,8 +1639,11 @@ export default function TopicPage() {
     unitSlug,
     topicSlug,
     level,
+    activeQuizSet,
+    rdmConfig.quiz_community_share_rdm,
     toast,
     router,
+    refreshProfile,
   ]);
 
   const practiceFormulasForUi = useMemo(() => {
@@ -1160,6 +1689,45 @@ export default function TopicPage() {
     });
   }, [dbPracticeFormulas, formulaQuestionsOverride, formulaNumeralsAttemptByIdx]);
 
+  /** Cumulative % (correct ÷ total questions) across submitted numerals only; remaining = numerals not yet submitted. */
+  const numeralsOverallBarStats = useMemo(() => {
+    if (dbPracticeFormulas.length === 0) {
+      return {
+        withQuestionsCount: 0,
+        submittedCount: 0,
+        totalCorrect: 0,
+        totalQuestions: 0,
+        remaining: 0,
+        overallPct: null as number | null,
+      };
+    }
+    let withQ = 0;
+    let submitted = 0;
+    let totalCorrect = 0;
+    let totalQuestions = 0;
+    dbPracticeFormulas.forEach((f, i) => {
+      const qs = formulaQuestionsOverride[i] ?? f.bitsQuestions ?? [];
+      if (qs.length === 0) return;
+      withQ += 1;
+      const sig = getBitsSignature(qs);
+      const att = formulaNumeralsAttemptByIdx[i];
+      if (att && att.bitsSignature === sig) {
+        submitted += 1;
+        totalCorrect += att.correctCount;
+        totalQuestions += att.totalQuestions;
+      }
+    });
+    return {
+      withQuestionsCount: withQ,
+      submittedCount: submitted,
+      totalCorrect,
+      totalQuestions,
+      remaining: withQ - submitted,
+      overallPct:
+        totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : null,
+    };
+  }, [dbPracticeFormulas, formulaQuestionsOverride, formulaNumeralsAttemptByIdx]);
+
   const currentFormulaQuestion = useMemo(() => {
     if (selectedFormulaIdx === null) return null;
     const formula = practiceFormulasForUi[selectedFormulaIdx];
@@ -1200,7 +1768,7 @@ export default function TopicPage() {
     return hit?.id ?? null;
   }, [topicNode, subtopicName, currentFormulaQuestion, user?.savedFormulas, difficultyLevel]);
 
-  /** InstaCue / Bits / Formulas need persisted theory unless this subtopic level already has DB artifacts to regenerate from. */
+  /** InstaCue / Quiz / Formulas need persisted theory unless this subtopic level already has DB artifacts to regenerate from. */
   const hasDeepDiveForAiArtifacts = useMemo(() => {
     if (hasPersistedAiArtifacts) return true;
     if (!dbTheoryExists) return false;
@@ -1227,7 +1795,7 @@ export default function TopicPage() {
     };
   }, [dbInstacueCards.length, dbBitsQuestions.length, dbPracticeFormulas.length]);
 
-  /** InstaCue → Bits → Practice Formulas (manual run from dedicated AI buttons). */
+  /** InstaCue → Quiz → Practice Formulas (manual run from dedicated AI buttons). */
   const runAiArtifactPipeline = useCallback(
     async (opts?: { skipDeepDiveGate?: boolean }) => {
       if (!topicNode || !subtopicName) return;
@@ -1245,9 +1813,9 @@ export default function TopicPage() {
       setArtifactRunStatus("running");
       setArtifactLastRunAt(new Date().toLocaleString());
       setArtifactRunLog([]);
-      appendArtifactLog("Run started manually: InstaCue → Bits → Formulas.");
+      appendArtifactLog("Run started manually: InstaCue → Quiz → Formulas.");
       appendArtifactLog(
-        `Current counts before run -> InstaCue: ${beforeInsta}, Bits: ${beforeBits}, Practice Formulas: ${beforeFormulas}.`
+        `Current counts before run -> InstaCue: ${beforeInsta}, Quiz: ${beforeBits}, Practice Formulas: ${beforeFormulas}.`
       );
       setGeneratingInstacue(true);
       const stepErrors: string[] = [];
@@ -1277,7 +1845,7 @@ export default function TopicPage() {
           );
           toast({
             title: `Generated ${out.items.length} InstaCue cards`,
-            description: "Starting Bits generation…",
+            description: "Starting Quiz generation…",
           });
         } else {
           stepErrors.push(instaRes.error);
@@ -1286,17 +1854,17 @@ export default function TopicPage() {
         }
 
         appendArtifactLog(
-          `Waiting ${Math.round(ARTIFACT_PIPELINE_BETWEEN_STEPS_MS / 1000)}s before Bits (step gap — edit ARTIFACT_PIPELINE_BETWEEN_STEPS_MS in page.tsx to change).`
+          `Waiting ${Math.round(ARTIFACT_PIPELINE_BETWEEN_STEPS_MS / 1000)}s before Quiz (step gap — edit ARTIFACT_PIPELINE_BETWEEN_STEPS_MS in page.tsx to change).`
         );
         await delay(ARTIFACT_PIPELINE_BETWEEN_STEPS_MS);
 
         setGeneratingBits(true);
         try {
-          runLog.push("Started Bits");
+          runLog.push("Started Quiz");
           appendArtifactLog(
-            `Step 2/3: Generating Bits questions (up to ${ARTIFACT_STEP_MAX_ATTEMPTS} attempts).`
+            `Step 2/3: Generating Quiz questions (up to ${ARTIFACT_STEP_MAX_ATTEMPTS} attempts).`
           );
-          const bitsRes = await runArtifactStepWithRetries("Bits", () =>
+          const bitsRes = await runArtifactStepWithRetries("Quiz", () =>
             generateBitsQuestions({
               board: boardName,
               subject: topicNode.subject as Subject,
@@ -1313,17 +1881,17 @@ export default function TopicPage() {
             nextBits = bitsOut.items.length;
             setBitsCurrentIdx(0);
             setBitsSelectedAnswers({});
-            runLog.push(`Finished Bits (${bitsOut.items.length})`);
+            runLog.push(`Finished Quiz (${bitsOut.items.length})`);
             appendArtifactLog(
-              `Step 2/3 complete: Bits generated ${bitsOut.items.length} questions (was ${beforeBits}).`
+              `Step 2/3 complete: Quiz generated ${bitsOut.items.length} questions (was ${beforeBits}).`
             );
             toast({
-              title: `Generated ${bitsOut.items.length} Bits questions`,
+              title: `Generated ${bitsOut.items.length} Quiz questions`,
               description: "Starting formula practice generation…",
             });
           } else {
             stepErrors.push(bitsRes.error);
-            runLog.push("Bits failed");
+            runLog.push("Quiz step failed");
             appendArtifactLog(`Step 2/3 failed after retries: ${bitsRes.error}`);
           }
         } finally {
@@ -1374,7 +1942,7 @@ export default function TopicPage() {
         }
 
         appendArtifactLog(
-          `Run finished -> InstaCue: ${nextInsta}, Bits: ${nextBits}, Practice Formulas: ${nextFormulas}. Errors: ${stepErrors.length}.`
+          `Run finished -> InstaCue: ${nextInsta}, Quiz: ${nextBits}, Practice Formulas: ${nextFormulas}. Errors: ${stepErrors.length}.`
         );
         if (stepErrors.length === 0) {
           setArtifactRunStatus("success");
@@ -1455,10 +2023,10 @@ export default function TopicPage() {
               ? `${subtopicName} (${difficultyLevel}) · Saved to Supabase · RAG passages used: ${out.ragChunks}. `
               : `${subtopicName} (${difficultyLevel}) · Saved to Supabase. `) +
             (opts?.fromSubtopicAi
-              ? "Starting InstaCue, Bits, and formula practice."
+              ? "Starting InstaCue, Quiz, and formula practice."
               : canEditTheory
-                ? "Now use Generate Subtopic AI to create InstaCue, Bits, and formula practice."
-                : "Use the section generate buttons to build InstaCue, Bits, and formulas."),
+                ? "Now use Generate Subtopic AI to create InstaCue, Quiz, and formula practice."
+                : "Use the section generate buttons to build InstaCue, Quiz, and formulas."),
         });
         return true;
       } catch (e) {
@@ -1524,7 +2092,7 @@ export default function TopicPage() {
     setArtifactRunStatus("running");
     setArtifactLastRunAt(new Date().toLocaleString());
     setArtifactRunLog([]);
-    appendArtifactLog("Manual run started: Bits only.");
+    appendArtifactLog("Manual run started: Quiz only.");
     setGeneratingBits(true);
     try {
       const bitsOut = await generateBitsQuestions({
@@ -1539,14 +2107,14 @@ export default function TopicPage() {
       setDbBitsQuestions(bitsOut.items);
       setBitsCurrentIdx(0);
       setBitsSelectedAnswers({});
-      appendArtifactLog(`Bits complete: generated ${bitsOut.items.length} questions.`);
+      appendArtifactLog(`Quiz complete: generated ${bitsOut.items.length} questions.`);
       setArtifactRunStatus("success");
-      toast({ title: `Generated ${bitsOut.items.length} Bits questions` });
+      toast({ title: `Generated ${bitsOut.items.length} Quiz questions` });
     } catch (e) {
-      appendArtifactLog(`Bits failed: ${e instanceof Error ? e.message : "Unknown error"}`);
+      appendArtifactLog(`Quiz failed: ${e instanceof Error ? e.message : "Unknown error"}`);
       setArtifactRunStatus("failed");
       toast({
-        title: e instanceof Error ? e.message : "Bits generation failed",
+        title: e instanceof Error ? e.message : "Quiz generation failed",
         variant: "destructive",
       });
     } finally {
@@ -2531,6 +3099,36 @@ export default function TopicPage() {
   }, [instaCueValidatedIndices, instaCueNavIndices]);
   const instaCueChecklistProgress = Math.min(instaCueCoverageCount, instaCueChecklistTotal);
 
+  useEffect(() => {
+    if (isOverview || !topicNode || !subtopicName) {
+      instacueDeckSyncedToDailyKeyRef.current = null;
+      return;
+    }
+    const total = instaCueChecklistTotal;
+    const progress = instaCueChecklistProgress;
+    if (total <= 0 || progress < total) {
+      instacueDeckSyncedToDailyKeyRef.current = null;
+      return;
+    }
+    const rawIds = sidebarInstaCueCards
+      .map((c) => c.id)
+      .filter((id): id is string => typeof id === "string" && id.trim().length > 0);
+    const ids = [...new Set(rawIds.map((id) => id.trim()))];
+    if (ids.length === 0) return;
+    const scopeKey = [topicNode.topic, subtopicName, difficultyLevel, ...ids.sort()].join("\0");
+    if (instacueDeckSyncedToDailyKeyRef.current === scopeKey) return;
+    instacueDeckSyncedToDailyKeyRef.current = scopeKey;
+    void reportInstacueCardReadBatch(ids);
+  }, [
+    isOverview,
+    topicNode,
+    subtopicName,
+    difficultyLevel,
+    instaCueChecklistProgress,
+    instaCueChecklistTotal,
+    sidebarInstaCueCards,
+  ]);
+
   /** Step 4: one unit per formula that has practice questions; "done" = submitted numerals attempt for that index (same as card Done ticks), not draft taps in the dialog. */
   const formulaProgressAggregate = useMemo(() => {
     if (practiceFormulasForUi.length === 0) return { answered: 0, total: 0 };
@@ -3061,7 +3659,7 @@ export default function TopicPage() {
   const backHref = isMagicWallSource
     ? "/magic-wall"
     : `/explore-1?subject=${topicNode.subject}&class=${topicNode.classLevel}&unit=${unitSlug}`;
-  const spinAgainHref = `/explore-1?subject=${topicNode.subject}&class=${topicNode.classLevel}&unit=${unitSlug}&spin=1`;
+  const spinAgainHref = `/explore-1?subject=${topicNode.subject}&class=${topicNode.classLevel}&unit=${unitSlug}`;
 
   const allStackPlaceholders =
     subtopicStackRows.length > 0 && subtopicStackRows.every((r) => r.isPh);
@@ -3142,8 +3740,8 @@ export default function TopicPage() {
             aria-controls="magic-wall-queue-sheet"
           >
             <Sparkles className="h-5 w-5 shrink-0" aria-hidden />
-            <span className="text-[9px] font-extrabold uppercase tracking-tight leading-tight text-center px-0.5">
-              Wall
+            <span className="text-[9px] font-extrabold tracking-tight leading-tight text-center px-0.5">
+              List
             </span>
           </button>
 
@@ -3485,6 +4083,9 @@ export default function TopicPage() {
                                 ...snap,
                                 lessonChecklistMarkedCompleteAt: markedAt,
                               });
+                              void reportInstacueCardReadBatch(
+                                sidebarInstaCueCards.map((c) => c.id).filter(Boolean)
+                              );
                               const assignPostId = searchParams.get("postId");
                               const assignClassroomId = searchParams.get("classroomId");
                               if (assignPostId && assignClassroomId && session?.access_token) {
@@ -3725,7 +4326,7 @@ export default function TopicPage() {
                     Learning Flow
                   </p>
                   <p className="text-[11px] text-foreground/80 leading-snug">
-                    Open a subtopic below to access InstaCue cards, Quiz (Bits), Numerals, and
+                    Open a subtopic below to access InstaCue cards, Quiz, Numerals, and
                     Concepts.
                   </p>
                 </div>
@@ -3832,49 +4433,95 @@ export default function TopicPage() {
             >
               {isOverview ? (
                 <>
-                  <div className="flex justify-end mb-3">
-                    <span className="text-sm font-extrabold text-muted-foreground">Topic hub</span>
-                  </div>
                   <h1 className="font-black text-3xl tracking-tight text-foreground mb-4">
                     {topicNode.topic}
                   </h1>
 
                   {mode === "linear" && (
-                    <div className="flex flex-wrap gap-2 mb-6">
-                      {LEVELS.map(({ value, label }) => {
-                        const href = appendQueryParams(
-                          buildTopicOverviewPath(
-                            board,
-                            topicNode.subject,
-                            topicNode.classLevel,
-                            topicNode.topic,
-                            value,
-                            isRandomMode ? "random" : undefined
-                          ),
-                          isMagicWallSource ? { source: "magic-wall" } : {}
-                        );
-                        const isActive = difficultyLevel === value;
-                        return (
-                          <Link
-                            key={value}
-                            href={href}
-                            className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${
-                              isActive
-                                ? "bg-primary text-primary-foreground shadow-md"
-                                : "bg-muted text-muted-foreground hover:bg-muted/80"
-                            }`}
-                          >
-                            {label}
-                          </Link>
-                        );
-                      })}
+                    <div className="flex flex-col gap-2 mb-6">
+                      <div className="flex flex-wrap gap-2">
+                        {LEVELS.map(({ value, label }) => {
+                          const href = appendQueryParams(
+                            buildTopicOverviewPath(
+                              board,
+                              topicNode.subject,
+                              topicNode.classLevel,
+                              topicNode.topic,
+                              value,
+                              isRandomMode ? "random" : undefined
+                            ),
+                            isMagicWallSource ? { source: "magic-wall" } : {}
+                          );
+                          const isActive = difficultyLevel === value;
+                          const isPreviewOnlyLevel =
+                            LEVEL_PREVIEW_ROLES.has(value) &&
+                            !authLoading &&
+                            !isAdminUser;
+
+                          if (isPreviewOnlyLevel) {
+                            return (
+                              <span
+                                key={value}
+                                role="note"
+                                title="Coming soon for all learners"
+                                className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold border border-dashed transition-colors cursor-not-allowed select-none ${
+                                  isActive
+                                    ? "border-amber-500/45 bg-amber-500/10 text-amber-100"
+                                    : "border-muted-foreground/35 bg-muted/25 text-muted-foreground"
+                                }`}
+                              >
+                                <span>{label}</span>
+                                <span className="text-[10px] font-extrabold uppercase tracking-wide text-amber-400/95">
+                                  Soon
+                                </span>
+                              </span>
+                            );
+                          }
+
+                          return (
+                            <Link
+                              key={value}
+                              href={href}
+                              title={
+                                isAdminUser && LEVEL_PREVIEW_ROLES.has(value)
+                                  ? "Admin preview — not public yet"
+                                  : undefined
+                              }
+                              className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold transition-all ${
+                                isActive
+                                  ? "bg-primary text-primary-foreground shadow-md"
+                                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+                              } ${
+                                isAdminUser && LEVEL_PREVIEW_ROLES.has(value)
+                                  ? "ring-1 ring-amber-400/45 ring-offset-2 ring-offset-background"
+                                  : ""
+                              }`}
+                            >
+                              {label}
+                              {isAdminUser && LEVEL_PREVIEW_ROLES.has(value) ? (
+                                <span className="text-[9px] font-extrabold uppercase tracking-wide text-amber-200/90">
+                                  Admin
+                                </span>
+                              ) : null}
+                            </Link>
+                          );
+                        })}
+                      </div>
+                      {!authLoading && !isAdminUser ? (
+                        <p className="text-[11px] text-muted-foreground leading-snug max-w-xl">
+                          <span className="font-semibold text-foreground/90">Basic</span> and{" "}
+                          <span className="font-semibold text-foreground/90">Intermediate</span>{" "}
+                          are rolling out soon. Continue with{" "}
+                          <span className="font-semibold text-primary">Advanced</span> for now.
+                        </p>
+                      ) : null}
                     </div>
                   )}
 
                   <section className="mb-8 pb-6 border-b border-border">
                     <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                       <h2 className="text-base font-extrabold text-primary uppercase tracking-wide">
-                        Topic hub
+                        Topic
                       </h2>
                       {canEditTopicContent ? (
                         <div className="flex items-center gap-2">
@@ -4419,7 +5066,7 @@ export default function TopicPage() {
                                 loadingDbTheory ||
                                 completingSubtopicAll
                               }
-                              title="Generate this subtopic Deep Dive, then InstaCue, Bits, and practice formulas."
+                              title="Generate this subtopic Deep Dive, then InstaCue, Quiz, and practice formulas."
                               onClick={() => void runSubtopicAiGeneration()}
                             >
                               {generatingInstacue || generatingBits || generatingFormulas ? (
@@ -4469,7 +5116,7 @@ export default function TopicPage() {
                                 generatingBits ||
                                 generatingFormulas
                               }
-                              title="Server fallback: fill missing Deep Dive, InstaCue, Bits, and formulas for this subtopic on Basics, Intermediate, and Advanced (topic hub must exist for all three)."
+                              title="Server fallback: fill missing Deep Dive, InstaCue, Quiz, and formulas for this subtopic on Basics, Intermediate, and Advanced (topic hub must exist for all three)."
                               onClick={() => void runCompleteSubtopicAll()}
                             >
                               {completingSubtopicAll ? (
@@ -4713,7 +5360,7 @@ export default function TopicPage() {
                     variant="outline"
                     className="rounded-xl gap-2 font-bold w-fit"
                   >
-                    <Link href={spinAgainHref}>Spin topic wheel</Link>
+                    <Link href={spinAgainHref}>Open unit on Explore</Link>
                   </Button>
                 </div>
               )}
@@ -4885,7 +5532,7 @@ export default function TopicPage() {
               <div className="lg:sticky lg:top-24 space-y-4">
                 <Tabs
                   value={rightPanelTab}
-                  onValueChange={(v) => setRightPanelTab(v as PanelTab)}
+                  onValueChange={(v) => handleTopicHubUnavailablePanelChange(v as PanelTab)}
                   className="w-full"
                 >
                   <TabsList className="grid w-full grid-cols-4 mb-3">
@@ -4914,7 +5561,7 @@ export default function TopicPage() {
                   <TabsContent value="quiz" className="mt-0">
                     <div className="rounded-xl border border-border bg-muted/20 px-3 py-2">
                       <p className="text-xs text-muted-foreground">
-                        Go through the subtopic level to see Quiz (Bits).
+                        Go through the subtopic level to see Quiz.
                       </p>
                     </div>
                   </TabsContent>
@@ -4937,14 +5584,16 @@ export default function TopicPage() {
                 </Tabs>
 
                 {!isRandomMode && (
-                  <section className="rounded-2xl border border-border bg-muted/20 p-4 sm:p-5">
+                  <section className="rounded-2xl border border-border/80 bg-muted/15 p-4 sm:p-5 dark:bg-muted/10">
                     <p className="text-sm font-bold text-foreground mb-1">Continue to subtopics</p>
                     <p className="text-xs text-muted-foreground mb-3">
-                      Open each subtopic to view InstaCue cards, Quiz (Bits), Numerals, and
+                      Open each subtopic to view InstaCue cards, Quiz, Numerals, and
                       Concepts.
                     </p>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-col gap-2.5">
                       {topicNode.subtopics.map((st, idx) => {
+                        const isGuidedFirstSubtopic = showSubtopicGuide && idx === 0;
+                        const accent = SUBTOPIC_NAV_ACCENTS[idx % SUBTOPIC_NAV_ACCENTS.length];
                         const href = appendQueryParams(
                           buildTopicPath(
                             board,
@@ -4958,19 +5607,39 @@ export default function TopicPage() {
                           isMagicWallSource ? { source: "magic-wall" } : {}
                         );
                         return (
-                          <Link
-                            key={st.name}
-                            href={href}
-                            className="inline-flex items-center rounded-lg px-3 py-2 text-xs font-semibold transition-colors bg-muted hover:bg-muted/80 text-foreground/90"
-                            title={subtopicNavPreviewLine(st.name)}
-                          >
-                            <span className="mr-1.5 text-[10px] font-bold text-muted-foreground">
-                              {idx + 1}.
-                            </span>
-                            <MathText className="[&_.katex]:!text-[0.85em]">
-                              {subtopicMathTextLabel(st.name)}
-                            </MathText>
-                          </Link>
+                          <div key={st.name} className="relative">
+                            {isGuidedFirstSubtopic && (
+                              <span className="pointer-events-none absolute -top-3 left-3 z-10 rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary-foreground shadow-md animate-bounce">
+                                Start Here
+                              </span>
+                            )}
+                            <Link
+                              href={href}
+                              className={cn(
+                                "group inline-flex min-h-[2.75rem] w-full items-start gap-2 rounded-xl border px-3 py-2.5 text-left text-xs font-semibold text-foreground/95 shadow-sm transition-all duration-200",
+                                accent.border,
+                                accent.bg,
+                                accent.hover,
+                                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                                isGuidedFirstSubtopic &&
+                                  "ring-2 ring-primary/50 animate-pulse shadow-[0_0_0_1px_rgba(59,130,246,0.25)]"
+                              )}
+                              title={subtopicNavPreviewLine(st.name)}
+                              onClick={dismissSubtopicGuide}
+                            >
+                              <span
+                                className={cn(
+                                  "mt-0.5 inline-flex h-5 min-w-[1.35rem] shrink-0 items-center justify-center rounded-md border border-current/20 bg-background/60 text-[10px] font-extrabold tabular-nums dark:bg-background/40",
+                                  accent.num
+                                )}
+                              >
+                                {idx + 1}
+                              </span>
+                              <MathText className="min-w-0 flex-1 leading-snug [&_.katex]:!text-[0.85em]">
+                                {subtopicMathTextLabel(st.name)}
+                              </MathText>
+                            </Link>
+                          </div>
                         );
                       })}
                     </div>
@@ -4993,14 +5662,25 @@ export default function TopicPage() {
                       Preview list for this chapter. Use the numbered buttons below to open each
                       subtopic page.
                     </p>
-                    <ul className="space-y-2 text-sm">
+                    <ul className="space-y-2.5 text-sm">
                       {topicNode.subtopics.map((st, idx) => {
+                        const accent = SUBTOPIC_NAV_ACCENTS[idx % SUBTOPIC_NAV_ACCENTS.length];
                         return (
                           <li
                             key={st.name}
-                            className="subtopic-title-text flex gap-3 min-w-0 rounded-xl border border-border/70 bg-background/70 px-3 py-2"
+                            className={cn(
+                              "subtopic-title-text flex gap-3 min-w-0 rounded-xl border px-3 py-2.5 shadow-sm transition-colors",
+                              accent.border,
+                              accent.bg,
+                              accent.hover
+                            )}
                           >
-                            <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-md bg-muted text-[11px] font-extrabold text-foreground shrink-0">
+                            <span
+                              className={cn(
+                                "inline-flex h-6 min-w-6 shrink-0 items-center justify-center rounded-md border border-current/15 bg-background/55 text-[11px] font-extrabold dark:bg-background/35",
+                                accent.num
+                              )}
+                            >
                               {idx + 1}
                             </span>
                             <div className="min-w-0 flex-1">
@@ -5055,6 +5735,7 @@ export default function TopicPage() {
                         </p>
                         <div className="flex flex-wrap gap-2">
                           {topicNode.subtopics.map((st, idx) => {
+                            const isGuidedFirstSubtopic = showSubtopicGuide && idx === 0;
                             const href = appendQueryParams(
                               buildTopicPath(
                                 board,
@@ -5068,14 +5749,25 @@ export default function TopicPage() {
                               isMagicWallSource ? { source: "magic-wall" } : {}
                             );
                             return (
-                              <Link
-                                key={st.name}
-                                href={href}
-                                className="w-9 h-9 rounded-lg flex items-center justify-center text-sm font-bold transition-colors bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground"
-                                title={subtopicNavPreviewLine(st.name)}
-                              >
-                                {idx + 1}
-                              </Link>
+                              <div key={st.name} className="relative">
+                                {isGuidedFirstSubtopic && (
+                                  <span className="pointer-events-none absolute -top-3 left-1/2 z-10 -translate-x-1/2 rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary-foreground shadow-md animate-bounce">
+                                    Start Here
+                                  </span>
+                                )}
+                                <Link
+                                  href={href}
+                                  className={cn(
+                                    "w-9 h-9 rounded-lg flex items-center justify-center text-sm font-bold transition-colors bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground",
+                                    isGuidedFirstSubtopic &&
+                                      "ring-2 ring-primary/50 animate-pulse shadow-[0_0_0_1px_rgba(59,130,246,0.25)]"
+                                  )}
+                                  title={subtopicNavPreviewLine(st.name)}
+                                  onClick={dismissSubtopicGuide}
+                                >
+                                  {idx + 1}
+                                </Link>
+                              </div>
                             );
                           })}
                         </div>
@@ -5096,7 +5788,7 @@ export default function TopicPage() {
                         {canEditTheory ? "+ InstaCue" : "InstaCue"}
                       </TabsTrigger>
                       <TabsTrigger value="quiz" className="text-xs">
-                        Quiz{dbBitsQuestions.length > 0 ? ` (${dbBitsQuestions.length})` : ""}
+                        {`Quiz${dbBitsQuestions.length > 0 ? ` (${dbBitsQuestions.length})` : ""}`}
                       </TabsTrigger>
                       <TabsTrigger value="numerals" className="text-xs">
                         Numerals
@@ -5119,14 +5811,37 @@ export default function TopicPage() {
                         onCardValidated={handleInstaCueValidated}
                         onAddCard={
                           user && canEditTheory
-                            ? (card) => {
+                            ? async (card) => {
                                 const id = `user-${Date.now()}-${Math.random().toString(36).slice(2)}`;
                                 saveRevisionCard({
                                   ...card,
                                   id,
                                   board: (board === "icse" ? "ICSE" : "CBSE") as Board,
                                 } as Parameters<typeof saveRevisionCard>[0]);
-                                syncAllSavedContent().catch(() => {});
+                                try {
+                                  await syncAllSavedContent();
+                                } catch {
+                                  /* best-effort */
+                                }
+                                const reward = await applyInstacueCreateDailyRdmReward({
+                                  refreshProfile,
+                                });
+                                if (reward.awarded) {
+                                  toast({
+                                    title: "+5 RDM",
+                                    description: "First InstaCue card you created today (IST).",
+                                  });
+                                } else if (
+                                  reward.reason &&
+                                  reward.reason !== "already_claimed_today" &&
+                                  reward.reason !== "not_authenticated"
+                                ) {
+                                  toast({
+                                    variant: "destructive",
+                                    title: "Could not apply RDM bonus",
+                                    description: reward.reason,
+                                  });
+                                }
                               }
                             : undefined
                         }
@@ -5139,7 +5854,7 @@ export default function TopicPage() {
                             className="rounded-lg gap-1.5 text-xs font-bold text-primary disabled:opacity-50"
                             title={
                               hasDeepDiveForAiArtifacts
-                                ? "Runs the full pack: InstaCue cards, then Bits (MCQs), then practice formulas — same pipeline as Generate Subtopic AI step 2."
+                                ? "Runs the full pack: InstaCue cards, then Quiz (MCQs), then practice formulas — same pipeline as Generate Subtopic AI step 2."
                                 : "Generate Deep Dive first, then run AI cards."
                             }
                             disabled={
@@ -5161,14 +5876,14 @@ export default function TopicPage() {
                             {generatingFormulas
                               ? "Generating formulas…"
                               : generatingBits
-                                ? "Generating Bits…"
+                                ? "Generating Quiz…"
                                 : generatingInstacue
                                   ? "Generating InstaCue…"
                                   : dbInstacueCards.length > 0 ||
                                       dbBitsQuestions.length > 0 ||
                                       dbPracticeFormulas.length > 0
                                     ? "Regenerate AI pack"
-                                    : "Generate InstaCue + Bits + Formulas"}
+                                    : "Generate InstaCue + Quiz + Formulas"}
                           </Button>
                           {!hasDeepDiveForAiArtifacts && !generatingDeepDive && (
                             <p className="text-[10px] text-muted-foreground text-right max-w-[14rem] leading-snug">
@@ -5215,13 +5930,13 @@ export default function TopicPage() {
                           </div>
                           <p className="text-[11px] text-muted-foreground mb-2">
                             Last run: {artifactLastRunAt ?? "—"} · Current data: InstaCue{" "}
-                            {dbInstacueCards.length}, Bits {dbBitsQuestions.length}, Practice
+                            {dbInstacueCards.length}, Quiz {dbBitsQuestions.length}, Practice
                             Formulas {dbPracticeFormulas.length}
                           </p>
                           <p className="text-[10px] text-muted-foreground mb-2 leading-snug">
                             Manual run:{" "}
                             <span className="font-semibold text-foreground">
-                              Generate InstaCue + Bits + Formulas
+                              Generate InstaCue + Quiz + Formulas
                             </span>{" "}
                             or{" "}
                             <span className="font-semibold text-foreground">
@@ -5274,10 +5989,10 @@ export default function TopicPage() {
                               <Sparkles className="w-3.5 h-3.5" />
                             )}
                             {generatingBits
-                              ? "Generating Bits..."
+                              ? "Generating Quiz..."
                               : dbBitsQuestions.length > 0
-                                ? "Regenerate Bits"
-                                : "Generate Bits"}
+                                ? "Regenerate Quiz"
+                                : "Generate Quiz"}
                           </Button>
                         </div>
                       )}
@@ -5661,14 +6376,20 @@ export default function TopicPage() {
                                   >
                                     Take test another time
                                   </Button>
-                                  <Button
-                                    variant="secondary"
-                                    size="sm"
-                                    className="h-9 rounded-xl border border-primary/35 bg-primary/12 px-5 text-sm font-semibold text-primary shadow-[0_0_0_1px_rgba(59,130,246,0.18)] transition hover:bg-primary/18 sm:justify-self-end"
-                                    onClick={handleOpenQuizPostDialog}
-                                  >
-                                    Post quiz
-                                  </Button>
+                                  {isActiveQuizSetShareClaimed ? (
+                                    <div className="h-9 px-2 text-xs font-semibold text-emerald-400 sm:justify-self-end inline-flex items-center">
+                                      Share reward already claimed
+                                    </div>
+                                  ) : (
+                                    <Button
+                                      variant="default"
+                                      size="sm"
+                                      className="h-9 rounded-xl px-4 text-sm font-semibold text-primary-foreground bg-primary shadow-sm ring-1 ring-primary/35 transition-colors hover:bg-primary/90 sm:justify-self-end"
+                                      onClick={handleOpenQuizPostDialog}
+                                    >
+                                      {`Post & earn +${rdmConfig.quiz_community_share_rdm} RDM`}
+                                    </Button>
+                                  )}
                                 </div>
                                 {useAdvancedSetsUi &&
                                 (activeQuizSet > 1 || nextQuizSetNumber !== null) ? (
@@ -5785,7 +6506,9 @@ export default function TopicPage() {
                                         disabled={publishingQuizPost}
                                         onClick={() => void handlePublishQuizPost()}
                                       >
-                                        {publishingQuizPost ? "Publishing..." : "Post"}
+                                        {publishingQuizPost
+                                          ? "Publishing..."
+                                          : `Post & Earn ${rdmConfig.quiz_community_share_rdm} RDM`}
                                       </Button>
                                     </DialogFooter>
                                   </DialogContent>
@@ -5839,8 +6562,8 @@ export default function TopicPage() {
                                     </div>
                                     <div className="min-w-0 max-w-full rounded-2xl border border-border p-4 space-y-3 bg-card">
                                       <div className="flex items-start justify-between gap-3">
-                                        <h3 className="min-w-0 max-w-full flex-1 text-[1.05rem] font-bold leading-snug text-foreground [overflow-wrap:anywhere] break-words">
-                                          <MathText>
+                                        <h3 className="min-w-0 max-w-full flex-1 text-[1.05rem] font-bold leading-snug text-foreground [overflow-wrap:anywhere] break-words [&_.katex]:text-[0.95em] [&_.katex-display]:my-1">
+                                          <MathText className="block leading-snug">
                                             {normalizeQuizDisplayMath(q.question)}
                                           </MathText>
                                         </h3>
@@ -5858,7 +6581,7 @@ export default function TopicPage() {
                                               if (currentQuizSavedBitId) {
                                                 unsaveBit(currentQuizSavedBitId);
                                                 persistSavedContent();
-                                                toast({ title: "Removed from Saved Bits" });
+                                                toast({ title: "Removed from saved quizzes" });
                                               }
                                               return;
                                             }
@@ -5879,7 +6602,7 @@ export default function TopicPage() {
                                             };
                                             saveBit(bit);
                                             persistSavedContent();
-                                            toast({ title: "Saved to Saved Bits" });
+                                            toast({ title: "Saved to your quizzes" });
                                           }}
                                           title={
                                             isCurrentQuizBitSaved
@@ -5930,13 +6653,15 @@ export default function TopicPage() {
                                               }
                                               role="radio"
                                               aria-checked={selected === oi}
-                                              className={`flex min-w-0 w-full max-w-full items-center gap-2.5 rounded-xl border px-3 py-2 text-left text-sm transition-colors ${cls}`}
+                                              className={`flex min-w-0 w-full max-w-full items-start gap-2.5 rounded-xl border px-3 py-2 text-left text-sm transition-colors ${cls}`}
                                             >
-                                              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-background/90 text-sm font-bold">
+                                              <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-background/90 text-sm font-bold">
                                                 {String.fromCharCode(65 + oi)}
                                               </span>
-                                              <span className="min-w-0 flex-1 [overflow-wrap:anywhere] break-words">
-                                                <MathText>{normalizeQuizDisplayMath(opt)}</MathText>
+                                              <span className="min-w-0 flex-1 [overflow-wrap:anywhere] break-words leading-snug [&_.katex]:text-[0.92em] [&_.katex-display]:my-0.5">
+                                                <MathText className="block w-full">
+                                                  {normalizeQuizDisplayMath(opt)}
+                                                </MathText>
                                               </span>
                                               {answered && isCorrect && (
                                                 <CheckCircle2 className="inline w-4 h-4 ml-auto text-green-600" />
@@ -6169,6 +6894,48 @@ export default function TopicPage() {
                                                 title: "Set submitted",
                                                 description: `Correct: ${correctCount}, Wrong: ${wrongCount}`,
                                               });
+                                              if (activeQuizSet === 3 && topicNode && subtopicName) {
+                                                try {
+                                                  const reward =
+                                                    await applyTopicQuizAdvancedDailyRdmReward(
+                                                      {
+                                                        board: boardName,
+                                                        subject: topicNode.subject,
+                                                        classLevel: topicNode.classLevel,
+                                                        topic: topicNode.topic,
+                                                        subtopicName,
+                                                      },
+                                                      { refreshProfile }
+                                                    );
+                                                  if (reward.awarded) {
+                                                    toast({
+                                                      title: `+${rdmConfig.subtopic_quiz_advanced_rdm} RDM`,
+                                                      description:
+                                                        "Advanced topic quiz: ≥60% overall with all sets complete. Credited for today (IST).",
+                                                    });
+                                                  } else if (
+                                                    reward.reason === "already_claimed_today"
+                                                  ) {
+                                                    toast({
+                                                      title: "Daily topic-quiz bonus already used",
+                                                      description: `You already earned +${rdmConfig.subtopic_quiz_advanced_rdm} RDM from an advanced topic quiz today (IST).`,
+                                                    });
+                                                  } else if (
+                                                    reward.reason &&
+                                                    reward.reason !== "below_threshold" &&
+                                                    reward.reason !== "not_multiset_advanced" &&
+                                                    reward.reason !== "content_not_found"
+                                                  ) {
+                                                    toast({
+                                                      variant: "destructive",
+                                                      title: "Topic quiz RDM",
+                                                      description: reward.reason,
+                                                    });
+                                                  }
+                                                } catch {
+                                                  /* best-effort bonus */
+                                                }
+                                              }
                                             } catch {
                                               toast({
                                                 title: "Failed to save result",
@@ -6225,8 +6992,8 @@ export default function TopicPage() {
                                           <p className="mb-1 font-bold text-foreground">
                                             Explanation
                                           </p>
-                                          <div className="min-w-0 max-w-full text-foreground/90">
-                                            <MathText as="div">
+                                          <div className="min-w-0 max-w-full text-foreground/90 leading-relaxed [&_.katex]:text-[0.95em] [&_.katex-display]:my-1">
+                                            <MathText as="div" className="space-y-1">
                                               {normalizeQuizDisplayMath(q.solution)}
                                             </MathText>
                                           </div>
@@ -6244,6 +7011,50 @@ export default function TopicPage() {
 
                     {/* Tab 3: Numerals */}
                     <TabsContent value="numerals" className="space-y-3 mt-0">
+                      {numeralsOverallBarStats.withQuestionsCount > 0 && (
+                        <div
+                          className="grid grid-cols-2 gap-1.5 rounded-lg border border-border/60 bg-muted/30 px-1.5 py-1 sm:gap-2 sm:px-2"
+                          aria-label="Numerals overall progress"
+                        >
+                          <div className="min-w-0 rounded-md border border-border/40 bg-background/50 px-1.5 py-1">
+                            <p className="text-[9px] font-bold uppercase leading-none tracking-wide text-muted-foreground">
+                              Overall score
+                            </p>
+                            <p className="text-base font-extrabold leading-none text-foreground tabular-nums mt-0.5">
+                              {numeralsOverallBarStats.overallPct !== null
+                                ? `${numeralsOverallBarStats.overallPct}%`
+                                : "—"}
+                            </p>
+                            {numeralsOverallBarStats.submittedCount > 0 ? (
+                              <p className="mt-0.5 text-[10px] leading-tight text-muted-foreground">
+                                {numeralsOverallBarStats.totalCorrect}/
+                                {numeralsOverallBarStats.totalQuestions} correct ·{" "}
+                                {numeralsOverallBarStats.submittedCount} numeral
+                                {numeralsOverallBarStats.submittedCount !== 1 ? "s" : ""}
+                              </p>
+                            ) : (
+                              <p className="mt-0.5 text-[10px] leading-tight text-muted-foreground">
+                                Submit one to see %.
+                              </p>
+                            )}
+                          </div>
+                          <div className="min-w-0 rounded-md border border-border/40 bg-background/50 px-1.5 py-1 text-right">
+                            <p className="text-[9px] font-bold uppercase leading-none tracking-wide text-muted-foreground">
+                              Remaining
+                            </p>
+                            <p className="text-base font-extrabold leading-none text-primary tabular-nums mt-0.5">
+                              {numeralsOverallBarStats.remaining === 0
+                                ? "0"
+                                : numeralsOverallBarStats.remaining}
+                            </p>
+                            <p className="mt-0.5 text-[10px] leading-tight text-muted-foreground">
+                              {numeralsOverallBarStats.remaining === 0
+                                ? "All submitted."
+                                : `${numeralsOverallBarStats.withQuestionsCount} total`}
+                            </p>
+                          </div>
+                        </div>
+                      )}
                       {canEditTheory && (
                         <div className="flex justify-end mb-1">
                           <Button
@@ -6281,6 +7092,7 @@ export default function TopicPage() {
                           </p>
                         </div>
                       ) : (
+                        <>
                         <div
                           className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-2 overflow-y-auto no-scrollbar pb-1"
                           style={{ maxHeight: "calc(100vh - 220px)" }}
@@ -6345,9 +7157,6 @@ export default function TopicPage() {
                                 ) : null}
                               </div>
                               <p className="font-bold text-xs sm:text-sm mb-1">{formula.name}</p>
-                              <p className="text-[11px] sm:text-xs text-muted-foreground mb-1.5 line-clamp-2">
-                                {formula.description}
-                              </p>
                               <span className="text-primary text-[11px] sm:text-xs font-bold hover:underline">
                                 Try this →
                               </span>
@@ -6355,6 +7164,7 @@ export default function TopicPage() {
                           );
                           })}
                         </div>
+                        </>
                       )}
                     </TabsContent>
 
@@ -6519,7 +7329,7 @@ export default function TopicPage() {
                               </MathText>
                             </>
                           ) : (
-                            "Practice questions in the same Bits structure"
+                            "Practice questions in the same quiz structure"
                           )}
                         </div>
                       </DialogDescription>
@@ -6695,7 +7505,7 @@ export default function TopicPage() {
                                   Submitted on{" "}
                                   {new Date(storedAttempt.submittedAt).toLocaleString()}
                                 </p>
-                                <div className="grid grid-cols-1 gap-2 pt-1 sm:grid-cols-2 sm:items-center">
+                                <div className="grid grid-cols-1 gap-2 pt-1 sm:grid-cols-3 sm:items-center">
                                   <Button
                                     variant="outline"
                                     size="sm"
@@ -6718,7 +7528,7 @@ export default function TopicPage() {
                                   <Button
                                     variant="default"
                                     size="sm"
-                                    className="rounded-xl h-8 px-3 text-xs sm:justify-self-end"
+                                    className="rounded-xl h-8 px-3 text-xs sm:justify-self-center"
                                     onClick={async () => {
                                       if (!topicNode || !subtopicName || selectedFormulaIdx === null)
                                         return;
@@ -6758,7 +7568,104 @@ export default function TopicPage() {
                                   >
                                     Take test another time
                                   </Button>
+                                  {isSelectedNumeralShareClaimed ? (
+                                    <div className="h-8 px-2 text-xs font-semibold text-emerald-400 sm:justify-self-end inline-flex items-center">
+                                      Share reward already claimed
+                                    </div>
+                                  ) : (
+                                    <Button
+                                      variant="default"
+                                      size="sm"
+                                      className="h-8 rounded-xl px-3 text-xs font-semibold text-primary-foreground bg-primary shadow-sm ring-1 ring-primary/35 transition-colors hover:bg-primary/90 sm:justify-self-end"
+                                      onClick={handleOpenNumeralsPostDialog}
+                                    >
+                                      {`Post & earn +${rdmConfig.numerals_community_share_rdm} RDM`}
+                                    </Button>
+                                  )}
                                 </div>
+                                <Dialog
+                                  open={numeralsPostDialogOpen}
+                                  onOpenChange={setNumeralsPostDialogOpen}
+                                >
+                                  <DialogContent className="w-[min(42rem,calc(100vw-1.5rem))] max-w-2xl rounded-2xl p-4 sm:p-6">
+                                    <DialogHeader>
+                                      <DialogTitle>Post numerals result</DialogTitle>
+                                      <DialogDescription>
+                                        Pick a ready format, edit if needed, then publish to
+                                        Lessons.
+                                      </DialogDescription>
+                                    </DialogHeader>
+
+                                    <div className="rounded-xl border border-border bg-muted/25 p-3 text-xs text-muted-foreground">
+                                      <p className="font-semibold text-foreground">Context</p>
+                                      <div className="mt-2 flex flex-wrap gap-1.5">
+                                        {quizContextChips.map((chip) => (
+                                          <span
+                                            key={`numerals-${chip}`}
+                                            className="rounded-full border border-border bg-background px-2 py-0.5 text-[11px]"
+                                          >
+                                            {chip}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                      <div className="flex items-center justify-between gap-2">
+                                        <Label className="text-xs font-semibold">
+                                          Template preview
+                                        </Label>
+                                        <Button
+                                          type="button"
+                                          variant="outline"
+                                          size="sm"
+                                          className="h-8 rounded-lg"
+                                          onClick={handleShuffleNumeralsTemplate}
+                                          disabled={publishingNumeralsPost}
+                                        >
+                                          <Shuffle className="mr-1 h-3.5 w-3.5" />
+                                          Shuffle template
+                                        </Button>
+                                      </div>
+                                      <input
+                                        value={numeralsPostTitle}
+                                        onChange={(e) => setNumeralsPostTitle(e.target.value)}
+                                        className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+                                        placeholder="Post title"
+                                        disabled={publishingNumeralsPost}
+                                      />
+                                      <Textarea
+                                        value={numeralsPostDetails}
+                                        onChange={(e) => setNumeralsPostDetails(e.target.value)}
+                                        className="min-h-[120px] rounded-xl"
+                                        placeholder="Details (optional)"
+                                        disabled={publishingNumeralsPost}
+                                      />
+                                    </div>
+
+                                    <DialogFooter className="gap-2 sm:gap-0">
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        className="rounded-xl"
+                                        disabled={publishingNumeralsPost}
+                                        onClick={() => setNumeralsPostDialogOpen(false)}
+                                      >
+                                        Cancel
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        className="rounded-xl"
+                                        disabled={publishingNumeralsPost}
+                                        onClick={() => void handlePublishNumeralsPost()}
+                                      >
+                                        {publishingNumeralsPost
+                                          ? "Publishing..."
+                                          : `Post & Earn ${rdmConfig.numerals_community_share_rdm} RDM`}
+                                      </Button>
+                                    </DialogFooter>
+                                  </DialogContent>
+                                </Dialog>
                               </div>
                             </div>
                           );
@@ -6806,9 +7713,6 @@ export default function TopicPage() {
                               <ArrowLeft className="h-4 w-4 shrink-0" />
                               Back to Formulas
                             </button>
-                            <p className="max-w-prose text-xs text-muted-foreground [&_.katex]:text-[0.92em] sm:text-sm">
-                              <MathText>{formula.description}</MathText>
-                            </p>
                             <div className="flex justify-center overflow-x-auto rounded-lg bg-muted/60 px-3 py-2 text-primary [&_.katex-display]:mx-auto [&_.katex]:text-[0.98em]">
                               <MathText>{`$$${stripFormulaDelimiters(formula.formulaLatex)}$$`}</MathText>
                             </div>
@@ -6832,8 +7736,10 @@ export default function TopicPage() {
                             </div>
 
                             <div className="min-w-0 max-w-full rounded-2xl border border-border bg-card p-4 space-y-3">
-                              <h3 className="min-w-0 max-w-full text-[1.05rem] font-bold leading-snug text-foreground [overflow-wrap:anywhere] break-words">
-                                <MathText>{normalizeQuizDisplayMath(q.question)}</MathText>
+                              <h3 className="min-w-0 max-w-full text-[1.05rem] font-bold leading-snug text-foreground [overflow-wrap:anywhere] break-words [&_.katex]:text-[0.95em] [&_.katex-display]:my-1">
+                                <MathText className="block leading-snug">
+                                  {normalizeQuizDisplayMath(q.question)}
+                                </MathText>
                               </h3>
                               <div
                                 className={
@@ -6869,13 +7775,15 @@ export default function TopicPage() {
                                       }
                                       role="radio"
                                       aria-checked={selected === oi}
-                                      className={`flex min-w-0 w-full max-w-full items-center gap-2.5 rounded-xl border px-3 py-2 text-left text-sm transition-colors ${cls}`}
+                                      className={`flex min-w-0 w-full max-w-full items-start gap-2.5 rounded-xl border px-3 py-2 text-left text-sm transition-colors ${cls}`}
                                     >
-                                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-background/90 text-sm font-bold">
+                                      <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-background/90 text-sm font-bold">
                                         {String.fromCharCode(65 + oi)}
                                       </span>
-                                      <span className="min-w-0 flex-1 [overflow-wrap:anywhere] break-words">
-                                        <MathText>{normalizeQuizDisplayMath(opt)}</MathText>
+                                      <span className="min-w-0 flex-1 [overflow-wrap:anywhere] break-words leading-snug [&_.katex]:text-[0.92em] [&_.katex-display]:my-0.5">
+                                        <MathText className="block w-full">
+                                          {normalizeQuizDisplayMath(opt)}
+                                        </MathText>
                                       </span>
                                       {answered && isCorrect && (
                                         <CheckCircle2 className="inline w-4 h-4 ml-auto shrink-0 text-green-600" />
@@ -6995,6 +7903,61 @@ export default function TopicPage() {
                                         ...prev,
                                         [selectedFormulaIdx]: persisted,
                                       }));
+                                      const nextAttempts: Partial<
+                                        Record<number, BitsAttemptRecord>
+                                      > = {
+                                        ...formulaNumeralsAttemptByIdx,
+                                        [selectedFormulaIdx]: persisted,
+                                      };
+                                      let allWithQuestionsSubmitted = true;
+                                      for (let fi = 0; fi < dbPracticeFormulas.length; fi++) {
+                                        const pf = dbPracticeFormulas[fi];
+                                        const fqs =
+                                          formulaQuestionsOverride[fi] ?? pf.bitsQuestions ?? [];
+                                        if (fqs.length === 0) continue;
+                                        const fSig = getBitsSignature(fqs);
+                                        const fAtt = nextAttempts[fi];
+                                        if (!fAtt || fAtt.bitsSignature !== fSig) {
+                                          allWithQuestionsSubmitted = false;
+                                          break;
+                                        }
+                                      }
+                                      if (allWithQuestionsSubmitted && topicNode && subtopicName) {
+                                        const packClaim = await claimNumeralsPackCompleteDailyRdm({
+                                          board: boardNameNum,
+                                          subject: topicNode.subject,
+                                          classLevel: topicNode.classLevel as 11 | 12,
+                                          topic: topicNode.topic,
+                                          subtopicName,
+                                          level: difficultyLevel,
+                                        });
+                                        if (packClaim.awarded && packClaim.balance != null) {
+                                          setRdmFromProfile(packClaim.balance);
+                                          void refreshProfile();
+                                          toast({
+                                            title: `+${rdmConfig.subtopic_numerals_pack_rdm} RDM`,
+                                            description:
+                                              "Numerals: ≥60% overall with every formula submitted. Credited once per IST day across subtopics.",
+                                          });
+                                        } else if (
+                                          packClaim.reason === "already_claimed_today"
+                                        ) {
+                                          toast({
+                                            title: "Daily numerals bonus already used",
+                                            description: `You already earned +${rdmConfig.subtopic_numerals_pack_rdm} RDM from numerals today (IST).`,
+                                          });
+                                        } else if (
+                                          packClaim.reason &&
+                                          packClaim.reason !== "below_threshold" &&
+                                          packClaim.reason !== "incomplete_numerals"
+                                        ) {
+                                          toast({
+                                            variant: "destructive",
+                                            title: "Numerals RDM",
+                                            description: packClaim.reason,
+                                          });
+                                        }
+                                      }
                                       setFormulaNumeralsReviewMode(false);
                                       setFormulaBitsCurrentIdx(0);
                                       setFormulaBitsSelectedAnswers({});
@@ -7043,8 +8006,8 @@ export default function TopicPage() {
                               {answered && q.solution && (
                                 <div className="bits-quiz-explanation mt-2 rounded-xl bg-muted/50 p-3 text-sm text-muted-foreground">
                                   <p className="mb-1 font-bold text-foreground">Explanation</p>
-                                  <div className="min-w-0 max-w-full text-foreground/90">
-                                    <MathText as="div">
+                                  <div className="min-w-0 max-w-full text-foreground/90 leading-relaxed [&_.katex]:text-[0.95em] [&_.katex-display]:my-1">
+                                    <MathText as="div" className="space-y-1">
                                       {normalizeQuizDisplayMath(q.solution)}
                                     </MathText>
                                   </div>
@@ -7192,5 +8155,13 @@ export default function TopicPage() {
         onSelect={handleWheelSelect}
       />
     </AppLayout>
+  );
+}
+
+export default function TopicPage() {
+  return (
+    <ProtectedRoute>
+      <TopicPageInner />
+    </ProtectedRoute>
   );
 }

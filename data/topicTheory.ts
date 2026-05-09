@@ -160,7 +160,7 @@ It will be delivered from **Supabase** when published. Study your textbook and n
   return {
     theory: `**${subtopicName}** (${topic} · ${subject}, Class ${classLevel} · ${levelLabel})
 
-Full theory for this subtopic will load from **Supabase** once it is published. Study your textbook and notes until then. Bits and practice items will appear when they are added for this subtopic and level.`,
+Full theory for this subtopic will load from **Supabase** once it is published. Study your textbook and notes until then. Quizzes and practice items will appear when they are added for this subtopic and level.`,
     bits: [],
   };
 }

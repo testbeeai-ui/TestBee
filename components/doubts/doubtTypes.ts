@@ -8,7 +8,7 @@ export type SortOption =
   | "teacher_tagged"
   | "saved";
 export type ActivityView = "feed" | "asked" | "answered" | "saved";
-export type TabFilter = "all" | "student" | "ai" | "teacher" | "revision" | "bounties";
+export type TabFilter = "all" | "student" | "ai" | "teacher" | "revision";
 
 export const DOUBT_FLAIRS = ["Physics", "Chemistry", "Math", "General Question", "Other"] as const;
 

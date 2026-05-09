@@ -325,7 +325,7 @@ export default function ChapterQuizAssignmentFields({
             </button>
           </div>
           <p className="mt-1.5 text-[11px] text-slate-500">
-            Same three sets as the lesson Bits quiz panel. Preview lists stems and options only (no
+            Same three sets as the lesson quiz panel. Preview lists stems and options only (no
             marked correct answers).
           </p>
         </div>
@@ -343,7 +343,7 @@ export default function ChapterQuizAssignmentFields({
           >
             <DialogHeader>
               <DialogTitle className="text-slate-100">
-                Bits preview — Set {value.advancedSet}
+                Quiz preview — Set {value.advancedSet}
               </DialogTitle>
               <DialogDescription className="text-left text-slate-400">
                 Stems and choices only (no correct markers or solutions). Copy and right-click are
@@ -364,7 +364,7 @@ export default function ChapterQuizAssignmentFields({
                 </p>
               ) : previewRows.length === 0 ? (
                 <p className="text-sm text-slate-400">
-                  No MCQs in this set yet. Generate or save advanced Bits on the topic page for this
+                  No MCQs in this set yet. Generate or save advanced quiz questions on the topic page for this
                   subtopic.
                 </p>
               ) : (

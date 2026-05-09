@@ -9,6 +9,9 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import type { Database } from "@/integrations/supabase/types";
+import { normalizeReferralRef, persistPendingReferralRefFromUrl } from "@/lib/referralClient";
+
+const REFERRAL_LANDING_REDIRECT_SEC = 3;
 
 type ClassroomRow = Database["public"]["Tables"]["classrooms"]["Row"];
 
@@ -19,6 +22,7 @@ export default function JoinByCodeClient() {
   const { user, loading: authLoading } = useAuth();
 
   const codeFromUrl = useMemo(() => (params?.get("code") ?? "").trim().toUpperCase(), [params]);
+  const refFromUrl = useMemo(() => (params?.get("ref") ?? "").trim(), [params]);
   const [code, setCode] = useState(codeFromUrl);
   const [classroom, setClassroom] = useState<ClassroomRow | null>(null);
   const [loadingRoom, setLoadingRoom] = useState(true);
@@ -26,10 +30,33 @@ export default function JoinByCodeClient() {
   const [requestStatus, setRequestStatus] = useState<"none" | "pending" | "approved" | "rejected">(
     "none"
   );
+  const [inviteSecondsLeft, setInviteSecondsLeft] = useState(REFERRAL_LANDING_REDIRECT_SEC);
 
   useEffect(() => {
     setCode(codeFromUrl);
   }, [codeFromUrl]);
+
+  useEffect(() => {
+    persistPendingReferralRefFromUrl(refFromUrl || null);
+  }, [refFromUrl]);
+
+  useEffect(() => {
+    const validRef = Boolean(normalizeReferralRef(refFromUrl));
+    const teacherCodeInUrl = codeFromUrl.trim().length >= 6;
+    if (!validRef || teacherCodeInUrl) return;
+
+    setInviteSecondsLeft(REFERRAL_LANDING_REDIRECT_SEC);
+    const interval = window.setInterval(() => {
+      setInviteSecondsLeft((s) => Math.max(0, s - 1));
+    }, 1000);
+    const go = window.setTimeout(() => {
+      router.replace("/");
+    }, REFERRAL_LANDING_REDIRECT_SEC * 1000);
+    return () => {
+      clearInterval(interval);
+      clearTimeout(go);
+    };
+  }, [refFromUrl, codeFromUrl, router]);
 
   useEffect(() => {
     const fetchRoom = async () => {
@@ -80,7 +107,11 @@ export default function JoinByCodeClient() {
 
   const goAuth = () => {
     const c = code.trim().toUpperCase();
-    const next = c ? `/join?code=${encodeURIComponent(c)}` : "/join";
+    const r = refFromUrl.trim().toUpperCase();
+    const qs = new URLSearchParams();
+    if (c) qs.set("code", c);
+    if (r) qs.set("ref", r);
+    const next = qs.toString() ? `/join?${qs.toString()}` : "/join";
     router.replace(`/auth?next=${encodeURIComponent(next)}`);
   };
 
@@ -122,6 +153,51 @@ export default function JoinByCodeClient() {
   const joinDisabled =
     submitting || loadingRoom || !canPreview || requestStatus === "pending" || requestStatus === "rejected";
 
+  const normalizedRef = normalizeReferralRef(refFromUrl);
+  const validRef = Boolean(normalizedRef);
+  /** Teacher put a class code in the URL — stay on join flow (no auto-redirect to landing). */
+  const teacherCodeInUrl = codeFromUrl.trim().length >= 6;
+  /** Friend invite only: show popup and send user to landing to sign up; ref stays in sessionStorage. */
+  const referralAutoLanding = validRef && !teacherCodeInUrl;
+
+  if (referralAutoLanding) {
+    return (
+      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/70 p-6 backdrop-blur-md">
+        <motion.div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="referral-invite-title"
+          initial={{ opacity: 0, scale: 0.96 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.25 }}
+          className="w-full max-w-sm rounded-2xl border border-teal-500/35 bg-card p-8 text-center shadow-2xl"
+        >
+          <span className="text-5xl" aria-hidden>
+            🎉
+          </span>
+          <h1 id="referral-invite-title" className="mt-4 font-display text-2xl font-semibold text-foreground">
+            Your friend invited you
+          </h1>
+          <p className="mt-3 text-sm text-muted-foreground leading-relaxed">
+            Your invite is saved. Sign up or log in from the home page, then finish onboarding — you and your friend get
+            RDM after that, once per account.
+          </p>
+          <p className="mt-5 text-xs font-medium text-teal-600 dark:text-teal-400/90">
+            Opening the home page in {inviteSecondsLeft}s…
+          </p>
+          <Button
+            type="button"
+            variant="secondary"
+            className="mt-6 w-full rounded-xl"
+            onClick={() => router.replace("/")}
+          >
+            Go now
+          </Button>
+        </motion.div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col">
       <div className="absolute inset-0 gradient-hero opacity-95" />
@@ -137,6 +213,11 @@ export default function JoinByCodeClient() {
             <p className="text-sm text-muted-foreground">
               Enter the join code from your teacher. You’ll send a request — the teacher approves it.
             </p>
+            {validRef ? (
+              <p className="mt-3 text-xs text-teal-600 dark:text-teal-400/90 font-medium">
+                Friend invite is saved — complete signup to reward them after onboarding.
+              </p>
+            ) : null}
           </div>
 
           <div className="space-y-3">
@@ -145,7 +226,7 @@ export default function JoinByCodeClient() {
               <Input
                 value={c}
                 onChange={(e) => setCode(e.target.value)}
-                placeholder="Enter 6-character code"
+                placeholder="6-character code"
                 className="rounded-xl h-12 text-center text-lg tracking-widest font-extrabold"
                 maxLength={16}
               />

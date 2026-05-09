@@ -45,7 +45,7 @@ const cards = [
 
 export default function ExamPrepPage() {
   return (
-    <ProtectedRoute>
+    <ProtectedRoute allowRoles={["student"]}>
       <AppLayout>
         <motion.div
           initial={{ opacity: 0, y: 10 }}

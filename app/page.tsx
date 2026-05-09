@@ -1,13 +1,18 @@
 "use client";
 
 import { useEffect, Suspense } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 
 import LandingNavbar from "@/components/landing/LandingNavbar";
 import LandingFooter from "@/components/landing/LandingFooter";
 import EduBlastInvestorLanding from "@/components/landing/EduBlastInvestorLanding";
 import { INVESTOR_NAV_LINKS } from "@/components/landing/landing-constants";
+import {
+  getSafeInternalNextPath,
+  persistPendingDeepLink,
+  clearPendingDeepLink,
+} from "@/lib/auth/safeNextPath";
 
 export default function LandingPage() {
   return (
@@ -28,17 +33,41 @@ export default function LandingPage() {
 function LandingPageContent() {
   const { user, profile, loading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  // Depend on the string, not the searchParams object (identity can churn and retrigger the effect).
+  const nextParam = searchParams.get("next");
+  const safeNextFromUrl = getSafeInternalNextPath(nextParam);
+
+  useEffect(() => {
+    if (safeNextFromUrl) persistPendingDeepLink(safeNextFromUrl);
+  }, [safeNextFromUrl]);
 
   useEffect(() => {
     if (loading) return;
     if (user && profile?.onboarding_complete) {
+      if (safeNextFromUrl) {
+        clearPendingDeepLink();
+        router.replace(safeNextFromUrl);
+        return;
+      }
       router.replace(profile?.role === "teacher" ? "/teacher-portal" : "/home");
     }
-  }, [user, profile?.onboarding_complete, profile?.role, loading, router]);
+  }, [
+    user,
+    profile?.onboarding_complete,
+    profile?.role,
+    loading,
+    router,
+    safeNextFromUrl,
+  ]);
 
   return (
     <div className="landing-page min-h-screen scroll-smooth bg-[#050505] text-zinc-100">
-      <LandingNavbar variant="dark" navLinks={INVESTOR_NAV_LINKS} />
+      <LandingNavbar
+        variant="dark"
+        navLinks={INVESTOR_NAV_LINKS}
+        sharedNext={safeNextFromUrl}
+      />
       <EduBlastInvestorLanding />
       <LandingFooter variant="dark" />
     </div>

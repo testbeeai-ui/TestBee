@@ -13,13 +13,24 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { supabase } from "@/integrations/supabase/client";
 import { computeStreakDays } from "@/lib/gauntletStreak";
 import {
-  REFER_CHALLENGE_SPECS,
+  formatReferDurationMmSs,
+  getReferChallengeSpecs,
+  referChallengeSessionDurationSec,
   referChallengeSpec,
   type ReferChallengePublicSpec,
   type ReferClaimKey,
 } from "@/lib/referEarnChallenges";
+import { reportChallengeYourselfAttempt } from "@/lib/reportChallengeYourselfAttempt";
 import { cn } from "@/lib/utils";
+import { EARN_LEARN_AUTO_CLAIM_LINE } from "@/lib/referEarnAutoClaimCopy";
+import {
+  DEFAULT_RDM_CONFIG,
+  fetchRdmConfig,
+  rdmConfigShallowEqual,
+  type RdmConfigParams,
+} from "@/lib/rdmConfig";
 import type { PlayDomain } from "@/types";
+import { EDUFUND_RDM_GATES } from "@/lib/dashboardSidebarMetrics";
 import {
   BarChart3,
   Check,
@@ -50,70 +61,66 @@ const TAB_ITEMS: {
   { key: "faq", label: "FAQ", icon: Info },
 ];
 
-const FAQ_ITEMS = [
-  {
-    q: "What uses RDM?",
-    a: "RDM can be redeemed for Practice Packs, Full Mock Tests, Analytics Pro, and EduFund scholarship entries. More rewards are added regularly.",
-  },
-  {
-    q: "How many RDM do I get per referral?",
-    a: "You earn 50 RDM when your friend signs up using your link. You get an additional 100 RDM bonus when you hit 5 referrals in a week.",
-  },
-  {
-    q: "Does my friend also get RDM?",
-    a: "Yes! Your friend gets 25 RDM as a welcome bonus when they sign up through your link. It appears in their balance after onboarding.",
-  },
-  {
-    q: "When does the leaderboard reset?",
-    a: "The referral leaderboard resets every Monday at 12:00 AM IST. Your total RDM balance never resets — only the weekly ranking does.",
-  },
-];
+type RedeemMarketingKey =
+  | "redeem_practice_packs_from_rdm"
+  | "redeem_mock_tests_from_rdm"
+  | "redeem_analytics_pro_from_rdm"
+  | "redeem_edufund_entry_from_rdm";
 
-const REWARD_USES = [
+const REWARD_USE_BASE: ReadonlyArray<{
+  title: string;
+  emoji: string;
+  titleClass: string;
+  borderClass: string;
+  configKey: RedeemMarketingKey;
+}> = [
   {
     title: "Practice Packs",
-    from: "from 50 RDM",
     emoji: "🎁",
     titleClass: "text-violet-300",
     borderClass: "border-violet-500/30",
+    configKey: "redeem_practice_packs_from_rdm",
   },
   {
     title: "Mock Tests",
-    from: "from 100 RDM",
     emoji: "📝",
     titleClass: "text-amber-300",
     borderClass: "border-amber-500/30",
+    configKey: "redeem_mock_tests_from_rdm",
   },
   {
     title: "Analytics Pro",
-    from: "from 200 RDM",
     emoji: "📊",
     titleClass: "text-teal-300",
     borderClass: "border-teal-500/30",
+    configKey: "redeem_analytics_pro_from_rdm",
   },
   {
     title: "EduFund Entry",
-    from: "from 500 RDM",
     emoji: "🏆",
     titleClass: "text-rose-300",
     borderClass: "border-rose-500/30",
+    configKey: "redeem_edufund_entry_from_rdm",
   },
 ];
 
-/** EduFund-style grant tiers (RDM thresholds); ₹ copy matches investor mock. */
-const GRANT_TIERS = [
-  { key: "sprout", name: "Sprout", threshold: 1000, grant: "₹3,000", icon: "🌱" },
-  { key: "scholar", name: "Scholar", threshold: 3000, grant: "₹12,000", icon: "📚" },
-  { key: "champion", name: "Champion", threshold: 8000, grant: "₹50,000", icon: "🏆" },
-] as const;
+const GRANT_TIER_KEYS = ["sprout", "scholar", "champion", "elite", "masterblaster"] as const;
+const GRANT_TIER_ICONS = ["🌱", "📚", "🏆", "🚀", "👑"] as const;
 
-const DAILY_CHALLENGE_RDM_CAP = 50;
+/** EduFund grant tiers — thresholds and ₹ unlocked from `EDUFUND_RDM_GATES` only. */
+const GRANT_TIERS = EDUFUND_RDM_GATES.map((g, i) => ({
+  key: GRANT_TIER_KEYS[i]!,
+  name: g.name,
+  threshold: g.need,
+  grant: "₹" + g.unlockInrAmount.toLocaleString("en-IN"),
+  icon: GRANT_TIER_ICONS[i]!,
+}));
 
 function referMinPct(spec: ReferChallengePublicSpec): number {
   return Math.round((spec.minCorrect / spec.questionCount) * 100);
 }
 
-/** Refer & Earn page typography (single sans scale). */
+/** Earn & Learn page typography (single sans scale). */
 const reLabel = "text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500";
 const reBody = "text-xs leading-relaxed text-slate-400";
 const reTitle = "text-sm font-semibold text-white";
@@ -124,6 +131,17 @@ function todayUtc(): string {
 
 function formatInt(n: number): string {
   return n.toLocaleString("en-IN");
+}
+
+function formatReferralCreditedAt(iso: string): string {
+  try {
+    return new Date(iso).toLocaleString("en-IN", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
+  } catch {
+    return iso;
+  }
 }
 
 export default function ReferEarnPage() {
@@ -146,11 +164,125 @@ export default function ReferEarnPage() {
   const detailPanelRef = useRef<HTMLDivElement>(null);
   const inlineChallengeRef = useRef<HTMLDivElement>(null);
   const [activeReferClaim, setActiveReferClaim] = useState<ReferClaimKey | null>(null);
+  /** Snapshot at challenge start so `rdmConfig` refetches do not replace `spec` and reset MCQ state. */
+  const [challengeSessionSpec, setChallengeSessionSpec] =
+    useState<ReferChallengePublicSpec | null>(null);
+  const challengeActiveRef = useRef(false);
+  const [friendsReferred, setFriendsReferred] = useState(0);
+  const [weeklyReferrals, setWeeklyReferrals] = useState(0);
+  const [leaderboardRows, setLeaderboardRows] = useState<
+    { rank: number; userId: string; name: string; referralCount: number }[]
+  >([]);
+  const [leaderboardWeekLabel, setLeaderboardWeekLabel] = useState<string | null>(null);
+  const [referralStatsLoading, setReferralStatsLoading] = useState(false);
+  const [myReferralHistory, setMyReferralHistory] = useState<
+    {
+      id: string;
+      creditedAt: string;
+      creditedWeekStartIst: string;
+      refereeName: string;
+    }[]
+  >([]);
+  const [rdmConfig, setRdmConfig] = useState<RdmConfigParams>(() => ({ ...DEFAULT_RDM_CONFIG }));
+
+  useEffect(() => {
+    challengeActiveRef.current = activeReferClaim !== null;
+  }, [activeReferClaim]);
+
+  const mergeRdmConfig = useCallback((next: RdmConfigParams) => {
+    setRdmConfig((prev) => (rdmConfigShallowEqual(prev, next) ? prev : next));
+  }, []);
+
+  useEffect(() => {
+    void fetchRdmConfig().then(mergeRdmConfig);
+  }, [mergeRdmConfig]);
+
+  /** Refresh config when the tab becomes visible again — not during an active challenge (avoids MCQ reset). No `window` focus listener (too noisy). */
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState !== "visible") return;
+      void fetchRdmConfig().then((next) => {
+        if (challengeActiveRef.current) return;
+        mergeRdmConfig(next);
+      });
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, [mergeRdmConfig]);
 
   const rdm = profile?.rdm ?? user?.rdm ?? 0;
-  const friendsReferred = 0;
-  const perReferral = 50;
-  const bonusAtFive = 100;
+  const perReferral = rdmConfig.referral_referrer_reward;
+  const bonusAtFive = rdmConfig.referral_weekly_bonus_rdm;
+  const weeklyTarget = rdmConfig.referral_weekly_bonus_threshold;
+  const refereeWelcome = rdmConfig.referral_referee_welcome;
+  const dailyChallengeRdmCap = rdmConfig.refer_challenge_daily_rdm_cap;
+
+  const currentChallengeSpecs = useMemo(() => getReferChallengeSpecs(rdmConfig), [rdmConfig]);
+
+  const rewardUsesDisplay = useMemo(
+    () =>
+      REWARD_USE_BASE.map((item) => ({
+        ...item,
+        from: `from ${formatInt(rdmConfig[item.configKey])} RDM`,
+      })),
+    [rdmConfig]
+  );
+
+  const howItWorksSteps = useMemo(
+    () => [
+      {
+        n: 1,
+        title: "Copy your link",
+        body: "Your unique referral link is ready above. Tap copy — it takes 1 second.",
+        icon: Link2,
+        ring: "text-violet-400",
+      },
+      {
+        n: 2,
+        title: "Share with friends",
+        body: "Send via WhatsApp or your study groups. Works best when it’s personal.",
+        icon: Send,
+        ring: "text-teal-400",
+      },
+      {
+        n: 3,
+        title: "Both of you earn",
+        body: `You get ${perReferral} RDM when referrals are tracked. Your friend gets ${refereeWelcome} RDM as a welcome bonus after onboarding.`,
+        icon: Sparkles,
+        ring: "text-amber-400",
+      },
+    ],
+    [perReferral, refereeWelcome]
+  );
+
+  const FAQ_ITEMS = useMemo(() => {
+    const pp = rdmConfig.redeem_practice_packs_from_rdm;
+    const mt = rdmConfig.redeem_mock_tests_from_rdm;
+    const ap = rdmConfig.redeem_analytics_pro_from_rdm;
+    const ef = rdmConfig.redeem_edufund_entry_from_rdm;
+    return [
+      {
+        q: "What uses RDM?",
+        a: `RDM can be redeemed for Practice Packs (from ${formatInt(pp)} RDM), Full Mock Tests (from ${formatInt(mt)} RDM), Analytics Pro (from ${formatInt(ap)} RDM), and EduFund scholarship entries (from ${formatInt(ef)} RDM). More rewards are added regularly.`,
+      },
+      {
+        q: "How many RDM do I get per referral?",
+        a: `You earn ${perReferral} RDM when your friend signs up using your link. You get an additional ${bonusAtFive} RDM bonus when you hit ${weeklyTarget} referrals in a week.`,
+      },
+      {
+        q: "Does my friend also get RDM?",
+        a: `Yes! Your friend gets ${refereeWelcome} RDM as a welcome bonus when they sign up through your link. It appears in their balance after onboarding.`,
+      },
+      {
+        q: "When does the leaderboard reset?",
+        a: "The referral leaderboard resets every Monday at 12:00 AM IST. Your total RDM balance never resets — only the weekly ranking does.",
+      },
+      {
+        q: "How do challenge RDM rewards work (MentaMill / FunBrain / Arena)?",
+        a: `${EARN_LEARN_AUTO_CLAIM_LINE} Referral bonuses from your invite link are credited when referrals are tracked, separately from challenge RDM.`,
+      },
+    ];
+  }, [rdmConfig, perReferral, bonusAtFive, weeklyTarget, refereeWelcome]);
 
   const refCode = useMemo(() => {
     const fallbackHandle = (user?.name || "guest").replace(/\s+/g, "").slice(0, 7);
@@ -235,6 +367,81 @@ export default function ReferEarnPage() {
     void loadGauntletMeta();
   }, [loadGauntletMeta]);
 
+  const loadReferralStats = useCallback(async () => {
+    if (!profile?.id) {
+      setFriendsReferred(0);
+      setWeeklyReferrals(0);
+      setLeaderboardRows([]);
+      setLeaderboardWeekLabel(null);
+      setMyReferralHistory([]);
+      return;
+    }
+    setReferralStatsLoading(true);
+    try {
+      const [statsRes, lbRes, mineRes] = await Promise.all([
+        fetch("/api/referral/stats", { credentials: "include", cache: "no-store" }),
+        fetch("/api/referral/leaderboard", { cache: "no-store" }),
+        fetch("/api/referral/my-referrals", { credentials: "include", cache: "no-store" }),
+      ]);
+      if (statsRes.ok) {
+        const j = (await statsRes.json()) as {
+          totalReferrals?: number;
+          weeklyReferrals?: number;
+        };
+        setFriendsReferred(typeof j.totalReferrals === "number" ? j.totalReferrals : 0);
+        setWeeklyReferrals(typeof j.weeklyReferrals === "number" ? j.weeklyReferrals : 0);
+      }
+      if (lbRes.ok) {
+        const j = (await lbRes.json()) as {
+          entries?: { rank: number; userId: string; name: string; referralCount: number }[];
+          weekStartIst?: string;
+        };
+        setLeaderboardRows(Array.isArray(j.entries) ? j.entries : []);
+        setLeaderboardWeekLabel(typeof j.weekStartIst === "string" ? j.weekStartIst : null);
+      }
+      if (mineRes.ok) {
+        const j = (await mineRes.json()) as {
+          entries?: {
+            id: string;
+            creditedAt: string;
+            creditedWeekStartIst: string;
+            refereeName: string;
+          }[];
+        };
+        setMyReferralHistory(Array.isArray(j.entries) ? j.entries : []);
+      } else {
+        setMyReferralHistory([]);
+      }
+    } catch {
+      setFriendsReferred(0);
+      setWeeklyReferrals(0);
+      setMyReferralHistory([]);
+    } finally {
+      setReferralStatsLoading(false);
+    }
+  }, [profile?.id]);
+
+  useEffect(() => {
+    void loadReferralStats();
+  }, [loadReferralStats, profile?.rdm]);
+
+  useEffect(() => {
+    if (tab === "leaderboard") void loadReferralStats();
+  }, [tab, loadReferralStats]);
+
+  useEffect(() => {
+    const refresh = () => {
+      if (document.visibilityState === "visible") void loadReferralStats();
+    };
+    const onFocus = () => void loadReferralStats();
+    document.addEventListener("visibilitychange", refresh);
+    window.addEventListener("focus", onFocus);
+    return () => {
+      document.removeEventListener("visibilitychange", refresh);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [loadReferralStats]);
+
   useLayoutEffect(() => {
     if (!activeReferClaim) return;
     requestAnimationFrame(() => {
@@ -263,17 +470,18 @@ export default function ReferEarnPage() {
   const waHref = `https://api.whatsapp.com/send?text=${shareText}`;
 
   const selectedCard: ReferChallengePublicSpec | null = selectedClaim
-    ? (referChallengeSpec(selectedClaim) ?? null)
+    ? (referChallengeSpec(selectedClaim, rdmConfig) ?? null)
     : null;
   const selectedClaimState = selectedClaim ? referClaims[selectedClaim] : undefined;
   const playedForSelected = Boolean(selectedClaimState?.winClaimed);
   const startChallengeLocked =
     !isReferAdmin &&
     !!selectedCard &&
-    dailyRdmEarned + selectedCard.totalRdm > DAILY_CHALLENGE_RDM_CAP;
+    dailyRdmEarned + selectedCard.totalRdm > dailyChallengeRdmCap;
 
   const handleReferChallengeTerminal = useCallback(
-    (info: { claimKey: ReferClaimKey; outcome: "won" | "lost" }) => {
+    (_info: { claimKey: ReferClaimKey; outcome: "won" | "lost" }) => {
+      void reportChallengeYourselfAttempt();
       void loadGauntletMeta();
     },
     [loadGauntletMeta]
@@ -288,6 +496,10 @@ export default function ReferEarnPage() {
   }, [rdm, perReferral]);
 
   const userDisplayName = profile?.name || user?.name || "You";
+  const myLeaderboardEntry = useMemo(
+    () => leaderboardRows.find((e) => e.userId === profile?.id),
+    [leaderboardRows, profile?.id]
+  );
 
   return (
     <ProtectedRoute>
@@ -322,7 +534,7 @@ export default function ReferEarnPage() {
               >
                 <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-violet-500/35 bg-violet-500/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-violet-300">
                   <Sparkles className="h-3 w-3" />
-                  Refer &amp; Earn RDM
+                  Earn &amp; Learn RDM
                 </div>
                 <div className="flex flex-wrap items-baseline justify-center gap-2 sm:justify-start">
                   <span className="font-sans text-3xl font-semibold tabular-nums text-[var(--re-amber)] md:text-4xl">
@@ -334,22 +546,22 @@ export default function ReferEarnPage() {
                   RDM (Reward Miles) unlock practice packs, mock tests &amp; exclusive study tools.
                   Share EduBlast and earn more with every friend who joins.
                 </p>
-                <div className="mt-3 grid grid-cols-3 gap-2">
-                  <div className="rounded-lg border border-white/10 bg-black/20 px-2 py-2.5 text-center">
-                    <p className="text-xl font-bold tabular-nums text-slate-300">
-                      {friendsReferred}
-                    </p>
-                    <p className={reLabel}>Friends referred</p>
+                  <div className="mt-3 grid grid-cols-3 gap-2">
+                    <div className="rounded-lg border border-white/10 bg-black/20 px-2 py-2.5 text-center">
+                      <p className="text-xl font-bold tabular-nums text-slate-300">
+                        {friendsReferred}
+                      </p>
+                      <p className={reLabel}>Friends referred</p>
+                    </div>
+                    <div className="rounded-lg border border-white/10 bg-black/20 px-2 py-2.5 text-center">
+                      <p className="text-xl font-bold tabular-nums text-teal-400">+{perReferral}</p>
+                      <p className={reLabel}>RDM per referral</p>
+                    </div>
+                    <div className="rounded-lg border border-white/10 bg-black/20 px-2 py-2.5 text-center">
+                      <p className="text-xl font-bold tabular-nums text-amber-400">+{bonusAtFive}</p>
+                      <p className={reLabel}>Bonus at {weeklyTarget} / week</p>
+                    </div>
                   </div>
-                  <div className="rounded-lg border border-white/10 bg-black/20 px-2 py-2.5 text-center">
-                    <p className="text-xl font-bold tabular-nums text-teal-400">+{perReferral}</p>
-                    <p className={reLabel}>RDM per referral</p>
-                  </div>
-                  <div className="rounded-lg border border-white/10 bg-black/20 px-2 py-2.5 text-center">
-                    <p className="text-xl font-bold tabular-nums text-amber-400">+{bonusAtFive}</p>
-                    <p className={reLabel}>Bonus at 5 friends</p>
-                  </div>
-                </div>
               </section>
 
               <div>
@@ -421,29 +633,7 @@ export default function ReferEarnPage() {
                     <span className="h-px flex-1 bg-white/10" />
                   </p>
                   <div className="grid gap-3 sm:grid-cols-3">
-                    {[
-                      {
-                        n: 1,
-                        title: "Copy your link",
-                        body: "Your unique referral link is ready above. Tap copy — it takes 1 second.",
-                        icon: Link2,
-                        ring: "text-violet-400",
-                      },
-                      {
-                        n: 2,
-                        title: "Share with friends",
-                        body: "Send via WhatsApp or your study groups. Works best when it’s personal.",
-                        icon: Send,
-                        ring: "text-teal-400",
-                      },
-                      {
-                        n: 3,
-                        title: "Both of you earn",
-                        body: "You get 50 RDM when referrals are tracked. Your friend gets a welcome bonus after onboarding.",
-                        icon: Sparkles,
-                        ring: "text-amber-400",
-                      },
-                    ].map((s) => (
+                    {howItWorksSteps.map((s) => (
                       <div
                         key={s.n}
                         className="rounded-[12px] border border-white/10 bg-[var(--re-card)] p-4"
@@ -463,7 +653,7 @@ export default function ReferEarnPage() {
                     <span className="h-px flex-1 bg-white/10" />
                   </p>
                   <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
-                    {REWARD_USES.map((item) => (
+                    {rewardUsesDisplay.map((item) => (
                       <div
                         key={item.title}
                         className={cn(
@@ -487,28 +677,23 @@ export default function ReferEarnPage() {
                     <span className="h-px flex-1 bg-white/10" />
                   </p>
                   <div className="space-y-2">
-                    {GRANT_TIERS.map((tier) => {
+                    {GRANT_TIERS.map((tier, tierIdx) => {
                       const pct = Math.min(100, Math.round((rdm / tier.threshold) * 100));
                       const more = Math.max(0, tier.threshold - rdm);
-                      let unlocked = false;
-                      let inProgress = false;
-                      if (tier.key === "sprout") {
-                        unlocked = rdm >= tier.threshold;
-                        inProgress = !unlocked;
-                      } else if (tier.key === "scholar") {
-                        unlocked = rdm >= tier.threshold;
-                        inProgress = !unlocked && rdm >= 1000;
-                      } else {
-                        unlocked = rdm >= tier.threshold;
-                        inProgress = !unlocked && rdm >= 3000;
-                      }
+                      const prevThreshold = tierIdx === 0 ? 0 : GRANT_TIERS[tierIdx - 1].threshold;
+                      const unlocked = rdm >= tier.threshold;
+                      const inProgress = !unlocked && rdm >= prevThreshold;
                       const badge = unlocked ? "Unlocked" : inProgress ? "In progress" : "Locked";
                       const fill =
                         tier.key === "sprout"
                           ? "bg-teal-500"
                           : tier.key === "scholar"
                             ? "bg-[var(--re-purple)]"
-                            : "bg-[var(--re-amber)]";
+                            : tier.key === "champion"
+                              ? "bg-[var(--re-amber)]"
+                              : tier.key === "elite"
+                                ? "bg-sky-500"
+                                : "bg-orange-500";
                       return (
                         <div
                           key={tier.key}
@@ -569,48 +754,175 @@ export default function ReferEarnPage() {
 
               {tab === "leaderboard" ? (
                 <div className="space-y-3">
-                  <p className={cn("flex items-center gap-2", reLabel)}>
+                  <p className={cn("flex flex-wrap items-center gap-2", reLabel)}>
                     <span>Top referrers this week</span>
-                    <span className="h-px flex-1 bg-white/10" />
+                    {referralStatsLoading ? (
+                      <span className="font-normal normal-case tracking-normal text-violet-400/90">
+                        Updating…
+                      </span>
+                    ) : null}
+                    <span className="h-px min-w-[2rem] flex-1 bg-white/10" />
                   </p>
-                  <p
-                    className={cn(
-                      "rounded-lg border border-dashed border-white/15 bg-black/20 px-3 py-5 text-center",
-                      reBody
-                    )}
-                  >
-                    Referral rankings will appear here once referral events are stored. Your invites
-                    still help friends join — share your link above.
-                  </p>
-                  <div className="rounded-[12px] border border-teal-500/35 bg-teal-500/10 p-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex min-w-0 items-center gap-2">
-                        <span className="w-8 text-center text-sm font-bold text-teal-400">—</span>
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-teal-500/20 text-[10px] font-bold text-teal-200">
-                          {userDisplayName
-                            .split(/\s+/)
-                            .filter(Boolean)
-                            .map((p) => p[0])
-                            .join("")
-                            .slice(0, 2)
-                            .toUpperCase() || "YOU"}
-                        </div>
-                        <div className="min-w-0">
-                          <p className={cn("truncate", reTitle)}>
-                            You — {userDisplayName}{" "}
-                            <span className="ml-1 rounded bg-teal-500/25 px-1.5 py-0.5 text-[10px] text-teal-200">
-                              YOU
+                  {leaderboardWeekLabel ? (
+                    <div className="space-y-1">
+                      <p className={cn("text-[11px] text-slate-500")}>
+                        Week starting {leaderboardWeekLabel} (IST)
+                      </p>
+                      <p className={cn("text-[11px] text-slate-500/90")}>
+                        This ranking counts only referrals <span className="text-slate-400">credited in that IST week</span>{" "}
+                        (for the weekly leaderboard &amp; +100 bonus). Your full history is below.
+                      </p>
+                    </div>
+                  ) : null}
+                  {leaderboardRows.length === 0 ? (
+                    <p
+                      className={cn(
+                        "rounded-lg border border-dashed border-white/15 bg-black/20 px-3 py-5 text-center",
+                        reBody
+                      )}
+                    >
+                      No referrals this week yet. Share your link — the first names will show up
+                      here.
+                    </p>
+                  ) : (
+                    <ul className="space-y-2">
+                      {leaderboardRows.map((row) => {
+                        const isYou = row.userId === profile?.id;
+                        return (
+                          <li
+                            key={row.userId}
+                            className={cn(
+                              "flex items-center justify-between gap-2 rounded-[12px] border px-3 py-2.5",
+                              isYou
+                                ? "border-teal-500/40 bg-teal-500/10"
+                                : "border-white/10 bg-[var(--re-card)]"
+                            )}
+                          >
+                            <div className="flex min-w-0 flex-1 items-center gap-2">
+                              <span className="w-7 shrink-0 text-center text-sm font-bold text-slate-400">
+                                {row.rank}
+                              </span>
+                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-500/20 text-[10px] font-bold text-violet-200">
+                                {row.name
+                                  .split(/\s+/)
+                                  .filter(Boolean)
+                                  .map((p) => p[0])
+                                  .join("")
+                                  .slice(0, 2)
+                                  .toUpperCase() || "?"}
+                              </div>
+                              <div className="min-w-0">
+                                <p className={cn("truncate", reTitle)}>
+                                  {row.name}
+                                  {isYou ? (
+                                    <span className="ml-1 rounded bg-teal-500/25 px-1.5 py-0.5 text-[10px] text-teal-200">
+                                      YOU
+                                    </span>
+                                  ) : null}
+                                </p>
+                                {isYou ? (
+                                  <p className={cn(reBody, "mt-0.5 text-[11px] text-slate-500")}>
+                                    {friendsReferred} all-time · {formatInt(rdm)} RDM balance
+                                  </p>
+                                ) : null}
+                              </div>
+                            </div>
+                            <span className="shrink-0 text-sm font-semibold tabular-nums text-teal-300">
+                              {row.referralCount}
                             </span>
-                          </p>
-                          <p className={cn(reBody, "text-[11px]")}>
-                            {friendsReferred} friends · {formatInt(rdm)} RDM balance
-                          </p>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+
+                  <div className="border-t border-white/10 pt-4">
+                    <p className={cn("flex flex-wrap items-center gap-2", reLabel)}>
+                      <span>Your referrals (all time)</span>
+                      <span className="h-px min-w-[2rem] flex-1 bg-white/10" />
+                    </p>
+                    <p className={cn("mt-1 text-[11px] text-slate-500")}>
+                      Everyone who finished onboarding through your link — newest first. Includes every week, not only
+                      the current one.
+                    </p>
+                    {myReferralHistory.length === 0 ? (
+                      <p
+                        className={cn(
+                          "mt-3 rounded-lg border border-dashed border-white/15 bg-black/20 px-3 py-4 text-center",
+                          reBody
+                        )}
+                      >
+                        No completed referrals yet. When friends use your link and finish setup, they appear here.
+                      </p>
+                    ) : (
+                      <ul className="mt-3 max-h-[min(360px,50vh)] space-y-2 overflow-y-auto pr-1">
+                        {myReferralHistory.map((row) => (
+                          <li
+                            key={row.id}
+                            className="flex flex-col gap-1 rounded-[12px] border border-white/10 bg-[var(--re-card)] px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3"
+                          >
+                            <div className="flex min-w-0 items-center gap-2">
+                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-600/40 text-[10px] font-bold text-slate-200">
+                                {row.refereeName
+                                  .split(/\s+/)
+                                  .filter(Boolean)
+                                  .map((p) => p[0])
+                                  .join("")
+                                  .slice(0, 2)
+                                  .toUpperCase() || "?"}
+                              </div>
+                              <div className="min-w-0">
+                                <p className={cn("truncate", reTitle)}>{row.refereeName}</p>
+                                <p className={cn(reBody, "text-[11px] text-slate-500")}>
+                                  Credited {formatReferralCreditedAt(row.creditedAt)}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="shrink-0 text-left sm:text-right">
+                              <p className={cn(reBody, "text-[11px] text-slate-500")}>IST week (for bonus)</p>
+                              <p className="text-xs font-medium tabular-nums text-slate-300">
+                                {row.creditedWeekStartIst}
+                              </p>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+
+                  {myLeaderboardEntry ? null : (
+                    <div className="rounded-[12px] border border-teal-500/35 bg-teal-500/10 p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <span className="w-8 text-center text-sm font-bold text-teal-400">—</span>
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-teal-500/20 text-[10px] font-bold text-teal-200">
+                            {userDisplayName
+                              .split(/\s+/)
+                              .filter(Boolean)
+                              .map((p) => p[0])
+                              .join("")
+                              .slice(0, 2)
+                              .toUpperCase() || "YOU"}
+                          </div>
+                          <div className="min-w-0">
+                            <p className={cn("truncate", reTitle)}>
+                              You — {userDisplayName}{" "}
+                              <span className="ml-1 rounded bg-teal-500/25 px-1.5 py-0.5 text-[10px] text-teal-200">
+                                YOU
+                              </span>
+                            </p>
+                            <p className={cn(reBody, "text-[11px]")}>
+                              Not in the top 20 this week yet · {weeklyReferrals} this week ·{" "}
+                              {friendsReferred} all-time · {formatInt(rdm)} RDM balance
+                            </p>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
+                  )}
                   <p className="border-t border-white/10 pt-3 text-center text-[11px] text-slate-500">
-                    Refer 5 friends to jump into the top 5 · Leaderboard resets every Monday
+                    Refer {weeklyTarget} friends in a week for +{bonusAtFive} RDM
+                    bonus · Leaderboard resets every Monday (IST)
                   </p>
                 </div>
               ) : null}
@@ -660,7 +972,7 @@ export default function ReferEarnPage() {
                         Start a challenge below (separate from the{" "}
                         <strong className="text-white">Play</strong> hub). Max{" "}
                         <strong className="text-[var(--re-amber)]">
-                          {DAILY_CHALLENGE_RDM_CAP} RDM
+                          {dailyChallengeRdmCap} RDM
                         </strong>{" "}
                         per day from challenges once RDM tracking is enabled.
                       </p>
@@ -682,20 +994,20 @@ export default function ReferEarnPage() {
                             <div
                               className="h-full rounded-full bg-gradient-to-r from-[var(--re-amber)] to-fuchsia-500"
                               style={{
-                                width: `${Math.min(100, (dailyRdmEarned / DAILY_CHALLENGE_RDM_CAP) * 100)}%`,
+                                width: `${Math.min(100, (dailyRdmEarned / dailyChallengeRdmCap) * 100)}%`,
                               }}
                             />
                           </div>
                         </div>
                         <span className="text-xs font-bold text-[var(--re-amber)]">
-                          {dailyRdmEarned} / {DAILY_CHALLENGE_RDM_CAP} RDM
+                          {dailyRdmEarned} / {dailyChallengeRdmCap} RDM
                         </span>
                       </div>
                     </TooltipTrigger>
                     <TooltipContent side="bottom" className="max-w-xs text-xs">
-                      Challenge claims are tracked separately from /play DailyDose and streak. A
-                      challenge card is locked when its total (win + share) would exceed your
-                      remaining daily cap.
+                      Auto-claim RDM is tracked separately from /play DailyDose and streak.{" "}
+                      {EARN_LEARN_AUTO_CLAIM_LINE} A challenge card is locked when its total (win +
+                      share) would exceed your remaining daily cap.
                     </TooltipContent>
                   </Tooltip>
 
@@ -705,7 +1017,7 @@ export default function ReferEarnPage() {
                       reLabel
                     )}
                   >
-                    <span className="text-slate-300">STEP 1 · CHOOSE YOUR RDM CLAIM TARGET</span>
+                    <span className="text-slate-300">STEP 1 · CHOOSE YOUR CHALLENGE (AUTO-CLAIM RDM)</span>
                     <span className="h-px flex-1 bg-white/10" />
                   </p>
                   {isReferAdmin ? (
@@ -715,12 +1027,12 @@ export default function ReferEarnPage() {
                   ) : null}
 
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    {REFER_CHALLENGE_SPECS.map((c) => {
+                    {currentChallengeSpecs.map((c) => {
                       const sel = selectedClaim === c.key;
                       const claimState = referClaims[c.key];
                       const done = Boolean(claimState?.winClaimed && claimState?.shareClaimed);
                       const lockedByCap =
-                        !isReferAdmin && dailyRdmEarned + c.totalRdm > DAILY_CHALLENGE_RDM_CAP;
+                        !isReferAdmin && dailyRdmEarned + c.totalRdm > dailyChallengeRdmCap;
                       const minPct = referMinPct(c);
                       return (
                         <button
@@ -786,7 +1098,7 @@ export default function ReferEarnPage() {
                             Min {minPct}% to win
                           </span>
                           <span className="mt-1 inline-flex items-center justify-center gap-1 rounded-full border border-white/10 bg-white/[0.03] px-2 py-0.5 text-[10px] font-semibold text-slate-300">
-                            Win +{c.winRdm} · Share +{c.shareRdm}
+                            Win +{c.winRdm} · Share +{c.shareRdm} · Auto-claim
                           </span>
                           {lockedByCap ? (
                             <span className="absolute left-2 top-2 rounded-full bg-rose-500/20 px-2 py-0.5 text-[10px] font-bold text-rose-200">
@@ -795,7 +1107,7 @@ export default function ReferEarnPage() {
                           ) : null}
                           {done ? (
                             <span className="absolute right-2 top-2 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
-                              Fully claimed
+                              Win + share credited
                             </span>
                           ) : null}
                         </button>
@@ -827,7 +1139,7 @@ export default function ReferEarnPage() {
                             <div>
                               <p className={cn(reTitle, "text-base")}>{selectedCard.name}</p>
                               <p className="mt-0.5 text-[10px] font-medium uppercase tracking-wider text-slate-500">
-                                {selectedCard.headerEmoji} Claim details
+                                {selectedCard.headerEmoji} Auto-claim rewards
                               </p>
                             </div>
                           </div>
@@ -838,17 +1150,29 @@ export default function ReferEarnPage() {
                             )}
                           >
                             +{selectedCard.winRdm} RDM on win · +{selectedCard.shareRdm} on share
+                            (auto-claim)
                           </span>
                         </div>
 
                         <div className="mt-3 flex flex-wrap gap-2">
                           <span className="inline-flex items-center gap-1.5 rounded-full border border-white/12 bg-black/35 px-2.5 py-1 text-[11px] font-semibold text-slate-200">
                             <Clock className="h-3.5 w-3.5 shrink-0 text-amber-400" />
-                            {selectedCard.sessionMinutes} minutes
+                            <span className="font-mono tabular-nums text-amber-100/95">
+                              {formatReferDurationMmSs(referChallengeSessionDurationSec(selectedCard))}
+                            </span>
+                            <span className="font-normal text-slate-400">session</span>
                           </span>
                           <span className="inline-flex items-center gap-1.5 rounded-full border border-white/12 bg-black/35 px-2.5 py-1 text-[11px] font-semibold text-slate-200">
                             <FileText className="h-3.5 w-3.5 shrink-0 text-sky-400" />
                             {selectedCard.questionCount} questions
+                          </span>
+                          <span className="inline-flex items-center gap-1.5 rounded-full border border-white/12 bg-black/35 px-2.5 py-1 font-mono text-[11px] font-semibold tabular-nums text-slate-200">
+                            <Timer className="h-3.5 w-3.5 shrink-0 text-sky-400" />
+                            {formatReferDurationMmSs(selectedCard.readPhaseSec)} stem
+                          </span>
+                          <span className="inline-flex items-center gap-1.5 rounded-full border border-white/12 bg-black/35 px-2.5 py-1 font-mono text-[11px] font-semibold tabular-nums text-slate-200">
+                            <Timer className="h-3.5 w-3.5 shrink-0 text-violet-300" />
+                            {formatReferDurationMmSs(selectedCard.optionsPhaseSec)} choices
                           </span>
                           <span
                             className={cn(
@@ -892,11 +1216,46 @@ export default function ReferEarnPage() {
                               strokeWidth={2.25}
                             />
                             <span>
-                              Complete within{" "}
-                              <strong className="text-white">
-                                {selectedCard.sessionMinutes} minutes
+                              Finish before the session timer hits{" "}
+                              <strong className="font-mono text-white tabular-nums">
+                                {formatReferDurationMmSs(
+                                  referChallengeSessionDurationSec(selectedCard)
+                                )}
                               </strong>{" "}
-                              — time runs out, quiz ends
+                              — at zero, the run ends.
+                            </span>
+                          </li>
+                          <li className="flex gap-2.5">
+                            <Timer
+                              className="mt-0.5 h-4 w-4 shrink-0 text-sky-400"
+                              strokeWidth={2.25}
+                            />
+                            <span>
+                              Each question:{" "}
+                              <strong className="font-mono text-white tabular-nums">
+                                {formatReferDurationMmSs(selectedCard.readPhaseSec)}
+                              </strong>
+                              <span className="text-slate-500"> + </span>
+                              <strong className="font-mono text-violet-200 tabular-nums">
+                                {formatReferDurationMmSs(selectedCard.optionsPhaseSec)}
+                              </strong>
+                              <span className="text-slate-500">
+                                {" "}
+                                {selectedCard.readPhaseSec >= 50
+                                  ? "(Academic Arena & Pro)"
+                                  : "(FunBrain & MentaMill)"}
+                              </span>
+                              {selectedCard.key === "10" ? (
+                                <>
+                                  {" "}
+                                  · Session{" "}
+                                  <strong className="font-mono text-amber-200 tabular-nums">
+                                    {formatReferDurationMmSs(
+                                      referChallengeSessionDurationSec(selectedCard)
+                                    )}
+                                  </strong>
+                                </>
+                              ) : null}
                             </span>
                           </li>
                           <li className="flex gap-2.5">
@@ -905,11 +1264,10 @@ export default function ReferEarnPage() {
                               strokeWidth={2.25}
                             />
                             <span>
-                              Claim{" "}
-                              <strong className="text-white">{selectedCard.winRdm} RDM</strong> on
-                              pass, then{" "}
+                              <strong className="text-white">{selectedCard.winRdm} RDM</strong>{" "}
+                              credits when you pass the bar;{" "}
                               <strong className="text-white">{selectedCard.shareRdm} RDM</strong>{" "}
-                              after sharing.
+                              may credit after a verified share (Earn &amp; Learn).
                             </span>
                           </li>
                           <li className="flex gap-2.5">
@@ -918,8 +1276,8 @@ export default function ReferEarnPage() {
                             </span>
                             <span>
                               <strong className="text-white">Strikes 3/3</strong> — three wrong
-                              answers end the run. No auto-next: tap{" "}
-                              <strong className="text-white">Next</strong> after each answer.
+                              answers end the run. Tap <strong className="text-white">Next</strong>{" "}
+                              after you answer; if time runs out on a question, it auto-advances.
                             </span>
                           </li>
                         </ul>
@@ -941,6 +1299,7 @@ export default function ReferEarnPage() {
                               "ring-2 ring-violet-300/45 ring-offset-2 ring-offset-[var(--re-card)]"
                             )}
                             onClick={() => {
+                              setChallengeSessionSpec(selectedCard);
                               setActiveReferClaim(selectedCard.key);
                             }}
                           >
@@ -952,7 +1311,7 @@ export default function ReferEarnPage() {
                         </div>
                         {startChallengeLocked ? (
                           <p className="mt-2 text-center text-[11px] text-rose-200/90">
-                            You have {dailyRdmEarned}/{DAILY_CHALLENGE_RDM_CAP} RDM today. This card
+                            You have {dailyRdmEarned}/{dailyChallengeRdmCap} RDM today. This card
                             needs {selectedCard.totalRdm} total (win + share), so it is locked.
                           </p>
                         ) : null}
@@ -971,16 +1330,19 @@ export default function ReferEarnPage() {
                 </>
               ) : null}
 
-              {activeReferClaim && referChallengeSpec(activeReferClaim) ? (
+              {activeReferClaim && challengeSessionSpec ? (
                 <div ref={inlineChallengeRef} className="scroll-mt-28">
                   <InlineRdmChallenge
                     key={activeReferClaim}
-                    spec={referChallengeSpec(activeReferClaim)!}
-                    onClose={() => setActiveReferClaim(null)}
+                    spec={challengeSessionSpec}
+                    onClose={() => {
+                      setActiveReferClaim(null);
+                      setChallengeSessionSpec(null);
+                    }}
                     onTerminal={handleReferChallengeTerminal}
                     streakDays={streakDays}
                     dailyRdmEarned={dailyRdmEarned}
-                    dailyRdmCap={DAILY_CHALLENGE_RDM_CAP}
+                    dailyRdmCap={dailyChallengeRdmCap}
                     onClaimsUpdated={loadGauntletMeta}
                   />
                 </div>

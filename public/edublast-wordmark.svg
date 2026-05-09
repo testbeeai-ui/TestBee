@@ -1,0 +1,10 @@
+<svg width="620" height="140" viewBox="0 0 620 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="620" height="140" fill="none"/>
+  <g transform="translate(10,10)">
+    <path d="M60 6L108 32V84L60 110L12 84V32L60 6Z" stroke="#19E3DA" stroke-width="8" stroke-linejoin="round"/>
+    <path d="M40 78V40L66 26" stroke="#19E3DA" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M54 86V50L80 36" stroke="#19E3DA" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M68 94V64L94 50" stroke="#19E3DA" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <text x="158" y="93" font-family="Inter, Poppins, Segoe UI, Arial, sans-serif" font-size="88" font-weight="600" fill="#FFFFFF" letter-spacing="0.4">edublast</text>
+</svg>

@@ -68,7 +68,7 @@ function normalizeText(value: string | null | undefined): string {
 
 function mapExamRelevance(arr: string[] | null): ExamType[] {
   if (!arr?.length) return [];
-  const allowed = new Set<ExamType>(["JEE", "NEET", "KCET", "JEE_Mains", "JEE_Advance", "other"]);
+  const allowed = new Set<ExamType>(["JEE", "KCET", "JEE_Mains", "JEE_Advance", "other"]);
   const out: ExamType[] = [];
   for (const value of arr) {
     const trimmed = value.trim();

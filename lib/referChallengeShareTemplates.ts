@@ -6,7 +6,10 @@ export type ReferChallengeSharePayload = {
   challengeKey: ReferChallengePublicSpec["key"];
   challengeName: string;
   domain: ReferChallengePublicSpec["domain"];
+  /** Win RDM (pass bar) — used in templates as {rewardRdm} */
   rewardRdm: number;
+  /** Share bonus RDM after verified share */
+  shareRdm: number;
   correct: number;
   attempted: number;
   total: number;
@@ -26,11 +29,14 @@ export type ReferChallengeShareTemplate = {
   title: string;
   body: string;
   cta: string;
+  /** Full caption (title + body + cta) for copy/preview — do not repeat `title` in community `content`. */
   text: string;
   waTitle: string;
   waBody: string;
   waCta: string;
   whatsappText: string;
+  /** One line for UI under share actions; also appended to WhatsApp message. */
+  shareBonusNote: string;
   charCount: number;
 };
 
@@ -62,6 +68,7 @@ export function buildReferSharePayload(input: {
     challengeName: input.spec.name,
     domain: input.spec.domain,
     rewardRdm: input.spec.winRdm,
+    shareRdm: input.spec.shareRdm,
     correct: input.correct,
     attempted: input.attempted,
     total: input.total,
@@ -80,6 +87,7 @@ function fillPattern(pattern: string, payload: ReferChallengeSharePayload): stri
     .replaceAll("{challengeName}", payload.challengeName)
     .replaceAll("{domainLabel}", domainLabel)
     .replaceAll("{rewardRdm}", String(payload.rewardRdm))
+    .replaceAll("{shareRdm}", String(payload.shareRdm))
     .replaceAll("{correct}", String(payload.correct))
     .replaceAll("{attempted}", String(payload.attempted))
     .replaceAll("{total}", String(payload.total))
@@ -101,7 +109,8 @@ function makeTemplate(
   const waTitle = fillPattern(def.waHook, payload);
   const waBody = fillPattern(def.waBodyPattern, payload);
   const waCta = fillPattern(def.waCtaPattern, payload);
-  const whatsappText = [waTitle, waBody, waCta].join("\n\n");
+  const shareBonusNote = `Sharing can earn you +${payload.shareRdm} RDM once your share is verified (Earn & Learn).`;
+  const whatsappText = [waTitle, waBody, waCta, shareBonusNote].join("\n\n");
 
   return {
     id: def.id,
@@ -115,234 +124,243 @@ function makeTemplate(
     waBody,
     waCta,
     whatsappText,
+    shareBonusNote,
     charCount: text.length,
   };
 }
 
-/** 10 win templates: concise for Community Feed + expressive for WhatsApp. */
+/**
+ * Win templates — public + WhatsApp aligned with competence, clarity, and calm pride.
+ * Avoid hype slang; invite peers without pressure or “trash talk.”
+ */
 const IG_WIN_DEFS: ReferChallengeTemplateDef[] = [
   {
     id: "ig_win_01",
     tone: "achievement",
-    hook: "Just locked in a {challengeName} win. 🎯",
-    bodyPattern: "{correct}/{total} ({accuracyPct}%) in {timeTakenLabel} on {domainLabel}.",
-    ctaPattern: "Think you can beat it? {appUrl}",
-    waHook: "OMG I just clutched {challengeName} and my heart is still racing 😭🔥",
+    hook: "Passed {challengeName} on EduBlast.",
+    bodyPattern:
+      "{correct}/{total} correct ({accuracyPct}%) in {timeTakenLabel}. Track: {domainLabel}.",
+    ctaPattern: "Try the same challenge: {appUrl}",
+    waHook: "I cleared {challengeName} on EduBlast today.",
     waBodyPattern:
-      "Dropped {correct}/{total} ({accuracyPct}%) in {timeTakenLabel} on {domainLabel} and it felt like a boss fight fr.",
-    waCtaPattern: "No excuses, pull up rn and beat this score: {appUrl}",
+      "{correct}/{total} correct ({accuracyPct}%) in {timeTakenLabel} on {domainLabel}. Posting in case friends want to try the same timed run.",
+    waCtaPattern: "Link: {appUrl}",
   },
   {
     id: "ig_win_02",
     tone: "achievement",
-    hook: "{challengeName} = cleared. ✅",
-    bodyPattern: "{accuracyPct}% accuracy ({correct}/{total}) in {timeTakenLabel}.",
-    ctaPattern: "Your turn starts here: {appUrl}",
-    waHook: "Ayo {challengeName} got folded 😤📚",
+    hook: "Met the pass bar: {challengeName}.",
+    bodyPattern: "{accuracyPct}% across all {total} questions ({correct}/{total}) · {timeTakenLabel}.",
+    ctaPattern: "See how you compare: {appUrl}",
+    waHook: "Met the pass bar on {challengeName}.",
     waBodyPattern:
-      "{correct}/{total} with {accuracyPct}% in just {timeTakenLabel}... I was LOCKED IN on {domainLabel}.",
-    waCtaPattern: "Try it before I go on another streak: {appUrl}",
+      "{correct}/{total} ({accuracyPct}%) with the full question set, finished in {timeTakenLabel}. Happy to swap prep tips if anyone is practicing {domainLabel}.",
+    waCtaPattern: "{appUrl}",
   },
   {
     id: "ig_win_03",
     tone: "progress",
-    hook: "Result drop: won {challengeName}.",
-    bodyPattern: "{correct}/{total} correct, {accuracyPct}% overall.",
-    ctaPattern: "Attempt now: {appUrl}",
-    waHook: "Not me actually speedrunning {challengeName} like a maniac 💀⚡",
+    hook: "{challengeName} — session complete.",
+    bodyPattern: "{domainLabel} · {correct}/{total} · {accuracyPct}% · {timeTakenLabel}.",
+    ctaPattern: "Start your attempt: {appUrl}",
+    waHook: "Finished a clean run on {challengeName}.",
     waBodyPattern:
-      "Ended with {correct}/{total} and {accuracyPct}% in {timeTakenLabel}. {domainLabel} was throwing heat and I still survived.",
-    waCtaPattern: "Come test your luck/skill combo: {appUrl}",
+      "{domainLabel} session: {correct}/{total} correct, {accuracyPct}%, clock {timeTakenLabel}. Sharing for accountability and to invite others to practice.",
+    waCtaPattern: "EduBlast Earn & Learn: {appUrl}",
   },
   {
     id: "ig_win_04",
     tone: "achievement",
-    hook: "Challenge cleared: {challengeName}.",
-    bodyPattern: "{domainLabel} run finished at {correct}/{total} ({accuracyPct}%).",
-    ctaPattern: "Take the same challenge: {appUrl}",
-    waHook: "I said 'one try' on {challengeName} and then COOKED 🍳🔥",
+    hook: "Earn & Learn: {challengeName} cleared.",
+    bodyPattern: "Result: {correct}/{total} ({accuracyPct}%) in {timeTakenLabel}.",
+    ctaPattern: "Join the challenge: {appUrl}",
+    waHook: "Earn & Learn update — I passed {challengeName}.",
     waBodyPattern:
-      "{correct}/{total} with {accuracyPct}% in {timeTakenLabel}. This run had me talking to my screen ngl.",
-    waCtaPattern: "Your move, don't ghost this: {appUrl}",
+      "Numbers: {correct}/{total}, {accuracyPct}%, time {timeTakenLabel}. If you are building daily study habits, this is a solid timed drill on {domainLabel}.",
+    waCtaPattern: "{appUrl}",
   },
   {
     id: "ig_win_05",
     tone: "progress",
-    hook: "Today’s W: {challengeName}.",
-    bodyPattern: "{correct}/{total} • {accuracyPct}% • {timeTakenLabel}.",
-    ctaPattern: "See if you can top it: {appUrl}",
-    waHook: "Massive student-core W unlocked on {challengeName} 🧠✨",
+    hook: "Timed challenge done: {challengeName}.",
+    bodyPattern: "{correct}/{total} correct · {accuracyPct}% · {timeTakenLabel} on the clock.",
+    ctaPattern: "Practice here: {appUrl}",
+    waHook: "Wrapped {challengeName} under time pressure.",
     waBodyPattern:
-      "Went {correct}/{total} ({accuracyPct}%) in {timeTakenLabel} and my confidence just went +100.",
-    waCtaPattern: "Tap in and try to outscore me: {appUrl}",
+      "{correct}/{total} ({accuracyPct}%) in {timeTakenLabel}. The timer keeps it honest — good rehearsal for exam-style pacing on {domainLabel}.",
+    waCtaPattern: "{appUrl}",
   },
   {
     id: "ig_win_06",
     tone: "achievement",
-    hook: "{challengeName} pass bar crossed. 🚀",
-    bodyPattern: "{correct}/{total} ({accuracyPct}%) on all questions.",
-    ctaPattern: "Jump into the challenge: {appUrl}",
-    waHook: "BROOO I beat {challengeName} and almost screamed in class 😭📈",
+    hook: "{challengeName}: pass confirmed.",
+    bodyPattern: "Accuracy {accuracyPct}% ({correct}/{total}) · {domainLabel}.",
+    ctaPattern: "Take the challenge: {appUrl}",
+    waHook: "Pass confirmed on {challengeName}.",
     waBodyPattern:
-      "Final was {correct}/{total}, {accuracyPct}% in {timeTakenLabel}. Felt like exam revenge mode.",
-    waCtaPattern: "Don't just react, run it: {appUrl}",
+      "{accuracyPct}% accuracy ({correct}/{total}), {domainLabel} content. Sharing so classmates can benchmark against the same item bank.",
+    waCtaPattern: "{appUrl}",
   },
   {
     id: "ig_win_07",
     tone: "achievement",
-    hook: "{challengeName} win secured on EduBlast.",
-    bodyPattern: "{domainLabel}: {correct}/{total} and {accuracyPct}% in {timeTakenLabel}.",
-    ctaPattern: "Try this run: {appUrl}",
-    waHook: "Lowkey shook... I actually cleared {challengeName} 😮‍💨🏆",
+    hook: "Personal best logged — {challengeName}.",
+    bodyPattern: "{correct}/{total} · {accuracyPct}% · {timeTakenLabel}.",
+    ctaPattern: "Try it on EduBlast: {appUrl}",
+    waHook: "Logging a strong run on {challengeName}.",
     waBodyPattern:
-      "{correct}/{total}, {accuracyPct}% in {timeTakenLabel}. Brain was buffering at first then boom, flow state.",
-    waCtaPattern: "Get in here and challenge me: {appUrl}",
+      "{correct}/{total} correct, {accuracyPct}%, {timeTakenLabel}. I am treating this as a baseline to beat next week — join if you like structured quizzes.",
+    waCtaPattern: "{appUrl}",
   },
   {
     id: "ig_win_08",
     tone: "progress",
-    hook: "Consistency check passed: {challengeName}.",
-    bodyPattern: "Finished {correct}/{total} with {accuracyPct}% accuracy.",
-    ctaPattern: "Ready for your run? {appUrl}",
-    waHook: "Another day, another academic anime arc completed with {challengeName} ⚔️📘",
+    hook: "Study streak fuel: cleared {challengeName}.",
+    bodyPattern: "{domainLabel} · {correct}/{total} correct · {accuracyPct}%.",
+    ctaPattern: "Build your streak: {appUrl}",
+    waHook: "Small win on {challengeName} for the study streak.",
     waBodyPattern:
-      "{correct}/{total}, {accuracyPct}% in {timeTakenLabel}. The comeback montage music was playing in my head fr.",
-    waCtaPattern: "Join the storyline: {appUrl}",
+      "{correct}/{total} ({accuracyPct}%) on {domainLabel}. Consistency matters more than one perfect day — still nice to see the bar turn green.",
+    waCtaPattern: "{appUrl}",
   },
   {
     id: "ig_win_09",
     tone: "achievement",
-    hook: "{challengeName} done and delivered.",
-    bodyPattern: "Scoreline: {correct}/{total} ({accuracyPct}%) in {timeTakenLabel}.",
-    ctaPattern: "Can you beat it? {appUrl}",
-    waHook: "I'm not saying I'm a genius but {challengeName} just got handled 😌🔥",
+    hook: "{challengeName} — all questions reviewed.",
+    bodyPattern: "Final: {correct}/{total} ({accuracyPct}%) · {timeTakenLabel}.",
+    ctaPattern: "Challenge a friend: {appUrl}",
+    waHook: "Completed {challengeName} with the full question set.",
     waBodyPattern:
-      "{correct}/{total} with {accuracyPct}% in {timeTakenLabel} on {domainLabel}. This felt illegal.",
-    waCtaPattern: "Try to humble me here: {appUrl}",
+      "{correct}/{total}, {accuracyPct}%, {timeTakenLabel}. If you want a respectful head-to-head on the same format, the link is below.",
+    waCtaPattern: "{appUrl}",
   },
   {
     id: "ig_win_10",
     tone: "progress",
-    hook: "Win shared: {challengeName}.",
-    bodyPattern: "{correct}/{total} and {accuracyPct}% completed in {timeTakenLabel}.",
-    ctaPattern: "Play now: {appUrl}",
-    waHook: "Main character moment: I cleared {challengeName} and the aura is unmatched ✨😤",
+    hook: "Checked off {challengeName} today.",
+    bodyPattern: "{correct}/{total} · {accuracyPct}% · {domainLabel} · {timeTakenLabel}.",
+    ctaPattern: "Open EduBlast: {appUrl}",
+    waHook: "Checked off {challengeName} on today’s list.",
     waBodyPattern:
-      "{correct}/{total} ({accuracyPct}%) in {timeTakenLabel}. If you beat this, respect++.",
-    waCtaPattern: "Prove it here: {appUrl}",
+      "{correct}/{total} correct, {accuracyPct}%, {timeTakenLabel}. Nothing flashy — just showing that short, focused reps on {domainLabel} add up.",
+    waCtaPattern: "{appUrl}",
   },
 ];
 
-/** 10 loss/comeback templates: concise for Community Feed + expressive for WhatsApp. */
+/**
+ * Loss templates — growth mindset: normalize effort, protect self-image, clear next step.
+ * Language avoids shame; frames outcome as data + learning, not identity.
+ */
 const IG_LOSS_DEFS: ReferChallengeTemplateDef[] = [
   {
     id: "ig_loss_01",
     tone: "comeback",
-    hook: "Took an L on {challengeName} today, but progress logged. 🧪",
-    bodyPattern: "{correct}/{total} ({accuracyPct}%) in {timeTakenLabel}.",
-    ctaPattern: "Running it back soon: {appUrl}",
-    waHook: "Nahhh {challengeName} actually humbled me today 💀📉",
+    hook: "Still working toward {challengeName} — this round did not pass.",
+    bodyPattern: "{correct}/{total} ({accuracyPct}%) in {timeTakenLabel}. Pass bar: {neededCorrect}/{total}.",
+    ctaPattern: "Practice on EduBlast: {appUrl}",
+    waHook: "Honest update: I did not pass {challengeName} this time.",
     waBodyPattern:
-      "I got {correct}/{total} ({accuracyPct}%) in {timeTakenLabel} and this run had no mercy.",
-    waCtaPattern: "I'm reloading tomorrow, pull up too: {appUrl}",
+      "{correct}/{total} ({accuracyPct}%) in {timeTakenLabel}; needed {neededCorrect}/{total} to earn the win RDM. Treating it as feedback, not a verdict — retry planned.",
+    waCtaPattern: "Same challenge here if you want to study together: {appUrl}",
   },
   {
     id: "ig_loss_02",
     tone: "comeback",
-    hook: "{challengeName} wasn't cleared this round.",
-    bodyPattern: "{correct}/{total} ({accuracyPct}%), needed {neededCorrect}/{total}.",
-    ctaPattern: "Comeback attempt: {appUrl}",
-    waHook: "Brooo {challengeName} said 'not today' and I felt that 😭",
+    hook: "{challengeName}: attempt logged, bar not met yet.",
+    bodyPattern: "Score {correct}/{total} · {accuracyPct}% · target {neededCorrect}/{total}.",
+    ctaPattern: "Next session: {appUrl}",
+    waHook: "Logged a {challengeName} attempt that stopped short of the pass bar.",
     waBodyPattern:
-      "Ended at {correct}/{total}, {accuracyPct}% (needed {neededCorrect}/{total}). Character development arc activated.",
-    waCtaPattern: "Next run is personal: {appUrl}",
+      "{correct}/{total}, {accuracyPct}%. The platform needs {neededCorrect}/{total} correct to count as a pass. I am reviewing mistakes before the next run.",
+    waCtaPattern: "{appUrl}",
   },
   {
     id: "ig_loss_03",
     tone: "progress",
-    hook: "No clear on {challengeName}, still learning.",
-    bodyPattern: "{domainLabel}: {correct}/{total} and {accuracyPct}% in {timeTakenLabel}.",
-    ctaPattern: "Practice with me: {appUrl}",
-    waHook: "I got cooked by {challengeName} but we don't quit around here 😤",
+    hook: "Learning curve: {challengeName} on {domainLabel}.",
+    bodyPattern: "{correct}/{total} correct · {accuracyPct}% · {timeTakenLabel}.",
+    ctaPattern: "Try when you are ready: {appUrl}",
+    waHook: "Sharing a {domainLabel} practice round ({challengeName}) that did not pass.",
     waBodyPattern:
-      "{correct}/{total}, {accuracyPct}% in {timeTakenLabel}. Low score, high comeback energy.",
-    waCtaPattern: "Let's run it together: {appUrl}",
+      "{correct}/{total} ({accuracyPct}%) in {timeTakenLabel}. Posting so others know these drills are hard — persistence beats one-off scores.",
+    waCtaPattern: "{appUrl}",
   },
   {
     id: "ig_loss_04",
     tone: "comeback",
-    hook: "Progress post: {challengeName} attempt.",
-    bodyPattern: "{correct}/{total} | {accuracyPct}% | target {neededCorrect}/{total}.",
-    ctaPattern: "Try it and compare: {appUrl}",
-    waHook: "Okay listen... {challengeName} jumped me out of nowhere 🤡📚",
+    hook: "Progress note — {challengeName}.",
+    bodyPattern: "{correct}/{total} | {accuracyPct}% | pass threshold {neededCorrect}/{total}.",
+    ctaPattern: "Compare or retry: {appUrl}",
+    waHook: "Progress note from {challengeName}.",
     waBodyPattern:
-      "Only {correct}/{total} ({accuracyPct}%) this time, but the rematch is already scheduled in my head.",
-    waCtaPattern: "Come watch the redemption run: {appUrl}",
+      "Today: {correct}/{total} ({accuracyPct}%). Pass rule is {neededCorrect}/{total} correct. Open to swapping what tripped me up if anyone else is prepping.",
+    waCtaPattern: "{appUrl}",
   },
   {
     id: "ig_loss_05",
     tone: "comeback",
-    hook: "Close run, no finish on {challengeName}.",
-    bodyPattern: "{correct}/{total} at {accuracyPct}% in {timeTakenLabel}.",
-    ctaPattern: "Next attempt here: {appUrl}",
-    waHook: "I just got plot-twisted by {challengeName} and I need revenge asap 😵‍💫",
+    hook: "{challengeName} — paused before the pass line.",
+    bodyPattern: "{correct}/{total} at {accuracyPct}% · {timeTakenLabel}.",
+    ctaPattern: "Resume practice: {appUrl}",
+    waHook: "Paused short of a pass on {challengeName}.",
     waBodyPattern:
-      "Finished with {correct}/{total} ({accuracyPct}%) in {timeTakenLabel}. Painful? yes. Over? never.",
-    waCtaPattern: "Join the revenge mission: {appUrl}",
+      "{correct}/{total} ({accuracyPct}%) with {timeTakenLabel} on the timer. I am focusing on accuracy first, then speed — will rerun when ready.",
+    waCtaPattern: "{appUrl}",
   },
   {
     id: "ig_loss_06",
     tone: "progress",
-    hook: "Today's data point: {challengeName}.",
-    bodyPattern: "{correct}/{total}, {accuracyPct}% (bar: {neededCorrect}/{total}).",
-    ctaPattern: "Attempt your run: {appUrl}",
-    waHook: "Current status: academically bruised by {challengeName} but still standing 🫡",
-    waBodyPattern: "{correct}/{total} and {accuracyPct}% today. Not my final form.",
-    waCtaPattern: "Catch me on the comeback run: {appUrl}",
+    hook: "Today’s practice data: {challengeName}.",
+    bodyPattern: "{correct}/{total}, {accuracyPct}% (clear bar {neededCorrect}/{total}).",
+    ctaPattern: "Open Earn & Learn: {appUrl}",
+    waHook: "Treating {challengeName} like a practice test today.",
+    waBodyPattern:
+      "{correct}/{total} and {accuracyPct}%; bar {neededCorrect}/{total}. Numbers go in the notebook — next step is targeted review, not self-criticism.",
+    waCtaPattern: "{appUrl}",
   },
   {
     id: "ig_loss_07",
     tone: "comeback",
-    hook: "Missed clear on {challengeName}, staying consistent.",
-    bodyPattern: "{domainLabel} score: {correct}/{total} ({accuracyPct}%).",
+    hook: "Consistent effort on {challengeName}; outcome still “in progress.”",
+    bodyPattern: "{domainLabel}: {correct}/{total} ({accuracyPct}%).",
     ctaPattern: "Retry with me: {appUrl}",
-    waHook: "{challengeName} really tested my patience and won this round 😮‍💨",
+    waHook: "Still “in progress” on {challengeName} — that is OK.",
     waBodyPattern:
-      "Got {correct}/{total} at {accuracyPct}% in {timeTakenLabel}. Next one is comeback cinema.",
-    waCtaPattern: "Slide in for round two: {appUrl}",
+      "{correct}/{total} at {accuracyPct}% on {domainLabel}. Showing up counts; I will adjust study blocks and try again.",
+    waCtaPattern: "{appUrl}",
   },
   {
     id: "ig_loss_08",
     tone: "comeback",
-    hook: "GG for now on {challengeName}.",
-    bodyPattern: "{correct}/{total} ({accuracyPct}%), needed {neededCorrect}/{total}.",
-    ctaPattern: "Queue next run: {appUrl}",
-    waHook: "GGs only... {challengeName} packed me up today 😂📦",
+    hook: "{challengeName} — not this session, still on track.",
+    bodyPattern: "{correct}/{total} ({accuracyPct}%), needed {neededCorrect}/{total} to pass.",
+    ctaPattern: "Schedule your run: {appUrl}",
+    waHook: "Not this session for {challengeName}, still on track long-term.",
     waBodyPattern:
-      "{correct}/{total}, {accuracyPct}% in {timeTakenLabel}. I blinked and the timer vanished.",
-    waCtaPattern: "Rematch lobby is open: {appUrl}",
+      "{correct}/{total}, {accuracyPct}%, need {neededCorrect}/{total}. Short-term miss, long-term habit intact — sharing for transparency.",
+    waCtaPattern: "{appUrl}",
   },
   {
     id: "ig_loss_09",
     tone: "progress",
-    hook: "Day summary: {challengeName} attempt complete.",
-    bodyPattern: "{correct}/{total}, {accuracyPct}% with clear bar at {neededCorrect}/{total}.",
-    ctaPattern: "Back tomorrow: {appUrl}",
-    waHook: "Today's episode: I fought {challengeName} and lost by stats 😵",
+    hook: "Session complete on {challengeName} — pass pending.",
+    bodyPattern: "{correct}/{total}, {accuracyPct}% vs. {neededCorrect}/{total} required.",
+    ctaPattern: "Back for another round: {appUrl}",
+    waHook: "Finished a session on {challengeName}; pass still pending.",
     waBodyPattern:
-      "Result was {correct}/{total} ({accuracyPct}%), needed {neededCorrect}/{total}. Training arc starts now.",
-    waCtaPattern: "Try it and send your score: {appUrl}",
+      "Result {correct}/{total} ({accuracyPct}%). Requirement {neededCorrect}/{total}. If you are also building exam stamina, we can hold each other accountable.",
+    waCtaPattern: "{appUrl}",
   },
   {
     id: "ig_loss_10",
     tone: "comeback",
-    hook: "Reset mode on: {challengeName}.",
+    hook: "Baseline captured — {challengeName}.",
     bodyPattern: "{correct}/{total} at {accuracyPct}% in {timeTakenLabel}.",
-    ctaPattern: "Join the next attempt: {appUrl}",
-    waHook: "I got folded by {challengeName} but the comeback tweet drafts are ready 😤📲",
+    ctaPattern: "Improve from here: {appUrl}",
+    waHook: "Captured a baseline on {challengeName} to beat next time.",
     waBodyPattern:
-      "{correct}/{total}, {accuracyPct}% in {timeTakenLabel}. This is the 'before' screenshot.",
-    waCtaPattern: "Watch the glow-up run: {appUrl}",
+      "{correct}/{total} ({accuracyPct}%) in {timeTakenLabel}. Growth charts need a starting point — this is mine.",
+    waCtaPattern: "{appUrl}",
   },
 ];
 

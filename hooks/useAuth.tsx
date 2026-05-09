@@ -24,12 +24,25 @@ import { mergeAllSavedContent } from "@/lib/mergeSavedContent";
 import type { Json } from "@/integrations/supabase/types";
 import { safeGetSession } from "@/lib/safeSession";
 import { profileShouldForceOnboardingComplete } from "@/lib/profileOnboardingRepair";
+import { readPendingDeepLink } from "@/lib/auth/safeNextPath";
 
-interface Profile {
+export interface Profile {
   id: string;
   /** Profile row creation time from Supabase (ISO). */
   created_at?: string | null;
   name: string;
+  first_name?: string | null;
+  last_name?: string | null;
+  state?: string | null;
+  city?: string | null;
+  /** 10-digit national number without +91. */
+  phone?: string | null;
+  gender?: string | null;
+  category?: string | null;
+  date_of_birth?: string | null;
+  institution_name?: string | null;
+  board?: string | null;
+  current_class_label?: string | null;
   role: "student" | "teacher" | "admin";
   class_level: number | null;
   target_exam?: string | null;
@@ -45,18 +58,22 @@ interface Profile {
   /** Supabase auth originally used Google — not the same as Calendar OAuth. */
   signup_google?: boolean;
   onboarding_complete: boolean;
+  /** Consecutive days (same gauntlet_date) completing both academic + funbrain DailyDose. */
+  daily_dose_streak?: number;
   rdm?: number;
   saved_bits?: SavedBit[];
   saved_formulas?: SavedFormula[];
   saved_revision_cards?: SavedRevisionCard[];
   saved_revision_units?: SavedRevisionUnit[];
   saved_community_posts?: SavedCommunityPost[];
-  /** Submitted topic-quiz (Bits) attempts keyed like bits-attempts API; retakes overwrite same key. */
+  /** Submitted topic-quiz attempts keyed like bits-attempts API; retakes overwrite same key. */
   bits_test_attempts?: Json | null;
   /** Per-lesson engagement snapshots (in-progress quiz draft lives under bits + graded). */
   subtopic_engagement?: Json | null;
   /** Dashboard daily checklist acks / Gyan++ focus ms by local date key. */
   daily_checklist_state?: Json | null;
+  /** Optional Class X subject marks + coaching (JSON on profiles row). */
+  academic_record_extras?: Json | null;
 }
 
 interface AuthContextType {
@@ -70,7 +87,10 @@ interface AuthContextType {
     email: string,
     password: string,
     name: string
-  ) => Promise<{ error: AuthError | null }>;
+  ) => Promise<{ error: AuthError | null; needsEmailConfirmation: boolean }>;
+  /** After email/password sign-up (confirmations on), user enters the code from email. */
+  verifySignUpEmailOtp: (email: string, token: string) => Promise<{ error: AuthError | null }>;
+  resendSignUpEmailOtp: (email: string) => Promise<{ error: AuthError | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -335,7 +355,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signInWithGoogle = async (redirectPath: string = "/onboarding") => {
     const normalized = redirectPath.startsWith("/") ? redirectPath : `/${redirectPath}`;
     try {
-      sessionStorage.setItem("auth_redirect_after_login", normalized);
+      const pendingLesson = readPendingDeepLink();
+      sessionStorage.setItem("auth_redirect_after_login", pendingLesson ?? normalized);
     } catch (_) {}
     await safeGetSession();
     const redirectTo = `${window.location.origin}/auth/callback`;
@@ -353,19 +374,39 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signUpWithEmail = async (email: string, password: string, name: string) => {
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        emailRedirectTo: window.location.origin,
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
         data: { full_name: name },
       },
+    });
+    const needsEmailConfirmation = Boolean(!error && data?.user && !data?.session);
+    return { error, needsEmailConfirmation };
+  };
+
+  const verifySignUpEmailOtp = async (email: string, token: string) => {
+    const cleaned = token.replace(/\s/g, "");
+    const { error } = await supabase.auth.verifyOtp({
+      email: email.trim(),
+      token: cleaned,
+      type: "signup",
+    });
+    return { error };
+  };
+
+  const resendSignUpEmailOtp = async (email: string) => {
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email: email.trim(),
     });
     return { error };
   };
 
   const signOut = async () => {
     await supabase.auth.signOut();
+    useUserStore.getState().logout();
     setProfile(null);
   };
 
@@ -387,6 +428,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         signInWithGoogle,
         signInWithEmail,
         signUpWithEmail,
+        verifySignUpEmailOtp,
+        resendSignUpEmailOtp,
         signOut,
         refreshProfile,
       }}

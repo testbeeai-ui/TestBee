@@ -153,7 +153,7 @@ export async function GET(request: Request) {
         streamDistribution,
         rdmByRole,
         savedContentBreakdown: [
-          { name: "Saved Bits", value: totalSavedBits },
+          { name: "Saved quizzes", value: totalSavedBits },
           { name: "Saved Formulas", value: totalSavedFormulas },
           { name: "InstaCue Cards", value: totalSavedRevisionCards },
           { name: "Revision Units", value: totalSavedRevisionUnits },

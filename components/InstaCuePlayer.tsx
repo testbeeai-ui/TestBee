@@ -1,10 +1,12 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { useUserStore } from "@/store/useUserStore";
+import { useAuth } from "@/hooks/useAuth";
 import { syncAllSavedContent } from "@/lib/savedContentService";
 import MathText from "@/components/MathText";
 import { SavedRevisionCard } from "@/types";
+import { reportInstacueCardRead } from "@/lib/reportInstacueCardRead";
 import {
   Plus,
   HelpCircle,
@@ -66,7 +68,9 @@ function normalizeCardMath(raw: string, wrapInlineMath = false): string {
 }
 
 export default function InstaCuePlayer({ cards, onClose }: Props) {
+  const { profile } = useAuth();
   const updateRevisionCardStatus = useUserStore((s) => s.updateRevisionCardStatus);
+  const instacueReadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>("new");
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
@@ -96,6 +100,19 @@ export default function InstaCuePlayer({ cards, onClose }: Props) {
 
   const activeCards = groupedCards[activeTab];
   const currentCard = activeCards[currentIndex];
+
+  useEffect(() => {
+    if (!profile?.id || !currentCard?.id) return;
+    const cardId = currentCard.id;
+    if (instacueReadTimerRef.current) clearTimeout(instacueReadTimerRef.current);
+    instacueReadTimerRef.current = setTimeout(() => {
+      instacueReadTimerRef.current = null;
+      void reportInstacueCardRead(cardId);
+    }, 600);
+    return () => {
+      if (instacueReadTimerRef.current) clearTimeout(instacueReadTimerRef.current);
+    };
+  }, [profile?.id, currentCard?.id]);
 
   const handleTabChange = (tab: TabType) => {
     setActiveTab(tab);

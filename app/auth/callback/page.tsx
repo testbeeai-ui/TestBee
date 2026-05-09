@@ -9,6 +9,11 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { safeGetSession } from "@/lib/safeSession";
+import {
+  readPendingDeepLink,
+  clearPendingDeepLink,
+  destinationFromOAuthStored,
+} from "@/lib/auth/safeNextPath";
 
 async function readClientSession() {
   try {
@@ -108,7 +113,6 @@ export default function AuthCallback() {
 
     const stored =
       typeof window !== "undefined" ? sessionStorage.getItem("auth_redirect_after_login") : null;
-    const target = stored && stored.startsWith("/") ? stored : "/onboarding";
 
     const isTeacher = profile?.role === "teacher";
     const postOnboardPath = isTeacher ? "/teacher-portal" : "/home";
@@ -117,7 +121,11 @@ export default function AuthCallback() {
     if (user && profile?.onboarding_complete) {
       (async () => {
         await supabase.auth.signOut({ scope: "others" });
-        doRedirect(postOnboardPath, stored);
+        const pending = readPendingDeepLink();
+        const fromOAuth = destinationFromOAuthStored(stored);
+        const dest = pending ?? fromOAuth ?? postOnboardPath;
+        clearPendingDeepLink();
+        doRedirect(dest, stored);
       })();
       return;
     }

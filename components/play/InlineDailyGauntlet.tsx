@@ -11,8 +11,9 @@ import { bumpUserStudyDayMs } from "@/lib/studyDayBump";
 import { fireAssignmentTaskSync } from "@/lib/classroom/syncAssignmentTaskProgress";
 import { shufflePlayQuestionOptions } from "@/lib/shufflePlayQuestionOptions";
 import { cn } from "@/lib/utils";
-import type { PlayDomain, PlayQuestionRow } from "@/types";
+import type { PlayDomain, PlayGauntletAnswerPayload, PlayQuestionRow } from "@/types";
 import { fetchDailyGauntletQuestionsWithFallback } from "@/lib/fetchPlayQuestionsAdaptiveWithFallback";
+import { fetchRdmConfig } from "@/lib/rdmConfig";
 import { Clock, Loader2 } from "lucide-react";
 
 const GAUNTLET_SESSION_SEC = 300;
@@ -47,7 +48,7 @@ type LbRow = {
 };
 
 /**
- * Full Daily Gauntlet session embedded on pages like Refer & Earn (no redirect to /play).
+ * Full Daily Gauntlet session embedded on pages like Earn & Learn (no redirect to /play).
  * Mirrors `app/play/page.tsx` gauntlet RPCs, timers, and submit behavior.
  */
 export default function InlineDailyGauntlet({
@@ -55,14 +56,12 @@ export default function InlineDailyGauntlet({
   onClose,
   onSessionComplete,
 }: InlineDailyGauntletProps) {
-  const { user } = useAuth();
+  const { user, refreshProfile } = useAuth();
   const isPlayAdmin = useIsAppAdmin();
   const [bootLoading, setBootLoading] = useState(true);
   const [gauntletQuestions, setGauntletQuestions] = useState<PlayQuestionRow[]>([]);
   const [gauntletIndex, setGauntletIndex] = useState(0);
-  const [gauntletResults, setGauntletResults] = useState<
-    { question_id: string; is_correct: boolean; time_taken_ms: number }[]
-  >([]);
+  const [gauntletResults, setGauntletResults] = useState<PlayGauntletAnswerPayload[]>([]);
   const gauntletResultsRef = useRef(gauntletResults);
   useEffect(() => {
     gauntletResultsRef.current = gauntletResults;
@@ -96,7 +95,7 @@ export default function InlineDailyGauntlet({
   }, []);
 
   const submitGauntlet = useCallback(
-    async (results: { question_id: string; is_correct: boolean; time_taken_ms: number }[]) => {
+    async (results: PlayGauntletAnswerPayload[]) => {
       if (gauntletSubmitLockRef.current) return;
       gauntletSubmitLockRef.current = true;
       const today = todayUtc();
@@ -119,6 +118,8 @@ export default function InlineDailyGauntlet({
         return;
       }
 
+      void refreshProfile();
+
       if (uid && !isPlayAdmin) {
         try {
           localStorage.setItem(playGauntletDayDoneKey(uid, today, domain), "1");
@@ -132,7 +133,7 @@ export default function InlineDailyGauntlet({
       void fetchLeaderboard(today, domain);
       onSessionComplete?.();
     },
-    [domain, fetchLeaderboard, onSessionComplete, user?.id, isPlayAdmin]
+    [domain, fetchLeaderboard, onSessionComplete, user?.id, isPlayAdmin, refreshProfile]
   );
 
   const handleGauntletTimeout = useCallback(() => {
@@ -142,7 +143,12 @@ export default function InlineDailyGauntlet({
     if (!q) return;
     const prev = gauntletResultsRef.current;
     if (prev.some((r) => r.question_id === q.id)) return;
-    const row = { question_id: q.id, is_correct: false, time_taken_ms: GAUNTLET_Q_SEC * 1000 };
+    const row: PlayGauntletAnswerPayload = {
+      question_id: q.id,
+      is_correct: false,
+      time_taken_ms: GAUNTLET_Q_SEC * 1000,
+      selected_answer_index: null,
+    };
     const next = [...prev, row];
     gauntletResultsRef.current = next;
     setGauntletResults(next);
@@ -179,6 +185,7 @@ export default function InlineDailyGauntlet({
         question_id: qs[i]!.id,
         is_correct: false,
         time_taken_ms: GAUNTLET_Q_SEC * 1000,
+        selected_answer_index: null,
       });
     }
     gauntletResultsRef.current = existing;
@@ -216,9 +223,11 @@ export default function InlineDailyGauntlet({
         setBootLoading(false);
         return;
       }
+      const rdm = await fetchRdmConfig();
       const questions = await fetchDailyGauntletQuestionsWithFallback(supabase, {
         domain,
         dateIso: today,
+        questionCount: rdm.play_dailydose_min_questions_for_rdm,
       });
       if (cancelled) return;
       setBootLoading(false);
@@ -246,7 +255,12 @@ export default function InlineDailyGauntlet({
     if (!gauntletQuestions[gauntletIndex]) return;
     const q = gauntletQuestions[gauntletIndex];
     const isCorrect = selectedIndex === q.correct_answer_index;
-    const newResult = { question_id: q.id, is_correct: isCorrect, time_taken_ms: timeTakenMs };
+    const newResult: PlayGauntletAnswerPayload = {
+      question_id: q.id,
+      is_correct: isCorrect,
+      time_taken_ms: timeTakenMs,
+      selected_answer_index: selectedIndex,
+    };
     const fullSoFar = [...gauntletResultsRef.current, newResult];
     setGauntletResults(fullSoFar);
   };
@@ -502,6 +516,7 @@ export default function InlineDailyGauntlet({
             hideInlineTimer
             showExplanation
             optionLayout="grid"
+            watermarkText={`tb ${String(user?.id ?? "anon").slice(0, 8)} · ${domain} · ${formatClock(gauntletSessionLeft)} · q${gauntletIndex + 1}`}
           />
         </div>
       ) : null}

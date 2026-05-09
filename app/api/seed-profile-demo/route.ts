@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/integrations/supabase/server";
 import { createAdminClient } from "@/integrations/supabase/server";
+import { isDangerousRouteEnabled, requireAdminUser } from "@/lib/securityGuards";
 
 const DEMO_ACADEMICS = [
   { exam: "Class 11", board: "State Board", score: "94%", verified: "verified" },
@@ -8,9 +8,30 @@ const DEMO_ACADEMICS = [
 ];
 
 const DEMO_ACHIEVEMENTS = [
-  { name: "Physics Olympiad", level: "State", year: 2024, result: "Bronze Medal" },
-  { name: "Science Fair", level: "School", year: 2023, result: "Best Project" },
-  { name: "Mock Test Topper", level: "District", year: 2025, result: "Rank 1" },
+  {
+    name: "Physics Olympiad",
+    level: "State",
+    year: 2024,
+    result: "Bronze Medal",
+    percentage: "Top 5%",
+    verified: "verified" as const,
+  },
+  {
+    name: "Science Fair",
+    level: "School",
+    year: 2023,
+    result: "Best Project",
+    percentage: "",
+    verified: "verified" as const,
+  },
+  {
+    name: "Mock Test Topper",
+    level: "District",
+    year: 2025,
+    result: "Rank 1",
+    percentage: "98%",
+    verified: "verified" as const,
+  },
 ];
 
 /**
@@ -19,18 +40,11 @@ const DEMO_ACHIEVEMENTS = [
  */
 export async function POST(request: Request) {
   try {
-    const cookieSupabase = await createClient();
-    let user = (await cookieSupabase.auth.getUser()).data?.user ?? null;
-    const token = request.headers.get("Authorization")?.replace(/^Bearer\s+/i, "");
-    if (!user && token) {
-      const {
-        data: { user: u },
-      } = await cookieSupabase.auth.getUser(token);
-      user = u ?? null;
+    if (!isDangerousRouteEnabled("ENABLE_SEED_ROUTES")) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await requireAdminUser(request);
+    if ("response" in auth) return auth.response;
 
     const admin = createAdminClient();
     if (!admin) {
@@ -124,6 +138,8 @@ export async function POST(request: Request) {
             level: a.level,
             year: a.year,
             result: a.result,
+            percentage: a.percentage,
+            verified: a.verified,
           });
           if (!error) achievementsCount++;
         }

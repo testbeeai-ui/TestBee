@@ -9,6 +9,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useTeacherPortalData } from "@/hooks/useTeacherPortalData";
 import { useToast } from "@/hooks/use-toast";
 import CreateAssignmentWizard from "@/components/teacher-portal/CreateAssignmentWizard";
+import { useTeacherVerificationActionGuard } from "@/hooks/useTeacherVerificationActionGuard";
+import { TEACHER_VERIFICATION_REQUIRED_ERROR } from "@/lib/teacherPortal/queries";
 
 function CreateAssignmentPageContent() {
   const router = useRouter();
@@ -16,6 +18,11 @@ function CreateAssignmentPageContent() {
   const { toast } = useToast();
   const { user, profile } = useAuth();
   const { data, loading, error, createAssignment } = useTeacherPortalData(user?.id);
+  const verificationStatus = data?.profile.details.verificationStatus ?? "unverified";
+  const { guardAction } = useTeacherVerificationActionGuard({
+    verificationStatus,
+    isAdminImpersonation: false,
+  });
   const classroomIdPrefill = (searchParams.get("classroomId") ?? "").trim() || null;
 
   if (!user) {
@@ -76,7 +83,16 @@ function CreateAssignmentPageContent() {
               initialClassroomId={classroomIdPrefill}
               onCancel={() => router.push("/teacher-portal?section=myClassroom")}
               onPublish={async (input) => {
-                await createAssignment({ teacherId: user.id, ...input });
+                const allowed = await guardAction(
+                  async () => {
+                    await createAssignment({ teacherId: user.id, ...input });
+                    return true;
+                  },
+                  { actionLabel: "Create assignment" }
+                );
+                if (allowed !== true) {
+                  throw new Error(TEACHER_VERIFICATION_REQUIRED_ERROR);
+                }
                 toast({ title: "Assignment created" });
                 router.push("/teacher-portal?section=myClassroom");
               }}

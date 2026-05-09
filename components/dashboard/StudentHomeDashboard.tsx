@@ -27,8 +27,16 @@ import { EDUBLAST_STUDY_DAYS_REFRESH } from "@/lib/studyDayBumpEvents";
 import { supabase } from "@/integrations/supabase/client";
 import { useTopicTaxonomy } from "@/hooks/useTopicTaxonomy";
 import type { Subject, SubjectCombo } from "@/types";
+import { DEFAULT_RDM_CONFIG, fetchRdmConfig } from "@/lib/rdmConfig";
+import { EDUFUND_RDM_GATES } from "@/lib/dashboardSidebarMetrics";
 import RawCommunityFeed from "@/components/explore/RawCommunityFeed";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useSitePresenceLiveMsToday } from "@/components/providers/SitePresenceProvider";
 import { cn } from "@/lib/utils";
 import { CalendarDays, CheckCircle2, Flame, LineChart, Sprout, Star } from "lucide-react";
@@ -81,53 +89,31 @@ const UPCOMING_MOCKS = [
   },
 ] as const;
 
-const EDUFUND_TIERS = [
-  {
-    name: "Sprout",
-    status: "Unlocked" as const,
-    detail: "1,000 RDM threshold",
-    progress: 1,
-    amount: "₹3,000",
-    tone: "text-emerald-500",
-  },
-  {
-    name: "Scholar",
-    status: "In progress" as const,
-    detail: "3,000 RDM needed · 1,260 more to go",
-    progress: 0.58,
-    amount: "₹12,000",
-    tone: "text-indigo-400",
-  },
-  {
-    name: "Champion",
-    status: "Locked" as const,
-    detail: "8,000 RDM needed · 6,260 more to go",
-    progress: 0.22,
-    amount: "₹50,000",
-    tone: "text-orange-400",
-  },
-] as const;
-
-function greenCellClass(level: 0 | 1 | 2 | 3 | 4, isToday: boolean): string {
+function greenCellClass(level: 0 | 1 | 2 | 3, isToday: boolean): string {
   const ring = isToday ? "ring-2 ring-teal-400 ring-offset-2 ring-offset-background" : "";
   const base = "rounded-lg border transition-colors " + ring;
   switch (level) {
     case 0:
-      return cn(base, "border-border/60 bg-muted/40 dark:bg-slate-900/80");
+      return cn(base, "border-red-500/35 bg-red-950/55 text-red-100");
     case 1:
-      return cn(base, "border-emerald-500/25 bg-emerald-950/50 text-emerald-100");
+      return cn(base, "border-emerald-400/45 bg-emerald-400/28 text-emerald-950 dark:text-emerald-50");
     case 2:
-      return cn(base, "border-emerald-400/35 bg-emerald-800/60 text-emerald-50");
+      return cn(base, "border-emerald-500/45 bg-emerald-600/60 text-white");
     case 3:
-      return cn(base, "border-emerald-300/40 bg-emerald-600/70 text-white");
-    default:
-      return cn(base, "border-emerald-200/50 bg-emerald-400 text-emerald-950");
+      return cn(base, "border-emerald-700/50 bg-emerald-950/90 text-emerald-50");
   }
+}
+
+function heatmapLoadingCellClass(isToday: boolean): string {
+  const ring = isToday ? "ring-2 ring-teal-400 ring-offset-2 ring-offset-background" : "";
+  return cn(
+    "rounded-lg border border-border/60 bg-muted/35 text-muted-foreground/90 transition-colors " + ring
+  );
 }
 
 export default function StudentHomeDashboard() {
   const router = useRouter();
-  const { profile, refreshProfile } = useAuth();
+  const { profile } = useAuth();
   const storeUser = useUserStore((s) => s.user);
   const [heatmapMode, setHeatmapMode] = useState<HeatmapMode>("7");
   const [studyMsByDay, setStudyMsByDay] = useState<Map<string, number>>(() => new Map());
@@ -138,6 +124,12 @@ export default function StudentHomeDashboard() {
   } | null>(null);
   const [studyDaysStatus, setStudyDaysStatus] = useState<"idle" | "loading" | "ready" | "error">(
     "idle"
+  );
+  const [studyStreakBonusWeek, setStudyStreakBonusWeek] = useState(
+    DEFAULT_RDM_CONFIG.study_streak_bonus_week_number
+  );
+  const [studyStreakBonusRdm, setStudyStreakBonusRdm] = useState(
+    DEFAULT_RDM_CONFIG.study_streak_bonus_rdm
   );
   /** After first successful fetch, refetches stay quiet (no greeting/stat "…" flicker). */
   const studyDaysCommittedRef = useRef(false);
@@ -173,7 +165,48 @@ export default function StudentHomeDashboard() {
     return () => clearInterval(id);
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    void fetchRdmConfig().then((cfg) => {
+      if (cancelled) return;
+      setStudyStreakBonusWeek(Math.max(1, Math.round(cfg.study_streak_bonus_week_number)));
+      setStudyStreakBonusRdm(Math.max(0, Math.round(cfg.study_streak_bonus_rdm)));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const rdm = profile?.rdm ?? storeUser?.rdm ?? 0;
+  const edufundTiers = useMemo(() => {
+    const wallet = Math.max(0, Math.floor(Number(rdm) || 0));
+    const tierGates = EDUFUND_RDM_GATES.slice(0, 3);
+    const firstLockedIdx = tierGates.findIndex((g) => wallet < g.need);
+    return tierGates.map((gate, idx) => {
+      const prevNeed = idx === 0 ? 0 : tierGates[idx - 1]!.need;
+      const span = Math.max(1, gate.need - prevNeed);
+      const progress = Math.max(0, Math.min(1, (wallet - prevNeed) / span));
+      const unlocked = wallet >= gate.need;
+      const inProgress = !unlocked && firstLockedIdx === idx;
+      const status = unlocked ? "Unlocked" : inProgress ? "In progress" : "Locked";
+      const detail = unlocked
+        ? `${gate.need.toLocaleString("en-IN")} RDM threshold met`
+        : `${gate.need.toLocaleString("en-IN")} RDM needed · ${Math.max(0, gate.need - wallet).toLocaleString("en-IN")} more to go`;
+      return {
+        name: gate.name,
+        status,
+        detail,
+        progress: unlocked ? 1 : progress,
+        amount: `₹${gate.unlockInrAmount.toLocaleString("en-IN")}`,
+        tone:
+          status === "Unlocked"
+            ? "text-emerald-500"
+            : status === "In progress"
+              ? "text-indigo-400"
+              : "text-orange-400",
+      };
+    });
+  }, [rdm]);
 
   const streakDays = streakSummary?.streak ?? 0;
   const activeDaysThisMonth = streakSummary?.activeDaysThisMonth ?? 0;
@@ -327,7 +360,7 @@ export default function StudentHomeDashboard() {
     "idle" | "loading" | "ready" | "error"
   >("idle");
   const dailyChecklistCommittedRef = useRef(false);
-  const [instacueAckLoading, setInstacueAckLoading] = useState(false);
+  const [isChecklistOpen, setIsChecklistOpen] = useState(true);
 
   const loadDailyChecklist = useCallback(async () => {
     await Promise.resolve();
@@ -398,10 +431,84 @@ export default function StudentHomeDashboard() {
     if (dailyChecklist.subtopicRoutineDone) n++;
     if (dailyChecklist.gyanPlusDone) n++;
     if (dailyChecklist.instacueSessionDone) n++;
+    if (dailyChecklist.challengeYourselfDone) n++;
     return n;
   }, [dailyChecklist]);
 
-  /** Single-line checklist hint for the greeting strip (items a–d from GET /api/user/daily-checklist). */
+  const checklistItems = useMemo(
+    () => [
+      {
+        id: "a",
+        text: "Do your Daily Routine — complete DailyDose (10 questions, academic, 5 mins) and complete Funbrain Forge (10 questions, non-academic, 5 minutes)",
+        done: Boolean(dailyChecklist?.dailyDoseDone),
+      },
+      {
+        id: "b",
+        text: "At least 1 topic and 1 sub-topic per subject – Physics, Chemistry and Mathematics (a submitted topic quiz in each subject), & tap Mark as complete in Lessons/Progress after finishing all five steps there",
+        done: Boolean(dailyChecklist?.subtopicRoutineDone),
+      },
+      {
+        id: "c",
+        text: "Gyan++: stay on the feed at least 5 minutes, save at least 1 doubt for revision, and upvote or comment on someone else’s post today.",
+        done: Boolean(dailyChecklist?.gyanPlusDone),
+      },
+      {
+        id: "d",
+        text: "Instacue: scroll through all 32 cards for your chapter (same checklist as Lessons / Progress; count resets each calendar day)",
+        done: Boolean(dailyChecklist?.instacueSessionDone),
+      },
+      {
+        id: "e",
+        text: "Try your luck at the Challenge Yourself and win RDM",
+        done: Boolean(dailyChecklist?.challengeYourselfDone),
+      },
+    ],
+    [dailyChecklist]
+  );
+
+  /**
+   * Checklist strip + Gyan++ line: lead with progress (gain framing); avoid a lone row of zeros,
+   * which reads as failure (loss aversion). When Gyan++ metrics are all still at 0, use autonomy-
+   * supportive, “not yet” wording (growth mindset / SDT) instead of deficit tallies.
+   */
+  const checklistStripSummary = useMemo(() => {
+    if (dailyChecklistStatus === "error") return null;
+
+    const pending =
+      dailyChecklistStatus === "idle" ||
+      dailyChecklistStatus === "loading" ||
+      dailyChecklist == null;
+
+    if (pending) {
+      return {
+        progressLine: "Loading today's checklist…",
+        gyanLine: null as string | null,
+      };
+    }
+
+    let progressLine: string;
+    if (checklistDoneCount >= 5) {
+      progressLine = "All 5 daily habits complete today — nice work.";
+    } else if (checklistDoneCount > 0) {
+      progressLine = `${checklistDoneCount} of 5 habits checked off today`;
+    } else {
+      progressLine =
+        "0 of 5 habits yet — open the checklist when you're ready; no rush.";
+    }
+
+    const m = Math.round(dailyChecklist.gyanPlusProgress.focusMs / 60000);
+    const s = dailyChecklist.gyanPlusProgress.savesToday;
+    const c = dailyChecklist.gyanPlusProgress.communityActionsToday;
+    const gyanAllZero = m === 0 && s === 0 && c === 0;
+
+    const gyanLine = gyanAllZero
+      ? "Gyan++: when you have a moment, browse the feed, save a doubt, or react to a post — small steps count."
+      : `Gyan++ so far today: ${m} min on the feed · ${s} doubt${s === 1 ? "" : "s"} saved · ${c} community action${c === 1 ? "" : "s"}`;
+
+    return { progressLine, gyanLine };
+  }, [dailyChecklist, dailyChecklistStatus, checklistDoneCount]);
+
+  /** Single-line checklist hint for the greeting strip (items a–e from GET /api/user/daily-checklist). */
   const greetingChecklistLine = useMemo(() => {
     if (!profile?.id) {
       return {
@@ -424,12 +531,13 @@ export default function StudentHomeDashboard() {
         text: "Please go through and complete the checklist below.",
       };
     }
-    if (checklistDoneCount < 4) {
+    if (checklistDoneCount < 5) {
       const labels: string[] = [];
       if (!dailyChecklist.dailyDoseDone) labels.push("DailyDose");
       if (!dailyChecklist.subtopicRoutineDone) labels.push("Subtopic routine");
       if (!dailyChecklist.gyanPlusDone) labels.push("Gyan++");
       if (!dailyChecklist.instacueSessionDone) labels.push("Instacue");
+      if (!dailyChecklist.challengeYourselfDone) labels.push("Challenge yourself");
       const rest = formatRemainingChecklistLabels(labels);
       return {
         tone: "muted" as const,
@@ -443,25 +551,6 @@ export default function StudentHomeDashboard() {
       text: "You've completed today's checklist — great work. Keep your streak going.",
     };
   }, [profile?.id, dailyChecklistStatus, dailyChecklist, checklistDoneCount]);
-
-  const acknowledgeInstacueSession = useCallback(async () => {
-    if (!profile?.id || instacueAckLoading) return;
-    const { today } = localDayBoundsIso(now);
-    setInstacueAckLoading(true);
-    try {
-      const headers = await getClientApiAuthHeaders();
-      const res = await fetchWithClientAuth("/api/user/daily-checklist", {
-        method: "PATCH",
-        headers: { ...headers, "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "instacue_ack", today }),
-      });
-      if (!res.ok) return;
-      await refreshProfile();
-      await loadDailyChecklist();
-    } finally {
-      setInstacueAckLoading(false);
-    }
-  }, [profile?.id, instacueAckLoading, now, refreshProfile, loadDailyChecklist]);
 
   const lowestChapter = useMemo(() => {
     const started = chapterRows.filter((r) => r.completed > 0);
@@ -477,7 +566,7 @@ export default function StudentHomeDashboard() {
       key: string;
       activeMs: number;
       presenceMs: number;
-      level: 0 | 1 | 2 | 3 | 4;
+      level: 0 | 1 | 2 | 3;
       label: string;
       tooltipTitle: string;
     }[] = [];
@@ -514,7 +603,7 @@ export default function StudentHomeDashboard() {
       key: string | null;
       activeMs: number;
       presenceMs: number;
-      level: 0 | 1 | 2 | 3 | 4;
+      level: 0 | 1 | 2 | 3;
       label: string;
       tooltipTitle: string | null;
     }[] = [];
@@ -628,31 +717,18 @@ export default function StudentHomeDashboard() {
         </p>
       </div>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="font-serif text-3xl font-bold tracking-tight text-foreground md:text-4xl">
-            My dashboard
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">{classLine}</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="rounded-full font-bold"
-            onClick={() => router.push("/play")}
-          >
-            AI coach advice
-          </Button>
-        </div>
+      <div>
+        <h1 className="font-serif text-3xl font-bold tracking-tight text-foreground md:text-4xl">
+          My dashboard
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">{classLine}</p>
       </div>
 
       {/* Stat cards */}
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[
           {
-            label: "STATE RANK",
+            label: "RDM RANK",
             value: "#14",
             sub: "+ Up 3 places this week",
             subClass: "text-emerald-500",
@@ -704,11 +780,11 @@ export default function StudentHomeDashboard() {
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <CalendarDays className="h-5 w-5 text-teal-500" />
-            <h2 className="text-lg font-bold text-foreground">Study streak — time on site map</h2>
+            <h2 className="text-lg font-bold text-foreground">Study streak</h2>
           </div>
           <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-1 text-[11px] font-bold text-amber-600 dark:text-amber-300">
             <Flame className="h-3.5 w-3.5" />
-            Week 3 bonus: +150 RDM
+            Week {studyStreakBonusWeek} bonus: +{studyStreakBonusRdm.toLocaleString("en-IN")} RDM
           </span>
         </div>
 
@@ -759,19 +835,26 @@ export default function StudentHomeDashboard() {
             {last7Series.map((cell) => {
               const isToday =
                 localDayKeyFromDate(cell.date) === localDayKeyFromDate(startOfLocalDay(now));
+              const isReady = studyDaysStatus === "ready";
               return (
                 <div
                   key={cell.key}
-                  title={`${cell.tooltipTitle} · Daily RDM: coming soon`}
+                  title={
+                    isReady
+                      ? `${cell.tooltipTitle} · Daily RDM: coming soon`
+                      : "Loading activity…"
+                  }
                   className={cn(
                     "flex min-h-[72px] min-w-[72px] flex-1 flex-col items-center justify-center gap-0.5 px-2 py-2 sm:min-w-[88px]",
-                    greenCellClass(cell.level, isToday)
+                    isReady ? greenCellClass(cell.level, isToday) : heatmapLoadingCellClass(isToday)
                   )}
                 >
                   <span className="text-[10px] font-bold uppercase text-muted-foreground">
                     {cell.date.toLocaleDateString(undefined, { weekday: "short" })}
                   </span>
-                  <span className="text-sm font-extrabold tabular-nums">{cell.label}</span>
+                  <span className="text-sm font-extrabold tabular-nums">
+                    {isReady ? cell.label : "…"}
+                  </span>
                   {isToday ? (
                     <span className="text-[10px] font-semibold text-teal-400">Today</span>
                   ) : null}
@@ -798,14 +881,22 @@ export default function StudentHomeDashboard() {
                 return (
                   <div
                     key={cell.key}
-                    title={cell.tooltipTitle ? `${cell.tooltipTitle} · RDM: later` : undefined}
+                    title={
+                      studyDaysStatus === "ready" && cell.tooltipTitle
+                        ? `${cell.tooltipTitle} · RDM: later`
+                        : undefined
+                    }
                     className={cn(
                       "flex aspect-square flex-col items-center justify-center gap-0.5 p-1 text-[10px] font-bold",
-                      greenCellClass(cell.level, isToday)
+                      studyDaysStatus === "ready"
+                        ? greenCellClass(cell.level, isToday)
+                        : heatmapLoadingCellClass(isToday)
                     )}
                   >
                     <span>{cell.day}</span>
-                    <span className="text-[9px] opacity-90">{cell.label}</span>
+                    <span className="text-[9px] opacity-90">
+                      {studyDaysStatus === "ready" ? cell.label : "…"}
+                    </span>
                     {isToday ? <span className="text-[8px] text-teal-300">Today</span> : null}
                   </div>
                 );
@@ -816,153 +907,188 @@ export default function StudentHomeDashboard() {
 
         <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
           <span>Less</span>
-          <span className="h-3 w-8 rounded bg-gradient-to-r from-muted to-emerald-400" />
+          <span className="h-3 w-8 rounded bg-gradient-to-r from-red-950/70 via-emerald-500/60 to-emerald-950" />
           <span>More</span>
           <span className="ml-2">
-            Cell numbers show time on EduBlast with this tab in the foreground (pauses when you
-            switch tabs). Tooltips also show saved study time toward your streak (play + topic
-            quizzes). A dash means no on-site time that day;{" "}
+            Red = no focus or under 10 minutes that day; light → dark green = longer focus (same as
+            your profile heatmap). Cell numbers show time on EduBlast with this tab in the foreground
+            (pauses when you switch tabs). Tooltips also show saved study time toward your streak
+            (play + topic quizzes). A dash means no on-site time that day;{" "}
             <span className="font-mono">{"<1m"}</span> means under one minute on site. Streak =
             consecutive calendar days with any saved study time, counted through your most recent
-            active day on or before today (so the map can look quiet while your streak continues if
-            you have not opened the app long enough to sync).
+            active day on or before today.
           </span>
         </div>
       </section>
 
-      {/* Checklist */}
+      {/* Checklist trigger */}
       <section className="rounded-2xl border border-border bg-card/90 p-4 shadow-sm dark:bg-slate-950/60">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-            <h2 className="text-lg font-bold">Today&apos;s checklist and what is done</h2>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+              <h2 className="text-lg font-bold">Today&apos;s checklist</h2>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {dailyChecklistStatus === "error" ? (
+                <span className="text-rose-300">
+                  Could not load checklist status. Refresh and try again.
+                </span>
+              ) : checklistStripSummary ? (
+                <>
+                  <span className="font-semibold text-foreground">
+                    {checklistStripSummary.progressLine}
+                  </span>
+                  {checklistStripSummary.gyanLine ? (
+                    <>
+                      {" · "}
+                      {checklistStripSummary.gyanLine}
+                    </>
+                  ) : null}
+                </>
+              ) : null}
+            </p>
           </div>
           <Button
             type="button"
             size="sm"
-            className="gap-1 rounded-full font-bold"
-            onClick={() => router.push("/play")}
+            className="rounded-full font-bold"
+            onClick={() => setIsChecklistOpen(true)}
           >
-            <Flame className="h-4 w-4" />
-            Start streak for today
+            View checklist
           </Button>
         </div>
-        <ul className="space-y-2">
-          {[
-            {
-              id: "a",
-              text: "Do your Daily Routine — complete DailyDose (10 questions, academic)",
-              done: Boolean(dailyChecklist?.dailyDoseDone),
-            },
-            {
-              id: "b",
-              text: "Read at least 1 sub-topic per subject with quiz and numerals today (a submitted topic quiz in each subject), or tap Mark as complete in Lessons/Progress after finishing all five steps there",
-              done: Boolean(dailyChecklist?.subtopicRoutineDone),
-            },
-            {
-              id: "c",
-              text: "Gyan++: stay on the feed at least 5 minutes, save at least 1 doubt for revision, and upvote or comment on someone else’s post today.",
-              done: Boolean(dailyChecklist?.gyanPlusDone),
-            },
-            {
-              id: "d",
-              text: "Instacue: save 32 revision cards today (count resets each calendar day), then confirm you finished one revision session",
-              done: Boolean(dailyChecklist?.instacueSessionDone),
-            },
-            {
-              id: "e",
-              text: "Run one MentaMill 60-second blitz (coming soon)",
-              done: false,
-            },
-          ].map((item) => (
-            <li
-              key={item.id}
-              className={cn(
-                "flex flex-wrap items-start justify-between gap-2 rounded-xl border border-border/60 bg-background/50 px-3 py-2.5 dark:bg-slate-900/40",
-                item.id === "e" ? "opacity-50" : ""
-              )}
-            >
-              <div className="flex min-w-0 flex-1 gap-2">
-                {item.done ? (
-                  <CheckCircle2
-                    className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500"
-                    aria-label="Done"
-                  />
-                ) : (
-                  <span
-                    className="mt-0.5 inline-flex h-4 w-4 shrink-0 rounded border border-dashed border-muted-foreground/50"
-                    aria-hidden
-                  />
-                )}
-                <span className="text-sm text-foreground">
-                  <span className="font-bold">{item.id}.</span> {item.text}
-                  {item.id === "c" ? (
-                    <>
-                      {" "}
-                      <Link href="/doubts" className="font-bold text-primary hover:underline">
-                        Open Gyan++
-                      </Link>
-                    </>
-                  ) : null}
-                  {item.id === "d" &&
-                  dailyChecklist &&
-                  !dailyChecklist.instacueSessionDone &&
-                  dailyChecklist.savedRevisionCardCount >= 32 ? (
-                    <span className="mt-2 block">
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="secondary"
-                        className="rounded-lg font-bold"
-                        disabled={instacueAckLoading}
-                        onClick={() => void acknowledgeInstacueSession()}
-                      >
-                        {instacueAckLoading ? "Saving…" : "Mark Instacue session done"}
-                      </Button>
-                    </span>
-                  ) : null}
-                  {item.id === "d" &&
-                  dailyChecklist &&
-                  !dailyChecklist.instacueSessionDone &&
-                  dailyChecklist.savedRevisionCardCount < 32 ? (
-                    <span className="mt-1 block text-[11px] text-muted-foreground">
-                      Today&apos;s Instacue saves: {dailyChecklist.savedRevisionCardCount}/32
-                      {typeof dailyChecklist.savedRevisionCardsDeckTotal === "number" &&
-                      dailyChecklist.savedRevisionCardsDeckTotal !==
-                        dailyChecklist.savedRevisionCardCount ? (
+      </section>
+
+      <Dialog open={isChecklistOpen} onOpenChange={setIsChecklistOpen}>
+        <DialogContent
+          className={
+            "flex w-full max-w-3xl flex-col gap-0 overflow-hidden border-border/70 bg-card p-0 shadow-2xl " +
+            "ring-1 ring-black/5 dark:border-white/10 dark:bg-[#070b14] dark:ring-white/10 " +
+            "max-h-[min(92dvh,56rem)] " +
+            /* Small screens: anchored bottom sheet — easier thumb reach, stable on notches */
+            "max-sm:inset-x-0 max-sm:bottom-0 max-sm:left-0 max-sm:right-0 max-sm:top-auto " +
+            "max-sm:max-h-[min(90dvh,56rem)] max-sm:w-full max-sm:translate-x-0 max-sm:translate-y-0 " +
+            "max-sm:rounded-b-none max-sm:rounded-t-3xl max-sm:border-x-0 max-sm:border-b-0 " +
+            /* sm+: classic centered modal */
+            "sm:left-1/2 sm:top-1/2 sm:w-[calc(100vw-1.5rem)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl sm:border " +
+            "pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+          }
+        >
+          {/* Header: fixed height region; close (X) stays in component chrome; pr-* clears it */}
+          <div className="shrink-0 border-b border-border/60 bg-gradient-to-b from-muted/50 to-transparent px-4 pb-4 pt-6 sm:px-6 sm:pb-5 sm:pt-7 dark:from-slate-900/90">
+            <DialogHeader className="space-y-3 text-left">
+              <div className="flex items-start gap-2.5 pr-11 sm:gap-3 sm:pr-12">
+                <CheckCircle2
+                  className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500 sm:h-5 sm:w-5"
+                  aria-hidden
+                />
+                <DialogTitle className="text-left text-base font-bold leading-snug tracking-tight sm:text-lg">
+                  Today&apos;s checklist and what is done
+                </DialogTitle>
+              </div>
+              <div className="flex flex-col gap-2 sm:gap-2.5">
+                <Button
+                  type="button"
+                  size="default"
+                  className="h-11 w-full min-h-[44px] gap-2 rounded-full font-bold sm:h-10 sm:w-fit sm:min-h-0"
+                  onClick={() => router.push("/play")}
+                >
+                  <Flame className="h-4 w-4 shrink-0" aria-hidden />
+                  Start streak for today
+                </Button>
+                <p className="text-[11px] leading-relaxed text-muted-foreground sm:text-xs">
+                  Esc or the top-right close exits — away from the button above.
+                </p>
+              </div>
+            </DialogHeader>
+          </div>
+
+          {/* Scrollable list: avoids whole-modal scroll jank on short phones */}
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 py-3 sm:px-6 sm:py-4">
+            <ul className="space-y-2 sm:space-y-2.5">
+              {checklistItems.map((item) => (
+                <li
+                  key={item.id}
+                  className="flex flex-wrap items-start justify-between gap-2 rounded-xl border border-border/60 bg-background/60 px-3 py-3 dark:bg-slate-900/50 sm:px-3.5 sm:py-2.5"
+                >
+                  <div className="flex min-w-0 flex-1 gap-2.5 sm:gap-2">
+                    {item.done ? (
+                      <CheckCircle2
+                        className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500 sm:h-4 sm:w-4"
+                        aria-label="Done"
+                      />
+                    ) : (
+                      <span
+                        className="mt-0.5 inline-flex h-4 w-4 shrink-0 rounded border border-dashed border-muted-foreground/50"
+                        aria-hidden
+                      />
+                    )}
+                    <span className="text-[13px] leading-relaxed text-foreground sm:text-sm sm:leading-normal">
+                      <span className="font-bold">{item.id}.</span> {item.text}
+                      {item.id === "c" ? (
                         <>
                           {" "}
-                          · Bank total {dailyChecklist.savedRevisionCardsDeckTotal} (not day-scoped)
+                          <Link href="/doubts" className="font-bold text-primary hover:underline">
+                            Open Gyan++
+                          </Link>
                         </>
-                      ) : null}{" "}
-                      — save more in Instacue to unlock confirmation.
+                      ) : null}
+                      {item.id === "e" ? (
+                        <>
+                          {" "}
+                          <Link href="/refer-earn" className="font-bold text-primary hover:underline">
+                            Open Challenge Yourself
+                          </Link>
+                        </>
+                      ) : null}
+                      {item.id === "d" &&
+                      dailyChecklist &&
+                      !dailyChecklist.instacueSessionDone &&
+                      dailyChecklist.instacueCombinedCount < 32 ? (
+                        <span className="mt-1.5 block text-[11px] leading-snug text-muted-foreground sm:text-xs">
+                          InstaCue reads logged: {dailyChecklist.instacueReadCount}/32
+                          {dailyChecklist.instacueCombinedCount !== dailyChecklist.instacueReadCount ? (
+                            <>
+                              {" "}
+                              · {dailyChecklist.instacueCombinedCount}/32 toward unlock (includes
+                              today&apos;s revision saves)
+                            </>
+                          ) : null}
+                        </span>
+                      ) : null}
                     </span>
-                  ) : null}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="shrink-0 border-t border-border/60 bg-muted/25 px-4 py-3 sm:px-6 dark:bg-slate-950/80">
+            <p className="text-[11px] leading-relaxed text-muted-foreground sm:text-xs">
+              {dailyChecklistStatus === "error" ? (
+                <span className="text-rose-300">
+                  Could not load checklist status. Refresh and try again.
                 </span>
-              </div>
-            </li>
-          ))}
-        </ul>
-        <p className="mt-3 text-xs text-muted-foreground">
-          {dailyChecklistStatus === "error" ? (
-            <span className="text-rose-300">
-              Could not load checklist status. Refresh and try again.
-            </span>
-          ) : (
-            <>
-              <span className="font-semibold text-foreground">{checklistDoneCount} of 4 done</span>
-              {" · "}
-              Gyan++ today:{" "}
-              {dailyChecklist
-                ? `${Math.round(dailyChecklist.gyanPlusProgress.focusMs / 60000)}m`
-                : "—"}{" "}
-              on feed, {dailyChecklist?.gyanPlusProgress.savesToday ?? "—"} saves,{" "}
-              {dailyChecklist?.gyanPlusProgress.communityActionsToday ?? "—"} community actions
-              (items a–d are live; rewards later).
-            </>
-          )}
-        </p>
-      </section>
+              ) : checklistStripSummary ? (
+                <>
+                  <span className="font-semibold text-foreground">
+                    {checklistStripSummary.progressLine}
+                  </span>
+                  {checklistStripSummary.gyanLine ? (
+                    <>
+                      {" · "}
+                      {checklistStripSummary.gyanLine}
+                    </>
+                  ) : null}{" "}
+                  (Items a–e are tracked live; Challenge Yourself completes after any Earn &amp;
+                  Learn challenge run ends today).
+                </>
+              ) : null}
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Subject accuracy + Leaderboard */}
       <section className="grid gap-4 lg:grid-cols-2">
@@ -1152,9 +1278,6 @@ export default function StudentHomeDashboard() {
                 </li>
               ))}
             </ul>
-            <p className="mt-2 text-[11px] text-muted-foreground">
-              Mock schedule shown for investors — will go live with calendar integration.
-            </p>
           </div>
 
           <div className="rounded-2xl border border-border bg-card/90 p-4 shadow-sm dark:bg-slate-950/60">
@@ -1168,7 +1291,7 @@ export default function StudentHomeDashboard() {
               </Link>
             </div>
             <ul className="space-y-4">
-              {EDUFUND_TIERS.map((tier) => (
+              {edufundTiers.map((tier) => (
                 <li key={tier.name}>
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="font-bold">{tier.name}</p>
@@ -1197,7 +1320,7 @@ export default function StudentHomeDashboard() {
               ))}
             </ul>
             <p className="mt-2 text-[11px] text-muted-foreground">
-              Tiers shown as mock milestones — ties to RDM & grants later.
+              Uses your live RDM balance and real EduFund tier thresholds.
             </p>
           </div>
         </div>

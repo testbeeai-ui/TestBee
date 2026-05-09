@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, useSearchParams, useRouter, usePathname } from "next/navigation";
 import AppLayout from "@/components/AppLayout";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Button } from "@/components/ui/button";
 import { getDeepDiveContent } from "@/data/deepDiveContent";
 import { getTheoryOrPlaceholder } from "@/data/topicTheory";
@@ -37,9 +38,12 @@ import type { BitsQuestion, PracticeFormula } from "@/data/deepDiveContent";
 import { canRegenerate, generateFormulaQuestions } from "@/lib/formulaQuestionGenerators";
 import PremiumFeatureDialog from "@/components/PremiumFeatureDialog";
 import { syncAllSavedContent } from "@/lib/savedContentService";
+import { applyInstacueCreateDailyRdmReward } from "@/lib/applyInstacueCreateDailyRdmReward";
+import { useToast } from "@/hooks/use-toast";
 import MathText from "@/components/MathText";
 import { stripFormulaDelimiters } from "@/lib/stripFormulaDelimiters";
 import { subtopicMathTextLabel } from "@/lib/subtopicTitles";
+import { useAuth } from "@/hooks/useAuth";
 
 /** Check if a BitsQuestion matches a SavedBit (same content). */
 function isBitSaved(question: BitsQuestion, savedBits: SavedBit[]): boolean {
@@ -64,7 +68,7 @@ function getSavedBitId(question: BitsQuestion, savedBits: SavedBit[]): string | 
   return hit?.id ?? null;
 }
 
-/** One-question-at-a-time Bits quiz (like explore Bits / second image reference). */
+/** One-question-at-a-time topic quiz (like explore quick quiz / second image reference). */
 function BitsQuiz({
   questions,
   subject,
@@ -288,9 +292,13 @@ function BitsQuiz({
  * Changes here never affect the topic overview page.
  */
 
-export default function DeepDivePage() {
+function DeepDivePageInner() {
   const params = useParams();
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const { loading: authLoading, profile, refreshProfile } = useAuth();
+  const { toast } = useToast();
   const fromRandom = searchParams.get("mode") === "random";
   const board = params.board as string;
   const subject = params.subject as string;
@@ -302,6 +310,8 @@ export default function DeepDivePage() {
   const sectionIndex = parseInt(sectionParam ?? "0", 10);
 
   const { taxonomy, loading: taxonomyLoading, error: taxonomyError } = useTopicTaxonomy();
+
+  const isAdminUser = useMemo(() => profile?.role === "admin", [profile?.role]);
 
   const resolved = useMemo(
     () =>
@@ -317,6 +327,27 @@ export default function DeepDivePage() {
       ),
     [board, subject, grade, unitSlug, topicSlug, level, taxonomy, searchParams]
   );
+
+  /** Match topic page: Basic / Intermediate are admin-preview only until launch. */
+  useEffect(() => {
+    if (taxonomyLoading || authLoading) return;
+    if (!resolved?.topicNode) return;
+    if (isAdminUser) return;
+    if (level !== "basics" && level !== "intermediate") return;
+    const replaced = pathname.replace(/\/(basics|intermediate)(?=\/|$)/, "/advanced");
+    if (replaced === pathname) return;
+    const q = searchParams.toString();
+    router.replace(q ? `${replaced}?${q}` : replaced);
+  }, [
+    taxonomyLoading,
+    authLoading,
+    resolved?.topicNode,
+    isAdminUser,
+    level,
+    pathname,
+    router,
+    searchParams,
+  ]);
 
   const user = useUserStore((s) => s.user);
   const savedBits = user?.savedBits ?? [];
@@ -588,7 +619,7 @@ export default function DeepDivePage() {
                 classLevel={topicNode.classLevel}
                 onAddCard={
                   user
-                    ? (card) => {
+                    ? async (card) => {
                         const id = `user-${Date.now()}-${Math.random().toString(36).slice(2)}`;
                         saveRevisionCard({
                           ...card,
@@ -596,7 +627,28 @@ export default function DeepDivePage() {
                           sectionIndex,
                           board: (board === "icse" ? "ICSE" : "CBSE") as Board,
                         } as Parameters<typeof saveRevisionCard>[0]);
-                        syncAllSavedContent().catch(() => {});
+                        try {
+                          await syncAllSavedContent();
+                        } catch {
+                          /* best-effort */
+                        }
+                        const reward = await applyInstacueCreateDailyRdmReward({ refreshProfile });
+                        if (reward.awarded) {
+                          toast({
+                            title: "+5 RDM",
+                            description: "First InstaCue card you created today (IST).",
+                          });
+                        } else if (
+                          reward.reason &&
+                          reward.reason !== "already_claimed_today" &&
+                          reward.reason !== "not_authenticated"
+                        ) {
+                          toast({
+                            variant: "destructive",
+                            title: "Could not apply RDM bonus",
+                            description: reward.reason,
+                          });
+                        }
                       }
                     : undefined
                 }
@@ -612,7 +664,7 @@ export default function DeepDivePage() {
                   onClick={() => setBitsDialogOpen(true)}
                 >
                   <Zap className="w-4 h-4" />
-                  Bits
+                  Quiz
                 </Button>
                 <>
                   <p className="text-sm font-medium text-foreground mt-3 mb-2">
@@ -641,7 +693,7 @@ export default function DeepDivePage() {
             <DialogHeader>
               <DialogTitle className="flex flex-wrap items-center gap-x-2 gap-y-1">
                 <Zap className="w-5 h-5 text-primary shrink-0" />
-                <span>Bits — Subtopic {sectionIndex + 1}: </span>
+                <span>Quiz — Subtopic {sectionIndex + 1}: </span>
                 <MathText as="span" className="min-w-0">
                   {subtopicMathTextLabel(subtopicName)}
                 </MathText>
@@ -952,5 +1004,13 @@ export default function DeepDivePage() {
         />
       </div>
     </AppLayout>
+  );
+}
+
+export default function DeepDivePage() {
+  return (
+    <ProtectedRoute>
+      <DeepDivePageInner />
+    </ProtectedRoute>
   );
 }

@@ -26,6 +26,41 @@ import {
   INVESTOR_PROBLEM_EDUBLAST,
   INVESTOR_PROBLEM_OTHER,
 } from "@/components/landing/landing-constants";
+import { EDUFUND_RDM_GATES } from "@/lib/dashboardSidebarMetrics";
+
+/** Visual-only copy; RDM thresholds and ₹ unlocked come from `EDUFUND_RDM_GATES`. */
+const INVESTOR_EDUFUND_TIER_UI = [
+  {
+    icon: "🌱",
+    desc: "Device funding, study material grants, mock pack access. For students who show up consistently.",
+    ring: "border-emerald-500/25",
+    amtClass: "text-emerald-400",
+  },
+  {
+    icon: "📚",
+    desc: "College fee support, coaching fee grants, education loan pathway, JEE-linked scholarship nominations.",
+    ring: "border-violet-500/25",
+    amtClass: "text-violet-300",
+  },
+  {
+    icon: "🏆",
+    desc: "Higher proposal ceilings and broader funder visibility as your wallet grows.",
+    ring: "border-orange-500/25",
+    amtClass: "text-orange-400",
+  },
+  {
+    icon: "🚀",
+    desc: "Advanced EduFund tracks for sustained achievers with verified academic records.",
+    ring: "border-sky-500/25",
+    amtClass: "text-sky-300",
+  },
+  {
+    icon: "👑",
+    desc: "Top tier — largest proposal ceilings; programme rules apply.",
+    ring: "border-amber-500/25",
+    amtClass: "text-amber-300",
+  },
+] as const;
 
 /** Order: ends segment with RIGHT NOW so wrap reads …HT NOW ✦ EARN RDM… then exams. */
 const HORIZONTAL_TICKER = [
@@ -1086,55 +1121,29 @@ export default function EduBlastInvestorLanding() {
                 Consistent study. <span className="text-[#34f5a4]">Real rewards.</span>
               </h2>
 
-              <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {[
-                  {
-                    title: "Sprout",
-                    icon: "🌱",
-                    pts: "Earn 1000 RDM to unlock",
-                    amt: "₹3,000",
-                    amtClass: "text-emerald-400",
-                    desc: "Device funding, study material grants, mock pack access. For students who show up consistently.",
-                    ring: "border-emerald-500/25",
-                  },
-                  {
-                    title: "Scholar",
-                    icon: "📚",
-                    pts: "Earn 3000 RDM to unlock",
-                    amt: "₹12,000",
-                    amtClass: "text-violet-300",
-                    desc: "College fee support, coaching fee grants, education loan pathway, JEE-linked scholarship nominations.",
-                    ring: "border-violet-500/25",
-                  },
-                  {
-                    title: "Champion",
-                    icon: "🏆",
-                    pts: "Earn 8000 RDM to unlock",
-                    amt: "₹50,000",
-                    amtClass: "text-orange-400",
-                    desc: "Full education grants, abroad pathways, startup seed funding, personal EduFund advisor. Elite achievers only.",
-                    ring: "border-orange-500/25",
-                  },
-                ].map((tier) => (
-                  <div
-                    key={tier.title}
-                    className={`flex min-w-0 flex-col rounded-2xl border ${tier.ring} bg-gradient-to-b from-zinc-900/90 to-[#08080c] p-5 shadow-[0_0_32px_rgba(0,0,0,0.45)] xl:p-6`}
-                  >
-                    <div className="flex items-center gap-2 text-xl sm:text-2xl">
-                      <span>{tier.icon}</span>
-                      <h3 className="font-serif text-lg font-semibold text-white sm:text-xl">
-                        {tier.title}
-                      </h3>
+              <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+                {EDUFUND_RDM_GATES.map((gate, idx) => {
+                  const tier = INVESTOR_EDUFUND_TIER_UI[idx];
+                  if (!tier) return null;
+                  const pts = `Earn ${gate.need.toLocaleString("en-IN")} RDM to unlock`;
+                  const amt = `₹${gate.unlockInrAmount.toLocaleString("en-IN")}`;
+                  return (
+                    <div
+                      key={gate.name}
+                      className={`flex min-w-0 flex-col rounded-2xl border ${tier.ring} bg-gradient-to-b from-zinc-900/90 to-[#08080c] p-5 shadow-[0_0_32px_rgba(0,0,0,0.45)] xl:p-6`}
+                    >
+                      <div className="flex items-center gap-2 text-xl sm:text-2xl">
+                        <span>{tier.icon}</span>
+                        <h3 className="font-serif text-lg font-semibold text-white sm:text-xl">{gate.name}</h3>
+                      </div>
+                      <span className="mt-3 inline-flex w-fit max-w-full rounded-full bg-white/10 px-2.5 py-1 text-[9px] font-bold leading-snug tracking-wide text-zinc-200 sm:text-[10px]">
+                        {pts}
+                      </span>
+                      <p className={`mt-4 text-2xl font-bold sm:text-3xl ${tier.amtClass}`}>{amt}</p>
+                      <p className="mt-3 flex-1 text-xs leading-relaxed text-zinc-500">{tier.desc}</p>
                     </div>
-                    <span className="mt-3 inline-flex w-fit max-w-full rounded-full bg-white/10 px-2.5 py-1 text-[9px] font-bold leading-snug tracking-wide text-zinc-200 sm:text-[10px]">
-                      {tier.pts}
-                    </span>
-                    <p className={`mt-4 text-2xl font-bold sm:text-3xl ${tier.amtClass}`}>
-                      {tier.amt}
-                    </p>
-                    <p className="mt-3 flex-1 text-xs leading-relaxed text-zinc-500">{tier.desc}</p>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               <div className="mt-10 flex justify-center">

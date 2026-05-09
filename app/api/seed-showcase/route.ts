@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { createClient, createAdminClient } from "@/integrations/supabase/server";
+import { createAdminClient } from "@/integrations/supabase/server";
+import { isDangerousRouteEnabled, requireAdminUser } from "@/lib/securityGuards";
 
 /**
  * Seeds the full Gyan++ showcase — AI bot questions, teacher answers, student comments —
@@ -87,17 +88,15 @@ const PERSONAS = [
 
 export async function POST(request: Request) {
   try {
-    // ── Auth ──────────────────────────────────────────────────
-    const cookieSupabase = await createClient();
-    let user = (await cookieSupabase.auth.getUser()).data?.user ?? null;
-    const token = request.headers.get("Authorization")?.replace(/^Bearer\s+/i, "");
-    if (!user && token) {
-      const {
-        data: { user: u },
-      } = await cookieSupabase.auth.getUser(token);
-      user = u ?? null;
+    if (!isDangerousRouteEnabled("ENABLE_SEED_ROUTES")) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const auth = await requireAdminUser(request);
+    if ("response" in auth) return auth.response;
+
+    // ── Auth ──────────────────────────────────────────────────
+    const user = auth.user;
 
     const admin = createAdminClient();
     if (!admin)
@@ -118,10 +117,11 @@ export async function POST(request: Request) {
 
     // ── Create demo auth users + profiles ─────────────────────
     for (const p of PERSONAS) {
+      const bootstrapPassword = `Seed-${crypto.randomUUID()}-Aa1!`;
       // Try create auth user with fixed ID (silently skip if already exists)
       await admin.auth.admin.createUser({
         email: p.email,
-        password: "ShowcaseDemo2024!",
+        password: bootstrapPassword,
         email_confirm: true,
         user_metadata: { name: p.name },
       });

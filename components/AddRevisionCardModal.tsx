@@ -4,7 +4,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { useUserStore } from "@/store/useUserStore";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 import { syncAllSavedContent } from "@/lib/savedContentService";
+import { applyInstacueCreateDailyRdmReward } from "@/lib/applyInstacueCreateDailyRdmReward";
 import { RevisionCardType, Subject } from "@/types";
 import { Brain, Calculator, AlertTriangle, Lightbulb, Plus } from "lucide-react";
 
@@ -47,13 +50,15 @@ const CARD_TYPES: {
 
 export default function AddRevisionCardModal({ isOpen, onClose }: Props) {
   const saveRevisionCard = useUserStore((s) => s.saveRevisionCard);
+  const { refreshProfile } = useAuth();
+  const { toast } = useToast();
   const [title, setTitle] = useState("");
   const [front, setFront] = useState("");
   const [back, setBack] = useState("");
   const [subject, setSubject] = useState("");
   const [type, setType] = useState<RevisionCardType>("concept");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title || !front || !back || !subject) return;
 
@@ -68,9 +73,30 @@ export default function AddRevisionCardModal({ isOpen, onClose }: Props) {
       classLevel: 12,
       status: "new",
     });
-    syncAllSavedContent().catch(() => {});
+    try {
+      await syncAllSavedContent();
+    } catch {
+      /* saved-content best-effort */
+    }
 
-    // Reset form
+    const reward = await applyInstacueCreateDailyRdmReward({ refreshProfile });
+    if (reward.awarded) {
+      toast({
+        title: "+5 RDM",
+        description: "First InstaCue card you created today (IST). Keep learning!",
+      });
+    } else if (
+      reward.reason &&
+      reward.reason !== "already_claimed_today" &&
+      reward.reason !== "not_authenticated"
+    ) {
+      toast({
+        variant: "destructive",
+        title: "Could not apply RDM bonus",
+        description: reward.reason,
+      });
+    }
+
     setTitle("");
     setFront("");
     setBack("");

@@ -68,6 +68,10 @@ interface DoubtFeedCardProps {
   expectProfPiAnswer?: boolean;
   /** Used to tune comment placeholder (teacher vs student). */
   currentUserRole?: string | null;
+  upvoteRewardRdm?: number;
+  saveRewardRdm?: number;
+  teacherRewardRdm?: number;
+  commentRewardRdm?: number;
 }
 
 const PROF_PI_GENERATION_STAGES = [
@@ -91,6 +95,10 @@ export default function DoubtFeedCard({
   isAdmin = false,
   expectProfPiAnswer = false,
   currentUserRole = null,
+  upvoteRewardRdm = 2,
+  saveRewardRdm = 3,
+  teacherRewardRdm = 30,
+  commentRewardRdm = 5,
 }: DoubtFeedCardProps) {
   const { toast } = useToast();
   const [subjectPopoverOpen, setSubjectPopoverOpen] = useState(false);
@@ -105,6 +113,9 @@ export default function DoubtFeedCard({
   const authorInitials = authorName.slice(0, 2).toUpperCase();
   const net = d.upvotes - d.downvotes;
   const subjectCanon = canonicalDoubtSubject(d.subject);
+  const subjectDisplayLabel =
+    subjectCanon ?? (d.subject?.trim() ? d.subject.trim() : null);
+  const hasTaggedSubject = Boolean(subjectDisplayLabel);
   const subjectColor = getSubjectColor(subjectCanon ?? d.subject);
   const titleMd = stripHtml(d.title);
   const bodyMd = stripHtml(d.body);
@@ -356,8 +367,8 @@ export default function DoubtFeedCard({
                     <ArrowBigUp className="h-[18px] w-[18px]" strokeWidth={1.75} aria-hidden />
                   </button>
                 </TooltipTrigger>
-                <TooltipContent side="bottom" className="text-xs font-semibold">
-                  Upvote
+                <TooltipContent side="bottom" className="text-xs font-semibold max-w-[14rem]">
+                  Upvote · +{upvoteRewardRdm} RDM first upvote today (IST)
                 </TooltipContent>
               </Tooltip>
               <div
@@ -402,7 +413,7 @@ export default function DoubtFeedCard({
               <Bookmark
                 className={`w-3.5 h-3.5 mr-1 ${isSaved ? "fill-current text-primary" : ""}`}
               />
-              {isSaved ? "Saved" : "Save for revision"}
+              {isSaved ? "Saved" : `Save for revision (+${saveRewardRdm} RDM)`}
             </Button>
             <Popover open={subjectPopoverOpen} onOpenChange={setSubjectPopoverOpen}>
               <PopoverTrigger asChild>
@@ -410,17 +421,36 @@ export default function DoubtFeedCard({
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="rounded-lg h-8 text-xs font-semibold text-muted-foreground hover:text-primary px-2.5"
+                  className={cn(
+                    "rounded-lg h-8 max-w-[min(100%,11rem)] text-xs font-semibold px-2.5",
+                    hasTaggedSubject
+                      ? "text-foreground hover:text-primary"
+                      : "text-muted-foreground hover:text-primary"
+                  )}
                   disabled={!canOpenSubjectPicker}
                   title={
                     canOpenSubjectPicker
-                      ? "Set subject for sidebar filters"
-                      : d.is_resolved
-                        ? "Subject can’t be changed after the question is resolved"
-                        : "Only the author or an admin can tag the subject"
+                      ? hasTaggedSubject
+                        ? `Subject: ${subjectDisplayLabel}. Click to change for sidebar filters.`
+                        : "Set subject for sidebar filters"
+                      : hasTaggedSubject
+                        ? `Subject: ${subjectDisplayLabel}`
+                        : d.is_resolved
+                          ? "Subject can’t be changed after the question is resolved"
+                          : "Only the author or an admin can tag the subject"
+                  }
+                  aria-label={
+                    hasTaggedSubject
+                      ? canOpenSubjectPicker
+                        ? `Subject ${subjectDisplayLabel}, change subject`
+                        : `Subject ${subjectDisplayLabel}`
+                      : "Tag subject"
                   }
                 >
-                  <Tag className="w-3.5 h-3.5 mr-1" /> Tag subject
+                  <Tag className="w-3.5 h-3.5 mr-1 shrink-0" aria-hidden />
+                  <span className="truncate">
+                    {hasTaggedSubject ? subjectDisplayLabel : "Tag subject"}
+                  </span>
                 </Button>
               </PopoverTrigger>
               <PopoverContent align="start" className="w-[min(100vw-2rem,20rem)] rounded-xl p-3">
@@ -638,7 +668,7 @@ export default function DoubtFeedCard({
                           </span>
                         </div>
                         <span className="text-xs text-emerald-600 font-semibold shrink-0">
-                          +10 RDM earned
+                          +{teacherRewardRdm} RDM earned
                         </span>
                       </div>
                       <div className="px-5 pb-3 pt-0">
@@ -701,11 +731,6 @@ export default function DoubtFeedCard({
                       <span className="text-xs text-muted-foreground">
                         {formatTimeAgo(ans.created_at)}
                       </span>
-                      {!commentIsAI && (
-                        <span className="text-[10px] font-bold text-emerald-600 bg-emerald-500/10 px-1.5 py-0.5 rounded-full">
-                          +5 RDM earned
-                        </span>
-                      )}
                       {aNet > 0 && (
                         <span className="inline-flex items-center gap-0.5 text-xs text-muted-foreground">
                           <ChevronUp className="w-3 h-3" /> {aNet}
@@ -738,6 +763,7 @@ export default function DoubtFeedCard({
             avatarUrl={profileAvatarUrl}
             userName={profileName}
             variant={currentUserRole === "teacher" ? "teacher" : "student"}
+            commentRewardRdm={commentRewardRdm}
           />
         </div>
       </div>

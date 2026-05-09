@@ -71,7 +71,6 @@ function normalizeItems(data: unknown): MagicWallBasketItem[] {
       examTypeRaw === "JEE" ||
       examTypeRaw === "JEE_Mains" ||
       examTypeRaw === "JEE_Advance" ||
-      examTypeRaw === "NEET" ||
       examTypeRaw === "KCET" ||
       examTypeRaw === "other"
         ? examTypeRaw

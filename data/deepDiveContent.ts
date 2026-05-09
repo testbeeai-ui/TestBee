@@ -21,7 +21,7 @@ export interface DeepDiveReference {
   url: string;
 }
 
-/** Single Bits MCQ for one-at-a-time quiz display (like explore Bits). */
+/** Single MCQ for one-at-a-time quiz display (like explore quick quiz). */
 export interface BitsQuestion {
   question: string;
   options: string[];
@@ -29,7 +29,7 @@ export interface BitsQuestion {
   solution?: string;
 }
 
-/** One formula with its own Bits/MCQ practice set. */
+/** One formula with its own quiz/MCQ practice set. */
 export interface PracticeFormula {
   name: string;
   formulaLatex?: string;
@@ -45,9 +45,9 @@ export interface DeepDiveEntry {
   playableElements?: string[];
   /** Legacy: full bits as markdown (fallback if bitsQuestions not set). */
   bits?: string;
-  /** Structured Bits MCQs — shown one question at a time with Previous/Next (recommended). */
+  /** Structured quiz MCQs — shown one question at a time with Previous/Next (recommended). */
   bitsQuestions?: BitsQuestion[];
-  /** Formula practice: pick a formula, then answer Bits for that formula. */
+  /** Formula practice: pick a formula, then answer quiz questions for that formula. */
   practiceFormulas?: PracticeFormula[];
 }
 

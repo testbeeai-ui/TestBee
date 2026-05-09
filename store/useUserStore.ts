@@ -164,7 +164,6 @@ export const useUserStore = create<UserState>()(
               ? {
                   ...state.user,
                   savedRevisionCards: [...list, stamped],
-                  rdm: state.user.rdm + 2,
                 }
               : null,
           };

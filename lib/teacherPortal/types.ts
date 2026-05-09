@@ -118,7 +118,7 @@ export interface TeacherPortalGyanEngagementRef {
   subtopicHint: string;
 }
 
-/** Chapter quiz (Bits) anchor — matches syllabus + subtopic-engagement / bits-attempts scope. */
+/** Chapter quiz anchor — matches syllabus + subtopic-engagement / bits-attempts scope. */
 export interface TeacherPortalChapterQuizRef {
   board: string;
   subject: Subject;
@@ -235,6 +235,16 @@ export interface TeacherPortalProfileView {
     qualification: string | null;
     experience: string | null;
     email: string | null;
+    /** Last OTP-verified contact email (lowercase); compare with `email` for badge. */
+    verifiedContactEmail: string | null;
+    /** When contact email was verified via OTP. */
+    contactEmailVerifiedAt: string | null;
+    verificationStatus: TeacherVerificationStatus;
+    adminNotes: string | null;
+    submittedAt: string | null;
+    reviewedAt: string | null;
+    approvedAt: string | null;
+    rejectedAt: string | null;
     phone: string | null;
     youtubeOrSocial: string | null;
     docs: {
@@ -245,6 +255,8 @@ export interface TeacherPortalProfileView {
     };
   };
 }
+
+export type TeacherVerificationStatus = "unverified" | "pending" | "approved" | "rejected";
 
 export interface TeacherPortalSummary {
   /** Teacher has completed Google Calendar OAuth (refresh token stored server-side). */

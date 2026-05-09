@@ -732,6 +732,62 @@ export type Database = {
           },
         ];
       };
+      magic_wall_basket_items: {
+        Row: {
+          id: string;
+          user_id: string;
+          topic_key: string;
+          board: string;
+          subject: string;
+          class_level: number;
+          exam_type: string | null;
+          unit_name: string | null;
+          chapter_title: string | null;
+          topic_name: string;
+          source: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          topic_key: string;
+          board?: string;
+          subject: string;
+          class_level: number;
+          exam_type?: string | null;
+          unit_name?: string | null;
+          chapter_title?: string | null;
+          topic_name: string;
+          source?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          topic_key?: string;
+          board?: string;
+          subject?: string;
+          class_level?: number;
+          exam_type?: string | null;
+          unit_name?: string | null;
+          chapter_title?: string | null;
+          topic_name?: string;
+          source?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "magic_wall_basket_items_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       mock_papers: {
         Row: {
           id: string;
@@ -835,6 +891,107 @@ export type Database = {
             columns: ["paper_id"];
             isOneToOne: false;
             referencedRelation: "mock_papers";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      mock_rdm_bonus_attempts: {
+        Row: {
+          id: string;
+          user_id: string;
+          paper_id: string;
+          ist_claim_date: string;
+          eligible: boolean;
+          score_percent: number | null;
+          correct_count: number | null;
+          total_questions: number | null;
+          denial_reason: string | null;
+          rdm_awarded: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          paper_id: string;
+          ist_claim_date: string;
+          eligible?: boolean;
+          score_percent?: number | null;
+          correct_count?: number | null;
+          total_questions?: number | null;
+          denial_reason?: string | null;
+          rdm_awarded?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          paper_id?: string;
+          ist_claim_date?: string;
+          eligible?: boolean;
+          score_percent?: number | null;
+          correct_count?: number | null;
+          total_questions?: number | null;
+          denial_reason?: string | null;
+          rdm_awarded?: number;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "mock_rdm_bonus_attempts_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      mock_rdm_bonus_claims: {
+        Row: {
+          id: string;
+          user_id: string;
+          paper_id: string;
+          ist_claim_date: string;
+          score_percent: number;
+          correct_count: number;
+          total_questions: number;
+          rdm_amount: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          paper_id: string;
+          ist_claim_date: string;
+          score_percent: number;
+          correct_count: number;
+          total_questions: number;
+          rdm_amount?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          paper_id?: string;
+          ist_claim_date?: string;
+          score_percent?: number;
+          correct_count?: number;
+          total_questions?: number;
+          rdm_amount?: number;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "mock_rdm_bonus_claims_paper_id_fkey";
+            columns: ["paper_id"];
+            isOneToOne: false;
+            referencedRelation: "mock_papers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "mock_rdm_bonus_claims_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
             referencedColumns: ["id"];
           },
         ];
@@ -1161,6 +1318,241 @@ export type Database = {
           },
         ];
       };
+      refer_challenge_claims: {
+        Row: {
+          user_id: string;
+          claim_date: string;
+          challenge_key: string;
+          win_claimed: boolean;
+          share_claimed: boolean;
+          win_claimed_at: string | null;
+          share_claimed_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          claim_date: string;
+          challenge_key: string;
+          win_claimed?: boolean;
+          share_claimed?: boolean;
+          win_claimed_at?: string | null;
+          share_claimed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          user_id?: string;
+          claim_date?: string;
+          challenge_key?: string;
+          win_claimed?: boolean;
+          share_claimed?: boolean;
+          win_claimed_at?: string | null;
+          share_claimed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "refer_challenge_claims_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      referral_attributions: {
+        Row: {
+          id: string;
+          referee_user_id: string;
+          referrer_user_id: string;
+          ref_code: string;
+          credited_at: string;
+          credited_week_start_ist: string;
+          referrer_rdm: number;
+          referee_rdm: number;
+        };
+        Insert: {
+          id?: string;
+          referee_user_id: string;
+          referrer_user_id: string;
+          ref_code: string;
+          credited_at?: string;
+          credited_week_start_ist: string;
+          referrer_rdm?: number;
+          referee_rdm?: number;
+        };
+        Update: {
+          id?: string;
+          referee_user_id?: string;
+          referrer_user_id?: string;
+          ref_code?: string;
+          credited_at?: string;
+          credited_week_start_ist?: string;
+          referrer_rdm?: number;
+          referee_rdm?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "referral_attributions_referee_user_id_fkey";
+            columns: ["referee_user_id"];
+            isOneToOne: true;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "referral_attributions_referrer_user_id_fkey";
+            columns: ["referrer_user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      rdm_config: {
+        Row: {
+          key: string;
+          value: number;
+          description: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          key: string;
+          value: number;
+          description?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          key?: string;
+          value?: number;
+          description?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      quiz_community_share_rdm_claims: {
+        Row: {
+          user_id: string;
+          topic_ref: string;
+          subtopic_ref: string;
+          quiz_set: number;
+          post_id: string;
+          rdm_amount: number;
+          claimed_at: string;
+        };
+        Insert: {
+          user_id: string;
+          topic_ref: string;
+          subtopic_ref: string;
+          quiz_set: number;
+          post_id: string;
+          rdm_amount: number;
+          claimed_at?: string;
+        };
+        Update: {
+          user_id?: string;
+          topic_ref?: string;
+          subtopic_ref?: string;
+          quiz_set?: number;
+          post_id?: string;
+          rdm_amount?: number;
+          claimed_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "quiz_community_share_rdm_claims_post_id_fkey";
+            columns: ["post_id"];
+            isOneToOne: false;
+            referencedRelation: "lessons_raw_posts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "quiz_community_share_rdm_claims_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      numerals_community_share_rdm_claims: {
+        Row: {
+          user_id: string;
+          topic_ref: string;
+          subtopic_ref: string;
+          formula_index: number;
+          post_id: string;
+          rdm_amount: number;
+          claimed_at: string;
+        };
+        Insert: {
+          user_id: string;
+          topic_ref: string;
+          subtopic_ref: string;
+          formula_index: number;
+          post_id: string;
+          rdm_amount: number;
+          claimed_at?: string;
+        };
+        Update: {
+          user_id?: string;
+          topic_ref?: string;
+          subtopic_ref?: string;
+          formula_index?: number;
+          post_id?: string;
+          rdm_amount?: number;
+          claimed_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "numerals_community_share_rdm_claims_post_id_fkey";
+            columns: ["post_id"];
+            isOneToOne: false;
+            referencedRelation: "lessons_raw_posts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "numerals_community_share_rdm_claims_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      referral_weekly_bonuses: {
+        Row: {
+          id: string;
+          referrer_user_id: string;
+          week_start_ist: string;
+          rdm_awarded: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          referrer_user_id: string;
+          week_start_ist: string;
+          rdm_awarded?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          referrer_user_id?: string;
+          week_start_ist?: string;
+          rdm_awarded?: number;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "referral_weekly_bonuses_referrer_user_id_fkey";
+            columns: ["referrer_user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       posts: {
         Row: {
           classroom_id: string;
@@ -1236,21 +1628,32 @@ export type Database = {
       };
       profiles: {
         Row: {
+          academic_record_extras: Json;
           avatar_url: string | null;
           bio: string | null;
           bits_test_attempts: Json;
           subtopic_engagement: Json;
           daily_checklist_state: Json;
+          board: string | null;
+          category: string | null;
+          city: string | null;
           class_level: number | null;
           created_at: string;
+          current_class_label: string | null;
+          daily_dose_streak: number;
+          date_of_birth: string | null;
           exam_tags: string[] | null;
-          target_exam: string | null;
+          first_name: string | null;
+          gender: string | null;
           google_connected: boolean;
-          signup_google?: boolean;
           id: string;
+          institution_name: string | null;
+          last_daily_dose_streak_date: string | null;
+          last_name: string | null;
           lifetime_answer_rdm: number;
           name: string;
           onboarding_complete: boolean;
+          phone: string | null;
           rdm: number;
           role: string;
           saved_bits: Json;
@@ -1258,29 +1661,43 @@ export type Database = {
           saved_formulas: Json;
           saved_revision_cards: Json;
           saved_revision_units: Json;
+          signup_google?: boolean;
+          state: string | null;
           stream: string | null;
           subject_combo: string | null;
           subjects: string[] | null;
+          target_exam: string | null;
           teaching_levels: number[] | null;
           updated_at: string;
           visibility: string;
         };
         Insert: {
+          academic_record_extras?: Json;
           avatar_url?: string | null;
           bio?: string | null;
           bits_test_attempts?: Json;
           subtopic_engagement?: Json;
           daily_checklist_state?: Json;
+          board?: string | null;
+          category?: string | null;
+          city?: string | null;
           class_level?: number | null;
           created_at?: string;
+          current_class_label?: string | null;
+          daily_dose_streak?: number;
+          date_of_birth?: string | null;
           exam_tags?: string[] | null;
-          target_exam?: string | null;
+          first_name?: string | null;
+          gender?: string | null;
           google_connected?: boolean;
-          signup_google?: boolean;
           id: string;
+          institution_name?: string | null;
+          last_daily_dose_streak_date?: string | null;
+          last_name?: string | null;
           lifetime_answer_rdm?: number;
           name?: string;
           onboarding_complete?: boolean;
+          phone?: string | null;
           rdm?: number;
           role?: string;
           saved_bits?: Json;
@@ -1288,29 +1705,43 @@ export type Database = {
           saved_formulas?: Json;
           saved_revision_cards?: Json;
           saved_revision_units?: Json;
+          signup_google?: boolean;
+          state?: string | null;
           stream?: string | null;
           subject_combo?: string | null;
           subjects?: string[] | null;
+          target_exam?: string | null;
           teaching_levels?: number[] | null;
           updated_at?: string;
           visibility?: string;
         };
         Update: {
+          academic_record_extras?: Json;
           avatar_url?: string | null;
           bio?: string | null;
           bits_test_attempts?: Json;
           subtopic_engagement?: Json;
           daily_checklist_state?: Json;
+          board?: string | null;
+          category?: string | null;
+          city?: string | null;
           class_level?: number | null;
           created_at?: string;
+          current_class_label?: string | null;
+          daily_dose_streak?: number;
+          date_of_birth?: string | null;
           exam_tags?: string[] | null;
-          target_exam?: string | null;
+          first_name?: string | null;
+          gender?: string | null;
           google_connected?: boolean;
-          signup_google?: boolean;
           id?: string;
+          institution_name?: string | null;
+          last_daily_dose_streak_date?: string | null;
+          last_name?: string | null;
           lifetime_answer_rdm?: number;
           name?: string;
           onboarding_complete?: boolean;
+          phone?: string | null;
           rdm?: number;
           role?: string;
           saved_bits?: Json;
@@ -1318,14 +1749,73 @@ export type Database = {
           saved_formulas?: Json;
           saved_revision_cards?: Json;
           saved_revision_units?: Json;
+          signup_google?: boolean;
+          state?: string | null;
           stream?: string | null;
           subject_combo?: string | null;
           subjects?: string[] | null;
+          target_exam?: string | null;
           teaching_levels?: number[] | null;
           updated_at?: string;
           visibility?: string;
         };
         Relationships: [];
+      };
+      student_learning_dwell_events: {
+        Row: {
+          id: string;
+          user_id: string;
+          occurred_at: string;
+          board: string;
+          subject: string;
+          class_level: number;
+          topic: string;
+          subtopic_name: string;
+          level: string;
+          panel: string;
+          delta_ms: number;
+          bits_question_index: number | null;
+          client_session_id: string | null;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          occurred_at?: string;
+          board: string;
+          subject: string;
+          class_level: number;
+          topic: string;
+          subtopic_name: string;
+          level: string;
+          panel: string;
+          delta_ms: number;
+          bits_question_index?: number | null;
+          client_session_id?: string | null;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          occurred_at?: string;
+          board?: string;
+          subject?: string;
+          class_level?: number;
+          topic?: string;
+          subtopic_name?: string;
+          level?: string;
+          panel?: string;
+          delta_ms?: number;
+          bits_question_index?: number | null;
+          client_session_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "student_learning_dwell_events_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       subject_topic_chat_messages: {
         Row: {
@@ -1686,6 +2176,41 @@ export type Database = {
           },
         ];
       };
+      daily_reward_claims: {
+        Row: {
+          id: string;
+          user_id: string;
+          action_type: string;
+          claim_date_ist: string;
+          points_awarded: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          action_type: string;
+          claim_date_ist: string;
+          points_awarded: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          action_type?: string;
+          claim_date_ist?: string;
+          points_awarded?: number;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "daily_reward_claims_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       doubts: {
         Row: {
           id: string;
@@ -1964,6 +2489,8 @@ export type Database = {
           question_id: string;
           is_correct: boolean;
           time_taken_ms: number | null;
+          pool_key: string | null;
+          selected_answer_index: number | null;
           created_at: string;
         };
         Insert: {
@@ -1972,6 +2499,8 @@ export type Database = {
           question_id: string;
           is_correct: boolean;
           time_taken_ms?: number | null;
+          pool_key?: string | null;
+          selected_answer_index?: number | null;
           created_at?: string;
         };
         Update: {
@@ -1980,6 +2509,8 @@ export type Database = {
           question_id?: string;
           is_correct?: boolean;
           time_taken_ms?: number | null;
+          pool_key?: string | null;
+          selected_answer_index?: number | null;
           created_at?: string;
         };
         Relationships: [
@@ -2042,6 +2573,9 @@ export type Database = {
           board: string;
           score: string;
           verified: string;
+          marksheet_path: string | null;
+          academic_year: string | null;
+          record_status: string;
           created_at: string;
           updated_at: string;
         };
@@ -2052,6 +2586,9 @@ export type Database = {
           board?: string;
           score?: string;
           verified?: string;
+          marksheet_path?: string | null;
+          academic_year?: string | null;
+          record_status?: string;
           created_at?: string;
           updated_at?: string;
         };
@@ -2062,6 +2599,9 @@ export type Database = {
           board?: string;
           score?: string;
           verified?: string;
+          marksheet_path?: string | null;
+          academic_year?: string | null;
+          record_status?: string;
           created_at?: string;
           updated_at?: string;
         };
@@ -2083,6 +2623,9 @@ export type Database = {
           level: string;
           year: number;
           result: string;
+          percentage: string;
+          marksheet_path: string | null;
+          verified: string;
           created_at: string;
           updated_at: string;
         };
@@ -2093,6 +2636,9 @@ export type Database = {
           level: string;
           year: number;
           result?: string;
+          percentage?: string;
+          marksheet_path?: string | null;
+          verified?: string;
           created_at?: string;
           updated_at?: string;
         };
@@ -2103,6 +2649,9 @@ export type Database = {
           level?: string;
           year?: number;
           result?: string;
+          percentage?: string;
+          marksheet_path?: string | null;
+          verified?: string;
           created_at?: string;
           updated_at?: string;
         };
@@ -2223,6 +2772,39 @@ export type Database = {
         Args: { p_target_type: string; p_target_id: string; p_vote_type: number };
         Returns: Json;
       };
+      get_daily_rdm_earned_ist: {
+        Args: Record<PropertyKey, never>;
+        Returns: number;
+      };
+      claim_instacue_create_daily_rdm: {
+        Args: Record<PropertyKey, never>;
+        Returns: Json;
+      };
+      claim_topic_quiz_advanced_daily_rdm: {
+        Args: {
+          p_board: string;
+          p_subject: string;
+          p_class_level: number;
+          p_topic: string;
+          p_subtopic_name: string;
+        };
+        Returns: Json;
+      };
+      claim_numerals_pack_complete_daily_rdm: {
+        Args: {
+          p_board: string;
+          p_subject: string;
+          p_class_level: number;
+          p_topic: string;
+          p_subtopic_name: string;
+          p_level: string;
+        };
+        Returns: Json;
+      };
+      bits_signature_v1: {
+        Args: { bits_questions: Json };
+        Returns: string;
+      };
       get_adaptive_play_questions: {
         Args: { p_domain: string; p_category: string; p_count?: number };
         Returns: {
@@ -2242,6 +2824,7 @@ export type Database = {
           p_time_taken_ms?: number | null;
           p_category?: string | null;
           p_pool_key?: string | null;
+          p_selected_answer_index?: number | null;
         };
         Returns: undefined;
       };
@@ -2290,6 +2873,26 @@ export type Database = {
       };
       claim_refer_challenge_reward: {
         Args: { p_challenge_key: string; p_reward_type: string; p_claim_date?: string };
+        Returns: Json;
+      };
+      claim_mock_community_share_rdm: {
+        Args: { p_post_id: string };
+        Returns: Json;
+      };
+      claim_quiz_community_share_rdm: {
+        Args: { p_post_id: string };
+        Returns: Json;
+      };
+      claim_numerals_community_share_rdm: {
+        Args: { p_post_id: string };
+        Returns: Json;
+      };
+      claim_mock_rdm_bonus: {
+        Args: { p_answer_indices: number[]; p_paper_id: string };
+        Returns: Json;
+      };
+      claim_referral_attribution: {
+        Args: { p_ref_code: string; p_referee_id: string };
         Returns: Json;
       };
       get_prep_calendar_summary: {

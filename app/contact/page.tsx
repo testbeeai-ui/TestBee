@@ -208,7 +208,7 @@ function ContactPageBody({ showLandingNav }: { showLandingNav: boolean }) {
     if (safeFromPath === "/mock") return "Prep + Mock";
     if (safeFromPath === "/doubts") return "Gyan++";
     if (safeFromPath === "/edufund") return "EduFund";
-    if (safeFromPath === "/refer-earn") return "Refer & Earn";
+    if (safeFromPath === "/refer-earn") return "Earn & Learn";
     if (safeFromPath === "/profile") return "Profile";
     return "Back";
   })();

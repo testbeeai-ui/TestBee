@@ -63,7 +63,7 @@ export async function fetchBitsAttempt(scope: BitsAttemptScope): Promise<BitsAtt
   const res = await fetch(`${API}?${search.toString()}`, { headers });
   if (!res.ok) {
     if (res.status === 401) return null;
-    throw new Error("Failed to fetch Bits attempt");
+    throw new Error("Failed to fetch quiz attempt");
   }
   const data = (await res.json()) as { attempt?: BitsAttemptRecord | null };
   return data.attempt ?? null;
@@ -85,7 +85,7 @@ export async function saveBitsAttempt(
   });
   const data = (await res.json()) as { attempt?: BitsAttemptRecord; error?: string };
   if (!res.ok) {
-    throw new Error(data.error || "Failed to save Bits attempt");
+    throw new Error(data.error || "Failed to save quiz attempt");
   }
   return data.attempt ?? attempt;
 }
@@ -181,6 +181,6 @@ export async function clearBitsAttemptSet(
   });
   const data = (await res.json()) as { ok?: boolean; error?: string };
   if (!res.ok) {
-    throw new Error(data.error || "Failed to clear Bits attempt");
+    throw new Error(data.error || "Failed to clear quiz attempt");
   }
 }

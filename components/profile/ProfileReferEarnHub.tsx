@@ -85,7 +85,7 @@ export default function ProfileReferEarnHub({
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <div className="inline-flex items-center rounded-full border border-emerald-400/30 bg-emerald-500/15 px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider text-emerald-300">
-            Top Priority · Refer & Earn
+            Top Priority · Earn & Learn
           </div>
           <h3 className="mt-3 text-2xl font-black text-foreground dark:text-white">
             Grow your rewards with friend invites

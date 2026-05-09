@@ -1,5 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
 import { makeSubtopicEngagementStorageKey } from "@/lib/subtopicEngagementStorageKey";
 import {
   parseTeacherProfileMetaFromBio,
@@ -42,8 +44,11 @@ import type {
   TeacherPortalSessionItem,
   TeacherPortalSessionWorkKind,
   TeacherPortalSummary,
+  TeacherVerificationStatus,
   TeacherPortalWallItem,
 } from "@/lib/teacherPortal/types";
+
+type DbClient = SupabaseClient<Database>;
 
 function countStudentsAllVisibleTasksDone(
   studentUserIds: string[],
@@ -68,6 +73,71 @@ function ensureError(err: unknown): Error {
   return new Error("Request failed");
 }
 
+export const TEACHER_VERIFICATION_REQUIRED_ERROR =
+  "Teacher verification approval is required before performing this action.";
+
+type TeacherMutationGuardOptions = {
+  skipVerificationCheck?: boolean;
+};
+
+async function assertTeacherApprovedForMutations(
+  teacherId: string,
+  db: DbClient,
+  options?: TeacherMutationGuardOptions
+): Promise<void> {
+  if (options?.skipVerificationCheck) return;
+  const trimmedTeacherId = teacherId.trim();
+  if (!trimmedTeacherId) throw new Error("Teacher id is required.");
+  const { data, error } = await (
+    db as unknown as {
+      from: (table: string) => {
+        select: (columns: string) => {
+          eq: (column: string, value: string) => {
+            maybeSingle: () => Promise<{
+              data: { verification_status?: TeacherVerificationStatus | null } | null;
+              error: { message?: string } | null;
+            }>;
+          };
+        };
+      };
+    }
+  )
+    .from("teacher_profile_details")
+    .select("verification_status")
+    .eq("teacher_id", trimmedTeacherId)
+    .maybeSingle();
+  if (error) throw ensureError(error);
+  if ((data?.verification_status ?? "unverified") !== "approved") {
+    throw new Error(TEACHER_VERIFICATION_REQUIRED_ERROR);
+  }
+}
+
+function normalizeIndianPhone(raw: string | null | undefined): string {
+  const digits = (raw ?? "").replace(/\D/g, "");
+  const core = digits.startsWith("91") && digits.length >= 12 ? digits.slice(2, 12) : digits.slice(0, 10);
+  return core.length === 10 ? `+91 ${core}` : "";
+}
+
+function isValidIndianPhone(raw: string | null | undefined): boolean {
+  return normalizeIndianPhone(raw).length > 0;
+}
+
+function hasValue(raw: string | null | undefined): boolean {
+  return Boolean(raw && raw.trim());
+}
+
+function hasIdentityDocs(input: {
+  aadhar_photo_url?: string | null;
+  aadhar_share_link?: string | null;
+  institute_certificate_photo_url?: string | null;
+  institute_certificate_share_link?: string | null;
+}): boolean {
+  return (
+    (hasValue(input.aadhar_photo_url) || hasValue(input.aadhar_share_link)) &&
+    (hasValue(input.institute_certificate_photo_url) || hasValue(input.institute_certificate_share_link))
+  );
+}
+
 const JOIN_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 function randomJoinCode(): string {
@@ -86,10 +156,10 @@ function randomJoinCode(): string {
 }
 
 /** 6-char codes for student join; avoids collisions with a few retries. */
-async function allocateUniqueJoinCode(): Promise<string> {
+async function allocateUniqueJoinCode(db: DbClient = supabase): Promise<string> {
   for (let attempt = 0; attempt < 16; attempt++) {
     const code = randomJoinCode();
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from("classrooms")
       .select("id")
       .eq("join_code", code)
@@ -322,7 +392,11 @@ export function isTeacherPortalDemoShowcaseClassroom(
   return (classroomName ?? "").trim().toLowerCase() === "demo";
 }
 
-export async function loadTeacherPortalBundle(userId: string): Promise<TeacherPortalDataBundle> {
+export async function loadTeacherPortalBundle(
+  userId: string,
+  client?: DbClient
+): Promise<TeacherPortalDataBundle> {
+  const db = client ?? supabase;
   const [
     profileRes,
     classroomsRes,
@@ -333,7 +407,7 @@ export async function loadTeacherPortalBundle(userId: string): Promise<TeacherPo
     answersRes,
     payoutsRes,
   ] = await Promise.all([
-    supabase
+    db
       .from("profiles")
       .select(
         "id, name, avatar_url, bio, subjects, exam_tags, teaching_levels, visibility, rdm, google_connected"
@@ -342,55 +416,63 @@ export async function loadTeacherPortalBundle(userId: string): Promise<TeacherPo
       .maybeSingle(),
     // Supabase generated TS types may not include newly added columns yet (e.g. allow_adhoc_trial).
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- narrow escape hatch until types are regenerated
-    (supabase as any)
+    (db as any)
       .from("classrooms")
       .select(
         "id, name, subject, section, description, intro_video_url, teacher_id, join_code, google_meet_link, google_recurring_event_id, allow_adhoc_trial"
       )
       .eq("teacher_id", userId)
       .order("created_at", { ascending: false }),
-    supabase
+    db
       .from("classroom_members")
       .select("classroom_id, role")
       .in(
         "classroom_id",
-        (await supabase.from("classrooms").select("id").eq("teacher_id", userId)).data?.map(
+        (await db.from("classrooms").select("id").eq("teacher_id", userId)).data?.map(
           (c) => c.id
         ) ?? [""]
       ),
-    supabase
+    db
       .from("posts")
       .select(
         "id, classroom_id, section_id, type, created_at, title, description, due_date, content_json, teacher_id"
       )
       .eq("teacher_id", userId),
-    supabase
+    db
       .from("live_sessions")
       .select(
         "id, classroom_id, section_id, title, scheduled_at, duration_minutes, meet_link, status, plan_json, pre_assignment_post_id, post_assignment_post_id"
       )
       .eq("teacher_id", userId)
       .order("scheduled_at", { ascending: true }),
-    supabase
+    db
       .from("doubts")
       .select("id, title, body, subject, created_at, upvotes, user_id")
       .order("created_at", { ascending: false })
       .limit(30),
-    supabase
+    db
       .from("doubt_answers")
       .select("id, doubt_id, body, user_id, upvotes, created_at")
       .order("created_at", { ascending: false }),
-    supabase
+    db
       .from("accepted_answer_payouts")
       .select("rdm_paid, paid_at")
       .eq("user_id", userId)
       .gte("paid_at", startOfWeekIso()),
   ]);
 
-  const profile = profileRes.data;
-  if (!profile) {
-    throw new Error("Teacher profile not found.");
-  }
+  const profile = profileRes.data ?? {
+    id: userId,
+    name: "Teacher",
+    avatar_url: null,
+    bio: null,
+    subjects: null,
+    exam_tags: null,
+    teaching_levels: null,
+    visibility: "public",
+    rdm: 0,
+    google_connected: false,
+  };
 
   type ClassroomRow = {
     id: string;
@@ -414,8 +496,8 @@ export async function loadTeacherPortalBundle(userId: string): Promise<TeacherPo
       continue;
     }
     try {
-      const join_code = await allocateUniqueJoinCode();
-      const { error } = await supabase
+      const join_code = await allocateUniqueJoinCode(db);
+      const { error } = await db
         .from("classrooms")
         .update({ join_code })
         .eq("id", c.id)
@@ -433,13 +515,13 @@ export async function loadTeacherPortalBundle(userId: string): Promise<TeacherPo
 
   const [memberRowsBase, postRows, sessionRows, sectionRowsRes, askerProfilesRes] = await Promise.all([
     classroomIds.length
-      ? supabase
+      ? db
           .from("classroom_members")
           .select("classroom_id, role, section_id")
           .in("classroom_id", classroomIds)
       : Promise.resolve({ data: [], error: null }),
     classroomIds.length
-      ? supabase
+      ? db
           .from("posts")
           .select(
             "id, classroom_id, section_id, type, title, description, due_date, content_json, created_at, teacher_id"
@@ -448,7 +530,7 @@ export async function loadTeacherPortalBundle(userId: string): Promise<TeacherPo
           .in("classroom_id", classroomIds)
       : Promise.resolve({ data: [], error: null }),
     classroomIds.length
-      ? supabase
+      ? db
           .from("live_sessions")
           .select(
             "id, classroom_id, section_id, title, scheduled_at, duration_minutes, meet_link, status, plan_json, pre_assignment_post_id, post_assignment_post_id"
@@ -458,7 +540,7 @@ export async function loadTeacherPortalBundle(userId: string): Promise<TeacherPo
           .order("scheduled_at", { ascending: true })
       : Promise.resolve({ data: [], error: null }),
     classroomIds.length
-      ? supabase
+      ? db
           .from("classroom_sections" as never)
           .select(
             "id, classroom_id, name, sort_order, schedule_date, schedule_time, duration_minutes, repeat_days, schedule_end_date, is_active, google_meet_link, google_recurring_event_id"
@@ -467,7 +549,7 @@ export async function loadTeacherPortalBundle(userId: string): Promise<TeacherPo
           .order("sort_order", { ascending: true })
           .order("created_at", { ascending: true })
       : Promise.resolve({ data: [], error: null }),
-    supabase
+    db
       .from("profiles")
       .select("id, name, role")
       .in("id", [...new Set((doubtsRes.data ?? []).map((d) => d.user_id))]),
@@ -932,7 +1014,7 @@ export async function loadTeacherPortalBundle(userId: string): Promise<TeacherPo
   });
 
   const memberProfilesRes = classroomIds.length
-    ? await supabase
+    ? await db
         .from("classroom_members")
         .select("classroom_id, user_id, role, joined_at, section_id, profiles(name, avatar_url, rdm)")
         .in("classroom_id", classroomIds)
@@ -941,7 +1023,7 @@ export async function loadTeacherPortalBundle(userId: string): Promise<TeacherPo
     isTeacherPortalDemoShowcaseClassroom(c.id, c.name)
   );
   const demoStudentsRes = anyDemoShowcaseClassroom
-    ? await supabase
+    ? await db
         .from("profiles")
         .select("id, name, avatar_url, rdm")
         .eq("role", "student")
@@ -1096,7 +1178,7 @@ export async function loadTeacherPortalBundle(userId: string): Promise<TeacherPo
   const assignmentPostIds = assignmentPosts.map((p) => p.id);
   let taskProgressRows: Array<{ post_id: string; task_id: string; user_id: string }> = [];
   if (assignmentPostIds.length > 0) {
-    const { data: prog, error: progErr } = await supabase
+    const { data: prog, error: progErr } = await db
       .from("classroom_assignment_task_progress")
       .select("post_id, task_id, user_id")
       .in("post_id", assignmentPostIds);
@@ -1119,7 +1201,7 @@ export async function loadTeacherPortalBundle(userId: string): Promise<TeacherPo
 
   const studentEngagementByUser = new Map<string, Record<string, unknown>>();
   if (studentIdsAcrossClassrooms.length > 0) {
-    const { data: profileRows, error: profileErr } = await supabase
+    const { data: profileRows, error: profileErr } = await db
       .from("profiles")
       .select("id, subtopic_engagement")
       .in("id", studentIdsAcrossClassrooms);
@@ -1139,7 +1221,7 @@ export async function loadTeacherPortalBundle(userId: string): Promise<TeacherPo
   // Backfill chapter quiz completion from submitted attempts so teacher stats stay accurate
   // even when explicit task-progress rows are missing.
   if (assignmentPostIds.length > 0) {
-    const genericSupabase = supabase as unknown as {
+    const genericSupabase = db as unknown as {
       from: (table: string) => {
         select: (columns: string) => {
           in: (
@@ -1342,7 +1424,7 @@ export async function loadTeacherPortalBundle(userId: string): Promise<TeacherPo
     answersByDoubt.set(a.doubt_id, list);
   });
 
-  const profileRowsRes = await supabase
+  const profileRowsRes = await db
     .from("profiles")
     .select("id, name, role")
     .in("id", [...new Set(answers.map((a) => a.user_id))]);
@@ -1419,10 +1501,18 @@ export async function loadTeacherPortalBundle(userId: string): Promise<TeacherPo
     aadhar_share_link: string | null;
     institute_certificate_photo_url: string | null;
     institute_certificate_share_link: string | null;
+    contact_email_verified_at: string | null;
+    verified_contact_email: string | null;
+    verification_status: TeacherVerificationStatus | null;
+    admin_notes: string | null;
+    submitted_at: string | null;
+    reviewed_at: string | null;
+    approved_at: string | null;
+    rejected_at: string | null;
   };
 
   const { data: teacherDetailsRowRaw } = await (
-    supabase as unknown as {
+    db as unknown as {
       from: (table: string) => {
         select: (columns: string) => {
           eq: (
@@ -1440,7 +1530,7 @@ export async function loadTeacherPortalBundle(userId: string): Promise<TeacherPo
   )
     .from("teacher_profile_details")
     .select(
-      "teacher_id, location, qualification, experience, email, phone, youtube_or_social, aadhar_photo_url, aadhar_share_link, institute_certificate_photo_url, institute_certificate_share_link"
+      "teacher_id, location, qualification, experience, email, phone, youtube_or_social, aadhar_photo_url, aadhar_share_link, institute_certificate_photo_url, institute_certificate_share_link, contact_email_verified_at, verified_contact_email, verification_status, admin_notes, submitted_at, reviewed_at, approved_at, rejected_at"
     )
     .eq("teacher_id", profile.id)
     .maybeSingle();
@@ -1474,7 +1564,7 @@ export async function loadTeacherPortalBundle(userId: string): Promise<TeacherPo
     subjects: profile.subjects ?? [],
     examTags: profile.exam_tags ?? [],
     teachingLevels: profile.teaching_levels ?? [],
-    visibility: profile.visibility,
+    visibility: profile.visibility ?? "public",
     rdm: profile.rdm ?? 0,
     studentsHelped: summary.totalStudents,
     expertAnswers: summary.teacherSectionsWritten,
@@ -1484,6 +1574,14 @@ export async function loadTeacherPortalBundle(userId: string): Promise<TeacherPo
       qualification: details.qualification ?? null,
       experience: details.experience ?? null,
       email: details.email ?? null,
+      verifiedContactEmail: teacherDetailsRowRaw?.verified_contact_email ?? null,
+      contactEmailVerifiedAt: teacherDetailsRowRaw?.contact_email_verified_at ?? null,
+      verificationStatus: teacherDetailsRowRaw?.verification_status ?? "unverified",
+      adminNotes: teacherDetailsRowRaw?.admin_notes ?? null,
+      submittedAt: teacherDetailsRowRaw?.submitted_at ?? null,
+      reviewedAt: teacherDetailsRowRaw?.reviewed_at ?? null,
+      approvedAt: teacherDetailsRowRaw?.approved_at ?? null,
+      rejectedAt: teacherDetailsRowRaw?.rejected_at ?? null,
       phone: details.phone ?? null,
       youtubeOrSocial: details.youtubeOrSocial ?? null,
       docs: {
@@ -1516,14 +1614,20 @@ export async function loadTeacherPortalBundle(userId: string): Promise<TeacherPo
   };
 }
 
-export async function postTeacherSection(input: {
+export async function postTeacherSection(
+  input: {
   doubtId: string;
   teacherId: string;
   body: string;
-}): Promise<void> {
+},
+  client?: DbClient,
+  options?: TeacherMutationGuardOptions
+): Promise<void> {
+  const db = client ?? supabase;
+  await assertTeacherApprovedForMutations(input.teacherId, db, options);
   const trimmed = input.body.trim();
   if (!trimmed) throw new Error("Teacher section cannot be empty.");
-  const { error } = await supabase.from("doubt_answers").insert({
+  const { error } = await db.from("doubt_answers").insert({
     doubt_id: input.doubtId,
     user_id: input.teacherId,
     body: trimmed,
@@ -1531,7 +1635,8 @@ export async function postTeacherSection(input: {
   if (error) throw error;
 }
 
-export async function updateTeacherProfile(input: {
+export async function updateTeacherProfile(
+  input: {
   userId: string;
   name: string;
   bio: string;
@@ -1539,8 +1644,14 @@ export async function updateTeacherProfile(input: {
   subjects: string[];
   examTags: string[];
   teachingLevels: number[];
+  /** Full public URL (e.g. Supabase Storage public URL or OAuth picture URL). */
+  avatarUrl?: string | null;
   details?: TeacherProfileDetails;
-}): Promise<void> {
+  bypassVerificationLock?: boolean;
+},
+  client?: DbClient
+): Promise<void> {
+  const db = client ?? supabase;
   const cleanSubjects = input.subjects.map((item) => item.trim()).filter(Boolean);
   const cleanExamTags = input.examTags.map((item) => item.trim()).filter(Boolean);
   const cleanLevels = input.teachingLevels
@@ -1554,38 +1665,164 @@ export async function updateTeacherProfile(input: {
     details: input.details ?? {},
   });
 
-  const { error } = await supabase
-    .from("profiles")
-    .update({
-      name: input.name.trim(),
-      bio: encodedBio.trim() || null,
-      visibility: input.visibility,
-      subjects: cleanSubjects,
-      exam_tags: cleanExamTags,
-      teaching_levels: cleanLevels,
-    })
-    .eq("id", input.userId);
-  if (error) throw error;
+  const profilePatch: Record<string, unknown> = {
+    name: input.name.trim(),
+    bio: encodedBio.trim() || null,
+    visibility: input.visibility,
+    subjects: cleanSubjects,
+    exam_tags: cleanExamTags,
+    teaching_levels: cleanLevels,
+  };
+  if (input.avatarUrl !== undefined) {
+    profilePatch.avatar_url = input.avatarUrl;
+  }
 
   const d = input.details ?? {};
   const docs = d.docs ?? {};
 
+  const dbAny = db as unknown as {
+    from: (t: string) => {
+      select: (cols: string) => {
+        eq: (c: string, v: string) => {
+          maybeSingle: () => Promise<{
+            data: {
+              verified_contact_email?: string | null;
+              verification_status?: TeacherVerificationStatus | null;
+              name?: string | null;
+              subjects?: string[] | null;
+              exam_tags?: string[] | null;
+              location?: string | null;
+              qualification?: string | null;
+              experience?: string | null;
+              phone?: string | null;
+              aadhar_photo_url?: string | null;
+              aadhar_share_link?: string | null;
+              institute_certificate_photo_url?: string | null;
+              institute_certificate_share_link?: string | null;
+            } | null;
+          }>;
+        };
+      };
+    };
+  };
+  const { data: prevTeacherDetails } = await dbAny
+    .from("teacher_profile_details")
+    .select(
+      "verified_contact_email, verification_status, location, qualification, experience, phone, aadhar_photo_url, aadhar_share_link, institute_certificate_photo_url, institute_certificate_share_link"
+    )
+    .eq("teacher_id", input.userId)
+    .maybeSingle();
+  const { data: prevProfileCore } = await dbAny
+    .from("profiles")
+    .select("name, subjects, exam_tags")
+    .eq("id", input.userId)
+    .maybeSingle();
+
+  const nextEmailNorm = (d.email ?? "").trim().toLowerCase();
+  const prevVerifiedNorm = (
+    (prevTeacherDetails as { verified_contact_email?: string | null } | null)?.verified_contact_email ?? ""
+  )
+    .trim()
+    .toLowerCase();
+
+  const verificationPatch: Record<string, unknown> = {};
+  if (!nextEmailNorm) {
+    verificationPatch.contact_email_verified_at = null;
+    verificationPatch.verified_contact_email = null;
+  } else if (prevVerifiedNorm && prevVerifiedNorm !== nextEmailNorm) {
+    verificationPatch.contact_email_verified_at = null;
+    verificationPatch.verified_contact_email = null;
+  }
+
+  const nextProfileName = input.name.trim();
+  const nextSubjects = cleanSubjects;
+  const nextExamTags = cleanExamTags;
+  const nextLocation = d.location?.trim() || "";
+  const nextQualification = d.qualification?.trim() || "";
+  const nextExperience = d.experience?.trim() || "";
+  const nextPhone = normalizeIndianPhone(d.phone ?? "");
   const detailsPayload = {
     teacher_id: input.userId,
-    location: d.location?.trim() || null,
-    qualification: d.qualification?.trim() || null,
-    experience: d.experience?.trim() || null,
+    location: nextLocation || null,
+    qualification: nextQualification || null,
+    experience: nextExperience || null,
     email: d.email?.trim() || null,
-    phone: d.phone?.trim() || null,
+    phone: nextPhone || null,
     youtube_or_social: d.youtubeOrSocial?.trim() || null,
     aadhar_photo_url: docs.aadharPhotoUrl?.trim() || null,
     aadhar_share_link: docs.aadharShareLink?.trim() || null,
     institute_certificate_photo_url: docs.instituteCertificatePhotoUrl?.trim() || null,
     institute_certificate_share_link: docs.instituteCertificateShareLink?.trim() || null,
+    ...verificationPatch,
   };
 
+  const verificationStatus = prevTeacherDetails?.verification_status ?? "unverified";
+  const approvedLocked = verificationStatus === "approved" && !input.bypassVerificationLock;
+
+  if (approvedLocked) {
+    const prevName = (prevProfileCore?.name ?? "").trim();
+    const prevSubjects = (prevProfileCore?.subjects ?? []).map((s) => s.trim());
+    const prevExamTags = (prevProfileCore?.exam_tags ?? []).map((s) => s.trim());
+    const prevLocation = (prevTeacherDetails?.location ?? "").trim();
+    const prevQualification = (prevTeacherDetails?.qualification ?? "").trim();
+    const prevExperience = (prevTeacherDetails?.experience ?? "").trim();
+    const prevPhone = normalizeIndianPhone(prevTeacherDetails?.phone ?? "");
+    const prevAadharPhoto = (prevTeacherDetails?.aadhar_photo_url ?? "").trim();
+    const prevAadharShare = (prevTeacherDetails?.aadhar_share_link ?? "").trim();
+    const prevCertPhoto = (prevTeacherDetails?.institute_certificate_photo_url ?? "").trim();
+    const prevCertShare = (prevTeacherDetails?.institute_certificate_share_link ?? "").trim();
+    const changedCoreIdentity =
+      prevName !== nextProfileName ||
+      prevSubjects.join("|") !== nextSubjects.join("|") ||
+      prevExamTags.join("|") !== nextExamTags.join("|") ||
+      prevLocation !== nextLocation ||
+      prevQualification !== nextQualification ||
+      prevExperience !== nextExperience ||
+      prevPhone !== nextPhone ||
+      prevAadharPhoto !== (detailsPayload.aadhar_photo_url ?? "") ||
+      prevAadharShare !== (detailsPayload.aadhar_share_link ?? "") ||
+      prevCertPhoto !== (detailsPayload.institute_certificate_photo_url ?? "") ||
+      prevCertShare !== (detailsPayload.institute_certificate_share_link ?? "");
+    if (changedCoreIdentity) {
+      throw new Error(
+        "Your profile is verified. Core identity fields are locked; contact admin for corrections."
+      );
+    }
+  }
+
+  const hasMandatoryFields =
+    hasValue(nextProfileName) &&
+    nextSubjects.length > 0 &&
+    nextExamTags.length > 0 &&
+    hasValue(nextLocation) &&
+    hasValue(nextQualification) &&
+    hasValue(nextExperience) &&
+    isValidIndianPhone(nextPhone) &&
+    hasIdentityDocs(detailsPayload);
+
+  if (!input.bypassVerificationLock && !hasMandatoryFields) {
+    throw new Error(
+      "Complete full name, phone (+91 10 digits), subjects, specialisation, location, qualification, experience, and both identity documents."
+    );
+  }
+
+  if (verificationStatus !== "approved" && hasMandatoryFields) {
+    (detailsPayload as Record<string, unknown>).verification_status = "pending";
+    (detailsPayload as Record<string, unknown>).submitted_at = new Date().toISOString();
+    if (verificationStatus === "rejected") {
+      (detailsPayload as Record<string, unknown>).admin_notes = null;
+      (detailsPayload as Record<string, unknown>).rejected_at = null;
+      (detailsPayload as Record<string, unknown>).reviewed_at = null;
+    }
+  } else if (!approvedLocked && verificationStatus === "unverified") {
+    (detailsPayload as Record<string, unknown>).verification_status = "unverified";
+  }
+
+  const { error } = await db.from("profiles").update(profilePatch).eq("id", input.userId);
+  if (error) throw error;
+
   const { error: detailsErr } = await (
-    supabase as unknown as {
+    db as unknown as {
       from: (table: string) => {
         upsert: (
           values: Record<string, unknown>,
@@ -1600,7 +1837,8 @@ export async function updateTeacherProfile(input: {
   if (detailsErr) throw ensureError(detailsErr);
 }
 
-export async function createTeacherClassroom(input: {
+export async function createTeacherClassroom(
+  input: {
   userId: string;
   name: string;
   subject: string;
@@ -1613,7 +1851,12 @@ export async function createTeacherClassroom(input: {
   /** Optional last day for recurrence (YYYY-MM-DD); also sent to Google as RRULE UNTIL when set. */
   scheduleEndDate?: string | null;
   allowAdhocTrial: boolean;
-}): Promise<{ classroomId: string }> {
+},
+  client?: DbClient,
+  options?: TeacherMutationGuardOptions
+): Promise<{ classroomId: string }> {
+  const db = client ?? supabase;
+  await assertTeacherApprovedForMutations(input.userId, db, options);
   const className = input.name.trim();
   if (!className) throw new Error("Classroom name is required.");
 
@@ -1632,8 +1875,8 @@ export async function createTeacherClassroom(input: {
     endNote,
   ].join(" | ");
 
-  const join_code = await allocateUniqueJoinCode();
-  const { data: insertedClassroom, error: classErr } = await supabase
+  const join_code = await allocateUniqueJoinCode(db);
+  const { data: insertedClassroom, error: classErr } = await db
     .from("classrooms")
     .insert({
       teacher_id: input.userId,
@@ -1650,7 +1893,7 @@ export async function createTeacherClassroom(input: {
   if (classErr) throw ensureError(classErr);
 
   const classroomId = insertedClassroom.id;
-  const { error: membershipErr } = await supabase.from("classroom_members").insert({
+  const { error: membershipErr } = await db.from("classroom_members").insert({
     classroom_id: classroomId,
     user_id: input.userId,
     role: "teacher",
@@ -1660,7 +1903,7 @@ export async function createTeacherClassroom(input: {
   if (input.scheduleDate && input.scheduleTime) {
     const scheduledAt = new Date(`${input.scheduleDate}T${input.scheduleTime}:00`);
     if (!Number.isNaN(scheduledAt.getTime())) {
-      const { error: sessionErr } = await supabase.from("live_sessions").insert({
+      const { error: sessionErr } = await db.from("live_sessions").insert({
         classroom_id: classroomId,
         teacher_id: input.userId,
         title: `${className} Session`,
@@ -1675,17 +1918,23 @@ export async function createTeacherClassroom(input: {
   return { classroomId };
 }
 
-export async function updateTeacherClassroom(input: {
+export async function updateTeacherClassroom(
+  input: {
   teacherId: string;
   classroomId: string;
   name: string;
   subject: string | null;
   section: string | null;
   introVideoUrl?: string | null;
-}): Promise<void> {
+},
+  client?: DbClient,
+  options?: TeacherMutationGuardOptions
+): Promise<void> {
+  const db = client ?? supabase;
+  await assertTeacherApprovedForMutations(input.teacherId, db, options);
   const name = input.name.trim();
   if (!name) throw new Error("Classroom name is required.");
-  const { error } = await supabase
+  const { error } = await db
     .from("classrooms")
     .update({
       name,
@@ -1698,11 +1947,17 @@ export async function updateTeacherClassroom(input: {
   if (error) throw ensureError(error);
 }
 
-export async function deleteTeacherClassroom(input: {
+export async function deleteTeacherClassroom(
+  input: {
   teacherId: string;
   classroomId: string;
-}): Promise<void> {
-  const { error } = await supabase
+},
+  client?: DbClient,
+  options?: TeacherMutationGuardOptions
+): Promise<void> {
+  const db = client ?? supabase;
+  await assertTeacherApprovedForMutations(input.teacherId, db, options);
+  const { error } = await db
     .from("classrooms")
     .delete()
     .eq("id", input.classroomId)
@@ -1710,7 +1965,8 @@ export async function deleteTeacherClassroom(input: {
   if (error) throw ensureError(error);
 }
 
-export async function createClassroomAssignment(input: {
+export async function createClassroomAssignment(
+  input: {
   teacherId: string;
   classroomId: string;
   sectionId?: string | null;
@@ -1738,7 +1994,12 @@ export async function createClassroomAssignment(input: {
   extraContentJson?: Record<string, Json> | null;
   /** Optional visibility override (default: classroom). */
   visibility?: string;
-}): Promise<{ id: string }> {
+},
+  client?: DbClient,
+  options?: TeacherMutationGuardOptions
+): Promise<{ id: string }> {
+  const db = client ?? supabase;
+  await assertTeacherApprovedForMutations(input.teacherId, db, options);
   const title = input.title.trim();
   if (!title) throw new Error("Assignment title is required.");
   let taskList = normalizeTaskPositions(
@@ -1893,7 +2154,7 @@ export async function createClassroomAssignment(input: {
         ? new Date(`${input.dueDate}T23:59:00`).toISOString()
         : null;
 
-  const { data: insertedPost, error } = await supabase
+  const { data: insertedPost, error } = await db
     .from("posts")
     .insert({
       classroom_id: input.classroomId,
@@ -1932,7 +2193,7 @@ export async function createClassroomAssignment(input: {
       }
       return task;
     });
-    const { error: updateErr } = await supabase
+    const { error: updateErr } = await db
       .from("posts")
       .update({
         content_json: {
@@ -1949,7 +2210,8 @@ export async function createClassroomAssignment(input: {
   return { id: insertedPost.id };
 }
 
-export async function createMotivationAction(input: {
+export async function createMotivationAction(
+  input: {
   teacherId: string;
   classroomId: string;
   sectionId?: string | null;
@@ -1964,8 +2226,13 @@ export async function createMotivationAction(input: {
   recommendActionId?: "attempt_targeted_mock" | "post_doubt" | "watch_recorded" | "none";
   recommendActionLabel?: string;
   recommendActionUrl?: string;
-}): Promise<void> {
-  const { error } = await supabase.from("posts").insert({
+},
+  client?: DbClient,
+  options?: TeacherMutationGuardOptions
+): Promise<void> {
+  const db = client ?? supabase;
+  await assertTeacherApprovedForMutations(input.teacherId, db, options);
+  const { error } = await db.from("posts").insert({
     classroom_id: input.classroomId,
     section_id: input.sectionId ?? null,
     teacher_id: input.teacherId,
@@ -1988,15 +2255,21 @@ export async function createMotivationAction(input: {
   if (error) throw error;
 }
 
-export async function createRewardTopStudentsAction(input: {
+export async function createRewardTopStudentsAction(
+  input: {
   teacherId: string;
   classroomId: string;
   sectionId?: string | null;
   targetStudentIds: string[];
   message: string;
   rdmDelta: number;
-}): Promise<void> {
-  const { error } = await supabase.from("posts").insert({
+},
+  client?: DbClient,
+  options?: TeacherMutationGuardOptions
+): Promise<void> {
+  const db = client ?? supabase;
+  await assertTeacherApprovedForMutations(input.teacherId, db, options);
+  const { error } = await db.from("posts").insert({
     classroom_id: input.classroomId,
     section_id: input.sectionId ?? null,
     teacher_id: input.teacherId,
@@ -2015,9 +2288,11 @@ export async function createRewardTopStudentsAction(input: {
 }
 
 export async function listMotivationLogForClassroom(
-  classroomId: string
+  classroomId: string,
+  client?: DbClient
 ): Promise<TeacherPortalMotivationLogItem[]> {
-  const { data, error } = await supabase
+  const db = client ?? supabase;
+  const { data, error } = await db
     .from("posts")
     .select("id, classroom_id, section_id, teacher_id, type, title, created_at, content_json")
     .eq("classroom_id", classroomId)
@@ -2050,7 +2325,8 @@ export async function listMotivationLogForClassroom(
   });
 }
 
-export async function createTeacherLiveSession(input: {
+export async function createTeacherLiveSession(
+  input: {
   teacherId: string;
   classroomId: string;
   sectionId?: string | null;
@@ -2085,7 +2361,12 @@ export async function createTeacherLiveSession(input: {
     advancedSet?: 1 | 2 | 3;
   } | null;
   postWorkDelayDays?: number;
-}): Promise<void> {
+},
+  client?: DbClient,
+  options?: TeacherMutationGuardOptions
+): Promise<void> {
+  const db = client ?? supabase;
+  await assertTeacherApprovedForMutations(input.teacherId, db, options);
   const sessionTitle = input.title.trim();
   if (!sessionTitle) throw new Error("Session topic is required.");
   if (!input.classroomId) throw new Error("Classroom is required.");
@@ -2133,7 +2414,7 @@ export async function createTeacherLiveSession(input: {
     durationMinutes: input.durationMinutes,
   };
 
-  const { data: insertedSession, error: sessionError } = await supabase
+  const { data: insertedSession, error: sessionError } = await db
     .from("live_sessions")
     .insert({
       classroom_id: input.classroomId,
@@ -2151,7 +2432,7 @@ export async function createTeacherLiveSession(input: {
   if (sessionError) throw ensureError(sessionError);
   const liveSessionId = insertedSession.id;
 
-  const { error: planError } = await supabase.from("posts").insert({
+  const { error: planError } = await db.from("posts").insert({
     classroom_id: input.classroomId,
     section_id: input.sectionId ?? null,
     teacher_id: input.teacherId,
@@ -2177,7 +2458,8 @@ export async function createTeacherLiveSession(input: {
     // no-op
   } else if ((input.preWorkMode ?? "custom") === "concept_focus" && input.preWorkConceptRef) {
     const cq = input.preWorkConceptRef;
-    const created = await createClassroomAssignment({
+    const created = await createClassroomAssignment(
+      {
       teacherId: input.teacherId,
       classroomId: input.classroomId,
       sectionId: input.sectionId ?? null,
@@ -2207,10 +2489,14 @@ export async function createTeacherLiveSession(input: {
         sessionScheduledAt: scheduledAt.toISOString(),
         sessionDurationMinutes: input.durationMinutes,
       },
-    });
+      },
+      db,
+      options
+    );
     preAssignmentPostId = created.id;
   } else if (input.preWork.trim()) {
-    const created = await createClassroomAssignment({
+    const created = await createClassroomAssignment(
+      {
       teacherId: input.teacherId,
       classroomId: input.classroomId,
       sectionId: input.sectionId ?? null,
@@ -2230,7 +2516,10 @@ export async function createTeacherLiveSession(input: {
         sessionScheduledAt: scheduledAt.toISOString(),
         sessionDurationMinutes: input.durationMinutes,
       },
-    });
+      },
+      db,
+      options
+    );
     preAssignmentPostId = created.id;
   }
 
@@ -2240,7 +2529,8 @@ export async function createTeacherLiveSession(input: {
   } else if ((input.postWorkMode ?? "custom") === "concept_focus" && input.postWorkConceptRef) {
     const cq = input.postWorkConceptRef;
     const postDueAt = new Date(postReleaseAt).toISOString();
-    const created = await createClassroomAssignment({
+    const created = await createClassroomAssignment(
+      {
       teacherId: input.teacherId,
       classroomId: input.classroomId,
       sectionId: input.sectionId ?? null,
@@ -2272,11 +2562,15 @@ export async function createTeacherLiveSession(input: {
         sessionScheduledAt: scheduledAt.toISOString(),
         sessionDurationMinutes: input.durationMinutes,
       },
-    });
+      },
+      db,
+      options
+    );
     postAssignmentPostId = created.id;
   } else if (input.postWork.trim()) {
     const postDueAt = new Date(postReleaseAt).toISOString();
-    const created = await createClassroomAssignment({
+    const created = await createClassroomAssignment(
+      {
       teacherId: input.teacherId,
       classroomId: input.classroomId,
       sectionId: input.sectionId ?? null,
@@ -2297,7 +2591,10 @@ export async function createTeacherLiveSession(input: {
         sessionScheduledAt: scheduledAt.toISOString(),
         sessionDurationMinutes: input.durationMinutes,
       },
-    });
+      },
+      db,
+      options
+    );
     postAssignmentPostId = created.id;
   }
 
@@ -2308,7 +2605,7 @@ export async function createTeacherLiveSession(input: {
   if (preAssignmentPostId) assignmentPatch.pre_assignment_post_id = preAssignmentPostId;
   if (postAssignmentPostId) assignmentPatch.post_assignment_post_id = postAssignmentPostId;
   if (Object.keys(assignmentPatch).length > 0) {
-    const { error: linkErr } = await supabase
+    const { error: linkErr } = await db
       .from("live_sessions")
       .update(assignmentPatch)
       .eq("id", liveSessionId);
