@@ -26,7 +26,10 @@ function TeacherPortalPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
-  const { user, profile } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth();
+  const normalizedRole = (profile?.role ?? "").toLowerCase().trim();
+  const isTeacherRole = normalizedRole === "teacher";
+  const isAdminRole = normalizedRole === "admin";
   const [section, setSection] = useState<TeacherPortalSection>("myClassroom");
   const adminTeacherIdRaw = searchParams.get("adminTeacherId")?.trim() ?? "";
   const isAdminImpersonation = Boolean(adminTeacherIdRaw) && profile?.role === "admin";
@@ -151,6 +154,24 @@ function TeacherPortalPageContent() {
     }
   }, [closeGate, isGateOpen, verificationStatus]);
 
+  useEffect(() => {
+    if (!user || authLoading) return;
+    if (isAdminImpersonation || isTeacherRole) return;
+    if (isAdminRole && !adminTeacherIdRaw) {
+      router.replace("/admin/teacher-portal");
+      return;
+    }
+    router.replace("/home");
+  }, [
+    user,
+    authLoading,
+    isAdminImpersonation,
+    isTeacherRole,
+    isAdminRole,
+    adminTeacherIdRaw,
+    router,
+  ]);
+
   const handleOpenVerificationProfile = useCallback(() => {
     setSection("profile");
     closeGate();
@@ -185,22 +206,21 @@ function TeacherPortalPageContent() {
     );
   }
 
-  if (!isAdminImpersonation && profile?.role !== "teacher") {
+  if (authLoading) {
     return (
       <ProtectedRoute>
         <div className="flex min-h-screen items-center justify-center bg-[#07070f] text-slate-200">
-          <div className="text-center">
-            <h1 className="mb-2 text-xl font-semibold">
-              Teacher portal is only for teacher accounts.
-            </h1>
-            <button
-              type="button"
-              onClick={() => router.push("/home")}
-              className="rounded-full border border-white/20 px-4 py-2 text-sm hover:bg-white/5"
-            >
-              Go to dashboard
-            </button>
-          </div>
+          <Loader2 className="h-8 w-8 animate-spin text-slate-400" aria-hidden />
+        </div>
+      </ProtectedRoute>
+    );
+  }
+
+  if (!isAdminImpersonation && !isTeacherRole) {
+    return (
+      <ProtectedRoute>
+        <div className="flex min-h-screen items-center justify-center bg-[#07070f] text-slate-200">
+          <Loader2 className="h-8 w-8 animate-spin text-slate-400" aria-hidden />
         </div>
       </ProtectedRoute>
     );
@@ -208,9 +228,11 @@ function TeacherPortalPageContent() {
 
   const teacherName =
     activeHook.data?.profile.name ??
-    (isAdminImpersonation ? "Teacher" : profile.name ?? "Teacher");
-  const teacherSubtitle = activeHook.data?.profile.subjects.join(" · ") || "EduBlast Teacher";
-  const rdmBalance = activeHook.data?.profile.rdm ?? (isAdminImpersonation ? 0 : profile.rdm ?? 0);
+    (isAdminImpersonation ? "Teacher" : profile?.name ?? "Teacher");
+  const teacherSubtitle =
+    activeHook.data?.profile?.subjects.join(" · ") || "EduBlast Teacher";
+  const rdmBalance =
+    activeHook.data?.profile.rdm ?? (isAdminImpersonation ? 0 : profile?.rdm ?? 0);
 
   return (
     <ProtectedRoute>
@@ -221,8 +243,6 @@ function TeacherPortalPageContent() {
         teacherName={teacherName}
         teacherSubtitle={teacherSubtitle}
         onOpenCreateTests={() => handleSectionChange("createTests")}
-        verificationStatus={verificationStatus}
-        onOpenVerificationProfile={handleOpenVerificationProfile}
       >
         {activeHook.loading && !activeHook.data ? (
           <div className="flex min-h-[50vh] items-center justify-center gap-2 text-slate-400">

@@ -7,6 +7,10 @@ import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import AppLayout from "@/components/AppLayout";
 import { useUserStore } from "@/store/useUserStore";
+import {
+  saveQuestionToDb,
+  type SavedQuestionSource,
+} from "@/lib/savedQuestionsService";
 import { useAuth } from "@/hooks/useAuth";
 import { getMockQuestions, questions as questionBank } from "@/data/questions";
 import { useTheme } from "next-themes";
@@ -90,6 +94,7 @@ import { dispatchClassroomAssignmentProgressChanged } from "@/lib/classroom/assi
 import { buildWhatsAppShareUrl } from "@/lib/referChallengeShareUrls";
 import {
   buildMockShareTemplates,
+  formatMockAccuracyPercent,
   getMockShareOutcome,
   pickNextMockShareTemplate,
 } from "@/lib/mockTestShareTemplates";
@@ -356,6 +361,7 @@ function MockPageContent() {
   const ntaSkin: NtaSkin = resolvedTheme === "dark" ? "dark" : "light";
   const user = useUserStore((s) => s.user);
   const allResults = useUserStore((s) => s.allResults);
+  const saveQuestionToStore = useUserStore((s) => s.saveQuestion);
 
   const [nextClassInfo, setNextClassInfo] = useState<{ name: string; time: string } | null>(null);
   const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
@@ -389,6 +395,8 @@ function MockPageContent() {
   const [activeExamTitle, setActiveExamTitle] = useState<string | null>(null);
   /** Set for catalog papers only; used for server-verified +50 RDM bonus (>=60% score). */
   const [activePaperId, setActivePaperId] = useState<string | null>(null);
+  /** Catalog slug for `/mock?paper=` — stored on community shares so readers can open the same paper. */
+  const [activePaperSlug, setActivePaperSlug] = useState<string | null>(null);
   const [activePaperSource, setActivePaperSource] = useState<PaperSource | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -631,9 +639,15 @@ function MockPageContent() {
         setActiveExamTitle(examTitle);
         if (meta.kind === "paper" && meta.paper) {
           setActivePaperId(meta.paper.id);
+          const slug =
+            typeof meta.paper.slug === "string" && meta.paper.slug.trim().length > 0
+              ? meta.paper.slug.trim()
+              : null;
+          setActivePaperSlug(slug);
           setActivePaperSource(meta.paperSource ?? "mock");
         } else {
           setActivePaperId(null);
+          setActivePaperSlug(null);
           setActivePaperSource(null);
         }
         setNtaPendingMeta(null);
@@ -853,9 +867,40 @@ function MockPageContent() {
   const candidateDisplayName = profile?.name ?? user?.name ?? "Candidate";
   const candidateAvatarUrl = profile?.avatar_url ?? null;
 
+  const persistBookmarkForCurrentQuestion = useCallback(() => {
+    const id = questions[currentIndex]?.id;
+    if (!id) return;
+    const source: SavedQuestionSource =
+      activePaperSource === "past"
+        ? "past_paper"
+        : activePaperSource === "mock"
+          ? "mock"
+          : "static";
+    if (authUser?.id) {
+      void saveQuestionToDb(authUser.id, id, source).then(({ error }) => {
+        if (error) {
+          toast({
+            title: "Could not save question",
+            description: error.message,
+            variant: "destructive",
+          });
+        }
+      });
+    }
+    saveQuestionToStore(id);
+  }, [
+    questions,
+    currentIndex,
+    activePaperSource,
+    authUser?.id,
+    saveQuestionToStore,
+    toast,
+  ]);
+
   const handleNtaSaveAndNext = useCallback(() => {
+    persistBookmarkForCurrentQuestion();
     setCurrentIndex((i) => Math.min(questions.length - 1, i + 1));
-  }, [questions.length]);
+  }, [questions.length, persistBookmarkForCurrentQuestion]);
 
   const handleNtaClearResponse = useCallback(() => {
     const id = questions[currentIndex]?.id;
@@ -877,9 +922,10 @@ function MockPageContent() {
   const handleNtaSaveMarkReviewNext = useCallback(() => {
     const id = questions[currentIndex]?.id;
     if (!id) return;
+    persistBookmarkForCurrentQuestion();
     setFlagged((prev) => new Set(prev).add(id));
     setCurrentIndex((i) => Math.min(questions.length - 1, i + 1));
-  }, [questions, currentIndex]);
+  }, [questions, currentIndex, persistBookmarkForCurrentQuestion]);
 
   const correctCount = useMemo(
     () => questions.filter((q) => answers[q.id] === q.correctAnswer).length,
@@ -938,21 +984,32 @@ function MockPageContent() {
   const mockShareTemplates = useMemo(() => {
     if (view !== "results" || questions.length === 0) return [];
     const total = questions.length;
-    const accuracyPct = total > 0 ? Math.round((correctCount / total) * 100) : 0;
+    const accuracyPct = formatMockAccuracyPercent(correctCount, total);
     const appUrl =
       typeof window !== "undefined"
         ? `${window.location.origin}/mock`
         : "https://edublast.in/mock";
+    const sharePaperKind = activePaperSource === "past" ? "past_paper" : "catalog_mock";
     return buildMockShareTemplates({
-      examName: activeExamTitle ?? "Quick mock",
+      examName:
+        activeExamTitle ?? (activePaperSource === "past" ? "Past paper session" : "Quick mock"),
       correct: correctCount,
       total,
       accuracyPct,
       timeTakenLabel: formatTime(timeTakenSeconds),
       appUrl,
       outcome: mockShareOutcome,
+      sharePaperKind,
     });
-  }, [view, questions, correctCount, timeTakenSeconds, activeExamTitle, mockShareOutcome]);
+  }, [
+    view,
+    questions,
+    correctCount,
+    timeTakenSeconds,
+    activeExamTitle,
+    mockShareOutcome,
+    activePaperSource,
+  ]);
 
   const activeMockShareTemplate =
     mockShareTemplates.length > 0
@@ -981,6 +1038,11 @@ function MockPageContent() {
     if (!tmpl) return;
 
     const attemptKey = `${String(endTime)}:${activePaperId ?? "quick"}`;
+    const isPastPaperShare = activePaperSource === "past";
+    const communityTags = isPastPaperShare
+      ? ["past_paper_share", "prep-pyq"]
+      : ["mock_test", "prep-mock"];
+    const communitySourceType = isPastPaperShare ? "past_paper_result" : "mock_test";
 
     setMockPostingToFeed(true);
     try {
@@ -990,18 +1052,23 @@ function MockPageContent() {
           user_id: authUser.id,
           kind: "post",
           title: tmpl.title.length > 200 ? `${tmpl.title.slice(0, 197)}…` : tmpl.title,
-          content: tmpl.text,
-          tags: ["mock_test", "prep-mock"],
+          content: tmpl.communityContent,
+          tags: communityTags,
           subject: null,
-          source_type: "mock_test",
+          source_type: communitySourceType,
           source_payload: {
             templateId: tmpl.id,
             paperId: activePaperId,
+            paperSlug:
+              activePaperSlug && activePaperSlug.trim().length > 0
+                ? activePaperSlug.trim()
+                : undefined,
             correct: correctCount,
             total: questions.length,
             tone: tmpl.tone,
             outcome: mockShareOutcome,
             attemptKey,
+            sharePaperKind: isPastPaperShare ? "past_paper" : "catalog_mock",
           },
         })
         .select("id")
@@ -1053,7 +1120,7 @@ function MockPageContent() {
 
       toast({
         title: "Posted to community",
-        description: `Your mock result is live on the feed.${rdmLine}`,
+        description: `${isPastPaperShare ? "Your past paper result" : "Your mock result"} is live on the feed.${rdmLine}`,
         action: (
           <ToastAction
             altText="View post"
@@ -1081,6 +1148,8 @@ function MockPageContent() {
     mockShareTemplateIndex,
     mockShareOutcome,
     activePaperId,
+    activePaperSlug,
+    activePaperSource,
     correctCount,
     questions.length,
     mockShareRewardRdm,
@@ -1806,7 +1875,7 @@ function MockPageContent() {
                 </div>
                 <div className="edu-card p-4 rounded-2xl text-center">
                   <span className="text-2xl font-extrabold text-primary block">
-                    {questions.length ? Math.round((correctCount / questions.length) * 100) : 0}%
+                    {formatMockAccuracyPercent(correctCount, questions.length)}%
                   </span>
                   <span className="text-xs text-muted-foreground font-bold">Score</span>
                 </div>
@@ -1851,8 +1920,11 @@ function MockPageContent() {
                       Shuffle template
                     </Button>
                   </div>
-                  <p className="whitespace-pre-line text-sm leading-relaxed text-foreground dark:text-slate-300">
-                    {activeMockShareTemplate.text}
+                  <p className="text-sm font-semibold leading-snug text-foreground dark:text-slate-200">
+                    {activeMockShareTemplate.title}
+                  </p>
+                  <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-foreground/90 dark:text-slate-300">
+                    {activeMockShareTemplate.communityContent}
                   </p>
                   {!authUser?.id ? (
                     <p className="mt-3 text-[11px] text-muted-foreground dark:text-slate-500">
@@ -1901,7 +1973,7 @@ function MockPageContent() {
                           {activeMockShareTemplate.title}
                         </p>
                         <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-foreground dark:text-slate-200">
-                          {activeMockShareTemplate.text}
+                          {activeMockShareTemplate.communityContent}
                         </p>
                       </div>
                       <div className="flex flex-wrap items-center justify-end gap-2">
@@ -2057,6 +2129,7 @@ function MockPageContent() {
                     setAnswers({});
                     setActiveExamTitle(null);
                     setActivePaperId(null);
+                    setActivePaperSlug(null);
                     mockRdmBonusClaimEndTimeRef.current = null;
                     setVisitedQuestionIds(new Set());
                   }}

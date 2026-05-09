@@ -73,8 +73,7 @@ function OnboardingContent() {
   const { toast } = useToast();
 
   const signOutAndReturnToLogin = async () => {
-    await signOut();
-    router.replace("/auth?mode=signin");
+    await signOut("/auth?mode=signin");
   };
 
   const [role, setRole] = useState<"student" | "teacher" | null>(null);

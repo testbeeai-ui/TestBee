@@ -17,8 +17,6 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { TEACHER_PORTAL_CLASSROOMS_URL } from "@/lib/teacherPortal/routes";
 
-type TeacherVerificationUiStatus = "unverified" | "pending" | "approved" | "rejected";
-
 interface TeacherPortalShellProps {
   activeSection: TeacherPortalSection;
   onSectionChange: (section: TeacherPortalSection) => void;
@@ -26,9 +24,6 @@ interface TeacherPortalShellProps {
   teacherName: string;
   teacherSubtitle: string;
   onOpenCreateTests: () => void;
-  /** When not approved, show sidebar reminder that classrooms / assignments need verification */
-  verificationStatus?: TeacherVerificationUiStatus | null;
-  onOpenVerificationProfile?: () => void;
   children: ReactNode;
 }
 
@@ -53,8 +48,6 @@ export default function TeacherPortalShell({
   teacherName,
   teacherSubtitle,
   onOpenCreateTests,
-  verificationStatus,
-  onOpenVerificationProfile,
   children,
 }: TeacherPortalShellProps) {
   const router = useRouter();
@@ -135,25 +128,6 @@ export default function TeacherPortalShell({
 
       <div className="grid h-[calc(100vh-2.75rem)] min-h-0 grid-cols-1 sm:h-[calc(100vh-3.5rem)] md:grid-cols-[200px_1fr] lg:grid-cols-[232px_1fr]">
         <aside className="min-h-0 overflow-y-auto border-r border-white/10 bg-[#0d0d1c] p-2 sm:p-3">
-          {verificationStatus && verificationStatus !== "approved" ? (
-            <div className="mb-3 rounded-xl border border-amber-400/40 bg-amber-500/12 px-2.5 py-2 sm:px-3">
-              <p className="text-[11px] font-semibold leading-snug text-amber-100 sm:text-xs">
-                Verified teachers can create classrooms & assignments
-              </p>
-              <p className="mt-1 text-[10px] leading-snug text-amber-200/90 sm:text-[11px]">
-                Complete verification on your profile so these actions unlock.
-              </p>
-              {onOpenVerificationProfile ? (
-                <button
-                  type="button"
-                  onClick={onOpenVerificationProfile}
-                  className="mt-2 w-full rounded-lg border border-amber-400/35 bg-amber-500/15 px-2 py-1.5 text-[11px] font-semibold text-amber-50 hover:bg-amber-500/25"
-                >
-                  Open profile & verification
-                </button>
-              ) : null}
-            </div>
-          ) : null}
           <div className="px-2 pb-2 pt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">
             Navigation
           </div>

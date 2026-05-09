@@ -1134,13 +1134,19 @@ export default function EduBlastInvestorLanding() {
                     >
                       <div className="flex items-center gap-2 text-xl sm:text-2xl">
                         <span>{tier.icon}</span>
-                        <h3 className="font-serif text-lg font-semibold text-white sm:text-xl">{gate.name}</h3>
+                        <h3 className="font-serif text-lg font-semibold text-white sm:text-xl">
+                          {gate.name}
+                        </h3>
                       </div>
                       <span className="mt-3 inline-flex w-fit max-w-full rounded-full bg-white/10 px-2.5 py-1 text-[9px] font-bold leading-snug tracking-wide text-zinc-200 sm:text-[10px]">
                         {pts}
                       </span>
-                      <p className={`mt-4 text-2xl font-bold sm:text-3xl ${tier.amtClass}`}>{amt}</p>
-                      <p className="mt-3 flex-1 text-xs leading-relaxed text-zinc-500">{tier.desc}</p>
+                      <p className={`mt-4 text-2xl font-bold sm:text-3xl ${tier.amtClass}`}>
+                        {amt}
+                      </p>
+                      <p className="mt-3 flex-1 text-xs leading-relaxed text-zinc-500">
+                        {tier.desc}
+                      </p>
                     </div>
                   );
                 })}

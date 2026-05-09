@@ -4453,6 +4453,11 @@ const TeacherNudgeWithRdmWizard = forwardRef<TeacherNudgeWithRdmWizardHandle, Te
             Same syllabus picker as <span className="font-semibold text-slate-300">Concept Focus</span> assignments —
             class, subject, chapter, lesson, and subtopic.
           </p>
+          <p className="text-[11px] leading-relaxed text-slate-500 sm:text-xs">
+            In step 1, pick students from the <span className="font-semibold text-slate-300">whole class roster</span>{" "}
+            (all sections). When you send, we create <span className="font-semibold text-slate-300">one assignment</span>{" "}
+            scoped to the class with only the students you selected — including if they sit in different sections.
+          </p>
           <ConceptFocusAssignmentFields
             taxonomy={taxonomy}
             taxonomyLoading={taxonomyLoading}
@@ -4602,25 +4607,80 @@ const TeacherNudgeWithRdmWizard = forwardRef<TeacherNudgeWithRdmWizardHandle, Te
             if (!classroomId) return;
             setSending(true);
             try {
-              await props.onMotivateStudents({
+              const metaNotificationTitle = motivationNudgeMeta.notificationTitle;
+              const baseMotivate = {
                 classroomId,
                 actionKind,
                 targetStudentIds: selectedTargetStudentIds,
                 message,
                 rdmDelta,
-                sectionId: null,
+                sectionId: null as string | null,
                 ...motivateExtras,
                 nudgeGoal: motivationNudgeMeta.nudgeGoal,
-                ...(motivationNudgeMeta.notificationTitle
-                  ? { notificationTitle: motivationNudgeMeta.notificationTitle }
-                  : {}),
-              });
+              };
+
+              if (goal === "revise_chapter" && props.allowStructuredAssignmentCreate) {
+                if (onRequireVerifiedAction) {
+                  const ok = await onRequireVerifiedAction("Create assignment");
+                  if (!ok) return;
+                }
+                const cqRef = chapterQuizToRef(
+                  {
+                    ...reviseConceptFocusSel,
+                    level: "advanced",
+                    advancedSet: 1,
+                  } as ChapterQuizSelectionState,
+                  taxonomy
+                );
+                if (!cqRef) {
+                  throw new Error("Concept focus selection is incomplete — go back to step 2 and finish the syllabus.");
+                }
+                const subtopicLabel = cqRef.subtopicName?.trim() || reviseConceptFocusSummary || "Concept Focus";
+                const assignTitle = `Concept Focus · ${subtopicLabel}`;
+                const defaultTasks = normalizeTaskPositions(
+                  buildDefaultTasksForAssignmentType("Concept Focus").filter((t) => t.label.trim())
+                );
+                const created = await onCreateAssignment({
+                  classroomId,
+                  /** Class-wide post + explicit roster — works across teaching sections (RLS + targetStudentIds). */
+                  sectionId: null,
+                  assignmentType: "Concept Focus",
+                  title: assignTitle,
+                  dueDate: defaultDueDateIsoDaysAhead(7),
+                  assignToLabel: `Selected students (${selectedTargetStudentIds.length})`,
+                  targetStudentIds: selectedTargetStudentIds,
+                  rewardRdm: 15,
+                  instructions: "",
+                  tasks: defaultTasks.length ? defaultTasks : undefined,
+                  chapterQuiz: cqRef,
+                });
+                await props.onMotivateStudents({
+                  ...baseMotivate,
+                  relatedPostId: created.id,
+                  relatedPostTitle: assignTitle,
+                  recommendActionId: "concept_focus_resource",
+                  recommendActionLabel: "Open lesson",
+                  recommendActionUrl: `/classroom/${encodeURIComponent(classroomId)}?tab=posts&post=${encodeURIComponent(created.id)}`,
+                  notificationTitle:
+                    metaNotificationTitle ??
+                    `Teacher nudge: focus — ${subtopicLabel.length > 72 ? `${subtopicLabel.slice(0, 69)}…` : subtopicLabel}`,
+                });
+              } else {
+                await props.onMotivateStudents({
+                  ...baseMotivate,
+                  ...(metaNotificationTitle ? { notificationTitle: metaNotificationTitle } : {}),
+                });
+              }
               toast({ title: "Nudges sent" });
               props.onDone();
             } catch (e) {
+              const msg = e instanceof Error ? e.message : "Try again.";
               toast({
                 title: "Could not send nudges",
-                description: e instanceof Error ? e.message : "Try again.",
+                description:
+                  msg === "Failed to fetch"
+                    ? "Network error — check your connection, VPN, or ad-blockers, then retry."
+                    : msg,
                 variant: "destructive",
               });
             } finally {

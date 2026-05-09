@@ -1,4 +1,8 @@
 import { supabase } from "@/integrations/supabase/client";
+import {
+  mapCatalogQuestionRowToQuestion,
+  type CatalogQuestionRow,
+} from "@/lib/catalogQuestionMap";
 import { normalizeMockMarkingSchemeForStudents } from "@/lib/mockPaperMarkingScheme";
 import type { PastPaper, PastPaperType, Question, Subject } from "@/types";
 
@@ -16,20 +20,6 @@ type PastPaperRow = {
   class_level: number;
   tags: string[] | null;
   subjects_covered: string[] | null;
-};
-
-type PastQuestionRow = {
-  id: string;
-  paper_id: string;
-  sort_order: number;
-  subject: string;
-  topic: string | null;
-  chapter: string | null;
-  difficulty: string | null;
-  question_html: string;
-  solution_html: string | null;
-  correct_letter: string;
-  options_json: unknown;
 };
 
 function isSubject(s: string): s is Subject {
@@ -82,26 +72,6 @@ export async function fetchPastPapersFromSupabase(): Promise<PastPaper[]> {
   return (data ?? []).map((r) => mapPastPaperRowToPastPaper(r as PastPaperRow));
 }
 
-function letterToIndex(letter: string): number {
-  const L = letter.trim().toUpperCase();
-  const i = L.charCodeAt(0) - 65;
-  return i >= 0 && i <= 3 ? i : 0;
-}
-
-const emptyReference: Question["reference"] = {
-  theory: "",
-  relatedTopics: [],
-  applicationExample: "",
-};
-
-function stripHtmlToPlain(html: string): string {
-  return html
-    .replace(/<[^>]+>/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 400);
-}
-
 export async function fetchPastQuestionsForPaper(paperId: string): Promise<Question[]> {
   const { data, error } = await supabase
     .from("past_paper_questions")
@@ -113,31 +83,6 @@ export async function fetchPastQuestionsForPaper(paperId: string): Promise<Quest
 
   if (error) throw error;
 
-  const rows = (data ?? []) as PastQuestionRow[];
-  return rows.map((row) => {
-    const subj = isSubject(row.subject) ? row.subject : "math";
-    const opts = Array.isArray(row.options_json)
-      ? (row.options_json as string[]).map((o) => (typeof o === "string" ? o : String(o)))
-      : [];
-    const padded = [...opts];
-    while (padded.length < 4) padded.push("");
-    const options = padded.slice(0, 4);
-    const solutionPlain = row.solution_html ? stripHtmlToPlain(row.solution_html) : "";
-
-    return {
-      id: row.id,
-      subject: subj,
-      topic: row.topic || row.chapter || "Past Paper",
-      classLevel: 12,
-      examType: ["JEE_Mains"],
-      question: stripHtmlToPlain(row.question_html) || "Question",
-      questionHtml: row.question_html,
-      solutionHtml: row.solution_html,
-      options,
-      correctAnswer: letterToIndex(row.correct_letter),
-      hint: "",
-      solution: solutionPlain,
-      reference: emptyReference,
-    };
-  });
+  const rows = (data ?? []) as CatalogQuestionRow[];
+  return rows.map((row) => mapCatalogQuestionRowToQuestion(row, "Past Paper"));
 }

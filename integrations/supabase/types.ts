@@ -2124,6 +2124,38 @@ export type Database = {
         };
         Relationships: [];
       };
+      saved_questions: {
+        Row: {
+          id: string;
+          user_id: string;
+          question_id: string;
+          source_type: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          question_id: string;
+          source_type: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          question_id?: string;
+          source_type?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "saved_questions_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       session_attendance: {
         Row: {
           checked_in_at: string;

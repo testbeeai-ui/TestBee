@@ -33,7 +33,7 @@ function toggle(arr: string[] | null, val: string, setter: (v: string[]) => void
 }
 
 export default function TeacherProfile() {
-  const { user, profile, refreshProfile } = useAuth();
+  const { user, profile, refreshProfile, signOut } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
   const [calendarLinkBusy, setCalendarLinkBusy] = useState(false);
@@ -203,8 +203,7 @@ export default function TeacherProfile() {
                 variant="outline"
                 className="rounded-xl font-extrabold text-destructive hover:text-destructive hover:bg-destructive/10"
                 onClick={async () => {
-                  const { error } = await supabase.auth.signOut();
-                  if (!error) router.push("/");
+                  await signOut();
                 }}
               >
                 <LogOut className="w-4 h-4 mr-2" /> Log Out

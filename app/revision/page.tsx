@@ -7,7 +7,6 @@ import { motion } from "framer-motion";
 import AppLayout from "@/components/AppLayout";
 import { useUserStore } from "@/store/useUserStore";
 import { questions } from "@/data/questions";
-import QuestionCard from "@/components/QuestionCard";
 import { BookMarked, Trash2, Plus, BookOpen, ChevronRight, Zap, Calculator } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,6 +17,7 @@ import {
 } from "@/components/ui/accordion";
 import { BitsCarousel } from "@/components/BitsCarousel";
 import { FormulaMcqCarousel } from "@/components/FormulaMcqCarousel";
+import { SavedQuestionsCarousel } from "@/components/SavedQuestionsCarousel";
 import type {
   SavedRevisionCard,
   SavedRevisionUnit,
@@ -32,6 +32,14 @@ import { buildDeepDivePath } from "@/lib/topicRoutes";
 import { fetchSavedContent, syncAllSavedContent } from "@/lib/savedContentService";
 import { mergeAllSavedContent } from "@/lib/mergeSavedContent";
 import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
+import {
+  fetchSavedQuestionRows,
+  hydrateSavedQuestionsFromRows,
+  unsaveQuestionFromDb,
+  type SavedQuestionRow,
+} from "@/lib/savedQuestionsService";
+import { CORE_SUBJECTS, type Question, type Subject } from "@/types";
 import { cn } from "@/lib/utils";
 
 const DEMO_CARDS: SavedRevisionCard[] = [
@@ -95,13 +103,13 @@ const VALID_REVISION_TABS: RevisionTab[] = [
 
 const RevisionContent = () => {
   const searchParams = useSearchParams();
+  const { toast } = useToast();
   const { user: authUser } = useAuth();
   const user = useUserStore((s) => s.user);
   const unsaveQuestion = useUserStore((s) => s.unsaveQuestion);
   const unsaveRevisionUnit = useUserStore((s) => s.unsaveRevisionUnit);
   const unsaveBit = useUserStore((s) => s.unsaveBit);
   const unsaveFormula = useUserStore((s) => s.unsaveFormula);
-  const [activeId, setActiveId] = useState<string | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<RevisionTab>("instacue");
 
@@ -112,14 +120,21 @@ const RevisionContent = () => {
     }
   }, [searchParams]);
 
-  const savedQuestionsCount = useMemo(
-    () => new Set(user?.savedQuestions ?? []).size,
-    [user?.savedQuestions]
-  );
-  const savedQuestions = useMemo(
+  const [savedQuestionRows, setSavedQuestionRows] = useState<SavedQuestionRow[]>([]);
+  const [savedQuestionsMerged, setSavedQuestionsMerged] = useState<Question[]>([]);
+  const [savedQuestionsHydrateLoading, setSavedQuestionsHydrateLoading] = useState(false);
+
+  const savedQuestionsCount = useMemo(() => {
+    const dbIds = savedQuestionRows.map((r) => r.question_id);
+    return new Set([...dbIds, ...(user?.savedQuestions ?? [])]).size;
+  }, [savedQuestionRows, user?.savedQuestions]);
+
+  /** Offline / unsigned: local bank only. Signed-in questions tab uses `savedQuestionsMerged`. */
+  const savedQuestionsLocalOnly = useMemo(
     () => questions.filter((q) => (user?.savedQuestions ?? []).includes(q.id)),
     [user?.savedQuestions]
   );
+
   const savedCards = user?.savedRevisionCards ?? [];
   const signedIn = Boolean(authUser);
   const displayCards = signedIn ? savedCards : savedCards.length > 0 ? savedCards : DEMO_CARDS;
@@ -233,6 +248,106 @@ const RevisionContent = () => {
       .finally(() => setSavedContentLoading(false));
   }, [activeTab]);
 
+  useEffect(() => {
+    if (!authUser?.id) {
+      setSavedQuestionRows([]);
+      return;
+    }
+    let cancelled = false;
+    void fetchSavedQuestionRows(authUser.id).then((rows) => {
+      if (!cancelled) setSavedQuestionRows(rows);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [authUser?.id, activeTab]);
+
+  useEffect(() => {
+    if (!signedIn || activeTab !== "questions") {
+      if (activeTab !== "questions") setSavedQuestionsMerged([]);
+      return;
+    }
+    let cancelled = false;
+    setSavedQuestionsHydrateLoading(true);
+    void hydrateSavedQuestionsFromRows(savedQuestionRows, questions)
+      .then(({ orderedQuestions }) => {
+        if (cancelled) return;
+        const dbIds = new Set(savedQuestionRows.map((r) => r.question_id));
+        const localOnly = (user?.savedQuestions ?? []).filter((id) => !dbIds.has(id));
+        const extras = localOnly
+          .map((id) => questions.find((q) => q.id === id))
+          .filter(Boolean) as Question[];
+        setSavedQuestionsMerged([...orderedQuestions, ...extras]);
+      })
+      .catch(() => {
+        if (!cancelled) setSavedQuestionsMerged([]);
+      })
+      .finally(() => {
+        if (!cancelled) setSavedQuestionsHydrateLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [signedIn, activeTab, savedQuestionRows, user?.savedQuestions]);
+
+  const savedQuestionsForTab = useMemo(() => {
+    if (!signedIn) return savedQuestionsLocalOnly;
+    return savedQuestionsMerged;
+  }, [signedIn, savedQuestionsLocalOnly, savedQuestionsMerged]);
+
+  const [activeSavedSubject, setActiveSavedSubject] = useState<Subject>("physics");
+
+  const savedQuestionsBySubject = useMemo(() => {
+    const buckets: Record<Subject, Question[]> = {
+      physics: [],
+      chemistry: [],
+      math: [],
+    };
+    for (const q of savedQuestionsForTab) {
+      const s = q.subject;
+      if (s === "physics" || s === "chemistry" || s === "math") {
+        buckets[s].push(q);
+      }
+    }
+    return buckets;
+  }, [savedQuestionsForTab]);
+
+  const savedSubjectTabs = useMemo(
+    () =>
+      CORE_SUBJECTS.map((subject) => ({
+        subject,
+        count: savedQuestionsBySubject[subject].length,
+      })).filter((x) => x.count > 0),
+    [savedQuestionsBySubject]
+  );
+
+  useEffect(() => {
+    if (savedSubjectTabs.length === 0) return;
+    if (!savedSubjectTabs.some((x) => x.subject === activeSavedSubject)) {
+      setActiveSavedSubject(savedSubjectTabs[0]!.subject);
+    }
+  }, [savedSubjectTabs, activeSavedSubject]);
+
+  const handleUnsaveSavedQuestion = async (qid: string) => {
+    const row = savedQuestionRows.find((r) => r.question_id === qid);
+    if (authUser?.id && row) {
+      const { error } = await unsaveQuestionFromDb(authUser.id, qid, row.source_type);
+      if (error) {
+        toast({
+          title: "Could not remove bookmark",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+      setSavedQuestionRows((prev) =>
+        prev.filter((r) => !(r.question_id === qid && r.source_type === row.source_type))
+      );
+    }
+    unsaveQuestion(qid);
+    setSavedQuestionsMerged((prev) => prev.filter((q) => q.id !== qid));
+  };
+
   /** Group saved bits by subject + topic (e.g. "Physics · Thermodynamics"). */
   const groupedBits = useMemo(() => {
     const groups = new Map<string, SavedBit[]>();
@@ -313,10 +428,10 @@ const RevisionContent = () => {
   return (
     <ProtectedRoute allowRoles={["student"]}>
       <AppLayout>
-        <div className="max-w-4xl mx-auto px-4 pt-1 pb-8">
-          <div className="mb-6 space-y-4">
+        <div className="max-w-4xl mx-auto px-3 pt-1 pb-6 sm:px-4 sm:pb-8">
+          <div className="mb-4 space-y-3 sm:mb-6 sm:space-y-4">
             <div>
-              <h1 className="text-2xl font-black tracking-tight text-foreground">
+              <h1 className="text-xl font-black tracking-tight text-foreground sm:text-2xl">
                 {activeTab === "instacue" ? (
                   <>
                     <span className="text-orange-500 dark:text-orange-400">Insta</span>
@@ -326,7 +441,7 @@ const RevisionContent = () => {
                   sectionTitle
                 )}
               </h1>
-              <p className="text-muted-foreground text-sm mt-1 font-medium">
+              <p className="text-muted-foreground mt-1 text-[13px] font-medium sm:text-sm">
                 {activeTab === "instacue"
                   ? "Quick revision flashcards with active recall and spaced repetition"
                   : activeTab === "units"
@@ -335,20 +450,12 @@ const RevisionContent = () => {
                       ? "Quiz and formula practice you saved from Deep Dive"
                       : activeTab === "community"
                         ? "Community feed posts you saved for revision"
-                        : "Your personal stash of MCQs and numeric problems from Practice and Explore — saved in one tap, reviewed anytime."}
+                        : "Saved questions from mock tests and past papers."}
               </p>
-              {activeTab === "questions" && (
-                <p className="text-muted-foreground/90 text-xs mt-2 leading-relaxed max-w-2xl">
-                  Save while you practice: each bookmark lands here and updates the{" "}
-                  <strong className="text-foreground font-semibold">Saved Questions</strong> count on
-                  your dashboard Revision strip right away. Open a card to practice again or remove it
-                  when you no longer need it.
-                </p>
-              )}
             </div>
 
             <nav className="-mx-1 px-1 pb-0.5" aria-label="Revision sections">
-              <div className="rounded-2xl border border-border bg-muted/30 p-2 sm:p-3 dark:bg-black/25">
+              <div className="rounded-xl border border-border bg-muted/30 p-1.5 sm:rounded-2xl sm:p-3 dark:bg-black/25">
                 <div className="flex w-full min-w-0 flex-nowrap gap-1 sm:gap-1.5">
                   {revisionNavItems.map((item) => {
                     const isActive = activeTab === item.id;
@@ -361,7 +468,7 @@ const RevisionContent = () => {
                         aria-current={isActive ? "page" : undefined}
                         title={item.label}
                         className={cn(
-                          "flex min-w-0 flex-1 items-center justify-center gap-1 rounded-full border px-1.5 py-1.5 text-[10px] font-bold transition-all sm:gap-1.5 sm:px-2 sm:py-2 sm:text-xs md:text-sm",
+                          "flex min-h-9 min-w-0 flex-1 items-center justify-center gap-1 rounded-full border px-1.5 py-1 text-[10px] font-bold transition-all sm:min-h-10 sm:gap-1.5 sm:px-2 sm:py-2 sm:text-xs md:text-sm",
                           isActive
                             ? "border-transparent bg-primary text-primary-foreground shadow-md"
                             : "border-border/70 bg-background/60 text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -409,7 +516,7 @@ const RevisionContent = () => {
           )}
 
           {activeTab === "questions" && (
-            <section className="space-y-4">
+            <section className="space-y-3 sm:space-y-4">
               {savedQuestionsCount === 0 ? (
                 <div className="edu-card p-8 sm:p-10 text-center rounded-2xl border-2 border-dashed border-border">
                   <BookMarked className="w-12 h-12 mx-auto text-muted-foreground mb-4" aria-hidden />
@@ -436,7 +543,15 @@ const RevisionContent = () => {
                     </Link>
                   </Button>
                 </div>
-              ) : savedQuestions.length === 0 ? (
+              ) : signedIn && savedQuestionsHydrateLoading ? (
+                <div className="edu-card p-8 sm:p-10 text-center rounded-2xl border-2 border-dashed border-border">
+                  <div className="animate-pulse flex flex-col items-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-muted" />
+                    <div className="h-4 w-48 bg-muted rounded" />
+                    <div className="h-3 w-64 bg-muted rounded" />
+                  </div>
+                </div>
+              ) : savedQuestionsForTab.length === 0 ? (
                 <div className="edu-card p-8 sm:p-10 text-center rounded-2xl border-2 border-dashed border-border">
                   <BookMarked className="w-12 h-12 mx-auto text-muted-foreground mb-4" aria-hidden />
                   <h2 className="text-lg font-bold text-foreground tracking-tight">
@@ -444,15 +559,14 @@ const RevisionContent = () => {
                     account
                   </h2>
                   <p className="text-sm text-muted-foreground mt-2 mb-5 max-w-lg mx-auto leading-relaxed">
-                    The counter above is correct — those bookmarks are stored for you. This preview list
-                    only renders questions that exist in the on-device catalog, so very new or custom IDs
-                    may not appear as cards yet.
+                    {signedIn
+                      ? "Those bookmarks are in your account, but we could not load every question (e.g. removed catalog rows). Try Prep + Mock again, or remove stale entries from your list."
+                      : "The counter above is correct — those bookmarks are stored for you. This preview list only renders questions that exist in the on-device catalog, so very new or custom IDs may not appear as cards yet."}
                   </p>
                   <p className="text-xs text-muted-foreground mb-6 max-w-md mx-auto leading-relaxed">
-                    Open <strong className="text-foreground">Explore</strong> or{" "}
-                    <strong className="text-foreground">Practice</strong> where you originally saved the
-                    question to work it again; your Revision dashboard badge still updates as soon as you
-                    save.
+                    Open <strong className="text-foreground">Explore</strong>,{" "}
+                    <strong className="text-foreground">Practice</strong>, or{" "}
+                    <strong className="text-foreground">Prep + Mock</strong> to revisit saved items.
                   </p>
                   <div className="flex flex-col sm:flex-row gap-2 justify-center items-center">
                     <Button variant="outline" className="rounded-xl font-semibold" asChild>
@@ -461,63 +575,63 @@ const RevisionContent = () => {
                       </Link>
                     </Button>
                     <Button variant="ghost" className="rounded-xl font-semibold" asChild>
-                      <Link href="/explore-1">
-                        Go to Explore <ChevronRight className="w-4 h-4 ml-1" />
+                      <Link href="/mock">
+                        Prep + Mock <ChevronRight className="w-4 h-4 ml-1" />
                       </Link>
                     </Button>
                   </div>
                 </div>
               ) : (
                 <>
-                  <p className="text-sm text-muted-foreground leading-relaxed max-w-2xl">
-                    Below are the questions you saved, in the same card style as the rest of Revision: tap
-                    a row to open the full question, or use the trash icon to remove it from your bank.
+                  <p className="max-w-2xl text-xs leading-relaxed text-muted-foreground sm:text-sm">
+                    Saved questions from your mocks and past papers are grouped by subject — switch
+                    between Physics, Chemistry, and Maths.
                   </p>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                  {savedQuestions.map((q, i) => (
-                    <motion.div
-                      key={q.id}
-                      layout
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: i * 0.05 }}
-                    >
-                      {activeId === q.id ? (
-                        <div className="sm:col-span-2">
-                          <QuestionCard question={q} onNext={() => setActiveId(null)} />
-                        </div>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => setActiveId(q.id)}
-                          className="w-full edu-card p-5 text-left border border-border rounded-xl"
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <div>
-                              <span className="edu-chip bg-primary/10 text-primary mb-2">
-                                {q.subject} · {q.topic}
-                              </span>
-                              <p className="text-sm font-bold text-foreground mt-2 line-clamp-2">
-                                {q.question}
-                              </p>
-                            </div>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                unsaveQuestion(q.id);
-                              }}
-                              className="shrink-0 rounded-xl hover:bg-destructive/10 hover:text-destructive"
+                  <div
+                    className="rounded-xl border border-border bg-muted/30 p-1.5 dark:bg-black/25 sm:rounded-2xl sm:p-2"
+                    role="tablist"
+                    aria-label="Saved questions by subject"
+                  >
+                    <div className="flex w-full min-w-0 gap-1.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:gap-2 sm:flex-wrap sm:overflow-visible">
+                      {savedSubjectTabs.map(({ subject, count }) => {
+                        const label =
+                          subject === "math"
+                            ? "Maths"
+                            : subject.charAt(0).toUpperCase() + subject.slice(1);
+                        const active = activeSavedSubject === subject;
+                        return (
+                          <button
+                            key={subject}
+                            type="button"
+                            role="tab"
+                            aria-selected={active}
+                            onClick={() => setActiveSavedSubject(subject)}
+                            className={cn(
+                              "flex h-10 min-w-[6.25rem] shrink-0 items-center justify-center gap-1 rounded-full border px-2.5 text-xs font-bold transition-all sm:h-11 sm:min-w-0 sm:flex-1 sm:gap-1.5 sm:px-4 sm:text-sm",
+                              active
+                                ? "border-transparent bg-primary text-primary-foreground shadow-md"
+                                : "border-border/70 bg-background/70 text-muted-foreground hover:bg-muted hover:text-foreground dark:bg-background/40"
+                            )}
+                          >
+                            <span className="truncate">{label}</span>
+                            <span
+                              className={cn(
+                                "shrink-0 tabular-nums rounded-full px-1 py-0.5 text-[9px] font-extrabold sm:px-1.5 sm:text-[11px]",
+                                active ? "bg-white/20 text-primary-foreground" : "bg-muted text-foreground"
+                              )}
                             >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </button>
-                      )}
-                    </motion.div>
-                  ))}
-                </div>
+                              {count}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <SavedQuestionsCarousel
+                    key={activeSavedSubject}
+                    questions={savedQuestionsBySubject[activeSavedSubject]}
+                    onUnsave={(id) => void handleUnsaveSavedQuestion(id)}
+                  />
                 </>
               )}
             </section>
