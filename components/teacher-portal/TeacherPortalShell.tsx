@@ -15,6 +15,9 @@ import {
 import type { TeacherPortalSection } from "@/lib/teacherPortal/types";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { TEACHER_PORTAL_CLASSROOMS_URL } from "@/lib/teacherPortal/routes";
+
+type TeacherVerificationUiStatus = "unverified" | "pending" | "approved" | "rejected";
 
 interface TeacherPortalShellProps {
   activeSection: TeacherPortalSection;
@@ -23,6 +26,9 @@ interface TeacherPortalShellProps {
   teacherName: string;
   teacherSubtitle: string;
   onOpenCreateTests: () => void;
+  /** When not approved, show sidebar reminder that classrooms / assignments need verification */
+  verificationStatus?: TeacherVerificationUiStatus | null;
+  onOpenVerificationProfile?: () => void;
   children: ReactNode;
 }
 
@@ -31,7 +37,8 @@ const sections: Array<{ key: TeacherPortalSection; label: string; icon: typeof L
   { key: "myClasses", label: "My lessons", icon: GraduationCap },
   { key: "gyanWall", label: "Gyan++ Wall", icon: Star },
   { key: "createTests", label: "Create Tests", icon: BookOpen },
-  { key: "referEarn", label: "Earn & Learn", icon: Gift },
+  /** Teacher referrals & challenges — not the student /refer-earn hub */
+  { key: "referEarn", label: "Refer & earn", icon: Gift },
   { key: "profile", label: "Profile", icon: User },
 ];
 
@@ -46,6 +53,8 @@ export default function TeacherPortalShell({
   teacherName,
   teacherSubtitle,
   onOpenCreateTests,
+  verificationStatus,
+  onOpenVerificationProfile,
   children,
 }: TeacherPortalShellProps) {
   const router = useRouter();
@@ -74,7 +83,7 @@ export default function TeacherPortalShell({
       <header className="sticky top-0 z-20 border-b border-white/10 bg-[#07070f]/95 backdrop-blur">
         <div className="flex h-11 items-center gap-2 px-3 sm:h-14 sm:gap-3 sm:px-5 lg:px-6">
           <Link
-            href="/teacher-portal"
+            href={TEACHER_PORTAL_CLASSROOMS_URL}
             className="relative z-10 flex shrink-0 items-center hover:opacity-90 transition-opacity"
             aria-label="EduBlast Home"
           >
@@ -126,6 +135,25 @@ export default function TeacherPortalShell({
 
       <div className="grid h-[calc(100vh-2.75rem)] min-h-0 grid-cols-1 sm:h-[calc(100vh-3.5rem)] md:grid-cols-[200px_1fr] lg:grid-cols-[232px_1fr]">
         <aside className="min-h-0 overflow-y-auto border-r border-white/10 bg-[#0d0d1c] p-2 sm:p-3">
+          {verificationStatus && verificationStatus !== "approved" ? (
+            <div className="mb-3 rounded-xl border border-amber-400/40 bg-amber-500/12 px-2.5 py-2 sm:px-3">
+              <p className="text-[11px] font-semibold leading-snug text-amber-100 sm:text-xs">
+                Verified teachers can create classrooms & assignments
+              </p>
+              <p className="mt-1 text-[10px] leading-snug text-amber-200/90 sm:text-[11px]">
+                Complete verification on your profile so these actions unlock.
+              </p>
+              {onOpenVerificationProfile ? (
+                <button
+                  type="button"
+                  onClick={onOpenVerificationProfile}
+                  className="mt-2 w-full rounded-lg border border-amber-400/35 bg-amber-500/15 px-2 py-1.5 text-[11px] font-semibold text-amber-50 hover:bg-amber-500/25"
+                >
+                  Open profile & verification
+                </button>
+              ) : null}
+            </div>
+          ) : null}
           <div className="px-2 pb-2 pt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">
             Navigation
           </div>
@@ -157,6 +185,7 @@ export default function TeacherPortalShell({
           <div className="space-y-1">
             <button
               type="button"
+              onClick={() => router.push("/teacher-portal/create-assignment")}
               className="flex w-full items-center gap-2 rounded-lg border border-transparent px-2.5 py-1.5 text-left text-[12px] text-slate-400 hover:border-white/10 hover:bg-white/5 hover:text-white sm:px-3 sm:py-2 sm:text-sm"
             >
               <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
@@ -164,6 +193,9 @@ export default function TeacherPortalShell({
             </button>
             <button
               type="button"
+              onClick={() =>
+                router.push("/teacher-portal?section=myClassroom&wizard=1")
+              }
               className="flex w-full items-center gap-2 rounded-lg border border-transparent px-2.5 py-1.5 text-left text-[12px] text-slate-400 hover:border-white/10 hover:bg-white/5 hover:text-white sm:px-3 sm:py-2 sm:text-sm"
             >
               <Star className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
@@ -171,6 +203,9 @@ export default function TeacherPortalShell({
             </button>
             <button
               type="button"
+              onClick={() =>
+                router.push("/teacher-portal?section=myClassroom&portalDetail=progress")
+              }
               className="flex w-full items-center gap-2 rounded-lg border border-transparent px-2.5 py-1.5 text-left text-[12px] text-slate-400 hover:border-white/10 hover:bg-white/5 hover:text-white sm:py-2 sm:text-sm"
             >
               <BookOpen className="h-3.5 w-3.5 sm:h-4 sm:w-4" />

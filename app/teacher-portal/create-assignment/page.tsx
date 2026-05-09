@@ -65,6 +65,10 @@ function CreateAssignmentPageContent() {
         teacherName={teacherName}
         teacherSubtitle={teacherSubtitle}
         onOpenCreateTests={() => router.push("/teacher-portal?section=createTests")}
+        verificationStatus={verificationStatus}
+        onOpenVerificationProfile={() =>
+          router.push("/teacher-portal?section=profile&edit=1")
+        }
       >
         {loading && !data ? (
           <div className="flex min-h-[55vh] items-center justify-center gap-2 text-slate-400">

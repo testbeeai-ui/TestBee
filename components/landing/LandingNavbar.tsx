@@ -6,6 +6,7 @@ import { Menu, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { withNextQuery } from "@/lib/auth/safeNextPath";
 import { cn } from "@/lib/utils";
+import { TEACHER_PORTAL_CLASSROOMS_URL } from "@/lib/teacherPortal/routes";
 import { NAV_LINKS } from "./landing-constants";
 
 /** Landing nav — same resized logo as main app (`public/images/logo-2.png`). */
@@ -98,7 +99,7 @@ export default function LandingNavbar({
             />
           ) : isSignedIn ? (
             <Link
-              href={profile?.role === "teacher" ? "/teacher-portal" : "/home"}
+              href={profile?.role === "teacher" ? TEACHER_PORTAL_CLASSROOMS_URL : "/home"}
               className={
                 isDark
                   ? "inline-flex items-center gap-1.5 rounded-full bg-[#34f5a4] px-3.5 py-2 text-[11px] font-bold text-neutral-950 shadow-[0_0_24px_rgba(52,245,164,0.22)] transition-colors hover:bg-[#2ee89a] md:px-5 md:py-2.5 md:text-[12px] xl:text-[13px]"
@@ -173,7 +174,7 @@ export default function LandingNavbar({
           <div className="flex gap-2 pt-2">
             {authLoading ? null : isSignedIn ? (
               <Link
-                href={profile?.role === "teacher" ? "/teacher-portal" : "/home"}
+                href={profile?.role === "teacher" ? TEACHER_PORTAL_CLASSROOMS_URL : "/home"}
                 className={
                   isDark
                     ? "rounded-full bg-[#34f5a4] px-4 py-2 text-sm font-semibold text-neutral-950 flex-1 text-center"

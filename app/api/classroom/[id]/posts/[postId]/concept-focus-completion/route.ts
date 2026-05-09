@@ -126,7 +126,7 @@ export async function GET(
     }
   }
 
-  let engagementByUser = new Map<string, unknown>();
+  const engagementByUser = new Map<string, unknown>();
   if (studentIds.length > 0) {
     const { data: profiles, error: profErr } = await authedClient
       .from("profiles")

@@ -406,7 +406,7 @@ export function NtaExamShell({
                     : "#ffffff";
                 return (
                   <button
-                    key={qq.id}
+                    key={`${qq.id}-${i}`}
                     type="button"
                     onClick={() => onSelectIndex(i)}
                     className="relative flex aspect-square w-full min-w-0 max-w-full items-center justify-center rounded-xl p-0 transition-opacity hover:opacity-95"

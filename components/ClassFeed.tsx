@@ -20,6 +20,7 @@ import {
   type ClassroomAssignmentProgressDetail,
 } from "@/lib/classroom/assignmentProgressSync";
 import { cn } from "@/lib/utils";
+import type { Json } from "@/integrations/supabase/types";
 
 export interface Post {
   id: string;
@@ -53,6 +54,7 @@ const typeConfig: Record<string, { icon: typeof FileText; emoji: string; color: 
   quiz: { icon: HelpCircle, emoji: "❓", color: "bg-amber-500/10 text-amber-600" },
   assignment: { icon: ClipboardList, emoji: "📝", color: "bg-green-500/10 text-green-600" },
   mock: { icon: ClipboardList, emoji: "📋", color: "bg-emerald-500/10 text-emerald-700" },
+  past_paper: { icon: ClipboardList, emoji: "📜", color: "bg-emerald-500/10 text-teal-700" },
   poll: { icon: BarChart3, emoji: "📊", color: "bg-pink-500/10 text-pink-600" },
   announcement: { icon: Megaphone, emoji: "📢", color: "bg-orange-500/10 text-orange-600" },
   "Concept Focus": { icon: FileText, emoji: "🎯", color: "bg-violet-500/10 text-violet-600" },
@@ -120,6 +122,53 @@ function withAssignmentTrackingParams(
   } catch {
     return href;
   }
+}
+
+/** Whether every student-visible task for this post is satisfied (attempt row and/or task-progress ticks). */
+function studentVisibleAssignmentIsDone(
+  post: Post,
+  completedForPost: Set<string>,
+  submittedPostIds: Set<string>,
+  subtopicEngagement: unknown
+): boolean {
+  if (post.type === "Concept Focus") {
+    return (
+      completedForPost.has("concept-focus-subtopic") ||
+      isConceptFocusLessonChecklistComplete(subtopicEngagement, post.content_json)
+    );
+  }
+
+  const tasks = studentVisibleTasks(
+    parseAssignmentTasks((post.content_json as unknown as Json) ?? null, post.type)
+  );
+  if (tasks.length === 0) return false;
+
+  for (const t of tasks) {
+    if (t.kind === "chapter_quiz" || t.kind === "mock_paper" || t.kind === "past_paper") {
+      if (completedForPost.has(t.id) || submittedPostIds.has(post.id)) continue;
+      return false;
+    }
+    if (t.kind === "gyan_engagement") {
+      if (!completedForPost.has(t.id)) return false;
+      continue;
+    }
+    if (t.kind === "free_text" && !t.href && t.visible_to_student) {
+      if (!completedForPost.has(t.id)) return false;
+      continue;
+    }
+    if (
+      t.kind === "bits" ||
+      t.kind === "instacue" ||
+      t.kind === "daily_dose" ||
+      t.kind === "topic_path" ||
+      t.kind === "external_link" ||
+      (t.kind === "free_text" && t.href)
+    ) {
+      if (!completedForPost.has(t.id)) return false;
+      continue;
+    }
+  }
+  return true;
 }
 
 interface Props {
@@ -234,7 +283,7 @@ const ClassFeed = ({
       setSubmittedPostIds(submittedIds);
     };
     void fetchSubmittedAttempts();
-  }, [classroomId]);
+  }, [classroomId, assignmentProgressBump, refreshKey]);
 
   useEffect(() => {
     const fetchTaskProgressDone = async () => {
@@ -249,6 +298,7 @@ const ClassFeed = ({
           p.type === "assignment" ||
           p.type === "quiz" ||
           p.type === "mock" ||
+          p.type === "past_paper" ||
           p.type === "Concept Focus"
       );
       if (assignmentLike.length === 0) {
@@ -293,40 +343,27 @@ const ClassFeed = ({
         completedByPost.set(r.post_id, set);
       }
 
-      const done = new Set<string>(submittedPostIds);
+      const done = new Set<string>();
       for (const p of assignmentLike) {
-        if (p.type === "Concept Focus") {
-          const completed = completedByPost.get(p.id) ?? new Set<string>();
-          if (
-            completed.has("concept-focus-subtopic") ||
-            isConceptFocusLessonChecklistComplete(subtopicEngagement, p.content_json)
-          ) {
-            done.add(p.id);
-          }
-          continue;
-        }
-        const tasks = studentVisibleTasks(
-          parseAssignmentTasks(
-            (p.content_json as unknown as import("@/integrations/supabase/types").Json) ?? null,
-            p.type
-          )
-        );
-        if (tasks.length === 0) continue;
         const completed = completedByPost.get(p.id) ?? new Set<string>();
-        // Only custom free-text tasks are explicitly ticked by students.
-        // A post is considered "Done" if at least one such task is completed (or a quiz attempt was submitted).
-        const hasCustom = tasks.some((t) => t.kind === "free_text" && !t.href && t.visible_to_student);
-        if (!hasCustom) continue;
-        const anyCustomDone = tasks.some(
-          (t) => t.kind === "free_text" && !t.href && t.visible_to_student && completed.has(t.id)
-        );
-        if (anyCustomDone) done.add(p.id);
+        if (
+          studentVisibleAssignmentIsDone(p, completed, submittedPostIds, subtopicEngagement)
+        ) {
+          done.add(p.id);
+        }
       }
 
       setDonePostIds(done);
     };
     void fetchTaskProgressDone();
-  }, [classroomId, posts, submittedPostIds, viewerIsTeacher, assignmentProgressBump]);
+  }, [
+    classroomId,
+    posts,
+    submittedPostIds,
+    viewerIsTeacher,
+    assignmentProgressBump,
+    refreshKey,
+  ]);
 
   useEffect(() => {
     if (viewerIsTeacher) return;

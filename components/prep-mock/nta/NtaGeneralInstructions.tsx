@@ -12,7 +12,6 @@ import {
 export interface NtaInstructionsExamMeta {
   durationMinutes: number;
   questionCount: number;
-  markingScheme: string;
   paperTitle: string;
 }
 
@@ -208,8 +207,7 @@ export function NtaGeneralInstructions({
             <p className="mt-2" style={{ color: "var(--nta-muted)" }}>
               <strong className="text-[var(--nta-text)]">Duration:</strong> {meta.durationMinutes}{" "}
               min · <strong className="text-[var(--nta-text)]">Questions:</strong>{" "}
-              {meta.questionCount} · <strong className="text-[var(--nta-text)]">Marking:</strong>{" "}
-              {meta.markingScheme}
+              {meta.questionCount}
             </p>
           </div>
 

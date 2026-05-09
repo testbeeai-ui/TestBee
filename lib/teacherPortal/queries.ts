@@ -29,15 +29,25 @@ import {
   inferSessionWorkKind,
   postWorkDelayLabel,
 } from "@/lib/teacherPortal/sessionWorkDisplay";
+import { kolkataWeekRangeMs } from "@/lib/kolkataWeek";
+import { parseBitsTestAttemptsStore } from "@/lib/parseBitsTestAttemptsStore";
+import {
+  contentJsonHasGeneratedTestPaper,
+  postRowIsNudgeMcqTarget,
+  postTimestampMsForNudgeWeek,
+} from "@/lib/teacherPortal/nudgeMcqPosts";
 import type {
   TeacherPortalChapterQuizRef,
   TeacherPortalClassroomCard,
   TeacherPortalClassroomDetail,
   TeacherPortalDailyDoseStreakRef,
   TeacherPortalDataBundle,
+  TeacherPortalMockNudgeLowScorer,
+  TeacherPortalMockNudgeSubmittedAttempt,
   TeacherPortalGyanEngagementRef,
   TeacherPortalMeetSession,
   TeacherPortalMockPaperRef,
+  TeacherPortalPastPaperRef,
   TeacherPortalMotivationLogItem,
   TeacherPortalProfileView,
   TeacherPortalReferStats,
@@ -49,6 +59,61 @@ import type {
 } from "@/lib/teacherPortal/types";
 
 type DbClient = SupabaseClient<Database>;
+
+/** PostgREST commonly caps at 1000 rows; paginate so nudge “this week” sees all assignments. */
+const TEACHER_PORTAL_POSTS_PAGE_SIZE = 1000;
+
+async function fetchAllPostsForTeacherClassrooms(
+  db: DbClient,
+  teacherId: string,
+  classroomIds: string[]
+): Promise<
+  Array<{
+    id: string;
+    classroom_id: string;
+    section_id: string | null;
+    type: string;
+    title: string;
+    description: string | null;
+    due_date: string | null;
+    content_json: Json | null;
+    created_at: string;
+    updated_at: string;
+    teacher_id: string;
+  }>
+> {
+  if (classroomIds.length === 0) return [];
+  const columns =
+    "id, classroom_id, section_id, type, title, description, due_date, content_json, created_at, updated_at, teacher_id";
+  type PostRow = {
+    id: string;
+    classroom_id: string;
+    section_id: string | null;
+    type: string;
+    title: string;
+    description: string | null;
+    due_date: string | null;
+    content_json: Json | null;
+    created_at: string;
+    updated_at: string;
+    teacher_id: string;
+  };
+  const all: PostRow[] = [];
+  for (let offset = 0; ; offset += TEACHER_PORTAL_POSTS_PAGE_SIZE) {
+    const { data, error } = await db
+      .from("posts")
+      .select(columns)
+      .eq("teacher_id", teacherId)
+      .in("classroom_id", classroomIds)
+      .order("created_at", { ascending: false })
+      .range(offset, offset + TEACHER_PORTAL_POSTS_PAGE_SIZE - 1);
+    if (error) throw ensureError(error);
+    const chunk = (data ?? []) as PostRow[];
+    all.push(...chunk);
+    if (chunk.length < TEACHER_PORTAL_POSTS_PAGE_SIZE) break;
+  }
+  return all;
+}
 
 function countStudentsAllVisibleTasksDone(
   studentUserIds: string[],
@@ -76,11 +141,12 @@ function ensureError(err: unknown): Error {
 export const TEACHER_VERIFICATION_REQUIRED_ERROR =
   "Teacher verification approval is required before performing this action.";
 
-type TeacherMutationGuardOptions = {
+export type TeacherMutationGuardOptions = {
   skipVerificationCheck?: boolean;
 };
 
-async function assertTeacherApprovedForMutations(
+/** Server/API use: blocks mutations when `teacher_profile_details.verification_status !== 'approved'`. */
+export async function assertTeacherApprovedForMutations(
   teacherId: string,
   db: DbClient,
   options?: TeacherMutationGuardOptions
@@ -185,6 +251,17 @@ function asStringArray(input: Json | undefined): string[] {
 
 function parseMockPaperRef(payload: Record<string, Json>): TeacherPortalMockPaperRef | null {
   const raw = payload.mockPaper;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const o = raw as Record<string, unknown>;
+  const id = typeof o.id === "string" ? o.id.trim() : "";
+  const title = typeof o.title === "string" ? o.title.trim() : "";
+  const slug = typeof o.slug === "string" ? o.slug.trim() : "";
+  if (!id || !title) return null;
+  return { id, title, slug: slug || id };
+}
+
+function parsePastPaperRef(payload: Record<string, Json>): TeacherPortalPastPaperRef | null {
+  const raw = payload.pastPaper;
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
   const o = raw as Record<string, unknown>;
   const id = typeof o.id === "string" ? o.id.trim() : "";
@@ -435,7 +512,7 @@ export async function loadTeacherPortalBundle(
     db
       .from("posts")
       .select(
-        "id, classroom_id, section_id, type, created_at, title, description, due_date, content_json, teacher_id"
+        "id, classroom_id, section_id, type, created_at, updated_at, title, description, due_date, content_json, teacher_id"
       )
       .eq("teacher_id", userId),
     db
@@ -513,20 +590,11 @@ export async function loadTeacherPortalBundle(
   }
   const classroomIds = classrooms.map((c) => c.id);
 
-  const [memberRowsBase, postRows, sessionRows, sectionRowsRes, askerProfilesRes] = await Promise.all([
+  const [memberRowsBase, sessionRows, sectionRowsRes, askerProfilesRes] = await Promise.all([
     classroomIds.length
       ? db
           .from("classroom_members")
           .select("classroom_id, role, section_id")
-          .in("classroom_id", classroomIds)
-      : Promise.resolve({ data: [], error: null }),
-    classroomIds.length
-      ? db
-          .from("posts")
-          .select(
-            "id, classroom_id, section_id, type, title, description, due_date, content_json, created_at, teacher_id"
-          )
-          .eq("teacher_id", userId)
           .in("classroom_id", classroomIds)
       : Promise.resolve({ data: [], error: null }),
     classroomIds.length
@@ -555,8 +623,12 @@ export async function loadTeacherPortalBundle(
       .in("id", [...new Set((doubtsRes.data ?? []).map((d) => d.user_id))]),
   ]);
 
+  const postsFromClassrooms =
+    classroomIds.length > 0 ? await fetchAllPostsForTeacherClassrooms(db, userId, classroomIds) : [];
+
   const members = memberRowsBase.data ?? membersRes.data ?? [];
-  const posts = postRows.data ?? postsRes.data ?? [];
+  const posts =
+    classroomIds.length > 0 ? postsFromClassrooms : (postsRes.data ?? []);
   const sessions = sessionRows.data ?? sessionsRes.data ?? [];
   const sectionRows = sectionRowsRes.data ?? [];
   const doubts = doubtsRes.data ?? [];
@@ -607,7 +679,7 @@ export async function loadTeacherPortalBundle(
   });
 
   // Classroom card assignment count should match "Assignments" tab (not all posts like motivation/session plans).
-  const assignmentTypes = new Set(["assignment", "quiz", "mock", "Concept Focus"]);
+  const assignmentTypes = new Set(["assignment", "quiz", "mock", "past_paper", "Concept Focus"]);
   const assignmentCountMap = new Map<string, number>();
   posts.forEach((p) => {
     if (!assignmentTypes.has(String((p as { type?: unknown }).type ?? ""))) return;
@@ -808,6 +880,7 @@ export async function loadTeacherPortalBundle(
       p.type === "assignment" ||
       p.type === "quiz" ||
       p.type === "mock" ||
+      p.type === "past_paper" ||
       p.type === "Concept Focus"
   );
   const classroomNameMap = new Map(classrooms.map((c) => [c.id, c.name]));
@@ -1175,12 +1248,26 @@ export async function loadTeacherPortalBundle(
     detail.students.push(...supplements);
   });
 
+  for (const detail of Object.values(detailMap)) {
+    const seen = new Set<string>();
+    detail.students = detail.students.filter((s) => {
+      if (seen.has(s.userId)) return false;
+      seen.add(s.userId);
+      return true;
+    });
+  }
+
   const assignmentPostIds = assignmentPosts.map((p) => p.id);
-  let taskProgressRows: Array<{ post_id: string; task_id: string; user_id: string }> = [];
+  let taskProgressRows: Array<{
+    post_id: string;
+    task_id: string;
+    user_id: string;
+    completed_at?: string | null;
+  }> = [];
   if (assignmentPostIds.length > 0) {
     const { data: prog, error: progErr } = await db
       .from("classroom_assignment_task_progress")
-      .select("post_id, task_id, user_id")
+      .select("post_id, task_id, user_id, completed_at")
       .in("post_id", assignmentPostIds);
     if (!progErr && prog) taskProgressRows = prog as typeof taskProgressRows;
   }
@@ -1197,13 +1284,24 @@ export async function loadTeacherPortalBundle(
   type ProfileEngagementRow = {
     id: string;
     subtopic_engagement: Json | null;
+    bits_test_attempts?: Json | null;
   };
 
+  /** Same normalization as `generated-test-scores` API for chapter-quiz ↔ bits rows. */
+  const normalizeBitsLookupKey = (v: unknown): string =>
+    String(v ?? "")
+      .trim()
+      .toLowerCase();
+
   const studentEngagementByUser = new Map<string, Record<string, unknown>>();
+  const bitsAttemptsByUserId = new Map<
+    string,
+    ReturnType<typeof parseBitsTestAttemptsStore>
+  >();
   if (studentIdsAcrossClassrooms.length > 0) {
     const { data: profileRows, error: profileErr } = await db
       .from("profiles")
-      .select("id, subtopic_engagement")
+      .select("id, subtopic_engagement, bits_test_attempts")
       .in("id", studentIdsAcrossClassrooms);
 
     if (!profileErr && profileRows) {
@@ -1214,6 +1312,7 @@ export async function loadTeacherPortalBundle(
         } else {
           studentEngagementByUser.set(row.id, {});
         }
+        bitsAttemptsByUserId.set(row.id, parseBitsTestAttemptsStore(row.bits_test_attempts ?? null));
       }
     }
   }
@@ -1266,10 +1365,279 @@ export async function loadTeacherPortalBundle(
             post_id: attempt.post_id,
             task_id: taskId,
             user_id: attempt.user_id,
+            completed_at: attempt.submitted_at,
           });
         }
       }
     }
+  }
+
+  type CgtaBundleRow = {
+    classroom_id: string;
+    user_id: string;
+    submitted_at: string;
+    score: number | null;
+    total: number | null;
+    post_id: string;
+    /** Used when `total` is 0 in DB but the row is a real submission (rare client bugs). */
+    answers_json?: unknown;
+  };
+
+  /** PostgREST defaults to 1000 rows; paginate so nudge + averages see all attempts. */
+  const CGTA_PAGE_SIZE = 1000;
+
+  function cgtaEffectiveTotal(row: CgtaBundleRow): number {
+    const t = Number(row.total ?? 0);
+    if (Number.isFinite(t) && t > 0) return t;
+    const aj = row.answers_json;
+    if (Array.isArray(aj) && aj.length > 0) return aj.length;
+    // Chapter quiz snapshots: { version: 1, items: [...] }
+    if (aj && typeof aj === "object" && !Array.isArray(aj)) {
+      const items = (aj as { items?: unknown }).items;
+      if (Array.isArray(items) && items.length > 0) return items.length;
+    }
+    return 0;
+  }
+
+  const cgtaRowsAll: CgtaBundleRow[] = [];
+  if (classroomIds.length > 0) {
+    for (let offset = 0; ; offset += CGTA_PAGE_SIZE) {
+      const { data: chunk, error: cgtaPageErr } = await (
+        db as unknown as {
+          from: (t: string) => {
+            select: (c: string) => {
+              in: (col: string, vals: string[]) => {
+                not: (col: string, op: string, v: null) => {
+                  order: (col: string, o: { ascending: boolean }) => {
+                    range: (a: number, b: number) => Promise<{
+                      data: CgtaBundleRow[] | null;
+                      error: { message?: string } | null;
+                    }>;
+                  };
+                };
+              };
+            };
+          };
+        }
+      )
+        .from("classroom_generated_test_attempts")
+        .select("classroom_id, user_id, submitted_at, score, total, post_id, answers_json")
+        .in("classroom_id", classroomIds)
+        .not("submitted_at", "is", null)
+        .order("submitted_at", { ascending: false })
+        .range(offset, offset + CGTA_PAGE_SIZE - 1);
+      if (cgtaPageErr) {
+        console.warn(
+          "[teacher portal] classroom_generated_test_attempts:",
+          cgtaPageErr.message ?? cgtaPageErr
+        );
+        break;
+      }
+      const rows = (chunk ?? []) as CgtaBundleRow[];
+      cgtaRowsAll.push(...rows);
+      if (rows.length < CGTA_PAGE_SIZE) break;
+    }
+  }
+
+  // Chapter quizzes sometimes only appear in `profiles.bits_test_attempts` (same fallback as
+  // GET .../generated-test-scores). Merge into bundle rows so nudges + averages match the modal.
+  const cgtaPostUserSeen = new Set(cgtaRowsAll.map((r) => `${r.post_id}:${r.user_id}`));
+  for (const post of assignmentPosts) {
+    if (post.type === "Concept Focus") continue;
+    const payload = asObject(post.content_json);
+    const cqRaw = payload.chapterQuiz;
+    if (!cqRaw || typeof cqRaw !== "object" || Array.isArray(cqRaw)) continue;
+    const cq = cqRaw as Record<string, unknown>;
+    const expectedSubject = normalizeBitsLookupKey(cq.subject);
+    const expectedClass = Number(cq.classLevel);
+    const expectedTopic = normalizeBitsLookupKey(cq.topic);
+    const expectedSubtopic = normalizeBitsLookupKey(cq.subtopicName);
+    if (!expectedSubject || !expectedTopic || !expectedSubtopic) continue;
+
+    const cid = post.classroom_id;
+    const detail = detailMap[cid];
+    if (!detail) continue;
+
+    for (const s of detail.students) {
+      if (s.role === "teacher") continue;
+      const pair = `${post.id}:${s.userId}`;
+      if (cgtaPostUserSeen.has(pair)) continue;
+
+      const bitsRows = bitsAttemptsByUserId.get(s.userId) ?? [];
+      const match = bitsRows
+        .filter((r) => {
+          return (
+            normalizeBitsLookupKey(r.subject) === expectedSubject &&
+            Number(r.classLevel) === expectedClass &&
+            normalizeBitsLookupKey(r.topic) === expectedTopic &&
+            normalizeBitsLookupKey(r.subtopicName) === expectedSubtopic
+          );
+        })
+        .sort((a, b) => (b.submittedAtMs ?? 0) - (a.submittedAtMs ?? 0))[0];
+      if (!match || typeof match.submittedAtMs !== "number" || !Number.isFinite(match.submittedAtMs)) {
+        continue;
+      }
+
+      cgtaRowsAll.push({
+        classroom_id: cid,
+        user_id: s.userId,
+        submitted_at: new Date(match.submittedAtMs).toISOString(),
+        score: match.correctCount,
+        total: match.totalQuestions,
+        post_id: post.id,
+      });
+      cgtaPostUserSeen.add(pair);
+    }
+  }
+
+  const lastMsByClassUser = new Map<string, number>();
+  const bumpClassroomUserMs = (classroomId: string, userId: string, ms: number) => {
+    if (!classroomId || !userId || !Number.isFinite(ms)) return;
+    const key = `${classroomId}:${userId}`;
+    const prev = lastMsByClassUser.get(key) ?? 0;
+    if (ms > prev) lastMsByClassUser.set(key, ms);
+  };
+
+  const postClassroomById = new Map(assignmentPosts.map((p) => [p.id, p.classroom_id]));
+  for (const r of taskProgressRows) {
+    const cid = postClassroomById.get(r.post_id);
+    if (!cid) continue;
+    const rawAt = r.completed_at;
+    if (typeof rawAt === "string" && rawAt.trim()) {
+      const t = Date.parse(rawAt);
+      if (Number.isFinite(t)) bumpClassroomUserMs(cid, r.user_id, t);
+    }
+  }
+  for (const row of cgtaRowsAll) {
+    const t = Date.parse(row.submitted_at);
+    if (Number.isFinite(t)) bumpClassroomUserMs(row.classroom_id, row.user_id, t);
+  }
+
+  const cutoff30Ms = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  const scoreAggByClassUser = new Map<string, { sum: number; n: number }>();
+  for (const row of cgtaRowsAll) {
+    const t = Date.parse(row.submitted_at);
+    if (!Number.isFinite(t) || t < cutoff30Ms) continue;
+    const tot = cgtaEffectiveTotal(row);
+    if (!Number.isFinite(tot) || tot <= 0) continue;
+    const sc = Number(row.score ?? 0);
+    const pct = (100 * sc) / tot;
+    const key = `${row.classroom_id}:${row.user_id}`;
+    const agg = scoreAggByClassUser.get(key) ?? { sum: 0, n: 0 };
+    agg.sum += pct;
+    agg.n += 1;
+    scoreAggByClassUser.set(key, agg);
+  }
+  const avgPctByClassUser = new Map<string, number>();
+  for (const [key, v] of scoreAggByClassUser) {
+    if (v.n > 0) avgPctByClassUser.set(key, Math.round((v.sum / v.n) * 10) / 10);
+  }
+
+  const nowEngagementMs = Date.now();
+  const newMemberGraceMs = 48 * 60 * 60 * 1000;
+  for (const c of classrooms) {
+    if (isTeacherPortalDemoShowcaseClassroom(c.id, c.name)) continue;
+    const detail = detailMap[c.id];
+    if (!detail) continue;
+    for (const s of detail.students) {
+      if (s.role === "teacher") continue;
+      const key = `${c.id}:${s.userId}`;
+      const lastMs = lastMsByClassUser.get(key);
+      const joinedMs = Date.parse(s.joinedAt);
+      const lastActiveAt =
+        lastMs && Number.isFinite(lastMs) ? new Date(lastMs).toISOString() : null;
+      let status: "active" | "off_streak" | "at_risk";
+      if (!lastActiveAt) {
+        status =
+          Number.isFinite(joinedMs) && nowEngagementMs - joinedMs > newMemberGraceMs
+            ? "off_streak"
+            : "active";
+      } else {
+        const idleH = (nowEngagementMs - lastMs!) / (60 * 60 * 1000);
+        if (idleH >= 48) status = "off_streak";
+        else if (idleH >= 24) status = "at_risk";
+        else status = "active";
+      }
+      s.lastActiveAt = lastActiveAt;
+      s.status = status;
+      s.avgScorePercent = avgPctByClassUser.get(key) ?? null;
+    }
+  }
+
+  const { startMs: weekStartMs, endMs: weekEndMs } = kolkataWeekRangeMs(new Date());
+  const classroomIdSet = new Set(classroomIds);
+  const mockPostIdsAssignedThisWeek = assignmentPosts
+    .filter((p) => {
+      if (!classroomIdSet.has(p.classroom_id)) return false;
+      if (!postRowIsNudgeMcqTarget(p)) return false;
+      const t = postTimestampMsForNudgeWeek(p);
+      return t != null && t >= weekStartMs && t <= weekEndMs;
+    })
+    .map((p) => p.id);
+
+  const mockPostIdSet = new Set(mockPostIdsAssignedThisWeek);
+  const lowScorerBestByPostUser = new Map<string, TeacherPortalMockNudgeLowScorer>();
+  for (const row of cgtaRowsAll) {
+    if (!mockPostIdSet.has(row.post_id)) continue;
+    const tot = cgtaEffectiveTotal(row);
+    if (!Number.isFinite(tot) || tot <= 0) continue;
+    const sc = Number(row.score ?? 0);
+    const pct = (100 * sc) / tot;
+    if (pct >= 60) continue;
+    const rounded = Math.round(pct * 10) / 10;
+    const pKey = `${row.post_id}:${row.user_id}`;
+    const prev = lowScorerBestByPostUser.get(pKey);
+    if (!prev || rounded < prev.pct) {
+      lowScorerBestByPostUser.set(pKey, {
+        userId: row.user_id,
+        pct: rounded,
+        submittedAt: row.submitted_at,
+      });
+    }
+  }
+  const mockNudgeLowScorersByPostId: Record<string, TeacherPortalMockNudgeLowScorer[]> = {};
+  for (const [pKey, row] of lowScorerBestByPostUser) {
+    const postId = pKey.split(":")[0];
+    if (!postId) continue;
+    const list = mockNudgeLowScorersByPostId[postId] ?? [];
+    list.push(row);
+    mockNudgeLowScorersByPostId[postId] = list;
+  }
+
+  /** Latest attempt per student per post (for wizard: show who submitted even when all scored ≥60%). */
+  const submittedLatestByPostUser = new Map<
+    string,
+    { userId: string; pct: number; submittedAt: string }
+  >();
+  for (const row of cgtaRowsAll) {
+    if (!mockPostIdSet.has(row.post_id)) continue;
+    const tot = cgtaEffectiveTotal(row);
+    if (!Number.isFinite(tot) || tot <= 0) continue;
+    const sc = Number(row.score ?? 0);
+    const pct = Math.round(((100 * sc) / tot) * 10) / 10;
+    const key = `${row.post_id}:${row.user_id}`;
+    const t = Date.parse(row.submitted_at);
+    if (!Number.isFinite(t)) continue;
+    const prev = submittedLatestByPostUser.get(key);
+    if (!prev || t > Date.parse(prev.submittedAt)) {
+      submittedLatestByPostUser.set(key, {
+        userId: row.user_id,
+        pct,
+        submittedAt: row.submitted_at,
+      });
+    }
+  }
+  const mockNudgeSubmittedAttemptsByPostId: Record<
+    string,
+    TeacherPortalMockNudgeSubmittedAttempt[]
+  > = {};
+  for (const [puKey, attempt] of submittedLatestByPostUser) {
+    const colon = puKey.indexOf(":");
+    if (colon <= 0) continue;
+    const postId = puKey.slice(0, colon);
+    const arr = mockNudgeSubmittedAttemptsByPostId[postId] ?? [];
+    arr.push(attempt);
+    mockNudgeSubmittedAttemptsByPostId[postId] = arr;
   }
 
   assignmentPosts.forEach((post, idx) => {
@@ -1343,12 +1711,16 @@ export async function loadTeacherPortalBundle(
         : (post.description ?? "No instructions");
     const assignedToLabel =
       typeof payload.assignToLabel === "string" ? payload.assignToLabel : `All ${total} students`;
+    const isGeneratedClassroomMcq =
+      post.type === "assignment" && contentJsonHasGeneratedTestPaper(post.content_json);
     detail.assignments.push({
       id: post.id,
       title:
         post.title ||
         (post.type === "mock"
           ? "Full Physics Mock — JEE Pattern"
+          : post.type === "past_paper"
+            ? "Past Paper — JEE Pattern"
           : post.type === "quiz"
             ? "Electrostatics — Chapter Quiz"
             : post.type === "Concept Focus"
@@ -1368,7 +1740,9 @@ export async function loadTeacherPortalBundle(
       completedCount,
       totalCount: total,
       tasks,
+      ...(isGeneratedClassroomMcq ? { isGeneratedClassroomMcq: true } : {}),
       ...(post.type === "mock" ? { mockPaper: parseMockPaperRef(payload) ?? null } : {}),
+      ...(post.type === "past_paper" ? { pastPaper: parsePastPaperRef(payload) ?? null } : {}),
       ...(post.type === "quiz" || post.type === "Concept Focus"
         ? { chapterQuiz: parseChapterQuizRef(payload) ?? null }
         : {}),
@@ -1611,6 +1985,9 @@ export async function loadTeacherPortalBundle(
     wallItems,
     profile: profileView,
     referStats,
+    mockPostIdsAssignedThisWeek,
+    mockNudgeLowScorersByPostId,
+    mockNudgeSubmittedAttemptsByPostId,
   };
 }
 
@@ -1984,6 +2361,8 @@ export async function createClassroomAssignment(
   tasks?: AssignmentTaskStored[];
   /** Selected catalog paper for `mock` assignments */
   mockPaper?: TeacherPortalMockPaperRef | null;
+  /** Selected catalog paper for `past_paper` assignments */
+  pastPaper?: TeacherPortalPastPaperRef | null;
   /** Syllabus + subtopic scope for `quiz` assignments */
   chapterQuiz?: TeacherPortalChapterQuizRef | null;
   /** Funbrain streak lane for DailyDose-style assignments */
@@ -2013,6 +2392,18 @@ export async function createClassroomAssignment(
             ...t,
             label: mock.title,
             href: mock.slug ? `/mock?paper=${encodeURIComponent(mock.slug)}` : "/mock",
+          }
+        : t
+    );
+  }
+  const past = input.pastPaper;
+  if (past && input.assignmentType === "past_paper") {
+    taskList = taskList.map((t) =>
+      t.kind === "past_paper"
+        ? {
+            ...t,
+            label: past.title,
+            href: past.slug ? `/mock?paper=${encodeURIComponent(past.slug)}` : "/mock",
           }
         : t
     );
@@ -2109,6 +2500,7 @@ export async function createClassroomAssignment(
       : {}),
     tasks: serializeTasksForContentJson(taskList),
     mockPaper: mock ? { id: mock.id, slug: mock.slug, title: mock.title } : null,
+    pastPaper: past ? { id: past.id, slug: past.slug, title: past.title } : null,
     chapterQuiz: cq
       ? {
           board: cq.board,
@@ -2210,6 +2602,22 @@ export async function createClassroomAssignment(
   return { id: insertedPost.id };
 }
 
+/** Wizard goal stored on motivation posts for student notification titles and routing. */
+export type MotivationNudgeGoal =
+  | "restart_streak"
+  | "complete_pending_assignment"
+  | "attempt_mock"
+  | "answer_doubts"
+  | "revise_chapter"
+  | "watch_recorded_class";
+
+export type MotivationRecommendActionId =
+  | "attempt_targeted_mock"
+  | "post_doubt"
+  | "watch_recorded"
+  | "concept_focus_resource"
+  | "none";
+
 export async function createMotivationAction(
   input: {
   teacherId: string;
@@ -2223,15 +2631,19 @@ export async function createMotivationAction(
   relatedPostId?: string;
   relatedPostTitle?: string;
   /** Optional recommended action to show as link in notifications. */
-  recommendActionId?: "attempt_targeted_mock" | "post_doubt" | "watch_recorded" | "none";
+  recommendActionId?: MotivationRecommendActionId;
   recommendActionLabel?: string;
   recommendActionUrl?: string;
+  /** Short title shown in the student notification bell (optional for legacy rows). */
+  notificationTitle?: string;
+  nudgeGoal?: MotivationNudgeGoal;
 },
   client?: DbClient,
   options?: TeacherMutationGuardOptions
 ): Promise<void> {
   const db = client ?? supabase;
   await assertTeacherApprovedForMutations(input.teacherId, db, options);
+  const trimmedNotificationTitle = input.notificationTitle?.trim();
   const { error } = await db.from("posts").insert({
     classroom_id: input.classroomId,
     section_id: input.sectionId ?? null,
@@ -2250,6 +2662,8 @@ export async function createMotivationAction(
       ...(input.recommendActionId ? { recommendActionId: input.recommendActionId } : {}),
       ...(input.recommendActionLabel ? { recommendActionLabel: input.recommendActionLabel } : {}),
       ...(input.recommendActionUrl ? { recommendActionUrl: input.recommendActionUrl } : {}),
+      ...(trimmedNotificationTitle ? { notificationTitle: trimmedNotificationTitle } : {}),
+      ...(input.nudgeGoal ? { nudgeGoal: input.nudgeGoal } : {}),
     },
   });
   if (error) throw error;

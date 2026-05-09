@@ -1,9 +1,8 @@
 import { supabase } from "@/integrations/supabase/client";
-import { displayTitleFromMockPaperRow } from "@/lib/mockPaperCatalogTitle";
 import { normalizeMockMarkingSchemeForStudents } from "@/lib/mockPaperMarkingScheme";
-import type { MockPaper, MockPaperType, Question, Subject } from "@/types";
+import type { PastPaper, PastPaperType, Question, Subject } from "@/types";
 
-type PaperRow = {
+type PastPaperRow = {
   id: string;
   slug: string;
   title: string;
@@ -19,7 +18,7 @@ type PaperRow = {
   subjects_covered: string[] | null;
 };
 
-type QuestionRow = {
+type PastQuestionRow = {
   id: string;
   paper_id: string;
   sort_order: number;
@@ -37,8 +36,8 @@ function isSubject(s: string): s is Subject {
   return s === "physics" || s === "chemistry" || s === "math";
 }
 
-function isMockPaperType(s: string): s is MockPaperType {
-  return s === "ncert" || s === "chapter" || s === "full" || s === "mock";
+function isPastPaperType(s: string): s is PastPaperType {
+  return s === "pyq";
 }
 
 function mapDifficultyLabel(raw: string | null | undefined): "Easy" | "Moderate" | "Hard" {
@@ -48,14 +47,14 @@ function mapDifficultyLabel(raw: string | null | undefined): "Easy" | "Moderate"
   return "Moderate";
 }
 
-export function mapPaperRowToMockPaper(row: PaperRow): MockPaper {
+export function mapPastPaperRowToPastPaper(row: PastPaperRow): PastPaper {
   const covered = (row.subjects_covered ?? []).filter(isSubject) as Subject[];
   const primary: Subject = covered[0] ?? "math";
-  const type = isMockPaperType(row.paper_type) ? row.paper_type : "mock";
+  const type = isPastPaperType(row.paper_type) ? row.paper_type : "pyq";
   return {
     id: row.id,
     slug: row.slug,
-    title: displayTitleFromMockPaperRow(row),
+    title: row.title,
     type,
     subject: primary,
     subjectsCovered: covered.length > 0 ? covered : undefined,
@@ -69,18 +68,18 @@ export function mapPaperRowToMockPaper(row: PaperRow): MockPaper {
   };
 }
 
-export async function fetchMockPapersFromSupabase(): Promise<MockPaper[]> {
+export async function fetchPastPapersFromSupabase(): Promise<PastPaper[]> {
   const { data, error } = await supabase
-    .from("mock_papers")
+    .from("past_papers")
     .select(
       "id, slug, title, exam_name, exam_set_name, paper_type, duration_minutes, total_marks, question_count, marking_scheme, class_level, tags, subjects_covered"
     )
-    .in("paper_type", ["ncert", "chapter", "full", "mock"])
+    .eq("paper_type", "pyq")
     .eq("published", true)
     .order("created_at", { ascending: false });
 
   if (error) throw error;
-  return (data ?? []).map((r) => mapPaperRowToMockPaper(r as PaperRow));
+  return (data ?? []).map((r) => mapPastPaperRowToPastPaper(r as PastPaperRow));
 }
 
 function letterToIndex(letter: string): number {
@@ -103,9 +102,9 @@ function stripHtmlToPlain(html: string): string {
     .slice(0, 400);
 }
 
-export async function fetchMockQuestionsForPaper(paperId: string): Promise<Question[]> {
+export async function fetchPastQuestionsForPaper(paperId: string): Promise<Question[]> {
   const { data, error } = await supabase
-    .from("mock_questions")
+    .from("past_paper_questions")
     .select(
       "id, paper_id, sort_order, subject, topic, chapter, difficulty, question_html, solution_html, correct_letter, options_json"
     )
@@ -114,7 +113,7 @@ export async function fetchMockQuestionsForPaper(paperId: string): Promise<Quest
 
   if (error) throw error;
 
-  const rows = (data ?? []) as QuestionRow[];
+  const rows = (data ?? []) as PastQuestionRow[];
   return rows.map((row) => {
     const subj = isSubject(row.subject) ? row.subject : "math";
     const opts = Array.isArray(row.options_json)
@@ -128,7 +127,7 @@ export async function fetchMockQuestionsForPaper(paperId: string): Promise<Quest
     return {
       id: row.id,
       subject: subj,
-      topic: row.topic || row.chapter || "Mock",
+      topic: row.topic || row.chapter || "Past Paper",
       classLevel: 12,
       examType: ["JEE_Mains"],
       question: stripHtmlToPlain(row.question_html) || "Question",

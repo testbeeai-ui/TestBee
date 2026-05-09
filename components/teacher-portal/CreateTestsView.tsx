@@ -183,7 +183,7 @@ type CreateTestsViewProps = {
     instructions: string;
     tasks?: AssignmentTaskStored[];
     extraContentJson?: Record<string, Json> | null;
-  }) => Promise<void>;
+  }) => Promise<{ id: string }>;
   onRequireVerifiedAction?: (actionLabel: string) => Promise<boolean>;
 };
 

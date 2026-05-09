@@ -6,6 +6,7 @@ import {
   refreshAccessToken,
 } from "@/lib/integrations/googleCalendarServer";
 import { getGoogleOAuthEnv } from "@/lib/integrations/googleEnv";
+import { assertTeacherApprovedForMutations } from "@/lib/teacherPortal/queries";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
 
@@ -50,6 +51,13 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ id: st
     .maybeSingle();
   if (roomErr || !room) return NextResponse.json({ error: "Classroom not found." }, { status: 404 });
   if (room.teacher_id !== user.id) return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+
+  try {
+    await assertTeacherApprovedForMutations(user.id, admin);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Verification required";
+    return NextResponse.json({ error: msg }, { status: 403 });
+  }
 
   if (sectionId) {
     const { data: sec, error: secErr } = await admin

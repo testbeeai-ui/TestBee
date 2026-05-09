@@ -2,7 +2,8 @@
 
 export const dynamic = "force-dynamic";
 
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import AppLayout from "@/components/AppLayout";
 import { useUserStore } from "@/store/useUserStore";
@@ -46,16 +47,21 @@ import {
   Shuffle,
   Users,
 } from "lucide-react";
-import type { MockPaper, Question, Subject } from "@/types";
+import type { MockPaper, PastPaper, Question, Subject } from "@/types";
 import {
   filterMockPapers,
   mockPaperTypeLabel,
   type LibraryCategoryFilter,
 } from "@/lib/mockPapersCatalog";
+import { filterPastPapers } from "@/lib/pastPapersCatalog";
 import {
   fetchMockPapersFromSupabase,
   fetchMockQuestionsForPaper,
 } from "@/lib/mockPapersFromSupabase";
+import {
+  fetchPastPapersFromSupabase,
+  fetchPastQuestionsForPaper,
+} from "@/lib/pastPapersFromSupabase";
 import { useToast } from "@/hooks/use-toast";
 
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -72,9 +78,15 @@ import { fetchSavedContent } from "@/lib/savedContentService";
 import { mergeAllSavedContent } from "@/lib/mergeSavedContent";
 import { incrementPrepCalendarDay, localDayISO } from "@/lib/prepCalendarClient";
 import { cn } from "@/lib/utils";
+import {
+  saveMockAssignmentTracking,
+  readMockAssignmentTracking,
+  clearMockAssignmentTracking,
+} from "@/lib/classroom/mockAssignmentTracking";
 import { supabase } from "@/integrations/supabase/client";
 import katex from "katex";
 import { fireAssignmentTaskSync } from "@/lib/classroom/syncAssignmentTaskProgress";
+import { dispatchClassroomAssignmentProgressChanged } from "@/lib/classroom/assignmentProgressSync";
 import { buildWhatsAppShareUrl } from "@/lib/referChallengeShareUrls";
 import {
   buildMockShareTemplates,
@@ -91,14 +103,17 @@ type View = "landing" | "setup" | "nta_instructions" | "test" | "results";
 
 type NtaExamKind = "paper" | "quick";
 
+type LibraryCollectionTab = "past" | "mock" | "quick";
+type PaperSource = "past" | "mock";
+
 type NtaPendingExamMeta = {
   kind: NtaExamKind;
-  paper: MockPaper | null;
+  paper: (MockPaper | PastPaper) | null;
+  paperSource?: PaperSource;
   durationMin: number;
   questionCount: number;
   titleLine: string;
   subjectLine: string;
-  markingScheme: string;
   /** Quick mock only: subjects used after proceed */
   quickSubjects?: Subject[];
 };
@@ -113,9 +128,6 @@ function estimateQuickQuestionCount(
   ).length;
   return Math.max(1, Math.min(Math.ceil(durationMin / 2.5), eligible || 1));
 }
-
-/** Library category tabs + dedicated Quick Mock tab */
-type SetupLibraryTab = LibraryCategoryFilter | "quick";
 
 const subjectEmojis: Record<Subject, string> = {
   physics: "⚡",
@@ -335,15 +347,12 @@ function formatTime(seconds: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-export default function MockPage() {
+function MockPageContent() {
   const { toast } = useToast();
   const { user: authUser, session, profile, refreshProfile } = useAuth();
   const setRdmFromProfile = useUserStore((s) => s.setRdmFromProfile);
   const { resolvedTheme } = useTheme();
-  const searchParams = useMemo(() => {
-    if (typeof window === "undefined") return new URLSearchParams();
-    return new URLSearchParams(window.location.search);
-  }, []);
+  const searchParams = useSearchParams();
   const ntaSkin: NtaSkin = resolvedTheme === "dark" ? "dark" : "light";
   const user = useUserStore((s) => s.user);
   const allResults = useUserStore((s) => s.allResults);
@@ -353,16 +362,20 @@ export default function MockPage() {
   const mockCalendarLoggedRef = useRef(false);
   /** Dedupes bonus claim effect (e.g. React Strict Mode) per finished attempt. */
   const mockRdmBonusClaimEndTimeRef = useRef<number | null>(null);
+  /** One reminder per mount when finishing without class assignment tracking. */
+  const classTrackingMissingToastShownRef = useRef(false);
 
   const subjects: Subject[] = useMemo(() => ["physics", "chemistry", "math"], []);
 
   const [view, setView] = useState<View>("landing");
   const [duration, setDuration] = useState<number>(90);
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
-  const [libraryTab, setLibraryTab] = useState<SetupLibraryTab>("all");
+  const [libraryCollectionTab, setLibraryCollectionTab] = useState<LibraryCollectionTab>("past");
+  const [mockLibraryCategory, setMockLibraryCategory] = useState<LibraryCategoryFilter>("all");
   const [librarySearch, setLibrarySearch] = useState("");
   const [librarySubjectFilter, setLibrarySubjectFilter] = useState<Subject | "all">("all");
-  const [catalogPapers, setCatalogPapers] = useState<MockPaper[]>([]);
+  const [mockCatalogPapers, setMockCatalogPapers] = useState<MockPaper[]>([]);
+  const [pastCatalogPapers, setPastCatalogPapers] = useState<PastPaper[]>([]);
   const [catalogLoading, setCatalogLoading] = useState(false);
   const [catalogError, setCatalogError] = useState<string | null>(null);
   const [ntaProceedBusy, setNtaProceedBusy] = useState(false);
@@ -376,6 +389,7 @@ export default function MockPage() {
   const [activeExamTitle, setActiveExamTitle] = useState<string | null>(null);
   /** Set for catalog papers only; used for server-verified +50 RDM bonus (>=60% score). */
   const [activePaperId, setActivePaperId] = useState<string | null>(null);
+  const [activePaperSource, setActivePaperSource] = useState<PaperSource | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, number>>({});
@@ -393,10 +407,32 @@ export default function MockPage() {
   const [mockScoreBonusRdm, setMockScoreBonusRdm] = useState(50);
 
   const deepLinkPaperSlug = (searchParams.get("paper") ?? "").trim();
-  const trackingClassroomId = (searchParams.get("classroomId") ?? "").trim();
-  const trackingPostId = (searchParams.get("postId") ?? "").trim();
+  const urlTrackingClassroomId = (searchParams.get("classroomId") ?? "").trim();
+  const urlTrackingPostId = (searchParams.get("postId") ?? "").trim();
   const initialViewParam = (searchParams.get("view") ?? "").trim().toLowerCase();
   const isReviewMode = false;
+
+  useEffect(() => {
+    if (urlTrackingClassroomId && urlTrackingPostId) {
+      saveMockAssignmentTracking({
+        classroomId: urlTrackingClassroomId,
+        postId: urlTrackingPostId,
+      });
+    }
+  }, [urlTrackingClassroomId, urlTrackingPostId]);
+
+  useEffect(() => {
+    if (view !== "test") return;
+    const stored = readMockAssignmentTracking();
+    const cid = urlTrackingClassroomId || stored?.classroomId;
+    const pid = urlTrackingPostId || stored?.postId;
+    if (!cid || !pid || !activePaperId) return;
+    saveMockAssignmentTracking({
+      classroomId: cid,
+      postId: pid,
+      paperId: activePaperId,
+    });
+  }, [view, urlTrackingClassroomId, urlTrackingPostId, activePaperId]);
 
   const totalSeconds = duration * 60;
   const effectiveSubject = selectedSubject ?? subjects[0] ?? null;
@@ -408,39 +444,81 @@ export default function MockPage() {
     setSubmitDialogOpen(false);
 
     // If the mock was opened from a classroom assignment, persist the attempt so
-    // the classroom feed can show "Done" and teachers can review.
-    if (authUser?.id && trackingClassroomId && trackingPostId && questions.length > 0) {
+    // the classroom feed can show "Done" and teachers can review. Uses sessionStorage
+    // when query params were lost after client-side navigation.
+    let resolvedClassroomId = (searchParams.get("classroomId") ?? "").trim();
+    let resolvedPostId = (searchParams.get("postId") ?? "").trim();
+    if (!resolvedClassroomId || !resolvedPostId) {
+      const stored = readMockAssignmentTracking();
+      if (stored) {
+        resolvedClassroomId = stored.classroomId;
+        resolvedPostId = stored.postId;
+      }
+    }
+
+    if (authUser?.id && questions.length > 0) {
       const computedCorrectCount = questions.filter((q) => answers[q.id] === q.correctAnswer).length;
       const orderedAnswers = questions.map((q) => {
         const v = answers[q.id];
         return typeof v === "number" ? v : -1;
       });
-      try {
-        const genericClient = supabase as unknown as {
-          from: (table: string) => {
-            upsert: (
-              values: Record<string, unknown>,
-              options: { onConflict: string }
-            ) => Promise<{ error?: { message?: string } | null }>;
-          };
-        };
-        await genericClient.from("classroom_generated_test_attempts").upsert(
-          {
-            classroom_id: trackingClassroomId,
-            post_id: trackingPostId,
-            user_id: authUser.id,
-            answers_json: orderedAnswers,
-            score: computedCorrectCount,
-            total: questions.length,
-            submitted_at: new Date(finishedAt).toISOString(),
-          },
-          { onConflict: "post_id,user_id" }
-        );
-        // Immediately sync assignment checklist completion for mock-paper tasks.
-        // This keeps the student "Your tasks" state aligned with the submit action.
-        fireAssignmentTaskSync(["mock_paper"]);
-      } catch {
-        // Non-fatal — student can still see results; tracking can be retried by reopening.
+
+      if (resolvedClassroomId && resolvedPostId) {
+        try {
+          const token = session?.access_token;
+          const res = await fetch(
+            `/api/classroom/${encodeURIComponent(resolvedClassroomId)}/posts/${encodeURIComponent(resolvedPostId)}/catalog-paper-attempt`,
+            {
+              method: "POST",
+              credentials: "include",
+              headers: {
+                "Content-Type": "application/json",
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+              },
+              body: JSON.stringify({
+                submit: true,
+                answers: orderedAnswers,
+                score: computedCorrectCount,
+                total: questions.length,
+              }),
+            }
+          );
+          const payload = (await res.json().catch(() => ({}))) as { error?: string; ok?: boolean };
+          if (res.ok && payload.ok) {
+            clearMockAssignmentTracking();
+            dispatchClassroomAssignmentProgressChanged({
+              classroomId: resolvedClassroomId,
+              postId: resolvedPostId,
+            });
+            if (activePaperSource === "past") {
+              fireAssignmentTaskSync(["past_paper"]);
+            } else {
+              fireAssignmentTaskSync(["mock_paper"]);
+            }
+          } else {
+            toast({
+              title: "Could not save to your class",
+              description:
+                payload.error ??
+                "Your score shows here, but your teacher may not see it. Open this mock from your classroom assignment link and submit again.",
+              variant: "destructive",
+            });
+          }
+        } catch {
+          toast({
+            title: "Could not save to your class",
+            description:
+              "Network error while saving. Open the mock from your classroom assignment and try submitting again.",
+            variant: "destructive",
+          });
+        }
+      } else if (!classTrackingMissingToastShownRef.current) {
+        classTrackingMissingToastShownRef.current = true;
+        toast({
+          title: "Practice session only",
+          description:
+            "To send this score to your teacher, open the mock from your class assignment (so the class link is included).",
+        });
       }
     }
 
@@ -456,8 +534,9 @@ export default function MockPage() {
     authUser?.id,
     questions,
     session?.access_token,
-    trackingClassroomId,
-    trackingPostId,
+    activePaperSource,
+    searchParams,
+    toast,
   ]);
 
   useEffect(() => {
@@ -492,7 +571,6 @@ export default function MockPage() {
       questionCount: qc,
       titleLine: "Quick mock",
       subjectLine: `${chosenSubjects.map((s) => s.charAt(0).toUpperCase() + s.slice(1)).join(", ")} · ${duration} min timed practice`,
-      markingScheme: "Adaptive question pool; scoring shown after submit.",
       quickSubjects: chosenSubjects,
     });
     setView("nta_instructions");
@@ -516,7 +594,10 @@ export default function MockPage() {
         let subjectsForSession: Subject[];
 
         if (meta.kind === "paper" && meta.paper) {
-          qs = await fetchMockQuestionsForPaper(meta.paper.id);
+          qs =
+            meta.paperSource === "past"
+              ? await fetchPastQuestionsForPaper(meta.paper.id)
+              : await fetchMockQuestionsForPaper(meta.paper.id);
           if (qs.length === 0) {
             toast({
               title: "No questions for this paper",
@@ -550,8 +631,10 @@ export default function MockPage() {
         setActiveExamTitle(examTitle);
         if (meta.kind === "paper" && meta.paper) {
           setActivePaperId(meta.paper.id);
+          setActivePaperSource(meta.paperSource ?? "mock");
         } else {
           setActivePaperId(null);
+          setActivePaperSource(null);
         }
         setNtaPendingMeta(null);
         setView("test");
@@ -566,16 +649,20 @@ export default function MockPage() {
   );
 
   const openNtaInstructionsForPaper = useCallback(
-    (paper: MockPaper, back: "landing" | "setup" = "setup") => {
+    (
+      paper: MockPaper | PastPaper,
+      paperSource: PaperSource,
+      back: "landing" | "setup" = "setup"
+    ) => {
       setNtaInstructionBackView(back);
       setNtaPendingMeta({
         kind: "paper",
         paper,
+        paperSource,
         durationMin: paper.durationMinutes,
         questionCount: paper.questionsCount,
         titleLine: paper.title,
         subjectLine: paper.title,
-        markingScheme: paper.markingScheme,
       });
       setView("nta_instructions");
     },
@@ -590,15 +677,22 @@ export default function MockPage() {
     const ensureCatalogThenOpen = async () => {
       try {
         // Ensure papers are available (deep links bypass the landing/setup loaders).
-        const papers = catalogPapers.length > 0 ? catalogPapers : await fetchMockPapersFromSupabase();
+        const pastRows =
+          pastCatalogPapers.length > 0 ? pastCatalogPapers : await fetchPastPapersFromSupabase();
+        const mockRows =
+          mockCatalogPapers.length > 0 ? mockCatalogPapers : await fetchMockPapersFromSupabase();
         if (cancelled) return;
-        if (catalogPapers.length === 0) setCatalogPapers(papers);
+        if (pastCatalogPapers.length === 0) setPastCatalogPapers(pastRows);
+        if (mockCatalogPapers.length === 0) setMockCatalogPapers(mockRows);
 
-        const paper = papers.find((p) => p.slug === deepLinkPaperSlug) ?? null;
-        if (!paper) return;
+        const pastPaper = pastRows.find((p) => p.slug === deepLinkPaperSlug) ?? null;
+        const mockPaper = mockRows.find((p) => p.slug === deepLinkPaperSlug) ?? null;
+        const source: PaperSource | null = pastPaper ? "past" : mockPaper ? "mock" : null;
+        const paper = pastPaper ?? mockPaper;
+        if (!paper || !source) return;
 
         // Jump straight into the NTA instructions flow (not the Prep+Mock dashboard sections).
-        openNtaInstructionsForPaper(paper, "landing");
+        openNtaInstructionsForPaper(paper, source, "landing");
       } catch {
         // Silent: deep link should not break the page
       }
@@ -608,14 +702,20 @@ export default function MockPage() {
     return () => {
       cancelled = true;
     };
-  }, [deepLinkPaperSlug, catalogPapers, isReviewMode, openNtaInstructionsForPaper]);
+  }, [
+    deepLinkPaperSlug,
+    pastCatalogPapers,
+    mockCatalogPapers,
+    isReviewMode,
+    openNtaInstructionsForPaper,
+  ]);
 
   // Intentionally disable cross-user review via query params (security).
 
   const handleQuickStartMock = useCallback((subject: Subject) => {
     setSelectedSubject(subject);
     setDuration(90);
-    setLibraryTab("quick");
+    setLibraryCollectionTab("quick");
     setView("setup");
   }, []);
 
@@ -641,52 +741,65 @@ export default function MockPage() {
   }, []);
 
   useEffect(() => {
-    // Allow deep-linking straight into the mock test library.
     if (initialViewParam === "setup") {
       setView("setup");
     }
-    // Only run once on mount (searchParams is memoized).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [initialViewParam]);
 
-  const papersByClassLevel = useMemo(() => {
+  const mockPapersByClassLevel = useMemo(() => {
     const userLevel = user?.classLevel ?? 12;
-    return catalogPapers.filter((p) => p.classLevel <= userLevel);
-  }, [catalogPapers, user?.classLevel]);
+    return mockCatalogPapers.filter((p) => p.classLevel <= userLevel);
+  }, [mockCatalogPapers, user?.classLevel]);
+
+  const pastPapersByClassLevel = useMemo(() => {
+    const userLevel = user?.classLevel ?? 12;
+    return pastCatalogPapers.filter((p) => p.classLevel <= userLevel);
+  }, [pastCatalogPapers, user?.classLevel]);
 
   const featuredDashboardPaper = useMemo(() => {
-    const bySlug = catalogPapers.find((p) => p.slug === FEATURED_DASHBOARD_PYQ_SLUG);
+    const bySlug = pastCatalogPapers.find((p) => p.slug === FEATURED_DASHBOARD_PYQ_SLUG);
     if (bySlug) return bySlug;
-    return catalogPapers.find(
+    return pastCatalogPapers.find(
       (p) =>
-        p.type === "pyq" &&
         (/10\s*th?\s*January\s*2019/i.test(p.title) || /10\s+January\s*2019/i.test(p.title)) &&
         /shift\s*1/i.test(p.title)
     );
-  }, [catalogPapers]);
+  }, [pastCatalogPapers]);
 
-  const filteredCatalogPapers = useMemo(() => {
-    if (libraryTab === "quick") return [];
+  const filteredMockCatalogPapers = useMemo(() => {
+    if (libraryCollectionTab === "quick" || libraryCollectionTab === "past") return [];
     return filterMockPapers(
-      papersByClassLevel,
-      libraryTab,
+      mockPapersByClassLevel,
+      mockLibraryCategory,
       librarySearch,
       librarySubjectFilter,
       subjects
     );
-  }, [papersByClassLevel, libraryTab, librarySearch, librarySubjectFilter, subjects]);
+  }, [
+    mockPapersByClassLevel,
+    libraryCollectionTab,
+    mockLibraryCategory,
+    librarySearch,
+    librarySubjectFilter,
+    subjects,
+  ]);
+
+  const filteredPastCatalogPapers = useMemo(() => {
+    if (libraryCollectionTab !== "past") return [];
+    return filterPastPapers(pastPapersByClassLevel, librarySearch, librarySubjectFilter, subjects);
+  }, [pastPapersByClassLevel, libraryCollectionTab, librarySearch, librarySubjectFilter, subjects]);
 
   useEffect(() => {
     if (view !== "landing") return;
-    if (catalogPapers.length > 0) {
+    if (pastCatalogPapers.length > 0) {
       setFeaturedCatalogLoading(false);
       return;
     }
     let cancelled = false;
     setFeaturedCatalogLoading(true);
-    void fetchMockPapersFromSupabase()
+    void fetchPastPapersFromSupabase()
       .then((rows) => {
-        if (!cancelled) setCatalogPapers(rows);
+        if (!cancelled) setPastCatalogPapers(rows);
       })
       .catch(() => {})
       .finally(() => {
@@ -696,30 +809,42 @@ export default function MockPage() {
       cancelled = true;
       setFeaturedCatalogLoading(false);
     };
-  }, [view, catalogPapers.length]);
+  }, [view, pastCatalogPapers.length]);
 
   useEffect(() => {
-    if (view !== "setup" || libraryTab === "quick") return;
+    if (view !== "setup" || libraryCollectionTab === "quick") return;
     let cancelled = false;
     setCatalogLoading(true);
     setCatalogError(null);
-    void fetchMockPapersFromSupabase()
+    const loadPapers =
+      libraryCollectionTab === "past" ? fetchPastPapersFromSupabase : fetchMockPapersFromSupabase;
+    void loadPapers()
       .then((rows) => {
         if (!cancelled) {
-          setCatalogPapers(rows);
+          if (libraryCollectionTab === "past") {
+            setPastCatalogPapers(rows as PastPaper[]);
+          } else {
+            setMockCatalogPapers(rows as MockPaper[]);
+          }
           setCatalogLoading(false);
         }
       })
       .catch((err: unknown) => {
         if (!cancelled) {
-          setCatalogError(err instanceof Error ? err.message : "Failed to load mock papers");
+          setCatalogError(
+            err instanceof Error
+              ? err.message
+              : libraryCollectionTab === "past"
+                ? "Failed to load past papers"
+                : "Failed to load mock papers"
+          );
           setCatalogLoading(false);
         }
       });
     return () => {
       cancelled = true;
     };
-  }, [view, libraryTab]);
+  }, [view, libraryCollectionTab]);
 
   const handleAnswerSelect = useCallback((questionId: string, idx: number) => {
     setAnswers((prev) => ({ ...prev, [questionId]: idx }));
@@ -959,7 +1084,6 @@ export default function MockPage() {
     correctCount,
     questions.length,
     mockShareRewardRdm,
-    supabase,
     toast,
     setRdmFromProfile,
     refreshProfile,
@@ -1191,14 +1315,15 @@ export default function MockPage() {
                       subjects={subjects}
                       onStartMock={handleQuickStartMock}
                       onViewAll={() => {
-                        setLibraryTab("all");
+                        setLibraryCollectionTab("past");
+                        setMockLibraryCategory("all");
                         setView("setup");
                       }}
                       featuredPaper={featuredDashboardPaper ?? null}
                       featuredLoading={featuredCatalogLoading}
                       onStartFeaturedPaper={() => {
                         const p = featuredDashboardPaper;
-                        if (p) openNtaInstructionsForPaper(p, "landing");
+                        if (p) openNtaInstructionsForPaper(p, "past", "landing");
                       }}
                     />
                     <RevisionInstaCueSection
@@ -1258,21 +1383,21 @@ export default function MockPage() {
                 <div className="mt-6 flex gap-2 overflow-x-auto pb-1">
                   {(
                     [
-                      { id: "all" as const, label: "All papers" },
-                      { id: "pyq" as const, label: "Previous Year (PYQ)" },
-                      { id: "ncert" as const, label: "NCERT Exemplar" },
-                      { id: "chapter" as const, label: "Chapter-wise" },
-                      { id: "full" as const, label: "Full syllabus" },
+                      { id: "past" as const, label: "Past papers" },
+                      { id: "mock" as const, label: "Mock papers" },
                       { id: "quick" as const, label: "Quick mock" },
-                    ] satisfies { id: SetupLibraryTab; label: string }[]
+                    ] satisfies { id: LibraryCollectionTab; label: string }[]
                   ).map((tab) => (
                     <button
                       key={tab.id}
                       type="button"
-                      onClick={() => setLibraryTab(tab.id)}
+                      onClick={() => {
+                        setLibraryCollectionTab(tab.id);
+                        if (tab.id !== "mock") setMockLibraryCategory("all");
+                      }}
                       className={cn(
                         "shrink-0 rounded-full border px-4 py-2 text-xs font-bold transition-all sm:text-sm",
-                        libraryTab === tab.id
+                        libraryCollectionTab === tab.id
                           ? "border-primary bg-primary/15 text-primary"
                           : "border-border bg-muted/30 text-muted-foreground hover:border-primary/40 hover:text-foreground"
                       )}
@@ -1282,7 +1407,7 @@ export default function MockPage() {
                   ))}
                 </div>
 
-                {libraryTab === "quick" ? (
+                {libraryCollectionTab === "quick" ? (
                   <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_280px]">
                     <div className="edu-card space-y-6 rounded-2xl p-6">
                       <h2 className="font-display flex items-center gap-2 text-lg font-bold text-foreground">
@@ -1404,12 +1529,48 @@ export default function MockPage() {
                       </div>
                     </div>
 
+                    {libraryCollectionTab === "mock" ? (
+                      <div className="flex gap-2 overflow-x-auto pb-1">
+                        {(
+                          [
+                            { id: "all" as const, label: "All mock papers" },
+                            { id: "ncert" as const, label: "NCERT Exemplar" },
+                            { id: "chapter" as const, label: "Chapter-wise" },
+                            { id: "full" as const, label: "Full syllabus" },
+                            { id: "mock" as const, label: "Mock paper" },
+                          ] satisfies { id: LibraryCategoryFilter; label: string }[]
+                        ).map((tab) => (
+                          <button
+                            key={tab.id}
+                            type="button"
+                            onClick={() => setMockLibraryCategory(tab.id)}
+                            className={cn(
+                              "shrink-0 rounded-full border px-3 py-1.5 text-xs font-bold transition-all",
+                              mockLibraryCategory === tab.id
+                                ? "border-primary bg-primary/15 text-primary"
+                                : "border-border bg-muted/30 text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                            )}
+                          >
+                            {tab.label}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+
                     <p className="text-xs text-muted-foreground">
                       Showing{" "}
                       <span className="font-semibold text-foreground">
-                        {filteredCatalogPapers.length}
+                        {libraryCollectionTab === "past"
+                          ? filteredPastCatalogPapers.length
+                          : filteredMockCatalogPapers.length}
                       </span>{" "}
-                      paper{filteredCatalogPapers.length === 1 ? "" : "s"} in this view
+                      paper
+                      {(libraryCollectionTab === "past"
+                        ? filteredPastCatalogPapers.length
+                        : filteredMockCatalogPapers.length) === 1
+                        ? ""
+                        : "s"}{" "}
+                      in this view
                       {catalogLoading ? " · loading…" : ""}.
                     </p>
 
@@ -1421,23 +1582,32 @@ export default function MockPage() {
                       <div className="edu-card rounded-2xl border border-dashed border-border p-12 text-center text-sm text-muted-foreground">
                         Loading mock papers…
                       </div>
-                    ) : filteredCatalogPapers.length === 0 ? (
+                    ) : (libraryCollectionTab === "past"
+                        ? filteredPastCatalogPapers.length
+                        : filteredMockCatalogPapers.length) === 0 ? (
                       <div className="edu-card rounded-2xl border border-dashed border-border p-12 text-center">
                         <ListOrdered className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
                         <p className="font-semibold text-foreground">
-                          {papersByClassLevel.length === 0
+                          {(libraryCollectionTab === "past"
+                            ? pastPapersByClassLevel.length
+                            : mockPapersByClassLevel.length) === 0
                             ? "No papers published for your class yet"
                             : "No papers match your filters"}
                         </p>
                         <p className="mt-1 text-sm text-muted-foreground">
-                          {papersByClassLevel.length === 0
+                          {(libraryCollectionTab === "past"
+                            ? pastPapersByClassLevel.length
+                            : mockPapersByClassLevel.length) === 0
                             ? "Ask your admin to publish mock papers or run the seed import."
                             : "Try another subject or clear the search."}
                         </p>
                       </div>
                     ) : (
                       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                        {filteredCatalogPapers.map((paper) => (
+                        {(libraryCollectionTab === "past"
+                          ? filteredPastCatalogPapers
+                          : filteredMockCatalogPapers
+                        ).map((paper) => (
                           <div
                             key={paper.id}
                             className="edu-card flex flex-col rounded-2xl border border-border p-5 transition-shadow hover:shadow-md"
@@ -1447,7 +1617,9 @@ export default function MockPage() {
                                 variant="secondary"
                                 className="text-[10px] font-semibold uppercase tracking-wide"
                               >
-                                {mockPaperTypeLabel(paper.type)}
+                                {libraryCollectionTab === "past"
+                                  ? "Past Paper"
+                                  : mockPaperTypeLabel((paper as MockPaper).type)}
                               </Badge>
                               <Badge variant="outline" className="text-[10px]">
                                 {paper.difficulty}
@@ -1494,7 +1666,12 @@ export default function MockPage() {
                                 variant="outline"
                                 size="sm"
                                 className="flex-1 rounded-xl"
-                                onClick={() => openNtaInstructionsForPaper(paper)}
+                                onClick={() =>
+                                  openNtaInstructionsForPaper(
+                                    paper,
+                                    libraryCollectionTab === "past" ? "past" : "mock"
+                                  )
+                                }
                               >
                                 Instructions
                               </Button>
@@ -1502,7 +1679,12 @@ export default function MockPage() {
                                 type="button"
                                 size="sm"
                                 className="edu-btn-primary flex-1 rounded-xl font-bold"
-                                onClick={() => openNtaInstructionsForPaper(paper)}
+                                onClick={() =>
+                                  openNtaInstructionsForPaper(
+                                    paper,
+                                    libraryCollectionTab === "past" ? "past" : "mock"
+                                  )
+                                }
                               >
                                 Start exam
                               </Button>
@@ -1529,7 +1711,6 @@ export default function MockPage() {
                   meta={{
                     durationMinutes: ntaPendingMeta.durationMin,
                     questionCount: ntaPendingMeta.questionCount,
-                    markingScheme: ntaPendingMeta.markingScheme,
                     paperTitle: ntaPendingMeta.titleLine,
                   }}
                   proceedBusy={ntaProceedBusy}
@@ -1889,5 +2070,20 @@ export default function MockPage() {
         </AnimatePresence>
       </AppLayout>
     </ProtectedRoute>
+  );
+}
+
+export default function MockPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-background">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" aria-hidden />
+          <span className="sr-only">Loading mock workspace…</span>
+        </div>
+      }
+    >
+      <MockPageContent />
+    </Suspense>
   );
 }

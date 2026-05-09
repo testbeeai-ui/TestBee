@@ -35,14 +35,14 @@ export function filterMockPapers(
 
 export function mockPaperTypeLabel(type: MockPaperType): string {
   switch (type) {
-    case "pyq":
-      return "Previous Year (PYQ)";
     case "ncert":
       return "NCERT Exemplar";
     case "chapter":
       return "Chapter-wise";
     case "full":
       return "Full Syllabus";
+    case "mock":
+      return "Mock Paper";
     default:
       return type;
   }

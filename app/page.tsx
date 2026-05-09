@@ -13,6 +13,7 @@ import {
   persistPendingDeepLink,
   clearPendingDeepLink,
 } from "@/lib/auth/safeNextPath";
+import { TEACHER_PORTAL_CLASSROOMS_URL } from "@/lib/teacherPortal/routes";
 
 export default function LandingPage() {
   return (
@@ -50,7 +51,7 @@ function LandingPageContent() {
         router.replace(safeNextFromUrl);
         return;
       }
-      router.replace(profile?.role === "teacher" ? "/teacher-portal" : "/home");
+      router.replace(profile?.role === "teacher" ? TEACHER_PORTAL_CLASSROOMS_URL : "/home");
     }
   }, [
     user,

@@ -162,6 +162,11 @@ const ClassroomDetail = () => {
     avg_rating: number;
     review_count: number;
   } | null>(null);
+  /** Owner-only: admin-approved teachers may use classroom teacher controls (matches teacher portal policy). */
+  const [ownerTeacherGate, setOwnerTeacherGate] = useState<{ ready: boolean; approved: boolean }>({
+    ready: false,
+    approved: false,
+  });
 
   // Deep-link support: /classroom/:id?tab=posts&post=<postId>
   useEffect(() => {
@@ -237,6 +242,46 @@ const ClassroomDetail = () => {
     };
     fetchData();
   }, [id]);
+
+  useEffect(() => {
+    if (!user?.id || !classroom) return;
+    if (classroom.teacher_id !== user.id) {
+      setOwnerTeacherGate({ ready: true, approved: false });
+      return;
+    }
+    setOwnerTeacherGate({ ready: false, approved: false });
+    let cancelled = false;
+    void (
+      supabase as unknown as {
+        from: (name: string) => {
+          select: (cols: string) => {
+            eq: (col: string, val: string) => {
+              maybeSingle: () => Promise<{
+                data: { verification_status?: string | null } | null;
+                error: { message?: string } | null;
+              }>;
+            };
+          };
+        };
+      }
+    )
+      .from("teacher_profile_details")
+      .select("verification_status")
+      .eq("teacher_id", user.id)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (error) {
+          setOwnerTeacherGate({ ready: true, approved: false });
+          return;
+        }
+        const st = (data?.verification_status as string | undefined) ?? "unverified";
+        setOwnerTeacherGate({ ready: true, approved: st === "approved" });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, classroom?.id, classroom?.teacher_id]);
 
   useEffect(() => {
     if (!scheduleOpen) return;
@@ -375,7 +420,12 @@ const ClassroomDetail = () => {
 
   const isOwner = classroom?.teacher_id === user?.id;
   const studentPreview = searchParams.get("view") === "student";
-  const showTeacherControls = Boolean(isOwner && !studentPreview);
+  const showTeacherControls = Boolean(
+    isOwner &&
+      !studentPreview &&
+      ownerTeacherGate.ready &&
+      ownerTeacherGate.approved
+  );
   const isClassMember = useMemo(
     () => Boolean(user?.id && members.some((m) => m.user_id === user.id)),
     [user?.id, members]
@@ -828,6 +878,18 @@ const ClassroomDetail = () => {
                   Exit preview
                 </Button>
               </div>
+            </div>
+          ) : null}
+          {isOwner && !studentPreview && ownerTeacherGate.ready && !ownerTeacherGate.approved ? (
+            <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-950 dark:text-amber-50">
+              <strong>Teacher verification required.</strong> Admin approval is required before you can post,
+              schedule sessions, or manage members from this page.{" "}
+              <Link
+                href="/teacher-portal?section=profile&edit=1"
+                className="font-semibold underline underline-offset-2"
+              >
+                Open Teacher Portal → Profile
+              </Link>
             </div>
           ) : null}
           {/* Header */}

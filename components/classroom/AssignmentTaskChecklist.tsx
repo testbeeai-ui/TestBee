@@ -8,6 +8,7 @@ import { safeGetSession } from "@/lib/safeSession";
 import type { AssignmentTaskStored } from "@/lib/classroom/assignmentTasks";
 import {
   CLASSROOM_ASSIGNMENT_PROGRESS_EVENT,
+  dispatchClassroomAssignmentProgressChanged,
   type ClassroomAssignmentProgressDetail,
 } from "@/lib/classroom/assignmentProgressSync";
 import { supabase } from "@/integrations/supabase/client";
@@ -130,6 +131,8 @@ function taskLinkLabel(task: AssignmentTaskStored): string {
       return "Open Gyan++";
     case "mock_paper":
       return "Open mock test";
+    case "past_paper":
+      return "Open past paper";
     case "daily_dose":
       return "Open DailyDose Play";
     case "topic_path":
@@ -151,7 +154,10 @@ function withAssignmentTrackingParams(
 ): string {
   if (!href) return href;
   const shouldTrack =
-    task.kind === "chapter_quiz" || task.kind === "mock_paper" || href.startsWith("/mock");
+    task.kind === "chapter_quiz" ||
+    task.kind === "mock_paper" ||
+    task.kind === "past_paper" ||
+    href.startsWith("/mock");
   if (!shouldTrack) return href;
   try {
     const isAbsolute = /^https?:\/\//i.test(href);
@@ -463,6 +469,9 @@ export default function AssignmentTaskChecklist({
         else n.delete(taskId);
         return n;
       });
+      if (next) {
+        dispatchClassroomAssignmentProgressChanged({ classroomId, postId });
+      }
       const uid = session?.user?.id ?? "";
       if (uid) taskProgressGetCache.delete(taskProgressCacheKey(classroomId, postId, uid));
     } finally {
@@ -532,6 +541,8 @@ export default function AssignmentTaskChecklist({
         if (!progRes.ok && progData?.error) {
           // Non-fatal: response saved; progress tick can be retried manually.
           console.warn(progData.error);
+        } else if (progRes.ok) {
+          dispatchClassroomAssignmentProgressChanged({ classroomId, postId });
         }
       }
       const uid = session?.user?.id ?? "";
@@ -660,6 +671,8 @@ export default function AssignmentTaskChecklist({
                       ? "Open the quiz, answer all MCQs, and submit to record your score."
                       : t.kind === "mock_paper"
                         ? "Open the mock paper and complete it. Submit to record your score."
+                        : t.kind === "past_paper"
+                          ? "Open the past paper and complete it. Submit to record your score."
                         : postType === "Concept Focus"
                           ? "Open the lesson, complete the checklist, then tap Mark as complete on the topic page."
                           : "Open the link, complete the task, then come back here."}

@@ -3,7 +3,9 @@
 import { useState, useEffect, Suspense } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { DM_Sans } from "next/font/google";
+import "@fontsource/dm-sans/400.css";
+import "@fontsource/dm-sans/500.css";
+import "@fontsource/dm-sans/600.css";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, ArrowRight } from "lucide-react";
@@ -14,11 +16,7 @@ import {
   readPendingDeepLink,
   clearPendingDeepLink,
 } from "@/lib/auth/safeNextPath";
-
-const dmSans = DM_Sans({
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
-});
+import { TEACHER_PORTAL_CLASSROOMS_URL } from "@/lib/teacherPortal/routes";
 
 const googlePathD = {
   blue: "M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z",
@@ -117,7 +115,7 @@ function AuthContent() {
     const isTeacher = profile?.role === "teacher";
     if (user && profile?.onboarding_complete) {
       const pending = readPendingDeepLink();
-      const dest = pending ?? (isTeacher ? "/teacher-portal" : "/home");
+      const dest = pending ?? (isTeacher ? TEACHER_PORTAL_CLASSROOMS_URL : "/home");
       clearPendingDeepLink();
       router.replace(dest);
     }
@@ -210,7 +208,7 @@ function AuthContent() {
 
   return (
     <div
-      className={`${dmSans.className} flex min-h-screen flex-col bg-[#0f1117] text-white antialiased`}
+      className="flex min-h-screen flex-col bg-[#0f1117] font-['DM_Sans',ui-sans-serif,system-ui,sans-serif] text-white antialiased"
     >
       <div className="flex min-h-[100dvh] flex-1 items-center justify-center px-4 py-10 sm:px-8 sm:py-12">
         <div className="flex w-full max-w-[min(94vw,32rem)] flex-col gap-5 sm:max-w-[min(92vw,36rem)] md:max-w-[min(88vw,40rem)]">

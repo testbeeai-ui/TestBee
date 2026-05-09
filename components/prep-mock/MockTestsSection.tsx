@@ -1,7 +1,7 @@
 "use client";
 
 import { ClipboardList, ArrowRight } from "lucide-react";
-import type { MockPaper, Subject } from "@/types";
+import type { PastPaper, Subject } from "@/types";
 import { cn } from "@/lib/utils";
 
 const subjectConfig: Record<
@@ -28,7 +28,7 @@ const subjectConfig: Record<
   },
 };
 
-function featuredPaperDetails(p: MockPaper): string {
+function featuredPaperDetails(p: PastPaper): string {
   return `${p.durationMinutes} mins · ${p.questionsCount} Qs · ${p.totalMarks} marks · Class ${p.classLevel} · PYQ`;
 }
 
@@ -79,7 +79,7 @@ interface MockTestsSectionProps {
   onStartMock: (subject: Subject) => void;
   onViewAll: () => void;
   /** When set, replaces the Physics quick row and opens NTA General Instructions on Start. */
-  featuredPaper: MockPaper | null;
+  featuredPaper: PastPaper | null;
   featuredLoading?: boolean;
   onStartFeaturedPaper: () => void;
 }

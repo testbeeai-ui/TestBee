@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports -- CommonJS bootstrap for `npm run dev` */
 /**
  * Next.js 16 defaults `next dev` to Turbopack when no bundler flag is set.
  * This launcher forces webpack and clears TURBOPACK* env so a stray .env value

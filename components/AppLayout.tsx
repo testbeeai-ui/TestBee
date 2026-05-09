@@ -16,6 +16,7 @@ import {
   Heart,
   GraduationCap,
   Gift,
+  type LucideIcon,
 } from "lucide-react";
 import StreakTimer from "@/components/StreakTimer";
 import NotificationBell from "@/components/NotificationBell";
@@ -25,6 +26,7 @@ import { useStreakTimer } from "@/hooks/useStreakTimer";
 import AgentOrchestratorRunner from "@/components/AgentOrchestratorRunner";
 import { SitePresenceProvider } from "@/components/providers/SitePresenceProvider";
 import { cn } from "@/lib/utils";
+import { TEACHER_PORTAL_CLASSROOMS_URL } from "@/lib/teacherPortal/routes";
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -49,7 +51,16 @@ function isPrepMockActive(pathname: string): boolean {
   return false;
 }
 
-const studentNavItems = [
+type AppNavItem = {
+  path: string;
+  /** When set, used as Link href (e.g. teacher portal default tab). */
+  href?: string;
+  icon: LucideIcon;
+  label: string;
+  emoji: string;
+};
+
+const studentNavItems: AppNavItem[] = [
   { path: "/home", icon: LayoutDashboard, label: "Dashboard", emoji: "📊" },
   { path: "/magic-wall", icon: Sparkles, label: "Magic Wall", emoji: "✨" },
   { path: EXPLORE_APP_PATH, icon: Compass, label: "Lessons", emoji: "🧭" },
@@ -60,8 +71,14 @@ const studentNavItems = [
   { path: "/profile", icon: User, label: "Profile", emoji: "👤" },
 ];
 
-const teacherNavItems = [
-  { path: "/teacher-portal", icon: GraduationCap, label: "Teacher Portal", emoji: "🧑‍🏫" },
+const teacherNavItems: AppNavItem[] = [
+  {
+    path: "/teacher-portal",
+    href: TEACHER_PORTAL_CLASSROOMS_URL,
+    icon: GraduationCap,
+    label: "Teacher Portal",
+    emoji: "🧑‍🏫",
+  },
 ];
 
 const AppLayout = ({
@@ -92,7 +109,7 @@ const AppLayout = ({
             <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-0.5 lg:max-w-[min(100%,90rem)] lg:px-5 lg:py-1 xl:max-w-[min(100%,96rem)] 2xl:px-6">
               {/* Logo — layout box stays compact; scale() enlarges artwork without growing nav flex height */}
               <Link
-                href={isTeacher ? "/teacher-portal" : "/home"}
+                href={isTeacher ? TEACHER_PORTAL_CLASSROOMS_URL : "/home"}
                 className="relative z-10 flex shrink-0 items-center hover:opacity-80 transition-opacity"
               >
                 <img
@@ -108,7 +125,8 @@ const AppLayout = ({
 
               {/* Nav Links - Desktop */}
               <nav className="hidden md:flex items-center gap-0.5 bg-muted/50 rounded-xl p-0.5 2xl:rounded-2xl 2xl:p-1">
-                {navItems.map(({ path, icon: Icon, label }) => {
+                {navItems.map(({ path, href: itemHref, icon: Icon, label }) => {
+                  const linkHref = itemHref ?? path;
                   const isActive =
                     pathname === path ||
                     (path === "/mock" && isPrepMockActive(pathname)) ||
@@ -117,7 +135,7 @@ const AppLayout = ({
                   return (
                     <Link
                       key={path}
-                      href={path}
+                      href={linkHref}
                       className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-bold transition-all 2xl:gap-2 2xl:rounded-xl 2xl:px-4 2xl:py-1.5 2xl:text-sm ${
                         isActive
                           ? "bg-card text-primary shadow-sm"
@@ -181,7 +199,8 @@ const AppLayout = ({
             {/* Mobile nav */}
             <div className="md:hidden border-t border-border/60">
               <div className="flex overflow-x-auto px-2 gap-0.5">
-                {navItems.map(({ path, label, emoji }) => {
+                {navItems.map(({ path, href: itemHref, label, emoji }) => {
+                  const linkHref = itemHref ?? path;
                   const isActive =
                     pathname === path ||
                     (path === "/mock" && isPrepMockActive(pathname)) ||
@@ -190,7 +209,7 @@ const AppLayout = ({
                   return (
                     <Link
                       key={path}
-                      href={path}
+                      href={linkHref}
                       className={`flex items-center gap-1.5 px-3.5 py-2.5 text-xs font-bold whitespace-nowrap transition-all ${
                         isActive
                           ? "text-primary border-b-2 border-primary"

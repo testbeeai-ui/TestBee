@@ -106,6 +106,13 @@ export interface TeacherPortalMockPaperRef {
   title: string;
 }
 
+/** When a past-paper assignment targets a catalog paper from `past_papers`. */
+export interface TeacherPortalPastPaperRef {
+  id: string;
+  slug: string;
+  title: string;
+}
+
 /** DailyDose / Streak assignment — one of five Funbrain Elo lanes (Verbal … GK). */
 export interface TeacherPortalDailyDoseStreakRef {
   trackId: string;
@@ -149,12 +156,16 @@ export interface TeacherPortalAssignmentItem {
   tasks: AssignmentTaskStored[];
   /** Set for `mock` posts when teacher picked a published paper */
   mockPaper?: TeacherPortalMockPaperRef | null;
+  /** Set for `past_paper` posts when teacher picked a published past paper */
+  pastPaper?: TeacherPortalPastPaperRef | null;
   /** Set for `quiz` posts when teacher picked syllabus + subtopic + tier/set */
   chapterQuiz?: TeacherPortalChapterQuizRef | null;
   /** Set for DailyDose streak assignments when teacher picked a Funbrain lane */
   dailyDoseStreak?: TeacherPortalDailyDoseStreakRef | null;
   /** Set for Gyan++ engagement assignments (student → /doubts, teacher → Gyan++ Wall) */
   gyanEngagement?: TeacherPortalGyanEngagementRef | null;
+  /** True when this post is a teacher-generated classroom MCQ (`content_json.generatedTestPaper`). */
+  isGeneratedClassroomMcq?: boolean;
 }
 
 export interface TeacherPortalClassroomDetail {
@@ -283,6 +294,20 @@ export interface TeacherPortalReferStats {
   teacherMilestoneBonusRdm: number;
 }
 
+/** Submitted mock attempt under 60% for nudge wizard ( keyed by assignment post id ). */
+export type TeacherPortalMockNudgeLowScorer = {
+  userId: string;
+  pct: number;
+  submittedAt: string;
+};
+
+/** Latest submitted attempt per student on this post (any score) — wizard context when no one is under 60%. */
+export type TeacherPortalMockNudgeSubmittedAttempt = {
+  userId: string;
+  pct: number;
+  submittedAt: string;
+};
+
 export interface TeacherPortalDataBundle {
   summary: TeacherPortalSummary;
   classrooms: TeacherPortalClassroomCard[];
@@ -291,4 +316,13 @@ export interface TeacherPortalDataBundle {
   wallItems: TeacherPortalWallItem[];
   profile: TeacherPortalProfileView;
   referStats: TeacherPortalReferStats;
+  /**
+   * Post ids for nudge “low scorers this week”: catalog `mock`, syllabus `quiz` (chapter MCQ), or `assignment`
+   * with generated classroom MCQ — timestamp is max(created_at, updated_at) within the current IST calendar week.
+   */
+  mockPostIdsAssignedThisWeek: string[];
+  /** Per mock post: students with a submitted attempt and score/total &lt; 60%. */
+  mockNudgeLowScorersByPostId: Record<string, TeacherPortalMockNudgeLowScorer[]>;
+  /** Per post this week: latest submitted attempt per student (any score), from classroom attempts. */
+  mockNudgeSubmittedAttemptsByPostId: Record<string, TeacherPortalMockNudgeSubmittedAttempt[]>;
 }

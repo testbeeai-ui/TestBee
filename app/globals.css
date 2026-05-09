@@ -60,6 +60,10 @@
 }
 
 :root {
+  /* Playfair + Caveat from @fontsource (bundled woff2); avoids next/font/google network fetch during build */
+  --font-app-sans: "Playfair Display Variable", ui-serif, Georgia, serif;
+  --font-landing-serif: "Playfair Display Variable", ui-serif, Georgia, serif;
+  --font-landing-script: "Caveat", cursive;
   --font-sans: var(--font-app-sans), system-ui, sans-serif;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);

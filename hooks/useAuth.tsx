@@ -405,9 +405,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      // Local scope avoids a server round-trip (works offline; prevents hang on network errors).
+      await supabase.auth.signOut({ scope: "local" });
+    } catch {
+      await supabase.auth.signOut({ scope: "local" }).catch(() => {});
+    }
     useUserStore.getState().logout();
     setProfile(null);
+    setSession(null);
+    setUser(null);
   };
 
   const fetchProfileRef = useRef(fetchProfile);

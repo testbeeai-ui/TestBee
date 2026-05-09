@@ -6,6 +6,7 @@ import { Loader2, CheckCircle2 } from "lucide-react";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { safeGetSession } from "@/lib/safeSession";
 import GeneratedMcqReview from "@/components/classroom/GeneratedMcqReview";
+import { dispatchClassroomAssignmentProgressChanged } from "@/lib/classroom/assignmentProgressSync";
 
 type Question = {
   id: string;
@@ -127,6 +128,7 @@ export default function ClassroomAssignmentTestPage() {
         setError(data.error ?? "Failed to submit test.");
         return;
       }
+      dispatchClassroomAssignmentProgressChanged({ classroomId, postId });
       // Re-fetch from server to confirm the row actually persisted
       const verified = await loadTestData({ silent: true });
       if (!verified) {

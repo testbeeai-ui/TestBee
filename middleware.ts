@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { isPublicPath } from "@/lib/auth/publicPaths";
 import { createSupabaseMiddleware } from "@/lib/supabase/middleware";
+import { TEACHER_PORTAL_CLASSROOMS_URL } from "@/lib/teacherPortal/routes";
 
 const STUDENT_ONLY_PREFIXES = [
   "/home",
@@ -70,8 +71,9 @@ export async function middleware(request: NextRequest) {
       .maybeSingle();
     if (profile?.role === "teacher") {
       const url = request.nextUrl.clone();
-      url.pathname = "/teacher-portal";
-      url.search = "";
+      const target = new URL(TEACHER_PORTAL_CLASSROOMS_URL, request.url);
+      url.pathname = target.pathname;
+      url.search = target.search;
       return NextResponse.redirect(url);
     }
   }
