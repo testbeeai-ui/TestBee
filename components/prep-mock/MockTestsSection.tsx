@@ -135,13 +135,6 @@ export default function MockTestsSection({
           />
         ) : null}
 
-        {!featuredLoading && !featuredPaper && subjects.includes("physics") ? (
-          <div className="rounded-lg border border-dashed border-amber-500/40 bg-amber-500/5 px-3 py-2 text-[11px] text-muted-foreground">
-            JEE Main PYQ paper is not in your catalog yet. Import it with the project seed script,
-            or use View all → library.
-          </div>
-        ) : null}
-
         {listSubjects.map((subj, i) => {
           const config = subjectConfig[subj];
           const badgeNum = hidePhysicsRow ? i + 2 : i + 1;
