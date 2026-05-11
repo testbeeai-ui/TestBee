@@ -17,6 +17,16 @@ import { useAuth } from "@/hooks/useAuth";
 import { useUserStore } from "@/store/useUserStore";
 import type { Board, ClassLevel, ExamType, Subject } from "@/types";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   fetchMagicWallBasket,
   type MagicWallBasketInsert,
@@ -25,11 +35,24 @@ import {
   removeMagicWallBasketItems,
   makeTopicKey,
 } from "@/lib/magicWallBasketService";
-import { Filter, Loader2, Sparkles, WandSparkles, X, BookOpen } from "lucide-react";
+import {
+  BookOpen,
+  Filter,
+  History,
+  Loader2,
+  RotateCcw,
+  Sparkles,
+  WandSparkles,
+  X,
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { appendQueryParams, buildTopicOverviewPath, type DifficultyLevel } from "@/lib/topicRoutes";
+import type { TopicNode } from "@/data/topicTaxonomy";
+import { fetchAdvancedLessonCompletionKeys } from "@/lib/lessonCompletionClient";
+import { isTopicCompleteAtAdvanced } from "@/lib/lessonCompletionRollup";
+import { fetchWithClientAuth } from "@/lib/clientApiAuth";
 
 /** Topic hub level when opening topics from Magic Wall (Start Reading / basket links). */
 const MAGIC_WALL_READING_LEVEL: DifficultyLevel = "advanced";
@@ -44,6 +67,7 @@ type RainTopic = {
   chapterTitle: string;
   topicName: string;
   tag: string;
+  node: TopicNode;
 };
 
 const SUBJECT_OPTIONS: { subject: Subject; label: string }[] = [
@@ -75,6 +99,9 @@ const RAIN_CANVAS_H = 640;
  */
 /** Fewer columns = less vertical pile-up in the same Y band (easier to tap). */
 const MAGIC_WALL_MAX_SELECTED_TOPICS = 5;
+/** Paginated “completed topics” history modal (150+ syllabus rows). */
+const COMPLETED_TOPICS_HISTORY_PAGE_SIZE = 20;
+const RESET_HISTORY_COUNTDOWN_SEC = 10;
 const RAIN_SLOT_COUNT = 12;
 /** Max canvas height cap; actual height is viewport-aware (see rain canvas style). */
 const RAIN_TRICKLE_SLACK_PX = 30;
@@ -181,6 +208,14 @@ export default function MagicWallPage() {
   const [loadingBasket, setLoadingBasket] = useState(false);
   const [savingBasket, setSavingBasket] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyPage, setHistoryPage] = useState(0);
+  /** Class shown inside “Completed topics” (independent of wall Class 11/12 filter). */
+  const [historyModalClass, setHistoryModalClass] = useState<ClassLevel>(initialClass);
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const [resetTimer, setResetTimer] = useState(RESET_HISTORY_COUNTDOWN_SEC);
+  const [resetAcknowledged, setResetAcknowledged] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
   const wfRef = useRef<HTMLDivElement>(null);
   const [wfSize, setWfSize] = useState({ width: 800, height: RAIN_CANVAS_H });
   const poolRef = useRef<RainTopic[]>([]);
@@ -189,6 +224,99 @@ export default function MagicWallPage() {
   const [rainSlots, setRainSlots] = useState<RainSlot[]>([]);
   /** Paused chip = animation stops so taps aren’t a moving target (hover or touch-hold). */
   const [pausedRainChipKey, setPausedRainChipKey] = useState<string | null>(null);
+
+  const boardNormForLessonCompletions = useMemo(
+    () => String(storeUser?.board ?? profile?.board ?? board).trim().toLowerCase(),
+    [storeUser?.board, profile?.board, board]
+  );
+
+  const [advancedLessonKeysByClass, setAdvancedLessonKeysByClass] = useState<{
+    11: Set<string>;
+    12: Set<string>;
+  }>(() => ({ 11: new Set(), 12: new Set() }));
+
+  const activeSubjectsKey = useMemo(
+    () => [...activeSubjects].sort().join(","),
+    [activeSubjects]
+  );
+
+  useEffect(() => {
+    // Gate on session user (matches lesson-completion API), not profile row — avoids a gap
+    // where profile is still null but the student is signed in.
+    if (!user?.id) {
+      setAdvancedLessonKeysByClass({ 11: new Set(), 12: new Set() });
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const subjects = activeSubjectsKey ? (activeSubjectsKey.split(",") as Subject[]) : [];
+      const fetchMergedForClass = async (classLevel: 11 | 12) => {
+        const results = await Promise.all(
+          subjects.map((subject) =>
+            fetchAdvancedLessonCompletionKeys({
+              subject,
+              classLevel,
+              board: boardNormForLessonCompletions,
+            })
+          )
+        );
+        const merged = new Set<string>();
+        for (const set of results) {
+          for (const k of set) merged.add(k);
+        }
+        return merged;
+      };
+      const [keys11, keys12] = await Promise.all([fetchMergedForClass(11), fetchMergedForClass(12)]);
+      if (cancelled) return;
+      setAdvancedLessonKeysByClass({ 11: keys11, 12: keys12 });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, activeSubjectsKey, boardNormForLessonCompletions]);
+
+  useEffect(() => {
+    if (!resetDialogOpen) return;
+    setResetTimer(RESET_HISTORY_COUNTDOWN_SEC);
+    setResetAcknowledged(false);
+    const id = window.setInterval(() => {
+      setResetTimer((t) => (t <= 0 ? 0 : t - 1));
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [resetDialogOpen]);
+
+  const closeResetDialog = useCallback(() => {
+    setResetDialogOpen(false);
+    setResetAcknowledged(false);
+    setResetTimer(RESET_HISTORY_COUNTDOWN_SEC);
+  }, []);
+
+  const confirmResetHistory = useCallback(async () => {
+    if (resetTimer > 0 || !resetAcknowledged || isResetting) return;
+    setIsResetting(true);
+    try {
+      const res = await fetchWithClientAuth("/api/user/reset-history", { method: "POST" });
+      const json = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        throw new Error(json.error || res.statusText || "Reset failed");
+      }
+      toast({
+        title: "History reset",
+        description:
+          "Class 11 and 12 lesson marks, engagement, and subtopic quiz attempts were cleared. The page will reload so Topic Rain updates.",
+      });
+      closeResetDialog();
+      window.location.reload();
+    } catch (e) {
+      toast({
+        title: "Could not reset history",
+        description: e instanceof Error ? e.message : "Something went wrong.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsResetting(false);
+    }
+  }, [resetTimer, resetAcknowledged, isResetting, toast, closeResetDialog]);
 
   useLayoutEffect(() => {
     const el = wfRef.current;
@@ -234,10 +362,15 @@ export default function MagicWallPage() {
         topicName,
         tag: `${node.subject.toUpperCase()} · C${node.classLevel}`,
         examRelevance: node.examRelevance,
+        node,
       };
     });
   }, [taxonomy, board]);
 
+  const advancedLessonKeysForRain = advancedLessonKeysByClass[selectedClass];
+
+  // Topic Rain and Completed-topics History use the same rule: advanced-complete topics are
+  // excluded from the rain automatically (no separate “manual remove” step).
   const filteredRainTopics = useMemo(() => {
     const seen = new Set<string>();
     // Collect per-subject buckets so each subject is always represented
@@ -245,6 +378,15 @@ export default function MagicWallPage() {
     for (const item of catalog) {
       if (Number(item.classLevel) !== Number(selectedClass)) continue;
       if (!activeSubjects.has(item.subject)) continue;
+      if (
+        isTopicCompleteAtAdvanced(
+          item.node,
+          advancedLessonKeysForRain,
+          boardNormForLessonCompletions
+        )
+      ) {
+        continue;
+      }
       if (seen.has(item.topicKey)) continue;
       seen.add(item.topicKey);
       if (!buckets.has(item.subject)) buckets.set(item.subject, []);
@@ -258,6 +400,7 @@ export default function MagicWallPage() {
         chapterTitle: item.chapterTitle,
         topicName: item.topicName,
         tag: item.tag,
+        node: item.node,
       });
     }
     // Round-robin interleave: physics[0], chem[0], math[0], physics[1], ...
@@ -277,7 +420,13 @@ export default function MagicWallPage() {
       row++;
     }
     return out;
-  }, [catalog, selectedClass, activeSubjects]);
+  }, [
+    catalog,
+    selectedClass,
+    activeSubjects,
+    advancedLessonKeysForRain,
+    boardNormForLessonCompletions,
+  ]);
 
   const filteredRainLatestRef = useRef(filteredRainTopics);
   filteredRainLatestRef.current = filteredRainTopics;
@@ -320,11 +469,55 @@ export default function MagicWallPage() {
           chapterTitle: t.chapterTitle,
           topicName: t.topicName,
           tag: t.tag,
+          node: t.node,
         });
       }
     }
     return map;
   }, [filteredRainTopics, catalog]);
+
+  const completedTopicsHistory = useMemo(() => {
+    const lessonKeys = advancedLessonKeysByClass[historyModalClass];
+    const seen = new Set<string>();
+    const rows: Array<{
+      topicKey: string;
+      subject: Subject;
+      classLevel: ClassLevel;
+      chapterTitle: string;
+      topicName: string;
+      tag: string;
+    }> = [];
+    for (const item of catalog) {
+      if (Number(item.classLevel) !== Number(historyModalClass)) continue;
+      if (!activeSubjects.has(item.subject)) continue;
+      if (!isTopicCompleteAtAdvanced(item.node, lessonKeys, boardNormForLessonCompletions)) {
+        continue;
+      }
+      if (seen.has(item.topicKey)) continue;
+      seen.add(item.topicKey);
+      rows.push({
+        topicKey: item.topicKey,
+        subject: item.subject,
+        classLevel: item.classLevel,
+        chapterTitle: item.chapterTitle,
+        topicName: item.topicName,
+        tag: item.tag,
+      });
+    }
+    rows.sort(
+      (a, b) =>
+        a.subject.localeCompare(b.subject) ||
+        a.chapterTitle.localeCompare(b.chapterTitle) ||
+        a.topicName.localeCompare(b.topicName)
+    );
+    return rows;
+  }, [
+    catalog,
+    historyModalClass,
+    activeSubjects,
+    advancedLessonKeysByClass,
+    boardNormForLessonCompletions,
+  ]);
 
   useEffect(() => {
     if (loading) {
@@ -599,6 +792,27 @@ export default function MagicWallPage() {
 
   const classPill = "rounded-xl border border-border bg-card/80 px-3 py-2 text-sm font-bold";
 
+  const historyTotal = completedTopicsHistory.length;
+  const historyMaxPage =
+    historyTotal === 0
+      ? 0
+      : Math.ceil(historyTotal / COMPLETED_TOPICS_HISTORY_PAGE_SIZE) - 1;
+  const historyEffectivePage = Math.min(Math.max(0, historyPage), historyMaxPage);
+  const historyPageLabelCount = historyTotal === 0 ? 1 : historyMaxPage + 1;
+  const historyRangeStart =
+    historyTotal === 0 ? 0 : historyEffectivePage * COMPLETED_TOPICS_HISTORY_PAGE_SIZE + 1;
+  const historyRangeEnd =
+    historyTotal === 0
+      ? 0
+      : Math.min(
+          historyTotal,
+          (historyEffectivePage + 1) * COMPLETED_TOPICS_HISTORY_PAGE_SIZE
+        );
+  const historyPageSlice = completedTopicsHistory.slice(
+    historyEffectivePage * COMPLETED_TOPICS_HISTORY_PAGE_SIZE,
+    (historyEffectivePage + 1) * COMPLETED_TOPICS_HISTORY_PAGE_SIZE
+  );
+
   return (
     <ProtectedRoute allowRoles={["student"]}>
       <AppLayout>
@@ -697,9 +911,249 @@ export default function MagicWallPage() {
                         </button>
                       ))}
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setHistoryPage(0);
+                        setHistoryModalClass(selectedClass);
+                        setHistoryOpen(true);
+                      }}
+                      className={`${classPill} flex items-center gap-1.5 border-white/15 bg-black/30 text-slate-200 hover:bg-white/10 hover:text-white`}
+                    >
+                      <History className="h-3.5 w-3.5 shrink-0 opacity-90" />
+                      History
+                    </button>
                   </div>
                 </div>
               )}
+
+              <Dialog
+                open={historyOpen}
+                onOpenChange={(open) => {
+                  setHistoryOpen(open);
+                  if (open) {
+                    setHistoryPage(0);
+                    setHistoryModalClass(selectedClass);
+                  }
+                }}
+              >
+                <DialogContent
+                  className={cn(
+                    // z-[101] required: overlay uses z-[100]; default content z-50 would sit UNDER overlay.
+                    "z-[101] max-h-[85vh] max-w-2xl gap-0 overflow-hidden border-2 border-violet-400/45 bg-slate-900 p-0 text-slate-100 shadow-2xl shadow-black/50 ring-1 ring-violet-300/25 sm:rounded-xl",
+                    "[&>button.absolute]:text-slate-200 [&>button.absolute]:opacity-100 [&>button.absolute]:hover:bg-white/15 [&>button.absolute]:hover:text-white"
+                  )}
+                  overlayClassName="z-[100] bg-slate-950/55 backdrop-blur-[3px]"
+                >
+                  <DialogHeader className="border-b border-violet-500/20 bg-slate-900/80 px-5 py-4 pr-12 text-left sm:pr-14">
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                      <DialogTitle className="text-lg font-extrabold text-white">
+                        Completed topics
+                      </DialogTitle>
+                      <div
+                        className="flex shrink-0 items-center gap-1 rounded-xl border border-white/10 bg-black/30 p-1"
+                        role="group"
+                        aria-label="Class for completed topics list"
+                      >
+                        {([11, 12] as const).map((lv) => (
+                          <button
+                            key={lv}
+                            type="button"
+                            onClick={() => {
+                              setHistoryModalClass(lv);
+                              setHistoryPage(0);
+                            }}
+                            className={`rounded-lg px-3 py-1.5 text-xs font-extrabold border transition-all ${
+                              historyModalClass === lv
+                                ? "border-violet-400 bg-violet-500/20 text-violet-200"
+                                : "border-transparent text-slate-400 hover:text-slate-200"
+                            }`}
+                          >
+                            Class {lv}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <DialogDescription className="mt-2 space-y-1.5 text-slate-400">
+                      <span className="block">
+                        {`Topics you finished at Advanced for Class ${historyModalClass}${
+                          activeSubjects.size < 3
+                            ? ` · ${[...activeSubjects]
+                                .sort()
+                                .map(
+                                  (s) =>
+                                    SUBJECT_OPTIONS.find((o) => o.subject === s)?.label ?? s
+                                )
+                                .join(", ")}`
+                            : ""
+                        }.`}
+                      </span>
+                      <span className="block text-slate-500">
+                        Anything that appears here is automatically hidden from Topic Rain (auto
+                        filter) once your Advanced completions are loaded—same rule as the wall.
+                      </span>
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="max-h-[min(52vh,420px)] overflow-y-auto bg-slate-900/95 px-5 py-3">
+                    {!user?.id ? (
+                      <p className="text-sm text-slate-400">
+                        Sign in to see topics you&apos;ve completed.
+                      </p>
+                    ) : historyTotal === 0 ? (
+                      <p className="text-sm text-slate-400">
+                        No completed topics for these filters yet. Finish every subtopic at
+                        Advanced in a topic to add it here.
+                      </p>
+                    ) : (
+                      <ol className="list-decimal space-y-2.5 pl-5" start={historyRangeStart}>
+                        {historyPageSlice.map((row) => (
+                          <li
+                            key={row.topicKey}
+                            className="rounded-lg border border-white/10 bg-black/25 px-3 py-2.5 marker:font-bold"
+                          >
+                            <div className="text-sm font-bold text-white leading-snug">
+                              {row.topicName}
+                            </div>
+                            <div className="mt-0.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                              {row.tag} · {row.chapterTitle}
+                            </div>
+                          </li>
+                        ))}
+                      </ol>
+                    )}
+                  </div>
+                  <DialogFooter className="flex-col gap-3 border-t border-violet-500/20 bg-slate-800/90 px-5 py-4 sm:flex-col">
+                    <div className="flex w-full flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
+                      <span className="font-semibold tabular-nums">
+                        {historyTotal === 0
+                          ? "0 topics"
+                          : `${historyRangeStart}–${historyRangeEnd} of ${historyTotal}`}
+                      </span>
+                      <span className="font-extrabold tabular-nums text-slate-300">
+                        Page {historyEffectivePage + 1} of {historyPageLabelCount}
+                      </span>
+                    </div>
+                    <div className="flex w-full items-center justify-between gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="border-white/20 bg-transparent text-slate-200 hover:bg-white/10 hover:text-white"
+                        disabled={historyTotal === 0 || historyEffectivePage <= 0}
+                        onClick={() =>
+                          setHistoryPage((p) => {
+                            const c = Math.min(p, historyMaxPage);
+                            return Math.max(0, c - 1);
+                          })
+                        }
+                      >
+                        Previous
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="border-white/20 bg-transparent text-slate-200 hover:bg-white/10 hover:text-white"
+                        disabled={historyTotal === 0 || historyEffectivePage >= historyMaxPage}
+                        onClick={() =>
+                          setHistoryPage((p) => {
+                            const c = Math.min(p, historyMaxPage);
+                            return Math.min(historyMaxPage, c + 1);
+                          })
+                        }
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
+              <Dialog
+                open={resetDialogOpen}
+                onOpenChange={(open) => {
+                  if (!open) closeResetDialog();
+                }}
+              >
+                <DialogContent
+                  hideClose
+                  onPointerDownOutside={(e) => e.preventDefault()}
+                  onEscapeKeyDown={(e) => e.preventDefault()}
+                  className="z-[101] max-w-lg gap-0 overflow-hidden border-2 border-red-500/40 bg-slate-900 p-0 text-slate-100 shadow-2xl sm:rounded-xl"
+                  overlayClassName="z-[100] bg-slate-950/60 backdrop-blur-[2px]"
+                >
+                  <DialogHeader className="border-b border-red-500/25 px-5 py-4 text-left">
+                    <DialogTitle className="text-lg font-extrabold text-white">Reset history</DialogTitle>
+                    <DialogDescription className="space-y-3 pt-1 text-left text-sm leading-relaxed text-slate-300">
+                      <span className="block">
+                        <strong className="text-white">Are you sure you want to reset?</strong> This
+                        permanently clears your learning history for{" "}
+                        <strong className="text-white">Class 11</strong> and{" "}
+                        <strong className="text-white">Class 12</strong>.
+                      </span>
+                      <span className="block">
+                        That includes every{" "}
+                        <strong className="text-white">topic, chapter, and subtopic</strong> you marked as
+                        read or complete (including Advanced lesson checks and saved progress in those
+                        classes). Other grades are not affected.
+                      </span>
+                      <span className="block">
+                        After a reset, those topics can show up again in Topic Rain and your completed
+                        list will be empty until you study them again.
+                      </span>
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 px-5 py-4">
+                    <div className="flex items-start gap-3 rounded-lg border border-white/10 bg-black/30 p-3">
+                      <Checkbox
+                        id="reset-history-ack"
+                        checked={resetAcknowledged}
+                        onCheckedChange={(v) => setResetAcknowledged(v === true)}
+                        className="mt-0.5 border-slate-400 data-[state=checked]:border-violet-500 data-[state=checked]:bg-violet-600"
+                      />
+                      <Label
+                        htmlFor="reset-history-ack"
+                        className="cursor-pointer text-sm font-medium leading-snug text-slate-200"
+                      >
+                        I have read all the information properly.
+                      </Label>
+                    </div>
+                  </div>
+                  <DialogFooter className="flex-col gap-2 border-t border-white/10 bg-slate-950/50 px-5 py-4 sm:flex-col">
+                    <div className="flex w-full flex-col gap-2 sm:flex-row sm:justify-end">
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        className="w-full sm:w-auto"
+                        disabled={
+                          isResetting || resetTimer > 0 || !resetAcknowledged
+                        }
+                        onClick={() => void confirmResetHistory()}
+                      >
+                        {isResetting ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Resetting…
+                          </>
+                        ) : resetTimer > 0 ? (
+                          <>Reset in {resetTimer}s</>
+                        ) : (
+                          <>
+                            <RotateCcw className="mr-2 h-4 w-4" />
+                            Reset history
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full border-white/20 bg-transparent text-slate-200 hover:bg-white/10 hover:text-white sm:w-auto"
+                        onClick={closeResetDialog}
+                      >
+                        Close window
+                      </Button>
+                    </div>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
 
               {/* ── Topic Rain canvas (EduBlast waterfall / trickle) ─── */}
               <div
@@ -876,6 +1330,15 @@ export default function MagicWallPage() {
                         <BookOpen className="mr-1 h-3.5 w-3.5 shrink-0" /> Start Reading
                       </Button>
                     )}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 shrink-0 rounded-lg border-red-400/55 bg-red-950/35 px-2.5 text-[11px] font-extrabold text-red-100 hover:bg-red-950/55 sm:whitespace-nowrap"
+                      onClick={() => setResetDialogOpen(true)}
+                    >
+                      <RotateCcw className="mr-1 h-3.5 w-3.5 shrink-0" /> Reset history
+                    </Button>
                     <Button
                       size="sm"
                       onClick={persistSelection}

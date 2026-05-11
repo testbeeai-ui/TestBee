@@ -1,6 +1,7 @@
 import type { TopicNode } from "@/data/topicTaxonomy";
 import type { Subject } from "@/types";
 import type { ParsedBitsAttemptRow } from "@/lib/parseBitsTestAttemptsStore";
+import { buildTopicPath } from "@/lib/topicRoutes";
 
 const SUBJECT_LABEL: Record<Subject, string> = {
   physics: "Physics",
@@ -28,6 +29,8 @@ export type ChapterCompletionRow = {
   total: number;
   /** Number of syllabus TopicNode rows grouped under this chapter. */
   topicCountInChapter: number;
+  /** Deep link to the next incomplete subtopic in syllabus order (or first subtopic if chapter is 100%). */
+  nextIncompleteSubtopicHref?: string;
 };
 
 /** Stable bucket: same class, unit, and printed chapter title. */
@@ -107,6 +110,8 @@ export type ChapterProgressSource = "bits_and_lesson" | "lesson_marked_only";
 
 export type BuildChapterCompletionRowsOptions = {
   progressSource?: ChapterProgressSource;
+  /** Board label for topic URLs (e.g. profile.board); defaults to cbse when omitted. */
+  board?: string;
 };
 
 function mergeLessonMarkedRowsIntoProgress(
@@ -232,20 +237,58 @@ function buildAggregatedChapterRowsInternal(
 
   const rows: ChapterRowWithActivity[] = [];
 
+  const boardForPath = (options?.board ?? "").trim() || "cbse";
+
   for (const [aid, nodes] of groups) {
     if (!nodes.length) continue;
     const cl = nodes[0].classLevel;
     let total = 0;
     let c = 0;
+    let nextIncompleteSubtopicHref: string | undefined;
+    let firstNode: TopicNode | null = null;
+    let firstSubtopicName: string | null = null;
+
     for (const node of nodes) {
       const subs = node.subtopics ?? [];
       for (const st of subs) {
         total++;
+        if (!firstNode) {
+          firstNode = node;
+          firstSubtopicName = st.name;
+        }
         const k = progressKey(node.subject, node.classLevel, node.topic, st.name);
-        if (completed.has(k)) c++;
+        if (completed.has(k)) {
+          c++;
+        } else if (!nextIncompleteSubtopicHref) {
+          const ch = (node.chapterTitle ?? "").trim();
+          nextIncompleteSubtopicHref = buildTopicPath(
+            boardForPath,
+            node.subject,
+            node.classLevel,
+            node.topic,
+            st.name,
+            "basics",
+            undefined,
+            ch || undefined
+          );
+        }
       }
     }
     if (total === 0) continue;
+
+    if (!nextIncompleteSubtopicHref && firstNode && firstSubtopicName) {
+      const ch0 = (firstNode.chapterTitle ?? "").trim();
+      nextIncompleteSubtopicHref = buildTopicPath(
+        boardForPath,
+        firstNode.subject,
+        firstNode.classLevel,
+        firstNode.topic,
+        firstSubtopicName,
+        "basics",
+        undefined,
+        ch0 || undefined
+      );
+    }
 
     let lastMs = lastMsByAggregate.get(aid) ?? 0;
     if (bitsCountTowardCompletion && lastMs === 0 && c > 0) lastMs = 1;
@@ -258,6 +301,7 @@ function buildAggregatedChapterRowsInternal(
       completed: c,
       total,
       topicCountInChapter: nodes.length,
+      nextIncompleteSubtopicHref,
       lastSubmittedAtMs: lastMs,
     });
   }

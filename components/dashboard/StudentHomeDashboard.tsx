@@ -5,7 +5,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserStore } from "@/store/useUserStore";
-import { parseBitsTestAttemptsStore } from "@/lib/parseBitsTestAttemptsStore";
+import {
+  parseBitsTestAttemptsStore,
+  type ParsedBitsAttemptRow,
+} from "@/lib/parseBitsTestAttemptsStore";
 import {
   activityGreenLevelFromStudyMs,
   addDaysLocal,
@@ -19,13 +22,19 @@ import {
 import { computeStudyStreakFromDayMs } from "@/lib/studyStreakClient";
 import {
   buildChapterCompletionRowsByRecentActivity,
+  normalizeCurriculumText,
   parseClassLevelsFromLessonMarkedEngagementRaw,
 } from "@/lib/dashboardChapterCompletion";
 import type { DailyChecklistApiResponse } from "@/lib/dailyChecklistState";
 import { fetchWithClientAuth, getClientApiAuthHeaders } from "@/lib/clientApiAuth";
+import { fetchMockPapersFromSupabase } from "@/lib/mockPapersFromSupabase";
+import { appendQueryParams, buildTopicOverviewPath, buildTopicPath } from "@/lib/topicRoutes";
+import { fetchAdvancedLessonCompletionKeys } from "@/lib/lessonCompletionClient";
+import { isSubtopicLessonCompleteAtAdvanced } from "@/lib/lessonCompletionRollup";
 import { EDUBLAST_STUDY_DAYS_REFRESH } from "@/lib/studyDayBumpEvents";
 import { supabase } from "@/integrations/supabase/client";
 import { useTopicTaxonomy } from "@/hooks/useTopicTaxonomy";
+import type { TopicNode } from "@/data/topicTaxonomy";
 import type { Subject, SubjectCombo } from "@/types";
 import { DEFAULT_RDM_CONFIG, fetchRdmConfig } from "@/lib/rdmConfig";
 import { EDUFUND_RDM_GATES } from "@/lib/dashboardSidebarMetrics";
@@ -39,7 +48,16 @@ import {
 } from "@/components/ui/dialog";
 import { useSitePresenceLiveMsToday } from "@/components/providers/SitePresenceProvider";
 import { cn } from "@/lib/utils";
-import { CalendarDays, CheckCircle2, Flame, LineChart, Sprout, Star } from "lucide-react";
+import {
+  CalendarDays,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  Flame,
+  LineChart,
+  Sprout,
+  Star,
+} from "lucide-react";
 
 const TOPIC_BAR_TONES = [
   "bg-emerald-500",
@@ -49,6 +67,9 @@ const TOPIC_BAR_TONES = [
   "bg-violet-500",
   "bg-cyan-500",
 ];
+
+/** Subject accuracy card: show this many chapters per page; pagination only when total exceeds this. */
+const CHAPTER_ACCURACY_PAGE_SIZE = 5;
 
 type HeatmapMode = "7" | "30";
 
@@ -61,33 +82,125 @@ function formatRemainingChecklistLabels(labels: string[]): string {
 }
 
 const MOCK_LEADERBOARD = [
-  { rank: 1, name: "Nidhi K", city: "Bengaluru", pts: 4820 },
-  { rank: 2, name: "Arjun K", city: "Mysuru", pts: 4310 },
-  { rank: 3, name: "Sneha R", city: "Mangaluru", pts: 3960 },
-  { rank: 4, name: "Vikram B", city: "Hubli", pts: 3610 },
-  { rank: 8, name: "Priya M", city: "Bengaluru", pts: 2900 },
+  { rank: 1, name: "Karthik Reddy", city: "Bengaluru", pts: 985 },
+  { rank: 2, name: "Ananya Iyer", city: "Mysuru", pts: 942 },
+  { rank: 3, name: "Siddharth Rao", city: "Mangaluru", pts: 876 },
+  { rank: 4, name: "Meghana Gowda", city: "Hubli", pts: 812 },
+  { rank: 5, name: "Praveen Kumar", city: "Davangere", pts: 790 },
 ] as const;
 
-const UPCOMING_MOCKS = [
-  {
-    title: "Chemistry — Electrochemistry full mock",
-    meta: "Today · 45 min · Adaptive · JEE pattern",
-    action: "Start now" as const,
-    tone: "border-rose-500/40",
-  },
-  {
-    title: "Mathematics — Calculus integration",
-    meta: "Tomorrow · 40 min · Adaptive · Board + JEE",
-    action: "Scheduled" as const,
-    tone: "border-violet-500/40",
-  },
-  {
-    title: "Full PUC 2 PCM mock — 3 subjects",
-    meta: "Sunday · 90 min · Full syllabus · Rank test",
-    action: "pill" as const,
-    tone: "border-blue-500/40",
-  },
-] as const;
+type UpcomingBlock = {
+  key: string;
+  title: string;
+  meta: string;
+  tone: string;
+  href: string;
+};
+
+const SUBJECT_DISPLAY: Record<Subject, string> = {
+  physics: "Physics",
+  chemistry: "Chemistry",
+  math: "Mathematics",
+};
+
+/** Subtopic is excluded from “upcoming quiz” picks if advanced lesson is marked complete or an advanced bits attempt exists. */
+function subtopicAdvancedDoneForUpcoming(
+  node: TopicNode,
+  subName: string,
+  attempts: ParsedBitsAttemptRow[],
+  lessonKeys: Set<string>,
+  boardNorm: string
+): boolean {
+  if (
+    isSubtopicLessonCompleteAtAdvanced(lessonKeys, {
+      board: boardNorm,
+      subject: node.subject,
+      classLevel: node.classLevel as 11 | 12,
+      topic: node.topic,
+      subtopicName: subName,
+    })
+  ) {
+    return true;
+  }
+  const nt = normalizeCurriculumText(node.topic);
+  const ns = normalizeCurriculumText(subName);
+  return attempts.some(
+    (r) =>
+      r.level === "advanced" &&
+      r.subject === node.subject &&
+      r.classLevel === node.classLevel &&
+      normalizeCurriculumText(r.topic) === nt &&
+      normalizeCurriculumText(r.subtopicName) === ns
+  );
+}
+
+function topicHasOpenAdvancedSubtopic(
+  node: TopicNode,
+  attempts: ParsedBitsAttemptRow[],
+  lessonKeys: Set<string>,
+  boardNorm: string
+): boolean {
+  for (const st of node.subtopics ?? []) {
+    if (!subtopicAdvancedDoneForUpcoming(node, st.name, attempts, lessonKeys, boardNorm)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function pickRandomUnique<T>(items: T[], count: number): T[] {
+  const pool = [...items];
+  const out: T[] = [];
+  while (out.length < count && pool.length > 0) {
+    const i = Math.floor(Math.random() * pool.length);
+    out.push(pool.splice(i, 1)[0]!);
+  }
+  return out;
+}
+
+function pickRandomOpenSubtopicName(
+  node: TopicNode,
+  attempts: ParsedBitsAttemptRow[],
+  lessonKeys: Set<string>,
+  boardNorm: string
+): string | null {
+  const open = (node.subtopics ?? []).filter(
+    (st) => !subtopicAdvancedDoneForUpcoming(node, st.name, attempts, lessonKeys, boardNorm)
+  );
+  if (open.length === 0) return null;
+  return open[Math.floor(Math.random() * open.length)]!.name;
+}
+
+/** Up to two topics for dashboard quiz cards; prefers two different PCM subjects when pools allow. */
+function pickTwoQuizTopicsDistinctSubject(candidates: TopicNode[]): TopicNode[] {
+  const pools: Record<Subject, TopicNode[]> = {
+    physics: [],
+    chemistry: [],
+    math: [],
+  };
+  for (const n of candidates) {
+    pools[n.subject].push(n);
+  }
+  const available = (["physics", "chemistry", "math"] as const).filter((s) => pools[s].length > 0);
+  if (available.length >= 2) {
+    const order = [...available];
+    for (let i = order.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const tmp = order[i]!;
+      order[i] = order[j]!;
+      order[j] = tmp;
+    }
+    const s0 = order[0]!;
+    const s1 = order[1]!;
+    const p0 = pools[s0];
+    const p1 = pools[s1];
+    return [
+      p0[Math.floor(Math.random() * p0.length)]!,
+      p1[Math.floor(Math.random() * p1.length)]!,
+    ];
+  }
+  return pickRandomUnique(candidates, Math.min(2, candidates.length));
+}
 
 function greenCellClass(level: 0 | 1 | 2 | 3, isToday: boolean): string {
   const ring = isToday ? "ring-2 ring-teal-400 ring-offset-2 ring-offset-background" : "";
@@ -113,7 +226,7 @@ function heatmapLoadingCellClass(isToday: boolean): string {
 
 export default function StudentHomeDashboard() {
   const router = useRouter();
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   const storeUser = useUserStore((s) => s.user);
   const [heatmapMode, setHeatmapMode] = useState<HeatmapMode>("7");
   const [studyMsByDay, setStudyMsByDay] = useState<Map<string, number>>(() => new Map());
@@ -131,6 +244,13 @@ export default function StudentHomeDashboard() {
   const [studyStreakBonusRdm, setStudyStreakBonusRdm] = useState(
     DEFAULT_RDM_CONFIG.study_streak_bonus_rdm
   );
+  /** Sum of RDM from tracked claims in the last 7 IST days (see /api/user/rdm-recent-by-activity). */
+  const [rdmEarnedThisWeek, setRdmEarnedThisWeek] = useState<number | null>(null);
+  const [rdmWeeklyLoadState, setRdmWeeklyLoadState] = useState<
+    "idle" | "loading" | "ready" | "error"
+  >("idle");
+  /** Mock + 2 advanced quiz suggestions (randomized on load / when deps change). */
+  const [upcomingBlocks, setUpcomingBlocks] = useState<UpcomingBlock[] | null>(null);
   /** After first successful fetch, refetches stay quiet (no greeting/stat "…" flicker). */
   const studyDaysCommittedRef = useRef(false);
   const {
@@ -178,6 +298,20 @@ export default function StudentHomeDashboard() {
   }, []);
 
   const rdm = profile?.rdm ?? storeUser?.rdm ?? 0;
+
+  const edufundProgressData = useMemo(() => {
+    const wallet = Math.max(0, Math.floor(Number(rdm) || 0));
+    const nextGate = EDUFUND_RDM_GATES.find((g) => wallet < g.need);
+    if (!nextGate) {
+      return { displayPrimary: "100%" as const, displaySuffix: null as string | null };
+    }
+    const pct = Math.min(100, Math.round((wallet / nextGate.need) * 100));
+    return {
+      displayPrimary: `${pct}%` as const,
+      displaySuffix: ` (to ${nextGate.name})` as const,
+    };
+  }, [rdm]);
+
   const edufundTiers = useMemo(() => {
     const wallet = Math.max(0, Math.floor(Number(rdm) || 0));
     const tierGates = EDUFUND_RDM_GATES.slice(0, 3);
@@ -207,6 +341,44 @@ export default function StudentHomeDashboard() {
       };
     });
   }, [rdm]);
+
+  useEffect(() => {
+    if (!profile?.id) {
+      startTransition(() => {
+        setRdmEarnedThisWeek(null);
+        setRdmWeeklyLoadState("idle");
+      });
+      return;
+    }
+    let cancelled = false;
+    startTransition(() => {
+      setRdmWeeklyLoadState("loading");
+    });
+    void (async () => {
+      try {
+        const headers = await getClientApiAuthHeaders();
+        const res = await fetch("/api/user/rdm-recent-by-activity?days=7", { headers });
+        if (cancelled) return;
+        if (!res.ok) {
+          setRdmEarnedThisWeek(null);
+          setRdmWeeklyLoadState("error");
+          return;
+        }
+        const json = (await res.json()) as { totalInWindow?: number };
+        const total = Math.max(0, Math.floor(Number(json.totalInWindow) || 0));
+        setRdmEarnedThisWeek(total);
+        setRdmWeeklyLoadState("ready");
+      } catch {
+        if (!cancelled) {
+          setRdmEarnedThisWeek(null);
+          setRdmWeeklyLoadState("error");
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [profile?.id]);
 
   const streakDays = streakSummary?.streak ?? 0;
   const activeDaysThisMonth = streakSummary?.activeDaysThisMonth ?? 0;
@@ -315,6 +487,160 @@ export default function StudentHomeDashboard() {
   const subjectCombo = (storeUser?.subjectCombo ?? profile?.subject_combo ?? "PCM") as SubjectCombo;
   const dashboardSubjects: Subject[] = useMemo(() => ["physics", "chemistry", "math"], []);
 
+  const boardNormForUpcomingLessons = useMemo(
+    () => String(storeUser?.board ?? profile?.board ?? "cbse").trim().toLowerCase(),
+    [storeUser?.board, profile?.board]
+  );
+
+  const [advancedLessonKeys, setAdvancedLessonKeys] = useState<Set<string>>(() => new Set());
+
+  useEffect(() => {
+    if (!user?.id) {
+      startTransition(() => {
+        setAdvancedLessonKeys(new Set());
+      });
+      return;
+    }
+    const effectiveClass: 11 | 12 = classLevelNum === 12 ? 12 : 11;
+    let cancelled = false;
+    void (async () => {
+      const subjects: Subject[] = ["physics", "chemistry", "math"];
+      const results = await Promise.all(
+        subjects.map((subject) =>
+          fetchAdvancedLessonCompletionKeys({
+            subject,
+            classLevel: effectiveClass,
+            board: boardNormForUpcomingLessons,
+          })
+        )
+      );
+      if (cancelled) return;
+      const merged = new Set<string>();
+      for (const s of results) {
+        for (const k of s) merged.add(k);
+      }
+      setAdvancedLessonKeys(merged);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, classLevelNum, boardNormForUpcomingLessons]);
+
+  useEffect(() => {
+    if (taxonomyLoading) {
+      startTransition(() => {
+        setUpcomingBlocks(null);
+      });
+      return;
+    }
+    const effectiveClass: 11 | 12 = classLevelNum === 12 ? 12 : 11;
+    const board = String(storeUser?.board ?? profile?.board ?? "cbse").trim() || "cbse";
+    const subjects: Subject[] = ["physics", "chemistry", "math"];
+
+    const candidates = fullTaxonomy.filter(
+      (n) =>
+        subjects.includes(n.subject) &&
+        n.classLevel === effectiveClass &&
+        (n.subtopics?.length ?? 0) > 0 &&
+        topicHasOpenAdvancedSubtopic(n, bitsAttemptRows, advancedLessonKeys, boardNormForUpcomingLessons)
+    );
+
+    let cancelled = false;
+    void (async () => {
+      let papers: Awaited<ReturnType<typeof fetchMockPapersFromSupabase>> = [];
+      try {
+        papers = await fetchMockPapersFromSupabase();
+      } catch {
+        papers = [];
+      }
+      if (cancelled) return;
+
+      const withSlug = papers.filter((p) => typeof p.slug === "string" && p.slug.trim().length > 0);
+      const randomPaper =
+        withSlug.length > 0 ? withSlug[Math.floor(Math.random() * withSlug.length)]! : null;
+
+      const pickedTopics = pickTwoQuizTopicsDistinctSubject(candidates);
+
+      const blocks: UpcomingBlock[] = [];
+
+      if (randomPaper?.slug) {
+        blocks.push({
+          key: `mock-${randomPaper.slug}`,
+          title: randomPaper.title,
+          meta: `${randomPaper.durationMinutes} min · ${randomPaper.questionsCount} questions · ${randomPaper.difficulty}`,
+          tone: "border-rose-500/40",
+          href: `/mock?paper=${encodeURIComponent(randomPaper.slug)}`,
+        });
+      } else {
+        blocks.push({
+          key: "mock-fallback",
+          title: "Timed mock test",
+          meta: "Browse the mock library and start a paper",
+          tone: "border-rose-500/40",
+          href: "/mock",
+        });
+      }
+
+      const quizTones = ["border-violet-500/40", "border-blue-500/40"] as const;
+      pickedTopics.forEach((node, idx) => {
+        const subName = pickRandomOpenSubtopicName(
+          node,
+          bitsAttemptRows,
+          advancedLessonKeys,
+          boardNormForUpcomingLessons
+        );
+        const lessonPath =
+          subName != null
+            ? buildTopicPath(
+                board,
+                node.subject,
+                node.classLevel,
+                node.topic,
+                subName,
+                "advanced",
+                "random",
+                node.chapterTitle
+              )
+            : buildTopicOverviewPath(
+                board,
+                node.subject,
+                node.classLevel,
+                node.topic,
+                "advanced",
+                "random",
+                node.chapterTitle
+              );
+        const href = appendQueryParams(lessonPath, {
+          panel: "quiz",
+          quizSet: "1",
+          openQuiz: "1",
+        });
+        blocks.push({
+          key: `adv-quiz-${node.subject}-${node.classLevel}-${normalizeCurriculumText(node.topic)}-${normalizeCurriculumText(subName ?? "overview")}`,
+          title: `${SUBJECT_DISPLAY[node.subject]} — ${node.topic}`,
+          meta: `Advanced quiz · Class ${node.classLevel} · Start opens a random subtopic you have not finished at Advanced`,
+          tone: quizTones[Math.min(idx, 1)]!,
+          href,
+        });
+      });
+
+      if (!cancelled) setUpcomingBlocks(blocks);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    fullTaxonomy,
+    taxonomyLoading,
+    bitsAttemptRows,
+    profile?.board,
+    storeUser?.board,
+    classLevelNum,
+    advancedLessonKeys,
+    boardNormForUpcomingLessons,
+  ]);
+
   /**
    * Subject accuracy uses only Lessons/Progress “Marked completed”; scope taxonomy to
    * class levels where that exists (otherwise fall back to the learner’s selected class).
@@ -346,14 +672,36 @@ export default function StudentHomeDashboard() {
       [...submittedBitsKeys],
       profile?.subtopic_engagement ?? null,
       6,
-      { progressSource: "lesson_marked_only" }
+      {
+        progressSource: "lesson_marked_only",
+        board: profile?.board?.trim() || "cbse",
+      }
     );
   }, [
     taxonomyForChapterAccuracy,
     bitsAttemptRows,
     submittedBitsKeys,
     profile?.subtopic_engagement,
+    profile?.board,
   ]);
+
+  const [chapterAccuracyPageIdx, setChapterAccuracyPageIdx] = useState(0);
+
+  const chapterAccuracyPageCount = useMemo(
+    () => Math.max(1, Math.ceil(chapterRows.length / CHAPTER_ACCURACY_PAGE_SIZE)),
+    [chapterRows.length]
+  );
+
+  /** Clamp when chapter list shrinks so we never point past the last page. */
+  const effectiveChapterPageIdx = Math.min(
+    chapterAccuracyPageIdx,
+    Math.max(0, chapterAccuracyPageCount - 1)
+  );
+
+  const chapterRowsVisible = useMemo(() => {
+    const start = effectiveChapterPageIdx * CHAPTER_ACCURACY_PAGE_SIZE;
+    return chapterRows.slice(start, start + CHAPTER_ACCURACY_PAGE_SIZE);
+  }, [chapterRows, effectiveChapterPageIdx]);
 
   const [dailyChecklist, setDailyChecklist] = useState<DailyChecklistApiResponse | null>(null);
   const [dailyChecklistStatus, setDailyChecklistStatus] = useState<
@@ -728,22 +1076,33 @@ export default function StudentHomeDashboard() {
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[
           {
-            label: "RDM RANK",
-            value: "#14",
-            sub: "+ Up 3 places this week",
-            subClass: "text-emerald-500",
+            label: "RDM EARNED",
+            value: !profile?.id
+              ? "—"
+              : rdmWeeklyLoadState === "loading"
+                ? "…"
+                : rdmWeeklyLoadState === "error"
+                  ? "—"
+                  : `+${(rdmEarnedThisWeek ?? 0).toLocaleString("en-IN")}`,
+            sub: !profile?.id
+              ? "Sign in to track weekly RDM"
+              : rdmWeeklyLoadState === "error"
+                ? "Could not load this week's earnings"
+                : "this week",
+            subClass: "text-muted-foreground",
           },
           {
             label: "RDM BALANCE",
-            value: rdm.toLocaleString(),
-            sub: "+210 this week",
-            subClass: "text-emerald-500",
+            value: rdm.toLocaleString("en-IN"),
+            sub: "available",
+            subClass: "text-muted-foreground",
           },
           {
-            label: "AVG MOCK SCORE",
-            value: "78%",
-            sub: "+6% from last mock",
-            subClass: "text-emerald-500",
+            label: "EDUFUND PROGRESS",
+            value: edufundProgressData.displayPrimary,
+            valueSuffix: edufundProgressData.displaySuffix ?? undefined,
+            sub: "",
+            subClass: "text-muted-foreground",
           },
           {
             label: "STUDY STREAK",
@@ -769,8 +1128,17 @@ export default function StudentHomeDashboard() {
             className="rounded-2xl border border-border/70 bg-card/90 p-4 shadow-sm dark:bg-slate-950/60"
           >
             <p className="text-[10px] font-bold tracking-widest text-muted-foreground">{c.label}</p>
-            <p className="mt-1 text-2xl font-extrabold tabular-nums text-foreground">{c.value}</p>
-            <p className={cn("mt-1 text-xs font-semibold", c.subClass)}>{c.sub}</p>
+            <p className="mt-1 text-2xl font-extrabold tabular-nums text-foreground">
+              {c.value}
+              {"valueSuffix" in c && c.valueSuffix ? (
+                <span className="text-sm font-semibold text-muted-foreground tabular-nums">
+                  {c.valueSuffix}
+                </span>
+              ) : null}
+            </p>
+            {c.sub ? (
+              <p className={cn("mt-1 text-xs font-semibold", c.subClass)}>{c.sub}</p>
+            ) : null}
           </div>
         ))}
       </section>
@@ -1127,54 +1495,131 @@ export default function StudentHomeDashboard() {
               chapters show here with real X/total subtopics (quizzes alone do not count).
             </p>
           ) : (
-            <ul className="space-y-3">
-              {chapterRows.map((row, i) => (
-                <li key={row.label}>
-                  <div className="mb-1 flex justify-between text-sm font-semibold">
-                    <span>{row.label}</span>
-                    <span>{row.completionPct}%</span>
-                  </div>
-                  <p className="mb-1 text-[11px] text-muted-foreground">
-                    {row.completed}/{row.total} subtopics marked · {row.topicCountInChapter} topic
-                    {row.topicCountInChapter === 1 ? "" : "s"} in this chapter
-                  </p>
-                  <div className="h-2 overflow-hidden rounded-full bg-muted">
-                    <div
-                      className={cn(
-                        "h-full rounded-full transition-all",
-                        TOPIC_BAR_TONES[i % TOPIC_BAR_TONES.length]
+            <>
+              <ul className="space-y-3">
+                {chapterRowsVisible.map((row, i) => {
+                  const toneIdx =
+                    effectiveChapterPageIdx * CHAPTER_ACCURACY_PAGE_SIZE + i;
+                  const rowBody = (
+                    <>
+                      <div className="mb-1 flex justify-between text-sm font-semibold">
+                        <span>{row.label}</span>
+                        <span>{row.completionPct}%</span>
+                      </div>
+                      <p className="mb-1 text-[11px] text-muted-foreground">
+                        {row.completed}/{row.total} subtopics marked · {row.topicCountInChapter}{" "}
+                        topic
+                        {row.topicCountInChapter === 1 ? "" : "s"} in this chapter
+                      </p>
+                      <div className="h-2 overflow-hidden rounded-full bg-muted">
+                        <div
+                          className={cn(
+                            "h-full rounded-full transition-all",
+                            TOPIC_BAR_TONES[toneIdx % TOPIC_BAR_TONES.length]
+                          )}
+                          style={{ width: `${row.completionPct}%` }}
+                        />
+                      </div>
+                    </>
+                  );
+                  return (
+                    <li key={row.label}>
+                      {row.nextIncompleteSubtopicHref ? (
+                        <Link
+                          href={row.nextIncompleteSubtopicHref}
+                          className="-mx-1 block cursor-pointer rounded-xl px-1 py-1.5 transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                          {rowBody}
+                        </Link>
+                      ) : (
+                        rowBody
                       )}
-                      style={{ width: `${row.completionPct}%` }}
-                    />
+                    </li>
+                  );
+                })}
+              </ul>
+              {chapterRows.length > CHAPTER_ACCURACY_PAGE_SIZE ? (
+                <div className="mt-3 flex flex-col gap-2.5 border-t border-border/60 pt-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                  <p className="text-[11px] text-muted-foreground tabular-nums">
+                    Showing{" "}
+                    {effectiveChapterPageIdx * CHAPTER_ACCURACY_PAGE_SIZE + 1}–
+                    {Math.min(
+                      (effectiveChapterPageIdx + 1) * CHAPTER_ACCURACY_PAGE_SIZE,
+                      chapterRows.length
+                    )}{" "}
+                    of {chapterRows.length} chapters
+                  </p>
+                  <div className="flex items-center justify-between gap-2 sm:justify-end">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 flex-1 rounded-lg px-3 text-xs font-semibold sm:flex-initial"
+                      disabled={effectiveChapterPageIdx <= 0}
+                      onClick={() =>
+                        setChapterAccuracyPageIdx((p) => {
+                          const e = Math.min(p, Math.max(0, chapterAccuracyPageCount - 1));
+                          return Math.max(0, e - 1);
+                        })
+                      }
+                      aria-label="Previous chapters"
+                    >
+                      <ChevronLeft className="mr-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                      Previous
+                    </Button>
+                    <span className="min-w-[5rem] text-center text-[11px] font-semibold tabular-nums text-muted-foreground">
+                      {effectiveChapterPageIdx + 1} / {chapterAccuracyPageCount}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 flex-1 rounded-lg px-3 text-xs font-semibold sm:flex-initial"
+                      disabled={effectiveChapterPageIdx >= chapterAccuracyPageCount - 1}
+                      onClick={() =>
+                        setChapterAccuracyPageIdx((p) => {
+                          const e = Math.min(p, Math.max(0, chapterAccuracyPageCount - 1));
+                          return Math.min(chapterAccuracyPageCount - 1, e + 1);
+                        })
+                      }
+                      aria-label="Next chapters"
+                    >
+                      Next
+                      <ChevronRight className="ml-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                    </Button>
                   </div>
-                </li>
-              ))}
-            </ul>
+                </div>
+              ) : null}
+            </>
           )}
           {lowestChapter && lowestChapter.completionPct < 100 ? (
-            <div className="mt-4 rounded-xl border border-rose-500/40 bg-rose-500/5 p-3 text-sm text-rose-200">
-              Needs attention: {lowestChapter.label} at {lowestChapter.completionPct}% (
-              {lowestChapter.completed}/{lowestChapter.total} subtopics across{" "}
-              {lowestChapter.topicCountInChapter} topic
-              {lowestChapter.topicCountInChapter === 1 ? "" : "s"}) — schedule revision or a
-              targeted mock on this chapter.
-            </div>
+            lowestChapter.nextIncompleteSubtopicHref ? (
+              <Link
+                href={lowestChapter.nextIncompleteSubtopicHref}
+                className="mt-4 block cursor-pointer rounded-xl border border-rose-500/40 bg-rose-500/5 p-3 text-sm text-rose-200 transition-colors hover:bg-rose-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                Needs attention: {lowestChapter.label} at {lowestChapter.completionPct}% (
+                {lowestChapter.completed}/{lowestChapter.total} subtopics across{" "}
+                {lowestChapter.topicCountInChapter} topic
+                {lowestChapter.topicCountInChapter === 1 ? "" : "s"}) — schedule revision or a
+                targeted mock on this chapter.
+              </Link>
+            ) : (
+              <div className="mt-4 rounded-xl border border-rose-500/40 bg-rose-500/5 p-3 text-sm text-rose-200">
+                Needs attention: {lowestChapter.label} at {lowestChapter.completionPct}% (
+                {lowestChapter.completed}/{lowestChapter.total} subtopics across{" "}
+                {lowestChapter.topicCountInChapter} topic
+                {lowestChapter.topicCountInChapter === 1 ? "" : "s"}) — schedule revision or a
+                targeted mock on this chapter.
+              </div>
+            )
           ) : null}
         </div>
 
         <div className="rounded-2xl border border-border bg-card/90 p-4 shadow-sm dark:bg-slate-950/60">
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <Star className="h-5 w-5 text-amber-500" />
-              <h2 className="text-lg font-bold">Karnataka leaderboard</h2>
-            </div>
-            <button
-              type="button"
-              title="Mock data — live rankings when monetization ships"
-              className="text-xs font-bold text-emerald-500 hover:underline"
-            >
-              See all 38,000 →
-            </button>
+          <div className="mb-2 flex items-center gap-2">
+            <Star className="h-5 w-5 text-amber-500" />
+            <h2 className="text-lg font-bold">Leaderboard</h2>
           </div>
           <ul className="divide-y divide-border/60">
             {MOCK_LEADERBOARD.map((row) => (
@@ -1195,28 +1640,7 @@ export default function StudentHomeDashboard() {
                 </span>
               </li>
             ))}
-            <li className="flex items-center gap-3 py-2.5 text-sm ring-2 ring-emerald-500/30 ring-inset rounded-lg px-1 -mx-1">
-              <span className="w-6 font-bold text-muted-foreground">14</span>
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-500/20 text-xs font-bold text-emerald-600">
-                You
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-semibold">
-                  You — {storeUser?.name ?? profile?.name ?? "You"}{" "}
-                  <span className="ml-1 rounded bg-emerald-500/20 px-1.5 text-[10px] font-bold text-emerald-600">
-                    YOU
-                  </span>
-                </p>
-                <p className="text-xs text-muted-foreground">Bengaluru</p>
-              </div>
-              <span className="font-mono text-sm font-bold tabular-nums">
-                {rdm.toLocaleString()}
-              </span>
-            </li>
           </ul>
-          <p className="mt-2 text-xs text-muted-foreground">
-            310 points to reach top 10 · Keep your streak going (illustrative)
-          </p>
         </div>
       </section>
 
@@ -1238,45 +1662,47 @@ export default function StudentHomeDashboard() {
                 <CalendarDays className="h-4 w-4 text-muted-foreground" />
                 <h3 className="font-bold">Upcoming Testbee mocks</h3>
               </div>
-              <span className="text-xs font-bold text-muted-foreground">All mocks →</span>
+              <Link href="/mock" className="text-xs font-bold text-muted-foreground hover:underline">
+                All mocks →
+              </Link>
             </div>
             <ul className="space-y-3">
-              {UPCOMING_MOCKS.map((m) => (
-                <li
-                  key={m.title}
-                  className={cn(
-                    "rounded-xl border bg-background/60 p-3 dark:bg-slate-900/50",
-                    m.tone
-                  )}
-                >
-                  <p className="font-semibold leading-snug">{m.title}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{m.meta}</p>
-                  <div className="mt-2">
-                    {m.action === "Start now" ? (
+              {upcomingBlocks === null ? (
+                <>
+                  {[0, 1, 2].map((i) => (
+                    <li
+                      key={`upcoming-skel-${i}`}
+                      className="animate-pulse rounded-xl border border-border/60 bg-muted/15 p-3"
+                    >
+                      <div className="h-4 max-w-[78%] rounded bg-muted" />
+                      <div className="mt-2 h-3 max-w-[52%] rounded bg-muted" />
+                      <div className="mt-3 h-8 w-24 rounded-full bg-muted" />
+                    </li>
+                  ))}
+                </>
+              ) : (
+                upcomingBlocks.map((m) => (
+                  <li
+                    key={m.key}
+                    className={cn(
+                      "rounded-xl border bg-background/60 p-3 dark:bg-slate-900/50",
+                      m.tone
+                    )}
+                  >
+                    <p className="font-semibold leading-snug">{m.title}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{m.meta}</p>
+                    <div className="mt-2">
                       <Button
                         size="sm"
                         className="rounded-full font-bold"
-                        onClick={() => router.push("/mock")}
+                        onClick={() => router.push(m.href)}
                       >
                         Start now
                       </Button>
-                    ) : m.action === "Scheduled" ? (
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        disabled
-                        className="rounded-full font-bold"
-                      >
-                        Scheduled
-                      </Button>
-                    ) : (
-                      <span className="inline-block rounded-full border border-border px-2 py-1 text-[11px] font-bold text-muted-foreground">
-                        Sat 19 Apr
-                      </span>
-                    )}
-                  </div>
-                </li>
-              ))}
+                    </div>
+                  </li>
+                ))
+              )}
             </ul>
           </div>
 

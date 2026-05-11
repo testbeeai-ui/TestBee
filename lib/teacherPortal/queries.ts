@@ -2391,7 +2391,9 @@ export async function createClassroomAssignment(
         ? {
             ...t,
             label: mock.title,
-            href: mock.slug ? `/mock?paper=${encodeURIComponent(mock.slug)}` : "/mock",
+            href: mock.slug
+              ? `/mock-test-library?paper=${encodeURIComponent(mock.slug)}`
+              : "/mock-test-library",
           }
         : t
     );
@@ -2403,7 +2405,9 @@ export async function createClassroomAssignment(
         ? {
             ...t,
             label: past.title,
-            href: past.slug ? `/mock?paper=${encodeURIComponent(past.slug)}` : "/mock",
+            href: past.slug
+              ? `/mock-test-library?paper=${encodeURIComponent(past.slug)}`
+              : "/mock-test-library",
           }
         : t
     );

@@ -3,6 +3,7 @@
 import { ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserStore } from "@/store/useUserStore";
 import {
@@ -45,7 +46,8 @@ const EDUBLAST_WORDMARK_SRC = "/images/logo-2.png";
 
 /** Prep + Mock hub: highlight when user is on mock, revision, or class flows (Exam Prep removed from top nav). */
 function isPrepMockActive(pathname: string): boolean {
-  if (pathname === "/mock" || pathname === "/exam-prep") return true;
+  if (pathname === "/mock" || pathname === "/mock-test-library" || pathname === "/exam-prep")
+    return true;
   if (pathname === "/classrooms" || pathname === "/revision") return true;
   if (pathname.startsWith("/classroom/")) return true;
   return false;
@@ -64,7 +66,7 @@ const studentNavItems: AppNavItem[] = [
   { path: "/home", icon: LayoutDashboard, label: "Dashboard", emoji: "📊" },
   { path: "/magic-wall", icon: Sparkles, label: "Magic Wall", emoji: "✨" },
   { path: EXPLORE_APP_PATH, icon: Compass, label: "Lessons", emoji: "🧭" },
-  { path: "/mock", icon: GraduationCap, label: "Prep + Mock", emoji: "🎓" },
+  { path: "/mock-test-library", icon: GraduationCap, label: "Prep + Mock", emoji: "🎓" },
   { path: "/doubts", icon: HelpCircle, label: "Gyan++", emoji: "💡" },
   { path: "/refer-earn", icon: Gift, label: "Earn & Learn", emoji: "🎁" },
   { path: "/edufund", icon: Heart, label: "EduFund", emoji: "💛" },
@@ -112,14 +114,17 @@ const AppLayout = ({
                 href={isTeacher ? TEACHER_PORTAL_CLASSROOMS_URL : "/home"}
                 className="relative z-10 flex shrink-0 items-center hover:opacity-80 transition-opacity"
               >
-                <img
+                <Image
                   src={EDUBLAST_WORDMARK_SRC}
                   alt="EduBlast"
+                  width={320}
+                  height={90}
+                  priority
+                  draggable={false}
                   className={cn(
                     "h-12 w-auto origin-left sm:h-[52px] 2xl:h-14",
                     "scale-[1.09] sm:scale-[1.05] 2xl:scale-[1.05]"
                   )}
-                  draggable={false}
                 />
               </Link>
 
@@ -129,7 +134,7 @@ const AppLayout = ({
                   const linkHref = itemHref ?? path;
                   const isActive =
                     pathname === path ||
-                    (path === "/mock" && isPrepMockActive(pathname)) ||
+                    (path === "/mock-test-library" && isPrepMockActive(pathname)) ||
                     (path === "/edufund" &&
                       (pathname === "/edufund" || pathname.startsWith("/edufund/")));
                   return (
@@ -203,7 +208,7 @@ const AppLayout = ({
                   const linkHref = itemHref ?? path;
                   const isActive =
                     pathname === path ||
-                    (path === "/mock" && isPrepMockActive(pathname)) ||
+                    (path === "/mock-test-library" && isPrepMockActive(pathname)) ||
                     (path === "/edufund" &&
                       (pathname === "/edufund" || pathname.startsWith("/edufund/")));
                   return (

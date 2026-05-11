@@ -117,6 +117,8 @@ export default function ConceptFocusAssignmentFields({
 
   const chevronCls =
     "pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500 sm:right-3 sm:h-4 sm:w-4";
+  /** Hide native select chevron so only our icon shows (avoid double arrows). */
+  const selectWithChevronClass = `${selectClassName} appearance-none pr-9 sm:pr-10`;
 
   return (
     <div className="rounded-lg border border-white/5 bg-black/25 p-1.5 sm:p-2">
@@ -155,7 +157,7 @@ export default function ConceptFocusAssignmentFields({
                     subtopicName: null,
                   });
                 }}
-                className={selectClassName}
+                className={selectWithChevronClass}
               >
                 <option value="">Select class…</option>
                 <option value="11">Class 11 (PUC 1)</option>
@@ -213,7 +215,7 @@ export default function ConceptFocusAssignmentFields({
                     const ch = e.target.value || null;
                     patch({ chapterTitle: ch, topicIndex: null, subtopicName: null });
                   }}
-                  className={selectClassName}
+                  className={selectWithChevronClass}
                 >
                   <option value="">Select chapter…</option>
                   {chapters.map((ch) => (
@@ -241,7 +243,7 @@ export default function ConceptFocusAssignmentFields({
                         subtopicName: null,
                       });
                     }}
-                    className={selectClassName}
+                    className={selectWithChevronClass}
                   >
                     <option value="">Select topic…</option>
                     {topicRows.map((row, i) => (
@@ -284,7 +286,7 @@ export default function ConceptFocusAssignmentFields({
                       subtopicName: e.target.value || null,
                     })
                   }
-                  className={selectClassName}
+                  className={selectWithChevronClass}
                 >
                   <option value="">Select subtopic…</option>
                   {subtopicOptions.map((st) => (

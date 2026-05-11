@@ -3,7 +3,7 @@
 export const dynamic = "force-dynamic";
 
 import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import AppLayout from "@/components/AppLayout";
 import { useUserStore } from "@/store/useUserStore";
@@ -352,7 +352,13 @@ function formatTime(seconds: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-function MockPageContent() {
+export type MockPageContentProps = {
+  /** When true, opens straight to the mock test library (past / mock / quick) and “Back” returns to the student dashboard. */
+  libraryStandalone?: boolean;
+};
+
+export function MockPageContent({ libraryStandalone = false }: MockPageContentProps = {}) {
+  const router = useRouter();
   const { toast } = useToast();
   const { user: authUser, session, profile, refreshProfile } = useAuth();
   const setRdmFromProfile = useUserStore((s) => s.setRdmFromProfile);
@@ -373,7 +379,7 @@ function MockPageContent() {
 
   const subjects: Subject[] = useMemo(() => ["physics", "chemistry", "math"], []);
 
-  const [view, setView] = useState<View>("landing");
+  const [view, setView] = useState<View>(() => (libraryStandalone ? "setup" : "landing"));
   const [duration, setDuration] = useState<number>(90);
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
   const [libraryCollectionTab, setLibraryCollectionTab] = useState<LibraryCollectionTab>("past");
@@ -706,7 +712,7 @@ function MockPageContent() {
         if (!paper || !source) return;
 
         // Jump straight into the NTA instructions flow (not the Prep+Mock dashboard sections).
-        openNtaInstructionsForPaper(paper, source, "landing");
+        openNtaInstructionsForPaper(paper, source, libraryStandalone ? "setup" : "landing");
       } catch {
         // Silent: deep link should not break the page
       }
@@ -722,6 +728,7 @@ function MockPageContent() {
     mockCatalogPapers,
     isReviewMode,
     openNtaInstructionsForPaper,
+    libraryStandalone,
   ]);
 
   // Intentionally disable cross-user review via query params (security).
@@ -759,6 +766,12 @@ function MockPageContent() {
       setView("setup");
     }
   }, [initialViewParam]);
+
+  /** Standalone library URL has no prep dashboard; keep users in the library shell. */
+  useEffect(() => {
+    if (!libraryStandalone) return;
+    if (view === "landing") setView("setup");
+  }, [libraryStandalone, view]);
 
   const mockPapersByClassLevel = useMemo(() => {
     const userLevel = user?.classLevel ?? 12;
@@ -1418,7 +1431,13 @@ function MockPageContent() {
             >
               <button
                 type="button"
-                onClick={() => setView("landing")}
+                onClick={() => {
+                  if (libraryStandalone) {
+                    router.push("/home");
+                  } else {
+                    setView("landing");
+                  }
+                }}
                 className="flex items-center gap-2 text-sm font-bold text-muted-foreground transition-colors hover:text-foreground"
               >
                 <ArrowLeft className="h-4 w-4" /> Back to dashboard
@@ -2124,7 +2143,7 @@ function MockPageContent() {
                   variant="outline"
                   className="rounded-xl font-bold"
                   onClick={() => {
-                    setView("landing");
+                    setView(libraryStandalone ? "setup" : "landing");
                     setQuestions([]);
                     setAnswers({});
                     setActiveExamTitle(null);

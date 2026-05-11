@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { RotateCcw, ArrowRight } from "lucide-react";
 import type { SavedRevisionCard } from "@/types";
@@ -8,6 +8,7 @@ import { incrementPrepCalendarDay, localDayISO } from "@/lib/prepCalendarClient"
 import { useUserStore } from "@/store/useUserStore";
 import { cn } from "@/lib/utils";
 import { REVISION_DASHBOARD_ROW_STYLES, REVISION_NAV_LINKS } from "@/lib/revisionNavAccents";
+import { fetchSavedQuestionRows } from "@/lib/savedQuestionsService";
 
 interface RevisionInstaCueSectionProps {
   cards: SavedRevisionCard[];
@@ -24,10 +25,37 @@ export default function RevisionInstaCueSection({
 }: RevisionInstaCueSectionProps) {
   const user = useUserStore((s) => s.user);
   const revisionLoggedRef = useRef(false);
+  /** Same source as /revision Saved Questions tab (DB + local store merge). */
+  const [savedQuestionIdsFromDb, setSavedQuestionIdsFromDb] = useState<string[]>([]);
+
+  const savedQuestionsStoreKey = useMemo(
+    () => (user?.savedQuestions ?? []).slice().sort().join("\0"),
+    [user?.savedQuestions]
+  );
+
+  useEffect(() => {
+    if (!userId) {
+      startTransition(() => {
+        setSavedQuestionIdsFromDb([]);
+      });
+      return;
+    }
+    let cancelled = false;
+    void fetchSavedQuestionRows(userId)
+      .then((rows) => {
+        if (!cancelled) setSavedQuestionIdsFromDb(rows.map((r) => r.question_id));
+      })
+      .catch(() => {
+        if (!cancelled) setSavedQuestionIdsFromDb([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, savedQuestionsStoreKey]);
 
   const navItems = useMemo(() => {
     const savedIds = user?.savedQuestions ?? [];
-    const savedQ = new Set(savedIds).size;
+    const savedQ = new Set([...savedQuestionIdsFromDb, ...savedIds]).size;
     const bits = user?.savedBits?.length ?? 0;
     const formulas = user?.savedFormulas?.length ?? 0;
     const instacue = user?.savedRevisionCards?.length ?? cards.length;
@@ -44,7 +72,7 @@ export default function RevisionInstaCueSection({
       ...item,
       count: countById[item.id] ?? 0,
     }));
-  }, [user, cards.length]);
+  }, [user, cards.length, savedQuestionIdsFromDb]);
 
   useEffect(() => {
     if (cards.length === 0) {
