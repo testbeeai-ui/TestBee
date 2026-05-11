@@ -143,6 +143,50 @@ export async function POST(request: Request) {
       .eq("id", user.id);
     if (writeErr) return NextResponse.json({ error: writeErr.message }, { status: 500 });
 
+    if (level === "advanced") {
+      const boardNorm = normalizeKeyPart(board, 40);
+      const marked =
+        typeof snapshot.lessonChecklistMarkedCompleteAt === "string"
+          ? snapshot.lessonChecklistMarkedCompleteAt.trim()
+          : "";
+      if (marked) {
+        const ms = Date.parse(marked);
+        const markedAtIso = Number.isFinite(ms)
+          ? new Date(ms).toISOString()
+          : new Date().toISOString();
+        const { error: markErr } = await supabase
+          .from("student_lesson_mark_completions" as never)
+          .upsert(
+            {
+              user_id: user.id,
+              board: boardNorm,
+              subject,
+              class_level: classLevel,
+              topic,
+              subtopic: subtopicName,
+              level: "advanced",
+              marked_complete_at: markedAtIso,
+            } as never,
+            {
+              onConflict: "user_id,board,subject,class_level,topic,subtopic,level",
+            }
+          );
+        if (markErr) return NextResponse.json({ error: markErr.message }, { status: 500 });
+      } else {
+        const { error: delErr } = await supabase
+          .from("student_lesson_mark_completions" as never)
+          .delete()
+          .eq("user_id", user.id)
+          .eq("board", boardNorm)
+          .eq("subject", subject)
+          .eq("class_level", classLevel)
+          .eq("topic", topic)
+          .eq("subtopic", subtopicName)
+          .eq("level", "advanced");
+        if (delErr) return NextResponse.json({ error: delErr.message }, { status: 500 });
+      }
+    }
+
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error("subtopic-engagement POST error", e);

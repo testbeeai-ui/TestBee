@@ -100,6 +100,13 @@ import {
   CLASS12_PHYSICS_UNIT_COUNT_LABEL,
   isClass12Physics,
 } from "@/lib/class12PhysicsExplore";
+import {
+  isChapterCompleteAtAdvanced,
+  isTopicCompleteAtAdvanced,
+} from "@/lib/lessonCompletionRollup";
+import { fetchAdvancedLessonCompletionKeys } from "@/lib/lessonCompletionClient";
+
+const EMPTY_LESSON_KEY_SET = new Set<string>();
 
 const DistanceDisplacementScene = dynamic(() => import("@/components/DistanceDisplacementScene"), {
   ssr: false,
@@ -404,6 +411,9 @@ interface UnitRoadmapProps {
   ) => void;
   getTopicCount: (subject: Subject, topic: string) => number;
   correctByTopic: Record<string, number>;
+  /** Advanced lesson marks for this subject + class (from `student_lesson_mark_completions`). */
+  advancedLessonKeys: Set<string>;
+  boardNormalized: string;
 }
 
 function UnitRoadmap({
@@ -413,6 +423,8 @@ function UnitRoadmap({
   onTopicClick,
   getTopicCount,
   correctByTopic,
+  advancedLessonKeys,
+  boardNormalized,
 }: UnitRoadmapProps) {
   // Sort by unit → chapter only; keep syllabus order within a chapter (do not sort by topic title —
   // alphabetical order made chapter cards open the wrong "first" topic, e.g. Capacitors before Electric Potential).
@@ -507,6 +519,11 @@ function UnitRoadmap({
     const topicCount = chapter.chapterTopics.length;
     const unitNumberLabel = chapter.unitLabel.replace("Unit", "U").trim();
     const { chapterTitle, representative } = chapter;
+    const chapterCompleteAdvanced = isChapterCompleteAtAdvanced(
+      chapter.chapterTopics,
+      advancedLessonKeys,
+      boardNormalized
+    );
     return (
       <motion.div
         initial={{ opacity: 0, y: 12 }}
@@ -563,9 +580,19 @@ function UnitRoadmap({
           <span className="text-xs font-bold text-muted-foreground">
             {topicCount} {topicCount === 1 ? "topic" : "topics"}
           </span>
-          <span className="rounded-full px-3 py-1.5 text-[11px] font-extrabold border border-border bg-muted/50 text-foreground shrink-0">
-            Theory
-          </span>
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="rounded-full px-3 py-1.5 text-[11px] font-extrabold border border-border bg-muted/50 text-foreground">
+              Theory
+            </span>
+            {chapterCompleteAdvanced ? (
+              <span
+                className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-emerald-500/45 bg-emerald-500/10 text-emerald-500 shadow-sm"
+                title="All topics completed at Advanced"
+              >
+                <CheckCircle2 className="h-4 w-4" aria-hidden />
+              </span>
+            ) : null}
+          </div>
         </div>
       </motion.div>
     );
@@ -585,6 +612,11 @@ function UnitRoadmap({
     const topicCount = chapter.chapterTopics.length;
     const unitNumberLabel = chapter.unitLabel.replace("Unit", "U").trim();
     const { chapterTitle, representative } = chapter;
+    const chapterCompleteAdvanced = isChapterCompleteAtAdvanced(
+      chapter.chapterTopics,
+      advancedLessonKeys,
+      boardNormalized
+    );
     return (
       <motion.div
         initial={{ opacity: 0, y: 12 }}
@@ -642,9 +674,19 @@ function UnitRoadmap({
           <span className="text-xs font-bold text-muted-foreground">
             {topicCount} {topicCount === 1 ? "topic" : "topics"}
           </span>
-          <span className="rounded-full px-3 py-1.5 text-[11px] font-extrabold border border-border bg-muted/50 text-foreground shrink-0">
-            Theory
-          </span>
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="rounded-full px-3 py-1.5 text-[11px] font-extrabold border border-border bg-muted/50 text-foreground">
+              Theory
+            </span>
+            {chapterCompleteAdvanced ? (
+              <span
+                className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-emerald-500/45 bg-emerald-500/10 text-emerald-500 shadow-sm"
+                title="All topics completed at Advanced"
+              >
+                <CheckCircle2 className="h-4 w-4" aria-hidden />
+              </span>
+            ) : null}
+          </div>
         </div>
       </motion.div>
     );
@@ -678,6 +720,11 @@ function UnitRoadmap({
     const topicCount = chapter.chapterTopics.length;
     const unitNumberLabel = chapter.unitLabel.replace("Unit", "U").trim();
     const { representative } = chapter;
+    const chapterCompleteAdvanced = isChapterCompleteAtAdvanced(
+      chapter.chapterTopics,
+      advancedLessonKeys,
+      boardNormalized
+    );
     return (
       <motion.div
         initial={{ opacity: 0, y: 12 }}
@@ -735,9 +782,19 @@ function UnitRoadmap({
           <span className="text-xs font-bold text-muted-foreground">
             {topicCount} {topicCount === 1 ? "topic" : "topics"}
           </span>
-          <span className="rounded-full px-3 py-1.5 text-[11px] font-extrabold border border-border bg-muted/50 text-foreground shrink-0">
-            Theory
-          </span>
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="rounded-full px-3 py-1.5 text-[11px] font-extrabold border border-border bg-muted/50 text-foreground">
+              Theory
+            </span>
+            {chapterCompleteAdvanced ? (
+              <span
+                className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-emerald-500/45 bg-emerald-500/10 text-emerald-500 shadow-sm"
+                title="All topics completed at Advanced"
+              >
+                <CheckCircle2 className="h-4 w-4" aria-hidden />
+              </span>
+            ) : null}
+          </div>
         </div>
       </motion.div>
     );
@@ -855,6 +912,11 @@ function UnitRoadmap({
     const periods = chapterTopics.reduce((sum, t) => sum + (t.totalPeriods ?? 0), 0);
     const topicCount = chapterTopics.length;
     const unitNumberLabel = unitLabel.replace("Unit", "U").trim();
+    const chapterCompleteAdvanced = isChapterCompleteAtAdvanced(
+      chapterTopics,
+      advancedLessonKeys,
+      boardNormalized
+    );
     return (
       <motion.div
         initial={{ opacity: 0, y: 12 }}
@@ -904,17 +966,27 @@ function UnitRoadmap({
             <span className="text-sm sm:text-base font-bold text-muted-foreground">
               {periods > 0 ? `${periods} periods` : ""}
             </span>
-            {qCount > 0 ? (
-              <span
-                className={`px-3 py-1.5 text-xs font-extrabold rounded-lg ${c.btn} text-white shadow-sm group-hover:shadow`}
-              >
-                {hasStarted ? "Revise" : "Start"}
-              </span>
-            ) : (
-              <span className="px-3 py-1.5 text-xs font-bold rounded-lg bg-muted text-muted-foreground border border-border">
-                Theory
-              </span>
-            )}
+            <div className="flex items-center gap-2 shrink-0">
+              {qCount > 0 ? (
+                <span
+                  className={`px-3 py-1.5 text-xs font-extrabold rounded-lg ${c.btn} text-white shadow-sm group-hover:shadow`}
+                >
+                  {hasStarted ? "Revise" : "Start"}
+                </span>
+              ) : (
+                <span className="px-3 py-1.5 text-xs font-bold rounded-lg bg-muted text-muted-foreground border border-border">
+                  Theory
+                </span>
+              )}
+              {chapterCompleteAdvanced ? (
+                <span
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-emerald-500/45 bg-emerald-500/10 text-emerald-500 shadow-sm"
+                  title="All topics completed at Advanced"
+                >
+                  <CheckCircle2 className="h-4 w-4" aria-hidden />
+                </span>
+              ) : null}
+            </div>
           </div>
           <span className="text-xs font-medium text-muted-foreground">{topicCount} topics</span>
         </div>
@@ -1330,6 +1402,71 @@ const Explore = () => {
     }
     return map;
   }, [user?.answeredQuestions, selectedSubject]);
+
+  const boardNormForLessonCompletions = useMemo(() => {
+    const raw = String(profile?.board ?? profileBoard ?? "cbse").trim();
+    return raw.toLowerCase();
+  }, [profile?.board, profileBoard]);
+
+  const [advancedLessonKeysByClass, setAdvancedLessonKeysByClass] = useState<
+    Record<number, Set<string>>
+  >({});
+
+  useEffect(() => {
+    if (view !== "topics" || !selectedSubject || !profile?.id) {
+      setAdvancedLessonKeysByClass({});
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const next: Record<number, Set<string>> = {};
+      const classNums = Object.keys(topicsByClass)
+        .map(Number)
+        .filter((n) => !Number.isNaN(n))
+        .sort((a, b) => a - b);
+      for (const cl of classNums) {
+        const list = topicsByClass[cl];
+        if (!list?.length) continue;
+        const keys = await fetchAdvancedLessonCompletionKeys({
+          subject: selectedSubject,
+          classLevel: cl,
+          board: boardNormForLessonCompletions,
+        });
+        if (cancelled) return;
+        next[cl] = keys;
+      }
+      if (!cancelled) setAdvancedLessonKeysByClass(next);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [view, selectedSubject, profile?.id, boardNormForLessonCompletions, topicsByClass]);
+
+  const [topicDetailLessonKeys, setTopicDetailLessonKeys] = useState<Set<string>>(() => new Set());
+
+  useEffect(() => {
+    if (
+      view !== "topic-detail" ||
+      !selectedSubject ||
+      selectedTopicClassLevel === null ||
+      !profile?.id
+    ) {
+      setTopicDetailLessonKeys(new Set());
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const keys = await fetchAdvancedLessonCompletionKeys({
+        subject: selectedSubject,
+        classLevel: selectedTopicClassLevel,
+        board: boardNormForLessonCompletions,
+      });
+      if (!cancelled) setTopicDetailLessonKeys(keys);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [view, selectedSubject, selectedTopicClassLevel, profile?.id, boardNormForLessonCompletions]);
 
   const handleSubjectSelect = (subject: Subject) => {
     setSelectedSubject(subject);
@@ -2101,6 +2238,8 @@ const Explore = () => {
                     onTopicClick={handleTopicClick}
                     getTopicCount={getTopicCount}
                     correctByTopic={correctByTopic}
+                    advancedLessonKeys={advancedLessonKeysByClass[cl] ?? EMPTY_LESSON_KEY_SET}
+                    boardNormalized={boardNormForLessonCompletions}
                   />
                 ))}
             </motion.div>
@@ -2861,7 +3000,7 @@ const Explore = () => {
                         <h4 className="font-bold text-foreground text-sm mb-3 flex items-center gap-2">
                           <BookOpen className="w-4 h-4 text-primary" />
                           {isDetailedUnitView
-                            ? "Chapter-Syallabus-Topics"
+                            ? "Chapter syllabus topics"
                             : "Current topic subtopics"}
                         </h4>
                         {isDetailedUnitView ? (
@@ -2869,6 +3008,11 @@ const Explore = () => {
                             <div className="rounded-xl border border-border/60 bg-background/70 overflow-hidden">
                               {(selectedChapterGroup?.topics ?? []).map((topic, idx) => {
                                 const isActive = selectedChapterTopic?.topic === topic.topic;
+                                const topicDoneAtAdvanced = isTopicCompleteAtAdvanced(
+                                  topic,
+                                  topicDetailLessonKeys,
+                                  boardNormForLessonCompletions
+                                );
                                 return (
                                   <button
                                     type="button"
@@ -2895,9 +3039,9 @@ const Explore = () => {
                                         : "border-l-transparent hover:bg-muted/40"
                                     } ${idx !== 0 ? "border-t border-border/60" : ""}`}
                                   >
-                                    <div className="flex items-start gap-3">
+                                    <div className="flex items-center gap-3">
                                       <span
-                                        className={`mt-0.5 inline-flex h-6 min-w-6 items-center justify-center rounded-md px-1 text-xs font-extrabold ${
+                                        className={`inline-flex h-7 min-w-7 shrink-0 items-center justify-center rounded-lg px-1 text-[11px] font-extrabold tabular-nums ${
                                           isActive
                                             ? "bg-primary text-primary-foreground"
                                             : "bg-muted text-muted-foreground"
@@ -2905,7 +3049,7 @@ const Explore = () => {
                                       >
                                         {idx + 1}
                                       </span>
-                                      <div className="min-w-0 flex-1">
+                                      <div className="min-w-0 flex-1 text-left">
                                         <p
                                           className={`truncate text-sm ${isActive ? "font-extrabold text-foreground" : "font-semibold text-foreground"}`}
                                         >
@@ -2915,11 +3059,21 @@ const Explore = () => {
                                           {topic.subtopics.length} subtopics
                                         </p>
                                       </div>
-                                      {isActive && (
-                                        <span className="text-[11px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
-                                          Current
-                                        </span>
-                                      )}
+                                      <div className="flex shrink-0 items-center gap-2">
+                                        {topicDoneAtAdvanced ? (
+                                          <span
+                                            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-emerald-500/45 bg-emerald-500/12 text-emerald-600 shadow-sm dark:text-emerald-400"
+                                            title="All subtopics complete at Advanced"
+                                          >
+                                            <CheckCircle2 className="h-5 w-5" aria-hidden />
+                                          </span>
+                                        ) : null}
+                                        {isActive ? (
+                                          <span className="text-[11px] font-bold text-primary bg-primary/10 px-2.5 py-1 rounded-full whitespace-nowrap">
+                                            Current
+                                          </span>
+                                        ) : null}
+                                      </div>
                                     </div>
                                   </button>
                                 );

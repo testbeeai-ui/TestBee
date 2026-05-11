@@ -18,7 +18,7 @@ const MOBILE_LINKS = [
   { href: "/home", label: "Home" },
   { href: "/performance", label: "Performance" },
   { href: "/magic-wall", label: "Feed" },
-  { href: "/mock", label: "Mocks" },
+  { href: "/mock-test-library", label: "Mocks" },
   { href: EXPLORE_APP_PATH, label: "Maps" },
 ];
 

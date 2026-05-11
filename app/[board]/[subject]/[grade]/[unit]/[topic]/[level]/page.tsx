@@ -167,6 +167,8 @@ import { getClientApiAuthHeaders } from "@/lib/clientApiAuth";
 import { reportInstacueCardReadBatch } from "@/lib/reportInstacueCardRead";
 import { localDayKeyFromDate, startOfLocalDay } from "@/lib/dashboardDayActivity";
 import { makeSubtopicEngagementStorageKey } from "@/lib/subtopicEngagementStorageKey";
+import { isSubtopicLessonCompleteAtAdvanced } from "@/lib/lessonCompletionRollup";
+import { fetchAdvancedLessonCompletionKeys } from "@/lib/lessonCompletionClient";
 import { dispatchClassroomAssignmentProgressChanged } from "@/lib/classroom/assignmentProgressSync";
 import SubtopicWheelDialog from "@/components/SubtopicWheelDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -755,6 +757,31 @@ function TopicPageInner() {
   const unsaveRevisionUnit = useUserStore((s) => s.unsaveRevisionUnit);
   const { toast } = useToast();
   const { loading: authLoading, session, profile, refreshProfile } = useAuth();
+
+  const boardNormalizedForLessons = useMemo(
+    () => String(board).trim().toLowerCase(),
+    [board]
+  );
+
+  const [advancedLessonKeys, setAdvancedLessonKeys] = useState<Set<string>>(() => new Set());
+
+  const refreshAdvancedLessonKeys = useCallback(async () => {
+    if (!topicNode || !session?.access_token) {
+      setAdvancedLessonKeys(new Set());
+      return;
+    }
+    const keys = await fetchAdvancedLessonCompletionKeys({
+      subject: topicNode.subject,
+      classLevel: topicNode.classLevel,
+      board: boardNormalizedForLessons,
+    });
+    setAdvancedLessonKeys(keys);
+  }, [topicNode, session?.access_token, boardNormalizedForLessons]);
+
+  useEffect(() => {
+    void refreshAdvancedLessonKeys();
+  }, [refreshAdvancedLessonKeys]);
+
   const handleTopicHubUnavailablePanelChange = useCallback(
     (nextTab: PanelTab) => {
       if (nextTab === "instacue") {
@@ -986,6 +1013,8 @@ function TopicPageInner() {
     Partial<Record<AdvancedQuizSetIndex, BitsAttemptRecord | null>>
   >({});
   const [activeQuizSet, setActiveQuizSet] = useState<AdvancedQuizSetIndex>(1);
+  /** Reset when lesson scope changes; allows auto-open to run once per navigation. */
+  const hasAutoOpenedQuizRef = useRef(false);
   const [quizPostDialogOpen, setQuizPostDialogOpen] = useState(false);
   const [quizPostDrafts, setQuizPostDrafts] = useState<QuizPostDraft[]>([]);
   const [quizPostUsedTemplateIds, setQuizPostUsedTemplateIds] = useState<Set<string>>(new Set());
@@ -1068,6 +1097,7 @@ function TopicPageInner() {
 
   useEffect(() => {
     if (!topicNode?.topic) return;
+    hasAutoOpenedQuizRef.current = false;
     if (panelParam === "quiz") {
       setRightPanelTab("quiz");
     }
@@ -1099,22 +1129,27 @@ function TopicPageInner() {
     postIdParam,
   ]);
 
-  const hasAutoOpenedQuizRef = useRef(false);
   useEffect(() => {
     if (hasAutoOpenedQuizRef.current || dbBitsQuestions.length === 0) return;
+    if (difficultyLevel !== "advanced") return;
     const qs = searchParams.get("quizSet");
     const panel = searchParams.get("panel");
     const postId = searchParams.get("postId");
-    if (panel === "quiz" && qs && postId && difficultyLevel === "advanced") {
-      const s = Number(qs) as AdvancedQuizSetIndex;
-      if ([1, 2, 3].includes(s)) {
-        setActiveQuizSet(s);
-        const b = getAdvancedSetBounds(dbBitsQuestions.length, s);
-        setBitsCurrentIdx(b.start);
-        setBitsDialogOpen(true);
-        hasAutoOpenedQuizRef.current = true;
-      }
-    }
+    const openQuizDirect = searchParams.get("openQuiz") === "1";
+    if (panel !== "quiz") return;
+
+    const fromAssignment =
+      Boolean(postId) && (qs === "1" || qs === "2" || qs === "3");
+    const fromDirectStart = openQuizDirect;
+    if (!fromAssignment && !fromDirectStart) return;
+
+    const setNum: AdvancedQuizSetIndex =
+      qs === "1" || qs === "2" || qs === "3" ? (Number(qs) as AdvancedQuizSetIndex) : 1;
+    setActiveQuizSet(setNum);
+    const b = getAdvancedSetBounds(dbBitsQuestions.length, setNum);
+    setBitsCurrentIdx(b.start);
+    setBitsDialogOpen(true);
+    hasAutoOpenedQuizRef.current = true;
   }, [searchParams, difficultyLevel, dbBitsQuestions.length]);
 
   useEffect(() => {
@@ -3858,7 +3893,7 @@ function TopicPageInner() {
               onClick={() => setProgressQueueOpen(false)}
             />
             <div
-              className={`fixed z-[48] left-[4.15rem] w-[min(84vw,24rem)] max-h-[68vh] rounded-2xl border border-blue-500/35 bg-gradient-to-b from-background via-background to-blue-950/20 shadow-2xl shadow-blue-950/35 overflow-hidden font-sans ${
+              className={`fixed z-[48] left-[4.15rem] w-[min(30rem,calc(100vw-4.75rem))] sm:w-[min(34rem,calc(100vw-5.25rem))] max-h-[min(92dvh,calc(100vh-4.5rem))] flex flex-col rounded-2xl border border-blue-500/35 bg-gradient-to-b from-background via-background to-blue-950/20 shadow-2xl shadow-blue-950/35 overflow-hidden font-sans ${
                 isMagicWallSource ? "top-[calc(max(7rem,28vh)+4.5rem)]" : "top-[max(7rem,28vh)]"
               }`}
               role="dialog"
@@ -3866,7 +3901,7 @@ function TopicPageInner() {
               aria-label="Lessons and Progress checklist"
             >
               <div className="absolute -left-1.5 top-7 h-3 w-3 rotate-45 border-l border-t border-blue-500/40 bg-background/95" />
-              <div className="border-b border-border/80 px-4 pt-4 pb-3 text-left">
+              <div className="shrink-0 border-b border-border/80 px-4 pt-4 pb-3 text-left">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <h3 className="flex items-center gap-2 text-sm font-semibold text-blue-500">
@@ -3887,7 +3922,7 @@ function TopicPageInner() {
                   </button>
                 </div>
               </div>
-              <div className="max-h-[52vh] overflow-y-auto px-4 py-3.5">
+              <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-4 py-3.5 [-webkit-overflow-scrolling:touch]">
                 {isOverview ? (
                   <div className="rounded-xl border border-blue-500/25 bg-blue-500/5 p-4 text-center">
                     <div className="mx-auto mb-2.5 flex h-10 w-10 items-center justify-center rounded-full border border-blue-500/30 bg-blue-500/10">
@@ -3907,21 +3942,19 @@ function TopicPageInner() {
                       {TOPIC_PROGRESS_CHECKLIST.map((item) => (
                         <li
                           key={item.number}
-                          className={`rounded-xl border bg-background/60 px-3 py-2.5 backdrop-blur-sm transition-all ${item.borderClass} ${item.glowClass}`}
+                          className={`rounded-xl border bg-background/60 px-3 py-2.5 sm:px-3.5 sm:py-3 backdrop-blur-sm transition-all ${item.borderClass} ${item.glowClass}`}
                         >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2.5 min-w-0 flex-1">
                               <div
-                                className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[10px] font-extrabold ${item.badgeClass}`}
+                                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[10px] font-extrabold ${item.badgeClass}`}
                               >
                                 {item.number}
                               </div>
-                              <p className="text-[13px] font-semibold leading-5 text-foreground">
+                              <p className="text-[13px] sm:text-sm font-semibold leading-snug text-foreground [overflow-wrap:anywhere]">
                                 {item.number === 3
                                   ? `Scroll and see all ${instaCueChecklistTotal} Insta Que cards`
-                                  : item.number === 4 && formulaChecklistTotal > 0
-                                    ? `${item.text} (${formulaChecklistTotal} formulae — submit each set)`
-                                    : item.text}
+                                  : item.text}
                               </p>
                             </div>
                             {item.number === 1 ? (
@@ -4127,6 +4160,9 @@ function TopicPageInner() {
                                 });
                               }
                               await syncDailyChecklistLessonBCredit("credit");
+                              if (difficultyLevel === "advanced") {
+                                void refreshAdvancedLessonKeys();
+                              }
                               toast({
                                 title: "Topic marked as complete!",
                                 description: assignPostId
@@ -4190,6 +4226,9 @@ function TopicPageInner() {
                               conceptsPages: [0],
                             })
                               .then(() => syncDailyChecklistLessonBCredit("revoke"))
+                              .then(() => {
+                                if (difficultyLevel === "advanced") void refreshAdvancedLessonKeys();
+                              })
                               .catch(() => {});
                           }
                         }}
@@ -5149,20 +5188,6 @@ function TopicPageInner() {
                         )}
                       </div>
                     </div>
-                    {canEditTheory && subtopicAiBlockedByTopicHub && (
-                      <p className="text-[10px] text-amber-900 dark:text-amber-200 mb-2 leading-snug">
-                        Complete all levels requires topic hub coverage for Basics, Intermediate,
-                        and Advanced (generate on topic overview / Explore).
-                        {topicHubGateLoading ? (
-                          <span className="font-semibold"> Checking hub…</span>
-                        ) : topicHubGateMissing.length > 0 ? (
-                          <span className="font-semibold">
-                            {" "}
-                            Missing: {topicHubGateMissing.join(", ")}.
-                          </span>
-                        ) : null}
-                      </p>
-                    )}
                     {canEditTheory ? (
                       <TopicAgentTracePanel
                         trace={subtopicAgentTrace}
@@ -5348,15 +5373,6 @@ function TopicPageInner() {
 
               {mode === "random" && (
                 <div className="mt-6 pt-4 border-t border-border flex flex-col sm:flex-row gap-4 sm:gap-6 sm:items-center min-w-0 flex-wrap">
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={() => setWheelOpen(true)}
-                    className="rounded-xl gap-2 font-bold edu-btn-primary w-fit"
-                    disabled={!topicNode?.subtopics?.length}
-                  >
-                    <Shuffle className="w-4 h-4" /> Spin Subtopic Wheel
-                  </Button>
                   <Button
                     asChild
                     size="sm"
@@ -5597,6 +5613,13 @@ function TopicPageInner() {
                       {topicNode.subtopics.map((st, idx) => {
                         const isGuidedFirstSubtopic = showSubtopicGuide && idx === 0;
                         const accent = SUBTOPIC_NAV_ACCENTS[idx % SUBTOPIC_NAV_ACCENTS.length];
+                        const subAdvComplete = isSubtopicLessonCompleteAtAdvanced(advancedLessonKeys, {
+                          board: boardNormalizedForLessons,
+                          subject: topicNode.subject,
+                          classLevel: topicNode.classLevel as 11 | 12,
+                          topic: topicNode.topic,
+                          subtopicName: st.name,
+                        });
                         const href = appendQueryParams(
                           buildTopicPath(
                             board,
@@ -5619,7 +5642,7 @@ function TopicPageInner() {
                             <Link
                               href={href}
                               className={cn(
-                                "group inline-flex min-h-[2.75rem] w-full items-start gap-2 rounded-xl border px-3 py-2.5 text-left text-xs font-semibold text-foreground/95 shadow-sm transition-all duration-200",
+                                "group inline-flex min-h-[3rem] w-full items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left text-xs font-semibold text-foreground/95 shadow-sm transition-all duration-200",
                                 accent.border,
                                 accent.bg,
                                 accent.hover,
@@ -5632,7 +5655,7 @@ function TopicPageInner() {
                             >
                               <span
                                 className={cn(
-                                  "mt-0.5 inline-flex h-5 min-w-[1.35rem] shrink-0 items-center justify-center rounded-md border border-current/20 bg-background/60 text-[10px] font-extrabold tabular-nums dark:bg-background/40",
+                                  "inline-flex h-7 min-w-[1.75rem] shrink-0 items-center justify-center rounded-lg border text-[11px] font-extrabold tabular-nums border-current/20 bg-background/60 dark:bg-background/40",
                                   accent.num
                                 )}
                               >
@@ -5641,6 +5664,14 @@ function TopicPageInner() {
                               <MathText className="min-w-0 flex-1 leading-snug [&_.katex]:!text-[0.85em]">
                                 {subtopicMathTextLabel(st.name)}
                               </MathText>
+                              {subAdvComplete ? (
+                                <span
+                                  className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-emerald-500/45 bg-emerald-500/12 text-emerald-600 shadow-sm dark:text-emerald-400"
+                                  title="Marked complete at Advanced"
+                                >
+                                  <CheckCircle2 className="h-5 w-5" aria-hidden />
+                                </span>
+                              ) : null}
                             </Link>
                           </div>
                         );
@@ -5720,62 +5751,50 @@ function TopicPageInner() {
                         <span className="block mt-1 text-xs">{topicNode.totalPeriods} periods</span>
                       )}
                     </p>
-                    {isRandomMode ? (
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={() => setWheelOpen(true)}
-                        className="rounded-xl gap-2 font-bold edu-btn-primary w-full mt-1"
-                        disabled={!topicNode?.subtopics?.length}
-                      >
-                        <Shuffle className="w-4 h-4" /> Spin Subtopic Wheel
-                      </Button>
-                    ) : (
-                      <>
-                        <p className="text-xs text-muted-foreground font-medium mb-2">
-                          {topicNode.subtopics.length} subtopic
-                          {topicNode.subtopics.length !== 1 ? "s" : ""} — open on its own page:
-                        </p>
-                        <div className="flex flex-wrap gap-2">
-                          {topicNode.subtopics.map((st, idx) => {
-                            const isGuidedFirstSubtopic = showSubtopicGuide && idx === 0;
-                            const href = appendQueryParams(
-                              buildTopicPath(
-                                board,
-                                topicNode.subject,
-                                topicNode.classLevel,
-                                topicNode.topic,
-                                st.name,
-                                difficultyLevel,
-                                undefined
-                              ),
-                              isMagicWallSource ? { source: "magic-wall" } : {}
-                            );
-                            return (
-                              <div key={st.name} className="relative">
-                                {isGuidedFirstSubtopic && (
-                                  <span className="pointer-events-none absolute -top-3 left-1/2 z-10 -translate-x-1/2 rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary-foreground shadow-md animate-bounce">
-                                    Start Here
-                                  </span>
+                    <>
+                      <p className="text-xs text-muted-foreground font-medium mb-2">
+                        {topicNode.subtopics.length} subtopic
+                        {topicNode.subtopics.length !== 1 ? "s" : ""} — open on its own page:
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {topicNode.subtopics.map((st, idx) => {
+                          const isGuidedFirstSubtopic = showSubtopicGuide && idx === 0;
+                          const href = appendQueryParams(
+                            buildTopicPath(
+                              board,
+                              topicNode.subject,
+                              topicNode.classLevel,
+                              topicNode.topic,
+                              st.name,
+                              difficultyLevel,
+                              undefined
+                            ),
+                            isMagicWallSource ? { source: "magic-wall" } : {}
+                          );
+                          return (
+                            <div key={st.name} className="relative">
+                              {isGuidedFirstSubtopic && (
+                                <span className="pointer-events-none absolute -top-3 left-1/2 z-10 -translate-x-1/2 rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary-foreground shadow-md animate-bounce">
+                                  Start Here
+                                </span>
+                              )}
+                              <Link
+                                href={href}
+                                className={cn(
+                                  "w-9 h-9 rounded-lg flex items-center justify-center text-sm font-bold transition-colors bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground",
+                                  isGuidedFirstSubtopic &&
+                                    "ring-2 ring-primary/50 animate-pulse shadow-[0_0_0_1px_rgba(59,130,246,0.25)]"
                                 )}
-                                <Link
-                                  href={href}
-                                  className={cn(
-                                    "w-9 h-9 rounded-lg flex items-center justify-center text-sm font-bold transition-colors bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground",
-                                    isGuidedFirstSubtopic &&
-                                      "ring-2 ring-primary/50 animate-pulse shadow-[0_0_0_1px_rgba(59,130,246,0.25)]"
-                                  )}
-                                  title={subtopicNavPreviewLine(st.name)}
-                                  onClick={dismissSubtopicGuide}
-                                >
-                                  {idx + 1}
-                                </Link>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </>
-                    )}
+                                title={subtopicNavPreviewLine(st.name)}
+                                onClick={dismissSubtopicGuide}
+                              >
+                                {idx + 1}
+                              </Link>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </>
                   </div>
                 )}
 
@@ -6656,18 +6675,18 @@ function TopicPageInner() {
                                               }
                                               role="radio"
                                               aria-checked={selected === oi}
-                                              className={`flex min-w-0 w-full max-w-full items-start gap-2.5 rounded-xl border px-3 py-2 text-left text-sm transition-colors ${cls}`}
+                                              className={`flex min-w-0 w-full max-w-full items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left text-sm transition-colors ${cls}`}
                                             >
-                                              <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-background/90 text-sm font-bold">
+                                              <span className="flex h-7 w-7 shrink-0 items-center justify-center self-center rounded-full bg-background/90 text-sm font-bold">
                                                 {String.fromCharCode(65 + oi)}
                                               </span>
-                                              <span className="min-w-0 flex-1 [overflow-wrap:anywhere] break-words leading-snug [&_.katex]:text-[0.92em] [&_.katex-display]:my-0.5">
+                                              <span className="min-w-0 flex-1 self-center [overflow-wrap:anywhere] break-words leading-snug [&_.katex]:text-[0.92em] [&_.katex-display]:my-0.5">
                                                 <MathText className="block w-full">
                                                   {normalizeQuizDisplayMath(opt)}
                                                 </MathText>
                                               </span>
                                               {answered && isCorrect && (
-                                                <CheckCircle2 className="inline w-4 h-4 ml-auto text-green-600" />
+                                                <CheckCircle2 className="h-4 w-4 shrink-0 self-center text-green-600 dark:text-green-400 ml-auto" aria-hidden />
                                               )}
                                             </button>
                                           );
@@ -7778,18 +7797,18 @@ function TopicPageInner() {
                                       }
                                       role="radio"
                                       aria-checked={selected === oi}
-                                      className={`flex min-w-0 w-full max-w-full items-start gap-2.5 rounded-xl border px-3 py-2 text-left text-sm transition-colors ${cls}`}
+                                      className={`flex min-w-0 w-full max-w-full items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left text-sm transition-colors ${cls}`}
                                     >
-                                      <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-background/90 text-sm font-bold">
+                                      <span className="flex h-7 w-7 shrink-0 items-center justify-center self-center rounded-full bg-background/90 text-sm font-bold">
                                         {String.fromCharCode(65 + oi)}
                                       </span>
-                                      <span className="min-w-0 flex-1 [overflow-wrap:anywhere] break-words leading-snug [&_.katex]:text-[0.92em] [&_.katex-display]:my-0.5">
+                                      <span className="min-w-0 flex-1 self-center [overflow-wrap:anywhere] break-words leading-snug [&_.katex]:text-[0.92em] [&_.katex-display]:my-0.5">
                                         <MathText className="block w-full">
                                           {normalizeQuizDisplayMath(opt)}
                                         </MathText>
                                       </span>
                                       {answered && isCorrect && (
-                                        <CheckCircle2 className="inline w-4 h-4 ml-auto shrink-0 text-green-600" />
+                                        <CheckCircle2 className="h-4 w-4 shrink-0 self-center text-green-600 dark:text-green-400 ml-auto" aria-hidden />
                                       )}
                                     </button>
                                   );

@@ -39,6 +39,16 @@ export async function middleware(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
 
+  /** In-app links use `/mock-test-library`; the real page is `app/mock` → `/mock`. Preserves `?paper=` etc. */
+  if (pathname === "/mock-test-library" || pathname.startsWith("/mock-test-library/")) {
+    const url = request.nextUrl.clone();
+    url.pathname =
+      pathname === "/mock-test-library"
+        ? "/mock"
+        : `/mock${pathname.slice("/mock-test-library".length)}`;
+    return NextResponse.redirect(url, 308);
+  }
+
   // API routes enforce their own auth; avoid session refresh work on every API call.
   if (pathname.startsWith("/api/")) {
     return NextResponse.next();

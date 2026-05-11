@@ -84,7 +84,7 @@ function withAssignmentTrackingParams(
     task.kind === "chapter_quiz" ||
     task.kind === "mock_paper" ||
     task.kind === "past_paper" ||
-    href.startsWith("/mock");
+    href.startsWith("/mock") || href.startsWith("/mock-test-library");
   if (!shouldTrack) return href;
   try {
     const isAbsolute = /^https?:\/\//i.test(href);

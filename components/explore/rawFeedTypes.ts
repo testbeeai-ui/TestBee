@@ -15,7 +15,7 @@ export interface RawPostRow {
   topic_ref?: string | null;
   subtopic_ref?: string | null;
   source_type?: string | null;
-  /** e.g. mock result shares include `paperSlug` for `/mock?paper=` deep links */
+  /** e.g. mock result shares include `paperSlug` for `/mock-test-library?paper=` deep links */
   source_payload?: {
     level?: string | null;
     paperSlug?: string | null;

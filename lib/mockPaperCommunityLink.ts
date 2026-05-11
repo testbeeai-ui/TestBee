@@ -1,4 +1,4 @@
-/** Community posts created from `/mock` result sharing carry a catalog slug for deep links. */
+/** Community posts created from mock result sharing carry a catalog slug for deep links. */
 
 export function getMockPaperSlugFromCommunityPost(
   sourceType: string | null | undefined,
@@ -13,5 +13,5 @@ export function getMockPaperSlugFromCommunityPost(
 }
 
 export function hrefForMockPaperCommunityShare(slug: string): string {
-  return `/mock?paper=${encodeURIComponent(slug)}`;
+  return `/mock-test-library?paper=${encodeURIComponent(slug)}`;
 }

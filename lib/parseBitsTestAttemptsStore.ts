@@ -5,6 +5,8 @@ export type ParsedBitsAttemptRow = {
   subject: Subject;
   /** PUC / board class (from attempt JSON; defaults to 11 when missing for legacy rows). */
   classLevel: 11 | 12;
+  /** Lesson difficulty / quiz track. */
+  level: "basics" | "intermediate" | "advanced";
   /** Chapter / unit title from stored attempt (for dashboards). */
   topic: string;
   /** Subtopic title from stored attempt (matches curriculum subtopic names). */
@@ -40,8 +42,9 @@ export function parseBitsTestAttemptsStore(raw: unknown): ParsedBitsAttemptRow[]
     const row = value as Record<string, unknown>;
     const subjectRaw = sanitize(row.subject, 80).toLowerCase();
     if (!ALLOWED_SUBJECTS.has(subjectRaw)) continue;
-    const level = sanitize(row.level, 30).toLowerCase();
-    if (!ALLOWED_LEVELS.has(level)) continue;
+    const levelRaw = sanitize(row.level, 30).toLowerCase();
+    if (!ALLOWED_LEVELS.has(levelRaw)) continue;
+    const level = levelRaw as "basics" | "intermediate" | "advanced";
     const topic = sanitize(row.topic, 300);
     const subtopicName = sanitize(row.subtopicName, 300);
     const bitsSignature = sanitize(row.bitsSignature, 200);
@@ -63,6 +66,7 @@ export function parseBitsTestAttemptsStore(raw: unknown): ParsedBitsAttemptRow[]
     out.push({
       subject: subjectRaw as Subject,
       classLevel,
+      level,
       topic,
       subtopicName,
       totalQuestions: tq,

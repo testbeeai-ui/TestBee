@@ -207,6 +207,22 @@ export function getSiblingTopics(
 }
 
 /**
+ * All syllabus topics in the same chapter band as `node` (same subject, class, unit, chapter title),
+ * in curriculum order. Matches {@link getSiblingTopics} grouping.
+ */
+export function getChapterTopicsInOrder(taxonomy: TopicNode[], node: TopicNode): TopicNode[] {
+  const nodeChapter = (node.chapterTitle ?? "").trim();
+  return taxonomy.filter((n) => {
+    if (n.subject !== node.subject || n.classLevel !== node.classLevel) return false;
+    if (n.unitLabel !== node.unitLabel) return false;
+    if (nodeChapter) {
+      return (n.chapterTitle ?? "").trim() === nodeChapter;
+    }
+    return true;
+  });
+}
+
+/**
  * Build the path for a Deep Dive page, e.g. /cbse/physics/class-11/thermodynamics/first-law/basics/deep-dive/0
  */
 export function buildDeepDivePath(

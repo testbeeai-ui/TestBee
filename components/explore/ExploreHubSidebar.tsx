@@ -37,7 +37,7 @@ const sections: SidebarSection[] = [
     items: [
       { label: "Classes", icon: GraduationCap, href: "/classrooms" },
       { label: "Calendar", icon: CalendarDays, href: "/mock#calendar" },
-      { label: "Mock Tests", icon: ClipboardList, href: "/mock" },
+      { label: "Mock Tests", icon: ClipboardList, href: "/mock-test-library" },
       { label: "Revision", icon: RotateCcw, href: "/revision" },
     ],
   },

@@ -99,7 +99,6 @@ import type {
   TeacherPortalMockNudgeLowScorer,
   TeacherPortalMockNudgeSubmittedAttempt,
   TeacherPortalMockPaperRef,
-  TeacherPortalPastPaperRef,
   TeacherPortalSummary,
 } from "@/lib/teacherPortal/types";
 import type { MockPaper, PastPaper } from "@/types";
@@ -3281,6 +3280,8 @@ const TeacherNudgeWithRdmWizard = forwardRef<TeacherNudgeWithRdmWizardHandle, Te
   const [reviseConceptFocusSel, setReviseConceptFocusSel] = useState<ConceptFocusSelectionState>(() =>
     initialConceptFocusSelection()
   );
+  /** Teacher-chosen due date for Concept Focus assignment (no default — pick in step 2). */
+  const [conceptFocusDueDate, setConceptFocusDueDate] = useState("");
   const [watchRecordedUrl, setWatchRecordedUrl] = useState("");
   const [rdmDelta, setRdmDelta] = useState(10);
   const [messageTouched, setMessageTouched] = useState(false);
@@ -3471,6 +3472,7 @@ const TeacherNudgeWithRdmWizard = forwardRef<TeacherNudgeWithRdmWizardHandle, Te
     setAttemptMockMode("existing");
     setAttemptMockHubOnly(false);
     setReviseConceptFocusSel(initialConceptFocusSelection());
+    setConceptFocusDueDate("");
   }, [classroomId]);
 
   useImperativeHandle(ref, () => ({
@@ -3525,6 +3527,15 @@ const TeacherNudgeWithRdmWizard = forwardRef<TeacherNudgeWithRdmWizardHandle, Te
                 message: "Complete Concept focus: class, subject, chapter, lesson, and subtopic.",
               };
             }
+            if (props.allowStructuredAssignmentCreate) {
+              const d = conceptFocusDueDate.trim();
+              if (!d) {
+                return { ok: false, message: "Choose a due date for the Concept Focus assignment." };
+              }
+              if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) {
+                return { ok: false, message: "Enter a valid due date." };
+              }
+            }
             return { ok: true };
           case "watch_recorded_class":
             if (!normalizeTeacherMotivationExternalUrl(watchRecordedUrl)) {
@@ -3549,6 +3560,7 @@ const TeacherNudgeWithRdmWizard = forwardRef<TeacherNudgeWithRdmWizardHandle, Te
     reviseConceptFocusSel,
     taxonomy,
     watchRecordedUrl,
+    conceptFocusDueDate,
     selectedTargetStudentIds,
   ]);
 
@@ -3612,8 +3624,11 @@ const TeacherNudgeWithRdmWizard = forwardRef<TeacherNudgeWithRdmWizardHandle, Te
         return nudgeCreatedTitle.trim() || (nudgeCreatedPostId ? "New assignment attached" : "");
       case "answer_doubts":
         return "/doubts";
-      case "revise_chapter":
-        return reviseConceptFocusSummary;
+      case "revise_chapter": {
+        const due = conceptFocusDueDate.trim();
+        const dueBit = due ? `Due ${due}` : "";
+        return [reviseConceptFocusSummary, dueBit].filter(Boolean).join(" · ");
+      }
       case "watch_recorded_class":
         return watchRecordedUrl.trim();
       default:
@@ -3629,6 +3644,7 @@ const TeacherNudgeWithRdmWizard = forwardRef<TeacherNudgeWithRdmWizardHandle, Te
     nudgeCreatedPostId,
     reviseConceptFocusSummary,
     watchRecordedUrl,
+    conceptFocusDueDate,
   ]);
 
   const motivationNudgeMeta = useMemo((): {
@@ -4466,6 +4482,22 @@ const TeacherNudgeWithRdmWizard = forwardRef<TeacherNudgeWithRdmWizardHandle, Te
             onChange={setReviseConceptFocusSel}
             selectClassName={selectCompactClassName}
           />
+          {props.allowStructuredAssignmentCreate ? (
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-slate-300">
+                Assignment due date <span className="text-rose-400">*</span>
+              </label>
+              <input
+                type="date"
+                value={conceptFocusDueDate}
+                onChange={(e) => setConceptFocusDueDate(e.target.value)}
+                className={selectCompactClassName}
+              />
+              <p className="mt-1 text-[11px] text-slate-500">
+                Only students you selected in step 1 receive this assignment; they see this due date on the post.
+              </p>
+            </div>
+          ) : null}
         </div>
       ) : null}
 
@@ -4646,7 +4678,7 @@ const TeacherNudgeWithRdmWizard = forwardRef<TeacherNudgeWithRdmWizardHandle, Te
                   sectionId: null,
                   assignmentType: "Concept Focus",
                   title: assignTitle,
-                  dueDate: defaultDueDateIsoDaysAhead(7),
+                  dueDate: conceptFocusDueDate.trim(),
                   assignToLabel: `Selected students (${selectedTargetStudentIds.length})`,
                   targetStudentIds: selectedTargetStudentIds,
                   rewardRdm: 15,
@@ -5359,7 +5391,7 @@ function TeacherCounselStudentWizard(props: {
                   recommendAction === "watch_recorded"
                     ? recordedUrl ?? undefined
                     : recommendAction === "attempt_targeted_mock"
-                      ? "/mock?view=setup"
+                      ? "/mock-test-library"
                       : recommendAction === "post_doubt"
                         ? "/doubts"
                         : undefined,
@@ -5493,7 +5525,9 @@ function messageTemplate(
 function getAssignmentTags(item: TeacherPortalAssignmentItem) {
   const tags: Array<{ label: string; color: string }> = [];
   const hasTest = item.tasks.some((t) => t.href?.includes("/assignment-test/"));
-  const hasMock = item.mockPaper || item.tasks.some((t) => t.href?.includes("/mock"));
+  const hasMock =
+    item.mockPaper ||
+    item.tasks.some((t) => t.href?.includes("/mock") || t.href?.includes("/mock-test-library"));
   const hasGyan = item.gyanEngagement || item.tasks.some((t) => t.kind === "gyan_engagement");
   const hasDailyDose = item.dailyDoseStreak || item.tasks.some((t) => t.kind === "daily_dose");
   const hasChapterQuiz = item.chapterQuiz || item.tasks.some((t) => t.kind === "chapter_quiz");
@@ -6567,7 +6601,8 @@ export default function MyClassroomView({
           t.kind === "past_paper" ||
           t.href?.includes("/assignment-test/") ||
           t.href?.includes("panel=quiz") ||
-          t.href?.includes("/mock")
+          t.href?.includes("/mock") ||
+          t.href?.includes("/mock-test-library")
       );
     if (!hasGeneratedTest) {
       setAssignmentScores([]);
@@ -10973,7 +11008,8 @@ export default function MyClassroomView({
                     t.kind === "past_paper" ||
                     t.href?.includes("/assignment-test/") ||
                     t.href?.includes("panel=quiz") ||
-                    t.href?.includes("/mock")
+                    t.href?.includes("/mock") ||
+                    t.href?.includes("/mock-test-library")
                 ) ? (
                   <div className="rounded-xl border border-white/10 bg-[#151b35] p-4">
                     <div className="mb-3 flex items-center justify-between">

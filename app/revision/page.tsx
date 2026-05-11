@@ -575,7 +575,7 @@ const RevisionContent = () => {
                       </Link>
                     </Button>
                     <Button variant="ghost" className="rounded-xl font-semibold" asChild>
-                      <Link href="/mock">
+                      <Link href="/mock-test-library">
                         Prep + Mock <ChevronRight className="w-4 h-4 ml-1" />
                       </Link>
                     </Button>
