@@ -658,7 +658,7 @@ function DoubtsPageContent() {
       <AppLayout>
         <GyanDoubtsFocusTracker>
           <GyanDailyChecklistTracker />
-          <div className="max-w-[1680px] mx-auto px-4 sm:px-5 py-6">
+          <div className="max-w-[1680px] mx-auto px-4 sm:px-5 py-4 sm:py-5 lg:py-6">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 xl:gap-7">
               {/* Left sidebar */}
               <DoubtLeftSidebar
@@ -682,7 +682,7 @@ function DoubtsPageContent() {
                 onSetUnansweredOnly={setUnansweredOnly}
               />
 
-              {/* Center: header + tabs + feed */}
+              {/* Center: header + tabs + feed — one scroll column (no sticky wall chrome) */}
               <main className="lg:col-span-6 order-1 lg:order-2 min-w-0">
                 <LiveQAHeader
                   todayCount={todayCount}
@@ -715,7 +715,10 @@ function DoubtsPageContent() {
                   </div>
                 ) : (
                   <>
-                    <div ref={feedTopRef} className="scroll-mt-20 space-y-3">
+                    <div
+                      ref={feedTopRef}
+                      className="scroll-mt-[var(--app-header-sticky-offset)] space-y-3 sm:space-y-3.5"
+                    >
                       {paginatedFeed.map((d, i) => (
                         <DoubtFeedCard
                           key={d.id}
@@ -761,6 +764,7 @@ function DoubtsPageContent() {
                 topTeachers={topTeachers}
                 onAskClick={() => setAskOpen(true)}
                 postRewardRdm={gyanRdm.post}
+                wallTabKey={`${activeTab}-${activityView}`}
               />
             </div>
           </div>

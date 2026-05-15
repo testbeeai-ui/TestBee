@@ -1,5 +1,5 @@
 import { createServerClient } from "@supabase/ssr";
-import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import { createClient as createSupabaseClient, type SupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { supabaseNodeFetch } from "@/lib/supabaseNodeFetch";
 import type { Database } from "./types";
@@ -133,5 +133,16 @@ export function createClientWithToken(accessToken: string) {
       ...supabaseGlobal,
       headers: { Authorization: `Bearer ${accessToken}` },
     },
+  });
+}
+
+/**
+ * Server-only anon client (no cookies). Use where `cookies()` is unavailable
+ * (e.g. `generateStaticParams`) while still honoring RLS as `anon`.
+ */
+export function createPublicSupabaseClient(): SupabaseClient<Database> {
+  return createSupabaseClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    global: supabaseGlobal,
   });
 }

@@ -90,6 +90,7 @@ export default function TeacherProfileView({
   const { toast } = useToast();
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
   const [name, setName] = useState(profile.name);
   const [bio, setBio] = useState(profile.bio ?? "");
   const [visibility, setVisibility] = useState(profile.visibility);
@@ -739,12 +740,20 @@ export default function TeacherProfileView({
           ) : (
             <button
               type="button"
-              onClick={async () => {
-                await signOut();
+              disabled={signingOut}
+              onClick={() => {
+                if (signingOut) return;
+                setSigningOut(true);
+                void signOut();
               }}
-              className="inline-flex items-center gap-2 rounded-full border border-rose-400/30 bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-300 hover:bg-rose-500/20 sm:px-4 sm:py-2 sm:text-sm"
+              className="inline-flex items-center gap-2 rounded-full border border-rose-400/30 bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-300 hover:bg-rose-500/20 disabled:opacity-70 sm:px-4 sm:py-2 sm:text-sm"
             >
-              <LogOut className="h-4 w-4" /> Log Out
+              {signingOut ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <LogOut className="h-4 w-4" />
+              )}
+              {signingOut ? "Logging out…" : "Log Out"}
             </button>
           )}
         </div>

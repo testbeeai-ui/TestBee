@@ -97,7 +97,7 @@ export default function DoubtLeftSidebar({
 
   return (
     <aside className="lg:col-span-3 order-2 lg:order-1 min-w-0">
-      <div className="lg:sticky lg:top-4 space-y-4">
+      <div className="lg:sticky lg:top-[var(--app-header-sticky-offset)] lg:max-h-[calc(100dvh-var(--app-header-sticky-offset)-1rem)] lg:overflow-y-auto space-y-3 sm:space-y-4">
         <TooltipProvider>
           {/* Profile card */}
           <div className="edu-card p-4 rounded-2xl">

@@ -2,6 +2,7 @@
 
 import { startTransition, useCallback, useEffect, useMemo, useState } from "react";
 import type { User } from "@supabase/supabase-js";
+import { useSearchParams } from "next/navigation";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import type { Profile } from "@/hooks/useAuth";
@@ -18,6 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import StudentProfileShell, { type StudentProfileSectionId } from "./StudentProfileShell";
+import StudentSettingsHub from "./StudentSettingsHub";
 import {
   StudentProfileAcademicPanel,
   StudentProfileAchievementsPanel,
@@ -68,6 +70,15 @@ function Req({ children }: { children: React.ReactNode }) {
 
 const stateItems = INDIAN_STATES_AND_UTS.map((s) => ({ label: s, value: s }));
 
+const PROFILE_SECTION_QUERY_VALUES: StudentProfileSectionId[] = [
+  "personal",
+  "academic",
+  "achievements",
+  "activity",
+  "edufund",
+  "settings",
+];
+
 interface StudentProfilePersonalHubProps {
   profile: Profile;
   authUser: User;
@@ -80,7 +91,17 @@ export default function StudentProfilePersonalHub({
   onProfileUpdated,
 }: StudentProfilePersonalHubProps) {
   const { toast } = useToast();
+  const searchParams = useSearchParams();
   const [section, setSection] = useState<StudentProfileSectionId>("personal");
+
+  useEffect(() => {
+    const raw = searchParams.get("section");
+    if (!raw) return;
+    if (!PROFILE_SECTION_QUERY_VALUES.includes(raw as StudentProfileSectionId)) return;
+    startTransition(() => {
+      setSection(raw as StudentProfileSectionId);
+    });
+  }, [searchParams]);
 
   const email = authUser.email ?? "";
 
@@ -361,6 +382,8 @@ export default function StudentProfilePersonalHub({
         <StudentProfileActivityPanel profile={profile} />
       ) : section === "edufund" ? (
         <StudentProfileEduFundPanel profile={profile} />
+      ) : section === "settings" ? (
+        <StudentSettingsHub />
       ) : section === "personal" ? (
         <div className="w-full min-w-0 space-y-4 sm:space-y-5 lg:space-y-6">
           <div className="rounded-xl border border-border bg-card p-3 dark:border-white/10 dark:bg-[#0c1017] sm:rounded-2xl sm:p-4 md:p-5">

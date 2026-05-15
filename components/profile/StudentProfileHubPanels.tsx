@@ -49,8 +49,14 @@ import {
   Trophy,
   Lightbulb,
   Upload,
-  ClipboardList,
+  Calendar,
+  CircleHelp,
+  Info,
   Check,
+  Clock,
+  BarChart3,
+  Users,
+  GraduationCap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EDUFUND_RDM_GATES } from "@/lib/dashboardSidebarMetrics";
@@ -504,7 +510,7 @@ export function StudentProfileAcademicPanel({
         <div className="mb-4 flex flex-wrap items-center gap-2 border-b border-border pb-3 dark:border-white/10">
           <FileText className="h-5 w-5 shrink-0 text-emerald-400" />
           <h2 className="text-base font-black text-foreground sm:text-lg dark:text-white">Academic record</h2>
-          <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-400">
+          <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10.5px] font-bold text-emerald-700 dark:text-emerald-400">
             Shared with EduFund &amp; NGOs
           </span>
         </div>
@@ -587,7 +593,7 @@ export function StudentProfileAcademicPanel({
           {verificationLabel(rowXii?.verified) ? (
             <span
               className={cn(
-                "rounded-full px-2 py-0.5 text-[10px] font-bold",
+                "rounded-full px-2 py-0.5 text-[10.5px] font-bold",
                 verificationLabel(rowXii?.verified) === "Verified"
                   ? "bg-emerald-500/15 text-emerald-400"
                   : verificationLabel(rowXii?.verified) === "Rejected"
@@ -839,7 +845,7 @@ function AcademicRowEditor({
         {verification ? (
           <span
             className={cn(
-              "rounded-full px-2 py-0.5 text-[10px] font-bold",
+              "rounded-full px-2 py-0.5 text-[10.5px] font-bold",
               verification === "Verified"
                 ? "bg-emerald-500/15 text-emerald-400"
                 : verification === "Rejected"
@@ -908,11 +914,11 @@ function AcademicRowEditor({
           >
             <Upload className="mb-1 h-5 w-5 text-emerald-400" />
             <span className="text-xs font-semibold text-foreground dark:text-slate-200">{uploadLabel}</span>
-            <span className="mt-0.5 text-[10px] text-muted-foreground dark:text-slate-500">
+            <span className="mt-0.5 text-[10.5px] text-muted-foreground dark:text-slate-500">
               PDF or image · max 10 MB · {displayDocName ?? "scholarship verification"}
             </span>
             {displayDocName ? (
-              <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold text-emerald-400 transition-all duration-300">
+              <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10.5px] font-bold text-emerald-400 transition-all duration-300">
                 <Check className="h-3 w-3 motion-safe:animate-pulse" />
                 {selectedFileName ? "Selected:" : "Uploaded:"} {displayDocName}
               </span>
@@ -1100,7 +1106,7 @@ export function StudentProfileAchievementsPanel({ userId }: { userId: string }) 
             <Medal className="h-5 w-5 shrink-0 text-emerald-400" />
             <h2 className="text-base font-black dark:text-white sm:text-lg">Achievements &amp; competitions</h2>
           </div>
-          <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-400">
+          <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10.5px] font-bold text-emerald-700 dark:text-emerald-400">
             Strengthens scholarship profile
           </span>
         </div>
@@ -1132,19 +1138,19 @@ export function StudentProfileAchievementsPanel({ userId }: { userId: string }) 
                   <div className="flex flex-wrap items-center gap-2 sm:shrink-0 sm:justify-end">
                     <span
                       className={cn(
-                        "rounded-full px-2 py-0.5 text-[10px] font-bold",
+                        "rounded-full px-2 py-0.5 text-[10.5px] font-bold",
                         achievementLevelPillClass(a.level)
                       )}
                     >
                       {a.level}
                     </span>
                     {a.verified === "verified" ? (
-                      <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold text-emerald-400">
+                      <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10.5px] font-bold text-emerald-400">
                         <Check className="h-3 w-3" aria-hidden />
                         Verified
                       </span>
                     ) : (
-                      <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold text-amber-400">
+                      <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10.5px] font-bold text-amber-400">
                         Pending verify
                       </span>
                     )}
@@ -1303,7 +1309,7 @@ export function StudentProfileAchievementsPanel({ userId }: { userId: string }) 
               <span className="text-xs font-semibold text-foreground dark:text-slate-200">
                 {formFile ? "Certificate selected" : "Drop certificate PDF or image here"}
               </span>
-              <span className="mt-1 text-[10px] text-muted-foreground dark:text-slate-500">
+              <span className="mt-1 text-[10.5px] text-muted-foreground dark:text-slate-500">
                 {formFile
                   ? `Uploaded: ${formFile.name}`
                   : "Shared with funders on request when you apply for a grant · JPEG, PNG, WebP, or PDF"}
@@ -1423,6 +1429,40 @@ function buildActivityDotWeeks(
   return { weeks };
 }
 
+/** In the last 28 local days, how many separate runs of 5+ “active” study days (≥10m heat) occurred. */
+function countQualifyingStreakEpisodes5PlusStudy(
+  studyMsByDay: Map<string, number>,
+  presenceMsByDay: Map<string, number>,
+  livePresencePendingMs: number,
+  dashboardClockMs: number,
+  todayKey: string
+): number {
+  const todayStart = startOfLocalDay(new Date(dashboardClockMs));
+  const flags: boolean[] = [];
+  for (let offset = 27; offset >= 0; offset -= 1) {
+    const date = addDaysLocal(todayStart, -offset);
+    const key = localDayKeyFromDate(date);
+    const activeMs = studyMsByDay.get(key) ?? 0;
+    const presenceMs =
+      (presenceMsByDay.get(key) ?? 0) + (key === todayKey ? livePresencePendingMs : 0);
+    const heatMs = Math.max(presenceMs, activeMs);
+    const greenLevel = activityGreenLevelFromStudyMs(heatMs);
+    flags.push(greenLevel > 0);
+  }
+  let episodes = 0;
+  let run = 0;
+  for (const ok of flags) {
+    if (ok) {
+      run += 1;
+    } else {
+      if (run >= 5) episodes += 1;
+      run = 0;
+    }
+  }
+  if (run >= 5) episodes += 1;
+  return episodes;
+}
+
 const WEEKDAY_LABELS_LEFT = ["Mon", "", "Wed", "", "Fri", "", "Sun"] as const;
 
 /** Sum of `user_study_day_totals.active_ms` — shown as hours/minutes on profile. */
@@ -1433,6 +1473,81 @@ function formatPlatformStudyHours(activeMs: number): string {
   return hours >= 10 ? `${Math.round(hours)} h` : `${hours.toFixed(1)} h`;
 }
 
+function AttendanceKpiCell({ label, value, sub }: { label: string; value: string; sub: ReactNode }) {
+  return (
+    <div className="bg-card p-3 font-sans sm:p-4 dark:bg-[#0d1118]">
+      <p className="text-[10.5px] font-bold uppercase tracking-wide text-muted-foreground dark:text-slate-500">
+        {label}
+      </p>
+      <p className="mt-1.5 text-xl font-black tabular-nums leading-none tracking-tight text-foreground antialiased dark:text-white sm:text-2xl">
+        {value}
+      </p>
+      <div className="mt-1 text-[10.5px] leading-snug text-muted-foreground dark:text-slate-500">{sub}</div>
+    </div>
+  );
+}
+
+function ProfileMetricGridCell({
+  icon,
+  label,
+  value,
+  sub,
+  iconWrapClass,
+}: {
+  icon: ReactNode;
+  label: string;
+  value: string;
+  sub: string;
+  iconWrapClass?: string;
+}) {
+  return (
+    <div className="bg-card p-3 font-sans sm:p-4 dark:bg-[#0d1118]">
+      <div className="flex gap-3">
+        <div
+          className={cn(
+            "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted/50 ring-1 ring-border/60 dark:bg-white/[0.06] dark:ring-white/10",
+            iconWrapClass
+          )}
+        >
+          {icon}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-[10.5px] font-bold uppercase tracking-wide text-muted-foreground dark:text-slate-500">
+            {label}
+          </p>
+          <p className="mt-1 text-xl font-black tabular-nums leading-none tracking-tight text-foreground antialiased dark:text-white sm:text-2xl">
+            {value}
+          </p>
+          <p className="mt-1 text-[10.5px] leading-snug text-muted-foreground dark:text-slate-500">{sub}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function academicMarksBucketsFilled(profile: Profile): { filled: number; total: number } {
+  const ex = parseAcademicRecordExtras(profile.academic_record_extras);
+  const keys = [
+    "physicsScience",
+    "mathematics",
+    "chemistry",
+    "english",
+    "socialScience",
+    "secondLanguage",
+  ] as const;
+  let filled = 0;
+  let total = 0;
+  for (const tier of [ex.classXSubjects, ex.classXISubjects]) {
+    if (!tier) continue;
+    for (const k of keys) {
+      total += 1;
+      const v = tier[k];
+      if (typeof v === "string" && v.trim().length > 0) filled += 1;
+    }
+  }
+  return { filled, total: Math.max(total, 1) };
+}
+
 type RdmRecentClaimRow = {
   key: string;
   category: "gyan" | "play" | "mocks" | "revision";
@@ -1440,6 +1555,42 @@ type RdmRecentClaimRow = {
   detail: string;
   amount: number;
   at: string;
+};
+
+type LearningActivityBreakdownApi = {
+  joinDays?: number;
+  dailyDoseAvailableSlots?: number;
+  dailyDoseAttempted?: number;
+  dailyDoseAttemptedPct?: number;
+  dailyDoseFullRuns?: number;
+  /** Mirrors server gauntlet length (scored question count per session). */
+  dailyDoseQuestionsPerRound?: number;
+  dailyDoseAccuracyPct?: number | null;
+  subtopicsCompleted?: number;
+  subtopicSubjectsLabel?: string;
+  quizzesAttempted?: number;
+  quizAccuracyPct?: number | null;
+  mocksAttempted?: number;
+  mockAvgPct?: number | null;
+  mockBestLine?: string;
+  challengesAttempted?: number;
+  liveScheduled?: number;
+  liveAttended?: number;
+  assignmentsDone?: number;
+  assignmentsAssigned?: number;
+  lecturesReviewed?: number;
+  revisionCardsSaved?: number;
+  revisionRetentionPct?: number | null;
+};
+
+type GyanPlusEngagementApi = {
+  doubtsAsked?: number;
+  answersGiven?: number;
+  answersAcceptedByAsker?: number;
+  commentsPosted?: number;
+  upvotesGiven?: number;
+  upvotesReceived?: number;
+  savedForRevision?: number;
 };
 
 /** Activity &amp; RDM — study streak + heatmap use the same `/api/user/study-days` pipeline as the home dashboard. */
@@ -1638,6 +1789,95 @@ export function StudentProfileActivityPanel({ profile }: { profile: Profile }) {
     }
   }, [profile.id]);
 
+  const [learningActivity, setLearningActivity] = useState<LearningActivityBreakdownApi | null>(null);
+  const [learningActivityStatus, setLearningActivityStatus] = useState<
+    "idle" | "loading" | "ready" | "error"
+  >("idle");
+
+  const loadLearningActivity = useCallback(async () => {
+    if (!profile.id) {
+      setLearningActivity(null);
+      setLearningActivityStatus("idle");
+      return;
+    }
+    setLearningActivityStatus((prev) => (prev === "ready" ? prev : "loading"));
+    try {
+      const headers = await getClientApiAuthHeaders();
+      const res = await fetch("/api/user/learning-activity-breakdown", { headers });
+      if (!res.ok) {
+        setLearningActivity(null);
+        setLearningActivityStatus("error");
+        return;
+      }
+      const json = (await res.json()) as LearningActivityBreakdownApi;
+      setLearningActivity(json);
+      setLearningActivityStatus("ready");
+    } catch {
+      setLearningActivity(null);
+      setLearningActivityStatus("error");
+    }
+  }, [profile.id]);
+
+  const [gyanEngagement, setGyanEngagement] = useState<GyanPlusEngagementApi | null>(null);
+  const [gyanEngagementStatus, setGyanEngagementStatus] = useState<
+    "idle" | "loading" | "ready" | "error"
+  >("idle");
+
+  const loadGyanPlusEngagement = useCallback(async () => {
+    if (!profile.id) {
+      setGyanEngagement(null);
+      setGyanEngagementStatus("idle");
+      return;
+    }
+    setGyanEngagementStatus((prev) => (prev === "ready" ? prev : "loading"));
+    try {
+      const headers = await getClientApiAuthHeaders();
+      const res = await fetch("/api/user/gyan-plus-engagement", { headers });
+      if (!res.ok) {
+        setGyanEngagement(null);
+        setGyanEngagementStatus("error");
+        return;
+      }
+      const json = (await res.json()) as GyanPlusEngagementApi;
+      setGyanEngagement(json);
+      setGyanEngagementStatus("ready");
+    } catch {
+      setGyanEngagement(null);
+      setGyanEngagementStatus("error");
+    }
+  }, [profile.id]);
+
+  const [verifiedAchievementCount, setVerifiedAchievementCount] = useState<number | null>(null);
+  const [verifiedAchievementLoadError, setVerifiedAchievementLoadError] = useState(false);
+
+  useEffect(() => {
+    if (!profile.id) {
+      setVerifiedAchievementCount(null);
+      setVerifiedAchievementLoadError(false);
+      return;
+    }
+    let cancelled = false;
+    setVerifiedAchievementCount(null);
+    setVerifiedAchievementLoadError(false);
+    void (async () => {
+      const { count, error } = await supabase
+        .from("profile_achievements")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", profile.id)
+        .eq("verified", "verified");
+      if (cancelled) return;
+      if (error) {
+        setVerifiedAchievementLoadError(true);
+        setVerifiedAchievementCount(null);
+      } else {
+        setVerifiedAchievementCount(count ?? 0);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [profile.id]);
+
   const loadMockSubjectAverages = useCallback(async () => {
     if (!profile.id) {
       setMockSubjectAverages(null);
@@ -1686,6 +1926,12 @@ export function StudentProfileActivityPanel({ profile }: { profile: Profile }) {
       setMockSubjectStatus("idle");
       setAttendanceStats(null);
       setAttendanceStatsStatus("idle");
+      setLearningActivity(null);
+      setLearningActivityStatus("idle");
+      setGyanEngagement(null);
+      setGyanEngagementStatus("idle");
+      setVerifiedAchievementCount(null);
+      setVerifiedAchievementLoadError(false);
     });
   }, [profile.id]);
 
@@ -1716,13 +1962,15 @@ export function StudentProfileActivityPanel({ profile }: { profile: Profile }) {
         () => {
           void loadStudyDays();
           void loadAttendanceStats();
+          void loadLearningActivity();
+          void loadGyanPlusEngagement();
         }
       )
       .subscribe();
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [profile.id, loadStudyDays, loadAttendanceStats]);
+  }, [profile.id, loadStudyDays, loadAttendanceStats, loadLearningActivity, loadGyanPlusEngagement]);
 
   useEffect(() => {
     const onFocus = () => void loadStudyDays();
@@ -1778,16 +2026,115 @@ export function StudentProfileActivityPanel({ profile }: { profile: Profile }) {
           table: "profiles",
           filter: `id=eq.${profile.id}`,
         },
-        () => void loadAttendanceStats()
+        () => {
+          void loadAttendanceStats();
+          void loadLearningActivity();
+        }
       )
       .subscribe();
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [profile.id, loadAttendanceStats]);
+  }, [profile.id, loadAttendanceStats, loadLearningActivity]);
+
+  useEffect(() => {
+    startTransition(() => {
+      void loadLearningActivity();
+    });
+  }, [loadLearningActivity]);
+
+  useEffect(() => {
+    startTransition(() => {
+      void loadGyanPlusEngagement();
+    });
+  }, [loadGyanPlusEngagement]);
+
+  useEffect(() => {
+    const onFocus = () => void loadLearningActivity();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [loadLearningActivity]);
+
+  useEffect(() => {
+    const onFocus = () => void loadGyanPlusEngagement();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [loadGyanPlusEngagement]);
+
+  useEffect(() => {
+    if (!profile.id) return;
+    const reload = () => void loadGyanPlusEngagement();
+    const channel = supabase
+      .channel(`gyan_plus_engagement:${profile.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "doubts",
+          filter: `user_id=eq.${profile.id}`,
+        },
+        reload
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "doubt_answers",
+          filter: `user_id=eq.${profile.id}`,
+        },
+        reload
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "doubt_votes",
+          filter: `user_id=eq.${profile.id}`,
+        },
+        reload
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "doubt_saves",
+          filter: `user_id=eq.${profile.id}`,
+        },
+        reload
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [profile.id, loadGyanPlusEngagement]);
 
   const studyStreak = streakSummary?.streak ?? 0;
   const activeDaysThisMonth = streakSummary?.activeDaysThisMonth ?? 0;
+
+  const todayKeyForRollups = useMemo(
+    () => localDayKeyFromDate(startOfLocalDay(new Date(dashboardClock))),
+    [dashboardClock]
+  );
+
+  const studyMsLast7LocalDays = useMemo(() => {
+    if (!studyMsByDay.size) return 0;
+    const todayStart = startOfLocalDay(new Date(dashboardClock));
+    let sum = 0;
+    for (let d = 0; d < 7; d++) {
+      const key = localDayKeyFromDate(addDaysLocal(todayStart, -d));
+      sum += studyMsByDay.get(key) ?? 0;
+    }
+    return sum;
+  }, [studyMsByDay, dashboardClock]);
+
+  const studyMsTodayWithLive = useMemo(() => {
+    const base = studyMsByDay.get(todayKeyForRollups) ?? 0;
+    return base + livePresencePendingMs;
+  }, [studyMsByDay, todayKeyForRollups, livePresencePendingMs]);
 
   const { weeks } = useMemo(
     () => buildActivityDotWeeks(studyMsByDay, presenceMsByDay, livePresencePendingMs, now),
@@ -1803,8 +2150,139 @@ export function StudentProfileActivityPanel({ profile }: { profile: Profile }) {
         ? "Could not load — refresh the page"
         : "Same source as dashboard";
 
+  const attendanceRollupLoading =
+    studyDaysStatus === "loading" || studyDaysStatus === "idle";
+  const attendanceRollupError = studyDaysStatus === "error";
+  const weekStudyStr = attendanceRollupLoading
+    ? "…"
+    : attendanceRollupError
+      ? "—"
+      : formatPlatformStudyHours(studyMsLast7LocalDays);
+  const todayStudyStr = attendanceRollupLoading
+    ? "…"
+    : attendanceRollupError
+      ? "—"
+      : formatPlatformStudyHours(studyMsTodayWithLive);
+
+  const attStatsLoading =
+    attendanceStatsStatus === "loading" || attendanceStatsStatus === "idle";
+  const attStatsError = attendanceStatsStatus === "error";
+  const attN = (n: number) => (attStatsLoading ? "…" : attStatsError ? "—" : n.toLocaleString());
+
+  const streak5PlusStr =
+    studyDaysStatus === "loading" || studyDaysStatus === "idle"
+      ? "…"
+      : studyDaysStatus === "error"
+        ? "—"
+        : String(
+            countQualifyingStreakEpisodes5PlusStudy(
+              studyMsByDay,
+              presenceMsByDay,
+              livePresencePendingMs,
+              dashboardClock,
+              todayKeyForRollups
+            )
+          );
+
+  const joinDate = profile.created_at ? new Date(profile.created_at) : null;
+  const joinDateOk = Boolean(joinDate && !Number.isNaN(joinDate.getTime()));
+  const daysSinceJoin =
+    joinDateOk && joinDate
+      ? Math.max(0, Math.floor((dashboardClock - joinDate.getTime()) / 86_400_000))
+      : null;
+  const daysSinceJoinStr = joinDateOk && daysSinceJoin != null ? String(daysSinceJoin) : "—";
+  const daysSinceJoinSub = joinDateOk && joinDate ? `since ${format(joinDate, "MMM yyyy")}` : "Join date unavailable";
+
+  const learningActivitiesStr = attStatsLoading
+    ? "…"
+    : attStatsError
+      ? "—"
+      : (
+          (attendanceStats?.mocksAttempted ?? 0) +
+          (attendanceStats?.assignmentTasksDone ?? 0) +
+          (attendanceStats?.instacueDwellEventsThisWeek ?? 0)
+        ).toLocaleString();
+
+  const communityEngagementStr = (profile.saved_community_posts ?? []).length.toLocaleString();
+
+  const academicBuckets = academicMarksBucketsFilled(profile);
+  const academicStr = `${academicBuckets.filled}/${academicBuckets.total}`;
+  const academicSub =
+    academicBuckets.filled === 0 ? "Add marks in Academic" : "subject marks slots filled (X & XI)";
+
+  const achievementVerifiedStr = verifiedAchievementLoadError
+    ? "—"
+    : verifiedAchievementCount === null
+      ? "…"
+      : verifiedAchievementCount.toLocaleString();
+  const achievementVerifiedSub = verifiedAchievementLoadError
+    ? "Could not load"
+    : verifiedAchievementCount === null
+      ? "Loading…"
+      : verifiedAchievementCount === 0
+        ? "Add achievements to strengthen credibility"
+        : "achievements verified";
+
+  const la = learningActivity;
+  const laLoading = learningActivityStatus === "loading" || learningActivityStatus === "idle";
+  const laError = learningActivityStatus === "error";
+  const laN = (n: number) => (laLoading ? "…" : laError ? "—" : n.toLocaleString());
+  const laPct = (p: number | null | undefined) =>
+    laLoading ? "…" : laError ? "—" : p == null || !Number.isFinite(Number(p)) ? "—" : `${Math.round(Number(p))}%`;
+  const laStr = (s: string) => (laLoading ? "…" : laError ? "—" : s);
+
+  const dailyDoseAvail = la?.dailyDoseAvailableSlots ?? 0;
+  const dailyDoseAtt = la?.dailyDoseAttempted ?? 0;
+  const dailyDoseAttPct = la?.dailyDoseAttemptedPct ?? 0;
+  const dailyDoseAttemptedSub =
+    laLoading ? "Syncing…" : laError ? "Could not load" : `of ${dailyDoseAvail.toLocaleString()} available · ${dailyDoseAttPct}%`;
+
+  const dailyDoseQPergauntlet = Math.max(
+    1,
+    Math.trunc(Number(la?.dailyDoseQuestionsPerRound) || 5)
+  );
+  const dailyDoseFullRunsN = Math.max(0, Math.trunc(Number(la?.dailyDoseFullRuns) || 0));
+  const dailyDoseCompletedSub = laLoading
+    ? "Syncing…"
+    : laError
+      ? "Could not load"
+      : dailyDoseAtt === 0
+        ? `${dailyDoseQPergauntlet} scored question${dailyDoseQPergauntlet === 1 ? "" : "s"} per DailyDose session`
+        : `${dailyDoseFullRunsN.toLocaleString()} of ${dailyDoseAtt.toLocaleString()} attempted session${dailyDoseAtt === 1 ? "" : "s"} cleared all ${dailyDoseQPergauntlet}`;
+
+  const liveSched = la?.liveScheduled ?? 0;
+  const liveAtt = la?.liveAttended ?? 0;
+  const livePct = liveSched > 0 ? Math.min(100, Math.round((100 * liveAtt) / liveSched)) : 0;
+  const liveSub =
+    laLoading ? "Syncing…" : laError ? "Could not load" : `of ${liveSched.toLocaleString()} scheduled · ${livePct}%`;
+
+  const asgDone = la?.assignmentsDone ?? 0;
+  const asgAss = la?.assignmentsAssigned ?? 0;
+  const asgPct = asgAss > 0 ? Math.min(100, Math.round((100 * asgDone) / asgAss)) : 0;
+  const asgSub =
+    laLoading ? "Syncing…" : laError ? "Could not load" : `of ${asgAss.toLocaleString()} assigned · ${asgPct}%`;
+
+  const lec = la?.lecturesReviewed ?? 0;
+  const revRet = la?.revisionRetentionPct;
+  const lecturesSub =
+    laLoading ? "Syncing…" : laError ? "Could not load" : `spaced repetition · ${revRet == null ? "—" : `${revRet}%`} retention`;
+
+  const gye = gyanEngagement;
+  const gyeLoading = gyanEngagementStatus === "loading" || gyanEngagementStatus === "idle";
+  const gyeError = gyanEngagementStatus === "error";
+  const gyN = (n: number) =>
+    gyeLoading ? "…" : gyeError ? "—" : Math.max(0, Math.trunc(Number(n))).toLocaleString();
+  const answersAcceptedByAsker = Math.max(0, Math.trunc(Number(gye?.answersAcceptedByAsker) || 0));
+  const answersGivenSub =
+    gyeLoading ? "Syncing…" : gyeError ? "Could not load" : `${answersAcceptedByAsker.toLocaleString()} accepted by asker`;
+  const upvotesReceivedN = Math.max(0, Math.trunc(Number(gye?.upvotesReceived) || 0));
+  const gyanEngagementBannerText =
+    gyeLoading ? "Loading…"
+    : gyeError ? "Could not load Gyan++ engagement."
+    : `Gyan++ engagement is one of the strongest credibility signals. Students who ask and answer doubts consistently demonstrate deeper subject engagement than passive learners. This student's ${upvotesReceivedN.toLocaleString()} upvotes received confirms community-verified answer quality.`;
+
   return (
-    <div className="w-full min-w-0 space-y-4 sm:space-y-5">
+    <div className="w-full min-w-0 space-y-4 font-sans sm:space-y-5">
       <div className="grid grid-cols-2 gap-2 min-[480px]:grid-cols-4 lg:gap-3">
         <StatCard label="Total RDM earned" value={rdm.toLocaleString()} sub="all time" valueClass="text-amber-400" />
         <StatCard label="Study streak" value={streakDisplay} sub={streakSub} />
@@ -1817,143 +2295,96 @@ export function StudentProfileActivityPanel({ profile }: { profile: Profile }) {
       </div>
 
       <section className="rounded-xl border border-border bg-card p-3 dark:border-white/10 dark:bg-[#0c1017] sm:rounded-2xl sm:p-4 md:p-5">
-        <div className="mb-4 flex items-center gap-2 border-b border-border pb-3 dark:border-white/10">
-          <Flame className="h-5 w-5 text-orange-400" />
-          <h2 className="text-base font-black dark:text-white sm:text-lg">Activity streaks &amp; heatmap</h2>
+        <div className="mb-3 flex items-center gap-2 border-b border-border pb-3 dark:border-white/10">
+          <Calendar className="h-5 w-5 shrink-0 text-emerald-400" aria-hidden />
+          <h2 className="text-base font-black dark:text-white sm:text-lg">
+            Attendance, assignments &amp; study hours
+          </h2>
         </div>
+        <div className="grid grid-cols-1 gap-px overflow-hidden rounded-lg bg-border dark:bg-white/10 sm:grid-cols-3">
+          <AttendanceKpiCell
+            label="Classes joined"
+            value={attN(attendanceStats?.classroomsJoined ?? 0)}
+            sub="Active class memberships"
+          />
+          <AttendanceKpiCell
+            label="DailyDose – Play streaks"
+            value={attN(attendanceStats?.dailyDoseDualStreak ?? 0)}
+            sub="Play · both domains"
+          />
+          <AttendanceKpiCell
+            label="Modules attempted"
+            value={attN(attendanceStats?.mocksAttempted ?? 0)}
+            sub="Mock & bonus attempts"
+          />
+          <AttendanceKpiCell label="Total time dedicated" value={weekStudyStr} sub="Last 7 days · study timer" />
+          <AttendanceKpiCell
+            label="Study hours on platform"
+            value={todayStudyStr}
+            sub="Today · includes live session"
+          />
+          <AttendanceKpiCell
+            label="Assignments done"
+            value={attN(attendanceStats?.assignmentTasksDone ?? 0)}
+            sub="Tasks marked in classes"
+          />
+        </div>
+      </section>
 
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-start lg:gap-8">
-          {/* Study streak — left column (above heatmap on small screens) */}
-          <div className="flex shrink-0 flex-col gap-2 border-b border-border pb-5 dark:border-white/10 lg:w-[min(100%,11.5rem)] lg:border-b-0 lg:border-r lg:pb-0 lg:pr-8">
-            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground dark:text-slate-500">
-              Study streak
-            </p>
-            <div className="flex items-center gap-2.5">
-              <Flame className="h-9 w-9 shrink-0 text-orange-400 lg:h-10 lg:w-10" aria-hidden />
-              <span className="text-4xl font-black tabular-nums leading-none tracking-tight text-amber-100 dark:text-amber-50 sm:text-[2.75rem]">
-                {streakDisplay}
-              </span>
-            </div>
-            <p className="max-w-[14rem] text-[11px] leading-snug text-muted-foreground dark:text-slate-400">
-              {studyDaysStatus === "ready"
-                ? studyStreak === 0
-                  ? "No streak yet — same as home dashboard"
-                  : studyStreak === 1
-                    ? "day — same as home dashboard"
-                    : "days — same as home dashboard"
-                : studyDaysStatus === "error"
-                  ? "Could not load"
-                  : "Syncing…"}
-            </p>
-          </div>
-
-          {/* Heatmap — right column */}
-          <div className="min-w-0 w-full max-w-full lg:w-max lg:max-w-[min(100%,calc(100%-12rem))]">
-            <p className="mb-2 text-[11px] font-semibold text-muted-foreground dark:text-slate-400">
-              Last 28 days · weeks start Monday
-            </p>
-            <div className="overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              <div className="inline-flex min-w-0 gap-2">
-                {/* Day-of-week labels */}
-                <div
-                  className="flex shrink-0 flex-col justify-between gap-[3px] py-0.5 pr-0.5 text-[10px] leading-none text-muted-foreground dark:text-slate-500"
-                  aria-hidden
-                >
-                  {WEEKDAY_LABELS_LEFT.map((lab, row) => (
-                    <span
-                      key={row}
-                      className="flex h-[11px] items-center font-medium tabular-nums"
-                      style={{ minHeight: 11 }}
-                    >
-                      {lab}
-                    </span>
-                  ))}
-                </div>
-                {/* Month ribbon */}
-                <div className="flex flex-col gap-1">
-                  <div className="flex gap-[3px] pl-0.5">
-                    {weeks.map((week, wi) => {
-                      const mon = format(week[0]!.date, "MMM");
-                      const prevMon =
-                        wi > 0 ? format(weeks[wi - 1]![0]!.date, "MMM") : null;
-                      return (
-                        <div
-                          key={`wk-${wi}`}
-                          className="flex w-[11px] shrink-0 justify-center sm:w-3"
-                        >
-                          <span className="text-[10px] font-medium tabular-nums text-muted-foreground dark:text-slate-500">
-                            {wi === 0 || mon !== prevMon ? mon : ""}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  {/* Dot grid: each column = one week, rows = Mon–Sun */}
-                  <div
-                    className="flex gap-[3px]"
-                    role="img"
-                    aria-label="Study activity map — red when under 10 minutes, greens for longer focus"
-                  >
-                    {weeks.map((week, wi) => (
-                      <div key={wi} className="flex flex-col gap-[3px]">
-                        {week.map((cell, di) => {
-                          const isReady = studyDaysStatus === "ready";
-                          const tip = !isReady
-                            ? "Loading activity…"
-                            : cell.level === "none"
-                              ? `${format(cell.date, "EEE d MMM yyyy")} · outside selected range`
-                              : `${format(cell.date, "EEE d MMM yyyy")} · ${formatPresenceMsForTooltip(cell.presenceMs)} · ${formatStudyMsForTooltip(cell.activeMs)}`;
-                          return (
-                            <div
-                              key={`${wi}-${di}`}
-                              className="h-[11px] w-[11px] shrink-0 rounded-[2px] ring-1 ring-black/10 dark:ring-white/10 sm:h-3 sm:w-3"
-                              style={{
-                                backgroundColor: !isReady
-                                  ? ACTIVITY_DOT_COLORS.none
-                                  : ACTIVITY_DOT_COLORS[cell.level],
-                              }}
-                              title={tip}
-                            />
-                          );
-                        })}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-muted-foreground dark:text-slate-500">
-              <span>Less</span>
-              <span
-                className="h-[11px] w-[11px] shrink-0 rounded-[2px] ring-1 ring-black/10 dark:ring-white/10 sm:h-3 sm:w-3"
-                style={{ backgroundColor: ACTIVITY_DOT_COLORS.inactive }}
-                title="No activity or under 10 minutes"
-              />
-              <div className="flex gap-1">
-                {(["l0", "l1", "l2"] as const).map((k) => (
-                  <span
-                    key={k}
-                    className="h-[11px] w-[11px] shrink-0 rounded-[2px] ring-1 ring-black/10 dark:ring-white/10 sm:h-3 sm:w-3"
-                    style={{ backgroundColor: ACTIVITY_DOT_COLORS[k] }}
-                  />
-                ))}
-              </div>
-              <span>More</span>
-              <span className="text-[10px] text-muted-foreground/80 dark:text-slate-600">
-                · {studyDaysStatus === "ready" ? "Live data · matches dashboard study map" : "Loading activity…"}
-              </span>
-            </div>
-          </div>
+      <section className="rounded-xl border border-border bg-card p-3 dark:border-white/10 dark:bg-[#0c1017] sm:rounded-2xl sm:p-4 md:p-5">
+        <div className="mb-3 flex items-center gap-2 border-b border-border pb-3 dark:border-white/10">
+          <Heart className="h-5 w-5 shrink-0 text-emerald-400" aria-hidden />
+          <h2 className="text-base font-black dark:text-white sm:text-lg">
+            EduFund progress &amp; credibility score
+          </h2>
+        </div>
+        <div className="grid grid-cols-1 gap-px overflow-hidden rounded-lg bg-border dark:bg-white/10 sm:grid-cols-3">
+          <ProfileMetricGridCell
+            icon={<Clock className="h-5 w-5 text-emerald-400" aria-hidden />}
+            label="Days since joining"
+            value={daysSinceJoinStr}
+            sub={daysSinceJoinSub}
+          />
+          <ProfileMetricGridCell
+            icon={<Flame className="h-5 w-5 text-orange-500" aria-hidden />}
+            label="Streaks > 5 days"
+            value={streak5PlusStr}
+            sub="Study heat · last 28 days"
+          />
+          <ProfileMetricGridCell
+            icon={<BarChart3 className="h-5 w-5 text-sky-400" aria-hidden />}
+            label="Learning activities total"
+            value={learningActivitiesStr}
+            sub="Mocks + assignments + InstaCue (week)"
+          />
+          <ProfileMetricGridCell
+            icon={<Users className="h-5 w-5 text-violet-400" aria-hidden />}
+            label="Community engagement"
+            value={communityEngagementStr}
+            sub="Saved community posts"
+          />
+          <ProfileMetricGridCell
+            icon={<GraduationCap className="h-5 w-5 text-amber-400" aria-hidden />}
+            label="Academic marks entered"
+            value={academicStr}
+            sub={academicSub}
+          />
+          <ProfileMetricGridCell
+            icon={<Trophy className="h-5 w-5 text-emerald-400" aria-hidden />}
+            label="Achievements verified"
+            value={achievementVerifiedStr}
+            sub={achievementVerifiedSub}
+          />
         </div>
       </section>
 
       <section className="rounded-xl border border-border bg-card p-3 dark:border-white/10 dark:bg-[#0c1017] sm:rounded-2xl sm:p-4 md:p-5">
         <div className="mb-3 flex flex-wrap items-end justify-between gap-2 border-b border-border pb-3 dark:border-white/10">
           <div className="flex items-center gap-2">
-            <Coins className="h-5 w-5 text-amber-400" />
+            <Coins className="h-5 w-5 shrink-0 text-amber-400" aria-hidden />
             <h2 className="text-base font-black dark:text-white sm:text-lg">Recent RDM by activity</h2>
           </div>
-          <p className="text-[10px] font-medium text-muted-foreground dark:text-slate-500">
+          <p className="text-[10.5px] font-medium text-muted-foreground dark:text-slate-500">
             Last {rdmRecent?.windowDays ?? 28} days · refreshes when you return to this tab
           </p>
         </div>
@@ -2013,6 +2444,243 @@ export function StudentProfileActivityPanel({ profile }: { profile: Profile }) {
       </section>
 
       <section className="rounded-xl border border-border bg-card p-3 dark:border-white/10 dark:bg-[#0c1017] sm:rounded-2xl sm:p-4 md:p-5">
+        <div className="mb-4 flex items-center gap-2 border-b border-border pb-3 dark:border-white/10">
+          <Flame className="h-5 w-5 text-orange-400" />
+          <h2 className="text-base font-black dark:text-white sm:text-lg">Activity streaks &amp; heatmap</h2>
+        </div>
+
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-start lg:gap-8">
+          {/* Study streak — left column (above heatmap on small screens) */}
+          <div className="flex shrink-0 flex-col gap-2 border-b border-border pb-5 dark:border-white/10 lg:w-[min(100%,11.5rem)] lg:border-b-0 lg:border-r lg:pb-0 lg:pr-8">
+            <p className="text-[10.5px] font-bold uppercase tracking-[0.12em] text-muted-foreground dark:text-slate-500">
+              Study streak
+            </p>
+            <div className="flex items-center gap-2.5">
+              <Flame className="h-9 w-9 shrink-0 text-orange-400 lg:h-10 lg:w-10" aria-hidden />
+              <span className="text-4xl font-black tabular-nums leading-none tracking-tight text-amber-100 dark:text-amber-50 sm:text-[2.75rem]">
+                {streakDisplay}
+              </span>
+            </div>
+            <p className="max-w-[14rem] text-[11px] leading-snug text-muted-foreground dark:text-slate-400">
+              {studyDaysStatus === "ready"
+                ? studyStreak === 0
+                  ? "No streak yet — same as home dashboard"
+                  : studyStreak === 1
+                    ? "day — same as home dashboard"
+                    : "days — same as home dashboard"
+                : studyDaysStatus === "error"
+                  ? "Could not load"
+                  : "Syncing…"}
+            </p>
+          </div>
+
+          {/* Heatmap — right column */}
+          <div className="min-w-0 w-full max-w-full lg:w-max lg:max-w-[min(100%,calc(100%-12rem))]">
+            <p className="mb-2 text-[11px] font-semibold text-muted-foreground dark:text-slate-400">
+              Last 28 days · weeks start Monday
+            </p>
+            <div className="overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <div className="inline-flex min-w-0 gap-2">
+                {/* Day-of-week labels */}
+                <div
+                  className="flex shrink-0 flex-col justify-between gap-[3px] py-0.5 pr-0.5 text-[10.5px] leading-none text-muted-foreground dark:text-slate-500"
+                  aria-hidden
+                >
+                  {WEEKDAY_LABELS_LEFT.map((lab, row) => (
+                    <span
+                      key={row}
+                      className="flex h-[11px] items-center font-medium tabular-nums"
+                      style={{ minHeight: 11 }}
+                    >
+                      {lab}
+                    </span>
+                  ))}
+                </div>
+                {/* Month ribbon */}
+                <div className="flex flex-col gap-1">
+                  <div className="flex gap-[3px] pl-0.5">
+                    {weeks.map((week, wi) => {
+                      const mon = format(week[0]!.date, "MMM");
+                      const prevMon =
+                        wi > 0 ? format(weeks[wi - 1]![0]!.date, "MMM") : null;
+                      return (
+                        <div
+                          key={`wk-${wi}`}
+                          className="flex w-[11px] shrink-0 justify-center sm:w-3"
+                        >
+                          <span className="text-[10.5px] font-medium tabular-nums text-muted-foreground dark:text-slate-500">
+                            {wi === 0 || mon !== prevMon ? mon : ""}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {/* Dot grid: each column = one week, rows = Mon–Sun */}
+                  <div
+                    className="flex gap-[3px]"
+                    role="img"
+                    aria-label="Study activity map — red when under 10 minutes, greens for longer focus"
+                  >
+                    {weeks.map((week, wi) => (
+                      <div key={wi} className="flex flex-col gap-[3px]">
+                        {week.map((cell, di) => {
+                          const isReady = studyDaysStatus === "ready";
+                          const tip = !isReady
+                            ? "Loading activity…"
+                            : cell.level === "none"
+                              ? `${format(cell.date, "EEE d MMM yyyy")} · outside selected range`
+                              : `${format(cell.date, "EEE d MMM yyyy")} · ${formatPresenceMsForTooltip(cell.presenceMs)} · ${formatStudyMsForTooltip(cell.activeMs)}`;
+                          return (
+                            <div
+                              key={`${wi}-${di}`}
+                              className="h-[11px] w-[11px] shrink-0 rounded-[2px] ring-1 ring-black/10 dark:ring-white/10 sm:h-3 sm:w-3"
+                              style={{
+                                backgroundColor: !isReady
+                                  ? ACTIVITY_DOT_COLORS.none
+                                  : ACTIVITY_DOT_COLORS[cell.level],
+                              }}
+                              title={tip}
+                            />
+                          );
+                        })}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10.5px] text-muted-foreground dark:text-slate-500">
+              <span>Less</span>
+              <span
+                className="h-[11px] w-[11px] shrink-0 rounded-[2px] ring-1 ring-black/10 dark:ring-white/10 sm:h-3 sm:w-3"
+                style={{ backgroundColor: ACTIVITY_DOT_COLORS.inactive }}
+                title="No activity or under 10 minutes"
+              />
+              <div className="flex gap-1">
+                {(["l0", "l1", "l2"] as const).map((k) => (
+                  <span
+                    key={k}
+                    className="h-[11px] w-[11px] shrink-0 rounded-[2px] ring-1 ring-black/10 dark:ring-white/10 sm:h-3 sm:w-3"
+                    style={{ backgroundColor: ACTIVITY_DOT_COLORS[k] }}
+                  />
+                ))}
+              </div>
+              <span>More</span>
+              <span className="text-[10.5px] text-muted-foreground/80 dark:text-slate-600">
+                · {studyDaysStatus === "ready" ? "Live data · matches dashboard study map" : "Loading activity…"}
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-border bg-card p-3 dark:border-white/10 dark:bg-[#0c1017] sm:rounded-2xl sm:p-4 md:p-5">
+        <div className="mb-2 flex items-center gap-2 border-b border-border pb-3 dark:border-white/10">
+          <FileText className="h-5 w-5 shrink-0 text-emerald-400" aria-hidden />
+          <h2 className="text-base font-black dark:text-white sm:text-lg">Learning activity breakdown</h2>
+        </div>
+        <p className="mb-3 text-[10.5px] leading-snug text-muted-foreground dark:text-slate-500">
+          All figures are cumulative since date of joining · last updated live
+        </p>
+        <div className="grid grid-cols-1 gap-px overflow-hidden rounded-lg bg-border dark:bg-white/10 sm:grid-cols-3">
+          <AttendanceKpiCell
+            label="DailyDose attempted"
+            value={laN(dailyDoseAtt)}
+            sub={dailyDoseAttemptedSub}
+          />
+          <AttendanceKpiCell
+            label="DailyDose completed"
+            value={laN(la?.dailyDoseFullRuns ?? 0)}
+            sub={dailyDoseCompletedSub}
+          />
+          <AttendanceKpiCell
+            label="DailyDose accuracy"
+            value={laPct(la?.dailyDoseAccuracyPct)}
+            sub="questions answered correctly"
+          />
+          <AttendanceKpiCell
+            label="Sub-topics completed"
+            value={laN(la?.subtopicsCompleted ?? 0)}
+            sub={laStr(la?.subtopicSubjectsLabel ?? "Deep Dive / Explore progress")}
+          />
+          <AttendanceKpiCell
+            label="Quizzes attempted"
+            value={laN(la?.quizzesAttempted ?? 0)}
+            sub="topic-wise & subject quizzes"
+          />
+          <AttendanceKpiCell
+            label="Quiz accuracy"
+            value={laPct(la?.quizAccuracyPct)}
+            sub="avg across all quizzes"
+          />
+          <AttendanceKpiCell
+            label="Mock tests attempted"
+            value={laN(la?.mocksAttempted ?? 0)}
+            sub="Testbee adaptive engine"
+          />
+          <AttendanceKpiCell
+            label="Mock test avg score"
+            value={laPct(la?.mockAvgPct)}
+            sub={laStr(la?.mockBestLine ?? "—")}
+          />
+          <AttendanceKpiCell
+            label="Challenges attempted"
+            value={laN(la?.challengesAttempted ?? 0)}
+            sub="timed speed challenges"
+          />
+          <AttendanceKpiCell label="Live classes attended" value={laN(liveAtt)} sub={liveSub} />
+          <AttendanceKpiCell label="Assignments done" value={laN(asgDone)} sub={asgSub} />
+          <AttendanceKpiCell label="Lectures reviewed" value={laN(lec)} sub={lecturesSub} />
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-border bg-card p-3 dark:border-white/10 dark:bg-[#0c1017] sm:rounded-2xl sm:p-4 md:p-5">
+        <div className="mb-2 flex items-center gap-2 border-b border-border pb-3 dark:border-white/10">
+          <div
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 ring-1 ring-emerald-400/35 dark:bg-emerald-500/10 dark:ring-emerald-400/25"
+            aria-hidden
+          >
+            <CircleHelp className="h-5 w-5 text-emerald-400" />
+          </div>
+          <h2 className="text-base font-black dark:text-white sm:text-lg">Gyan++ engagement</h2>
+        </div>
+        <div className="grid grid-cols-1 gap-px overflow-hidden rounded-lg bg-border dark:bg-white/10 sm:grid-cols-3">
+          <AttendanceKpiCell label="Doubts asked" value={gyN(gye?.doubtsAsked ?? 0)} sub="questions posted on wall" />
+          <AttendanceKpiCell
+            label="Answers given"
+            value={gyN(gye?.answersGiven ?? 0)}
+            sub={answersGivenSub}
+          />
+          <AttendanceKpiCell
+            label="Comments posted"
+            value={gyN(gye?.commentsPosted ?? 0)}
+            sub="on peer Q&A threads"
+          />
+          <AttendanceKpiCell
+            label="Upvotes given"
+            value={gyN(gye?.upvotesGiven ?? 0)}
+            sub="helpful content endorsed"
+          />
+          <AttendanceKpiCell
+            label="Upvotes received"
+            value={gyN(gye?.upvotesReceived ?? 0)}
+            sub="on own answers & comments"
+          />
+          <AttendanceKpiCell
+            label="Saved for revision"
+            value={gyN(gye?.savedForRevision ?? 0)}
+            sub="doubts bookmarked"
+          />
+        </div>
+        <div className="mt-4 flex gap-3 rounded-lg border border-emerald-600/40 bg-emerald-950/45 p-3.5 dark:border-emerald-500/35 dark:bg-emerald-950/55 sm:p-4">
+          <Info className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" aria-hidden />
+          <p className="text-[10.5px] leading-snug text-emerald-100/95 dark:text-emerald-50/95">
+            {gyanEngagementBannerText}
+          </p>
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-border bg-card p-3 dark:border-white/10 dark:bg-[#0c1017] sm:rounded-2xl sm:p-4 md:p-5">
         <div className="mb-3 flex items-center gap-2 border-b border-border pb-3 dark:border-white/10">
           <LineChart className="h-5 w-5 text-emerald-400" />
           <h2 className="text-base font-black dark:text-white sm:text-lg">Performance by subject</h2>
@@ -2029,7 +2697,7 @@ export function StudentProfileActivityPanel({ profile }: { profile: Profile }) {
         <p className="mb-2 text-[11px] font-semibold text-muted-foreground dark:text-slate-400">
           Mock test average score per subject
         </p>
-        <p className="mb-3 text-[10px] leading-relaxed text-muted-foreground dark:text-slate-500">
+        <p className="mb-3 text-[10.5px] leading-relaxed text-muted-foreground dark:text-slate-500">
           Library mocks only. We take your latest score on each paper and average them by subject—Physics, Maths, or
           Chemistry.
         </p>
@@ -2051,89 +2719,13 @@ export function StudentProfileActivityPanel({ profile }: { profile: Profile }) {
           color="bg-amber-500"
           loading={mockSubjectStatus === "loading" || mockSubjectStatus === "idle"}
         />
-        <p className="mt-2 text-[10px] text-muted-foreground/85 dark:text-slate-600">
+        <p className="mt-2 text-[10.5px] text-muted-foreground/85 dark:text-slate-600">
           {mockSubjectStatus === "ready" && mockSubjectAverages
             ? `Papers in average: Physics ${mockSubjectAverages.physics.count}, Maths ${mockSubjectAverages.math.count}, Chemistry ${mockSubjectAverages.chemistry.count}.`
             : mockSubjectStatus === "error"
               ? "Could not load mock averages."
               : ""}
         </p>
-      </section>
-
-      <section className="rounded-xl border border-border bg-card p-3 dark:border-white/10 dark:bg-[#0c1017] sm:rounded-2xl sm:p-4 md:p-5">
-        <div className="mb-3 flex items-center gap-2 border-b border-border pb-3 dark:border-white/10">
-          <ClipboardList className="h-5 w-5 text-slate-400" />
-          <h2 className="text-base font-black dark:text-white sm:text-lg">Attendance, assignments &amp; study hours</h2>
-        </div>
-        <div className="grid grid-cols-2 gap-2 min-[520px]:grid-cols-3">
-          <StatCard
-            label="No of classes joined"
-            value={
-              attendanceStatsStatus === "ready" && attendanceStats
-                ? attendanceStats.classroomsJoined.toLocaleString()
-                : attendanceStatsStatus === "error"
-                  ? "—"
-                  : "…"
-            }
-            sub="when enrolled"
-          />
-          <StatCard
-            label="No of Daily dose and fun brain streak"
-            value={
-              attendanceStatsStatus === "ready" && attendanceStats
-                ? attendanceStats.dailyDoseDualStreak.toLocaleString()
-                : attendanceStatsStatus === "error"
-                  ? "—"
-                  : "…"
-            }
-            sub="Play streaks"
-          />
-          <StatCard
-            label="Mocks attempted"
-            value={
-              attendanceStatsStatus === "ready" && attendanceStats
-                ? attendanceStats.mocksAttempted.toLocaleString()
-                : attendanceStatsStatus === "error"
-                  ? "—"
-                  : "…"
-            }
-            sub="Testbee"
-          />
-          <StatCard
-            label="Instacues reviewed"
-            value={
-              attendanceStatsStatus === "ready" && attendanceStats
-                ? attendanceStats.instacueDwellEventsThisWeek.toLocaleString()
-                : attendanceStatsStatus === "error"
-                  ? "—"
-                  : "…"
-            }
-            sub="this week"
-          />
-          <StatCard
-            label="Study hours"
-            value={
-              attendanceStatsStatus === "ready" && attendanceStats
-                ? formatPlatformStudyHours(attendanceStats.studyMsTotal)
-                : attendanceStatsStatus === "error"
-                  ? "—"
-                  : "…"
-            }
-            sub="on platform"
-          />
-          <StatCard
-            label="Assignments done"
-            value={
-              attendanceStatsStatus === "ready" && attendanceStats
-                ? attendanceStats.assignmentTasksDone.toLocaleString()
-                : attendanceStatsStatus === "error"
-                  ? "—"
-                  : "…"
-            }
-            sub="tasks marked in classes"
-            valueClass="text-emerald-400"
-          />
-        </div>
       </section>
     </div>
   );
@@ -2152,9 +2744,9 @@ function StatCard({
 }) {
   return (
     <div className="rounded-lg bg-muted/40 p-2.5 dark:bg-white/[0.04] sm:p-3">
-      <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground dark:text-slate-500">{label}</p>
+      <p className="text-[10.5px] font-bold uppercase tracking-wide text-muted-foreground dark:text-slate-500">{label}</p>
       <p className={cn("mt-0.5 text-lg font-black text-foreground dark:text-white sm:text-xl", valueClass)}>{value}</p>
-      <p className="text-[10px] text-muted-foreground dark:text-slate-500">{sub}</p>
+      <p className="text-[10.5px] text-muted-foreground dark:text-slate-500">{sub}</p>
     </div>
   );
 }
@@ -2177,15 +2769,35 @@ function formatRdmClaimWhen(iso: string): string {
 function rdmCategoryIcon(category: RdmRecentClaimRow["category"]): ReactNode {
   switch (category) {
     case "gyan":
-      return <span className="text-amber-300">?</span>;
+      return (
+        <span className="flex size-8 items-center justify-center rounded-md bg-amber-500 text-sm font-black leading-none text-white">
+          ?
+        </span>
+      );
     case "play":
-      return <span className="text-lime-400">▶</span>;
+      return (
+        <span className="flex size-8 items-center justify-center rounded-md bg-emerald-600 pl-0.5 text-[10.5px] font-black text-white">
+          ▶
+        </span>
+      );
     case "mocks":
-      return <span className="text-blue-300">✎</span>;
+      return (
+        <span className="flex size-8 items-center justify-center rounded-md bg-sky-600 text-[10.5px] font-black text-white">
+          ✎
+        </span>
+      );
     case "revision":
-      return <span className="text-violet-300">★</span>;
+      return (
+        <span className="flex size-8 items-center justify-center rounded-md bg-violet-600 text-[10.5px] text-white">
+          ★
+        </span>
+      );
     default:
-      return <span className="text-slate-400">•</span>;
+      return (
+        <span className="flex size-8 items-center justify-center rounded-md bg-muted/50 text-slate-500 dark:bg-white/10">
+          •
+        </span>
+      );
   }
 }
 
@@ -2212,11 +2824,11 @@ function ActivityRow({
     whenIso && !loading && !errored ? formatRdmClaimWhen(whenIso) : "";
   return (
     <div className="flex items-center gap-2 border-b border-border py-2 last:border-0 dark:border-white/10 sm:gap-3">
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-muted/60 dark:bg-white/10">{icon}</div>
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md p-0">{icon}</div>
       <div className="min-w-0 flex-1">
         <p className="text-xs font-bold text-foreground dark:text-slate-100">{title}</p>
-        {detail ? <p className="text-[10px] text-muted-foreground dark:text-slate-500">{detail}</p> : null}
-        {when ? <p className="text-[10px] tabular-nums text-slate-600 dark:text-slate-600">{when} IST</p> : null}
+        {detail ? <p className="text-[10.5px] text-muted-foreground dark:text-slate-500">{detail}</p> : null}
+        {when ? <p className="text-[10.5px] tabular-nums text-slate-600 dark:text-slate-600">{when} IST</p> : null}
       </div>
       <span
         className={cn(
@@ -2337,7 +2949,7 @@ export function StudentProfileEduFundPanel({ profile }: { profile: Profile }) {
                   <span className="font-bold text-foreground dark:text-white">
                     {i + 1} · {gate.name}
                   </span>
-                  <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-bold tabular-nums text-emerald-200/90 dark:text-emerald-200/80">
+                  <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10.5px] font-bold tabular-nums text-emerald-200/90 dark:text-emerald-200/80">
                     {formatEdufundInr(gate.unlockInrAmount)} unlocked
                   </span>
                   {waitingPrior ? (
@@ -2369,7 +2981,7 @@ export function StudentProfileEduFundPanel({ profile }: { profile: Profile }) {
                 ) : (
                   <>
                     <Progress value={pct} className={cn("mt-2 h-1.5", accent.bar)} />
-                    <p className="mt-1 text-[10px] text-muted-foreground dark:text-slate-500">
+                    <p className="mt-1 text-[10.5px] text-muted-foreground dark:text-slate-500">
                       {rdm.toLocaleString()} of {gate.need.toLocaleString()} RDM in your wallet
                     </p>
                   </>
@@ -2404,7 +3016,7 @@ export function StudentProfileEduFundPanel({ profile }: { profile: Profile }) {
         <div className="mb-3 flex flex-wrap items-center gap-2 border-b border-border pb-3 dark:border-white/10">
           <Building2 className="h-5 w-5 text-blue-400" />
           <h2 className="text-base font-black dark:text-white sm:text-lg">Partner NGOs &amp; philanthropists</h2>
-          <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-bold dark:bg-slate-800">EduFund</span>
+          <span className="rounded-full bg-muted px-2 py-0.5 text-[10.5px] font-bold dark:bg-slate-800">EduFund</span>
         </div>
         <p className="mb-4 text-[11px] leading-relaxed text-muted-foreground dark:text-slate-400">
           Partner organisations receive your verified portfolio when you apply and consent to share. Your data is not

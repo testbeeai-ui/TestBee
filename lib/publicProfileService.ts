@@ -108,22 +108,14 @@ export function getAvatarColor(userId: string): string {
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
 }
 
-/** Derive badges from real profile stats */
+/** Derive badges from real profile stats — disabled (no multi-word achievement chips on profile). */
 function deriveBadges(
-  acceptedAnswers: number,
-  streakDays: number,
-  bountiesWon: number,
-  questionsAsked: number
+  _acceptedAnswers: number,
+  _streakDays: number,
+  _bountiesWon: number,
+  _questionsAsked: number
 ): string[] {
-  const badges: string[] = [];
-  if (acceptedAnswers >= 25) badges.push("Top Contributor");
-  if (acceptedAnswers >= 10) badges.push("Answerer");
-  if (streakDays >= 7) badges.push("Streak Master");
-  if (streakDays >= 3) badges.push("Consistent");
-  if (bountiesWon >= 5) badges.push("Bounty Hunter");
-  if (bountiesWon >= 1) badges.push("Bounty Winner");
-  if (questionsAsked >= 10) badges.push("Curious Mind");
-  return badges;
+  return [];
 }
 
 async function fetchOptional<T>(

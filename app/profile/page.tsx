@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import AppLayout from "@/components/AppLayout";
 import { useAuth } from "@/hooks/useAuth";
@@ -63,11 +63,19 @@ export default function Profile() {
     <ProtectedRoute>
       <AppLayout wideMain>
         <div className="mx-auto w-full min-w-0 max-w-[1920px]">
-          <StudentProfilePersonalHub
-            profile={profile}
-            authUser={authUser}
-            onProfileUpdated={refreshProfile}
-          />
+          <Suspense
+            fallback={
+              <div className="flex min-h-[40vh] items-center justify-center">
+                <span className="text-4xl animate-pulse">🎯</span>
+              </div>
+            }
+          >
+            <StudentProfilePersonalHub
+              profile={profile}
+              authUser={authUser}
+              onProfileUpdated={refreshProfile}
+            />
+          </Suspense>
         </div>
       </AppLayout>
     </ProtectedRoute>

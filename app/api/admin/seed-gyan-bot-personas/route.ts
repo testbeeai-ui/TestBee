@@ -2,7 +2,11 @@ import { NextResponse } from "next/server";
 import { getSupabaseAndUser } from "@/lib/apiAuth";
 import { isAdminUser } from "@/lib/admin";
 import { createAdminClient } from "@/integrations/supabase/server";
-import { GYAN_STUDENT_PERSONAS, PROF_PI_CONFIG } from "@/lib/gyanBotPersonas";
+import {
+  GYAN_STUDENT_PERSONAS,
+  PROF_PI_CONFIG,
+  getGyanBotSeedRdm,
+} from "@/lib/gyanBotPersonas";
 
 const SEED_PASSWORD = process.env.GYAN_BOT_SEED_PASSWORD?.trim() || "GyanBotSeed2025!";
 
@@ -57,7 +61,7 @@ export async function POST(request: Request) {
             id: byEmail.id,
             name: row.name,
             role: row.role,
-            rdm: 5000,
+            rdm: getGyanBotSeedRdm(row.id),
             lifetime_answer_rdm: row.role === "ai" ? 0 : 200,
             onboarding_complete: true,
           },
@@ -85,7 +89,7 @@ export async function POST(request: Request) {
           id: row.id,
           name: row.name,
           role: row.role,
-          rdm: 5000,
+          rdm: getGyanBotSeedRdm(row.id),
           lifetime_answer_rdm: row.role === "ai" ? 0 : 200,
           onboarding_complete: true,
         },

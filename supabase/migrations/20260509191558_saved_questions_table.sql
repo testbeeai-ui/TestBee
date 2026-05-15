@@ -1,0 +1,2 @@
+-- Placeholder migration (empty by design).
+-- Superseded by 20260610120000_saved_questions.sql — do not add schema here.

@@ -8,12 +8,10 @@ import AppLayout from "@/components/AppLayout";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import type { Achievement, PublicProfile } from "@/lib/publicProfileService";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import {
   ArrowLeft,
   GraduationCap,
-  Medal,
   Zap,
   BookOpen,
   Trophy,
@@ -26,13 +24,6 @@ import {
   Star,
   Calendar,
 } from "lucide-react";
-
-const RANK_COLORS: Record<string, string> = {
-  Novice: "bg-muted text-muted-foreground",
-  Scholar: "bg-blue-500/15 text-blue-600 dark:text-blue-400",
-  Expert: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
-  Master: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
-};
 
 const SUBJECT_BAR_COLORS: Record<string, string> = {
   physics: "bg-blue-500",
@@ -135,9 +126,6 @@ export default function PublicProfilePage() {
     displayProfile.subjectStats.math,
     1
   );
-  const rankProgress =
-    displayProfile.nextRankRdm > 0 ? (displayProfile.rdm / displayProfile.nextRankRdm) * 100 : 0;
-
   return (
     <ProtectedRoute>
       <AppLayout>
@@ -175,11 +163,6 @@ export default function PublicProfilePage() {
                   <h1 className="text-2xl font-display font-bold text-foreground">
                     {displayProfile.name}
                   </h1>
-                  <span
-                    className={`edu-chip font-bold ${RANK_COLORS[displayProfile.rank] ?? RANK_COLORS.Novice}`}
-                  >
-                    {!profile ? "—" : displayProfile.rank}
-                  </span>
                 </div>
                 {displayProfile.bio && (
                   <p className="text-sm text-muted-foreground mt-1">{displayProfile.bio}</p>
@@ -198,15 +181,6 @@ export default function PublicProfilePage() {
                     </span>
                   )}
                 </div>
-                {displayProfile.badges.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 mt-2">
-                    {displayProfile.badges.map((b) => (
-                      <span key={b} className="edu-chip bg-edu-orange/15 text-edu-orange text-xs">
-                        {b}
-                      </span>
-                    ))}
-                  </div>
-                )}
               </div>
             </div>
           </div>
@@ -408,13 +382,6 @@ export default function PublicProfilePage() {
                 {displayProfile.streakDays}d Active Streak
               </span>
             </div>
-            <p className="text-sm font-medium text-muted-foreground mb-2">
-              Rank progress to next level
-            </p>
-            <Progress value={Math.min(100, rankProgress)} className="h-3" />
-            <p className="text-sm text-muted-foreground mt-1">
-              {displayProfile.rdm}/{displayProfile.nextRankRdm} RDM
-            </p>
           </div>
 
           {/* 8. Recent Activity */}

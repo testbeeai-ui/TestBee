@@ -17,6 +17,7 @@ import {
   Heart,
   GraduationCap,
   Gift,
+  Newspaper,
   type LucideIcon,
 } from "lucide-react";
 import StreakTimer from "@/components/StreakTimer";
@@ -53,6 +54,16 @@ function isPrepMockActive(pathname: string): boolean {
   return false;
 }
 
+function isNavLinkActive(navPath: string, pathname: string): boolean {
+  if (pathname === navPath) return true;
+  if (navPath === "/mock-test-library" && isPrepMockActive(pathname)) return true;
+  if (navPath === "/edufund" && (pathname === "/edufund" || pathname.startsWith("/edufund/")))
+    return true;
+  if (navPath === "/news-blog" && (pathname === "/news-blog" || pathname.startsWith("/news-blog/")))
+    return true;
+  return false;
+}
+
 type AppNavItem = {
   path: string;
   /** When set, used as Link href (e.g. teacher portal default tab). */
@@ -70,7 +81,7 @@ const studentNavItems: AppNavItem[] = [
   { path: "/doubts", icon: HelpCircle, label: "Gyan++", emoji: "💡" },
   { path: "/refer-earn", icon: Gift, label: "Earn & Learn", emoji: "🎁" },
   { path: "/edufund", icon: Heart, label: "EduFund", emoji: "💛" },
-  { path: "/profile", icon: User, label: "Profile", emoji: "👤" },
+  { path: "/news-blog", icon: Newspaper, label: "News & Blog", emoji: "📰" },
 ];
 
 const teacherNavItems: AppNavItem[] = [
@@ -98,16 +109,17 @@ const AppLayout = ({
   const isTeacher = profile?.role === "teacher";
   const navItems = isTeacher ? teacherNavItems : studentNavItems;
 
-  const settingsHref = isTeacher ? "/teacher-portal?section=profile" : "/settings";
-  const isSettingsPageActive =
-    pathname === "/settings" || (isTeacher && pathname === "/teacher-portal");
+  const teacherPortalHref = "/teacher-portal?section=profile";
+  const isTeacherPortalProfileActive = isTeacher && pathname.startsWith("/teacher-portal");
+  const isStudentProfileNavActive =
+    !isTeacher && (pathname === "/profile" || pathname.startsWith("/profile/"));
 
   return (
     <SitePresenceProvider userId={profile?.id ?? null}>
       <div className="min-h-screen bg-background flex flex-col">
         {/* Top Navigation Bar */}
         {!hideTopNav && (
-          <header className="sticky top-0 z-40 bg-card/80 backdrop-blur-xl border-b border-border/60">
+          <header className="sticky top-0 z-40 shrink-0 bg-card/80 backdrop-blur-xl border-b border-border/60">
             <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-0.5 lg:max-w-[min(100%,90rem)] lg:px-5 lg:py-1 xl:max-w-[min(100%,96rem)] 2xl:px-6">
               {/* Logo — layout box stays compact; scale() enlarges artwork without growing nav flex height */}
               <Link
@@ -132,11 +144,7 @@ const AppLayout = ({
               <nav className="hidden md:flex items-center gap-0.5 bg-muted/50 rounded-xl p-0.5 2xl:rounded-2xl 2xl:p-1">
                 {navItems.map(({ path, href: itemHref, icon: Icon, label }) => {
                   const linkHref = itemHref ?? path;
-                  const isActive =
-                    pathname === path ||
-                    (path === "/mock-test-library" && isPrepMockActive(pathname)) ||
-                    (path === "/edufund" &&
-                      (pathname === "/edufund" || pathname.startsWith("/edufund/")));
+                  const isActive = isNavLinkActive(path, pathname);
                   return (
                     <Link
                       key={path}
@@ -179,25 +187,52 @@ const AppLayout = ({
                   </Link>
                 )}
                 <NotificationBell />
-                <Link
-                  href={settingsHref}
-                  className={cn(
-                    "flex h-8 w-8 items-center justify-center rounded-lg transition-colors 2xl:h-9 2xl:w-9 2xl:rounded-xl",
-                    isSettingsPageActive
-                      ? "bg-card text-primary shadow-sm ring-1 ring-primary/25"
-                      : "bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground"
-                  )}
-                  aria-label="Settings"
-                  aria-current={isSettingsPageActive ? "page" : undefined}
-                >
-                  <Settings
+                {isTeacher ? (
+                  <Link
+                    href={teacherPortalHref}
                     className={cn(
-                      "h-4 w-4 2xl:h-[18px] 2xl:w-[18px]",
-                      isSettingsPageActive ? "text-primary" : ""
+                      "flex h-8 w-8 items-center justify-center rounded-lg transition-colors 2xl:h-9 2xl:w-9 2xl:rounded-xl",
+                      isTeacherPortalProfileActive
+                        ? "bg-card text-primary shadow-sm ring-1 ring-primary/25"
+                        : "bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground"
                     )}
-                    suppressHydrationWarning
-                  />
-                </Link>
+                    aria-label="Settings"
+                    aria-current={isTeacherPortalProfileActive ? "page" : undefined}
+                  >
+                    <Settings
+                      className={cn(
+                        "h-4 w-4 2xl:h-[18px] 2xl:w-[18px]",
+                        isTeacherPortalProfileActive ? "text-primary" : ""
+                      )}
+                      suppressHydrationWarning
+                    />
+                  </Link>
+                ) : (
+                  <Link
+                    href="/profile"
+                    className={cn(
+                      "flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full transition-colors 2xl:h-9 2xl:w-9",
+                      isStudentProfileNavActive
+                        ? "shadow-sm ring-2 ring-primary/50 ring-offset-2 ring-offset-background"
+                        : "ring-1 ring-transparent hover:ring-white/25"
+                    )}
+                    aria-label="Profile"
+                    aria-current={isStudentProfileNavActive ? "page" : undefined}
+                  >
+                    <span
+                      className={cn(
+                        "flex h-full w-full items-center justify-center rounded-full bg-gradient-to-b from-sky-400 to-blue-600 shadow-inner",
+                        isStudentProfileNavActive && "ring-[1.5px] ring-inset ring-white/35"
+                      )}
+                    >
+                      <User
+                        className="h-4 w-4 text-white drop-shadow-sm 2xl:h-[18px] 2xl:w-[18px]"
+                        strokeWidth={2.25}
+                        suppressHydrationWarning
+                      />
+                    </span>
+                  </Link>
+                )}
               </div>
             </div>
 
@@ -206,11 +241,7 @@ const AppLayout = ({
               <div className="flex overflow-x-auto px-2 gap-0.5">
                 {navItems.map(({ path, href: itemHref, label, emoji }) => {
                   const linkHref = itemHref ?? path;
-                  const isActive =
-                    pathname === path ||
-                    (path === "/mock-test-library" && isPrepMockActive(pathname)) ||
-                    (path === "/edufund" &&
-                      (pathname === "/edufund" || pathname.startsWith("/edufund/")));
+                  const isActive = isNavLinkActive(path, pathname);
                   return (
                     <Link
                       key={path}

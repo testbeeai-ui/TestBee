@@ -12,16 +12,7 @@ import {
   Zap,
   ChevronRight,
   Flame,
-  Trophy,
 } from "lucide-react";
-import { Progress } from "@/components/ui/progress";
-
-const RANK_COLORS: Record<string, string> = {
-  Novice: "bg-muted text-muted-foreground",
-  Scholar: "bg-blue-500/15 text-blue-600 dark:text-blue-400",
-  Expert: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
-  Master: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
-};
 
 const SUBJECT_COLORS: Record<string, string> = {
   physics: "bg-blue-500",
@@ -91,11 +82,6 @@ export function UserHoverCard({ userId, children, displayName }: UserHoverCardPr
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-bold text-foreground truncate">{profile.name}</span>
-                  <span
-                    className={`edu-chip text-[10px] font-bold ${RANK_COLORS[profile.rank] ?? RANK_COLORS.Novice}`}
-                  >
-                    {profile.rank}
-                  </span>
                 </div>
                 {profile.bio && (
                   <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{profile.bio}</p>
@@ -113,19 +99,6 @@ export function UserHoverCard({ userId, children, displayName }: UserHoverCardPr
                     )}
                     {profile.rdmFromDoubts > 0 && `${profile.rdmFromDoubts} RDM from doubts`}
                   </p>
-                )}
-                {profile.badges.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-1.5">
-                    {profile.badges.map((b) => (
-                      <span
-                        key={b}
-                        className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md border border-edu-orange/40 bg-edu-orange/10 text-edu-orange text-[10px] font-semibold"
-                      >
-                        <Trophy className="w-3 h-3 shrink-0" />
-                        {b}
-                      </span>
-                    ))}
-                  </div>
                 )}
               </div>
             </div>
@@ -195,23 +168,6 @@ export function UserHoverCard({ userId, children, displayName }: UserHoverCardPr
               </div>
             </div>
 
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
-                Rank progress
-              </p>
-              <Progress
-                value={profile.nextRankRdm > 0 ? (profile.rdm / profile.nextRankRdm) * 100 : 0}
-                className="h-2"
-              />
-              <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1">
-                <Trophy className="w-3 h-3 shrink-0 text-edu-orange" />
-                {profile.rdm}/{profile.nextRankRdm} RDM
-                {profile.bountiesWon > 0 && (
-                  <span className="font-semibold text-foreground">· {profile.bountiesWon} won</span>
-                )}
-              </p>
-            </div>
-
             {(profile.recentDoubts.length > 0 || profile.recentAnswers.length > 0) && (
               <div className="grid grid-cols-2 gap-2">
                 <div>
@@ -272,9 +228,6 @@ export function UserHoverCard({ userId, children, displayName }: UserHoverCardPr
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-bold text-foreground truncate">Student</span>
-                  <span className="edu-chip text-[10px] font-bold bg-muted text-muted-foreground">
-                    —
-                  </span>
                 </div>
                 <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">No profile data</p>
                 <p className="text-sm font-bold text-edu-orange mt-1">0 RDM</p>
