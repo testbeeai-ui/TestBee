@@ -1,7 +1,7 @@
 /**
  * One-off / repeatable import: JEE Main shift CSV -> mock_papers + mock_questions.
  *
- * Requires: migration 20260421190000_mock_papers_questions.sql applied.
+ * Requires: migrations for mock_papers + past_papers applied (PYQ rows go to past_papers).
  * Env: NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
  *
  * Default CSV: data/seeds/jee-main-2019-01-10-shift1.csv
@@ -83,18 +83,32 @@ async function main() {
 
   const supabase = createClient(url, key);
 
-  const { data: existing } = await supabase
+  const { data: existingMock } = await supabase
     .from("mock_papers")
     .select("id")
     .eq("slug", SLUG)
     .maybeSingle();
-  if (existing?.id) {
+  if (existingMock?.id) {
     const { error: delErr } = await supabase.from("mock_papers").delete().eq("slug", SLUG);
     if (delErr) {
-      console.error("Delete existing paper:", delErr);
+      console.error("Delete existing mock paper:", delErr);
       process.exit(1);
     }
-    console.log("Removed existing paper", SLUG);
+    console.log("Removed existing mock paper", SLUG);
+  }
+
+  const { data: existingPast } = await supabase
+    .from("past_papers")
+    .select("id")
+    .eq("slug", SLUG)
+    .maybeSingle();
+  if (existingPast?.id) {
+    const { error: delPastErr } = await supabase.from("past_papers").delete().eq("slug", SLUG);
+    if (delPastErr) {
+      console.error("Delete existing past paper:", delPastErr);
+      process.exit(1);
+    }
+    console.log("Removed existing past paper", SLUG);
   }
 
   const first = rows[0];
@@ -169,7 +183,7 @@ async function main() {
   );
 
   const { data: paper, error: paperErr } = await supabase
-    .from("mock_papers")
+    .from("past_papers")
     .insert({
       slug: SLUG,
       title,
@@ -191,7 +205,7 @@ async function main() {
     .single();
 
   if (paperErr || !paper) {
-    console.error("Insert mock_papers:", paperErr);
+    console.error("Insert past_papers:", paperErr);
     process.exit(1);
   }
 
@@ -200,9 +214,9 @@ async function main() {
   const CHUNK = 80;
   for (let i = 0; i < batch.length; i += CHUNK) {
     const slice = batch.slice(i, i + CHUNK).map((row) => ({ ...row, paper_id: paperId }));
-    const { error } = await supabase.from("mock_questions").insert(slice);
+    const { error } = await supabase.from("past_paper_questions").insert(slice);
     if (error) {
-      console.error("Insert mock_questions chunk", i, error);
+      console.error("Insert past_paper_questions chunk", i, error);
       process.exit(1);
     }
   }

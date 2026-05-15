@@ -1,9 +1,11 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { HelpCircle, Trophy, Plus, GraduationCap } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ChevronDown, ChevronRight, HelpCircle, Trophy, Plus, GraduationCap } from "lucide-react";
 import { UserHoverCard } from "@/components/UserHoverCard";
 import { getSubjectColor } from "./doubtTypes";
 
@@ -42,6 +44,8 @@ interface DoubtRightSidebarProps {
   topTeachers: TopTeacher[];
   onAskClick: () => void;
   postRewardRdm?: number;
+  /** Gyan++ feed tab — when it changes, trending/helpers collapsibles close */
+  wallTabKey: string;
 }
 
 export default function DoubtRightSidebar({
@@ -54,10 +58,19 @@ export default function DoubtRightSidebar({
   topTeachers,
   onAskClick,
   postRewardRdm = 5,
+  wallTabKey,
 }: DoubtRightSidebarProps) {
+  const [trendingOpen, setTrendingOpen] = useState(false);
+  const [helpersOpen, setHelpersOpen] = useState(false);
+
+  useEffect(() => {
+    setTrendingOpen(false);
+    setHelpersOpen(false);
+  }, [wallTabKey]);
+
   return (
     <aside className="lg:col-span-3 order-3 min-w-0 max-w-full">
-      <div className="lg:sticky lg:top-4 space-y-3">
+      <div className="lg:sticky lg:top-[var(--app-header-sticky-offset)] lg:max-h-[calc(100dvh-var(--app-header-sticky-offset)-1rem)] lg:overflow-y-auto space-y-3">
         {/* Stats grid */}
         <div className="edu-card p-3 rounded-2xl">
           <div className="grid grid-cols-2 gap-2.5">
@@ -124,101 +137,129 @@ export default function DoubtRightSidebar({
           </div>
         )}
 
-        {/* Trending topics */}
-        <div className="edu-card p-3 rounded-2xl min-w-0">
-          <h3 className="font-bold text-foreground mb-2 flex items-center gap-1.5">
-            <HelpCircle className="w-4 h-4 text-primary shrink-0" /> Trending topics
-            {trending.length > 0 ? (
-              <span className="text-[10px] font-normal normal-case bg-emerald-500/20 text-emerald-600 px-1.5 py-0.5 rounded ml-1">
-                Live
-              </span>
-            ) : (
-              <span className="text-[10px] font-normal normal-case bg-muted text-muted-foreground px-1.5 py-0.5 rounded ml-1">
-                No data
-              </span>
-            )}
-          </h3>
-          <ul className="space-y-1.5">
-            {trending.slice(0, 4).map((d, i) => {
-              const sc = getSubjectColor(d.subject ?? null);
-              return (
-                <li key={d.id} className="flex items-start gap-1.5">
-                  <span className="text-xs font-bold text-muted-foreground w-4 shrink-0 mt-0.5">
-                    {i + 1}
-                  </span>
-                  <Link
-                    href={`/doubts/${d.id}`}
-                    className="flex-1 min-w-0 text-[13px] text-foreground hover:text-primary hover:underline flex items-center gap-1 flex-wrap"
-                  >
-                    <span className="line-clamp-1">{d.title}</span>
-                    {d.subject && (
-                      <span
-                        className={`text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 ${sc.bg} ${sc.text}`}
-                      >
-                        {d.subject.slice(0, 4)}
-                      </span>
-                    )}
-                  </Link>
-                </li>
-              );
-            })}
-            {trending.length === 0 && (
-              <li className="text-sm text-muted-foreground">
-                No trending posts in the last 7 days.
-              </li>
-            )}
-          </ul>
-        </div>
-
-        {/* Top helpers */}
-        <div className="edu-card p-3 rounded-2xl min-w-0">
-          <h3 className="font-bold text-foreground mb-2 flex items-center gap-1.5">
-            <Trophy className="w-4 h-4 text-edu-orange shrink-0" /> Top helpers
-            {topContributors.length > 0 ? (
-              <span className="text-[10px] font-normal normal-case bg-emerald-500/20 text-emerald-600 px-1.5 py-0.5 rounded ml-1">
-                Live
-              </span>
-            ) : (
-              <span className="text-[10px] font-normal normal-case bg-muted text-muted-foreground px-1.5 py-0.5 rounded ml-1">
-                No data
-              </span>
-            )}
-          </h3>
-          <ul className="space-y-2">
-            {topContributors.map((c) => (
-              <li key={c.user_id} className="flex items-center justify-between gap-2">
-                <UserHoverCard userId={c.user_id}>
-                  <div className="flex items-center gap-2 min-w-0 cursor-pointer hover:opacity-80 transition-opacity">
-                    <Avatar className="h-7 w-7 rounded-full shrink-0">
-                      <AvatarImage src={c.profiles?.avatar_url ?? undefined} />
-                      <AvatarFallback className="rounded-full text-xs font-bold">
-                        {(c.profiles?.name ?? "?").slice(0, 2).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">
-                        {c.profiles?.name ?? "Someone"}
-                      </p>
-                    </div>
-                  </div>
-                </UserHoverCard>
-                <span className="text-edu-orange font-bold text-sm shrink-0">+{c.total} RDM</span>
-              </li>
-            ))}
-            {topContributors.length === 0 && (
-              <li className="text-sm text-muted-foreground">
-                No accepted-answer payouts this week yet.
-              </li>
-            )}
-          </ul>
-        </div>
-
-        {/* Post CTA */}
-        <Button
-          className="w-full rounded-2xl h-11 font-bold text-sm bg-edu-orange hover:bg-edu-orange/90 text-white border-0"
-          onClick={onAskClick}
+        {/* Trending topics — same trigger pattern as left “Filter by subject” */}
+        <Collapsible
+          open={trendingOpen}
+          onOpenChange={setTrendingOpen}
+          className="edu-card rounded-2xl min-w-0"
         >
-          <Plus className="w-4 h-4 mr-1.5" /> Post (+{postRewardRdm} RDM)
+          <div className="p-4">
+            <CollapsibleTrigger asChild>
+              <button
+                type="button"
+                className="w-full flex items-center justify-between text-left rounded-lg hover:bg-muted/40 px-1.5 py-1 -mx-1.5"
+              >
+                <p className="text-sm font-bold text-foreground flex items-center gap-1.5 min-w-0">
+                  <HelpCircle className="w-4 h-4 text-primary shrink-0" />
+                  <span className="truncate">Trending topics</span>
+                  {trending.length > 0 ? (
+                    <span className="text-[10px] font-normal normal-case bg-emerald-500/20 text-emerald-600 px-1.5 py-0.5 rounded shrink-0">
+                      Live
+                    </span>
+                  ) : null}
+                </p>
+                {trendingOpen ? (
+                  <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
+                ) : (
+                  <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+                )}
+              </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="pt-2">
+              <ul className="space-y-1.5">
+                {trending.slice(0, 5).map((d, i) => {
+                  const sc = getSubjectColor(d.subject ?? null);
+                  return (
+                    <li key={d.id} className="flex items-start gap-1.5">
+                      <span className="text-xs font-bold text-muted-foreground w-4 shrink-0 mt-0.5">
+                        {i + 1}
+                      </span>
+                      <Link
+                        href={`/doubts/${d.id}`}
+                        className="flex-1 min-w-0 text-[13px] text-foreground hover:text-primary hover:underline flex items-center gap-1 flex-wrap"
+                        onClick={() => setTrendingOpen(false)}
+                      >
+                        <span className="line-clamp-1">{d.title}</span>
+                        {d.subject && (
+                          <span
+                            className={`text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 ${sc.bg} ${sc.text}`}
+                          >
+                            {d.subject.slice(0, 4)}
+                          </span>
+                        )}
+                      </Link>
+                    </li>
+                  );
+                })}
+                {trending.length === 0 && (
+                  <li className="text-sm text-muted-foreground px-0.5">
+                    No trending posts in the last 7 days.
+                  </li>
+                )}
+              </ul>
+            </CollapsibleContent>
+          </div>
+        </Collapsible>
+
+        {/* Top helpers — same trigger pattern */}
+        <Collapsible open={helpersOpen} onOpenChange={setHelpersOpen} className="edu-card rounded-2xl min-w-0">
+          <div className="p-4">
+            <CollapsibleTrigger asChild>
+              <button
+                type="button"
+                className="w-full flex items-center justify-between text-left rounded-lg hover:bg-muted/40 px-1.5 py-1 -mx-1.5"
+              >
+                <p className="text-sm font-bold text-foreground flex items-center gap-1.5 min-w-0">
+                  <Trophy className="w-4 h-4 text-edu-orange shrink-0" />
+                  <span className="truncate">Top helpers</span>
+                  {topContributors.length > 0 ? (
+                    <span className="text-[10px] font-normal normal-case bg-emerald-500/20 text-emerald-600 px-1.5 py-0.5 rounded shrink-0">
+                      Live
+                    </span>
+                  ) : null}
+                </p>
+                {helpersOpen ? (
+                  <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
+                ) : (
+                  <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+                )}
+              </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="pt-2">
+              <ul className="space-y-2">
+                {topContributors.slice(0, 5).map((c) => (
+                  <li key={c.user_id} className="flex items-center justify-between gap-2">
+                    <UserHoverCard userId={c.user_id}>
+                      <div className="flex items-center gap-2 min-w-0 cursor-pointer hover:opacity-80 transition-opacity">
+                        <Avatar className="h-7 w-7 rounded-full shrink-0">
+                          <AvatarImage src={c.profiles?.avatar_url ?? undefined} />
+                          <AvatarFallback className="rounded-full text-xs font-bold">
+                            {(c.profiles?.name ?? "?").slice(0, 2).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium">
+                            {c.profiles?.name ?? "Someone"}
+                          </p>
+                        </div>
+                      </div>
+                    </UserHoverCard>
+                    <span className="text-edu-orange font-bold text-sm shrink-0">+{c.total} RDM</span>
+                  </li>
+                ))}
+                {topContributors.length === 0 && (
+                  <li className="text-sm text-muted-foreground px-0.5">
+                    No accepted-answer payouts this week yet.
+                  </li>
+                )}
+              </ul>
+            </CollapsibleContent>
+          </div>
+        </Collapsible>
+
+        {/* Ask CTA — same primary style as center wall */}
+        <Button className="w-full rounded-xl h-11 font-bold text-sm px-5" onClick={onAskClick}>
+          <Plus className="w-4 h-4 mr-1.5" /> Ask (+{postRewardRdm} RDM)
         </Button>
       </div>
     </aside>

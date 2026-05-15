@@ -3,7 +3,7 @@
 export const NAV_LINKS = [
   { label: "Features", href: "#features" },
   { label: "For students", href: "#personas" },
-  { label: "For teachers", href: "#personas" },
+  { label: "News & Blog", href: "/news-blog" },
   { label: "For parents", href: "#personas" },
   { label: "Pricing", href: "#pricing" },
   { label: "Testbee", href: "/play" },
@@ -13,7 +13,7 @@ export const NAV_LINKS = [
 export const INVESTOR_NAV_LINKS = [
   { label: "Home", href: "/" },
   { label: "Features", href: "/auth?role=student" },
-  { label: "For Teachers", href: "/?persona=teacher" },
+  { label: "News & Blog", href: "/news-blog" },
   { label: "EduFund", href: "/auth?role=student" },
   { label: "Contact Us", href: "/contact" },
 ];

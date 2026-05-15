@@ -7,6 +7,24 @@
 
 export const PROF_PI_USER_ID = "f2a00000-0000-4000-8000-000000000001";
 
+/**
+ * Seeded `profiles.rdm` for each bot (all below 1000). Applied by seed-gyan-bot-personas + migration
+ * `20260512180000_gyan_bot_profiles_seed_rdm_below_1000.sql`. Bots do not earn real Gyan RDM.
+ */
+export const PROF_PI_SEED_RDM = 847;
+
+/** Same order as `GYAN_STUDENT_USER_IDS` / rotation index 0..11. */
+export const GYAN_STUDENT_SEED_RDMS: readonly number[] = [
+  567, 623, 596, 891, 432, 712, 345, 978, 234, 654, 987, 501,
+] as const;
+
+export function getGyanBotSeedRdm(userId: string): number {
+  if (userId === PROF_PI_USER_ID) return PROF_PI_SEED_RDM;
+  const idx = (GYAN_STUDENT_USER_IDS as readonly string[]).indexOf(userId);
+  if (idx >= 0) return GYAN_STUDENT_SEED_RDMS[idx] ?? 100;
+  return 100;
+}
+
 /** Twelve rotating student posters (same order as cron rotation index 0..11). */
 export const GYAN_STUDENT_USER_IDS = [
   "f2a00000-0000-4000-8000-000000000002",

@@ -201,7 +201,7 @@ const SIX_SYSTEMS: readonly SixSystemCard[] = [
   {
     cat: "DAILYDOSE",
     catClass: "text-purple-400",
-    title: "15 Questions / Day",
+    title: "20 questions / day",
     rdm: "+5 RDM / Day",
     rdmPillClass: "bg-purple-500/15 text-purple-100 ring-1 ring-purple-400/35",
     desc: "Fifteen curated questions. 5 minutes. Builds an unbreakable study habit.",

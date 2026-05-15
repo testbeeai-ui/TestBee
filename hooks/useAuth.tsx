@@ -408,18 +408,39 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signOut = async (redirectAfter?: string) => {
-    try {
-      // Local scope avoids a server round-trip (works offline; prevents hang on network errors).
-      await supabase.auth.signOut({ scope: "local" });
-    } catch {
-      await supabase.auth.signOut({ scope: "local" }).catch(() => {});
-    }
+    /**
+     * Clear local React + store state FIRST so the UI snaps to "logged out"
+     * even if the network signOut call lags. Without this, a slow Supabase
+     * roundtrip leaves Log Out feeling broken (esp. in the teacher portal
+     * where the page re-renders against still-present session state).
+     */
     useUserStore.getState().logout();
     setProfile(null);
     setSession(null);
     setUser(null);
+
+    try {
+      sessionStorage.removeItem("auth_mode");
+      sessionStorage.removeItem("auth_intended_role");
+      sessionStorage.removeItem("auth_redirect_after_login");
+    } catch (_) {}
+
+    // Default scope clears both local storage AND server cookies via the SSR cookie
+    // adapter, so Edge middleware sees the user as anonymous on the next request.
+    void supabase.auth.signOut().catch(() => {
+      // Fall back to a guaranteed-local clear if the network call fails (e.g. offline).
+      void supabase.auth.signOut({ scope: "local" }).catch(() => {});
+    });
+
     const dest = redirectAfter ?? "/";
-    router.replace(dest.startsWith("/") ? dest : `/${dest}`);
+    const target = dest.startsWith("/") ? dest : `/${dest}`;
+    // Full reload (not router.replace) so middleware re-evaluates fresh cookies
+    // and no stale React subtree (teacher portal, classroom feeds) lingers.
+    if (typeof window !== "undefined") {
+      window.location.assign(target);
+      return;
+    }
+    router.replace(target);
     router.refresh();
   };
 
