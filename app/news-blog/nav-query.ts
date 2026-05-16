@@ -1,4 +1,10 @@
-import { BLOG_SECTIONS, EXAMS, NEWS_SECTIONS } from "./constants";
+import {
+  BLOG_SECTIONS,
+  coerceNewsSectionForRole,
+  EXAMS,
+  isAdminOnlyNewsSection,
+  NEWS_SECTIONS,
+} from "./constants";
 import { postSlugPath } from "./slug";
 import type { BlogSection, ExamId, NewsSection, Portal, Post, SectionId } from "./types";
 
@@ -53,11 +59,17 @@ export function parseListNavFromSearchParams(
   return out;
 }
 
-export function normalizeListNav(partial: Partial<NewsBlogListNav>): NewsBlogListNav {
+export function normalizeListNav(
+  partial: Partial<NewsBlogListNav>,
+  opts?: { isAdmin?: boolean }
+): NewsBlogListNav {
   const portal = partial.portal ?? "news";
+  const isAdmin = opts?.isAdmin ?? false;
   let section = partial.section;
   if (!section || (portal === "news" && !isNewsSection(section)) || (portal === "blog" && !isBlogSection(section))) {
     section = portal === "blog" ? "btoppers" : "nbuzz";
+  } else if (portal === "news" && isNewsSection(section)) {
+    section = coerceNewsSectionForRole(section, isAdmin);
   }
   return {
     portal,
@@ -65,6 +77,11 @@ export function normalizeListNav(partial: Partial<NewsBlogListNav>): NewsBlogLis
     exam: partial.exam ?? "all",
     page: partial.page ?? 1,
   };
+}
+
+export function isNewsSectionVisibleToUser(section: string, isAdmin: boolean): boolean {
+  if (!isNewsSection(section)) return false;
+  return isAdmin || !isAdminOnlyNewsSection(section);
 }
 
 export function serializeListNav(nav: NewsBlogListNav): string {

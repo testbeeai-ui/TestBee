@@ -13,6 +13,7 @@ import {
 import type { BlogSection, ExamId, NewsSection, Portal } from "../types";
 
 type SyncTargets = {
+  isAdmin: boolean;
   portal: Portal;
   setPortal: (p: Portal) => void;
   newsSection: NewsSection;
@@ -38,13 +39,17 @@ export function useNewsBlogUrlSync(targets: SyncTargets): NewsBlogListNav {
 
   const listNav = useMemo(
     () =>
-      normalizeListNav({
-        portal: targets.portal,
-        section: targets.portal === "news" ? targets.newsSection : targets.blogSection,
-        exam: targets.portal === "news" ? targets.newsExamFilter : targets.blogExamFilter,
-        page: targets.portal === "news" ? targets.newsPostPage : targets.blogPostPage,
-      }),
+      normalizeListNav(
+        {
+          portal: targets.portal,
+          section: targets.portal === "news" ? targets.newsSection : targets.blogSection,
+          exam: targets.portal === "news" ? targets.newsExamFilter : targets.blogExamFilter,
+          page: targets.portal === "news" ? targets.newsPostPage : targets.blogPostPage,
+        },
+        { isAdmin: targets.isAdmin }
+      ),
     [
+      targets.isAdmin,
       targets.portal,
       targets.newsSection,
       targets.blogSection,
@@ -74,7 +79,10 @@ export function useNewsBlogUrlSync(targets: SyncTargets): NewsBlogListNav {
 
     if (fromUrl.section) {
       if (isNewsSection(fromUrl.section)) {
-        targets.setNewsSection(fromUrl.section);
+        targets.setNewsSection(
+          normalizeListNav({ portal: "news", section: fromUrl.section }, { isAdmin: targets.isAdmin })
+            .section as NewsSection
+        );
         if (!fromUrl.portal) targets.setPortal("news");
       } else if (isBlogSection(fromUrl.section)) {
         targets.setBlogSection(fromUrl.section);

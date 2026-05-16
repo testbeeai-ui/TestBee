@@ -6,8 +6,17 @@ import { resolvePostHtml } from "../resolve-post-html";
 import type { Post } from "../types";
 import { ArticleTextBody } from "./ArticleTextBody";
 import { HtmlBodyFrame } from "./HtmlBodyFrame";
+import { useIsAppAdmin } from "@/hooks/useIsAppAdmin";
 
-export function ArticlePageContent({ post }: { post: Post }) {
+export function ArticlePageContent({
+  post,
+  isAdmin: isAdminFromServer = false,
+}: {
+  post: Post;
+  isAdmin?: boolean;
+}) {
+  const isAdminClient = useIsAppAdmin();
+  const isAdmin = isAdminFromServer || isAdminClient;
   const rawHtml = resolvePostHtml(post);
   const [viewMode, setViewMode] = useState<"rendered" | "text">(rawHtml ? "rendered" : "text");
   const showPageHeader = !rawHtml || viewMode === "text";
@@ -25,7 +34,7 @@ export function ArticlePageContent({ post }: { post: Post }) {
 
       <div className={showPageHeader ? "mt-6" : "mt-2"}>
         {!rawHtml || viewMode === "text" ? (
-          <ArticleTextBody post={post} />
+          <ArticleTextBody post={post} isAdmin={isAdmin} />
         ) : (
           <div className="overflow-visible rounded-xl border border-emerald-500/25 bg-[#0f1826] [overflow-anchor:none]">
             <HtmlBodyFrame html={rawHtml} title={post.title} minHeight={200} />

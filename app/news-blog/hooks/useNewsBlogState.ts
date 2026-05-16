@@ -13,6 +13,7 @@ import { getAllPosts } from "@/lib/news-blog-db";
 import { supabase } from "@/integrations/supabase/client";
 import { createInitialDraft, normalizePost, postToDraft } from "../post-draft-utils";
 import { readBlogEditorPicks, writeBlogEditorPicks } from "../editor-picks-storage";
+import { coerceNewsSectionForRole } from "../constants";
 import { isBlogSection, isNewsSection, type NewsBlogListNav } from "../nav-query";
 import type {
   BlogSection,
@@ -119,6 +120,10 @@ export function useNewsBlogState(opts?: {
       cancelled = true;
     };
   }, [user?.id, profile?.role]);
+
+  useEffect(() => {
+    setNewsSection((cur) => coerceNewsSectionForRole(cur));
+  }, [canManageNewsBlog]);
 
   const isAdmin = canManageNewsBlog;
   const [view, setView] = useState<View>("portal");
