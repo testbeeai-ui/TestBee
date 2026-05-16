@@ -20,6 +20,13 @@ import {
 } from "@/components/ui/dialog";
 import { ToastAction } from "@/components/ui/toast";
 import PlayQuestionCard from "@/components/PlayQuestionCard";
+import type { EduBlastResultFlash } from "@/components/play/EduBlastChallengeCard";
+import { remainingOptionsReviewMs } from "@/lib/eduBlastChallengeMeta";
+import {
+  buildEduBlastDotStates,
+  difficultyRatingToLabel,
+  playCategoryToSubjectTag,
+} from "@/lib/eduBlastChallengeMeta";
 import { fetchReferChallengeQuestions } from "@/lib/fetchReferChallengeQuestions";
 import { buildWhatsAppShareUrl } from "@/lib/referChallengeShareUrls";
 import {
@@ -70,6 +77,7 @@ export type InlineRdmChallengeProps = {
 };
 
 type SummaryReason = "won" | "strikes" | "time" | "below_threshold" | "quit" | null;
+type RoundOutcome = "correct" | "wrong" | "skip";
 
 export default function InlineRdmChallenge({
   spec,
@@ -112,7 +120,13 @@ export default function InlineRdmChallenge({
   const [communityDraftTitle, setCommunityDraftTitle] = useState("");
   const [communityDraftBody, setCommunityDraftBody] = useState("");
   const [perQuestionLeft, setPerQuestionLeft] = useState(perQuestionTotalSec);
+  const [resultReviewMs, setResultReviewMs] = useState(() =>
+    remainingOptionsReviewMs(optionsPhaseSec, optionsPhaseSec)
+  );
+  const perQuestionLeftRef = useRef(perQuestionLeft);
   const [timeoutResolving, setTimeoutResolving] = useState(false);
+  const [roundOutcomes, setRoundOutcomes] = useState<RoundOutcome[]>([]);
+  const [resultFlash, setResultFlash] = useState<EduBlastResultFlash | null>(null);
   const terminalFiredRef = useRef(false);
   const winAutoClaimAttemptedRef = useRef(false);
   const sessionEndRef = useRef(false);
@@ -125,6 +139,8 @@ export default function InlineRdmChallenge({
   const questionRoundStartedAtRef = useRef<number | null>(null);
   const answeredThisRoundRef = useRef(false);
   const questionTimeoutFiredRef = useRef(false);
+  const advanceAfterResultRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isAdvancingRef = useRef(false);
   useEffect(() => {
     questionsRef.current = questions;
     indexRef.current = index;
@@ -132,6 +148,15 @@ export default function InlineRdmChallenge({
   useEffect(() => {
     phaseRef.current = phase;
   }, [phase]);
+  useEffect(() => {
+    perQuestionLeftRef.current = perQuestionLeft;
+  }, [perQuestionLeft]);
+
+  const lockResultReviewFromRemaining = useCallback(() => {
+    const ms = remainingOptionsReviewMs(perQuestionLeftRef.current, optionsPhaseSec);
+    setResultReviewMs(ms);
+    return ms;
+  }, [optionsPhaseSec]);
 
   const fireTerminal = useCallback(
     (outcome: "won" | "lost") => {
@@ -151,6 +176,8 @@ export default function InlineRdmChallenge({
       setMinPassCorrect(spec.minCorrect);
       setIndex(0);
       setResults([]);
+      setRoundOutcomes([]);
+      setResultFlash(null);
       setIgTemplateIndex(0);
       setWinClaimed(false);
       setShareClaimed(false);
@@ -215,6 +242,7 @@ export default function InlineRdmChallenge({
       const q = questionsRef.current[indexRef.current];
       if (!q || phaseRef.current !== "playing") return;
       const isCorrect = selectedIndex === q.correct_answer_index;
+      const alreadyLocal = resultsRef.current.some((r) => r.question_id === q.id);
       await supabase.rpc("record_play_result", {
         p_question_id: q.id,
         p_is_correct: isCorrect,
@@ -224,12 +252,23 @@ export default function InlineRdmChallenge({
         p_selected_answer_index: selectedIndex,
       });
       void bumpUserStudyDayMs(timeTakenMs);
+      if (alreadyLocal) return;
       const row = { question_id: q.id, is_correct: isCorrect, time_taken_ms: timeTakenMs };
       const next = [...resultsRef.current, row];
       resultsRef.current = next;
       setResults(next);
     },
     [spec.playCategory]
+  );
+
+  const pushLocalResult = useCallback(
+    (row: { question_id: string; is_correct: boolean; time_taken_ms: number }) => {
+      if (resultsRef.current.some((r) => r.question_id === row.question_id)) return;
+      const next = [...resultsRef.current, row];
+      resultsRef.current = next;
+      setResults(next);
+    },
+    []
   );
 
   const proceedAfterAnswer = useCallback(() => {
@@ -253,32 +292,31 @@ export default function InlineRdmChallenge({
     if (!q || phaseRef.current !== "playing") return;
     setTimeoutResolving(true);
     answeredThisRoundRef.current = true;
+    lockResultReviewFromRemaining();
     questionRoundDeadlineRef.current = null;
     const nOpt = Array.isArray(q.options) ? q.options.length : 4;
     const wrongPick =
       Array.from({ length: nOpt }, (_, i) => i).find((i) => i !== q.correct_answer_index) ?? 0;
     const started = questionRoundStartedAtRef.current ?? Date.now();
     const elapsed = Date.now() - started;
+    setRoundOutcomes((o) => [...o, "skip"]);
+    setResultFlash({
+      type: "skip",
+      message: "⏱ Time up — marked as unanswered",
+    });
+    pushLocalResult({
+      question_id: q.id,
+      is_correct: false,
+      time_taken_ms: elapsed,
+    });
     try {
       await recordPlayResult(wrongPick, elapsed);
     } catch {
-      // Auto-advance must not depend on network: count as wrong locally if RPC fails.
-      if (!resultsRef.current.some((r) => r.question_id === q.id)) {
-        const row = {
-          question_id: q.id,
-          is_correct: false,
-          time_taken_ms: elapsed,
-        };
-        const next = [...resultsRef.current, row];
-        resultsRef.current = next;
-        setResults(next);
-      }
       void bumpUserStudyDayMs(elapsed);
     } finally {
-      proceedAfterAnswer();
       setTimeoutResolving(false);
     }
-  }, [recordPlayResult, proceedAfterAnswer]);
+  }, [recordPlayResult, pushLocalResult, lockResultReviewFromRemaining]);
 
   useEffect(() => {
     if (phase !== "playing" || questions.length === 0) {
@@ -291,7 +329,10 @@ export default function InlineRdmChallenge({
     answeredThisRoundRef.current = false;
     questionTimeoutFiredRef.current = false;
     setPerQuestionLeft(perQuestionTotalSec);
-  }, [phase, index, questions.length, perQuestionTotalSec]);
+    setResultReviewMs(remainingOptionsReviewMs(optionsPhaseSec, optionsPhaseSec));
+    setResultFlash(null);
+    isAdvancingRef.current = false;
+  }, [phase, index, questions.length, perQuestionTotalSec, optionsPhaseSec]);
 
   useEffect(() => {
     if (phase !== "playing" || questions.length === 0) return;
@@ -332,14 +373,87 @@ export default function InlineRdmChallenge({
   }, [phase, questions.length, index, sessionSec, finalizeRun, handleQuestionTimeout]);
 
   const handleAnswer = async (selectedIndex: number, timeTakenMs: number) => {
-    questionRoundDeadlineRef.current = null;
+    const q = questionsRef.current[indexRef.current];
+    if (!q || answeredThisRoundRef.current) return;
     answeredThisRoundRef.current = true;
-    await recordPlayResult(selectedIndex, timeTakenMs);
+    lockResultReviewFromRemaining();
+    questionRoundDeadlineRef.current = null;
+    const isCorrect = selectedIndex === q.correct_answer_index;
+    pushLocalResult({
+      question_id: q.id,
+      is_correct: isCorrect,
+      time_taken_ms: timeTakenMs,
+    });
+    setRoundOutcomes((o) => [...o, isCorrect ? "correct" : "wrong"]);
+    setResultFlash({
+      type: isCorrect ? "correct" : "wrong",
+      message: isCorrect
+        ? `✓ Correct! +${spec.winRdm} RDM on pass`
+        : `✗ Incorrect — correct answer was option ${q.correct_answer_index + 1}`,
+    });
+    try {
+      await recordPlayResult(selectedIndex, timeTakenMs);
+    } catch {
+      void bumpUserStudyDayMs(timeTakenMs);
+    }
   };
 
-  const handleNext = () => {
+  const handleSkip = useCallback(async () => {
+    const q = questionsRef.current[indexRef.current];
+    if (!q || answeredThisRoundRef.current || phaseRef.current !== "playing") return;
+    answeredThisRoundRef.current = true;
+    lockResultReviewFromRemaining();
+    questionRoundDeadlineRef.current = null;
+    const started = questionRoundStartedAtRef.current ?? Date.now();
+    const elapsed = Date.now() - started;
+    const nOpt = Array.isArray(q.options) ? q.options.length : 4;
+    const wrongPick =
+      Array.from({ length: nOpt }, (_, i) => i).find((i) => i !== q.correct_answer_index) ?? 0;
+    pushLocalResult({
+      question_id: q.id,
+      is_correct: false,
+      time_taken_ms: elapsed,
+    });
+    setRoundOutcomes((o) => [...o, "skip"]);
+    setResultFlash({
+      type: "skip",
+      message: "→ Skipped — marked as unanswered",
+    });
+    try {
+      await recordPlayResult(wrongPick, elapsed);
+    } catch {
+      void bumpUserStudyDayMs(elapsed);
+    }
+  }, [recordPlayResult, pushLocalResult, lockResultReviewFromRemaining]);
+
+  const handleNext = useCallback(() => {
+    if (isAdvancingRef.current) return;
+    isAdvancingRef.current = true;
+    if (advanceAfterResultRef.current) {
+      clearTimeout(advanceAfterResultRef.current);
+      advanceAfterResultRef.current = null;
+    }
+    setResultFlash(null);
     proceedAfterAnswer();
-  };
+  }, [proceedAfterAnswer]);
+
+  useEffect(() => {
+    if (advanceAfterResultRef.current) {
+      clearTimeout(advanceAfterResultRef.current);
+      advanceAfterResultRef.current = null;
+    }
+    if (phase !== "playing" || results.length <= index) return;
+    advanceAfterResultRef.current = setTimeout(() => {
+      advanceAfterResultRef.current = null;
+      handleNext();
+    }, resultReviewMs);
+    return () => {
+      if (advanceAfterResultRef.current) {
+        clearTimeout(advanceAfterResultRef.current);
+        advanceAfterResultRef.current = null;
+      }
+    };
+  }, [phase, index, results.length, handleNext, resultReviewMs]);
 
   const screenshotFilterEnabled = useScreenshotFilterEnabled();
   const { showCaptureBlockOverlay, dismissCaptureBlockOverlay } = useReferChallengeAntiCapture({
@@ -1169,6 +1283,10 @@ export default function InlineRdmChallenge({
 
   const wrongSoFar = results.filter((r) => !r.is_correct).length;
   const displayStrikes = Math.min(MAX_STRIKES, wrongSoFar);
+  const wrongCount = roundOutcomes.filter((o) => o === "wrong").length;
+  const skipCount = roundOutcomes.filter((o) => o === "skip").length;
+  const dotStates = buildEduBlastDotStates(tot, idx, roundOutcomes);
+  const currentQ = questions[idx];
   /** Denominator is full challenge length so skips/timeouts still count toward the bar (same as summary %). */
   const scoreLabel = tot > 0 ? `${correctCount} / ${tot}` : "0 / 0";
   const accuracyPctRunning = tot > 0 ? Math.round((correctCount / tot) * 100) : 0;
@@ -1176,12 +1294,7 @@ export default function InlineRdmChallenge({
   const rdmBarPctPlay = dailyRdmCap > 0 ? Math.min(100, (dailyRdmEarned / dailyRdmCap) * 100) : 0;
   const awaitingAdvance = results.length > idx;
   const optionsRevealCountdown = perQuestionLeft > optionsPhaseSec;
-  const untilChoicesSec = Math.max(0, perQuestionLeft - optionsPhaseSec);
   const pacePhaseLabel = optionsRevealCountdown ? "Stem · read only" : "Choices · tap an option";
-  const questionPacePct =
-    perQuestionTotalSec > 0
-      ? Math.min(100, Math.round((perQuestionLeft / perQuestionTotalSec) * 100))
-      : 100;
 
   return (
     <div className="dark mt-3 space-y-4">
@@ -1268,44 +1381,20 @@ export default function InlineRdmChallenge({
             <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
               {awaitingAdvance ? (
                 <p className="text-[11px] leading-snug text-slate-400">
-                  <span className="font-semibold text-emerald-200/90">Recorded</span> · Tap{" "}
-                  <span className="font-semibold text-white">Next</span> to continue. Session clock
-                  still runs.
+                  <span className="font-semibold text-emerald-200/90">Recorded</span> · Options stay
+                  visible with any time left on the 10s answer clock (tap{" "}
+                  <span className="font-semibold text-white">Next</span> to skip). Session clock still
+                  runs.
                 </p>
               ) : (
-                <>
-                  <div className="flex flex-col gap-1.5 sm:flex-row sm:items-end sm:justify-between">
-                    <p className="text-[11px] leading-snug text-slate-400">
-                      <span className="font-semibold text-slate-200">Question clock</span>
-                      <span className="text-slate-600"> · </span>
-                      <span
-                        className={cn(
-                          "font-mono tabular-nums",
-                          optionsRevealCountdown ? "text-sky-300" : "text-violet-300"
-                        )}
-                      >
-                        {formatClock(perQuestionLeft)}
-                      </span>
-                      <span className="text-slate-600"> · </span>
-                      <span className="text-slate-300">{pacePhaseLabel}</span>
-                    </p>
-                    <p className="text-[10px] tabular-nums text-slate-600 sm:text-right">
-                      <span className="font-mono text-slate-400">{formatClock(readPhaseSec)}</span>
-                      <span className="mx-1 text-slate-600">+</span>
-                      <span className="font-mono text-slate-400">{formatClock(optionsPhaseSec)}</span>
-                      <span className="ml-1.5 text-slate-600">per question</span>
-                    </p>
-                  </div>
-                  <div className="h-1 w-full max-w-[220px] shrink-0 overflow-hidden rounded-full bg-white/10 sm:ml-auto">
-                    <div
-                      className={cn(
-                        "h-full rounded-full transition-[width] duration-300",
-                        optionsRevealCountdown ? "bg-sky-500/90" : "bg-violet-500/90"
-                      )}
-                      style={{ width: `${questionPacePct}%` }}
-                    />
-                  </div>
-                </>
+                <p className="text-[11px] leading-snug text-slate-400">
+                  <span className="font-semibold text-slate-200">{pacePhaseLabel}</span>
+                  <span className="text-slate-600"> · </span>
+                  <span className="font-mono text-slate-400">{formatClock(readPhaseSec)}</span>
+                  <span className="mx-1 text-slate-600">+</span>
+                  <span className="font-mono text-slate-400">{formatClock(optionsPhaseSec)}</span>
+                  <span className="ml-1.5 text-slate-600">per question · timer in card</span>
+                </p>
               )}
             </div>
           </div>
@@ -1338,20 +1427,37 @@ export default function InlineRdmChallenge({
             <div className="relative z-10">
               {questions[idx] ? (
                 <PlayQuestionCard
+                  challengeUi="edublast"
                   question={questions[idx]!}
                   onAnswer={handleAnswer}
                   onNext={handleNext}
+                  onSkip={handleSkip}
                   timerSeconds={0}
+                  secondsLeft={perQuestionLeft}
+                  readPhaseSec={readPhaseSec}
+                  optionsPhaseSec={optionsPhaseSec}
+                  questionIndex={idx}
+                  questionTotal={tot}
+                  dotStates={dotStates}
+                  subjectLabel={playCategoryToSubjectTag(
+                    currentQ?.category,
+                    spec.domain
+                  )}
+                  difficultyLabel={difficultyRatingToLabel(
+                    currentQ?.difficulty_rating ?? 3
+                  )}
+                  marksLabel={`+${spec.winRdm} RDM`}
+                  correctCount={correctCount}
+                  wrongCount={wrongCount}
+                  skipCount={skipCount}
+                  rdmLabel="0 RDM"
+                  playDomain={spec.domain}
                   showExplanation
-                  optionLayout="grid"
-                  hideInlineTimer
                   disableAutoAdvance
-                  optionsConcealed={!awaitingAdvance && perQuestionLeft > optionsPhaseSec}
-                  optionsConcealedQuestionClock={formatClock(perQuestionLeft)}
-                  optionsConcealedUntilChoicesClock={
-                    optionsRevealCountdown ? formatClock(untilChoicesSec) : undefined
-                  }
-                  optionsConcealedHint="Same clocks as the challenge header."
+                  resultPauseMs={resultReviewMs}
+                  answered={awaitingAdvance}
+                  resultFlash={resultFlash}
+                  awaitingAdvance={awaitingAdvance}
                   disableInteraction={timeoutResolving}
                 />
               ) : null}

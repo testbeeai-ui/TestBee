@@ -16,7 +16,12 @@ import {
   User,
   X,
 } from "lucide-react";
-import { BLOG_SECTIONS, EXAMS, NEWS_SECTIONS } from "./constants";
+import {
+  BLOG_SECTIONS,
+  EXAMS,
+  getPublicNewsSections,
+  isAdminOnlyNewsSection,
+} from "./constants";
 import { extractHtmlMeta, formatKeyDateEndBadge, formatLinkHostDisplay } from "./html-feed-and-seo";
 import {
   createInitialDraft,
@@ -99,7 +104,16 @@ export function NewsBlogClient({
     removeDeletedFromEditorPicks,
   } = useNewsBlogState({ initialPosts, initialNav });
 
+  const composerNewsSections = useMemo(() => getPublicNewsSections(), []);
+
+  useEffect(() => {
+    if (draft.portal === "news" && draft.section && isAdminOnlyNewsSection(draft.section)) {
+      setDraft((prev) => ({ ...prev, section: "" }));
+    }
+  }, [draft.portal, draft.section, setDraft]);
+
   const listNav = useNewsBlogUrlSync({
+    isAdmin,
     portal,
     setPortal,
     newsSection,
@@ -126,9 +140,10 @@ export function NewsBlogClient({
       .filter((p) => p.portal === portal)
       .filter((p) => p.section === activeSection)
       .filter((p) => activeExamFilter === "all" || p.exam === activeExamFilter)
+      .filter((p) => isAdmin || p.portal !== "news" || !isAdminOnlyNewsSection(p.section))
       .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
     return filtered;
-  }, [posts, portal, activeSection, activeExamFilter]);
+  }, [posts, portal, activeSection, activeExamFilter, isAdmin]);
 
   const storedPage = portal === "news" ? newsPostPage : blogPostPage;
   const setCurrentPage = portal === "news" ? setNewsPostPage : setBlogPostPage;
@@ -175,7 +190,12 @@ export function NewsBlogClient({
     return { featuredPost: hero, secondaryPosts: secondary };
   }, [paginatedPosts]);
 
-  const openPost = openPostId ? (posts.find((p) => p.id === openPostId) ?? null) : null;
+  const openPost = openPostId
+    ? (posts.find((p) => {
+        if (p.id !== openPostId) return false;
+        return isAdmin || p.portal !== "news" || !isAdminOnlyNewsSection(p.section);
+      }) ?? null)
+    : null;
 
   const isKeyDatesDraft = draft.portal === "news" && draft.section === "ndates";
   const isExamBuzzDraft = draft.portal === "news" && draft.section === "nbuzz";
@@ -203,8 +223,9 @@ export function NewsBlogClient({
     () =>
       posts
         .filter((p) => p.portal === "news")
+        .filter((p) => isAdmin || !isAdminOnlyNewsSection(p.section))
         .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)),
-    [posts]
+    [posts, isAdmin]
   );
 
   const blogPosts = useMemo(
@@ -259,6 +280,9 @@ export function NewsBlogClient({
     const bodyTrim = draft.body.trim();
 
     if (!draft.section) {
+      return;
+    }
+    if (draft.portal === "news" && isAdminOnlyNewsSection(draft.section)) {
       return;
     }
     if (keyDatesPost) {
@@ -483,7 +507,7 @@ export function NewsBlogClient({
                 </span>
                 <span className="min-w-0">
                   <span className="block text-[13px] font-semibold leading-tight tracking-tight sm:text-sm">
-                    Blog
+                    Blogs
                   </span>
                   <span className="mt-0.5 hidden text-[11px] leading-snug text-slate-500 sm:block">
                     Toppers · tips · Mind & Attitude · revision
@@ -647,7 +671,7 @@ export function NewsBlogClient({
                           className="w-full rounded-xl border border-slate-700/50 bg-[#101a2a] px-3.5 py-2.5 text-sm text-slate-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] placeholder:text-slate-600 transition focus:border-sky-500/45 focus:outline-none focus:ring-2 focus:ring-sky-500/12"
                         >
                           <option value="">Select section</option>
-                          {(draft.portal === "news" ? NEWS_SECTIONS : BLOG_SECTIONS).map((s) => (
+                          {(draft.portal === "news" ? composerNewsSections : BLOG_SECTIONS).map((s) => (
                             <option key={s.id} value={s.id}>
                               {s.label}
                             </option>

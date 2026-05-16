@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BLOG_SECTIONS, NEWS_SECTIONS } from "../constants";
+import { BLOG_SECTIONS, getPublicNewsSections } from "../constants";
 import { feedCardBlurb } from "../html-feed-and-seo";
 import { getSectionLabel } from "../post-draft-utils";
 import { buildArticleHref } from "../nav-query";
@@ -12,14 +12,14 @@ export function NewsBlogSeoIndex({ posts }: { posts: Post[] }) {
 
   return (
     <section className="sr-only" aria-label="News and blog index">
-      <h1>News &amp; Blog — EduBlast</h1>
+      <h1>News &amp; Blogs — EduBlast</h1>
       <p>
         Exam updates, key dates, results, preparation tips, topper stories, and revision guides for
         JEE, board exams, and state CET aspirants.
       </p>
 
       <h2>News</h2>
-      {NEWS_SECTIONS.map((section) => {
+      {getPublicNewsSections().map((section) => {
         const sectionPosts = news.filter((p) => p.section === section.id);
         if (sectionPosts.length === 0) return null;
         return (
@@ -48,7 +48,7 @@ export function NewsBlogSeoIndex({ posts }: { posts: Post[] }) {
         );
       })}
 
-      <h2>Blog</h2>
+      <h2>Blogs</h2>
       {BLOG_SECTIONS.map((section) => {
         const sectionPosts = blog.filter((p) => p.section === section.id);
         if (sectionPosts.length === 0) return null;

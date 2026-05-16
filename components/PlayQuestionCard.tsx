@@ -4,9 +4,18 @@ import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, XCircle } from "lucide-react";
-import type { PlayQuestionRow } from "@/types";
+import type { PlayDomain, PlayQuestionRow } from "@/types";
 import { cn } from "@/lib/utils";
 import PlayQuestionMarkdown from "@/components/PlayQuestionMarkdown";
+import EduBlastChallengeCard, {
+  type EduBlastResultFlash,
+} from "@/components/play/EduBlastChallengeCard";
+import {
+  buildEduBlastDotStates,
+  difficultyRatingToLabel,
+  playCategoryToSubjectTag,
+  type EduBlastDotState,
+} from "@/lib/eduBlastChallengeMeta";
 
 /** High-contrast feedback on dark DailyDose / arena modals (theme accent can be too subtle). */
 const STRIKE_COLOR =
@@ -18,37 +27,43 @@ const MUTED_COLOR = "bg-muted/45 text-muted-foreground border border-transparent
 interface PlayQuestionCardProps {
   question: PlayQuestionRow;
   onAnswer: (selectedIndex: number, timeTakenMs: number) => void;
-  /** Called when user clicks Next after answering (e.g. go to next question) */
   onNext?: () => void;
-  /** Seconds per question; when 0 no countdown */
   timerSeconds?: number;
   onTimeout?: () => void;
-  /** Hide explanation after answer */
   showExplanation?: boolean;
-  /** Parent can mirror the countdown (e.g. arena header clock). */
   onTimerTick?: (secondsLeft: number) => void;
-  /** Hide the small "Time / Ns" row when the parent shows the clock. */
   hideInlineTimer?: boolean;
-  /** "grid" matches investor mock 2×2 options. */
   optionLayout?: "stack" | "grid";
-  /** When true, Next is only via the button (no 2.5s auto-advance). */
   disableAutoAdvance?: boolean;
-  /** When true and not yet answered, hide MCQ options (question-first reveal). */
   optionsConcealed?: boolean;
-  /** Shown in the dashed placeholder while options are concealed. */
   optionsConcealedHint?: string;
-  /**
-   * Full question countdown (MM:SS) — must match the parent header “Question clock” while stem-only.
-   */
   optionsConcealedQuestionClock?: string;
-  /**
-   * Secondary line: time until the choice segment begins (MM:SS). Derived from total − options phase.
-   */
   optionsConcealedUntilChoicesClock?: string;
-  /** Disables option buttons (e.g. while resolving a server-side timeout). */
   disableInteraction?: boolean;
-  /** Optional persistent watermark rendered over the question card. */
   watermarkText?: string;
+  /** Investor Edu Blast · Challenge shell (read-only phase + confirm/skip). */
+  challengeUi?: "default" | "edublast";
+  /** Required for edublast UI */
+  questionIndex?: number;
+  questionTotal?: number;
+  dotStates?: EduBlastDotState[];
+  readPhaseSec?: number;
+  optionsPhaseSec?: number;
+  secondsLeft?: number;
+  subjectLabel?: string;
+  difficultyLabel?: string;
+  marksLabel?: string;
+  correctCount?: number;
+  wrongCount?: number;
+  skipCount?: number;
+  rdmLabel?: string;
+  onSkip?: () => void;
+  answered?: boolean;
+  resultFlash?: EduBlastResultFlash | null;
+  awaitingAdvance?: boolean;
+  confirmedIndex?: number | null;
+  playDomain?: PlayDomain;
+  resultPauseMs?: number;
 }
 
 export default function PlayQuestionCard({
@@ -63,12 +78,35 @@ export default function PlayQuestionCard({
   optionLayout = "stack",
   disableAutoAdvance = false,
   optionsConcealed = false,
-  optionsConcealedHint = "Options will appear when the timer reaches the unlock window.",
-  optionsConcealedQuestionClock,
-  optionsConcealedUntilChoicesClock,
+  optionsConcealedHint: _optionsConcealedHint,
+  optionsConcealedQuestionClock: _optionsConcealedQuestionClock,
+  optionsConcealedUntilChoicesClock: _optionsConcealedUntilChoicesClock,
   disableInteraction = false,
   watermarkText,
+  challengeUi = "default",
+  questionIndex = 0,
+  questionTotal = 1,
+  dotStates,
+  readPhaseSec,
+  optionsPhaseSec,
+  secondsLeft: secondsLeftProp,
+  subjectLabel,
+  difficultyLabel,
+  marksLabel,
+  correctCount = 0,
+  wrongCount = 0,
+  skipCount = 0,
+  rdmLabel,
+  onSkip,
+  answered: answeredProp,
+  resultFlash,
+  awaitingAdvance = false,
+  confirmedIndex,
+  playDomain = "academic",
+  resultPauseMs,
 }: PlayQuestionCardProps) {
+  const useEduBlast = challengeUi === "edublast" || optionsConcealed;
+
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [answered, setAnswered] = useState(false);
   const [timeLeft, setTimeLeft] = useState(timerSeconds);
@@ -76,7 +114,9 @@ export default function PlayQuestionCard({
   const autoAdvanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const timeoutFiredRef = useRef(false);
 
-  // Clear auto-advance timer on unmount to prevent stale onNext calls
+  /** Parent `answered={false}` must not override local confirm — use `||`, not `??`. */
+  const answeredState = answered || Boolean(answeredProp);
+
   useEffect(() => {
     return () => {
       if (autoAdvanceTimer.current) {
@@ -95,7 +135,7 @@ export default function PlayQuestionCard({
   }, [question.id, timerSeconds]);
 
   useEffect(() => {
-    if (answered || timerSeconds <= 0) return;
+    if (answeredState || timerSeconds <= 0) return;
     if (timeLeft <= 0) {
       if (!timeoutFiredRef.current) {
         timeoutFiredRef.current = true;
@@ -105,11 +145,74 @@ export default function PlayQuestionCard({
     }
     const t = setInterval(() => setTimeLeft((s) => s - 1), 1000);
     return () => clearInterval(t);
-  }, [timeLeft, answered, timerSeconds, onTimeout]);
+  }, [timeLeft, answeredState, timerSeconds, onTimeout]);
 
   useEffect(() => {
     if (timerSeconds > 0) onTimerTick?.(timeLeft);
   }, [timeLeft, timerSeconds, onTimerTick]);
+
+  const optsPhase =
+    optionsPhaseSec ?? (timerSeconds > 0 ? Math.min(10, timerSeconds) : 10);
+  const readPhase =
+    readPhaseSec ?? (timerSeconds > 0 ? Math.max(0, timerSeconds - optsPhase) : 20);
+  const perQuestionTotal = readPhase + optsPhase;
+  const secondsLeft =
+    secondsLeftProp ?? (timerSeconds > 0 ? timeLeft : perQuestionTotal);
+
+  const resolvedDots =
+    dotStates ??
+    buildEduBlastDotStates(questionTotal, questionIndex, []);
+
+  if (useEduBlast) {
+    const handleConfirm = (index: number, timeTakenMs: number) => {
+      setSelectedOption(index);
+      setAnswered(true);
+      onAnswer(index, timeTakenMs);
+    };
+
+    const handleSkip = () => {
+      if (!onSkip) return;
+      setAnswered(true);
+      void onSkip();
+    };
+
+    return (
+      <EduBlastChallengeCard
+        question={question}
+        questionIndex={questionIndex}
+        questionTotal={questionTotal}
+        dotStates={resolvedDots}
+        subjectLabel={
+          subjectLabel ??
+          playCategoryToSubjectTag(question.category, playDomain)
+        }
+        difficultyLabel={
+          difficultyLabel ?? difficultyRatingToLabel(question.difficulty_rating)
+        }
+        marksLabel={marksLabel}
+        secondsLeft={secondsLeft}
+        perQuestionTotalSec={perQuestionTotal}
+        readPhaseSec={readPhase}
+        optionsPhaseSec={optsPhase}
+        correctCount={correctCount}
+        wrongCount={wrongCount}
+        skipCount={skipCount}
+        rdmLabel={rdmLabel}
+        onConfirm={handleConfirm}
+        onSkip={handleSkip}
+        onNext={onNext}
+        answered={answeredState}
+        confirmedIndex={confirmedIndex ?? selectedOption}
+        resultFlash={resultFlash}
+        awaitingAdvance={awaitingAdvance}
+        disableInteraction={disableInteraction}
+        watermarkText={watermarkText}
+        showExplanation={showExplanation}
+        disableAutoAdvance={disableAutoAdvance}
+        resultPauseMs={resultPauseMs}
+      />
+    );
+  }
 
   const text =
     question.content && typeof question.content === "object" && "text" in question.content
@@ -122,19 +225,18 @@ export default function PlayQuestionCard({
   const isCorrect = selectedOption === correctIndex;
 
   const handleAnswer = (index: number) => {
-    if (answered) return;
+    if (answeredState) return;
     setSelectedOption(index);
     setAnswered(true);
     const timeTakenMs = Date.now() - startTime.current;
     onAnswer(index, timeTakenMs);
 
     if (index === correctIndex) {
-      import("canvas-confetti").then((c) =>
+      void import("canvas-confetti").then((c) =>
         c.default({ particleCount: 50, spread: 60, origin: { y: 0.7 } })
       );
     }
 
-    // Auto-advance after 2.5 seconds — store timer so it can be cancelled
     if (onNext && !disableAutoAdvance) {
       autoAdvanceTimer.current = setTimeout(() => {
         autoAdvanceTimer.current = null;
@@ -144,7 +246,6 @@ export default function PlayQuestionCard({
   };
 
   const handleNext = () => {
-    // Cancel the auto-advance so it doesn't fire again
     if (autoAdvanceTimer.current) {
       clearTimeout(autoAdvanceTimer.current);
       autoAdvanceTimer.current = null;
@@ -156,7 +257,7 @@ export default function PlayQuestionCard({
 
   return (
     <div className="space-y-3">
-      {timerSeconds > 0 && !answered && !hideInlineTimer && (
+      {timerSeconds > 0 && !answeredState && !hideInlineTimer && (
         <div className="flex justify-between items-center">
           <span className="text-sm font-bold text-muted-foreground">Time</span>
           <span
@@ -189,60 +290,10 @@ export default function PlayQuestionCard({
             "[&_.katex]:text-[1em] [&_.katex-display]:my-1"
           )}
         />
-        {optionsConcealed && !answered ? (
-          optionsConcealedQuestionClock || optionsConcealedUntilChoicesClock ? (
-            <div
-              role="status"
-              aria-live="polite"
-              aria-label={
-                optionsConcealedQuestionClock && optionsConcealedUntilChoicesClock
-                  ? `Read-only phase. Question clock ${optionsConcealedQuestionClock}. Choices unlock in ${optionsConcealedUntilChoicesClock}.`
-                  : `Read-only phase. ${optionsConcealedQuestionClock ?? optionsConcealedUntilChoicesClock ?? ""}`
-              }
-              className="rounded-xl border border-dashed border-sky-500/30 bg-gradient-to-b from-sky-950/30 to-slate-950/40 px-5 py-8 text-center shadow-inner shadow-black/20 dark:from-sky-950/25 dark:to-black/30"
-            >
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-sky-200/90">
-                Read-only phase
-              </p>
-              <p className="mt-3 font-mono text-[1.75rem] font-semibold tabular-nums leading-none tracking-tight text-sky-50 sm:text-[2rem]">
-                {optionsConcealedQuestionClock ?? optionsConcealedUntilChoicesClock}
-              </p>
-              <p className="mt-2 text-xs font-medium text-sky-200/70">
-                {optionsConcealedQuestionClock ? (
-                  <>
-                    Matches header
-                    {optionsConcealedUntilChoicesClock ? (
-                      <>
-                        <span className="mx-1 text-sky-300/50">·</span>
-                        <span className="text-sky-200/85">
-                          Choices in{" "}
-                          <span className="font-mono tabular-nums text-sky-100">
-                            {optionsConcealedUntilChoicesClock}
-                          </span>
-                        </span>
-                      </>
-                    ) : null}
-                  </>
-                ) : (
-                  "Until choices appear below"
-                )}
-              </p>
-              {optionsConcealedHint ? (
-                <p className="mx-auto mt-5 max-w-sm text-[11px] leading-relaxed text-slate-400">
-                  {optionsConcealedHint}
-                </p>
-              ) : null}
-            </div>
-          ) : (
-            <div className="rounded-xl border border-dashed border-muted-foreground/35 bg-muted/20 px-4 py-6 text-center text-sm font-medium text-muted-foreground">
-              {optionsConcealedHint}
-            </div>
-          )
-        ) : (
         <div className={cn(optGrid ? "grid grid-cols-1 sm:grid-cols-2 gap-2" : "space-y-2")}>
           {options.map((option, i) => {
             let optionClass = "bg-muted hover:bg-muted/80 text-foreground";
-            if (answered) {
+            if (answeredState) {
               if (i === correctIndex) optionClass = CORRECT_COLOR;
               else if (i === selectedOption && !isCorrect) optionClass = STRIKE_COLOR;
               else optionClass = MUTED_COLOR;
@@ -253,8 +304,8 @@ export default function PlayQuestionCard({
               <motion.button
                 key={i}
                 onClick={() => handleAnswer(i)}
-                disabled={answered || disableInteraction}
-                whileTap={!answered ? { scale: 0.98 } : undefined}
+                disabled={answeredState || disableInteraction}
+                whileTap={!answeredState ? { scale: 0.98 } : undefined}
                 className={cn(
                   "w-full text-left rounded-xl font-semibold text-sm transition-all flex items-center gap-2",
                   optGrid ? "p-2.5 sm:p-3 min-h-[3rem]" : "p-3",
@@ -271,14 +322,14 @@ export default function PlayQuestionCard({
                     className="font-semibold"
                   />
                 </div>
-                {answered && i === correctIndex && (
+                {answeredState && i === correctIndex && (
                   <CheckCircle2
                     className="h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400"
                     strokeWidth={2.5}
                     aria-hidden
                   />
                 )}
-                {answered && i === selectedOption && !isCorrect && (
+                {answeredState && i === selectedOption && !isCorrect && (
                   <XCircle
                     className="h-5 w-5 shrink-0 text-red-600 dark:text-red-400"
                     strokeWidth={2.5}
@@ -289,8 +340,7 @@ export default function PlayQuestionCard({
             );
           })}
         </div>
-        )}
-        {answered && showExplanation && question.explanation && (
+        {answeredState && showExplanation && question.explanation && (
           <div className="mt-4 overflow-x-auto rounded-xl border border-emerald-500/25 bg-emerald-500/[0.07] p-3 dark:border-emerald-500/30 dark:bg-emerald-950/25">
             <PlayQuestionMarkdown
               variant="explanation"
@@ -300,7 +350,7 @@ export default function PlayQuestionCard({
           </div>
         )}
       </div>
-      {answered && onNext && (
+      {answeredState && onNext && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="relative">
           <Button
             onClick={handleNext}
@@ -313,7 +363,6 @@ export default function PlayQuestionCard({
                 <span className="text-xs font-normal opacity-80">(Auto-advancing...)</span>
               )}
             </span>
-
             {!disableAutoAdvance && (
               <motion.div
                 initial={{ x: "-100%" }}

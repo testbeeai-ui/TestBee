@@ -12,6 +12,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import PlayQuestionCard from "@/components/PlayQuestionCard";
+import type { EduBlastResultFlash } from "@/components/play/EduBlastChallengeCard";
+import {
+  buildEduBlastDotStates,
+  remainingOptionsReviewMs,
+  difficultyRatingToLabel,
+  playCategoryToSubjectTag,
+} from "@/lib/eduBlastChallengeMeta";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import type {
@@ -184,6 +191,11 @@ function playGauntletDayDoneKey(userId: string, dayIso: string, domain: PlayDoma
   return `testbee_gauntlet_done_${userId}_${dayIso}_${domain}`;
 }
 
+const GAUNTLET_SESSION_SEC = 300;
+const QUESTION_TOTAL_SEC = 30;
+const READ_PHASE_SEC = 20;
+const OPTIONS_PHASE_SEC = QUESTION_TOTAL_SEC - READ_PHASE_SEC;
+
 function PlayPageContent() {
   const { user, profile, refreshProfile } = useAuth();
   const isPlayAdmin = useIsAppAdmin();
@@ -212,17 +224,23 @@ function PlayPageContent() {
     useState(STREAK_SESSION_QUESTIONS);
   const [streakLoading, setStreakLoading] = useState(false);
   const [streakCount, setStreakCount] = useState(0);
-  /** Investor mock: 5 min session (streak + DailyDose session cap). */
-  const GAUNTLET_SESSION_SEC = 300;
-  const QUESTION_TOTAL_SEC = 30;
-  const READ_PHASE_SEC = 20;
-  const OPTIONS_PHASE_SEC = QUESTION_TOTAL_SEC - READ_PHASE_SEC;
   const [streakRoundIndex, setStreakRoundIndex] = useState(0);
   const [streakExitReason, setStreakExitReason] = useState<"time" | "complete" | null>(null);
   const [streakSessionLeft, setStreakSessionLeft] = useState(GAUNTLET_SESSION_SEC);
   const [streakQTimeLeft, setStreakQTimeLeft] = useState(QUESTION_TOTAL_SEC);
   const streakSessionEndRef = useRef(false);
   const streakAnsweredThisRoundRef = useRef(false);
+  type PlayRoundOutcome = "correct" | "wrong" | "skip";
+  const [streakOutcomes, setStreakOutcomes] = useState<PlayRoundOutcome[]>([]);
+  const [streakResultFlash, setStreakResultFlash] = useState<EduBlastResultFlash | null>(null);
+  const [streakRoundAnswered, setStreakRoundAnswered] = useState(false);
+  const [streakResultPauseMs, setStreakResultPauseMs] = useState(() =>
+    remainingOptionsReviewMs(OPTIONS_PHASE_SEC, OPTIONS_PHASE_SEC)
+  );
+  const streakQTimeLeftRef = useRef(streakQTimeLeft);
+  useEffect(() => {
+    streakQTimeLeftRef.current = streakQTimeLeft;
+  }, [streakQTimeLeft]);
 
   useEffect(() => {
     if (view !== "streak") return;
@@ -291,6 +309,16 @@ function PlayPageContent() {
   const [gauntletSessionLeft, setGauntletSessionLeft] = useState(GAUNTLET_SESSION_SEC);
   const [gauntletQTimeLeft, setGauntletQTimeLeft] = useState(QUESTION_TOTAL_SEC);
   const gauntletQuestionsRef = useRef(gauntletQuestions);
+  const [gauntletOutcomes, setGauntletOutcomes] = useState<PlayRoundOutcome[]>([]);
+  const [gauntletResultFlash, setGauntletResultFlash] = useState<EduBlastResultFlash | null>(null);
+  const [gauntletRoundAnswered, setGauntletRoundAnswered] = useState(false);
+  const [gauntletResultPauseMs, setGauntletResultPauseMs] = useState(() =>
+    remainingOptionsReviewMs(OPTIONS_PHASE_SEC, OPTIONS_PHASE_SEC)
+  );
+  const gauntletQTimeLeftRef = useRef(gauntletQTimeLeft);
+  useEffect(() => {
+    gauntletQTimeLeftRef.current = gauntletQTimeLeft;
+  }, [gauntletQTimeLeft]);
   const gauntletIndexRef = useRef(gauntletIndex);
   const gauntletSessionEndRef = useRef(false);
   const gauntletSubmitLockRef = useRef(false);
@@ -516,6 +544,9 @@ function PlayPageContent() {
     setStreakQTimeLeft(QUESTION_TOTAL_SEC);
     setStreakExitReason(null);
     setStreakCount(0);
+    setStreakOutcomes([]);
+    setStreakResultFlash(null);
+    setStreakRoundAnswered(false);
     setStreakGameoverMentalMath(false);
     setStreakQuestion(null);
     streakQueueRef.current = [];
@@ -570,11 +601,47 @@ function PlayPageContent() {
     if (isCorrect) {
       setStreakCount((c) => c + 1);
     }
+    setStreakOutcomes((o) => [...o, isCorrect ? "correct" : "wrong"]);
+    setStreakResultFlash({
+      type: isCorrect ? "correct" : "wrong",
+      message: isCorrect
+        ? "✓ Correct!"
+        : `✗ Incorrect — correct answer was option ${streakQuestion.correct_answer_index + 1}`,
+    });
+    setStreakResultPauseMs(
+      remainingOptionsReviewMs(streakQTimeLeftRef.current, OPTIONS_PHASE_SEC)
+    );
+    setStreakRoundAnswered(true);
   };
+
+  const handleStreakSkip = useCallback(async () => {
+    if (!streakQuestion || !selectedDomain) return;
+    if (streakAnsweredThisRoundRef.current) return;
+    streakAnsweredThisRoundRef.current = true;
+    await supabase.rpc("record_play_result", {
+      p_question_id: streakQuestion.id,
+      p_is_correct: false,
+      p_time_taken_ms: Date.now(),
+      p_category: null,
+      p_pool_key: streakPoolForDomain(selectedDomain),
+      p_selected_answer_index: null,
+    });
+    setStreakOutcomes((o) => [...o, "skip"]);
+    setStreakResultFlash({
+      type: "skip",
+      message: "→ Skipped — marked as unanswered",
+    });
+    setStreakResultPauseMs(
+      remainingOptionsReviewMs(streakQTimeLeftRef.current, OPTIONS_PHASE_SEC)
+    );
+    setStreakRoundAnswered(true);
+  }, [streakQuestion, selectedDomain]);
 
   const handleStreakNext = useCallback(() => {
     if (!streakQuestion || !selectedDomain) return;
     streakAnsweredThisRoundRef.current = false;
+    setStreakRoundAnswered(false);
+    setStreakResultFlash(null);
     const nextRound = streakRoundIndex + 1;
     const queue = streakQueueRef.current;
     const sessionLen = queue.length > 0 ? queue.length : STREAK_SESSION_QUESTIONS;
@@ -597,6 +664,7 @@ function PlayPageContent() {
     }
     setStreakRoundIndex(nextRound);
     setStreakQTimeLeft(QUESTION_TOTAL_SEC);
+    setStreakResultPauseMs(remainingOptionsReviewMs(OPTIONS_PHASE_SEC, OPTIONS_PHASE_SEC));
     setStreakQuestion(next);
   }, [streakQuestion, selectedDomain, streakRoundIndex]);
 
@@ -613,8 +681,16 @@ function PlayPageContent() {
       p_selected_answer_index: null,
     });
     void bumpUserStudyDayMs(QUESTION_TOTAL_SEC * 1000);
-    handleStreakNext();
-  }, [streakQuestion, selectedDomain, handleStreakNext]);
+    setStreakOutcomes((o) => [...o, "skip"]);
+    setStreakResultFlash({
+      type: "skip",
+      message: "⏱ Time up — marked as unanswered",
+    });
+    setStreakResultPauseMs(
+      remainingOptionsReviewMs(streakQTimeLeftRef.current, OPTIONS_PHASE_SEC)
+    );
+    setStreakRoundAnswered(true);
+  }, [streakQuestion, selectedDomain]);
 
   const checkGauntletAndStart = async (domain: PlayDomain) => {
     if (!user?.id) return;
@@ -689,6 +765,9 @@ function PlayPageContent() {
     setGauntletAlreadyPlayed(false);
     setGauntletSessionLeft(GAUNTLET_SESSION_SEC);
     setGauntletQTimeLeft(QUESTION_TOTAL_SEC);
+    setGauntletOutcomes([]);
+    setGauntletResultFlash(null);
+    setGauntletRoundAnswered(false);
     gauntletSessionEndRef.current = false;
     gauntletSubmitLockRef.current = false;
     setView("gauntlet");
@@ -724,9 +803,45 @@ function PlayPageContent() {
     };
     const fullSoFar = [...gauntletResultsRef.current, newResult];
     setGauntletResults(fullSoFar);
+    setGauntletOutcomes((o) => [...o, isCorrect ? "correct" : "wrong"]);
+    setGauntletResultFlash({
+      type: isCorrect ? "correct" : "wrong",
+      message: isCorrect
+        ? "✓ Correct!"
+        : `✗ Incorrect — correct answer was option ${q.correct_answer_index + 1}`,
+    });
+    setGauntletResultPauseMs(
+      remainingOptionsReviewMs(gauntletQTimeLeftRef.current, OPTIONS_PHASE_SEC)
+    );
+    setGauntletRoundAnswered(true);
   };
 
-  const currentGauntletFinished = gauntletIndex >= gauntletQuestions.length - 1;
+  const handleGauntletSkip = useCallback(() => {
+    const idx = gauntletIndexRef.current;
+    const qs = gauntletQuestionsRef.current;
+    const q = qs[idx];
+    if (!q || gauntletRoundAnswered) return;
+    const prev = gauntletResultsRef.current;
+    if (prev.some((r) => r.question_id === q.id)) return;
+    const row: PlayGauntletAnswerPayload = {
+      question_id: q.id,
+      is_correct: false,
+      time_taken_ms: QUESTION_TOTAL_SEC * 1000,
+      selected_answer_index: null,
+    };
+    const next = [...prev, row];
+    gauntletResultsRef.current = next;
+    setGauntletResults(next);
+    setGauntletOutcomes((o) => [...o, "skip"]);
+    setGauntletResultFlash({
+      type: "skip",
+      message: "→ Skipped — marked as unanswered",
+    });
+    setGauntletResultPauseMs(
+      remainingOptionsReviewMs(gauntletQTimeLeftRef.current, OPTIONS_PHASE_SEC)
+    );
+    setGauntletRoundAnswered(true);
+  }, [gauntletRoundAnswered]);
 
   const submitGauntlet = useCallback(
     async (results: PlayGauntletAnswerPayload[]) => {
@@ -773,6 +888,19 @@ function PlayPageContent() {
     [selectedDomain, user?.id, isPlayAdmin, refreshProfile]
   );
 
+  const handleGauntletNext = useCallback(() => {
+    setGauntletRoundAnswered(false);
+    setGauntletResultFlash(null);
+    const idx = gauntletIndexRef.current;
+    const qs = gauntletQuestionsRef.current;
+    if (idx >= qs.length - 1) {
+      void submitGauntlet(gauntletResultsRef.current);
+    } else {
+      setGauntletIndex(idx + 1);
+      setGauntletResultPauseMs(remainingOptionsReviewMs(OPTIONS_PHASE_SEC, OPTIONS_PHASE_SEC));
+    }
+  }, [submitGauntlet]);
+
   const handleGauntletTimeout = useCallback(() => {
     const idx = gauntletIndexRef.current;
     const qs = gauntletQuestionsRef.current;
@@ -789,12 +917,16 @@ function PlayPageContent() {
     const next = [...prev, row];
     gauntletResultsRef.current = next;
     setGauntletResults(next);
-    if (idx >= qs.length - 1) {
-      void submitGauntlet(next);
-    } else {
-      setGauntletIndex(idx + 1);
-    }
-  }, [submitGauntlet]);
+    setGauntletOutcomes((o) => [...o, "skip"]);
+    setGauntletResultFlash({
+      type: "skip",
+      message: "⏱ Time up — marked as unanswered",
+    });
+    setGauntletResultPauseMs(
+      remainingOptionsReviewMs(gauntletQTimeLeftRef.current, OPTIONS_PHASE_SEC)
+    );
+    setGauntletRoundAnswered(true);
+  }, []);
 
   useEffect(() => {
     if (view !== "gauntlet" || gauntletQuestions.length === 0) return;
@@ -1627,23 +1759,40 @@ function PlayPageContent() {
                                 )}
                               </div>
                               <PlayQuestionCard
+                                challengeUi="edublast"
                                 question={streakQuestion}
                                 onAnswer={handleStreakAnswer}
                                 onNext={handleStreakNext}
+                                onSkip={handleStreakSkip}
                                 timerSeconds={QUESTION_TOTAL_SEC}
                                 onTimeout={handleStreakTimeout}
                                 onTimerTick={setStreakQTimeLeft}
+                                secondsLeft={streakQTimeLeft}
+                                readPhaseSec={READ_PHASE_SEC}
+                                optionsPhaseSec={OPTIONS_PHASE_SEC}
+                                questionIndex={streakRoundIndex}
+                                questionTotal={streakSessionQuestionCount}
+                                dotStates={buildEduBlastDotStates(
+                                  streakSessionQuestionCount,
+                                  streakRoundIndex,
+                                  streakOutcomes
+                                )}
+                                subjectLabel={playCategoryToSubjectTag(
+                                  streakQuestion.category,
+                                  selectedDomain ?? "academic"
+                                )}
+                                difficultyLabel={difficultyRatingToLabel(
+                                  streakQuestion.difficulty_rating
+                                )}
+                                correctCount={streakCount}
+                                wrongCount={streakOutcomes.filter((o) => o === "wrong").length}
+                                skipCount={streakOutcomes.filter((o) => o === "skip").length}
+                                playDomain={selectedDomain ?? "academic"}
                                 showExplanation={true}
                                 hideInlineTimer
-                                optionLayout="grid"
-                                optionsConcealed={streakQTimeLeft > OPTIONS_PHASE_SEC}
-                                optionsConcealedQuestionClock={formatClock(streakQTimeLeft)}
-                                optionsConcealedUntilChoicesClock={
-                                  streakQTimeLeft > OPTIONS_PHASE_SEC
-                                    ? formatClock(streakQTimeLeft - OPTIONS_PHASE_SEC)
-                                    : undefined
-                                }
-                                optionsConcealedHint="Matches header · Choices unlock in final 10s."
+                                answered={streakRoundAnswered}
+                                resultFlash={streakResultFlash}
+                                resultPauseMs={streakResultPauseMs}
                               />
                             </>
                           )}
@@ -1770,27 +1919,42 @@ function PlayPageContent() {
                           </div>
                           {gauntletQuestions[gauntletIndex] && (
                             <PlayQuestionCard
+                              challengeUi="edublast"
                               question={gauntletQuestions[gauntletIndex]!}
                               onAnswer={handleGauntletAnswer}
-                              onNext={
-                                !currentGauntletFinished
-                                  ? () => setGauntletIndex((i) => i + 1)
-                                  : () => submitGauntlet(gauntletResultsRef.current)
-                              }
+                              onNext={handleGauntletNext}
+                              onSkip={handleGauntletSkip}
                               timerSeconds={QUESTION_TOTAL_SEC}
                               onTimeout={handleGauntletTimeout}
                               onTimerTick={setGauntletQTimeLeft}
+                              secondsLeft={gauntletQTimeLeft}
+                              readPhaseSec={READ_PHASE_SEC}
+                              optionsPhaseSec={OPTIONS_PHASE_SEC}
+                              questionIndex={gauntletIndex}
+                              questionTotal={gauntletQuestions.length}
+                              dotStates={buildEduBlastDotStates(
+                                gauntletQuestions.length,
+                                gauntletIndex,
+                                gauntletOutcomes
+                              )}
+                              subjectLabel={playCategoryToSubjectTag(
+                                gauntletQuestions[gauntletIndex]?.category,
+                                selectedDomain ?? "funbrain"
+                              )}
+                              difficultyLabel={difficultyRatingToLabel(
+                                gauntletQuestions[gauntletIndex]?.difficulty_rating ?? 3
+                              )}
+                              correctCount={
+                                gauntletResults.filter((r) => r.is_correct).length
+                              }
+                              wrongCount={gauntletOutcomes.filter((o) => o === "wrong").length}
+                              skipCount={gauntletOutcomes.filter((o) => o === "skip").length}
+                              playDomain={selectedDomain ?? "funbrain"}
                               hideInlineTimer
                               showExplanation={true}
-                              optionLayout="grid"
-                              optionsConcealed={gauntletQTimeLeft > OPTIONS_PHASE_SEC}
-                              optionsConcealedQuestionClock={formatClock(gauntletQTimeLeft)}
-                              optionsConcealedUntilChoicesClock={
-                                gauntletQTimeLeft > OPTIONS_PHASE_SEC
-                                  ? formatClock(gauntletQTimeLeft - OPTIONS_PHASE_SEC)
-                                  : undefined
-                              }
-                              optionsConcealedHint="Matches header · Choices unlock in final 10s."
+                              answered={gauntletRoundAnswered}
+                              resultFlash={gauntletResultFlash}
+                              resultPauseMs={gauntletResultPauseMs}
                             />
                           )}
                         </div>

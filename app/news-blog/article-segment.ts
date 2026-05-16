@@ -262,7 +262,7 @@ export function parseTags(csv: string | null | undefined): string[] {
 }
 
 /**
- * SEO keyword list for a post — used by the visible "Keywords" block in View text,
+ * SEO keyword list for a post — used by the admin-only "Keywords" block in View text,
  * the `<meta name="keywords">` tag, and the `keywords` property of NewsArticle JSON-LD.
  *
  * Priority order (so manual editorial intent wins):
@@ -457,7 +457,7 @@ export function buildBreadcrumbLd(post: SeoPost): string {
       {
         "@type": "ListItem",
         position: 2,
-        name: "News & Blog",
+        name: "News & Blogs",
         item: `${base}/news-blog`,
       },
       {

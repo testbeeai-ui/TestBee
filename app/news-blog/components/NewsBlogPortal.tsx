@@ -15,7 +15,14 @@ import {
   User,
 } from "lucide-react";
 import { deletePost as dbDeletePost } from "@/lib/news-blog-db";
-import { BLOG_SECTIONS, EXAMS, KEY_DATE_SIDEBAR_ACCENTS, NEWS_SECTIONS } from "../constants";
+import {
+  BLOG_SECTIONS,
+  EXAMS,
+  getAdminPreviewNewsSections,
+  getPublicNewsSections,
+  KEY_DATE_SIDEBAR_ACCENTS,
+  NEWS_SECTIONS,
+} from "../constants";
 import { examBrowsePillClass } from "../exam-pill-styles";
 import {
   feedCardBlurb,
@@ -115,6 +122,9 @@ export function NewsBlogPortal(props: NewsBlogPortalProps) {
     onNextPage,
   } = props;
 
+  const publicNewsSections = getPublicNewsSections();
+  const adminPreviewNewsSections = isAdmin ? getAdminPreviewNewsSections() : [];
+
   const [openPostHtmlViewMode, setOpenPostHtmlViewMode] = useState<"rendered" | "text">("rendered");
   useEffect(() => {
     setOpenPostHtmlViewMode("rendered");
@@ -210,7 +220,7 @@ export function NewsBlogPortal(props: NewsBlogPortalProps) {
       </div>
 
       <div className="flex flex-wrap gap-0.5 border-b border-slate-600/20 bg-[#131d2c]/95 px-2 pb-1 sm:gap-1 sm:px-4">
-        {(portal === "news" ? NEWS_SECTIONS : BLOG_SECTIONS).map((section) => {
+        {(portal === "news" ? publicNewsSections : BLOG_SECTIONS).map((section) => {
           const isActive = activeSection === section.id;
           return (
             <button
@@ -233,6 +243,22 @@ export function NewsBlogPortal(props: NewsBlogPortalProps) {
             </button>
           );
         })}
+        {portal === "news"
+          ? adminPreviewNewsSections.map((section) => (
+              <span
+                key={section.id}
+                title="Coming soon"
+                className="inline-flex cursor-not-allowed items-center gap-1.5 whitespace-nowrap rounded-t-lg px-2.5 py-2 text-[12px] font-medium text-slate-500 opacity-70 sm:gap-2 sm:px-4 sm:py-2.5 sm:text-sm"
+                aria-disabled="true"
+              >
+                {getSectionIcon(section.id)}
+                <span>{section.label}</span>
+                <span className="rounded-full border border-slate-600/50 bg-slate-800/60 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-slate-500">
+                  Soon
+                </span>
+              </span>
+            ))
+          : null}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_280px]">

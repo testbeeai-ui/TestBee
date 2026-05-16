@@ -34,6 +34,14 @@ export function sanitizeNewsBlogUploadedHtml(html: string): string {
       doc.querySelectorAll(sel).forEach((el) => el.remove());
     }
 
+    // Remove "Related reads" labels that are plain text in divs without specific classes
+    const allDivs = doc.querySelectorAll("div");
+    allDivs.forEach((div) => {
+      if (div.textContent && div.textContent.trim().toLowerCase() === "related reads") {
+        div.remove();
+      }
+    });
+
     const commentPattern = /\b(RELATED|ACTION\s*BAR|TOPBAR|NAVBAR)\b/i;
     const roots: Node[] = [];
     if (doc.documentElement) roots.push(doc.documentElement);

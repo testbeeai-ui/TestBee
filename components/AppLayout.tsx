@@ -81,7 +81,7 @@ const studentNavItems: AppNavItem[] = [
   { path: "/doubts", icon: HelpCircle, label: "Gyan++", emoji: "💡" },
   { path: "/refer-earn", icon: Gift, label: "Earn & Learn", emoji: "🎁" },
   { path: "/edufund", icon: Heart, label: "EduFund", emoji: "💛" },
-  { path: "/news-blog", icon: Newspaper, label: "News & Blog", emoji: "📰" },
+  { path: "/news-blog", icon: Newspaper, label: "News & Blogs", emoji: "📰" },
 ];
 
 const teacherNavItems: AppNavItem[] = [

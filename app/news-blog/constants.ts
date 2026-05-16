@@ -1,5 +1,8 @@
 import type { BlogSection, ExamId, NewsSection } from "./types";
 
+/** News sections visible only to admins until published for everyone. */
+export const ADMIN_ONLY_NEWS_SECTIONS: readonly NewsSection[] = ["nresults", "npapers"];
+
 export const EXAMS: { id: ExamId; label: string }[] = [
   { id: "all", label: "All exams" },
   { id: "board", label: "Board exams" },
@@ -17,6 +20,32 @@ export const NEWS_SECTIONS: { id: NewsSection; label: string; desc: string }[] =
   { id: "nresults", label: "Results & cutoffs", desc: "Result timelines and cutoff updates." },
   { id: "npapers", label: "Papers & analysis", desc: "Paper pattern insights and analysis." },
 ];
+
+const ADMIN_ONLY_NEWS_SECTION_IDS = new Set<string>(ADMIN_ONLY_NEWS_SECTIONS);
+
+export function isAdminOnlyNewsSection(section: string): section is NewsSection {
+  return ADMIN_ONLY_NEWS_SECTION_IDS.has(section);
+}
+
+/** Live news sections — browsable and available in the post composer for everyone. */
+export function getPublicNewsSections() {
+  return NEWS_SECTIONS.filter((s) => !isAdminOnlyNewsSection(s.id));
+}
+
+/** @deprecated Alias for getPublicNewsSections — admin-only sections are never browsable yet. */
+export function getBrowsableNewsSections(_isAdmin?: boolean) {
+  return getPublicNewsSections();
+}
+
+/** Admin navbar preview tabs (coming soon, not clickable). */
+export function getAdminPreviewNewsSections() {
+  return NEWS_SECTIONS.filter((s) => isAdminOnlyNewsSection(s.id));
+}
+
+export function coerceNewsSectionForRole(section: NewsSection, _isAdmin?: boolean): NewsSection {
+  if (isAdminOnlyNewsSection(section)) return "nbuzz";
+  return section;
+}
 
 export const BLOG_SECTIONS: { id: BlogSection; label: string; desc: string }[] = [
   { id: "btoppers", label: "Past toppers", desc: "Real journeys, strategies, and routines." },

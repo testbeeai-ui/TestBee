@@ -3,6 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/integrations/supabase/server";
+import { isAdminUser } from "@/lib/admin";
+import { isAdminOnlyNewsSection } from "@/app/news-blog/constants";
 import { getPublicPostBySlugServer, getPublicPostsServer } from "@/lib/news-blog/server-loader";
 import { feedCardBlurb, htmlToSeoSafeDocument } from "../html-feed-and-seo";
 import {
@@ -40,9 +42,20 @@ async function getIsLoggedIn(): Promise<boolean> {
   return Boolean(profile?.onboarding_complete);
 }
 
+async function getIsAppAdmin(): Promise<boolean> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return false;
+  return isAdminUser(supabase, user.id);
+}
+
 export async function generateStaticParams() {
   const posts = await getPublicPostsServer();
-  return posts.map((post) => ({ slug: toPostSlug(post) }));
+  return posts
+    .filter((post) => post.portal !== "news" || !isAdminOnlyNewsSection(post.section))
+    .map((post) => ({ slug: toPostSlug(post) }));
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -95,12 +108,16 @@ function seoArticleBody(post: Awaited<ReturnType<typeof getPublicPostBySlugServe
 export default async function NewsBlogArticlePage({ params, searchParams }: PageProps) {
   const { slug } = await params;
   const query = await searchParams;
-  const [post, isLoggedIn] = await Promise.all([
+  const [post, isLoggedIn, isAdmin] = await Promise.all([
     getPublicPostBySlugServer(slug),
     getIsLoggedIn(),
+    getIsAppAdmin(),
   ]);
 
   if (!post) notFound();
+  if (!isAdmin && post.portal === "news" && isAdminOnlyNewsSection(post.section)) {
+    notFound();
+  }
 
   const backFromQuery = buildBackHrefFromArticleSearchParams(query);
   const backHref =
@@ -133,7 +150,7 @@ export default async function NewsBlogArticlePage({ params, searchParams }: Page
               className="h-4 w-4 shrink-0 transition-transform duration-200 group-hover:-translate-x-0.5"
               aria-hidden
             />
-            <span>Back to News &amp; Blog</span>
+            <span>Back to News &amp; Blogs</span>
           </Link>
         </div>
 
@@ -160,7 +177,7 @@ export default async function NewsBlogArticlePage({ params, searchParams }: Page
             />
           ) : null}
 
-          <ArticlePageContent post={post} />
+          <ArticlePageContent post={post} isAdmin={isAdmin} />
 
         </div>
       </article>
