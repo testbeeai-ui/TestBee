@@ -4468,10 +4468,19 @@ function TopicPageInner() {
             </aside>
           )}
 
-          <main className="flex-1 min-w-0">
+          <main
+            className={cn(
+              "flex-1 min-w-0",
+              isSubtopicDashboardLayout && "order-2 lg:order-1"
+            )}
+          >
             <div
               data-theory-card
-              className={`edu-card p-6 rounded-2xl border-2 shadow-lg min-w-0 max-w-full ${mainCardBorderClass}`}
+              className={cn(
+                "edu-card rounded-2xl border-2 shadow-lg min-w-0 max-w-full",
+                isSubtopicDashboardLayout ? "p-4 sm:p-6" : "p-6",
+                mainCardBorderClass
+              )}
             >
               {isOverview ? (
                 <>
@@ -4982,7 +4991,7 @@ function TopicPageInner() {
                                 <span className="block text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
                                   Previous topic
                                 </span>
-                                <span className="block truncate text-sm font-bold text-foreground">
+                                <span className="block whitespace-normal break-words text-sm font-bold text-foreground lg:truncate">
                                   {topicLevelSiblings.prev.topic}
                                 </span>
                               </span>
@@ -5015,7 +5024,7 @@ function TopicPageInner() {
                                 <span className="block text-[11px] font-bold uppercase tracking-wide opacity-90">
                                   Next topic
                                 </span>
-                                <span className="block truncate text-sm font-bold">
+                                <span className="block whitespace-normal break-words text-sm font-bold lg:truncate">
                                   {topicLevelSiblings.next.topic}
                                 </span>
                               </span>
@@ -5332,14 +5341,14 @@ function TopicPageInner() {
                         >
                           <Link
                             href={prevSubtopicHref}
-                            className="flex w-full min-w-0 max-w-full flex-nowrap items-center gap-1.5 overflow-hidden text-left"
+                            className="flex w-full min-w-0 max-w-full flex-wrap items-center gap-1.5 text-left lg:flex-nowrap lg:overflow-hidden"
                             title={subtopicNavPreviewLine(prevSubtopic.name)}
                           >
                             <ArrowLeft className="size-4 shrink-0 opacity-80" aria-hidden />
                             <span className="shrink-0 text-xs text-muted-foreground sm:text-sm">
                               Previous subtopic:
                             </span>
-                            <span className="min-w-0 flex-1 truncate text-xs text-foreground sm:text-sm">
+                            <span className="min-w-0 flex-1 whitespace-normal break-words text-xs text-foreground sm:text-sm lg:truncate">
                               {subtopicNavPreviewLine(prevSubtopic.name)}
                             </span>
                           </Link>
@@ -5353,13 +5362,13 @@ function TopicPageInner() {
                         >
                           <Link
                             href={nextSubtopicHref}
-                            className="flex w-full min-w-0 max-w-full flex-nowrap items-center gap-1.5 overflow-hidden text-left text-primary-foreground"
+                            className="flex w-full min-w-0 max-w-full flex-wrap items-center gap-1.5 text-left text-primary-foreground lg:flex-nowrap lg:overflow-hidden"
                             title={subtopicNavPreviewLine(nextSubtopic.name)}
                           >
                             <span className="shrink-0 text-xs opacity-90 sm:text-sm">
                               Next subtopic:
                             </span>
-                            <span className="min-w-0 flex-1 truncate text-xs sm:text-sm">
+                            <span className="min-w-0 flex-1 whitespace-normal break-words text-xs sm:text-sm lg:truncate">
                               {subtopicNavPreviewLine(nextSubtopic.name)}
                             </span>
                             <ChevronRight className="size-4 shrink-0 opacity-90" aria-hidden />
@@ -5642,7 +5651,7 @@ function TopicPageInner() {
                             <Link
                               href={href}
                               className={cn(
-                                "group inline-flex min-h-[3rem] w-full items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left text-xs font-semibold text-foreground/95 shadow-sm transition-all duration-200",
+                                "group flex min-h-[3rem] w-full items-start gap-2.5 rounded-xl border px-3 py-2.5 text-left text-xs font-semibold text-foreground/95 shadow-sm transition-all duration-200 lg:items-center",
                                 accent.border,
                                 accent.bg,
                                 accent.hover,
@@ -5661,7 +5670,7 @@ function TopicPageInner() {
                               >
                                 {idx + 1}
                               </span>
-                              <MathText className="min-w-0 flex-1 leading-snug [&_.katex]:!text-[0.85em]">
+                              <MathText className="min-w-0 flex-1 leading-snug [overflow-wrap:anywhere] break-words [&_.katex]:!text-[0.85em]">
                                 {subtopicMathTextLabel(st.name)}
                               </MathText>
                               {subAdvComplete ? (
@@ -5684,7 +5693,12 @@ function TopicPageInner() {
           )}
 
           {!isInvestorTopicHubLayout && (
-            <aside className="w-full lg:w-72 xl:w-80 shrink-0 min-w-0 lg:min-w-[18rem]">
+            <aside
+              className={cn(
+                "w-full shrink-0 min-w-0 lg:w-72 xl:w-80 lg:min-w-[18rem]",
+                isSubtopicDashboardLayout && "order-1 lg:order-2"
+              )}
+            >
               <div className="lg:sticky lg:top-24 space-y-4">
                 {isOverview && !isMagicWallSource && (
                   <div className="edu-card p-5 rounded-2xl border border-border">
@@ -5803,19 +5817,34 @@ function TopicPageInner() {
                   <Tabs
                     value={rightPanelTab}
                     onValueChange={(v) => setRightPanelTab(v as PanelTab)}
-                    className="w-full"
+                    className="w-full min-w-0"
                   >
-                    <TabsList className="grid w-full grid-cols-4 mb-3">
-                      <TabsTrigger value="instacue" className="text-xs">
+                    <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-muted-foreground lg:hidden">
+                      Practice
+                    </p>
+                    <TabsList className="mb-3 grid h-auto w-full grid-cols-2 gap-1.5 p-1 lg:grid-cols-4 lg:gap-0">
+                      <TabsTrigger
+                        value="instacue"
+                        className="px-1.5 py-2 text-[10px] leading-tight sm:text-xs lg:px-3"
+                      >
                         {canEditTheory ? "+ InstaCue" : "InstaCue"}
                       </TabsTrigger>
-                      <TabsTrigger value="quiz" className="text-xs">
+                      <TabsTrigger
+                        value="quiz"
+                        className="px-1.5 py-2 text-[10px] leading-tight sm:text-xs lg:px-3"
+                      >
                         {`Quiz${dbBitsQuestions.length > 0 ? ` (${dbBitsQuestions.length})` : ""}`}
                       </TabsTrigger>
-                      <TabsTrigger value="numerals" className="text-xs">
+                      <TabsTrigger
+                        value="numerals"
+                        className="px-1.5 py-2 text-[10px] leading-tight sm:text-xs lg:px-3"
+                      >
                         Numerals
                       </TabsTrigger>
-                      <TabsTrigger value="concepts" className="text-xs">
+                      <TabsTrigger
+                        value="concepts"
+                        className="px-1.5 py-2 text-[10px] leading-tight sm:text-xs lg:px-3"
+                      >
                         Concepts
                       </TabsTrigger>
                     </TabsList>
@@ -5987,7 +6016,7 @@ function TopicPageInner() {
                     </TabsContent>
 
                     {/* Tab 2: Quiz — intro card + Dialog popup */}
-                    <TabsContent value="quiz" className="space-y-3 mt-0">
+                    <TabsContent value="quiz" className="mt-0 min-w-0 space-y-3">
                       {canEditTheory && (
                         <div className="flex justify-end">
                           <Button
@@ -6039,20 +6068,20 @@ function TopicPageInner() {
                           )}
                         </div>
                       ) : (
-                        <div className="edu-card p-4 rounded-xl border border-border space-y-3">
+                        <div className="edu-card space-y-3 rounded-xl border border-border p-3 sm:p-4">
                           <div>
                             <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">
                               Topic Quiz
                             </p>
-                            <p className="font-bold text-sm text-foreground leading-snug">
+                            <p className="break-words text-sm font-bold leading-snug text-foreground">
                               <MathText>{displaySubtopicTitle}</MathText>
                             </p>
                           </div>
-                          <div className="flex items-center gap-2 flex-wrap">
+                          <div className="flex flex-wrap items-center gap-2">
                             <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-blue-500/15 text-blue-700 dark:text-blue-300">
                               {topicNode?.subject ?? "Subject"}
                             </span>
-                            <span className="text-xs text-muted-foreground">
+                            <span className="min-w-0 break-words text-xs text-muted-foreground">
                               {topicNode?.topic ?? "Topic"}
                             </span>
                           </div>
@@ -6558,6 +6587,41 @@ function TopicPageInner() {
                                 const isCurrentQuizBitSaved = isBitSaved(q, savedBits);
                                 const currentQuizSavedBitId = getSavedBitId(q, savedBits);
                                 const useTwoColumns = shouldUseTwoColumnOptions(q.options);
+                                const handleToggleSaveCurrentQuizBit = () => {
+                                  if (!topicNode || !subtopicName) return;
+                                  if (isCurrentQuizBitSaved) {
+                                    if (currentQuizSavedBitId) {
+                                      unsaveBit(currentQuizSavedBitId);
+                                      persistSavedContent();
+                                      toast({ title: "Removed from saved quizzes" });
+                                    }
+                                    return;
+                                  }
+                                  const bit: SavedBit = {
+                                    id: `bit-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+                                    question: q.question,
+                                    options: q.options,
+                                    correctAnswer: getCorrectOptionIndex(q),
+                                    solution: q.solution,
+                                    subject: topicNode.subject,
+                                    topic: topicNode.topic,
+                                    subtopicName,
+                                    classLevel: topicNode.classLevel,
+                                    unitName: topicNode.topic,
+                                    level: difficultyLevel,
+                                    board: (board === "icse" ? "ICSE" : "CBSE") as Board,
+                                    sectionIndex: subtopicIndex,
+                                  };
+                                  saveBit(bit);
+                                  persistSavedContent();
+                                  toast({ title: "Saved to your quizzes" });
+                                };
+                                const saveBitButtonClass = cn(
+                                  "shrink-0 rounded-xl shadow-sm ring-1 transition-colors",
+                                  isCurrentQuizBitSaved
+                                    ? "border-emerald-500/45 bg-emerald-500/12 text-emerald-900 ring-emerald-500/20 dark:text-emerald-100 dark:ring-emerald-400/25"
+                                    : "border-emerald-600/35 bg-emerald-500/[0.07] text-foreground ring-emerald-500/12 hover:border-emerald-500/50 hover:bg-emerald-500/12 hover:ring-emerald-500/20 dark:text-zinc-100"
+                                );
                                 return (
                                   <>
                                     <div className="flex items-center justify-center">
@@ -6592,40 +6656,11 @@ function TopicPageInner() {
                                         <Button
                                           variant="outline"
                                           size="sm"
-                                          className={`shrink-0 rounded-xl h-8 px-2.5 gap-1.5 text-xs font-semibold shadow-sm ring-1 transition-colors ${
-                                            isCurrentQuizBitSaved
-                                              ? "border-emerald-500/45 bg-emerald-500/12 text-emerald-900 ring-emerald-500/20 dark:text-emerald-100 dark:ring-emerald-400/25"
-                                              : "border-emerald-600/35 bg-emerald-500/[0.07] text-foreground ring-emerald-500/12 hover:border-emerald-500/50 hover:bg-emerald-500/12 hover:ring-emerald-500/20 dark:text-zinc-100"
-                                          }`}
-                                          onClick={() => {
-                                            if (!topicNode || !subtopicName) return;
-                                            if (isCurrentQuizBitSaved) {
-                                              if (currentQuizSavedBitId) {
-                                                unsaveBit(currentQuizSavedBitId);
-                                                persistSavedContent();
-                                                toast({ title: "Removed from saved quizzes" });
-                                              }
-                                              return;
-                                            }
-                                            const bit: SavedBit = {
-                                              id: `bit-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-                                              question: q.question,
-                                              options: q.options,
-                                              correctAnswer: getCorrectOptionIndex(q),
-                                              solution: q.solution,
-                                              subject: topicNode.subject,
-                                              topic: topicNode.topic,
-                                              subtopicName,
-                                              classLevel: topicNode.classLevel,
-                                              unitName: topicNode.topic,
-                                              level: difficultyLevel,
-                                              board: (board === "icse" ? "ICSE" : "CBSE") as Board,
-                                              sectionIndex: subtopicIndex,
-                                            };
-                                            saveBit(bit);
-                                            persistSavedContent();
-                                            toast({ title: "Saved to your quizzes" });
-                                          }}
+                                          className={cn(
+                                            "hidden h-8 shrink-0 gap-1.5 rounded-xl px-2.5 text-xs font-semibold lg:inline-flex",
+                                            saveBitButtonClass
+                                          )}
+                                          onClick={handleToggleSaveCurrentQuizBit}
                                           title={
                                             isCurrentQuizBitSaved
                                               ? "Remove saved Bit"
@@ -6703,6 +6738,32 @@ function TopicPageInner() {
                                           disabled={bitsCurrentIdx <= navStart}
                                         >
                                           <ChevronLeft className="w-4 h-4 mr-1" /> Previous
+                                        </Button>
+                                        <Button
+                                          variant="outline"
+                                          size="icon"
+                                          className={cn(
+                                            "h-8 w-8 shrink-0 lg:hidden",
+                                            saveBitButtonClass
+                                          )}
+                                          onClick={handleToggleSaveCurrentQuizBit}
+                                          aria-label={
+                                            isCurrentQuizBitSaved
+                                              ? "Remove saved bit"
+                                              : "Save this bit"
+                                          }
+                                          title={
+                                            isCurrentQuizBitSaved
+                                              ? "Remove saved Bit"
+                                              : "Save this Bit"
+                                          }
+                                        >
+                                          <Bookmark
+                                            className={cn(
+                                              "h-4 w-4",
+                                              isCurrentQuizBitSaved && "fill-current"
+                                            )}
+                                          />
                                         </Button>
                                         <Button
                                           variant={isLastInWindow ? "default" : "outline"}
@@ -7032,7 +7093,7 @@ function TopicPageInner() {
                     </TabsContent>
 
                     {/* Tab 3: Numerals */}
-                    <TabsContent value="numerals" className="space-y-3 mt-0">
+                    <TabsContent value="numerals" className="mt-0 min-w-0 space-y-3">
                       {numeralsOverallBarStats.withQuestionsCount > 0 && (
                         <div
                           className="grid grid-cols-2 gap-1.5 rounded-lg border border-border/60 bg-muted/30 px-1.5 py-1 sm:gap-2 sm:px-2"
@@ -7116,8 +7177,7 @@ function TopicPageInner() {
                       ) : (
                         <>
                         <div
-                          className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-2 overflow-y-auto no-scrollbar pb-1"
-                          style={{ maxHeight: "calc(100vh - 220px)" }}
+                          className="grid grid-cols-1 gap-2 pb-1 min-[420px]:grid-cols-2 max-h-none overflow-visible lg:max-h-[calc(100vh-220px)] lg:overflow-y-auto lg:no-scrollbar"
                         >
                           {dbPracticeFormulas.map((formula, i) => {
                             const numeralDone = numeralCardCompleted[i] ?? false;
@@ -7178,7 +7238,9 @@ function TopicPageInner() {
                                   </span>
                                 ) : null}
                               </div>
-                              <p className="font-bold text-xs sm:text-sm mb-1">{formula.name}</p>
+                              <p className="mb-1 break-words text-xs font-bold sm:text-sm">
+                                {formula.name}
+                              </p>
                               <span className="text-primary text-[11px] sm:text-xs font-bold hover:underline">
                                 Try this →
                               </span>
@@ -7204,8 +7266,7 @@ function TopicPageInner() {
                       ) : (
                         <div
                           ref={conceptsScrollRef}
-                          className="space-y-2 overflow-y-auto no-scrollbar pb-2"
-                          style={{ maxHeight: "calc(100vh - 220px)" }}
+                          className="max-h-none space-y-2 overflow-visible pb-2 lg:max-h-[calc(100vh-220px)] lg:overflow-y-auto lg:no-scrollbar"
                           onMouseEnter={() => {
                             conceptsHoveredRef.current = true;
                           }}

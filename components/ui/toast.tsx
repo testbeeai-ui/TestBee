@@ -16,9 +16,9 @@ const ToastViewport = React.forwardRef<
     className={cn(
       // Body-portal + high z-index: never clipped by page overflow/transform (e.g. Magic Wall / 14" laptops).
       // Bottom stack with safe-area; md+ bottom-right. pointer-events-none on viewport; toasts are pointer-events-auto.
-      "fixed z-[9999] flex max-h-[min(85dvh,720px)] w-full flex-col-reverse gap-3 overflow-x-hidden overflow-y-auto pointer-events-none",
-      "inset-x-0 bottom-0 px-3 pb-[max(12px,env(safe-area-inset-bottom,0px))] pt-2 items-stretch justify-end",
-      "md:inset-x-auto md:left-auto md:right-[max(12px,env(safe-area-inset-right,0px))] md:top-auto md:w-[min(420px,calc(100dvw-24px))] md:max-w-[min(420px,calc(100%-24px))] md:flex-col md:items-end md:px-0 md:pb-[max(12px,env(safe-area-inset-bottom,0px))]",
+      "fixed z-[9999] flex max-h-[min(70dvh,520px)] w-full flex-col-reverse gap-2 overflow-x-hidden overflow-y-auto pointer-events-none md:max-h-[min(85dvh,720px)] md:gap-3",
+      "inset-x-0 bottom-0 px-2 pb-[max(8px,env(safe-area-inset-bottom,0px))] pt-1.5 items-stretch justify-end",
+      "md:inset-x-auto md:left-auto md:right-[max(12px,env(safe-area-inset-right,0px))] md:top-auto md:w-[min(420px,calc(100dvw-24px))] md:max-w-[min(420px,calc(100%-24px))] md:flex-col md:items-end md:px-0 md:pb-[max(12px,env(safe-area-inset-bottom,0px))] md:pt-2",
       className
     )}
     {...props}
@@ -27,7 +27,7 @@ const ToastViewport = React.forwardRef<
 ToastViewport.displayName = ToastPrimitives.Viewport.displayName;
 
 const toastVariants = cva(
-  "group pointer-events-auto relative mx-auto flex w-full max-w-md items-center justify-between gap-4 overflow-hidden rounded-2xl border px-5 py-4 pr-11 shadow-lg transition-all duration-300 data-[swipe=cancel]:translate-x-0 data-[swipe=end]:translate-x-[var(--radix-toast-swipe-end-x)] data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)] data-[swipe=move]:transition-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[swipe=end]:animate-out data-[state=closed]:fade-out-80 data-[state=closed]:slide-out-to-right-full data-[state=open]:slide-in-from-bottom-full md:mx-0 md:max-w-none",
+  "group pointer-events-auto relative mx-auto flex w-full max-w-[min(100%,22rem)] items-center justify-between gap-2.5 overflow-hidden rounded-xl border px-3 py-2.5 pr-9 shadow-md transition-all duration-300 data-[swipe=cancel]:translate-x-0 data-[swipe=end]:translate-x-[var(--radix-toast-swipe-end-x)] data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)] data-[swipe=move]:transition-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[swipe=end]:animate-out data-[state=closed]:fade-out-80 data-[state=closed]:slide-out-to-right-full data-[state=open]:slide-in-from-bottom-full md:mx-0 md:max-w-none md:gap-4 md:rounded-2xl md:px-5 md:py-4 md:pr-11 md:shadow-lg",
   {
     variants: {
       variant: {
@@ -87,13 +87,13 @@ const ToastClose = React.forwardRef<
   <ToastPrimitives.Close
     ref={ref}
     className={cn(
-      "absolute right-2.5 top-2.5 inline-flex h-8 w-8 items-center justify-center rounded-xl border bg-background/90 text-foreground opacity-100 transition-all duration-200 hover:-translate-y-px hover:bg-background hover:ring-1 hover:ring-[color-mix(in_oklab,var(--toast-accent)_40%,transparent)] hover:shadow-[0_0_18px_color-mix(in_oklab,var(--toast-accent)_22%,transparent)] focus:outline-none focus:ring-2 focus:ring-[color-mix(in_oklab,var(--toast-accent)_50%,transparent)] dark:border-white/[0.12] dark:bg-white/[0.06] dark:text-zinc-200 dark:hover:bg-white/[0.11] dark:hover:ring-white/20 group-[.destructive]:border-red-200/25 group-[.destructive]:bg-red-950/50 group-[.destructive]:text-red-50 group-[.destructive]:hover:bg-red-900/55 group-[.destructive]:hover:ring-red-400/35 group-[.destructive]:focus:ring-red-400 group-[.destructive]:focus:ring-offset-0",
+      "absolute right-1.5 top-1.5 inline-flex h-7 w-7 items-center justify-center rounded-lg border bg-background/90 text-foreground opacity-100 transition-all duration-200 hover:-translate-y-px hover:bg-background hover:ring-1 hover:ring-[color-mix(in_oklab,var(--toast-accent)_40%,transparent)] hover:shadow-[0_0_18px_color-mix(in_oklab,var(--toast-accent)_22%,transparent)] focus:outline-none focus:ring-2 focus:ring-[color-mix(in_oklab,var(--toast-accent)_50%,transparent)] md:right-2.5 md:top-2.5 md:h-8 md:w-8 md:rounded-xl dark:border-white/[0.12] dark:bg-white/[0.06] dark:text-zinc-200 dark:hover:bg-white/[0.11] dark:hover:ring-white/20 group-[.destructive]:border-red-200/25 group-[.destructive]:bg-red-950/50 group-[.destructive]:text-red-50 group-[.destructive]:hover:bg-red-900/55 group-[.destructive]:hover:ring-red-400/35 group-[.destructive]:focus:ring-red-400 group-[.destructive]:focus:ring-offset-0",
       className
     )}
     toast-close=""
     {...props}
   >
-    <X className="h-4 w-4" />
+    <X className="h-3.5 w-3.5 md:h-4 md:w-4" />
   </ToastPrimitives.Close>
 ));
 ToastClose.displayName = ToastPrimitives.Close.displayName;
@@ -105,7 +105,7 @@ const ToastTitle = React.forwardRef<
   <ToastPrimitives.Title
     ref={ref}
     className={cn(
-      "text-[15px] font-semibold leading-snug tracking-tight text-foreground dark:text-zinc-50",
+      "text-sm font-semibold leading-snug tracking-tight text-foreground md:text-[15px] dark:text-zinc-50",
       className
     )}
     {...props}
@@ -120,7 +120,7 @@ const ToastDescription = React.forwardRef<
   <ToastPrimitives.Description
     ref={ref}
     className={cn(
-      "text-[13px] leading-relaxed text-muted-foreground opacity-95 dark:text-zinc-400 dark:opacity-100",
+      "text-xs leading-snug text-muted-foreground opacity-95 md:text-[13px] md:leading-relaxed dark:text-zinc-400 dark:opacity-100",
       className
     )}
     {...props}

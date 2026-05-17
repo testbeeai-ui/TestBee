@@ -103,7 +103,7 @@ export default function DashboardSidebar() {
     { href: "/home", label: "Dashboard", icon: LayoutDashboard },
     { href: "/magic-wall", label: "Community feed", icon: Sparkles, badge: "Live" },
     { href: "/mock", label: "Testbee mocks", icon: GraduationCap },
-    { href: "/mock-test-library", label: "Mock test library", icon: Library },
+    { href: "/mock-test", label: "Mock test library", icon: Library },
     {
       href: "/revision",
       label: "Instacue revision",

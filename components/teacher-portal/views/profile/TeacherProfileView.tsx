@@ -7,7 +7,7 @@ import type { TeacherPortalProfileView } from "@/lib/teacherPortal/types";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { AvatarCropDialog } from "@/components/teacher-portal/AvatarCropDialog";
+import { AvatarCropDialog } from "@/components/teacher-portal/views/profile/AvatarCropDialog";
 
 const PROFILE_AVATARS_BUCKET = "profile-avatars";
 type ContactEmailVerificationUiState =

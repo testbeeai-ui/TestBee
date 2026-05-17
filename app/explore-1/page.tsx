@@ -2107,15 +2107,15 @@ const Explore = () => {
                 <p className="edu-page-desc">Pick a subject to browse topics and questions</p>
               </div>
 
-              <div className="mb-8">
-                <h3 className="text-sm font-extrabold text-foreground mb-3 flex items-center gap-2">
+              <div className="mb-6 sm:mb-8">
+                <h3 className="text-sm font-extrabold text-foreground mb-2.5 flex items-center gap-2 sm:mb-3">
                   <Filter className="w-4 h-4 text-primary" /> Exam
                 </h3>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1.5 sm:gap-2">
                   <button
                     type="button"
                     onClick={() => setExamType(null)}
-                    className={`px-5 py-2.5 rounded-full text-sm font-extrabold transition-all ${
+                    className={`px-3.5 py-2 rounded-full text-xs font-extrabold transition-all sm:px-5 sm:py-2.5 sm:text-sm ${
                       profileExamType === null
                         ? "bg-primary text-primary-foreground shadow-md"
                         : "bg-muted text-muted-foreground hover:bg-muted/80"
@@ -2128,7 +2128,7 @@ const Explore = () => {
                       key={e.value}
                       type="button"
                       onClick={() => setExamType(profileExamType === e.value ? null : e.value)}
-                      className={`px-5 py-2.5 rounded-full text-sm font-extrabold transition-all ${
+                      className={`px-3.5 py-2 rounded-full text-xs font-extrabold transition-all sm:px-5 sm:py-2.5 sm:text-sm ${
                         profileExamType === e.value
                           ? "bg-primary text-primary-foreground shadow-md"
                           : "bg-muted text-muted-foreground hover:bg-muted/80"
@@ -2157,9 +2157,9 @@ const Explore = () => {
                         onClick={() => handleSubjectSelect(s.value)}
                         onMouseEnter={() => setHoveredSubject(s.value)}
                         onMouseLeave={() => setHoveredSubject(null)}
-                        className={`p-5 rounded-2xl text-left transition-all edu-card hover:shadow-[0_8px_30px_rgba(0,0,0,0.12)] hover:scale-[1.03] group`}
+                        className={`p-4 rounded-xl text-left transition-all edu-card hover:shadow-[0_8px_30px_rgba(0,0,0,0.12)] hover:scale-[1.03] group sm:p-5 sm:rounded-2xl`}
                       >
-                        <div className="mb-2 h-10 w-10 flex items-center justify-start -ml-1">
+                        <div className="mb-2 h-9 w-9 flex items-center justify-start -ml-1 sm:h-10 sm:w-10">
                           {s.value === "physics" ? (
                             <AnimatedPhysicsIcon size="44px" isOpen={isHovered} />
                           ) : s.value === "chemistry" ? (
@@ -2193,7 +2193,7 @@ const Explore = () => {
               className="w-full max-w-6xl mx-auto px-4"
             >
               {/* Header */}
-              <div className="flex items-center gap-3 mb-6">
+              <div className="flex items-center gap-2 mb-4 flex-wrap sm:gap-3 sm:mb-6">
                 <Button
                   variant="ghost"
                   size="sm"
@@ -2203,13 +2203,13 @@ const Explore = () => {
                   <ArrowLeft className="w-4 h-4 mr-1" /> Back
                 </Button>
                 <div
-                  className={`px-4 py-2 rounded-xl bg-gradient-to-br ${subjectMeta?.gradient} text-primary-foreground flex items-center gap-2`}
+                  className={`px-3 py-1.5 rounded-lg bg-gradient-to-br ${subjectMeta?.gradient} text-primary-foreground flex items-center gap-1.5 sm:px-4 sm:py-2 sm:rounded-xl sm:gap-2`}
                 >
-                  <span className="text-lg">{subjectMeta?.emoji}</span>
-                  <span className="font-extrabold text-sm">{subjectMeta?.label}</span>
+                  <span className="text-base sm:text-lg">{subjectMeta?.emoji}</span>
+                  <span className="font-extrabold text-xs sm:text-sm">{subjectMeta?.label}</span>
                 </div>
                 {profileExamType && (
-                  <Badge variant="secondary" className="font-bold">
+                  <Badge variant="secondary" className="font-bold text-[11px] sm:text-xs">
                     {getExamLabel(profileExamType)}
                   </Badge>
                 )}
@@ -2330,7 +2330,7 @@ const Explore = () => {
                 exit={{ opacity: 0, x: -20 }}
                 className="w-full max-w-6xl mx-auto"
               >
-                <div className="flex items-center gap-3 mb-6 flex-wrap">
+                <div className="flex items-center gap-2 mb-4 flex-wrap sm:gap-3 sm:mb-6">
                   <Button
                     variant="ghost"
                     size="sm"
@@ -2346,15 +2346,15 @@ const Explore = () => {
                     <ArrowLeft className="w-4 h-4 mr-1" /> Back
                   </Button>
                   <div
-                    className={`px-4 py-2 rounded-xl bg-gradient-to-br ${subjectMeta?.gradient} text-primary-foreground flex items-center gap-2`}
+                    className={`px-3 py-1.5 rounded-lg bg-gradient-to-br ${subjectMeta?.gradient} text-primary-foreground flex items-center gap-1.5 sm:px-4 sm:py-2 sm:rounded-xl sm:gap-2`}
                   >
-                    <span className="text-lg">{subjectMeta?.emoji}</span>
-                    <span className="font-extrabold text-sm">{subjectMeta?.label}</span>
+                    <span className="text-base sm:text-lg">{subjectMeta?.emoji}</span>
+                    <span className="font-extrabold text-xs sm:text-sm">{subjectMeta?.label}</span>
                   </div>
-                  <span className="edu-chip bg-muted text-foreground font-bold">
+                  <span className="edu-chip bg-muted text-foreground font-bold text-[11px] sm:text-xs">
                     Class {selectedTopicClassLevel}
                   </span>
-                  <span className="edu-chip bg-primary/10 text-primary font-bold">
+                  <span className="edu-chip bg-primary/10 text-primary font-bold text-[11px] sm:text-xs">
                     {profileBoard}
                   </span>
                 </div>
@@ -2385,7 +2385,7 @@ const Explore = () => {
                   <div className="flex-1 min-w-0">
                     {focusedSubtopicIndex === null ? (
                       /* Intro / overview — only when no subtopic selected */
-                      <div className="edu-card p-6 rounded-2xl border border-border">
+                      <div className="edu-card p-4 rounded-xl border border-border sm:p-6 sm:rounded-2xl">
                         {isDetailedUnitView ? (
                           <>
                             {selectedChapterGroup && (
@@ -2393,7 +2393,7 @@ const Explore = () => {
                                 <div className="flex flex-wrap items-start gap-2 mb-3">
                                   <h3 className="font-extrabold text-lg text-foreground flex items-center gap-2 min-w-0">
                                     <Sparkles className="w-5 h-5 text-primary" />
-                                    <span className="truncate">
+                                    <span className="whitespace-normal break-words lg:truncate">
                                       Let&apos;s take a look at {agentHeading}
                                     </span>
                                   </h3>
@@ -2648,7 +2648,7 @@ const Explore = () => {
                             <div className="mb-3 flex items-start justify-between gap-3">
                               <h3 className="font-extrabold text-lg text-foreground flex items-center gap-2 min-w-0">
                                 <span className="text-xl">⚙️</span>
-                                <span className="truncate">
+                                <span className="whitespace-normal break-words lg:truncate">
                                   Thermodynamics: The Physics of Absolute Limits
                                 </span>
                               </h3>
@@ -2738,7 +2738,7 @@ const Explore = () => {
                             <div className="mb-3 flex items-start justify-between gap-3">
                               <h3 className="font-extrabold text-lg text-foreground flex items-center gap-2 min-w-0">
                                 <Sparkles className="w-5 h-5 text-primary shrink-0" />
-                                <span className="truncate">
+                                <span className="whitespace-normal break-words lg:truncate">
                                   Let&apos;s take a look at {selectedTopicNode.topic}
                                 </span>
                               </h3>
@@ -2967,7 +2967,7 @@ const Explore = () => {
                   </div>
 
                   <aside className="w-full lg:w-80 xl:w-96 shrink-0">
-                    <div className="lg:sticky lg:top-24 space-y-4">
+                    <div className="border-t border-border/60 pt-4 mt-2 lg:border-t-0 lg:pt-0 lg:mt-0 lg:sticky lg:top-24 space-y-4">
                       {focusedSubtopicIndex != null &&
                         selectedTopicNode &&
                         (() => {
@@ -3051,7 +3051,7 @@ const Explore = () => {
                                       </span>
                                       <div className="min-w-0 flex-1 text-left">
                                         <p
-                                          className={`truncate text-sm ${isActive ? "font-extrabold text-foreground" : "font-semibold text-foreground"}`}
+                                          className={`whitespace-normal break-words text-sm lg:truncate ${isActive ? "font-extrabold text-foreground" : "font-semibold text-foreground"}`}
                                         >
                                           {topic.topic}
                                         </p>

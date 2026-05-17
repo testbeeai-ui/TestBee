@@ -82,7 +82,7 @@ function inferDefaultIconKind(
 }
 
 function DefaultToastIcon({ kind }: { kind: DefaultIconKind }) {
-  const cls = "h-5 w-5";
+  const cls = "h-4 w-4 md:h-5 md:w-5";
   const stroke = 2.25;
   switch (kind) {
     case "error":
@@ -134,7 +134,7 @@ export function Toaster() {
             variant={variant}
             className={cn(
               isDestructive ? "toast-surface-destructive" : "toast-surface-accent",
-              hideCloseButton && "pr-6",
+              hideCloseButton && "pr-5 md:pr-6",
               multi ? "items-start" : "items-center",
               className
             )}
@@ -142,12 +142,15 @@ export function Toaster() {
             {...props}
           >
             <div
-              className={cn("flex min-w-0 flex-1 gap-3", multi ? "items-start" : "items-center")}
+              className={cn(
+                "flex min-w-0 flex-1 gap-2 md:gap-3",
+                multi ? "items-start" : "items-center"
+              )}
             >
               <div
                 className={cn(
-                  "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border shadow-sm [&_svg]:pointer-events-none [&_svg]:shrink-0",
-                  multi && "mt-0.5",
+                  "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border shadow-sm md:h-10 md:w-10 md:rounded-xl [&_svg]:pointer-events-none [&_svg]:shrink-0",
+                  multi && "mt-0 md:mt-0.5",
                   isDestructive
                     ? "border-red-200/25 bg-red-500/15 text-red-50 ring-1 ring-red-400/15"
                     : "border-[color-mix(in_oklab,var(--toast-accent)_42%,transparent)] bg-[color-mix(in_oklab,var(--toast-accent)_14%,transparent)] text-[color-mix(in_oklab,var(--toast-accent)_78%,#0a0a0a)] ring-1 ring-[color-mix(in_oklab,var(--toast-accent)_28%,transparent)] dark:text-[color-mix(in_oklab,var(--toast-accent)_72%,white)] dark:ring-[color-mix(in_oklab,var(--toast-accent)_22%,transparent)]"
@@ -155,7 +158,7 @@ export function Toaster() {
                 aria-hidden
               >
                 {icon != null ? (
-                  <span className="flex h-5 w-5 items-center justify-center [&_svg]:h-5 [&_svg]:w-5">
+                  <span className="flex h-4 w-4 items-center justify-center md:h-5 md:w-5 [&_svg]:h-4 [&_svg]:w-4 md:[&_svg]:h-5 md:[&_svg]:w-5">
                     {icon}
                   </span>
                 ) : (
@@ -163,7 +166,10 @@ export function Toaster() {
                 )}
               </div>
               <div
-                className={cn("grid min-w-0 flex-1 pr-1", multi ? "gap-1.5 pt-0.5" : "gap-0 pt-0")}
+                className={cn(
+                  "grid min-w-0 flex-1 pr-0.5 md:pr-1",
+                  multi ? "gap-1 pt-0 md:gap-1.5 md:pt-0.5" : "gap-0 pt-0"
+                )}
               >
                 {title && <ToastTitle>{title}</ToastTitle>}
                 {description && <ToastDescription>{description}</ToastDescription>}

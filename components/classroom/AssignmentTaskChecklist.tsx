@@ -157,7 +157,7 @@ function withAssignmentTrackingParams(
     task.kind === "chapter_quiz" ||
     task.kind === "mock_paper" ||
     task.kind === "past_paper" ||
-    href.startsWith("/mock") || href.startsWith("/mock-test-library");
+    href.startsWith("/mock") || href.startsWith("/mock-test");
   if (!shouldTrack) return href;
   try {
     const isAbsolute = /^https?:\/\//i.test(href);
@@ -644,7 +644,7 @@ export default function AssignmentTaskChecklist({
                   ) : t.href?.includes("/assignment-test/") ||
                     t.href?.includes("panel=quiz") ||
                     t.href?.startsWith("/mock?paper=") ||
-                    t.href?.startsWith("/mock-test-library?paper=") ? (
+                    t.href?.startsWith("/mock-test?paper=") ? (
                     <a
                       href={withAssignmentTrackingParams(t.href, t, classroomId, postId)}
                       target="_blank"

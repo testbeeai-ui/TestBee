@@ -4,11 +4,11 @@ import { Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import TeacherPortalShell from "@/components/teacher-portal/TeacherPortalShell";
+import TeacherPortalShell from "@/components/teacher-portal/shell/TeacherPortalShell";
 import { useAuth } from "@/hooks/useAuth";
 import { useTeacherPortalData } from "@/hooks/useTeacherPortalData";
 import { useToast } from "@/hooks/use-toast";
-import CreateAssignmentWizard from "@/components/teacher-portal/CreateAssignmentWizard";
+import CreateAssignmentWizard from "@/components/teacher-portal/assignment/CreateAssignmentWizard";
 import { useTeacherVerificationActionGuard } from "@/hooks/useTeacherVerificationActionGuard";
 import { TEACHER_VERIFICATION_REQUIRED_ERROR } from "@/lib/teacherPortal/queries";
 

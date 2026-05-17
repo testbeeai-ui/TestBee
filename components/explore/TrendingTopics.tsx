@@ -49,9 +49,9 @@ export default function TrendingTopics({ taxonomy, onExploreTopic }: TrendingTop
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.3, duration: 0.35 }}
-      className="rounded-xl border border-border bg-card p-5"
+      className="rounded-xl border border-border bg-card p-4 sm:p-5"
     >
-      <h3 className="text-base font-bold text-foreground mb-3">Trending topics</h3>
+      <h3 className="text-sm font-bold text-foreground mb-2.5 sm:text-base sm:mb-3">Trending topics</h3>
       <div className="space-y-0.5">
         {trending.map((item, i) => {
           const tag = subjectTag[item.subject];
@@ -60,7 +60,7 @@ export default function TrendingTopics({ taxonomy, onExploreTopic }: TrendingTop
               key={`${item.subject}-${item.topic}`}
               type="button"
               onClick={() => onExploreTopic(item)}
-              className="flex items-center gap-3 py-2.5 px-2 -mx-2 rounded-lg hover:bg-muted/60 transition-colors group w-full text-left"
+              className="flex items-center gap-2.5 py-2.5 px-2 -mx-2 rounded-lg hover:bg-muted/60 transition-colors group w-full text-left sm:gap-3"
             >
               <span className="text-base font-extrabold text-muted-foreground/30 w-5 text-center shrink-0 tabular-nums">
                 {i + 1}

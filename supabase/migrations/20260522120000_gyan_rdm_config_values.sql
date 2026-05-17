@@ -6,7 +6,7 @@ VALUES
   ('gyan_comment_rdm', 5, 'Gyan++ · Student comment daily milestone RDM (first COMMENT per IST day)'),
   ('gyan_upvote_rdm', 2, 'Gyan++ · Voter first upvote daily milestone RDM (first UPVOTE per IST day)'),
   ('gyan_save_rdm', 3, 'Gyan++ · Save for revision daily milestone RDM (first SAVE per IST day)'),
-  ('gyan_teacher_answer_rdm', 30, 'Gyan++ · Teacher section reward shown in feed/wall UI')
+  ('gyan_teacher_answer_rdm', 5, 'Gyan++ · Teacher section reward shown in feed/wall UI')
 ON CONFLICT (key) DO UPDATE
 SET
   value = EXCLUDED.value,
@@ -206,7 +206,7 @@ BEGIN
 
   SELECT role INTO v_role FROM public.profiles WHERE id = NEW.user_id;
   IF v_role = 'teacher' THEN
-    SELECT COALESCE((SELECT value FROM public.rdm_config WHERE key = 'gyan_teacher_answer_rdm'), 30)
+    SELECT COALESCE((SELECT value FROM public.rdm_config WHERE key = 'gyan_teacher_answer_rdm'), 5)
     INTO v_points;
   ELSE
     SELECT COALESCE((SELECT value FROM public.rdm_config WHERE key = 'gyan_comment_rdm'), 5)

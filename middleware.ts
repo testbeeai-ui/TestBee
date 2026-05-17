@@ -8,6 +8,7 @@ const STUDENT_ONLY_PREFIXES = [
   "/home",
   "/play",
   "/mock",
+  "/mock-test",
   "/revision",
   "/explore-1",
   "/explore",
@@ -39,13 +40,13 @@ export async function middleware(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
 
-  /** In-app links use `/mock-test-library`; the real page is `app/mock` → `/mock`. Preserves `?paper=` etc. */
+  /** Legacy `/mock-test-library` links → `/mock-test`. Preserves `?paper=` etc. */
   if (pathname === "/mock-test-library" || pathname.startsWith("/mock-test-library/")) {
     const url = request.nextUrl.clone();
     url.pathname =
       pathname === "/mock-test-library"
-        ? "/mock"
-        : `/mock${pathname.slice("/mock-test-library".length)}`;
+        ? "/mock-test"
+        : `/mock-test${pathname.slice("/mock-test-library".length)}`;
     return NextResponse.redirect(url, 308);
   }
 

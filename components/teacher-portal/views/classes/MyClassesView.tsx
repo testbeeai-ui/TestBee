@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Plus } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import ScheduleLiveSessionPanel from "@/components/teacher-portal/ScheduleLiveSessionPanel";
+import ScheduleLiveSessionPanel from "@/components/teacher-portal/live/ScheduleLiveSessionPanel";
 import type {
   TeacherPortalClassroomCard,
   TeacherPortalSessionItem,

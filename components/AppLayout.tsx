@@ -56,7 +56,7 @@ function isPrepMockActive(pathname: string): boolean {
 
 function isNavLinkActive(navPath: string, pathname: string): boolean {
   if (pathname === navPath) return true;
-  if (navPath === "/mock-test-library" && isPrepMockActive(pathname)) return true;
+  if (navPath === "/mock" && isPrepMockActive(pathname)) return true;
   if (navPath === "/edufund" && (pathname === "/edufund" || pathname.startsWith("/edufund/")))
     return true;
   if (navPath === "/news-blog" && (pathname === "/news-blog" || pathname.startsWith("/news-blog/")))
@@ -77,7 +77,7 @@ const studentNavItems: AppNavItem[] = [
   { path: "/home", icon: LayoutDashboard, label: "Dashboard", emoji: "📊" },
   { path: "/magic-wall", icon: Sparkles, label: "Magic Wall", emoji: "✨" },
   { path: EXPLORE_APP_PATH, icon: Compass, label: "Lessons", emoji: "🧭" },
-  { path: "/mock-test-library", icon: GraduationCap, label: "Prep + Mock", emoji: "🎓" },
+  { path: "/mock", icon: GraduationCap, label: "Prep + Mock", emoji: "🎓" },
   { path: "/doubts", icon: HelpCircle, label: "Gyan++", emoji: "💡" },
   { path: "/refer-earn", icon: Gift, label: "Earn & Learn", emoji: "🎁" },
   { path: "/edufund", icon: Heart, label: "EduFund", emoji: "💛" },

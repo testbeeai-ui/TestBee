@@ -141,7 +141,7 @@ const QUICK_ACTIONS = [
   {
     label: "Mock Test",
     desc: "Take a timed subject exam",
-    path: "/mock-test-library",
+    path: "/mock-test",
     tone: "from-indigo-500 to-blue-500",
     icon: BookOpen,
   },

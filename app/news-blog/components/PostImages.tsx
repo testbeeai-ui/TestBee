@@ -18,7 +18,7 @@ export function PostImages({
           <img
             src={heroImageUrl}
             alt={heroImageCaption || "Hero image"}
-            className="h-44 w-full object-cover"
+            className="h-32 w-full object-cover sm:h-44"
           />
           {heroImageCaption.trim() ? (
             <figcaption className="px-3 py-2 text-xs text-slate-400">{heroImageCaption}</figcaption>
@@ -31,7 +31,7 @@ export function PostImages({
           <img
             src={inlineImageUrl}
             alt={inlineImageCaption || "Inline image"}
-            className="h-44 w-full object-cover"
+            className="h-32 w-full object-cover sm:h-44"
           />
           {inlineImageCaption.trim() ? (
             <figcaption className="px-3 py-2 text-xs text-slate-400">

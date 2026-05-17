@@ -2,6 +2,7 @@
 
 import { useLayoutEffect, type RefObject } from "react";
 import renderMathInElement from "katex/contrib/auto-render";
+import { repairBankMathLatex } from "@/lib/mockRichTextKatex";
 
 /** `$$` / `$` must come before `\(` so display `$$` wins; `ignoredClasses: ['katex']` avoids re-parsing KaTeX output on timer re-renders. */
 const DELIMITERS = [
@@ -11,9 +12,9 @@ const DELIMITERS = [
   { left: "\\[", right: "\\]", display: true as const },
 ];
 
-/** PYQ HTML often has `\text {` instead of `\text{`; KaTeX then mis-reads the formula. */
+/** PYQ / bank HTML: repair malformed limit, text, and arrow markup before KaTeX parses. */
 function preProcessBankMath(math: string): string {
-  return math.replace(/\\text\s+\{/g, "\\text{");
+  return repairBankMathLatex(math);
 }
 
 /**

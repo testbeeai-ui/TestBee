@@ -38,7 +38,7 @@ export function KeyDateSidebarCountdownCard({
       href={href}
       className={`block w-full rounded-xl border px-3 py-2 text-left shadow-sm transition hover:brightness-[1.03] ${accent.border}`}
     >
-      <p className="line-clamp-2 text-[11px] font-semibold leading-tight text-slate-100">
+      <p className="line-clamp-2 text-xs font-semibold leading-tight text-slate-100 sm:text-[11px]">
         {post.title}
       </p>
       <div className="mt-1">{countdown}</div>

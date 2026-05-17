@@ -216,7 +216,7 @@ export default function DoubtFeedCard({
     >
       <div className="edu-card rounded-2xl overflow-hidden hover:border-primary/30 hover:shadow-md transition-all duration-200">
         {/* ── Main post area ── */}
-        <div className="p-5 sm:p-6 pb-3">
+        <div className="p-3 sm:p-5 lg:p-6 pb-2.5 sm:pb-3">
           {/* Author row */}
           <div className="flex items-start justify-between gap-2 mb-3">
             <UserHoverCard userId={d.user_id}>
@@ -224,7 +224,7 @@ export default function DoubtFeedCard({
                 {isAuthorAI ? (
                   <ProfPiAvatar size="md" className="shrink-0" />
                 ) : (
-                  <Avatar className="h-9 w-9 rounded-full shrink-0">
+                  <Avatar className="h-8 w-8 rounded-full shrink-0 sm:h-9 sm:w-9">
                     <AvatarImage src={d.profiles?.avatar_url ?? undefined} />
                     <AvatarFallback
                       className={`rounded-full text-xs font-bold ${isAuthorTeacher ? "bg-blue-500 text-white" : ""}`}
@@ -233,19 +233,19 @@ export default function DoubtFeedCard({
                     </AvatarFallback>
                   </Avatar>
                 )}
-                <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
-                  <span className="text-sm font-bold text-foreground">{authorName}</span>
+                <div className="flex items-center gap-1 min-w-0 flex-wrap">
+                  <span className="text-[13px] font-bold text-foreground sm:text-sm">{authorName}</span>
                   {isAuthorAI && (
-                    <span className="text-[10px] font-bold uppercase bg-purple-500/15 text-purple-600 px-1.5 py-0.5 rounded-full">
+                    <span className="text-[9px] font-bold uppercase bg-purple-500/15 text-purple-600 px-1 py-0.5 rounded-full sm:text-[10px] sm:px-1.5">
                       {PROF_PI_ANSWER_LABEL} tutor
                     </span>
                   )}
                   {isAuthorTeacher && (
-                    <span className="text-[10px] font-bold uppercase bg-blue-500/15 text-blue-600 px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
-                      <GraduationCap className="w-2.5 h-2.5" /> Teacher
+                    <span className="text-[9px] font-bold uppercase bg-blue-500/15 text-blue-600 px-1 py-0.5 rounded-full flex items-center gap-0.5 sm:text-[10px] sm:px-1.5">
+                      <GraduationCap className="w-2 h-2 sm:w-2.5 sm:h-2.5" /> Teacher
                     </span>
                   )}
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-[11px] text-muted-foreground sm:text-xs">
                     {formatTimeAgo(d.created_at)}
                   </span>
                 </div>
@@ -270,7 +270,7 @@ export default function DoubtFeedCard({
             <div
               role="heading"
               aria-level={3}
-              className="text-base sm:text-lg font-bold text-foreground leading-snug sm:leading-tight group-hover:text-primary transition-colors"
+              className="text-[14px] sm:text-base font-bold text-foreground leading-snug sm:leading-tight group-hover:text-primary transition-colors"
             >
               {titleMd ? (
                 <DoubtMarkdown content={titleMd} className={DOUBT_TITLE_MARKDOWN_CLASS} />
@@ -282,7 +282,7 @@ export default function DoubtFeedCard({
 
           {/* Body — Markdown + KaTeX; long posts link to full thread (Reddit-style) */}
           {bodyMd ? (
-            <div className="text-sm sm:text-[15px] text-muted-foreground mb-1">
+            <div className="text-[13px] sm:text-sm text-muted-foreground mb-1">
               <DoubtMarkdown content={bodyPreviewMd} />
               {isLongBody ? (
                 <Link
@@ -413,7 +413,7 @@ export default function DoubtFeedCard({
               <Bookmark
                 className={`w-3.5 h-3.5 mr-1 ${isSaved ? "fill-current text-primary" : ""}`}
               />
-              {isSaved ? "Saved" : `Save for revision (+${saveRewardRdm} RDM)`}
+              {isSaved ? "Saved" : <><span className="hidden sm:inline">Save for revision (+{saveRewardRdm} RDM)</span><span className="sm:hidden">Save</span></>}
             </Button>
             <Popover open={subjectPopoverOpen} onOpenChange={setSubjectPopoverOpen}>
               <PopoverTrigger asChild>
@@ -491,7 +491,7 @@ export default function DoubtFeedCard({
         {/* ── Prof-Pi generating (story beats while /api/gyan-bot-answer runs) ── */}
         {showProfPiPending && (
           <div
-            className="border-t border-purple-200/40 bg-gradient-to-b from-purple-500/10 to-transparent px-5 py-3"
+            className="border-t border-purple-200/40 bg-gradient-to-b from-purple-500/10 to-transparent px-3 sm:px-5 py-3"
             aria-busy="true"
             aria-live="polite"
             aria-label={`${PROF_PI_ANSWER_LABEL} is preparing an answer`}
@@ -565,28 +565,28 @@ export default function DoubtFeedCard({
             const aiLong = raw.length > FEED_AI_PREVIEW;
             const aiMd = aiLong ? truncatePreservingInlineMath(raw, FEED_AI_PREVIEW) : raw;
             return (
-              <div className="border-t border-purple-200/40 bg-purple-500/5 px-5 py-3">
+              <div className="border-t border-purple-200/40 bg-purple-500/5 px-3 sm:px-5 py-3">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2 min-w-0">
                     <UserHoverCard userId={ai.user_id}>
                       <span className="inline-flex cursor-pointer items-center gap-2 rounded-lg hover:opacity-90 min-w-0">
                         <ProfPiAvatar size="sm" />
-                        <span className="text-sm font-bold text-purple-700 dark:text-purple-400 tracking-tight">
+                        <span className="text-[13px] font-bold text-purple-700 dark:text-purple-400 tracking-tight sm:text-sm">
                           {PROF_PI_ANSWER_LABEL}
                         </span>
                       </span>
                     </UserHoverCard>
-                    <span className="text-xs text-muted-foreground shrink-0">
+                    <span className="text-[11px] text-muted-foreground shrink-0 sm:text-xs">
                       · Answered instantly
                     </span>
                   </div>
                   {ai.is_accepted && d.bounty_rdm ? (
-                    <span className="text-xs text-muted-foreground font-medium">
+                    <span className="text-[11px] text-muted-foreground font-medium sm:text-xs">
                       -{d.bounty_rdm} RDM · bounty distributed
                     </span>
                   ) : null}
                 </div>
-                <div className="text-sm sm:text-[15px] text-foreground mb-2">
+                <div className="text-[13px] sm:text-sm text-foreground mb-2">
                   <DoubtMarkdown content={aiMd} />
                   {aiLong ? (
                     <Link
@@ -617,9 +617,9 @@ export default function DoubtFeedCard({
         {/* ── Teacher section (bar always when AI / pending / or teacher replies exist) ── */}
         {showTeacherSection && (
           <div id={`teacher-section-preview-${d.id}`} className="border-t border-emerald-200/40">
-            <div className="flex items-center justify-between px-5 py-2 bg-emerald-500/10">
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wide shrink-0">
+            <div className="flex items-center justify-between px-3 sm:px-5 py-1.5 sm:py-2 bg-emerald-500/10">
+              <div className="flex items-center gap-1.5 min-w-0 sm:gap-2">
+                <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wide shrink-0 sm:text-xs">
                   Teacher section
                 </span>
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" aria-hidden />
@@ -627,8 +627,8 @@ export default function DoubtFeedCard({
             </div>
             {teacherAnswers.length === 0 ? (
               (aiAnswers.length > 0 || showProfPiPending) && (
-                <div className="px-5 py-3 bg-emerald-500/5">
-                  <p className="text-sm text-muted-foreground">
+                <div className="px-3 sm:px-5 py-2.5 bg-emerald-500/5 sm:py-3">
+                  <p className="text-[13px] text-muted-foreground sm:text-sm">
                     No teacher note yet. Teachers can add exam tips or corrections here; it stays
                     separate from student comments.
                   </p>
@@ -648,7 +648,7 @@ export default function DoubtFeedCard({
                   const tNet = ta.upvotes - ta.downvotes;
                   return (
                     <div key={ta.id} className="bg-emerald-500/5">
-                      <div className="flex items-center justify-between px-5 py-2 gap-2 flex-wrap">
+                      <div className="flex items-center justify-between px-3 sm:px-5 py-2 gap-2 flex-wrap">
                         <div className="flex items-center gap-2 flex-wrap min-w-0">
                           <UserHoverCard userId={ta.user_id}>
                             <div className="flex items-center gap-1.5 cursor-pointer hover:opacity-80 min-w-0">
@@ -658,7 +658,7 @@ export default function DoubtFeedCard({
                                   {tInitials}
                                 </AvatarFallback>
                               </Avatar>
-                              <span className="text-xs font-semibold text-foreground truncate">
+                              <span className="text-[11px] font-semibold text-foreground truncate sm:text-xs">
                                 {tName}
                               </span>
                             </div>
@@ -667,13 +667,13 @@ export default function DoubtFeedCard({
                             <GraduationCap className="w-2.5 h-2.5" /> Teacher
                           </span>
                         </div>
-                        <span className="text-xs text-emerald-600 font-semibold shrink-0">
+                        <span className="text-[11px] text-emerald-600 font-semibold shrink-0 sm:text-xs">
                           +{teacherRewardRdm} RDM earned
                         </span>
                       </div>
-                      <div className="px-5 pb-3 pt-0">
-                        <DoubtMarkdown content={ta.body} className="text-sm text-foreground" />
-                        <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground flex-wrap">
+                      <div className="px-3 sm:px-5 pb-2.5 pt-0 sm:pb-3">
+                        <DoubtMarkdown content={ta.body} className="text-[13px] text-foreground sm:text-sm" />
+                        <div className="flex items-center gap-2.5 mt-1.5 text-[11px] text-muted-foreground flex-wrap sm:gap-3 sm:mt-2 sm:text-xs">
                           <span className="inline-flex items-center gap-1">
                             <ChevronUp className="w-3.5 h-3.5" /> {tNet} teacher upvotes
                           </span>
@@ -689,9 +689,9 @@ export default function DoubtFeedCard({
 
         {/* ── Comments section ── */}
         {studentAnswers.length > 0 && (
-          <div className="border-t border-border/50 px-5 pt-3 pb-2 space-y-3 bg-muted/10">
+          <div className="border-t border-border/50 px-3 sm:px-5 pt-2.5 pb-1.5 space-y-2.5 bg-muted/10 sm:pt-3 sm:pb-2 sm:space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wide">
+              <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide sm:text-xs">
                 Student comments ({studentAnswers.length})
               </span>
             </div>
@@ -717,27 +717,27 @@ export default function DoubtFeedCard({
                     </UserHoverCard>
                   )}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
+                    <div className="flex items-center gap-1.5 flex-wrap sm:gap-2">
                       <span
-                        className={`text-sm font-bold ${commentIsAI ? "text-purple-700 dark:text-purple-400" : "text-foreground"}`}
+                        className={`text-[13px] font-bold ${commentIsAI ? "text-purple-700 dark:text-purple-400" : "text-foreground"} sm:text-sm`}
                       >
                         {aName}
                       </span>
                       {commentIsAI && (
-                        <span className="text-[10px] font-bold uppercase bg-purple-500/15 text-purple-600 px-1.5 py-0.5 rounded-full">
+                        <span className="text-[9px] font-bold uppercase bg-purple-500/15 text-purple-600 px-1 py-0.5 rounded-full sm:text-[10px] sm:px-1.5">
                           AI tutor
                         </span>
                       )}
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-[11px] text-muted-foreground sm:text-xs">
                         {formatTimeAgo(ans.created_at)}
                       </span>
                       {aNet > 0 && (
-                        <span className="inline-flex items-center gap-0.5 text-xs text-muted-foreground">
+                        <span className="inline-flex items-center gap-0.5 text-[11px] text-muted-foreground sm:text-xs">
                           <ChevronUp className="w-3 h-3" /> {aNet}
                         </span>
                       )}
                     </div>
-                    <div className="text-sm text-foreground mt-0.5">
+                    <div className="text-[13px] text-foreground mt-0.5 sm:text-sm">
                       <DoubtMarkdown content={ans.body} />
                     </div>
                   </div>
@@ -756,7 +756,7 @@ export default function DoubtFeedCard({
         )}
 
         {/* ── Comment input ── */}
-        <div className="px-5 pb-4">
+        <div className="px-3 sm:px-5 pb-4">
           <CommentInput
             doubtId={d.id}
             onCommentPosted={onRefresh}

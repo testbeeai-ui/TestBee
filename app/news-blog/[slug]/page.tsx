@@ -140,7 +140,7 @@ export default async function NewsBlogArticlePage({ params, searchParams }: Page
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: faqLd }} />
       ) : null}
 
-      <article className="mx-auto w-full max-w-3xl overflow-visible rounded-2xl border border-slate-600/30 bg-[#151d2e] text-slate-100 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.35)] ring-1 ring-cyan-950/25 lg:max-w-4xl">
+      <article className="mx-auto w-full max-w-3xl overflow-visible rounded-xl border border-slate-600/30 bg-[#151d2e] text-slate-100 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.35)] ring-1 ring-cyan-950/25 sm:rounded-2xl lg:max-w-4xl">
         <div className="border-b border-slate-600/25 bg-gradient-to-r from-[#182536] via-[#141d2c] to-[#182536] px-4 py-3 sm:px-6">
           <Link
             href={backHref}
@@ -154,7 +154,7 @@ export default async function NewsBlogArticlePage({ params, searchParams }: Page
           </Link>
         </div>
 
-        <div className="p-5 sm:p-8">
+        <div className="p-3.5 sm:p-6 lg:p-8">
           <div className="mb-4 flex flex-wrap gap-2 text-xs">
             <span className="rounded-full bg-[#0d1e30] px-2.5 py-0.5 font-medium text-blue-200/95">
               {getExamLabel(post.exam)}

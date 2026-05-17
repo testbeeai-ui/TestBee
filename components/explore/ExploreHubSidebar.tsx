@@ -37,7 +37,7 @@ const sections: SidebarSection[] = [
     items: [
       { label: "Classes", icon: GraduationCap, href: "/classrooms" },
       { label: "Calendar", icon: CalendarDays, href: "/mock#calendar" },
-      { label: "Mock Tests", icon: ClipboardList, href: "/mock-test-library" },
+      { label: "Mock Tests", icon: ClipboardList, href: "/mock-test" },
       { label: "Revision", icon: RotateCcw, href: "/revision" },
     ],
   },
@@ -91,28 +91,7 @@ export default function ExploreHubSidebar() {
         </div>
       </nav>
 
-      {/* Mobile horizontal strip */}
-      <div className="lg:hidden overflow-x-auto flex gap-2 pb-2 -mx-1 px-1 scrollbar-hide">
-        {sections
-          .flatMap((s) => s.items)
-          .map((item) => {
-            const Icon = item.icon;
-            const isAnchor = item.href.startsWith("#");
-            const cls =
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors whitespace-nowrap shrink-0";
-            return isAnchor ? (
-              <a key={item.label} href={item.href} className={cls}>
-                <Icon className="w-3.5 h-3.5" />
-                {item.label}
-              </a>
-            ) : (
-              <Link key={item.label} href={item.href} className={cls}>
-                <Icon className="w-3.5 h-3.5" />
-                {item.label}
-              </Link>
-            );
-          })}
-      </div>
+      {/* Mobile sidebar hidden — links accessible via hamburger menu or other navigation */}
     </>
   );
 }

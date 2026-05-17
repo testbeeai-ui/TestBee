@@ -569,7 +569,7 @@ export default function StudentHomeDashboard() {
           title: randomPaper.title,
           meta: `${randomPaper.durationMinutes} min · ${randomPaper.questionsCount} questions · ${randomPaper.difficulty}`,
           tone: "border-rose-500/40",
-          href: `/mock?paper=${encodeURIComponent(randomPaper.slug)}`,
+          href: `/mock-test?paper=${encodeURIComponent(randomPaper.slug)}`,
         });
       } else {
         blocks.push({
@@ -1038,8 +1038,8 @@ export default function StudentHomeDashboard() {
   return (
     <div className="mx-auto w-full max-w-6xl space-y-5 pb-8">
       {/* Greeting strip */}
-      <div className="rounded-2xl border border-border/60 bg-card/60 px-4 py-3 dark:bg-slate-950/50">
-        <p className="text-sm text-foreground">
+      <div className="rounded-2xl border border-border/60 bg-card/60 px-3 py-2.5 dark:bg-slate-950/50 sm:px-4 sm:py-3">
+        <p className="text-xs leading-relaxed text-foreground sm:text-sm sm:leading-normal">
           <span className="font-bold">
             {greeting}, {displayName}!
           </span>{" "}
@@ -1128,10 +1128,10 @@ export default function StudentHomeDashboard() {
             className="rounded-2xl border border-border/70 bg-card/90 p-4 shadow-sm dark:bg-slate-950/60"
           >
             <p className="text-[10px] font-bold tracking-widest text-muted-foreground">{c.label}</p>
-            <p className="mt-1 text-2xl font-extrabold tabular-nums text-foreground">
+            <p className="mt-1 text-xl font-extrabold tabular-nums text-foreground sm:text-2xl">
               {c.value}
               {"valueSuffix" in c && c.valueSuffix ? (
-                <span className="text-sm font-semibold text-muted-foreground tabular-nums">
+                <span className="text-xs font-semibold text-muted-foreground tabular-nums sm:text-sm">
                   {c.valueSuffix}
                 </span>
               ) : null}
@@ -1145,13 +1145,13 @@ export default function StudentHomeDashboard() {
 
       {/* Study streak */}
       <section className="rounded-2xl border border-border bg-card/90 p-4 shadow-sm dark:bg-slate-950/60">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
           <div className="flex items-center gap-2">
             <CalendarDays className="h-5 w-5 text-teal-500" />
-            <h2 className="text-lg font-bold text-foreground">Study streak</h2>
+            <h2 className="text-base font-bold text-foreground sm:text-lg">Study streak</h2>
           </div>
-          <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-1 text-[11px] font-bold text-amber-600 dark:text-amber-300">
-            <Flame className="h-3.5 w-3.5" />
+          <span className="inline-flex w-fit items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-600 sm:px-2.5 sm:py-1 sm:text-[11px] dark:text-amber-300">
+            <Flame className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
             Week {studyStreakBonusWeek} bonus: +{studyStreakBonusRdm.toLocaleString("en-IN")} RDM
           </span>
         </div>
@@ -1161,7 +1161,7 @@ export default function StudentHomeDashboard() {
           time toward your streak.
         </p>
         <div
-          className="mb-3 inline-flex w-fit rounded-full border border-border bg-muted/30 p-0.5 dark:bg-slate-900/80"
+          className="mb-3 inline-flex w-full rounded-full border border-border bg-muted/30 p-0.5 dark:bg-slate-900/80 sm:w-fit"
           role="group"
           aria-label="Time on site map range"
           aria-describedby="study-streak-map-help"
@@ -1170,7 +1170,7 @@ export default function StudentHomeDashboard() {
             type="button"
             onClick={() => setHeatmapMode("7")}
             className={cn(
-              "rounded-full px-3 py-1.5 text-xs font-bold transition-colors",
+              "flex-1 rounded-full px-3 py-1.5 text-xs font-bold transition-colors sm:flex-initial",
               heatmapMode === "7"
                 ? "border border-foreground/20 bg-background text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
@@ -1182,7 +1182,7 @@ export default function StudentHomeDashboard() {
             type="button"
             onClick={() => setHeatmapMode("30")}
             className={cn(
-              "rounded-full px-3 py-1.5 text-xs font-bold transition-colors",
+              "flex-1 rounded-full px-3 py-1.5 text-xs font-bold transition-colors sm:flex-initial",
               heatmapMode === "30"
                 ? "border border-foreground/20 bg-background text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
@@ -1193,13 +1193,13 @@ export default function StudentHomeDashboard() {
         </div>
 
         {heatmapMode === "30" ? (
-          <p className="mb-3 text-center text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+          <p className="mb-2 text-center text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground sm:mb-3 sm:text-[11px] sm:tracking-[0.18em]">
             {monthGrid.monthlyMapHeading}
           </p>
         ) : null}
 
         {heatmapMode === "7" ? (
-          <div className="flex flex-wrap gap-2">
+          <div className="grid grid-cols-7 gap-1 sm:gap-2">
             {last7Series.map((cell) => {
               const isToday =
                 localDayKeyFromDate(cell.date) === localDayKeyFromDate(startOfLocalDay(now));
@@ -1213,18 +1213,18 @@ export default function StudentHomeDashboard() {
                       : "Loading activity…"
                   }
                   className={cn(
-                    "flex min-h-[72px] min-w-[72px] flex-1 flex-col items-center justify-center gap-0.5 px-2 py-2 sm:min-w-[88px]",
+                    "flex min-h-[56px] flex-col items-center justify-center gap-0.5 rounded-lg px-1 py-1.5 sm:min-h-[72px] sm:px-2 sm:py-2",
                     isReady ? greenCellClass(cell.level, isToday) : heatmapLoadingCellClass(isToday)
                   )}
                 >
-                  <span className="text-[10px] font-bold uppercase text-muted-foreground">
+                  <span className="text-[9px] font-bold uppercase text-muted-foreground sm:text-[10px]">
                     {cell.date.toLocaleDateString(undefined, { weekday: "short" })}
                   </span>
-                  <span className="text-sm font-extrabold tabular-nums">
+                  <span className="text-xs font-extrabold tabular-nums sm:text-sm">
                     {isReady ? cell.label : "…"}
                   </span>
                   {isToday ? (
-                    <span className="text-[10px] font-semibold text-teal-400">Today</span>
+                    <span className="text-[9px] font-semibold text-teal-400 sm:text-[10px]">Today</span>
                   ) : null}
                 </div>
               );
@@ -1232,12 +1232,12 @@ export default function StudentHomeDashboard() {
           </div>
         ) : (
           <div>
-            <div className="grid grid-cols-7 gap-1.5 text-center text-[10px] font-bold text-muted-foreground">
+            <div className="grid grid-cols-7 gap-1 text-center text-[9px] font-bold text-muted-foreground sm:gap-1.5 sm:text-[10px]">
               {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
                 <div key={d}>{d}</div>
               ))}
             </div>
-            <div className="mt-1 grid grid-cols-7 gap-1.5">
+            <div className="mt-1 grid grid-cols-7 gap-1 sm:gap-1.5">
               {monthGrid.cells.map((cell, idx) => {
                 if (cell.day == null) {
                   return (
@@ -1255,7 +1255,7 @@ export default function StudentHomeDashboard() {
                         : undefined
                     }
                     className={cn(
-                      "flex aspect-square flex-col items-center justify-center gap-0.5 p-1 text-[10px] font-bold",
+                      "flex aspect-square flex-col items-center justify-center gap-0.5 p-0.5 text-[9px] font-bold sm:p-1 sm:text-[10px]",
                       studyDaysStatus === "ready"
                         ? greenCellClass(cell.level, isToday)
                         : heatmapLoadingCellClass(isToday)
@@ -1277,7 +1277,7 @@ export default function StudentHomeDashboard() {
           <span>Less</span>
           <span className="h-3 w-8 rounded bg-gradient-to-r from-red-950/70 via-emerald-500/60 to-emerald-950" />
           <span>More</span>
-          <span className="ml-2">
+          <span className="ml-0 max-sm:hidden sm:ml-2">
             Red = no focus or under 10 minutes that day; light → dark green = longer focus (same as
             your profile heatmap). Cell numbers show time on EduBlast with this tab in the foreground
             (pauses when you switch tabs). Tooltips also show saved study time toward your streak
@@ -1286,18 +1286,23 @@ export default function StudentHomeDashboard() {
             consecutive calendar days with any saved study time, counted through your most recent
             active day on or before today.
           </span>
+          <span className="sm:hidden">
+            Red = under 10 min; green = longer focus. Tap cells for details.
+          </span>
         </div>
       </section>
 
       {/* Checklist trigger */}
-      <section className="rounded-2xl border border-border bg-card/90 p-4 shadow-sm dark:bg-slate-950/60">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-              <h2 className="text-lg font-bold">Today&apos;s checklist</h2>
-            </div>
-            <p className="mt-1 text-xs text-muted-foreground">
+      <section className="rounded-2xl border border-border bg-card/90 shadow-sm dark:bg-slate-950/60">
+        <button
+          type="button"
+          onClick={() => setIsChecklistOpen(true)}
+          className="flex w-full items-start gap-3 p-3.5 text-left sm:items-center sm:gap-4 sm:p-4"
+        >
+          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500 sm:mt-0" />
+          <div className="min-w-0 flex-1">
+            <h2 className="text-sm font-bold sm:text-base sm:text-lg">Today&apos;s checklist</h2>
+            <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground sm:line-clamp-none sm:text-sm">
               {dailyChecklistStatus === "error" ? (
                 <span className="text-rose-300">
                   Could not load checklist status. Refresh and try again.
@@ -1313,19 +1318,15 @@ export default function StudentHomeDashboard() {
                       {checklistStripSummary.gyanLine}
                     </>
                   ) : null}
+                  <span className="sm:hidden"> &mdash; tap to view all items</span>
                 </>
               ) : null}
             </p>
           </div>
-          <Button
-            type="button"
-            size="sm"
-            className="rounded-full font-bold"
-            onClick={() => setIsChecklistOpen(true)}
-          >
-            View checklist
-          </Button>
-        </div>
+          <span className="mt-1 hidden shrink-0 rounded-full bg-primary/10 px-3 py-1.5 text-xs font-bold text-primary sm:inline-flex">
+            View
+          </span>
+        </button>
       </section>
 
       <Dialog open={isChecklistOpen} onOpenChange={setIsChecklistOpen}>
@@ -1344,18 +1345,18 @@ export default function StudentHomeDashboard() {
           }
         >
           {/* Header: fixed height region; close (X) stays in component chrome; pr-* clears it */}
-          <div className="shrink-0 border-b border-border/60 bg-gradient-to-b from-muted/50 to-transparent px-4 pb-4 pt-6 sm:px-6 sm:pb-5 sm:pt-7 dark:from-slate-900/90">
-            <DialogHeader className="space-y-3 text-left">
+          <div className="shrink-0 border-b border-border/60 bg-gradient-to-b from-muted/50 to-transparent px-3.5 pb-3 pt-5 sm:px-6 sm:pb-5 sm:pt-7 dark:from-slate-900/90">
+            <DialogHeader className="space-y-2.5 text-left sm:space-y-3">
               <div className="flex items-start gap-2.5 pr-11 sm:gap-3 sm:pr-12">
                 <CheckCircle2
-                  className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500 sm:h-5 sm:w-5"
+                  className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500"
                   aria-hidden
                 />
-                <DialogTitle className="text-left text-base font-bold leading-snug tracking-tight sm:text-lg">
-                  Today&apos;s checklist and what is done
+                <DialogTitle className="text-left text-[15px] font-bold leading-snug tracking-tight sm:text-lg">
+                  Today&apos;s checklist
                 </DialogTitle>
               </div>
-              <div className="flex flex-col gap-2 sm:gap-2.5">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
                 <Button
                   type="button"
                   size="default"
@@ -1366,73 +1367,76 @@ export default function StudentHomeDashboard() {
                   Start streak for today
                 </Button>
                 <p className="text-[11px] leading-relaxed text-muted-foreground sm:text-xs">
-                  Esc or the top-right close exits — away from the button above.
+                  Esc or the top-right close to exit.
                 </p>
               </div>
             </DialogHeader>
           </div>
 
           {/* Scrollable list: avoids whole-modal scroll jank on short phones */}
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 py-3 sm:px-6 sm:py-4">
-            <ul className="space-y-2 sm:space-y-2.5">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-3 py-2.5 sm:px-6 sm:py-4">
+            <ul className="space-y-1.5 sm:space-y-2.5">
               {checklistItems.map((item) => (
                 <li
                   key={item.id}
-                  className="flex flex-wrap items-start justify-between gap-2 rounded-xl border border-border/60 bg-background/60 px-3 py-3 dark:bg-slate-900/50 sm:px-3.5 sm:py-2.5"
+                  className={cn(
+                    "flex items-start gap-2.5 rounded-xl px-3 py-2.5 transition-colors sm:gap-3 sm:px-3.5 sm:py-3",
+                    item.done
+                      ? "bg-emerald-500/5 dark:bg-emerald-500/[0.03]"
+                      : "bg-background/60 dark:bg-slate-900/50"
+                  )}
                 >
-                  <div className="flex min-w-0 flex-1 gap-2.5 sm:gap-2">
-                    {item.done ? (
-                      <CheckCircle2
-                        className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500 sm:h-4 sm:w-4"
-                        aria-label="Done"
-                      />
-                    ) : (
-                      <span
-                        className="mt-0.5 inline-flex h-4 w-4 shrink-0 rounded border border-dashed border-muted-foreground/50"
-                        aria-hidden
-                      />
-                    )}
-                    <span className="text-[13px] leading-relaxed text-foreground sm:text-sm sm:leading-normal">
-                      <span className="font-bold">{item.id}.</span> {item.text}
-                      {item.id === "c" ? (
-                        <>
-                          {" "}
-                          <Link href="/doubts" className="font-bold text-primary hover:underline">
-                            Open Gyan++
-                          </Link>
-                        </>
-                      ) : null}
-                      {item.id === "e" ? (
-                        <>
-                          {" "}
-                          <Link href="/refer-earn" className="font-bold text-primary hover:underline">
-                            Open Challenge Yourself
-                          </Link>
-                        </>
-                      ) : null}
-                      {item.id === "d" &&
-                      dailyChecklist &&
-                      !dailyChecklist.instacueSessionDone &&
-                      dailyChecklist.instacueCombinedCount < 32 ? (
-                        <span className="mt-1.5 block text-[11px] leading-snug text-muted-foreground sm:text-xs">
-                          InstaCue reads logged: {dailyChecklist.instacueReadCount}/32
-                          {dailyChecklist.instacueCombinedCount !== dailyChecklist.instacueReadCount ? (
-                            <>
-                              {" "}
-                              · {dailyChecklist.instacueCombinedCount}/32 toward unlock (includes
-                              today&apos;s revision saves)
-                            </>
-                          ) : null}
-                        </span>
-                      ) : null}
-                    </span>
-                  </div>
+                  {item.done ? (
+                    <CheckCircle2
+                      className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500"
+                      aria-label="Done"
+                    />
+                  ) : (
+                    <span
+                      className="mt-0.5 inline-flex h-4 w-4 shrink-0 rounded border border-dashed border-muted-foreground/50"
+                      aria-hidden
+                    />
+                  )}
+                  <span className="min-w-0 flex-1 text-[13px] leading-relaxed text-foreground sm:text-sm sm:leading-normal">
+                    <span className="font-bold">{item.id}.</span> {item.text}
+                    {item.id === "c" ? (
+                      <>
+                        {" "}
+                        <Link href="/doubts" className="font-bold text-primary hover:underline">
+                          Open Gyan++
+                        </Link>
+                      </>
+                    ) : null}
+                    {item.id === "e" ? (
+                      <>
+                        {" "}
+                        <Link href="/refer-earn" className="font-bold text-primary hover:underline">
+                          Open Challenge Yourself
+                        </Link>
+                      </>
+                    ) : null}
+                    {item.id === "d" &&
+                    dailyChecklist &&
+                    !dailyChecklist.instacueSessionDone &&
+                    dailyChecklist.instacueCombinedCount < 32 ? (
+                      <span className="mt-1 block text-[11px] leading-snug text-muted-foreground sm:text-xs">
+                        InstaCue reads logged: {dailyChecklist.instacueReadCount}/32
+                        {dailyChecklist.instacueCombinedCount !== dailyChecklist.instacueReadCount ? (
+                          <>
+                            {" "}
+                            · {dailyChecklist.instacueCombinedCount}/32 toward unlock (includes
+                            today&apos;s revision saves)
+                          </>
+                        ) : null}
+                      </span>
+                    ) : null}
+                  </span>
                 </li>
               ))}
             </ul>
           </div>
 
-          <div className="shrink-0 border-t border-border/60 bg-muted/25 px-4 py-3 sm:px-6 dark:bg-slate-950/80">
+          <div className="shrink-0 border-t border-border/60 bg-muted/25 px-3.5 py-2.5 sm:px-6 sm:py-3 dark:bg-slate-950/80">
             <p className="text-[11px] leading-relaxed text-muted-foreground sm:text-xs">
               {dailyChecklistStatus === "error" ? (
                 <span className="text-rose-300">
@@ -1449,8 +1453,11 @@ export default function StudentHomeDashboard() {
                       {checklistStripSummary.gyanLine}
                     </>
                   ) : null}{" "}
-                  (Items a–e are tracked live; Challenge Yourself completes after any Earn &amp;
-                  Learn challenge run ends today).
+                  <span className="hidden sm:inline">
+                    (Items a–e are tracked live; Challenge Yourself completes after any Earn &amp;
+                    Learn challenge run ends today).
+                  </span>
+                  <span className="sm:hidden">Tracked live &middot; a&ndash;e</span>
                 </>
               ) : null}
             </p>
@@ -1461,10 +1468,10 @@ export default function StudentHomeDashboard() {
       {/* Subject accuracy + Leaderboard */}
       <section className="grid gap-4 lg:grid-cols-2">
         <div className="rounded-2xl border border-border bg-card/90 p-4 shadow-sm dark:bg-slate-950/60">
-          <div className="mb-2 flex items-center justify-between gap-2">
+          <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2">
               <LineChart className="h-5 w-5 text-emerald-500" />
-              <h2 className="text-lg font-bold">Subject accuracy</h2>
+              <h2 className="text-base font-bold sm:text-lg">Subject accuracy</h2>
             </div>
             <Link
               href="/performance"
@@ -1619,7 +1626,7 @@ export default function StudentHomeDashboard() {
         <div className="rounded-2xl border border-border bg-card/90 p-4 shadow-sm dark:bg-slate-950/60">
           <div className="mb-2 flex items-center gap-2">
             <Star className="h-5 w-5 text-amber-500" />
-            <h2 className="text-lg font-bold">Leaderboard</h2>
+            <h2 className="text-base font-bold sm:text-lg">Leaderboard</h2>
           </div>
           <ul className="divide-y divide-border/60">
             {MOCK_LEADERBOARD.map((row) => (
@@ -1648,7 +1655,7 @@ export default function StudentHomeDashboard() {
       <section className="grid gap-4 lg:grid-cols-5">
         <div className="rounded-2xl border border-border bg-card/90 p-4 shadow-sm dark:bg-slate-950/60 lg:col-span-3">
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-lg font-bold">CommunityFeed</h2>
+            <h2 className="text-base font-bold sm:text-lg">CommunityFeed</h2>
             <Link href="/magic-wall" className="text-xs font-bold text-primary hover:underline">
               Open feed ↗
             </Link>
@@ -1660,7 +1667,7 @@ export default function StudentHomeDashboard() {
             <div className="mb-3 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <CalendarDays className="h-4 w-4 text-muted-foreground" />
-                <h3 className="font-bold">Upcoming Testbee mocks</h3>
+                <h3 className="text-sm font-bold sm:text-base">Upcoming Testbee mocks</h3>
               </div>
               <Link href="/mock" className="text-xs font-bold text-muted-foreground hover:underline">
                 All mocks →
@@ -1710,7 +1717,7 @@ export default function StudentHomeDashboard() {
             <div className="mb-3 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Sprout className="h-4 w-4 text-emerald-500" />
-                <h3 className="font-bold">EduFund progress</h3>
+                <h3 className="text-sm font-bold sm:text-base">EduFund progress</h3>
               </div>
               <Link href="/edufund" className="text-xs font-bold text-emerald-500 hover:underline">
                 View grants →

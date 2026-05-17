@@ -13,5 +13,5 @@ export function getMockPaperSlugFromCommunityPost(
 }
 
 export function hrefForMockPaperCommunityShare(slug: string): string {
-  return `/mock-test-library?paper=${encodeURIComponent(slug)}`;
+  return `/mock-test?paper=${encodeURIComponent(slug)}`;
 }

@@ -219,7 +219,7 @@ export function NewsBlogPortal(props: NewsBlogPortalProps) {
         })}
       </div>
 
-      <div className="flex flex-wrap gap-0.5 border-b border-slate-600/20 bg-[#131d2c]/95 px-2 pb-1 sm:gap-1 sm:px-4">
+      <div className="flex overflow-x-auto gap-0.5 border-b border-slate-600/20 bg-[#131d2c]/95 px-2 pb-1 scrollbar-none sm:flex-wrap sm:gap-1 sm:px-4">
         {(portal === "news" ? publicNewsSections : BLOG_SECTIONS).map((section) => {
           const isActive = activeSection === section.id;
           return (
@@ -262,7 +262,7 @@ export function NewsBlogPortal(props: NewsBlogPortalProps) {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_280px]">
-        <div className="border-r border-slate-600/20 bg-[#121a28]/95 p-3 sm:p-4 lg:p-5">
+        <div className="lg:border-r border-slate-600/20 bg-[#121a28]/95 p-3 sm:p-4 lg:p-5">
           {openPost ? (
             <article className="overflow-hidden rounded-xl border border-slate-600/35 bg-gradient-to-b from-[#1e2d42] to-[#161f2e] shadow-xl shadow-black/20 sm:rounded-2xl">
               <div className="p-4 sm:p-5 lg:p-7">
@@ -302,7 +302,7 @@ export function NewsBlogPortal(props: NewsBlogPortalProps) {
                       </span>
                     </div>
                     <div className="min-w-0 flex-1">
-                      <h2 className="text-lg font-semibold leading-snug tracking-tight text-slate-50 sm:text-2xl">
+                      <h2 className="text-base font-semibold leading-snug tracking-tight text-slate-50 sm:text-lg lg:text-2xl">
                         {openPost.title}
                       </h2>
                       <p className="mt-2 text-[13px] leading-relaxed text-slate-400 sm:mt-3 sm:text-sm">
@@ -363,7 +363,7 @@ export function NewsBlogPortal(props: NewsBlogPortalProps) {
                     ) : (
                       <>
                         <div className="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1 sm:mb-4">
-                          <h2 className="text-xl font-semibold leading-[1.18] tracking-tight text-slate-50 sm:text-2xl lg:text-[1.85rem]">
+                          <h2 className="text-base font-semibold leading-[1.18] tracking-tight text-slate-50 sm:text-xl lg:text-[1.85rem]">
                             {openPost.title}
                           </h2>
                           <span className="text-base font-medium text-sky-300 sm:text-lg">
@@ -425,7 +425,7 @@ export function NewsBlogPortal(props: NewsBlogPortalProps) {
                       )
                     ) : (
                       <>
-                        <h2 className="text-xl font-semibold leading-[1.18] tracking-tight text-slate-50 sm:text-2xl lg:text-[1.85rem]">
+                        <h2 className="text-base font-semibold leading-[1.18] tracking-tight text-slate-50 sm:text-xl lg:text-[1.85rem]">
                           {openPost.title}
                         </h2>
                         <p className="mt-3 text-sm leading-relaxed text-slate-400 sm:mt-4 sm:text-base">
@@ -593,7 +593,7 @@ export function NewsBlogPortal(props: NewsBlogPortalProps) {
                             {formatDdMonYyyy(featuredPost.createdAt)}
                           </time>
                         </div>
-                        <h3 className="text-xl font-semibold leading-tight tracking-tight text-slate-50 sm:text-2xl lg:text-3xl">
+                        <h3 className="text-lg font-semibold leading-tight tracking-tight text-slate-50 sm:text-xl lg:text-3xl">
                           {featuredPost.title}
                         </h3>
                         {(() => {

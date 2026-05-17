@@ -75,10 +75,10 @@ export default function RandomTopicExplorer({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.2, duration: 0.35 }}
-      className="rounded-xl border border-border bg-card p-5"
+      className="rounded-xl border border-border bg-card p-4 sm:p-5"
     >
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-base font-bold text-foreground">Random topic explorer</h3>
+      <div className="flex items-center justify-between mb-3 sm:mb-4">
+        <h3 className="text-sm font-bold text-foreground sm:text-base">Random topic explorer</h3>
       </div>
 
       <AnimatePresence mode="wait">
@@ -113,32 +113,32 @@ export default function RandomTopicExplorer({
           </div>
 
           {/* Description */}
-          <p className="text-sm text-muted-foreground leading-relaxed mb-5">
+          <p className="text-xs text-muted-foreground leading-relaxed mb-4 sm:text-sm sm:mb-5">
             {buildDescription(current)}
           </p>
         </motion.div>
       </AnimatePresence>
 
-      {/* Actions row — exactly like mockup */}
-      <div className="flex items-center justify-between flex-wrap gap-2 pt-1 border-t border-border/40">
+      {/* Actions row */}
+      <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/40">
         <button
           type="button"
           onClick={() => onExploreTopic(current)}
-          className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline py-2"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline py-2.5 sm:text-sm"
         >
           Explore topic
         </button>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-4">
           <Link
             href="/doubts"
-            className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors py-2"
+            className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors py-2.5 sm:text-sm"
           >
             Ask doubt
           </Link>
           <button
             type="button"
             onClick={shuffle}
-            className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors py-2"
+            className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors py-2.5 sm:text-sm"
           >
             Shuffle
           </button>

@@ -96,7 +96,7 @@ export const DEFAULT_RDM_CONFIG: RdmConfigParams = {
   gyan_comment_rdm: 5,
   gyan_upvote_rdm: 2,
   gyan_save_rdm: 3,
-  gyan_teacher_answer_rdm: 30,
+  gyan_teacher_answer_rdm: 5,
 };
 
 const RDM_CONFIG_KEYS = Object.keys(DEFAULT_RDM_CONFIG) as (keyof RdmConfigParams)[];

@@ -103,7 +103,8 @@ export default function RawFeedPostCard({
   const subjName = subjectLabel[subjKey] || post.subject || "General";
   const score = post.upvote_count - post.downvote_count;
   const n = post.comment_count ?? 0;
-  const threadLabel = n === 0 ? "Thread" : n === 1 ? "Thread (1 reply)" : `Thread (${n} replies)`;
+  const threadLabelFull = n === 0 ? "Thread" : n === 1 ? "Thread (1 reply)" : `Thread (${n} replies)`;
+  const threadLabelCompact = n === 0 ? "Thread" : `${n} replies`;
   const isQuizPost = post.source_type === "quiz_post";
   const mockPaperShareSlug = getMockPaperSlugFromCommunityPost(
     post.source_type,
@@ -225,17 +226,17 @@ export default function RawFeedPostCard({
             </p>
           )}
           {contextChips.length > 0 ? (
-            <div className="mt-2.5 flex items-center gap-2 overflow-hidden whitespace-nowrap">
+            <div className="mt-2.5 flex flex-wrap items-center gap-1.5 sm:gap-2">
               {contextChips.map((chip) => (
                 <span
                   key={chip.key}
                   className={cn(
                     "inline-flex min-w-0 items-center gap-1 rounded-full px-2 py-0.5 font-semibold ring-1 ring-inset",
                     compact ? "text-[11px] sm:text-xs" : "text-[11px]",
-                    chip.key === "subject" && "max-w-[120px]",
-                    chip.key === "chapter" && "max-w-[170px]",
-                    chip.key === "topic" && "max-w-[160px]",
-                    chip.key === "subtopic" && "max-w-[130px]",
+                    chip.key === "subject" && "max-w-[100px] sm:max-w-[120px]",
+                    chip.key === "chapter" && "max-w-[140px] sm:max-w-[170px]",
+                    chip.key === "topic" && "max-w-[130px] sm:max-w-[160px]",
+                    chip.key === "subtopic" && "max-w-[110px] sm:max-w-[130px]",
                     chip.tone
                   )}
                   title={chip.value}
@@ -249,8 +250,8 @@ export default function RawFeedPostCard({
 
           <div
             className={cn(
-              "mt-3 flex flex-wrap items-center gap-x-4 gap-y-2",
-              compact && "mt-2.5 gap-x-3 gap-y-1.5"
+              "mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 sm:gap-x-4",
+              compact && "mt-2.5 gap-x-2.5 gap-y-1.5 sm:gap-x-3"
             )}
           >
             <div
@@ -296,18 +297,19 @@ export default function RawFeedPostCard({
               type="button"
               onClick={onSaveForRevision}
               className={cn(
-                "inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-xs font-medium transition-colors",
+                "inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium transition-colors sm:gap-1.5 sm:text-xs",
                 isSavedForRevision
                   ? "bg-primary/15 text-primary ring-1 ring-primary/35"
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
-              <Bookmark className={cn("h-4 w-4 shrink-0", isSavedForRevision && "fill-current")} />
-              {isSavedForRevision ? "Saved for revision" : "Save for revision"}
+              <Bookmark className={cn("h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4", isSavedForRevision && "fill-current")} />
+              <span className="hidden sm:inline">{isSavedForRevision ? "Saved for revision" : "Save for revision"}</span>
+              <span className="sm:hidden">{isSavedForRevision ? "Saved" : "Save"}</span>
             </button>
 
             <span
-              className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"
+              className="hidden items-center gap-1.5 text-xs text-muted-foreground sm:inline-flex"
               title="Subject is set on the post"
             >
               <Tag className="h-4 w-4 shrink-0 opacity-70" />
@@ -317,16 +319,17 @@ export default function RawFeedPostCard({
             <button
               type="button"
               onClick={openThread}
-              className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+              className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground sm:gap-1.5 sm:text-xs"
             >
-              <MessageSquare className="h-4 w-4 shrink-0" />
-              {threadLabel}
+              <MessageSquare className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">{threadLabelFull}</span>
+              <span className="sm:hidden">{threadLabelCompact}</span>
             </button>
             {mockPaperShareSlug ? (
               <Link
                 href={hrefForMockPaperCommunityShare(mockPaperShareSlug)}
                 className={cn(
-                  "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold transition-all",
+                  "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold transition-all sm:gap-1.5 sm:px-2.5 sm:py-1 sm:text-xs",
                   "border-amber-500/45 bg-amber-500/12 text-amber-950 shadow-[0_0_0_1px_rgba(245,158,11,0.15)]",
                   "hover:bg-amber-500/20 hover:border-amber-500/60 dark:text-amber-100 dark:shadow-[0_0_0_1px_rgba(251,191,36,0.2)]",
                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/45 focus-visible:ring-offset-1 focus-visible:ring-offset-background"
@@ -334,8 +337,9 @@ export default function RawFeedPostCard({
                 title="Open this paper on Prep"
                 aria-label="Open this paper on Prep"
               >
-                <Link2 className="h-4 w-4 shrink-0" />
-                Open paper
+                <Link2 className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Open paper</span>
+                <span className="sm:hidden">Paper</span>
               </Link>
             ) : null}
             {canOpenSourceLink ? (
@@ -343,7 +347,7 @@ export default function RawFeedPostCard({
                 type="button"
                 onClick={onOpenSourceLink}
                 className={cn(
-                  "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold text-white transition-all",
+                  "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold text-white transition-all sm:gap-1.5 sm:px-2.5 sm:py-1 sm:text-xs",
                   "border-primary/45 bg-primary/12 shadow-[0_0_0_1px_rgba(59,130,246,0.18)]",
                   "hover:bg-primary/20 hover:border-primary/60 hover:text-white hover:shadow-[0_0_0_1px_rgba(59,130,246,0.28)]",
                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background"
@@ -351,14 +355,14 @@ export default function RawFeedPostCard({
                 title="Open source topic"
                 aria-label="Open source topic link"
               >
-                <Link2 className="h-4 w-4 shrink-0" />
+                <Link2 className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
                 Link
               </button>
             ) : null}
           </div>
 
           {threadOpen ? (
-            <div className="mt-3 space-y-3 rounded-xl border border-border bg-muted/20 p-3 dark:border-white/10 dark:bg-slate-900/40">
+            <div className="mt-3 space-y-3 rounded-xl border border-border bg-muted/20 p-2.5 dark:border-white/10 dark:bg-slate-900/40 sm:p-3">
               {commentsLoading ? (
                 <p className="text-xs text-muted-foreground">Loading thread…</p>
               ) : comments.length === 0 ? (

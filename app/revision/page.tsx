@@ -496,7 +496,7 @@ const RevisionContent = () => {
           {activeTab === "instacue" && (
             <>
               {signedIn && displayCards.length === 0 ? (
-                <div className="edu-card p-10 text-center rounded-2xl border-2 border-dashed border-border">
+                <div className="edu-card p-6 sm:p-10 text-center rounded-2xl border-2 border-dashed border-border">
                   <BookMarked className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
                   <p className="text-muted-foreground font-medium">No InstaCue cards yet</p>
                   <p className="text-sm text-muted-foreground mt-1 mb-4">
@@ -518,7 +518,7 @@ const RevisionContent = () => {
           {activeTab === "questions" && (
             <section className="space-y-3 sm:space-y-4">
               {savedQuestionsCount === 0 ? (
-                <div className="edu-card p-8 sm:p-10 text-center rounded-2xl border-2 border-dashed border-border">
+                <div className="edu-card p-8 sm:p-6 sm:p-10 text-center rounded-2xl border-2 border-dashed border-border">
                   <BookMarked className="w-12 h-12 mx-auto text-muted-foreground mb-4" aria-hidden />
                   <h2 className="text-lg font-bold text-foreground tracking-tight">
                     No saved questions yet
@@ -544,7 +544,7 @@ const RevisionContent = () => {
                   </Button>
                 </div>
               ) : signedIn && savedQuestionsHydrateLoading ? (
-                <div className="edu-card p-8 sm:p-10 text-center rounded-2xl border-2 border-dashed border-border">
+                <div className="edu-card p-8 sm:p-6 sm:p-10 text-center rounded-2xl border-2 border-dashed border-border">
                   <div className="animate-pulse flex flex-col items-center gap-3">
                     <div className="w-12 h-12 rounded-full bg-muted" />
                     <div className="h-4 w-48 bg-muted rounded" />
@@ -552,7 +552,7 @@ const RevisionContent = () => {
                   </div>
                 </div>
               ) : savedQuestionsForTab.length === 0 ? (
-                <div className="edu-card p-8 sm:p-10 text-center rounded-2xl border-2 border-dashed border-border">
+                <div className="edu-card p-8 sm:p-6 sm:p-10 text-center rounded-2xl border-2 border-dashed border-border">
                   <BookMarked className="w-12 h-12 mx-auto text-muted-foreground mb-4" aria-hidden />
                   <h2 className="text-lg font-bold text-foreground tracking-tight">
                     {savedQuestionsCount} saved question{savedQuestionsCount === 1 ? "" : "s"} on your
@@ -575,7 +575,7 @@ const RevisionContent = () => {
                       </Link>
                     </Button>
                     <Button variant="ghost" className="rounded-xl font-semibold" asChild>
-                      <Link href="/mock-test-library">
+                      <Link href="/mock-test">
                         Prep + Mock <ChevronRight className="w-4 h-4 ml-1" />
                       </Link>
                     </Button>
@@ -640,7 +640,7 @@ const RevisionContent = () => {
           {activeTab === "saved" && (
             <section>
               {savedContentLoading ? (
-                <div className="edu-card p-10 text-center rounded-2xl border-2 border-dashed border-border">
+                <div className="edu-card p-6 sm:p-10 text-center rounded-2xl border-2 border-dashed border-border">
                   <div className="animate-pulse flex flex-col items-center gap-3">
                     <div className="w-12 h-12 rounded-full bg-muted" />
                     <div className="h-4 w-48 bg-muted rounded" />
@@ -648,7 +648,7 @@ const RevisionContent = () => {
                   </div>
                 </div>
               ) : savedBits.length === 0 && savedFormulas.length === 0 ? (
-                <div className="edu-card p-10 text-center rounded-2xl border-2 border-dashed border-border">
+                <div className="edu-card p-6 sm:p-10 text-center rounded-2xl border-2 border-dashed border-border">
                   <BookMarked className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
                   <p className="text-muted-foreground font-medium">No saved quizzes or formulas yet</p>
                   <p className="text-sm text-muted-foreground mt-1 mb-4">
@@ -736,7 +736,7 @@ const RevisionContent = () => {
           {activeTab === "community" && (
             <section>
               {savedContentLoading ? (
-                <div className="edu-card p-10 text-center rounded-2xl border-2 border-dashed border-border">
+                <div className="edu-card p-6 sm:p-10 text-center rounded-2xl border-2 border-dashed border-border">
                   <div className="animate-pulse flex flex-col items-center gap-3">
                     <div className="w-12 h-12 rounded-full bg-muted" />
                     <div className="h-4 w-48 bg-muted rounded" />
@@ -744,7 +744,7 @@ const RevisionContent = () => {
                   </div>
                 </div>
               ) : savedCommunityPosts.length === 0 ? (
-                <div className="edu-card p-10 text-center rounded-2xl border-2 border-dashed border-border">
+                <div className="edu-card p-6 sm:p-10 text-center rounded-2xl border-2 border-dashed border-border">
                   <BookMarked className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
                   <p className="text-muted-foreground font-medium">No saved community posts yet</p>
                   <p className="text-sm text-muted-foreground mt-1 mb-4">
@@ -815,7 +815,7 @@ const RevisionContent = () => {
           {activeTab === "units" && (
             <section>
               {savedRevisionUnits.length === 0 ? (
-                <div className="edu-card p-10 text-center rounded-2xl border-2 border-dashed border-border">
+                <div className="edu-card p-6 sm:p-10 text-center rounded-2xl border-2 border-dashed border-border">
                   <BookOpen className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
                   <p className="text-muted-foreground font-medium">
                     No units marked for revision yet
@@ -909,10 +909,10 @@ const RevisionContent = () => {
 
         {/* Floating Action Button — only on InstaCue Cards tab (add card); Unit Revision is separate */}
         {activeTab === "instacue" && (
-          <div className="fixed bottom-8 right-8 z-40">
+          <div className="fixed bottom-5 right-5 z-40 sm:bottom-8 sm:right-8">
             <Button
               size="icon"
-              className="w-14 h-14 rounded-full shadow-lg bg-[#172033] hover:bg-[#1f2b44] text-white"
+              className="w-12 h-12 rounded-full shadow-lg bg-[#172033] hover:bg-[#1f2b44] text-white sm:w-14 sm:h-14"
               onClick={() => setIsAddModalOpen(true)}
             >
               <Plus className="w-6 h-6" />

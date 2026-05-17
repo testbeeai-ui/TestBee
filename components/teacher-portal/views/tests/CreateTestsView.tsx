@@ -16,11 +16,17 @@ import { countQuestionBankForCreateTest } from "@/lib/countQuestionBankForCreate
 import { fetchTeacherTestBankRows } from "@/lib/fetchTeacherTestBankRows";
 import { buildTeacherTestQuestionSet } from "@/lib/buildTeacherTestQuestionSet";
 import type { GeneratedTeacherTest } from "@/lib/teacherPortal/generatedTest";
-import GeneratedTestPreview from "@/components/teacher-portal/GeneratedTestPreview";
+import GeneratedTestPreview from "@/components/teacher-portal/views/tests/GeneratedTestPreview";
 import { openTeacherTestPrintPreview } from "@/lib/teacherPortal/openTeacherTestPrintPreview";
 import { saveTestHistory } from "@/lib/teacherPortal/saveTestHistory";
 import { fetchTestHistory, type TestHistoryItem } from "@/lib/teacherPortal/fetchTestHistory";
 import type { TeacherPortalClassroomCard } from "@/lib/teacherPortal/types";
+import {
+  chargeTeacherRdm,
+  refundTeacherRdm,
+  TeacherRdmInsufficientError,
+} from "@/lib/teacherPortal/rdmCharges";
+import { useTeacherRdmCosts } from "@/hooks/TeacherRdmCostsContext";
 
 /** Only CBSE is available in the wizard today; KCET / JEE Main are surfaced as “Coming soon”. */
 type ExamType = "CBSE Board";
@@ -197,6 +203,7 @@ export default function CreateTestsView({
   onCreateAssignment,
   onRequireVerifiedAction,
 }: CreateTestsViewProps) {
+  const { costs: teacherRdmCosts, refresh: refreshTeacherRdmCosts } = useTeacherRdmCosts();
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
 
   useEffect(() => {
@@ -496,12 +503,27 @@ export default function CreateTestsView({
     }
     setGenerateLoading(true);
     setGenerateError(null);
+    try {
+      await chargeTeacherRdm("generate_test", teacherRdmCosts);
+    } catch (e) {
+      setGenerateLoading(false);
+      setGenerateError(
+        e instanceof TeacherRdmInsufficientError
+          ? e.message
+          : e instanceof Error
+            ? e.message
+            : "Could not charge RDM for test generation."
+      );
+      return;
+    }
+
     const rowsResult = await fetchTeacherTestBankRows({
       subject: primarySubject,
       classLevel: classNumeric as 11 | 12,
       match: currentMatch,
     });
     if (!rowsResult.data || rowsResult.error) {
+      await refundTeacherRdm("generate_test", teacherRdmCosts).catch(() => {});
       setGenerateLoading(false);
       setGenerateError(rowsResult.error ?? "Could not load questions from question bank.");
       return;
@@ -509,6 +531,7 @@ export default function CreateTestsView({
 
     const built = buildTeacherTestQuestionSet(rowsResult.data.rows, effectiveTestQuestionCount);
     if (built.picked <= 0) {
+      await refundTeacherRdm("generate_test", teacherRdmCosts).catch(() => {});
       setGenerateLoading(false);
       setGenerateError("No valid MCQs were found for this scope.");
       return;
@@ -536,6 +559,7 @@ export default function CreateTestsView({
 
     setGeneratedTest(generatedTestData);
     setGenerateLoading(false);
+    void refreshTeacherRdmCosts();
 
     // Save to history
     const topicTitle =
@@ -1488,7 +1512,9 @@ export default function CreateTestsView({
                     className="inline-flex h-11 min-w-[min(100%,18rem)] items-center justify-center gap-2 rounded-full bg-emerald-500 px-6 text-sm font-bold text-black shadow-[0_0_24px_-4px_rgba(52,211,153,0.45)] transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60 sm:h-12 sm:min-w-[min(100%,20rem)] sm:px-10 sm:text-base"
                   >
                     <Code2 className="h-4 w-4 shrink-0 opacity-90 sm:h-5 sm:w-5" strokeWidth={2.25} aria-hidden />
-                    {generateLoading ? "Generating..." : "Generate Test Now"}
+                    {generateLoading
+                      ? "Generating..."
+                      : `Generate Test Now (-${teacherRdmCosts.generate_test} RDM)`}
                   </button>
                 </div>
 
