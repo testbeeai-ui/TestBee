@@ -944,10 +944,10 @@ const Classrooms = () => {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.05 }}
                     onClick={() => router.push(`/classroom/${c.id}`)}
-                    className="edu-card p-6 cursor-pointer hover:border-primary/30 transition-all group"
+                    className="edu-card p-4 cursor-pointer hover:border-primary/30 transition-all group sm:p-6"
                   >
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="w-12 h-12 rounded-2xl gradient-primary flex items-center justify-center text-primary-foreground text-xl shadow-md">
+                    <div className="flex items-start justify-between mb-2.5 sm:mb-3">
+                      <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center text-primary-foreground text-lg shadow-md sm:w-12 sm:h-12 sm:rounded-2xl sm:text-xl">
                         {c.type === "google_linked" ? "🔗" : "📚"}
                       </div>
                       {isTeacher && (
@@ -957,27 +957,27 @@ const Classrooms = () => {
                             navigator.clipboard.writeText(c.join_code);
                             toast({ title: "Code copied!" });
                           }}
-                          className="text-xs text-muted-foreground bg-muted px-2.5 py-1 rounded-lg font-bold flex items-center gap-1 hover:bg-muted/80"
+                          className="text-[11px] text-muted-foreground bg-muted px-2 py-0.5 rounded-lg font-bold flex items-center gap-1 hover:bg-muted/80 sm:text-xs sm:px-2.5 sm:py-1"
                         >
                           <Copy className="w-3 h-3" /> {c.join_code}
                         </button>
                       )}
                     </div>
-                    <h3 className="font-extrabold text-foreground text-lg group-hover:text-primary transition-colors">
+                    <h3 className="font-extrabold text-foreground text-base group-hover:text-primary transition-colors sm:text-lg">
                       {c.name}
                     </h3>
                     {c.subject && (
-                      <p className="text-sm text-muted-foreground mt-0.5">{c.subject}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5 sm:text-sm">{c.subject}</p>
                     )}
-                    <div className="flex items-center gap-2 mt-2">
+                    <div className="flex items-center gap-1.5 mt-1.5 sm:gap-2 sm:mt-2">
                       {c.section && (
-                        <span className="edu-chip bg-muted text-muted-foreground">{c.section}</span>
+                        <span className="edu-chip bg-muted text-muted-foreground text-[11px] sm:text-xs">{c.section}</span>
                       )}
                       <span className="edu-chip bg-muted text-muted-foreground text-[10px]">
                         {c.type === "google_linked" ? "Google" : "ESM"}
                       </span>
                     </div>
-                    <div className="flex items-center gap-1.5 mt-3 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-1.5 mt-2.5 text-[11px] text-muted-foreground sm:mt-3 sm:text-xs">
                       <Users className="w-3.5 h-3.5" /> View class
                     </div>
                   </motion.div>

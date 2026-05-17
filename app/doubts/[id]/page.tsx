@@ -662,7 +662,7 @@ export default function DoubtDetailPage() {
                   stand.
                 </p>
                 <Button size="sm" className="rounded-xl" asChild>
-                  <Link href={`/mock-test-library?subject=${encodeURIComponent(subjectForMock)}`}>
+                  <Link href={`/mock-test?subject=${encodeURIComponent(subjectForMock)}`}>
                     Start Test
                   </Link>
                 </Button>

@@ -391,7 +391,7 @@ const MOCK_WIN_DEFS: MockTestTemplateDef[] = [
     tone: "achievement",
     hook: "Community flex — {examName}",
     bodyPattern: "{correct}/{total} ({accuracyPct}%) · {timeTakenLabel}.",
-    ctaPattern: "Post yours from /mock-test-library: {appUrl}",
+    ctaPattern: "Post yours from /mock-test: {appUrl}",
     waHook: "Flexing a good {examName} mock (respectfully)",
     waBodyPattern:
       "{correct}/{total} ({accuracyPct}%) in {timeTakenLabel}. If you beat it, teach me.",
@@ -604,7 +604,7 @@ const MOCK_LOSS_DEFS: MockTestTemplateDef[] = [
     tone: "progress",
     hook: "Focused block — {examName}",
     bodyPattern: "{correct}/{total} correct · {accuracyPct}% · {timeTakenLabel}.",
-    ctaPattern: "Share to community from /mock-test-library: {appUrl}",
+    ctaPattern: "Share to community from /mock-test: {appUrl}",
     waHook: "Deep work block → mock → {examName}",
     waBodyPattern:
       "Numbers: {correct}/{total} ({accuracyPct}%) in {timeTakenLabel}. Energy high, errors noted.",

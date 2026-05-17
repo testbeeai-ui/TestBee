@@ -33,11 +33,11 @@ function FormulaQuestion({
   };
 
   return (
-    <div className="mt-3 pl-2 border-l-2 border-primary/30">
-      <p className="font-medium text-foreground text-sm mb-2">
+    <div className="mt-2 pl-1.5 border-l-2 border-primary/30 sm:mt-3 sm:pl-2">
+      <p className="font-medium text-foreground text-xs mb-1.5 sm:text-sm sm:mb-2">
         <MathText>{question}</MathText>
       </p>
-      <div className="space-y-1.5">
+      <div className="space-y-1 sm:space-y-1.5">
         {options.map((opt, i) => {
           let optionClass = "bg-muted hover:bg-muted/80 text-foreground";
           if (answered) {
@@ -54,24 +54,24 @@ function FormulaQuestion({
               type="button"
               disabled={answered}
               onClick={() => handleSelect(i)}
-              className={`w-full text-left rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${optionClass} p-2`}
+              className={`w-full text-left rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 sm:text-sm sm:gap-2 ${optionClass} p-1.5 sm:p-2`}
             >
-              <span className="w-5 h-5 rounded-full bg-background/60 flex items-center justify-center text-xs shrink-0 font-bold">
+              <span className="w-4 h-4 rounded-full bg-background/60 flex items-center justify-center text-[10px] shrink-0 font-bold sm:w-5 sm:h-5 sm:text-xs">
                 {String.fromCharCode(65 + i)}
               </span>
               <MathText>{opt}</MathText>
               {answered && i === correctAnswer && (
-                <CheckCircle2 className="w-3.5 h-3.5 shrink-0 text-emerald-600 ml-auto" />
+                <CheckCircle2 className="w-3 h-3 shrink-0 text-emerald-600 ml-auto sm:w-3.5 sm:h-3.5" />
               )}
               {answered && i === selected && !isCorrect && (
-                <XCircle className="w-3.5 h-3.5 shrink-0 text-destructive ml-auto" />
+                <XCircle className="w-3 h-3 shrink-0 text-destructive ml-auto sm:w-3.5 sm:h-3.5" />
               )}
             </button>
           );
         })}
       </div>
       {answered && solution && (
-        <div className="rounded-lg bg-primary/5 border border-primary/20 text-xs text-muted-foreground mt-2 p-2">
+        <div className="rounded-lg bg-primary/5 border border-primary/20 text-[11px] text-muted-foreground mt-1.5 p-1.5 sm:text-xs sm:mt-2 sm:p-2">
           <span className="font-semibold text-foreground">Explanation: </span>
           <MathText>{solution}</MathText>
         </div>
@@ -82,13 +82,13 @@ function FormulaQuestion({
 
 export function InteractiveFormula({ formula, onUnsave }: InteractiveFormulaProps) {
   return (
-    <div className="space-y-3 pt-2">
-      <div className="bg-card rounded-2xl border border-border shadow-sm p-4">
-        <div className="flex items-start justify-between gap-3 mb-2">
+    <div className="space-y-2.5 pt-2 sm:space-y-3">
+      <div className="bg-card rounded-xl border border-border shadow-sm p-3 sm:rounded-2xl sm:p-4">
+        <div className="flex items-start justify-between gap-2 mb-1.5 sm:gap-3 sm:mb-2">
           <div className="flex-1 min-w-0">
-            <p className="font-bold text-foreground text-sm">{formula.name}</p>
+            <p className="font-bold text-foreground text-xs sm:text-sm">{formula.name}</p>
             {formula.formulaLatex && (
-              <p className="font-mono text-xs text-muted-foreground mt-0.5">
+              <p className="font-mono text-[11px] text-muted-foreground mt-0.5 sm:text-xs">
                 <MathText>{`$$${stripFormulaDelimiters(formula.formulaLatex)}$$`}</MathText>
               </p>
             )}
@@ -103,10 +103,10 @@ export function InteractiveFormula({ formula, onUnsave }: InteractiveFormulaProp
             <Trash2 className="w-4 h-4" />
           </Button>
         </div>
-        <p className="text-xs text-muted-foreground mb-2">
+        <p className="text-[11px] text-muted-foreground mb-1.5 sm:text-xs sm:mb-2">
           {formula.bitsQuestions.length} question{formula.bitsQuestions.length !== 1 ? "s" : ""}
         </p>
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           {formula.bitsQuestions.map((q, idx) => (
             <FormulaQuestion
               key={idx}

@@ -285,9 +285,9 @@ export default function PlayQuestionCard({
           variant="stem"
           source={text}
           className={cn(
-            "mb-4 font-bold leading-snug",
-            optGrid ? "text-base sm:text-lg" : "text-lg",
-            "[&_.katex]:text-[1em] [&_.katex-display]:my-1"
+            "mb-3 font-bold leading-snug sm:mb-4",
+            optGrid ? "text-sm sm:text-base lg:text-lg" : "text-sm sm:text-base lg:text-lg",
+            "[&_.katex]:text-[0.95em] sm:[&_.katex]:text-[1em] [&_.katex-display]:my-1"
           )}
         />
         <div className={cn(optGrid ? "grid grid-cols-1 sm:grid-cols-2 gap-2" : "space-y-2")}>
@@ -307,12 +307,12 @@ export default function PlayQuestionCard({
                 disabled={answeredState || disableInteraction}
                 whileTap={!answeredState ? { scale: 0.98 } : undefined}
                 className={cn(
-                  "w-full text-left rounded-xl font-semibold text-sm transition-all flex items-center gap-2",
-                  optGrid ? "p-2.5 sm:p-3 min-h-[3rem]" : "p-3",
+                  "w-full text-left rounded-lg font-semibold text-xs transition-all flex items-center gap-1.5 sm:rounded-xl sm:text-sm sm:gap-2",
+                  optGrid ? "p-2 sm:p-2.5 lg:p-3 min-h-[2.5rem] sm:min-h-[3rem]" : "p-2 sm:p-3",
                   optionClass
                 )}
               >
-                <span className="w-7 h-7 rounded-full bg-background/50 flex items-center justify-center text-xs font-bold shrink-0">
+                <span className="w-5 h-5 rounded-full bg-background/50 flex items-center justify-center text-[10px] font-bold shrink-0 sm:w-7 sm:h-7 sm:text-xs">
                   {String.fromCharCode(65 + i)}
                 </span>
                 <div className="min-w-0 flex-1 text-left">
@@ -341,11 +341,11 @@ export default function PlayQuestionCard({
           })}
         </div>
         {answeredState && showExplanation && question.explanation && (
-          <div className="mt-4 overflow-x-auto rounded-xl border border-emerald-500/25 bg-emerald-500/[0.07] p-3 dark:border-emerald-500/30 dark:bg-emerald-950/25">
+          <div className="mt-3 overflow-x-auto rounded-lg border border-emerald-500/25 bg-emerald-500/[0.07] p-2.5 sm:mt-4 sm:rounded-xl sm:p-3 dark:border-emerald-500/30 dark:bg-emerald-950/25">
             <PlayQuestionMarkdown
               variant="explanation"
               source={String(question.explanation ?? "")}
-              className="text-sm"
+              className="text-xs sm:text-sm"
             />
           </div>
         )}

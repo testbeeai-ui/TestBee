@@ -54,7 +54,71 @@ export function escapeHtmlTextNode(s: string): string {
 
 /** Typo repair after sanitize: missing space between `</span>` and a following word. */
 export function patchNtaHtmlPresentation(html: string): string {
-  return html.replace(/<\/span>([a-z])/gi, "</span> $1");
+  return patchMockHtmlImages(html.replace(/<\/span>([a-z])/gi, "</span> $1"));
+}
+
+const TESTBEE_QIMAGE_RE =
+  /^https?:\/\/(?:www\.)?testbee\.in\/preview\/show_qimage\/[a-zA-Z0-9._-]+\.(?:png|jpe?g|gif|webp)$/i;
+
+/** Normalize legacy bank `<img>` tags (trim src, proxy testbee.in, responsive class). */
+export function patchMockHtmlImages(html: string): string {
+  return html.replace(/<img\b([^>]*)\/?>/gi, (_full, rawAttrs: string) => {
+    const srcMatch = rawAttrs.match(/\bsrc\s*=\s*(?:"([^"]*)"|'([^']*)')/i);
+    let src = (srcMatch?.[1] ?? srcMatch?.[2] ?? "").trim();
+    if (!src) return _full;
+
+    if (src.startsWith("//")) src = `https:${src}`;
+    if (!/^https?:\/\//i.test(src)) src = `https://${src}`;
+    src = src.replace(/^https:\/\/testbee\.in\//i, "https://www.testbee.in/");
+
+    let attrs = rawAttrs.replace(/\bsrc\s*=\s*(?:"[^"]*"|'[^']*')/i, `src="${src}"`);
+
+    if (!/\bclass\s*=/i.test(attrs)) {
+      attrs += ' class="nta-mock-img"';
+    } else if (!/\bnta-mock-img\b/.test(attrs)) {
+      attrs = attrs.replace(/\bclass\s*=\s*"([^"]*)"/i, 'class="$1 nta-mock-img"');
+    }
+    if (!/\breferrerpolicy\s*=/i.test(attrs)) {
+      attrs += ' referrerpolicy="no-referrer"';
+    }
+    if (!/\bloading\s*=/i.test(attrs)) {
+      attrs += ' loading="lazy"';
+    }
+    if (!/\bdecoding\s*=/i.test(attrs)) {
+      attrs += ' decoding="async"';
+    }
+
+    if (TESTBEE_QIMAGE_RE.test(src)) {
+      attrs = attrs.replace(/\bsrc\s*=\s*"[^"]*"/i, `src="/api/mock/question-image?url=${encodeURIComponent(src)}"`);
+    }
+
+    return `<img${attrs}>`;
+  });
+}
+
+/**
+ * Repair common JEE/PYQ bank LaTeX typos before KaTeX (NTA exam + review UI).
+ * Fixes `\lim_\limits{…}`, `\text x`, glued `\rightarrow1+`, broken `\frac`, etc.
+ */
+export function repairBankMathLatex(math: string): string {
+  let s = normalizeBankMathEscapes(String(math ?? ""));
+  s = s.replace(/\r?\n\s*/g, " ");
+  s = s.replace(/\\text\s+\{/g, "\\text{");
+  s = s.replace(/\\lim_\\limits\s*\{/g, "\\lim\\limits_{");
+  s = s.replace(/\\lim_limits\b/g, "\\lim\\limits");
+  s = s.replace(/\\text\s+([a-zA-Z])\b/g, "\\text{$1}");
+  s = s.replace(/\\(mathrm|mathbf|mathit|operatorname)\s+([A-Za-z0-9]+)/g, "\\$1{$2}");
+  s = s.replace(/\\(leftarrow|rightarrow)row\b/g, "\\$1");
+  s = s.replace(/\\rightarrow\s*(\d)\s*\+/g, "\\to $1^{+}");
+  s = s.replace(/\\rightarrow\s*(\d)\s*-/g, "\\to $1^{-}");
+  s = s.replace(/\\rightarrow/g, "\\to ");
+  s = s.replace(/\\uparrowrac\b/g, "\\frac");
+  s = s.replace(/\\[A-Za-z^]*rac(?=\s*\{)/g, "\\frac");
+  s = s.replace(/\u2212/g, "-");
+  s = s.replace(/\u00D7/g, "\\times ");
+  s = s.replace(/\u00B7/g, "\\cdot ");
+  s = s.replace(/\s{2,}/g, " ");
+  return s.trim();
 }
 
 /** Safe fragment: one paragraph KaTeX can scan for `\(` / `\[` / `$$`. */

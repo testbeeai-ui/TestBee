@@ -64,8 +64,8 @@ export const ASSIGNMENT_TASK_PRESETS: Array<{
   label: string;
   defaultHref: string | null;
 }> = [
-  { kind: "mock_paper", label: "Full mock paper", defaultHref: "/mock-test-library" },
-  { kind: "past_paper", label: "Past paper", defaultHref: "/mock-test-library" },
+  { kind: "mock_paper", label: "Full mock paper", defaultHref: "/mock-test" },
+  { kind: "past_paper", label: "Past paper", defaultHref: "/mock-test" },
   { kind: "chapter_quiz", label: "Chapter quiz (MCQs)", defaultHref: "/exam-prep" },
   { kind: "daily_dose", label: "DailyDose / streak practice", defaultHref: "/play" },
   { kind: "gyan_engagement", label: "Post doubt on Gyan++", defaultHref: "/doubts" },
@@ -123,7 +123,7 @@ function legacyTasksFromPayload(
         kind,
         label,
         href:
-          postType === "mock" || postType === "past_paper" ? "/mock-test-library" : "/exam-prep",
+          postType === "mock" || postType === "past_paper" ? "/mock-test" : "/exam-prep",
         visible_to_student: true,
         position: 0,
         reward_rdm: null,

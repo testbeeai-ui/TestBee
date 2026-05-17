@@ -44,10 +44,10 @@ export default function ExploreHubDashboard({
   return (
     <div className="max-w-7xl mx-auto">
       {/* Header */}
-      <div className="edu-page-header mb-6">
-        <h2 className="edu-page-title flex items-center gap-3">
-          <div className="w-10 h-10 gradient-primary rounded-xl flex items-center justify-center">
-            <Compass className="w-5 h-5 text-primary-foreground" />
+      <div className="edu-page-header mb-4 sm:mb-6">
+        <h2 className="edu-page-title flex items-center gap-2.5 sm:gap-3">
+          <div className="w-9 h-9 gradient-primary rounded-xl flex items-center justify-center sm:w-10 sm:h-10">
+            <Compass className="w-4.5 h-4.5 text-primary-foreground sm:w-5 sm:h-5" />
           </div>
           Lessons
         </h2>
@@ -55,7 +55,7 @@ export default function ExploreHubDashboard({
       </div>
 
       {/* Main layout: sidebar + content */}
-      <div className="flex gap-4 lg:gap-6">
+      <div className="flex gap-0 lg:gap-6">
         <ExploreHubSidebar />
 
         {/* Main content */}
@@ -71,12 +71,12 @@ export default function ExploreHubDashboard({
           />
           <RawPostComposer onPosted={() => setRawFeedRefresh((k) => k + 1)} />
 
-          {/* Two-column: feed + sidebar widgets */}
+          {/* Two-column: feed on left (desktop), feed last (mobile) */}
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-            <div className="lg:col-span-3">
+            <div className="lg:col-span-3 order-2 lg:order-none">
               <RawCommunityFeed refreshKey={rawFeedRefresh} />
             </div>
-            <div className="lg:col-span-2 space-y-4">
+            <div className="lg:col-span-2 space-y-4 order-1 lg:order-none">
               <RandomTopicExplorer taxonomy={taxonomy} onExploreTopic={handleDirectTopic} />
               <TrendingTopics taxonomy={taxonomy} onExploreTopic={handleDirectTopic} />
             </div>

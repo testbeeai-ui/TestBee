@@ -30,7 +30,7 @@ export function KeyDatesPostRow({
     >
       <div
         className={`flex shrink-0 flex-col rounded-md border border-slate-600/40 bg-[#1a2434] ${
-          compact ? "min-w-[3.5rem] px-1.5 py-1" : "min-w-[4.5rem] px-2.5 py-2"
+          compact ? "min-w-[3rem] px-1.5 py-1 sm:min-w-[3.5rem]" : "min-w-[3.5rem] px-2 py-1.5 sm:min-w-[4.5rem] sm:px-2.5 sm:py-2"
         }`}
       >
         <span

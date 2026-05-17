@@ -160,7 +160,7 @@ export function GyanDailyChecklistTracker() {
         type="button"
         onClick={() => setOpen((v) => !v)}
         className={cn(
-          "fixed z-[44] left-0 top-[max(7rem,28vh)] flex h-[4.25rem] w-[3.25rem] flex-col items-center justify-center gap-0.5 rounded-r-2xl border-y border-r border-emerald-500/45 bg-gradient-to-b from-emerald-600 to-emerald-700 text-white shadow-lg shadow-emerald-950/25 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+          "fixed z-[44] left-0 top-[max(5rem,22vh)] sm:top-[max(7rem,28vh)] flex h-10 w-7 sm:h-[4.25rem] sm:w-[3.25rem] flex-col items-center justify-center gap-0 sm:gap-0.5 rounded-r-xl sm:rounded-r-2xl border-y border-r border-emerald-500/45 bg-gradient-to-b from-emerald-600 to-emerald-700 text-white shadow-lg shadow-emerald-950/25 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
           open
             ? "from-emerald-500 to-emerald-600 ring-2 ring-white/30"
             : "hover:from-emerald-500 hover:to-emerald-600"
@@ -168,11 +168,11 @@ export function GyanDailyChecklistTracker() {
         aria-label={open ? "Close Gyan++ daily checklist" : "Open Gyan++ daily checklist"}
         aria-expanded={open}
       >
-        <ListChecks className="h-5 w-5 shrink-0" aria-hidden />
-        <span className="text-[8px] font-extrabold uppercase tracking-tight leading-none text-center px-0.5">
+        <ListChecks className="h-3.5 w-3.5 shrink-0 sm:h-5 sm:w-5" aria-hidden />
+        <span className="hidden sm:block text-[8px] font-extrabold uppercase tracking-tight leading-none text-center px-0.5">
           Daily
         </span>
-        <span className="text-[8px] font-extrabold uppercase tracking-tight leading-none text-center px-0.5 -mt-0.5">
+        <span className="hidden sm:block text-[8px] font-extrabold uppercase tracking-tight leading-none text-center px-0.5 -mt-0.5">
           Gyan
         </span>
       </button>
@@ -186,7 +186,7 @@ export function GyanDailyChecklistTracker() {
             onClick={() => setOpen(false)}
           />
           <div
-            className="fixed z-[48] left-[4.15rem] top-[max(7rem,28vh)] w-[min(84vw,24rem)] max-h-[68vh] overflow-hidden rounded-2xl border border-emerald-500/35 bg-gradient-to-b from-background via-background to-emerald-950/20 font-sans shadow-2xl shadow-emerald-950/35"
+            className="fixed z-[48] inset-x-2 bottom-2 top-auto max-h-[70vh] sm:inset-x-auto sm:bottom-auto sm:top-auto sm:left-[4.15rem] sm:top-[max(7rem,28vh)] sm:w-[min(84vw,24rem)] sm:max-h-[68vh] overflow-hidden rounded-2xl border border-emerald-500/35 bg-gradient-to-b from-background via-background to-emerald-950/20 font-sans shadow-2xl shadow-emerald-950/35"
             role="dialog"
             aria-modal="true"
             aria-label="Gyan++ daily checklist"

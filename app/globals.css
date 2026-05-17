@@ -346,6 +346,40 @@ html {
   font-size: 1.12em;
 }
 
+/* Gyan++ Teacher Wall: AI answer panel on dark background */
+.gyan-wall-ai-markdown.doubt-markdown,
+.gyan-wall-ai-markdown.doubt-markdown p,
+.gyan-wall-ai-markdown.doubt-markdown li,
+.gyan-wall-ai-markdown.doubt-markdown ol,
+.gyan-wall-ai-markdown.doubt-markdown ul {
+  color: #f8fafc;
+}
+.gyan-wall-ai-markdown.doubt-markdown strong {
+  color: #ffffff;
+}
+.gyan-wall-ai-markdown.doubt-markdown .katex,
+.gyan-wall-ai-markdown.doubt-markdown .katex * {
+  color: #f8fafc !important;
+}
+.gyan-wall-ai-markdown.doubt-markdown .katex-display {
+  background: rgb(255 255 255 / 0.06);
+  border-color: rgb(52 211 153 / 0.28);
+}
+.gyan-wall-ai-markdown.doubt-markdown code {
+  background: rgb(255 255 255 / 0.1);
+  color: #ecfdf5;
+}
+.gyan-wall-ai-markdown.doubt-markdown pre {
+  background: rgb(0 0 0 / 0.35);
+  color: #f8fafc;
+}
+.gyan-wall-ai-markdown.doubt-markdown pre code {
+  color: inherit;
+}
+.gyan-wall-ai-markdown.doubt-markdown a {
+  color: #6ee7b7;
+}
+
 /* Heavier KaTeX in headings (formulas ignore parent font-weight without this) */
 .math-text-katex-heavy .katex,
 .math-text-katex-heavy .katex * {

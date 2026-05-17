@@ -54,11 +54,11 @@ export default function PrepMockStatCards({
       {cards.map((card) => (
         <div
           key={card.label}
-          className={`edu-card rounded-xl border border-border/50 border-l-4 ${card.borderColor} p-4`}
+          className={`edu-card rounded-xl border border-border/50 border-l-4 ${card.borderColor} p-3 sm:p-4`}
         >
-          <div className="text-xs text-muted-foreground font-medium mb-1">{card.label}</div>
-          <div className="text-2xl font-extrabold text-foreground leading-tight">{card.value}</div>
-          <div className="text-xs text-muted-foreground mt-0.5">{card.sub}</div>
+          <div className="text-[11px] text-muted-foreground font-medium mb-0.5 sm:text-xs sm:mb-1">{card.label}</div>
+          <div className="text-lg font-extrabold text-foreground leading-tight truncate sm:text-2xl">{card.value}</div>
+          <div className="text-[11px] text-muted-foreground mt-0.5 sm:text-xs">{card.sub}</div>
         </div>
       ))}
     </div>

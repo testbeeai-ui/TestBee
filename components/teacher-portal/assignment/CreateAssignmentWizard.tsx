@@ -15,13 +15,13 @@ import {
   buildDefaultTasksForAssignmentType,
   normalizeTaskPositions,
 } from "@/lib/classroom/assignmentTasks";
-import ChapterQuizAssignmentFields from "@/components/teacher-portal/ChapterQuizAssignmentFields";
+import ChapterQuizAssignmentFields from "@/components/teacher-portal/assignment/fields/ChapterQuizAssignmentFields";
 import ConceptFocusAssignmentFields, {
   conceptFocusSelectionComplete,
   initialConceptFocusSelection,
   type ConceptFocusSelectionState,
-} from "@/components/teacher-portal/ConceptFocusAssignmentFields";
-import GyanEngagementAssignmentFields from "@/components/teacher-portal/GyanEngagementAssignmentFields";
+} from "@/components/teacher-portal/assignment/fields/ConceptFocusAssignmentFields";
+import GyanEngagementAssignmentFields from "@/components/teacher-portal/assignment/fields/GyanEngagementAssignmentFields";
 import {
   chapterQuizSelectionComplete,
   chapterQuizToRef,
@@ -32,6 +32,7 @@ import { useTopicTaxonomy } from "@/hooks/useTopicTaxonomy";
 import { fetchMockPapersFromSupabase } from "@/lib/mockPapersFromSupabase";
 import { fetchPastPapersFromSupabase } from "@/lib/pastPapersFromSupabase";
 import type { MockPaper, PastPaper } from "@/types";
+import { useTeacherRdmCosts } from "@/hooks/TeacherRdmCostsContext";
 
 type WizardTypeKey = "quiz" | "concept_focus" | "gyan" | "mock" | "past_paper";
 type AssignScope = "full" | "section" | "students";
@@ -143,6 +144,7 @@ export default function CreateAssignmentWizard(props: {
   onCancel: () => void;
   onPublish: (input: Omit<PublishInput, "title"> & { title: string }) => Promise<void>;
 }) {
+  const { costs: teacherRdmCosts } = useTeacherRdmCosts();
   const { taxonomy, loading: taxonomyLoading, error: taxonomyError } = useTopicTaxonomy();
   const variant = props.variant ?? "page";
 
@@ -957,7 +959,7 @@ export default function CreateAssignmentWizard(props: {
                 className="inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-500/15 px-4 py-2 text-sm font-semibold text-emerald-100 enabled:hover:bg-emerald-500/20 disabled:opacity-50"
               >
                 {publishing ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                Publish assignment
+                Publish assignment (-{teacherRdmCosts.create_assignment} RDM)
               </button>
             </div>
           </div>

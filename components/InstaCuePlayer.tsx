@@ -196,33 +196,33 @@ export default function InstaCuePlayer({ cards, onClose }: Props) {
     <div className="w-full">
       <div className="max-w-4xl w-full">
         {/* Tabs */}
-        <div className="flex gap-3 mb-6 overflow-x-auto pb-2 scrollbar-none">
+        <div className="flex gap-1.5 mb-4 overflow-x-auto pb-2 scrollbar-none sm:gap-3 sm:mb-6">
           {TABS.map((tab) => (
             <button
               key={tab.id}
               onClick={() => handleTabChange(tab.id)}
-              className={`flex-1 min-w-[150px] flex flex-col items-center justify-center py-4 rounded-xl border transition-all ${
+              className={`flex-1 min-w-[60px] sm:min-w-[120px] flex flex-col items-center justify-center py-2.5 rounded-lg border transition-all sm:py-4 sm:rounded-xl ${
                 activeTab === tab.id
                   ? "bg-primary/15 border-primary/40 text-foreground shadow-sm"
                   : "bg-card border-border/50 text-muted-foreground hover:border-primary/30 hover:text-foreground shadow-sm"
               }`}
             >
-              <div className="flex items-center gap-2 mb-1">
+              <div className="flex items-center gap-1 sm:gap-2 mb-0.5 sm:mb-1">
                 <span
                   className={`${activeTab === tab.id ? "text-primary" : "text-muted-foreground"}`}
                 >
                   {tab.icon}
                 </span>
-                <span className="text-[14px] font-semibold">{tab.label}</span>
+                <span className="text-[10px] font-semibold sm:text-[14px]">{tab.label}</span>
               </div>
-              <span className="text-[22px] font-extrabold text-foreground">{tab.count}</span>
+              <span className="text-base font-extrabold text-foreground sm:text-[22px]">{tab.count}</span>
             </button>
           ))}
         </div>
 
         {/* Progress */}
-        <div className="flex flex-col mb-8">
-          <div className="flex items-center justify-between text-[13px] font-medium text-muted-foreground mb-2 px-1">
+        <div className="flex flex-col mb-5 sm:mb-8">
+          <div className="flex items-center justify-between text-[11px] font-medium text-muted-foreground mb-1.5 px-1 sm:text-[13px] sm:mb-2">
             <span>
               Card {activeCards.length > 0 ? currentIndex + 1 : 0} of {activeCards.length}
             </span>
@@ -249,60 +249,60 @@ export default function InstaCuePlayer({ cards, onClose }: Props) {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.2 }}
-                className="w-full max-w-2xl bg-card rounded-2xl shadow-sm border border-border p-5 md:p-6 cursor-pointer"
+                className="w-full max-w-2xl bg-card rounded-xl shadow-sm border border-border p-3.5 sm:p-5 md:p-6 cursor-pointer sm:rounded-2xl"
                 onClick={() => setIsFlipped((f) => !f)}
               >
                 {!isFlipped ? (
                   // Front of Card
-                  <div className="flex flex-col h-full min-h-[230px]">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-2">
-                        <span className="px-3.5 py-1 bg-primary/20 text-primary text-[11px] font-semibold rounded-full capitalize">
+                  <div className="flex flex-col h-full min-h-[180px] sm:min-h-[230px]">
+                    <div className="flex flex-wrap items-center justify-between gap-1.5 mb-3 sm:mb-4">
+                      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                        <span className="px-2.5 py-0.5 bg-primary/20 text-primary text-[10px] font-semibold rounded-full capitalize sm:px-3.5 sm:py-1 sm:text-[11px]">
                           {currentCard.type.replace("_", " ")}
                         </span>
-                        <span className="px-3.5 py-1 bg-muted text-muted-foreground text-[11px] font-medium rounded-full lowercase">
+                        <span className="px-2.5 py-0.5 bg-muted text-muted-foreground text-[10px] font-medium rounded-full lowercase sm:px-3.5 sm:py-1 sm:text-[11px]">
                           {currentCard.subject}
                         </span>
                       </div>
-                      <span className="px-3.5 py-1 bg-muted text-muted-foreground text-[11px] font-bold rounded-full uppercase tracking-wider">
+                      <span className="px-2.5 py-0.5 bg-muted text-muted-foreground text-[10px] font-bold rounded-full uppercase tracking-wider sm:px-3.5 sm:py-1 sm:text-[11px]">
                         {currentCard.status === "new"
                           ? "New"
                           : currentCard.status.replace("_", " ")}
                       </span>
                     </div>
 
-                    <h2 className="text-[19px] font-bold text-foreground mb-3">
+                    <h2 className="text-base font-bold text-foreground mb-2 sm:text-[19px] sm:mb-3">
                       <MathText as="span" weight="bold">
                         {normalizeCardMath(currentCard.subtopicName, true)}
                       </MathText>
                     </h2>
-                    <div className="text-[15px] text-foreground/85 whitespace-pre-wrap flex-1 leading-relaxed">
+                    <div className="text-[13px] text-foreground/85 whitespace-pre-wrap flex-1 leading-relaxed sm:text-[15px]">
                       <MathText as="div" weight="semibold">
                         {normalizeCardMath(currentCard.frontContent)}
                       </MathText>
                     </div>
 
-                    <div className="mt-6 flex justify-center w-full">
-                      <p className="text-muted-foreground text-[13px] flex items-center gap-2 font-medium">
-                        <RotateCcw className="w-4 h-4" /> Tap to reveal answer
+                    <div className="mt-4 flex justify-center w-full sm:mt-6">
+                      <p className="text-muted-foreground text-[11px] flex items-center gap-1.5 font-medium sm:text-[13px] sm:gap-2">
+                        <RotateCcw className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Tap to reveal answer
                       </p>
                     </div>
                   </div>
                 ) : (
                   // Back of Card
-                  <div className="flex flex-col h-full min-h-[230px]">
-                    <div className="flex items-center justify-between mb-4">
-                      <h2 className="text-[19px] font-bold text-primary">
+                  <div className="flex flex-col h-full min-h-[180px] sm:min-h-[230px]">
+                    <div className="flex items-center justify-between gap-2 mb-3 sm:mb-4">
+                      <h2 className="text-base font-bold text-primary sm:text-[19px]">
                         <MathText as="span" weight="bold">
                           {normalizeCardMath(currentCard.subtopicName, true)}
                         </MathText>
                       </h2>
-                      <span className="px-3.5 py-1 text-muted-foreground text-xs font-bold rounded-full border border-border">
+                      <span className="px-2.5 py-0.5 text-muted-foreground text-[11px] font-bold rounded-full border border-border sm:px-3.5 sm:py-1 sm:text-xs">
                         Answer
                       </span>
                     </div>
 
-                    <div className="text-[15px] text-foreground/90 whitespace-pre-wrap flex-1 leading-relaxed">
+                    <div className="text-[13px] text-foreground/90 whitespace-pre-wrap flex-1 leading-relaxed sm:text-[15px]">
                       <MathText as="div" weight="semibold">
                         {normalizeCardMath(currentCard.backContent)}
                       </MathText>
@@ -329,47 +329,47 @@ export default function InstaCuePlayer({ cards, onClose }: Props) {
         {/* Footer Controls */}
         <div className="mt-4 flex items-center justify-center gap-4 pb-4">
           {currentCard && isFlipped ? (
-            <div className="flex flex-wrap items-center justify-center gap-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
+            <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
               <Button
                 variant="outline"
-                className="border-red-500/50 text-red-400 hover:bg-red-500/10 hover:text-red-300 px-7 py-5 rounded-[14px] font-semibold text-[14px] bg-card"
+                className="border-red-500/50 text-red-400 hover:bg-red-500/10 hover:text-red-300 px-4 py-3 rounded-xl font-semibold text-xs bg-card sm:px-7 sm:py-5 sm:rounded-[14px] sm:text-[14px]"
                 onClick={() => handleStatusUpdate("unsure")}
               >
-                <HelpCircle className="w-[18px] h-[18px] mr-2" />
+                <HelpCircle className="w-4 h-4 mr-1.5 sm:w-[18px] sm:h-[18px] sm:mr-2" />
                 Unsure
               </Button>
               <Button
                 variant="outline"
-                className="border-amber-500/50 text-amber-400 hover:bg-amber-500/10 hover:text-amber-300 px-7 py-5 rounded-[14px] font-semibold text-[14px] bg-card"
+                className="border-amber-500/50 text-amber-400 hover:bg-amber-500/10 hover:text-amber-300 px-4 py-3 rounded-xl font-semibold text-xs bg-card sm:px-7 sm:py-5 sm:rounded-[14px] sm:text-[14px]"
                 onClick={() => handleStatusUpdate("tomorrow")}
               >
-                <Clock className="w-[18px] h-[18px] mr-2" />
+                <Clock className="w-4 h-4 mr-1.5 sm:w-[18px] sm:h-[18px] sm:mr-2" />
                 Tomorrow
               </Button>
               <Button
-                className="bg-emerald-600 hover:bg-emerald-500 text-white px-7 py-5 rounded-[14px] font-semibold text-[14px] border-none shadow-sm"
+                className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-3 rounded-xl font-semibold text-xs border-none shadow-sm sm:px-7 sm:py-5 sm:rounded-[14px] sm:text-[14px]"
                 onClick={() => handleStatusUpdate("know_it")}
               >
-                <Check className="w-[18px] h-[18px] mr-2" />
+                <Check className="w-4 h-4 mr-1.5 sm:w-[18px] sm:h-[18px] sm:mr-2" />
                 Know It
               </Button>
             </div>
           ) : currentCard && !isFlipped ? (
-            <div className="flex items-center gap-8 text-muted-foreground font-semibold text-[15px]">
+            <div className="flex items-center gap-4 text-muted-foreground font-semibold text-xs sm:gap-8 sm:text-[15px]">
               <button
-                className="flex items-center gap-2 hover:text-foreground transition-colors disabled:opacity-40"
+                className="flex items-center gap-1.5 hover:text-foreground transition-colors disabled:opacity-40 sm:gap-2"
                 onClick={prevCard}
                 disabled={currentIndex === 0}
               >
-                <ChevronLeft className="w-4 h-4" /> Previous
+                <ChevronLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Previous
               </button>
-              <span className="w-px h-4 bg-border" />
+              <span className="w-px h-3.5 bg-border sm:h-4" />
               <button
-                className="flex items-center gap-2 hover:text-foreground transition-colors disabled:opacity-40"
+                className="flex items-center gap-1.5 hover:text-foreground transition-colors disabled:opacity-40 sm:gap-2"
                 onClick={nextCard}
                 disabled={currentIndex === activeCards.length - 1}
               >
-                Next <ChevronRight className="w-4 h-4" />
+                Next <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </button>
             </div>
           ) : null}

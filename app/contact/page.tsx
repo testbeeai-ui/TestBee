@@ -205,7 +205,12 @@ function ContactPageBody({ showLandingNav }: { showLandingNav: boolean }) {
     if (safeFromPath === "/home") return "Dashboard";
     if (safeFromPath === "/magic-wall") return "Magic Wall";
     if (safeFromPath === "/explore-1") return "Lessons";
-    if (safeFromPath === "/mock" || safeFromPath === "/mock-test-library") return "Prep + Mock";
+    if (
+      safeFromPath === "/mock" ||
+      safeFromPath === "/mock-test" ||
+      safeFromPath === "/mock-test-library"
+    )
+      return "Prep + Mock";
     if (safeFromPath === "/doubts") return "Gyan++";
     if (safeFromPath === "/edufund") return "EduFund";
     if (safeFromPath === "/refer-earn") return "Earn & Learn";

@@ -17,14 +17,14 @@ interface DoubtsTabBarProps {
 
 export default function DoubtsTabBar({ activeTab, onTabChange }: DoubtsTabBarProps) {
   return (
-    <div className="mb-4 border-b border-border">
-      <div className="flex flex-wrap items-center gap-1 -mb-px pb-1">
+    <div className="mb-3 border-b border-border sm:mb-4">
+      <div className="flex items-center gap-0.5 -mb-px pb-1 overflow-x-auto scrollbar-none sm:gap-1">
         {tabs.map((tab) => (
           <button
             key={tab.value}
             type="button"
             onClick={() => onTabChange(tab.value)}
-            className={`px-4 py-2.5 text-sm font-semibold whitespace-nowrap transition-colors border-b-2 ${
+            className={`px-2.5 py-2 text-xs font-semibold whitespace-nowrap transition-colors border-b-2 sm:px-4 sm:py-2.5 sm:text-sm ${
               activeTab === tab.value
                 ? "border-primary text-primary"
                 : "border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground/30"

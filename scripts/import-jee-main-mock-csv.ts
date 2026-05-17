@@ -14,6 +14,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { parse } from "csv-parse/sync";
 import { createClient } from "@supabase/supabase-js";
+import { patchMockHtmlImages } from "../lib/mockRichTextKatex";
 
 const SLUG = "jee-main-2019-01-10-shift-1";
 
@@ -164,10 +165,10 @@ async function main() {
       topic: row.topicName?.trim() || null,
       chapter: row.chapterName?.trim() || null,
       difficulty: (row.dificulty || row.difficulty || "").trim() || null,
-      question_html: parsed.stemHtml,
+      question_html: patchMockHtmlImages(parsed.stemHtml),
       solution_html: row.solutionText?.trim() || null,
       correct_letter: ans,
-      options_json: parsed.options,
+      options_json: parsed.options.map((o) => patchMockHtmlImages(o)),
     });
   }
 

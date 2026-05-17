@@ -23,13 +23,13 @@ function renderBlock(b: Block, key: string) {
   switch (b.kind) {
     case "h2":
       return (
-        <h2 key={key} id={b.id} className="mt-10 scroll-mt-24 text-2xl font-semibold tracking-tight text-slate-100">
+        <h2 key={key} id={b.id} className="mt-6 scroll-mt-24 text-xl font-semibold tracking-tight text-slate-100 sm:mt-10 sm:text-2xl">
           {b.text}
         </h2>
       );
     case "h3":
       return (
-        <h3 key={key} id={b.id} className="mt-8 scroll-mt-24 text-xl font-semibold tracking-tight text-slate-100">
+        <h3 key={key} id={b.id} className="mt-4 scroll-mt-24 text-lg font-semibold tracking-tight text-slate-100 sm:mt-8 sm:text-xl">
           {b.text}
         </h3>
       );

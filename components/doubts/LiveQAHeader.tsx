@@ -21,8 +21,8 @@ export default function LiveQAHeader({
   return (
     <div className="mb-4">
       {/* Title + live indicator */}
-      <div className="flex items-center gap-3 mb-3 flex-wrap">
-        <h2 className="text-2xl font-extrabold text-foreground">Live Q&amp;A wall</h2>
+      <div className="flex items-center gap-2.5 mb-2.5 flex-wrap sm:gap-3 sm:mb-3">
+        <h2 className="text-xl font-extrabold text-foreground sm:text-2xl">Live Q&amp;A wall</h2>
         <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600">
           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
           Live &middot; {todayCount} active

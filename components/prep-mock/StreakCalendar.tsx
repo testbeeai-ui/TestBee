@@ -151,8 +151,8 @@ export default function StreakCalendar({
         </span>
       </div>
 
-      <div className="edu-card rounded-xl border border-border/50 p-4">
-        <div className="flex items-center justify-between mb-3">
+      <div className="edu-card rounded-xl border border-border/50 p-2.5 sm:p-4">
+        <div className="flex items-center justify-between mb-2 sm:mb-3">
           <button
             type="button"
             onClick={prevMonth}
@@ -174,15 +174,15 @@ export default function StreakCalendar({
           </button>
         </div>
 
-        <div className="grid grid-cols-7 mb-1">
+        <div className="grid grid-cols-7 mb-0.5 sm:mb-1">
           {DAYS.map((d) => (
-            <div key={d} className="text-center text-[11px] font-bold text-muted-foreground py-1">
+            <div key={d} className="text-center text-[9px] font-bold text-muted-foreground py-0.5 sm:text-[11px] sm:py-1">
               {d}
             </div>
           ))}
         </div>
 
-        <div className="grid grid-cols-7 gap-y-1">
+        <div className="grid grid-cols-7 gap-y-0.5 sm:gap-y-1">
           {calendarCells.map((day, i) => {
             if (day === null) return <div key={`empty-${i}`} />;
             const key = dayKey(day);
@@ -198,7 +198,7 @@ export default function StreakCalendar({
             return (
               <div
                 key={day}
-                className={`flex flex-col items-center justify-center rounded-lg text-[11px] font-medium min-h-[2.75rem] py-1 mx-0.5 transition-colors gap-0.5
+                className={`flex flex-col items-center justify-center rounded-lg text-[10px] font-medium min-h-[2.25rem] py-0.5 mx-0.5 transition-colors gap-0.5 sm:text-[11px] sm:min-h-[2.75rem] sm:py-1
                   ${todayCell ? "bg-primary text-primary-foreground font-extrabold ring-1 ring-primary/40" : "text-foreground hover:bg-muted/60"}
                   ${!todayCell && hasDots ? "bg-muted/50 border border-border/60" : ""}`}
               >
@@ -219,18 +219,18 @@ export default function StreakCalendar({
           })}
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 mt-3 pt-3 border-t border-border/50">
-          <span className="flex items-center gap-1 text-xs text-muted-foreground">
-            <span className="w-2 h-2 rounded-full bg-green-500 inline-block" /> Class
+        <div className="flex flex-wrap items-center gap-2 mt-2 pt-2 border-t border-border/50 sm:gap-3 sm:mt-3 sm:pt-3">
+          <span className="flex items-center gap-1 text-[11px] text-muted-foreground sm:text-xs">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block sm:w-2 sm:h-2" /> Class
           </span>
-          <span className="flex items-center gap-1 text-xs text-muted-foreground">
-            <span className="w-2 h-2 rounded-full bg-blue-500 inline-block" /> Revision
+          <span className="flex items-center gap-1 text-[11px] text-muted-foreground sm:text-xs">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block sm:w-2 sm:h-2" /> Revision
           </span>
-          <span className="flex items-center gap-1 text-xs text-muted-foreground">
-            <span className="w-2 h-2 rounded-full bg-red-500 inline-block" /> Mock
+          <span className="flex items-center gap-1 text-[11px] text-muted-foreground sm:text-xs">
+            <span className="w-1.5 h-1.5 rounded-full bg-red-500 inline-block sm:w-2 sm:h-2" /> Mock
           </span>
-          <span className="flex items-center gap-1 text-xs text-muted-foreground">
-            <span className="w-2 h-2 rounded-full bg-gray-400 inline-block" /> Doubt
+          <span className="flex items-center gap-1 text-[11px] text-muted-foreground sm:text-xs">
+            <span className="w-1.5 h-1.5 rounded-full bg-gray-400 inline-block sm:w-2 sm:h-2" /> Doubt
           </span>
           {loading ? (
             <span className="text-[10px] text-muted-foreground ml-auto">Updating…</span>

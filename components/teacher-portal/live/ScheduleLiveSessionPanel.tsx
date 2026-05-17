@@ -9,13 +9,14 @@ import ConceptFocusAssignmentFields, {
   type ConceptFocusSelectionState,
   initialConceptFocusSelection,
   conceptFocusSelectionComplete,
-} from "@/components/teacher-portal/ConceptFocusAssignmentFields";
+} from "@/components/teacher-portal/assignment/fields/ConceptFocusAssignmentFields";
 import {
   chapterQuizToRef,
   type ChapterQuizSelectionState,
 } from "@/lib/teacherPortal/chapterQuizUtils";
 import type { TeacherPortalClassroomCard } from "@/lib/teacherPortal/types";
-import WallTimeSelects from "@/components/teacher-portal/WallTimeSelects";
+import { useTeacherRdmCosts } from "@/hooks/TeacherRdmCostsContext";
+import WallTimeSelects from "@/components/teacher-portal/live/WallTimeSelects";
 
 export type ScheduleLiveSessionPayload = {
   classroomId: string;
@@ -110,6 +111,7 @@ export default function ScheduleLiveSessionPanel({
   externalStep,
   onStepChange,
 }: ScheduleLiveSessionPanelProps) {
+  const { costs: teacherRdmCosts } = useTeacherRdmCosts();
   const [submitting, setSubmitting] = useState(false);
   const [classroomId, setClassroomId] = useState("");
   const [sectionId, setSectionId] = useState<string | null>(null);
@@ -577,8 +579,9 @@ export default function ScheduleLiveSessionPanel({
     input.focus();
   };
 
-  const resolvedSubmitLabel =
+  const baseSubmitLabel =
     submitLabel ?? (headingTitle.toLowerCase().includes("webinar") ? "Schedule webinar" : "Schedule class");
+  const resolvedSubmitLabel = `${baseSubmitLabel} (-${teacherRdmCosts.schedule_session} RDM)`;
 
   const stepCount = 5 as const;
   const stepTabLabels = ["Title & Classroom", "Date & Meet", "Pre-work", "Post-work", "Trial & Publish"] as const;

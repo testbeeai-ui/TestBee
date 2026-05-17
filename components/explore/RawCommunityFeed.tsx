@@ -739,9 +739,9 @@ export default function RawCommunityFeed({
         </div>
       ) : (
         <>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <h3 className="text-base font-bold text-foreground">Latest from your network</h3>
-            <p className="text-xs text-muted-foreground">
+          <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
+            <h3 className="text-sm font-bold text-foreground sm:text-base">Latest from your network</h3>
+            <p className="text-[11px] text-muted-foreground sm:text-xs">
               Human posts only — not Gyan++.{" "}
               <span className="text-foreground/70">Latest {PREVIEW_PAGE_SIZE}.</span>
             </p>
@@ -848,7 +848,7 @@ export default function RawCommunityFeed({
                 of <span className="font-medium text-foreground">{totalCount}</span> posts
               </p>
               <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex flex-wrap items-center justify-center gap-1 sm:justify-start">
+                <div className="flex items-center justify-between gap-2 sm:flex-wrap sm:justify-start sm:gap-1">
                   <Button
                     type="button"
                     variant="outline"
@@ -859,9 +859,9 @@ export default function RawCommunityFeed({
                     aria-label="Previous page"
                   >
                     <ChevronLeft className="h-4 w-4 shrink-0" />
-                    Previous
+                    <span className="hidden sm:inline">Previous</span>
                   </Button>
-                  <ul className="flex flex-wrap items-center justify-center gap-1 px-1">
+                  <ul className="hidden flex-wrap items-center justify-center gap-1 px-1 sm:flex">
                     {pageList.map((item, idx) =>
                       item === "ellipsis" ? (
                         <li key={`e-${idx}`}>
@@ -889,6 +889,9 @@ export default function RawCommunityFeed({
                       )
                     )}
                   </ul>
+                  <span className="text-xs font-medium text-muted-foreground sm:hidden">
+                    Page {currentPage} of {totalPages}
+                  </span>
                   <Button
                     type="button"
                     variant="outline"
@@ -898,7 +901,7 @@ export default function RawCommunityFeed({
                     onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                     aria-label="Next page"
                   >
-                    Next
+                    <span className="hidden sm:inline">Next</span>
                     <ChevronRight className="h-4 w-4 shrink-0" />
                   </Button>
                 </div>

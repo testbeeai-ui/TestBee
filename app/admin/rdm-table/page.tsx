@@ -5,6 +5,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Coins, Save } from "lucide-react";
+import {
+  TEACHER_RDM_ADMIN_CHARGE_KEYS,
+  TEACHER_RDM_ADMIN_META,
+  TEACHER_RDM_ADMIN_REWARD_KEYS,
+} from "@/lib/teacherPortal/teacherRdmConfig";
 
 type RdmConfigRow = {
   key: string;
@@ -159,6 +164,99 @@ const GYAN_RDM_KEYS = [
   "gyan_upvote_rdm",
   "gyan_save_rdm",
 ] as const;
+
+function TeacherRdmGroupBlock({
+  configs,
+  drafts,
+  onDraftChange,
+}: {
+  configs: Record<string, RdmConfigRow>;
+  drafts: Record<string, string>;
+  onDraftChange: (key: string, value: string) => void;
+}) {
+  function renderCard(key: string) {
+    const row = configs[key];
+    const meta = TEACHER_RDM_ADMIN_META[key];
+    if (!row || !meta) {
+      return (
+        <div key={key} className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">
+          Missing row <span className="font-mono">{key}</span> — apply migration{" "}
+          <span className="font-mono">20260517140000_teacher_portal_rdm_config</span>
+          {key === "gyan_teacher_answer_rdm" ? (
+            <>
+              {" "}
+              or <span className="font-mono">20260522120000_gyan_rdm_config_values</span>
+            </>
+          ) : null}
+          .
+        </div>
+      );
+    }
+    const isReward = meta.kind === "reward";
+    return (
+      <div key={key} className="flex flex-col gap-1.5 rounded-lg border bg-muted/10 p-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="text-sm font-medium text-foreground">{meta.title}</label>
+          <span
+            className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+              isReward
+                ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-300"
+                : "border-rose-400/30 bg-rose-500/10 text-rose-300"
+            }`}
+          >
+            {isReward ? "Reward (+RDM)" : "Charge (−RDM)"}
+          </span>
+        </div>
+        <div className="space-y-0.5 font-mono text-[11px] text-muted-foreground">
+          <div>
+            Config key: <span className="text-foreground/90">{key}</span>
+          </div>
+          <div>Teacher UI: {meta.teacherSurface}</div>
+          {meta.serverPath ? <div>Server: {meta.serverPath}</div> : null}
+        </div>
+        <div className="flex items-center gap-2">
+          <Input
+            type="number"
+            value={drafts[key] || ""}
+            onChange={(e) => onDraftChange(key, e.target.value)}
+            className="bg-background font-mono"
+          />
+          <span className="shrink-0 text-sm font-semibold text-amber-400">RDM</span>
+        </div>
+        <div className="mt-1 text-[10px] text-muted-foreground">
+          Last updated: {new Date(row.updated_at).toLocaleString()}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="scroll-mt-20 rounded-xl border bg-card overflow-hidden">
+      <div className="border-b bg-muted/40 px-4 py-3">
+        <h2 className="text-lg font-semibold">Teachers (portal charges &amp; rewards)</h2>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Live-linked to the teacher portal: classroom, section, assignment, schedule, test generation, and Gyan++
+          teacher rewards. After <span className="font-semibold">Save Changes</span>, amounts apply on the next
+          teacher action (wallet labels refresh when the teacher refocuses the tab).
+        </p>
+      </div>
+      <div className="space-y-8 p-4">
+        <div className="space-y-3">
+          <h3 className="text-sm font-semibold text-foreground">Charges (deduct from teacher wallet)</h3>
+          <div className="grid gap-4 md:grid-cols-2">
+            {TEACHER_RDM_ADMIN_CHARGE_KEYS.map((k) => renderCard(k))}
+          </div>
+        </div>
+        <div className="space-y-3">
+          <h3 className="text-sm font-semibold text-foreground">Rewards (credit to teacher wallet)</h3>
+          <div className="grid gap-4 md:grid-cols-2">
+            {TEACHER_RDM_ADMIN_REWARD_KEYS.map((k) => renderCard(k))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const MOCK_TEST_RDM_KEYS = ["mock_community_share_rdm", "mock_score_bonus_rdm"] as const;
 
@@ -504,7 +602,7 @@ const navPillPrimary =
 const navPillInactive =
   "border-border/50 bg-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground";
 
-type RdmTableTab = "learn" | "play" | "subtopic" | "gyan";
+type RdmTableTab = "learn" | "play" | "subtopic" | "gyan" | "teachers";
 
 function readInitialRdmTab(): RdmTableTab {
   if (typeof window === "undefined") return "learn";
@@ -512,6 +610,7 @@ function readInitialRdmTab(): RdmTableTab {
   if (sp.get("tab") === "play") return "play";
   if (sp.get("tab") === "subtopic") return "subtopic";
   if (sp.get("tab") === "gyan") return "gyan";
+  if (sp.get("tab") === "teachers") return "teachers";
   if (window.location.hash === "#rdm-play-hub") return "play";
   return "learn";
 }
@@ -543,7 +642,9 @@ export default function RdmTablePage() {
           ? `${path}?tab=subtopic`
           : tab === "gyan"
             ? `${path}?tab=gyan`
-            : path;
+            : tab === "teachers"
+              ? `${path}?tab=teachers`
+              : path;
     window.history.replaceState(null, "", next);
   }, []);
 
@@ -692,6 +793,16 @@ export default function RdmTablePage() {
         >
           Gyan ++
         </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "teachers"}
+          id="rdm-tab-teachers"
+          className={`${navPillBase} ${activeTab === "teachers" ? navPillPrimary : navPillInactive}`}
+          onClick={() => selectTab("teachers")}
+        >
+          Teachers
+        </button>
       </nav>
 
       <div
@@ -792,6 +903,24 @@ export default function RdmTablePage() {
           </p>
         </div>
         <SubtopicRdmGroupBlock configs={configs} drafts={drafts} onDraftChange={onDraftChange} />
+      </div>
+
+      <div
+        role="tabpanel"
+        aria-labelledby="rdm-tab-teachers"
+        hidden={activeTab !== "teachers"}
+        className="space-y-4"
+      >
+        <div className="rounded-lg border border-orange-500/25 bg-orange-500/5 px-4 py-3">
+          <p className="text-sm font-semibold text-foreground">Teachers (portal)</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Same live connection as the teacher portal: My Classroom (class + sections), Create assignment, Schedule
+            live class, Generate test, and Gyan++ teacher rewards. Edit amounts below and click{" "}
+            <span className="font-semibold">Save Changes</span> — the next charge or reward uses the new value; button
+            labels refresh when teachers refocus the portal tab.
+          </p>
+        </div>
+        <TeacherRdmGroupBlock configs={configs} drafts={drafts} onDraftChange={onDraftChange} />
       </div>
     </main>
   );

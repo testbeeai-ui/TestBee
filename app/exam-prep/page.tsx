@@ -17,7 +17,7 @@ const cards = [
     available: true,
   },
   {
-    href: "/mock-test-library",
+    href: "/mock-test",
     icon: ClipboardList,
     title: "Mock Tests",
     description: "Timed mock tests to simulate exam conditions and track your performance.",

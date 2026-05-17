@@ -607,7 +607,7 @@ export function NewsBlogClient({
                 </span>
               </div>
 
-              <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1fr)_400px] xl:grid-cols-[minmax(0,1fr)_420px]">
+              <div className="relative grid gap-4 sm:gap-6 lg:gap-8 lg:grid-cols-[minmax(0,1fr)_400px] xl:grid-cols-[minmax(0,1fr)_420px]">
                 <div className="space-y-6">
                   <section className="rounded-2xl border border-slate-600/30 bg-gradient-to-b from-[#1e2a3d]/96 to-[#151f2d] p-5 shadow-[0_16px_40px_-12px_rgba(0,0,0,0.28)] sm:p-6">
                     <div className="mb-5 border-b border-slate-600/20 pb-4">

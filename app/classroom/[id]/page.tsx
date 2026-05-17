@@ -896,20 +896,20 @@ const ClassroomDetail = () => {
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="relative overflow-hidden rounded-3xl gradient-primary p-8 text-primary-foreground"
+            className="relative overflow-hidden rounded-2xl gradient-primary p-4 text-primary-foreground sm:rounded-3xl sm:p-6 lg:p-8"
           >
             <div className="relative z-10">
-              <h1 className="text-3xl font-display mb-1">{classroom.name}</h1>
+              <h1 className="text-xl font-display mb-1 sm:text-2xl lg:text-3xl">{classroom.name}</h1>
               {classroom.subject && (
                 <p className="text-primary-foreground/80 font-bold">{classroom.subject}</p>
               )}
               {classroom.section && (
-                <span className="inline-block mt-2 bg-primary-foreground/20 px-3 py-1 rounded-full text-sm font-bold">
+                <span className="inline-block mt-1.5 bg-primary-foreground/20 px-2.5 py-0.5 rounded-full text-xs font-bold sm:mt-2 sm:px-3 sm:py-1 sm:text-sm">
                   {classroom.section}
                 </span>
               )}
               {studentSectionDisplay && (
-                <span className="inline-block mt-2 ml-0 rounded-full border border-emerald-300/50 bg-emerald-950/50 px-3 py-1 text-xs font-bold text-emerald-50 shadow-sm">
+                <span className="inline-block mt-1.5 ml-0 rounded-full border border-emerald-300/50 bg-emerald-950/50 px-2.5 py-0.5 text-[11px] font-bold text-emerald-50 shadow-sm sm:mt-2 sm:px-3 sm:py-1 sm:text-xs">
                   Your section:{" "}
                   {studentSectionDisplay.kind === "unassigned"
                     ? "Unassigned"
@@ -917,21 +917,21 @@ const ClassroomDetail = () => {
                 </span>
               )}
               {showTeacherControls && (
-                <div className="mt-4 flex items-center gap-2">
-                  <span className="text-sm text-primary-foreground/70">Join Code:</span>
+                <div className="mt-3 flex items-center gap-2 sm:mt-4">
+                  <span className="text-xs text-primary-foreground/70 sm:text-sm">Join Code:</span>
                   <button
                     onClick={() => {
                       navigator.clipboard.writeText(classroom.join_code);
                       toast({ title: "Copied!" });
                     }}
-                    className="bg-primary-foreground/20 px-3 py-1 rounded-lg text-sm font-bold flex items-center gap-1.5 hover:bg-primary-foreground/30 transition-colors"
+                    className="bg-primary-foreground/20 px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 hover:bg-primary-foreground/30 transition-colors sm:px-3 sm:text-sm"
                   >
                     <Copy className="w-3.5 h-3.5" /> {classroom.join_code}
                   </button>
                 </div>
               )}
               {classroom.google_classroom_id && (
-                <div className="mt-3">
+                <div className="mt-2.5 sm:mt-3">
                   <a
                     href={
                       classroom.google_classroom_id.startsWith("http")
@@ -940,7 +940,7 @@ const ClassroomDetail = () => {
                     }
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 bg-primary-foreground/20 px-3 py-1.5 rounded-lg text-sm font-bold hover:bg-primary-foreground/30 transition-colors text-primary-foreground"
+                    className="inline-flex items-center gap-2 bg-primary-foreground/20 px-2.5 py-1 rounded-lg text-xs font-bold hover:bg-primary-foreground/30 transition-colors text-primary-foreground sm:px-3 sm:py-1.5 sm:text-sm"
                   >
                     Open in Google Classroom
                   </a>
@@ -1095,8 +1095,8 @@ const ClassroomDetail = () => {
               {/* About this class (larger) + Class Overview (compact) side by side */}
               <div className="grid grid-cols-1 md:grid-cols-[1fr_340px] gap-4 items-start">
                 {/* About this class - takes most space */}
-                <div className="edu-card p-6">
-                  <h3 className="font-display text-lg text-foreground mb-3">About this class</h3>
+                <div className="edu-card p-4 sm:p-6">
+                  <h3 className="font-display text-base text-foreground mb-2.5 sm:text-lg sm:mb-3">About this class</h3>
                   {(classroom.subject || classroom.section) && (
                     <div className="flex flex-wrap gap-2 mb-3">
                       {classroom.subject && (
@@ -1182,8 +1182,8 @@ const ClassroomDetail = () => {
                   )}
                 </div>
                 {/* Class Overview - compact block, natural height */}
-                <div className="edu-card p-6 self-start">
-                  <h3 className="font-display text-lg text-foreground mb-3">Class Overview</h3>
+                <div className="edu-card p-4 self-start sm:p-6">
+                  <h3 className="font-display text-base text-foreground mb-2.5 sm:text-lg sm:mb-3">Class Overview</h3>
                   <div className="grid grid-cols-2 gap-2 text-sm mb-4">
                     <div className="bg-muted/30 rounded-xl p-2.5 text-center">
                       <p className="text-xl font-extrabold text-foreground">{studentVisibleMembers.length}</p>
@@ -1705,17 +1705,17 @@ const ClassroomDetail = () => {
                       {joinRequests.map((req) => (
                         <div
                           key={req.id}
-                          className="flex items-center justify-between gap-4 p-4 bg-muted/40 rounded-xl"
+                          className="flex flex-col gap-3 p-3 bg-muted/40 rounded-xl sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:p-4"
                         >
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary">
+                          <div className="flex items-center gap-2.5 sm:gap-3">
+                            <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary sm:w-10 sm:h-10">
                               {(req.profiles?.name || "?")[0].toUpperCase()}
                             </div>
                             <div>
-                              <p className="font-bold text-foreground">
+                              <p className="text-sm font-bold text-foreground sm:text-base">
                                 {req.profiles?.name || "Student"}
                               </p>
-                              <p className="text-xs text-muted-foreground">Requested to join</p>
+                              <p className="text-[11px] text-muted-foreground sm:text-xs">Requested to join</p>
                             </div>
                           </div>
                           <div className="flex gap-2 shrink-0">
@@ -1761,13 +1761,13 @@ const ClassroomDetail = () => {
                   <InviteStudents classroomId={classroom.id} joinCode={classroom.join_code} />
                 </div>
               )}
-              <div className="edu-card p-6">
-                <div className="flex items-center gap-2.5 mb-5">
+              <div className="edu-card p-4 sm:p-6">
+                <div className="flex items-center gap-2.5 mb-4 sm:mb-5">
                   <div className="w-9 h-9 bg-primary/10 rounded-xl flex items-center justify-center">
                     <Users className="w-5 h-5 text-primary" />
                   </div>
                   <div className="min-w-0">
-                    <h2 className="text-xl font-display text-foreground">
+                    <h2 className="text-lg font-display text-foreground sm:text-xl">
                       Members ({studentVisibleMembers.length})
                     </h2>
                     {!showTeacherControls && (
@@ -1790,9 +1790,9 @@ const ClassroomDetail = () => {
                     {studentVisibleMembers.map((m) => (
                       <div
                         key={m.user_id}
-                        className="flex items-center gap-3 bg-muted/40 rounded-xl p-3"
+                        className="flex flex-wrap items-center gap-2.5 bg-muted/40 rounded-xl p-2.5 sm:flex-nowrap sm:gap-3 sm:p-3"
                       >
-                        <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary">
+                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary sm:w-9 sm:h-9 sm:text-sm">
                           {(m.profiles?.name || "?")[0].toUpperCase()}
                         </div>
                         <div className="flex-1 min-w-0">
@@ -1835,7 +1835,7 @@ const ClassroomDetail = () => {
                           )}
                         </div>
                         <span
-                          className={`edu-chip text-xs shrink-0 ${m.role === "teacher" ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"}`}
+                          className={`edu-chip text-[11px] shrink-0 sm:text-xs ${m.role === "teacher" ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"}`}
                         >
                           {m.role}
                         </span>
@@ -1847,14 +1847,15 @@ const ClassroomDetail = () => {
                               handleRemoveMember(m.user_id, m.profiles?.name || "Student")
                             }
                             disabled={!!removingMemberId}
-                            className="shrink-0 rounded-xl gap-1.5 text-destructive border-destructive/50 hover:bg-destructive/10"
+                            className="shrink-0 rounded-xl gap-1 text-[11px] text-destructive border-destructive/50 hover:bg-destructive/10 sm:gap-1.5 sm:text-xs"
                           >
                             {removingMemberId === m.user_id ? (
                               <Loader2 className="w-3.5 h-3.5 animate-spin" />
                             ) : (
                               <UserMinus className="w-3.5 h-3.5" />
                             )}
-                            Remove
+                            <span className="hidden sm:inline">Remove</span>
+                            <span className="sm:hidden">Del</span>
                           </Button>
                         )}
                       </div>

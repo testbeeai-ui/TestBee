@@ -34,7 +34,7 @@ function OptionBody({ text }: { text: string }) {
   if (t.includes("<")) {
     return (
       <span
-        className="prose prose-sm max-w-none flex-1 text-foreground dark:prose-invert [&_.math-tex]:text-inherit"
+        className="prose prose-xs max-w-none flex-1 text-foreground dark:prose-invert sm:prose-sm [&_.math-tex]:text-inherit"
         // eslint-disable-next-line react/no-danger -- sanitized server/mock HTML
         dangerouslySetInnerHTML={{ __html: sanitizeMockHtml(t) }}
       />
@@ -99,21 +99,21 @@ const QuestionCard = ({ question, onNext, mockMode, onAnswerSelect }: Props) => 
       </div>
 
       {/* Question */}
-      <div className="bg-card rounded-2xl p-5 shadow-lg border border-border">
+      <div className="bg-card rounded-xl p-3.5 shadow-lg border border-border sm:rounded-2xl sm:p-5">
         {question.questionHtml ? (
           <div
-            className="prose prose-lg mb-4 max-w-none font-bold leading-snug text-foreground dark:prose-invert [&_p]:my-2 [&_strong]:text-foreground"
+            className="prose prose-sm mb-3 max-w-none font-bold leading-snug text-foreground dark:prose-invert [&_p]:my-1.5 sm:prose-base sm:mb-4 sm:[&_p]:my-2 lg:prose-lg lg:[&_p]:my-2.5 [&_strong]:text-foreground"
             // eslint-disable-next-line react/no-danger -- sanitized mock bank HTML
             dangerouslySetInnerHTML={{ __html: sanitizeMockHtml(question.questionHtml) }}
           />
         ) : (
-          <h3 className="mb-4 text-lg font-bold leading-snug text-foreground">
+          <h3 className="mb-3 text-sm font-bold leading-snug text-foreground sm:mb-4 sm:text-base lg:text-lg">
             {question.question}
           </h3>
         )}
 
         {/* Options */}
-        <div className="space-y-2">
+        <div className="space-y-1.5 sm:space-y-2">
           {question.options.map((option, i) => {
             let optionClass = "bg-muted hover:bg-muted/80 text-foreground";
             if (answered) {
@@ -134,9 +134,9 @@ const QuestionCard = ({ question, onNext, mockMode, onAnswerSelect }: Props) => 
                 onClick={() => handleAnswer(i)}
                 disabled={answered}
                 whileTap={!answered ? { scale: 0.98 } : undefined}
-                className={`w-full text-left p-3 rounded-xl font-semibold text-sm transition-all flex items-center gap-2 ${optionClass}`}
+                className={`w-full text-left p-2 rounded-lg font-semibold text-xs transition-all flex items-center gap-1.5 sm:p-3 sm:rounded-xl sm:text-sm sm:gap-2 ${optionClass}`}
               >
-                <span className="w-7 h-7 rounded-full bg-background/50 flex items-center justify-center text-xs font-bold shrink-0">
+                <span className="w-5 h-5 rounded-full bg-background/50 flex items-center justify-center text-[10px] font-bold shrink-0 sm:w-7 sm:h-7 sm:text-xs">
                   {String.fromCharCode(65 + i)}
                 </span>
                 <OptionBody text={option} />
@@ -262,17 +262,17 @@ const QuestionCard = ({ question, onNext, mockMode, onAnswerSelect }: Props) => 
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
-            className="bg-accent/10 rounded-xl p-4 border border-accent/30"
+            className="bg-accent/10 rounded-lg p-3 border border-accent/30 sm:rounded-xl sm:p-4"
           >
-            <h4 className="font-bold text-sm text-foreground mb-1">📝 Solution</h4>
+            <h4 className="font-bold text-xs text-foreground mb-0.5 sm:text-sm sm:mb-1">📝 Solution</h4>
             {question.solutionHtml ? (
               <div
-                className="prose prose-sm max-w-none text-foreground/90 dark:prose-invert [&_img]:max-h-48 [&_img]:w-auto"
+                className="prose prose-xs max-w-none text-foreground/90 dark:prose-invert [&_img]:max-h-32 sm:prose-sm sm:[&_img]:max-h-48 [&_img]:w-auto"
                 // eslint-disable-next-line react/no-danger
                 dangerouslySetInnerHTML={{ __html: sanitizeMockHtml(question.solutionHtml) }}
               />
             ) : (
-              <p className="text-sm text-foreground/80">{question.solution}</p>
+              <p className="text-xs text-foreground/80 sm:text-sm">{question.solution}</p>
             )}
           </motion.div>
         )}
@@ -281,11 +281,11 @@ const QuestionCard = ({ question, onNext, mockMode, onAnswerSelect }: Props) => 
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
-            className="bg-muted rounded-xl p-4 space-y-3"
+            className="bg-muted rounded-lg p-3 space-y-2.5 sm:rounded-xl sm:p-4 sm:space-y-3"
           >
             <div>
-              <h4 className="font-bold text-sm text-foreground mb-1">📖 Theory</h4>
-              <p className="text-sm text-muted-foreground">{question.reference.theory}</p>
+              <h4 className="font-bold text-xs text-foreground mb-0.5 sm:text-sm sm:mb-1">📖 Theory</h4>
+              <p className="text-xs text-muted-foreground sm:text-sm">{question.reference.theory}</p>
             </div>
             {question.reference.inventor && (
               <div>

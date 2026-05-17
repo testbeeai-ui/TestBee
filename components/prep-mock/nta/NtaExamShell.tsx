@@ -1,10 +1,7 @@
 "use client";
 
-import { memo, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import type { Question } from "@/types";
-import { sanitizeMockHtml } from "@/lib/mockHtml";
-import { patchNtaHtmlPresentation, wrapPlainMockTextForKatexHtml } from "@/lib/mockRichTextKatex";
-import { useKatexAutoRender } from "@/hooks/useKatexAutoRender";
 import {
   ShapeNotVisited,
   ShapeNotAnswered,
@@ -14,114 +11,18 @@ import {
   getNtaPaletteKind,
   NtaPaletteShapeSvg,
 } from "@/components/prep-mock/nta/ntaPaletteShapes";
+import {
+  computeNtaLegendCounts,
+  formatNtaHhMmSs,
+  NtaOptionBody,
+  NtaQuestionStem,
+} from "@/components/prep-mock/nta/ntaExamParts";
+import { NtaExamShellMobile } from "@/components/prep-mock/nta/NtaExamShellMobile";
 import { cn } from "@/lib/utils";
 
-function formatHhMmSs(totalSeconds: number): string {
-  const t = Math.max(0, totalSeconds);
-  const h = Math.floor(t / 3600);
-  const m = Math.floor((t % 3600) / 60);
-  const s = t % 60;
-  return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
-}
+export type { NtaLegendCounts } from "@/components/prep-mock/nta/ntaExamParts";
 
-const ntaMdClass =
-  "min-w-0 max-w-full break-words text-[var(--nta-text)] [&_.katex]:!text-[var(--nta-text)] [&_.katex-display]:max-w-full [&_.katex-display]:overflow-x-auto [&_a]:!text-[var(--nta-blue)]";
-
-/** Question stem only — rem so KaTeX’s own em sizing doesn’t swallow tiny tweaks. */
-const ntaStemKatexClass =
-  "[&_.katex]:![font-size:1.0625rem] sm:[&_.katex]:![font-size:1.125rem] lg:[&_.katex]:![font-size:1.125rem] xl:[&_.katex]:![font-size:1.1875rem] 2xl:[&_.katex]:![font-size:1.25rem]";
-
-/** Options when they contain math — modest bump. */
-const ntaOptionKatexClass =
-  "[&_.katex]:![font-size:1.0625rem] lg:[&_.katex]:![font-size:1.09375rem]";
-
-/**
- * Supabase may send option HTML (`<span class="math-tex">\\(…\\)</span>`) or plain `\\(…\\)`.
- * One path: sanitize HTML + KaTeX auto-render (same as stems).
- * Memoized so header timer re-renders do not reconcile away KaTeX DOM.
- */
-const NtaOptionBody = memo(function NtaOptionBody({ text }: { text: string }) {
-  const t = text.trim();
-  const htmlRef = useRef<HTMLDivElement>(null);
-  const safeHtml = useMemo(() => {
-    if (!t) return "";
-    const core = t.includes("<")
-      ? sanitizeMockHtml(t)
-      : sanitizeMockHtml(wrapPlainMockTextForKatexHtml(t));
-    return patchNtaHtmlPresentation(core);
-  }, [t]);
-  useKatexAutoRender(htmlRef, safeHtml, t);
-
-  return (
-    <div
-      ref={htmlRef}
-      className={cn(
-        "prose prose-sm max-w-none leading-snug sm:prose-base",
-        ntaMdClass,
-        ntaOptionKatexClass
-      )}
-      suppressHydrationWarning
-    />
-  );
-});
-
-const NtaQuestionStem = memo(function NtaQuestionStem({ q }: { q: Question }) {
-  const htmlRef = useRef<HTMLDivElement>(null);
-  const safeHtml = useMemo(() => {
-    if (q.questionHtml) return patchNtaHtmlPresentation(sanitizeMockHtml(q.questionHtml));
-    const plain = String(q.question ?? "").trim();
-    if (!plain) return "";
-    return patchNtaHtmlPresentation(sanitizeMockHtml(wrapPlainMockTextForKatexHtml(plain)));
-  }, [q.questionHtml, q.question]);
-  useKatexAutoRender(htmlRef, safeHtml, q.id);
-
-  if (!safeHtml) return null;
-  return (
-    <div
-      ref={htmlRef}
-      className={cn(
-        "prose prose-sm max-w-none font-medium leading-relaxed sm:prose-base [&_img]:max-h-40 [&_p]:my-1.5 sm:[&_img]:max-h-48 sm:[&_p]:my-2 lg:prose-lg lg:[&_img]:max-h-56 lg:[&_p]:my-2.5 xl:[&_img]:max-h-64 xl:[&_p]:my-3 2xl:[&_img]:max-h-[22rem]",
-        ntaMdClass,
-        ntaStemKatexClass
-      )}
-      suppressHydrationWarning
-    />
-  );
-});
-
-export interface NtaLegendCounts {
-  notVisited: number;
-  notAnswered: number;
-  answered: number;
-  marked: number;
-  answeredMarked: number;
-}
-
-function computeLegendCounts(
-  questions: Question[],
-  visitedIds: Set<string>,
-  answers: Record<string, number>,
-  flagged: Set<string>
-): NtaLegendCounts {
-  let notVisited = 0;
-  let notAnswered = 0;
-  let answered = 0;
-  let marked = 0;
-  let answeredMarked = 0;
-  for (const q of questions) {
-    const v = visitedIds.has(q.id);
-    const a = answers[q.id] !== undefined;
-    const f = flagged.has(q.id);
-    if (!v) notVisited++;
-    else if (a && f) answeredMarked++;
-    else if (f) marked++;
-    else if (a) answered++;
-    else notAnswered++;
-  }
-  return { notVisited, notAnswered, answered, marked, answeredMarked };
-}
-
-interface NtaExamShellProps {
+export interface NtaExamShellProps {
   candidateName: string;
   avatarUrl: string | null;
   examNameLine: string;
@@ -138,6 +39,7 @@ interface NtaExamShellProps {
   onClearResponse: () => void;
   onSaveMarkReviewNext: () => void;
   onMarkReviewNext: () => void;
+  onMarkForReviewOnly?: () => void;
   onBackNav: () => void;
   onNextNav: () => void;
   onSubmitClick: () => void;
@@ -160,6 +62,7 @@ export function NtaExamShell({
   onClearResponse,
   onSaveMarkReviewNext,
   onMarkReviewNext,
+  onMarkForReviewOnly,
   onBackNav,
   onNextNav,
   onSubmitClick,
@@ -167,7 +70,7 @@ export function NtaExamShell({
   const [paletteOpen, setPaletteOpen] = useState(true);
   const q = questions[currentIndex];
   const counts = useMemo(
-    () => computeLegendCounts(questions, visitedIds, answers, flagged),
+    () => computeNtaLegendCounts(questions, visitedIds, answers, flagged),
     [questions, visitedIds, answers, flagged]
   );
 
@@ -175,11 +78,36 @@ export function NtaExamShell({
 
   const selected = answers[q.id];
 
+  const shellProps = {
+    candidateName,
+    avatarUrl,
+    examNameLine,
+    subjectPaperLine,
+    secondsLeft,
+    questions,
+    currentIndex,
+    onSelectIndex,
+    answers,
+    flagged,
+    visitedIds,
+    onAnswerSelect,
+    onSaveAndNext,
+    onClearResponse,
+    onSaveMarkReviewNext,
+    onMarkReviewNext,
+    onMarkForReviewOnly,
+    onBackNav,
+    onNextNav,
+    onSubmitClick,
+  };
+
   return (
-    <div
-      className="flex min-h-0 flex-1 flex-col overflow-hidden text-xs sm:text-[13px] lg:text-sm xl:text-[15px] 2xl:text-base antialiased"
-      style={{ color: "var(--nta-text)", background: "var(--nta-bg)" }}
-    >
+    <>
+      <NtaExamShellMobile {...shellProps} />
+      <div
+        className="hidden min-h-0 flex-1 flex-col overflow-hidden text-xs sm:text-[13px] lg:flex lg:text-sm xl:text-[15px] 2xl:text-base antialiased"
+        style={{ color: "var(--nta-text)", background: "var(--nta-bg)" }}
+      >
       <header
         className="relative shrink-0 border-b px-2.5 py-2 sm:px-4 sm:py-3 lg:px-5 lg:py-3 xl:px-6 xl:py-4 2xl:px-8 2xl:py-5"
         style={{
@@ -245,7 +173,7 @@ export function NtaExamShell({
                   className="rounded px-2 py-0.5 font-mono text-xs font-bold tabular-nums sm:px-3 sm:py-1 sm:text-sm lg:px-3 lg:py-1 lg:text-sm xl:px-4 xl:py-1.5 xl:text-base"
                   style={{ background: "var(--nta-timer-bg)", color: "var(--nta-timer-text)" }}
                 >
-                  {formatHhMmSs(secondsLeft)}
+                  {formatNtaHhMmSs(secondsLeft)}
                 </span>
               </div>
             </div>
@@ -440,11 +368,11 @@ export function NtaExamShell({
           </div>
         </aside>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
 
-/** Compact legend row for header: icon, count, em dash label (two per line + one full-width row). */
 function HeaderLegendCell({ icon, n, label }: { icon: React.ReactNode; n: number; label: string }) {
   return (
     <div className="flex min-w-0 flex-1 items-center gap-1 text-[9px] leading-tight sm:gap-1.5 sm:text-[10px] md:text-[11px] lg:text-[11px] xl:text-xs">

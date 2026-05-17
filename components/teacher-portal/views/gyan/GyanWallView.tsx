@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Loader2, Sparkles } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import type { TeacherPortalSummary, TeacherPortalWallItem } from "@/lib/teacherPortal/types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { DEFAULT_RDM_CONFIG, fetchRdmConfig } from "@/lib/rdmConfig";
+import { useTeacherRdmCosts } from "@/hooks/TeacherRdmCostsContext";
 
 interface GyanWallViewProps {
   summary: TeacherPortalSummary;
@@ -41,11 +41,8 @@ export default function GyanWallView({
   const [postingId, setPostingId] = useState<string | null>(null);
   const [activeComposerDoubtId, setActiveComposerDoubtId] = useState<string | null>(null);
   const [expandedAiById, setExpandedAiById] = useState<Record<string, boolean>>({});
-  const [teacherRewardRdm, setTeacherRewardRdm] = useState(DEFAULT_RDM_CONFIG.gyan_teacher_answer_rdm);
-
-  useEffect(() => {
-    void fetchRdmConfig().then((cfg) => setTeacherRewardRdm(cfg.gyan_teacher_answer_rdm));
-  }, []);
+  const { costs: teacherRdmCosts } = useTeacherRdmCosts();
+  const teacherRewardRdm = teacherRdmCosts.gyan_teacher_answer;
 
   const submit = async (doubtId: string) => {
     const body = draftById[doubtId]?.trim();
@@ -139,7 +136,7 @@ export default function GyanWallView({
                           </span>
                         </div>
                         <div
-                          className={`mt-1 doubt-markdown doubt-markdown-compact text-emerald-50/90 ${
+                          className={`mt-1 doubt-markdown doubt-markdown-compact gyan-wall-ai-markdown ${
                             expandedAiById[item.doubtId] ? "" : "line-clamp-4"
                           }`}
                         >
@@ -246,7 +243,7 @@ export default function GyanWallView({
                         <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-200">
                           AI answer (quick)
                         </div>
-                        <div className="mt-1 doubt-markdown doubt-markdown-compact text-emerald-50/90">
+                        <div className="mt-1 doubt-markdown doubt-markdown-compact gyan-wall-ai-markdown">
                           <ReactMarkdown
                             remarkPlugins={[remarkMath]}
                             rehypePlugins={[rehypeKatex]}

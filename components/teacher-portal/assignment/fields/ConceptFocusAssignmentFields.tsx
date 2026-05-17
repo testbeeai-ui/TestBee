@@ -10,7 +10,7 @@ import {
   uniqueChaptersFor,
 } from "@/lib/teacherPortal/chapterQuizUtils";
 import type { Board, ClassLevel, Subject } from "@/types";
-import ConceptFocusSubtopicPreview from "@/components/teacher-portal/ConceptFocusSubtopicPreview";
+import ConceptFocusSubtopicPreview from "@/components/teacher-portal/assignment/fields/ConceptFocusSubtopicPreview";
 
 export type ConceptFocusSelectionState = {
   classLevel: ClassLevel | null;

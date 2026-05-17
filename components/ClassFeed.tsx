@@ -554,8 +554,8 @@ const ClassFeed = ({
         </div>
       );
 
-      const cardClass = `edu-card rounded-2xl p-5 transition-all flex flex-col hover:border-primary/30 hover:shadow-md ${
-        gyanStudent ? "min-h-[220px]" : "min-h-[180px]"
+      const cardClass = `edu-card rounded-xl p-3 transition-all flex flex-col hover:border-primary/30 hover:shadow-md sm:rounded-2xl sm:p-5 ${
+        gyanStudent ? "min-h-[180px] sm:min-h-[220px]" : "min-h-[140px] sm:min-h-[180px]"
       }`;
       return (
         <div key={post.id} className="flex">
@@ -586,7 +586,7 @@ const ClassFeed = ({
 
   if (loading) {
     return (
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4">
         {Array.from({ length: 8 }).map((_, i) => (
           <div
             key={i}
@@ -647,7 +647,7 @@ const ClassFeed = ({
             {nextMs ? ` starting ${format(new Date(nextMs), "MMM d, h:mm a")}` : " soon"}.
           </p>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">{upcomingPosts.map(renderPostCard)}</div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4">{upcomingPosts.map(renderPostCard)}</div>
       </div>
     );
   }
@@ -717,7 +717,7 @@ const ClassFeed = ({
       {tabBar}
       {tabEmptyHint}
       {selectedPosts.length > 0 ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4">
           {selectedPosts.map(renderPostCard)}
         </div>
       ) : null}

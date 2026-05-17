@@ -731,12 +731,12 @@ export default function SubjectChatbot({
               )}
             </AnimatePresence>
 
-            {/* Tooltip speech bubble */}
+            {/* Tooltip speech bubble — desktop only; mobile shows avatar only */}
             <motion.div
               initial={{ opacity: 0, y: 10, scale: 0.9 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               transition={{ delay: 2, type: "spring" }}
-              className="bg-white px-4 py-2.5 rounded-2xl rounded-br-sm shadow-xl border border-gray-100/50 flex items-center gap-2 origin-bottom-right cursor-grab active:cursor-grabbing"
+              className="hidden items-center gap-2 rounded-2xl rounded-br-sm border border-gray-100/50 bg-white px-4 py-2.5 shadow-xl origin-bottom-right cursor-grab active:cursor-grabbing lg:flex"
               onClick={handleTriggerClick}
             >
               <span className="text-sm font-semibold text-gray-700">Need help? Ask AI!</span>

@@ -4,6 +4,11 @@ import { useCallback, useLayoutEffect, useState } from "react";
 import type { AssignmentTaskStored } from "@/lib/classroom/assignmentTasks";
 import type { Json } from "@/integrations/supabase/types";
 import { fetchWithClientAuth } from "@/lib/clientApiAuth";
+import { chargeTeacherRdm, refundTeacherRdm } from "@/lib/teacherPortal/rdmCharges";
+import {
+  DEFAULT_TEACHER_RDM_COSTS,
+  type TeacherRdmCosts,
+} from "@/lib/teacherPortal/teacherRdmConfig";
 import {
   createClassroomAssignment,
   createTeacherLiveSession,
@@ -188,8 +193,12 @@ interface UseTeacherPortalDataResult {
 }
 
 export function useTeacherPortalData(
-  userId: string | null | undefined
+  userId: string | null | undefined,
+  options?: {
+    rdmCosts?: TeacherRdmCosts;
+  }
 ): UseTeacherPortalDataResult {
+  const rdmCosts = options?.rdmCosts ?? DEFAULT_TEACHER_RDM_COSTS;
   const [data, setData] = useState<TeacherPortalDataBundle | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -277,7 +286,14 @@ export function useTeacherPortalData(
       scheduleEndDate?: string | null;
       allowAdhocTrial: boolean;
     }) => {
-      const { classroomId } = await createTeacherClassroom(input);
+      await chargeTeacherRdm("create_classroom", rdmCosts);
+      let classroomId: string;
+      try {
+        ({ classroomId } = await createTeacherClassroom(input));
+      } catch (e) {
+        await refundTeacherRdm("create_classroom", rdmCosts).catch(() => {});
+        throw e;
+      }
       if (input.scheduleDate && input.scheduleTime) {
         const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
         try {
@@ -304,7 +320,7 @@ export function useTeacherPortalData(
       }
       await refresh();
     },
-    [refresh]
+    [refresh, rdmCosts]
   );
 
   const createAssignment = useCallback(
@@ -326,11 +342,17 @@ export function useTeacherPortalData(
       gyanEngagement?: TeacherPortalGyanEngagementRef | null;
       extraContentJson?: Record<string, Json> | null;
     }) => {
-      const created = await createClassroomAssignment(input);
-      await refresh();
-      return created;
+      await chargeTeacherRdm("create_assignment", rdmCosts);
+      try {
+        const created = await createClassroomAssignment(input);
+        await refresh();
+        return created;
+      } catch (e) {
+        await refundTeacherRdm("create_assignment", rdmCosts).catch(() => {});
+        throw e;
+      }
     },
-    [refresh]
+    [refresh, rdmCosts]
   );
 
   const motivateStudents = useCallback(
@@ -408,10 +430,16 @@ export function useTeacherPortalData(
       } | null;
       postWorkDelayDays?: number;
     }) => {
-      await createTeacherLiveSession(input);
-      await refresh();
+      await chargeTeacherRdm("schedule_session", rdmCosts);
+      try {
+        await createTeacherLiveSession(input);
+        await refresh();
+      } catch (e) {
+        await refundTeacherRdm("schedule_session", rdmCosts).catch(() => {});
+        throw e;
+      }
     },
-    [refresh]
+    [refresh, rdmCosts]
   );
 
   const updateClassroom = useCallback(

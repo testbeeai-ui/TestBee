@@ -9,18 +9,22 @@ import { useTeacherPortalData } from "@/hooks/useTeacherPortalData";
 import { useTeacherPortalBundleAutoRefresh } from "@/hooks/useTeacherPortalBundleAutoRefresh";
 import { useAdminTeacherPortalData } from "@/hooks/useAdminTeacherPortalData";
 import type { TeacherPortalSection } from "@/lib/teacherPortal/types";
-import TeacherPortalShell from "@/components/teacher-portal/TeacherPortalShell";
-import MyClassroomView from "@/components/teacher-portal/MyClassroomView";
-import MyClassesView from "@/components/teacher-portal/MyClassesView";
-import GyanWallView from "@/components/teacher-portal/GyanWallView";
-import ReferEarnView from "@/components/teacher-portal/ReferEarnView";
-import TeacherProfileView from "@/components/teacher-portal/TeacherProfileView";
-import CreateTestsView from "@/components/teacher-portal/CreateTestsView";
-import TeacherVerificationGate from "@/components/teacher-portal/TeacherVerificationGate";
+import TeacherPortalShell from "@/components/teacher-portal/shell/TeacherPortalShell";
+import MyClassroomView from "@/components/teacher-portal/classroom/my-classroom/MyClassroomView";
+import MyClassesView from "@/components/teacher-portal/views/classes/MyClassesView";
+import GyanWallView from "@/components/teacher-portal/views/gyan/GyanWallView";
+import ReferEarnView from "@/components/teacher-portal/views/refer/ReferEarnView";
+import TeacherProfileView from "@/components/teacher-portal/views/profile/TeacherProfileView";
+import CreateTestsView from "@/components/teacher-portal/views/tests/CreateTestsView";
+import TeacherVerificationGate from "@/components/teacher-portal/shell/TeacherVerificationGate";
 import { useToast } from "@/hooks/use-toast";
 import { useTeacherVerificationActionGuard } from "@/hooks/useTeacherVerificationActionGuard";
 import { TEACHER_VERIFICATION_REQUIRED_ERROR } from "@/lib/teacherPortal/queries";
 import { TEACHER_PORTAL_CLASSROOMS_URL } from "@/lib/teacherPortal/routes";
+import {
+  TeacherRdmCostsProvider,
+  useTeacherRdmCosts,
+} from "@/hooks/TeacherRdmCostsContext";
 
 function TeacherPortalPageContent() {
   const router = useRouter();
@@ -34,6 +38,7 @@ function TeacherPortalPageContent() {
   const adminTeacherIdRaw = searchParams.get("adminTeacherId")?.trim() ?? "";
   const isAdminImpersonation = Boolean(adminTeacherIdRaw) && profile?.role === "admin";
   const targetTeacherId = isAdminImpersonation ? adminTeacherIdRaw : user?.id ?? null;
+  const { costs: teacherRdmCosts } = useTeacherRdmCosts();
 
   const {
     data,
@@ -49,7 +54,9 @@ function TeacherPortalPageContent() {
     createSession,
     updateClassroom,
     deleteClassroom,
-  } = useTeacherPortalData(!isAdminImpersonation ? user?.id : null);
+  } = useTeacherPortalData(!isAdminImpersonation ? user?.id : null, {
+    rdmCosts: teacherRdmCosts,
+  });
 
   const adminData = useAdminTeacherPortalData(isAdminImpersonation ? adminTeacherIdRaw : null);
   const activeHook = useMemo(() => {
@@ -431,7 +438,9 @@ export default function TeacherPortalPage() {
         </div>
       }
     >
-      <TeacherPortalPageContent />
+      <TeacherRdmCostsProvider>
+        <TeacherPortalPageContent />
+      </TeacherRdmCostsProvider>
     </Suspense>
   );
 }
