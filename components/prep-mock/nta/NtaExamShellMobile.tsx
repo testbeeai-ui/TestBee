@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import type { Question, Subject } from "@/types";
 import { CORE_SUBJECTS } from "@/types";
-import { getNtaPaletteKind, type NtaPaletteKind } from "@/components/prep-mock/nta/ntaPaletteShapes";
+import { getNtaPaletteKind } from "@/components/prep-mock/nta/ntaPaletteShapes";
 import {
   computeNtaLegendCounts,
   formatNtaHhMmSs,
@@ -27,21 +27,6 @@ const SUBJECT_LABEL: Record<Subject, string> = {
   chemistry: "Chemistry",
   math: "Maths",
 };
-
-function mobilePaletteClasses(kind: NtaPaletteKind, active: boolean): string {
-  const base =
-    "h-8 w-8 shrink-0 rounded-lg border-[1.5px] flex items-center justify-center text-[11px] font-medium tabular-nums";
-  const byKind: Record<NtaPaletteKind, string> = {
-    not_visited: "bg-[#2A3347] text-[#9BA3B8] border-[#334060]",
-    not_answered: "bg-[#E24B4A] text-white border-[#A32D2D]",
-    answered: "bg-[#1D9E75] text-white border-[#0F6E56]",
-    marked: "bg-[#7F77DD] text-white border-[#534AB7]",
-    answered_marked:
-      "bg-[#5DCAA5] text-[#04342C] border-[#1D9E75] outline outline-2 outline-[#7F77DD] outline-offset-1",
-  };
-  const current = active ? "outline outline-2 outline-[#EF9F27] outline-offset-1 border-[#EF9F27]" : "";
-  return cn(base, byKind[kind], current);
-}
 
 type SectionGroup = {
   subject: Subject;
@@ -151,20 +136,20 @@ export function NtaExamShellMobile({
 
   return (
     <div
-      className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[#0E1117] text-[#E8EAF0] antialiased lg:hidden"
+      className="flex min-h-0 flex-1 flex-col overflow-hidden antialiased lg:hidden"
       data-nta-mobile-exam
     >
-      <header className="shrink-0 border-b border-[#2A3347] bg-[#161B25] px-3.5 py-2.5">
+      <header className="nta-m-header shrink-0 px-3.5 py-2.5">
         <div className="mb-1.5 flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <p className="truncate text-xs font-medium text-[#E8EAF0]">
+            <p className="truncate text-xs font-medium text-[var(--nta-m-text)]">
               {candidateName}{" "}
-              <span className="text-[10px] font-normal text-[#5C6480]">{examNameLine}</span>
+              <span className="text-[10px] font-normal text-[var(--nta-m-dim)]">{examNameLine}</span>
             </p>
-            <p className="line-clamp-2 text-[11px] text-[#9BA3B8]">{subjectPaperLine}</p>
+            <p className="line-clamp-2 text-[11px] text-[var(--nta-m-muted)]">{subjectPaperLine}</p>
           </div>
           <div
-            className="flex shrink-0 items-center gap-1 rounded-full bg-[#0F6E56] px-2.5 py-1 font-mono text-sm font-medium tabular-nums text-[#9FE1CB]"
+            className="nta-m-timer flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 font-mono text-sm font-medium tabular-nums"
             aria-live="polite"
           >
             <Clock className="h-3.5 w-3.5 shrink-0" aria-hidden />
@@ -182,7 +167,7 @@ export function NtaExamShellMobile({
 
       {sectionGroups.length > 1 ? (
         <div
-          className="flex shrink-0 border-b border-[#2A3347]"
+          className="flex shrink-0 border-b border-[var(--nta-m-border)] bg-[var(--nta-m-bg)]"
           role="tablist"
           aria-label="Exam sections"
         >
@@ -196,8 +181,8 @@ export function NtaExamShellMobile({
               className={cn(
                 "flex-1 border-b-2 px-1 py-1.5 text-center text-[11px] transition-colors",
                 i === sectionIdx
-                  ? "border-[#378ADD] font-medium text-[#85B7EB]"
-                  : "border-transparent text-[#5C6480]"
+                  ? "nta-m-tab-active font-medium"
+                  : "nta-m-tab-idle border-transparent"
               )}
             >
               {group.label} ({group.indices.length})
@@ -206,8 +191,8 @@ export function NtaExamShellMobile({
         </div>
       ) : null}
 
-      <div className="shrink-0 border-b border-[#2A3347] bg-[#1C2333] px-2.5 py-2">
-        <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wider text-[#5C6480]">
+      <div className="nta-m-palette-band shrink-0 px-2.5 py-2">
+        <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wider text-[var(--nta-m-dim)]">
           Question palette — scroll →
         </p>
         <div ref={paletteScrollRef} className="overflow-x-auto pb-1 [-webkit-overflow-scrolling:touch]">
@@ -225,7 +210,9 @@ export function NtaExamShellMobile({
                   type="button"
                   data-palette-index={qi}
                   onClick={() => onSelectIndex(qi)}
-                  className={mobilePaletteClasses(kind, qi === currentIndex)}
+                  className="nta-m-palette-btn"
+                  data-kind={kind}
+                  data-current={qi === currentIndex ? "true" : "false"}
                   aria-current={qi === currentIndex ? "true" : undefined}
                   aria-label={`Question ${qi + 1}`}
                 >
@@ -236,10 +223,10 @@ export function NtaExamShellMobile({
           </div>
         </div>
         <div className="mt-1.5 flex flex-wrap gap-3 text-[10px]">
-          <span className="text-[#1D9E75]">{answeredDisplay} answered</span>
-          <span className="text-[#E24B4A]">{counts.notAnswered} not answered</span>
-          <span className="text-[#7F77DD]">{markedDisplay} marked</span>
-          <span className="text-[#5C6480]">{counts.notVisited} not visited</span>
+          <span className="text-[var(--nta-m-green)]">{answeredDisplay} answered</span>
+          <span className="text-[var(--nta-m-red)]">{counts.notAnswered} not answered</span>
+          <span className="text-[var(--nta-m-purple)]">{markedDisplay} marked</span>
+          <span className="text-[var(--nta-m-dim)]">{counts.notVisited} not visited</span>
         </div>
       </div>
 
@@ -253,7 +240,7 @@ export function NtaExamShellMobile({
         }}
       >
         <div className="mb-2 flex items-center justify-between gap-2">
-          <p className="text-[11px] text-[#5C6480]">
+          <p className="text-[11px] text-[var(--nta-m-dim)]">
             Q {currentIndex + 1} of {questions.length} · {SUBJECT_LABEL[q.subject] ?? q.subject}
           </p>
           <div className="flex gap-0.5" aria-hidden>
@@ -270,8 +257,8 @@ export function NtaExamShellMobile({
                   key={qq.id}
                   className={cn(
                     "h-[3px] rounded-sm",
-                    i === currentIndex ? "w-2.5 bg-[#EF9F27]" : "w-[5px]",
-                    i !== currentIndex && (done ? "bg-[#1D9E75]" : "bg-[#2A3347]")
+                    i === currentIndex ? "w-2.5 bg-[var(--nta-m-current)]" : "w-[5px]",
+                    i !== currentIndex && (done ? "bg-[var(--nta-m-green)]" : "bg-[var(--nta-m-palette-nv)]")
                   )}
                 />
               );
@@ -280,17 +267,17 @@ export function NtaExamShellMobile({
         </div>
 
         <div className="mb-2.5 flex items-center justify-between gap-2">
-          <h2 className="text-[13px] font-medium text-[#E8EAF0]">Question {currentIndex + 1}</h2>
-          <span className="rounded-full bg-[#0D1E30] px-2 py-0.5 text-[11px] font-medium text-[#85B7EB]">
+          <h2 className="text-[13px] font-medium text-[var(--nta-m-text)]">Question {currentIndex + 1}</h2>
+          <span className="nta-m-type-badge rounded-full px-2 py-0.5 text-[11px] font-medium">
             MCQ · +4 / −1
           </span>
         </div>
 
-        <div className="mb-4 text-[#E8EAF0]">
+        <div className="mb-4 text-[var(--nta-m-text)]">
           <NtaQuestionStem q={q} mobile />
         </div>
 
-        <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-[#5C6480]">
+        <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-[var(--nta-m-dim)]">
           Choose one option
         </p>
         <div className="space-y-2">
@@ -301,35 +288,22 @@ export function NtaExamShellMobile({
                 key={i}
                 type="button"
                 onClick={() => onAnswerSelect(q.id, i)}
-                className={cn(
-                  "flex w-full items-start gap-2.5 rounded-xl border px-3 py-3 text-left transition-colors",
-                  isSelected
-                    ? "border-[#1D9E75] bg-[#0A2A20]"
-                    : "border-[#2A3347] bg-[#161B25]"
-                )}
+                className="nta-m-opt"
+                data-selected={isSelected ? "true" : "false"}
               >
                 <span
-                  className={cn(
-                    "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2",
-                    isSelected ? "border-[#1D9E75] bg-[#1D9E75]" : "border-[#334060]"
-                  )}
+                  className="nta-m-opt-radio"
                   aria-hidden
                 >
                   {isSelected ? <span className="h-2 w-2 rounded-full bg-white" /> : null}
                 </span>
                 <span
-                  className={cn(
-                    "w-5 shrink-0 text-[13px] font-medium",
-                    isSelected ? "text-[#9FE1CB]" : "text-[#9BA3B8]"
-                  )}
+                  className="nta-m-opt-num"
                 >
                   {i + 1}.
                 </span>
                 <div
-                  className={cn(
-                    "min-w-0 flex-1 text-[13px] leading-snug",
-                    isSelected ? "text-[#9FE1CB]" : "text-[#9BA3B8]"
-                  )}
+                  className="nta-m-opt-body min-w-0 flex-1 text-[13px] leading-snug"
                 >
                   <NtaOptionBody text={opt} mobile />
                 </div>
@@ -338,14 +312,14 @@ export function NtaExamShellMobile({
           })}
         </div>
 
-        <p className="mt-2 flex items-center justify-center gap-1.5 text-[11px] text-[#5C6480]">
+        <p className="mt-2 flex items-center justify-center gap-1.5 text-[11px] text-[var(--nta-m-dim)]">
           <ArrowLeft className="h-3 w-3" aria-hidden />
           swipe left/right or use arrows below
           <ArrowRight className="h-3 w-3" aria-hidden />
         </p>
       </div>
 
-      <footer className="shrink-0 border-t border-[#2A3347] bg-[#161B25] px-3 py-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))]">
+      <footer className="nta-m-footer shrink-0 px-3 py-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))]">
         <div className="mb-2 flex gap-1.5">
           <MobileActionBtn
             variant="save"
@@ -371,7 +345,7 @@ export function NtaExamShellMobile({
           <button
             type="button"
             onClick={onBackNav}
-            className="flex items-center gap-1 rounded-xl border border-[#334060] bg-[#2A3347] px-3 py-2.5 text-xs font-medium text-[#9BA3B8]"
+            className="nta-m-action-btn nta-m-btn-nav flex items-center gap-1 px-3 py-2.5 text-xs font-medium"
           >
             <ArrowLeft className="h-4 w-4" aria-hidden />
             Prev
@@ -379,7 +353,7 @@ export function NtaExamShellMobile({
           <button
             type="button"
             onClick={onNextNav}
-            className="flex items-center gap-1 rounded-xl border border-[#334060] bg-[#2A3347] px-3 py-2.5 text-xs font-medium text-[#9BA3B8]"
+            className="nta-m-action-btn nta-m-btn-nav flex items-center gap-1 px-3 py-2.5 text-xs font-medium"
           >
             Next
             <ArrowRight className="h-4 w-4" aria-hidden />
@@ -387,7 +361,7 @@ export function NtaExamShellMobile({
           <button
             type="button"
             onClick={onMarkForReviewOnly ?? onMarkReviewNext}
-            className="flex shrink-0 items-center gap-1 rounded-xl bg-[#534AB7] px-2.5 py-2.5 text-xs font-medium text-white"
+            className="nta-m-action-btn nta-m-btn-mark flex shrink-0 items-center gap-1 px-2.5 py-2.5 text-xs font-medium"
           >
             <Flag className="h-4 w-4" aria-hidden />
             Mark only
@@ -395,7 +369,7 @@ export function NtaExamShellMobile({
           <button
             type="button"
             onClick={onSubmitClick}
-            className="ml-auto flex shrink-0 items-center gap-1 rounded-xl bg-[#E24B4A] px-3 py-2.5 text-xs font-medium text-white"
+            className="nta-m-action-btn nta-m-btn-submit ml-auto flex shrink-0 items-center gap-1 px-3 py-2.5 text-xs font-medium"
           >
             <Send className="h-4 w-4" aria-hidden />
             Submit
@@ -418,7 +392,7 @@ function MobileLegendDot({
   label: string;
 }) {
   return (
-    <span className="flex items-center gap-1 text-[10px] text-[#9BA3B8]">
+    <span className="flex items-center gap-1 text-[10px]" style={{ color: "var(--nta-m-muted)" }}>
       <span
         className="h-2.5 w-2.5 shrink-0 rounded-full"
         style={{
@@ -447,21 +421,17 @@ function MobileActionBtn({
   onClick: () => void;
   className?: string;
 }) {
-  const styles =
+  const variantClass =
     variant === "save"
-      ? "bg-[#1D9E75] text-white"
+      ? "nta-m-btn-save"
       : variant === "review"
-        ? "bg-[#EF9F27] text-[#412402]"
-        : "border border-[#334060] bg-[#2A3347] text-[#9BA3B8]";
+        ? "nta-m-btn-review"
+        : "nta-m-btn-clear";
   return (
     <button
       type="button"
       onClick={onClick}
-      className={cn(
-        "flex flex-1 items-center justify-center gap-1 rounded-xl px-2 py-2.5 text-xs font-medium leading-tight",
-        styles,
-        className
-      )}
+      className={cn("nta-m-action-btn", variantClass, className)}
     >
       {icon}
       {label}
