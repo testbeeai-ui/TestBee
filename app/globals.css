@@ -1690,17 +1690,30 @@ html {
 }
 
 [data-nta-mobile-exam] .nta-m-palette-btn {
-  width: 2rem;
-  height: 2rem;
-  flex-shrink: 0;
+  aspect-ratio: 1;
+  width: 100%;
+  min-width: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: var(--nta-m-radius);
   border: 1.5px solid transparent;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
+}
+
+[data-nta-mobile-exam] .nta-m-palette-scroll .nta-m-palette-btn {
+  width: 2.125rem;
+  height: 2.125rem;
+  min-width: 2.125rem;
+  flex-shrink: 0;
+}
+
+@media (min-width: 400px) {
+  [data-nta-mobile-exam] .nta-m-palette-btn {
+    font-size: 11px;
+  }
 }
 
 [data-nta-mobile-exam] .nta-m-palette-btn[data-kind="not_visited"] {

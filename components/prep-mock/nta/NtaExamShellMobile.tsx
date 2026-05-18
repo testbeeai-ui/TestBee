@@ -97,7 +97,12 @@ export function NtaExamShellMobile({
   }, [questions]);
 
   const activeSection = sectionGroups[sectionIdx] ?? sectionGroups[0];
-  const paletteIndices = activeSection?.indices ?? questions.map((_, i) => i);
+  const paletteIndices = useMemo(
+    () => questions.map((_, i) => i),
+    [questions]
+  );
+  const displayQuestionNum = currentIndex + 1;
+  const displayQuestionTotal = questions.length;
 
   useEffect(() => {
     if (!activeSection) return;
@@ -177,7 +182,11 @@ export function NtaExamShellMobile({
               type="button"
               role="tab"
               aria-selected={i === sectionIdx}
-              onClick={() => setSectionIdx(i)}
+              onClick={() => {
+                setSectionIdx(i);
+                const first = group.indices[0];
+                if (first !== undefined) onSelectIndex(first);
+              }}
               className={cn(
                 "flex-1 border-b-2 px-1 py-1.5 text-center text-[11px] transition-colors",
                 i === sectionIdx
@@ -195,7 +204,10 @@ export function NtaExamShellMobile({
         <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wider text-[var(--nta-m-dim)]">
           Question palette — scroll →
         </p>
-        <div ref={paletteScrollRef} className="overflow-x-auto pb-1 [-webkit-overflow-scrolling:touch]">
+        <div
+          ref={paletteScrollRef}
+          className="nta-m-palette-scroll overflow-x-auto pb-1 [-webkit-overflow-scrolling:touch]"
+        >
           <div className="flex min-w-max gap-1.5 px-0.5">
             {paletteIndices.map((qi) => {
               const qq = questions[qi]!;
@@ -204,6 +216,7 @@ export function NtaExamShellMobile({
                 answers[qq.id] !== undefined,
                 flagged.has(qq.id)
               );
+              const qNum = qi + 1;
               return (
                 <button
                   key={qq.id}
@@ -214,9 +227,9 @@ export function NtaExamShellMobile({
                   data-kind={kind}
                   data-current={qi === currentIndex ? "true" : "false"}
                   aria-current={qi === currentIndex ? "true" : undefined}
-                  aria-label={`Question ${qi + 1}`}
+                  aria-label={`Question ${qNum}, ${SUBJECT_LABEL[qq.subject] ?? qq.subject}`}
                 >
-                  {String(qi + 1).padStart(2, "0")}
+                  {qNum}
                 </button>
               );
             })}
@@ -241,7 +254,7 @@ export function NtaExamShellMobile({
       >
         <div className="mb-2 flex items-center justify-between gap-2">
           <p className="text-[11px] text-[var(--nta-m-dim)]">
-            Q {currentIndex + 1} of {questions.length} · {SUBJECT_LABEL[q.subject] ?? q.subject}
+            Q {displayQuestionNum} of {displayQuestionTotal} · {SUBJECT_LABEL[q.subject] ?? q.subject}
           </p>
           <div className="flex gap-0.5" aria-hidden>
             {questions.slice(0, Math.min(questions.length, 40)).map((_, i) => {
@@ -267,7 +280,7 @@ export function NtaExamShellMobile({
         </div>
 
         <div className="mb-2.5 flex items-center justify-between gap-2">
-          <h2 className="text-[13px] font-medium text-[var(--nta-m-text)]">Question {currentIndex + 1}</h2>
+          <h2 className="text-[13px] font-medium text-[var(--nta-m-text)]">Question {displayQuestionNum}</h2>
           <span className="nta-m-type-badge rounded-full px-2 py-0.5 text-[11px] font-medium">
             MCQ · +4 / −1
           </span>
