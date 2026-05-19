@@ -1591,3 +1591,278 @@ html {
   font-size: 13px;
 }
 
+/* NTA desktop exam — question palette (8 columns, slightly larger tiles) */
+.nta-palette-grid-8 .nta-palette-cell {
+  min-height: 1.65rem;
+}
+
+@media (min-width: 1024px) {
+  .nta-palette-grid-8 .nta-palette-cell {
+    min-height: 1.85rem;
+  }
+}
+
+@media (min-width: 1280px) {
+  .nta-palette-grid-8 .nta-palette-cell {
+    min-height: 2rem;
+  }
+}
+
+@media (min-width: 1536px) {
+  .nta-palette-grid-8 .nta-palette-cell {
+    min-height: 2.15rem;
+  }
+}
+
+/* NTA mobile exam — wireframe palette (nta_mobile_exam_wireframe.html) */
+[data-nta-mobile-exam] {
+  color-scheme: dark;
+  -webkit-tap-highlight-color: transparent;
+
+  --nta-m-bg: #0e1117;
+  --nta-m-header: #161b25;
+  --nta-m-palette-band: #1c2333;
+  --nta-m-border: #2a3347;
+  --nta-m-border-strong: #334060;
+  --nta-m-text: #e8eaf0;
+  --nta-m-muted: #9ba3b8;
+  --nta-m-dim: #5c6480;
+  --nta-m-timer-bg: #0f6e56;
+  --nta-m-timer-text: #9fe1cb;
+  --nta-m-green: #1d9e75;
+  --nta-m-green-dark: #0f6e56;
+  --nta-m-green-selected: #0a2a20;
+  --nta-m-green-text: #9fe1cb;
+  --nta-m-red: #e24b4a;
+  --nta-m-red-dark: #a32d2d;
+  --nta-m-purple: #7f77dd;
+  --nta-m-purple-dark: #534ab7;
+  --nta-m-ans-marked-bg: #6fd4af;
+  --nta-m-ans-marked-text: #04342c;
+  --nta-m-current: #ef9f27;
+  --nta-m-amber: #ef9f27;
+  --nta-m-amber-text: #412402;
+  --nta-m-tab: #85b7eb;
+  --nta-m-tab-border: #378add;
+  --nta-m-badge-bg: #0d1e30;
+  --nta-m-emphasis: #fac775;
+  --nta-m-palette-nv: #2a3347;
+  --nta-m-radius: 8px;
+
+  background: var(--nta-m-bg);
+  color: var(--nta-m-text);
+}
+
+[data-nta-mobile-exam] .prose {
+  --tw-prose-body: var(--nta-m-text);
+  --tw-prose-headings: var(--nta-m-text);
+  --tw-prose-bold: var(--nta-m-text);
+  --tw-prose-links: var(--nta-m-tab);
+  color: var(--nta-m-text);
+}
+
+[data-nta-mobile-exam] .prose :where(p, li, strong):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+  color: inherit;
+}
+
+[data-nta-mobile-exam] .prose :where(em):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+  color: var(--nta-m-emphasis);
+  font-style: normal;
+}
+
+[data-nta-mobile-exam] .prose :where(a):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+  color: var(--nta-m-tab);
+}
+
+[data-nta-mobile-exam] button {
+  color: inherit;
+}
+
+[data-nta-mobile-exam] .nta-m-header {
+  background: var(--nta-m-header);
+  border-bottom: 0.5px solid var(--nta-m-border);
+}
+
+[data-nta-mobile-exam] .nta-m-timer {
+  background: var(--nta-m-timer-bg);
+  color: var(--nta-m-timer-text);
+}
+
+[data-nta-mobile-exam] .nta-m-palette-band {
+  background: var(--nta-m-palette-band);
+  border-bottom: 0.5px solid var(--nta-m-border);
+}
+
+[data-nta-mobile-exam] .nta-m-footer {
+  background: var(--nta-m-header);
+  border-top: 0.5px solid var(--nta-m-border);
+}
+
+[data-nta-mobile-exam] .nta-m-tab-active {
+  color: var(--nta-m-tab);
+  border-bottom-color: var(--nta-m-tab-border);
+}
+
+[data-nta-mobile-exam] .nta-m-tab-idle {
+  color: var(--nta-m-dim);
+}
+
+[data-nta-mobile-exam] .nta-m-type-badge {
+  background: var(--nta-m-badge-bg);
+  color: var(--nta-m-tab);
+}
+
+[data-nta-mobile-exam] .nta-m-palette-btn {
+  aspect-ratio: 1;
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--nta-m-radius);
+  border: 1.5px solid transparent;
+  font-size: 10px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+[data-nta-mobile-exam] .nta-m-palette-scroll .nta-m-palette-btn {
+  width: 2.125rem;
+  height: 2.125rem;
+  min-width: 2.125rem;
+  flex-shrink: 0;
+}
+
+@media (min-width: 400px) {
+  [data-nta-mobile-exam] .nta-m-palette-btn {
+    font-size: 11px;
+  }
+}
+
+[data-nta-mobile-exam] .nta-m-palette-btn[data-kind="not_visited"] {
+  background: var(--nta-m-palette-nv);
+  color: var(--nta-m-muted);
+  border-color: var(--nta-m-border-strong);
+}
+
+[data-nta-mobile-exam] .nta-m-palette-btn[data-kind="not_answered"] {
+  background: var(--nta-m-red);
+  color: #fff;
+  border-color: var(--nta-m-red-dark);
+}
+
+[data-nta-mobile-exam] .nta-m-palette-btn[data-kind="answered"] {
+  background: var(--nta-m-green);
+  color: #fff;
+  border-color: var(--nta-m-green-dark);
+}
+
+[data-nta-mobile-exam] .nta-m-palette-btn[data-kind="marked"] {
+  background: var(--nta-m-purple);
+  color: #fff;
+  border-color: var(--nta-m-purple-dark);
+}
+
+[data-nta-mobile-exam] .nta-m-palette-btn[data-kind="answered_marked"] {
+  background: var(--nta-m-ans-marked-bg);
+  color: var(--nta-m-ans-marked-text);
+  border-color: var(--nta-m-green);
+  outline: 2px solid var(--nta-m-purple);
+  outline-offset: 1px;
+}
+
+[data-nta-mobile-exam] .nta-m-palette-btn[data-current="true"] {
+  outline: 2px solid var(--nta-m-current);
+  outline-offset: 1px;
+  border-color: var(--nta-m-current);
+}
+
+[data-nta-mobile-exam] .nta-m-opt {
+  display: flex;
+  width: 100%;
+  align-items: flex-start;
+  gap: 0.625rem;
+  border-radius: var(--nta-m-radius);
+  border: 0.5px solid var(--nta-m-border);
+  background: var(--nta-m-header);
+  padding: 0.75rem;
+  text-align: left;
+}
+
+[data-nta-mobile-exam] .nta-m-opt[data-selected="true"] {
+  border-color: var(--nta-m-green);
+  background: var(--nta-m-green-selected);
+}
+
+[data-nta-mobile-exam] .nta-m-opt-radio {
+  margin-top: 0.125rem;
+  display: flex;
+  height: 1.25rem;
+  width: 1.25rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  border: 2px solid var(--nta-m-border-strong);
+}
+
+[data-nta-mobile-exam] .nta-m-opt[data-selected="true"] .nta-m-opt-radio {
+  border-color: var(--nta-m-green);
+  background: var(--nta-m-green);
+}
+
+[data-nta-mobile-exam] .nta-m-opt-num {
+  width: 1.25rem;
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--nta-m-muted);
+}
+
+[data-nta-mobile-exam] .nta-m-opt[data-selected="true"] .nta-m-opt-num,
+[data-nta-mobile-exam] .nta-m-opt[data-selected="true"] .nta-m-opt-body {
+  color: var(--nta-m-green-text);
+  font-weight: 500;
+}
+
+[data-nta-mobile-exam] .nta-m-btn-save {
+  background: var(--nta-m-green);
+  color: #fff;
+}
+
+[data-nta-mobile-exam] .nta-m-btn-clear,
+[data-nta-mobile-exam] .nta-m-btn-nav {
+  border: 0.5px solid var(--nta-m-border-strong);
+  background: var(--nta-m-palette-nv);
+  color: var(--nta-m-muted);
+}
+
+[data-nta-mobile-exam] .nta-m-btn-review {
+  background: var(--nta-m-amber);
+  color: var(--nta-m-amber-text);
+}
+
+[data-nta-mobile-exam] .nta-m-btn-mark {
+  background: var(--nta-m-purple-dark);
+  color: #fff;
+}
+
+[data-nta-mobile-exam] .nta-m-btn-submit {
+  background: var(--nta-m-red);
+  color: #fff;
+}
+
+[data-nta-mobile-exam] .nta-m-action-btn {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  border-radius: var(--nta-m-radius);
+  padding: 0.625rem 0.5rem;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.2;
+  border: none;
+}
+

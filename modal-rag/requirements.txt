@@ -6,4 +6,6 @@ pydantic-settings>=2.0.0
 sentence-transformers>=2.2.0
 torch>=2.0.0
 modal>=0.73.0
+sympy>=1.12
+latex2sympy2>=1.0
 

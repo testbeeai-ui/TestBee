@@ -3,6 +3,7 @@
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
+import { stripSarvamThinking } from "@/lib/sarvamGyanClient";
 
 type DoubtMarkdownProps = {
   content: string;
@@ -21,7 +22,7 @@ export default function DoubtMarkdown({
   className = "",
   compact = false,
 }: DoubtMarkdownProps) {
-  const src = content?.trim() ?? "";
+  const src = stripSarvamThinking(content?.trim() ?? "");
   if (!src) return null;
 
   const h12 = compact ? "text-xs font-bold mt-1 mb-0.5 first:mt-0" : "text-base font-bold mt-2 mb-1 first:mt-0";

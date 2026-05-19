@@ -43,6 +43,10 @@ const ntaOptionKatexClass =
 
 const ntaMobileOptionKatexClass = "[&_.katex]:![font-size:0.875rem]";
 
+/** Mobile exam stem/options — wireframe colors, not desktop NtaMockTokens. */
+const ntaMobileMdClass =
+  "min-w-0 max-w-full break-words text-[var(--nta-m-text)] [&_.katex]:!text-[var(--nta-m-text)] [&_.katex-display]:max-w-full [&_.katex-display]:overflow-x-auto [&_a]:!text-[var(--nta-m-tab)] [&_.katex-error]:!text-[var(--nta-m-text)] [&_.katex-error]:!bg-transparent [&_em]:!text-[var(--nta-m-emphasis)] [&_em]:not-italic";
+
 export const NtaOptionBody = memo(function NtaOptionBody({
   text,
   mobile = false,
@@ -66,7 +70,7 @@ export const NtaOptionBody = memo(function NtaOptionBody({
       ref={htmlRef}
       className={cn(
         "prose prose-sm max-w-none leading-snug",
-        ntaMdClass,
+        mobile ? ntaMobileMdClass : ntaMdClass,
         ntaImgClass,
         mobile ? ntaMobileOptionKatexClass : ntaOptionKatexClass
       )}
@@ -104,7 +108,7 @@ export const NtaQuestionStem = memo(function NtaQuestionStem({
       className={cn(
         "prose prose-sm max-w-none font-medium leading-relaxed [&_p]:my-1.5",
         mobile && "text-[13px] leading-[1.7]",
-        ntaMdClass,
+        mobile ? ntaMobileMdClass : ntaMdClass,
         ntaImgClass,
         mobile ? ntaMobileStemKatexClass : ntaStemKatexClass,
         !mobile && "sm:prose-base sm:[&_p]:my-2 lg:prose-lg lg:[&_p]:my-2.5 xl:[&_p]:my-3"

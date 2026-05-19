@@ -4,7 +4,13 @@
  */
 
 import { getProfPiVerifyMaxTokens } from "@/lib/gyanContentPolicy";
-import { formatSarvamAssistantReply, sarvamChatCompletion } from "@/lib/sarvamGyanClient";
+import {
+  draftHasProfPiStructure,
+  formatSarvamAssistantReply,
+  looksLikeVerifierMetaReview,
+  resolveSarvamMaxTokens,
+  sarvamChatCompletion,
+} from "@/lib/sarvamGyanClient";
 
 import type { Subject } from "@/types";
 
@@ -16,7 +22,18 @@ export function isProfPiVerifyEnabled(): boolean {
 }
 
 /**
+ * Unicode math characters that the model sometimes emits instead of proper LaTeX
+ * (superscripts, subscripts, integrals, sqrt, reaction arrows, common Greek). When these
+ * appear in a draft, the verifier should run so it can rewrite them as `$...$` LaTeX
+ * that KaTeX can render in the UI.
+ */
+const UNICODE_MATH_CHAR_RE =
+  /[∫∑∏∂∇√≤≥≠≈±×÷⇌⇋↔→←⟶⟵⁰¹²³⁴⁵⁶⁷⁸⁹⁻⁺₀₁₂₃₄₅₆₇₈₉πΔαβγδεζηθικλμνξορστυφχψω]/;
+
+/**
  * Heuristic: substantial LaTeX (integrals, vectors, display math) — physics / math verify candidate.
+ * Also fires when the draft uses Unicode math characters instead of LaTeX, so the verifier gets a
+ * chance to rewrite plain-text-math drafts as proper `$...$` LaTeX.
  */
 export function draftLooksLikeHeavyStemLatex(draft: string): boolean {
   const t = draft ?? "";
@@ -25,12 +42,24 @@ export function draftLooksLikeHeavyStemLatex(draft: string): boolean {
   if (/\\(int|sum|lim|frac|sqrt|oint|nabla|partial|prod)/i.test(t)) return true;
   if (/\\vec|\\mathbf|\\hat\{/.test(t)) return true;
   const inlineBlocks = t.match(/\$[^\$\n]{14,}\$/g);
-  return (inlineBlocks?.length ?? 0) >= 2;
+  if ((inlineBlocks?.length ?? 0) >= 2) return true;
+  // Catch the "model bypassed LaTeX and wrote raw Unicode math" failure mode.
+  if (UNICODE_MATH_CHAR_RE.test(t)) return true;
+  return false;
 }
 
 /**
  * Heuristic: draft likely contains LaTeX chemistry worth a second pass.
  */
+/** Long physics draft with scratch-work narration and no section headers. */
+export function draftLooksLikePhysicsRamble(draft: string): boolean {
+  const t = (draft ?? "").trim();
+  if (!t || t.length < 180 || draftHasProfPiStructure(t)) return false;
+  const hits =
+    t.match(/\b(?:Wait|Let me|Alternatively|But actually|So plugging)\b/gi)?.length ?? 0;
+  return hits >= 2;
+}
+
 export function draftLooksLikeChemLatex(draft: string): boolean {
   const t = draft ?? "";
   if (!t.trim()) return false;
@@ -53,30 +82,72 @@ export function shouldRunProfPiVerifier(params: {
   ragKey: ProfPiRagKey;
   source: ProfPiAnswerSource;
 }): boolean {
+  const draft = params.draft ?? "";
+  // Draft already has the wall layout + proper LaTeX — skip verifier (it often returns meta-review text).
+  if (draftHasProfPiStructure(draft) && !UNICODE_MATH_CHAR_RE.test(draft)) {
+    return false;
+  }
   if (params.source === "rephrase") return true;
   switch (params.ragKey) {
     case "chemistry":
-      return draftLooksLikeChemLatex(params.draft);
+      return draftLooksLikeChemLatex(draft);
     case "math":
+      return draftLooksLikeHeavyStemLatex(draft);
     case "physics":
-      return draftLooksLikeHeavyStemLatex(params.draft);
+      return (
+        draftLooksLikeHeavyStemLatex(draft) ||
+        draftLooksLikePhysicsRamble(draft) ||
+        !draftHasProfPiStructure(draft)
+      );
     default:
       return false;
   }
 }
 
-const VERIFIER_SYSTEM = `You are a strict fact-checker for a CBSE/NCERT-level tutor answer (Prof-Pi), across **physics, chemistry, and mathematics**.
+const VERIFIER_SYSTEM = `You are Prof-Pi's silent final-pass editor. Output ONLY the student-facing tutor answer — never a review of the draft.
 
-TASK:
-1) Read the STUDENT QUESTION and the DRAFT ANSWER below.
-2) Fix ONLY clear factual errors, for example:
-   - Chemistry: wrong or unbalanced formulas; mixing resonance vs tautomerism; incorrect reaction conditions.
-   - Physics: wrong signs, units, or energy/conservation reasoning; inconsistent reference frames.
-   - Math: incorrect algebra/calculus; wrong limits; identity used outside its domain.
-3) If the draft is already correct, output it **unchanged** (same markdown).
-4) Output **markdown only** — no preamble, no "Here is the corrected version".
-5) Preserve length and tone: do not expand into a long essay; keep the same structure when possible.
-6) LaTeX: prefer $inline$; keep $$...$$ only if the draft used it. No HTML. Do NOT wrap chemical species in \\text{...}.`;
+ABSOLUTELY FORBIDDEN in your output:
+- ANY review or checklist tone: "sections look okay", "is correct", "which is correct", "In the formula:", "For the substitution step", "LaTeX formatting", "written as", "becomes $...$", "don't have a".
+- Any commentary about your verification process. Never write "Now, checking...", "The draft uses...", "Let me verify...", "Looking at the formatting...".
+- Any preamble ("Here is the corrected version", "Sure", "I have reviewed").
+- HTML, <think> tags, or chain-of-thought.
+
+REQUIRED OUTPUT SHAPE (same as a good Prof-Pi post):
+- First line MUST be a section header: **Formula:** or **Answer:** or **Proof:** or **Steps:** (then content below).
+- Then optional **Proof:** / **Steps:** with bullet steps, **Key intuition:**, **Exam trap:**.
+- Never start with "The" or "In the" or "For the".
+
+CORRECTNESS — fix factual errors silently:
+- Chemistry: wrong or unbalanced formulas; resonance vs tautomerism confusion; wrong reaction conditions.
+- Physics: wrong signs, units, broken conservation, inconsistent reference frames.
+- Math: wrong algebra/calculus, wrong limits, identity used outside its domain.
+- Sign discipline in calculus: in u-substitution or by-parts, the sign of $du$ MUST carry through every step. Mentally differentiate the final antiderivative and confirm it matches the integrand. Fix any mid-chain sign flip.
+
+FORMAT — convert ALL Unicode math to LaTeX inside $...$ (silently, no commentary):
+- \`sin⁻¹x\` → \`$\\sin^{-1} x$\`
+- \`x²\` / \`x³\` → \`$x^2$\` / \`$x^3$\`
+- \`√(1-x²)\` → \`$\\sqrt{1-x^2}$\`
+- \`∫f(x) dx\` → \`$\\int f(x)\\,dx$\`
+- \`H₂O\`, \`CO₂\` → \`$H_2O$\`, \`$CO_2$\`
+- \`⇌\`, \`→\` → \`\\rightleftharpoons\`, \`\\rightarrow\` (inside math mode)
+Never leave bare Unicode math (⁻¹ ² ³ ⁴ √ ∫ ∑ ⇌ →) in narrative text. Do NOT wrap chemical species in \\text{...}.
+
+OUTPUT RULES:
+- If the draft is already factually correct AND already uses LaTeX everywhere: output the draft VERBATIM.
+- Otherwise: output the corrected version with the SAME sections and steps — fix errors/format only; do NOT drop steps or shorten to save space.
+- Prefer $inline$ LaTeX; keep $$display$$ only if the draft already used it.
+- Start your reply with the first word of the corrected answer. End with the last word. Nothing before, nothing after.`;
+
+const PHYSICS_VERIFIER_APPEND = `
+
+PHYSICS (when the doubt is numerical / EM / mechanics):
+- Reformat into **Given:** (bullets with units) → **Formula:** → **Steps:** (3–5 bullets) → **Answer:** (with SI units) → optional **Key intuition:** / **Exam trap:**.
+- Delete ALL "Wait", "Let me confirm", "Alternatively", "But actually", "So plugging in" narration — never leave scratch-work in the output.`;
+
+function buildVerifierSystemPrompt(ragKey: ProfPiRagKey): string {
+  if (ragKey === "physics") return VERIFIER_SYSTEM + PHYSICS_VERIFIER_APPEND;
+  return VERIFIER_SYSTEM;
+}
 
 export function buildProfPiVerifierUserContent(params: {
   title: string;
@@ -92,8 +163,10 @@ ${title}
 STUDENT QUESTION BODY:
 ${body}
 
-DRAFT ANSWER (markdown — correct if needed, else repeat verbatim):
-${draft}`;
+DRAFT ANSWER (fix errors/LaTeX only — output the SAME structured answer for students, NOT a review of this draft):
+${draft}
+
+Reply with ONLY the final markdown answer students should read. Do not describe or evaluate the draft.`;
 }
 
 /**
@@ -113,25 +186,43 @@ export async function maybeVerifyProfPiDraft(params: {
     return { text: params.draft, ran: false, ok: true };
   }
 
+  const draft = params.draft.trim();
+  const verifyMaxTokens = resolveSarvamMaxTokens(getProfPiVerifyMaxTokens(draft.length));
+
   const r = await sarvamChatCompletion({
-    systemPrompt: VERIFIER_SYSTEM,
+    systemPrompt: buildVerifierSystemPrompt(params.ragKey),
     userContent: buildProfPiVerifierUserContent({
       title: params.title,
       body: params.body,
-      draft: params.draft,
+      draft,
     }),
     temperature: 0.15,
-    maxTokens: getProfPiVerifyMaxTokens(),
+    maxTokens: verifyMaxTokens,
     timeoutMs: 45_000,
     metricsLabel: "profPi_verify",
   });
 
   if (!r.ok) {
-    return { text: params.draft, ran: true, ok: false, error: r.error };
+    return { text: draft, ran: true, ok: false, error: r.error };
   }
   const out = formatSarvamAssistantReply(r.text);
   if (!out || out.length < 40) {
-    return { text: params.draft, ran: true, ok: false, error: "verifier_empty" };
+    return { text: draft, ran: true, ok: false, error: "verifier_empty" };
+  }
+  if (looksLikeVerifierMetaReview(out)) {
+    console.warn("[profPiVerify] verifier returned meta-review text; keeping draft");
+    return { text: draft, ran: true, ok: false, error: "verifier_meta_review" };
+  }
+  if (draftHasProfPiStructure(draft) && !draftHasProfPiStructure(out)) {
+    console.warn("[profPiVerify] verifier removed section structure; keeping draft");
+    return { text: draft, ran: true, ok: false, error: "verifier_broke_structure" };
+  }
+  // Verifier capped at max_tokens often stops mid-step (e.g. at "Substitute …") — keep full draft.
+  if (out.length < draft.length * 0.72 && draft.length > 500) {
+    console.warn(
+      `[profPiVerify] verifier output shorter than draft (${out.length} vs ${draft.length} chars); keeping draft`
+    );
+    return { text: draft, ran: true, ok: false, error: "verifier_truncated" };
   }
   return { text: out, ran: true, ok: true };
 }

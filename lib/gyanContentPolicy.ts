@@ -3,12 +3,12 @@
  * Server-only string helpers (safe to import from rag / Sarvam paths).
  *
  * Optional env (see also `SARVAM_MAX_OUTPUT_TOKENS` in sarvamGyanClient):
- * - `SARVAM_PROF_PI_MAX_TOKENS` — completion cap for Prof-Pi only (default 1460, ~+500 vs legacy 960 for longer thread answers; clamped by `resolveSarvamMaxTokens`).
+ * - `SARVAM_PROF_PI_MAX_TOKENS` — completion cap for Prof-Pi only (default 2048; clamped by `resolveSarvamMaxTokens`).
  * - `RAG_FORMATTED_CONTEXT_MAX_CHARS` — override RAG passage char cap after retrieve (default from `RAG_CONTEXT_MAX_CHARS`).
  * - `DEBUG_GYAN_PROMPT_SIZES=1` — enables `[sarvamMetrics]` logs (chars + Sarvam `usage` tokens) from `sarvamGyanClient` after each call.
  * - `GYAN_LOG_SARVAM_USAGE=1` — same metrics line without tying to generic “prompt sizes” naming.
  * - `PROF_PI_VERIFY=1` — optional second Sarvam pass to sanity-check / repair drafts (rephrase always when enabled; full-RAG when draft looks chemistry-heavy or physics/math-heavy LaTeX); see `lib/profPiVerify.ts`.
- * - `PROF_PI_VERIFY_MAX_TOKENS` — completion cap for verifier (default 640).
+ * - `PROF_PI_VERIFY_MAX_TOKENS` — completion cap for verifier (default scales with draft, up to 2048).
  */
 
 import type { Subject } from "@/types";
@@ -32,18 +32,45 @@ export const STUDENT_BOT_TITLE_MAX_CHARS = 200;
 export const RAG_MATCH_COUNT_PROF_PI = 5;
 export const RAG_MATCH_COUNT_STUDENT_BOT = 5;
 
-export const PROF_PI_MAX_WORDS = 220;
+export const PROF_PI_MAX_WORDS = 1000;
 export const PROF_PI_MAX_BULLETS = 5;
 
 /** Injected into Prof-Pi system prompts (rephrase + full RAG) */
 export const PROF_PI_LENGTH_CONTRACT = `LENGTH & SHAPE (non-negotiable — "short and high-signal", like a good reel, not a 10-minute lecture):
-- Target ≤ ${PROF_PI_MAX_WORDS} words total. One mobile screen of reading.
-- Prefer 3–${PROF_PI_MAX_BULLETS} very short bullets OR two tight paragraphs — not both long.
-- Order: (1) Direct answer to THIS doubt first. (2) One line of intuition IF needed. (3) At most ONE exam trap, shortcut, or mnemonic.
+- Target ≤ ${PROF_PI_MAX_WORDS} words total. Use only what the doubt needs — save the cap for heavy step-by-step / multi-part proofs.
+- Follow the STRUCTURE contract below (section headers + bullets). Do NOT write one dense paragraph or a review of your own draft.
+- Order: **Formula/Answer** first, then **Proof/Steps** bullets, then optional **Key intuition** and **Exam trap**.
 - No preamble ("Sure!", "Great question"), no closing filler ("In conclusion", "Hope this helps").
-- Math: use $...$ inline where possible; at most ONE $$...$$ block unless a second is strictly required for clarity.
+- Math: ALWAYS use LaTeX inside \`$...$\` (inline) or \`$$...$$\` (display). NEVER write raw Unicode math in narrative text — these characters are FORBIDDEN outside of \`$...$\`: ⁻ ⁰ ¹ ² ³ ⁴ ⁵ ⁶ ⁷ ⁸ ⁹ ₀ ₁ ₂ ₃ ₄ ₅ ₆ ₇ ₈ ₉ √ ∫ ∑ ∏ ∂ ⇌ ↔ → ←. Rewrite them as LaTeX:
+  - BAD: \`x sin⁻¹x + √(1-x²)\`  →  GOOD: \`$x \\sin^{-1} x + \\sqrt{1 - x^2}$\`
+  - BAD: \`∫sin⁻¹x dx\`  →  GOOD: \`$\\int \\sin^{-1}(x)\\,dx$\`
+  - BAD: \`H₂O + CO₂\`  →  GOOD: \`$H_2O + CO_2$\`
+- At most ONE $$...$$ block unless a second is strictly required for clarity.
 - Chemistry: prefer inline or a single $$...$$ for the main reaction.
 - If you risk running long, CUT examples before cutting the core answer.`;
+
+/** Physics-only layout (numerical / conceptual). Math & chemistry keep `PROF_PI_STRUCTURE_CONTRACT`. */
+export const PROF_PI_PHYSICS_STRUCTURE_CONTRACT = `PHYSICS STRUCTURE (non-negotiable — NCERT exam style, NOT internal monologue):
+- Use bold section labels on their own line; blank line between sections:
+  **Given:** — 3–6 bullets: each quantity as symbol = value with SI unit in LaTeX (e.g. $N=500$, $R=2\\,\\Omega$, $B=3.0\\times 10^{-5}\\,\\text{T}$, $t=0.25\\,\\text{s}$, $r=0.10\\,\\text{m}$).
+  **Formula:** — governing law(s) in $...$ (e.g. Faraday: $\\varepsilon = -N\\frac{d\\Phi}{dt}$, $\\Phi = BA\\cos\\theta$).
+  **Steps:** — 3–${PROF_PI_MAX_BULLETS} short bullets ONLY; one substitution or key move per bullet; all math in $...$.
+  **Answer:** — final $\\varepsilon$ and $I$ (or whatever was asked) with units on separate lines or one tight block.
+  **Key intuition:** — at most one sentence (optional).
+  **Exam trap:** — at most one line (optional): sign, $180^\\circ$ vs $90^\\circ$ rotation, average vs instantaneous EMF, etc.
+- NEVER stream-of-consciousness: forbidden words/phrases include "Wait", "Let me confirm", "Alternatively", "But actually", "So plugging in", "But let me check" — students must never see your scratch work.
+- NEVER repeat the same numerical substitution twice. Calculate once in **Steps:**, state results once in **Answer:**.
+- Every formula and numeric result in LaTeX $...$; SI units on final answers.`;
+
+/** Required markdown skeleton so feed + thread answers stay scannable (matches the "Formula / Proof / trap" layout). */
+export const PROF_PI_STRUCTURE_CONTRACT = `STRUCTURE (non-negotiable — never one dense paragraph):
+- Use bold section labels on their own line, then content below. Typical calculus / step-by-step layout:
+  **Formula:** (or **Answer:**) — main result in LaTeX on one line.
+  **Proof:** or **Steps:** — 3–${PROF_PI_MAX_BULLETS} short bullets; one key move per bullet; all math in $...$.
+  **Key intuition:** — at most one sentence (optional).
+  **Exam trap:** — at most one line (optional).
+- Put a blank line between sections. Use bullets for steps, not a single run-on paragraph.
+- NEVER write stream-of-consciousness ("Hmm", "Wait", "Let me", "Maybe", "I think", "Actually") — only the polished solution students should read.`;
 
 /**
  * Factual discipline for all STEM domains — injected into Prof-Pi rephrase + full-RAG system prompts.
@@ -65,11 +92,18 @@ Mathematics:
 - When using identities or substitutions, state **domain restrictions** where they matter (e.g. log, tan, square roots).
 - For calculus: note **differentiability / continuity** when invoking theorems (Rolle’s, MVT, IVT).
 - Do not skip algebraic steps that would change an equality; recheck **limits** at boundaries.
+- **u-sub / by-parts — sign discipline**: track the **sign of $du$** through every step. If $du = -f(x)\\,dx$ (e.g. $w = 1-x^2 \\Rightarrow dw = -2x\\,dx$), the minus must carry through to the final antiderivative. Every step's sign MUST be consistent with the previous step — never silently flip a sign between consecutive steps.
+- **Self-check antiderivatives**: before stating the final $F(x) + C$, mentally differentiate $F(x)$ and confirm you recover the original integrand. If the derivative does not match, the sign or factor is wrong — fix it instead of presenting an inconsistent chain.
 
 General:
 - **Retrieved textbook / RAG passages are reference only** — they can be incomplete or wrong; prefer CBSE/NCERT-correct content even if a passage disagrees.`;
 
-/** Default sampling temperature for Prof-Pi full-RAG answer by tutoring domain (lower = more deterministic). */
+/** Math/chemistry: calculus-style sections; physics: Given/Formula/Steps/Answer layout. */
+export function getProfPiStructureContract(ragKey: Subject): string {
+  if (ragKey === "physics") return PROF_PI_PHYSICS_STRUCTURE_CONTRACT;
+  return PROF_PI_STRUCTURE_CONTRACT;
+}
+
 export function getProfPiDefaultTemperatureForRagKey(ragKey: Subject): number {
   switch (ragKey) {
     case "chemistry":
@@ -77,9 +111,9 @@ export function getProfPiDefaultTemperatureForRagKey(ragKey: Subject): number {
     case "math":
       return 0.52;
     case "physics":
-      return 0.54;
+      return 0.46;
     default:
-      return 0.54;
+      return 0.46;
   }
 }
 
@@ -91,7 +125,7 @@ export function getProfPiRephraseTemperatureForRagKey(ragKey: Subject): number {
     case "math":
       return 0.36;
     case "physics":
-      return 0.37;
+      return 0.34;
     default:
       return 0.37;
   }
@@ -105,20 +139,24 @@ export function getProfPiRetryTemperatureForRagKey(ragKey: Subject): number {
     case "math":
       return 0.44;
     case "physics":
-      return 0.45;
+      return 0.4;
     default:
       return 0.45;
   }
 }
 
-/** Max completion tokens for optional verify/repair pass (starter-safe default). */
-export function getProfPiVerifyMaxTokens(): number {
+/**
+ * Desired max completion tokens for the Prof-Pi verifier pass (clamped by `resolveSarvamMaxTokens` at call site).
+ * Default scales with draft size — 640 was too low and cut step-by-step answers mid-substitution.
+ */
+export function getProfPiVerifyMaxTokens(draftChars = 0): number {
   const raw = process.env.PROF_PI_VERIFY_MAX_TOKENS?.trim();
   if (raw) {
     const n = Number.parseInt(raw, 10);
-    if (Number.isFinite(n) && n >= 128 && n <= 2048) return n;
+    if (Number.isFinite(n) && n >= 128) return n;
   }
-  return 640;
+  const scaled = Math.min(2048, Math.max(960, Math.ceil(Math.max(draftChars, 400) / 2.2)));
+  return scaled;
 }
 
 /** Bot student JSON generator — keeps titles/bodies snackable */
@@ -147,10 +185,10 @@ export function truncateForPrompt(text: string, maxChars: number): string {
 
 /**
  * Optional Sarvam completion cap for Prof-Pi only (dense answers).
- * Env SARVAM_PROF_PI_MAX_TOKENS (default 1460); clamped by resolveSarvamMaxTokens at call site.
+ * Env SARVAM_PROF_PI_MAX_TOKENS (default 2048); clamped by resolveSarvamMaxTokens at call site.
  */
 /** Default max completion tokens for Prof-Pi (thread answers); feed card preview length is unchanged in UI. */
-export const PROF_PI_DESIRED_MAX_TOKENS_DEFAULT = 1460;
+export const PROF_PI_DESIRED_MAX_TOKENS_DEFAULT = 2048;
 
 export function getProfPiDesiredMaxTokens(): number {
   const raw = process.env.SARVAM_PROF_PI_MAX_TOKENS?.trim();
@@ -166,6 +204,9 @@ export const SUBJECT_CHAT_LENGTH_CONTRACT = `Answer density (reel-style, not a l
 - Aim for ≤ ~220 words unless the user explicitly asks for more depth.
 - Lead with the direct answer; then at most a few short bullets or one tight follow-up paragraph.
 - Prefer $...$ inline; use $$...$$ only when a display block is clearly needed (at most one unless essential).
+- Math: ALWAYS use LaTeX inside \`$...$\`. NEVER write raw Unicode math in plain text — FORBIDDEN outside \`$...$\`: ⁻ ⁰ ¹ ² ³ ⁴ ⁵ ⁶ ⁷ ⁸ ⁹ ₀ ₁ ₂ ₃ ₄ ₅ ₆ ₇ ₈ ₉ √ ∫ ∑ ∏ ⇌ ↔ → ←. Examples:
+  - BAD: \`sin⁻¹x + √(1-x²)\`  →  GOOD: \`$\\sin^{-1} x + \\sqrt{1-x^2}$\`
+  - BAD: \`∫f(x) dx\`  →  GOOD: \`$\\int f(x)\\,dx$\`
 - No preamble ("Sure!"), no long closing filler.`;
 
 /**

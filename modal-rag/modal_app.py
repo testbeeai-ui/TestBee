@@ -94,6 +94,8 @@ image = (
         "torch>=2.0.0",
         "numpy",
         "httpx>=0.27.0",
+        "sympy>=1.12",
+        "latex2sympy2>=1.0",
     )
     # Copy all modal-rag source files (the directory that contains this file)
     # into /app inside the container.  modal_app.py itself is included, which

@@ -239,9 +239,10 @@ export function NtaExamShell({
         </button>
 
         <main
-          className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden border-r py-3 pl-3 pr-2.5 sm:py-4 sm:pl-5 sm:pr-4 md:pl-6 md:pr-4 lg:py-5 lg:pl-8 lg:pr-5 xl:py-6 xl:pl-10 xl:pr-6 2xl:py-8 2xl:pl-14 2xl:pr-9"
+          className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-r"
           style={{ borderColor: "var(--nta-border)" }}
         >
+          <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden py-3 pl-3 pr-2.5 sm:py-4 sm:pl-5 sm:pr-4 md:pl-6 md:pr-4 lg:py-5 lg:pl-8 lg:pr-5 xl:py-6 xl:pl-10 xl:pr-6 2xl:py-8 2xl:pl-14 2xl:pr-9">
           <h2
             className="mb-2 text-base font-bold sm:mb-3 sm:text-lg lg:mb-3 lg:text-xl xl:mb-4 xl:text-2xl 2xl:text-[1.65rem]"
             style={{ color: "var(--nta-text)" }}
@@ -293,7 +294,7 @@ export function NtaExamShell({
           </div>
 
           <div
-            className="mt-4 flex w-full min-w-0 flex-wrap items-center justify-between gap-2 border-t pt-3 sm:mt-5 sm:gap-3 sm:pt-4 lg:mt-6 lg:pt-4 xl:mt-8 xl:gap-4 xl:pt-5"
+            className="nta-exam-nav-bar mt-4 flex w-full min-w-0 flex-wrap items-center justify-between gap-2 border-t pt-3 sm:mt-5 sm:pt-3.5 lg:mt-6 lg:pt-4 xl:mt-8 xl:pt-5"
             style={{ borderColor: "var(--nta-border)" }}
           >
             <div className="flex flex-wrap gap-1.5 sm:gap-2">
@@ -302,11 +303,12 @@ export function NtaExamShell({
             </div>
             <NtaBtn variant="green" label="Submit" onClick={onSubmitClick} />
           </div>
+          </div>
         </main>
 
         <aside
           className={cn(
-            "flex w-full min-w-0 max-w-full shrink-0 flex-col overflow-x-hidden border-t lg:w-[15.5rem] lg:min-w-[15.5rem] lg:max-w-[15.5rem] lg:border-l lg:border-t-0 xl:w-[17.5rem] xl:min-w-[17.5rem] xl:max-w-[17.5rem] 2xl:w-[20rem] 2xl:min-w-[20rem] 2xl:max-w-[20rem]",
+            "flex min-h-0 w-full min-w-0 max-w-full shrink-0 flex-col overflow-x-hidden border-t lg:w-[18rem] lg:min-w-[18rem] lg:max-w-[18rem] lg:border-l lg:border-t-0 xl:w-[19rem] xl:min-w-[19rem] xl:max-w-[19rem] 2xl:w-[21rem] 2xl:min-w-[21rem] 2xl:max-w-[21rem]",
             !paletteOpen &&
               "hidden lg:flex lg:w-0 lg:min-w-0 lg:max-w-none lg:overflow-hidden lg:border-0 lg:p-0 lg:opacity-0"
           )}
@@ -322,7 +324,7 @@ export function NtaExamShell({
             >
               Question Palette
             </p>
-            <div className="grid w-full min-w-0 grid-cols-8 gap-x-1 gap-y-1.5 sm:gap-y-2 lg:grid-cols-9 lg:gap-y-1.5 xl:grid-cols-10 xl:gap-y-2 2xl:grid-cols-8 2xl:gap-x-1.5 2xl:gap-y-2.5">
+            <div className="nta-palette-grid-8 grid w-full min-w-0 grid-cols-8 gap-x-1.5 gap-y-2 sm:gap-x-1.5 sm:gap-y-2 lg:gap-x-1.5 lg:gap-y-2 xl:gap-x-2 xl:gap-y-2.5 2xl:gap-x-2 2xl:gap-y-2.5">
               {questions.map((qq, i) => {
                 const visited = visitedIds.has(qq.id);
                 const answered = answers[qq.id] !== undefined;
@@ -338,7 +340,7 @@ export function NtaExamShell({
                     key={`${qq.id}-${i}`}
                     type="button"
                     onClick={() => onSelectIndex(i)}
-                    className="relative flex aspect-square w-full min-w-0 max-w-full items-center justify-center rounded-md p-0 transition-opacity hover:opacity-95 sm:rounded-lg lg:rounded-lg xl:rounded-xl"
+                    className="nta-palette-cell relative flex aspect-square w-full min-w-0 max-w-full items-center justify-center rounded-md p-0 transition-opacity hover:opacity-95 sm:rounded-lg lg:rounded-lg xl:rounded-xl"
                     style={{
                       background: "transparent",
                       border: "none",
@@ -354,7 +356,7 @@ export function NtaExamShell({
                     </span>
                     <span
                       className={cn(
-                        "relative z-[1] text-[10px] font-black tabular-nums leading-none sm:text-[11px] md:text-xs lg:text-[11px] xl:text-xs 2xl:text-sm",
+                        "relative z-[1] text-[11px] font-black tabular-nums leading-none sm:text-xs md:text-sm lg:text-xs xl:text-sm 2xl:text-[0.9rem]",
                         kind !== "not_visited" && "drop-shadow-[0_1px_1px_rgba(0,0,0,0.5)]"
                       )}
                       style={{ color: numberColor }}

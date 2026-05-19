@@ -282,12 +282,23 @@ ${ragBlock}`;
           { role: "user", content: message },
         ],
         temperature: 0.7,
-        max_tokens: resolveSarvamMaxTokens(4096),
+        // sarvam-m's model-side cap is 2048; resolveSarvamMaxTokens enforces it via env cap too.
+        max_tokens: resolveSarvamMaxTokens(2048),
       }),
     });
 
     if (!response.ok) {
-      console.error("Sarvam AI error:", response.status, response.statusText);
+      // Capture the upstream body so future 400/422/etc. show *why* (e.g. max_tokens too high,
+      // bad model name, context overflow) instead of just an opaque status code.
+      const errBody = await response.text().catch(() => "");
+      let detail = errBody.slice(0, 800);
+      try {
+        const j = JSON.parse(errBody) as { error?: { message?: string; code?: string } };
+        if (j?.error?.message) detail = j.error.message;
+      } catch {
+        /* keep slice */
+      }
+      console.error("Sarvam AI error:", response.status, response.statusText, detail);
       return NextResponse.json(
         { error: "AI service temporarily unavailable. Please try again." },
         { status: 502 }

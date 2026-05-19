@@ -2,8 +2,9 @@
 main.py - FastAPI RAG sidecar for Testbee.
 
 Endpoints:
-  GET  /health    -> {"status": "ok"}
-  POST /retrieve  -> embed query, multi-pass Supabase retrieval, return formatted passages
+  GET  /health        -> {"status": "ok"}
+  POST /retrieve      -> embed query, multi-pass Supabase retrieval, return formatted passages
+  POST /verify-calc   -> verify math/physics calculations with SymPy CAS
 
 Local dev (optional):
   cd modal-rag
@@ -22,6 +23,7 @@ from pydantic import BaseModel
 from config import settings
 from embed import get_embedding, load_model
 from retriever import retrieve_chunks, format_passages
+from cas_verify import CalcVerifyRequest, CalcVerifyResponse, verify_calculation
 
 logging.basicConfig(
     level=logging.INFO,
@@ -126,6 +128,34 @@ async def retrieve(req: RetrieveRequest, request: Request):
     except Exception as e:
         logger.error("Unexpected error in /retrieve: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail="Internal retrieval error")
+
+
+@app.post("/verify-calc", response_model=CalcVerifyResponse)
+async def verify_calc(req: CalcVerifyRequest, request: Request):
+    """Verify a math/physics calculation using SymPy CAS."""
+    # Shared-secret auth — same pattern as /retrieve
+    if settings.internal_token:
+        token = request.headers.get("X-Internal-Token", "")
+        if token != settings.internal_token:
+            raise HTTPException(status_code=401, detail="Unauthorized")
+    try:
+        result = verify_calculation(req)
+        logger.info(
+            "CAS verify: op=%s correct=%s confidence=%s",
+            req.operation,
+            result.correct,
+            result.confidence,
+        )
+        return result
+    except Exception as e:
+        logger.error("Unexpected error in /verify-calc: %s", e, exc_info=True)
+        return CalcVerifyResponse(
+            correct=False,
+            computed=None,
+            confidence="low",
+            explanation="Internal verification error",
+            error=str(e)[:200],
+        )
 
 
 # ---------------------------------------------------------------------------

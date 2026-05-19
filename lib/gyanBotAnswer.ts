@@ -12,6 +12,7 @@ import {
   PROF_PI_DOUBT_TITLE_MAX,
   PROF_PI_FACT_CONTRACT,
   PROF_PI_LENGTH_CONTRACT,
+  getProfPiStructureContract,
   PROF_PI_RAG_QUERY_MAX,
   RAG_MATCH_COUNT_PROF_PI,
   SOURCE_ANSWER_MAX_CHARS,
@@ -25,12 +26,15 @@ import type { ProfPiRagKey } from "@/lib/profPiVerify";
 import {
   formatSarvamAssistantReply,
   getSarvamGyanModel,
+  stripPhysicsNarration,
   type SarvamUsage,
   sarvamChatCompletion,
 } from "@/lib/sarvamGyanClient";
 import { maybeAttachCurriculumNodeToDoubt } from "@/lib/gyanCurriculum";
 import { logAiUsage } from "@/lib/aiLogger";
 import type { Subject } from "@/types";
+import { extractCalculations, shouldRunCasVerification } from "@/lib/casExtract";
+import { verifyCalculation } from "@/lib/casVerify";
 
 const SUBJECT_BOUNDARIES: Record<string, { allowed: string; forbidden: string[] }> = {
   physics: {
@@ -63,6 +67,8 @@ export function flairToRagSubject(flair: string | null): Subject {
 export type ProfPiDiag = {
   ragSidecarConfigured: boolean;
   ragChunksRetrieved: number | null;
+  casVerified: boolean;
+  casMismatches: number;
 };
 
 export type ProfPiAnswerResult =
@@ -76,10 +82,16 @@ export type ProfPiAnswerResult =
     }
   | { ok: false; error: string; diag: ProfPiDiag };
 
-function profPiDiag(ragChunksRetrieved: number | null): ProfPiDiag {
+function profPiDiag(
+  ragChunksRetrieved: number | null,
+  casVerified = false,
+  casMismatches = 0
+): ProfPiDiag {
   return {
     ragSidecarConfigured: Boolean(process.env.RAG_SIDECAR_URL?.trim()),
     ragChunksRetrieved,
+    casVerified,
+    casMismatches,
   };
 }
 
@@ -182,6 +194,8 @@ TASK: Adapt an existing tutor answer so it precisely fits a NEW student doubt (h
 
 ${PROF_PI_LENGTH_CONTRACT}
 
+${getProfPiStructureContract(ragKey)}
+
 ${PROF_PI_FACT_CONTRACT}
 
 SOURCE ANSWER IS UNTRUSTED: The pasted SOURCE ANSWER from a past thread may contain factual errors (chemistry stoichiometry, wrong physics signs/units, incorrect math steps, sloppy biology terminology). Reuse its teaching flow only if every formula, claim, and definition passes your checks; otherwise **correct** it to CBSE/NCERT-standard content.
@@ -211,19 +225,26 @@ ${params.sourceAnswer.slice(0, SOURCE_ANSWER_MAX_CHARS)}
 Produce the final adapted answer as markdown only.`;
 
   const rephraseTemp = getProfPiRephraseTemperatureForRagKey(ragKey);
+  const maxTokens = getProfPiDesiredMaxTokens();
   const r = await sarvamChatCompletion({
     systemPrompt,
     userContent,
     temperature: rephraseTemp,
-    maxTokens: getProfPiDesiredMaxTokens(),
+    maxTokens,
     timeoutMs: 55_000,
     metricsLabel: "profPi_rephrase",
   });
+  if (r.ok && r.usage?.completion_tokens != null && r.usage.completion_tokens >= maxTokens * 0.9) {
+    console.warn(
+      `[gyanBotAnswer] Prof-Pi rephrase may be token-truncated (completion_tokens=${r.usage.completion_tokens} max=${maxTokens})`
+    );
+  }
   if (!r.ok) {
     console.error("[gyanBotAnswer] Sarvam rephrase", r.error);
     return { text: null, ragChunksRetrieved, usage: undefined };
   }
-  const out = formatSarvamAssistantReply(r.text);
+  let out = formatSarvamAssistantReply(r.text);
+  if (ragKey === "physics") out = stripPhysicsNarration(out);
   return { text: out.length > 40 ? out : null, ragChunksRetrieved, usage: r.usage };
 }
 
@@ -264,6 +285,8 @@ Class: CBSE-aligned Class ${params.gradeLevel}
 
 ${PROF_PI_LENGTH_CONTRACT}
 
+${getProfPiStructureContract(ragKey)}
+
 ${PROF_PI_FACT_CONTRACT}
 
 FORMATTING (strict):
@@ -271,6 +294,7 @@ FORMATTING (strict):
 - Math in LaTeX: prefer $inline$; $$display$$ only when necessary. No plain-text formulas.
 - No HTML. Chemistry: compact $$...$$ only when needed.
 - NEVER wrap formulas/tokens in \\text{...} for species; \\text{...} only for short natural labels like "if".
+- NEVER output think/redacted_thinking tags or chain-of-thought reasoning — only the final answer students should read.
 
 ${ragBlock}
 
@@ -279,20 +303,28 @@ Respond in clear English (or match the student's language if they wrote primaril
   const userContent = query.slice(0, PROF_PI_RAG_QUERY_MAX);
 
   const defaultTemp = getProfPiDefaultTemperatureForRagKey(ragKey);
+  const maxTokens = getProfPiDesiredMaxTokens();
   const r = await sarvamChatCompletion({
     systemPrompt,
     userContent,
     temperature: params.temperature ?? defaultTemp,
-    maxTokens: getProfPiDesiredMaxTokens(),
+    maxTokens,
     timeoutMs: 55_000,
     metricsLabel: "profPi_rag_answer",
   });
+  if (r.ok && r.usage?.completion_tokens != null && r.usage.completion_tokens >= maxTokens * 0.9) {
+    console.warn(
+      `[gyanBotAnswer] Prof-Pi answer may be token-truncated (completion_tokens=${r.usage.completion_tokens} max=${maxTokens})`
+    );
+  }
 
   if (!r.ok) {
     console.error("[gyanBotAnswer] Sarvam RAG answer", r.error);
     return { text: null, ragChunksRetrieved, usage: undefined };
   }
-  return { text: formatSarvamAssistantReply(r.text), ragChunksRetrieved, usage: r.usage };
+  let text = formatSarvamAssistantReply(r.text);
+  if (ragKey === "physics") text = stripPhysicsNarration(text);
+  return { text, ragChunksRetrieved, usage: r.usage };
 }
 
 /**
@@ -489,9 +521,103 @@ export async function runProfPiAnswerForDoubt(
     source,
   });
   bodyOut = verified.text.trim();
+  if (ragKey === "physics") bodyOut = stripPhysicsNarration(bodyOut);
+  const verifyNote = verified.error ? ` verifierErr=${verified.error}` : "";
   console.info(
-    `[profPiAnswer] doubtId=${doubtId} subjectFlair=${JSON.stringify(doubt.subject ?? null)} source=${source} ragKey=${ragKey} verifierRan=${verified.ran} verifierOk=${verified.ok}${verified.error ? ` verifierErr=${verified.error}` : ""}`
+    `[profPiAnswer] doubtId=${doubtId} subjectFlair=${JSON.stringify(doubt.subject ?? null)} source=${source} ragKey=${ragKey} verifierRan=${verified.ran} verifierOk=${verified.ok}${verifyNote} answerChars=${bodyOut.length}`
   );
+
+  // ── CAS verification (math + physics only) ──────────────────────────
+  let casVerified = false;
+  let casMismatches = 0;
+  const shouldCas = shouldRunCasVerification({
+    subject: ragKey,
+    doubtTitle: doubt.title,
+    doubtBody: doubt.body ?? "",
+  });
+
+  if (shouldCas) {
+    const extracted = extractCalculations({
+      answerMarkdown: bodyOut,
+      doubtTitle: doubt.title,
+      doubtBody: doubt.body ?? "",
+      subject: ragKey as "physics" | "math" | "chemistry",
+    });
+
+    if (extracted.length > 0) {
+      casVerified = true;
+      const corrections: Array<{
+        operation: string;
+        expression: string;
+        variable: string;
+        claimed: string;
+        correct: string;
+        reason: string;
+      }> = [];
+
+      for (const calc of extracted) {
+        const result = await verifyCalculation({
+          operation: calc.operation,
+          expression: calc.expression,
+          variable: calc.variable,
+          claimedResult: calc.claimedResult,
+          gradeLevel: grade,
+        });
+
+        if (!result) continue; // CAS unavailable or timed out
+
+        if (!result.correct && result.confidence !== "low") {
+          casMismatches++;
+          corrections.push({
+            operation: calc.operation,
+            expression: calc.expression,
+            variable: calc.variable,
+            claimed: calc.claimedResult,
+            correct: result.computed ?? "unknown",
+            reason: result.explanation,
+          });
+        }
+      }
+
+      // If CAS found mismatches, re-ask Sarvam with correction hint
+      if (corrections.length > 0) {
+        const correctionBlock = corrections
+          .map(
+            (c) =>
+              `- Operation: ${c.operation}\n  Expression: ${c.expression}\n  Your answer: ${c.claimed}\n  Correct answer: ${c.correct}\n  Reason: ${c.reason}`
+          )
+          .join("\n\n");
+
+        const correctionPrompt =
+          `Your answer contained incorrect calculation(s):\n\n${correctionBlock}\n\n` +
+          `Please recompute and provide the corrected answer. Keep the same format and structure.`;
+
+        const corrected = await sarvamChatCompletion({
+          systemPrompt: `You are Prof-Pi, an expert tutor for Indian students (CBSE, JEE, NEET, KCET). ` +
+            `You MUST correct the calculation errors identified below. Keep the same answer format with **Formula:**, **Steps:**, **Answer:** sections.`,
+          userContent: `Original question:\n${doubt.title}\n${doubt.body ?? ""}\n\nYour previous answer:\n${bodyOut}\n\n${correctionPrompt}`,
+          temperature: getProfPiRetryTemperatureForRagKey(ragKey),
+          maxTokens: getProfPiDesiredMaxTokens(),
+          metricsLabel: "cas-correction",
+        });
+
+        if (corrected.ok && corrected.text.length > 40) {
+          bodyOut = formatSarvamAssistantReply(corrected.text);
+          if (ragKey === "physics") bodyOut = stripPhysicsNarration(bodyOut);
+          console.info(
+            `[profPiAnswer] CAS correction applied: doubtId=${doubtId} mismatches=${corrections.length}`
+          );
+        } else {
+          // Re-ask failed — add warning note instead
+          bodyOut +=
+            "\n\n> ⚠️ *Some calculations in this answer could not be verified. Please double-check.*";
+          console.warn(
+            `[profPiAnswer] CAS correction re-ask failed, adding warning: doubtId=${doubtId}`
+          );
+        }
+      }
+    }
+  }
 
   const { data: inserted, error: insErr } = await admin
     .from("doubt_answers")
@@ -511,7 +637,7 @@ export async function runProfPiAnswerForDoubt(
     return {
       ok: false,
       error: insErr?.message ?? "Insert failed",
-      diag: profPiDiag(lastRagChunks),
+      diag: profPiDiag(lastRagChunks, casVerified, casMismatches),
     };
   }
 
@@ -529,7 +655,7 @@ export async function runProfPiAnswerForDoubt(
     skipped: false,
     answerId: inserted.id,
     source,
-    diag: profPiDiag(lastRagChunks),
+    diag: profPiDiag(lastRagChunks, casVerified, casMismatches),
   };
 }
 

@@ -10,7 +10,6 @@ import {
   Heart,
   Settings,
   ChevronDown,
-  LogOut,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
@@ -105,18 +104,13 @@ export default function StudentProfileShell({
                   type="button"
                   onClick={() => void handleLogout()}
                   disabled={loggingOut}
-                  aria-label={loggingOut ? "Signing out" : "Log out"}
                   className={cn(
-                    "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border/80 text-muted-foreground transition-colors",
-                    "hover:border-rose-400/40 hover:bg-rose-500/10 hover:text-rose-200 disabled:pointer-events-none disabled:opacity-50",
-                    "dark:border-white/10 dark:hover:border-rose-400/30"
+                    "shrink-0 rounded-lg border border-rose-400/40 px-3 py-1.5 text-xs font-semibold leading-none text-rose-400 transition-colors sm:px-3.5 sm:py-1.5 sm:text-sm",
+                    "hover:border-rose-500/60 hover:bg-rose-500/10 hover:text-rose-300 disabled:pointer-events-none disabled:opacity-50",
+                    "dark:border-rose-400/30 dark:text-rose-400 dark:hover:border-rose-400/50"
                   )}
                 >
-                  <LogOut
-                    className="h-5 w-5 shrink-0"
-                    strokeWidth={2.4}
-                    aria-hidden
-                  />
+                  {loggingOut ? "Signing out" : "Logout"}
                 </button>
               </div>
             </div>
