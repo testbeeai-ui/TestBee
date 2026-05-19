@@ -102,6 +102,21 @@ def _manual_latex_to_sympy(latex: str) -> str:
     s = s.replace("\\infty", "oo")
     s = s.replace("\\infinity", "oo")
 
+    # Greek letters (physics notation)
+    GREEK_MAP = {
+        "\\alpha": "alpha", "\\beta": "beta", "\\gamma": "gamma", "\\delta": "delta",
+        "\\epsilon": "epsilon", "\\varepsilon": "epsilon", "\\zeta": "zeta", "\\eta": "eta",
+        "\\theta": "theta", "\\vartheta": "theta", "\\iota": "iota", "\\kappa": "kappa",
+        "\\lambda": "lambda", "\\mu": "mu", "\\nu": "nu", "\\xi": "xi",
+        "\\rho": "rho", "\\sigma": "sigma", "\\tau": "tau", "\\upsilon": "upsilon",
+        "\\phi": "phi", "\\varphi": "phi", "\\chi": "chi", "\\psi": "psi", "\\omega": "omega",
+        "\\Gamma": "Gamma", "\\Delta": "Delta", "\\Theta": "Theta", "\\Lambda": "Lambda",
+        "\\Xi": "Xi", "\\Pi": "Pi", "\\Sigma": "Sigma", "\\Phi": "Phi",
+        "\\Psi": "Psi", "\\Omega": "Omega",
+    }
+    for latex_cmd, sympy_name in GREEK_MAP.items():
+        s = s.replace(latex_cmd, sympy_name)
+
     # Fractions: \frac{a}{b} → (a)/(b)
     s = re.sub(r"\\frac\s*\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}\s*\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}",
                r"((\1)/(\2))", s)

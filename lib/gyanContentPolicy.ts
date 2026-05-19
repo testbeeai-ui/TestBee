@@ -50,27 +50,29 @@ export const PROF_PI_LENGTH_CONTRACT = `LENGTH & SHAPE (non-negotiable — "shor
 - If you risk running long, CUT examples before cutting the core answer.`;
 
 /** Physics-only layout (numerical / conceptual). Math & chemistry keep `PROF_PI_STRUCTURE_CONTRACT`. */
-export const PROF_PI_PHYSICS_STRUCTURE_CONTRACT = `PHYSICS STRUCTURE (non-negotiable — NCERT exam style, NOT internal monologue):
+export const PROF_PI_PHYSICS_STRUCTURE_CONTRACT = `PHYSICS STRUCTURE (non-negotiable — NCERT exam style, designed for student comprehension):
 - Use bold section labels on their own line; blank line between sections:
-  **Given:** — 3–6 bullets: each quantity as symbol = value with SI unit in LaTeX (e.g. $N=500$, $R=2\\,\\Omega$, $B=3.0\\times 10^{-5}\\,\\text{T}$, $t=0.25\\,\\text{s}$, $r=0.10\\,\\text{m}$).
-  **Formula:** — governing law(s) in $...$ (e.g. Faraday: $\\varepsilon = -N\\frac{d\\Phi}{dt}$, $\\Phi = BA\\cos\\theta$).
-  **Steps:** — 3–${PROF_PI_MAX_BULLETS} short bullets ONLY; one substitution or key move per bullet; all math in $...$.
-  **Answer:** — final $\\varepsilon$ and $I$ (or whatever was asked) with units on separate lines or one tight block.
-  **Key intuition:** — at most one sentence (optional).
-  **Exam trap:** — at most one line (optional): sign, $180^\\circ$ vs $90^\\circ$ rotation, average vs instantaneous EMF, etc.
+  **📋 Given:** — 3–6 bullets: each quantity as symbol = value with SI unit in LaTeX (e.g. $N=500$, $R=2\\,\\Omega$, $B=3.0\\times 10^{-5}\\,\\text{T}$, $t=0.25\\,\\text{s}$, $r=0.10\\,\\text{m}$).
+  **📐 Formula:** — governing law(s) in $...$ (e.g. Faraday: $\\varepsilon = -N\\frac{d\\Phi}{dt}$, $\\Phi = BA\\cos\\theta$).
+  ** Steps:** — 3–${PROF_PI_MAX_BULLETS} short bullets ONLY; one substitution or key move per bullet; all math in $...$.
+  **✅ Answer:** — final $\\varepsilon$ and $I$ (or whatever was asked) with units on separate lines or one tight block.
+  **💡 Key intuition:** — at most one sentence (optional) — the "aha!" moment.
+  **️ Exam trap:** — at most one line (optional): sign, $180^\\circ$ vs $90^\\circ$ rotation, average vs instantaneous EMF, etc.
 - NEVER stream-of-consciousness: forbidden words/phrases include "Wait", "Let me confirm", "Alternatively", "But actually", "So plugging in", "But let me check" — students must never see your scratch work.
 - NEVER repeat the same numerical substitution twice. Calculate once in **Steps:**, state results once in **Answer:**.
-- Every formula and numeric result in LaTeX $...$; SI units on final answers.`;
+- Every formula and numeric result in LaTeX $...$; SI units on final answers.
+- After the answer, add ONE encouraging line like "You've got this!" or "This pattern repeats in JEE — practice it."`;
 
 /** Required markdown skeleton so feed + thread answers stay scannable (matches the "Formula / Proof / trap" layout). */
-export const PROF_PI_STRUCTURE_CONTRACT = `STRUCTURE (non-negotiable — never one dense paragraph):
+export const PROF_PI_STRUCTURE_CONTRACT = `STRUCTURE (non-negotiable — never one dense paragraph, designed for student engagement):
 - Use bold section labels on their own line, then content below. Typical calculus / step-by-step layout:
-  **Formula:** (or **Answer:**) — main result in LaTeX on one line.
-  **Proof:** or **Steps:** — 3–${PROF_PI_MAX_BULLETS} short bullets; one key move per bullet; all math in $...$.
-  **Key intuition:** — at most one sentence (optional).
-  **Exam trap:** — at most one line (optional).
+  **📐 Formula:** (or **✅ Answer:**) — main result in LaTeX on one line.
+  ** Steps:** or **Proof:** — 3–${PROF_PI_MAX_BULLETS} short bullets; one key move per bullet; all math in $...$.
+  **💡 Key intuition:** — at most one sentence (optional) — the "aha!" moment.
+  **️ Exam trap:** — at most one line (optional) — what students commonly get wrong.
 - Put a blank line between sections. Use bullets for steps, not a single run-on paragraph.
-- NEVER write stream-of-consciousness ("Hmm", "Wait", "Let me", "Maybe", "I think", "Actually") — only the polished solution students should read.`;
+- NEVER write stream-of-consciousness ("Hmm", "Wait", "Let me", "Maybe", "I think", "Actually") — only the polished solution students should read.
+- After the answer, add ONE encouraging line like "You've got this!" or "This pattern repeats in exams — practice it."`;
 
 /**
  * Factual discipline for all STEM domains — injected into Prof-Pi rephrase + full-RAG system prompts.
@@ -192,7 +194,7 @@ export function truncateForPrompt(text: string, maxChars: number): string {
  * Env SARVAM_PROF_PI_MAX_TOKENS (default 2048); clamped by resolveSarvamMaxTokens at call site.
  */
 /** Default max completion tokens for Prof-Pi (thread answers); feed card preview length is unchanged in UI. */
-export const PROF_PI_DESIRED_MAX_TOKENS_DEFAULT = 4096;
+export const PROF_PI_DESIRED_MAX_TOKENS_DEFAULT = 8192;
 
 export function getProfPiDesiredMaxTokens(): number {
   const raw = process.env.SARVAM_PROF_PI_MAX_TOKENS?.trim();

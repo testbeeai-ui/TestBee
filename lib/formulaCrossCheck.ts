@@ -191,6 +191,7 @@ export async function crossCheckFormulaWithRag(params: {
   }
 
   // Compare answer formula against each RAG formula
+  let anyLowConfidence = false;
   for (const ragFormula of ragFormulas) {
     const result = await checkEquivalence(answerFormula, ragFormula);
     if (!result) continue; // CAS unavailable
@@ -204,10 +205,18 @@ export async function crossCheckFormulaWithRag(params: {
         confidence: result.confidence,
       };
     }
+
+    // Track if any comparison was low confidence (CAS couldn't parse properly)
+    if (result.confidence === "low") anyLowConfidence = true;
   }
 
-  // No RAG formula matched — formula may be wrong
-  // Use the first RAG formula as the "correct" one (most relevant passage)
+  // No RAG formula matched.
+  // Only flag as mismatch if CAS was confident in its comparison.
+  // If CAS couldn't parse (low confidence), treat as inconclusive — don't warn.
+  if (anyLowConfidence) {
+    return { ran: true, matches: null, textbookFormula: null, answerFormula, confidence: "low" };
+  }
+
   return {
     ran: true,
     matches: false,
