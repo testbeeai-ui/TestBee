@@ -400,6 +400,101 @@ def _verify_solve(expr_latex: str, claimed_latex: str, var_name: str) -> CalcVer
         )
 
 
+def _verify_equivalent(expr_latex: str, claimed_latex: str, var_name: str) -> CalcVerifyResponse:
+    """Check if two expressions are symbolically equivalent (expr1 ≡ expr2).
+
+    Used for RAG formula cross-checking: compares Sarvam's formula against textbook formula.
+    Both parameters are treated as expressions to compare (not "input" vs "result").
+    """
+    from sympy import simplify, expand, factor, trigsimp, Symbol  # type: ignore
+
+    try:
+        expr1 = _parse_expr(expr_latex)
+        expr2 = _parse_expr(claimed_latex)
+
+        # Direct symbolic difference
+        if simplify(expr1 - expr2) == 0:
+            return CalcVerifyResponse(
+                correct=True,
+                computed=str(expr2),
+                confidence="high",
+                explanation="Expressions are symbolically equivalent",
+            )
+
+        # Try expanded forms
+        if expand(expr1) == expand(expr2):
+            return CalcVerifyResponse(
+                correct=True,
+                computed=str(expr2),
+                confidence="high",
+                explanation="Expressions are equivalent (after expansion)",
+            )
+
+        # Try factored forms
+        try:
+            if factor(expr1) == factor(expr2):
+                return CalcVerifyResponse(
+                    correct=True,
+                    computed=str(expr2),
+                    confidence="high",
+                    explanation="Expressions are equivalent (after factoring)",
+                )
+        except Exception:
+            pass
+
+        # Try trig simplification
+        try:
+            if trigsimp(expr1 - expr2) == 0:
+                return CalcVerifyResponse(
+                    correct=True,
+                    computed=str(expr2),
+                    confidence="medium",
+                    explanation="Expressions are equivalent (after trig simplification)",
+                )
+        except Exception:
+            pass
+
+        # Numerical spot-check as fallback
+        import random
+        x = Symbol(var_name) if var_name else Symbol("x")
+        random.seed(42)
+        matches = 0
+        trials = 5
+        for _ in range(trials):
+            val = random.uniform(0.5, 10.0)
+            try:
+                v1 = float(expr1.subs(x, val).evalf())
+                v2 = float(expr2.subs(x, val).evalf())
+                if abs(v1 - v2) < 1e-6:
+                    matches += 1
+            except Exception:
+                continue
+
+        if matches >= 4:
+            return CalcVerifyResponse(
+                correct=True,
+                computed=str(expr2),
+                confidence="medium",
+                explanation=f"Numerical spot-check passed ({matches}/{trials} points)",
+            )
+
+        return CalcVerifyResponse(
+            correct=False,
+            computed=str(expr1),
+            confidence="high",
+            explanation=f"Expressions are NOT equivalent. First: {expr1}, Second: {expr2}",
+        )
+
+    except Exception as e:
+        return CalcVerifyResponse(
+            correct=False,
+            computed=None,
+            confidence="low",
+            explanation=f"Equivalence check failed: {str(e)[:200]}",
+            error=str(e)[:200],
+        )
+
+
 def _verify_evaluate(expr_latex: str, claimed_latex: str, var_name: str) -> CalcVerifyResponse:
     """Verify numerical evaluation."""
     from sympy import simplify, Symbol, N  # type: ignore
@@ -457,6 +552,7 @@ VERIFY_DISPATCH = {
     "simplify": _verify_simplify,
     "solve": _verify_solve,
     "evaluate": _verify_evaluate,
+    "equivalent": _verify_equivalent,
 }
 
 

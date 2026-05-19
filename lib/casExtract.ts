@@ -5,7 +5,7 @@
  * along with the detected operation type from the question context.
  */
 
-export type CalcOperation = "integrate" | "differentiate" | "simplify" | "solve" | "limit" | "evaluate";
+export type CalcOperation = "integrate" | "differentiate" | "simplify" | "solve" | "limit" | "evaluate" | "equivalent";
 
 export type ExtractedCalc = {
   operation: CalcOperation;

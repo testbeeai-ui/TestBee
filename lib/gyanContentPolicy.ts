@@ -87,6 +87,10 @@ Physics:
 - State **frame of reference** when direction/sign matters (kinematics, rotation, EM). Check **vector directions** vs displacement/velocity.
 - Verify **dimensions (SI units)** and **conservation laws** (energy, momentum, charge) before giving a numeric result.
 - For circuits/waves: ensure **signs** (KVL, phase) match the chosen loop/reference direction.
+- **EMF formula selection** — non-negotiable:
+  * Coil rotated by a **specific angle** (e.g. 180°, 90°) in a **given time** → use **Faraday's law**: $\varepsilon = N \frac{|\Delta\Phi|}{\Delta t}$ where $\Delta\Phi = \Phi_f - \Phi_i = BA(\cos\theta_f - \cos\theta_i)$. For 180° flip: $\varepsilon = \frac{2NBA}{t}$.
+  * Coil rotating **continuously** at angular speed $\omega$ → peak EMF: $\varepsilon_0 = NBA\omega$. Average over full cycle: $\varepsilon_{avg} = \frac{2}{\pi}\varepsilon_0$.
+  * NEVER use $\frac{1}{2}NBA\omega$ for a discrete rotation — that formula is for a **rotating rod**, not a coil. If the problem gives an angle and a time, it is a discrete flux change problem.
 
 Mathematics:
 - When using identities or substitutions, state **domain restrictions** where they matter (e.g. log, tan, square roots).

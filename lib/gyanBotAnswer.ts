@@ -35,6 +35,7 @@ import { logAiUsage } from "@/lib/aiLogger";
 import type { Subject } from "@/types";
 import { extractCalculations, shouldRunCasVerification } from "@/lib/casExtract";
 import { verifyCalculation } from "@/lib/casVerify";
+import { crossCheckFormulaWithRag } from "@/lib/formulaCrossCheck";
 
 const SUBJECT_BOUNDARIES: Record<string, { allowed: string; forbidden: string[] }> = {
   physics: {
@@ -69,6 +70,8 @@ export type ProfPiDiag = {
   ragChunksRetrieved: number | null;
   casVerified: boolean;
   casMismatches: number;
+  formulaCrossChecked: boolean;
+  formulaMismatch: boolean;
 };
 
 export type ProfPiAnswerResult =
@@ -85,13 +88,17 @@ export type ProfPiAnswerResult =
 function profPiDiag(
   ragChunksRetrieved: number | null,
   casVerified = false,
-  casMismatches = 0
+  casMismatches = 0,
+  formulaCrossChecked = false,
+  formulaMismatch = false
 ): ProfPiDiag {
   return {
     ragSidecarConfigured: Boolean(process.env.RAG_SIDECAR_URL?.trim()),
     ragChunksRetrieved,
     casVerified,
     casMismatches,
+    formulaCrossChecked,
+    formulaMismatch,
   };
 }
 
@@ -171,7 +178,7 @@ async function rephraseSimilarAnswerWithSarvamRag(params: {
   body: string;
   subjectFlair: string | null;
   gradeLevel: number;
-}): Promise<{ text: string | null; ragChunksRetrieved: number | null; usage?: SarvamUsage }> {
+}): Promise<{ text: string | null; ragChunksRetrieved: number | null; ragContext: string | null; usage?: SarvamUsage }> {
   const ragKey = flairToRagSubject(params.subjectFlair) as ProfPiRagKey;
   const boundary = SUBJECT_BOUNDARIES[ragKey] ?? SUBJECT_BOUNDARIES.physics;
   const queryForRag = `${params.title}\n\n${params.body || ""}`
@@ -241,11 +248,11 @@ Produce the final adapted answer as markdown only.`;
   }
   if (!r.ok) {
     console.error("[gyanBotAnswer] Sarvam rephrase", r.error);
-    return { text: null, ragChunksRetrieved, usage: undefined };
+    return { text: null, ragChunksRetrieved, ragContext: ragContext?.formattedContext ?? null, usage: undefined };
   }
   let out = formatSarvamAssistantReply(r.text);
   if (ragKey === "physics") out = stripPhysicsNarration(out);
-  return { text: out.length > 40 ? out : null, ragChunksRetrieved, usage: r.usage };
+  return { text: out.length > 40 ? out : null, ragChunksRetrieved, ragContext: ragContext?.formattedContext ?? null, usage: r.usage };
 }
 
 async function answerWithSarvamRag(params: {
@@ -254,7 +261,7 @@ async function answerWithSarvamRag(params: {
   subjectFlair: string | null;
   gradeLevel: number;
   temperature?: number;
-}): Promise<{ text: string | null; ragChunksRetrieved: number | null; usage?: SarvamUsage }> {
+}): Promise<{ text: string | null; ragChunksRetrieved: number | null; ragContext: string | null; usage?: SarvamUsage }> {
   const ragKey = flairToRagSubject(params.subjectFlair) as ProfPiRagKey;
   const boundary = SUBJECT_BOUNDARIES[ragKey] ?? SUBJECT_BOUNDARIES.physics;
   const query = `${params.title}\n\n${params.body || ""}`.trim().slice(0, PROF_PI_RAG_QUERY_MAX);
@@ -320,11 +327,11 @@ Respond in clear English (or match the student's language if they wrote primaril
 
   if (!r.ok) {
     console.error("[gyanBotAnswer] Sarvam RAG answer", r.error);
-    return { text: null, ragChunksRetrieved, usage: undefined };
+    return { text: null, ragChunksRetrieved, ragContext: ragContext?.formattedContext ?? null, usage: undefined };
   }
   let text = formatSarvamAssistantReply(r.text);
   if (ragKey === "physics") text = stripPhysicsNarration(text);
-  return { text, ragChunksRetrieved, usage: r.usage };
+  return { text, ragChunksRetrieved, ragContext: ragContext?.formattedContext ?? null, usage: r.usage };
 }
 
 /**
@@ -370,6 +377,7 @@ export async function runProfPiAnswerForDoubt(
   let bodyOut: string | null = null;
   let source: "rephrase" | "rag_sarvam" = "rag_sarvam";
   let lastRagChunks: number | null = null;
+  let ragContextText: string | null = null;
   const grade = opts?.gradeLevel ?? 11;
   const ragKey = flairToRagSubject(doubt.subject) as ProfPiRagKey;
 
@@ -382,6 +390,7 @@ export async function runProfPiAnswerForDoubt(
       gradeLevel: grade,
     });
     lastRagChunks = reph.ragChunksRetrieved;
+    ragContextText = reph.ragContext;
     await logAiUsage({
       supabase: admin,
       userId: doubt.user_id,
@@ -427,6 +436,7 @@ export async function runProfPiAnswerForDoubt(
       gradeLevel: grade,
     });
     lastRagChunks = ans.ragChunksRetrieved;
+    ragContextText = ans.ragContext;
     await logAiUsage({
       supabase: admin,
       userId: doubt.user_id,
@@ -471,6 +481,7 @@ export async function runProfPiAnswerForDoubt(
       temperature: retryTemp,
     });
     lastRagChunks = retry.ragChunksRetrieved;
+    ragContextText = retry.ragContext;
     await logAiUsage({
       supabase: admin,
       userId: doubt.user_id,
@@ -526,6 +537,54 @@ export async function runProfPiAnswerForDoubt(
   console.info(
     `[profPiAnswer] doubtId=${doubtId} subjectFlair=${JSON.stringify(doubt.subject ?? null)} source=${source} ragKey=${ragKey} verifierRan=${verified.ran} verifierOk=${verified.ok}${verifyNote} answerChars=${bodyOut.length}`
   );
+
+  // ── RAG formula cross-check (math + physics only) ──────────────────
+  let formulaCrossChecked = false;
+  let formulaMismatch = false;
+  const formulaCheck = await crossCheckFormulaWithRag({
+    answer: bodyOut,
+    ragContext: ragContextText,
+    subject: ragKey,
+  });
+
+  if (formulaCheck.ran && formulaCheck.matches === false && formulaCheck.textbookFormula) {
+    formulaCrossChecked = true;
+    formulaMismatch = true;
+
+    // Re-ask Sarvam with the textbook formula as correction
+    const correctionPrompt =
+      `Your answer used the formula: ${formulaCheck.answerFormula}\n` +
+      `But the textbook states the correct formula is: ${formulaCheck.textbookFormula}\n\n` +
+      `Please recompute using the textbook formula. Keep the same format and structure.`;
+
+    const corrected = await sarvamChatCompletion({
+      systemPrompt: `You are Prof-Pi, an expert tutor for Indian students (CBSE, JEE, NEET, KCET). ` +
+        `You MUST use the textbook formula provided below. Keep the same answer format with **Formula:**, **Steps:**, **Answer:** sections.`,
+      userContent: `Original question:\n${doubt.title}\n${doubt.body ?? ""}\n\nYour previous answer:\n${bodyOut}\n\n${correctionPrompt}`,
+      temperature: getProfPiRetryTemperatureForRagKey(ragKey),
+      maxTokens: getProfPiDesiredMaxTokens(),
+      metricsLabel: "formula-crosscheck-correction",
+    });
+
+    if (corrected.ok && corrected.text.length > 40) {
+      bodyOut = formatSarvamAssistantReply(corrected.text);
+      if (ragKey === "physics") bodyOut = stripPhysicsNarration(bodyOut);
+      console.info(
+        `[profPiAnswer] Formula cross-check correction applied: doubtId=${doubtId} textbookFormula=${formulaCheck.textbookFormula}`
+      );
+    } else {
+      bodyOut +=
+        "\n\n> ⚠️ *The formula used may not match the textbook. Please verify with your teacher.*";
+      console.warn(
+        `[profPiAnswer] Formula cross-check correction failed, adding warning: doubtId=${doubtId}`
+      );
+    }
+  } else if (formulaCheck.ran && formulaCheck.matches === true) {
+    formulaCrossChecked = true;
+    console.info(
+      `[profPiAnswer] Formula cross-check passed: doubtId=${doubtId} formula=${formulaCheck.answerFormula}`
+    );
+  }
 
   // ── CAS verification (math + physics only) ──────────────────────────
   let casVerified = false;
@@ -637,7 +696,7 @@ export async function runProfPiAnswerForDoubt(
     return {
       ok: false,
       error: insErr?.message ?? "Insert failed",
-      diag: profPiDiag(lastRagChunks, casVerified, casMismatches),
+      diag: profPiDiag(lastRagChunks, casVerified, casMismatches, formulaCrossChecked, formulaMismatch),
     };
   }
 
@@ -655,7 +714,7 @@ export async function runProfPiAnswerForDoubt(
     skipped: false,
     answerId: inserted.id,
     source,
-    diag: profPiDiag(lastRagChunks, casVerified, casMismatches),
+    diag: profPiDiag(lastRagChunks, casVerified, casMismatches, formulaCrossChecked, formulaMismatch),
   };
 }
 
