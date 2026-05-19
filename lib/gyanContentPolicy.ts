@@ -192,7 +192,7 @@ export function truncateForPrompt(text: string, maxChars: number): string {
  * Env SARVAM_PROF_PI_MAX_TOKENS (default 2048); clamped by resolveSarvamMaxTokens at call site.
  */
 /** Default max completion tokens for Prof-Pi (thread answers); feed card preview length is unchanged in UI. */
-export const PROF_PI_DESIRED_MAX_TOKENS_DEFAULT = 2048;
+export const PROF_PI_DESIRED_MAX_TOKENS_DEFAULT = 4096;
 
 export function getProfPiDesiredMaxTokens(): number {
   const raw = process.env.SARVAM_PROF_PI_MAX_TOKENS?.trim();

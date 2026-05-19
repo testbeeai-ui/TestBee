@@ -31,7 +31,7 @@ export function getSarvamMaxOutputTokensCap(): number {
       return Math.min(n, SARVAM_OUTPUT_TOKENS_ABS_MAX);
     }
   }
-  return 2048;
+  return 4096;
 }
 
 /** Clamp caller request to [min, cap] where cap comes from env (default starter-safe). */
