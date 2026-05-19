@@ -166,7 +166,7 @@ export function NtaExamShellMobile({
           <MobileLegendDot color="#1D9E75" label="Answered" />
           <MobileLegendDot color="#E24B4A" label="Not answered" />
           <MobileLegendDot color="#7F77DD" label="Marked" />
-          <MobileLegendDot color="#5DCAA5" outline="#7F77DD" label="Ans+Marked" />
+          <MobileLegendDot color="#6FD4AF" outline="#7F77DD" label="Ans+Marked" />
         </div>
       </header>
 
@@ -235,7 +235,7 @@ export function NtaExamShellMobile({
             })}
           </div>
         </div>
-        <div className="mt-1.5 flex flex-wrap gap-3 text-[10px]">
+        <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px]">
           <span className="text-[var(--nta-m-green)]">{answeredDisplay} answered</span>
           <span className="text-[var(--nta-m-red)]">{counts.notAnswered} not answered</span>
           <span className="text-[var(--nta-m-purple)]">{markedDisplay} marked</span>
@@ -332,7 +332,8 @@ export function NtaExamShellMobile({
         </p>
       </div>
 
-      <footer className="nta-m-footer shrink-0 px-3 py-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))]">
+
+      <footer className="nta-m-footer shrink-0 px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:py-2.5">
         <div className="mb-2 flex gap-1.5">
           <MobileActionBtn
             variant="save"

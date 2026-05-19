@@ -19,8 +19,9 @@ export function getSarvamGyanModel(): string {
 
 /**
  * Max completion tokens allowed for this deployment.
- * Sarvam starter + `sarvam-m` commonly caps at **2048**; higher tiers need a higher cap here.
- * Set `SARVAM_MAX_OUTPUT_TOKENS` (integer) in production when your plan allows more.
+ * Default **2048** — this is the model-side hard limit for `sarvam-m`. Requesting more
+ * causes Sarvam to reject with HTTP 400 ("Bad Request"). Set `SARVAM_MAX_OUTPUT_TOKENS`
+ * (integer) only if you have upgraded to a larger Sarvam model that accepts more tokens.
  */
 export function getSarvamMaxOutputTokensCap(): number {
   const raw = process.env.SARVAM_MAX_OUTPUT_TOKENS?.trim();
@@ -40,8 +41,145 @@ export function resolveSarvamMaxTokens(requested?: number): number {
   return Math.min(Math.max(r, SARVAM_OUTPUT_TOKENS_MIN), cap);
 }
 
+const THINKING_BLOCK_RE =
+  /<(?:think|redacted_thinking)(?:\s[^>]*)?>[\s\S]*?<\/(?:think|redacted_thinking)>/gi;
+const THINKING_OPEN_RE = /<(?:think|redacted_thinking)(?:\s[^>]*)?>/gi;
+const THINKING_CLOSE_RE = /<\/(?:think|redacted_thinking)(?:\s[^>]*)?>/gi;
+
+/** Where an unclosed thinking tail likely switches to the student-facing answer. */
+const ANSWER_START_IN_THINKING_RE =
+  /\n\n(?:\*\*[^*\n]{2,80}\*\*\s*\n|#{1,3}\s+|The |Putting it all together|Therefore|Hence|Thus,|So,|Final answer|Answer:)/i;
+
+/** First Prof-Pi section header (Formula / Proof / Steps / etc.) — start of structured answer. */
+export const PROF_PI_STRUCTURE_SECTION_RE =
+  /(?:^|\n\n)\*\*(?:Given|Formula|Answer|Proof|Solution|Steps?|Key intuition|Exam trap|Direct answer)[^*]*\*\*/i;
+
+/** True when the text uses the wall/thread section layout students should see. */
+export function draftHasProfPiStructure(text: string): boolean {
+  return PROF_PI_STRUCTURE_SECTION_RE.test((text ?? "").trim());
+}
+
+/** Verifier sometimes returns a review of the draft instead of the answer itself. */
+export function looksLikeVerifierMetaReview(text: string): boolean {
+  const t = (text ?? "").trim();
+  if (!t) return false;
+
+  if (draftHasProfPiStructure(t)) {
+    const firstSection = t.search(PROF_PI_STRUCTURE_SECTION_RE);
+    if (firstSection > 0) {
+      const prefix = t.slice(0, firstSection);
+      if (
+        /\b(?:look(?:s)? okay|sections?|LaTeX formatting|In the formula|exam trap sections?)\b/i.test(
+          prefix
+        )
+      ) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  return (
+    /\b(?:look(?:s)? okay|sections? (?:look|don't|do not)|(?:is|are) correct|which is correct|LaTeX formatting)\b/i.test(
+      t
+    ) ||
+    (/^The /im.test(t) &&
+      /\b(?:In the formula|For the substitution|integration by parts|exam trap|written as|becomes)\b/i.test(
+        t
+      ))
+  );
+}
+
+/** Lines that are model scratch-work or verifier narration, not student-facing content. */
+const REASONING_LINE_RE =
+  /^(?:[-*•]\s+)?(?:Hmm|Wait,?|Maybe|I think|Actually,?|Oh,?|OK,?)\b|^(?:[-*•]\s+)?(?:Wait,?\s+(?:that|but|actually)|So plugging in|Alternatively|But let me)\b|^(?:[-*•]\s+)?Let me\s+(?:check|verify|see|think|simplify|work|try|confirm|compute)\b|^(?:Now,?\s*)?(?:checking|let me|I(?:'ll| will)|we(?:'ll| will))\b|^(?:The draft|The substitution step|Looking at the formatting|The integral signs|The chemical formulas|The key intuition and exam trap|In the formula|For the substitution)/i;
+
+/** Strip physics stream-of-consciousness sentences (mid-paragraph "Wait…" walls). */
+export function stripPhysicsNarration(text: string): string {
+  let s = stripUntaggedReasoning(text.trim());
+  if (!s) return s;
+
+  const rambleRe =
+    /\b(?:Wait,?\s+(?:that|but|actually)|Let me\s+(?:confirm|check|compute)|Alternatively,?\s+|But let me\s+(?:check|compute)|So plugging in the values)\b[^.!?\n]*[.!?]\s*/gi;
+  s = s.replace(rambleRe, "");
+
+  const sectionAt = s.search(INLINE_SECTION_HEADER_RE);
+  if (sectionAt > 0) {
+    const prefix = s.slice(0, sectionAt);
+    if (/\b(?:Wait|Let me|Alternatively)\b/i.test(prefix)) {
+      s = s.slice(sectionAt).trimStart();
+    }
+  }
+
+  return s.replace(/\n{3,}/g, "\n\n").trim();
+}
+
+/**
+ * Drop untagged chain-of-thought / verifier narration that Sarvam sometimes emits without
+ * <think> wrappers. Keeps structured sections (**Formula:**, bullets, LaTeX blocks).
+ */
+/** First section header anywhere in the text (physics may emit "Wait… **Given:**" on one line). */
+const INLINE_SECTION_HEADER_RE =
+  /\*\*(?:Given|Formula|Answer|Proof|Solution|Steps?|Key intuition|Exam trap|Direct answer)[^*]*\*\*/i;
+
+export function stripUntaggedReasoning(text: string): string {
+  let s = text.trim();
+  if (!s) return s;
+
+  const sectionAt = s.search(INLINE_SECTION_HEADER_RE);
+  if (sectionAt > 0) {
+    const prefix = s.slice(0, sectionAt);
+    if (REASONING_LINE_RE.test(prefix) || /(?:^|\n)(?:Hmm|Wait)\b/i.test(prefix)) {
+      s = s.slice(sectionAt).trimStart();
+    }
+  }
+
+  const lines = s.split("\n");
+  const kept = lines.filter((line) => {
+    const t = line.trim();
+    if (!t) return true;
+    if (/\*\*(?:Given|Formula|Answer|Proof|Solution|Steps?|Key intuition|Exam trap)/i.test(t)) {
+      return true;
+    }
+    return !REASONING_LINE_RE.test(t);
+  });
+  return kept.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+function stripUnclosedThinkingBlocks(text: string): string {
+  let s = text;
+  let guard = 0;
+  while (guard++ < 8) {
+    const open = THINKING_OPEN_RE.exec(s);
+    THINKING_OPEN_RE.lastIndex = 0;
+    if (!open || open.index === undefined) break;
+
+    const from = open.index;
+    const rest = s.slice(from);
+    if (/<\/(?:think|redacted_thinking)/i.test(rest)) break;
+
+    const inner = rest.slice(open[0].length);
+    const answerAt = inner.search(ANSWER_START_IN_THINKING_RE);
+    if (answerAt >= 0) {
+      s = s.slice(0, from) + inner.slice(answerAt).trimStart();
+    } else {
+      s = s.slice(0, from).trimEnd();
+    }
+  }
+  return s;
+}
+
+/** Remove Sarvam / model chain-of-thought wrappers before storing or rendering Gyan++ answers. */
 export function stripSarvamThinking(text: string): string {
-  return text.replace(/<think>[\s\S]*?<\/(?:redacted_thinking|think)>\s*/gi, "").trim();
+  let s = text;
+  let prev = "";
+  while (prev !== s) {
+    prev = s;
+    s = s.replace(THINKING_BLOCK_RE, "");
+  }
+  s = stripUnclosedThinkingBlocks(s);
+  s = s.replace(THINKING_OPEN_RE, "").replace(THINKING_CLOSE_RE, "");
+  return s.trim();
 }
 
 export function normalizeLatexForGyan(text: string): string {
@@ -69,6 +207,11 @@ export function normalizeTextWrappedFormulaTokensForGyan(text: string): string {
 
 export function formatSarvamAssistantReply(raw: string): string {
   let t = stripSarvamThinking(raw);
+  t = stripUntaggedReasoning(t);
+  if (looksLikeVerifierMetaReview(t)) {
+    const sectionAt = t.search(PROF_PI_STRUCTURE_SECTION_RE);
+    if (sectionAt > 0) t = t.slice(sectionAt).trimStart();
+  }
   t = normalizeLatexForGyan(t);
   t = normalizeTextWrappedFormulaTokensForGyan(t);
   return t.trim();
@@ -137,7 +280,7 @@ export async function sarvamChatCompletion(params: {
   systemPrompt: string;
   userContent: string;
   temperature?: number;
-  /** Desired max completion tokens; clamped to `getSarvamMaxOutputTokensCap()` (default 2048). */
+  /** Desired max completion tokens; clamped to `getSarvamMaxOutputTokensCap()` (default 2048; sarvam-m hard limit). */
   maxTokens?: number;
   timeoutMs?: number;
   /** Included in `[sarvamMetrics]` when metrics logging is enabled */

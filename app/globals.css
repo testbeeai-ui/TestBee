@@ -1591,6 +1591,29 @@ html {
   font-size: 13px;
 }
 
+/* NTA desktop exam — question palette (8 columns, slightly larger tiles) */
+.nta-palette-grid-8 .nta-palette-cell {
+  min-height: 1.65rem;
+}
+
+@media (min-width: 1024px) {
+  .nta-palette-grid-8 .nta-palette-cell {
+    min-height: 1.85rem;
+  }
+}
+
+@media (min-width: 1280px) {
+  .nta-palette-grid-8 .nta-palette-cell {
+    min-height: 2rem;
+  }
+}
+
+@media (min-width: 1536px) {
+  .nta-palette-grid-8 .nta-palette-cell {
+    min-height: 2.15rem;
+  }
+}
+
 /* NTA mobile exam — wireframe palette (nta_mobile_exam_wireframe.html) */
 [data-nta-mobile-exam] {
   color-scheme: dark;
@@ -1614,7 +1637,7 @@ html {
   --nta-m-red-dark: #a32d2d;
   --nta-m-purple: #7f77dd;
   --nta-m-purple-dark: #534ab7;
-  --nta-m-ans-marked-bg: #5dcaa5;
+  --nta-m-ans-marked-bg: #6fd4af;
   --nta-m-ans-marked-text: #04342c;
   --nta-m-current: #ef9f27;
   --nta-m-amber: #ef9f27;

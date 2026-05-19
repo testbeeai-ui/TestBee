@@ -427,10 +427,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     // Default scope clears both local storage AND server cookies via the SSR cookie
     // adapter, so Edge middleware sees the user as anonymous on the next request.
-    void supabase.auth.signOut().catch(() => {
+    // MUST await: GoTrue signOut does network calls (token refresh + server revocation)
+    // before clearing cookies. If we navigate before cookies are cleared, the middleware
+    // sees a valid session and bounces the user back into the app.
+    try {
+      await supabase.auth.signOut();
+    } catch {
       // Fall back to a guaranteed-local clear if the network call fails (e.g. offline).
-      void supabase.auth.signOut({ scope: "local" }).catch(() => {});
-    });
+      await supabase.auth.signOut({ scope: "local" }).catch(() => {});
+    }
 
     const dest = redirectAfter ?? "/";
     const target = dest.startsWith("/") ? dest : `/${dest}`;
