@@ -140,27 +140,36 @@ def _manual_latex_to_sympy(latex: str) -> str:
 
 def _parse_expr(s: str):
     """Parse a string into a SymPy expression."""
-    from sympy import sympify, Symbol  # type: ignore
-    from sympy.parsing.latex import parse_latex  # type: ignore
+    from sympy import sympify  # type: ignore
 
     cleaned = _clean_latex(s)
     if not cleaned:
         raise ValueError("Empty expression")
 
-    # Try SymPy's built-in LaTeX parser first
-    try:
-        return parse_latex(cleaned)
-    except Exception:
-        pass
-
-    # Try latex2sympy2
+    # 1. Try latex2sympy2 on raw input (preserves \sin, \cos, etc.)
     try:
         from latex2sympy2 import latex2sympy  # type: ignore
         return latex2sympy(cleaned)
     except Exception:
         pass
 
-    # Manual fallback
+    # 2. Try latex2sympy2 on light-cleaned input (strip $ only, keep backslashes)
+    light = s.strip().strip("$").strip()
+    if light != cleaned:
+        try:
+            from latex2sympy2 import latex2sympy  # type: ignore
+            return latex2sympy(light)
+        except Exception:
+            pass
+
+    # 3. Try SymPy's built-in LaTeX parser on cleaned input
+    try:
+        from sympy.parsing.latex import parse_latex  # type: ignore
+        return parse_latex(cleaned)
+    except Exception:
+        pass
+
+    # 4. Manual fallback
     manual = _manual_latex_to_sympy(cleaned)
     return sympify(manual)
 
