@@ -1,4 +1,4 @@
-import type { TeacherTestQuestion } from "@/lib/buildTeacherTestQuestionSet";
+import type { TeacherTestQuestion } from "@/lib/play/quiz/buildTeacherTestQuestionSet";
 import type { Subject } from "@/types";
 
 export type TeacherTestRowsRequest = {

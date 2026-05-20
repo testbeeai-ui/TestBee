@@ -27,7 +27,6 @@ export async function GET(req: Request) {
   const db = createAdminClient() ?? supabaseUser;
 
   let query = db
-    // @ts-expect-error: Temporary ignore due to schema type mismatches
     .from("teacher_generated_test_history")
     .select("*")
     .eq("teacher_id", user.id)

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { getSupabaseAndUser } from "@/lib/apiAuth";
-import { getIstWeekMondayDateString } from "@/lib/referralIst";
+import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
+import { getIstWeekMondayDateString } from "@/lib/rdm/referral/referralIst";
 
 type StudyDayRow = { active_ms: number | string | null };
 

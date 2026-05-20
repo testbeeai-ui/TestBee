@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import { UserHoverCard } from "@/components/UserHoverCard";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { DUMMY_PROPOSALS, type Proposal, type ProposalCategory } from "@/lib/edufundProposals";
+import { DUMMY_PROPOSALS, type Proposal, type ProposalCategory } from "@/lib/rdm/edufundProposals";
 import {
   Heart,
   Target,
@@ -41,7 +41,7 @@ import {
   estimateDaysToEarnRdmAtDailyRate,
   getEdufundNextGate,
   getEdufundRdmShortfallToNext,
-} from "@/lib/dashboardSidebarMetrics";
+} from "@/lib/dashboard/dashboardSidebarMetrics";
 
 /** Illustrative daily earn rate for “days to next tier” copy (not a guarantee). */
 const ASSUMED_DAILY_RDM = 100;

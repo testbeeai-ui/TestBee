@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseAndUser } from "@/lib/apiAuth";
+import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
 import {
   bucketForDailyRewardAction,
   describeDailyRewardClaim,
   istYmdInRange,
   rollingIstDateRangeInclusive,
   type RdmClaimCategory,
-} from "@/lib/rdmRecentByActivity";
+} from "@/lib/rdm/rdmRecentByActivity";
 
 function istStartIso(ymd: string): string {
   return new Date(`${ymd}T00:00:00+05:30`).toISOString();

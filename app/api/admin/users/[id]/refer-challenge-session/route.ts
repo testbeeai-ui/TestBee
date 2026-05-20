@@ -3,15 +3,15 @@
  * plus community posts emitted from the refer share flow (source_type = refer_challenge).
  */
 import { NextResponse } from "next/server";
-import { getSupabaseAndUser } from "@/lib/apiAuth";
-import { isAdminUser } from "@/lib/admin";
+import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
+import { isAdminUser } from "@/lib/admin/admin";
 import { createAdminClient } from "@/integrations/supabase/server";
 import {
   referChallengeSessionDurationSec,
   referChallengeSpec,
   type ReferClaimKey,
-} from "@/lib/referEarnChallenges";
-import { fetchRdmConfig } from "@/lib/rdmConfig";
+} from "@/lib/rdm/referral/referEarnChallenges";
+import { fetchRdmConfig } from "@/lib/rdm/rdmConfig";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const VALID_KEYS = new Set<string>(["5", "10", "20", "50"]);

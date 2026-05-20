@@ -3,7 +3,7 @@ import { createAdminClient } from "@/integrations/supabase/server";
 import {
   enforceSameOriginForCookieAuth,
   requireAuthenticatedUser,
-} from "@/lib/securityGuards";
+} from "@/lib/auth/securityGuards";
 import type { TeacherRdmChargeAction } from "@/lib/teacherPortal/rdmCharges";
 import {
   fetchTeacherRdmCosts,

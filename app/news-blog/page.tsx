@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { createClient } from "@/integrations/supabase/server";
 import { isAdminOnlyNewsSection } from "@/app/news-blog/constants";
-import { isAdminUser } from "@/lib/admin";
+import { isAdminUser } from "@/lib/admin/admin";
 import { getPublicPostsServer } from "@/lib/news-blog/server-loader";
 import { NewsBlogClient } from "./NewsBlogClient";
 import { NewsBlogSeoIndex } from "./components/NewsBlogSeoIndex";

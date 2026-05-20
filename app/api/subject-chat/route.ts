@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchRAGContext } from "@/lib/rag";
+import { fetchRAGContext } from "@/lib/gyan/rag";
 import { SUBJECT_CHAT_LENGTH_CONTRACT } from "@/lib/gyanContentPolicy";
 import {
   getSarvamGyanModel,
@@ -8,14 +8,14 @@ import {
   resolveSarvamMaxTokens,
 } from "@/lib/sarvamGyanClient";
 import { logAiUsage } from "@/lib/aiLogger";
-import { getSupabaseAndUser } from "@/lib/apiAuth";
+import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
 import {
   appendUserAndAssistantMessages,
   buildSubjectChatContextKey,
   loadThreadMessages,
   normalizeAnonClientHistory,
   type SubjectChatScope,
-} from "@/lib/subjectChatMessages";
+} from "@/lib/gyan/subjectChatMessages";
 
 const SUBJECT_BOUNDARIES: Record<string, { allowed: string; forbidden: string[] }> = {
   physics: {

@@ -9,7 +9,7 @@ import {
   type SetStateAction,
 } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { getAllPosts } from "@/lib/news-blog-db";
+import { getAllPosts } from "@/lib/news-blog/news-blog-db";
 import { supabase } from "@/integrations/supabase/client";
 import { createInitialDraft, normalizePost, postToDraft } from "../post-draft-utils";
 import { readBlogEditorPicks, writeBlogEditorPicks } from "../editor-picks-storage";

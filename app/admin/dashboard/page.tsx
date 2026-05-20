@@ -16,7 +16,7 @@ import {
   YAxis,
 } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
-import { safeGetSession } from "@/lib/safeSession";
+import { safeGetSession } from "@/lib/auth/safeSession";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -72,7 +72,6 @@ export default function AdminDashboardPage() {
         headers: {
           Authorization: `Bearer ${session.access_token}`,
         },
-        cache: "no-store",
       });
       const body = (await res.json()) as AnalyticsPayload & { error?: string };
       if (!res.ok) throw new Error(body.error || "Failed to load analytics");
@@ -91,8 +90,9 @@ export default function AdminDashboardPage() {
   useEffect(() => {
     // Keep dashboard live by polling the server.
     const id = window.setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
       load({ silent: true });
-    }, 15000);
+    }, 120_000);
     return () => window.clearInterval(id);
   }, []);
 

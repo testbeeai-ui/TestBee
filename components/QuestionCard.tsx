@@ -15,7 +15,7 @@ import {
   CheckCircle2,
   XCircle,
 } from "lucide-react";
-import { sanitizeMockHtml } from "@/lib/mockHtml";
+import { sanitizeMockHtml } from "@/lib/mock/mockHtml";
 
 const subjectColors: Record<string, string> = {
   physics: "bg-edu-blue",

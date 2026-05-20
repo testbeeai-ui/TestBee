@@ -87,7 +87,6 @@ export async function POST(req: Request) {
   const db = createAdminClient() ?? supabaseUser;
 
   const { data, error } = await db
-    // @ts-expect-error: Temporary ignore due to schema type mismatches
     .from("teacher_generated_test_history")
     .insert({
       teacher_id: user.id,

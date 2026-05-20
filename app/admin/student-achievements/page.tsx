@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Loader2, FileCheck, XCircle, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { safeGetSession } from "@/lib/safeSession";
+import { safeGetSession } from "@/lib/auth/safeSession";
 
 /** API routes use `getSupabaseAndUser`, which needs the Bearer token in many dev/proxy setups. */
 async function getAdminAuthHeaders(jsonBody: boolean): Promise<Record<string, string>> {

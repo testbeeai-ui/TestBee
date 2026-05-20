@@ -1,8 +1,8 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
-import { makeSubtopicEngagementStorageKey } from "@/lib/subtopicEngagementStorageKey";
-import { parseTeacherProfileMetaFromBio, type TeacherProfileDetails } from "@/lib/teacherProfileMeta";
-import { appendQueryParams, buildTopicPath } from "@/lib/topicRoutes";
+import { makeSubtopicEngagementStorageKey } from "@/lib/curriculum/subtopicEngagementStorageKey";
+import { parseTeacherProfileMetaFromBio, type TeacherProfileDetails } from "@/lib/profile/teacherProfileMeta";
+import { appendQueryParams, buildTopicPath } from "@/lib/curriculum/topicRoutes";
 import {
   parseAssignmentTasks,
   studentVisibleTasks,
@@ -13,7 +13,7 @@ import {
   postWorkDelayLabel,
 } from "@/lib/teacherPortal/sessionWorkDisplay";
 import { kolkataWeekRangeMs } from "@/lib/kolkataWeek";
-import { parseBitsTestAttemptsStore } from "@/lib/parseBitsTestAttemptsStore";
+import { parseBitsTestAttemptsStore } from "@/lib/play/bits/parseBitsTestAttemptsStore";
 import {
   contentJsonHasGeneratedTestPaper,
   postRowIsNudgeMcqTarget,

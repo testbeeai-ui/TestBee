@@ -8,6 +8,11 @@ import {
   Trophy,
   Activity,
   Heart,
+  CreditCard,
+  LayoutGrid,
+  Wallet,
+  Receipt,
+  CircleMinus,
   Settings,
   ChevronDown,
 } from "lucide-react";
@@ -20,6 +25,12 @@ export type StudentProfileSectionId =
   | "achievements"
   | "activity"
   | "edufund"
+  | "sub-overview"
+  | "sub-plans"
+  | "sub-payment"
+  | "sub-checkout"
+  | "sub-history"
+  | "sub-cancel"
   | "settings";
 
 const NAV: { id: StudentProfileSectionId; label: string; icon: typeof User }[] = [
@@ -31,6 +42,15 @@ const NAV: { id: StudentProfileSectionId; label: string; icon: typeof User }[] =
 ];
 
 const PERSONAL_GROUP: StudentProfileSectionId[] = ["personal", "academic", "achievements", "activity"];
+const SUBSCRIPTION_GROUP: StudentProfileSectionId[] = ["sub-overview", "sub-plans", "sub-payment", "sub-checkout", "sub-history", "sub-cancel"];
+const SUBSCRIPTION_ITEMS: { id: StudentProfileSectionId; label: string; icon: typeof User }[] = [
+  { id: "sub-overview", label: "My subscription", icon: CreditCard },
+  { id: "sub-plans", label: "Change plan", icon: LayoutGrid },
+  { id: "sub-payment", label: "Payment methods", icon: CreditCard },
+  { id: "sub-checkout", label: "Pay via Razorpay", icon: Wallet },
+  { id: "sub-history", label: "Billing history", icon: Receipt },
+  { id: "sub-cancel", label: "Cancel subscription", icon: CircleMinus },
+];
 
 interface StudentProfileShellProps {
   displayName: string;
@@ -55,12 +75,19 @@ export default function StudentProfileShell({
   const { signOut } = useAuth();
   const [loggingOut, setLoggingOut] = useState(false);
   const [personalSubCollapsed, setPersonalSubCollapsed] = useState(false);
+  const [subscriptionSubCollapsed, setSubscriptionSubCollapsed] = useState(false);
   const personalOpen = PERSONAL_GROUP.includes(activeSection);
+  const subscriptionOpen = SUBSCRIPTION_GROUP.includes(activeSection);
   const subMenuVisible = personalOpen && !personalSubCollapsed;
+  const subscriptionMenuVisible = subscriptionOpen && !subscriptionSubCollapsed;
 
   useEffect(() => {
     if (!personalOpen) setPersonalSubCollapsed(false);
   }, [personalOpen]);
+
+  useEffect(() => {
+    if (!subscriptionOpen) setSubscriptionSubCollapsed(false);
+  }, [subscriptionOpen]);
 
   const handleLogout = async () => {
     setLoggingOut(true);
@@ -185,6 +212,57 @@ export default function StudentProfileShell({
             <EdufundIcon className="h-3.5 w-3.5 shrink-0 opacity-90 sm:h-4 sm:w-4" />
             <span className="min-w-0 flex-1 truncate">{edufundLabel}</span>
           </button>
+          {/* Subscription expandable */}
+          <button
+            type="button"
+            onClick={() => {
+              if (!subscriptionOpen) {
+                onSectionChange("sub-overview");
+                setSubscriptionSubCollapsed(false);
+                return;
+              }
+              if (subscriptionMenuVisible) setSubscriptionSubCollapsed(true);
+              else setSubscriptionSubCollapsed(false);
+            }}
+            className={cn(
+              "flex w-full items-center gap-1.5 rounded-lg px-2.5 py-2 text-left text-[11px] font-bold transition-colors sm:gap-2 sm:px-3 sm:py-2.5 sm:text-xs lg:text-sm",
+              activeSection === "sub-overview" && !subscriptionSubCollapsed
+                ? "border-l-4 border-emerald-500 bg-emerald-500/15 text-emerald-100"
+                : subscriptionOpen && !subscriptionMenuVisible
+                  ? "border-l-4 border-transparent bg-muted/40 text-foreground dark:bg-white/10 dark:text-slate-200"
+                  : "border-l-4 border-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground dark:hover:bg-white/5"
+            )}
+          >
+            <CreditCard className="h-3.5 w-3.5 shrink-0 opacity-90 sm:h-4 sm:w-4" />
+            <span className="min-w-0 flex-1 truncate">Subscription</span>
+            <ChevronDown
+              className={cn(
+                "h-3.5 w-3.5 shrink-0 opacity-70 transition-transform sm:h-4 sm:w-4",
+                subscriptionMenuVisible ? "rotate-0" : "-rotate-90"
+              )}
+            />
+          </button>
+          {subscriptionMenuVisible
+            ? SUBSCRIPTION_ITEMS.map(({ id, label, icon: SubIcon }) => {
+                const active = activeSection === id;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => onSectionChange(id)}
+                    className={cn(
+                      "flex w-full items-center gap-1.5 rounded-lg py-2 pl-7 pr-2.5 text-left text-[11px] font-bold transition-colors sm:gap-2 sm:py-2.5 sm:pl-9 sm:pr-3 sm:text-xs lg:text-sm",
+                      active
+                        ? "border-l-4 border-emerald-500 bg-emerald-500/15 text-emerald-100"
+                        : "border-l-4 border-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground dark:hover:bg-white/5"
+                    )}
+                  >
+                    <SubIcon className="h-3.5 w-3.5 shrink-0 opacity-90 sm:h-4 sm:w-4" />
+                    <span className="min-w-0 flex-1 truncate">{label}</span>
+                  </button>
+                );
+              })
+            : null}
           <button
             type="button"
             onClick={() => onSectionChange("settings")}

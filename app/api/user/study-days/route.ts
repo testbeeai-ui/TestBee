@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseAndUser } from "@/lib/apiAuth";
-import { computeStudyStreakFromDayMs } from "@/lib/studyStreakClient";
+import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
+import { computeStudyStreakFromDayMs } from "@/lib/dashboard/studyStreakClient";
 
 function isUpstreamNetworkFailure(message: string): boolean {
   const m = message.toLowerCase();

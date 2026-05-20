@@ -3,13 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { BookOpen, Calculator, Layers, Loader2, Target } from "lucide-react";
 import TheoryContent from "@/components/TheoryContent";
-import { fetchSubtopicContent, type SubtopicContentResponse } from "@/lib/subtopicContentService";
+import { fetchSubtopicContent, type SubtopicContentResponse } from "@/lib/curriculum/subtopicContentService";
 import type { Board, ClassLevel, Subject } from "@/types";
 import {
   DEFAULT_PREVIEW_CACHE_TTL_MS,
   getCachedConceptFocusPreview,
   setCachedConceptFocusPreview,
-} from "@/lib/conceptFocusPreviewCache";
+} from "@/lib/play/bits/conceptFocusPreviewCache";
 
 type Props = {
   board?: Board;

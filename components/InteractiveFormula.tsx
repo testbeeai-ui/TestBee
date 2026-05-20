@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { CheckCircle2, Trash2, XCircle } from "lucide-react";
 import type { SavedFormula } from "@/types";
 import MathText from "@/components/MathText";
-import { stripFormulaDelimiters } from "@/lib/stripFormulaDelimiters";
+import { stripFormulaDelimiters } from "@/lib/gyan/stripFormulaDelimiters";
 
 interface InteractiveFormulaProps {
   formula: SavedFormula;

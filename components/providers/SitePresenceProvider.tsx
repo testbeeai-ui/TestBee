@@ -10,9 +10,9 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { fetchWithClientAuth } from "@/lib/clientApiAuth";
-import { EDUBLAST_STUDY_DAYS_REFRESH } from "@/lib/studyDayBumpEvents";
-import { localStudyCalendarDay } from "@/lib/studyDayBump";
+import { fetchWithClientAuth } from "@/lib/auth/clientApiAuth";
+import { EDUBLAST_STUDY_DAYS_REFRESH } from "@/lib/dashboard/studyDayBumpEvents";
+import { localStudyCalendarDay } from "@/lib/dashboard/studyDayBump";
 
 const SitePresenceLiveContext = createContext(0);
 

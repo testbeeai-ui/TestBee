@@ -3,9 +3,9 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
-import { getClientApiAuthHeaders } from "@/lib/clientApiAuth";
-import { localDayBoundsIso } from "@/lib/dashboardDayActivity";
-import { dispatchStudyDayBumped } from "@/lib/studyDayBumpEvents";
+import { getClientApiAuthHeaders } from "@/lib/auth/clientApiAuth";
+import { localDayBoundsIso } from "@/lib/dashboard/dashboardDayActivity";
+import { dispatchStudyDayBumped } from "@/lib/dashboard/studyDayBumpEvents";
 import { cn } from "@/lib/utils";
 
 const FLUSH_EVERY_MS = 25_000;

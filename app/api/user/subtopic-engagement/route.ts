@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { getSupabaseAndUser } from "@/lib/apiAuth";
+import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
 import type { Json } from "@/integrations/supabase/types";
-import type { SubtopicEngagementSnapshot } from "@/lib/subtopicEngagementService";
-import { parseEngagementStore } from "@/lib/subtopicEngagementStoreParse";
-import { makeSubtopicEngagementStorageKey } from "@/lib/subtopicEngagementStorageKey";
+import type { SubtopicEngagementSnapshot } from "@/lib/curriculum/subtopicEngagementService";
+import { parseEngagementStore } from "@/lib/curriculum/subtopicEngagementStoreParse";
+import { makeSubtopicEngagementStorageKey } from "@/lib/curriculum/subtopicEngagementStorageKey";
 import type { Board, Subject } from "@/types";
 import type { DifficultyLevel } from "@/lib/slugs";
 

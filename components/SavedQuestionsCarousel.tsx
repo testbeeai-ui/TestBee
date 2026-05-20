@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import { CheckCircle2, ChevronLeft, ChevronRight, Trash2, XCircle } from "lucide-react";
 import type { Question } from "@/types";
 import { useUserStore } from "@/store/useUserStore";
-import { sanitizeMockHtml } from "@/lib/mockHtml";
-import { patchNtaHtmlPresentation, wrapPlainMockTextForKatexHtml } from "@/lib/mockRichTextKatex";
+import { sanitizeMockHtml } from "@/lib/mock/mockHtml";
+import { patchNtaHtmlPresentation, wrapPlainMockTextForKatexHtml } from "@/lib/mock/mockRichTextKatex";
 import { useKatexAutoRender } from "@/hooks/useKatexAutoRender";
 import { cn } from "@/lib/utils";
 

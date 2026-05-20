@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { computeStreakDays } from "@/lib/gauntletStreak";
+import { computeStreakDays } from "@/lib/dashboard/gauntletStreak";
 
 export interface ExploreStats {
   streakDays: number;

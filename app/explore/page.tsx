@@ -43,7 +43,7 @@ import TheoryContent from "@/components/TheoryContent";
 import { getInstaCueCards } from "@/data/instaCueCards";
 import type { InstaCueCard } from "@/data/instaCueCards";
 import InstaCue from "@/components/InstaCue";
-import { prettifySubtopicTitle } from "@/lib/subtopicTitles";
+import { prettifySubtopicTitle } from "@/lib/curriculum/subtopicTitles";
 import SubjectChatbot from "@/components/SubjectChatbot";
 import AnimatedPhysicsIcon from "@/components/AnimatedPhysicsIcon";
 import AnimatedChemistryIcon from "@/components/AnimatedChemistryIcon";

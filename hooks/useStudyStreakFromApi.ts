@@ -2,14 +2,18 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { getClientApiAuthHeaders } from "@/lib/clientApiAuth";
-import { EDUBLAST_STUDY_DAYS_REFRESH } from "@/lib/studyDayBumpEvents";
-import { addDaysLocal, localDayKeyFromDate, startOfLocalDay } from "@/lib/dashboardDayActivity";
-import { computeStudyStreakFromDayMs } from "@/lib/studyStreakClient";
-import { supabase } from "@/integrations/supabase/client";
+import { getClientApiAuthHeaders } from "@/lib/auth/clientApiAuth";
+import { EDUBLAST_STUDY_DAYS_REFRESH } from "@/lib/dashboard/studyDayBumpEvents";
+import { addDaysLocal, localDayKeyFromDate, startOfLocalDay } from "@/lib/dashboard/dashboardDayActivity";
+import { computeStudyStreakFromDayMs } from "@/lib/dashboard/studyStreakClient";
 
 /**
  * Study streak from the same `/api/user/study-days` source as the dashboard (saved play + quiz time).
+ *
+ * No Realtime subscription here on purpose: own-user writes already dispatch
+ * `EDUBLAST_STUDY_DAYS_REFRESH` via `notifyStudyDaysRefresh()` and `SitePresenceProvider`,
+ * and the focus listener catches cross-tab/cross-device edits. Avoiding the extra channel
+ * keeps Realtime peak-connection cost down on Supabase Pro/MICRO.
  */
 export function useStudyStreakFromApi(): { streakDays: number; ready: boolean } {
   const { profile } = useAuth();
@@ -67,26 +71,6 @@ export function useStudyStreakFromApi(): { streakDays: number; ready: boolean } 
       window.removeEventListener("focus", onRefresh);
     };
   }, [load]);
-
-  useEffect(() => {
-    if (!profile?.id) return;
-    const channel = supabase
-      .channel(`sidebar_study_streak:${profile.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "user_study_day_totals",
-          filter: `user_id=eq.${profile.id}`,
-        },
-        () => void load()
-      )
-      .subscribe();
-    return () => {
-      void supabase.removeChannel(channel);
-    };
-  }, [profile?.id, load]);
 
   return { streakDays, ready };
 }

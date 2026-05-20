@@ -16,7 +16,7 @@ import type { RawPostRow } from "./rawFeedTypes";
 import {
   getMockPaperSlugFromCommunityPost,
   hrefForMockPaperCommunityShare,
-} from "@/lib/mockPaperCommunityLink";
+} from "@/lib/mock/mockPaperCommunityLink";
 
 const subjectLabel: Record<string, string> = {
   physics: "Physics",

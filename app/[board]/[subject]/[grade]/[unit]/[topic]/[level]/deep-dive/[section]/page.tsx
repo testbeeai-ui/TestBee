@@ -8,7 +8,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Button } from "@/components/ui/button";
 import { getDeepDiveContent } from "@/data/deepDiveContent";
 import { getTheoryOrPlaceholder } from "@/data/topicTheory";
-import { resolveTopicFromParams, buildTopicPath } from "@/lib/topicRoutes";
+import { resolveTopicFromParams, buildTopicPath } from "@/lib/curriculum/topicRoutes";
 import { useTopicTaxonomy } from "@/hooks/useTopicTaxonomy";
 import type { SavedRevisionUnit, SavedBit, SavedFormula, Board } from "@/types";
 import { parseTheorySections } from "@/components/TheoryContentWithDeepDive";
@@ -35,14 +35,14 @@ import {
   RefreshCw,
 } from "lucide-react";
 import type { BitsQuestion, PracticeFormula } from "@/data/deepDiveContent";
-import { canRegenerate, generateFormulaQuestions } from "@/lib/formulaQuestionGenerators";
+import { canRegenerate, generateFormulaQuestions } from "@/lib/gyan/verify/formulaQuestionGenerators";
 import PremiumFeatureDialog from "@/components/PremiumFeatureDialog";
-import { syncAllSavedContent } from "@/lib/savedContentService";
-import { applyInstacueCreateDailyRdmReward } from "@/lib/applyInstacueCreateDailyRdmReward";
+import { syncAllSavedContent } from "@/lib/saved/savedContentService";
+import { applyInstacueCreateDailyRdmReward } from "@/lib/rdm/claims/applyInstacueCreateDailyRdmReward";
 import { useToast } from "@/hooks/use-toast";
 import MathText from "@/components/MathText";
-import { stripFormulaDelimiters } from "@/lib/stripFormulaDelimiters";
-import { subtopicMathTextLabel } from "@/lib/subtopicTitles";
+import { stripFormulaDelimiters } from "@/lib/gyan/stripFormulaDelimiters";
+import { subtopicMathTextLabel } from "@/lib/curriculum/subtopicTitles";
 import { useAuth } from "@/hooks/useAuth";
 
 /** Check if a BitsQuestion matches a SavedBit (same content). */

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/integrations/supabase/server";
-import { isAdminUser } from "@/lib/admin";
+import { isAdminUser } from "@/lib/admin/admin";
 import { isAdminOnlyNewsSection } from "@/app/news-blog/constants";
 import { getPublicPostBySlugServer, getPublicPostsServer } from "@/lib/news-blog/server-loader";
 import { feedCardBlurb, htmlToSeoSafeDocument } from "../html-feed-and-seo";

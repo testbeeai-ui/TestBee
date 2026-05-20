@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/integrations/supabase/server";
-import { requireAuthenticatedUser } from "@/lib/securityGuards";
-import { fetchRdmConfig } from "@/lib/rdmConfig";
-import { getIstWeekMondayDateString } from "@/lib/referralIst";
+import { requireAuthenticatedUser } from "@/lib/auth/securityGuards";
+import { fetchRdmConfig } from "@/lib/rdm/rdmConfig";
+import { getIstWeekMondayDateString } from "@/lib/rdm/referral/referralIst";
 
 export async function GET(request: Request) {
   const auth = await requireAuthenticatedUser(request);

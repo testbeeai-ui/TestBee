@@ -13,8 +13,9 @@ import {
 import Link from "next/link";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useUserStore } from "@/store/useUserStore";
 import type { Profile } from "@/hooks/useAuth";
-import type { Achievement } from "@/lib/publicProfileService";
+import type { Achievement } from "@/lib/profile/publicProfileService";
 import {
   parseAcademicRecordExtras,
   extrasToJson,
@@ -59,7 +60,7 @@ import {
   GraduationCap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { EDUFUND_RDM_GATES } from "@/lib/dashboardSidebarMetrics";
+import { EDUFUND_RDM_GATES } from "@/lib/dashboard/dashboardSidebarMetrics";
 import {
   activityGreenLevelFromStudyMs,
   addDaysLocal,
@@ -67,10 +68,10 @@ import {
   formatStudyMsForTooltip,
   localDayKeyFromDate,
   startOfLocalDay,
-} from "@/lib/dashboardDayActivity";
-import { computeStudyStreakFromDayMs } from "@/lib/studyStreakClient";
-import { getClientApiAuthHeaders } from "@/lib/clientApiAuth";
-import { EDUBLAST_STUDY_DAYS_REFRESH } from "@/lib/studyDayBumpEvents";
+} from "@/lib/dashboard/dashboardDayActivity";
+import { computeStudyStreakFromDayMs } from "@/lib/dashboard/studyStreakClient";
+import { getClientApiAuthHeaders } from "@/lib/auth/clientApiAuth";
+import { EDUBLAST_STUDY_DAYS_REFRESH } from "@/lib/dashboard/studyDayBumpEvents";
 import { useSitePresenceLiveMsToday } from "@/components/providers/SitePresenceProvider";
 import { eachDayOfInterval, endOfWeek, format, startOfWeek } from "date-fns";
 
@@ -2063,52 +2064,80 @@ export function StudentProfileActivityPanel({ profile }: { profile: Profile }) {
 
   useEffect(() => {
     if (!profile.id) return;
+    if (typeof document === "undefined") return;
+
     const reload = () => void loadGyanPlusEngagement();
-    const channel = supabase
-      .channel(`gyan_plus_engagement:${profile.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "doubts",
-          filter: `user_id=eq.${profile.id}`,
-        },
-        reload
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "doubt_answers",
-          filter: `user_id=eq.${profile.id}`,
-        },
-        reload
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "doubt_votes",
-          filter: `user_id=eq.${profile.id}`,
-        },
-        reload
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "doubt_saves",
-          filter: `user_id=eq.${profile.id}`,
-        },
-        reload
-      )
-      .subscribe();
-    return () => {
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    const subscribe = () => {
+      if (channel) return;
+      channel = supabase
+        .channel(`gyan_plus_engagement:${profile.id}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "doubts",
+            filter: `user_id=eq.${profile.id}`,
+          },
+          reload
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "doubt_answers",
+            filter: `user_id=eq.${profile.id}`,
+          },
+          reload
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "doubt_votes",
+            filter: `user_id=eq.${profile.id}`,
+          },
+          reload
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "doubt_saves",
+            filter: `user_id=eq.${profile.id}`,
+          },
+          reload
+        )
+        .subscribe();
+    };
+
+    const unsubscribe = () => {
+      if (!channel) return;
       void supabase.removeChannel(channel);
+      channel = null;
+    };
+
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        subscribe();
+        // catch any missed changes while hidden
+        reload();
+      } else {
+        unsubscribe();
+      }
+    };
+
+    if (document.visibilityState === "visible") subscribe();
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      unsubscribe();
     };
   }, [profile.id, loadGyanPlusEngagement]);
 
@@ -2203,7 +2232,8 @@ export function StudentProfileActivityPanel({ profile }: { profile: Profile }) {
           (attendanceStats?.instacueDwellEventsThisWeek ?? 0)
         ).toLocaleString();
 
-  const communityEngagementStr = (profile.saved_community_posts ?? []).length.toLocaleString();
+  const user = useUserStore((s) => s.user);
+  const communityEngagementStr = (user?.savedCommunityPosts ?? []).length.toLocaleString();
 
   const academicBuckets = academicMarksBucketsFilled(profile);
   const academicStr = `${academicBuckets.filled}/${academicBuckets.total}`;

@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import StudentProfileShell, { type StudentProfileSectionId } from "./StudentProfileShell";
 import StudentSettingsHub from "./StudentSettingsHub";
+import StudentSubscriptionHub from "./subscription/StudentSubscriptionHub";
 import {
   StudentProfileAcademicPanel,
   StudentProfileAchievementsPanel,
@@ -39,7 +40,7 @@ import {
 } from "@/lib/profile/studentProfileOptions";
 import { Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getClientApiAuthHeaders } from "@/lib/clientApiAuth";
+import { getClientApiAuthHeaders } from "@/lib/auth/clientApiAuth";
 import { parseAcademicRecordExtras } from "@/lib/profile/academicRecordExtras";
 import { computeStudentProfileCompletion, type CompletionBreakdown } from "@/lib/profile/studentProfileCompletionScore";
 
@@ -76,6 +77,12 @@ const PROFILE_SECTION_QUERY_VALUES: StudentProfileSectionId[] = [
   "achievements",
   "activity",
   "edufund",
+  "sub-overview",
+  "sub-plans",
+  "sub-payment",
+  "sub-checkout",
+  "sub-history",
+  "sub-cancel",
   "settings",
 ];
 
@@ -382,6 +389,8 @@ export default function StudentProfilePersonalHub({
         <StudentProfileActivityPanel profile={profile} />
       ) : section === "edufund" ? (
         <StudentProfileEduFundPanel profile={profile} />
+      ) : section === "sub-overview" || section === "sub-plans" || section === "sub-payment" || section === "sub-checkout" || section === "sub-history" || section === "sub-cancel" ? (
+        <StudentSubscriptionHub profile={profile} activeView={section.replace("sub-", "") as "overview" | "plans" | "payment" | "checkout" | "history" | "cancel"} onSectionChange={setSection} />
       ) : section === "settings" ? (
         <StudentSettingsHub />
       ) : section === "personal" ? (

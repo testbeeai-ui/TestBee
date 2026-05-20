@@ -10,6 +10,7 @@ import {
   FileQuestion,
   GraduationCap,
   Lightbulb,
+  ListChecks,
   ListOrdered,
   Search,
   ShieldCheck,
@@ -20,12 +21,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { mockPaperTypeLabel, type LibraryCategoryFilter } from "@/lib/mockPapersCatalog";
-import { QUICK_DURATIONS, subjectEmojis } from "@/components/prep-mock/constants";
+import { mockPaperTypeLabel, type LibraryCategoryFilter } from "@/lib/mock/mockPapersCatalog";
+import {
+  QUICK_DURATIONS,
+  subjectEmojis,
+  SUBJECT_LABELS,
+} from "@/components/prep-mock/constants";
+import McqChapterBrowser from "@/components/prep-mock/library/McqChapterBrowser";
 import type { LibraryCollectionTab, PaperSource } from "@/components/prep-mock/types";
 
 export type MockTestLibraryViewProps = {
   onBack: () => void;
+  /** CBSE chapter MCQ browser — admins only. */
+  isAdminUser: boolean;
   libraryCollectionTab: LibraryCollectionTab;
   setLibraryCollectionTab: (tab: LibraryCollectionTab) => void;
   mockLibraryCategory: LibraryCategoryFilter;
@@ -54,8 +62,16 @@ export type MockTestLibraryViewProps = {
   ) => void;
 };
 
+const LIBRARY_TABS: { id: LibraryCollectionTab; label: string; adminOnly?: boolean }[] = [
+  { id: "past", label: "Past papers" },
+  { id: "mock", label: "Mock papers" },
+  { id: "quick", label: "Quick mock" },
+  { id: "mcq", label: "MCQ's", adminOnly: true },
+];
+
 export default function MockTestLibraryView({
   onBack,
+  isAdminUser,
   libraryCollectionTab,
   setLibraryCollectionTab,
   mockLibraryCategory,
@@ -79,6 +95,8 @@ export default function MockTestLibraryView({
   catalogError,
   openNtaInstructionsForPaper,
 }: MockTestLibraryViewProps) {
+  const visibleTabs = LIBRARY_TABS.filter((tab) => !tab.adminOnly || isAdminUser);
+
   return (
     <motion.div
       key="setup"
@@ -121,13 +139,7 @@ export default function MockTestLibraryView({
                 </div>
 
                 <div className="mt-6 flex gap-2 overflow-x-auto pb-1">
-                  {(
-                    [
-                      { id: "past" as const, label: "Past papers" },
-                      { id: "mock" as const, label: "Mock papers" },
-                      { id: "quick" as const, label: "Quick mock" },
-                    ] satisfies { id: LibraryCollectionTab; label: string }[]
-                  ).map((tab) => (
+                  {visibleTabs.map((tab) => (
                     <button
                       key={tab.id}
                       type="button"
@@ -200,7 +212,7 @@ export default function MockTestLibraryView({
                               )}
                             >
                               <span>{subjectEmojis[subj]}</span>
-                              <span className="capitalize">{subj}</span>
+                              <span>{SUBJECT_LABELS[subj]}</span>
                             </button>
                           ))}
                         </div>
@@ -233,6 +245,8 @@ export default function MockTestLibraryView({
                       </div>
                     </div>
                   </div>
+                ) : libraryCollectionTab === "mcq" && isAdminUser ? (
+                  <McqChapterBrowser />
                 ) : (
                   <div className="mt-8 space-y-6">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -439,3 +453,4 @@ export default function MockTestLibraryView({
     </motion.div>
   );
 }
+

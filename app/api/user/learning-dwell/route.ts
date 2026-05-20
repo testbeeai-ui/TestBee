@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSupabaseAndUser } from "@/lib/apiAuth";
+import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
 import type { DifficultyLevel } from "@/lib/slugs";
 import type { Board, Subject } from "@/types";
 import {
@@ -7,7 +7,7 @@ import {
   normalizeBoardParam,
   type LearningDwellClientEvent,
   type LearningDwellPanel,
-} from "@/lib/learningDwellTelemetry";
+} from "@/lib/dashboard/learningDwellTelemetry";
 
 const MAX_EVENTS = 25;
 

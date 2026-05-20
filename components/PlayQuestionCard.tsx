@@ -15,7 +15,7 @@ import {
   difficultyRatingToLabel,
   playCategoryToSubjectTag,
   type EduBlastDotState,
-} from "@/lib/eduBlastChallengeMeta";
+} from "@/lib/rdm/eduBlastChallengeMeta";
 
 /** High-contrast feedback on dark DailyDose / arena modals (theme accent can be too subtle). */
 const STRIKE_COLOR =

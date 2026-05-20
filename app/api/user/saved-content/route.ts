@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient, createClientWithToken } from "@/integrations/supabase/server";
-import { enforceSameOriginForCookieAuth } from "@/lib/securityGuards";
+import { enforceSameOriginForCookieAuth } from "@/lib/auth/securityGuards";
 import type {
   SavedBit,
   SavedFormula,
@@ -8,6 +8,9 @@ import type {
   SavedRevisionUnit,
   SavedCommunityPost,
 } from "@/types";
+import type { PlanTier, ItemType } from "@/lib/saved/savedItemCap";
+import { getSaveCap } from "@/lib/saved/savedItemCap";
+import type { Json } from "@/integrations/supabase/types";
 
 async function getSupabaseAndUser(request: Request) {
   const cookieClient = await createClient();
@@ -27,6 +30,122 @@ async function getSupabaseAndUser(request: Request) {
   return user ? { supabase: cookieClient, user } : null;
 }
 
+/** Map frontend type names to item_type enum values */
+const TYPE_MAP: Record<string, ItemType> = {
+  savedBits: "saved_bit",
+  savedFormulas: "saved_formula",
+  savedRevisionCards: "saved_revision_card",
+  savedRevisionUnits: "saved_revision_unit",
+  savedCommunityPosts: "saved_community_post",
+};
+
+/** Extract content_id from a saved item based on its type */
+function getContentId(item: Record<string, unknown>, itemType: ItemType): string {
+  if (itemType === "saved_community_post") {
+    return (item.postId as string) ?? (item.id as string) ?? "unknown";
+  }
+  return (item.id as string) ?? "unknown";
+}
+
+/** Extract subject from a saved item */
+function getSubject(item: Record<string, unknown>): string | null {
+  return (item.subject as string) ?? null;
+}
+
+/** Extract status (only for revision cards) */
+function getStatus(item: Record<string, unknown>, itemType: ItemType): string | null {
+  if (itemType === "saved_revision_card") {
+    return (item.status as string) ?? null;
+  }
+  return null;
+}
+
+/** Extract saved_at timestamp */
+function getSavedAt(item: Record<string, unknown>, itemType: ItemType): string | null {
+  if (itemType === "saved_revision_card") {
+    return (item.savedAt as string) ?? null;
+  }
+  if (itemType === "saved_community_post") {
+    return (item.savedAt as string) ?? null;
+  }
+  return null;
+}
+
+/**
+ * Sync one item type to user_saved_items table.
+ * Uses delete-then-bulk-insert (same pattern as the old full-array replace).
+ */
+async function syncItemType(
+  supabase: ReturnType<typeof createClientWithToken>,
+  userId: string,
+  itemType: ItemType,
+  items: Record<string, unknown>[]
+): Promise<{ error: string | null }> {
+  // Delete all existing rows of this type for the user
+  const { error: delErr } = await supabase
+    .from("user_saved_items")
+    .delete()
+    .eq("user_id", userId)
+    .eq("item_type", itemType);
+
+  if (delErr) return { error: delErr.message };
+
+  // Insert new rows (if any)
+  if (items.length > 0) {
+    const rows = items.map((item) => ({
+      user_id: userId,
+      item_type: itemType,
+      content_id: getContentId(item, itemType),
+      subject: getSubject(item),
+      status: getStatus(item, itemType),
+      saved_at: getSavedAt(item, itemType),
+      data: item as Json,
+    }));
+
+    const { error: insErr } = await supabase.from("user_saved_items").insert(rows);
+    if (insErr) return { error: insErr.message };
+  }
+
+  return { error: null };
+}
+
+/** Check plan-based save cap for an item type */
+async function checkCap(
+  supabase: ReturnType<typeof createClientWithToken>,
+  userId: string,
+  itemType: ItemType,
+  newItemCount: number
+): Promise<{ error: string | null }> {
+  // Get user's plan tier
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("plan_tier")
+    .eq("id", userId)
+    .maybeSingle();
+
+  const tier = ((profile?.plan_tier as string) ?? "free") as PlanTier;
+  const cap = getSaveCap(tier, itemType);
+
+  if (cap === Infinity) return { error: null }; // unlimited
+
+  // Count existing items of this type
+  const { count } = await supabase
+    .from("user_saved_items")
+    .select("*", { head: true, count: "exact" })
+    .eq("user_id", userId)
+    .eq("item_type", itemType);
+
+  const currentCount = count ?? 0;
+  // Only block growth, not deletions — allows users over cap (pre-migration) to still remove items
+  if (newItemCount > cap && newItemCount > currentCount) {
+    return {
+      error: `Save limit reached: ${cap} items allowed for your ${tier} plan. You have ${currentCount} saved.`,
+    };
+  }
+
+  return { error: null };
+}
+
 export async function GET(request: Request) {
   try {
     const ctx = await getSupabaseAndUser(request);
@@ -34,32 +153,50 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     const { supabase, user } = ctx;
-    const { data: profile, error } = await supabase
-      .from("profiles")
-      .select(
-        "saved_bits, saved_formulas, saved_revision_cards, saved_revision_units, saved_community_posts"
-      )
-      .eq("id", user.id)
-      .maybeSingle();
+
+    // Read from user_saved_items table
+    const { data: items, error } = await supabase
+      .from("user_saved_items")
+      .select("item_type, data")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false });
+
     if (error) {
       console.error("saved-content GET error", error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
-    const savedBits = (profile?.saved_bits ?? []) as unknown as SavedBit[];
-    const savedFormulas = (profile?.saved_formulas ?? []) as unknown as SavedFormula[];
-    const savedRevisionCards = (profile?.saved_revision_cards ??
-      []) as unknown as SavedRevisionCard[];
-    const savedRevisionUnits = (profile?.saved_revision_units ??
-      []) as unknown as SavedRevisionUnit[];
-    const savedCommunityPosts = (profile?.saved_community_posts ??
-      []) as unknown as SavedCommunityPost[];
-    return NextResponse.json({
-      savedBits,
-      savedFormulas,
-      savedRevisionCards,
-      savedRevisionUnits,
-      savedCommunityPosts,
-    });
+
+    // Group by item_type
+    const grouped = {
+      savedBits: [] as SavedBit[],
+      savedFormulas: [] as SavedFormula[],
+      savedRevisionCards: [] as SavedRevisionCard[],
+      savedRevisionUnits: [] as SavedRevisionUnit[],
+      savedCommunityPosts: [] as SavedCommunityPost[],
+    };
+
+    for (const row of items ?? []) {
+      const data = row.data as unknown;
+      switch (row.item_type) {
+        case "saved_bit":
+          grouped.savedBits.push(data as SavedBit);
+          break;
+        case "saved_formula":
+          grouped.savedFormulas.push(data as SavedFormula);
+          break;
+        case "saved_revision_card":
+          grouped.savedRevisionCards.push(data as SavedRevisionCard);
+          break;
+        case "saved_revision_unit":
+          grouped.savedRevisionUnits.push(data as SavedRevisionUnit);
+          break;
+        case "saved_community_post":
+          grouped.savedCommunityPosts.push(data as SavedCommunityPost);
+          break;
+      }
+    }
+
+    return NextResponse.json(grouped);
   } catch (e) {
     console.error("saved-content GET error", e);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
@@ -77,6 +214,7 @@ export async function POST(request: Request) {
     }
     const { supabase, user } = ctx;
     const body = await request.json();
+
     const savedBits = Array.isArray(body?.savedBits) ? body.savedBits : undefined;
     const savedFormulas = Array.isArray(body?.savedFormulas) ? body.savedFormulas : undefined;
     const savedRevisionCards = Array.isArray(body?.savedRevisionCards)
@@ -88,6 +226,7 @@ export async function POST(request: Request) {
     const savedCommunityPosts = Array.isArray(body?.savedCommunityPosts)
       ? body.savedCommunityPosts
       : undefined;
+
     if (
       savedBits === undefined &&
       savedFormulas === undefined &&
@@ -103,17 +242,60 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+
+    // Check caps before writing
+    const capChecks = [
+      { key: "savedBits", items: savedBits },
+      { key: "savedFormulas", items: savedFormulas },
+      { key: "savedRevisionCards", items: savedRevisionCards },
+      { key: "savedRevisionUnits", items: savedRevisionUnits },
+      { key: "savedCommunityPosts", items: savedCommunityPosts },
+    ] as const;
+
+    for (const { key, items } of capChecks) {
+      if (items !== undefined) {
+        const itemType = TYPE_MAP[key];
+        const capErr = await checkCap(supabase, user.id, itemType, items.length);
+        if (capErr.error) {
+          return NextResponse.json({ error: capErr.error }, { status: 403 });
+        }
+      }
+    }
+
+    // 1. Continue existing write to profiles (backward compat during migration)
     const updates: Record<string, unknown> = {};
     if (savedBits !== undefined) updates.saved_bits = savedBits;
     if (savedFormulas !== undefined) updates.saved_formulas = savedFormulas;
     if (savedRevisionCards !== undefined) updates.saved_revision_cards = savedRevisionCards;
     if (savedRevisionUnits !== undefined) updates.saved_revision_units = savedRevisionUnits;
     if (savedCommunityPosts !== undefined) updates.saved_community_posts = savedCommunityPosts;
+
     const { error } = await supabase.from("profiles").update(updates).eq("id", user.id);
     if (error) {
       console.error("saved-content POST error", error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
+
+    // 2. Dual-write to user_saved_items table
+    const dualWrites = [
+      { key: "savedBits" as const, items: savedBits },
+      { key: "savedFormulas" as const, items: savedFormulas },
+      { key: "savedRevisionCards" as const, items: savedRevisionCards },
+      { key: "savedRevisionUnits" as const, items: savedRevisionUnits },
+      { key: "savedCommunityPosts" as const, items: savedCommunityPosts },
+    ];
+
+    for (const { key, items } of dualWrites) {
+      if (items !== undefined) {
+        const itemType = TYPE_MAP[key];
+        const result = await syncItemType(supabase, user.id, itemType, items);
+        if (result.error) {
+          console.error(`Dual-write failed for ${itemType}:`, result.error);
+          // Don't fail the request — the profiles JSONB write already succeeded
+        }
+      }
+    }
+
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error("saved-content POST error", e);

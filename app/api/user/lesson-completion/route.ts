@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { getSupabaseAndUser } from "@/lib/apiAuth";
-import { LESSON_COMPLETION_TRACKED_LEVEL } from "@/lib/lessonCompletionRollup";
-import type { LessonCompletionApiItem } from "@/lib/lessonCompletionRollup";
+import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
+import { LESSON_COMPLETION_TRACKED_LEVEL } from "@/lib/curriculum/lessonCompletionRollup";
+import type { LessonCompletionApiItem } from "@/lib/curriculum/lessonCompletionRollup";
 
 function sanitize(value: unknown, maxLen = 300): string {
   if (typeof value !== "string") return "";

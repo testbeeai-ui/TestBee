@@ -9,7 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { fetchWithClientAuth } from "@/lib/clientApiAuth";
+import { fetchWithClientAuth } from "@/lib/auth/clientApiAuth";
 import {
   DEFAULT_TEACHER_RDM_COSTS,
   type TeacherRdmCosts,

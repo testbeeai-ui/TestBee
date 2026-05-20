@@ -1,4 +1,4 @@
-import { makeSubtopicEngagementStorageKey } from "@/lib/subtopicEngagementStorageKey";
+import { makeSubtopicEngagementStorageKey } from "@/lib/curriculum/subtopicEngagementStorageKey";
 import { isValidLevel } from "@/lib/slugs";
 
 const SUBJECTS = new Set(["physics", "chemistry", "math"]);

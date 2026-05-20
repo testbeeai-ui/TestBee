@@ -34,8 +34,8 @@ import { GyanDailyChecklistTracker } from "@/components/doubts/GyanDailyChecklis
 import GyanFeedPagination, {
   GYAN_FEED_PAGE_SIZE,
 } from "@/components/doubts/GyanFeedPagination";
-import { dispatchStudyDayBumped } from "@/lib/studyDayBumpEvents";
-import { DEFAULT_RDM_CONFIG, fetchRdmConfig } from "@/lib/rdmConfig";
+import { dispatchStudyDayBumped } from "@/lib/dashboard/studyDayBumpEvents";
+import { DEFAULT_RDM_CONFIG, fetchRdmConfig } from "@/lib/rdm/rdmConfig";
 
 type SimpleDoubtRow = {
   id: string;

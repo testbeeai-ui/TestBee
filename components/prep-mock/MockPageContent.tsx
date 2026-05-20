@@ -8,7 +8,7 @@ import { useUserStore } from "@/store/useUserStore";
 import {
   saveQuestionToDb,
   type SavedQuestionSource,
-} from "@/lib/savedQuestionsService";
+} from "@/lib/saved/savedQuestionsService";
 import { useAuth } from "@/hooks/useAuth";
 import { getMockQuestions, questions as questionBank } from "@/data/questions";
 import { useTheme } from "next-themes";
@@ -54,16 +54,16 @@ import {
   filterMockPapers,
   mockPaperTypeLabel,
   type LibraryCategoryFilter,
-} from "@/lib/mockPapersCatalog";
-import { filterPastPapers } from "@/lib/pastPapersCatalog";
+} from "@/lib/mock/mockPapersCatalog";
+import { filterPastPapers } from "@/lib/mock/pastPapersCatalog";
 import {
   fetchMockPapersFromSupabase,
   fetchMockQuestionsForPaper,
-} from "@/lib/mockPapersFromSupabase";
+} from "@/lib/mock/mockPapersFromSupabase";
 import {
   fetchPastPapersFromSupabase,
   fetchPastQuestionsForPaper,
-} from "@/lib/pastPapersFromSupabase";
+} from "@/lib/mock/pastPapersFromSupabase";
 import { useToast } from "@/hooks/use-toast";
 
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -76,8 +76,8 @@ import ClassesSection from "@/components/prep-mock/ClassesSection";
 import MockTestsSection from "@/components/prep-mock/MockTestsSection";
 import StreakCalendar from "@/components/prep-mock/StreakCalendar";
 import RevisionInstaCueSection from "@/components/prep-mock/RevisionInstaCueSection";
-import { fetchSavedContent } from "@/lib/savedContentService";
-import { mergeAllSavedContent } from "@/lib/mergeSavedContent";
+import { fetchSavedContent } from "@/lib/saved/savedContentService";
+import { mergeAllSavedContent } from "@/lib/saved/mergeSavedContent";
 import {
   QUICK_DURATIONS,
   FEATURED_DASHBOARD_PYQ_SLUG,
@@ -96,7 +96,7 @@ import { ReviewInlineHtml, formatMockExamTime } from "@/components/prep-mock/uti
 import MockTestLibraryView from "@/components/prep-mock/library/MockTestLibraryView";
 import PrepMockDashboardView from "@/components/prep-mock/dashboard/PrepMockDashboardView";
 
-import { incrementPrepCalendarDay, localDayISO } from "@/lib/prepCalendarClient";
+import { incrementPrepCalendarDay, localDayISO } from "@/lib/dashboard/prepCalendarClient";
 import { cn } from "@/lib/utils";
 import {
   saveMockAssignmentTracking,
@@ -106,13 +106,13 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { fireAssignmentTaskSync } from "@/lib/classroom/syncAssignmentTaskProgress";
 import { dispatchClassroomAssignmentProgressChanged } from "@/lib/classroom/assignmentProgressSync";
-import { buildWhatsAppShareUrl } from "@/lib/referChallengeShareUrls";
+import { buildWhatsAppShareUrl } from "@/lib/rdm/referral/referChallengeShareUrls";
 import {
   buildMockShareTemplates,
   formatMockAccuracyPercent,
   getMockShareOutcome,
   pickNextMockShareTemplate,
-} from "@/lib/mockTestShareTemplates";
+} from "@/lib/mock/mockTestShareTemplates";
 
 
 export type MockPageContentProps = {
@@ -142,6 +142,7 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
   const classTrackingMissingToastShownRef = useRef(false);
 
   const subjects: Subject[] = useMemo(() => ["physics", "chemistry", "math"], []);
+  const isAdminUser = profile?.role === "admin";
 
   const [view, setView] = useState<MockView>(() => (isLibraryPage ? "setup" : "landing"));
   const [duration, setDuration] = useState<number>(90);
@@ -558,12 +559,21 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
     const tab = searchParams.get("tab");
     if (tab === "past" || tab === "mock" || tab === "quick") {
       setLibraryCollectionTab(tab);
+    } else if (tab === "mcq" && isAdminUser) {
+      setLibraryCollectionTab("mcq");
     }
     const subj = searchParams.get("subject");
     if (subj === "physics" || subj === "chemistry" || subj === "math") {
       setSelectedSubject(subj);
     }
-  }, [isLibraryPage, searchParams]);
+  }, [isLibraryPage, searchParams, isAdminUser]);
+
+  useEffect(() => {
+    if (!isLibraryPage) return;
+    if (libraryCollectionTab === "mcq" && !isAdminUser) {
+      setLibraryCollectionTab("past");
+    }
+  }, [isLibraryPage, libraryCollectionTab, isAdminUser]);
 
 
   /** Standalone library URL has no prep dashboard; keep users in the library shell. */
@@ -1165,6 +1175,7 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
           {isLibraryPage && view === "setup" && (
             <MockTestLibraryView
               onBack={() => router.push("/mock")}
+              isAdminUser={isAdminUser}
               libraryCollectionTab={libraryCollectionTab}
               setLibraryCollectionTab={setLibraryCollectionTab}
               mockLibraryCategory={mockLibraryCategory}

@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseAndUser } from "@/lib/apiAuth";
+import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
 import {
   appendUserAndAssistantMessages,
   buildApiChatContextKey,
   loadThreadMessages,
-} from "@/lib/subjectChatMessages";
+} from "@/lib/gyan/subjectChatMessages";
 import {
   sarvamChatCompletion,
   formatSarvamAssistantReply,

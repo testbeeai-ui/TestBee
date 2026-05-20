@@ -4,7 +4,7 @@ import { useState } from "react";
 import type { Subject, ExamType, ClassLevel } from "@/types";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { examTypeToTargetExam } from "@/lib/targetExam";
+import { examTypeToTargetExam } from "@/lib/profile/targetExam";
 import { cn } from "@/lib/utils";
 import { Atom, Calculator, FlaskConical } from "lucide-react";
 

@@ -24,8 +24,8 @@ import {
 } from "lucide-react";
 import { Subject } from "@/types";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { parseBitsTestAttemptsStore } from "@/lib/parseBitsTestAttemptsStore";
-import { parseEngagementDraftDashboardContributions } from "@/lib/parseEngagementDraftDashboardContributions";
+import { parseBitsTestAttemptsStore } from "@/lib/play/bits/parseBitsTestAttemptsStore";
+import { parseEngagementDraftDashboardContributions } from "@/lib/dashboard/parseEngagementDraftDashboardContributions";
 
 type SubjectStat = {
   subject: Subject;

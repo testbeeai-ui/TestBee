@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSupabaseAndUser } from "@/lib/apiAuth";
+import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
 import { isAssignmentTaskKind, type AssignmentTaskKind } from "@/lib/classroom/assignmentTasks";
 import { syncAssignmentTasksForKinds } from "@/lib/classroom/syncAssignmentTaskProgress";
 

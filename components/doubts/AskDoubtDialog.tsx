@@ -21,8 +21,8 @@ import {
   applyNormalizedPasteToField,
   normalizePastedMathForDoubt,
 } from "@/lib/normalizePastedDoubtMath";
-import { incrementPrepCalendarDay, localDayISO } from "@/lib/prepCalendarClient";
-import { safeGetSession } from "@/lib/safeSession";
+import { incrementPrepCalendarDay, localDayISO } from "@/lib/dashboard/prepCalendarClient";
+import { safeGetSession } from "@/lib/auth/safeSession";
 
 interface AskDoubtDialogProps {
   open: boolean;

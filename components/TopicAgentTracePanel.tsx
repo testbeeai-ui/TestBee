@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { TopicAgentTrace } from "@/lib/topicContentService";
+import type { TopicAgentTrace } from "@/lib/curriculum/topicContentService";
 import {
   Accordion,
   AccordionContent,

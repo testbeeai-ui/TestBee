@@ -7,13 +7,13 @@ import { useIsAppAdmin } from "@/hooks/useIsAppAdmin";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import PlayQuestionCard from "@/components/PlayQuestionCard";
-import { bumpUserStudyDayMs } from "@/lib/studyDayBump";
+import { bumpUserStudyDayMs } from "@/lib/dashboard/studyDayBump";
 import { fireAssignmentTaskSync } from "@/lib/classroom/syncAssignmentTaskProgress";
-import { shufflePlayQuestionOptions } from "@/lib/shufflePlayQuestionOptions";
+import { shufflePlayQuestionOptions } from "@/lib/play/questions/shufflePlayQuestionOptions";
 import { cn } from "@/lib/utils";
 import type { PlayDomain, PlayGauntletAnswerPayload, PlayQuestionRow } from "@/types";
-import { fetchDailyGauntletQuestionsWithFallback } from "@/lib/fetchPlayQuestionsAdaptiveWithFallback";
-import { fetchRdmConfig } from "@/lib/rdmConfig";
+import { fetchDailyGauntletQuestionsWithFallback } from "@/lib/play/questions/fetchPlayQuestionsAdaptiveWithFallback";
+import { fetchRdmConfig } from "@/lib/rdm/rdmConfig";
 import { Clock, Loader2 } from "lucide-react";
 
 const GAUNTLET_SESSION_SEC = 300;

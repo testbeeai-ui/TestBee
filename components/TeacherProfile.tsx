@@ -18,7 +18,7 @@ import {
   decodeTeachingLevelNumbers,
   encodeTeachingLevelLabels,
   formatTeachingLevelsForDisplay,
-} from "@/lib/profileTeacherOptions";
+} from "@/lib/profile/profileTeacherOptions";
 import { redirectToGoogleCalendarConsent } from "@/lib/integrations/googleCalendarOAuthClient";
 
 const subjects = ["Physics", "Chemistry", "Math", "Biology"];

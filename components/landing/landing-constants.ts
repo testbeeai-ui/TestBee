@@ -14,6 +14,7 @@ export const INVESTOR_NAV_LINKS = [
   { label: "Home", href: "/" },
   { label: "Features", href: "/auth?role=student" },
   { label: "News & Blogs", href: "/news-blog" },
+  { label: "Ts & Cs", href: "/terms-conditions" },
   { label: "EduFund", href: "/auth?role=student" },
   { label: "Contact Us", href: "/contact" },
 ];

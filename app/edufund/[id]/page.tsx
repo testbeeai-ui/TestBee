@@ -13,8 +13,8 @@ import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { UserHoverCard } from "@/components/UserHoverCard";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { DUMMY_PROPOSALS } from "@/lib/edufundProposals";
-import type { Proposal, ProposalCategory } from "@/lib/edufundProposals";
+import { DUMMY_PROPOSALS } from "@/lib/rdm/edufundProposals";
+import type { Proposal, ProposalCategory } from "@/lib/rdm/edufundProposals";
 import { Flame, Laptop, BookOpen, FlaskConical, GraduationCap } from "lucide-react";
 
 const CATEGORY_ICONS: Record<ProposalCategory, typeof Laptop> = {

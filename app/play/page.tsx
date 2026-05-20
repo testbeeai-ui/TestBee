@@ -18,7 +18,7 @@ import {
   remainingOptionsReviewMs,
   difficultyRatingToLabel,
   playCategoryToSubjectTag,
-} from "@/lib/eduBlastChallengeMeta";
+} from "@/lib/rdm/eduBlastChallengeMeta";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import type {
@@ -49,11 +49,11 @@ import { useScreenshotFilterEnabled } from "@/hooks/useScreenshotFilterEnabled";
 import {
   fetchDailyGauntletQuestionsWithFallback,
   fetchPlayQuestionsAdaptiveWithFallback,
-} from "@/lib/fetchPlayQuestionsAdaptiveWithFallback";
-import { fetchPlayQuestionsDomainRandom } from "@/lib/fetchPlayQuestionsDomainRandom";
-import { bumpUserStudyDayMs } from "@/lib/studyDayBump";
+} from "@/lib/play/questions/fetchPlayQuestionsAdaptiveWithFallback";
+import { fetchPlayQuestionsDomainRandom } from "@/lib/play/questions/fetchPlayQuestionsDomainRandom";
+import { bumpUserStudyDayMs } from "@/lib/dashboard/studyDayBump";
 import { fireAssignmentTaskSync } from "@/lib/classroom/syncAssignmentTaskProgress";
-import { shufflePlayQuestionOptions } from "@/lib/shufflePlayQuestionOptions";
+import { shufflePlayQuestionOptions } from "@/lib/play/questions/shufflePlayQuestionOptions";
 import {
   DAILYDOSE_STREAK_TRACKS,
   isDailyDoseStreakTrackId,
@@ -63,7 +63,7 @@ import {
   fetchRdmConfig,
   rdmConfigShallowEqual,
   type RdmConfigParams,
-} from "@/lib/rdmConfig";
+} from "@/lib/rdm/rdmConfig";
 
 /** PCM only — matches Gyan++ / investor spec. */
 const PCM_CATEGORIES = [

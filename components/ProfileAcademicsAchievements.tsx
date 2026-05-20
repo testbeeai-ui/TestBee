@@ -24,7 +24,7 @@ import {
   ExternalLink,
   Loader2,
 } from "lucide-react";
-import type { AcademicRecord, Achievement } from "@/lib/publicProfileService";
+import type { AcademicRecord, Achievement } from "@/lib/profile/publicProfileService";
 import { cn } from "@/lib/utils";
 
 type AcademicRow = { id: string; marksheet_path: string | null } & AcademicRecord;

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { DOUBT_FLAIRS } from "@/components/doubts/doubtTypes";
-import { getSupabaseAndUser } from "@/lib/apiAuth";
-import { isAdminUser } from "@/lib/admin";
+import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
+import { isAdminUser } from "@/lib/admin/admin";
 import { canonicalDoubtSubject } from "@/lib/doubtSubject";
 import { createAdminClient } from "@/integrations/supabase/server";
 

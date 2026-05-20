@@ -238,7 +238,10 @@ const ClassFeed = ({
   useEffect(() => {
     const tick = () => setNowMs(Date.now());
     tick();
-    const id = window.setInterval(tick, 30000);
+    const id = window.setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      tick();
+    }, 90_000);
     return () => window.clearInterval(id);
   }, []);
 

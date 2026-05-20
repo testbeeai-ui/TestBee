@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { getSupabaseAndUser } from "@/lib/apiAuth";
-import { isAdminUser } from "@/lib/admin";
+import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
+import { isAdminUser } from "@/lib/admin/admin";
 import { createAdminClient } from "@/integrations/supabase/server";
-import { computeAccountState, parseGovernanceMeta } from "@/lib/adminGovernance";
+import { computeAccountState, parseGovernanceMeta } from "@/lib/admin/adminGovernance";
 import type { Json } from "@/integrations/supabase/types";
 
 function jsonArrayLen(value: Json | null | undefined): number {
@@ -31,9 +31,15 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       return NextResponse.json({ error: "SUPABASE_SERVICE_ROLE_KEY is not set" }, { status: 500 });
     }
 
-    const [authRes, profileRes, doubtsRes, aiRes] = await Promise.all([
+    const [authRes, profileRes, doubtsRes, aiRes, savedCountsRes] = await Promise.all([
       admin.auth.admin.getUserById(userId),
-      admin.from("profiles").select("*").eq("id", userId).maybeSingle(),
+      admin
+        .from("profiles")
+        .select(
+          "id, role, name, rdm, lifetime_answer_rdm, bits_test_attempts, subtopic_engagement"
+        )
+        .eq("id", userId)
+        .maybeSingle(),
       admin.from("doubts").select("id, created_at, is_resolved, views").eq("user_id", userId),
       admin
         .from("ai_token_logs")
@@ -41,6 +47,8 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
         .eq("user_id", userId)
         .order("created_at", { ascending: false })
         .limit(200),
+      // Count saved items from the new table instead of loading JSONB arrays
+      admin.rpc("get_user_saved_item_counts", { p_user_id: userId }),
     ]);
 
     if (authRes.error || !authRes.data.user) {
@@ -57,6 +65,14 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
 
     const authUser = authRes.data.user;
     const profile = profileRes.data;
+
+    // Build saved counts from RPC response
+    const savedCounts: Record<string, number> = {};
+    if (savedCountsRes.data) {
+      for (const row of savedCountsRes.data as Array<{ item_type: string; cnt: number }>) {
+        savedCounts[row.item_type] = Number(row.cnt);
+      }
+    }
     const appMeta = parseGovernanceMeta(authUser.app_metadata);
     const status = computeAccountState({
       bannedUntil: authUser.banned_until,
@@ -71,50 +87,53 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       monthlyMap.set(key, (monthlyMap.get(key) ?? 0) + Number(row.total_tokens ?? 0));
     }
 
-    return NextResponse.json({
-      user: {
-        id: authUser.id,
-        email: authUser.email ?? null,
-        role: profile?.role ?? null,
-        name: profile?.name ?? null,
-        createdAt: authUser.created_at ?? null,
-        lastSignInAt: authUser.last_sign_in_at ?? null,
-        status,
-        bannedUntil: authUser.banned_until ?? null,
-        suspendedUntil:
-          typeof appMeta.admin_suspended_until === "string" ? appMeta.admin_suspended_until : null,
-        deletedAt: typeof appMeta.admin_deleted_at === "string" ? appMeta.admin_deleted_at : null,
+    return NextResponse.json(
+      {
+        user: {
+          id: authUser.id,
+          email: authUser.email ?? null,
+          role: profile?.role ?? null,
+          name: profile?.name ?? null,
+          createdAt: authUser.created_at ?? null,
+          lastSignInAt: authUser.last_sign_in_at ?? null,
+          status,
+          bannedUntil: authUser.banned_until ?? null,
+          suspendedUntil:
+            typeof appMeta.admin_suspended_until === "string" ? appMeta.admin_suspended_until : null,
+          deletedAt: typeof appMeta.admin_deleted_at === "string" ? appMeta.admin_deleted_at : null,
+        },
+        metrics: {
+          rdm: Number(profile?.rdm ?? 0),
+          lifetimeRdm: Number(profile?.lifetime_answer_rdm ?? 0),
+          savedBits: savedCounts["saved_bit"] ?? 0,
+          savedFormulas: savedCounts["saved_formula"] ?? 0,
+          savedRevisionCards: savedCounts["saved_revision_card"] ?? 0,
+          savedRevisionUnits: savedCounts["saved_revision_unit"] ?? 0,
+          bitsAttempts: jsonObjectLen(
+            (profile?.bits_test_attempts as Json | null | undefined) ?? null
+          ),
+          subtopicEngagement: jsonObjectLen(
+            (profile?.subtopic_engagement as Json | null | undefined) ?? null
+          ),
+          doubtsCreated: doubts.length,
+          doubtsResolved: doubts.filter((d) => Boolean(d.is_resolved)).length,
+          doubtViews: doubts.reduce((sum, d) => sum + Number(d.views ?? 0), 0),
+          aiCalls: aiLogs.length,
+          aiTotalTokens: aiLogs.reduce((sum, row) => sum + Number(row.total_tokens ?? 0), 0),
+        },
+        series: {
+          aiTokensByMonth: Array.from(monthlyMap.entries())
+            .sort((a, b) => a[0].localeCompare(b[0]))
+            .map(([month, tokens]) => ({ month, tokens })),
+        },
+        generatedAt: new Date().toISOString(),
       },
-      metrics: {
-        rdm: Number(profile?.rdm ?? 0),
-        lifetimeRdm: Number(profile?.lifetime_answer_rdm ?? 0),
-        savedBits: jsonArrayLen((profile?.saved_bits as Json | null | undefined) ?? null),
-        savedFormulas: jsonArrayLen((profile?.saved_formulas as Json | null | undefined) ?? null),
-        savedRevisionCards: jsonArrayLen(
-          (profile?.saved_revision_cards as Json | null | undefined) ?? null
-        ),
-        savedRevisionUnits: jsonArrayLen(
-          (profile?.saved_revision_units as Json | null | undefined) ?? null
-        ),
-        bitsAttempts: jsonObjectLen(
-          (profile?.bits_test_attempts as Json | null | undefined) ?? null
-        ),
-        subtopicEngagement: jsonObjectLen(
-          (profile?.subtopic_engagement as Json | null | undefined) ?? null
-        ),
-        doubtsCreated: doubts.length,
-        doubtsResolved: doubts.filter((d) => Boolean(d.is_resolved)).length,
-        doubtViews: doubts.reduce((sum, d) => sum + Number(d.views ?? 0), 0),
-        aiCalls: aiLogs.length,
-        aiTotalTokens: aiLogs.reduce((sum, row) => sum + Number(row.total_tokens ?? 0), 0),
-      },
-      series: {
-        aiTokensByMonth: Array.from(monthlyMap.entries())
-          .sort((a, b) => a[0].localeCompare(b[0]))
-          .map(([month, tokens]) => ({ month, tokens })),
-      },
-      generatedAt: new Date().toISOString(),
-    });
+      {
+        headers: {
+          "Cache-Control": "private, max-age=60, stale-while-revalidate=300",
+        },
+      }
+    );
   } catch (e) {
     const message = e instanceof Error ? e.message : "Server error";
     return NextResponse.json({ error: message }, { status: 500 });

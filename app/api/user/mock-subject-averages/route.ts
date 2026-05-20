@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSupabaseAndUser } from "@/lib/apiAuth";
+import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
 
 type RpcRow = { subject: string; avg_pct: number | null; paper_count: number | null };
 

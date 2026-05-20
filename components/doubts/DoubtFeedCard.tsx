@@ -3,9 +3,9 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import DoubtMarkdown from "./DoubtMarkdown";
-import { truncatePreservingInlineMath } from "@/lib/doubtMarkdownUtils";
+import { truncatePreservingInlineMath } from "@/lib/gyan/doubtMarkdownUtils";
 import { supabase } from "@/integrations/supabase/client";
-import { safeGetSession } from "@/lib/safeSession";
+import { safeGetSession } from "@/lib/auth/safeSession";
 import { canonicalDoubtSubject } from "@/lib/doubtSubject";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { motion } from "framer-motion";

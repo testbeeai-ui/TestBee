@@ -7,7 +7,7 @@ import {
   stripSarvamThinking,
   stripUntaggedReasoning,
 } from "@/lib/sarvamGyanClient";
-import { draftLooksLikePhysicsRamble } from "@/lib/profPiVerify";
+import { draftLooksLikePhysicsRamble } from "@/lib/gyan/verify/profPiVerify";
 import { getProfPiStructureContract } from "@/lib/gyanContentPolicy";
 
 const THINK_OPEN = "<" + "think>";
@@ -85,7 +85,7 @@ $\\int \\sin^{-1}(x)\\,dx = x\\sin^{-1}x + \\sqrt{1-x^2} + C$
 
 describe("physics structure and narration", () => {
   it("uses physics-only structure contract", () => {
-    expect(getProfPiStructureContract("physics")).toContain("**Given:**");
+    expect(getProfPiStructureContract("physics")).toMatch(/\*\*.*Given:\*\*/);
     expect(getProfPiStructureContract("math")).toContain("**Formula:**");
     expect(getProfPiStructureContract("math")).not.toContain("**Given:**");
   });

@@ -5,7 +5,7 @@ import {
   isDangerousRouteEnabled,
   requireAdminUser,
   requireAuthenticatedUser,
-} from "@/lib/securityGuards";
+} from "@/lib/auth/securityGuards";
 
 export async function POST(request: Request) {
   try {

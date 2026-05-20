@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import type { TopicNode } from "@/data/topicTaxonomy";
-import { fetchFullCurriculumFromSupabase } from "@/lib/curriculumService";
+import { fetchFullCurriculumFromSupabase } from "@/lib/curriculum/curriculumService";
 
 export type TopicTaxonomyState = {
   taxonomy: TopicNode[];

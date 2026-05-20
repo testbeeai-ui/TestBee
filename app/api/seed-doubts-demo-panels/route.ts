@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/integrations/supabase/server";
-import { isDangerousRouteEnabled, requireAdminUser } from "@/lib/securityGuards";
+import { isDangerousRouteEnabled, requireAdminUser } from "@/lib/auth/securityGuards";
 
 /**
  * Seeds demo data for Bounty Board, Trending Now, and Top Contributors so users

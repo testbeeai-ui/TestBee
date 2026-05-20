@@ -26,7 +26,7 @@ import {
   INVESTOR_PROBLEM_EDUBLAST,
   INVESTOR_PROBLEM_OTHER,
 } from "@/components/landing/landing-constants";
-import { EDUFUND_RDM_GATES } from "@/lib/dashboardSidebarMetrics";
+import { EDUFUND_RDM_GATES } from "@/lib/dashboard/dashboardSidebarMetrics";
 
 /** Visual-only copy; RDM thresholds and ₹ unlocked come from `EDUFUND_RDM_GATES`. */
 const INVESTOR_EDUFUND_TIER_UI = [

@@ -4,7 +4,7 @@ import {
   createClient,
   createClientWithToken,
 } from "@/integrations/supabase/server";
-import { parseBitsTestAttemptsStore } from "@/lib/parseBitsTestAttemptsStore";
+import { parseBitsTestAttemptsStore } from "@/lib/play/bits/parseBitsTestAttemptsStore";
 
 type GenericQueryResult = {
   data: Record<string, unknown>[] | null;

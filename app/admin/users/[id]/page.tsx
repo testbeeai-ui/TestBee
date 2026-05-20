@@ -15,7 +15,7 @@ import {
   Pie,
   Cell,
 } from "recharts";
-import { safeGetSession } from "@/lib/safeSession";
+import { safeGetSession } from "@/lib/auth/safeSession";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -49,18 +49,18 @@ import {
   formatMcqChoiceLabel,
   parsePlayQuestionOptions,
   playQuestionStemMarkdownSource,
-} from "@/lib/adminPlayQuestionPreview";
+} from "@/lib/admin/adminPlayQuestionPreview";
 import {
   buildPlaySessionsFromAttempts,
   PLAY_SESSION_INFERENCE_NOTE,
-} from "@/lib/adminPlaySessions";
-import { MAX_CHAT_MESSAGES } from "@/lib/adminStudentInsights";
+} from "@/lib/admin/adminPlaySessions";
+import { MAX_CHAT_MESSAGES } from "@/lib/admin/adminStudentInsights";
 import {
   getReferChallengeSpecs,
   referChallengeSpec,
   type ReferClaimKey,
-} from "@/lib/referEarnChallenges";
-import { DEFAULT_RDM_CONFIG, fetchRdmConfig, type RdmConfigParams } from "@/lib/rdmConfig";
+} from "@/lib/rdm/referral/referEarnChallenges";
+import { DEFAULT_RDM_CONFIG, fetchRdmConfig, type RdmConfigParams } from "@/lib/rdm/rdmConfig";
 import { cn } from "@/lib/utils";
 import {
   ArrowBigDown,
@@ -2136,15 +2136,12 @@ export default function AdminUserDetailPage() {
       const [aRes, actRes, insRes] = await Promise.all([
         fetch(`/api/admin/users/${userId}/analytics`, {
           headers: authHeaders,
-          cache: "no-store",
         }),
         fetch(`/api/admin/users/${userId}/activity`, {
           headers: authHeaders,
-          cache: "no-store",
         }),
         fetch(`/api/admin/users/${userId}/student-insights`, {
           headers: authHeaders,
-          cache: "no-store",
         }),
       ]);
 

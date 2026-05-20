@@ -3,7 +3,7 @@ import { createAdminClient } from "@/integrations/supabase/server";
 import {
   enforceSameOriginForCookieAuth,
   requireAuthenticatedUser,
-} from "@/lib/securityGuards";
+} from "@/lib/auth/securityGuards";
 
 type ClaimResult = {
   ok?: boolean;
