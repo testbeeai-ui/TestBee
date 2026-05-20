@@ -13,7 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Slider } from "@/components/ui/slider";
-import { canvasCropToJpegBlob } from "@/lib/avatarCropCanvas";
+import { canvasCropToJpegBlob } from "@/lib/profile/avatarCropCanvas";
 
 type AvatarCropDialogProps = {
   open: boolean;

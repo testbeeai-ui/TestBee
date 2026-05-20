@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseAndUser } from "@/lib/apiAuth";
-import { isAdminUser } from "@/lib/admin";
+import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
+import { isAdminUser } from "@/lib/admin/admin";
 import {
   createAdminClient,
   getSupabaseAdminEnvDiagnostics,
   normalizeServiceRoleKey,
 } from "@/integrations/supabase/server";
-import { runProfPiAnswerForDoubt, waitForDoubtRow } from "@/lib/gyanBotAnswer";
+import { runProfPiAnswerForDoubt, waitForDoubtRow } from "@/lib/gyan/bot/gyanBotAnswer";
 
 /** Prof-Pi runs RAG (Modal) + Sarvam + optional verifier — default Vercel timeout is too low. */
 export const maxDuration = 120;

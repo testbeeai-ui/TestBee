@@ -20,7 +20,7 @@ import { EXPLORE_APP_PATH } from "@/components/AppLayout";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserStore } from "@/store/useUserStore";
 import { useStudyStreakFromApi } from "@/hooks/useStudyStreakFromApi";
-import { countInstacueRevisionDue, formatEdufundRdmBadge } from "@/lib/dashboardSidebarMetrics";
+import { countInstacueRevisionDue, formatEdufundRdmBadge } from "@/lib/dashboard/dashboardSidebarMetrics";
 
 type NavItem = { href: string; label: string; icon: LucideIcon; badge?: string | null };
 
@@ -94,7 +94,7 @@ export default function DashboardSidebar() {
   const rdm = profile?.rdm ?? user?.rdm ?? 0;
   const { streakDays, ready: streakReady } = useStudyStreakFromApi();
 
-  const instacueDue = countInstacueRevisionDue(profile?.saved_revision_cards);
+  const instacueDue = countInstacueRevisionDue(user?.savedRevisionCards);
   const instacueBadge = instacueDue > 0 ? `${instacueDue} due` : null;
 
   const edufundBadge = profile?.id ? formatEdufundRdmBadge(rdm) : null;

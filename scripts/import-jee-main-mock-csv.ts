@@ -14,7 +14,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { parse } from "csv-parse/sync";
 import { createClient } from "@supabase/supabase-js";
-import { patchMockHtmlImages } from "../lib/mockRichTextKatex";
+import { patchMockHtmlImages } from "../lib/mock/mockRichTextKatex";
 
 const SLUG = "jee-main-2019-01-10-shift-1";
 

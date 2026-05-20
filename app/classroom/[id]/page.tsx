@@ -6,7 +6,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { safeGetSession } from "@/lib/safeSession";
+import { safeGetSession } from "@/lib/auth/safeSession";
 import AppLayout from "@/components/AppLayout";
 import {
   Copy,
@@ -113,7 +113,7 @@ const tabs: { id: Tab; label: string; icon: typeof Home; emoji: string }[] = [
 ];
 
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { getEmbedUrl } from "@/lib/videoEmbed";
+import { getEmbedUrl } from "@/lib/video/videoEmbed";
 import { normalizeMeetLink } from "@/lib/meetLink";
 
 const ClassroomDetail = () => {

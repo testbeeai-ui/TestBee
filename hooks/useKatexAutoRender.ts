@@ -2,7 +2,7 @@
 
 import { useLayoutEffect, type RefObject } from "react";
 import renderMathInElement from "katex/contrib/auto-render";
-import { repairBankMathLatex } from "@/lib/mockRichTextKatex";
+import { repairBankMathLatex } from "@/lib/mock/mockRichTextKatex";
 
 /** `$$` / `$` must come before `\(` so display `$$` wins; `ignoredClasses: ['katex']` avoids re-parsing KaTeX output on timer re-renders. */
 const DELIMITERS = [

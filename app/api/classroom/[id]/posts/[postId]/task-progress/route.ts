@@ -6,7 +6,7 @@ import {
 } from "@/integrations/supabase/server";
 import { parseAssignmentTasks, studentVisibleTasks } from "@/lib/classroom/assignmentTasks";
 import { isConceptFocusLessonChecklistComplete } from "@/lib/classroom/conceptFocusLessonCompletion";
-import { parseBitsTestAttemptsStore } from "@/lib/parseBitsTestAttemptsStore";
+import { parseBitsTestAttemptsStore } from "@/lib/play/bits/parseBitsTestAttemptsStore";
 
 function isMissingProgressTableError(err: { code?: string; message?: string } | null | undefined) {
   if (!err) return false;

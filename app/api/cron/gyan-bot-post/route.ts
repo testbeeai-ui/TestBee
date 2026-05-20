@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/integrations/supabase/server";
-import { runGyanBotPostCycle } from "@/lib/gyanBotPostCycle";
+import { runGyanBotPostCycle } from "@/lib/gyan/bot/gyanBotPostCycle";
 
 export async function GET(request: Request) {
   return runCycle(request);

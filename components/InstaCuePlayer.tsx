@@ -3,10 +3,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { useUserStore } from "@/store/useUserStore";
 import { useAuth } from "@/hooks/useAuth";
-import { syncAllSavedContent } from "@/lib/savedContentService";
+import { syncAllSavedContent } from "@/lib/saved/savedContentService";
 import MathText from "@/components/MathText";
 import { SavedRevisionCard } from "@/types";
-import { reportInstacueCardRead } from "@/lib/reportInstacueCardRead";
+import { reportInstacueCardRead } from "@/lib/rdm/reports/reportInstacueCardRead";
 import {
   Plus,
   HelpCircle,

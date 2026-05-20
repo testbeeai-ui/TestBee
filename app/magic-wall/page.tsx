@@ -34,7 +34,7 @@ import {
   upsertMagicWallBasketItems,
   removeMagicWallBasketItems,
   makeTopicKey,
-} from "@/lib/magicWallBasketService";
+} from "@/lib/templates/magicWallBasketService";
 import {
   BookOpen,
   Filter,
@@ -48,11 +48,11 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { appendQueryParams, buildTopicOverviewPath, type DifficultyLevel } from "@/lib/topicRoutes";
+import { appendQueryParams, buildTopicOverviewPath, type DifficultyLevel } from "@/lib/curriculum/topicRoutes";
 import type { TopicNode } from "@/data/topicTaxonomy";
-import { fetchAdvancedLessonCompletionKeys } from "@/lib/lessonCompletionClient";
-import { isTopicCompleteAtAdvanced } from "@/lib/lessonCompletionRollup";
-import { fetchWithClientAuth } from "@/lib/clientApiAuth";
+import { fetchAdvancedLessonCompletionKeys } from "@/lib/curriculum/lessonCompletionClient";
+import { isTopicCompleteAtAdvanced } from "@/lib/curriculum/lessonCompletionRollup";
+import { fetchWithClientAuth } from "@/lib/auth/clientApiAuth";
 
 /** Topic hub level when opening topics from Magic Wall (Start Reading / basket links). */
 const MAGIC_WALL_READING_LEVEL: DifficultyLevel = "advanced";

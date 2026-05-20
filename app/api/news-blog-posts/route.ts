@@ -7,8 +7,8 @@ import {
   type NewsBlogPostRow,
 } from "@/lib/news-blog/supabase";
 import { createClient } from "@/integrations/supabase/server";
-import { isAdminUser } from "@/lib/admin";
-import { isValidBlogSectionId } from "@/lib/news-blog-sections";
+import { isAdminUser } from "@/lib/admin/admin";
+import { isValidBlogSectionId } from "@/lib/news-blog/news-blog-sections";
 
 export const runtime = "nodejs";
 

@@ -2,7 +2,7 @@ import "server-only";
 
 import { createPublicSupabaseClient } from "@/integrations/supabase/server";
 import { mapSupabaseNewsBlogPostRow, type NewsBlogPostRow } from "@/lib/news-blog/supabase";
-import type { Post as DbPost } from "@/lib/news-blog-db";
+import type { Post as DbPost } from "@/lib/news-blog/news-blog-db";
 import { normalizePost } from "@/app/news-blog/post-draft-utils";
 import { findPostBySlug } from "@/app/news-blog/slug";
 import type { Post } from "@/app/news-blog/types";

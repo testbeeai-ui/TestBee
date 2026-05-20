@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
-import { getSupabaseAndUser } from "@/lib/apiAuth";
-import { isAdminUser } from "@/lib/admin";
+import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
+import { isAdminUser } from "@/lib/admin/admin";
 import { createAdminClient } from "@/integrations/supabase/server";
 import {
   computeAccountState,
   futureIsoFromDays,
   isProtectedSystemAccount,
   parseGovernanceMeta,
-} from "@/lib/adminGovernance";
+} from "@/lib/admin/adminGovernance";
 
 type ActionType = "ban" | "unban" | "suspend" | "unsuspend" | "soft_delete" | "restore";
 

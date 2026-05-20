@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseAndUser } from "@/lib/apiAuth";
-import { parseBitsTestAttemptsStore } from "@/lib/parseBitsTestAttemptsStore";
+import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
+import { parseBitsTestAttemptsStore } from "@/lib/play/bits/parseBitsTestAttemptsStore";
 import {
   parseDailyChecklistState,
   mergeDayState,
@@ -10,7 +10,7 @@ import {
   appendInstacueReadCardIds,
   sanitizeInstacueCardId,
   type DailyChecklistApiResponse,
-} from "@/lib/dailyChecklistState";
+} from "@/lib/dashboard/dailyChecklistState";
 import type { Subject } from "@/types";
 
 const FIVE_MIN_MS = 5 * 60 * 1000;
@@ -134,14 +134,13 @@ export async function GET(req: NextRequest) {
   const sb = auth.supabase as any;
   const uid = auth.user.id;
 
-  const [profileRes, gauntletRes, savesRes, votesRes, answersRes] = await Promise.all([
-    sb
-      .from("profiles")
-      .select(
-        "bits_test_attempts, subtopic_engagement, saved_revision_cards, daily_checklist_state"
-      )
-      .eq("id", uid)
-      .maybeSingle(),
+  const [profileRes, gauntletRes, savesRes, votesRes, answersRes, revisionCardsRes] =
+    await Promise.all([
+      sb
+        .from("profiles")
+        .select("bits_test_attempts, subtopic_engagement, daily_checklist_state")
+        .eq("id", uid)
+        .maybeSingle(),
     sb
       .from("daily_gauntlet_attempts")
       .select("id")
@@ -167,6 +166,12 @@ export async function GET(req: NextRequest) {
       .eq("user_id", uid)
       .gte("created_at", new Date(dayStartMs).toISOString())
       .lt("created_at", new Date(dayEndMs).toISOString()),
+    // Fetch revision cards from new table (indexed query instead of JSONB scan)
+    sb
+      .from("user_saved_items")
+      .select("content_id, status, saved_at")
+      .eq("user_id", uid)
+      .eq("item_type", "saved_revision_card"),
   ]);
 
   if (profileRes.error) {
@@ -191,9 +196,21 @@ export async function GET(req: NextRequest) {
   const profile = profileRes.data as {
     bits_test_attempts?: unknown;
     subtopic_engagement?: unknown;
-    saved_revision_cards?: unknown;
     daily_checklist_state?: unknown;
   } | null;
+
+  // Build revision cards from new table
+  const revisionCards = (
+    (revisionCardsRes.data ?? []) as Array<{
+      content_id: string;
+      status: string | null;
+      saved_at: string | null;
+    }>
+  ).map((r) => ({
+    id: r.content_id,
+    status: r.status,
+    savedAt: r.saved_at,
+  }));
 
   const bitsRows = parseBitsTestAttemptsStore(profile?.bits_test_attempts ?? null);
   const subjectsWithBitsToday = new Set<Subject>();
@@ -274,7 +291,7 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  const cards = Array.isArray(profile?.saved_revision_cards) ? profile.saved_revision_cards : [];
+  const cards = revisionCards;
   const savedRevisionCardsDeckTotal = cards.length;
   const savedToday = countInstacueCardsSavedInRange(cards, dayStartMs, dayEndMs);
   const usesDailySavedAt = revisionCardsHaveAnySavedAt(cards);

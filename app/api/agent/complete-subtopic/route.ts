@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { getSupabaseAndUser } from "@/lib/apiAuth";
-import { isAdminUser } from "@/lib/admin";
-import { normalizeSubjectKey, normalizeSubtopicContentKey } from "@/lib/subtopicContentKeys";
+import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
+import { isAdminUser } from "@/lib/admin/admin";
+import { normalizeSubjectKey, normalizeSubtopicContentKey } from "@/lib/curriculum/subtopicContentKeys";
 import {
   SUBTOPIC_DIFFICULTY_LEVELS,
   type SubtopicDifficultyLevel,
@@ -9,7 +9,7 @@ import {
   assessSubtopicRow,
   extractSubtopicPreviewFromTopicRow,
   fetchTopicHubGateWithRows,
-} from "@/lib/subtopicCompleteness";
+} from "@/lib/curriculum/subtopicCompleteness";
 
 const ALLOWED_LEVELS = new Set<string>(SUBTOPIC_DIFFICULTY_LEVELS);
 const HUB_SCOPES = new Set<TopicHubScope>(["topic", "chapter"]);

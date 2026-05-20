@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BookOpen, CheckCircle2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
-import { safeGetSession } from "@/lib/safeSession";
+import { safeGetSession } from "@/lib/auth/safeSession";
 import type { AssignmentTaskStored } from "@/lib/classroom/assignmentTasks";
 import {
   CLASSROOM_ASSIGNMENT_PROGRESS_EVENT,
@@ -426,8 +426,9 @@ export default function AssignmentTaskChecklist({
     };
     const interval = window.setInterval(() => {
       if (isInteractingRef.current) return;
+      if (document.visibilityState !== "visible") return;
       void load({ silent: true });
-    }, 60_000);
+    }, 120_000);
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onVisibility);
     return () => {

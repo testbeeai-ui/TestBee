@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { safeGetSession } from "@/lib/safeSession";
+import { safeGetSession } from "@/lib/auth/safeSession";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { TeacherVerificationStatus } from "@/lib/teacherPortal/types";

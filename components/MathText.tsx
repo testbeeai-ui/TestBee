@@ -2,7 +2,7 @@
 
 import React from "react";
 import katex from "katex";
-import { repairPlayQuestionDollarSegments } from "@/lib/playQuestionMathDisplay";
+import { repairPlayQuestionDollarSegments } from "@/lib/play/questions/playQuestionMathDisplay";
 
 /** Preprocess curriculum-style formula text to valid LaTeX. */
 function toLatex(text: string): string {

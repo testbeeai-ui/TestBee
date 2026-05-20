@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { slugify } from "@/lib/slugs";
 import { useUserStore } from "@/store/useUserStore";
-import { syncAllSavedContent } from "@/lib/savedContentService";
+import { syncAllSavedContent } from "@/lib/saved/savedContentService";
 import RawFeedPostCard, { type CommentRow } from "./RawFeedPostCard";
 import type { RawPostRow } from "./rawFeedTypes";
 import type { SavedCommunityPost } from "@/types";

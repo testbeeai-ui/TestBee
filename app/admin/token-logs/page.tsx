@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
-import { safeGetSession } from "@/lib/safeSession";
+import { safeGetSession } from "@/lib/auth/safeSession";
 
 function getErrorMessage(e: unknown): string {
   if (e instanceof Error && e.message) return e.message;
@@ -65,11 +65,10 @@ export default function TokenLogsPage() {
         const { session } = await safeGetSession();
         if (!session?.access_token) throw new Error("Missing access token");
 
-        const res = await fetch("/api/admin/token-logs?limit=1000", {
+        const res = await fetch("/api/admin/token-logs?limit=100", {
           headers: {
             Authorization: `Bearer ${session.access_token}`,
           },
-          cache: "no-store",
         });
         const body = (await res.json()) as {
           rows?: TokenLogRow[];
@@ -123,11 +122,6 @@ export default function TokenLogsPage() {
         row.model_id,
         row.backend,
         row.user_id ?? "system",
-        String(
-          (row.metadata as { telemetry?: { tokenSource?: string } } | null | undefined)?.telemetry
-            ?.tokenSource ?? ""
-        ),
-        JSON.stringify(row.metadata ?? {}),
       ]
         .join(" ")
         .toLowerCase();
@@ -226,7 +220,7 @@ export default function TokenLogsPage() {
       <div className="grid grid-cols-1 md:grid-cols-6 gap-2">
         <input
           className="border rounded px-3 py-2 text-sm md:col-span-2"
-          placeholder="Search action/model/user/metadata..."
+          placeholder="Search action/model/user..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -344,11 +338,9 @@ export default function TokenLogsPage() {
               <th className="p-2 text-left">Action</th>
               <th className="p-2 text-left">Model</th>
               <th className="p-2 text-left">Backend</th>
-              <th className="p-2 text-left">Token Source</th>
               <th className="p-2 text-right">Prompt</th>
               <th className="p-2 text-right">Output</th>
               <th className="p-2 text-right">Total</th>
-              <th className="p-2 text-left">Metadata</th>
             </tr>
           </thead>
           <tbody>
@@ -361,21 +353,9 @@ export default function TokenLogsPage() {
                 <td className="p-2 whitespace-nowrap">{row.action_type}</td>
                 <td className="p-2 whitespace-nowrap">{row.model_id}</td>
                 <td className="p-2 whitespace-nowrap">{row.backend}</td>
-                <td className="p-2 whitespace-nowrap">
-                  {(row.metadata as { telemetry?: { tokenSource?: string } } | null | undefined)
-                    ?.telemetry?.tokenSource ?? "legacy"}
-                </td>
                 <td className="p-2 text-right">{row.prompt_tokens.toLocaleString()}</td>
                 <td className="p-2 text-right">{row.candidates_tokens.toLocaleString()}</td>
                 <td className="p-2 text-right">{row.total_tokens.toLocaleString()}</td>
-                <td className="p-2">
-                  <details>
-                    <summary className="cursor-pointer select-none">View</summary>
-                    <pre className="mt-2 max-w-[640px] overflow-x-auto text-xs">
-                      {JSON.stringify(row.metadata ?? {}, null, 2)}
-                    </pre>
-                  </details>
-                </td>
               </tr>
             ))}
           </tbody>

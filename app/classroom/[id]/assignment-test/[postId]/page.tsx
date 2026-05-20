@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { Loader2, CheckCircle2 } from "lucide-react";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { safeGetSession } from "@/lib/safeSession";
+import { safeGetSession } from "@/lib/auth/safeSession";
 import GeneratedMcqReview from "@/components/classroom/GeneratedMcqReview";
 import { dispatchClassroomAssignmentProgressChanged } from "@/lib/classroom/assignmentProgressSync";
 

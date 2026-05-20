@@ -102,6 +102,21 @@ def _manual_latex_to_sympy(latex: str) -> str:
     s = s.replace("\\infty", "oo")
     s = s.replace("\\infinity", "oo")
 
+    # Greek letters (physics notation)
+    GREEK_MAP = {
+        "\\alpha": "alpha", "\\beta": "beta", "\\gamma": "gamma", "\\delta": "delta",
+        "\\epsilon": "epsilon", "\\varepsilon": "epsilon", "\\zeta": "zeta", "\\eta": "eta",
+        "\\theta": "theta", "\\vartheta": "theta", "\\iota": "iota", "\\kappa": "kappa",
+        "\\lambda": "lambda", "\\mu": "mu", "\\nu": "nu", "\\xi": "xi",
+        "\\rho": "rho", "\\sigma": "sigma", "\\tau": "tau", "\\upsilon": "upsilon",
+        "\\phi": "phi", "\\varphi": "phi", "\\chi": "chi", "\\psi": "psi", "\\omega": "omega",
+        "\\Gamma": "Gamma", "\\Delta": "Delta", "\\Theta": "Theta", "\\Lambda": "Lambda",
+        "\\Xi": "Xi", "\\Pi": "Pi", "\\Sigma": "Sigma", "\\Phi": "Phi",
+        "\\Psi": "Psi", "\\Omega": "Omega",
+    }
+    for latex_cmd, sympy_name in GREEK_MAP.items():
+        s = s.replace(latex_cmd, sympy_name)
+
     # Fractions: \frac{a}{b} → (a)/(b)
     s = re.sub(r"\\frac\s*\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}\s*\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}",
                r"((\1)/(\2))", s)
@@ -140,27 +155,36 @@ def _manual_latex_to_sympy(latex: str) -> str:
 
 def _parse_expr(s: str):
     """Parse a string into a SymPy expression."""
-    from sympy import sympify, Symbol  # type: ignore
-    from sympy.parsing.latex import parse_latex  # type: ignore
+    from sympy import sympify  # type: ignore
 
     cleaned = _clean_latex(s)
     if not cleaned:
         raise ValueError("Empty expression")
 
-    # Try SymPy's built-in LaTeX parser first
-    try:
-        return parse_latex(cleaned)
-    except Exception:
-        pass
-
-    # Try latex2sympy2
+    # 1. Try latex2sympy2 on raw input (preserves \sin, \cos, etc.)
     try:
         from latex2sympy2 import latex2sympy  # type: ignore
         return latex2sympy(cleaned)
     except Exception:
         pass
 
-    # Manual fallback
+    # 2. Try latex2sympy2 on light-cleaned input (strip $ only, keep backslashes)
+    light = s.strip().strip("$").strip()
+    if light != cleaned:
+        try:
+            from latex2sympy2 import latex2sympy  # type: ignore
+            return latex2sympy(light)
+        except Exception:
+            pass
+
+    # 3. Try SymPy's built-in LaTeX parser on cleaned input
+    try:
+        from sympy.parsing.latex import parse_latex  # type: ignore
+        return parse_latex(cleaned)
+    except Exception:
+        pass
+
+    # 4. Manual fallback
     manual = _manual_latex_to_sympy(cleaned)
     return sympify(manual)
 
@@ -391,6 +415,101 @@ def _verify_solve(expr_latex: str, claimed_latex: str, var_name: str) -> CalcVer
         )
 
 
+def _verify_equivalent(expr_latex: str, claimed_latex: str, var_name: str) -> CalcVerifyResponse:
+    """Check if two expressions are symbolically equivalent (expr1 ≡ expr2).
+
+    Used for RAG formula cross-checking: compares Sarvam's formula against textbook formula.
+    Both parameters are treated as expressions to compare (not "input" vs "result").
+    """
+    from sympy import simplify, expand, factor, trigsimp, Symbol  # type: ignore
+
+    try:
+        expr1 = _parse_expr(expr_latex)
+        expr2 = _parse_expr(claimed_latex)
+
+        # Direct symbolic difference
+        if simplify(expr1 - expr2) == 0:
+            return CalcVerifyResponse(
+                correct=True,
+                computed=str(expr2),
+                confidence="high",
+                explanation="Expressions are symbolically equivalent",
+            )
+
+        # Try expanded forms
+        if expand(expr1) == expand(expr2):
+            return CalcVerifyResponse(
+                correct=True,
+                computed=str(expr2),
+                confidence="high",
+                explanation="Expressions are equivalent (after expansion)",
+            )
+
+        # Try factored forms
+        try:
+            if factor(expr1) == factor(expr2):
+                return CalcVerifyResponse(
+                    correct=True,
+                    computed=str(expr2),
+                    confidence="high",
+                    explanation="Expressions are equivalent (after factoring)",
+                )
+        except Exception:
+            pass
+
+        # Try trig simplification
+        try:
+            if trigsimp(expr1 - expr2) == 0:
+                return CalcVerifyResponse(
+                    correct=True,
+                    computed=str(expr2),
+                    confidence="medium",
+                    explanation="Expressions are equivalent (after trig simplification)",
+                )
+        except Exception:
+            pass
+
+        # Numerical spot-check as fallback
+        import random
+        x = Symbol(var_name) if var_name else Symbol("x")
+        random.seed(42)
+        matches = 0
+        trials = 5
+        for _ in range(trials):
+            val = random.uniform(0.5, 10.0)
+            try:
+                v1 = float(expr1.subs(x, val).evalf())
+                v2 = float(expr2.subs(x, val).evalf())
+                if abs(v1 - v2) < 1e-6:
+                    matches += 1
+            except Exception:
+                continue
+
+        if matches >= 4:
+            return CalcVerifyResponse(
+                correct=True,
+                computed=str(expr2),
+                confidence="medium",
+                explanation=f"Numerical spot-check passed ({matches}/{trials} points)",
+            )
+
+        return CalcVerifyResponse(
+            correct=False,
+            computed=str(expr1),
+            confidence="high",
+            explanation=f"Expressions are NOT equivalent. First: {expr1}, Second: {expr2}",
+        )
+
+    except Exception as e:
+        return CalcVerifyResponse(
+            correct=False,
+            computed=None,
+            confidence="low",
+            explanation=f"Equivalence check failed: {str(e)[:200]}",
+            error=str(e)[:200],
+        )
+
+
 def _verify_evaluate(expr_latex: str, claimed_latex: str, var_name: str) -> CalcVerifyResponse:
     """Verify numerical evaluation."""
     from sympy import simplify, Symbol, N  # type: ignore
@@ -448,6 +567,7 @@ VERIFY_DISPATCH = {
     "simplify": _verify_simplify,
     "solve": _verify_solve,
     "evaluate": _verify_evaluate,
+    "equivalent": _verify_equivalent,
 }
 
 

@@ -1,19 +1,19 @@
 import { NextResponse } from "next/server";
-import { getSupabaseAndUser } from "@/lib/apiAuth";
+import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
 import {
   generateArtifactJson,
   bitsResponseSchema,
   isVertexForTopicAgentEnabled,
-} from "@/lib/geminiTopicGenerate";
-import { isAdminUser } from "@/lib/admin";
-import { supabaseForLongJobPersist } from "@/lib/supabaseAdminPersist";
-import { resolveGeminiModelId, resolveVertexTopicModelId } from "@/lib/geminiModel";
-import { fetchRAGContext } from "@/lib/rag";
-import { normalizeSubjectKey, normalizeSubtopicContentKey } from "@/lib/subtopicContentKeys";
-import { getGeminiApiKeyFromEnv } from "@/lib/geminiEnv";
+} from "@/lib/gyan/gemini/geminiTopicGenerate";
+import { isAdminUser } from "@/lib/admin/admin";
+import { supabaseForLongJobPersist } from "@/lib/supabase/supabaseAdminPersist";
+import { resolveGeminiModelId, resolveVertexTopicModelId } from "@/lib/gyan/gemini/geminiModel";
+import { fetchRAGContext } from "@/lib/gyan/rag";
+import { normalizeSubjectKey, normalizeSubtopicContentKey } from "@/lib/curriculum/subtopicContentKeys";
+import { getGeminiApiKeyFromEnv } from "@/lib/gyan/gemini/geminiEnv";
 import { logAiUsage } from "@/lib/aiLogger";
-import { sanitizeJsonForDb } from "@/lib/sanitizeJsonForDb";
-import { tryParseJsonObjectWithSalvage } from "@/lib/parseModelJson";
+import { sanitizeJsonForDb } from "@/lib/gyan/sanitizeJsonForDb";
+import { tryParseJsonObjectWithSalvage } from "@/lib/gyan/parseModelJson";
 
 const ALLOWED_LEVELS = new Set(["basics", "intermediate", "advanced"]);
 

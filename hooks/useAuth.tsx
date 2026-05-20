@@ -11,20 +11,12 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/integrations/supabase/client";
 import type { AuthError, User, Session } from "@supabase/supabase-js";
 import { useUserStore } from "@/store/useUserStore";
-import type {
-  ClassLevel,
-  SubjectCombo,
-  SavedBit,
-  SavedFormula,
-  SavedRevisionCard,
-  SavedRevisionUnit,
-  SavedCommunityPost,
-} from "@/types";
-import { targetExamToExamType } from "@/lib/targetExam";
-import { mergeAllSavedContent } from "@/lib/mergeSavedContent";
+import type { ClassLevel, SubjectCombo } from "@/types";
+import { targetExamToExamType } from "@/lib/profile/targetExam";
+import { mergeAllSavedContent } from "@/lib/saved/mergeSavedContent";
 import type { Json } from "@/integrations/supabase/types";
-import { safeGetSession } from "@/lib/safeSession";
-import { profileShouldForceOnboardingComplete } from "@/lib/profileOnboardingRepair";
+import { safeGetSession } from "@/lib/auth/safeSession";
+import { profileShouldForceOnboardingComplete } from "@/lib/profile/profileOnboardingRepair";
 import { readPendingDeepLink } from "@/lib/auth/safeNextPath";
 
 export interface Profile {
@@ -62,11 +54,7 @@ export interface Profile {
   /** Consecutive days (same gauntlet_date) completing both academic + funbrain DailyDose. */
   daily_dose_streak?: number;
   rdm?: number;
-  saved_bits?: SavedBit[];
-  saved_formulas?: SavedFormula[];
-  saved_revision_cards?: SavedRevisionCard[];
-  saved_revision_units?: SavedRevisionUnit[];
-  saved_community_posts?: SavedCommunityPost[];
+  // saved_* columns removed — now read from user_saved_items table via API
   /** Submitted topic-quiz attempts keyed like bits-attempts API; retakes overwrite same key. */
   bits_test_attempts?: Json | null;
   /** Per-lesson engagement snapshots (in-progress quiz draft lives under bits + graded). */
@@ -287,31 +275,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const next = targetExamToExamType(profile.target_exam);
       useUserStore.getState().setExamType(next);
     };
-    const syncSavedFromProfile = () => {
+    const syncSavedFromProfile = async () => {
       const u = useUserStore.getState().user;
       if (!u) return;
-      const bits = Array.isArray(profile.saved_bits) ? profile.saved_bits : [];
-      const formulas = Array.isArray(profile.saved_formulas) ? profile.saved_formulas : [];
-      const revisionCards = Array.isArray(profile.saved_revision_cards)
-        ? profile.saved_revision_cards
-        : [];
-      const revisionUnits = Array.isArray(profile.saved_revision_units)
-        ? profile.saved_revision_units
-        : [];
-      const communityPosts = Array.isArray(profile.saved_community_posts)
-        ? profile.saved_community_posts
-        : [];
+      // Fetch saved items from the API (reads from user_saved_items table)
+      const { fetchSavedContent } = await import("@/lib/saved/savedContentService");
+      const server = await fetchSavedContent();
       const merged = mergeAllSavedContent(
         u.savedBits ?? [],
         u.savedFormulas ?? [],
         u.savedRevisionCards ?? [],
         u.savedRevisionUnits ?? [],
         u.savedCommunityPosts ?? [],
-        bits,
-        formulas,
-        revisionCards,
-        revisionUnits,
-        communityPosts
+        server.savedBits,
+        server.savedFormulas,
+        server.savedRevisionCards,
+        server.savedRevisionUnits,
+        server.savedCommunityPosts
       );
       useUserStore
         .getState()
@@ -348,11 +328,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     profile?.class_level,
     profile?.target_exam,
     profile?.subject_combo,
-    profile?.saved_bits,
-    profile?.saved_formulas,
-    profile?.saved_revision_cards,
-    profile?.saved_revision_units,
-    profile?.saved_community_posts,
   ]);
 
   const signInWithGoogle = async (redirectPath: string = "/onboarding") => {

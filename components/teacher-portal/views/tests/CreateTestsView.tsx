@@ -11,10 +11,10 @@ import {
   collectUnitTopicTitles,
   fetchCurriculumHierarchyFromSupabase,
   type CurriculumHierarchyUnit,
-} from "@/lib/curriculumService";
-import { countQuestionBankForCreateTest } from "@/lib/countQuestionBankForCreateTest";
-import { fetchTeacherTestBankRows } from "@/lib/fetchTeacherTestBankRows";
-import { buildTeacherTestQuestionSet } from "@/lib/buildTeacherTestQuestionSet";
+} from "@/lib/curriculum/curriculumService";
+import { countQuestionBankForCreateTest } from "@/lib/play/quiz/countQuestionBankForCreateTest";
+import { fetchTeacherTestBankRows } from "@/lib/play/quiz/fetchTeacherTestBankRows";
+import { buildTeacherTestQuestionSet } from "@/lib/play/quiz/buildTeacherTestQuestionSet";
 import type { GeneratedTeacherTest } from "@/lib/teacherPortal/generatedTest";
 import GeneratedTestPreview from "@/components/teacher-portal/views/tests/GeneratedTestPreview";
 import { openTeacherTestPrintPreview } from "@/lib/teacherPortal/openTeacherTestPrintPreview";

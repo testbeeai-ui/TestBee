@@ -4,8 +4,8 @@ import {
   createClient,
   createClientWithToken,
 } from "@/integrations/supabase/server";
-import { normalizeSubtopicContentKey } from "@/lib/subtopicContentKeys";
-import type { CreateTestQuestionBankMatch } from "@/lib/createTestBankTypes";
+import { normalizeSubtopicContentKey } from "@/lib/curriculum/subtopicContentKeys";
+import type { CreateTestQuestionBankMatch } from "@/lib/play/quiz/createTestBankTypes";
 import type { Subject } from "@/types";
 
 const SUBJECTS = new Set<Subject>(["physics", "chemistry", "math"]);
@@ -49,7 +49,6 @@ async function getUsedQuestionStemsForTopic(
 
   // Fetch all history for this teacher+subject — covers both Topic-wise and Unit-wise entries
   const { data, error } = await db
-    // @ts-expect-error: Temporary ignore due to schema type mismatches
     .from("teacher_generated_test_history")
     .select("used_question_ids")
     .eq("teacher_id", teacherId)

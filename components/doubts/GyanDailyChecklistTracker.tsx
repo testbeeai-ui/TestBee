@@ -3,10 +3,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
-import { getClientApiAuthHeaders } from "@/lib/clientApiAuth";
-import { localDayBoundsIso } from "@/lib/dashboardDayActivity";
-import type { DailyChecklistApiResponse } from "@/lib/dailyChecklistState";
-import { EDUBLAST_STUDY_DAYS_REFRESH } from "@/lib/studyDayBumpEvents";
+import { getClientApiAuthHeaders } from "@/lib/auth/clientApiAuth";
+import { localDayBoundsIso } from "@/lib/dashboard/dashboardDayActivity";
+import type { DailyChecklistApiResponse } from "@/lib/dashboard/dailyChecklistState";
+import { EDUBLAST_STUDY_DAYS_REFRESH } from "@/lib/dashboard/studyDayBumpEvents";
 import {
   GyanFeedFocusTimer,
   useGyanDoubtsPendingFocusMs,
@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 const FIVE_MIN_MS = 5 * 60 * 1000;
 /** Same subject scope as home dashboard checklist GET. */
 const CHECKLIST_SUBJECTS_PARAM = "physics,chemistry,math";
-const POLL_MS = 12_000;
+const POLL_MS = 60_000;
 
 type RowProps = {
   done: boolean;
@@ -108,7 +108,10 @@ export function GyanDailyChecklistTracker() {
   }, [load]);
 
   useEffect(() => {
-    const id = window.setInterval(() => void load(), POLL_MS);
+    const id = window.setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      void load();
+    }, POLL_MS);
     return () => window.clearInterval(id);
   }, [load]);
 

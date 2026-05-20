@@ -7,7 +7,7 @@ import {
   formatEduBlastClock,
   RESULT_FLASH_MS,
   type EduBlastDotState,
-} from "@/lib/eduBlastChallengeMeta";
+} from "@/lib/rdm/eduBlastChallengeMeta";
 import { cn } from "@/lib/utils";
 
 const RING_CIRCUMFERENCE = 138.2;

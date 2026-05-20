@@ -2,8 +2,8 @@
  * Admin-only: full thread for a community post (comments + votes samples + totals).
  */
 import { NextResponse } from "next/server";
-import { getSupabaseAndUser } from "@/lib/apiAuth";
-import { isAdminUser } from "@/lib/admin";
+import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
+import { isAdminUser } from "@/lib/admin/admin";
 import { createAdminClient } from "@/integrations/supabase/server";
 
 const COMMENT_SAMPLE = 200;

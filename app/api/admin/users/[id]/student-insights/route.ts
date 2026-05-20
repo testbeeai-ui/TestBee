@@ -2,8 +2,8 @@
  * Student admin insights: relational aggregates + subtopic engagement JSON + dwell telemetry rollups.
  */
 import { NextResponse } from "next/server";
-import { getSupabaseAndUser } from "@/lib/apiAuth";
-import { isAdminUser } from "@/lib/admin";
+import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
+import { isAdminUser } from "@/lib/admin/admin";
 import {
   buildSubtopicInsightRows,
   MAX_CLASSROOM_PROGRESS_ROWS,
@@ -13,9 +13,9 @@ import {
   mergeDwellIntoSubtopicRows,
   rollupDwellEvents,
   STUDENT_DWELL_TELEMETRY_NOTE,
-} from "@/lib/adminStudentInsights";
+} from "@/lib/admin/adminStudentInsights";
 import { createAdminClient } from "@/integrations/supabase/server";
-import { computeStreakDays } from "@/lib/gauntletStreak";
+import { computeStreakDays } from "@/lib/dashboard/gauntletStreak";
 import type { Json } from "@/integrations/supabase/types";
 import type {
   SavedBit,
@@ -29,24 +29,24 @@ import {
   parsePlayQuestionOptions,
   playQuestionStemPlain,
   poolKeyLabel,
-} from "@/lib/adminPlayQuestionPreview";
+} from "@/lib/admin/adminPlayQuestionPreview";
 import { isAiTutorAnswer, type ExpandedAnswer } from "@/components/doubts/doubtTypes";
 import {
   buildPlaySessionsFromAttempts,
   PLAY_SESSION_INFERENCE_NOTE,
-} from "@/lib/adminPlaySessions";
-import { computeStudyStreakFromDayMs } from "@/lib/studyStreakClient";
+} from "@/lib/admin/adminPlaySessions";
+import { computeStudyStreakFromDayMs } from "@/lib/dashboard/studyStreakClient";
 import type { TopicNode } from "@/data/topicTaxonomy";
 import {
   buildChapterCompletionRowsByRecentActivity,
   type ChapterCompletionRow,
-} from "@/lib/dashboardChapterCompletion";
-import { parseBitsTestAttemptsStore } from "@/lib/parseBitsTestAttemptsStore";
-import { parseEngagementDraftDashboardContributions } from "@/lib/parseEngagementDraftDashboardContributions";
+} from "@/lib/dashboard/dashboardChapterCompletion";
+import { parseBitsTestAttemptsStore } from "@/lib/play/bits/parseBitsTestAttemptsStore";
+import { parseEngagementDraftDashboardContributions } from "@/lib/dashboard/parseEngagementDraftDashboardContributions";
 import {
   buildBitsQuizRollupForAdmin,
   parseBitsTestAttemptsKeyed,
-} from "@/lib/adminBitsQuizInsights";
+} from "@/lib/admin/adminBitsQuizInsights";
 
 /** Full doubt payload for admin Gyan++ sheet (avoid huge rows). */
 const MAX_DOUBT_TITLE_CHARS = 4000;
@@ -473,9 +473,21 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
         : new Date().toISOString().slice(0, 10);
     const studyDayRangeFrom = addDaysIsoUtc(streakTodayKey, -STUDY_DAY_LOOKBACK_DAYS);
 
-    const [authRes, profileRes] = await Promise.all([
+    const [authRes, profileRes, savedItemsRes] = await Promise.all([
       admin.auth.admin.getUserById(userId),
-      admin.from("profiles").select("*").eq("id", userId).maybeSingle(),
+      admin
+        .from("profiles")
+        .select(
+          "id, role, name, subtopic_engagement, bits_test_attempts, daily_checklist_state"
+        )
+        .eq("id", userId)
+        .maybeSingle(),
+      // Read saved items from the new table instead of JSONB arrays
+      admin
+        .from("user_saved_items")
+        .select("item_type, content_id, subject, status, saved_at, data")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false }),
     ]);
 
     if (authRes.error || !authRes.data.user) {
@@ -491,6 +503,35 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     const profile = profileRes.data;
     const role = profile?.role ?? null;
     const isStudent = role === "student";
+
+    // Build saved arrays from user_saved_items table (replaces JSONB columns)
+    const savedItems = savedItemsRes.data ?? [];
+    const savedBitsRaw: Record<string, unknown>[] = [];
+    const savedFormulasRaw: Record<string, unknown>[] = [];
+    const savedRevisionCardsRaw: Record<string, unknown>[] = [];
+    const savedRevisionUnitsRaw: Record<string, unknown>[] = [];
+    const savedCommunityPostsRaw: Record<string, unknown>[] = [];
+
+    for (const row of savedItems) {
+      const d = row.data as Record<string, unknown>;
+      switch (row.item_type) {
+        case "saved_bit":
+          savedBitsRaw.push(d);
+          break;
+        case "saved_formula":
+          savedFormulasRaw.push(d);
+          break;
+        case "saved_revision_card":
+          savedRevisionCardsRaw.push(d);
+          break;
+        case "saved_revision_unit":
+          savedRevisionUnitsRaw.push(d);
+          break;
+        case "saved_community_post":
+          savedCommunityPostsRaw.push(d);
+          break;
+      }
+    }
 
     const learningMap = buildSubtopicInsightRows(profile?.subtopic_engagement ?? null);
 
@@ -894,11 +935,11 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     const bitsQuizInsight = buildBitsQuizRollupForAdmin(bitsKeyedRows, engagementDraftRowsForQuiz);
 
     const savedContent = {
-      savedBits: sanitizeSavedBits(profile?.saved_bits),
-      savedFormulas: sanitizeSavedFormulas(profile?.saved_formulas),
-      savedRevisionCards: sanitizeSavedRevisionCards(profile?.saved_revision_cards),
-      savedRevisionUnits: sanitizeSavedRevisionUnits(profile?.saved_revision_units),
-      savedCommunityPosts: sanitizeSavedCommunityPosts((profile as any)?.saved_community_posts),
+      savedBits: sanitizeSavedBits(savedBitsRaw),
+      savedFormulas: sanitizeSavedFormulas(savedFormulasRaw),
+      savedRevisionCards: sanitizeSavedRevisionCards(savedRevisionCardsRaw),
+      savedRevisionUnits: sanitizeSavedRevisionUnits(savedRevisionUnitsRaw),
+      savedCommunityPosts: sanitizeSavedCommunityPosts(savedCommunityPostsRaw),
       capsNote:
         `Saved lists are capped for admin UI payload size. ` +
         `bits<=${MAX_SAVED_BITS}, formulas<=${MAX_SAVED_FORMULAS}, instacueCards<=${MAX_SAVED_REVISION_CARDS}, ` +
@@ -975,14 +1016,15 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     dwellTotalsMs.all =
       dwellTotalsMs.theory + dwellTotalsMs.bits + dwellTotalsMs.numerals + dwellTotalsMs.instacue;
 
-    return NextResponse.json({
-      schemaNote: STUDENT_DWELL_TELEMETRY_NOTE,
-      generatedAt: new Date().toISOString(),
-      userId,
-      role,
-      isStudent,
-      streakTodayKeyUsed: streakTodayKey,
-      studyDays: {
+    return NextResponse.json(
+      {
+        schemaNote: STUDENT_DWELL_TELEMETRY_NOTE,
+        generatedAt: new Date().toISOString(),
+        userId,
+        role,
+        isStudent,
+        streakTodayKeyUsed: streakTodayKey,
+        studyDays: {
         days: normalizedStudyDays,
         summary: streakSummaryClient,
         streakActiveMsNote: STREAK_ACTIVE_MS_NOTE,
@@ -1006,11 +1048,11 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       profileLearning: {
         dailyChecklistState: profile?.daily_checklist_state ?? null,
         bitsTestAttemptsKeys: jsonLen(profile?.bits_test_attempts as Json | null),
-        savedBitsCount: jsonLen(profile?.saved_bits as Json | null),
-        savedFormulasCount: jsonLen(profile?.saved_formulas as Json | null),
-        savedRevisionCardsCount: jsonLen(profile?.saved_revision_cards as Json | null),
-        savedRevisionUnitsCount: jsonLen(profile?.saved_revision_units as Json | null),
-        savedCommunityPostsCount: jsonLen((profile as any)?.saved_community_posts as Json | null),
+        savedBitsCount: savedBitsRaw.length,
+        savedFormulasCount: savedFormulasRaw.length,
+        savedRevisionCardsCount: savedRevisionCardsRaw.length,
+        savedRevisionUnitsCount: savedRevisionUnitsRaw.length,
+        savedCommunityPostsCount: savedCommunityPostsRaw.length,
       },
       savedContent,
       dwellTotalsLast90DaysMs: dwellTotalsMs,
@@ -1093,7 +1135,13 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       referEarn: {
         claims: referRes.data ?? [],
       },
-    });
+    },
+      {
+        headers: {
+          "Cache-Control": "private, max-age=60, stale-while-revalidate=300",
+        },
+      }
+    );
   } catch (e) {
     const message = e instanceof Error ? e.message : "Server error";
     return NextResponse.json({ error: message }, { status: 500 });

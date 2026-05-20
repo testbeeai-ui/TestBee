@@ -3,7 +3,7 @@
 import { useCallback, useLayoutEffect, useState } from "react";
 import type { AssignmentTaskStored } from "@/lib/classroom/assignmentTasks";
 import type { Json } from "@/integrations/supabase/types";
-import { fetchWithClientAuth } from "@/lib/clientApiAuth";
+import { fetchWithClientAuth } from "@/lib/auth/clientApiAuth";
 import { chargeTeacherRdm, refundTeacherRdm } from "@/lib/teacherPortal/rdmCharges";
 import {
   DEFAULT_TEACHER_RDM_COSTS,

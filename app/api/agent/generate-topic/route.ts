@@ -1,17 +1,17 @@
 import { NextResponse } from "next/server";
-import { getSupabaseAndUser } from "@/lib/apiAuth";
+import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
 import {
   generateTopicHubJson,
   type TopicGeminiBackend,
   isVertexForTopicAgentEnabled,
   vertexLocationOrDefault,
-} from "@/lib/geminiTopicGenerate";
-import { isAdminUser } from "@/lib/admin";
-import { resolveGeminiModelId, resolveVertexTopicModelId } from "@/lib/geminiModel";
-import { buildRAGRequestTrace, fetchRAGContext } from "@/lib/rag";
-import { getGeminiApiKeyFromEnv } from "@/lib/geminiEnv";
+} from "@/lib/gyan/gemini/geminiTopicGenerate";
+import { isAdminUser } from "@/lib/admin/admin";
+import { resolveGeminiModelId, resolveVertexTopicModelId } from "@/lib/gyan/gemini/geminiModel";
+import { buildRAGRequestTrace, fetchRAGContext } from "@/lib/gyan/rag";
+import { getGeminiApiKeyFromEnv } from "@/lib/gyan/gemini/geminiEnv";
 import { logAiUsage } from "@/lib/aiLogger";
-import { sanitizeJsonForDb } from "@/lib/sanitizeJsonForDb";
+import { sanitizeJsonForDb } from "@/lib/gyan/sanitizeJsonForDb";
 
 const TRACE_MAX_USER_PROMPT = 48_000;
 const TRACE_MAX_RAG_CONTEXT = 32_000;

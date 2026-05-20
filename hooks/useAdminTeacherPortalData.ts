@@ -3,7 +3,7 @@
 import { useCallback, useLayoutEffect, useState } from "react";
 import type { AssignmentTaskStored } from "@/lib/classroom/assignmentTasks";
 import type { Json } from "@/integrations/supabase/types";
-import { safeGetSession } from "@/lib/safeSession";
+import { safeGetSession } from "@/lib/auth/safeSession";
 import type {
   MotivationNudgeGoal,
   MotivationRecommendActionId,

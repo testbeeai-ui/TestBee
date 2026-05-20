@@ -8,7 +8,7 @@ import { useUserStore } from "@/store/useUserStore";
 import {
   parseBitsTestAttemptsStore,
   type ParsedBitsAttemptRow,
-} from "@/lib/parseBitsTestAttemptsStore";
+} from "@/lib/play/bits/parseBitsTestAttemptsStore";
 import {
   activityGreenLevelFromStudyMs,
   addDaysLocal,
@@ -18,26 +18,26 @@ import {
   localDayKeyFromDate,
   startOfLocalDay,
   localDayBoundsIso,
-} from "@/lib/dashboardDayActivity";
-import { computeStudyStreakFromDayMs } from "@/lib/studyStreakClient";
+} from "@/lib/dashboard/dashboardDayActivity";
+import { computeStudyStreakFromDayMs } from "@/lib/dashboard/studyStreakClient";
 import {
   buildChapterCompletionRowsByRecentActivity,
   normalizeCurriculumText,
   parseClassLevelsFromLessonMarkedEngagementRaw,
-} from "@/lib/dashboardChapterCompletion";
-import type { DailyChecklistApiResponse } from "@/lib/dailyChecklistState";
-import { fetchWithClientAuth, getClientApiAuthHeaders } from "@/lib/clientApiAuth";
-import { fetchMockPapersFromSupabase } from "@/lib/mockPapersFromSupabase";
-import { appendQueryParams, buildTopicOverviewPath, buildTopicPath } from "@/lib/topicRoutes";
-import { fetchAdvancedLessonCompletionKeys } from "@/lib/lessonCompletionClient";
-import { isSubtopicLessonCompleteAtAdvanced } from "@/lib/lessonCompletionRollup";
-import { EDUBLAST_STUDY_DAYS_REFRESH } from "@/lib/studyDayBumpEvents";
+} from "@/lib/dashboard/dashboardChapterCompletion";
+import type { DailyChecklistApiResponse } from "@/lib/dashboard/dailyChecklistState";
+import { fetchWithClientAuth, getClientApiAuthHeaders } from "@/lib/auth/clientApiAuth";
+import { fetchMockPapersFromSupabase } from "@/lib/mock/mockPapersFromSupabase";
+import { appendQueryParams, buildTopicOverviewPath, buildTopicPath } from "@/lib/curriculum/topicRoutes";
+import { fetchAdvancedLessonCompletionKeys } from "@/lib/curriculum/lessonCompletionClient";
+import { isSubtopicLessonCompleteAtAdvanced } from "@/lib/curriculum/lessonCompletionRollup";
+import { EDUBLAST_STUDY_DAYS_REFRESH } from "@/lib/dashboard/studyDayBumpEvents";
 import { supabase } from "@/integrations/supabase/client";
 import { useTopicTaxonomy } from "@/hooks/useTopicTaxonomy";
 import type { TopicNode } from "@/data/topicTaxonomy";
 import type { Subject, SubjectCombo } from "@/types";
-import { DEFAULT_RDM_CONFIG, fetchRdmConfig } from "@/lib/rdmConfig";
-import { EDUFUND_RDM_GATES } from "@/lib/dashboardSidebarMetrics";
+import { DEFAULT_RDM_CONFIG, fetchRdmConfig } from "@/lib/rdm/rdmConfig";
+import { EDUFUND_RDM_GATES } from "@/lib/dashboard/dashboardSidebarMetrics";
 import RawCommunityFeed from "@/components/explore/RawCommunityFeed";
 import { Button } from "@/components/ui/button";
 import {
@@ -469,7 +469,13 @@ export default function StudentHomeDashboard() {
           table: "user_study_day_totals",
           filter: `user_id=eq.${profile.id}`,
         },
-        () => void loadStudyDays()
+        () => {
+          void loadStudyDays();
+          // Fan out so sidebar streak / checklist / profile listeners refresh without their own channels.
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(new CustomEvent(EDUBLAST_STUDY_DAYS_REFRESH));
+          }
+        }
       )
       .subscribe();
     return () => {

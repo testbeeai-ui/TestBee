@@ -8,7 +8,7 @@ import {
   fixGreekInsideTextBlocks,
   formatPlayQuestionStemForDisplay,
   splitGluedGreekCommands,
-} from "@/lib/playQuestionMathDisplay";
+} from "@/lib/play/questions/playQuestionMathDisplay";
 import { cn } from "@/lib/utils";
 
 export type PlayQuestionMarkdownVariant = "stem" | "option" | "explanation";

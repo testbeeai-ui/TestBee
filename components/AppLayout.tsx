@@ -107,6 +107,10 @@ const AppLayout = ({
   const rdm = profile?.rdm ?? user?.rdm ?? 0;
   const allResults = useUserStore((s) => s.allResults);
   const isTeacher = profile?.role === "teacher";
+  const isAdminOnLocalhost =
+    profile?.role === "admin" &&
+    typeof window !== "undefined" &&
+    (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
   const navItems = isTeacher ? teacherNavItems : studentNavItems;
 
   const teacherPortalHref = "/teacher-portal?section=profile";
@@ -291,7 +295,7 @@ const AppLayout = ({
             recentResults={allResults.slice(-5)}
           />
         )}
-        <AgentOrchestratorRunner />
+        {isAdminOnLocalhost && <AgentOrchestratorRunner />}
 
         {/* Footer */}
         {!isTeacher ? (

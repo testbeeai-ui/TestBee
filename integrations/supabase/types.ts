@@ -788,6 +788,36 @@ export type Database = {
           },
         ];
       };
+      cbse_mcq_chapters: {
+        Row: {
+          chapter_id: string;
+          board: string;
+          class_level: number;
+          subject: string;
+          chapter_name: string;
+          sort_order: number;
+          created_at: string;
+        };
+        Insert: {
+          chapter_id: string;
+          board?: string;
+          class_level?: number;
+          subject: string;
+          chapter_name: string;
+          sort_order: number;
+          created_at?: string;
+        };
+        Update: {
+          chapter_id?: string;
+          board?: string;
+          class_level?: number;
+          subject?: string;
+          chapter_name?: string;
+          sort_order?: number;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       mock_papers: {
         Row: {
           id: string;
@@ -796,6 +826,8 @@ export type Database = {
           exam_name: string | null;
           exam_set_name: string | null;
           paper_type: string;
+          board: string | null;
+          chapter_id: string | null;
           duration_minutes: number;
           total_marks: number;
           question_count: number;
@@ -813,6 +845,8 @@ export type Database = {
           exam_name?: string | null;
           exam_set_name?: string | null;
           paper_type?: string;
+          board?: string | null;
+          chapter_id?: string | null;
           duration_minutes?: number;
           total_marks?: number;
           question_count?: number;
@@ -830,6 +864,8 @@ export type Database = {
           exam_name?: string | null;
           exam_set_name?: string | null;
           paper_type?: string;
+          board?: string | null;
+          chapter_id?: string | null;
           duration_minutes?: number;
           total_marks?: number;
           question_count?: number;
@@ -840,7 +876,15 @@ export type Database = {
           published?: boolean;
           created_at?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "mock_papers_chapter_id_fkey";
+            columns: ["chapter_id"];
+            isOneToOne: false;
+            referencedRelation: "cbse_mcq_chapters";
+            referencedColumns: ["chapter_id"];
+          },
+        ];
       };
       past_papers: {
         Row: {
@@ -1761,6 +1805,7 @@ export type Database = {
           name: string;
           onboarding_complete: boolean;
           phone: string | null;
+          plan_tier: string;
           rdm: number;
           role: string;
           saved_bits: Json;
@@ -1805,6 +1850,7 @@ export type Database = {
           name?: string;
           onboarding_complete?: boolean;
           phone?: string | null;
+          plan_tier?: string;
           rdm?: number;
           role?: string;
           saved_bits?: Json;
@@ -1849,6 +1895,7 @@ export type Database = {
           name?: string;
           onboarding_complete?: boolean;
           phone?: string | null;
+          plan_tier?: string;
           rdm?: number;
           role?: string;
           saved_bits?: Json;
@@ -2121,6 +2168,57 @@ export type Database = {
           run_type?: string;
           subject?: string;
           topic?: string;
+        };
+        Relationships: [];
+      };
+      teacher_generated_test_history: {
+        Row: {
+          id: string;
+          teacher_id: string | null;
+          board: string;
+          class_level: number;
+          subject: string;
+          scope: string;
+          chapter_title: string | null;
+          topic_title: string | null;
+          unit_title: string | null;
+          questions: Json;
+          question_count: number;
+          duration_minutes: number | null;
+          generated_at: string | null;
+          used_question_ids: Json | null;
+        };
+        Insert: {
+          id?: string;
+          teacher_id?: string | null;
+          board?: string;
+          class_level: number;
+          subject: string;
+          scope: string;
+          chapter_title?: string | null;
+          topic_title?: string | null;
+          unit_title?: string | null;
+          questions?: Json;
+          question_count?: number;
+          duration_minutes?: number | null;
+          generated_at?: string | null;
+          used_question_ids?: Json | null;
+        };
+        Update: {
+          id?: string;
+          teacher_id?: string | null;
+          board?: string;
+          class_level?: number;
+          subject?: string;
+          scope?: string;
+          chapter_title?: string | null;
+          topic_title?: string | null;
+          unit_title?: string | null;
+          questions?: Json;
+          question_count?: number;
+          duration_minutes?: number | null;
+          generated_at?: string | null;
+          used_question_ids?: Json | null;
         };
         Relationships: [];
       };
@@ -2528,6 +2626,53 @@ export type Database = {
           created_at?: string;
         };
         Relationships: [];
+      };
+      user_saved_items: {
+        Row: {
+          id: string;
+          user_id: string;
+          item_type: string;
+          content_id: string;
+          subject: string | null;
+          status: string | null;
+          saved_at: string | null;
+          data: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          item_type: string;
+          content_id: string;
+          subject?: string | null;
+          status?: string | null;
+          saved_at?: string | null;
+          data?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          item_type?: string;
+          content_id?: string;
+          subject?: string | null;
+          status?: string | null;
+          saved_at?: string | null;
+          data?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "user_saved_items_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       user_roles: {
         Row: {
@@ -3115,6 +3260,30 @@ export type Database = {
       get_prep_calendar_summary: {
         Args: { p_today: string };
         Returns: Json;
+      };
+      admin_analytics_summary: {
+        Args: Record<PropertyKey, never>;
+        Returns: Json;
+      };
+      get_user_saved_item_counts: {
+        Args: { p_user_id: string };
+        Returns: { item_type: string; cnt: number }[];
+      };
+      get_user_mock_subject_score_averages: {
+        Args: Record<PropertyKey, never>;
+        Returns: { subject: string; avg_pct: number; paper_count: number }[];
+      };
+      get_study_streak_summary: {
+        Args: { p_today: string };
+        Returns: Json;
+      };
+      add_user_study_day_ms: {
+        Args: { p_day: string; p_delta_ms: number };
+        Returns: undefined;
+      };
+      add_user_site_presence_ms: {
+        Args: { p_day: string; p_delta_ms: number };
+        Returns: undefined;
       };
     };
     Enums: {

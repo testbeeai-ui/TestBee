@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/integrations/supabase/server";
-import { isDangerousRouteEnabled, requireAdminUser } from "@/lib/securityGuards";
+import { isDangerousRouteEnabled, requireAdminUser } from "@/lib/auth/securityGuards";
 
 /**
  * Seeds the full Gyan++ showcase — AI bot questions, teacher answers, student comments —

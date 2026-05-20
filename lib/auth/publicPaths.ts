@@ -12,6 +12,7 @@ export function isPublicPath(pathname: string): boolean {
     "/select-role",
     "/join",
     "/news-blog",
+    "/terms-conditions",
     "/integrations/google/oauth-complete",
   ] as const;
 

@@ -19,8 +19,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { InstaCueCard, InstaCueCardType, InstaCueLevel } from "@/data/instaCueCards";
 import type { SavedRevisionCard } from "@/types";
-import { syncAllSavedContent } from "@/lib/savedContentService";
-import { reportInstacueCardRead } from "@/lib/reportInstacueCardRead";
+import { syncAllSavedContent } from "@/lib/saved/savedContentService";
+import { reportInstacueCardRead } from "@/lib/rdm/reports/reportInstacueCardRead";
 
 const TYPE_CONFIG: Record<
   InstaCueCardType,

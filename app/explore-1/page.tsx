@@ -36,7 +36,7 @@ import TheoryContentWithDeepDive, {
 } from "@/components/TheoryContentWithDeepDive";
 import DeepDiveLinearSelector from "@/components/DeepDiveLinearSelector";
 import MathText from "@/components/MathText";
-import { subtopicMathTextLabel, subtopicNavPreviewPlain } from "@/lib/subtopicTitles";
+import { subtopicMathTextLabel, subtopicNavPreviewPlain } from "@/lib/curriculum/subtopicTitles";
 import SubjectChatbot from "@/components/SubjectChatbot";
 import AnimatedPhysicsIcon from "@/components/AnimatedPhysicsIcon";
 import AnimatedChemistryIcon from "@/components/AnimatedChemistryIcon";
@@ -49,7 +49,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { buildTopicOverviewPath, buildDeepDivePath } from "@/lib/topicRoutes";
+import { buildTopicOverviewPath, buildDeepDivePath } from "@/lib/curriculum/topicRoutes";
 import { slugify } from "@/lib/slugs";
 import TheoryContent from "@/components/TheoryContent";
 import TopicAgentTracePanel from "@/components/TopicAgentTracePanel";
@@ -60,7 +60,7 @@ import {
   type TopicAgentTrace,
   type TopicSubtopicPreview,
   type TopicHubScope,
-} from "@/lib/topicContentService";
+} from "@/lib/curriculum/topicContentService";
 import { useToast } from "@/hooks/use-toast";
 import { fuzzySubtopicKey } from "@/lib/utils";
 import { useOrchestratorStore } from "@/store/useOrchestratorStore";
@@ -85,26 +85,26 @@ import {
   isClass11Math,
   isClass12Chemistry,
   isClass12Math,
-} from "@/lib/chemMathExplore";
+} from "@/lib/explore/chemMathExplore";
 import {
   CLASS11_PHYSICS_CHAPTER_BLURB,
   CLASS11_PHYSICS_CHAPTER_ICON,
   CLASS11_PHYSICS_SECTIONS,
   CLASS11_PHYSICS_UNIT_COUNT_LABEL,
   isClass11Physics,
-} from "@/lib/class11PhysicsExplore";
+} from "@/lib/explore/class11PhysicsExplore";
 import {
   CLASS12_PHYSICS_CHAPTER_BLURB,
   CLASS12_PHYSICS_CHAPTER_ICON,
   CLASS12_PHYSICS_SECTIONS,
   CLASS12_PHYSICS_UNIT_COUNT_LABEL,
   isClass12Physics,
-} from "@/lib/class12PhysicsExplore";
+} from "@/lib/explore/class12PhysicsExplore";
 import {
   isChapterCompleteAtAdvanced,
   isTopicCompleteAtAdvanced,
-} from "@/lib/lessonCompletionRollup";
-import { fetchAdvancedLessonCompletionKeys } from "@/lib/lessonCompletionClient";
+} from "@/lib/curriculum/lessonCompletionRollup";
+import { fetchAdvancedLessonCompletionKeys } from "@/lib/curriculum/lessonCompletionClient";
 
 const EMPTY_LESSON_KEY_SET = new Set<string>();
 
@@ -1256,6 +1256,10 @@ const Explore = () => {
   const { profile } = useAuth();
   const { toast } = useToast();
   const user = useUserStore((s) => s.user);
+  const isAdminOnLocalhost =
+    profile?.role === "admin" &&
+    typeof window !== "undefined" &&
+    (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
   const classLevel: ClassLevel | null =
     profile?.role === "student"
       ? profile.class_level != null
@@ -2429,7 +2433,8 @@ const Explore = () => {
                                             topicContentLoading ||
                                             !topicForHub.trim() ||
                                             !selectedSubject ||
-                                            selectedTopicClassLevel === null
+                                            selectedTopicClassLevel === null ||
+                                            (hubScopeForHub === "chapter" && !isAdminOnLocalhost)
                                           }
                                           title={
                                             topicContentExists
@@ -2445,6 +2450,7 @@ const Explore = () => {
                                             )
                                               return;
                                             if (hubScopeForHub === "chapter") {
+                                              if (!isAdminOnLocalhost) return;
                                               setChapterScheduleOpen(true);
                                               return;
                                             }

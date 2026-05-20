@@ -11,7 +11,7 @@ import { useUserStore } from "@/store/useUserStore";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
-import { computeStreakDays } from "@/lib/gauntletStreak";
+import { computeStreakDays } from "@/lib/dashboard/gauntletStreak";
 import {
   formatReferDurationMmSs,
   getReferChallengeSpecs,
@@ -19,18 +19,18 @@ import {
   referChallengeSpec,
   type ReferChallengePublicSpec,
   type ReferClaimKey,
-} from "@/lib/referEarnChallenges";
-import { reportChallengeYourselfAttempt } from "@/lib/reportChallengeYourselfAttempt";
+} from "@/lib/rdm/referral/referEarnChallenges";
+import { reportChallengeYourselfAttempt } from "@/lib/rdm/reports/reportChallengeYourselfAttempt";
 import { cn } from "@/lib/utils";
-import { EARN_LEARN_AUTO_CLAIM_LINE } from "@/lib/referEarnAutoClaimCopy";
+import { EARN_LEARN_AUTO_CLAIM_LINE } from "@/lib/rdm/referral/referEarnAutoClaimCopy";
 import {
   DEFAULT_RDM_CONFIG,
   fetchRdmConfig,
   rdmConfigShallowEqual,
   type RdmConfigParams,
-} from "@/lib/rdmConfig";
+} from "@/lib/rdm/rdmConfig";
 import type { PlayDomain } from "@/types";
-import { EDUFUND_RDM_GATES } from "@/lib/dashboardSidebarMetrics";
+import { EDUFUND_RDM_GATES } from "@/lib/dashboard/dashboardSidebarMetrics";
 import {
   BarChart3,
   Check,

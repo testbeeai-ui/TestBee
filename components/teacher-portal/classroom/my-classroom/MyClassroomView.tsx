@@ -42,11 +42,11 @@ import InviteStudents from "@/components/InviteStudents";
 import { useToast } from "@/hooks/use-toast";
 import { useTopicTaxonomy } from "@/hooks/useTopicTaxonomy";
 import { supabase } from "@/integrations/supabase/client";
-import { safeGetSession } from "@/lib/safeSession";
-import { fetchWithClientAuth } from "@/lib/clientApiAuth";
+import { safeGetSession } from "@/lib/auth/safeSession";
+import { fetchWithClientAuth } from "@/lib/auth/clientApiAuth";
 import GeneratedMcqReview from "@/components/classroom/GeneratedMcqReview";
-import { getAdvancedSetBounds } from "@/lib/advancedQuizSets";
-import { fetchSubtopicContent } from "@/lib/subtopicContentService";
+import { getAdvancedSetBounds } from "@/lib/play/quiz/advancedQuizSets";
+import { fetchSubtopicContent } from "@/lib/curriculum/subtopicContentService";
 import MeetSessionsStack from "@/components/teacher-portal/live/MeetSessionsStack";
 import { redirectToGoogleCalendarConsent } from "@/lib/integrations/googleCalendarOAuthClient";
 import {
@@ -70,8 +70,8 @@ import CreateTestsView from "@/components/teacher-portal/views/tests/CreateTests
 import {
   fetchMockPapersFromSupabase,
   fetchMockQuestionsForPaper,
-} from "@/lib/mockPapersFromSupabase";
-import { fetchPastPapersFromSupabase } from "@/lib/pastPapersFromSupabase";
+} from "@/lib/mock/mockPapersFromSupabase";
+import { fetchPastPapersFromSupabase } from "@/lib/mock/pastPapersFromSupabase";
 import {
   chapterQuizSelectionComplete,
   chapterQuizToRef,
@@ -1130,8 +1130,9 @@ export default function MyClassroomView({
     };
     void load();
     const intervalId = window.setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
       void load();
-    }, 15_000);
+    }, 60_000);
     return () => {
       cancelled = true;
       window.clearInterval(intervalId);
@@ -1191,7 +1192,10 @@ export default function MyClassroomView({
       }
     };
     void load();
-    const intervalId = window.setInterval(() => void load(), 15_000);
+    const intervalId = window.setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+      void load();
+    }, 60_000);
     return () => {
       cancelled = true;
       window.clearInterval(intervalId);
@@ -1393,7 +1397,10 @@ export default function MyClassroomView({
       await onRefreshTeacherPortal({ silent: true });
     };
     void tick();
-    const id = window.setInterval(() => void tick(), 8000);
+    const id = window.setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+      void tick();
+    }, 30_000);
     return () => window.clearInterval(id);
   }, [activeClassroomId, detailTab, onRefreshTeacherPortal, refetchJoinRequests]);
 

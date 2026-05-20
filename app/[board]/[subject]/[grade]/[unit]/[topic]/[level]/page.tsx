@@ -18,14 +18,14 @@ import {
   buildTopicOverviewPath,
   getSiblingTopics,
   appendQueryParams,
-} from "@/lib/topicRoutes";
+} from "@/lib/curriculum/topicRoutes";
 import {
   humanReadableSubtopicTitle,
   prettifySubtopicTitle,
   subtopicDeepDiveHeadingMarkdown,
   subtopicMathTextLabel,
   subtopicNavPreviewPlain,
-} from "@/lib/subtopicTitles";
+} from "@/lib/curriculum/subtopicTitles";
 import { useTopicTaxonomy } from "@/hooks/useTopicTaxonomy";
 import type { DifficultyLevel } from "@/lib/slugs";
 import {
@@ -68,15 +68,15 @@ import {
 } from "lucide-react";
 import type { DeepDiveReference } from "@/data/deepDiveContent";
 import MathText from "@/components/MathText";
-import { stripFormulaDelimiters } from "@/lib/stripFormulaDelimiters";
+import { stripFormulaDelimiters } from "@/lib/gyan/stripFormulaDelimiters";
 import SubjectChatbot from "@/components/SubjectChatbot";
 import InstaCue from "@/components/InstaCue";
 import { getInstaCueCards, type InstaCueCard } from "@/data/instaCueCards";
 import { useUserStore } from "@/store/useUserStore";
 import type { Board, Subject, SavedBit, SavedFormula, SavedRevisionUnit } from "@/types";
-import { syncAllSavedContent } from "@/lib/savedContentService";
-import { applyInstacueCreateDailyRdmReward } from "@/lib/applyInstacueCreateDailyRdmReward";
-import { applyTopicQuizAdvancedDailyRdmReward } from "@/lib/applyTopicQuizAdvancedDailyRdmReward";
+import { syncAllSavedContent } from "@/lib/saved/savedContentService";
+import { applyInstacueCreateDailyRdmReward } from "@/lib/rdm/claims/applyInstacueCreateDailyRdmReward";
+import { applyTopicQuizAdvancedDailyRdmReward } from "@/lib/rdm/claims/applyTopicQuizAdvancedDailyRdmReward";
 import {
   fetchSubtopicContent,
   upsertSubtopicContent,
@@ -88,18 +88,18 @@ import {
   type ArtifactInstaCueCard,
   type ArtifactBitsQuestion,
   type ArtifactFormula,
-} from "@/lib/subtopicContentService";
+} from "@/lib/curriculum/subtopicContentService";
 import {
   fetchMagicWallBasket,
   type MagicWallBasketItem,
   makeTopicKey,
-} from "@/lib/magicWallBasketService";
-import { assessSubtopicRow } from "@/lib/subtopicCompleteness";
+} from "@/lib/templates/magicWallBasketService";
+import { assessSubtopicRow } from "@/lib/curriculum/subtopicCompleteness";
 import {
   canRegenerate,
   generateFormulaQuestions,
   getFallbackPracticeFormulas,
-} from "@/lib/formulaQuestionGenerators";
+} from "@/lib/gyan/verify/formulaQuestionGenerators";
 import {
   fetchTopicContent,
   generateTopicContent,
@@ -108,16 +108,16 @@ import {
   fetchTopicHubThreeLevelGate,
   type TopicAgentTrace,
   type TopicSubtopicPreview,
-} from "@/lib/topicContentService";
+} from "@/lib/curriculum/topicContentService";
 import {
   MIN_BITS_QUESTIONS,
   MIN_INSTACUE_CARDS,
   subtopicTheoryIsPlaceholder,
-} from "@/lib/subtopicCompleteness";
+} from "@/lib/curriculum/subtopicCompleteness";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useLearningDwellTelemetry } from "@/hooks/useLearningDwellTelemetry";
-import { normalizeBoardParam } from "@/lib/learningDwellTelemetry";
+import { normalizeBoardParam } from "@/lib/dashboard/learningDwellTelemetry";
 import { cn, fuzzySubtopicKey } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -128,47 +128,47 @@ import {
   saveFormulaPracticeAttempt,
   clearFormulaPracticeAttempt,
   type BitsAttemptRecord,
-} from "@/lib/bitsAttemptService";
+} from "@/lib/play/bits/bitsAttemptService";
 import {
   getAdvancedSetBounds,
   isAdvancedMultiSet,
   type AdvancedQuizSetIndex,
-} from "@/lib/advancedQuizSets";
-import { getBitsSignature } from "@/lib/bitsSignature";
-import { claimNumeralsPackCompleteDailyRdm } from "@/lib/claimNumeralsPackDailyRdm";
+} from "@/lib/play/quiz/advancedQuizSets";
+import { getBitsSignature } from "@/lib/play/bits/bitsSignature";
+import { claimNumeralsPackCompleteDailyRdm } from "@/lib/rdm/claims/claimNumeralsPackDailyRdm";
 import {
   DEFAULT_RDM_CONFIG,
   fetchRdmConfig,
   rdmConfigShallowEqual,
   type RdmConfigParams,
-} from "@/lib/rdmConfig";
+} from "@/lib/rdm/rdmConfig";
 import {
   buildQuizPostDrafts,
   pickRandomQuizPostDraft,
   type QuizPostDraft,
-} from "@/lib/quizPostTemplates";
+} from "@/lib/templates/quizPostTemplates";
 import {
   buildNumeralsPostDrafts,
   pickRandomNumeralsPostDraft,
   type NumeralsPostDraft,
-} from "@/lib/numeralsPostTemplates";
+} from "@/lib/templates/numeralsPostTemplates";
 import {
   fixGreekInsideTextBlocks,
   formatPlayQuestionStemForDisplay,
   splitGluedGreekCommands,
-} from "@/lib/playQuestionMathDisplay";
+} from "@/lib/play/questions/playQuestionMathDisplay";
 import {
   fetchSubtopicEngagement,
   saveSubtopicEngagement,
   type SubtopicEngagementScope,
   type SubtopicEngagementSnapshot,
-} from "@/lib/subtopicEngagementService";
-import { getClientApiAuthHeaders } from "@/lib/clientApiAuth";
-import { reportInstacueCardReadBatch } from "@/lib/reportInstacueCardRead";
-import { localDayKeyFromDate, startOfLocalDay } from "@/lib/dashboardDayActivity";
-import { makeSubtopicEngagementStorageKey } from "@/lib/subtopicEngagementStorageKey";
-import { isSubtopicLessonCompleteAtAdvanced } from "@/lib/lessonCompletionRollup";
-import { fetchAdvancedLessonCompletionKeys } from "@/lib/lessonCompletionClient";
+} from "@/lib/curriculum/subtopicEngagementService";
+import { getClientApiAuthHeaders } from "@/lib/auth/clientApiAuth";
+import { reportInstacueCardReadBatch } from "@/lib/rdm/reports/reportInstacueCardRead";
+import { localDayKeyFromDate, startOfLocalDay } from "@/lib/dashboard/dashboardDayActivity";
+import { makeSubtopicEngagementStorageKey } from "@/lib/curriculum/subtopicEngagementStorageKey";
+import { isSubtopicLessonCompleteAtAdvanced } from "@/lib/curriculum/lessonCompletionRollup";
+import { fetchAdvancedLessonCompletionKeys } from "@/lib/curriculum/lessonCompletionClient";
 import { dispatchClassroomAssignmentProgressChanged } from "@/lib/classroom/assignmentProgressSync";
 import SubtopicWheelDialog from "@/components/SubtopicWheelDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";

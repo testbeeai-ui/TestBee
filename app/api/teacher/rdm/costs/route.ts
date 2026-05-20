@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/integrations/supabase/server";
-import { requireAuthenticatedUser } from "@/lib/securityGuards";
+import { requireAuthenticatedUser } from "@/lib/auth/securityGuards";
 import {
   DEFAULT_TEACHER_RDM_COSTS,
   fetchTeacherRdmCosts,

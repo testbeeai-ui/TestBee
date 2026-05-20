@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { getSupabaseAndUser } from "@/lib/apiAuth";
+import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
 import type { Json } from "@/integrations/supabase/types";
 import { parseAssignmentTasks, studentVisibleTasks } from "@/lib/classroom/assignmentTasks";
-import { parseEngagementStore } from "@/lib/subtopicEngagementStoreParse";
-import type { SubtopicEngagementSnapshot } from "@/lib/subtopicEngagementService";
+import { parseEngagementStore } from "@/lib/curriculum/subtopicEngagementStoreParse";
+import type { SubtopicEngagementSnapshot } from "@/lib/curriculum/subtopicEngagementService";
 
 const ASSIGNMENT_POST_TYPES = ["assignment", "quiz", "mock", "past_paper", "Concept Focus"] as const;
 const GAUNTLET_QUESTIONS = 5;
@@ -92,10 +92,11 @@ export async function GET(request: Request) {
     challengeRes,
     lessonMarksRes,
     rpcRes,
+    revisionCardsRes,
   ] = await Promise.all([
     supabase
       .from("profiles")
-      .select("created_at, bits_test_attempts, subtopic_engagement, saved_revision_cards")
+      .select("created_at, bits_test_attempts, subtopic_engagement")
       .eq("id", uid)
       .maybeSingle(),
     supabase.from("daily_gauntlet_attempts").select("gauntlet_date, correct_count").eq("user_id", uid),
@@ -110,6 +111,12 @@ export async function GET(request: Request) {
         rpc: (fn: string) => Promise<{ data: RpcRow[] | null; error: { message: string } | null }>;
       }
     ).rpc("get_user_mock_subject_score_averages"),
+    // Fetch revision cards from new table instead of JSONB column
+    supabase
+      .from("user_saved_items")
+      .select("data")
+      .eq("user_id", uid)
+      .eq("item_type", "saved_revision_card"),
   ]);
 
   if (profileRes.error) {
@@ -121,7 +128,6 @@ export async function GET(request: Request) {
     created_at?: string | null;
     bits_test_attempts?: Json | null;
     subtopic_engagement?: Json | null;
-    saved_revision_cards?: Json | null;
   } | null;
 
   const joinDays = daysSinceJoinInclusive(profile?.created_at ?? null);
@@ -198,7 +204,11 @@ export async function GET(request: Request) {
     mockBestLine = `overall avg ${mockAvgPct}%`;
   }
 
-  const revisionCards = parseRevisionCards(profile?.saved_revision_cards ?? null);
+  // Build revision cards from user_saved_items table
+  const revisionCards = ((revisionCardsRes.data ?? []) as Array<{ data: unknown }>).map((r) => {
+    const d = r.data as { status?: string; savedAt?: string } | null;
+    return { status: d?.status ?? "new", savedAt: d?.savedAt ?? null };
+  });
   const withStatus = revisionCards.filter((c) => c.status && c.status !== "new").length;
   const knowIt = revisionCards.filter((c) => c.status === "know_it").length;
   const revisionRetentionPct =

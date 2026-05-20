@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { getSupabaseAndUser } from "@/lib/apiAuth";
-import { parseClassLevelFromBitsStorageKey } from "@/lib/dashboardChapterCompletion";
+import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
+import { parseClassLevelFromBitsStorageKey } from "@/lib/dashboard/dashboardChapterCompletion";
 import type { Json } from "@/integrations/supabase/types";
 
 /** `profiles.subtopic_engagement` keys: `board||subject||classLevel||topic||subtopic||level` */

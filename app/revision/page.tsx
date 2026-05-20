@@ -28,9 +28,9 @@ import type {
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import InstaCuePlayer from "@/components/InstaCuePlayer";
 import AddRevisionCardModal from "@/components/AddRevisionCardModal";
-import { buildDeepDivePath } from "@/lib/topicRoutes";
-import { fetchSavedContent, syncAllSavedContent } from "@/lib/savedContentService";
-import { mergeAllSavedContent } from "@/lib/mergeSavedContent";
+import { buildDeepDivePath } from "@/lib/curriculum/topicRoutes";
+import { fetchSavedContent, syncAllSavedContent } from "@/lib/saved/savedContentService";
+import { mergeAllSavedContent } from "@/lib/saved/mergeSavedContent";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -38,7 +38,7 @@ import {
   hydrateSavedQuestionsFromRows,
   unsaveQuestionFromDb,
   type SavedQuestionRow,
-} from "@/lib/savedQuestionsService";
+} from "@/lib/saved/savedQuestionsService";
 import { CORE_SUBJECTS, type Question, type Subject } from "@/types";
 import { cn } from "@/lib/utils";
 

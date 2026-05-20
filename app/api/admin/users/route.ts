@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { getSupabaseAndUser } from "@/lib/apiAuth";
-import { isAdminUser } from "@/lib/admin";
+import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
+import { isAdminUser } from "@/lib/admin/admin";
 import { createAdminClient } from "@/integrations/supabase/server";
-import { computeAccountState, isProtectedSystemAccount } from "@/lib/adminGovernance";
+import { computeAccountState, isProtectedSystemAccount } from "@/lib/admin/adminGovernance";
 
 type AdminUserRow = {
   id: string;

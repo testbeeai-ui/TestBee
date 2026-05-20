@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 import { useUserStore } from "@/store/useUserStore";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { syncAllSavedContent } from "@/lib/savedContentService";
-import { applyInstacueCreateDailyRdmReward } from "@/lib/applyInstacueCreateDailyRdmReward";
+import { syncAllSavedContent } from "@/lib/saved/savedContentService";
+import { applyInstacueCreateDailyRdmReward } from "@/lib/rdm/claims/applyInstacueCreateDailyRdmReward";
 import { RevisionCardType, Subject } from "@/types";
 import { Brain, Calculator, AlertTriangle, Lightbulb, Plus } from "lucide-react";
 

@@ -17,19 +17,19 @@ import {
   Check,
   UserCircle2,
 } from "lucide-react";
-import { TARGET_EXAM_OPTIONS, type TargetExamKey } from "@/lib/targetExam";
+import { TARGET_EXAM_OPTIONS, type TargetExamKey } from "@/lib/profile/targetExam";
 import {
   TEACHER_EXAM_TAGS,
   TEACHER_TEACHING_LEVELS,
   encodeTeachingLevelLabels,
   decodeTeachingLevelNumbers,
-} from "@/lib/profileTeacherOptions";
+} from "@/lib/profile/profileTeacherOptions";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { readPendingDeepLink, clearPendingDeepLink } from "@/lib/auth/safeNextPath";
 import { TEACHER_PORTAL_CLASSROOMS_URL } from "@/lib/teacherPortal/routes";
 import { useToast } from "@/hooks/use-toast";
-import { clearPendingReferralRef, resolvePendingReferralRef } from "@/lib/referralClient";
+import { clearPendingReferralRef, resolvePendingReferralRef } from "@/lib/rdm/referral/referralClient";
 
 const subjects = ["Physics", "Chemistry", "Math"];
 const studentExamTargets: { key: TargetExamKey; label: string; tag?: string; locked?: boolean }[] =

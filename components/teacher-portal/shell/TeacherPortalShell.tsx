@@ -21,7 +21,7 @@ import type { TeacherPortalSection } from "@/lib/teacherPortal/types";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { TEACHER_PORTAL_CLASSROOMS_URL } from "@/lib/teacherPortal/routes";
-import { DEFAULT_RDM_CONFIG } from "@/lib/rdmConfig";
+import { DEFAULT_RDM_CONFIG } from "@/lib/rdm/rdmConfig";
 
 interface TeacherPortalShellProps {
   activeSection: TeacherPortalSection;

@@ -1,4 +1,4 @@
-import type { Post as DbPost } from "@/lib/news-blog-db";
+import type { Post as DbPost } from "@/lib/news-blog/news-blog-db";
 
 export type Portal = "news" | "blog";
 export type View = "portal" | "upload";

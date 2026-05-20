@@ -11,14 +11,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import type { TopicNode } from "@/data/topicTaxonomy";
-import { getAdvancedSetBounds, type AdvancedQuizSetIndex } from "@/lib/advancedQuizSets";
+import { getAdvancedSetBounds, type AdvancedQuizSetIndex } from "@/lib/play/quiz/advancedQuizSets";
 import type { ChapterQuizSelectionState } from "@/lib/teacherPortal/chapterQuizUtils";
 import {
   topicOptionLabel,
   topicsForChapter,
   uniqueChaptersFor,
 } from "@/lib/teacherPortal/chapterQuizUtils";
-import { fetchSubtopicContent, type ArtifactBitsQuestion } from "@/lib/subtopicContentService";
+import { fetchSubtopicContent, type ArtifactBitsQuestion } from "@/lib/curriculum/subtopicContentService";
 import type { Board, ClassLevel, Subject } from "@/types";
 
 export type { ChapterQuizSelectionState };

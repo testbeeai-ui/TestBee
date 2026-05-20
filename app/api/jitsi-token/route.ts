@@ -8,7 +8,7 @@
 import { NextResponse } from "next/server";
 import * as jose from "jose";
 import { createClient } from "@/integrations/supabase/server";
-import { enforceSameOriginForCookieAuth, requireAuthenticatedUser } from "@/lib/securityGuards";
+import { enforceSameOriginForCookieAuth, requireAuthenticatedUser } from "@/lib/auth/securityGuards";
 
 const APP_ID = process.env.NEXT_PUBLIC_JITSI_APP_ID || process.env.JITSI_JAAS_APP_ID || "";
 const KID = process.env.JITSI_JAAS_KID || "";

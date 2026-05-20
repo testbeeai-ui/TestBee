@@ -7,7 +7,7 @@ import { motion } from "framer-motion";
 import AppLayout from "@/components/AppLayout";
 import { GyanDoubtsFocusTracker } from "@/components/doubts/GyanDoubtsFocusTracker";
 import { GyanDailyChecklistTracker } from "@/components/doubts/GyanDailyChecklistTracker";
-import { dispatchStudyDayBumped } from "@/lib/studyDayBumpEvents";
+import { dispatchStudyDayBumped } from "@/lib/dashboard/studyDayBumpEvents";
 import { supabase } from "@/integrations/supabase/client";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { useAuth } from "@/hooks/useAuth";
@@ -63,7 +63,7 @@ import {
 } from "@/lib/normalizePastedDoubtMath";
 import { UserHoverCard } from "@/components/UserHoverCard";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { DEFAULT_RDM_CONFIG, fetchRdmConfig } from "@/lib/rdmConfig";
+import { DEFAULT_RDM_CONFIG, fetchRdmConfig } from "@/lib/rdm/rdmConfig";
 
 type Doubt = {
   id: string;

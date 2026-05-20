@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Pencil, Trash2 } from "lucide-react";
-import { deletePost as dbDeletePost } from "@/lib/news-blog-db";
+import { deletePost as dbDeletePost } from "@/lib/news-blog/news-blog-db";
 import { formatKeyDateEndBadge, formatLinkHostDisplay, keyDatesFeedBlurb } from "../html-feed-and-seo";
 import { getExamLabel } from "../post-draft-utils";
 import type { Post } from "../types";

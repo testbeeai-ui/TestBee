@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseAndUser } from "@/lib/apiAuth";
+import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
 import { syncAssignmentTasksForKinds } from "@/lib/classroom/syncAssignmentTaskProgress";
 
 const FIELDS = ["class", "revision", "mock", "doubt"] as const;

@@ -29,8 +29,8 @@ import {
   type ChapterQuizSelectionState,
 } from "@/lib/teacherPortal/chapterQuizUtils";
 import { useTopicTaxonomy } from "@/hooks/useTopicTaxonomy";
-import { fetchMockPapersFromSupabase } from "@/lib/mockPapersFromSupabase";
-import { fetchPastPapersFromSupabase } from "@/lib/pastPapersFromSupabase";
+import { fetchMockPapersFromSupabase } from "@/lib/mock/mockPapersFromSupabase";
+import { fetchPastPapersFromSupabase } from "@/lib/mock/pastPapersFromSupabase";
 import type { MockPaper, PastPaper } from "@/types";
 import { useTeacherRdmCosts } from "@/hooks/TeacherRdmCostsContext";
 

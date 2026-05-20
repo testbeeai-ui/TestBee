@@ -4,11 +4,11 @@ import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { RotateCcw, ArrowRight } from "lucide-react";
 import type { SavedRevisionCard } from "@/types";
-import { incrementPrepCalendarDay, localDayISO } from "@/lib/prepCalendarClient";
+import { incrementPrepCalendarDay, localDayISO } from "@/lib/dashboard/prepCalendarClient";
 import { useUserStore } from "@/store/useUserStore";
 import { cn } from "@/lib/utils";
-import { REVISION_DASHBOARD_ROW_STYLES, REVISION_NAV_LINKS } from "@/lib/revisionNavAccents";
-import { fetchSavedQuestionRows } from "@/lib/savedQuestionsService";
+import { REVISION_DASHBOARD_ROW_STYLES, REVISION_NAV_LINKS } from "@/lib/dashboard/revisionNavAccents";
+import { fetchSavedQuestionRows } from "@/lib/saved/savedQuestionsService";
 
 interface RevisionInstaCueSectionProps {
   cards: SavedRevisionCard[];

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/integrations/supabase/server";
-import { getIstWeekMondayDateString } from "@/lib/referralIst";
+import { getIstWeekMondayDateString } from "@/lib/rdm/referral/referralIst";
 
 const LEADERBOARD_LIMIT = 20;
 

@@ -3,7 +3,7 @@ import katex from "katex";
 import {
   fixGreekInsideTextBlocks,
   formatPlayQuestionStemForDisplay,
-} from "@/lib/playQuestionMathDisplay";
+} from "@/lib/play/questions/playQuestionMathDisplay";
 import { normalizePastedMathForDoubt } from "@/lib/normalizePastedDoubtMath";
 
 function escapeHtml(raw: string): string {

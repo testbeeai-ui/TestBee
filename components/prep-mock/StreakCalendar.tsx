@@ -6,7 +6,7 @@ import {
   fetchPrepCalendarMonth,
   type PrepCalendarDayRow,
   type PrepCalendarSummary,
-} from "@/lib/prepCalendarClient";
+} from "@/lib/dashboard/prepCalendarClient";
 
 type DayTotals = {
   class: number;

@@ -6,7 +6,7 @@ import type {
   TeacherPortalSection,
   TeacherPortalSummary,
 } from "@/lib/teacherPortal/types";
-import { DEFAULT_RDM_CONFIG } from "@/lib/rdmConfig";
+import { DEFAULT_RDM_CONFIG } from "@/lib/rdm/rdmConfig";
 
 interface TeacherWalletViewProps {
   rdmBalance: number;

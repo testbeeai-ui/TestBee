@@ -1,4 +1,4 @@
-import type { Post as DbPost } from "@/lib/news-blog-db";
+import type { Post as DbPost } from "@/lib/news-blog/news-blog-db";
 
 import { BLOG_SECTIONS, EXAMS, NEWS_SECTIONS } from "./constants";
 import type { Draft, ExamId, Portal, Post, RevisionPlanId, SectionId } from "./types";

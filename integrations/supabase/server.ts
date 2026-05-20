@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { createClient as createSupabaseClient, type SupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
-import { supabaseNodeFetch } from "@/lib/supabaseNodeFetch";
+import { supabaseNodeFetch } from "@/lib/supabase/supabaseNodeFetch";
 import type { Database } from "./types";
 
 const supabaseGlobal = { fetch: supabaseNodeFetch };

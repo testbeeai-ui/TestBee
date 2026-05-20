@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/integrations/supabase/server";
-import { isDangerousRouteEnabled, requireAdminUser } from "@/lib/securityGuards";
+import { isDangerousRouteEnabled, requireAdminUser } from "@/lib/auth/securityGuards";
 
 const DEMO_ACADEMICS = [
   { exam: "Class 11", board: "State Board", score: "94%", verified: "verified" },

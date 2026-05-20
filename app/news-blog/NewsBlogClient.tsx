@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
-import { addPost as dbAddPost, updatePost as dbUpdatePost } from "@/lib/news-blog-db";
-import { sanitizeNewsBlogUploadedHtml } from "@/lib/news-blog-sanitize-html";
+import { addPost as dbAddPost, updatePost as dbUpdatePost } from "@/lib/news-blog/news-blog-db";
+import { sanitizeNewsBlogUploadedHtml } from "@/lib/news-blog/news-blog-sanitize-html";
 import {
   ArrowLeft,
   FileText,

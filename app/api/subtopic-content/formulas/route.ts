@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { getSupabaseAndUser } from "@/lib/apiAuth";
-import { isAdminUser } from "@/lib/admin";
-import { normalizeSubjectKey, normalizeSubtopicContentKey } from "@/lib/subtopicContentKeys";
+import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
+import { isAdminUser } from "@/lib/admin/admin";
+import { normalizeSubjectKey, normalizeSubtopicContentKey } from "@/lib/curriculum/subtopicContentKeys";
 
 function sanitize(value: unknown, maxLen = 500): string {
   if (typeof value !== "string") return "";

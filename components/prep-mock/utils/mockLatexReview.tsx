@@ -1,7 +1,7 @@
 "use client";
 
 import katex from "katex";
-import { repairBankMathLatex } from "@/lib/mockRichTextKatex";
+import { repairBankMathLatex } from "@/lib/mock/mockRichTextKatex";
 import { cn } from "@/lib/utils";
 
 function decodeMockEntities(s: string): string {

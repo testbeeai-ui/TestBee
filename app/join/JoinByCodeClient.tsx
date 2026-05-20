@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import type { Database } from "@/integrations/supabase/types";
-import { normalizeReferralRef, persistPendingReferralRefFromUrl } from "@/lib/referralClient";
+import { normalizeReferralRef, persistPendingReferralRefFromUrl } from "@/lib/rdm/referral/referralClient";
 
 const REFERRAL_LANDING_REDIRECT_SEC = 3;
 

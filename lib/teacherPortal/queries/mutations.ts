@@ -3,8 +3,8 @@ import type { Json } from "@/integrations/supabase/types";
 import {
   serializeTeacherProfileMetaToBio,
   type TeacherProfileDetails,
-} from "@/lib/teacherProfileMeta";
-import { appendQueryParams, buildTopicPath } from "@/lib/topicRoutes";
+} from "@/lib/profile/teacherProfileMeta";
+import { appendQueryParams, buildTopicPath } from "@/lib/curriculum/topicRoutes";
 import {
   buildDefaultTasksForAssignmentType,
   normalizeTaskPositions,

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { supabase } from "@/integrations/supabase/client";
 import { GraduationCap, ExternalLink, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { incrementPrepCalendarDay, localDayISO } from "@/lib/prepCalendarClient";
+import { incrementPrepCalendarDay, localDayISO } from "@/lib/dashboard/prepCalendarClient";
 
 interface ClassInfo {
   id: string;

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseAndUser } from "@/lib/apiAuth";
-import { enforceSameOriginForCookieAuth } from "@/lib/securityGuards";
+import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
+import { enforceSameOriginForCookieAuth } from "@/lib/auth/securityGuards";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;

@@ -1,21 +1,22 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useAuth } from "@/hooks/useAuth";
 import { AlertCircle, CheckCircle2, Clock3, Loader2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   fetchTopicContent,
   generateTopicContent,
   postCompleteSubtopic,
-} from "@/lib/topicContentService";
+} from "@/lib/curriculum/topicContentService";
 import {
   fetchSubtopicContent,
   generateBitsQuestions,
   generateFormulaPractice,
   generateInstaCueCards,
   generateSubtopicContent,
-} from "@/lib/subtopicContentService";
-import { assessSubtopicRow } from "@/lib/subtopicCompleteness";
+} from "@/lib/curriculum/subtopicContentService";
+import { assessSubtopicRow } from "@/lib/curriculum/subtopicCompleteness";
 import {
   ORCHESTRATOR_LEVELS,
   getNextRunnableJob,
@@ -25,7 +26,7 @@ import {
   type OrchestratorLevel,
 } from "@/store/useOrchestratorStore";
 
-const ORCHESTRATOR_POLL_MS = 5_000;
+const ORCHESTRATOR_POLL_MS = 15_000;
 const VERIFY_SETTLE_MS = 600;
 const FORMULA_RETRY_DELAY_MS = 5_000;
 // Vertex/Gemini quotas can 429 under bursty fan-out; keep concurrency moderate for stability.
@@ -241,6 +242,7 @@ export default function AgentOrchestratorRunner() {
   const shiftPendingJobsAfter = useOrchestratorStore((state) => state.shiftPendingJobsAfter);
   const cancelJob = useOrchestratorStore((state) => state.cancelJob);
   const clearFinishedJobs = useOrchestratorStore((state) => state.clearFinishedJobs);
+  const { profile } = useAuth();
   const runningRef = useRef(false);
 
   const requeueFailedJob = useCallback(
@@ -1164,13 +1166,19 @@ export default function AgentOrchestratorRunner() {
     }
   }, [requeueFailedJob, runJob]);
 
+  const hasActionableJobs = useMemo(
+    () => jobs.some((job) => job.status === "pending" || job.status === "running" || job.status === "failed"),
+    [jobs]
+  );
+
   useEffect(() => {
     void tick();
+    if (!hasActionableJobs) return;
     const interval = window.setInterval(() => {
       void tick();
     }, ORCHESTRATOR_POLL_MS);
     return () => window.clearInterval(interval);
-  }, [tick]);
+  }, [tick, hasActionableJobs]);
 
   const sortedJobs = useMemo(
     () =>
@@ -1198,6 +1206,12 @@ export default function AgentOrchestratorRunner() {
   ).length;
 
   if (!activeJob && finishedCount === 0) return null;
+
+  // Only run on localhost for admin users — saves cloud compute in production
+  const isLocalhost =
+    typeof window !== "undefined" &&
+    (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+  if (!isLocalhost || profile?.role !== "admin") return null;
 
   const isRunning = activeJob?.status === "running";
   const statusIcon = !activeJob ? (

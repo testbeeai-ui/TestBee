@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSupabaseAndUser } from "@/lib/apiAuth";
+import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
 
 /** Longer replies count as answers; shorter thread posts count as comments (same table as replies). */
 const ANSWER_MIN_STRIPPED_LEN = 360;

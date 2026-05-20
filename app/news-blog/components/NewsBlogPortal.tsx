@@ -14,7 +14,7 @@ import {
   Trash2,
   User,
 } from "lucide-react";
-import { deletePost as dbDeletePost } from "@/lib/news-blog-db";
+import { deletePost as dbDeletePost } from "@/lib/news-blog/news-blog-db";
 import {
   BLOG_SECTIONS,
   EXAMS,

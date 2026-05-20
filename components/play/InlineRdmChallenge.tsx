@@ -21,28 +21,28 @@ import {
 import { ToastAction } from "@/components/ui/toast";
 import PlayQuestionCard from "@/components/PlayQuestionCard";
 import type { EduBlastResultFlash } from "@/components/play/EduBlastChallengeCard";
-import { remainingOptionsReviewMs } from "@/lib/eduBlastChallengeMeta";
+import { remainingOptionsReviewMs } from "@/lib/rdm/eduBlastChallengeMeta";
 import {
   buildEduBlastDotStates,
   difficultyRatingToLabel,
   playCategoryToSubjectTag,
-} from "@/lib/eduBlastChallengeMeta";
-import { fetchReferChallengeQuestions } from "@/lib/fetchReferChallengeQuestions";
-import { buildWhatsAppShareUrl } from "@/lib/referChallengeShareUrls";
+} from "@/lib/rdm/eduBlastChallengeMeta";
+import { fetchReferChallengeQuestions } from "@/lib/play/questions/fetchReferChallengeQuestions";
+import { buildWhatsAppShareUrl } from "@/lib/rdm/referral/referChallengeShareUrls";
 import {
   buildReferSharePayload,
   buildReferShareTemplates,
   pickNextTemplate,
   type ReferChallengeShareTemplate,
-} from "@/lib/referChallengeShareTemplates";
-import { bumpUserStudyDayMs } from "@/lib/studyDayBump";
-import { shufflePlayQuestionOptions } from "@/lib/shufflePlayQuestionOptions";
+} from "@/lib/rdm/referral/referChallengeShareTemplates";
+import { bumpUserStudyDayMs } from "@/lib/dashboard/studyDayBump";
+import { shufflePlayQuestionOptions } from "@/lib/play/questions/shufflePlayQuestionOptions";
 import {
   referChallengePerQuestionTotalSec,
   referChallengeSessionDurationSec,
   type ReferChallengePublicSpec,
   type ReferClaimKey,
-} from "@/lib/referEarnChallenges";
+} from "@/lib/rdm/referral/referEarnChallenges";
 import { cn } from "@/lib/utils";
 import type { PlayQuestionRow } from "@/types";
 import {

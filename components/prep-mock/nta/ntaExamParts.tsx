@@ -2,12 +2,12 @@
 
 import { memo, useMemo, useRef } from "react";
 import type { Question } from "@/types";
-import { sanitizeMockHtml } from "@/lib/mockHtml";
+import { sanitizeMockHtml } from "@/lib/mock/mockHtml";
 import {
   patchNtaHtmlPresentation,
   repairBankMathLatex,
   wrapPlainMockTextForKatexHtml,
-} from "@/lib/mockRichTextKatex";
+} from "@/lib/mock/mockRichTextKatex";
 import { useKatexAutoRender } from "@/hooks/useKatexAutoRender";
 import { cn } from "@/lib/utils";
 

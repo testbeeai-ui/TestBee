@@ -6,7 +6,7 @@ import { useParams } from "next/navigation";
 import { motion } from "framer-motion";
 import AppLayout from "@/components/AppLayout";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import type { Achievement, PublicProfile } from "@/lib/publicProfileService";
+import type { Achievement, PublicProfile } from "@/lib/profile/publicProfileService";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
