@@ -15,12 +15,50 @@ import {
   ExamType,
 } from "@/types";
 
+function emptySavedUserProfile(
+  name: string,
+  classLevel: ClassLevel,
+  stream: Stream,
+  subjectCombo: SubjectCombo
+): UserProfile {
+  return {
+    name,
+    classLevel,
+    stream,
+    subjectCombo,
+    board: "CBSE",
+    examType: null,
+    rdm: 100,
+    answeredQuestions: [],
+    savedQuestions: [],
+    savedRevisionCards: [],
+    savedRevisionUnits: [],
+    savedBits: [],
+    savedFormulas: [],
+    savedCommunityPosts: [],
+    likedQuestions: [],
+    streakMinutes: 0,
+    isOnBreak: false,
+    isSignedUp: true,
+  };
+}
+
 interface UserState {
   user: UserProfile | null;
+  /** Supabase auth user id this local store belongs to — prevents cross-account bleed from persist. */
+  linkedAuthUserId: string | null;
   currentRound: AnswerResult[];
   allResults: AnswerResult[];
 
   signup: (
+    name: string,
+    classLevel: ClassLevel,
+    stream: Stream,
+    subjectCombo: SubjectCombo
+  ) => void;
+  /** Initialize or reset local profile when the signed-in Supabase user changes. */
+  bindToAuthUser: (
+    authUserId: string,
     name: string,
     classLevel: ClassLevel,
     stream: Stream,
@@ -64,36 +102,40 @@ interface UserState {
   setRdmFromProfile: (rdm: number) => void;
 }
 
+const EMPTY_SAVED_COMMUNITY_POSTS: SavedCommunityPost[] = [];
+
+/** Stable selector — do not use `?? []` inline in useUserStore hooks (causes infinite re-renders). */
+export const selectSavedCommunityPosts = (s: UserState): SavedCommunityPost[] =>
+  s.user?.savedCommunityPosts ?? EMPTY_SAVED_COMMUNITY_POSTS;
+
 export const useUserStore = create<UserState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: null,
+      linkedAuthUserId: null,
       currentRound: [],
       allResults: [],
 
       signup: (name, classLevel, stream, subjectCombo) =>
         set({
-          user: {
-            name,
-            classLevel,
-            stream,
-            subjectCombo,
-            board: "CBSE",
-            examType: null,
-            rdm: 100,
-            answeredQuestions: [],
-            savedQuestions: [],
-            savedRevisionCards: [],
-            savedRevisionUnits: [],
-            savedBits: [],
-            savedFormulas: [],
-            savedCommunityPosts: [],
-            likedQuestions: [],
-            streakMinutes: 0,
-            isOnBreak: false,
-            isSignedUp: true,
-          },
+          user: emptySavedUserProfile(name, classLevel, stream, subjectCombo),
         }),
+
+      bindToAuthUser: (authUserId, name, classLevel, stream, subjectCombo) => {
+        const { linkedAuthUserId, user } = get();
+        if (linkedAuthUserId === authUserId && user) {
+          set({
+            user: { ...user, name, classLevel, stream, subjectCombo },
+          });
+          return;
+        }
+        set({
+          linkedAuthUserId: authUserId,
+          user: emptySavedUserProfile(name, classLevel, stream, subjectCombo),
+          currentRound: [],
+          allResults: [],
+        });
+      },
 
       setBoard: (board) =>
         set((state) => ({
@@ -105,7 +147,8 @@ export const useUserStore = create<UserState>()(
           user: state.user ? { ...state.user, examType } : null,
         })),
 
-      logout: () => set({ user: null, currentRound: [], allResults: [] }),
+      logout: () =>
+        set({ user: null, linkedAuthUserId: null, currentRound: [], allResults: [] }),
 
       addRdm: (amount) =>
         set((state) => ({
@@ -355,9 +398,18 @@ export const useUserStore = create<UserState>()(
     }),
     {
       name: "edublast-user",
-      version: 1,
-      migrate: (persistedState: unknown, _fromVersion: number) => {
-        const state = persistedState as { user?: Record<string, unknown> } | null | undefined;
+      version: 2,
+      migrate: (persistedState: unknown, fromVersion: number) => {
+        const state = persistedState as {
+          user?: Record<string, unknown>;
+          linkedAuthUserId?: string | null;
+        } | null | undefined;
+        if (fromVersion < 2) {
+          return {
+            ...state,
+            linkedAuthUserId: null,
+          };
+        }
         const user = state?.user;
         if (user && typeof user === "object") {
           if (!Array.isArray(user.savedBits)) user.savedBits = [];
@@ -365,6 +417,9 @@ export const useUserStore = create<UserState>()(
           if (!Array.isArray(user.savedRevisionCards)) user.savedRevisionCards = [];
           if (!Array.isArray(user.savedRevisionUnits)) user.savedRevisionUnits = [];
           if (!Array.isArray(user.savedCommunityPosts)) user.savedCommunityPosts = [];
+        }
+        if (state && state.linkedAuthUserId === undefined) {
+          state.linkedAuthUserId = null;
         }
         return persistedState;
       },
