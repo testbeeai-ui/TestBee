@@ -1046,6 +1046,65 @@ export type Database = {
           },
         ];
       };
+      mock_test_attempts: {
+        Row: {
+          id: string;
+          user_id: string;
+          attempt_key: string;
+          session_kind: string;
+          catalog_paper_id: string | null;
+          past_paper_id: string | null;
+          paper_slug: string | null;
+          paper_title: string;
+          score_percent: number | null;
+          correct_count: number | null;
+          total_questions: number | null;
+          subject_breakdown: Json;
+          duration_seconds: number | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          attempt_key: string;
+          session_kind: string;
+          catalog_paper_id?: string | null;
+          past_paper_id?: string | null;
+          paper_slug?: string | null;
+          paper_title: string;
+          score_percent?: number | null;
+          correct_count?: number | null;
+          total_questions?: number | null;
+          subject_breakdown?: Json;
+          duration_seconds?: number | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          attempt_key?: string;
+          session_kind?: string;
+          catalog_paper_id?: string | null;
+          past_paper_id?: string | null;
+          paper_slug?: string | null;
+          paper_title?: string;
+          score_percent?: number | null;
+          correct_count?: number | null;
+          total_questions?: number | null;
+          subject_breakdown?: Json;
+          duration_seconds?: number | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "mock_test_attempts_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       mock_rdm_bonus_attempts: {
         Row: {
           id: string;
@@ -1581,6 +1640,96 @@ export type Database = {
           updated_at?: string;
         };
         Relationships: [];
+      };
+      buddy_invites: {
+        Row: {
+          id: string;
+          token: string;
+          inviter_user_id: string;
+          status: string;
+          accepted_by_user_id: string | null;
+          created_at: string;
+          accepted_at: string | null;
+          expires_at: string;
+        };
+        Insert: {
+          id?: string;
+          token: string;
+          inviter_user_id: string;
+          status?: string;
+          accepted_by_user_id?: string | null;
+          created_at?: string;
+          accepted_at?: string | null;
+          expires_at?: string;
+        };
+        Update: {
+          id?: string;
+          token?: string;
+          inviter_user_id?: string;
+          status?: string;
+          accepted_by_user_id?: string | null;
+          created_at?: string;
+          accepted_at?: string | null;
+          expires_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "buddy_invites_inviter_user_id_fkey";
+            columns: ["inviter_user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "buddy_invites_accepted_by_user_id_fkey";
+            columns: ["accepted_by_user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      study_buddies: {
+        Row: {
+          id: string;
+          user_id: string;
+          buddy_user_id: string;
+          status: string;
+          created_at: string;
+          ended_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          buddy_user_id: string;
+          status?: string;
+          created_at?: string;
+          ended_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          buddy_user_id?: string;
+          status?: string;
+          created_at?: string;
+          ended_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "study_buddies_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "study_buddies_buddy_user_id_fkey";
+            columns: ["buddy_user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       quiz_community_share_rdm_claims: {
         Row: {
@@ -3253,8 +3402,32 @@ export type Database = {
         Args: { p_answer_indices: number[]; p_paper_id: string };
         Returns: Json;
       };
+      record_mock_test_attempt: {
+        Args: {
+          p_attempt_key: string;
+          p_session_kind: string;
+          p_catalog_paper_id: string | null;
+          p_past_paper_id: string | null;
+          p_paper_slug: string | null;
+          p_paper_title: string;
+          p_score_percent: number;
+          p_correct_count: number;
+          p_total_questions: number;
+          p_subject_breakdown: Json;
+          p_duration_seconds: number | null;
+        };
+        Returns: Json;
+      };
       claim_referral_attribution: {
         Args: { p_ref_code: string; p_referee_id: string };
+        Returns: Json;
+      };
+      accept_buddy_invite: {
+        Args: { p_token: string; p_acceptor_id: string };
+        Returns: Json;
+      };
+      end_buddy_pair: {
+        Args: { p_user_id: string };
         Returns: Json;
       };
       get_prep_calendar_summary: {
