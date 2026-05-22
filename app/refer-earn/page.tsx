@@ -1,6 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import AppLayout from "@/components/AppLayout";
 import InlineRdmChallenge from "@/components/play/InlineRdmChallenge";
@@ -30,6 +39,7 @@ import {
   type RdmConfigParams,
 } from "@/lib/rdm/rdmConfig";
 import type { PlayDomain } from "@/types";
+import { EarnLearnRightColumn } from "@/components/refer-earn/EarnLearnRightColumn";
 import { EDUFUND_RDM_GATES } from "@/lib/dashboard/dashboardSidebarMetrics";
 import {
   BarChart3,
@@ -41,14 +51,16 @@ import {
   FileText,
   Info,
   Link2,
+  Loader2,
   Play,
   Send,
   Sparkles,
   Star,
   Timer,
+  Users,
 } from "lucide-react";
 
-type ReferTab = "how" | "tiers" | "leaderboard" | "faq";
+type ReferTab = "how" | "tiers" | "leaderboard" | "faq" | "learning_buddy";
 
 const TAB_ITEMS: {
   key: ReferTab;
@@ -59,6 +71,7 @@ const TAB_ITEMS: {
   { key: "tiers", label: "Reward tiers", icon: Star },
   { key: "leaderboard", label: "Leaderboard", icon: BarChart3 },
   { key: "faq", label: "FAQ", icon: Info },
+  { key: "learning_buddy", label: "Learning Buddy", icon: Users },
 ];
 
 type RedeemMarketingKey =
@@ -144,11 +157,27 @@ function formatReferralCreditedAt(iso: string): string {
   }
 }
 
-export default function ReferEarnPage() {
+const REFER_TAB_KEYS = new Set<ReferTab>([
+  "how",
+  "tiers",
+  "leaderboard",
+  "faq",
+  "learning_buddy",
+]);
+
+function ReferEarnPageContent() {
   const { profile } = useAuth();
   const user = useUserStore((s) => s.user);
   const isReferAdmin = useIsAppAdmin();
+  const searchParams = useSearchParams();
   const [tab, setTab] = useState<ReferTab>("how");
+
+  useEffect(() => {
+    const fromUrl = searchParams.get("tab");
+    if (fromUrl && REFER_TAB_KEYS.has(fromUrl as ReferTab)) {
+      setTab(fromUrl as ReferTab);
+    }
+  }, [searchParams]);
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [copied, setCopied] = useState(false);
   const [selectedClaim, setSelectedClaim] = useState<ReferClaimKey | null>(null);
@@ -501,6 +530,17 @@ export default function ReferEarnPage() {
     [leaderboardRows, profile?.id]
   );
 
+  const selectReferTab = useCallback((key: ReferTab) => {
+    if (key === "learning_buddy") {
+      setActiveReferClaim(null);
+      setChallengeSessionSpec(null);
+      setSelectedClaim(null);
+    }
+    setTab(key);
+  }, []);
+
+  const showLearningBuddyPanel = tab === "learning_buddy";
+
   return (
     <ProtectedRoute>
       <AppLayout>
@@ -607,11 +647,44 @@ export default function ReferEarnPage() {
               <div className="flex flex-wrap gap-2">
                 {TAB_ITEMS.map(({ key, label, icon: Icon }) => {
                   const active = tab === key;
+                  const isLearningBuddy = key === "learning_buddy";
+                  if (isLearningBuddy) {
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => selectReferTab(key)}
+                        className={cn(
+                          "group relative rounded-full p-[1.5px] transition-all duration-300",
+                          active
+                            ? "bg-gradient-to-r from-cyan-400 via-fuchsia-400 to-amber-400 shadow-[0_0_22px_rgba(34,211,238,0.35)]"
+                            : "bg-gradient-to-r from-cyan-500/70 via-fuchsia-500/60 to-amber-400/70 hover:shadow-[0_0_18px_rgba(217,70,239,0.28)]"
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors",
+                            active
+                              ? "bg-gradient-to-r from-cyan-950/90 via-fuchsia-950/85 to-amber-950/80 text-cyan-50"
+                              : "bg-[#0a0818] text-cyan-200/95 group-hover:text-white"
+                          )}
+                        >
+                          <Icon
+                            className={cn(
+                              "h-3.5 w-3.5",
+                              active ? "text-amber-200" : "text-cyan-300 group-hover:text-fuchsia-200"
+                            )}
+                          />
+                          {label}
+                        </span>
+                      </button>
+                    );
+                  }
                   return (
                     <button
                       key={key}
                       type="button"
-                      onClick={() => setTab(key)}
+                      onClick={() => selectReferTab(key)}
                       className={cn(
                         "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition",
                         active
@@ -953,12 +1026,30 @@ export default function ReferEarnPage() {
                   })}
                 </div>
               ) : null}
+
+              {showLearningBuddyPanel ? (
+                <p
+                  className={cn(
+                    "rounded-[12px] border border-cyan-500/25 bg-cyan-500/5 px-4 py-3 text-center",
+                    reBody
+                  )}
+                >
+                  <span className="font-semibold text-cyan-200">Learning Buddy</span>{" "}
+                  <span className="hidden lg:inline">
+                    opens on the right — use the gradient panel or &quot;Back to challenges&quot;
+                    when you&apos;re done.
+                  </span>
+                  <span className="lg:hidden">
+                    opens in a full-screen panel — scroll down to challenges when you close it.
+                  </span>
+                </p>
+              ) : null}
             </div>
 
-            {/* RIGHT — Challenges */}
-            <section
-              className="rounded-[14px] border p-4 shadow-[0_24px_60px_rgba(8,6,24,0.45)]"
-              style={{ background: "var(--re-card)", borderColor: "var(--re-border)" }}
+            {/* RIGHT — Challenges or Learning Buddy (animated) */}
+            <EarnLearnRightColumn
+              showLearningBuddy={showLearningBuddyPanel}
+              onBackToChallenges={() => selectReferTab("how")}
             >
               {!activeReferClaim ? (
                 <>
@@ -1347,10 +1438,29 @@ export default function ReferEarnPage() {
                   />
                 </div>
               ) : null}
-            </section>
+            </EarnLearnRightColumn>
           </div>
         </div>
       </AppLayout>
     </ProtectedRoute>
+  );
+}
+
+export default function ReferEarnPage() {
+  return (
+    <Suspense
+      fallback={
+        <ProtectedRoute>
+          <AppLayout>
+            <div className="flex min-h-[50vh] items-center justify-center">
+              <Loader2 className="h-10 w-10 animate-spin text-violet-500" aria-hidden />
+              <span className="sr-only">Loading Earn &amp; Learn…</span>
+            </div>
+          </AppLayout>
+        </ProtectedRoute>
+      }
+    >
+      <ReferEarnPageContent />
+    </Suspense>
   );
 }

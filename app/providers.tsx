@@ -6,7 +6,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ThemeProvider } from "next-themes";
-import { useState, type ReactNode } from "react";
+import { useState, Suspense, type ReactNode } from "react";
+import { PageViewTracker } from "@/components/providers/PageViewTracker";
 
 export function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(() => new QueryClient());
@@ -15,6 +16,9 @@ export function Providers({ children }: { children: ReactNode }) {
       <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
         <TooltipProvider>
           <AuthProvider>
+            <Suspense fallback={null}>
+              <PageViewTracker />
+            </Suspense>
             {children}
             <ToasterPortal />
             <Sonner />

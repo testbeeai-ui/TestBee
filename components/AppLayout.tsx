@@ -102,7 +102,8 @@ const AppLayout = ({
 }: AppLayoutProps) => {
   const pathname = usePathname();
   const isMagicWall = pathname === "/magic-wall";
-  const { profile } = useAuth();
+  const { profile, user: authUser } = useAuth();
+  const presenceUserId = profile?.id ?? authUser?.id ?? null;
   const user = useUserStore((s) => s.user);
   const rdm = profile?.rdm ?? user?.rdm ?? 0;
   const allResults = useUserStore((s) => s.allResults);
@@ -119,7 +120,7 @@ const AppLayout = ({
     !isTeacher && (pathname === "/profile" || pathname.startsWith("/profile/"));
 
   return (
-    <SitePresenceProvider userId={profile?.id ?? null}>
+    <SitePresenceProvider userId={presenceUserId}>
       <div className="min-h-screen bg-background flex flex-col">
         {/* Top Navigation Bar */}
         {!hideTopNav && (

@@ -15,6 +15,7 @@ import type { ClassLevel, SubjectCombo } from "@/types";
 import { targetExamToExamType } from "@/lib/profile/targetExam";
 import { mergeAllSavedContent } from "@/lib/saved/mergeSavedContent";
 import type { Json } from "@/integrations/supabase/types";
+import { getClientApiAuthHeaders } from "@/lib/auth/clientApiAuth";
 import { safeGetSession } from "@/lib/auth/safeSession";
 import { profileShouldForceOnboardingComplete } from "@/lib/profile/profileOnboardingRepair";
 import { readPendingDeepLink } from "@/lib/auth/safeNextPath";
@@ -263,12 +264,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     if (!profile) return;
-    const maybeSignup = () => {
-      if (useUserStore.getState().user) return;
+    const bindLocalUserToProfile = () => {
       const cl = profile.class_level;
       const classLevel: ClassLevel = cl === 11 || cl === 12 ? cl : 12;
       const subjectCombo: SubjectCombo = "PCM";
-      useUserStore.getState().signup(profile.name || "User", classLevel, "science", subjectCombo);
+      useUserStore
+        .getState()
+        .bindToAuthUser(profile.id, profile.name || "User", classLevel, "science", subjectCombo);
     };
     const syncExamFromProfile = () => {
       if (profile.role !== "student") return;
@@ -276,17 +278,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       useUserStore.getState().setExamType(next);
     };
     const syncSavedFromProfile = async () => {
-      const u = useUserStore.getState().user;
-      if (!u) return;
-      // Fetch saved items from the API (reads from user_saved_items table)
+      const store = useUserStore.getState();
+      if (!store.user || store.linkedAuthUserId !== profile.id) return;
       const { fetchSavedContent } = await import("@/lib/saved/savedContentService");
       const server = await fetchSavedContent();
       const merged = mergeAllSavedContent(
-        u.savedBits ?? [],
-        u.savedFormulas ?? [],
-        u.savedRevisionCards ?? [],
-        u.savedRevisionUnits ?? [],
-        u.savedCommunityPosts ?? [],
+        store.user.savedBits ?? [],
+        store.user.savedFormulas ?? [],
+        store.user.savedRevisionCards ?? [],
+        store.user.savedRevisionUnits ?? [],
+        store.user.savedCommunityPosts ?? [],
         server.savedBits,
         server.savedFormulas,
         server.savedRevisionCards,
@@ -304,7 +305,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         );
     };
     const run = () => {
-      maybeSignup();
+      bindLocalUserToProfile();
       syncExamFromProfile();
       syncSavedFromProfile();
     };
@@ -399,6 +400,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       sessionStorage.removeItem("auth_intended_role");
       sessionStorage.removeItem("auth_redirect_after_login");
     } catch (_) {}
+
+    try {
+      const auth = await getClientApiAuthHeaders();
+      void fetch("/api/user/site-presence", {
+        method: "POST",
+        credentials: "same-origin",
+        keepalive: true,
+        headers: {
+          "Content-Type": "application/json",
+          ...(auth.Authorization ? { Authorization: auth.Authorization } : {}),
+        },
+        body: JSON.stringify({ offline: true, signedOut: true }),
+      });
+    } catch {
+      /* non-fatal */
+    }
 
     // Default scope clears both local storage AND server cookies via the SSR cookie
     // adapter, so Edge middleware sees the user as anonymous on the next request.
