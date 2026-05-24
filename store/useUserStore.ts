@@ -123,8 +123,9 @@ export const useUserStore = create<UserState>()(
 
       bindToAuthUser: (authUserId, name, classLevel, stream, subjectCombo) => {
         const { linkedAuthUserId, user } = get();
-        if (linkedAuthUserId === authUserId && user) {
+        if (user && (linkedAuthUserId === authUserId || linkedAuthUserId === null)) {
           set({
+            linkedAuthUserId: authUserId,
             user: { ...user, name, classLevel, stream, subjectCombo },
           });
           return;
