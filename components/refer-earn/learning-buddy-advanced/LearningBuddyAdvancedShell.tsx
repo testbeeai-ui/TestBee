@@ -316,9 +316,11 @@ export function LearningBuddyAdvancedShell({ className }: LearningBuddyAdvancedS
                         )}
                       </p>
                     </div>
-                    <span className="shrink-0 rounded-full bg-violet-500/20 px-2 py-0.5 text-[10px] font-semibold text-violet-200 ring-1 ring-violet-400/20">
-                      {b.rdm.toLocaleString("en-IN")}
-                    </span>
+                    {b.rdmShared !== false ? (
+                      <span className="shrink-0 rounded-full bg-violet-500/20 px-2 py-0.5 text-[10px] font-semibold text-violet-200 ring-1 ring-violet-400/20">
+                        {b.rdm.toLocaleString("en-IN")}
+                      </span>
+                    ) : null}
                   </button>
                 );
               })

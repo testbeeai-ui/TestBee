@@ -99,3 +99,4 @@ npx vitest run lib/sarvamGyanClient.thinking.test.ts
 - 2026-05-20: **MCQ's** library tab + preview — `profile.role === "admin"` only (`MockTestLibraryView` + `MockPageContent`); non-admins cannot see tab or `?tab=mcq`.
 - 2026-05-20: Admin granted **mailidpwd@gmail.com** (`profiles.role` + `user_roles`); migration `20260521160000_add_admin_mailidpwd.sql`, script `scripts/grant-admin-by-email.ts`.
 - 2026-05-20: Fixed TS2307 after partial `lib/gyan/` refactor — canonical Prof-Pi at `lib/gyan/bot/gyanBotAnswer.ts`; shared modules stay at `lib/*` (not `lib/gyan/bot/gyanContentPolicy` shims). Close stale `lib/gyanBotAnswer.ts` tab.
+- 2026-05-25: Fixed critical Learning Buddy privacy leaks (RLS/API masking/RDM roster) and locked admin event RPCs to `service_role`.

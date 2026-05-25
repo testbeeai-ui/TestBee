@@ -104,7 +104,7 @@ describe("maskDashboardForPrivacy", () => {
     expect(masked.advanced.mocks).toBeNull();
     expect(masked.advanced.subjectAccuracy).toBeNull();
     expect(masked.advanced.streak).toBeNull();
-    expect(masked.buddyOnline).toBe(true);
+    expect(masked.buddyOnline).toBe(false);
   });
 
   it("masks gyan, subtopics, play, rdm, edufund", () => {
@@ -122,6 +122,18 @@ describe("maskDashboardForPrivacy", () => {
     expect(masked.playArena.recent).toEqual([]);
     expect(masked.buddy.rdm).toBe(0);
     expect(masked.advanced.edufund).toBeNull();
+    expect(masked.rightNow).toEqual({ kind: "idle", lastActiveAt: expect.any(String) });
+  });
+
+  it("masks online state when login activity sharing is off", () => {
+    const raw = minimalPayload({ share_streak: false });
+    raw.buddyOnline = true;
+    raw.rightNow = { kind: "online", lastActiveAt: "2026-05-25T11:00:00.000Z" };
+
+    const masked = maskDashboardForPrivacy(raw);
+
+    expect(masked.buddyOnline).toBe(false);
+    expect(masked.rightNow).toEqual({ kind: "idle", lastActiveAt: null });
   });
 
   it("leaves data visible when all shares on", () => {

@@ -10,6 +10,8 @@ export type BuddyProfile = {
   classLevel: number | null;
   /** Total RDM balance on profiles.rdm */
   rdm: number;
+  /** False when the buddy has hidden RDM from this viewer. */
+  rdmShared?: boolean;
   pairedAt?: string;
 };
 
