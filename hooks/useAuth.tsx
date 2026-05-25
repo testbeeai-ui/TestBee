@@ -86,6 +86,15 @@ interface AuthContextType {
   refreshProfile: () => Promise<void>;
 }
 
+function bindLocalUserStoreToProfile(profile: Profile) {
+  const cl = profile.class_level;
+  const classLevel: ClassLevel = cl === 11 || cl === 12 ? cl : 12;
+  const subjectCombo: SubjectCombo = "PCM";
+  useUserStore
+    .getState()
+    .bindToAuthUser(profile.id, profile.name || "User", classLevel, "science", subjectCombo);
+}
+
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
@@ -140,14 +149,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           .maybeSingle();
         if (updated) {
           const updatedProfile = updated as unknown as Profile;
-          setProfile(updatedProfile);
+          bindLocalUserStoreToProfile(updatedProfile);
           if (typeof updatedProfile.rdm === "number")
             useUserStore.getState().setRdmFromProfile(updatedProfile.rdm);
+          setProfile(updatedProfile);
           return;
         }
       }
-      setProfile(row);
+      bindLocalUserStoreToProfile(row);
       if (typeof row.rdm === "number") useUserStore.getState().setRdmFromProfile(row.rdm);
+      setProfile(row);
       return;
     }
     // Profile read failed (RLS, network, or row missing). Do NOT upsert — that would overwrite
@@ -185,8 +196,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .maybeSingle();
       if (inserted) {
         const p = inserted as unknown as Profile;
-        setProfile(p);
+        bindLocalUserStoreToProfile(p);
         if (typeof p.rdm === "number") useUserStore.getState().setRdmFromProfile(p.rdm);
+        setProfile(p);
       } else {
         // Row exists but ignoreDuplicates prevented update; refetch to get current state
         const { data: refetched } = await supabase
@@ -211,8 +223,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               console.error("[auth] repair onboarding_complete (refetch):", repairErr.message);
             if (repaired) row = repaired as unknown as Profile;
           }
-          setProfile(row);
+          bindLocalUserStoreToProfile(row);
           if (typeof row.rdm === "number") useUserStore.getState().setRdmFromProfile(row.rdm);
+          setProfile(row);
         } else setProfile(null);
       }
       return;
@@ -239,6 +252,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           0
         );
       } else {
+        useUserStore.getState().logout();
         setProfile(null);
       }
       setLoading(false);
@@ -265,12 +279,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (!profile) return;
     const bindLocalUserToProfile = () => {
-      const cl = profile.class_level;
-      const classLevel: ClassLevel = cl === 11 || cl === 12 ? cl : 12;
-      const subjectCombo: SubjectCombo = "PCM";
-      useUserStore
-        .getState()
-        .bindToAuthUser(profile.id, profile.name || "User", classLevel, "science", subjectCombo);
+      bindLocalUserStoreToProfile(profile);
     };
     const syncExamFromProfile = () => {
       if (profile.role !== "student") return;

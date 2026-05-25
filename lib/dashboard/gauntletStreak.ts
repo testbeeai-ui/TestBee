@@ -4,10 +4,12 @@ export function prevDay(d: string): string {
   return dt.toISOString().slice(0, 10);
 }
 
-/** Consecutive calendar days with at least one gauntlet play, anchored to today or yesterday (UTC date strings). */
-export function computeStreakDays(dates: string[]): number {
+/** Consecutive calendar days with at least one gauntlet play, anchored to today or yesterday. */
+export function computeStreakDays(
+  dates: string[],
+  today: string = new Date().toISOString().slice(0, 10)
+): number {
   if (dates.length === 0) return 0;
-  const today = new Date().toISOString().slice(0, 10);
   const sorted = [...new Set(dates)].sort((a, b) => b.localeCompare(a));
   const mostRecent = sorted[0];
   const oneDayAgo = prevDay(today);

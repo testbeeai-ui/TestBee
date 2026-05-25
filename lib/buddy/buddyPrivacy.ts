@@ -147,6 +147,13 @@ export function maskDashboardForPrivacy(
     }
   }
 
+  if (!v.share_streak) {
+    masked.buddyOnline = false;
+    if (masked.rightNow.kind === "online") {
+      masked.rightNow = { kind: "idle", lastActiveAt: null };
+    }
+  }
+
   if (!v.share_community) {
     if (masked.rightNow.kind === "community_posted") {
       masked.rightNow = { kind: "idle", lastActiveAt: masked.rightNow.lastActiveAt ?? null };
@@ -159,6 +166,17 @@ export function maskDashboardForPrivacy(
       lastOn: null,
       completedRecent: [],
     };
+    if (
+      masked.rightNow.kind === "studying" ||
+      (masked.rightNow.kind === "idle" &&
+        ("subject" in masked.rightNow ||
+          "topic" in masked.rightNow ||
+          "subtopic" in masked.rightNow ||
+          "panel" in masked.rightNow ||
+          "href" in masked.rightNow))
+    ) {
+      masked.rightNow = { kind: "idle", lastActiveAt: masked.rightNow.lastActiveAt ?? null };
+    }
   }
 
   if (!v.share_play) {

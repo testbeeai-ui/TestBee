@@ -117,8 +117,10 @@ export function BuddyDetailPanel({ buddy, onUnbuddy }: BuddyDetailPanelProps) {
     }
   };
 
-  const isLocked = (key: BuddyPrivacyKey) =>
-    dashboardForBuddy != null && !dashboardForBuddy.visibility[key];
+  const isLocked = (key: BuddyPrivacyKey) => {
+    if (key === "share_rdm" && buddy.rdmShared === false) return true;
+    return dashboardForBuddy != null && !dashboardForBuddy.visibility[key];
+  };
 
   const avatarRing = BUDDY_AVA_GRADIENTS[0]!;
 
