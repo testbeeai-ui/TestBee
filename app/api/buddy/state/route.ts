@@ -39,6 +39,14 @@ export async function GET(request: Request) {
 
   const pairRows = pairsResult.pairs;
   const buddyIds = pairRows.map((r) => r.buddy_user_id);
+  type BuddyStateProfileRow = {
+    id: string;
+    name?: string | null;
+    avatar_url?: string | null;
+    class_level?: number | null;
+    rdm?: number | null;
+    buddy_privacy_settings?: unknown;
+  };
   const buddies: Array<{
     id: string;
     name: string | null;
@@ -54,7 +62,8 @@ export async function GET(request: Request) {
       .select("id, name, avatar_url, class_level, rdm, buddy_privacy_settings")
       .in("id", buddyIds);
 
-    const profileById = new Map((profiles ?? []).map((p) => [p.id, p]));
+    const profileRows = (profiles ?? []) as BuddyStateProfileRow[];
+    const profileById = new Map(profileRows.map((p) => [p.id, p]));
 
     for (const row of pairRows) {
       const profileRow = profileById.get(row.buddy_user_id);
