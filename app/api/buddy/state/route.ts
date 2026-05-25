@@ -50,8 +50,7 @@ export async function GET(request: Request) {
   }> = [];
 
   if (buddyIds.length > 0) {
-    const { data: profiles } = await admin
-      .from("profiles")
+    const { data: profiles } = await (admin.from("profiles" as any) as any)
       .select("id, name, avatar_url, class_level, rdm, buddy_privacy_settings")
       .in("id", buddyIds);
 
