@@ -6,6 +6,7 @@ import {
   buddyPresenceFingerprint,
   buildBuddyActivityRevision,
 } from "@/lib/buddy/buddyActivityRevision";
+import { parseBuddyPrivacySettings } from "@/lib/buddy/buddyPrivacy";
 import { latestLessonMarkedAtFromEngagement } from "@/lib/buddy/listBuddyCompletedSubtopics";
 import { latestBuddyTopicQuizAttempt } from "@/lib/buddy/listBuddyQuizMcq";
 
@@ -84,7 +85,7 @@ export async function GET(request: Request) {
       .limit(1),
     db
       .from("profiles")
-      .select("subtopic_engagement, bits_test_attempts")
+      .select("subtopic_engagement, bits_test_attempts, buddy_privacy_settings")
       .eq("id", buddyId)
       .maybeSingle(),
     db
@@ -138,6 +139,7 @@ export async function GET(request: Request) {
   };
 
   const presence = presenceRes.data as unknown as PresenceRow | null;
+  const visibility = parseBuddyPrivacySettings(profileRes.data?.buddy_privacy_settings);
   const presenceFingerprint = presence ? buddyPresenceFingerprint(presence) : null;
   const dwellOccurredAt = dwellRes.data?.occurred_at ?? null;
   type CompletionRow = { marked_complete_at: string };
@@ -154,23 +156,27 @@ export async function GET(request: Request) {
       : tableMarkedAt ?? engagementMarkedAt;
   const latestQuiz = latestBuddyTopicQuizAttempt(profileRes.data?.bits_test_attempts);
   const revision = buildBuddyActivityRevision({
-    presenceFingerprint,
-    dwellOccurredAt,
-    lessonMarkedAt,
-    topicQuizSubmittedAt: latestQuiz?.submittedAt ?? null,
-    latestGyanDoubtAt: gyanDoubtRes.data?.created_at ?? null,
-    latestCommunityPostAt: communityPostRes.data?.created_at ?? null,
-    gyanPresenceUpdatedAt:
-      (gyanPresenceRes.data as { updated_at?: string } | null)?.updated_at ?? null,
-    sitePresenceUpdatedAt:
-      (sitePresenceRes.data as { updated_at?: string } | null)?.updated_at ?? null,
+    presenceFingerprint: visibility.share_subtopics ? presenceFingerprint : null,
+    dwellOccurredAt: visibility.share_subtopics ? dwellOccurredAt : null,
+    lessonMarkedAt: visibility.share_subtopics ? lessonMarkedAt : null,
+    topicQuizSubmittedAt: visibility.share_mocks ? (latestQuiz?.submittedAt ?? null) : null,
+    latestGyanDoubtAt: visibility.share_gyan ? (gyanDoubtRes.data?.created_at ?? null) : null,
+    latestCommunityPostAt: visibility.share_community
+      ? (communityPostRes.data?.created_at ?? null)
+      : null,
+    gyanPresenceUpdatedAt: visibility.share_gyan
+      ? ((gyanPresenceRes.data as { updated_at?: string } | null)?.updated_at ?? null)
+      : null,
+    sitePresenceUpdatedAt: visibility.share_streak
+      ? ((sitePresenceRes.data as { updated_at?: string } | null)?.updated_at ?? null)
+      : null,
   });
 
   return NextResponse.json(
     {
       revision,
-      presenceUpdatedAt: presence?.updated_at ?? null,
-      dwellOccurredAt,
+      presenceUpdatedAt: visibility.share_subtopics ? (presence?.updated_at ?? null) : null,
+      dwellOccurredAt: visibility.share_subtopics ? dwellOccurredAt : null,
     },
     {
       headers: {
