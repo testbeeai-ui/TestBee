@@ -100,3 +100,4 @@ npx vitest run lib/sarvamGyanClient.thinking.test.ts
 - 2026-05-20: Admin granted **mailidpwd@gmail.com** (`profiles.role` + `user_roles`); migration `20260521160000_add_admin_mailidpwd.sql`, script `scripts/grant-admin-by-email.ts`.
 - 2026-05-20: Fixed TS2307 after partial `lib/gyan/` refactor — canonical Prof-Pi at `lib/gyan/bot/gyanBotAnswer.ts`; shared modules stay at `lib/*` (not `lib/gyan/bot/gyanContentPolicy` shims). Close stale `lib/gyanBotAnswer.ts` tab.
 - 2026-05-27: Learning Buddy privacy hardening — mask private buddy RDM/right-now signals in APIs and honor presence privacy in RLS.
+- 2026-05-27: Build fix — `computeStreakDays` accepts an optional anchor date for buddy Play Arena streak calculation.
