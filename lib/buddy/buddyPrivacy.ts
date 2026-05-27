@@ -127,6 +127,24 @@ export type BuddyAdvancedDashboardPayload = BuddyDashboardResponse & {
   advanced: BuddyAdvancedSections;
 };
 
+export function maskBuddyProfileForPrivacy<T extends { rdm: number }>(
+  buddy: T,
+  settings: BuddyPrivacySettings
+): T {
+  if (settings.share_rdm) return buddy;
+  return { ...buddy, rdm: 0 };
+}
+
+function maskedOnlineOrIdle(
+  lastActiveAt: string | null | undefined,
+  settings: BuddyPrivacySettings
+): BuddyDashboardResponse["rightNow"] {
+  if (settings.share_streak && lastActiveAt) {
+    return { kind: "online", lastActiveAt };
+  }
+  return { kind: "idle", lastActiveAt: null };
+}
+
 export function maskDashboardForPrivacy(
   payload: BuddyAdvancedDashboardPayload
 ): BuddyAdvancedDashboardPayload {
@@ -134,7 +152,7 @@ export function maskDashboardForPrivacy(
   const masked = { ...payload };
 
   if (!v.share_rdm) {
-    masked.buddy = { ...masked.buddy, rdm: 0 };
+    masked.buddy = maskBuddyProfileForPrivacy(masked.buddy, v);
   }
 
   if (!v.share_gyan) {
@@ -143,17 +161,30 @@ export function maskDashboardForPrivacy(
       masked.rightNow.kind === "gyan_active" ||
       masked.rightNow.kind === "gyan_browsing"
     ) {
-      masked.rightNow = { kind: "idle", lastActiveAt: masked.rightNow.lastActiveAt ?? null };
+      masked.rightNow = maskedOnlineOrIdle(masked.rightNow.lastActiveAt, v);
     }
   }
 
   if (!v.share_community) {
     if (masked.rightNow.kind === "community_posted") {
-      masked.rightNow = { kind: "idle", lastActiveAt: masked.rightNow.lastActiveAt ?? null };
+      masked.rightNow = maskedOnlineOrIdle(masked.rightNow.lastActiveAt, v);
     }
   }
 
   if (!v.share_subtopics) {
+    if (masked.rightNow.kind === "studying") {
+      masked.rightNow = maskedOnlineOrIdle(masked.rightNow.lastActiveAt, v);
+    } else if (
+      masked.rightNow.kind === "idle" &&
+      ("subject" in masked.rightNow ||
+        "topic" in masked.rightNow ||
+        "subtopic" in masked.rightNow ||
+        "panel" in masked.rightNow ||
+        "level" in masked.rightNow ||
+        "href" in masked.rightNow)
+    ) {
+      masked.rightNow = { kind: "idle", lastActiveAt: masked.rightNow.lastActiveAt };
+    }
     masked.subtopic = {
       current: null,
       lastOn: null,
@@ -178,12 +209,18 @@ export function maskDashboardForPrivacy(
   if (!v.share_mocks) {
     masked.mcqRecent = [];
     if (masked.rightNow.kind === "quiz_attempted") {
-      masked.rightNow = { kind: "idle", lastActiveAt: masked.rightNow.lastActiveAt ?? null };
+      masked.rightNow = maskedOnlineOrIdle(masked.rightNow.lastActiveAt, v);
     }
   }
 
   const adv = { ...masked.advanced };
   if (!v.share_streak) {
+    masked.buddyOnline = false;
+    if (masked.rightNow.kind === "online") {
+      masked.rightNow = { kind: "idle", lastActiveAt: null };
+    } else if (masked.rightNow.kind === "idle") {
+      masked.rightNow = { kind: "idle", lastActiveAt: null };
+    }
     adv.streak = null;
   }
   if (!v.share_mocks) adv.mocks = null;

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_BUDDY_PRIVACY,
+  maskBuddyProfileForPrivacy,
   maskDashboardForPrivacy,
   parseBuddyPrivacySettings,
   type BuddyAdvancedDashboardPayload,
@@ -104,7 +105,8 @@ describe("maskDashboardForPrivacy", () => {
     expect(masked.advanced.mocks).toBeNull();
     expect(masked.advanced.subjectAccuracy).toBeNull();
     expect(masked.advanced.streak).toBeNull();
-    expect(masked.buddyOnline).toBe(true);
+    expect(masked.buddyOnline).toBe(false);
+    expect(masked.rightNow.kind).toBe("studying");
   });
 
   it("masks gyan, subtopics, play, rdm, edufund", () => {
@@ -121,7 +123,32 @@ describe("maskDashboardForPrivacy", () => {
     expect(masked.subtopic.lastOn).toBeNull();
     expect(masked.playArena.recent).toEqual([]);
     expect(masked.buddy.rdm).toBe(0);
+    expect(masked.rightNow.kind).toBe("online");
+    expect("subject" in masked.rightNow).toBe(false);
     expect(masked.advanced.edufund).toBeNull();
+  });
+
+  it("removes right-now study scope when subtopics are private", () => {
+    const masked = maskDashboardForPrivacy(
+      minimalPayload({
+        share_subtopics: false,
+      })
+    );
+    expect(masked.rightNow.kind).toBe("online");
+    expect("topic" in masked.rightNow).toBe(false);
+    expect("subtopic" in masked.rightNow).toBe(false);
+    expect(masked.subtopic.current).toBeNull();
+    expect(masked.subtopic.completedRecent).toEqual([]);
+  });
+
+  it("masks private buddy RDM in state-sized profiles", () => {
+    const buddy = { id: "b1", rdm: 750, name: "Test" };
+    expect(
+      maskBuddyProfileForPrivacy(buddy, {
+        ...DEFAULT_BUDDY_PRIVACY,
+        share_rdm: false,
+      })
+    ).toEqual({ id: "b1", rdm: 0, name: "Test" });
   });
 
   it("leaves data visible when all shares on", () => {
