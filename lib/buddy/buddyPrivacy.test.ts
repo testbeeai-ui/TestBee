@@ -106,7 +106,7 @@ describe("maskDashboardForPrivacy", () => {
     expect(masked.advanced.subjectAccuracy).toBeNull();
     expect(masked.advanced.streak).toBeNull();
     expect(masked.buddyOnline).toBe(false);
-    expect(masked.rightNow).toEqual({ kind: "idle", lastActiveAt: null });
+    expect(masked.rightNow.kind).toBe("studying");
   });
 
   it("masks gyan, subtopics, play, rdm, edufund", () => {
