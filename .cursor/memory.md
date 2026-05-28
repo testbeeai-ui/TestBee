@@ -100,3 +100,4 @@ npx vitest run lib/sarvamGyanClient.thinking.test.ts
 - 2026-05-20: Admin granted **mailidpwd@gmail.com** (`profiles.role` + `user_roles`); migration `20260521160000_add_admin_mailidpwd.sql`, script `scripts/grant-admin-by-email.ts`.
 - 2026-05-20: Fixed TS2307 after partial `lib/gyan/` refactor — canonical Prof-Pi at `lib/gyan/bot/gyanBotAnswer.ts`; shared modules stay at `lib/*` (not `lib/gyan/bot/gyanContentPolicy` shims). Close stale `lib/gyanBotAnswer.ts` tab.
 - 2026-05-28: Fixed high-severity recent-change bugs: locked down `end_buddy_pair(uuid, uuid)`, tightened buddy privacy masking, and guarded auth-store saved sync/binding against cross-account stale state.
+- 2026-05-28: Fixed Learning Buddy build break by allowing `computeStreakDays` to use an explicit anchor date.
