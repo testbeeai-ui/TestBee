@@ -19,7 +19,8 @@ function emptySavedUserProfile(
   name: string,
   classLevel: ClassLevel,
   stream: Stream,
-  subjectCombo: SubjectCombo
+  subjectCombo: SubjectCombo,
+  rdm = 100
 ): UserProfile {
   return {
     name,
@@ -28,7 +29,7 @@ function emptySavedUserProfile(
     subjectCombo,
     board: "CBSE",
     examType: null,
-    rdm: 100,
+    rdm,
     answeredQuestions: [],
     savedQuestions: [],
     savedRevisionCards: [],
@@ -62,7 +63,8 @@ interface UserState {
     name: string,
     classLevel: ClassLevel,
     stream: Stream,
-    subjectCombo: SubjectCombo
+    subjectCombo: SubjectCombo,
+    rdm?: number
   ) => void;
   setBoard: (board: Board) => void;
   setExamType: (examType: ExamType | null) => void;
@@ -121,17 +123,39 @@ export const useUserStore = create<UserState>()(
           user: emptySavedUserProfile(name, classLevel, stream, subjectCombo),
         }),
 
-      bindToAuthUser: (authUserId, name, classLevel, stream, subjectCombo) => {
+      bindToAuthUser: (authUserId, name, classLevel, stream, subjectCombo, rdm) => {
         const { linkedAuthUserId, user } = get();
+        const knownRdm = typeof rdm === "number" ? rdm : undefined;
         if (linkedAuthUserId === authUserId && user) {
           set({
-            user: { ...user, name, classLevel, stream, subjectCombo },
+            user: {
+              ...user,
+              name,
+              classLevel,
+              stream,
+              subjectCombo,
+              ...(knownRdm !== undefined ? { rdm: knownRdm } : {}),
+            },
+          });
+          return;
+        }
+        if (linkedAuthUserId === null && user) {
+          set({
+            linkedAuthUserId: authUserId,
+            user: {
+              ...user,
+              name,
+              classLevel,
+              stream,
+              subjectCombo,
+              ...(knownRdm !== undefined ? { rdm: knownRdm } : {}),
+            },
           });
           return;
         }
         set({
           linkedAuthUserId: authUserId,
-          user: emptySavedUserProfile(name, classLevel, stream, subjectCombo),
+          user: emptySavedUserProfile(name, classLevel, stream, subjectCombo, knownRdm),
           currentRound: [],
           allResults: [],
         });

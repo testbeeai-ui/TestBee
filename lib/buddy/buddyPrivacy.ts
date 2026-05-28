@@ -132,6 +132,12 @@ export function maskDashboardForPrivacy(
 ): BuddyAdvancedDashboardPayload {
   const v = payload.visibility;
   const masked = { ...payload };
+  const idleRightNow = (
+    lastActiveAt: string | null = null
+  ): BuddyAdvancedDashboardPayload["rightNow"] => ({
+    kind: "idle",
+    lastActiveAt,
+  });
 
   if (!v.share_rdm) {
     masked.buddy = { ...masked.buddy, rdm: 0 };
@@ -159,6 +165,14 @@ export function maskDashboardForPrivacy(
       lastOn: null,
       completedRecent: [],
     };
+    const rn = masked.rightNow;
+    if (
+      rn.kind === "studying" ||
+      (rn.kind === "idle" &&
+        ("subject" in rn || "topic" in rn || "subtopic" in rn || "href" in rn))
+    ) {
+      masked.rightNow = idleRightNow(rn.lastActiveAt ?? null);
+    }
   }
 
   if (!v.share_play) {
@@ -185,6 +199,14 @@ export function maskDashboardForPrivacy(
   const adv = { ...masked.advanced };
   if (!v.share_streak) {
     adv.streak = null;
+    masked.buddyOnline = false;
+    if (
+      masked.rightNow.kind === "online" ||
+      masked.rightNow.kind === "studying" ||
+      masked.rightNow.kind === "idle"
+    ) {
+      masked.rightNow = idleRightNow();
+    }
   }
   if (!v.share_mocks) adv.mocks = null;
   if (!v.share_edufund || !v.share_rdm) adv.edufund = null;

@@ -264,13 +264,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     if (!profile) return;
+    let cancelled = false;
+    const profileId = profile.id;
     const bindLocalUserToProfile = () => {
       const cl = profile.class_level;
       const classLevel: ClassLevel = cl === 11 || cl === 12 ? cl : 12;
       const subjectCombo: SubjectCombo = "PCM";
-      useUserStore
-        .getState()
-        .bindToAuthUser(profile.id, profile.name || "User", classLevel, "science", subjectCombo);
+      useUserStore.getState().bindToAuthUser(
+        profileId,
+        profile.name || "User",
+        classLevel,
+        "science",
+        subjectCombo,
+        typeof profile.rdm === "number" ? profile.rdm : undefined
+      );
     };
     const syncExamFromProfile = () => {
       if (profile.role !== "student") return;
@@ -278,10 +285,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       useUserStore.getState().setExamType(next);
     };
     const syncSavedFromProfile = async () => {
+      const beforeFetch = useUserStore.getState();
+      if (!beforeFetch.user || beforeFetch.linkedAuthUserId !== profileId) return;
+      let server: Awaited<
+        ReturnType<typeof import("@/lib/saved/savedContentService")["fetchSavedContent"]>
+      >;
+      try {
+        const { fetchSavedContent } = await import("@/lib/saved/savedContentService");
+        server = await fetchSavedContent();
+      } catch {
+        return;
+      }
+      if (cancelled) return;
       const store = useUserStore.getState();
-      if (!store.user || store.linkedAuthUserId !== profile.id) return;
-      const { fetchSavedContent } = await import("@/lib/saved/savedContentService");
-      const server = await fetchSavedContent();
+      if (!store.user || store.linkedAuthUserId !== profileId) return;
       const merged = mergeAllSavedContent(
         store.user.savedBits ?? [],
         store.user.savedFormulas ?? [],
@@ -294,6 +311,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         server.savedRevisionUnits,
         server.savedCommunityPosts
       );
+      const afterMerge = useUserStore.getState();
+      if (!afterMerge.user || afterMerge.linkedAuthUserId !== profileId) return;
       useUserStore
         .getState()
         .setSavedFromServer(
@@ -314,14 +333,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         persist?: { onFinishHydration: (cb: () => void) => () => void; hasHydrated: () => boolean };
       }
     ).persist;
+    let unsubscribeHydration: (() => void) | undefined;
     if (persist?.onFinishHydration) {
       if (persist.hasHydrated?.()) {
         run();
-        return;
+      } else {
+        unsubscribeHydration = persist.onFinishHydration(() => run());
       }
-      return persist.onFinishHydration(() => run());
+    } else {
+      run();
     }
-    run();
+    return () => {
+      cancelled = true;
+      unsubscribeHydration?.();
+    };
   }, [
     profile?.id,
     profile?.name,
@@ -329,6 +354,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     profile?.class_level,
     profile?.target_exam,
     profile?.subject_combo,
+    profile?.rdm,
   ]);
 
   const signInWithGoogle = async (redirectPath: string = "/onboarding") => {

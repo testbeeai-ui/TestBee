@@ -3427,7 +3427,7 @@ export type Database = {
         Returns: Json;
       };
       end_buddy_pair: {
-        Args: { p_user_id: string };
+        Args: { p_user_id: string; p_buddy_user_id?: string | null };
         Returns: Json;
       };
       get_prep_calendar_summary: {
