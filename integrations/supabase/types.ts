@@ -1932,6 +1932,7 @@ export type Database = {
           avatar_url: string | null;
           bio: string | null;
           bits_test_attempts: Json;
+          buddy_privacy_settings: Json;
           subtopic_engagement: Json;
           daily_checklist_state: Json;
           board: string | null;
@@ -1977,6 +1978,7 @@ export type Database = {
           avatar_url?: string | null;
           bio?: string | null;
           bits_test_attempts?: Json;
+          buddy_privacy_settings?: Json;
           subtopic_engagement?: Json;
           daily_checklist_state?: Json;
           board?: string | null;
@@ -2022,6 +2024,7 @@ export type Database = {
           avatar_url?: string | null;
           bio?: string | null;
           bits_test_attempts?: Json;
+          buddy_privacy_settings?: Json;
           subtopic_engagement?: Json;
           daily_checklist_state?: Json;
           board?: string | null;
@@ -3427,7 +3430,7 @@ export type Database = {
         Returns: Json;
       };
       end_buddy_pair: {
-        Args: { p_user_id: string };
+        Args: { p_user_id: string; p_buddy_user_id?: string | null };
         Returns: Json;
       };
       get_prep_calendar_summary: {

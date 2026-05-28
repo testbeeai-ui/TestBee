@@ -104,7 +104,8 @@ describe("maskDashboardForPrivacy", () => {
     expect(masked.advanced.mocks).toBeNull();
     expect(masked.advanced.subjectAccuracy).toBeNull();
     expect(masked.advanced.streak).toBeNull();
-    expect(masked.buddyOnline).toBe(true);
+    expect(masked.buddyOnline).toBe(false);
+    expect(masked.rightNow).toEqual({ kind: "idle", lastActiveAt: null });
   });
 
   it("masks gyan, subtopics, play, rdm, edufund", () => {
@@ -119,6 +120,10 @@ describe("maskDashboardForPrivacy", () => {
     );
     expect(masked.gyanRecent).toEqual([]);
     expect(masked.subtopic.lastOn).toBeNull();
+    expect(masked.rightNow).toEqual({
+      kind: "idle",
+      lastActiveAt: expect.any(String),
+    });
     expect(masked.playArena.recent).toEqual([]);
     expect(masked.buddy.rdm).toBe(0);
     expect(masked.advanced.edufund).toBeNull();
