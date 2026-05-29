@@ -108,6 +108,15 @@ const EMPTY_SAVED_COMMUNITY_POSTS: SavedCommunityPost[] = [];
 export const selectSavedCommunityPosts = (s: UserState): SavedCommunityPost[] =>
   s.user?.savedCommunityPosts ?? EMPTY_SAVED_COMMUNITY_POSTS;
 
+function normalizePersistedUser(user: Record<string, unknown> | undefined): void {
+  if (!user || typeof user !== "object") return;
+  if (!Array.isArray(user.savedBits)) user.savedBits = [];
+  if (!Array.isArray(user.savedFormulas)) user.savedFormulas = [];
+  if (!Array.isArray(user.savedRevisionCards)) user.savedRevisionCards = [];
+  if (!Array.isArray(user.savedRevisionUnits)) user.savedRevisionUnits = [];
+  if (!Array.isArray(user.savedCommunityPosts)) user.savedCommunityPosts = [];
+}
+
 export const useUserStore = create<UserState>()(
   persist(
     (set, get) => ({
@@ -126,6 +135,13 @@ export const useUserStore = create<UserState>()(
         if (linkedAuthUserId === authUserId && user) {
           set({
             user: { ...user, name, classLevel, stream, subjectCombo },
+          });
+          return;
+        }
+        if (!linkedAuthUserId && user) {
+          set({
+            linkedAuthUserId: authUserId,
+            user: { ...user, name, classLevel, stream, subjectCombo, isSignedUp: true },
           });
           return;
         }
@@ -404,24 +420,17 @@ export const useUserStore = create<UserState>()(
           user?: Record<string, unknown>;
           linkedAuthUserId?: string | null;
         } | null | undefined;
+        normalizePersistedUser(state?.user);
         if (fromVersion < 2) {
           return {
             ...state,
             linkedAuthUserId: null,
           };
         }
-        const user = state?.user;
-        if (user && typeof user === "object") {
-          if (!Array.isArray(user.savedBits)) user.savedBits = [];
-          if (!Array.isArray(user.savedFormulas)) user.savedFormulas = [];
-          if (!Array.isArray(user.savedRevisionCards)) user.savedRevisionCards = [];
-          if (!Array.isArray(user.savedRevisionUnits)) user.savedRevisionUnits = [];
-          if (!Array.isArray(user.savedCommunityPosts)) user.savedCommunityPosts = [];
-        }
         if (state && state.linkedAuthUserId === undefined) {
           state.linkedAuthUserId = null;
         }
-        return persistedState;
+        return state ?? persistedState;
       },
     }
   )
