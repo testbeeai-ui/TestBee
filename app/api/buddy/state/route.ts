@@ -53,7 +53,18 @@ export async function GET(request: Request) {
       .select("id, name, avatar_url, class_level, rdm, buddy_privacy_settings")
       .in("id", buddyIds);
 
-    const profileById = new Map((profiles ?? []).map((p: any) => [p.id, p]));
+    type BuddyStateProfileRow = {
+      id: string;
+      name: string | null;
+      avatar_url: string | null;
+      class_level: number | null;
+      rdm: number | null;
+      buddy_privacy_settings: unknown;
+    };
+    const profileRows = (profiles ?? []) as BuddyStateProfileRow[];
+    const profileById = new Map<string, BuddyStateProfileRow>(
+      profileRows.map((p) => [p.id, p])
+    );
 
     for (const row of pairRows) {
       const profileRow = profileById.get(row.buddy_user_id);
