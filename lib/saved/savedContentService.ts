@@ -79,8 +79,10 @@ export async function syncSavedContent(
 
 /** POST current store snapshot (bits, formulas, revision cards, revision units) for the signed-in user. */
 export async function syncAllSavedContent(): Promise<void> {
-  const user = useUserStore.getState().user;
-  if (!user) return;
+  const { session } = await safeGetSession();
+  const authUserId = session?.user?.id;
+  const { user, linkedAuthUserId } = useUserStore.getState();
+  if (!user || !authUserId || linkedAuthUserId !== authUserId) return;
   await syncSavedContent(
     user.savedBits ?? [],
     user.savedFormulas ?? [],

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient, createClient } from "@/integrations/supabase/server";
 import { listActiveBuddyPairsForUser } from "@/lib/buddy/activeBuddyLink";
-import { BUDDY_MAX_ACTIVE } from "@/lib/buddy/buddyPrivacy";
+import { BUDDY_MAX_ACTIVE, parseBuddyPrivacySettings } from "@/lib/buddy/buddyPrivacy";
 import { normalizeBuddyRdm } from "@/lib/buddy/buddyClient";
 import { requireAuthenticatedUser } from "@/lib/auth/securityGuards";
 
@@ -49,22 +49,33 @@ export async function GET(request: Request) {
   }> = [];
 
   if (buddyIds.length > 0) {
-    const { data: profiles } = await admin
-      .from("profiles")
-      .select("id, name, avatar_url, class_level, rdm")
+    const { data: profiles } = await (admin.from("profiles" as any) as any)
+      .select("id, name, avatar_url, class_level, rdm, buddy_privacy_settings")
       .in("id", buddyIds);
 
-    const profileById = new Map((profiles ?? []).map((p) => [p.id, p]));
+    type BuddyStateProfileRow = {
+      id: string;
+      name: string | null;
+      avatar_url: string | null;
+      class_level: number | null;
+      rdm: number | null;
+      buddy_privacy_settings: unknown;
+    };
+    const profileRows = (profiles ?? []) as BuddyStateProfileRow[];
+    const profileById = new Map<string, BuddyStateProfileRow>(
+      profileRows.map((p) => [p.id, p])
+    );
 
     for (const row of pairRows) {
       const profileRow = profileById.get(row.buddy_user_id);
+      const visibility = parseBuddyPrivacySettings(profileRow?.buddy_privacy_settings);
       buddies.push({
         id: row.buddy_user_id,
         name: profileRow?.name ?? null,
         avatarUrl: profileRow?.avatar_url ?? null,
         classLevel:
           typeof profileRow?.class_level === "number" ? profileRow.class_level : null,
-        rdm: normalizeBuddyRdm(profileRow?.rdm),
+        rdm: visibility.share_rdm ? normalizeBuddyRdm(profileRow?.rdm) : 0,
         pairedAt: row.created_at,
       });
     }

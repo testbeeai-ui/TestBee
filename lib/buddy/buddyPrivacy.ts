@@ -159,6 +159,12 @@ export function maskDashboardForPrivacy(
       lastOn: null,
       completedRecent: [],
     };
+    if (masked.rightNow.kind === "studying" || masked.rightNow.kind === "idle") {
+      masked.rightNow = {
+        kind: "idle",
+        lastActiveAt: masked.rightNow.lastActiveAt ?? null,
+      };
+    }
   }
 
   if (!v.share_play) {
@@ -184,6 +190,10 @@ export function maskDashboardForPrivacy(
 
   const adv = { ...masked.advanced };
   if (!v.share_streak) {
+    masked.buddyOnline = false;
+    if (masked.rightNow.kind === "online") {
+      masked.rightNow = { kind: "idle", lastActiveAt: null };
+    }
     adv.streak = null;
   }
   if (!v.share_mocks) adv.mocks = null;
