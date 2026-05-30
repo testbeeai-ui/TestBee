@@ -1,12 +1,6 @@
-import {
-  createContext,
-  useContext,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  ReactNode,
-} from "react";
+"use client";
+
+import { useContext, useCallback, useEffect, useRef, useState, ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/integrations/supabase/client";
 import type { AuthError, User, Session } from "@supabase/supabase-js";
@@ -14,92 +8,22 @@ import { useUserStore } from "@/store/useUserStore";
 import type { ClassLevel, SubjectCombo } from "@/types";
 import { targetExamToExamType } from "@/lib/profile/targetExam";
 import { mergeAllSavedContent } from "@/lib/saved/mergeSavedContent";
-import type { Json } from "@/integrations/supabase/types";
 import { getClientApiAuthHeaders } from "@/lib/auth/clientApiAuth";
 import { safeGetSession } from "@/lib/auth/safeSession";
 import { profileShouldForceOnboardingComplete } from "@/lib/profile/profileOnboardingRepair";
-import {
-  ensureOnboardingLocalStateForUser,
-  syncOnboardingSiteTourClaimedFromProfile,
-} from "@/lib/subscription/freeTrialClient";
 import { readPendingDeepLink } from "@/lib/auth/safeNextPath";
+import { AuthContext, type Profile } from "@/hooks/auth-context";
 
-export interface Profile {
-  id: string;
-  /** Profile row creation time from Supabase (ISO). */
-  created_at?: string | null;
-  name: string;
-  first_name?: string | null;
-  last_name?: string | null;
-  state?: string | null;
-  city?: string | null;
-  /** 10-digit national number without +91. */
-  phone?: string | null;
-  gender?: string | null;
-  category?: string | null;
-  date_of_birth?: string | null;
-  institution_name?: string | null;
-  board?: string | null;
-  current_class_label?: string | null;
-  role: "student" | "teacher" | "admin";
-  class_level: number | null;
-  target_exam?: string | null;
-  stream: string | null;
-  subject_combo: string | null;
-  avatar_url: string | null;
-  bio: string | null;
-  teaching_levels: number[] | null;
-  subjects: string[] | null;
-  exam_tags: string[] | null;
-  visibility: string;
-  google_connected: boolean;
-  /** Supabase auth originally used Google — not the same as Calendar OAuth. */
-  signup_google?: boolean;
-  onboarding_complete: boolean;
-  free_trial_activated?: boolean | null;
-  free_trial_activated_at?: string | null;
-  plan_tier?: string;
-  time_travel_enabled?: boolean;
-  time_travel_offset_ms?: number;
-  trial_onboarding_answers?: Json | null;
-  onboarding_reward_progress?: Json | null;
-  onboarding_reward_claimed_at?: string | null;
-  free_trial_daily_streak?: Json | null;
-  /** Consecutive days (same gauntlet_date) completing both academic + funbrain DailyDose. */
-  daily_dose_streak?: number;
-  rdm?: number;
-  // saved_* columns removed — now read from user_saved_items table via API
-  /** Submitted topic-quiz attempts keyed like bits-attempts API; retakes overwrite same key. */
-  bits_test_attempts?: Json | null;
-  /** Per-lesson engagement snapshots (in-progress quiz draft lives under bits + graded). */
-  subtopic_engagement?: Json | null;
-  /** Dashboard daily checklist acks / Gyan++ focus ms by local date key. */
-  daily_checklist_state?: Json | null;
-  /** Optional Class X subject marks + coaching (JSON on profiles row). */
-  academic_record_extras?: Json | null;
+export type { Profile } from "@/hooks/auth-context";
+
+function applyProfileOnboardingLocalState(userId: string, profile: Profile): void {
+  void import("@/lib/subscription/freeTrialClient").then(
+    ({ ensureOnboardingLocalStateForUser, syncOnboardingSiteTourClaimedFromProfile }) => {
+      ensureOnboardingLocalStateForUser(userId);
+      syncOnboardingSiteTourClaimedFromProfile(profile);
+    }
+  );
 }
-
-interface AuthContextType {
-  user: User | null;
-  session: Session | null;
-  profile: Profile | null;
-  loading: boolean;
-  signInWithGoogle: (redirectPath?: string) => Promise<void>;
-  signInWithEmail: (email: string, password: string) => Promise<{ error: AuthError | null }>;
-  signUpWithEmail: (
-    email: string,
-    password: string,
-    name: string
-  ) => Promise<{ error: AuthError | null; needsEmailConfirmation: boolean }>;
-  /** After email/password sign-up (confirmations on), user enters the code from email. */
-  verifySignUpEmailOtp: (email: string, token: string) => Promise<{ error: AuthError | null }>;
-  resendSignUpEmailOtp: (email: string) => Promise<{ error: AuthError | null }>;
-  /** Clears session; navigates to `redirectAfter` or `/` (marketing landing). */
-  signOut: (redirectAfter?: string) => Promise<void>;
-  refreshProfile: () => Promise<void>;
-}
-
-const AuthContext = createContext<AuthContextType | null>(null);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const router = useRouter();
@@ -153,17 +77,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           .maybeSingle();
         if (updated) {
           const updatedProfile = updated as unknown as Profile;
-          ensureOnboardingLocalStateForUser(userId);
+          applyProfileOnboardingLocalState(userId, updatedProfile);
           setProfile(updatedProfile);
-          syncOnboardingSiteTourClaimedFromProfile(updatedProfile);
           if (typeof updatedProfile.rdm === "number")
             useUserStore.getState().setRdmFromProfile(updatedProfile.rdm);
           return;
         }
       }
-      ensureOnboardingLocalStateForUser(userId);
+      applyProfileOnboardingLocalState(userId, row);
       setProfile(row);
-      syncOnboardingSiteTourClaimedFromProfile(row);
       if (typeof row.rdm === "number") useUserStore.getState().setRdmFromProfile(row.rdm);
       return;
     }
@@ -202,9 +124,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .maybeSingle();
       if (inserted) {
         const p = inserted as unknown as Profile;
-        ensureOnboardingLocalStateForUser(userId);
+        applyProfileOnboardingLocalState(userId, p);
         setProfile(p);
-        syncOnboardingSiteTourClaimedFromProfile(p);
         if (typeof p.rdm === "number") useUserStore.getState().setRdmFromProfile(p.rdm);
       } else {
         // Row exists but ignoreDuplicates prevented update; refetch to get current state
@@ -230,9 +151,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               console.error("[auth] repair onboarding_complete (refetch):", repairErr.message);
             if (repaired) row = repaired as unknown as Profile;
           }
-          ensureOnboardingLocalStateForUser(userId);
+          applyProfileOnboardingLocalState(userId, row);
           setProfile(row);
-          syncOnboardingSiteTourClaimedFromProfile(row);
           if (typeof row.rdm === "number") useUserStore.getState().setRdmFromProfile(row.rdm);
         } else setProfile(null);
       }
