@@ -64,8 +64,12 @@ export function OnboardingRewardClaimDialog({
         toast({
           title: "Checklist not ready to claim",
           description: missing
-            ? `These tasks are not saved on your account yet: ${missing}. Open the site tour, complete them, then claim again.`
-            : "Your progress is still syncing. Wait a few seconds and try again.",
+            ? prep.syncError === "trial_not_activated"
+              ? `Your free trial is not activated on the server yet. Refresh the page, complete activation, then claim again. Missing: ${missing}.`
+              : `These tasks are not saved on your account yet: ${missing}. Open the site tour, complete them, then claim again.`
+            : prep.syncError === "trial_not_activated"
+              ? "Your free trial is not activated on the server yet. Refresh the page and try again."
+              : "Your progress is still syncing. Wait a few seconds and try again.",
           variant: "destructive",
         });
         return;

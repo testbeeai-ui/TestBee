@@ -5,6 +5,7 @@ export type OnboardingRewardState = {
   progress: Record<string, boolean>;
   claimedAt: string | null;
   checklistRewardRdm: number;
+  freeTrialActivated?: boolean;
   dailyStreak?: Record<string, unknown>;
 };
 
@@ -36,6 +37,46 @@ export async function fetchOnboardingRewardState(): Promise<OnboardingRewardStat
     };
   }
   return (await res.json()) as OnboardingRewardState;
+}
+
+export async function bulkMergeOnboardingProgressToServer(
+  mergeProgress: Record<string, boolean>
+): Promise<OnboardingProgressSyncResult & { progress?: Record<string, boolean> }> {
+  const keys = Object.entries(mergeProgress).filter(([, done]) => done);
+  if (keys.length === 0) {
+    return { ok: true, noop: true };
+  }
+
+  try {
+    const authHeaders = await getClientApiAuthHeaders();
+    const res = await fetch("/api/user/onboarding-reward", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeaders,
+      },
+      body: JSON.stringify({
+        mergeProgress: Object.fromEntries(keys),
+      }),
+    });
+
+    const body = (await res.json().catch(() => ({}))) as {
+      error?: string;
+      noop?: boolean;
+      progress?: Record<string, boolean>;
+    };
+
+    if (!res.ok) {
+      return {
+        ok: false,
+        error: body.error ?? `http_${res.status}`,
+      };
+    }
+
+    return { ok: true, noop: body.noop, progress: body.progress };
+  } catch {
+    return { ok: false, error: "network" };
+  }
 }
 
 export async function syncOnboardingTaskToServer(
