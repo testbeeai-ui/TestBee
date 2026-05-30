@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { createClient, createClientWithToken } from "@/integrations/supabase/server";
+import {
+  createAdminClient,
+  createClient,
+  createClientWithToken,
+} from "@/integrations/supabase/server";
 import { enforceSameOriginForCookieAuth } from "@/lib/auth/securityGuards";
 
 async function getSupabaseAndUser(request: Request) {
@@ -29,16 +33,21 @@ export async function POST(request: Request) {
     if (!ctx) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    const { supabase, user } = ctx;
+    const { user } = ctx;
 
-    const { error } = await supabase
+    const admin = createAdminClient();
+    if (!admin) {
+      return NextResponse.json(
+        { error: "SUPABASE_SERVICE_ROLE_KEY is not set" },
+        { status: 500 }
+      );
+    }
+
+    const { error } = await admin
       .from("profiles")
       .update({
         plan_tier: "free",
         free_trial_activated: false,
-        free_trial_activated_at: null,
-        onboarding_reward_progress: {},
-        onboarding_reward_claimed_at: null,
       })
       .eq("id", user.id);
 

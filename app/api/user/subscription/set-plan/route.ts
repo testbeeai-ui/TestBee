@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { createAdminClient } from "@/integrations/supabase/server";
 import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
 import { enforceSameOriginForCookieAuth } from "@/lib/auth/securityGuards";
 import type { SubscriptionPlanKey } from "@/lib/subscription/subscriptionConfig";
@@ -7,7 +8,7 @@ type Body = {
   plan?: SubscriptionPlanKey | string;
 };
 
-const ALLOWED: SubscriptionPlanKey[] = ["free_trial", "free", "starter", "pro"];
+const ALLOWED: SubscriptionPlanKey[] = ["free"];
 
 function normalizePlan(raw: unknown): SubscriptionPlanKey | null {
   const plan = String(raw ?? "")
@@ -20,8 +21,8 @@ function normalizePlan(raw: unknown): SubscriptionPlanKey | null {
 }
 
 /**
- * Testing-mode plan switcher.
- * No payment gateway check here; user can switch between Free / Free Trial / Starter / Pro.
+ * Self-service downgrade only.
+ * Paid tiers and trial activation must go through verified payment/trial flows.
  */
 export async function POST(request: Request) {
   try {
@@ -31,30 +32,30 @@ export async function POST(request: Request) {
     const ctx = await getSupabaseAndUser(request);
     if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { supabase, user } = ctx;
+    const { user } = ctx;
     const body = (await request.json().catch(() => ({}))) as Body;
     const requested = normalizePlan(body.plan);
     if (!requested || !ALLOWED.includes(requested)) {
       return NextResponse.json(
-        { error: "Invalid plan. Use free_trial, free, starter, or pro." },
-        { status: 400 }
+        { error: "Self-service plan switching is only allowed for the Free plan." },
+        { status: 403 }
       );
     }
 
-    const nowIso = new Date().toISOString();
-    const updates: Record<string, unknown> = {
-      plan_tier: requested,
-    };
-
-    if (requested === "free_trial") {
-      updates.free_trial_activated = true;
-      updates.free_trial_activated_at = nowIso;
-    } else {
-      updates.free_trial_activated = false;
-      updates.free_trial_activated_at = null;
+    const admin = createAdminClient();
+    if (!admin) {
+      return NextResponse.json(
+        { error: "SUPABASE_SERVICE_ROLE_KEY is not set" },
+        { status: 500 }
+      );
     }
 
-    const { error } = await supabase.from("profiles").update(updates).eq("id", user.id);
+    const updates: Record<string, unknown> = {
+      plan_tier: requested,
+      free_trial_activated: false,
+    };
+
+    const { error } = await admin.from("profiles").update(updates).eq("id", user.id);
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
