@@ -55,8 +55,12 @@ export default function MeetSessionsStack({
         return { session: s, ev };
       })
       .filter(
-        (x): x is { session: TeacherPortalMeetSession; ev: ReturnType<typeof evaluateSessionTemporalState> } =>
-          Boolean(x)
+        (
+          x
+        ): x is {
+          session: TeacherPortalMeetSession;
+          ev: ReturnType<typeof evaluateSessionTemporalState>;
+        } => Boolean(x)
       );
 
     // Render array of active states; keep multiple when overlapping (COUNTDOWN/PRE_JOIN/LIVE/GRACE_PERIOD)
@@ -106,7 +110,8 @@ export default function MeetSessionsStack({
     <div className="flex w-full flex-col gap-1.5">
       {evaluated.active.slice(0, 2).map(({ session, ev }) => {
         const meta = labelForState(ev.state);
-        const scope = session.scopeLabel ?? (session.sectionName ? `Only ${session.sectionName}` : null);
+        const scope =
+          session.scopeLabel ?? (session.sectionName ? `Only ${session.sectionName}` : null);
         const subtitle =
           ev.state === "COUNTDOWN"
             ? formatCountdown(ev.msToStart)
@@ -118,7 +123,8 @@ export default function MeetSessionsStack({
                   ? formatCountdown(ev.visibleUntilMs - ev.nowMs)
                   : "";
 
-        const canJoin = ev.state === "PRE_JOIN" || ev.state === "LIVE" || ev.state === "GRACE_PERIOD";
+        const canJoin =
+          ev.state === "PRE_JOIN" || ev.state === "LIVE" || ev.state === "GRACE_PERIOD";
 
         return (
           <div key={session.id} className="flex items-center justify-between gap-2">
@@ -157,4 +163,3 @@ export default function MeetSessionsStack({
     </div>
   );
 }
-

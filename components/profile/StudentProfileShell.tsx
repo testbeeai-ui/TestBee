@@ -41,8 +41,20 @@ const NAV: { id: StudentProfileSectionId; label: string; icon: typeof User }[] =
   { id: "edufund", label: "EduFund Eligibility", icon: Heart },
 ];
 
-const PERSONAL_GROUP: StudentProfileSectionId[] = ["personal", "academic", "achievements", "activity"];
-const SUBSCRIPTION_GROUP: StudentProfileSectionId[] = ["sub-overview", "sub-plans", "sub-payment", "sub-checkout", "sub-history", "sub-cancel"];
+const PERSONAL_GROUP: StudentProfileSectionId[] = [
+  "personal",
+  "academic",
+  "achievements",
+  "activity",
+];
+const SUBSCRIPTION_GROUP: StudentProfileSectionId[] = [
+  "sub-overview",
+  "sub-plans",
+  "sub-payment",
+  "sub-checkout",
+  "sub-history",
+  "sub-cancel",
+];
 const SUBSCRIPTION_ITEMS: { id: StudentProfileSectionId; label: string; icon: typeof User }[] = [
   { id: "sub-overview", label: "My subscription", icon: CreditCard },
   { id: "sub-plans", label: "Change plan", icon: LayoutGrid },

@@ -23,27 +23,26 @@ export function HtmlPlainDocumentView({
 
   if (!plainBody && !rawHtml && !headline && !summary) return null;
 
-  const bodyBlock =
-    plainBody ? (
-      <div
-        className={
-          variant === "card"
-            ? "news-blog-seo-body news-blog-seo-body--card text-sm leading-relaxed text-slate-300 whitespace-pre-wrap"
-            : "news-blog-seo-body text-base leading-relaxed text-slate-200 whitespace-pre-wrap"
-        }
-      >
-        {plainBody}
-      </div>
-    ) : bodyFromHtml ? (
-      <div
-        className={
-          variant === "card"
-            ? "news-blog-seo-body news-blog-seo-body--card text-sm leading-relaxed text-slate-300"
-            : "news-blog-seo-body text-base leading-relaxed text-slate-200"
-        }
-        dangerouslySetInnerHTML={{ __html: bodyFromHtml }}
-      />
-    ) : null;
+  const bodyBlock = plainBody ? (
+    <div
+      className={
+        variant === "card"
+          ? "news-blog-seo-body news-blog-seo-body--card text-sm leading-relaxed text-slate-300 whitespace-pre-wrap"
+          : "news-blog-seo-body text-base leading-relaxed text-slate-200 whitespace-pre-wrap"
+      }
+    >
+      {plainBody}
+    </div>
+  ) : bodyFromHtml ? (
+    <div
+      className={
+        variant === "card"
+          ? "news-blog-seo-body news-blog-seo-body--card text-sm leading-relaxed text-slate-300"
+          : "news-blog-seo-body text-base leading-relaxed text-slate-200"
+      }
+      dangerouslySetInnerHTML={{ __html: bodyFromHtml }}
+    />
+  ) : null;
 
   if (variant === "card") {
     return (
@@ -84,17 +83,13 @@ export function HtmlPlainDocumentView({
         <h1 className="text-3xl font-semibold leading-tight tracking-tight text-slate-50 sm:text-[2.1rem]">
           {headline}
         </h1>
-        {summary ? (
-          <p className="text-lg leading-relaxed text-slate-300">{summary}</p>
-        ) : null}
+        {summary ? <p className="text-lg leading-relaxed text-slate-300">{summary}</p> : null}
         {showSeoCallout && (source.author || publishedIso) ? (
           <p className="text-xs text-slate-500">
             {source.author ? <span>By {source.author}</span> : null}
             {source.author && publishedIso ? <span> · </span> : null}
             {publishedIso ? (
-              <time dateTime={publishedIso}>
-                {formatDdMonYyyy(publishedIso)}
-              </time>
+              <time dateTime={publishedIso}>{formatDdMonYyyy(publishedIso)}</time>
             ) : null}
           </p>
         ) : null}

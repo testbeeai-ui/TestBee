@@ -10,9 +10,7 @@ const DAY_MAP: Record<string, string> = {
 };
 
 export function repeatLabelsToByDay(repeatDays: string[]): string | null {
-  const codes = repeatDays
-    .map((d) => DAY_MAP[d.trim()])
-    .filter((c): c is string => Boolean(c));
+  const codes = repeatDays.map((d) => DAY_MAP[d.trim()]).filter((c): c is string => Boolean(c));
   if (codes.length === 0) return null;
   return [...new Set(codes)].join(",");
 }
@@ -37,7 +35,10 @@ export function buildWeeklyRRule(input: {
     return r;
   }
   if (input.untilDate?.trim()) {
-    const [y, m, d] = input.untilDate.trim().split("-").map((x) => Number(x));
+    const [y, m, d] = input.untilDate
+      .trim()
+      .split("-")
+      .map((x) => Number(x));
     if (!y || !m || !d) return r;
     r += `;UNTIL=${String(y)}${String(m).padStart(2, "0")}${String(d).padStart(2, "0")}T235959Z`;
   }

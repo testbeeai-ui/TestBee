@@ -13,7 +13,8 @@ import { shufflePlayQuestionOptions } from "@/lib/play/questions/shufflePlayQues
 import { cn } from "@/lib/utils";
 import type { PlayDomain, PlayGauntletAnswerPayload, PlayQuestionRow } from "@/types";
 import { fetchDailyGauntletQuestionsWithFallback } from "@/lib/play/questions/fetchPlayQuestionsAdaptiveWithFallback";
-import { fetchRdmConfig } from "@/lib/rdm/rdmConfig";
+import { fetchSubscriptionConfig } from "@/lib/subscription/subscriptionConfig";
+import { resolveDailyDoseQuestionsForProfile } from "@/lib/play/dailyDoseSessionLimits";
 import { Clock, Loader2 } from "lucide-react";
 
 const GAUNTLET_SESSION_SEC = 300;
@@ -56,7 +57,7 @@ export default function InlineDailyGauntlet({
   onClose,
   onSessionComplete,
 }: InlineDailyGauntletProps) {
-  const { user, refreshProfile } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
   const isPlayAdmin = useIsAppAdmin();
   const [bootLoading, setBootLoading] = useState(true);
   const [gauntletQuestions, setGauntletQuestions] = useState<PlayQuestionRow[]>([]);
@@ -223,11 +224,12 @@ export default function InlineDailyGauntlet({
         setBootLoading(false);
         return;
       }
-      const rdm = await fetchRdmConfig();
+      const cfg = await fetchSubscriptionConfig();
+      const questionCount = resolveDailyDoseQuestionsForProfile(cfg, profile);
       const questions = await fetchDailyGauntletQuestionsWithFallback(supabase, {
         domain,
         dateIso: today,
-        questionCount: rdm.play_dailydose_min_questions_for_rdm,
+        questionCount,
       });
       if (cancelled) return;
       setBootLoading(false);
@@ -249,7 +251,7 @@ export default function InlineDailyGauntlet({
     return () => {
       cancelled = true;
     };
-  }, [domain, user?.id, isPlayAdmin]);
+  }, [domain, user?.id, isPlayAdmin, profile?.plan_tier, profile?.free_trial_activated]);
 
   const handleGauntletAnswer = (selectedIndex: number, timeTakenMs: number) => {
     if (!gauntletQuestions[gauntletIndex]) return;

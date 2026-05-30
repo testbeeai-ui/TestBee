@@ -1,10 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 /** Mirrors server filter in listActiveBuddyPairsForUser (no DB). */
-function filterPairs(
-  rows: Array<{ buddy_user_id: string; created_at: string }>,
-  userId: string
-) {
+function filterPairs(rows: Array<{ buddy_user_id: string; created_at: string }>, userId: string) {
   return rows.filter(
     (row) => typeof row.buddy_user_id === "string" && row.buddy_user_id !== userId
   );
@@ -22,9 +19,11 @@ describe("active buddy list isolation", () => {
     ];
     const rowsForB = [{ buddy_user_id: userA, created_at: "2026-01-01" }];
 
-    expect(filterPairs(rowsForA, userA).map((r) => r.buddy_user_id).sort()).toEqual(
-      [userB, userC].sort()
-    );
+    expect(
+      filterPairs(rowsForA, userA)
+        .map((r) => r.buddy_user_id)
+        .sort()
+    ).toEqual([userB, userC].sort());
     expect(filterPairs(rowsForB, userB).map((r) => r.buddy_user_id)).toEqual([userA]);
     // User B's roster query uses user_id = B — never receives A's (B,C) rows from the API.
     expect(filterPairs(rowsForB, userB)).not.toEqual(

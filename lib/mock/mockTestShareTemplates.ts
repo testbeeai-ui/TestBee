@@ -112,7 +112,10 @@ function pastPaperizeShareString(s: string): string {
     [/Ran an institute-style mock/gi, "Ran an institute-style paper"],
     [/Deep work block → mock →/gi, "Deep work block → paper →"],
     [/Deep work → mock →/gi, "Deep work → paper →"],
-    [/Flexing a good \{examName\} mock \(respectfully\)/gi, "Flexing a good {examName} run (respectfully)"],
+    [
+      /Flexing a good \{examName\} mock \(respectfully\)/gi,
+      "Flexing a good {examName} run (respectfully)",
+    ],
     [/Sharing my \{examName\} mock result/gi, "Sharing my {examName} past-paper result"],
     [/mock W:/gi, "Win:"],
   ];
@@ -149,7 +152,10 @@ function cloneDefForPastPaper(def: MockTestTemplateDef): MockTestTemplateDef {
   };
 }
 
-function makeMockTemplate(def: MockTestTemplateDef, payload: MockTestSharePayload): MockTestShareTemplate {
+function makeMockTemplate(
+  def: MockTestTemplateDef,
+  payload: MockTestSharePayload
+): MockTestShareTemplate {
   const title = fillMockPattern(def.hook, payload);
   const body = fillMockPattern(def.bodyPattern, payload);
   const cta = fillMockPattern(def.ctaPattern, payload);
@@ -196,7 +202,8 @@ const MOCK_WIN_DEFS: MockTestTemplateDef[] = [
     bodyPattern: "Scoreline {correct}/{total} · {accuracyPct}% · {timeTakenLabel}.",
     ctaPattern: "Your turn: {appUrl}",
     waHook: "Bar cleared on {examName} and I'm hyped",
-    waBodyPattern: "{correct}/{total} at {accuracyPct}% in {timeTakenLabel}. Consistency paying off.",
+    waBodyPattern:
+      "{correct}/{total} at {accuracyPct}% in {timeTakenLabel}. Consistency paying off.",
     waCtaPattern: "Try to beat this: {appUrl}",
   },
   {
@@ -206,8 +213,7 @@ const MOCK_WIN_DEFS: MockTestTemplateDef[] = [
     bodyPattern: "{correct}/{total} correct · {accuracyPct}% · {timeTakenLabel}.",
     ctaPattern: "Stack mocks here: {appUrl}",
     waHook: "Practice arc update: {examName}",
-    waBodyPattern:
-      "{correct}/{total} ({accuracyPct}%) in {timeTakenLabel}. Small reps, big shift.",
+    waBodyPattern: "{correct}/{total} ({accuracyPct}%) in {timeTakenLabel}. Small reps, big shift.",
     waCtaPattern: "Join the grind: {appUrl}",
   },
   {
@@ -261,8 +267,7 @@ const MOCK_WIN_DEFS: MockTestTemplateDef[] = [
     bodyPattern: "{correct}/{total} ({accuracyPct}%) · {timeTakenLabel}.",
     ctaPattern: "Keep streak: {appUrl}",
     waHook: "Weekly mock receipt (W edition): {examName}",
-    waBodyPattern:
-      "{correct}/{total} at {accuracyPct}% in {timeTakenLabel}. Showing up matters.",
+    waBodyPattern: "{correct}/{total} at {accuracyPct}% in {timeTakenLabel}. Showing up matters.",
     waCtaPattern: "Stay consistent: {appUrl}",
   },
   {
@@ -294,8 +299,7 @@ const MOCK_WIN_DEFS: MockTestTemplateDef[] = [
     bodyPattern: "{correct}/{total} · {accuracyPct}% · {timeTakenLabel}.",
     ctaPattern: "Log your mock: {appUrl}",
     waHook: "Data day: {examName}",
-    waBodyPattern:
-      "{correct}/{total} ({accuracyPct}%) in {timeTakenLabel}. Charts don't lie.",
+    waBodyPattern: "{correct}/{total} ({accuracyPct}%) in {timeTakenLabel}. Charts don't lie.",
     waCtaPattern: "Add your point: {appUrl}",
   },
   {
@@ -305,8 +309,7 @@ const MOCK_WIN_DEFS: MockTestTemplateDef[] = [
     bodyPattern: "{accuracyPct}% ({correct}/{total}) · {timeTakenLabel}.",
     ctaPattern: "Community + mocks: {appUrl}",
     waHook: "Main character energy on {examName}",
-    waBodyPattern:
-      "Dropped {correct}/{total} ({accuracyPct}%) in {timeTakenLabel}. Aura intact.",
+    waBodyPattern: "Dropped {correct}/{total} ({accuracyPct}%) in {timeTakenLabel}. Aura intact.",
     waCtaPattern: "Pull up: {appUrl}",
   },
   {

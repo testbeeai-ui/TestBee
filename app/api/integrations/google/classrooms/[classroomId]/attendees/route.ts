@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { createAdminClient, createClient, createClientWithToken } from "@/integrations/supabase/server";
+import {
+  createAdminClient,
+  createClient,
+  createClientWithToken,
+} from "@/integrations/supabase/server";
 import {
   getCalendarEvent,
   patchCalendarEvent,
@@ -24,7 +28,10 @@ export async function POST(_request: Request, ctx: { params: Promise<{ classroom
 
   const admin = createAdminClient();
   if (!admin) {
-    return NextResponse.json({ error: "Server is missing SUPABASE_SERVICE_ROLE_KEY." }, { status: 500 });
+    return NextResponse.json(
+      { error: "Server is missing SUPABASE_SERVICE_ROLE_KEY." },
+      { status: 500 }
+    );
   }
 
   let sectionId: string | null = null;
@@ -61,10 +68,13 @@ export async function POST(_request: Request, ctx: { params: Promise<{ classroom
     return NextResponse.json({ error: "Section not found." }, { status: 404 });
   }
 
-  const sectionRow = (sectionRes?.data ?? null) as
-    | { google_calendar_list_id?: string | null; google_recurring_event_id?: string | null }
-    | null;
-  const eventId = sectionId ? sectionRow?.google_recurring_event_id ?? null : room.google_recurring_event_id;
+  const sectionRow = (sectionRes?.data ?? null) as {
+    google_calendar_list_id?: string | null;
+    google_recurring_event_id?: string | null;
+  } | null;
+  const eventId = sectionId
+    ? (sectionRow?.google_recurring_event_id ?? null)
+    : room.google_recurring_event_id;
   const calId = sectionId
     ? sectionRow?.google_calendar_list_id?.trim() || "primary"
     : room.google_calendar_list_id?.trim() || "primary";

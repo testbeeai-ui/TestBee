@@ -1,7 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import {
-  fetchMockQuestionsForPaper,
-} from "@/lib/mock/mockPapersFromSupabase";
+import { fetchMockQuestionsForPaper } from "@/lib/mock/mockPapersFromSupabase";
 import type { Question } from "@/types";
 
 export type CbseChapterMcqBundle = {
@@ -19,6 +17,8 @@ export async function fetchCbseChapterMcqs(
     .select("id")
     .eq("slug", chapterId)
     .eq("paper_type", "chapter")
+    .eq("board", "CBSE")
+    .not("chapter_id", "is", null)
     .eq("class_level", classLevel)
     .eq("published", true)
     .maybeSingle();

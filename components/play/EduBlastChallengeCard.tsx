@@ -97,8 +97,7 @@ export default function EduBlastChallengeCard({
   const startTimeRef = useRef(Date.now());
   const autoAdvanceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const selectedIndex =
-    selectedIndexProp !== undefined ? selectedIndexProp : localSelected;
+  const selectedIndex = selectedIndexProp !== undefined ? selectedIndexProp : localSelected;
 
   useEffect(() => {
     startTimeRef.current = Date.now();
@@ -153,7 +152,8 @@ export default function EduBlastChallengeCard({
   const resultReviewSec = Math.max(1, Math.ceil(resultPauseMs / 1000));
 
   const isReadPhase = !answered && displaySecondsLeft > optionsPhaseSec;
-  const isAnswerPhase = !answered && displaySecondsLeft <= optionsPhaseSec && displaySecondsLeft > 0;
+  const isAnswerPhase =
+    !answered && displaySecondsLeft <= optionsPhaseSec && displaySecondsLeft > 0;
   const isUrgent = isAnswerPhase && displaySecondsLeft <= 5;
 
   const phaseBannerClass = answered
@@ -172,12 +172,14 @@ export default function EduBlastChallengeCard({
         ? "READ-ONLY PHASE"
         : "ANSWER PHASE";
 
-  const phaseTimerDisplay = formatEduBlastClock(displaySecondsLeft);
   const untilChoicesSec = Math.max(0, displaySecondsLeft - optionsPhaseSec);
+  const phaseTimerDisplay = formatEduBlastClock(
+    answered ? displaySecondsLeft : isReadPhase ? untilChoicesSec : displaySecondsLeft
+  );
   const phaseSub = answered
     ? `${resultFlash?.message ?? "Recorded"}${displaySecondsLeft > 0 ? ` · ${displaySecondsLeft}s left` : ""}`
     : isReadPhase
-      ? `Answer options unlock in ${untilChoicesSec}s`
+      ? "Answer options unlock in"
       : "Choose & confirm before time runs out";
 
   const ringTotal = answered ? resultReviewSec : isReadPhase ? readPhaseSec : optionsPhaseSec;
@@ -293,9 +295,9 @@ export default function EduBlastChallengeCard({
           aria-live="polite"
           aria-label={`${phaseLabel}. ${phaseTimerDisplay}. ${phaseSub}`}
         >
-          <div className="ebc-phase-label">{phaseLabel}</div>
-          <div className="ebc-phase-timer">{phaseTimerDisplay}</div>
           <div className="ebc-phase-sub">{phaseSub}</div>
+          <div className="ebc-phase-timer">{phaseTimerDisplay}</div>
+          <div className="ebc-phase-label">{phaseLabel}</div>
         </div>
 
         <div className="ebc-options-area">
@@ -303,7 +305,8 @@ export default function EduBlastChallengeCard({
             const isSelected = !showReveal && selectedIndex === i;
             const isCorrectPick = showReveal && pickedIndex === i && pickedIndex === correctIndex;
             const isWrongPick = showReveal && pickedIndex === i && pickedIndex !== correctIndex;
-            const isRevealCorrect = showReveal && i === correctIndex && pickedIndex !== correctIndex;
+            const isRevealCorrect =
+              showReveal && i === correctIndex && pickedIndex !== correctIndex;
 
             return (
               <button

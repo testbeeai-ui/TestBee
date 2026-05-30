@@ -17,6 +17,7 @@ import {
   clearPendingDeepLink,
 } from "@/lib/auth/safeNextPath";
 import { TEACHER_PORTAL_CLASSROOMS_URL } from "@/lib/teacherPortal/routes";
+import { OnboardingTermsAcceptance } from "@/components/legal/OnboardingTermsAcceptance";
 
 const googlePathD = {
   blue: "M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z",
@@ -70,6 +71,7 @@ function AuthContent() {
   const [activePanel, setActivePanel] = useState<"signin" | "signup">(() =>
     modeParam === "signup" ? "signup" : "signin"
   );
+  const [signupTermsAccepted, setSignupTermsAccepted] = useState(false);
 
   useEffect(() => {
     if (roleParam) {
@@ -285,6 +287,7 @@ function AuthContent() {
                   type="button"
                   onClick={() => {
                     setActivePanel("signin");
+                    setSignupTermsAccepted(false);
                     const p = new URLSearchParams(searchParams.toString());
                     p.set("mode", "signin");
                     router.replace(`/auth?${p.toString()}`, { scroll: false });
@@ -336,16 +339,23 @@ function AuthContent() {
                   </button>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => void startGoogleSignUp()}
-                  className="flex h-12 w-full items-center justify-center gap-2.5 rounded-xl border-0 bg-gradient-to-br from-[#7c3aed] to-[#e0496a] px-3 text-base font-medium text-white transition-opacity hover:opacity-[0.88] sm:h-14 sm:gap-3 sm:text-lg"
-                >
-                  <GoogleGlyph cta className="h-5 w-5 shrink-0 sm:h-6 sm:w-6" />
-                  <span className="text-center leading-tight">
-                    Sign up as {signupRoleLabel} with Google
-                  </span>
-                </button>
+                <OnboardingTermsAcceptance
+                  accepted={signupTermsAccepted}
+                  onAcceptedChange={setSignupTermsAccepted}
+                  className="border-white/10"
+                  action={
+                    <button
+                      type="button"
+                      onClick={() => void startGoogleSignUp()}
+                      className="flex h-12 w-full items-center justify-center gap-2.5 rounded-xl border-0 bg-gradient-to-br from-[#7c3aed] to-[#e0496a] px-3 text-base font-medium text-white transition-opacity hover:opacity-[0.88] sm:h-14 sm:gap-3 sm:text-lg"
+                    >
+                      <GoogleGlyph cta className="h-5 w-5 shrink-0 sm:h-6 sm:w-6" />
+                      <span className="text-center leading-tight">
+                        Sign up as {signupRoleLabel} with Google
+                      </span>
+                    </button>
+                  }
+                />
               </div>
             )}
           </motion.div>

@@ -9,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { slugify } from "@/lib/slugs";
-import { useUserStore } from "@/store/useUserStore";
+import { selectSavedCommunityPosts, useUserStore } from "@/store/useUserStore";
 import { syncAllSavedContent } from "@/lib/saved/savedContentService";
 import RawFeedPostCard, { type CommentRow } from "./RawFeedPostCard";
 import type { RawPostRow } from "./rawFeedTypes";
@@ -126,7 +126,7 @@ export default function RawCommunityFeed({
   const { user } = useAuth();
   const { toast } = useToast();
   const saveCommunityPost = useUserStore((s) => s.saveCommunityPost);
-  const savedCommunityPosts = useUserStore((s) => s.user?.savedCommunityPosts ?? []);
+  const savedCommunityPosts = useUserStore(selectSavedCommunityPosts);
   const [filter, setFilter] = useState<RawFeedFilter>(() => {
     if (mode === "full" && initialFilter) return initialFilter;
     return "all";
@@ -205,7 +205,11 @@ export default function RawCommunityFeed({
       }
 
       if (first.error) {
-        toast({ title: "Feed unavailable", description: first.error.message, variant: "destructive" });
+        toast({
+          title: "Feed unavailable",
+          description: first.error.message,
+          variant: "destructive",
+        });
         return null;
       }
       return (first.data ?? []) as unknown as RawPostRow[];
@@ -624,10 +628,11 @@ export default function RawCommunityFeed({
             <h3 className="text-base font-semibold tracking-tight text-foreground">Posts</h3>
             <p className="text-xs leading-relaxed text-muted-foreground">
               <span className="font-medium text-foreground/90">{FILTER_SUMMARY[filter]}</span>
-              <span className="mx-2 inline-block h-3 w-px translate-y-px bg-border align-middle" aria-hidden />
+              <span
+                className="mx-2 inline-block h-3 w-px translate-y-px bg-border align-middle"
+                aria-hidden
+              />
               <span className="tabular-nums">{itemsPerPage} rows per page</span>
-              <span className="mx-2 inline-block h-3 w-px translate-y-px bg-border align-middle" aria-hidden />
-              <span className="text-muted-foreground">Human posts only · not Gyan++</span>
             </p>
           </div>
           <Popover open={filterPopoverOpen} onOpenChange={setFilterPopoverOpen}>
@@ -659,7 +664,9 @@ export default function RawCommunityFeed({
             >
               <div className="border-b border-border/80 px-4 py-3 dark:border-white/10">
                 <p className="text-sm font-semibold text-foreground">Filter posts</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">Adjust subject scope and page density.</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Adjust subject scope and page density.
+                </p>
               </div>
               <div className="px-3 py-3">
                 <Label className="px-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -730,7 +737,12 @@ export default function RawCommunityFeed({
                 >
                   Reset to defaults
                 </Button>
-                <Button type="button" size="sm" className="h-8 px-4 text-xs font-semibold" onClick={() => setFilterPopoverOpen(false)}>
+                <Button
+                  type="button"
+                  size="sm"
+                  className="h-8 px-4 text-xs font-semibold"
+                  onClick={() => setFilterPopoverOpen(false)}
+                >
                   Done
                 </Button>
               </div>
@@ -740,11 +752,9 @@ export default function RawCommunityFeed({
       ) : (
         <>
           <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
-            <h3 className="text-sm font-bold text-foreground sm:text-base">Latest from your network</h3>
-            <p className="text-[11px] text-muted-foreground sm:text-xs">
-              Human posts only — not Gyan++.{" "}
-              <span className="text-foreground/70">Latest {PREVIEW_PAGE_SIZE}.</span>
-            </p>
+            <h3 className="text-sm font-bold text-foreground sm:text-base">
+              Latest from your network
+            </h3>
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
             {FILTER_CHIPS.map((c) => (

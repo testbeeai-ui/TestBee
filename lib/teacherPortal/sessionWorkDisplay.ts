@@ -41,11 +41,7 @@ export function inferSessionWorkKind(
   if (m === "none" || m === "no_assignment" || m === "noassignment") return "none";
   if (m === "concept_focus" || m === "conceptfocus") return "concept_focus";
   if (conceptRefLooksPopulated(conceptRef)) return "concept_focus";
-  if (
-    previewLinesFromWorkField.some((line) =>
-      /^concept\s*focus\s*[·•\-\:]/i.test(line.trim())
-    )
-  ) {
+  if (previewLinesFromWorkField.some((line) => /^concept\s*focus\s*[·•\-\:]/i.test(line.trim()))) {
     return "concept_focus";
   }
   return "custom";
@@ -74,12 +70,7 @@ export function formatConceptFocusRefForDisplay(ref: unknown): string {
     "";
   const subject = subjectRaw ? subjectLabel(subjectRaw) : "";
   const levelRaw = o.classLevel ?? o.class_level;
-  const cl =
-    levelRaw === 11 || levelRaw === 12
-      ? levelRaw === 11
-        ? "Class 11"
-        : "Class 12"
-      : "";
+  const cl = levelRaw === 11 || levelRaw === 12 ? (levelRaw === 11 ? "Class 11" : "Class 12") : "";
   const chapter =
     (typeof o.chapterTitle === "string" && o.chapterTitle.trim()) ||
     (typeof o.chapter_title === "string" && o.chapter_title.trim()) ||

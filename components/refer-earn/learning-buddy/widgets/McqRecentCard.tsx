@@ -10,17 +10,11 @@ function shortTitle(value: string, max = 40): string {
   return `${value.slice(0, max - 1)}…`;
 }
 
-export function McqRecentCard({
-  rows,
-}: {
-  rows: BuddyDashboardResponse["mcqRecent"];
-}) {
+export function McqRecentCard({ rows }: { rows: BuddyDashboardResponse["mcqRecent"] }) {
   return (
     <TileFrame title="Recent MCQs" accent="emerald">
       {rows.length === 0 ? (
-        <p className="text-[11px] text-slate-500">
-          No topic quizzes or mock tests yet.
-        </p>
+        <p className="text-[11px] text-slate-500">No topic quizzes or mock tests yet.</p>
       ) : (
         <ul className="space-y-1">
           {rows.map((row) => {

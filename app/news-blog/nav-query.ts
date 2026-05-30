@@ -66,7 +66,11 @@ export function normalizeListNav(
   const portal = partial.portal ?? "news";
   const isAdmin = opts?.isAdmin ?? false;
   let section = partial.section;
-  if (!section || (portal === "news" && !isNewsSection(section)) || (portal === "blog" && !isBlogSection(section))) {
+  if (
+    !section ||
+    (portal === "news" && !isNewsSection(section)) ||
+    (portal === "blog" && !isBlogSection(section))
+  ) {
     section = portal === "blog" ? "btoppers" : "nbuzz";
   } else if (portal === "news" && isNewsSection(section)) {
     section = coerceNewsSectionForRole(section, isAdmin);

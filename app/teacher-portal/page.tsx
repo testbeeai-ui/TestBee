@@ -21,10 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useTeacherVerificationActionGuard } from "@/hooks/useTeacherVerificationActionGuard";
 import { TEACHER_VERIFICATION_REQUIRED_ERROR } from "@/lib/teacherPortal/queries";
 import { TEACHER_PORTAL_CLASSROOMS_URL } from "@/lib/teacherPortal/routes";
-import {
-  TeacherRdmCostsProvider,
-  useTeacherRdmCosts,
-} from "@/hooks/TeacherRdmCostsContext";
+import { TeacherRdmCostsProvider, useTeacherRdmCosts } from "@/hooks/TeacherRdmCostsContext";
 
 function TeacherPortalPageContent() {
   const router = useRouter();
@@ -37,7 +34,7 @@ function TeacherPortalPageContent() {
   const [section, setSection] = useState<TeacherPortalSection>("myClassroom");
   const adminTeacherIdRaw = searchParams.get("adminTeacherId")?.trim() ?? "";
   const isAdminImpersonation = Boolean(adminTeacherIdRaw) && profile?.role === "admin";
-  const targetTeacherId = isAdminImpersonation ? adminTeacherIdRaw : user?.id ?? null;
+  const targetTeacherId = isAdminImpersonation ? adminTeacherIdRaw : (user?.id ?? null);
   const { costs: teacherRdmCosts } = useTeacherRdmCosts();
 
   const {
@@ -151,10 +148,11 @@ function TeacherPortalPageContent() {
     refresh: activeHook.refresh,
   });
 
-  const { guardAction, isGateOpen, blockedActionLabel, closeGate } = useTeacherVerificationActionGuard({
-    verificationStatus,
-    isAdminImpersonation,
-  });
+  const { guardAction, isGateOpen, blockedActionLabel, closeGate } =
+    useTeacherVerificationActionGuard({
+      verificationStatus,
+      isAdminImpersonation,
+    });
   useEffect(() => {
     if (isGateOpen && verificationStatus === "approved") {
       closeGate();
@@ -186,9 +184,7 @@ function TeacherPortalPageContent() {
     nextParams.set("section", "profile");
     nextParams.set("edit", "1");
     const nextQuery = nextParams.toString();
-    router.replace(
-      nextQuery ? `/teacher-portal?${nextQuery}` : TEACHER_PORTAL_CLASSROOMS_URL
-    );
+    router.replace(nextQuery ? `/teacher-portal?${nextQuery}` : TEACHER_PORTAL_CLASSROOMS_URL);
   }, [closeGate, router, searchParams]);
 
   const handleRefreshVerificationStatus = useCallback(async () => {
@@ -235,11 +231,10 @@ function TeacherPortalPageContent() {
 
   const teacherName =
     activeHook.data?.profile.name ??
-    (isAdminImpersonation ? "Teacher" : profile?.name ?? "Teacher");
-  const teacherSubtitle =
-    activeHook.data?.profile?.subjects.join(" · ") || "EduBlast Teacher";
+    (isAdminImpersonation ? "Teacher" : (profile?.name ?? "Teacher"));
+  const teacherSubtitle = activeHook.data?.profile?.subjects.join(" · ") || "EduBlast Teacher";
   const rdmBalance =
-    activeHook.data?.profile.rdm ?? (isAdminImpersonation ? 0 : profile?.rdm ?? 0);
+    activeHook.data?.profile.rdm ?? (isAdminImpersonation ? 0 : (profile?.rdm ?? 0));
 
   return (
     <ProtectedRoute>
@@ -376,10 +371,7 @@ function TeacherPortalPageContent() {
                 teacherId={targetTeacherId ?? ""}
                 classrooms={activeHook.data.classrooms}
                 onRequireVerifiedAction={async (actionLabel) => {
-                  const result = await guardAction(
-                    async () => true,
-                    { actionLabel }
-                  );
+                  const result = await guardAction(async () => true, { actionLabel });
                   return result === true;
                 }}
                 onCreateAssignment={async (input) => {

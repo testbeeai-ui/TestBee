@@ -79,7 +79,10 @@ export async function GET(
   }
 
   if (!parseChapterQuizRefFromContentJson(post.content_json)) {
-    return NextResponse.json({ error: "Assignment has no subtopic anchor (chapterQuiz)" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Assignment has no subtopic anchor (chapterQuiz)" },
+      { status: 400 }
+    );
   }
 
   const postSectionId =

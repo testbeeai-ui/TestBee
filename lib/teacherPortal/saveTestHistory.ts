@@ -4,7 +4,7 @@ interface SaveTestHistoryParams {
   board: string;
   classLevel: 11 | 12;
   subject: "physics" | "chemistry" | "math";
-  scope: "Topic-wise" | "Unit-wise";
+  scope: "Topic-wise" | "Unit-wise" | "Chapter-wise" | "Full paper";
   chapterTitle?: string | null;
   topicTitle?: string | null;
   unitTitle?: string | null;

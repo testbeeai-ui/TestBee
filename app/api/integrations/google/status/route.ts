@@ -54,7 +54,9 @@ export async function GET(request: Request) {
       tokenLookupFailed = true;
       console.error("[google/status] teacher_google_calendar_tokens:", tokErr.message);
     } else {
-      calendarConnected = Boolean(tok?.refresh_token && String(tok.refresh_token).trim().length > 0);
+      calendarConnected = Boolean(
+        tok?.refresh_token && String(tok.refresh_token).trim().length > 0
+      );
     }
   } else {
     // Never infer Calendar access from profiles.google_connected — it was historically conflated with

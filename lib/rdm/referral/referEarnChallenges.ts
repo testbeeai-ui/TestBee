@@ -135,24 +135,39 @@ export function formatReferDurationMmSs(sec: number): string {
 }
 
 export function getReferChallengeSpecs(config: RdmConfigParams): ReferChallengePublicSpec[] {
-  return BASE_SPECS.map(base => {
+  return BASE_SPECS.map((base) => {
     let winRdm = 0;
     let shareRdm = 0;
-    if (base.key === "5") { winRdm = config.challenge_5_win; shareRdm = config.challenge_5_share; }
-    if (base.key === "10") { winRdm = config.challenge_10_win; shareRdm = config.challenge_10_share; }
-    if (base.key === "20") { winRdm = config.challenge_20_win; shareRdm = config.challenge_20_share; }
-    if (base.key === "50") { winRdm = config.challenge_50_win; shareRdm = config.challenge_50_share; }
+    if (base.key === "5") {
+      winRdm = config.challenge_5_win;
+      shareRdm = config.challenge_5_share;
+    }
+    if (base.key === "10") {
+      winRdm = config.challenge_10_win;
+      shareRdm = config.challenge_10_share;
+    }
+    if (base.key === "20") {
+      winRdm = config.challenge_20_win;
+      shareRdm = config.challenge_20_share;
+    }
+    if (base.key === "50") {
+      winRdm = config.challenge_50_win;
+      shareRdm = config.challenge_50_share;
+    }
 
     return {
       ...base,
       winRdm,
       shareRdm,
-      totalRdm: winRdm + shareRdm
+      totalRdm: winRdm + shareRdm,
     };
   });
 }
 
-export function referChallengeSpec(key: ReferClaimKey, config: RdmConfigParams): ReferChallengePublicSpec | undefined {
+export function referChallengeSpec(
+  key: ReferClaimKey,
+  config: RdmConfigParams
+): ReferChallengePublicSpec | undefined {
   return getReferChallengeSpecs(config).find((s) => s.key === key);
 }
 

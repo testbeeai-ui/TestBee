@@ -35,7 +35,9 @@ function parseSubjects(raw: Record<string, unknown> | null): {
   };
 }
 
-function parseCoaching(raw: Record<string, unknown> | null): { instituteName?: string; attendingSince?: string } | null {
+function parseCoaching(
+  raw: Record<string, unknown> | null
+): { instituteName?: string; attendingSince?: string } | null {
   if (!raw) return null;
   return {
     instituteName: typeof raw.instituteName === "string" ? raw.instituteName : undefined,
@@ -59,17 +61,23 @@ export async function GET(request: Request, { params }: { params: Promise<{ user
     const { userId } = await params;
     if (!userId) return NextResponse.json({ error: "Missing userId" }, { status: 400 });
 
-    const [{ data: profile, error: profileError }, { data: academics, error: academicsError }] = await Promise.all([
-      admin.from("profiles").select("id, name, academic_record_extras").eq("id", userId).maybeSingle(),
-      admin
-        .from("profile_academics")
-        .select("exam, board, score, verified, academic_year")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false }),
-    ]);
+    const [{ data: profile, error: profileError }, { data: academics, error: academicsError }] =
+      await Promise.all([
+        admin
+          .from("profiles")
+          .select("id, name, academic_record_extras")
+          .eq("id", userId)
+          .maybeSingle(),
+        admin
+          .from("profile_academics")
+          .select("exam, board, score, verified, academic_year")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false }),
+      ]);
 
     if (profileError) return NextResponse.json({ error: profileError.message }, { status: 500 });
-    if (academicsError) return NextResponse.json({ error: academicsError.message }, { status: 500 });
+    if (academicsError)
+      return NextResponse.json({ error: academicsError.message }, { status: 500 });
 
     const classX = (academics ?? []).find((a) => rowMatchesClassX(a.exam));
     const classXI = (academics ?? []).find((a) => rowMatchesClassXI(a.exam));
@@ -91,7 +99,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ user
         ? (extras.classXIISubjects as Record<string, unknown>)
         : null;
     const coachingRaw =
-      extras?.coaching && typeof extras.coaching === "object" ? (extras.coaching as Record<string, unknown>) : null;
+      extras?.coaching && typeof extras.coaching === "object"
+        ? (extras.coaching as Record<string, unknown>)
+        : null;
     const coachingXiRaw =
       extras?.coachingXI && typeof extras.coachingXI === "object"
         ? (extras.coachingXI as Record<string, unknown>)
@@ -135,7 +145,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ user
       coachingXI: parseCoaching(coachingXiRaw),
       coachingXII: parseCoaching(coachingXiiRaw),
       puc2InternalsPercent:
-        extras && typeof extras.puc2InternalsPercent === "string" ? extras.puc2InternalsPercent : undefined,
+        extras && typeof extras.puc2InternalsPercent === "string"
+          ? extras.puc2InternalsPercent
+          : undefined,
     });
   } catch (e) {
     console.error("[admin/student-academics/user/:userId] GET", e);

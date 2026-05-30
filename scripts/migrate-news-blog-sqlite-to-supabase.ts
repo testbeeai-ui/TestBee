@@ -30,8 +30,7 @@ function toIso(s: unknown): string {
 
 function rowToInsert(row: Record<string, unknown>): NewsBlogInsert {
   const featured = String(row.featured ?? "feed");
-  const normalizedFeatured =
-    featured === "hero" || featured === "sidebar" ? featured : "feed";
+  const normalizedFeatured = featured === "hero" || featured === "sidebar" ? featured : "feed";
   const portal = String(row.portal) === "blog" ? "blog" : "news";
   const contentFormat = String(row.content_format ?? "text") === "html" ? "html" : "text";
 

@@ -117,12 +117,7 @@ export default function TokenLogsPage() {
       if (userFilter !== "all" && (row.user_id ?? "system") !== userFilter) return false;
       if (monthFilter !== "all" && month !== monthFilter) return false;
       if (!q) return true;
-      const hay = [
-        row.action_type,
-        row.model_id,
-        row.backend,
-        row.user_id ?? "system",
-      ]
+      const hay = [row.action_type, row.model_id, row.backend, row.user_id ?? "system"]
         .join(" ")
         .toLowerCase();
       return hay.includes(q);

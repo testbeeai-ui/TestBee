@@ -35,12 +35,7 @@ export function TileFrame({
       />
       <div className="relative rounded-[10px] bg-[#0a0b13] px-2.5 py-2 min-h-[110px]">
         <div className="mb-1.5 flex items-center justify-between gap-2">
-          <p
-            className={cn(
-              "text-[10px] font-bold uppercase tracking-[0.12em]",
-              tone.title
-            )}
-          >
+          <p className={cn("text-[10px] font-bold uppercase tracking-[0.12em]", tone.title)}>
             {title}
           </p>
           {trailing}

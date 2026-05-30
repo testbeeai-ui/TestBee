@@ -109,7 +109,6 @@ import type { MyClassroomViewProps } from "../types";
 import { formatOptionalPercent, initials, statusPill } from "../utils/display";
 import { normalizeTeacherMotivationExternalUrl } from "../utils/motivation-url";
 
-
 export function TeacherCounselStudentWizard(props: {
   stepIdx: number; // 0..3
   classrooms: TeacherPortalClassroomCard[];
@@ -131,9 +130,9 @@ export function TeacherCounselStudentWizard(props: {
   );
   const sections = detail?.sections ?? [];
 
-  const [scope, setScope] = useState<{ kind: "class" } | { kind: "unassigned" } | { kind: "section"; id: string }>(
-    { kind: "class" }
-  );
+  const [scope, setScope] = useState<
+    { kind: "class" } | { kind: "unassigned" } | { kind: "section"; id: string }
+  >({ kind: "class" });
 
   const roster = useMemo(() => {
     if (scope.kind === "class") return rosterAll;
@@ -170,7 +169,8 @@ export function TeacherCounselStudentWizard(props: {
     { id: "watch_recorded", label: "Watch recorded class on this topic" },
     { id: "none", label: "No specific action recommended" },
   ];
-  const [recommendAction, setRecommendAction] = useState<RecommendActionId>("attempt_targeted_mock");
+  const [recommendAction, setRecommendAction] =
+    useState<RecommendActionId>("attempt_targeted_mock");
   const [recommendUrl, setRecommendUrl] = useState("");
   const [sending, setSending] = useState(false);
 
@@ -196,14 +196,20 @@ export function TeacherCounselStudentWizard(props: {
     if (rosterAll.some((s) => s.userId === studentId)) return;
     setStudentId("");
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [classroomId, scope.kind, "id" in scope ? scope.id : "", sortedRoster.length, rosterAll.length]);
+  }, [
+    classroomId,
+    scope.kind,
+    "id" in scope ? scope.id : "",
+    sortedRoster.length,
+    rosterAll.length,
+  ]);
 
   const scopeLabel =
     scope.kind === "class"
       ? "Whole classroom"
       : scope.kind === "unassigned"
         ? "Unassigned students"
-        : sections.find((s) => s.id === scope.id)?.name ?? "Section";
+        : (sections.find((s) => s.id === scope.id)?.name ?? "Section");
 
   const avgScore = selectedStudent?.avgScorePercent ?? null;
   const streakDays = selectedStudent?.streakDays ?? 0;
@@ -226,7 +232,9 @@ export function TeacherCounselStudentWizard(props: {
             selectedStudent.userId
           )}/weak-areas`,
           {
-            headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
+            headers: session?.access_token
+              ? { Authorization: `Bearer ${session.access_token}` }
+              : {},
             credentials: "include",
           }
         );
@@ -317,7 +325,11 @@ export function TeacherCounselStudentWizard(props: {
           <label className="mb-1 block text-xs font-semibold text-slate-300">Section scope</label>
           <select
             value={
-              scope.kind === "class" ? "__class__" : scope.kind === "unassigned" ? "__unassigned__" : scope.id
+              scope.kind === "class"
+                ? "__class__"
+                : scope.kind === "unassigned"
+                  ? "__unassigned__"
+                  : scope.id
             }
             onChange={(e) => {
               const v = e.target.value;
@@ -380,7 +392,8 @@ export function TeacherCounselStudentWizard(props: {
                 {selectedStudent.name}
               </div>
               <div className="text-[11px] text-slate-400">
-                Scope: {scopeLabel} · Avg score {formatOptionalPercent(selectedStudent.avgScorePercent)} ·{" "}
+                Scope: {scopeLabel} · Avg score{" "}
+                {formatOptionalPercent(selectedStudent.avgScorePercent)} ·{" "}
                 <span className={statusPill(selectedStudent.status)}>
                   {selectedStudent.status.replaceAll("_", " ")}
                 </span>
@@ -475,7 +488,9 @@ export function TeacherCounselStudentWizard(props: {
                 {weakAreas.map((wa) => (
                   <div key={wa.topic} className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="truncate text-sm font-semibold text-slate-200">{wa.topic}</div>
+                      <div className="truncate text-sm font-semibold text-slate-200">
+                        {wa.topic}
+                      </div>
                     </div>
                     <div className="flex w-48 items-center gap-2">
                       <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
@@ -515,7 +530,9 @@ export function TeacherCounselStudentWizard(props: {
       ) : (
         <>
           <div>
-            <label className="mb-1 block text-xs font-semibold text-slate-300">Counselling approach</label>
+            <label className="mb-1 block text-xs font-semibold text-slate-300">
+              Counselling approach
+            </label>
             <select
               value={approach}
               onChange={(e) => {
@@ -555,7 +572,8 @@ export function TeacherCounselStudentWizard(props: {
   const step4 = (
     <div className="mt-3 space-y-2 sm:space-y-3">
       <div className="text-xs leading-relaxed text-slate-300">
-        Send your message with optional RDM encouragement. (Recommended actions list excludes Instacue as requested.)
+        Send your message with optional RDM encouragement. (Recommended actions list excludes
+        Instacue as requested.)
       </div>
 
       {!selectedStudent ? (
@@ -564,155 +582,160 @@ export function TeacherCounselStudentWizard(props: {
         )
       ) : (
         <>
-      <div>
-        <div className="mb-1 text-xs font-semibold text-slate-300">Add RDM encouragement?</div>
-        <div className="flex flex-wrap gap-2">
-          {[
-            { label: "No RDM", value: 0 },
-            { label: "+10 RDM", value: 10 },
-            { label: "+25 RDM", value: 25 },
-            { label: "+50 RDM", value: 50 },
-          ].map((o) => {
-            const on = encourageRdm === o.value;
-            return (
-              <button
-                key={o.value}
-                type="button"
-                onClick={() => setEncourageRdm(o.value)}
-                className={`rounded-full border px-3 py-2 text-xs font-semibold transition ${
-                  on
-                    ? "border-emerald-400/40 bg-emerald-500/10 text-emerald-200"
-                    : "border-white/10 bg-[#0d0d1c] text-slate-300 hover:bg-white/[0.03]"
-                }`}
-              >
-                {o.label}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+          <div>
+            <div className="mb-1 text-xs font-semibold text-slate-300">Add RDM encouragement?</div>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { label: "No RDM", value: 0 },
+                { label: "+10 RDM", value: 10 },
+                { label: "+25 RDM", value: 25 },
+                { label: "+50 RDM", value: 50 },
+              ].map((o) => {
+                const on = encourageRdm === o.value;
+                return (
+                  <button
+                    key={o.value}
+                    type="button"
+                    onClick={() => setEncourageRdm(o.value)}
+                    className={`rounded-full border px-3 py-2 text-xs font-semibold transition ${
+                      on
+                        ? "border-emerald-400/40 bg-emerald-500/10 text-emerald-200"
+                        : "border-white/10 bg-[#0d0d1c] text-slate-300 hover:bg-white/[0.03]"
+                    }`}
+                  >
+                    {o.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
 
-      <div>
-        <label className="mb-1 block text-xs font-semibold text-slate-300">Recommend a specific action</label>
-        <select
-          value={recommendAction}
-          onChange={(e) => {
-            const next = e.target.value as RecommendActionId;
-            setRecommendAction(next);
-            if (next !== "watch_recorded") setRecommendUrl("");
-          }}
-          className={selectClassName}
-        >
-          {recommendActions.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.label}
-            </option>
-          ))}
-        </select>
-      </div>
+          <div>
+            <label className="mb-1 block text-xs font-semibold text-slate-300">
+              Recommend a specific action
+            </label>
+            <select
+              value={recommendAction}
+              onChange={(e) => {
+                const next = e.target.value as RecommendActionId;
+                setRecommendAction(next);
+                if (next !== "watch_recorded") setRecommendUrl("");
+              }}
+              className={selectClassName}
+            >
+              {recommendActions.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.label}
+                </option>
+              ))}
+            </select>
+          </div>
 
-      {recommendAction === "watch_recorded" ? (
-        <div>
-          <label className="mb-1 block text-xs font-semibold text-slate-300">
-            Recorded class link <span className="text-rose-300">*</span>
-          </label>
-          <input
-            value={recommendUrl}
-            onChange={(e) => setRecommendUrl(e.target.value)}
-            placeholder="Paste the YouTube / Drive / website link…"
-            className={selectClassName}
-          />
-          {!recommendUrl.trim() ? (
-            <div className="mt-1 text-[11px] text-rose-200/90">
-              Link is required when recommending recorded classes.
+          {recommendAction === "watch_recorded" ? (
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-slate-300">
+                Recorded class link <span className="text-rose-300">*</span>
+              </label>
+              <input
+                value={recommendUrl}
+                onChange={(e) => setRecommendUrl(e.target.value)}
+                placeholder="Paste the YouTube / Drive / website link…"
+                className={selectClassName}
+              />
+              {!recommendUrl.trim() ? (
+                <div className="mt-1 text-[11px] text-rose-200/90">
+                  Link is required when recommending recorded classes.
+                </div>
+              ) : null}
             </div>
           ) : null}
-        </div>
-      ) : null}
 
-      <div className="rounded-2xl border border-white/10 bg-[#070b17] p-3 sm:p-4">
-        <div className="grid gap-2 text-xs">
-          <div className="flex items-start justify-between gap-3">
-            <span className="text-slate-400">Sending to</span>
-            <span className="text-slate-100 font-semibold">{selectedStudent?.name ?? "—"}</span>
+          <div className="rounded-2xl border border-white/10 bg-[#070b17] p-3 sm:p-4">
+            <div className="grid gap-2 text-xs">
+              <div className="flex items-start justify-between gap-3">
+                <span className="text-slate-400">Sending to</span>
+                <span className="text-slate-100 font-semibold">{selectedStudent?.name ?? "—"}</span>
+              </div>
+              <div className="flex items-start justify-between gap-3">
+                <span className="text-slate-400">RDM bonus</span>
+                <span className="text-slate-100 font-semibold">
+                  {encourageRdm > 0 ? `+${encourageRdm} RDM` : "No RDM"}
+                </span>
+              </div>
+              <div className="flex items-start justify-between gap-3">
+                <span className="text-slate-400">Delivery</span>
+                <span className="text-slate-100 font-semibold">
+                  Instant — as teacher notification
+                </span>
+              </div>
+            </div>
           </div>
-          <div className="flex items-start justify-between gap-3">
-            <span className="text-slate-400">RDM bonus</span>
-            <span className="text-slate-100 font-semibold">
-              {encourageRdm > 0 ? `+${encourageRdm} RDM` : "No RDM"}
-            </span>
-          </div>
-          <div className="flex items-start justify-between gap-3">
-            <span className="text-slate-400">Delivery</span>
-            <span className="text-slate-100 font-semibold">Instant — as teacher notification</span>
-          </div>
-        </div>
-      </div>
 
-      <div className="flex items-center justify-end gap-3">
-        <button
-          type="button"
-          disabled={
-            !selectedStudent ||
-            !advice.trim() ||
-            sending ||
-            (recommendAction === "watch_recorded" && !recommendUrl.trim())
-          }
-          onClick={async () => {
-            if (!selectedStudent) return;
-            if (!advice.trim()) return;
-            if (!classroomId) return;
-            if (recommendAction === "watch_recorded" && !recommendUrl.trim()) return;
-            setSending(true);
-            try {
-              const actionText = recommendActions.find((a) => a.id === recommendAction)?.label ?? "";
-              const recordedUrl =
-                recommendAction === "watch_recorded"
-                  ? normalizeTeacherMotivationExternalUrl(recommendUrl)
-                  : null;
-              if (recommendAction === "watch_recorded" && !recordedUrl) {
-                toast({
-                  title: "Invalid link",
-                  description: "Please paste a valid http(s) link (YouTube / Drive / website).",
-                  variant: "destructive",
-                });
-                return;
+          <div className="flex items-center justify-end gap-3">
+            <button
+              type="button"
+              disabled={
+                !selectedStudent ||
+                !advice.trim() ||
+                sending ||
+                (recommendAction === "watch_recorded" && !recommendUrl.trim())
               }
-              await props.onMotivateStudents({
-                classroomId,
-                sectionId: scope.kind === "section" ? scope.id : null,
-                actionKind,
-                targetStudentIds: [selectedStudent.userId],
-                message: advice.trim(),
-                rdmDelta: encourageRdm,
-                recommendActionId: recommendAction,
-                recommendActionLabel: actionText || undefined,
-                recommendActionUrl:
-                  recommendAction === "watch_recorded"
-                    ? recordedUrl ?? undefined
-                    : recommendAction === "attempt_targeted_mock"
-                      ? "/mock-test"
-                      : recommendAction === "post_doubt"
-                        ? "/doubts"
-                        : undefined,
-              });
-              toast({ title: "Counselling message sent" });
-              props.onDone();
-            } catch (e) {
-              toast({
-                title: "Could not send message",
-                description: e instanceof Error ? e.message : "Try again.",
-                variant: "destructive",
-              });
-            } finally {
-              setSending(false);
-            }
-          }}
-          className="rounded-full bg-emerald-500 px-5 py-2.5 text-xs font-semibold text-black hover:bg-emerald-400 disabled:opacity-60 sm:px-6 sm:py-3"
-        >
-          {sending ? "Sending…" : "Send message + RDM"}
-        </button>
-      </div>
+              onClick={async () => {
+                if (!selectedStudent) return;
+                if (!advice.trim()) return;
+                if (!classroomId) return;
+                if (recommendAction === "watch_recorded" && !recommendUrl.trim()) return;
+                setSending(true);
+                try {
+                  const actionText =
+                    recommendActions.find((a) => a.id === recommendAction)?.label ?? "";
+                  const recordedUrl =
+                    recommendAction === "watch_recorded"
+                      ? normalizeTeacherMotivationExternalUrl(recommendUrl)
+                      : null;
+                  if (recommendAction === "watch_recorded" && !recordedUrl) {
+                    toast({
+                      title: "Invalid link",
+                      description: "Please paste a valid http(s) link (YouTube / Drive / website).",
+                      variant: "destructive",
+                    });
+                    return;
+                  }
+                  await props.onMotivateStudents({
+                    classroomId,
+                    sectionId: scope.kind === "section" ? scope.id : null,
+                    actionKind,
+                    targetStudentIds: [selectedStudent.userId],
+                    message: advice.trim(),
+                    rdmDelta: encourageRdm,
+                    recommendActionId: recommendAction,
+                    recommendActionLabel: actionText || undefined,
+                    recommendActionUrl:
+                      recommendAction === "watch_recorded"
+                        ? (recordedUrl ?? undefined)
+                        : recommendAction === "attempt_targeted_mock"
+                          ? "/mock-test"
+                          : recommendAction === "post_doubt"
+                            ? "/doubts"
+                            : undefined,
+                  });
+                  toast({ title: "Counselling message sent" });
+                  props.onDone();
+                } catch (e) {
+                  toast({
+                    title: "Could not send message",
+                    description: e instanceof Error ? e.message : "Try again.",
+                    variant: "destructive",
+                  });
+                } finally {
+                  setSending(false);
+                }
+              }}
+              className="rounded-full bg-emerald-500 px-5 py-2.5 text-xs font-semibold text-black hover:bg-emerald-400 disabled:opacity-60 sm:px-6 sm:py-3"
+            >
+              {sending ? "Sending…" : "Send message + RDM"}
+            </button>
+          </div>
         </>
       )}
     </div>

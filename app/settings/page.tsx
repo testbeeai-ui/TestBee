@@ -22,11 +22,7 @@ export default function SettingsPage() {
   }, [authLoading, authUser, profile, router]);
 
   if (!authLoading && !authUser) {
-    return (
-      <ProtectedRoute>
-        {null}
-      </ProtectedRoute>
-    );
+    return <ProtectedRoute>{null}</ProtectedRoute>;
   }
 
   return (

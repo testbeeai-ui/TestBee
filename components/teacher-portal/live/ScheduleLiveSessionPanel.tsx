@@ -168,7 +168,10 @@ export default function ScheduleLiveSessionPanel({
   useLayoutEffect(() => {
     const key = sessionDraftKey;
     if (!key || variant !== "embedded") return;
-    const classroomSig = classrooms.map((c) => c.id).sort().join(",");
+    const classroomSig = classrooms
+      .map((c) => c.id)
+      .sort()
+      .join(",");
     const marker = `${key}|${classroomSig}`;
     let raw: string | null = null;
     try {
@@ -201,9 +204,17 @@ export default function ScheduleLiveSessionPanel({
       if (typeof d.allowAdhocTrial === "boolean") setAllowAdhocTrial(d.allowAdhocTrial);
       if (typeof d.preWork === "string") setPreWork(d.preWork);
       if (typeof d.postWork === "string") setPostWork(d.postWork);
-      if (d.preWorkMode === "none" || d.preWorkMode === "custom" || d.preWorkMode === "concept_focus")
+      if (
+        d.preWorkMode === "none" ||
+        d.preWorkMode === "custom" ||
+        d.preWorkMode === "concept_focus"
+      )
         setPreWorkMode(d.preWorkMode);
-      if (d.postWorkMode === "none" || d.postWorkMode === "custom" || d.postWorkMode === "concept_focus")
+      if (
+        d.postWorkMode === "none" ||
+        d.postWorkMode === "custom" ||
+        d.postWorkMode === "concept_focus"
+      )
         setPostWorkMode(d.postWorkMode);
       if (d.preWorkConceptSel && typeof d.preWorkConceptSel === "object")
         setPreWorkConceptSel(d.preWorkConceptSel);
@@ -580,11 +591,18 @@ export default function ScheduleLiveSessionPanel({
   };
 
   const baseSubmitLabel =
-    submitLabel ?? (headingTitle.toLowerCase().includes("webinar") ? "Schedule webinar" : "Schedule class");
+    submitLabel ??
+    (headingTitle.toLowerCase().includes("webinar") ? "Schedule webinar" : "Schedule class");
   const resolvedSubmitLabel = `${baseSubmitLabel} (-${teacherRdmCosts.schedule_session} RDM)`;
 
   const stepCount = 5 as const;
-  const stepTabLabels = ["Title & Classroom", "Date & Meet", "Pre-work", "Post-work", "Trial & Publish"] as const;
+  const stepTabLabels = [
+    "Title & Classroom",
+    "Date & Meet",
+    "Pre-work",
+    "Post-work",
+    "Trial & Publish",
+  ] as const;
   const progressPct = Math.round((wizardStep / stepCount) * 100);
 
   const scrollMaxClass =
@@ -635,7 +653,9 @@ export default function ScheduleLiveSessionPanel({
               <div className="font-serif text-lg leading-tight sm:text-xl">
                 Schedule a <span className="italic text-emerald-300">lesson / webinar</span>
               </div>
-              <p className="mt-0.5 text-[11px] leading-snug text-slate-400 line-clamp-3 sm:text-xs">{headingSubtitle}</p>
+              <p className="mt-0.5 text-[11px] leading-snug text-slate-400 line-clamp-3 sm:text-xs">
+                {headingSubtitle}
+              </p>
             </div>
             <button
               type="button"
@@ -648,7 +668,9 @@ export default function ScheduleLiveSessionPanel({
           </div>
         ) : (
           <>
-            <div className="font-serif text-xl leading-tight sm:text-2xl lg:text-3xl">{headingTitle}</div>
+            <div className="font-serif text-xl leading-tight sm:text-2xl lg:text-3xl">
+              {headingTitle}
+            </div>
             <p className="mt-1 text-xs text-slate-400 sm:text-sm">{headingSubtitle}</p>
           </>
         )}
@@ -764,7 +786,9 @@ export default function ScheduleLiveSessionPanel({
           {wizardStep === 1 ? (
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-5">
               <div>
-                <label className="mb-1 block text-xs font-semibold text-slate-300 sm:text-sm">Classroom</label>
+                <label className="mb-1 block text-xs font-semibold text-slate-300 sm:text-sm">
+                  Classroom
+                </label>
                 <select
                   value={classroomId}
                   onChange={(e) => {
@@ -819,12 +843,15 @@ export default function ScheduleLiveSessionPanel({
                   ))}
                 </select>
                 <p className="mt-1 text-[11px] text-slate-500">
-                  Whole class = everyone gets notified. Only section = just that section gets notified.
+                  Whole class = everyone gets notified. Only section = just that section gets
+                  notified.
                 </p>
               </div>
               <div className="grid grid-cols-1 gap-2 min-[480px]:grid-cols-2 min-[480px]:gap-3">
                 <div className="min-w-0">
-                  <label className="mb-0.5 block text-[11px] font-semibold text-slate-300 sm:text-xs">Date *</label>
+                  <label className="mb-0.5 block text-[11px] font-semibold text-slate-300 sm:text-xs">
+                    Date *
+                  </label>
                   <input
                     ref={dateInputRef}
                     type="date"
@@ -836,11 +863,15 @@ export default function ScheduleLiveSessionPanel({
                 </div>
                 <div className="flex min-w-0 flex-col gap-2">
                   <div className="min-w-0">
-                    <label className="mb-0.5 block text-[11px] font-semibold text-slate-300 sm:text-xs">Start *</label>
+                    <label className="mb-0.5 block text-[11px] font-semibold text-slate-300 sm:text-xs">
+                      Start *
+                    </label>
                     <WallTimeSelects value={startTime} onChange={setStartTime} />
                   </div>
                   <div className="min-w-0">
-                    <label className="mb-0.5 block text-[11px] font-semibold text-slate-300 sm:text-xs">Duration</label>
+                    <label className="mb-0.5 block text-[11px] font-semibold text-slate-300 sm:text-xs">
+                      Duration
+                    </label>
                     <select
                       value={String(durationMinutes)}
                       onChange={(e) => setDurationMinutes(Number(e.target.value))}
@@ -881,7 +912,9 @@ export default function ScheduleLiveSessionPanel({
                   </label>
                   <select
                     value={preWorkMode}
-                    onChange={(e) => setPreWorkMode(e.target.value as "none" | "custom" | "concept_focus")}
+                    onChange={(e) =>
+                      setPreWorkMode(e.target.value as "none" | "custom" | "concept_focus")
+                    }
                     className={selectClassName}
                   >
                     <option value="none">No assignment</option>
@@ -894,7 +927,9 @@ export default function ScheduleLiveSessionPanel({
                 </p>
               </div>
               {preWorkMode === "none" ? null : (
-                <p className="text-[10px] text-slate-500">Required unless you choose “No assignment”.</p>
+                <p className="text-[10px] text-slate-500">
+                  Required unless you choose “No assignment”.
+                </p>
               )}
 
               {preWorkMode === "none" ? (
@@ -948,8 +983,8 @@ export default function ScheduleLiveSessionPanel({
           {wizardStep === 4 ? (
             <div className="space-y-2">
               <p className="text-xs leading-snug text-slate-400 sm:text-[13px]">
-                Students earn <span className="font-semibold text-emerald-300/95">+40 RDM</span> automatically when they
-                complete all post-work (when configured).
+                Students earn <span className="font-semibold text-emerald-300/95">+40 RDM</span>{" "}
+                automatically when they complete all post-work (when configured).
               </p>
               <div className="grid grid-cols-1 gap-2 lg:grid-cols-2 lg:gap-x-3">
                 <div className="min-w-0 space-y-1">
@@ -958,7 +993,9 @@ export default function ScheduleLiveSessionPanel({
                   </label>
                   <select
                     value={postWorkMode}
-                    onChange={(e) => setPostWorkMode(e.target.value as "none" | "custom" | "concept_focus")}
+                    onChange={(e) =>
+                      setPostWorkMode(e.target.value as "none" | "custom" | "concept_focus")
+                    }
                     className={selectClassName}
                   >
                     <option value="none">No assignment</option>
@@ -983,7 +1020,9 @@ export default function ScheduleLiveSessionPanel({
                 </div>
               </div>
               {postWorkMode === "none" ? null : (
-                <p className="text-[10px] text-slate-500">Required unless you choose “No assignment”.</p>
+                <p className="text-[10px] text-slate-500">
+                  Required unless you choose “No assignment”.
+                </p>
               )}
 
               {postWorkMode === "none" ? (
@@ -1033,8 +1072,8 @@ export default function ScheduleLiveSessionPanel({
               <div className="flex gap-2 rounded-lg border border-white/10 bg-[#070b14]/80 px-2.5 py-2 text-[11px] leading-snug text-slate-400 sm:text-xs">
                 <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-amber-300/90" aria-hidden />
                 <p>
-                  You earn <span className="font-semibold text-emerald-300">+30 RDM</span> for every trial student who
-                  converts to a full-session pay-by-RDM attendee.
+                  You earn <span className="font-semibold text-emerald-300">+30 RDM</span> for every
+                  trial student who converts to a full-session pay-by-RDM attendee.
                 </p>
               </div>
             </div>
@@ -1048,9 +1087,7 @@ export default function ScheduleLiveSessionPanel({
             <button
               type="button"
               onClick={() =>
-                setWizardStepSynced(
-                  (Math.max(1, wizardStep - 1) as unknown) as 1 | 2 | 3 | 4 | 5
-                )
+                setWizardStepSynced(Math.max(1, wizardStep - 1) as unknown as 1 | 2 | 3 | 4 | 5)
               }
               className="inline-flex h-9 items-center justify-center rounded-full border border-white/15 px-3 text-xs font-semibold text-slate-200 hover:bg-white/5 sm:h-9 sm:min-w-[92px] sm:px-4 sm:text-sm"
             >
@@ -1071,7 +1108,7 @@ export default function ScheduleLiveSessionPanel({
               onClick={() => {
                 if (canGoNext)
                   setWizardStepSynced(
-                    (Math.min(stepCount, wizardStep + 1) as unknown) as 1 | 2 | 3 | 4 | 5
+                    Math.min(stepCount, wizardStep + 1) as unknown as 1 | 2 | 3 | 4 | 5
                   );
               }}
               disabled={!canGoNext}
@@ -1087,9 +1124,14 @@ export default function ScheduleLiveSessionPanel({
               disabled={
                 !canSubmit ||
                 submitting ||
-                ((preWorkMode === "concept_focus" || postWorkMode === "concept_focus") && curriculumLoading)
+                ((preWorkMode === "concept_focus" || postWorkMode === "concept_focus") &&
+                  curriculumLoading)
               }
-              title={canSubmit ? resolvedSubmitLabel : "Complete required setup for pre-work and post-work."}
+              title={
+                canSubmit
+                  ? resolvedSubmitLabel
+                  : "Complete required setup for pre-work and post-work."
+              }
               className="inline-flex h-9 items-center justify-center rounded-full bg-emerald-500 px-4 text-xs font-semibold text-black hover:bg-emerald-400 disabled:opacity-60 sm:h-9 sm:min-w-[148px] sm:px-5 sm:text-sm"
             >
               {submitting ? "Scheduling..." : resolvedSubmitLabel}
@@ -1114,9 +1156,7 @@ export default function ScheduleLiveSessionPanel({
                 <button
                   type="button"
                   onClick={() =>
-                    setWizardStepSynced(
-                      (Math.max(1, wizardStep - 1) as unknown) as 1 | 2 | 3 | 4 | 5
-                    )
+                    setWizardStepSynced(Math.max(1, wizardStep - 1) as unknown as 1 | 2 | 3 | 4 | 5)
                   }
                   className="inline-flex h-9 items-center justify-center rounded-full border border-white/15 px-3 text-xs font-semibold text-slate-200 hover:bg-white/5 sm:h-9 sm:min-w-[92px] sm:px-4 sm:text-sm"
                 >
@@ -1132,7 +1172,7 @@ export default function ScheduleLiveSessionPanel({
               onClick={() => {
                 if (canGoNext)
                   setWizardStepSynced(
-                    (Math.min(stepCount, wizardStep + 1) as unknown) as 1 | 2 | 3 | 4 | 5
+                    Math.min(stepCount, wizardStep + 1) as unknown as 1 | 2 | 3 | 4 | 5
                   );
               }}
               disabled={!canGoNext}
@@ -1148,9 +1188,14 @@ export default function ScheduleLiveSessionPanel({
               disabled={
                 !canSubmit ||
                 submitting ||
-                ((preWorkMode === "concept_focus" || postWorkMode === "concept_focus") && curriculumLoading)
+                ((preWorkMode === "concept_focus" || postWorkMode === "concept_focus") &&
+                  curriculumLoading)
               }
-              title={canSubmit ? resolvedSubmitLabel : "Complete required setup for pre-work and post-work."}
+              title={
+                canSubmit
+                  ? resolvedSubmitLabel
+                  : "Complete required setup for pre-work and post-work."
+              }
               className="inline-flex h-9 w-full shrink-0 items-center justify-center rounded-full bg-emerald-500 px-4 text-xs font-semibold text-black hover:bg-emerald-400 disabled:opacity-60 sm:h-9 sm:w-auto sm:min-w-[148px] sm:px-5 sm:text-sm"
             >
               {submitting ? "Scheduling..." : resolvedSubmitLabel}

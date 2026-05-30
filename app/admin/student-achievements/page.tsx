@@ -11,7 +11,9 @@ import { safeGetSession } from "@/lib/auth/safeSession";
 async function getAdminAuthHeaders(jsonBody: boolean): Promise<Record<string, string>> {
   const { session } = await safeGetSession();
   if (!session?.access_token) {
-    throw new Error("Not signed in. Open the app in a tab where you are logged in, then try again.");
+    throw new Error(
+      "Not signed in. Open the app in a tab where you are logged in, then try again."
+    );
   }
   const h: Record<string, string> = { Authorization: `Bearer ${session.access_token}` };
   if (jsonBody) h["Content-Type"] = "application/json";
@@ -505,7 +507,12 @@ export default function AdminStudentAchievementsPage() {
         <div className="rounded-2xl border bg-card p-4">
           <div className="mb-3 flex items-center justify-between gap-2">
             <h3 className="text-sm font-bold">Selected student details</h3>
-            <Button type="button" variant="outline" size="sm" onClick={() => setSelectedStudentId(null)}>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setSelectedStudentId(null)}
+            >
               Close
             </Button>
           </div>
@@ -517,7 +524,9 @@ export default function AdminStudentAchievementsPage() {
             <div className="space-y-4 text-sm">
               <div className="rounded-xl border p-3">
                 <p className="font-semibold">{studentDetails.student_name ?? "Student"}</p>
-                <p className="text-xs text-muted-foreground">Academic snapshots (Class X / XI / XII)</p>
+                <p className="text-xs text-muted-foreground">
+                  Academic snapshots (Class X / XI / XII)
+                </p>
               </div>
 
               {(
@@ -547,7 +556,9 @@ export default function AdminStudentAchievementsPage() {
                     {sec.label} details
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {sec.row ? `${sec.row.board ?? "—"} · ${sec.row.year ?? "—"} · ${sec.row.score ?? "—"}` : "No row"}
+                    {sec.row
+                      ? `${sec.row.board ?? "—"} · ${sec.row.year ?? "—"} · ${sec.row.score ?? "—"}`
+                      : "No row"}
                   </p>
                   {sec.label === "Class XII" ? (
                     <p className="mt-1 text-xs text-muted-foreground">
@@ -562,7 +573,9 @@ export default function AdminStudentAchievementsPage() {
                     {subjectFields.map(([key, label]) => (
                       <div key={`${sec.label}-${key}`} className="rounded-md border p-2">
                         <p className="text-[11px] font-semibold">{label}</p>
-                        <p className="text-xs text-muted-foreground">{sec.subjects?.[key]?.trim() || "—"}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {sec.subjects?.[key]?.trim() || "—"}
+                        </p>
                       </div>
                     ))}
                   </div>
@@ -573,11 +586,15 @@ export default function AdminStudentAchievementsPage() {
                   <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
                     <div className="rounded-md border p-2">
                       <p className="text-[11px] font-semibold">Coaching institute name</p>
-                      <p className="text-xs text-muted-foreground">{sec.coaching?.instituteName?.trim() || "—"}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {sec.coaching?.instituteName?.trim() || "—"}
+                      </p>
                     </div>
                     <div className="rounded-md border p-2">
                       <p className="text-[11px] font-semibold">Attending since</p>
-                      <p className="text-xs text-muted-foreground">{sec.coaching?.attendingSince?.trim() || "—"}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {sec.coaching?.attendingSince?.trim() || "—"}
+                      </p>
                     </div>
                   </div>
                 </div>

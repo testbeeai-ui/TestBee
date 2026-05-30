@@ -40,10 +40,7 @@ const CATEGORY_SUBJECT: Record<string, string> = {
   gk: "🌍 General Knowledge",
 };
 
-export function playCategoryToSubjectTag(
-  category: string | undefined,
-  domain: PlayDomain
-): string {
+export function playCategoryToSubjectTag(category: string | undefined, domain: PlayDomain): string {
   if (category && CATEGORY_SUBJECT[category]) {
     return CATEGORY_SUBJECT[category];
   }
@@ -58,7 +55,8 @@ export function buildEduBlastDotStates(
   outcomes: ("correct" | "wrong" | "skip")[]
 ): EduBlastDotState[] {
   return Array.from({ length: total }, (_, i) => {
-    if (i < outcomes.length) return outcomes[i] === "correct" ? "correct" : outcomes[i] === "skip" ? "skip" : "wrong";
+    if (i < outcomes.length)
+      return outcomes[i] === "correct" ? "correct" : outcomes[i] === "skip" ? "skip" : "wrong";
     if (i === currentIndex) return "current";
     return "pending";
   });

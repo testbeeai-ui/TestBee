@@ -4,7 +4,11 @@ import { exchangeAuthorizationCode } from "@/lib/integrations/googleCalendarServ
 import { getGoogleOAuthEnv } from "@/lib/integrations/googleEnv";
 import { verifyGoogleOAuthState } from "@/lib/integrations/googleOAuthState";
 
-function popupCompleteRedirect(request: NextRequest, result: "connected" | "error", reason?: string) {
+function popupCompleteRedirect(
+  request: NextRequest,
+  result: "connected" | "error",
+  reason?: string
+) {
   const done = new URL("/integrations/google/oauth-complete", request.url);
   done.searchParams.set("result", result);
   if (reason) done.searchParams.set("reason", reason);

@@ -245,9 +245,9 @@ export default function AdminUsersPage() {
             <DialogHeader>
               <DialogTitle>Screenshot filter</DialogTitle>
               <DialogDescription className="text-left">
-                When enabled, Play Arena and Earn & Learn show a security veil and a short block modal
-                when the browser reports a capture attempt. This deters casual screenshots; it is not
-                a cryptographic guarantee.
+                When enabled, Play Arena and Earn & Learn show a security veil and a short block
+                modal when the browser reports a capture attempt. This deters casual screenshots; it
+                is not a cryptographic guarantee.
               </DialogDescription>
             </DialogHeader>
             {screenshotFilterError ? (
@@ -259,7 +259,9 @@ export default function AdminUsersPage() {
                   Screenshot deterrence
                 </Label>
                 <p className="text-xs text-muted-foreground">
-                  {screenshotFilterEnabled ? "On for all signed-in clients." : "Off — capture UI disabled."}
+                  {screenshotFilterEnabled
+                    ? "On for all signed-in clients."
+                    : "Off — capture UI disabled."}
                 </p>
               </div>
               <Switch
@@ -273,9 +275,9 @@ export default function AdminUsersPage() {
               />
             </div>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Only administrators can change this from the Admin Console. Learners cannot toggle it in
-              the app. This setting controls our client-side behavior only; a modified client could
-              bypass it.
+              Only administrators can change this from the Admin Console. Learners cannot toggle it
+              in the app. This setting controls our client-side behavior only; a modified client
+              could bypass it.
             </p>
           </DialogContent>
         </Dialog>

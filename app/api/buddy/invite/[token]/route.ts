@@ -6,10 +6,7 @@ import {
 } from "@/lib/auth/securityGuards";
 
 /** GET /api/buddy/invite/[token] — public preview of an invite. */
-export async function GET(
-  _request: Request,
-  context: { params: Promise<{ token: string }> }
-) {
+export async function GET(_request: Request, context: { params: Promise<{ token: string }> }) {
   const { token } = await context.params;
   if (!token || token.length < 8) {
     return NextResponse.json({ error: "invalid_token" }, { status: 400 });
@@ -17,17 +14,12 @@ export async function GET(
 
   const admin = createAdminClient();
   if (!admin) {
-    return NextResponse.json(
-      { error: "SUPABASE_SERVICE_ROLE_KEY is not set" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "SUPABASE_SERVICE_ROLE_KEY is not set" }, { status: 500 });
   }
 
   const { data: invite, error } = await admin
     .from("buddy_invites")
-    .select(
-      "id, token, inviter_user_id, status, created_at, accepted_at, expires_at"
-    )
+    .select("id, token, inviter_user_id, status, created_at, accepted_at, expires_at")
     .eq("token", token)
     .maybeSingle();
 
@@ -50,8 +42,7 @@ export async function GET(
     }
   }
 
-  const expiredByTime =
-    invite.expires_at && new Date(invite.expires_at).getTime() <= Date.now();
+  const expiredByTime = invite.expires_at && new Date(invite.expires_at).getTime() <= Date.now();
   const effectiveStatus = expiredByTime && invite.status === "pending" ? "expired" : invite.status;
 
   return NextResponse.json({
@@ -68,10 +59,7 @@ export async function GET(
 }
 
 /** DELETE /api/buddy/invite/[token] — inviter revokes their own pending invite. */
-export async function DELETE(
-  request: Request,
-  context: { params: Promise<{ token: string }> }
-) {
+export async function DELETE(request: Request, context: { params: Promise<{ token: string }> }) {
   const csrfFail = enforceSameOriginForCookieAuth(request);
   if (csrfFail) return csrfFail;
 

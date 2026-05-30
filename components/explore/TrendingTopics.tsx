@@ -51,7 +51,9 @@ export default function TrendingTopics({ taxonomy, onExploreTopic }: TrendingTop
       transition={{ delay: 0.3, duration: 0.35 }}
       className="rounded-xl border border-border bg-card p-4 sm:p-5"
     >
-      <h3 className="text-sm font-bold text-foreground mb-2.5 sm:text-base sm:mb-3">Trending topics</h3>
+      <h3 className="text-sm font-bold text-foreground mb-2.5 sm:text-base sm:mb-3">
+        Trending topics
+      </h3>
       <div className="space-y-0.5">
         {trending.map((item, i) => {
           const tag = subjectTag[item.subject];

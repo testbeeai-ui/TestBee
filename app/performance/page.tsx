@@ -1,10 +1,9 @@
 "use client";
 
-import { type ComponentType, useEffect, useMemo } from "react";
+import { type ComponentType, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserStore } from "@/store/useUserStore";
-import { questions } from "@/data/questions";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { useStreakTimer } from "@/hooks/useStreakTimer";
 import TeacherDashboard from "@/components/TeacherDashboard";
@@ -24,20 +23,21 @@ import {
 } from "lucide-react";
 import { Subject } from "@/types";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { parseBitsTestAttemptsStore } from "@/lib/play/bits/parseBitsTestAttemptsStore";
-import { parseEngagementDraftDashboardContributions } from "@/lib/dashboard/parseEngagementDraftDashboardContributions";
+import {
+  buildTopicQuizSubjectStats,
+  totalTopicQuizzesTaken as sumTopicQuizzesTaken,
+  type TopicQuizSubjectStat,
+} from "@/lib/performance/topicQuizSubjectStats";
+import { fetchMockLibraryHistory } from "@/lib/mock/fetchMockLibraryHistory";
+import {
+  aggregateMockPerformanceByCategory,
+  marksLabel,
+  type CategoryPerformanceStats,
+  type ExamCategoryKey,
+} from "@/lib/mock/aggregateMockPerformanceByCategory";
+import { subjectEmojis, SUBJECT_LABELS } from "@/components/prep-mock/constants";
 
-type SubjectStat = {
-  subject: Subject;
-  /** Topic quizzes submitted for this subject — each key is one quiz; retakes count once. */
-  quizCount: number;
-  /** All graded answers: play / Question Gun + topic quiz questions. */
-  total: number;
-  correct: number;
-  wrong: number;
-  skipped: number;
-  accuracy: number;
-};
+type SubjectStat = TopicQuizSubjectStat;
 
 const SUBJECT_META: Record<
   Subject,
@@ -89,9 +89,9 @@ const SUBJECT_META: Record<
 };
 
 const EXAM_CARDS: Array<{
-  key: string;
+  key: ExamCategoryKey;
   title: string;
-  subtitle: string;
+  subtitleSuffix: string;
   tone: string;
   iconBg: string;
   icon: ComponentType<{ className?: string }>;
@@ -99,7 +99,7 @@ const EXAM_CARDS: Array<{
   {
     key: "cbse",
     title: "CBSE Board",
-    subtitle: "0 tests · Class 12",
+    subtitleSuffix: "Past & mock papers",
     tone: "border-blue-500/35 dark:border-blue-400/35",
     iconBg: "bg-blue-500/15 text-blue-600 dark:bg-blue-500/20 dark:text-blue-300",
     icon: GraduationCap,
@@ -107,7 +107,7 @@ const EXAM_CARDS: Array<{
   {
     key: "jee-main",
     title: "JEE Main",
-    subtitle: "0 tests · NTA pattern",
+    subtitleSuffix: "NTA pattern",
     tone: "border-amber-500/35 dark:border-amber-400/35",
     iconBg: "bg-amber-500/15 text-amber-600 dark:bg-amber-500/20 dark:text-amber-300",
     icon: BrainCircuit,
@@ -115,7 +115,7 @@ const EXAM_CARDS: Array<{
   {
     key: "jee-advanced",
     title: "JEE Advanced",
-    subtitle: "0 tests · IIT pattern",
+    subtitleSuffix: "IIT pattern",
     tone: "border-violet-500/35 dark:border-violet-400/35",
     iconBg: "bg-violet-500/15 text-violet-600 dark:bg-violet-500/20 dark:text-violet-300",
     icon: Sigma,
@@ -123,7 +123,7 @@ const EXAM_CARDS: Array<{
   {
     key: "kcet",
     title: "KCET",
-    subtitle: "0 tests · Karnataka",
+    subtitleSuffix: "Karnataka",
     tone: "border-emerald-500/35 dark:border-emerald-400/35",
     iconBg: "bg-emerald-500/15 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-300",
     icon: BookText,
@@ -168,15 +168,103 @@ const QUICK_ACTIONS = [
   },
 ];
 
-function RingDial({ label }: { label: string }) {
+function SubjectPercentDial({
+  subject,
+  correct,
+  total,
+}: {
+  subject: Subject;
+  correct: number;
+  total: number;
+}) {
+  const label = SUBJECT_LABELS[subject];
+  const meta = SUBJECT_META[subject];
+  const hasData = total > 0;
+  const pct = hasData ? Math.round((correct / total) * 100) : 0;
   return (
     <div className="flex flex-col items-center gap-1.5">
-      <div className="h-14 w-14 rounded-full border border-border/70 bg-background/80 p-1 dark:bg-slate-900/60">
-        <div className="flex h-full w-full items-center justify-center rounded-full border border-border/60 text-muted-foreground">
-          <CircleDashed className="h-4 w-4" />
+      <div className="flex h-14 w-14 items-center justify-center rounded-full border border-border/70 bg-background/80 text-center dark:bg-slate-900/60">
+        {hasData ? (
+          <span className={`text-sm font-bold tabular-nums leading-none ${meta.tones.percent}`}>
+            {pct}%
+          </span>
+        ) : (
+          <CircleDashed className="h-4 w-4 text-muted-foreground" />
+        )}
+      </div>
+      <p className="flex items-center gap-0.5 text-[11px] font-medium text-muted-foreground">
+        <span>{subjectEmojis[subject]}</span>
+        <span>{label}</span>
+      </p>
+    </div>
+  );
+}
+
+function ExamCategoryCard({
+  card,
+  stats,
+  classLevel,
+}: {
+  card: (typeof EXAM_CARDS)[number];
+  stats: CategoryPerformanceStats;
+  classLevel: number | undefined;
+}) {
+  const subtitle =
+    card.key === "cbse"
+      ? `${stats.testCount} test${stats.testCount === 1 ? "" : "s"} · Class ${classLevel ?? "—"}`
+      : `${stats.testCount} test${stats.testCount === 1 ? "" : "s"} · ${card.subtitleSuffix}`;
+
+  const avgMarks = marksLabel(stats.totalCorrect, stats.totalQuestions);
+  const bestMarks = marksLabel(stats.bestCorrect, stats.bestTotal);
+
+  const pcmMap = new Map(stats.bySubject.map((r) => [r.subject, r]));
+
+  return (
+    <div className={`rounded-2xl border bg-background/75 p-4 dark:bg-slate-900/50 ${card.tone}`}>
+      <div className="flex items-start justify-between">
+        <div className="flex items-center gap-2.5">
+          <span
+            className={`inline-flex h-9 w-9 items-center justify-center rounded-lg ${card.iconBg}`}
+          >
+            <card.icon className="h-4.5 w-4.5" />
+          </span>
+          <div>
+            <p className="text-base font-semibold text-foreground">{card.title}</p>
+            <p className="text-xs text-muted-foreground">{subtitle}</p>
+          </div>
         </div>
       </div>
-      <p className="text-[11px] font-medium text-muted-foreground">{label}</p>
+      <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+        <div>
+          <p className="text-2xl font-bold tabular-nums text-foreground">{stats.testCount}</p>
+          <p className="text-[11px] text-muted-foreground">Tests</p>
+        </div>
+        <div>
+          <p className="text-xl font-bold tabular-nums leading-tight text-emerald-500 sm:text-2xl">
+            {avgMarks}
+          </p>
+          <p className="text-[11px] text-muted-foreground">Total marks</p>
+        </div>
+        <div>
+          <p className="text-xl font-bold tabular-nums leading-tight text-amber-500 sm:text-2xl">
+            {bestMarks}
+          </p>
+          <p className="text-[11px] text-muted-foreground">Best test</p>
+        </div>
+      </div>
+      <div className="mt-3 flex items-center justify-around rounded-xl border border-border/60 bg-background/70 py-2 dark:bg-slate-950/50">
+        {(["physics", "chemistry", "math"] as Subject[]).map((subj) => {
+          const row = pcmMap.get(subj);
+          return (
+            <SubjectPercentDial
+              key={subj}
+              subject={subj}
+              correct={row?.correct ?? 0}
+              total={row?.total ?? 0}
+            />
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -239,90 +327,61 @@ function SubjectBreakdownCard({ stat }: { stat: SubjectStat }) {
 
 export default function PerformancePage() {
   const { profile, refreshProfile } = useAuth();
+  const [mockHistoryEntries, setMockHistoryEntries] = useState<
+    Awaited<ReturnType<typeof fetchMockLibraryHistory>>
+  >([]);
 
   useEffect(() => {
     void refreshProfile();
   }, [refreshProfile]);
+
+  const loadMockHistory = useCallback(async () => {
+    if (!profile?.id) {
+      setMockHistoryEntries([]);
+      return;
+    }
+    try {
+      const rows = await fetchMockLibraryHistory(profile.id);
+      setMockHistoryEntries(rows);
+    } catch {
+      setMockHistoryEntries([]);
+    }
+  }, [profile?.id]);
+
+  useEffect(() => {
+    void loadMockHistory();
+  }, [loadMockHistory]);
+
+  const categoryStats = useMemo(
+    () => aggregateMockPerformanceByCategory(mockHistoryEntries),
+    [mockHistoryEntries]
+  );
+
   const user = useUserStore((s) => s.user);
   const allResults = useUserStore((s) => s.allResults);
   const router = useRouter();
   const streakTimer = useStreakTimer();
 
-  const bitsAttemptRows = useMemo(
-    () => parseBitsTestAttemptsStore(profile?.bits_test_attempts ?? null),
-    [profile?.bits_test_attempts]
-  );
-
-  const submittedBitsKeys = useMemo(() => {
-    const raw = profile?.bits_test_attempts;
-    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return new Set<string>();
-    return new Set(Object.keys(raw as Record<string, unknown>));
-  }, [profile?.bits_test_attempts]);
-
-  const engagementDraftRows = useMemo(
+  const subjectStats = useMemo(
     () =>
-      parseEngagementDraftDashboardContributions(
-        profile?.subtopic_engagement ?? null,
-        submittedBitsKeys
-      ),
-    [profile?.subtopic_engagement, submittedBitsKeys]
+      buildTopicQuizSubjectStats({
+        bitsAttemptsJson: profile?.bits_test_attempts ?? null,
+        subtopicEngagementJson: profile?.subtopic_engagement ?? null,
+        playResults: allResults,
+      }),
+    [profile?.bits_test_attempts, profile?.subtopic_engagement, allResults]
   );
 
-  const subjects: Subject[] = useMemo(() => ["physics", "chemistry", "math"], []);
-
-  const subjectStats = useMemo(() => {
-    return subjects.map<SubjectStat>((subject) => {
-      const bitsRows = bitsAttemptRows.filter((r) => r.subject === subject);
-      const drafts = engagementDraftRows.filter((r) => r.subject === subject);
-      const quizCount = bitsRows.length + drafts.length;
-      const bitsCorrect = bitsRows.reduce((s, r) => s + r.correctCount, 0);
-      const bitsWrong = bitsRows.reduce((s, r) => s + r.wrongCount, 0);
-      const bitsAnswered = bitsCorrect + bitsWrong;
-      const bitsSkipped = bitsRows.reduce(
-        (s, r) => s + Math.max(0, r.totalQuestions - r.correctCount - r.wrongCount),
-        0
-      );
-
-      const dAnswered = drafts.reduce((s, d) => s + d.answered, 0);
-      const dCorrect = drafts.reduce((s, d) => s + d.correct, 0);
-      const dWrong = drafts.reduce((s, d) => s + d.wrong, 0);
-      const dSkipped = drafts.reduce((s, d) => s + d.skipped, 0);
-
-      const subjectQIds = questions.filter((q) => q.subject === subject).map((q) => q.id);
-      const subjectResults = allResults.filter((r) => subjectQIds.includes(r.questionId));
-      const playTotal = subjectResults.length;
-      const playCorrect = subjectResults.filter((r) => r.isCorrect).length;
-      const playWrong = playTotal - playCorrect;
-
-      const total = bitsAnswered + dAnswered + playTotal;
-      const correct = bitsCorrect + dCorrect + playCorrect;
-      const wrong = bitsWrong + dWrong + playWrong;
-      const skipped = bitsSkipped + dSkipped;
-      const accuracy = total > 0 ? Math.round((correct / total) * 100) : 0;
-      return { subject, quizCount, total, correct, wrong, skipped, accuracy };
-    });
-  }, [subjects, allResults, bitsAttemptRows, engagementDraftRows]);
-
-  const bitsAnsweredGlobal = useMemo(
-    () =>
-      bitsAttemptRows.reduce((s, r) => s + r.correctCount + r.wrongCount, 0) +
-      engagementDraftRows.reduce((s, d) => s + d.answered, 0),
-    [bitsAttemptRows, engagementDraftRows]
+  const totalAnswered = useMemo(
+    () => subjectStats.reduce((s, r) => s + r.total, 0) + 0,
+    [subjectStats]
   );
-  const bitsCorrectGlobal = useMemo(
-    () =>
-      bitsAttemptRows.reduce((s, r) => s + r.correctCount, 0) +
-      engagementDraftRows.reduce((s, d) => s + d.correct, 0),
-    [bitsAttemptRows, engagementDraftRows]
+  const totalCorrect = useMemo(
+    () => subjectStats.reduce((s, r) => s + r.correct, 0),
+    [subjectStats]
   );
-
-  const totalAnswered = bitsAnsweredGlobal + allResults.length;
-  const totalCorrect = bitsCorrectGlobal + allResults.filter((r) => r.isCorrect).length;
   const overallAccuracy = totalAnswered > 0 ? Math.round((totalCorrect / totalAnswered) * 100) : 0;
-  const totalTopicQuizzesTaken = useMemo(
-    () => bitsAttemptRows.length + engagementDraftRows.length,
-    [bitsAttemptRows, engagementDraftRows]
-  );
+  const totalTopicQuizzesTaken = useMemo(() => sumTopicQuizzesTaken(subjectStats), [subjectStats]);
 
   const motivationalTips = [
     "Consistency beats intensity. Solve at least 5 questions daily!",
@@ -512,47 +571,18 @@ export default function PerformancePage() {
               <h2 className="text-xl font-bold tracking-tight text-foreground 2xl:text-2xl">
                 Test performance by category
               </h2>
-              <p className="text-sm text-muted-foreground">Speed · Accuracy · Stamina dials</p>
+              <p className="text-sm text-muted-foreground">
+                Past papers & mock tests · marks as correct/total questions
+              </p>
             </div>
             <div className="grid gap-3 md:grid-cols-2">
               {EXAM_CARDS.map((card) => (
-                <div
+                <ExamCategoryCard
                   key={card.key}
-                  className={`rounded-2xl border bg-background/75 p-4 dark:bg-slate-900/50 ${card.tone}`}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <span
-                        className={`inline-flex h-9 w-9 items-center justify-center rounded-lg ${card.iconBg}`}
-                      >
-                        <card.icon className="h-4.5 w-4.5" />
-                      </span>
-                      <div>
-                        <p className="text-base font-semibold text-foreground">{card.title}</p>
-                        <p className="text-xs text-muted-foreground">{card.subtitle}</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-                    <div>
-                      <p className="text-2xl font-bold text-foreground">0</p>
-                      <p className="text-[11px] text-muted-foreground">Tests</p>
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold text-emerald-500">0%</p>
-                      <p className="text-[11px] text-muted-foreground">Avg score</p>
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold text-amber-500">—</p>
-                      <p className="text-[11px] text-muted-foreground">Best rank</p>
-                    </div>
-                  </div>
-                  <div className="mt-3 flex items-center justify-around rounded-xl border border-border/60 bg-background/70 py-2 dark:bg-slate-950/50">
-                    <RingDial label="Speed" />
-                    <RingDial label="Accuracy" />
-                    <RingDial label="Stamina" />
-                  </div>
-                </div>
+                  card={card}
+                  stats={categoryStats[card.key]}
+                  classLevel={user?.classLevel}
+                />
               ))}
             </div>
           </section>

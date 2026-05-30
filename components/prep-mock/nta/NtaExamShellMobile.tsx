@@ -1,16 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import {
-  ArrowLeft,
-  ArrowRight,
-  Bookmark,
-  Check,
-  Clock,
-  Flag,
-  Send,
-  X,
-} from "lucide-react";
+import { ArrowLeft, ArrowRight, Bookmark, Check, Clock, Flag, Send, X } from "lucide-react";
 import type { Question, Subject } from "@/types";
 import { CORE_SUBJECTS } from "@/types";
 import { getNtaPaletteKind } from "@/components/prep-mock/nta/ntaPaletteShapes";
@@ -97,10 +88,7 @@ export function NtaExamShellMobile({
   }, [questions]);
 
   const activeSection = sectionGroups[sectionIdx] ?? sectionGroups[0];
-  const paletteIndices = useMemo(
-    () => questions.map((_, i) => i),
-    [questions]
-  );
+  const paletteIndices = useMemo(() => questions.map((_, i) => i), [questions]);
   const displayQuestionNum = currentIndex + 1;
   const displayQuestionTotal = questions.length;
 
@@ -149,7 +137,9 @@ export function NtaExamShellMobile({
           <div className="min-w-0">
             <p className="truncate text-xs font-medium text-[var(--nta-m-text)]">
               {candidateName}{" "}
-              <span className="text-[10px] font-normal text-[var(--nta-m-dim)]">{examNameLine}</span>
+              <span className="text-[10px] font-normal text-[var(--nta-m-dim)]">
+                {examNameLine}
+              </span>
             </p>
             <p className="line-clamp-2 text-[11px] text-[var(--nta-m-muted)]">{subjectPaperLine}</p>
           </div>
@@ -254,7 +244,8 @@ export function NtaExamShellMobile({
       >
         <div className="mb-2 flex items-center justify-between gap-2">
           <p className="text-[11px] text-[var(--nta-m-dim)]">
-            Q {displayQuestionNum} of {displayQuestionTotal} · {SUBJECT_LABEL[q.subject] ?? q.subject}
+            Q {displayQuestionNum} of {displayQuestionTotal} ·{" "}
+            {SUBJECT_LABEL[q.subject] ?? q.subject}
           </p>
           <div className="flex gap-0.5" aria-hidden>
             {questions.slice(0, Math.min(questions.length, 40)).map((_, i) => {
@@ -271,7 +262,8 @@ export function NtaExamShellMobile({
                   className={cn(
                     "h-[3px] rounded-sm",
                     i === currentIndex ? "w-2.5 bg-[var(--nta-m-current)]" : "w-[5px]",
-                    i !== currentIndex && (done ? "bg-[var(--nta-m-green)]" : "bg-[var(--nta-m-palette-nv)]")
+                    i !== currentIndex &&
+                      (done ? "bg-[var(--nta-m-green)]" : "bg-[var(--nta-m-palette-nv)]")
                   )}
                 />
               );
@@ -280,7 +272,9 @@ export function NtaExamShellMobile({
         </div>
 
         <div className="mb-2.5 flex items-center justify-between gap-2">
-          <h2 className="text-[13px] font-medium text-[var(--nta-m-text)]">Question {displayQuestionNum}</h2>
+          <h2 className="text-[13px] font-medium text-[var(--nta-m-text)]">
+            Question {displayQuestionNum}
+          </h2>
           <span className="nta-m-type-badge rounded-full px-2 py-0.5 text-[11px] font-medium">
             MCQ · +4 / −1
           </span>
@@ -304,20 +298,11 @@ export function NtaExamShellMobile({
                 className="nta-m-opt"
                 data-selected={isSelected ? "true" : "false"}
               >
-                <span
-                  className="nta-m-opt-radio"
-                  aria-hidden
-                >
+                <span className="nta-m-opt-radio" aria-hidden>
                   {isSelected ? <span className="h-2 w-2 rounded-full bg-white" /> : null}
                 </span>
-                <span
-                  className="nta-m-opt-num"
-                >
-                  {i + 1}.
-                </span>
-                <div
-                  className="nta-m-opt-body min-w-0 flex-1 text-[13px] leading-snug"
-                >
+                <span className="nta-m-opt-num">{i + 1}.</span>
+                <div className="nta-m-opt-body min-w-0 flex-1 text-[13px] leading-snug">
                   <NtaOptionBody text={opt} mobile />
                 </div>
               </button>
@@ -331,7 +316,6 @@ export function NtaExamShellMobile({
           <ArrowRight className="h-3 w-3" aria-hidden />
         </p>
       </div>
-
 
       <footer className="nta-m-footer shrink-0 px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:py-2.5">
         <div className="mb-2 flex gap-1.5">

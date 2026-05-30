@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminClient, createClient, createClientWithToken } from "@/integrations/supabase/server";
+import {
+  createAdminClient,
+  createClient,
+  createClientWithToken,
+} from "@/integrations/supabase/server";
 import { deleteCalendarEvent, refreshAccessToken } from "@/lib/integrations/googleCalendarServer";
 import { getGoogleOAuthEnv } from "@/lib/integrations/googleEnv";
 
@@ -25,7 +29,10 @@ export async function POST(
 
   const admin = createAdminClient();
   if (!admin) {
-    return NextResponse.json({ error: "Server is missing SUPABASE_SERVICE_ROLE_KEY." }, { status: 500 });
+    return NextResponse.json(
+      { error: "Server is missing SUPABASE_SERVICE_ROLE_KEY." },
+      { status: 500 }
+    );
   }
 
   const { data: room, error: roomErr } = await admin
@@ -62,7 +69,9 @@ export async function POST(
     typeof room.google_recurring_event_id === "string" ? room.google_recurring_event_id.trim() : "";
   const needsGoogleDelete =
     Boolean(classEventId) ||
-    sections.some((s) => typeof s.google_recurring_event_id === "string" && s.google_recurring_event_id.trim());
+    sections.some(
+      (s) => typeof s.google_recurring_event_id === "string" && s.google_recurring_event_id.trim()
+    );
 
   let accessToken: string | null = null;
   if (needsGoogleDelete) {
@@ -101,7 +110,10 @@ export async function POST(
         .eq("user_id", user.id);
 
       for (const sec of sections) {
-        const eid = typeof sec.google_recurring_event_id === "string" ? sec.google_recurring_event_id.trim() : "";
+        const eid =
+          typeof sec.google_recurring_event_id === "string"
+            ? sec.google_recurring_event_id.trim()
+            : "";
         if (!eid) continue;
         const calId = sec.google_calendar_list_id?.trim() || "primary";
         await deleteCalendarEvent({
@@ -113,7 +125,9 @@ export async function POST(
 
       if (classEventId) {
         const calId =
-          typeof room.google_calendar_list_id === "string" ? room.google_calendar_list_id.trim() || "primary" : "primary";
+          typeof room.google_calendar_list_id === "string"
+            ? room.google_calendar_list_id.trim() || "primary"
+            : "primary";
         await deleteCalendarEvent({
           accessToken,
           calendarId: calId,

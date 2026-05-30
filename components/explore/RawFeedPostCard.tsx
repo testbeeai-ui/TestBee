@@ -103,7 +103,8 @@ export default function RawFeedPostCard({
   const subjName = subjectLabel[subjKey] || post.subject || "General";
   const score = post.upvote_count - post.downvote_count;
   const n = post.comment_count ?? 0;
-  const threadLabelFull = n === 0 ? "Thread" : n === 1 ? "Thread (1 reply)" : `Thread (${n} replies)`;
+  const threadLabelFull =
+    n === 0 ? "Thread" : n === 1 ? "Thread (1 reply)" : `Thread (${n} replies)`;
   const threadLabelCompact = n === 0 ? "Thread" : `${n} replies`;
   const isQuizPost = post.source_type === "quiz_post";
   const mockPaperShareSlug = getMockPaperSlugFromCommunityPost(
@@ -303,8 +304,15 @@ export default function RawFeedPostCard({
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
-              <Bookmark className={cn("h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4", isSavedForRevision && "fill-current")} />
-              <span className="hidden sm:inline">{isSavedForRevision ? "Saved for revision" : "Save for revision"}</span>
+              <Bookmark
+                className={cn(
+                  "h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4",
+                  isSavedForRevision && "fill-current"
+                )}
+              />
+              <span className="hidden sm:inline">
+                {isSavedForRevision ? "Saved for revision" : "Save for revision"}
+              </span>
               <span className="sm:hidden">{isSavedForRevision ? "Saved" : "Save"}</span>
             </button>
 

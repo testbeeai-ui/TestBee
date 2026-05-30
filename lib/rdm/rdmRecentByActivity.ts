@@ -69,11 +69,19 @@ export function describeDailyRewardClaim(actionType: string): {
     case "ASK":
       return { category: "gyan", title: "Gyan++ · Ask", detail: "Question posted (daily IST cap)" };
     case "COMMENT":
-      return { category: "gyan", title: "Gyan++ · Comment", detail: "Answer or reply (daily IST cap)" };
+      return {
+        category: "gyan",
+        title: "Gyan++ · Comment",
+        detail: "Answer or reply (daily IST cap)",
+      };
     case "UPVOTE":
       return { category: "gyan", title: "Gyan++ · Upvote", detail: "Vote reward (daily IST cap)" };
     case "SAVE":
-      return { category: "gyan", title: "Gyan++ · Save", detail: "Bookmark / save (daily IST cap)" };
+      return {
+        category: "gyan",
+        title: "Gyan++ · Save",
+        detail: "Bookmark / save (daily IST cap)",
+      };
     case "TOPIC_QUIZ_ADVANCED_60":
       return {
         category: "play",
@@ -81,15 +89,35 @@ export function describeDailyRewardClaim(actionType: string): {
         detail: "Quant Blitz / curriculum quizzes — 60+ tier",
       };
     case "NUMERALS_PACK_COMPLETE":
-      return { category: "play", title: "Play · Numerals pack", detail: "Logic Maze numerals completion" };
+      return {
+        category: "play",
+        title: "Play · Numerals pack",
+        detail: "Logic Maze numerals completion",
+      };
     case "DAILY_DOSE_ACADEMIC":
-      return { category: "play", title: "Play · DailyDose (academic)", detail: "DailyDose gauntlet · academic domain" };
+      return {
+        category: "play",
+        title: "Play · DailyDose (academic)",
+        detail: "DailyDose gauntlet · academic domain",
+      };
     case "DAILY_DOSE_FUNBRAIN":
-      return { category: "play", title: "Play · DailyDose (funbrain)", detail: "DailyDose gauntlet · funbrain domain" };
+      return {
+        category: "play",
+        title: "Play · DailyDose (funbrain)",
+        detail: "DailyDose gauntlet · funbrain domain",
+      };
     case "DAILY_DOSE_STREAK_7":
-      return { category: "play", title: "Play · DailyDose 7-day streak", detail: "Streak milestone bonus" };
+      return {
+        category: "play",
+        title: "Play · DailyDose 7-day streak",
+        detail: "Streak milestone bonus",
+      };
     case "DAILY_DOSE_STREAK_30":
-      return { category: "play", title: "Play · DailyDose 30-day streak", detail: "Streak milestone bonus" };
+      return {
+        category: "play",
+        title: "Play · DailyDose 30-day streak",
+        detail: "Streak milestone bonus",
+      };
     case "INSTACUE_CREATE":
       return {
         category: "revision",

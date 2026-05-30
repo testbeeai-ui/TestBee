@@ -29,6 +29,10 @@ export type PrepMockDashboardViewProps = {
   onStartFeaturedPaper: () => void;
   revisionCards: SavedRevisionCard[];
   onCalendarActivity: () => void;
+  showCbseMcqViewAllGuide?: boolean;
+  showClassesViewAllGuide?: boolean;
+  classesViewAllHref?: string;
+  onClassesViewAllClick?: () => void;
 };
 
 export default function PrepMockDashboardView({
@@ -50,6 +54,10 @@ export default function PrepMockDashboardView({
   onStartFeaturedPaper,
   revisionCards,
   onCalendarActivity,
+  showCbseMcqViewAllGuide = false,
+  showClassesViewAllGuide = false,
+  classesViewAllHref = "/classrooms",
+  onClassesViewAllClick,
 }: PrepMockDashboardViewProps) {
   return (
     <motion.div
@@ -67,7 +75,9 @@ export default function PrepMockDashboardView({
             <ClipboardList className="w-4.5 h-4.5 text-primary-foreground sm:w-5 sm:h-5" />
           </div>
           <div>
-            <h1 className="text-lg font-display font-extrabold text-foreground sm:text-xl">Prep + Mock</h1>
+            <h1 className="text-lg font-display font-extrabold text-foreground sm:text-xl">
+              Prep + Mock
+            </h1>
             <p className="text-[11px] text-muted-foreground sm:text-xs">
               Classes, AI-powered scheduling, mock tests, and smart revision
             </p>
@@ -89,6 +99,9 @@ export default function PrepMockDashboardView({
               onNextClass={onNextClass}
               accessToken={accessToken}
               onClassCalendar={onClassCalendar}
+              showClassesViewAllGuide={showClassesViewAllGuide}
+              viewAllHref={classesViewAllHref}
+              onViewAllClick={onClassesViewAllClick}
             />
             <div id="calendar" className="scroll-mt-24">
               <StreakCalendar
@@ -107,6 +120,7 @@ export default function PrepMockDashboardView({
               featuredPaper={featuredPaper}
               featuredLoading={featuredLoading}
               onStartFeaturedPaper={onStartFeaturedPaper}
+              showCbseMcqViewAllGuide={showCbseMcqViewAllGuide}
             />
             <RevisionInstaCueSection
               cards={revisionCards}

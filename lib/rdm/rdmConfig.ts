@@ -55,6 +55,13 @@ export type RdmConfigParams = {
   gyan_save_rdm: number;
   /** Gyan++: teacher answer reward shown in Teacher Section UI */
   gyan_teacher_answer_rdm: number;
+
+  /** RDM for free-trial onboarding checklist (claim on completion; also used for trial wizard copy) */
+  free_trial_checklist_reward_rdm: number;
+  free_trial_daily_streak_reward_rdm: number;
+
+  /** Max topics a free-trial student can select on Magic Wall (admin always gets 5) */
+  magic_wall_max_topics: number;
 };
 
 export const DEFAULT_RDM_CONFIG: RdmConfigParams = {
@@ -97,6 +104,11 @@ export const DEFAULT_RDM_CONFIG: RdmConfigParams = {
   gyan_upvote_rdm: 2,
   gyan_save_rdm: 3,
   gyan_teacher_answer_rdm: 5,
+
+  free_trial_checklist_reward_rdm: 100,
+  free_trial_daily_streak_reward_rdm: 80,
+
+  magic_wall_max_topics: 3,
 };
 
 const RDM_CONFIG_KEYS = Object.keys(DEFAULT_RDM_CONFIG) as (keyof RdmConfigParams)[];
@@ -119,9 +131,9 @@ export function rdmConfigShallowEqual(a: RdmConfigParams, b: RdmConfigParams): b
 /**
  * Fetches dynamic RDM configuration from `rdm_config` table.
  * Falls back to DEFAULT_RDM_CONFIG if table is uninitialized or missing keys.
- * 
+ *
  * Works on both client-side and server-side (if using an authenticated client or service role).
- * For strictly unauthenticated server components where `supabase` client from `client.ts` might fail, 
+ * For strictly unauthenticated server components where `supabase` client from `client.ts` might fail,
  * you can pass an instantiated `SupabaseClient`.
  */
 type RdmConfigQueryResult = {

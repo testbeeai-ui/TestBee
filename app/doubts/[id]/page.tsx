@@ -64,6 +64,12 @@ import {
 import { UserHoverCard } from "@/components/UserHoverCard";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DEFAULT_RDM_CONFIG, fetchRdmConfig } from "@/lib/rdm/rdmConfig";
+import { isGyanPlusSubstepDone, recordGyanPlusSubstep } from "@/lib/onboarding/gyanPlusOnboarding";
+import {
+  isGyanPlusCompanionTrackingActive,
+  markGyanPlusCompanionComment,
+  markGyanPlusCompanionUpvote,
+} from "@/lib/onboarding/gyanPlusCompanionOnboarding";
 
 type Doubt = {
   id: string;
@@ -314,6 +320,14 @@ export default function DoubtDetailPage() {
           });
           void refreshProfile();
         }
+        if (voteType === 1 && isGyanPlusCompanionTrackingActive()) {
+          markGyanPlusCompanionUpvote();
+          if (!isGyanPlusSubstepDone("gyan_engagement")) {
+            recordGyanPlusSubstep("gyan_engagement", {
+              toastActionLine: "You upvoted a doubt!",
+            });
+          }
+        }
         refetchAll();
         dispatchStudyDayBumped({ day: "", deltaMs: 0 });
       } else {
@@ -403,6 +417,14 @@ export default function DoubtDetailPage() {
             ? `+${commentRewardRdm} RDM — first comment milestone today (IST).`
             : undefined,
       });
+      if (isGyanPlusCompanionTrackingActive()) {
+        markGyanPlusCompanionComment();
+        if (!isGyanPlusSubstepDone("gyan_engagement")) {
+          recordGyanPlusSubstep("gyan_engagement", {
+            toastActionLine: "You commented on a doubt!",
+          });
+        }
+      }
       void refreshProfile();
       setAnswerBody("");
       refetchAll();

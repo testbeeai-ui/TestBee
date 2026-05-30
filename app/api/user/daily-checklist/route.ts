@@ -141,38 +141,38 @@ export async function GET(req: NextRequest) {
         .select("bits_test_attempts, subtopic_engagement, daily_checklist_state")
         .eq("id", uid)
         .maybeSingle(),
-    sb
-      .from("daily_gauntlet_attempts")
-      .select("id")
-      .eq("user_id", uid)
-      .eq("gauntlet_date", today)
-      .eq("domain", "academic")
-      .maybeSingle(),
-    sb
-      .from("doubt_saves")
-      .select("doubt_id", { count: "exact", head: true })
-      .eq("user_id", uid)
-      .gte("created_at", new Date(dayStartMs).toISOString())
-      .lt("created_at", new Date(dayEndMs).toISOString()),
-    sb
-      .from("doubt_votes")
-      .select("id, target_type, target_id, created_at")
-      .eq("user_id", uid)
-      .gte("created_at", new Date(dayStartMs).toISOString())
-      .lt("created_at", new Date(dayEndMs).toISOString()),
-    sb
-      .from("doubt_answers")
-      .select("id, doubt_id, created_at")
-      .eq("user_id", uid)
-      .gte("created_at", new Date(dayStartMs).toISOString())
-      .lt("created_at", new Date(dayEndMs).toISOString()),
-    // Fetch revision cards from new table (indexed query instead of JSONB scan)
-    sb
-      .from("user_saved_items")
-      .select("content_id, status, saved_at")
-      .eq("user_id", uid)
-      .eq("item_type", "saved_revision_card"),
-  ]);
+      sb
+        .from("daily_gauntlet_attempts")
+        .select("id")
+        .eq("user_id", uid)
+        .eq("gauntlet_date", today)
+        .eq("domain", "academic")
+        .maybeSingle(),
+      sb
+        .from("doubt_saves")
+        .select("doubt_id", { count: "exact", head: true })
+        .eq("user_id", uid)
+        .gte("created_at", new Date(dayStartMs).toISOString())
+        .lt("created_at", new Date(dayEndMs).toISOString()),
+      sb
+        .from("doubt_votes")
+        .select("id, target_type, target_id, created_at")
+        .eq("user_id", uid)
+        .gte("created_at", new Date(dayStartMs).toISOString())
+        .lt("created_at", new Date(dayEndMs).toISOString()),
+      sb
+        .from("doubt_answers")
+        .select("id, doubt_id, created_at")
+        .eq("user_id", uid)
+        .gte("created_at", new Date(dayStartMs).toISOString())
+        .lt("created_at", new Date(dayEndMs).toISOString()),
+      // Fetch revision cards from new table (indexed query instead of JSONB scan)
+      sb
+        .from("user_saved_items")
+        .select("content_id, status, saved_at")
+        .eq("user_id", uid)
+        .eq("item_type", "saved_revision_card"),
+    ]);
 
   if (profileRes.error) {
     console.error("[daily-checklist GET] profile", profileRes.error.message);

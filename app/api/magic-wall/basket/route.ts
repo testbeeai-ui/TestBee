@@ -1,5 +1,11 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
+import {
+  fetchSubscriptionConfig,
+  getPlanLimits,
+  isUnlimited,
+  normalizePlanTier,
+} from "@/lib/subscription/subscriptionConfig";
 
 type InsertItem = {
   topicKey: string;
@@ -120,9 +126,66 @@ export async function POST(request: Request) {
     const ctx = await getSupabaseAndUser(request);
     if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     const { supabase, user } = ctx;
+    const db = supabase as any;
     const body = (await request.json().catch(() => null)) as { items?: unknown } | null;
     const items = normalizeInsertItems(body?.items);
     if (items.length === 0) return NextResponse.json({ ok: true, count: 0 });
+
+    const { data: profile, error: profileErr } = await supabase
+      .from("profiles")
+      .select("plan_tier, free_trial_activated")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (profileErr) return NextResponse.json({ error: profileErr.message }, { status: 500 });
+
+    const plan = normalizePlanTier(profile?.plan_tier, profile?.free_trial_activated);
+    const cfg = await fetchSubscriptionConfig(supabase as unknown as any);
+    const limits = getPlanLimits(cfg, plan);
+
+    const { data: existingRows, error: existingErr } = await db
+      .from("magic_wall_basket_items")
+      .select("topic_key")
+      .eq("user_id", user.id);
+    if (existingErr) return NextResponse.json({ error: existingErr.message }, { status: 500 });
+
+    const existing = new Set<string>(
+      ((existingRows ?? []) as Array<{ topic_key: string }>).map((r) => String(r.topic_key))
+    );
+    const toAdd = items.filter((it) => !existing.has(it.topicKey));
+
+    if (!isUnlimited(limits.magicWallMaxActiveTopics)) {
+      const finalSize = existing.size + toAdd.length;
+      if (finalSize > limits.magicWallMaxActiveTopics) {
+        return NextResponse.json(
+          {
+            error: `Active topic limit reached (${limits.magicWallMaxActiveTopics}) for ${plan}.`,
+          },
+          { status: 403 }
+        );
+      }
+    }
+
+    if (!isUnlimited(limits.magicWallMonthlyAttempts)) {
+      const monthStart = new Date();
+      monthStart.setUTCDate(1);
+      monthStart.setUTCHours(0, 0, 0, 0);
+      const { count: attemptsUsed, error: attemptsErr } = await db
+        .from("magic_wall_topic_attempts")
+        .select("*", { head: true, count: "exact" })
+        .eq("user_id", user.id)
+        .gte("attempted_at", monthStart.toISOString());
+      if (attemptsErr) return NextResponse.json({ error: attemptsErr.message }, { status: 500 });
+      const used = attemptsUsed ?? 0;
+      if (used + toAdd.length > limits.magicWallMonthlyAttempts) {
+        return NextResponse.json(
+          {
+            error: `Monthly attempt limit reached (${limits.magicWallMonthlyAttempts}) for ${plan}.`,
+          },
+          { status: 403 }
+        );
+      }
+    }
+
     const nowIso = new Date().toISOString();
     const payload = items.map((item) => ({
       user_id: user.id,
@@ -136,11 +199,24 @@ export async function POST(request: Request) {
       topic_name: item.topicName,
       updated_at: nowIso,
     }));
-    const db = supabase as any;
     const { error } = await db
       .from("magic_wall_basket_items")
       .upsert(payload, { onConflict: "user_id,topic_key" });
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    if (toAdd.length > 0) {
+      const attemptRows = toAdd.map((item) => ({
+        user_id: user.id,
+        topic_key: item.topicKey,
+      }));
+      const { error: attemptsInsertErr } = await db
+        .from("magic_wall_topic_attempts")
+        .insert(attemptRows);
+      if (attemptsInsertErr) {
+        return NextResponse.json({ error: attemptsInsertErr.message }, { status: 500 });
+      }
+    }
+
     return NextResponse.json({ ok: true, count: payload.length });
   } catch (e) {
     console.error("magic-wall basket POST error", e);

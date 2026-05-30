@@ -39,4 +39,3 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
-

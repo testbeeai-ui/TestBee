@@ -178,7 +178,12 @@ async function rephraseSimilarAnswerWithSarvamRag(params: {
   body: string;
   subjectFlair: string | null;
   gradeLevel: number;
-}): Promise<{ text: string | null; ragChunksRetrieved: number | null; ragContext: string | null; usage?: SarvamUsage }> {
+}): Promise<{
+  text: string | null;
+  ragChunksRetrieved: number | null;
+  ragContext: string | null;
+  usage?: SarvamUsage;
+}> {
   const ragKey = flairToRagSubject(params.subjectFlair) as ProfPiRagKey;
   const boundary = SUBJECT_BOUNDARIES[ragKey] ?? SUBJECT_BOUNDARIES.physics;
   const queryForRag = `${params.title}\n\n${params.body || ""}`
@@ -248,11 +253,21 @@ Produce the final adapted answer as markdown only.`;
   }
   if (!r.ok) {
     console.error("[gyanBotAnswer] Sarvam rephrase", r.error);
-    return { text: null, ragChunksRetrieved, ragContext: ragContext?.formattedContext ?? null, usage: undefined };
+    return {
+      text: null,
+      ragChunksRetrieved,
+      ragContext: ragContext?.formattedContext ?? null,
+      usage: undefined,
+    };
   }
   let out = formatSarvamAssistantReply(r.text);
   if (ragKey === "physics") out = stripPhysicsNarration(out);
-  return { text: out.length > 40 ? out : null, ragChunksRetrieved, ragContext: ragContext?.formattedContext ?? null, usage: r.usage };
+  return {
+    text: out.length > 40 ? out : null,
+    ragChunksRetrieved,
+    ragContext: ragContext?.formattedContext ?? null,
+    usage: r.usage,
+  };
 }
 
 async function answerWithSarvamRag(params: {
@@ -261,7 +276,12 @@ async function answerWithSarvamRag(params: {
   subjectFlair: string | null;
   gradeLevel: number;
   temperature?: number;
-}): Promise<{ text: string | null; ragChunksRetrieved: number | null; ragContext: string | null; usage?: SarvamUsage }> {
+}): Promise<{
+  text: string | null;
+  ragChunksRetrieved: number | null;
+  ragContext: string | null;
+  usage?: SarvamUsage;
+}> {
   const ragKey = flairToRagSubject(params.subjectFlair) as ProfPiRagKey;
   const boundary = SUBJECT_BOUNDARIES[ragKey] ?? SUBJECT_BOUNDARIES.physics;
   const query = `${params.title}\n\n${params.body || ""}`.trim().slice(0, PROF_PI_RAG_QUERY_MAX);
@@ -327,11 +347,21 @@ Respond in clear English (or match the student's language if they wrote primaril
 
   if (!r.ok) {
     console.error("[gyanBotAnswer] Sarvam RAG answer", r.error);
-    return { text: null, ragChunksRetrieved, ragContext: ragContext?.formattedContext ?? null, usage: undefined };
+    return {
+      text: null,
+      ragChunksRetrieved,
+      ragContext: ragContext?.formattedContext ?? null,
+      usage: undefined,
+    };
   }
   let text = formatSarvamAssistantReply(r.text);
   if (ragKey === "physics") text = stripPhysicsNarration(text);
-  return { text, ragChunksRetrieved, ragContext: ragContext?.formattedContext ?? null, usage: r.usage };
+  return {
+    text,
+    ragChunksRetrieved,
+    ragContext: ragContext?.formattedContext ?? null,
+    usage: r.usage,
+  };
 }
 
 /**
@@ -560,7 +590,8 @@ export async function runProfPiAnswerForDoubt(
       `Please recompute using the textbook formula. Keep the same format and structure.`;
 
     const corrected = await sarvamChatCompletion({
-      systemPrompt: `You are Prof-Pi, an expert tutor for Indian students (CBSE, JEE, NEET, KCET). ` +
+      systemPrompt:
+        `You are Prof-Pi, an expert tutor for Indian students (CBSE, JEE, NEET, KCET). ` +
         `You MUST use the textbook formula provided below. Keep the same answer format with **Formula:**, **Steps:**, **Answer:** sections.`,
       userContent: `Original question:\n${doubt.title}\n${doubt.body ?? ""}\n\nYour previous answer:\n${bodyOut}\n\n${correctionPrompt}`,
       temperature: getProfPiRetryTemperatureForRagKey(ragKey),
@@ -623,19 +654,27 @@ export async function runProfPiAnswerForDoubt(
           variable: calc.variable,
           claimedResult: calc.claimedResult,
           gradeLevel: grade,
+          // Multi-step support
+          steps: calc.steps,
+          params: calc.params,
+          questionText: calc.questionText,
         });
 
         if (!result) continue; // CAS unavailable or timed out
 
         if (!result.correct && result.confidence !== "low") {
           casMismatches++;
+          const stepInfo =
+            result.steps && result.steps.length > 0
+              ? `\n  Steps: ${result.steps.map((s) => `[${s.operation}] ${s.input} → ${s.output} (${s.correct ? "ok" : "fail"})`).join("; ")}`
+              : "";
           corrections.push({
             operation: calc.operation,
             expression: calc.expression,
             variable: calc.variable,
             claimed: calc.claimedResult,
             correct: result.computed ?? "unknown",
-            reason: result.explanation,
+            reason: result.explanation + stepInfo,
           });
         }
       }
@@ -654,7 +693,8 @@ export async function runProfPiAnswerForDoubt(
           `Please recompute and provide the corrected answer. Keep the same format and structure.`;
 
         const corrected = await sarvamChatCompletion({
-          systemPrompt: `You are Prof-Pi, an expert tutor for Indian students (CBSE, JEE, NEET, KCET). ` +
+          systemPrompt:
+            `You are Prof-Pi, an expert tutor for Indian students (CBSE, JEE, NEET, KCET). ` +
             `You MUST correct the calculation errors identified below. Keep the same answer format with **Formula:**, **Steps:**, **Answer:** sections.`,
           userContent: `Original question:\n${doubt.title}\n${doubt.body ?? ""}\n\nYour previous answer:\n${bodyOut}\n\n${correctionPrompt}`,
           temperature: getProfPiRetryTemperatureForRagKey(ragKey),
@@ -698,7 +738,13 @@ export async function runProfPiAnswerForDoubt(
     return {
       ok: false,
       error: insErr?.message ?? "Insert failed",
-      diag: profPiDiag(lastRagChunks, casVerified, casMismatches, formulaCrossChecked, formulaMismatch),
+      diag: profPiDiag(
+        lastRagChunks,
+        casVerified,
+        casMismatches,
+        formulaCrossChecked,
+        formulaMismatch
+      ),
     };
   }
 
@@ -716,7 +762,13 @@ export async function runProfPiAnswerForDoubt(
     skipped: false,
     answerId: inserted.id,
     source,
-    diag: profPiDiag(lastRagChunks, casVerified, casMismatches, formulaCrossChecked, formulaMismatch),
+    diag: profPiDiag(
+      lastRagChunks,
+      casVerified,
+      casMismatches,
+      formulaCrossChecked,
+      formulaMismatch
+    ),
   };
 }
 

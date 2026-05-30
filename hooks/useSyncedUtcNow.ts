@@ -71,4 +71,3 @@ export function useSyncedUtcNowMs(opts?: { tickMs?: number }) {
     [nowMs]
   );
 }
-

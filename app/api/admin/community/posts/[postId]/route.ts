@@ -26,13 +26,7 @@ export async function GET(_request: Request, context: { params: Promise<{ postId
       return NextResponse.json({ error: "SUPABASE_SERVICE_ROLE_KEY is not set" }, { status: 500 });
     }
 
-    const [
-      postCheck,
-      commentsCountRes,
-      votesCountRes,
-      commentsRes,
-      votesRes,
-    ] = await Promise.all([
+    const [postCheck, commentsCountRes, votesCountRes, commentsRes, votesRes] = await Promise.all([
       admin.from("lessons_raw_posts").select("id").eq("id", id).maybeSingle(),
       admin
         .from("lessons_raw_post_comments")
@@ -73,7 +67,9 @@ export async function GET(_request: Request, context: { params: Promise<{ postId
 
     const commentRows = commentsRes.data ?? [];
     const voteRows = votesRes.data ?? [];
-    const userIds = [...new Set([...commentRows.map((c) => c.user_id), ...voteRows.map((v) => v.user_id)])];
+    const userIds = [
+      ...new Set([...commentRows.map((c) => c.user_id), ...voteRows.map((v) => v.user_id)]),
+    ];
 
     let nameById = new Map<string, string | null>();
     if (userIds.length > 0) {

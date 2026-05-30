@@ -128,9 +128,7 @@ export async function buildBuddyAdvancedSections(
   const scored = mockRows.filter((r) => typeof r.score_percent === "number");
   const avgAccuracy =
     scored.length > 0
-      ? Math.round(
-          scored.reduce((s, r) => s + (r.score_percent as number), 0) / scored.length
-        )
+      ? Math.round(scored.reduce((s, r) => s + (r.score_percent as number), 0) / scored.length)
       : null;
 
   const mocks: BuddyMocksSection = {
@@ -157,13 +155,16 @@ export async function buildBuddyAdvancedSections(
       const sessionKind = (r as { session_kind?: string }).session_kind ?? "";
       const href =
         sessionKind === "mcq_chapter"
-          ? buddyMcqPaperHref({ slug, paper_type: "chapter", chapter_id: paperMeta?.chapter_id ?? "x" })
+          ? buddyMcqPaperHref({
+              slug,
+              paper_type: "chapter",
+              chapter_id: paperMeta?.chapter_id ?? "x",
+            })
           : buddyMcqPaperHref(paperMeta ?? { slug });
       return {
         title: r.paper_title ?? "Mock test",
         subtitle: formatRelativeTime(r.created_at),
-        scorePercent:
-          typeof r.score_percent === "number" ? Math.round(r.score_percent) : null,
+        scorePercent: typeof r.score_percent === "number" ? Math.round(r.score_percent) : null,
         href,
       };
     }),
@@ -175,14 +176,9 @@ export async function buildBuddyAdvancedSections(
   const nextGate = getEdufundNextGate(rdm);
   const nextNeed = nextGate?.need ?? null;
   const progressPct =
-    nextNeed != null && nextNeed > 0
-      ? Math.min(100, Math.round((rdm / nextNeed) * 100))
-      : 100;
+    nextNeed != null && nextNeed > 0 ? Math.min(100, Math.round((rdm / nextNeed) * 100)) : 100;
 
-  const earnedTodayRdm = (dailyRdmRes.data ?? []).reduce(
-    (s, r) => s + (r.points_awarded ?? 0),
-    0
-  );
+  const earnedTodayRdm = (dailyRdmRes.data ?? []).reduce((s, r) => s + (r.points_awarded ?? 0), 0);
 
   const edufund = {
     rdm,

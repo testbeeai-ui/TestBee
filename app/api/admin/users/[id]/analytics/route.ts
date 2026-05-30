@@ -35,9 +35,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       admin.auth.admin.getUserById(userId),
       admin
         .from("profiles")
-        .select(
-          "id, role, name, rdm, lifetime_answer_rdm, bits_test_attempts, subtopic_engagement"
-        )
+        .select("id, role, name, rdm, lifetime_answer_rdm, bits_test_attempts, subtopic_engagement")
         .eq("id", userId)
         .maybeSingle(),
       admin.from("doubts").select("id, created_at, is_resolved, views").eq("user_id", userId),
@@ -99,7 +97,9 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
           status,
           bannedUntil: authUser.banned_until ?? null,
           suspendedUntil:
-            typeof appMeta.admin_suspended_until === "string" ? appMeta.admin_suspended_until : null,
+            typeof appMeta.admin_suspended_until === "string"
+              ? appMeta.admin_suspended_until
+              : null,
           deletedAt: typeof appMeta.admin_deleted_at === "string" ? appMeta.admin_deleted_at : null,
         },
         metrics: {

@@ -1,4 +1,7 @@
-import { claimInstacueCreateDailyRdm, type InstacueDailyRdmResult } from "@/lib/rdm/claims/claimInstacueDailyRdm";
+import {
+  claimInstacueCreateDailyRdm,
+  type InstacueDailyRdmResult,
+} from "@/lib/rdm/claims/claimInstacueDailyRdm";
 import { useUserStore } from "@/store/useUserStore";
 
 export type ApplyInstacueCreateDailyRdmOptions = {

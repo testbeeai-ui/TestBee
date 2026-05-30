@@ -64,9 +64,7 @@ export async function POST(request: Request) {
     const trimmed = rawList.slice(0, MAX_EVENTS);
 
     const clientSessionId =
-      typeof body?.clientSessionId === "string"
-        ? sanitizeText(body.clientSessionId, 80)
-        : null;
+      typeof body?.clientSessionId === "string" ? sanitizeText(body.clientSessionId, 80) : null;
 
     const rows: Array<{
       user_id: string;

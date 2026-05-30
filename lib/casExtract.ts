@@ -3,16 +3,89 @@
  *
  * Parses **Answer:**, **Formula:**, **Steps:** sections and extracts LaTeX expressions
  * along with the detected operation type from the question context.
+ *
+ * Supports 40+ operation types covering JEE/JEE Advanced/NEET syllabus.
  */
 
-export type CalcOperation = "integrate" | "differentiate" | "simplify" | "solve" | "limit" | "evaluate" | "equivalent";
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+export type CalcOperation =
+  // Original 7
+  | "integrate"
+  | "differentiate"
+  | "simplify"
+  | "solve"
+  | "limit"
+  | "evaluate"
+  | "equivalent"
+  // New solver operations
+  | "nested_radical"
+  | "compose_functions"
+  | "recurrence_relation"
+  | "infinite_series"
+  | "sequence_limit"
+  | "modular_arithmetic"
+  | "algebra"
+  | "quadratic"
+  | "factor_polynomial"
+  | "inequality"
+  | "system_of_equations"
+  | "trigonometry"
+  | "trig_identity"
+  | "complex_numbers"
+  | "roots_of_unity"
+  | "coordinate_geometry"
+  | "conic_section"
+  | "vectors"
+  | "dot_product"
+  | "cross_product"
+  | "three_d_geometry"
+  | "linear_algebra"
+  | "determinant"
+  | "eigenvalue"
+  | "discrete"
+  | "permutation"
+  | "combination"
+  | "binomial_theorem"
+  | "number_theory"
+  | "probability"
+  | "conditional_probability"
+  | "ode"
+  | "differential_equation"
+  | "sequences_series"
+  | "arithmetic_progression"
+  | "geometric_progression"
+  | "statistics"
+  | "continuity"
+  | "differentiability"
+  | "mvt"
+  | "applications_calc"
+  | "maxima_minima"
+  | "area_under_curve"
+  | "sets_relations"
+  | "logic"
+  | "special"
+  | "multi_step";
+
+export type CalcStep = {
+  operation: CalcOperation;
+  expression: string;
+  variable: string;
+  params?: Record<string, unknown>;
+};
 
 export type ExtractedCalc = {
   operation: CalcOperation;
-  expression: string; // LaTeX of the input
-  variable: string; // e.g. "x"
-  claimedResult: string; // LaTeX of the answer
-  sectionHeader: string; // which section it came from
+  expression: string;
+  variable: string;
+  claimedResult: string;
+  sectionHeader: string;
+  // Multi-step support
+  steps?: CalcStep[];
+  params?: Record<string, unknown>;
+  questionText?: string;
 };
 
 // ---------------------------------------------------------------------------
@@ -20,10 +93,175 @@ export type ExtractedCalc = {
 // ---------------------------------------------------------------------------
 
 const OPERATION_PATTERNS: Array<{ pattern: RegExp; op: CalcOperation }> = [
-  { pattern: /\bintegrat|antiderivative|find\s+(?:the\s+)?integral|∫/i, op: "integrate" },
-  { pattern: /\bderiv|differentiat|find\s+(?:dy|dz|du|dv|dw)\s*\/\s*dx|d\/dx|dy\/dx/i, op: "differentiate" },
-  { pattern: /\blimit\b|\blim\b|approaches?\b/i, op: "limit" },
-  { pattern: /\bsolve\b|\bfind\s+(?:the\s+)?(?:roots?|zeros?|values?\s+of\s+x)|equation\b/i, op: "solve" },
+  // === MOST SPECIFIC FIRST (to avoid false matches) ===
+
+  // Nested radicals
+  {
+    pattern: /nested\s*radical|\\sqrt\s*\{.*\\sqrt\s*\{|√.*√|infinite.*radical/i,
+    op: "nested_radical",
+  },
+
+  // Function composition
+  {
+    pattern: /f\s*\(\s*f\s*\(|function.*compos|f\^2|f\^3|compose.*function/i,
+    op: "compose_functions",
+  },
+
+  // Recurrence relations
+  {
+    pattern: /recurrence|a_\{?n\s*\+\s*1\}?|a_\(n\+1\)|closed\s*form.*sequence/i,
+    op: "recurrence_relation",
+  },
+
+  // Infinite series
+  {
+    pattern: /\\sum.*\\infty|\\sum.*oo|infinite\s*series|convergence.*series/i,
+    op: "infinite_series",
+  },
+
+  // Sequence limits with factorials
+  { pattern: /factorial.*limit|n!.*limit|stirling|ⁿ√.*n!|n-th.*root.*n!/i, op: "sequence_limit" },
+
+  // Clock / modular arithmetic
+  {
+    pattern: /clock.*backward|clock.*slow|clock.*half|modular.*arithmetic|remainder.*when/i,
+    op: "modular_arithmetic",
+  },
+
+  // Number theory
+  {
+    pattern:
+      /euler.*totient|euler.*phi|fermat.*little|wilson.*theorem|chinese.*remainder|prime.*factor/i,
+    op: "number_theory",
+  },
+
+  // Binomial theorem
+  {
+    pattern: /binomial.*theorem|binomial.*expansion|general.*term.*binomial/i,
+    op: "binomial_theorem",
+  },
+
+  // Differential equations
+  {
+    pattern: /differential.*equation|\\bODE\\b|dsolve|order.*degree/i,
+    op: "differential_equation",
+  },
+
+  // Maxima/minima / optimization
+  { pattern: /maxima|minima|maximum.*value|minimum.*value|optimiz/i, op: "maxima_minima" },
+
+  // Area under curve
+  { pattern: /area.*under.*curve|area.*between.*curve|area.*region/i, op: "area_under_curve" },
+
+  // Continuity / differentiability
+  { pattern: /continuity|continuous|discontinuity|differentiab/i, op: "continuity" },
+
+  // Mean Value Theorem / Rolle's
+  { pattern: /rolle.*theorem|mean.*value.*theorem|\\bMVT\\b|lagrange/i, op: "mvt" },
+
+  // Eigenvalues
+  { pattern: /eigenvalue|eigenvector|characteristic.*equation/i, op: "eigenvalue" },
+
+  // Determinant
+  { pattern: /determinant|det\(|\|A\|/i, op: "determinant" },
+
+  // 3D geometry
+  {
+    pattern: /3d.*geometry|three.*dimensional|direction.*cosine|skew.*line|equation.*plane/i,
+    op: "three_d_geometry",
+  },
+
+  // Vectors
+  {
+    pattern: /dot\s*product|cross\s*product|scalar.*triple|vector.*product|projection.*vector/i,
+    op: "vectors",
+  },
+
+  // Conic sections
+  { pattern: /parabola|ellipse|hyperbola|conic.*section|focus.*directrix/i, op: "conic_section" },
+
+  // Complex numbers
+  {
+    pattern:
+      /complex.*number|modulus.*argument|de\s*moivre|roots?\s*of\s*unity|conjugate.*complex/i,
+    op: "complex_numbers",
+  },
+
+  // Trigonometry
+  {
+    pattern:
+      /trig.*identit|trig.*equation|inverse.*trig|arcsin|arccos|arctan|general.*solution.*trig/i,
+    op: "trigonometry",
+  },
+
+  // Probability
+  {
+    pattern: /conditional.*prob|bayes.*theorem|binomial.*distribut|poisson|normal.*distribut/i,
+    op: "probability",
+  },
+
+  // Statistics
+  {
+    pattern: /mean.*median.*mode|variance|standard.*deviation|coefficient.*variation/i,
+    op: "statistics",
+  },
+
+  // Permutations / Combinations
+  { pattern: /permut|circular.*permut|\\bnPr\\b/i, op: "permutation" },
+  { pattern: /combin|\\bnCr\\b|\\binom\b|choose/i, op: "combination" },
+
+  // Sequences / Series (AP, GP)
+  { pattern: /arithmetic.*progression|\\bAP\\b|common.*difference/i, op: "arithmetic_progression" },
+  { pattern: /geometric.*progression|\\bGP\\b|common.*ratio/i, op: "geometric_progression" },
+
+  // Sets / Relations
+  {
+    pattern:
+      /set.*operation|union.*intersection|reflexive|symmetric.*relation|transitive|equivalence.*class/i,
+    op: "sets_relations",
+  },
+
+  // Logic
+  {
+    pattern: /tautolog|contradiction|converse.*statement|contrapositive|truth.*table/i,
+    op: "logic",
+  },
+
+  // Coordinate geometry
+  {
+    pattern: /straight.*line|circle.*equation|tangent.*circle|distance.*formula/i,
+    op: "coordinate_geometry",
+  },
+
+  // Special functions
+  { pattern: /ceiling|floor|fractional.*part|signum|\\bceil\\b/i, op: "special" },
+
+  // Matrix / Linear algebra
+  { pattern: /matrix|matrices|adjoint|inverse.*matrix|row.*echelon/i, op: "linear_algebra" },
+
+  // Inequality
+  { pattern: /inequality|≥|≤|greater.*or.*equal|less.*or.*equal/i, op: "inequality" },
+
+  // Quadratic
+  { pattern: /quadratic|discriminant|nature.*roots|vieta/i, op: "quadratic" },
+
+  // Polynomial factorization
+  { pattern: /factor.*polynomial|polynomial.*factor/i, op: "factor_polynomial" },
+
+  // System of equations
+  { pattern: /system.*equation|simultaneous/i, op: "system_of_equations" },
+
+  // === ORIGINAL 6 (broad patterns, last to avoid false matches) ===
+  { pattern: /\bintegrat|antiderivative|find\s+(?:the\s+)?integral|∫|\\int/i, op: "integrate" },
+  {
+    pattern: /\bderiv|differentiat|find\s+(?:dy|dz|du|dv|dw)\s*\/\s*dx|d\/dx|dy\/dx/i,
+    op: "differentiate",
+  },
+  { pattern: /\blimit\b|\blim\b|approaches?\b|\\lim/i, op: "limit" },
+  {
+    pattern: /\bsolve\b|\bfind\s+(?:the\s+)?(?:roots?|zeros?|values?\s+of\s+x)|equation\b/i,
+    op: "solve",
+  },
   { pattern: /\bsimplif|reduce\b/i, op: "simplify" },
   { pattern: /\bevaluat|calculat|find\s+(?:the\s+)?(?:value|result)|compute\b/i, op: "evaluate" },
 ];
@@ -44,7 +282,9 @@ const COMMON_VARS = ["x", "y", "z", "t", "u", "v", "w", "r", "θ", "theta"];
 
 function detectVariable(text: string): string {
   // Look for "with respect to" patterns
-  const wrt = text.match(/(?:w\.?r\.?t\.?|with\s+respect\s+to|differentiate\s+(?:with\s+)?(?:respect\s+)?(?:to\s+)?)\s*([a-zθ])/i);
+  const wrt = text.match(
+    /(?:w\.?r\.?t\.?|with\s+respect\s+to|differentiate\s+(?:with\s+)?(?:respect\s+)?(?:to\s+)?)\s*([a-zθ])/i
+  );
   if (wrt?.[1]) return wrt[1];
 
   // Look for dx, dy, dz in integrals
@@ -75,6 +315,17 @@ function extractLatexBlocks(text: string): string[] {
   }
 
   return blocks;
+}
+
+/** Extract the last substantial LaTeX block from text. */
+function extractLastLatexBlock(text: string): string {
+  const blocks = extractLatexBlocks(text);
+  if (blocks.length === 0) return "";
+  // Return the last block that's more than just a variable
+  for (let i = blocks.length - 1; i >= 0; i--) {
+    if (blocks[i].length > 4) return blocks[i];
+  }
+  return blocks[blocks.length - 1];
 }
 
 /** Find the content under a bold section header like **Answer:** or **Formula:**. */
@@ -113,6 +364,33 @@ export function extractCalculations(params: {
   const questionText = `${doubtTitle}\n${doubtBody}`;
   const results: ExtractedCalc[] = [];
 
+  // Try multi-step detection first
+  const multiSteps = detectMultiStepProblem(questionText, answerMarkdown);
+  if (multiSteps && multiSteps.length > 1) {
+    const answerContent = findSectionContent(
+      answerMarkdown,
+      /\*\*(?:Answer|Solution|Result)\s*:?\*\*/i
+    );
+    const answerLatex = answerContent ? extractLatexBlocks(answerContent) : [];
+    const claimedResult =
+      answerLatex.length > 0
+        ? answerLatex[answerLatex.length - 1]
+        : extractLastLatexBlock(answerMarkdown);
+
+    if (claimedResult) {
+      results.push({
+        operation: "multi_step",
+        expression: multiSteps[0].expression,
+        variable: multiSteps[0].variable,
+        claimedResult,
+        sectionHeader: "multi_step",
+        steps: multiSteps,
+        questionText,
+      });
+      return results;
+    }
+  }
+
   // Detect operation from question
   const operation = detectOperation(questionText);
   if (!operation) return results;
@@ -138,9 +416,10 @@ export function extractCalculations(params: {
 
   if (answerLatex.length > 0) {
     // Use formula section as expression if available, otherwise use question
-    const expression = formulaLatex.length > 0
-      ? formulaLatex[formulaLatex.length - 1] // last formula = the main one
-      : _extractExpressionFromQuestion(questionText, operation);
+    const expression =
+      formulaLatex.length > 0
+        ? formulaLatex[formulaLatex.length - 1] // last formula = the main one
+        : _extractExpressionFromQuestion(questionText, operation);
 
     for (const ans of answerLatex) {
       results.push({
@@ -157,9 +436,10 @@ export function extractCalculations(params: {
     if (allBlocks.length >= 2) {
       // Last substantial block is likely the answer
       const lastBlock = allBlocks[allBlocks.length - 1];
-      const expression = formulaLatex.length > 0
-        ? formulaLatex[0]
-        : _extractExpressionFromQuestion(questionText, operation);
+      const expression =
+        formulaLatex.length > 0
+          ? formulaLatex[0]
+          : _extractExpressionFromQuestion(questionText, operation);
 
       if (lastBlock && lastBlock.length > 4) {
         results.push({
@@ -213,4 +493,133 @@ export function shouldRunCasVerification(params: {
   const hasNumbers = /\d+/.test(doubtBody || doubtTitle);
 
   return hasMathOp || (hasLatex && hasNumbers);
+}
+
+// ---------------------------------------------------------------------------
+// Multi-step detection
+// ---------------------------------------------------------------------------
+
+/**
+ * Detect if a question requires multi-step solving.
+ * Returns a step chain or null if single-operation.
+ */
+export function detectMultiStepProblem(
+  questionText: string,
+  answerMarkdown: string
+): CalcStep[] | null {
+  const text = questionText.toLowerCase();
+  const steps: CalcStep[] = [];
+
+  // Pattern: nested radical → solve → evaluate
+  // e.g., "x = √(6 + √(6 + ...)), find x"
+  if (/nested.*radical|\\sqrt\s*\{.*\\sqrt\s*\{|√.*√/i.test(text)) {
+    const radicalMatch = questionText.match(/\\sqrt\s*\{?\s*(\d+)\s*\+?\s*\\sqrt/i);
+    const constant = radicalMatch?.[1] || "6";
+    steps.push({
+      operation: "nested_radical",
+      expression: `\\sqrt{${constant} + \\sqrt{${constant} + \\cdots}}`,
+      variable: "x",
+    });
+    if (/find|evaluat|compute|what/i.test(text)) {
+      steps.push({
+        operation: "solve",
+        expression: "{{prev}}",
+        variable: "x",
+      });
+    }
+    return steps.length > 1 ? steps : null;
+  }
+
+  // Pattern: define f(x) → compose f(f(x)) → solve f(f(x)) = k
+  // e.g., "f(x) = √(x+1), find f(f(2))" or "f(f(x)) = 6, find x"
+  if (/f\s*\(\s*f|compose|f\^2/i.test(text)) {
+    const fDef = questionText.match(/f\s*\(\s*x\s*\)\s*=\s*([^,\n]+)/i);
+    if (fDef) {
+      steps.push({
+        operation: "compose_functions",
+        expression: fDef[1].trim(),
+        variable: "x",
+        params: { composition_depth: 2 },
+      });
+      if (/=.*\d|find.*x|solve/i.test(text)) {
+        const target = text.match(/=\s*(\d+)/);
+        if (target) {
+          steps.push({
+            operation: "solve",
+            expression: "{{prev}}",
+            variable: "x",
+            params: { target_value: parseInt(target[1]) },
+          });
+        }
+      }
+      return steps.length > 1 ? steps : null;
+    }
+  }
+
+  // Pattern: recurrence → closed form → evaluate at n
+  if (/recurrence|a_\{?n.*\+.*1/i.test(text)) {
+    const recMatch = questionText.match(/a_\{?n\s*\+\s*1\}?\s*=\s*([^,\n]+)/i);
+    if (recMatch) {
+      steps.push({
+        operation: "recurrence_relation",
+        expression: recMatch[1].trim(),
+        variable: "n",
+      });
+      return steps;
+    }
+  }
+
+  // Pattern: factorial limit with Stirling
+  if (/factorial.*limit|n!.*limit|stirling|ⁿ√.*n!/i.test(text)) {
+    steps.push({
+      operation: "sequence_limit",
+      expression: extractLatexBlocks(questionText)[0] || "",
+      variable: "n",
+      params: { point: "oo" },
+    });
+    return steps;
+  }
+
+  return null;
+}
+
+/**
+ * Extract nested radical LaTeX from question text.
+ */
+function extractNestedRadicalLatex(text: string): string {
+  const patterns = [
+    /\\sqrt\s*\{?\s*(\d+)\s*\+?\s*\\sqrt\s*\{?\s*\1/,
+    /√\s*\(\s*(\d+)\s*\+?\s*√\s*\(\s*\1/,
+    /x\s*=\s*\\sqrt\s*\{([^}]+)\}/,
+    /x\s*=\s*√\s*\(\s*([^)]+)\)/,
+  ];
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match) return match[0];
+  }
+  return "";
+}
+
+/**
+ * Extract function definition from question text.
+ */
+function extractFunctionDefinition(text: string): string | null {
+  const patterns = [/f\s*\(\s*x\s*\)\s*=\s*([^,\n]+)/i, /f\s*:\s*x\s*\\mapsto\s*([^,\n]+)/i];
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match) return match[1].trim();
+  }
+  return null;
+}
+
+/**
+ * Extract recurrence relation from question text.
+ */
+function extractRecurrence(text: string): string {
+  const patterns = [/a_\{?n\s*\+\s*1\}?\s*=\s*([^,\n]+)/i, /a_\(n\+1\)\s*=\s*([^,\n]+)/i];
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match) return match[1].trim();
+  }
+  return "";
 }

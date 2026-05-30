@@ -59,18 +59,35 @@ export function mapPaperRowToMockPaper(row: PaperRow): MockPaper {
   };
 }
 
+/** CBSE NCERT chapter MCQs live in the same table but belong under Prep → CBSE MCQ's, not Mock papers. */
+export function isCbseMcqCatalogPaper(row: {
+  board?: string | null;
+  chapter_id?: string | null;
+}): boolean {
+  if (row.chapter_id) return true;
+  return (row.board ?? "").trim().toUpperCase() === "CBSE";
+}
+
 export async function fetchMockPapersFromSupabase(): Promise<MockPaper[]> {
   const { data, error } = await supabase
     .from("mock_papers")
     .select(
-      "id, slug, title, exam_name, exam_set_name, paper_type, duration_minutes, total_marks, question_count, marking_scheme, class_level, tags, subjects_covered"
+      "id, slug, title, exam_name, exam_set_name, paper_type, duration_minutes, total_marks, question_count, marking_scheme, class_level, tags, subjects_covered, board, chapter_id"
     )
     .in("paper_type", ["ncert", "chapter", "full", "mock"])
+    .is("chapter_id", null)
     .eq("published", true)
     .order("created_at", { ascending: false });
 
   if (error) throw error;
-  return (data ?? []).map((r) => mapPaperRowToMockPaper(r as PaperRow));
+  return (data ?? [])
+    .filter(
+      (r) =>
+        !isCbseMcqCatalogPaper(
+          r as PaperRow & { board?: string | null; chapter_id?: string | null }
+        )
+    )
+    .map((r) => mapPaperRowToMockPaper(r as PaperRow));
 }
 
 export async function fetchMockQuestionsForPaper(paperId: string): Promise<Question[]> {

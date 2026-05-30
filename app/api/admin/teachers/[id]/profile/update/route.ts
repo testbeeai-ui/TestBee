@@ -54,11 +54,16 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         userId: teacherId,
         name: typeof body.name === "string" ? body.name : (teacherProfile.name ?? "Teacher"),
         bio: typeof body.bio === "string" ? body.bio : "",
-        visibility: typeof body.visibility === "string" ? body.visibility : (teacherProfile.visibility ?? "public"),
+        visibility:
+          typeof body.visibility === "string"
+            ? body.visibility
+            : (teacherProfile.visibility ?? "public"),
         subjects: Array.isArray(body.subjects) ? body.subjects : [],
         examTags: Array.isArray(body.examTags) ? body.examTags : [],
         teachingLevels: Array.isArray(body.teachingLevels)
-          ? body.teachingLevels.filter((n): n is number => typeof n === "number" && Number.isFinite(n))
+          ? body.teachingLevels.filter(
+              (n): n is number => typeof n === "number" && Number.isFinite(n)
+            )
           : [],
         avatarUrl: body.avatarUrl !== undefined ? body.avatarUrl : undefined,
         details: body.details as Body["details"],
@@ -95,4 +100,3 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
-

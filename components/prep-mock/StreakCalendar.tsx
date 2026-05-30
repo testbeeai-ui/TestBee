@@ -176,7 +176,10 @@ export default function StreakCalendar({
 
         <div className="grid grid-cols-7 mb-0.5 sm:mb-1">
           {DAYS.map((d) => (
-            <div key={d} className="text-center text-[9px] font-bold text-muted-foreground py-0.5 sm:text-[11px] sm:py-1">
+            <div
+              key={d}
+              className="text-center text-[9px] font-bold text-muted-foreground py-0.5 sm:text-[11px] sm:py-1"
+            >
               {d}
             </div>
           ))}
@@ -221,16 +224,19 @@ export default function StreakCalendar({
 
         <div className="flex flex-wrap items-center gap-2 mt-2 pt-2 border-t border-border/50 sm:gap-3 sm:mt-3 sm:pt-3">
           <span className="flex items-center gap-1 text-[11px] text-muted-foreground sm:text-xs">
-            <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block sm:w-2 sm:h-2" /> Class
+            <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block sm:w-2 sm:h-2" />{" "}
+            Class
           </span>
           <span className="flex items-center gap-1 text-[11px] text-muted-foreground sm:text-xs">
-            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block sm:w-2 sm:h-2" /> Revision
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block sm:w-2 sm:h-2" />{" "}
+            Revision
           </span>
           <span className="flex items-center gap-1 text-[11px] text-muted-foreground sm:text-xs">
             <span className="w-1.5 h-1.5 rounded-full bg-red-500 inline-block sm:w-2 sm:h-2" /> Mock
           </span>
           <span className="flex items-center gap-1 text-[11px] text-muted-foreground sm:text-xs">
-            <span className="w-1.5 h-1.5 rounded-full bg-gray-400 inline-block sm:w-2 sm:h-2" /> Doubt
+            <span className="w-1.5 h-1.5 rounded-full bg-gray-400 inline-block sm:w-2 sm:h-2" />{" "}
+            Doubt
           </span>
           {loading ? (
             <span className="text-[10px] text-muted-foreground ml-auto">Updating…</span>

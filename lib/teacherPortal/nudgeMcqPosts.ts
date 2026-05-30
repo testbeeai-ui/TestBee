@@ -29,10 +29,7 @@ export function contentJsonHasGeneratedTestPaper(contentJson: unknown): boolean 
 }
 
 /** Raw post row: catalog mock, syllabus chapter quiz (MCQ), or generated classroom MCQ assignment. */
-export function postRowIsNudgeMcqTarget(post: {
-  type: string;
-  content_json?: unknown;
-}): boolean {
+export function postRowIsNudgeMcqTarget(post: { type: string; content_json?: unknown }): boolean {
   if (post.type === "mock") return true;
   if (post.type === "past_paper") return true;
   /** Chapter / syllabus MCQ assignments (Create assignment → Quiz). */

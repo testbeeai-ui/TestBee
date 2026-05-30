@@ -168,7 +168,8 @@ async function main() {
 
     let ans = (row.answer || "").trim().toUpperCase().charAt(0);
     if (!["A", "B", "C", "D"].includes(ans)) {
-      const byOptionId = numericOptionToLetter(row.optionId) ?? numericOptionToLetter(row.fk_optionId);
+      const byOptionId =
+        numericOptionToLetter(row.optionId) ?? numericOptionToLetter(row.fk_optionId);
       const byWrongAns = numericOptionToLetter(row.wrongAns);
       const byLiteralWrongAns = (row.wrongAns || "").trim().toUpperCase().charAt(0);
       if (byOptionId) ans = byOptionId;
@@ -263,4 +264,3 @@ main().catch((e) => {
   console.error(e);
   process.exit(1);
 });
-

@@ -84,7 +84,10 @@ export async function GET(request: Request) {
           order: (
             column: string,
             options: { ascending: boolean }
-          ) => Promise<{ data: TeacherVerificationRow[] | null; error: { message: string } | null }>;
+          ) => Promise<{
+            data: TeacherVerificationRow[] | null;
+            error: { message: string } | null;
+          }>;
         };
       };
     };
@@ -134,7 +137,10 @@ export async function GET(request: Request) {
             aadharPhotoLink: await resolveDocUrl(admin, row.aadhar_photo_url),
             aadharShareLink: row.aadhar_share_link,
             instituteCertificatePhotoUrl: row.institute_certificate_photo_url,
-            instituteCertificatePhotoLink: await resolveDocUrl(admin, row.institute_certificate_photo_url),
+            instituteCertificatePhotoLink: await resolveDocUrl(
+              admin,
+              row.institute_certificate_photo_url
+            ),
             instituteCertificateShareLink: row.institute_certificate_share_link,
           },
         };
@@ -197,9 +203,9 @@ export async function PATCH(request: Request) {
 
     const adminAny = admin as unknown as {
       from: (table: string) => {
-        update: (
-          values: Record<string, unknown>
-        ) => { eq: (column: string, value: string) => Promise<{ error: { message: string } | null }> };
+        update: (values: Record<string, unknown>) => {
+          eq: (column: string, value: string) => Promise<{ error: { message: string } | null }>;
+        };
       };
     };
     const { error } = await adminAny

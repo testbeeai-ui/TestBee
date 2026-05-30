@@ -14,6 +14,7 @@ import AppLayout from "@/components/AppLayout";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { useTopicTaxonomy } from "@/hooks/useTopicTaxonomy";
 import { useAuth } from "@/hooks/useAuth";
+import { useIsAppAdmin } from "@/hooks/useIsAppAdmin";
 import { useUserStore } from "@/store/useUserStore";
 import type { Board, ClassLevel, ExamType, Subject } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -48,11 +49,22 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { appendQueryParams, buildTopicOverviewPath, type DifficultyLevel } from "@/lib/curriculum/topicRoutes";
+import {
+  appendQueryParams,
+  buildTopicOverviewPath,
+  type DifficultyLevel,
+} from "@/lib/curriculum/topicRoutes";
 import type { TopicNode } from "@/data/topicTaxonomy";
 import { fetchAdvancedLessonCompletionKeys } from "@/lib/curriculum/lessonCompletionClient";
 import { isTopicCompleteAtAdvanced } from "@/lib/curriculum/lessonCompletionRollup";
 import { fetchWithClientAuth } from "@/lib/auth/clientApiAuth";
+import { DEFAULT_RDM_CONFIG } from "@/lib/rdm/rdmConfig";
+import { syncMagicWallOnboardingStepsFromBasketState } from "@/lib/onboarding/magicWallOnboarding";
+import {
+  fetchSubscriptionConfig,
+  getPlanLimits,
+  normalizePlanTier,
+} from "@/lib/subscription/subscriptionConfig";
 
 /** Topic hub level when opening topics from Magic Wall (Start Reading / basket links). */
 const MAGIC_WALL_READING_LEVEL: DifficultyLevel = "advanced";
@@ -98,7 +110,6 @@ const RAIN_CANVAS_H = 640;
  * Fewer concurrent streams = less pile-up; chip width is capped so columns can span the canvas.
  */
 /** Fewer columns = less vertical pile-up in the same Y band (easier to tap). */
-const MAGIC_WALL_MAX_SELECTED_TOPICS = 5;
 /** Paginated “completed topics” history modal (150+ syllabus rows). */
 const COMPLETED_TOPICS_HISTORY_PAGE_SIZE = 20;
 const RESET_HISTORY_COUNTDOWN_SEC = 10;
@@ -188,6 +199,11 @@ type RainSlot = {
 export default function MagicWallPage() {
   const { taxonomy, loading, error } = useTopicTaxonomy();
   const { user, profile } = useAuth();
+  const isAdmin = useIsAppAdmin();
+  const [planMaxPicks, setPlanMaxPicks] = useState(DEFAULT_RDM_CONFIG.magic_wall_max_topics);
+  const currentPlan = normalizePlanTier(profile?.plan_tier, profile?.free_trial_activated);
+  const maxPicks = isAdmin ? 5 : planMaxPicks;
+  const [showSaveConfirmOpen, setShowSaveConfirmOpen] = useState(false);
   const storeUser = useUserStore((s) => s.user);
   const { toast } = useToast();
   const router = useRouter();
@@ -226,7 +242,10 @@ export default function MagicWallPage() {
   const [pausedRainChipKey, setPausedRainChipKey] = useState<string | null>(null);
 
   const boardNormForLessonCompletions = useMemo(
-    () => String(storeUser?.board ?? profile?.board ?? board).trim().toLowerCase(),
+    () =>
+      String(storeUser?.board ?? profile?.board ?? board)
+        .trim()
+        .toLowerCase(),
     [storeUser?.board, profile?.board, board]
   );
 
@@ -235,10 +254,21 @@ export default function MagicWallPage() {
     12: Set<string>;
   }>(() => ({ 11: new Set(), 12: new Set() }));
 
-  const activeSubjectsKey = useMemo(
-    () => [...activeSubjects].sort().join(","),
-    [activeSubjects]
-  );
+  const activeSubjectsKey = useMemo(() => [...activeSubjects].sort().join(","), [activeSubjects]);
+
+  /* Fetch plan-driven Magic Wall limit from admin config */
+  useEffect(() => {
+    let cancelled = false;
+    void fetchSubscriptionConfig().then((cfg) => {
+      if (!cancelled) {
+        const v = getPlanLimits(cfg, currentPlan).magicWallMaxActiveTopics;
+        if (typeof v === "number" && v >= 1) setPlanMaxPicks(v);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [currentPlan]);
 
   useEffect(() => {
     // Gate on session user (matches lesson-completion API), not profile row — avoids a gap
@@ -266,7 +296,10 @@ export default function MagicWallPage() {
         }
         return merged;
       };
-      const [keys11, keys12] = await Promise.all([fetchMergedForClass(11), fetchMergedForClass(12)]);
+      const [keys11, keys12] = await Promise.all([
+        fetchMergedForClass(11),
+        fetchMergedForClass(12),
+      ]);
       if (cancelled) return;
       setAdvancedLessonKeysByClass({ 11: keys11, 12: keys12 });
     })();
@@ -674,6 +707,47 @@ export default function MagicWallPage() {
     );
   }, [selectedTopicKeys, topicMapByKey, basketItems, basketKeySet]);
 
+  const autoPruneCompletedInFlightRef = useRef(false);
+  useEffect(() => {
+    if (!user?.id) return;
+    if (basketItems.length === 0) return;
+    if (autoPruneCompletedInFlightRef.current) return;
+
+    const completedTopicKeys = basketItems
+      .map((item) => {
+        const topic = topicMapByKey.get(item.topicKey);
+        if (!topic) return null;
+        const classLevel = Number(item.classLevel) === 12 ? 12 : 11;
+        const keys = advancedLessonKeysByClass[classLevel];
+        const done = isTopicCompleteAtAdvanced(topic.node, keys, boardNormForLessonCompletions);
+        return done ? item.topicKey : null;
+      })
+      .filter((k): k is string => Boolean(k));
+
+    if (completedTopicKeys.length === 0) return;
+
+    autoPruneCompletedInFlightRef.current = true;
+    void (async () => {
+      try {
+        await removeMagicWallBasketItems(completedTopicKeys);
+        const rows = await fetchMagicWallBasket();
+        setBasketItems(rows);
+        setSelectedTopicKeys(new Set(rows.map((r) => r.topicKey)));
+        selectedTopicKeysRef.current = new Set(rows.map((r) => r.topicKey));
+      } catch {
+        // best effort; user can still refresh manually
+      } finally {
+        autoPruneCompletedInFlightRef.current = false;
+      }
+    })();
+  }, [
+    user?.id,
+    basketItems,
+    topicMapByKey,
+    advancedLessonKeysByClass,
+    boardNormForLessonCompletions,
+  ]);
+
   const refreshBasket = useCallback(async () => {
     if (!user?.id) return;
     setLoadingBasket(true);
@@ -681,10 +755,11 @@ export default function MagicWallPage() {
       const rows = await fetchMagicWallBasket();
       setBasketItems(rows);
       setSelectedTopicKeys(new Set(rows.map((r) => r.topicKey)));
-      if (rows.length > MAGIC_WALL_MAX_SELECTED_TOPICS) {
+      syncMagicWallOnboardingStepsFromBasketState(rows.length, rows.length);
+      if (rows.length > maxPicks) {
         toast({
-          title: `More than ${MAGIC_WALL_MAX_SELECTED_TOPICS} topics in basket`,
-          description: `Keep up to ${MAGIC_WALL_MAX_SELECTED_TOPICS}. Remove extras, then save.`,
+          title: `More than ${maxPicks} topics in basket`,
+          description: `Keep up to ${maxPicks}. Remove extras, then save.`,
         });
       }
     } catch (e) {
@@ -695,11 +770,16 @@ export default function MagicWallPage() {
     } finally {
       setLoadingBasket(false);
     }
-  }, [user?.id, toast]);
+  }, [user?.id, toast, maxPicks]);
 
   useEffect(() => {
     void refreshBasket();
   }, [refreshBasket]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    syncMagicWallOnboardingStepsFromBasketState(basketItems.length, selectedTopicKeys.size);
+  }, [user?.id, basketItems.length, selectedTopicKeys.size]);
 
   const toggleSubject = (subject: Subject) => {
     setActiveSubjects((prev) => {
@@ -717,6 +797,15 @@ export default function MagicWallPage() {
   const toggleTopic = (topicKey: string) => {
     const prev = selectedTopicKeysRef.current;
     if (prev.has(topicKey)) {
+      const isSaved = basketKeySet.has(topicKey);
+      if (!isAdmin && isSaved && (currentPlan === "free" || currentPlan === "free_trial")) {
+        toast({
+          title: "Saved topics cannot be undone",
+          description:
+            "On Free and Free Trial, saved Magic Wall topics stay locked. Complete them to free a slot.",
+        });
+        return;
+      }
       setSelectedTopicKeys((s) => {
         const next = new Set(s);
         next.delete(topicKey);
@@ -725,10 +814,10 @@ export default function MagicWallPage() {
       });
       return;
     }
-    if (prev.size >= MAGIC_WALL_MAX_SELECTED_TOPICS) {
+    if (prev.size >= maxPicks) {
       toast({
-        title: `Maximum ${MAGIC_WALL_MAX_SELECTED_TOPICS} topics`,
-        description: `You already have ${MAGIC_WALL_MAX_SELECTED_TOPICS} selected. Remove one from the list to add another.`,
+        title: `Maximum ${maxPicks} topics`,
+        description: `You already have ${maxPicks} selected. Remove one from the list to add another.`,
       });
       return;
     }
@@ -742,10 +831,10 @@ export default function MagicWallPage() {
 
   const persistSelection = async () => {
     if (!hasUnsavedChanges) return;
-    if (selectedTopicKeys.size > MAGIC_WALL_MAX_SELECTED_TOPICS) {
+    if (selectedTopicKeys.size > maxPicks) {
       toast({
         title: "Too many topics",
-        description: `Save up to ${MAGIC_WALL_MAX_SELECTED_TOPICS} topics. Remove some first.`,
+        description: `Save up to ${maxPicks} topics. Remove some first.`,
         variant: "destructive",
       });
       return;
@@ -776,6 +865,7 @@ export default function MagicWallPage() {
       const rows = await fetchMagicWallBasket();
       setBasketItems(rows);
       setSelectedTopicKeys(new Set(rows.map((r) => r.topicKey)));
+      syncMagicWallOnboardingStepsFromBasketState(rows.length, rows.length);
       toast({
         title: "Reading basket updated",
         description: `Saved ${rows.length} topic${rows.length === 1 ? "" : "s"} for Magic Wall.`,
@@ -790,13 +880,33 @@ export default function MagicWallPage() {
     }
   };
 
+  const handleSaveChangesClick = () => {
+    if (!hasUnsavedChanges) return;
+    if (selectedTopicKeys.size > maxPicks) {
+      toast({
+        title: "Too many topics",
+        description: `Save up to ${maxPicks} topics. Remove some first.`,
+        variant: "destructive",
+      });
+      return;
+    }
+    if (isAdmin) {
+      void persistSelection();
+    } else {
+      setShowSaveConfirmOpen(true);
+    }
+  };
+
+  const handleConfirmSave = () => {
+    setShowSaveConfirmOpen(false);
+    void persistSelection();
+  };
+
   const classPill = "rounded-xl border border-border bg-card/80 px-3 py-2 text-sm font-bold";
 
   const historyTotal = completedTopicsHistory.length;
   const historyMaxPage =
-    historyTotal === 0
-      ? 0
-      : Math.ceil(historyTotal / COMPLETED_TOPICS_HISTORY_PAGE_SIZE) - 1;
+    historyTotal === 0 ? 0 : Math.ceil(historyTotal / COMPLETED_TOPICS_HISTORY_PAGE_SIZE) - 1;
   const historyEffectivePage = Math.min(Math.max(0, historyPage), historyMaxPage);
   const historyPageLabelCount = historyTotal === 0 ? 1 : historyMaxPage + 1;
   const historyRangeStart =
@@ -804,10 +914,7 @@ export default function MagicWallPage() {
   const historyRangeEnd =
     historyTotal === 0
       ? 0
-      : Math.min(
-          historyTotal,
-          (historyEffectivePage + 1) * COMPLETED_TOPICS_HISTORY_PAGE_SIZE
-        );
+      : Math.min(historyTotal, (historyEffectivePage + 1) * COMPLETED_TOPICS_HISTORY_PAGE_SIZE);
   const historyPageSlice = completedTopicsHistory.slice(
     historyEffectivePage * COMPLETED_TOPICS_HISTORY_PAGE_SIZE,
     (historyEffectivePage + 1) * COMPLETED_TOPICS_HISTORY_PAGE_SIZE
@@ -827,10 +934,7 @@ export default function MagicWallPage() {
                 <div className="min-w-0">
                   <p className="text-sm md:text-base font-extrabold text-white flex flex-wrap items-center gap-2">
                     <WandSparkles className="h-4.5 w-4.5 shrink-0 text-violet-300" />
-                    <span>
-                      Topic Rain — tap to select (max {MAGIC_WALL_MAX_SELECTED_TOPICS}), add to
-                      basket
-                    </span>
+                    <span>Topic Rain — tap to select (max {maxPicks}), add to basket</span>
                   </p>
                   <p className="text-xs text-slate-400 mt-0.5 break-words">
                     {loading
@@ -839,7 +943,7 @@ export default function MagicWallPage() {
                         ? "Curriculum could not be loaded."
                         : filteredRainTopics.length === 0
                           ? "No topics match your filters."
-                          : `${filteredRainTopics.length} topics loaded · ${rainSlots.length} columns (${rainSlots.length * 2} drops) · class ${selectedClass} · max ${MAGIC_WALL_MAX_SELECTED_TOPICS} picks — hover or touch-hold to pause`}
+                          : `${filteredRainTopics.length} topics loaded · ${rainSlots.length} columns (${rainSlots.length * 2} drops) · class ${selectedClass} · max ${maxPicks} picks — hover or touch-hold to pause`}
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2 sm:pt-0.5">
@@ -981,8 +1085,7 @@ export default function MagicWallPage() {
                             ? ` · ${[...activeSubjects]
                                 .sort()
                                 .map(
-                                  (s) =>
-                                    SUBJECT_OPTIONS.find((o) => o.subject === s)?.label ?? s
+                                  (s) => SUBJECT_OPTIONS.find((o) => o.subject === s)?.label ?? s
                                 )
                                 .join(", ")}`
                             : ""
@@ -1001,8 +1104,8 @@ export default function MagicWallPage() {
                       </p>
                     ) : historyTotal === 0 ? (
                       <p className="text-sm text-slate-400">
-                        No completed topics for these filters yet. Finish every subtopic at
-                        Advanced in a topic to add it here.
+                        No completed topics for these filters yet. Finish every subtopic at Advanced
+                        in a topic to add it here.
                       </p>
                     ) : (
                       <ol className="list-decimal space-y-2.5 pl-5" start={historyRangeStart}>
@@ -1081,7 +1184,9 @@ export default function MagicWallPage() {
                   overlayClassName="z-[100] bg-slate-950/60 backdrop-blur-[2px]"
                 >
                   <DialogHeader className="border-b border-red-500/25 px-5 py-4 text-left">
-                    <DialogTitle className="text-lg font-extrabold text-white">Reset history</DialogTitle>
+                    <DialogTitle className="text-lg font-extrabold text-white">
+                      Reset history
+                    </DialogTitle>
                     <DialogDescription className="space-y-3 pt-1 text-left text-sm leading-relaxed text-slate-300">
                       <span className="block">
                         <strong className="text-white">Are you sure you want to reset?</strong> This
@@ -1091,13 +1196,13 @@ export default function MagicWallPage() {
                       </span>
                       <span className="block">
                         That includes every{" "}
-                        <strong className="text-white">topic, chapter, and subtopic</strong> you marked as
-                        read or complete (including Advanced lesson checks and saved progress in those
-                        classes). Other grades are not affected.
+                        <strong className="text-white">topic, chapter, and subtopic</strong> you
+                        marked as read or complete (including Advanced lesson checks and saved
+                        progress in those classes). Other grades are not affected.
                       </span>
                       <span className="block">
-                        After a reset, those topics can show up again in Topic Rain and your completed
-                        list will be empty until you study them again.
+                        After a reset, those topics can show up again in Topic Rain and your
+                        completed list will be empty until you study them again.
                       </span>
                     </DialogDescription>
                   </DialogHeader>
@@ -1123,9 +1228,7 @@ export default function MagicWallPage() {
                         type="button"
                         variant="destructive"
                         className="w-full sm:w-auto"
-                        disabled={
-                          isResetting || resetTimer > 0 || !resetAcknowledged
-                        }
+                        disabled={isResetting || resetTimer > 0 || !resetAcknowledged}
                         onClick={() => void confirmResetHistory()}
                       >
                         {isResetting ? (
@@ -1152,6 +1255,48 @@ export default function MagicWallPage() {
                       </Button>
                     </div>
                   </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
+              <Dialog open={showSaveConfirmOpen} onOpenChange={setShowSaveConfirmOpen}>
+                <DialogContent
+                  hideClose={true}
+                  className="flex w-[min(calc(100vw-2rem),400px)] flex-col gap-4 border border-violet-500/25 bg-[#0a0f18]/95 p-5 text-center shadow-2xl shadow-violet-950/40 sm:rounded-2xl"
+                >
+                  <DialogHeader className="sr-only">
+                    <DialogTitle>Confirm Save Changes</DialogTitle>
+                    <DialogDescription>
+                      Confirm if you really want to save changes to your reading basket.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-amber-500/10 border border-amber-500/35">
+                    <History className="h-5 w-5 text-amber-500 animate-pulse" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-white">Confirm Save Changes? ⚠️</h3>
+                    <p className="mt-2 text-xs leading-relaxed text-slate-300">
+                      Once saved, you{" "}
+                      <strong className="text-red-400 font-bold">cannot Undo</strong>. So make sure
+                      you select topics properly by going through filters.
+                    </p>
+                  </div>
+                  <div className="flex gap-2.5 mt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="flex-1 rounded-xl h-10 border-white/10 hover:bg-white/[0.06] text-xs font-bold text-slate-300"
+                      onClick={() => setShowSaveConfirmOpen(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="button"
+                      className="flex-1 rounded-xl h-10 bg-violet-600 hover:bg-violet-500 text-xs font-bold text-white shadow-lg shadow-violet-950/20"
+                      onClick={handleConfirmSave}
+                    >
+                      Yes, Save
+                    </Button>
+                  </div>
                 </DialogContent>
               </Dialog>
 
@@ -1314,8 +1459,8 @@ export default function MagicWallPage() {
                 <div className="flex flex-col gap-1.5 rounded-xl border border-violet-400/50 bg-violet-500/25 px-2.5 py-1.5 shadow-md shadow-violet-950/25 backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-3 sm:py-2">
                   <div className="min-w-0 text-[11px] font-bold leading-tight text-violet-100 sm:pr-2 sm:text-xs">
                     <span className="break-words">
-                      Reading Basket: {selectedTopicKeys.size}/{MAGIC_WALL_MAX_SELECTED_TOPICS}{" "}
-                      selected · {basketItems.length} saved
+                      Reading Basket: {selectedTopicKeys.size}/{maxPicks} selected ·{" "}
+                      {basketItems.length} saved
                     </span>
                   </div>
                   <div className="flex flex-wrap items-center justify-end gap-1.5 sm:shrink-0">
@@ -1341,7 +1486,7 @@ export default function MagicWallPage() {
                     </Button>
                     <Button
                       size="sm"
-                      onClick={persistSelection}
+                      onClick={handleSaveChangesClick}
                       disabled={savingBasket || !hasUnsavedChanges}
                       className="h-8 shrink-0 rounded-lg bg-violet-500 px-2.5 text-[11px] font-extrabold text-white hover:bg-violet-600 disabled:opacity-60 sm:whitespace-nowrap"
                     >
@@ -1374,15 +1519,14 @@ export default function MagicWallPage() {
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-sm font-extrabold text-white">Reading Basket</p>
                   <span className="rounded-full border border-violet-400/40 bg-violet-500/20 px-2 py-0.5 text-[11px] font-bold text-violet-100">
-                    {selectedDetails.length}/{MAGIC_WALL_MAX_SELECTED_TOPICS} topics
+                    {selectedDetails.length}/{maxPicks} topics
                   </span>
                 </div>
                 {loadingBasket ? (
                   <p className="text-xs text-slate-400">Loading…</p>
                 ) : selectedDetails.length === 0 ? (
                   <p className="text-xs text-slate-400">
-                    No topics selected yet. Tap cards in Topic Rain (max{" "}
-                    {MAGIC_WALL_MAX_SELECTED_TOPICS}).
+                    No topics selected yet. Tap cards in Topic Rain (max {maxPicks}).
                   </p>
                 ) : (
                   <div className="space-y-1.5 pr-1">

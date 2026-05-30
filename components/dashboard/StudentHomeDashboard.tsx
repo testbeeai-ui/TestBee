@@ -2,8 +2,9 @@
 
 import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
+import { useIsAppAdmin } from "@/hooks/useIsAppAdmin";
 import { useUserStore } from "@/store/useUserStore";
 import {
   parseBitsTestAttemptsStore,
@@ -28,10 +29,15 @@ import {
 import type { DailyChecklistApiResponse } from "@/lib/dashboard/dailyChecklistState";
 import { fetchWithClientAuth, getClientApiAuthHeaders } from "@/lib/auth/clientApiAuth";
 import { fetchMockPapersFromSupabase } from "@/lib/mock/mockPapersFromSupabase";
-import { appendQueryParams, buildTopicOverviewPath, buildTopicPath } from "@/lib/curriculum/topicRoutes";
+import {
+  appendQueryParams,
+  buildTopicOverviewPath,
+  buildTopicPath,
+} from "@/lib/curriculum/topicRoutes";
 import { fetchAdvancedLessonCompletionKeys } from "@/lib/curriculum/lessonCompletionClient";
 import { isSubtopicLessonCompleteAtAdvanced } from "@/lib/curriculum/lessonCompletionRollup";
 import { EDUBLAST_STUDY_DAYS_REFRESH } from "@/lib/dashboard/studyDayBumpEvents";
+import { getLocalCalendarDateIso } from "@/lib/onboarding/dailyChecklistTaskStorage";
 import { supabase } from "@/integrations/supabase/client";
 import { useTopicTaxonomy } from "@/hooks/useTopicTaxonomy";
 import type { TopicNode } from "@/data/topicTaxonomy";
@@ -40,14 +46,45 @@ import { DEFAULT_RDM_CONFIG, fetchRdmConfig } from "@/lib/rdm/rdmConfig";
 import { EDUFUND_RDM_GATES } from "@/lib/dashboard/dashboardSidebarMetrics";
 import RawCommunityFeed from "@/components/explore/RawCommunityFeed";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useSitePresenceLiveMsToday } from "@/components/providers/SitePresenceProvider";
 import { cn } from "@/lib/utils";
+import { FreeTrialPromoDialog } from "@/components/dashboard/FreeTrialPromoDialog";
+import { OnboardingRewardDialog } from "@/components/dashboard/OnboardingRewardDialog";
+import {
+  FREE_TRIAL_ACTIVATED_EVENT,
+  FREE_TRIAL_REVOKED_EVENT,
+  ONBOARDING_REWARD_CLAIMED_EVENT,
+  enableAdminManualOnboardingChecklist,
+  getDashboardPopupPhase,
+  syncDailyChecklistArmFromProfile,
+  getDailyChecklistCooldownRemainingMs,
+  getFreeTrialActivated,
+  isDailyChecklistCooldownElapsed,
+  shouldAutoOpenDailyChecklistOnHome,
+  hydrateFreeTrialRdmAmounts,
+  hydrateOnboardingProgressFromServer,
+  isOnboardingRewardClaimed,
+  isOnboardingRewardComplete,
+  ONBOARDING_PROGRESS_EVENT,
+  requestOnboardingClaimRewardPromo,
+} from "@/lib/subscription/freeTrialClient";
+import {
+  getDailyStreakSuppressRemainingMs,
+  isDailyStreakChecklistSuppressed,
+  reconcileDailyStreakSuppressForTimeTravel,
+} from "@/lib/onboarding/dailyStreakClient";
+import {
+  getActiveStreakDayNumber,
+  getHighestClaimedStreakDay,
+  getMaxReachableStreakDay,
+  isStreakDayLockedByTrialEnd,
+  isWaitingForDay2Unlock,
+  parseDailyStreakServerState,
+} from "@/lib/onboarding/dailyChecklistTaskStorage";
+import { TIME_TRAVEL_OFFSET_CHANGED_EVENT } from "@/lib/dev/timeTravel";
+import { fetchOnboardingRewardState } from "@/lib/subscription/onboardingRewardApi";
+import { isFreeTrialPeriodEnded } from "@/lib/subscription/freeTrialTimer";
 import {
   CalendarDays,
   CheckCircle2,
@@ -70,6 +107,12 @@ const TOPIC_BAR_TONES = [
 
 /** Subject accuracy card: show this many chapters per page; pagination only when total exceeds this. */
 const CHAPTER_ACCURACY_PAGE_SIZE = 5;
+
+/** Dashboard Today's checklist strip + modal (after onboarding RDM claim, from next page load). */
+const SHOW_DASHBOARD_CHECKLIST = true;
+
+/** Flip to true to auto-open the +100 RDM onboarding popup after trial activation. */
+const SHOW_ONBOARDING_REWARD_AUTO_POPUP = true;
 
 type HeatmapMode = "7" | "30";
 
@@ -194,10 +237,7 @@ function pickTwoQuizTopicsDistinctSubject(candidates: TopicNode[]): TopicNode[] 
     const s1 = order[1]!;
     const p0 = pools[s0];
     const p1 = pools[s1];
-    return [
-      p0[Math.floor(Math.random() * p0.length)]!,
-      p1[Math.floor(Math.random() * p1.length)]!,
-    ];
+    return [p0[Math.floor(Math.random() * p0.length)]!, p1[Math.floor(Math.random() * p1.length)]!];
   }
   return pickRandomUnique(candidates, Math.min(2, candidates.length));
 }
@@ -209,7 +249,10 @@ function greenCellClass(level: 0 | 1 | 2 | 3, isToday: boolean): string {
     case 0:
       return cn(base, "border-red-500/35 bg-red-950/55 text-red-100");
     case 1:
-      return cn(base, "border-emerald-400/45 bg-emerald-400/28 text-emerald-950 dark:text-emerald-50");
+      return cn(
+        base,
+        "border-emerald-400/45 bg-emerald-400/28 text-emerald-950 dark:text-emerald-50"
+      );
     case 2:
       return cn(base, "border-emerald-500/45 bg-emerald-600/60 text-white");
     case 3:
@@ -220,14 +263,24 @@ function greenCellClass(level: 0 | 1 | 2 | 3, isToday: boolean): string {
 function heatmapLoadingCellClass(isToday: boolean): string {
   const ring = isToday ? "ring-2 ring-teal-400 ring-offset-2 ring-offset-background" : "";
   return cn(
-    "rounded-lg border border-border/60 bg-muted/35 text-muted-foreground/90 transition-colors " + ring
+    "rounded-lg border border-border/60 bg-muted/35 text-muted-foreground/90 transition-colors " +
+      ring
   );
 }
 
 export default function StudentHomeDashboard() {
   const router = useRouter();
-  const { profile, user } = useAuth();
+  const pathname = usePathname();
+  const { profile, user, refreshProfile } = useAuth();
+  const isAppAdmin = useIsAppAdmin();
   const storeUser = useUserStore((s) => s.user);
+
+  useEffect(() => {
+    if (isAppAdmin) {
+      enableAdminManualOnboardingChecklist();
+    }
+  }, [isAppAdmin]);
+
   const [heatmapMode, setHeatmapMode] = useState<HeatmapMode>("7");
   const [studyMsByDay, setStudyMsByDay] = useState<Map<string, number>>(() => new Map());
   const [presenceMsByDay, setPresenceMsByDay] = useState<Map<string, number>>(() => new Map());
@@ -273,17 +326,34 @@ export default function StudentHomeDashboard() {
   }, [profile?.bits_test_attempts]);
 
   /** Stable clock for memo deps; ticks every minute so heatmap / greeting stay fresh without re-running memos every frame. */
-  const [dashboardClock, setDashboardClock] = useState(() => Date.now());
+  const [dashboardClock, setDashboardClock] = useState(
+    () => Date.now() + (profile?.time_travel_offset_ms ?? 0)
+  );
   const now = useMemo(() => new Date(dashboardClock), [dashboardClock]);
+  /** Stable for one local calendar day — dashboardClock ticks every 1s for timers. */
+  const dailyChecklistDayIso = useMemo(
+    () => getLocalCalendarDateIso(dashboardClock),
+    [dashboardClock]
+  );
   const monthDays = useMemo(
     () => new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate(),
     [now]
   );
 
   useEffect(() => {
-    const id = setInterval(() => setDashboardClock(Date.now()), 60_000);
-    return () => clearInterval(id);
-  }, []);
+    const offset = profile?.time_travel_offset_ms ?? 0;
+    const initialSync = setTimeout(() => {
+      setDashboardClock(Date.now() + offset);
+    }, 0);
+    const id = setInterval(() => {
+      const currentOffset = profile?.time_travel_offset_ms ?? 0;
+      setDashboardClock(Date.now() + currentOffset);
+    }, 1000);
+    return () => {
+      clearTimeout(initialSync);
+      clearInterval(id);
+    };
+  }, [profile?.time_travel_offset_ms]);
 
   useEffect(() => {
     let cancelled = false;
@@ -494,7 +564,10 @@ export default function StudentHomeDashboard() {
   const dashboardSubjects: Subject[] = useMemo(() => ["physics", "chemistry", "math"], []);
 
   const boardNormForUpcomingLessons = useMemo(
-    () => String(storeUser?.board ?? profile?.board ?? "cbse").trim().toLowerCase(),
+    () =>
+      String(storeUser?.board ?? profile?.board ?? "cbse")
+        .trim()
+        .toLowerCase(),
     [storeUser?.board, profile?.board]
   );
 
@@ -548,7 +621,12 @@ export default function StudentHomeDashboard() {
         subjects.includes(n.subject) &&
         n.classLevel === effectiveClass &&
         (n.subtopics?.length ?? 0) > 0 &&
-        topicHasOpenAdvancedSubtopic(n, bitsAttemptRows, advancedLessonKeys, boardNormForUpcomingLessons)
+        topicHasOpenAdvancedSubtopic(
+          n,
+          bitsAttemptRows,
+          advancedLessonKeys,
+          boardNormForUpcomingLessons
+        )
     );
 
     let cancelled = false;
@@ -714,9 +792,19 @@ export default function StudentHomeDashboard() {
     "idle" | "loading" | "ready" | "error"
   >("idle");
   const dailyChecklistCommittedRef = useRef(false);
-  const [isChecklistOpen, setIsChecklistOpen] = useState(true);
+  const [isChecklistOpen, setIsChecklistOpen] = useState(false);
+  const dailyChecklistAutoOpenedRef = useRef(false);
+  const [freeTrialPromoOpen, setFreeTrialPromoOpen] = useState(false);
+  const [trialActivated, setTrialActivated] = useState(() =>
+    typeof window !== "undefined" ? getFreeTrialActivated(profile) : false
+  );
+  const [isOnboardingRewardOpen, setIsOnboardingRewardOpen] = useState(false);
+  const [checklistRewardRdm, setChecklistRewardRdm] = useState(
+    DEFAULT_RDM_CONFIG.free_trial_checklist_reward_rdm
+  );
 
   const loadDailyChecklist = useCallback(async () => {
+    if (!SHOW_DASHBOARD_CHECKLIST) return;
     await Promise.resolve();
     if (!profile?.id) {
       dailyChecklistCommittedRef.current = false;
@@ -724,7 +812,8 @@ export default function StudentHomeDashboard() {
       setDailyChecklistStatus("idle");
       return;
     }
-    const { today, dayStart, dayEnd } = localDayBoundsIso(now);
+    const boundsDate = new Date(`${dailyChecklistDayIso}T12:00:00`);
+    const { today, dayStart, dayEnd } = localDayBoundsIso(boundsDate);
     const subjects = dashboardSubjects.join(",");
     const silent = dailyChecklistCommittedRef.current;
     if (!silent) setDailyChecklistStatus("loading");
@@ -750,9 +839,10 @@ export default function StudentHomeDashboard() {
     } catch {
       if (!silent) setDailyChecklistStatus("error");
     }
-  }, [profile?.id, dashboardSubjects, now]);
+  }, [profile?.id, dashboardSubjects, dailyChecklistDayIso]);
 
   useEffect(() => {
+    if (!SHOW_DASHBOARD_CHECKLIST) return;
     startTransition(() => {
       dailyChecklistCommittedRef.current = false;
       setDailyChecklist(null);
@@ -761,22 +851,266 @@ export default function StudentHomeDashboard() {
   }, [profile?.id]);
 
   useEffect(() => {
+    if (!SHOW_DASHBOARD_CHECKLIST) return;
     startTransition(() => {
       void loadDailyChecklist();
     });
   }, [loadDailyChecklist]);
 
   useEffect(() => {
+    if (!SHOW_DASHBOARD_CHECKLIST) return;
     const onFocus = () => void loadDailyChecklist();
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
   }, [loadDailyChecklist]);
 
   useEffect(() => {
-    const onBump = () => void loadDailyChecklist();
+    if (!SHOW_DASHBOARD_CHECKLIST) return;
+    let debounceId: number | null = null;
+    const onBump = () => {
+      if (debounceId != null) window.clearTimeout(debounceId);
+      debounceId = window.setTimeout(() => {
+        debounceId = null;
+        void loadDailyChecklist();
+      }, 2_000);
+    };
     window.addEventListener(EDUBLAST_STUDY_DAYS_REFRESH, onBump);
-    return () => window.removeEventListener(EDUBLAST_STUDY_DAYS_REFRESH, onBump);
+    return () => {
+      if (debounceId) window.clearTimeout(debounceId);
+      window.removeEventListener(EDUBLAST_STUDY_DAYS_REFRESH, onBump);
+    };
   }, [loadDailyChecklist]);
+
+  const applyDashboardPopupPhase = useCallback(() => {
+    const activated = getFreeTrialActivated(profile);
+    const phase = getDashboardPopupPhase(profile, profile?.id);
+    setTrialActivated(activated);
+    setFreeTrialPromoOpen(phase === "free_trial");
+    setIsOnboardingRewardOpen(phase === "onboarding" && SHOW_ONBOARDING_REWARD_AUTO_POPUP);
+    if (phase === "claim_reward" && SHOW_ONBOARDING_REWARD_AUTO_POPUP) {
+      requestOnboardingClaimRewardPromo();
+    }
+  }, [profile]);
+
+  /** Backfill cooldown keys from profile without overriding a fresh post-claim arm. */
+  useEffect(() => {
+    if (!SHOW_DASHBOARD_CHECKLIST) return;
+    if (!profile?.onboarding_reward_claimed_at) return;
+    syncDailyChecklistArmFromProfile(profile.onboarding_reward_claimed_at);
+  }, [profile?.onboarding_reward_claimed_at]);
+
+  useEffect(() => {
+    if (!profile?.id) return;
+    let cancelled = false;
+    void fetchOnboardingRewardState().then((state) => {
+      if (cancelled) return;
+      hydrateOnboardingProgressFromServer(state.progress);
+      hydrateFreeTrialRdmAmounts({
+        checklistRewardRdm: state.checklistRewardRdm,
+      });
+      setChecklistRewardRdm(state.checklistRewardRdm);
+      startTransition(() => applyDashboardPopupPhase());
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [profile?.id, applyDashboardPopupPhase]);
+
+  useEffect(() => {
+    if (!profile?.id) return;
+    if (pathname !== "/home") return;
+    startTransition(() => applyDashboardPopupPhase());
+  }, [profile?.id, profile?.time_travel_offset_ms, pathname, applyDashboardPopupPhase]);
+
+  useEffect(() => {
+    const onTimeTravel = (event: Event) => {
+      const detail = (event as CustomEvent<{ clearStreakSuppress?: boolean }>).detail;
+      if (profile?.id) {
+        reconcileDailyStreakSuppressForTimeTravel(
+          profile.id,
+          Date.now() + (profile.time_travel_offset_ms ?? 0)
+        );
+        if (detail?.clearStreakSuppress) {
+          /* preset already cleared in settings; re-run popup phase */
+        }
+      }
+      startTransition(() => applyDashboardPopupPhase());
+    };
+    window.addEventListener(TIME_TRAVEL_OFFSET_CHANGED_EVENT, onTimeTravel);
+    return () => window.removeEventListener(TIME_TRAVEL_OFFSET_CHANGED_EVENT, onTimeTravel);
+  }, [applyDashboardPopupPhase, profile?.id, profile?.time_travel_offset_ms]);
+
+  useEffect(() => {
+    const onTrialActivated = () => {
+      startTransition(() => applyDashboardPopupPhase());
+    };
+    window.addEventListener(FREE_TRIAL_ACTIVATED_EVENT, onTrialActivated);
+    return () => window.removeEventListener(FREE_TRIAL_ACTIVATED_EVENT, onTrialActivated);
+  }, [applyDashboardPopupPhase]);
+
+  useEffect(() => {
+    const onTrialRevoked = () => {
+      void refreshProfile().then(() => {
+        startTransition(() => applyDashboardPopupPhase());
+      });
+    };
+    window.addEventListener(FREE_TRIAL_REVOKED_EVENT, onTrialRevoked);
+    return () => window.removeEventListener(FREE_TRIAL_REVOKED_EVENT, onTrialRevoked);
+  }, [applyDashboardPopupPhase, refreshProfile]);
+
+  useEffect(() => {
+    const onOnboardingProgress = () => {
+      startTransition(() => applyDashboardPopupPhase());
+    };
+    window.addEventListener(ONBOARDING_PROGRESS_EVENT, onOnboardingProgress);
+    return () => window.removeEventListener(ONBOARDING_PROGRESS_EVENT, onOnboardingProgress);
+  }, [applyDashboardPopupPhase]);
+
+  useEffect(() => {
+    const onClaimed = () => {
+      dailyChecklistAutoOpenedRef.current = false;
+      startTransition(() => {
+        setIsChecklistOpen(false);
+        setIsOnboardingRewardOpen(false);
+        applyDashboardPopupPhase();
+      });
+    };
+    window.addEventListener(ONBOARDING_REWARD_CLAIMED_EVENT, onClaimed);
+    return () => window.removeEventListener(ONBOARDING_REWARD_CLAIMED_EVENT, onClaimed);
+  }, [applyDashboardPopupPhase]);
+
+  useEffect(() => {
+    const reopenPopupsOnHome = () => {
+      if (pathname !== "/home") return;
+      startTransition(() => applyDashboardPopupPhase());
+    };
+    window.addEventListener("focus", reopenPopupsOnHome);
+    window.addEventListener("pageshow", reopenPopupsOnHome);
+    return () => {
+      window.removeEventListener("focus", reopenPopupsOnHome);
+      window.removeEventListener("pageshow", reopenPopupsOnHome);
+    };
+  }, [pathname, applyDashboardPopupPhase]);
+
+  const serverStreak = useMemo(
+    () => parseDailyStreakServerState(profile?.free_trial_daily_streak),
+    [profile?.free_trial_daily_streak]
+  );
+
+  const trialDayNumber = useMemo(() => {
+    return getActiveStreakDayNumber({
+      claimedAt: profile?.onboarding_reward_claimed_at,
+      nowMs: dashboardClock,
+      userId: profile?.id,
+      serverStreak,
+    });
+  }, [profile?.onboarding_reward_claimed_at, profile?.id, dashboardClock, serverStreak]);
+
+  const highestClaimedStreakDay = useMemo(() => {
+    return getHighestClaimedStreakDay(profile?.id, serverStreak);
+  }, [profile?.id, serverStreak]);
+
+  const maxReachableStreakDay = useMemo(() => {
+    return getMaxReachableStreakDay({
+      claimedAt: profile?.onboarding_reward_claimed_at,
+      nowMs: dashboardClock,
+      userId: profile?.id,
+      freeTrialActivatedAt: profile?.free_trial_activated_at,
+      serverStreak,
+    });
+  }, [
+    profile?.onboarding_reward_claimed_at,
+    profile?.id,
+    profile?.free_trial_activated_at,
+    dashboardClock,
+    serverStreak,
+  ]);
+
+  const streakLockedByTrialEnd = useMemo(() => {
+    return isStreakDayLockedByTrialEnd({
+      streakDay: trialDayNumber,
+      claimedAt: profile?.onboarding_reward_claimed_at,
+      nowMs: dashboardClock,
+      userId: profile?.id,
+      freeTrialActivatedAt: profile?.free_trial_activated_at,
+      serverStreak,
+    });
+  }, [
+    trialDayNumber,
+    profile?.onboarding_reward_claimed_at,
+    profile?.id,
+    profile?.free_trial_activated_at,
+    dashboardClock,
+    serverStreak,
+  ]);
+
+  const waitingForDay2 = useMemo(() => {
+    return isWaitingForDay2Unlock(profile?.onboarding_reward_claimed_at, dashboardClock);
+  }, [profile?.onboarding_reward_claimed_at, dashboardClock]);
+
+  const streakChecklistSuppressed = useMemo(() => {
+    return isDailyStreakChecklistSuppressed(profile?.id, dashboardClock);
+  }, [profile?.id, dashboardClock]);
+
+  const displayStreakDay =
+    streakChecklistSuppressed && highestClaimedStreakDay >= 2
+      ? highestClaimedStreakDay
+      : trialDayNumber;
+
+  const streakSuppressRemainingMs = useMemo(() => {
+    return getDailyStreakSuppressRemainingMs(profile?.id, dashboardClock);
+  }, [profile?.id, dashboardClock]);
+
+  const freeTrialEndedForClock = useMemo(() => {
+    return isFreeTrialPeriodEnded(profile?.free_trial_activated_at, dashboardClock);
+  }, [profile?.free_trial_activated_at, dashboardClock]);
+
+  function formatSuppressCountdown(remainingMs: number): string {
+    const totalSeconds = Math.max(0, Math.floor(remainingMs / 1000));
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = totalSeconds % 60;
+    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  }
+
+  const freeTrialDialogOpen = !trialActivated && freeTrialPromoOpen;
+  const onboardingDialogOpen =
+    trialActivated &&
+    isOnboardingRewardOpen &&
+    (!isOnboardingRewardComplete(profile) ||
+      (isOnboardingRewardClaimed(profile) && !freeTrialEndedForClock));
+  const higherPriorityPopupOpen = freeTrialDialogOpen || onboardingDialogOpen;
+
+  const tryAutoOpenDailyChecklist = useCallback(() => {
+    // Disabled auto-opening of Today's checklist as requested by the user.
+    // The checklist can still be opened manually by clicking on the dashboard strip.
+    return;
+  }, []);
+
+  /** Today's checklist: auto-opens on /home ≥30s after onboarding RDM claim, then on each /home visit. */
+  useEffect(() => {
+    if (!SHOW_DASHBOARD_CHECKLIST) return;
+    if (pathname !== "/home") {
+      dailyChecklistAutoOpenedRef.current = false;
+      return;
+    }
+    if (!profile?.id) return;
+
+    const attempt = () => tryAutoOpenDailyChecklist();
+    attempt();
+
+    const remaining = getDailyChecklistCooldownRemainingMs();
+    if (remaining <= 0) return;
+    const id = window.setTimeout(attempt, remaining + 50);
+    return () => window.clearTimeout(id);
+  }, [
+    pathname,
+    profile?.id,
+    profile?.onboarding_reward_claimed_at,
+    higherPriorityPopupOpen,
+    dailyChecklistStatus,
+    tryAutoOpenDailyChecklist,
+  ]);
 
   const checklistDoneCount = useMemo(() => {
     if (!dailyChecklist) return 0;
@@ -846,8 +1180,7 @@ export default function StudentHomeDashboard() {
     } else if (checklistDoneCount > 0) {
       progressLine = `${checklistDoneCount} of 5 habits checked off today`;
     } else {
-      progressLine =
-        "0 of 5 habits yet — open the checklist when you're ready; no rush.";
+      progressLine = "0 of 5 habits yet — open the checklist when you're ready; no rush.";
     }
 
     const m = Math.round(dailyChecklist.gyanPlusProgress.focusMs / 60000);
@@ -1034,8 +1367,16 @@ export default function StudentHomeDashboard() {
   });
   const classLine =
     classLevel != null
-      ? `PUC ${classLevel === 12 ? 2 : 1} · ${subjectCombo} · JEE + KCET track · ${dateStr}`
-      : `PUC 2 · ${subjectCombo} · JEE + KCET track · ${dateStr}`;
+      ? `PUC ${classLevel === 12 ? 2 : 1} · ${subjectCombo} · JEE + KCET track · ${dateStr}${
+          isOnboardingRewardClaimed(profile)
+            ? ` · Free trial Day ${trialDayNumber}${waitingForDay2 ? " (unlocks 9 AM)" : ""}`
+            : ""
+        }`
+      : `PUC 2 · ${subjectCombo} · JEE + KCET track · ${dateStr}${
+          isOnboardingRewardClaimed(profile)
+            ? ` · Free trial Day ${trialDayNumber}${waitingForDay2 ? " (unlocks 9 AM)" : ""}`
+            : ""
+        }`;
 
   const studyStreakPending =
     profile?.id && (studyDaysStatus === "idle" || studyDaysStatus === "loading");
@@ -1142,9 +1483,7 @@ export default function StudentHomeDashboard() {
                 </span>
               ) : null}
             </p>
-            {c.sub ? (
-              <p className={cn("mt-1 text-xs font-semibold", c.subClass)}>{c.sub}</p>
-            ) : null}
+            {c.sub ? <p className={cn("mt-1 text-xs font-semibold", c.subClass)}>{c.sub}</p> : null}
           </div>
         ))}
       </section>
@@ -1214,9 +1553,7 @@ export default function StudentHomeDashboard() {
                 <div
                   key={cell.key}
                   title={
-                    isReady
-                      ? `${cell.tooltipTitle} · Daily RDM: coming soon`
-                      : "Loading activity…"
+                    isReady ? `${cell.tooltipTitle} · Daily RDM: coming soon` : "Loading activity…"
                   }
                   className={cn(
                     "flex min-h-[56px] flex-col items-center justify-center gap-0.5 rounded-lg px-1 py-1.5 sm:min-h-[72px] sm:px-2 sm:py-2",
@@ -1230,7 +1567,9 @@ export default function StudentHomeDashboard() {
                     {isReady ? cell.label : "…"}
                   </span>
                   {isToday ? (
-                    <span className="text-[9px] font-semibold text-teal-400 sm:text-[10px]">Today</span>
+                    <span className="text-[9px] font-semibold text-teal-400 sm:text-[10px]">
+                      Today
+                    </span>
                   ) : null}
                 </div>
               );
@@ -1285,9 +1624,9 @@ export default function StudentHomeDashboard() {
           <span>More</span>
           <span className="ml-0 max-sm:hidden sm:ml-2">
             Red = no focus or under 10 minutes that day; light → dark green = longer focus (same as
-            your profile heatmap). Cell numbers show time on EduBlast with this tab in the foreground
-            (pauses when you switch tabs). Tooltips also show saved study time toward your streak
-            (play + topic quizzes). A dash means no on-site time that day;{" "}
+            your profile heatmap). Cell numbers show time on EduBlast with this tab in the
+            foreground (pauses when you switch tabs). Tooltips also show saved study time toward
+            your streak (play + topic quizzes). A dash means no on-site time that day;{" "}
             <span className="font-mono">{"<1m"}</span> means under one minute on site. Streak =
             consecutive calendar days with any saved study time, counted through your most recent
             active day on or before today.
@@ -1298,178 +1637,292 @@ export default function StudentHomeDashboard() {
         </div>
       </section>
 
-      {/* Checklist trigger */}
-      <section className="rounded-2xl border border-border bg-card/90 shadow-sm dark:bg-slate-950/60">
-        <button
-          type="button"
-          onClick={() => setIsChecklistOpen(true)}
-          className="flex w-full items-start gap-3 p-3.5 text-left sm:items-center sm:gap-4 sm:p-4"
+      {trialActivated &&
+      !isOnboardingRewardClaimed(profile) &&
+      isOnboardingRewardComplete(profile) ? (
+        <section className="rounded-2xl border border-emerald-500/25 bg-gradient-to-r from-emerald-500/10 via-violet-500/5 to-amber-500/10 p-4 shadow-sm">
+          <button
+            type="button"
+            onClick={() => requestOnboardingClaimRewardPromo({ force: true })}
+            className="flex w-full flex-col gap-1 text-left sm:flex-row sm:items-center sm:justify-between"
+          >
+            <div>
+              <p className="text-sm font-bold text-foreground">
+                Claim your {checklistRewardRdm} RDM reward
+              </p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                You completed every onboarding step — tap to add RDM to your wallet.
+              </p>
+            </div>
+            <span className="mt-2 inline-flex shrink-0 items-center justify-center rounded-full bg-emerald-600 px-4 py-2 text-xs font-bold text-white sm:mt-0">
+              Claim now
+            </span>
+          </button>
+        </section>
+      ) : trialActivated && !isOnboardingRewardComplete(profile) ? (
+        <section className="rounded-2xl border border-amber-500/25 bg-gradient-to-r from-amber-500/10 via-violet-500/5 to-emerald-500/10 p-4 shadow-sm">
+          <button
+            type="button"
+            onClick={() => setIsOnboardingRewardOpen(true)}
+            className="flex w-full flex-col gap-1 text-left sm:flex-row sm:items-center sm:justify-between"
+          >
+            <div>
+              <p className="text-sm font-bold text-foreground">
+                Do you want to start by earning a reward of {checklistRewardRdm} RDM?
+              </p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Open your onboarding checklist — tap Go on each step to explore the app.
+              </p>
+            </div>
+            <span className="mt-2 inline-flex shrink-0 items-center justify-center rounded-full bg-violet-600 px-4 py-2 text-xs font-bold text-white sm:mt-0">
+              View checklist
+            </span>
+          </button>
+        </section>
+      ) : trialActivated && isOnboardingRewardClaimed(profile) && !freeTrialEndedForClock ? (
+        <section
+          className={cn(
+            "rounded-2xl border p-4 shadow-sm animate-in fade-in duration-200",
+            streakChecklistSuppressed
+              ? "border-amber-500/25 bg-gradient-to-r from-amber-500/10 via-violet-500/5 to-emerald-500/10"
+              : "border-emerald-500/25 bg-gradient-to-r from-emerald-500/10 via-violet-500/5 to-amber-500/10"
+          )}
         >
-          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500 sm:mt-0" />
-          <div className="min-w-0 flex-1">
-            <h2 className="text-sm font-bold sm:text-base sm:text-lg">Today&apos;s checklist</h2>
-            <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground sm:line-clamp-none sm:text-sm">
-              {dailyChecklistStatus === "error" ? (
-                <span className="text-rose-300">
-                  Could not load checklist status. Refresh and try again.
-                </span>
-              ) : checklistStripSummary ? (
-                <>
-                  <span className="font-semibold text-foreground">
-                    {checklistStripSummary.progressLine}
-                  </span>
-                  {checklistStripSummary.gyanLine ? (
+          <button
+            type="button"
+            onClick={() => {
+              if (!streakChecklistSuppressed) setIsOnboardingRewardOpen(true);
+            }}
+            disabled={streakChecklistSuppressed}
+            className={cn(
+              "flex w-full flex-col gap-1 text-left sm:flex-row sm:items-center sm:justify-between",
+              streakChecklistSuppressed && "cursor-default opacity-90"
+            )}
+          >
+            <div>
+              <p className="text-sm font-bold text-foreground">
+                {streakChecklistSuppressed
+                  ? waitingForDay2
+                    ? "Day 1 complete — Day 2 unlocks at 9:00 AM"
+                    : `Day ${displayStreakDay} streak done — next tasks after 9:00 AM`
+                  : waitingForDay2
+                    ? "Day 1 complete — Day 2 tasks unlock at 9:00 AM"
+                    : streakLockedByTrialEnd
+                      ? `Streak capped at Day ${maxReachableStreakDay} — trial time left`
+                      : `Day-${trialDayNumber} Tasks checklist is active! 🔥`}
+              </p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {streakChecklistSuppressed ? (
+                  streakSuppressRemainingMs > 0 ? (
                     <>
-                      {" · "}
-                      {checklistStripSummary.gyanLine}
+                      Unlocks in{" "}
+                      <span className="font-mono font-semibold text-amber-400">
+                        {formatSuppressCountdown(streakSuppressRemainingMs)}
+                      </span>{" "}
+                      (simulated time). This is separate from Today&apos;s 5 habits below.
+                    </>
+                  ) : (
+                    <>Opens at 9:00 AM simulated time. Separate from Today&apos;s 5 habits below.</>
+                  )
+                ) : (
+                  <>
+                    6 onboarding streak tasks (not the 5 daily habits). One day at a time — missed
+                    calendar days don&apos;t skip ahead.
+                  </>
+                )}
+              </p>
+            </div>
+            {!streakChecklistSuppressed && !streakLockedByTrialEnd ? (
+              <span className="mt-2 inline-flex shrink-0 items-center justify-center rounded-full bg-violet-600 px-4 py-2 text-xs font-bold text-white sm:mt-0">
+                View Day {trialDayNumber} checklist
+              </span>
+            ) : null}
+          </button>
+        </section>
+      ) : null}
+
+      {SHOW_DASHBOARD_CHECKLIST ? (
+        <>
+          {/* Checklist trigger */}
+          <section className="rounded-2xl border border-border bg-card/90 shadow-sm dark:bg-slate-950/60">
+            <button
+              type="button"
+              onClick={() => setIsChecklistOpen(true)}
+              className="flex w-full items-start gap-3 p-3.5 text-left sm:items-center sm:gap-4 sm:p-4"
+            >
+              <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500 sm:mt-0" />
+              <div className="min-w-0 flex-1">
+                <h2 className="text-sm font-bold sm:text-base sm:text-lg">
+                  Today&apos;s checklist
+                </h2>
+                <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground sm:line-clamp-none sm:text-sm">
+                  {dailyChecklistStatus === "error" ? (
+                    <span className="text-rose-300">
+                      Could not load checklist status. Refresh and try again.
+                    </span>
+                  ) : checklistStripSummary ? (
+                    <>
+                      <span className="font-semibold text-foreground">
+                        {checklistStripSummary.progressLine}
+                      </span>
+                      {checklistStripSummary.gyanLine ? (
+                        <>
+                          {" · "}
+                          {checklistStripSummary.gyanLine}
+                        </>
+                      ) : null}
+                      <span className="sm:hidden"> &mdash; tap to view all items</span>
                     </>
                   ) : null}
-                  <span className="sm:hidden"> &mdash; tap to view all items</span>
-                </>
-              ) : null}
-            </p>
-          </div>
-          <span className="mt-1 hidden shrink-0 rounded-full bg-primary/10 px-3 py-1.5 text-xs font-bold text-primary sm:inline-flex">
-            View
-          </span>
-        </button>
-      </section>
-
-      <Dialog open={isChecklistOpen} onOpenChange={setIsChecklistOpen}>
-        <DialogContent
-          className={
-            "flex w-full max-w-3xl flex-col gap-0 overflow-hidden border-border/70 bg-card p-0 shadow-2xl " +
-            "ring-1 ring-black/5 dark:border-white/10 dark:bg-[#070b14] dark:ring-white/10 " +
-            "max-h-[min(92dvh,56rem)] " +
-            /* Small screens: anchored bottom sheet — easier thumb reach, stable on notches */
-            "max-sm:inset-x-0 max-sm:bottom-0 max-sm:left-0 max-sm:right-0 max-sm:top-auto " +
-            "max-sm:max-h-[min(90dvh,56rem)] max-sm:w-full max-sm:translate-x-0 max-sm:translate-y-0 " +
-            "max-sm:rounded-b-none max-sm:rounded-t-3xl max-sm:border-x-0 max-sm:border-b-0 " +
-            /* sm+: classic centered modal */
-            "sm:left-1/2 sm:top-1/2 sm:w-[calc(100vw-1.5rem)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl sm:border " +
-            "pb-[max(0.75rem,env(safe-area-inset-bottom))]"
-          }
-        >
-          {/* Header: fixed height region; close (X) stays in component chrome; pr-* clears it */}
-          <div className="shrink-0 border-b border-border/60 bg-gradient-to-b from-muted/50 to-transparent px-3.5 pb-3 pt-5 sm:px-6 sm:pb-5 sm:pt-7 dark:from-slate-900/90">
-            <DialogHeader className="space-y-2.5 text-left sm:space-y-3">
-              <div className="flex items-start gap-2.5 pr-11 sm:gap-3 sm:pr-12">
-                <CheckCircle2
-                  className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500"
-                  aria-hidden
-                />
-                <DialogTitle className="text-left text-[15px] font-bold leading-snug tracking-tight sm:text-lg">
-                  Today&apos;s checklist
-                </DialogTitle>
-              </div>
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-                <Button
-                  type="button"
-                  size="default"
-                  className="h-11 w-full min-h-[44px] gap-2 rounded-full font-bold sm:h-10 sm:w-fit sm:min-h-0"
-                  onClick={() => router.push("/play")}
-                >
-                  <Flame className="h-4 w-4 shrink-0" aria-hidden />
-                  Start streak for today
-                </Button>
-                <p className="text-[11px] leading-relaxed text-muted-foreground sm:text-xs">
-                  Esc or the top-right close to exit.
                 </p>
               </div>
-            </DialogHeader>
-          </div>
+              <span className="mt-1 hidden shrink-0 rounded-full bg-primary/10 px-3 py-1.5 text-xs font-bold text-primary sm:inline-flex">
+                View
+              </span>
+            </button>
+          </section>
 
-          {/* Scrollable list: avoids whole-modal scroll jank on short phones */}
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-3 py-2.5 sm:px-6 sm:py-4">
-            <ul className="space-y-1.5 sm:space-y-2.5">
-              {checklistItems.map((item) => (
-                <li
-                  key={item.id}
-                  className={cn(
-                    "flex items-start gap-2.5 rounded-xl px-3 py-2.5 transition-colors sm:gap-3 sm:px-3.5 sm:py-3",
-                    item.done
-                      ? "bg-emerald-500/5 dark:bg-emerald-500/[0.03]"
-                      : "bg-background/60 dark:bg-slate-900/50"
-                  )}
-                >
-                  {item.done ? (
+          <Dialog open={isChecklistOpen} onOpenChange={setIsChecklistOpen}>
+            <DialogContent
+              className={
+                "flex w-full max-w-3xl flex-col gap-0 overflow-hidden border-border/70 bg-card p-0 shadow-2xl " +
+                "ring-1 ring-black/5 dark:border-white/10 dark:bg-[#070b14] dark:ring-white/10 " +
+                "max-h-[min(92dvh,56rem)] " +
+                /* Small screens: anchored bottom sheet — easier thumb reach, stable on notches */
+                "max-sm:inset-x-0 max-sm:bottom-0 max-sm:left-0 max-sm:right-0 max-sm:top-auto " +
+                "max-sm:max-h-[min(90dvh,56rem)] max-sm:w-full max-sm:translate-x-0 max-sm:translate-y-0 " +
+                "max-sm:rounded-b-none max-sm:rounded-t-3xl max-sm:border-x-0 max-sm:border-b-0 " +
+                /* sm+: classic centered modal */
+                "sm:left-1/2 sm:top-1/2 sm:w-[calc(100vw-1.5rem)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl sm:border " +
+                "pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+              }
+            >
+              {/* Header: fixed height region; close (X) stays in component chrome; pr-* clears it */}
+              <div className="shrink-0 border-b border-border/60 bg-gradient-to-b from-muted/50 to-transparent px-3.5 pb-3 pt-5 sm:px-6 sm:pb-5 sm:pt-7 dark:from-slate-900/90">
+                <DialogHeader className="space-y-2.5 text-left sm:space-y-3">
+                  <div className="flex items-start gap-2.5 pr-11 sm:gap-3 sm:pr-12">
                     <CheckCircle2
-                      className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500"
-                      aria-label="Done"
-                    />
-                  ) : (
-                    <span
-                      className="mt-0.5 inline-flex h-4 w-4 shrink-0 rounded border border-dashed border-muted-foreground/50"
+                      className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500"
                       aria-hidden
                     />
-                  )}
-                  <span className="min-w-0 flex-1 text-[13px] leading-relaxed text-foreground sm:text-sm sm:leading-normal">
-                    <span className="font-bold">{item.id}.</span> {item.text}
-                    {item.id === "c" ? (
-                      <>
-                        {" "}
-                        <Link href="/doubts" className="font-bold text-primary hover:underline">
-                          Open Gyan++
-                        </Link>
-                      </>
-                    ) : null}
-                    {item.id === "e" ? (
-                      <>
-                        {" "}
-                        <Link href="/refer-earn" className="font-bold text-primary hover:underline">
-                          Open Challenge Yourself
-                        </Link>
-                      </>
-                    ) : null}
-                    {item.id === "d" &&
-                    dailyChecklist &&
-                    !dailyChecklist.instacueSessionDone &&
-                    dailyChecklist.instacueCombinedCount < 32 ? (
-                      <span className="mt-1 block text-[11px] leading-snug text-muted-foreground sm:text-xs">
-                        InstaCue reads logged: {dailyChecklist.instacueReadCount}/32
-                        {dailyChecklist.instacueCombinedCount !== dailyChecklist.instacueReadCount ? (
+                    <DialogTitle className="text-left text-[15px] font-bold leading-snug tracking-tight sm:text-lg">
+                      Today&apos;s checklist
+                    </DialogTitle>
+                  </div>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                    <Button
+                      type="button"
+                      size="default"
+                      className="h-11 w-full min-h-[44px] gap-2 rounded-full font-bold sm:h-10 sm:w-fit sm:min-h-0"
+                      onClick={() => router.push("/play")}
+                    >
+                      <Flame className="h-4 w-4 shrink-0" aria-hidden />
+                      Start streak for today
+                    </Button>
+                    <p className="text-[11px] leading-relaxed text-muted-foreground sm:text-xs">
+                      Esc or the top-right close to exit.
+                    </p>
+                  </div>
+                </DialogHeader>
+              </div>
+
+              {/* Scrollable list: avoids whole-modal scroll jank on short phones */}
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-3 py-2.5 sm:px-6 sm:py-4">
+                <ul className="space-y-1.5 sm:space-y-2.5">
+                  {checklistItems.map((item) => (
+                    <li
+                      key={item.id}
+                      className={cn(
+                        "flex items-start gap-2.5 rounded-xl px-3 py-2.5 transition-colors sm:gap-3 sm:px-3.5 sm:py-3",
+                        item.done
+                          ? "bg-emerald-500/5 dark:bg-emerald-500/[0.03]"
+                          : "bg-background/60 dark:bg-slate-900/50"
+                      )}
+                    >
+                      {item.done ? (
+                        <CheckCircle2
+                          className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500"
+                          aria-label="Done"
+                        />
+                      ) : (
+                        <span
+                          className="mt-0.5 inline-flex h-4 w-4 shrink-0 rounded border border-dashed border-muted-foreground/50"
+                          aria-hidden
+                        />
+                      )}
+                      <span className="min-w-0 flex-1 text-[13px] leading-relaxed text-foreground sm:text-sm sm:leading-normal">
+                        <span className="font-bold">{item.id}.</span> {item.text}
+                        {item.id === "c" ? (
                           <>
                             {" "}
-                            · {dailyChecklist.instacueCombinedCount}/32 toward unlock (includes
-                            today&apos;s revision saves)
+                            <Link href="/doubts" className="font-bold text-primary hover:underline">
+                              Open Gyan++
+                            </Link>
                           </>
                         ) : null}
+                        {item.id === "e" ? (
+                          <>
+                            {" "}
+                            <Link
+                              href="/refer-earn"
+                              className="font-bold text-primary hover:underline"
+                            >
+                              Open Challenge Yourself
+                            </Link>
+                          </>
+                        ) : null}
+                        {item.id === "d" &&
+                        dailyChecklist &&
+                        !dailyChecklist.instacueSessionDone &&
+                        dailyChecklist.instacueCombinedCount < 32 ? (
+                          <span className="mt-1 block text-[11px] leading-snug text-muted-foreground sm:text-xs">
+                            InstaCue reads logged: {dailyChecklist.instacueReadCount}/32
+                            {dailyChecklist.instacueCombinedCount !==
+                            dailyChecklist.instacueReadCount ? (
+                              <>
+                                {" "}
+                                · {dailyChecklist.instacueCombinedCount}/32 toward unlock (includes
+                                today&apos;s revision saves)
+                              </>
+                            ) : null}
+                          </span>
+                        ) : null}
                       </span>
-                    ) : null}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
 
-          <div className="shrink-0 border-t border-border/60 bg-muted/25 px-3.5 py-2.5 sm:px-6 sm:py-3 dark:bg-slate-950/80">
-            <p className="text-[11px] leading-relaxed text-muted-foreground sm:text-xs">
-              {dailyChecklistStatus === "error" ? (
-                <span className="text-rose-300">
-                  Could not load checklist status. Refresh and try again.
-                </span>
-              ) : checklistStripSummary ? (
-                <>
-                  <span className="font-semibold text-foreground">
-                    {checklistStripSummary.progressLine}
-                  </span>
-                  {checklistStripSummary.gyanLine ? (
+              <div className="shrink-0 border-t border-border/60 bg-muted/25 px-3.5 py-2.5 sm:px-6 sm:py-3 dark:bg-slate-950/80">
+                <p className="text-[11px] leading-relaxed text-muted-foreground sm:text-xs">
+                  {dailyChecklistStatus === "error" ? (
+                    <span className="text-rose-300">
+                      Could not load checklist status. Refresh and try again.
+                    </span>
+                  ) : checklistStripSummary ? (
                     <>
-                      {" · "}
-                      {checklistStripSummary.gyanLine}
+                      <span className="font-semibold text-foreground">
+                        {checklistStripSummary.progressLine}
+                      </span>
+                      {checklistStripSummary.gyanLine ? (
+                        <>
+                          {" · "}
+                          {checklistStripSummary.gyanLine}
+                        </>
+                      ) : null}{" "}
+                      <span className="hidden sm:inline">
+                        (Items a–e are tracked live; Challenge Yourself completes after any Earn
+                        &amp; Learn challenge run ends today).
+                      </span>
+                      <span className="sm:hidden">Tracked live &middot; a&ndash;e</span>
                     </>
-                  ) : null}{" "}
-                  <span className="hidden sm:inline">
-                    (Items a–e are tracked live; Challenge Yourself completes after any Earn &amp;
-                    Learn challenge run ends today).
-                  </span>
-                  <span className="sm:hidden">Tracked live &middot; a&ndash;e</span>
-                </>
-              ) : null}
-            </p>
-          </div>
-        </DialogContent>
-      </Dialog>
+                  ) : null}
+                </p>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </>
+      ) : null}
 
       {/* Subject accuracy + Leaderboard */}
       <section className="grid gap-4 lg:grid-cols-2">
@@ -1511,8 +1964,7 @@ export default function StudentHomeDashboard() {
             <>
               <ul className="space-y-3">
                 {chapterRowsVisible.map((row, i) => {
-                  const toneIdx =
-                    effectiveChapterPageIdx * CHAPTER_ACCURACY_PAGE_SIZE + i;
+                  const toneIdx = effectiveChapterPageIdx * CHAPTER_ACCURACY_PAGE_SIZE + i;
                   const rowBody = (
                     <>
                       <div className="mb-1 flex justify-between text-sm font-semibold">
@@ -1554,8 +2006,7 @@ export default function StudentHomeDashboard() {
               {chapterRows.length > CHAPTER_ACCURACY_PAGE_SIZE ? (
                 <div className="mt-3 flex flex-col gap-2.5 border-t border-border/60 pt-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                   <p className="text-[11px] text-muted-foreground tabular-nums">
-                    Showing{" "}
-                    {effectiveChapterPageIdx * CHAPTER_ACCURACY_PAGE_SIZE + 1}–
+                    Showing {effectiveChapterPageIdx * CHAPTER_ACCURACY_PAGE_SIZE + 1}–
                     {Math.min(
                       (effectiveChapterPageIdx + 1) * CHAPTER_ACCURACY_PAGE_SIZE,
                       chapterRows.length
@@ -1675,7 +2126,10 @@ export default function StudentHomeDashboard() {
                 <CalendarDays className="h-4 w-4 text-muted-foreground" />
                 <h3 className="text-sm font-bold sm:text-base">Upcoming Testbee mocks</h3>
               </div>
-              <Link href="/mock" className="text-xs font-bold text-muted-foreground hover:underline">
+              <Link
+                href="/mock"
+                className="text-xs font-bold text-muted-foreground hover:underline"
+              >
                 All mocks →
               </Link>
             </div>
@@ -1764,6 +2218,17 @@ export default function StudentHomeDashboard() {
           </div>
         </div>
       </section>
+
+      <FreeTrialPromoDialog
+        open={freeTrialDialogOpen}
+        onOpenChange={setFreeTrialPromoOpen}
+        checklistRewardRdm={checklistRewardRdm}
+      />
+      <OnboardingRewardDialog
+        open={onboardingDialogOpen}
+        onOpenChange={setIsOnboardingRewardOpen}
+        checklistRewardRdm={checklistRewardRdm}
+      />
     </div>
   );
 }

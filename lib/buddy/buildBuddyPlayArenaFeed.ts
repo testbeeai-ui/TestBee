@@ -117,7 +117,7 @@ function claimToActivity(
   let kind: BuddyPlayRecentActivity["kind"] = "other";
   let title = desc.title.replace(/^Play · /, "");
   let subtitle = `${timeLabel} · ${desc.detail}`;
-  let href = playHrefForAction(row.action_type);
+  const href = playHrefForAction(row.action_type);
 
   const gauntletKey =
     row.action_type === "DAILY_DOSE_ACADEMIC"
@@ -133,8 +133,7 @@ function claimToActivity(
     case "DAILY_DOSE_FUNBRAIN": {
       kind = "daily_dose";
       const correct = gauntlet?.correct_count ?? totalQ;
-      const domainLabel =
-        row.action_type === "DAILY_DOSE_ACADEMIC" ? "academic" : "funbrain";
+      const domainLabel = row.action_type === "DAILY_DOSE_ACADEMIC" ? "academic" : "funbrain";
       title = `DailyDose — ${correct}/${totalQ} correct`;
       subtitle =
         correct >= totalQ
@@ -155,7 +154,10 @@ function claimToActivity(
     case "DAILY_DOSE_STREAK_7":
     case "DAILY_DOSE_STREAK_30":
       kind = "streak_bonus";
-      title = row.action_type === "DAILY_DOSE_STREAK_7" ? "DailyDose · 7-day streak" : "DailyDose · 30-day streak";
+      title =
+        row.action_type === "DAILY_DOSE_STREAK_7"
+          ? "DailyDose · 7-day streak"
+          : "DailyDose · 30-day streak";
       subtitle = timeLabel;
       break;
     default:
@@ -181,8 +183,7 @@ function gauntletSessionActivity(
 ): BuddyPlayRecentActivity {
   const totalQ = Math.max(minQuestions, row.correct_count);
   const rank = rankByDomain.get(row.domain);
-  const rankLine =
-    rank != null && rank > 0 ? `Speed rank #${rank} today` : "Daily gauntlet run";
+  const rankLine = rank != null && rank > 0 ? `Speed rank #${rank} today` : "Daily gauntlet run";
 
   return {
     id: `gauntlet:${row.gauntlet_date}:${row.domain}`,
@@ -199,7 +200,8 @@ function blitzSessionActivity(
   session: ReturnType<typeof buildPlaySessionsFromAttempts<PlayHistoryRow>>[number],
   rankByDomain: Map<string, number>
 ): BuddyPlayRecentActivity {
-  const pool = session.distinctPoolKeys.find((k) => k.endsWith(BLITZ_POOL_SUFFIX)) ?? "academic_all";
+  const pool =
+    session.distinctPoolKeys.find((k) => k.endsWith(BLITZ_POOL_SUFFIX)) ?? "academic_all";
   const domain = pool.startsWith("funbrain") ? "funbrain" : "academic";
   const rank = rankByDomain.get(domain);
 

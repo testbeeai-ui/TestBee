@@ -69,9 +69,11 @@ function parseDetails(raw: unknown): TeacherProfileDetails {
  * 1) plain student-facing bio text
  * 2) encoded meta payload prefixed with `__TEACHER_PROFILE_META__:`
  */
-export function parseTeacherProfileMetaFromBio(
-  bioRaw: string | null | undefined
-): { studentBio: string; details: TeacherProfileDetails; hasEncodedMeta: boolean } {
+export function parseTeacherProfileMetaFromBio(bioRaw: string | null | undefined): {
+  studentBio: string;
+  details: TeacherProfileDetails;
+  hasEncodedMeta: boolean;
+} {
   const bio = typeof bioRaw === "string" ? bioRaw.trim() : "";
   if (!bio) return { studentBio: "", details: {}, hasEncodedMeta: false };
   if (!bio.startsWith(PREFIX)) {
@@ -164,20 +166,24 @@ export function hasAnyTeacherDocs(details: TeacherProfileDetails | null | undefi
   const d = details ?? {};
   return Boolean(
     d.docs?.aadharPhotoUrl ||
-      d.docs?.aadharShareLink ||
-      d.docs?.instituteCertificatePhotoUrl ||
-      d.docs?.instituteCertificateShareLink
+    d.docs?.aadharShareLink ||
+    d.docs?.instituteCertificatePhotoUrl ||
+    d.docs?.instituteCertificateShareLink
   );
 }
 
 /** Utility to validate minimal verification readiness (Aadhaar + institute cert, link or photo URL each). */
-export function isTeacherVerificationReady(details: TeacherProfileDetails | null | undefined): boolean {
+export function isTeacherVerificationReady(
+  details: TeacherProfileDetails | null | undefined
+): boolean {
   const d = details?.docs;
   if (!d) return false;
-  const hasAadhar = Boolean(cleanText(d.aadharPhotoUrl, 1200) || cleanText(d.aadharShareLink, 1200));
+  const hasAadhar = Boolean(
+    cleanText(d.aadharPhotoUrl, 1200) || cleanText(d.aadharShareLink, 1200)
+  );
   const hasCert = Boolean(
     cleanText(d.instituteCertificatePhotoUrl, 1200) ||
-      cleanText(d.instituteCertificateShareLink, 1200)
+    cleanText(d.instituteCertificateShareLink, 1200)
   );
   return hasAadhar && hasCert;
 }

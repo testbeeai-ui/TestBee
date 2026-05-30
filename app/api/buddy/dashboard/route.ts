@@ -57,10 +57,7 @@ export async function GET(request: Request) {
 
   const admin = createAdminClient();
   if (!admin) {
-    return NextResponse.json(
-      { error: "SUPABASE_SERVICE_ROLE_KEY is not set" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "SUPABASE_SERVICE_ROLE_KEY is not set" }, { status: 500 });
   }
 
   let buddyId = requestedBuddyId;
@@ -117,9 +114,7 @@ export async function GET(request: Request) {
       .maybeSingle(),
     admin
       .from("student_learning_presence" as never)
-      .select(
-        "board, subject, class_level, topic, subtopic_name, level, panel, updated_at"
-      )
+      .select("board, subject, class_level, topic, subtopic_name, level, panel, updated_at")
       .eq("user_id" as never, buddyId as never)
       .maybeSingle(),
     (admin ?? supabase)
@@ -164,7 +159,7 @@ export async function GET(request: Request) {
           year: "numeric",
           month: "2-digit",
           day: "2-digit",
-         }).format(new Date(Date.now() - 6 * 24 * 60 * 60 * 1000))
+        }).format(new Date(Date.now() - 6 * 24 * 60 * 60 * 1000))
       )
       .order("created_at", { ascending: false }),
     (admin.from("daily_gauntlet_attempts" as any) as any)
@@ -241,34 +236,37 @@ export async function GET(request: Request) {
   const presenceRow = presenceRes.data as unknown as PresenceRow | null;
   const latestDwell = dwellRecentRes.data?.[0] ?? null;
 
-  const { latest: latestActivity, isRecent: activityIsRecent, href: rightNowHref } =
-    resolveBuddySubtopicActivity(
-      presenceRow
-        ? {
-            board: presenceRow.board,
-            subject: presenceRow.subject,
-            classLevel: presenceRow.class_level,
-            topic: presenceRow.topic,
-            subtopicName: presenceRow.subtopic_name,
-            level: presenceRow.level,
-            panel: presenceRow.panel,
-            occurredAt: presenceRow.updated_at,
-          }
-        : null,
-      latestDwell
-        ? {
-            board: latestDwell.board,
-            subject: latestDwell.subject,
-            classLevel: latestDwell.class_level,
-            topic: latestDwell.topic,
-            subtopicName: latestDwell.subtopic_name,
-            level: latestDwell.level,
-            panel: latestDwell.panel,
-            occurredAt: latestDwell.occurred_at,
-          }
-        : null,
-      BUDDY_ACTIVITY_RECENT_MS
-    );
+  const {
+    latest: latestActivity,
+    isRecent: activityIsRecent,
+    href: rightNowHref,
+  } = resolveBuddySubtopicActivity(
+    presenceRow
+      ? {
+          board: presenceRow.board,
+          subject: presenceRow.subject,
+          classLevel: presenceRow.class_level,
+          topic: presenceRow.topic,
+          subtopicName: presenceRow.subtopic_name,
+          level: presenceRow.level,
+          panel: presenceRow.panel,
+          occurredAt: presenceRow.updated_at,
+        }
+      : null,
+    latestDwell
+      ? {
+          board: latestDwell.board,
+          subject: latestDwell.subject,
+          classLevel: latestDwell.class_level,
+          topic: latestDwell.topic,
+          subtopicName: latestDwell.subtopic_name,
+          level: latestDwell.level,
+          panel: latestDwell.panel,
+          occurredAt: latestDwell.occurred_at,
+        }
+      : null,
+    BUDDY_ACTIVITY_RECENT_MS
+  );
 
   const latestGyanDoubtRow = (doubtsRecentRes.data ?? [])[0] ?? null;
   const latestGyanDoubt = latestGyanDoubtRow
@@ -360,9 +358,12 @@ export async function GET(request: Request) {
     href: `/doubts/${d.id}`,
   }));
   const gyanFromAnswers: GyanRow[] = (answersRecentRes.data ?? []).map((a) => {
-    const dRaw = (a as { doubts?: { id?: string; title?: string } | Array<{ id?: string; title?: string }> | null })
-      .doubts;
-    const d = Array.isArray(dRaw) ? dRaw[0] ?? null : dRaw ?? null;
+    const dRaw = (
+      a as {
+        doubts?: { id?: string; title?: string } | Array<{ id?: string; title?: string }> | null;
+      }
+    ).doubts;
+    const d = Array.isArray(dRaw) ? (dRaw[0] ?? null) : (dRaw ?? null);
     return {
       id: a.id,
       kind: "answer",

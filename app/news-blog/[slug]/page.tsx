@@ -178,7 +178,6 @@ export default async function NewsBlogArticlePage({ params, searchParams }: Page
           ) : null}
 
           <ArticlePageContent post={post} isAdmin={isAdmin} />
-
         </div>
       </article>
     </PublicShell>

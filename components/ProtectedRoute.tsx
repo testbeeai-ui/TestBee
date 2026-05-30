@@ -21,7 +21,10 @@ function normalizeAppRole(role: string | null | undefined): AppRole {
  * Student-only surfaces (`allowRoles: ["student"]`) must still work for admins
  * auditing the product; otherwise every nav item gated that way bounces to /home.
  */
-function isRoleAllowed(profileRole: string | null | undefined, allowRoles: readonly AppRole[] | undefined) {
+function isRoleAllowed(
+  profileRole: string | null | undefined,
+  allowRoles: readonly AppRole[] | undefined
+) {
   if (!allowRoles || allowRoles.length === 0) return true;
   const normalized = normalizeAppRole(profileRole);
   if (allowRoles.includes(normalized)) return true;
@@ -56,9 +59,20 @@ export function ProtectedRoute({
     }
     if (profile !== null && !isRoleAllowed(profile.role, allowRoles)) {
       const normalized = normalizeAppRole(profile.role);
-      router.replace(redirectTo ?? (normalized === "teacher" ? TEACHER_PORTAL_CLASSROOMS_URL : "/home"));
+      router.replace(
+        redirectTo ?? (normalized === "teacher" ? TEACHER_PORTAL_CLASSROOMS_URL : "/home")
+      );
     }
-  }, [user, profile, profile?.onboarding_complete, profile?.role, loading, allowRolesKey, redirectTo, router]);
+  }, [
+    user,
+    profile,
+    profile?.onboarding_complete,
+    profile?.role,
+    loading,
+    allowRolesKey,
+    redirectTo,
+    router,
+  ]);
 
   if (loading)
     return (

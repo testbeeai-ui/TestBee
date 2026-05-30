@@ -29,8 +29,14 @@ type GenericQueryResult<T> = {
 type GenericFrom = {
   from: (table: string) => {
     select: (columns: string) => {
-      eq: (column: string, value: string) => {
-        eq: (column: string, value: string) => {
+      eq: (
+        column: string,
+        value: string
+      ) => {
+        eq: (
+          column: string,
+          value: string
+        ) => {
           maybeSingle: () => Promise<GenericQueryResult<AttemptRow>>;
         };
       };
@@ -125,7 +131,11 @@ function htmlToMarkdownWithLatex(input: string): string {
   s = s.replace(/<[^>]+>/g, " ");
 
   // Cleanup whitespace
-  s = s.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").replace(/[ \t]{2,}/g, " ").trim();
+  s = s
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
 
   return s;
 }
@@ -169,7 +179,10 @@ export async function GET(
 
   const mockPaper = parseMockPaperRef(post.content_json);
   if (!mockPaper) {
-    return NextResponse.json({ error: "No mock paper found for this assignment." }, { status: 404 });
+    return NextResponse.json(
+      { error: "No mock paper found for this assignment." },
+      { status: 404 }
+    );
   }
 
   const url = new URL(request.url);
@@ -243,4 +256,3 @@ export async function GET(
       : null,
   });
 }
-

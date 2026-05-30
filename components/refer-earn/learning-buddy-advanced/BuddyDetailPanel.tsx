@@ -94,8 +94,7 @@ export function BuddyDetailPanel({ buddy, onUnbuddy }: BuddyDetailPanelProps) {
   const [unbuddyOpen, setUnbuddyOpen] = useState(false);
   const [unbuddying, setUnbuddying] = useState(false);
 
-  const dashboardForBuddy =
-    data?.buddy?.id === buddy.id ? data : null;
+  const dashboardForBuddy = data?.buddy?.id === buddy.id ? data : null;
   const displayBuddy = withBuddyRdm(dashboardForBuddy?.buddy ?? buddy);
   const live = Boolean(dashboardForBuddy?.buddyOnline);
 
@@ -233,9 +232,7 @@ export function BuddyDetailPanel({ buddy, onUnbuddy }: BuddyDetailPanelProps) {
         </div>
       </div>
 
-      {error ? (
-        <p className="px-4 py-3 text-xs text-rose-300">{error}</p>
-      ) : null}
+      {error ? <p className="px-4 py-3 text-xs text-rose-300">{error}</p> : null}
 
       {!dashboardForBuddy ? (
         <div className="grid flex-1 gap-3 p-4 sm:grid-cols-2">
@@ -250,11 +247,7 @@ export function BuddyDetailPanel({ buddy, onUnbuddy }: BuddyDetailPanelProps) {
           ))}
         </div>
       ) : (
-        <ActivityGrid
-          data={dashboardForBuddy}
-          isLocked={isLocked}
-          buddyName={displayBuddy.name}
-        />
+        <ActivityGrid data={dashboardForBuddy} isLocked={isLocked} buddyName={displayBuddy.name} />
       )}
     </div>
   );
@@ -267,7 +260,10 @@ function greenCellClass(level: 0 | 1 | 2 | 3, isToday: boolean): string {
     case 0:
       return cn(base, "border-red-500/35 bg-red-950/55 text-red-100");
     case 1:
-      return cn(base, "border-emerald-400/45 bg-emerald-400/28 text-emerald-950 dark:text-emerald-50");
+      return cn(
+        base,
+        "border-emerald-400/45 bg-emerald-400/28 text-emerald-950 dark:text-emerald-50"
+      );
     case 2:
       return cn(base, "border-emerald-500/45 bg-emerald-600/60 text-white");
     case 3:
@@ -440,14 +436,26 @@ function ActivityGrid({
               </div>
               <span className="inline-flex w-fit items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/5 px-2.5 py-0.5 text-[10px] font-bold text-amber-400 sm:text-[11px]">
                 <Flame className="h-3 w-3 text-amber-500" />
-                Week {studyStreakBonusWeek} bonus: +{studyStreakBonusRdm.toLocaleString("en-IN")} RDM
+                Week {studyStreakBonusWeek} bonus: +{studyStreakBonusRdm.toLocaleString("en-IN")}{" "}
+                RDM
               </span>
             </div>
 
             <div className="grid grid-cols-3 gap-2">
-              <StatCell value={String(data.advanced.streak.dayStreak)} label="Day streak" valueClass="text-[#1D9E75]" />
-              <StatCell value={String(data.advanced.streak.activeDays60d)} label="Active days (60d)" />
-              <StatCell value={formatMsShort(data.advanced.streak.avgDailyMs)} label="Avg daily" valueClass="text-[#AFA9EC]" />
+              <StatCell
+                value={String(data.advanced.streak.dayStreak)}
+                label="Day streak"
+                valueClass="text-[#1D9E75]"
+              />
+              <StatCell
+                value={String(data.advanced.streak.activeDays60d)}
+                label="Active days (60d)"
+              />
+              <StatCell
+                value={formatMsShort(data.advanced.streak.avgDailyMs)}
+                label="Avg daily"
+                valueClass="text-[#AFA9EC]"
+              />
             </div>
 
             <div
@@ -504,11 +512,11 @@ function ActivityGrid({
                       <span className="text-[9px] font-bold uppercase text-slate-400 sm:text-[10px]">
                         {cell.date.toLocaleDateString(undefined, { weekday: "short" })}
                       </span>
-                      <span className="text-xs font-extrabold tabular-nums">
-                        {cell.label}
-                      </span>
+                      <span className="text-xs font-extrabold tabular-nums">{cell.label}</span>
                       {isToday ? (
-                        <span className="text-[9px] font-semibold text-teal-400 sm:text-[10px]">Today</span>
+                        <span className="text-[9px] font-semibold text-teal-400 sm:text-[10px]">
+                          Today
+                        </span>
                       ) : null}
                     </div>
                   );
@@ -525,7 +533,10 @@ function ActivityGrid({
                   {monthGrid.cells.map((cell, idx) => {
                     if (cell.day == null) {
                       return (
-                        <div key={`pad-${idx}`} className="aspect-square rounded-lg bg-transparent" />
+                        <div
+                          key={`pad-${idx}`}
+                          className="aspect-square rounded-lg bg-transparent"
+                        />
                       );
                     }
                     const d = new Date(now.getFullYear(), now.getMonth(), cell.day);
@@ -540,9 +551,7 @@ function ActivityGrid({
                         )}
                       >
                         <span>{cell.day}</span>
-                        <span className="text-[9px] opacity-90">
-                          {cell.label}
-                        </span>
+                        <span className="text-[9px] opacity-90">{cell.label}</span>
                         {isToday ? <span className="text-[8px] text-teal-300">Today</span> : null}
                       </div>
                     );
@@ -640,14 +649,16 @@ function ActivityGrid({
         ) : data.gyanRecent.length === 0 ? (
           <p className="text-[11px] text-slate-500">No recent Gyan++ activity.</p>
         ) : (
-          data.gyanRecent.slice(0, 2).map((row) => (
-            <ActRow
-              key={row.id}
-              title={row.title}
-              sub={row.kind === "doubt" ? "Asked on wall" : "Answer"}
-              href={row.href}
-            />
-          ))
+          data.gyanRecent
+            .slice(0, 2)
+            .map((row) => (
+              <ActRow
+                key={row.id}
+                title={row.title}
+                sub={row.kind === "doubt" ? "Asked on wall" : "Answer"}
+                href={row.href}
+              />
+            ))
         )}
       </ActCard>
 
@@ -658,11 +669,11 @@ function ActivityGrid({
         ) : (
           <>
             {data.playArena.recent.length === 0 ? (
-              <p className="text-[11px] text-slate-500">No Play activity yet today — tap Play to start.</p>
+              <p className="text-[11px] text-slate-500">
+                No Play activity yet today — tap Play to start.
+              </p>
             ) : (
-              data.playArena.recent.map((row) => (
-                <PlayActRow key={row.id} row={row} />
-              ))
+              data.playArena.recent.map((row) => <PlayActRow key={row.id} row={row} />)
             )}
             <div className="mt-2 grid grid-cols-2 gap-2">
               <StatCell
@@ -677,7 +688,8 @@ function ActivityGrid({
             </div>
             {data.playArena.gauntletStreakDays >= 7 ? (
               <p className="mt-2 text-[11px] font-medium text-lime-300/90">
-                {data.playArena.gauntletStreakDays}d gauntlet streak · {data.playArena.rdmEarnedLast7Days} Play RDM (7d)
+                {data.playArena.gauntletStreakDays}d gauntlet streak ·{" "}
+                {data.playArena.rdmEarnedLast7Days} Play RDM (7d)
               </p>
             ) : null}
           </>
@@ -701,7 +713,10 @@ function ActivityGrid({
             ))}
             {data.subtopic.lastOn ? (
               <ActRow
-                title={`${data.subtopic.lastOn.subject ?? ""} · ${data.subtopic.lastOn.subtopic ?? "Subtopic"}`.replace(/^ · /, "")}
+                title={`${data.subtopic.lastOn.subject ?? ""} · ${data.subtopic.lastOn.subtopic ?? "Subtopic"}`.replace(
+                  /^ · /,
+                  ""
+                )}
                 sub="Last on subtopic"
                 badge={data.subtopic.lastOn.isRecent ? "Active" : undefined}
                 href={data.subtopic.lastOn.href ?? undefined}
@@ -731,8 +746,7 @@ function ActivityGrid({
               pct={Math.min(
                 100,
                 Math.round(
-                  (100 * data.advanced.edufund.activeDays60d) /
-                    data.advanced.edufund.activeDaysGoal
+                  (100 * data.advanced.edufund.activeDays60d) / data.advanced.edufund.activeDaysGoal
                 )
               )}
               fillClass="bg-[#1D9E75]"
@@ -754,7 +768,10 @@ function ActivityGrid({
           <>
             <ActRow title={data.rightNow.title} sub="Posted on community" />
             {"href" in data.rightNow && data.rightNow.href ? (
-              <Link href={data.rightNow.href} className="mt-2 inline-block text-[11px] font-medium text-sky-400 hover:text-sky-300 hover:underline">
+              <Link
+                href={data.rightNow.href}
+                className="mt-2 inline-block text-[11px] font-medium text-sky-400 hover:text-sky-300 hover:underline"
+              >
                 Open community post →
               </Link>
             ) : null}
@@ -844,7 +861,9 @@ function ActHead({
   const a = BUDDY_CARD_ACCENT[accent];
   return (
     <div className="mb-3 flex items-center gap-2">
-      <span className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-lg", a.iconBg)}>
+      <span
+        className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-lg", a.iconBg)}
+      >
         <Icon className={cn("h-4 w-4", a.iconText)} />
       </span>
       <span className={cn("text-[11px] font-bold uppercase tracking-[0.1em]", a.label)}>
@@ -876,16 +895,21 @@ function StatCell({
   );
 }
 
-function playRowIcon(kind: BuddyAdvancedDashboardResponse["playArena"]["recent"][number]["kind"]) {
+function PlayActRowIcon({
+  kind,
+}: {
+  kind: BuddyAdvancedDashboardResponse["playArena"]["recent"][number]["kind"];
+}) {
+  const className = "h-3.5 w-3.5";
   switch (kind) {
     case "daily_dose":
-      return Zap;
+      return <Zap className={className} />;
     case "quant_blitz":
-      return SquareRadical;
+      return <SquareRadical className={className} />;
     case "numerals":
-      return Flame;
+      return <Flame className={className} />;
     default:
-      return Play;
+      return <Play className={className} />;
   }
 }
 
@@ -894,11 +918,10 @@ function PlayActRow({
 }: {
   row: BuddyAdvancedDashboardResponse["playArena"]["recent"][number];
 }) {
-  const Icon = playRowIcon(row.kind);
   const body = (
     <div className="flex items-start gap-2.5 border-b border-white/[0.06] py-2.5 last:border-0">
       <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-lime-500/10 text-lime-300 ring-1 ring-lime-400/15">
-        <Icon className="h-3.5 w-3.5" />
+        <PlayActRowIcon kind={row.kind} />
       </span>
       <div className="min-w-0 flex-1">
         <p className="truncate text-xs font-semibold text-slate-100">{row.title}</p>
@@ -944,14 +967,18 @@ function ActRow({
         <p
           className={cn(
             "truncate text-xs font-medium",
-            href ? "text-slate-100 group-hover/row:text-white group-hover/row:underline" : "text-slate-200"
+            href
+              ? "text-slate-100 group-hover/row:text-white group-hover/row:underline"
+              : "text-slate-200"
           )}
         >
           {title}
         </p>
         {sub ? <p className="text-[11px] text-slate-500">{sub}</p> : null}
       </div>
-      {value ? <span className={cn("shrink-0 text-xs font-medium", valueClass)}>{value}</span> : null}
+      {value ? (
+        <span className={cn("shrink-0 text-xs font-medium", valueClass)}>{value}</span>
+      ) : null}
       {badge ? (
         <span className="shrink-0 rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-300 ring-1 ring-emerald-400/20">
           {badge}

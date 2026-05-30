@@ -91,9 +91,7 @@ export function parseDailyChecklistState(raw: unknown): DailyChecklistStateMap {
     if (Array.isArray(rawReads)) {
       const ids = Array.from(
         new Set(
-          rawReads
-            .map((x) => sanitizeInstacueCardId(x))
-            .filter((x): x is string => Boolean(x))
+          rawReads.map((x) => sanitizeInstacueCardId(x)).filter((x): x is string => Boolean(x))
         )
       ).slice(0, MAX_INSTACUE_READ_IDS_PER_DAY);
       if (ids.length) day.instacueReadCardIds = ids;
@@ -181,9 +179,7 @@ export function appendInstacueReadCardIds(
   dayKey: string,
   rawIds: unknown[]
 ): DailyChecklistStateMap {
-  const ids = rawIds
-    .map((x) => sanitizeInstacueCardId(x))
-    .filter((x): x is string => Boolean(x));
+  const ids = rawIds.map((x) => sanitizeInstacueCardId(x)).filter((x): x is string => Boolean(x));
   if (!ids.length) return prev;
   const prior = prev[dayKey] ?? {};
   const merged = new Set([...(prior.instacueReadCardIds ?? []), ...ids]);

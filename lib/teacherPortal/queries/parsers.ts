@@ -36,7 +36,9 @@ export function parsePastPaperRef(payload: Record<string, Json>): TeacherPortalP
   return { id, title, slug: slug || id };
 }
 
-export function parseChapterQuizRef(payload: Record<string, Json>): TeacherPortalChapterQuizRef | null {
+export function parseChapterQuizRef(
+  payload: Record<string, Json>
+): TeacherPortalChapterQuizRef | null {
   const raw = payload.chapterQuiz;
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
   const o = raw as Record<string, unknown>;

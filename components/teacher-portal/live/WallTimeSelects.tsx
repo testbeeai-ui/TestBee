@@ -1,10 +1,6 @@
 "use client";
 
-import {
-  hhmmToWallParts,
-  wallPartsToHhmm,
-  type WallTimeParts,
-} from "@/lib/teacherPortal/timeHHmm";
+import { hhmmToWallParts, wallPartsToHhmm, type WallTimeParts } from "@/lib/teacherPortal/timeHHmm";
 
 type WallTimeSelectsProps = {
   value: string;
@@ -86,7 +82,7 @@ export default function WallTimeSelects({
         value={parsed ? (parsed.isPm ? "pm" : "am") : ""}
         onChange={(e) => {
           const raw = e.target.value;
-          if (!parsed || raw !== "am" && raw !== "pm") return;
+          if (!parsed || (raw !== "am" && raw !== "pm")) return;
           apply({ isPm: raw === "pm" });
         }}
         className={`${sel} flex-[1]`}

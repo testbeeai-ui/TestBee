@@ -93,13 +93,7 @@ function subtopicDisplayName(sectionTitle: string): string {
   );
 }
 
-const VALID_REVISION_TABS: RevisionTab[] = [
-  "instacue",
-  "units",
-  "saved",
-  "community",
-  "questions",
-];
+const VALID_REVISION_TABS: RevisionTab[] = ["instacue", "units", "saved", "community", "questions"];
 
 const RevisionContent = () => {
   const searchParams = useSearchParams();
@@ -474,7 +468,9 @@ const RevisionContent = () => {
                             : "border-border/70 bg-background/60 text-muted-foreground hover:bg-muted hover:text-foreground"
                         )}
                       >
-                        <span className="min-w-0 truncate text-center leading-tight">{item.label}</span>
+                        <span className="min-w-0 truncate text-center leading-tight">
+                          {item.label}
+                        </span>
                         <span
                           className={cn(
                             "shrink-0 tabular-nums rounded-full px-1.5 py-0.5 text-[9px] font-extrabold sm:min-w-[1.5rem] sm:px-2 sm:text-[11px]",
@@ -519,13 +515,17 @@ const RevisionContent = () => {
             <section className="space-y-3 sm:space-y-4">
               {savedQuestionsCount === 0 ? (
                 <div className="edu-card p-8 sm:p-6 sm:p-10 text-center rounded-2xl border-2 border-dashed border-border">
-                  <BookMarked className="w-12 h-12 mx-auto text-muted-foreground mb-4" aria-hidden />
+                  <BookMarked
+                    className="w-12 h-12 mx-auto text-muted-foreground mb-4"
+                    aria-hidden
+                  />
                   <h2 className="text-lg font-bold text-foreground tracking-tight">
                     No saved questions yet
                   </h2>
                   <p className="text-sm text-muted-foreground mt-2 mb-5 max-w-md mx-auto leading-relaxed">
-                    Anything you save from the question bank while practising shows up in this list — same
-                    layout you see here: title, short context, and your count in the tab above.
+                    Anything you save from the question bank while practising shows up in this list
+                    — same layout you see here: title, short context, and your count in the tab
+                    above.
                   </p>
                   <div className="text-left max-w-md mx-auto rounded-xl border border-border/60 bg-muted/20 px-4 py-3 mb-6 text-sm text-muted-foreground space-y-2">
                     <p className="font-semibold text-foreground text-xs uppercase tracking-wide">
@@ -533,8 +533,13 @@ const RevisionContent = () => {
                     </p>
                     <ol className="list-decimal list-inside space-y-1.5 leading-relaxed">
                       <li>Go to Practice or open a topic with MCQs.</li>
-                      <li>Tap <strong className="text-foreground">Save</strong> on any question you want to revisit.</li>
-                      <li>Return here to swipe through saved items or tap one to practice in full.</li>
+                      <li>
+                        Tap <strong className="text-foreground">Save</strong> on any question you
+                        want to revisit.
+                      </li>
+                      <li>
+                        Return here to swipe through saved items or tap one to practice in full.
+                      </li>
                     </ol>
                   </div>
                   <Button variant="outline" className="rounded-xl font-semibold" asChild>
@@ -553,10 +558,13 @@ const RevisionContent = () => {
                 </div>
               ) : savedQuestionsForTab.length === 0 ? (
                 <div className="edu-card p-8 sm:p-6 sm:p-10 text-center rounded-2xl border-2 border-dashed border-border">
-                  <BookMarked className="w-12 h-12 mx-auto text-muted-foreground mb-4" aria-hidden />
+                  <BookMarked
+                    className="w-12 h-12 mx-auto text-muted-foreground mb-4"
+                    aria-hidden
+                  />
                   <h2 className="text-lg font-bold text-foreground tracking-tight">
-                    {savedQuestionsCount} saved question{savedQuestionsCount === 1 ? "" : "s"} on your
-                    account
+                    {savedQuestionsCount} saved question{savedQuestionsCount === 1 ? "" : "s"} on
+                    your account
                   </h2>
                   <p className="text-sm text-muted-foreground mt-2 mb-5 max-w-lg mx-auto leading-relaxed">
                     {signedIn
@@ -617,7 +625,9 @@ const RevisionContent = () => {
                             <span
                               className={cn(
                                 "shrink-0 tabular-nums rounded-full px-1 py-0.5 text-[9px] font-extrabold sm:px-1.5 sm:text-[11px]",
-                                active ? "bg-white/20 text-primary-foreground" : "bg-muted text-foreground"
+                                active
+                                  ? "bg-white/20 text-primary-foreground"
+                                  : "bg-muted text-foreground"
                               )}
                             >
                               {count}
@@ -650,7 +660,9 @@ const RevisionContent = () => {
               ) : savedBits.length === 0 && savedFormulas.length === 0 ? (
                 <div className="edu-card p-6 sm:p-10 text-center rounded-2xl border-2 border-dashed border-border">
                   <BookMarked className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
-                  <p className="text-muted-foreground font-medium">No saved quizzes or formulas yet</p>
+                  <p className="text-muted-foreground font-medium">
+                    No saved quizzes or formulas yet
+                  </p>
                   <p className="text-sm text-muted-foreground mt-1 mb-4">
                     Use the Save button (bookmark icon) on quizzes or Practice Formulas in any Deep
                     Dive section to add them here.

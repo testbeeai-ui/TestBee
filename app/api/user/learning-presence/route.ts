@@ -81,9 +81,7 @@ export async function POST(request: Request) {
 
     const { data: existing } = await supabase
       .from("student_learning_presence" as never)
-      .select(
-        "board, subject, class_level, topic, subtopic_name, level, panel, updated_at"
-      )
+      .select("board, subject, class_level, topic, subtopic_name, level, panel, updated_at")
       .eq("user_id" as never, user.id as never)
       .maybeSingle();
 

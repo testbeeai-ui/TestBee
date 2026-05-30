@@ -69,8 +69,7 @@ export async function POST(req: NextRequest) {
     const id = body.id != null ? String(body.id).trim() : "";
     const portal = body.portal;
     const sectionRaw = body.section != null ? String(body.section) : "";
-    const section =
-      portal === "blog" && sectionRaw === "bmind" ? "bmattitude" : sectionRaw;
+    const section = portal === "blog" && sectionRaw === "bmind" ? "bmattitude" : sectionRaw;
     const exam = body.exam != null ? String(body.exam) : "";
     const title = body.title != null ? String(body.title).trim() : "";
     const createdAt =
@@ -175,8 +174,7 @@ export async function PUT(req: NextRequest) {
     const id = body.id != null ? String(body.id).trim() : "";
     const portal = body.portal;
     const sectionRaw = body.section != null ? String(body.section) : "";
-    const section =
-      portal === "blog" && sectionRaw === "bmind" ? "bmattitude" : sectionRaw;
+    const section = portal === "blog" && sectionRaw === "bmind" ? "bmattitude" : sectionRaw;
     const exam = body.exam != null ? String(body.exam) : "";
     const title = body.title != null ? String(body.title).trim() : "";
     const createdAt =

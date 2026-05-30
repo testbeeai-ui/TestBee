@@ -50,7 +50,8 @@ export async function GET(
     .eq("id", classroomId)
     .maybeSingle();
   if (roomErr || !room) return NextResponse.json({ error: "Classroom not found" }, { status: 404 });
-  if (room.teacher_id !== user.id) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (room.teacher_id !== user.id)
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   // Verify the student belongs to the classroom (prevents scraping other users).
   const { data: membership, error: memberErr } = await admin
@@ -75,7 +76,9 @@ export async function GET(
     return NextResponse.json({ error: "Profile not found" }, { status: 404 });
   }
 
-  const attempts = parseBitsTestAttemptsStore((profile as { bits_test_attempts?: unknown }).bits_test_attempts);
+  const attempts = parseBitsTestAttemptsStore(
+    (profile as { bits_test_attempts?: unknown }).bits_test_attempts
+  );
 
   // Aggregate by topic, weighted by answered count.
   const byTopic = new Map<string, { correct: number; answered: number }>();
@@ -102,4 +105,3 @@ export async function GET(
 
   return NextResponse.json({ weakAreas, sampleSize: attempts.length });
 }
-

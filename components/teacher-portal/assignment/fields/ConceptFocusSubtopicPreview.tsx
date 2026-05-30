@@ -3,7 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { BookOpen, Calculator, Layers, Loader2, Target } from "lucide-react";
 import TheoryContent from "@/components/TheoryContent";
-import { fetchSubtopicContent, type SubtopicContentResponse } from "@/lib/curriculum/subtopicContentService";
+import {
+  fetchSubtopicContent,
+  type SubtopicContentResponse,
+} from "@/lib/curriculum/subtopicContentService";
 import type { Board, ClassLevel, Subject } from "@/types";
 import {
   DEFAULT_PREVIEW_CACHE_TTL_MS,
@@ -112,28 +115,36 @@ export default function ConceptFocusSubtopicPreview({
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <div className="flex flex-col items-center rounded-xl border border-white/5 bg-[#0c1020] p-3 text-center">
                 <BookOpen className="mb-2 h-5 w-5 text-sky-400" />
-                <span className="text-2xl font-bold text-slate-200">{data.theory ? "Yes" : "No"}</span>
+                <span className="text-2xl font-bold text-slate-200">
+                  {data.theory ? "Yes" : "No"}
+                </span>
                 <span className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
                   Theory
                 </span>
               </div>
               <div className="flex flex-col items-center rounded-xl border border-white/5 bg-[#0c1020] p-3 text-center">
                 <Layers className="mb-2 h-5 w-5 text-emerald-400" />
-                <span className="text-2xl font-bold text-slate-200">{data.instacueCards.length}</span>
+                <span className="text-2xl font-bold text-slate-200">
+                  {data.instacueCards.length}
+                </span>
                 <span className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
                   InstaCue Cards
                 </span>
               </div>
               <div className="flex flex-col items-center rounded-xl border border-white/5 bg-[#0c1020] p-3 text-center">
                 <Target className="mb-2 h-5 w-5 text-violet-400" />
-                <span className="text-2xl font-bold text-slate-200">{data.bitsQuestions.length}</span>
+                <span className="text-2xl font-bold text-slate-200">
+                  {data.bitsQuestions.length}
+                </span>
                 <span className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
                   Quiz Questions
                 </span>
               </div>
               <div className="flex flex-col items-center rounded-xl border border-white/5 bg-[#0c1020] p-3 text-center">
                 <Calculator className="mb-2 h-5 w-5 text-amber-400" />
-                <span className="text-2xl font-bold text-slate-200">{data.practiceFormulas.length}</span>
+                <span className="text-2xl font-bold text-slate-200">
+                  {data.practiceFormulas.length}
+                </span>
                 <span className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
                   Numerals
                 </span>
@@ -161,4 +172,3 @@ export default function ConceptFocusSubtopicPreview({
     </div>
   );
 }
-

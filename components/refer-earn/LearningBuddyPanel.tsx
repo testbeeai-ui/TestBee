@@ -7,12 +7,15 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { LEARNING_BUDDY_ADVANCED_PATH } from "@/lib/buddy/learningBuddyRoutes";
 import { useAuth } from "@/hooks/useAuth";
+import { useIsAppAdmin } from "@/hooks/useIsAppAdmin";
 import {
   fetchBuddyState,
   type BuddyPendingInvite,
   type BuddyProfile,
   withBuddyRdm,
 } from "@/lib/buddy/buddyClient";
+import { maybeMarkEarnBuddyOnboardingFromBuddyActivation } from "@/lib/subscription/freeTrialClient";
+import { EarnBuddyOnboardingTracker } from "@/components/refer-earn/EarnBuddyOnboardingTracker";
 import { LearningBuddyDashboard } from "./learning-buddy/LearningBuddyDashboard";
 import { LearningBuddyEmptyState } from "./learning-buddy/LearningBuddyEmptyState";
 
@@ -31,15 +34,21 @@ type PanelState =
 /** Learning Buddy surface — empty state (invite) vs connected state (dashboard). */
 export function LearningBuddyPanel({ onBackToChallenges, className }: LearningBuddyPanelProps) {
   const { user, loading: authLoading } = useAuth();
+  const isAdmin = useIsAppAdmin();
   const [state, setState] = useState<PanelState>({ phase: "loading" });
+  const [hasInvitedBuddyJoined, setHasInvitedBuddyJoined] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!user) {
       setState({ phase: "signed_out" });
+      setHasInvitedBuddyJoined(false);
       return;
     }
     try {
       const result = await fetchBuddyState();
+      const joined = Boolean(result.hasInvitedBuddyJoined ?? result.hasBuddyInviteActivated);
+      setHasInvitedBuddyJoined(joined);
+      maybeMarkEarnBuddyOnboardingFromBuddyActivation(joined);
       const primary = result.buddy ?? result.buddies[0] ?? null;
       if (primary) {
         setState({ phase: "connected", buddy: withBuddyRdm(primary) });
@@ -64,6 +73,7 @@ export function LearningBuddyPanel({ onBackToChallenges, className }: LearningBu
         className
       )}
     >
+      <EarnBuddyOnboardingTracker active hasInvitedBuddyJoined={hasInvitedBuddyJoined} />
       <div className="mb-3 flex items-center gap-2.5 border-b border-white/[0.08] pb-3">
         <Button
           type="button"
@@ -95,15 +105,17 @@ export function LearningBuddyPanel({ onBackToChallenges, className }: LearningBu
           </div>
         </div>
 
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="shrink-0 rounded-full border-fuchsia-400/35 bg-fuchsia-500/10 px-3.5 text-xs font-bold text-fuchsia-100 hover:border-fuchsia-400/55 hover:bg-fuchsia-500/20"
-          asChild
-        >
-          <Link href={LEARNING_BUDDY_ADVANCED_PATH}>Advanced</Link>
-        </Button>
+        {isAdmin ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="shrink-0 rounded-full border-fuchsia-400/35 bg-fuchsia-500/10 px-3.5 text-xs font-bold text-fuchsia-100 hover:border-fuchsia-400/55 hover:bg-fuchsia-500/20"
+            asChild
+          >
+            <Link href={LEARNING_BUDDY_ADVANCED_PATH}>Advanced</Link>
+          </Button>
+        ) : null}
       </div>
 
       {authLoading || state.phase === "loading" ? (
@@ -133,10 +145,7 @@ export function LearningBuddyPanel({ onBackToChallenges, className }: LearningBu
       ) : null}
 
       {state.phase === "connected" ? (
-        <LearningBuddyDashboard
-          buddy={state.buddy}
-          onChange={() => void refresh()}
-        />
+        <LearningBuddyDashboard buddy={state.buddy} onChange={() => void refresh()} />
       ) : null}
     </div>
   );

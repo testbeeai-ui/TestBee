@@ -312,5 +312,3 @@ export function SitePresenceProvider({
     <SitePresenceLiveContext.Provider value={value}>{children}</SitePresenceLiveContext.Provider>
   );
 }
-
-

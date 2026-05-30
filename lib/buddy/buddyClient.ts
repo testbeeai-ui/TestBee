@@ -1,7 +1,4 @@
-import type {
-  BuddyAdvancedSections,
-  BuddyPrivacySettings,
-} from "@/lib/buddy/buddyPrivacy";
+import type { BuddyAdvancedSections, BuddyPrivacySettings } from "@/lib/buddy/buddyPrivacy";
 
 export type BuddyProfile = {
   id: string;
@@ -40,6 +37,10 @@ export type BuddyStateResponse = {
   buddy: BuddyProfile | null;
   pendingInvites: BuddyPendingInvite[];
   maxBuddies: number;
+  /** True when at least one invite you sent was accepted (legacy). */
+  hasBuddyInviteActivated: boolean;
+  /** True when an acceptor from your invite is an active study buddy (checklist). */
+  hasInvitedBuddyJoined: boolean;
 };
 
 export type BuddyInviteResponse = {
@@ -216,8 +217,7 @@ async function jsonFetch<T>(input: string, init?: RequestInit): Promise<T> {
   const text = await res.text();
   const data = text ? (JSON.parse(text) as unknown) : ({} as unknown);
   if (!res.ok) {
-    const message =
-      (data as { error?: string })?.error ?? `Request failed (${res.status})`;
+    const message = (data as { error?: string })?.error ?? `Request failed (${res.status})`;
     throw new Error(message);
   }
   return data as T;
@@ -240,9 +240,7 @@ export function fetchBuddyActivitySignal(buddyId?: string): Promise<BuddyActivit
   });
 }
 
-export function fetchBuddyDashboard(
-  buddyId?: string
-): Promise<BuddyAdvancedDashboardResponse> {
+export function fetchBuddyDashboard(buddyId?: string): Promise<BuddyAdvancedDashboardResponse> {
   const q = buddyId ? `?buddyId=${encodeURIComponent(buddyId)}` : "";
   return jsonFetch<BuddyAdvancedDashboardResponse>(`/api/buddy/dashboard${q}`, {
     cache: "no-store",
@@ -271,10 +269,9 @@ export function previewBuddyInvite(token: string): Promise<BuddyInvitePreview> {
 }
 
 export function acceptBuddyInvite(token: string): Promise<BuddyAcceptResponse> {
-  return jsonFetch<BuddyAcceptResponse>(
-    `/api/buddy/invite/${encodeURIComponent(token)}/accept`,
-    { method: "POST" }
-  );
+  return jsonFetch<BuddyAcceptResponse>(`/api/buddy/invite/${encodeURIComponent(token)}/accept`, {
+    method: "POST",
+  });
 }
 
 export function revokeBuddyInvite(token: string): Promise<{ ok: boolean }> {
@@ -291,10 +288,7 @@ export function endBuddyPair(buddyUserId?: string): Promise<{ ok: boolean }> {
 }
 
 /** Prefilled message for email / WhatsApp — link on its own line for tap-to-open. */
-export function buildBuddyInviteShareText(
-  shareUrl: string,
-  inviterName?: string | null
-): string {
+export function buildBuddyInviteShareText(shareUrl: string, inviterName?: string | null): string {
   const who = inviterName?.trim() ? inviterName.trim() : "I";
   return [
     `${who} on EduBlast wants to learn with you as a Study Buddy.`,

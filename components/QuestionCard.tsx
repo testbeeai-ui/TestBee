@@ -264,7 +264,9 @@ const QuestionCard = ({ question, onNext, mockMode, onAnswerSelect }: Props) => 
             exit={{ opacity: 0, height: 0 }}
             className="bg-accent/10 rounded-lg p-3 border border-accent/30 sm:rounded-xl sm:p-4"
           >
-            <h4 className="font-bold text-xs text-foreground mb-0.5 sm:text-sm sm:mb-1">📝 Solution</h4>
+            <h4 className="font-bold text-xs text-foreground mb-0.5 sm:text-sm sm:mb-1">
+              📝 Solution
+            </h4>
             {question.solutionHtml ? (
               <div
                 className="prose prose-xs max-w-none text-foreground/90 dark:prose-invert [&_img]:max-h-32 sm:prose-sm sm:[&_img]:max-h-48 [&_img]:w-auto"
@@ -284,8 +286,12 @@ const QuestionCard = ({ question, onNext, mockMode, onAnswerSelect }: Props) => 
             className="bg-muted rounded-lg p-3 space-y-2.5 sm:rounded-xl sm:p-4 sm:space-y-3"
           >
             <div>
-              <h4 className="font-bold text-xs text-foreground mb-0.5 sm:text-sm sm:mb-1">📖 Theory</h4>
-              <p className="text-xs text-muted-foreground sm:text-sm">{question.reference.theory}</p>
+              <h4 className="font-bold text-xs text-foreground mb-0.5 sm:text-sm sm:mb-1">
+                📖 Theory
+              </h4>
+              <p className="text-xs text-muted-foreground sm:text-sm">
+                {question.reference.theory}
+              </p>
             </div>
             {question.reference.inventor && (
               <div>

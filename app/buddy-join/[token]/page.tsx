@@ -1,11 +1,7 @@
 import { Suspense } from "react";
 import BuddyJoinClient from "./BuddyJoinClient";
 
-export default async function BuddyJoinPage({
-  params,
-}: {
-  params: Promise<{ token: string }>;
-}) {
+export default async function BuddyJoinPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   return (
     <Suspense

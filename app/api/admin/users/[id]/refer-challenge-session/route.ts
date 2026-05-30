@@ -70,9 +70,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
 
     /** Prefer win_claimed_at (after the run); fall back to share time or noon UTC on claim_date. */
     const anchorIso =
-      claim.win_claimed_at ??
-      claim.share_claimed_at ??
-      `${claim.claim_date}T12:00:00.000Z`;
+      claim.win_claimed_at ?? claim.share_claimed_at ?? `${claim.claim_date}T12:00:00.000Z`;
     const anchorMs = new Date(anchorIso).getTime();
     const sessionTotalMin = Math.ceil(referChallengeSessionDurationSec(spec) / 60);
     const padMinutes = sessionTotalMin + 30;

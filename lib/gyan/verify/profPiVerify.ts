@@ -55,8 +55,7 @@ export function draftLooksLikeHeavyStemLatex(draft: string): boolean {
 export function draftLooksLikePhysicsRamble(draft: string): boolean {
   const t = (draft ?? "").trim();
   if (!t || t.length < 180 || draftHasProfPiStructure(t)) return false;
-  const hits =
-    t.match(/\b(?:Wait|Let me|Alternatively|But actually|So plugging)\b/gi)?.length ?? 0;
+  const hits = t.match(/\b(?:Wait|Let me|Alternatively|But actually|So plugging)\b/gi)?.length ?? 0;
   return hits >= 2;
 }
 

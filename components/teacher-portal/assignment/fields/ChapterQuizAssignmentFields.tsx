@@ -18,7 +18,10 @@ import {
   topicsForChapter,
   uniqueChaptersFor,
 } from "@/lib/teacherPortal/chapterQuizUtils";
-import { fetchSubtopicContent, type ArtifactBitsQuestion } from "@/lib/curriculum/subtopicContentService";
+import {
+  fetchSubtopicContent,
+  type ArtifactBitsQuestion,
+} from "@/lib/curriculum/subtopicContentService";
 import type { Board, ClassLevel, Subject } from "@/types";
 
 export type { ChapterQuizSelectionState };
@@ -364,8 +367,8 @@ export default function ChapterQuizAssignmentFields({
                 </p>
               ) : previewRows.length === 0 ? (
                 <p className="text-sm text-slate-400">
-                  No MCQs in this set yet. Generate or save advanced quiz questions on the topic page for this
-                  subtopic.
+                  No MCQs in this set yet. Generate or save advanced quiz questions on the topic
+                  page for this subtopic.
                 </p>
               ) : (
                 <ol className="list-decimal space-y-5 pl-4 marker:text-slate-500">

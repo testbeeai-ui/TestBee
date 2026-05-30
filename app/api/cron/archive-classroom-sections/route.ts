@@ -37,4 +37,3 @@ async function runArchive(request: Request) {
   }
   return NextResponse.json({ ok: true, archived: data });
 }
-

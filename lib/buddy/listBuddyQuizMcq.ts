@@ -89,8 +89,7 @@ export function listBuddyTopicQuizAttempts(
     .map((row, idx) => {
       const total = row.totalQuestions;
       const correct = row.correctCount;
-      const scorePercent =
-        total > 0 ? Math.round((correct / total) * 1000) / 10 : null;
+      const scorePercent = total > 0 ? Math.round((correct / total) * 1000) / 10 : null;
       const subj = row.subject as Subject;
       const href = buildTopicPath(
         row.board,
@@ -122,9 +121,7 @@ export function latestBuddyTopicQuizAttempt(
 ): TopicQuizRecord | null {
   const rows = parseTopicQuizStore(bitsAttemptsJson);
   if (rows.length === 0) return null;
-  return (
-    rows.sort((a, b) => Date.parse(b.submittedAt) - Date.parse(a.submittedAt))[0] ?? null
-  );
+  return rows.sort((a, b) => Date.parse(b.submittedAt) - Date.parse(a.submittedAt))[0] ?? null;
 }
 
 type MockAttemptRow = {
@@ -156,7 +153,7 @@ export function listBuddyMcqRecentMerged(
 ): BuddyMcqRecentRow[] {
   const mockItems: BuddyMcqRecentRow[] = mockRows.map((row) => {
     const paperRaw = row.mock_papers;
-    const paper = Array.isArray(paperRaw) ? paperRaw[0] ?? null : paperRaw ?? null;
+    const paper = Array.isArray(paperRaw) ? (paperRaw[0] ?? null) : (paperRaw ?? null);
     return {
       id: `mock:${row.paper_id}:${row.created_at}`,
       source: "mock",

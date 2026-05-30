@@ -134,11 +134,15 @@ export async function GET(
       // Fallback: infer completion from profile.bits_test_attempts for this exact chapter-quiz scope.
       if (!attempt?.submitted_at) {
         const content =
-          post.content_json && typeof post.content_json === "object" && !Array.isArray(post.content_json)
+          post.content_json &&
+          typeof post.content_json === "object" &&
+          !Array.isArray(post.content_json)
             ? (post.content_json as Record<string, unknown>)
             : null;
         const cq =
-          content?.chapterQuiz && typeof content.chapterQuiz === "object" && !Array.isArray(content.chapterQuiz)
+          content?.chapterQuiz &&
+          typeof content.chapterQuiz === "object" &&
+          !Array.isArray(content.chapterQuiz)
             ? (content.chapterQuiz as Record<string, unknown>)
             : null;
         const { data: profile } = await authedClient
@@ -146,7 +150,9 @@ export async function GET(
           .select("bits_test_attempts")
           .eq("id", user.id)
           .maybeSingle();
-        const rows = parseBitsTestAttemptsStore((profile as { bits_test_attempts?: unknown } | null)?.bits_test_attempts ?? null);
+        const rows = parseBitsTestAttemptsStore(
+          (profile as { bits_test_attempts?: unknown } | null)?.bits_test_attempts ?? null
+        );
         const expectedSubject = normalizeKey(cq?.subject);
         const expectedClass = Number(cq?.classLevel);
         const expectedTopic = normalizeKey(cq?.topic);
@@ -173,7 +179,8 @@ export async function GET(
         .select("subtopic_engagement")
         .eq("id", user.id)
         .maybeSingle();
-      const engagement = (profileRow as { subtopic_engagement?: unknown } | null)?.subtopic_engagement;
+      const engagement = (profileRow as { subtopic_engagement?: unknown } | null)
+        ?.subtopic_engagement;
       if (isConceptFocusLessonChecklistComplete(engagement, post.content_json)) {
         completedTaskIdSet.add("concept-focus-subtopic");
       }
@@ -249,7 +256,8 @@ export async function POST(
       .select("subtopic_engagement")
       .eq("id", user.id)
       .maybeSingle();
-    const engagement = (profileRow as { subtopic_engagement?: unknown } | null)?.subtopic_engagement;
+    const engagement = (profileRow as { subtopic_engagement?: unknown } | null)
+      ?.subtopic_engagement;
     if (!isConceptFocusLessonChecklistComplete(engagement, post.content_json)) {
       return NextResponse.json(
         {

@@ -1,25 +1,21 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Check, Copy, Loader2, Mail, MessageSquareShare, Shield, UserPlus } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Check, Copy, Loader2, MessageSquareShare, Shield, UserPlus } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { BUDDY_MAX_ACTIVE } from "@/lib/buddy/buddyPrivacy";
 import {
-  buildBuddyInviteMailto,
   buildBuddyInviteShareText,
   buildWaShareUrl,
   createBuddyInvite,
-  isBuddyInviteEmail,
   type BuddyPendingInvite,
 } from "@/lib/buddy/buddyClient";
 import { useToast } from "@/hooks/use-toast";
+import {
+  markEarnBuddyCompanionLinkCopied,
+  markEarnBuddyCompanionLinkShared,
+} from "@/lib/onboarding/earnBuddyCompanionOnboarding";
 
 type AddBuddyModalProps = {
   open: boolean;
@@ -42,7 +38,6 @@ export function AddBuddyModal({
   onInviteCreated,
 }: AddBuddyModalProps) {
   const { toast } = useToast();
-  const [email, setEmail] = useState("");
   const [shareUrl, setShareUrl] = useState("");
   const [shareText, setShareText] = useState("");
   const [inviteToken, setInviteToken] = useState("");
@@ -50,8 +45,6 @@ export function AddBuddyModal({
   const [copied, setCopied] = useState(false);
 
   const atLimit = activeBuddyCount >= BUDDY_MAX_ACTIVE;
-  const emailValid = isBuddyInviteEmail(email);
-
   const latestPending = pendingInvites.find((r) => r.status === "pending");
 
   useEffect(() => {
@@ -104,24 +97,11 @@ export function AddBuddyModal({
     }
   }, [atLimit, inviteToken, onInviteCreated, shareText, shareUrl, toast]);
 
-  const handleSendEmail = async () => {
-    if (!emailValid) {
-      toast({
-        title: "Enter a valid email",
-        description: "Add your buddy's email address to send the invite.",
-        variant: "destructive",
-      });
-      return;
-    }
-    const invite = await ensureInvite();
-    if (!invite) return;
-    window.location.href = buildBuddyInviteMailto(email, invite.shareText);
-  };
-
   const handleWhatsApp = async () => {
     const invite = await ensureInvite();
     if (!invite) return;
     window.open(buildWaShareUrl("", invite.shareText), "_blank", "noopener,noreferrer");
+    markEarnBuddyCompanionLinkShared();
   };
 
   const handleCopyLink = async () => {
@@ -130,6 +110,7 @@ export function AddBuddyModal({
     try {
       await navigator.clipboard.writeText(invite.shareUrl);
       setCopied(true);
+      markEarnBuddyCompanionLinkCopied();
       toast({ title: "Buddy link copied" });
       setTimeout(() => setCopied(false), 1500);
     } catch {
@@ -160,47 +141,11 @@ export function AddBuddyModal({
           Add a learning buddy
         </DialogTitle>
         <DialogDescription className="text-xs leading-relaxed text-[#9BA3B8]">
-          Share your private invite link or code. They must accept before you see their activity.
-          Up to {BUDDY_MAX_ACTIVE} active buddies ({activeBuddyCount}/{BUDDY_MAX_ACTIVE} now).
+          Share your private invite link or code. They must accept before you see their activity. Up
+          to {BUDDY_MAX_ACTIVE} active buddies ({activeBuddyCount}/{BUDDY_MAX_ACTIVE} now).
         </DialogDescription>
 
         <div className="space-y-3">
-          <div>
-            <label
-              htmlFor="buddy-advanced-invite-email"
-              className="mb-1.5 block text-[10px] font-medium uppercase tracking-wider text-[#5C6480]"
-            >
-              Buddy&apos;s email address <span className="text-amber-500 font-bold ml-1">(Coming soon)</span>
-            </label>
-            <Input
-              id="buddy-advanced-invite-email"
-              type="email"
-              autoComplete="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Email invite coming soon"
-              disabled
-              className="h-9 border-[#334060] bg-[#1C2333] text-xs text-[#E8EAF0] opacity-50 cursor-not-allowed"
-            />
-            <p className="mt-1 text-[10px] text-[#5C6480]">
-              Opens your email app with the invite message and link ready to send.
-            </p>
-          </div>
-
-          <Button
-            type="button"
-            className="h-9 w-full bg-[#378ADD] text-xs font-medium text-white hover:bg-[#2a6eb0]"
-            onClick={() => void handleSendEmail()}
-            disabled
-          >
-            {creating ? (
-              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Mail className="mr-1.5 h-3.5 w-3.5" />
-            )}
-            Send email invite (Coming soon)
-          </Button>
-
           {(shareUrl || latestPending) && !creating ? (
             <div className="space-y-2 rounded-md border border-[#2A3347] bg-[#1C2333] p-2.5">
               {inviteToken || latestPending?.token ? (

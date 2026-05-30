@@ -30,4 +30,3 @@ export async function auditAdminTeacherAction(input: {
     // Best effort: don't fail the action if audit insert fails.
   }
 }
-

@@ -29,7 +29,18 @@ function minimalPayload(
         href: "/lessons",
         isRecent: true,
       },
-      completedRecent: [{ board: null, subject: "math", classLevel: 11, topic: "T", subtopic: "S", level: "basics", completedAt: "", href: "/lessons" }],
+      completedRecent: [
+        {
+          board: null,
+          subject: "math",
+          classLevel: 11,
+          topic: "T",
+          subtopic: "S",
+          level: "basics",
+          completedAt: "",
+          href: "/lessons",
+        },
+      ],
     },
     playArena: {
       rdmEarnedToday: 10,

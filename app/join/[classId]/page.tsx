@@ -22,9 +22,9 @@ const JoinClassroom = () => {
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
   const [showFallback, setShowFallback] = useState(false);
-  const [requestStatus, setRequestStatus] = useState<
-    "none" | "pending" | "approved" | "rejected"
-  >("none");
+  const [requestStatus, setRequestStatus] = useState<"none" | "pending" | "approved" | "rejected">(
+    "none"
+  );
 
   useEffect(() => {
     if (!classId) return;

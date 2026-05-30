@@ -110,7 +110,10 @@ export default function GyanFeedPagination({
                 key={`${item.key}-${idx}`}
                 className="flex h-9 min-w-[2rem] items-center justify-center px-1 text-muted-foreground"
               >
-                <span className="text-lg font-bold leading-none tracking-widest select-none" aria-hidden>
+                <span
+                  className="text-lg font-bold leading-none tracking-widest select-none"
+                  aria-hidden
+                >
                   …
                 </span>
                 <span className="sr-only">Skipped pages</span>

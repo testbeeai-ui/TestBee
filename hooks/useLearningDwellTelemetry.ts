@@ -16,6 +16,10 @@ import { safeGetSession } from "@/lib/auth/safeSession";
  * MICRO compute.
  */
 const FLUSH_MS = 60_000;
+/** Minimum sample sent on subtopic open so buddies see activity within seconds. */
+const PRESENCE_PING_MS = 1_000;
+/** Client ping interval; server skips writes if subtopic/panel unchanged (see learning-presence API). */
+const PRESENCE_REFRESH_MS = 90_000;
 
 type PanelTab = "instacue" | "quiz" | "numerals" | "concepts";
 
@@ -45,6 +49,35 @@ export function useLearningDwellTelemetry(opts: {
 
   useEffect(() => {
     if (!opts.enabled || !opts.scope) return;
+
+    const pingBuddyPresence = async (panelTab: PanelTab) => {
+      const sc = scopeRef.current;
+      if (!sc) return;
+      const { session } = await safeGetSession();
+      const token = session?.access_token;
+      if (!token) return;
+      const panel = mapTopicPanelTabToDwellPanel(panelTab);
+      try {
+        const res = await fetch("/api/user/learning-presence", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ scope: sc, panel }),
+          keepalive: true,
+        });
+        if (!res.ok && process.env.NODE_ENV === "development") {
+          const text = await res.text().catch(() => "");
+          console.warn("[learning-presence]", res.status, text.slice(0, 200));
+        }
+      } catch (err) {
+        if (process.env.NODE_ENV === "development") {
+          console.warn("[learning-presence]", err);
+        }
+      }
+    };
 
     sessionIdRef.current =
       typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -76,8 +109,9 @@ export function useLearningDwellTelemetry(opts: {
       const token = session?.access_token;
       if (!token) return;
       try {
-        await fetch("/api/user/learning-dwell", {
+        const res = await fetch("/api/user/learning-dwell", {
           method: "POST",
+          credentials: "same-origin",
           headers: {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
@@ -85,11 +119,26 @@ export function useLearningDwellTelemetry(opts: {
           body: JSON.stringify({ events: batch, clientSessionId: sessionIdRef.current }),
           keepalive: true,
         });
-      } catch {
-        /* non-fatal */
+        if (!res.ok && process.env.NODE_ENV === "development") {
+          const text = await res.text().catch(() => "");
+          console.warn("[learning-dwell]", res.status, text.slice(0, 200));
+        }
+      } catch (err) {
+        if (process.env.NODE_ENV === "development") {
+          console.warn("[learning-dwell]", err);
+        }
       }
     };
     flushRef.current = flush;
+
+    void pingBuddyPresence(panelRef.current);
+    enqueue(panelRef.current, PRESENCE_PING_MS);
+    void flush();
+
+    const presenceInterval = window.setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      void pingBuddyPresence(panelRef.current);
+    }, PRESENCE_REFRESH_MS);
 
     const tick = () => {
       if (document.visibilityState !== "visible") return;
@@ -117,10 +166,12 @@ export function useLearningDwellTelemetry(opts: {
 
     return () => {
       window.clearInterval(interval);
+      window.clearInterval(presenceInterval);
       document.removeEventListener("visibilitychange", onVisibility);
       const now = Date.now();
       enqueue(panelRef.current, now - lastTickRef.current);
       void flush();
+      void pingBuddyPresence(panelRef.current);
     };
   }, [
     opts.enabled,
@@ -146,5 +197,27 @@ export function useLearningDwellTelemetry(opts: {
     lastTickRef.current = now;
     enqueueRef.current(panelRef.current, raw);
     panelRef.current = opts.panelTab;
+    void (async () => {
+      const sc = scopeRef.current;
+      if (!sc) return;
+      const { session } = await safeGetSession();
+      const token = session?.access_token;
+      if (!token) return;
+      const panel = mapTopicPanelTabToDwellPanel(opts.panelTab);
+      try {
+        await fetch("/api/user/learning-presence", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ scope: sc, panel }),
+          keepalive: true,
+        });
+      } catch {
+        /* non-fatal */
+      }
+    })();
   }, [opts.panelTab, opts.enabled, opts.scope]);
 }

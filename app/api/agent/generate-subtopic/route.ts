@@ -9,7 +9,10 @@ import {
 import { isAdminUser } from "@/lib/admin/admin";
 import { resolveGeminiModelId, resolveVertexTopicModelId } from "@/lib/gyan/gemini/geminiModel";
 import { fetchRAGContext } from "@/lib/gyan/rag";
-import { normalizeSubjectKey, normalizeSubtopicContentKey } from "@/lib/curriculum/subtopicContentKeys";
+import {
+  normalizeSubjectKey,
+  normalizeSubtopicContentKey,
+} from "@/lib/curriculum/subtopicContentKeys";
 import { supabaseForLongJobPersist } from "@/lib/supabase/supabaseAdminPersist";
 import { getGeminiApiKeyFromEnv } from "@/lib/gyan/gemini/geminiEnv";
 import { logAiUsage } from "@/lib/aiLogger";

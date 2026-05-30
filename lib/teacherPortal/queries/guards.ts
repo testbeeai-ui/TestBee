@@ -21,7 +21,10 @@ export async function assertTeacherApprovedForMutations(
     db as unknown as {
       from: (table: string) => {
         select: (columns: string) => {
-          eq: (column: string, value: string) => {
+          eq: (
+            column: string,
+            value: string
+          ) => {
             maybeSingle: () => Promise<{
               data: { verification_status?: TeacherVerificationStatus | null } | null;
               error: { message?: string } | null;

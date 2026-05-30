@@ -105,11 +105,7 @@ export function EarnLearnRightColumn({
         { yPercent: -105, opacity: 0.35 },
         { yPercent: 0, opacity: 1, duration: 0.62 },
         0
-      ).to(
-        challenges,
-        { yPercent: 12, opacity: 0, duration: 0.42, ease: "power2.in" },
-        0.08
-      );
+      ).to(challenges, { yPercent: 12, opacity: 0, duration: 0.42, ease: "power2.in" }, 0.08);
       tl.set(challenges, {
         display: "none",
         visibility: "hidden",
@@ -130,11 +126,7 @@ export function EarnLearnRightColumn({
         { yPercent: 12, opacity: 0 },
         { yPercent: 0, opacity: 1, duration: 0.48 },
         0
-      ).to(
-        buddy,
-        { yPercent: -105, opacity: 0, duration: 0.45, ease: "power2.in" },
-        0.06
-      );
+      ).to(buddy, { yPercent: -105, opacity: 0, duration: 0.45, ease: "power2.in" }, 0.06);
       tl.set(buddy, { display: "none", visibility: "hidden", pointerEvents: "none" });
       return;
     }
@@ -185,10 +177,7 @@ export function EarnLearnRightColumn({
       >
         <div
           ref={challengesRef}
-          className={cn(
-            "relative z-0 will-change-transform",
-            showDesktopBuddy && "lg:!hidden"
-          )}
+          className={cn("relative z-0 will-change-transform", showDesktopBuddy && "lg:!hidden")}
           aria-hidden={showDesktopBuddy}
         >
           {children}

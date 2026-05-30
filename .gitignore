@@ -43,10 +43,21 @@ next-env.d.ts
 build_*.txt
 tsc_errors*.txt
 
+# Python bytecode (auto-created when you run .py scripts — never commit)
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+
 # modal-rag (RAG service deployed to Modal; local .env optional)
 modal-rag/.env
-modal-rag/__pycache__/
 modal-rag/.venv/
 
 # supabase local temp state
 supabase/.temp/
+
+# local-only data caches (orphan SQLite, etc. — keep on disk, never commit)
+/data/local-cache/
+
+# transient debug dumps (moved here from project root)
+/docs/dev-notes/.tsc-check.txt

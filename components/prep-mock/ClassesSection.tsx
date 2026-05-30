@@ -5,7 +5,10 @@ import Link from "next/link";
 import { supabase } from "@/integrations/supabase/client";
 import { GraduationCap, ExternalLink, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { OnboardingFlowHint } from "@/components/onboarding/OnboardingFlowHint";
+import { OnboardingClickHerePointer } from "@/components/onboarding/OnboardingClickHerePointer";
 import { incrementPrepCalendarDay, localDayISO } from "@/lib/dashboard/prepCalendarClient";
+import { cn } from "@/lib/utils";
 
 interface ClassInfo {
   id: string;
@@ -30,6 +33,10 @@ interface ClassesSectionProps {
   onNextClass?: (info: { name: string; time: string } | null) => void;
   accessToken?: string | null;
   onClassCalendar?: () => void;
+  /** Onboarding popup only: highlight Classes → View all. */
+  showClassesViewAllGuide?: boolean;
+  viewAllHref?: string;
+  onViewAllClick?: () => void;
 }
 
 const classGradients = [
@@ -43,6 +50,9 @@ export default function ClassesSection({
   onNextClass,
   accessToken,
   onClassCalendar,
+  showClassesViewAllGuide = false,
+  viewAllHref = "/classrooms",
+  onViewAllClick,
 }: ClassesSectionProps) {
   const [classes, setClasses] = useState<ClassInfo[]>([]);
   const [sessions, setSessions] = useState<SessionInfo[]>([]);
@@ -160,20 +170,44 @@ export default function ClassesSection({
 
   return (
     <section className="space-y-3">
-      <div className="flex items-center justify-between">
-        <Link
-          href="/classrooms"
-          className="font-display font-bold text-foreground text-sm flex items-center gap-2 hover:text-primary transition-colors"
-        >
-          <GraduationCap className="w-4 h-4 text-primary" />
-          Classes (Webinars)
-        </Link>
-        <Link
-          href="/classrooms"
-          className="text-xs font-bold text-primary hover:underline flex items-center gap-1"
-        >
-          View all <ArrowRight className="w-3 h-3" />
-        </Link>
+      <div className="space-y-1">
+        {showClassesViewAllGuide ? (
+          <p className="text-right text-[11px] leading-snug text-muted-foreground mb-1.5">
+            See every class — tap{" "}
+            <OnboardingFlowHint className="normal-case tracking-normal">
+              View all →
+            </OnboardingFlowHint>
+          </p>
+        ) : null}
+        <div className="flex items-center justify-between">
+          <Link
+            href={viewAllHref}
+            onClick={onViewAllClick}
+            className="font-display font-bold text-foreground text-sm flex items-center gap-2 hover:text-primary transition-colors"
+          >
+            <GraduationCap className="w-4 h-4 text-primary" />
+            Classes (Webinars)
+          </Link>
+          <div className="relative flex flex-col items-end gap-1 shrink-0">
+            {showClassesViewAllGuide ? (
+              <div className="absolute -top-11 right-0 pointer-events-none z-10">
+                <OnboardingClickHerePointer label="Click here" variant="violet" />
+              </div>
+            ) : null}
+            <Link
+              href={viewAllHref}
+              onClick={onViewAllClick}
+              className={cn(
+                "text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5 transition-all duration-200 border",
+                "bg-zinc-800/80 border-zinc-700/60 text-zinc-100 hover:text-white hover:bg-zinc-750 hover:border-zinc-550 hover:shadow-[0_0_12px_rgba(255,255,255,0.06)]",
+                showClassesViewAllGuide &&
+                  "bg-violet-950/40 border-violet-500/50 text-white shadow-[0_0_15px_rgba(139,92,246,0.3)] hover:bg-violet-900/50 hover:border-violet-400"
+              )}
+            >
+              View all <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+        </div>
       </div>
 
       {loading ? (
@@ -198,7 +232,7 @@ export default function ClassesSection({
           <p className="text-xs text-muted-foreground mb-3">
             Join a classroom to see your upcoming webinars here.
           </p>
-          <Link href="/classrooms">
+          <Link href={viewAllHref} onClick={onViewAllClick}>
             <Button size="sm" className="rounded-lg edu-btn-primary text-xs">
               Explore Classes <ArrowRight className="w-3.5 h-3.5 ml-1" />
             </Button>

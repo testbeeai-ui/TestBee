@@ -1,0 +1,48 @@
+---
+description: Testbee repository layout — where files belong; read before creating or moving anything.
+alwaysApply: true
+---
+
+# Repository layout (Testbee)
+
+**Agents:** Also read `.cursor/memory.md` at task start (stack, branch, Decisions Log).
+
+## Project root — Next.js / tooling only
+
+Keep at repo root: `app/`, `components/`, `lib/`, `hooks/`, `store/`, `types/`, `public/`, `supabase/`, `modal-rag/`, `scripts/`, `data/`, `docs/`, plus config (`next.config.ts`, `middleware.ts`, `tsconfig.json`, `package.json`, `vitest.config.ts`, `.cursorrules`, `README.md`).
+
+**Do not add** to root: markdown notes, `.log`, `.json` debug dumps, `.sqlite`, `__pycache__`, duplicate agent rule folders, or one-off scripts.
+
+## Where things go
+
+| Kind | Location |
+|------|----------|
+| App routes & API | `app/` |
+| React UI | `components/` |
+| Shared TS logic | `lib/` |
+| React hooks | `hooks/` |
+| Zustand | `store/` |
+| SQL migrations | `supabase/migrations/` |
+| Python RAG (Modal) | `modal-rag/` |
+| Runnable TS/Python tools | `scripts/` (legacy/orphans → `scripts/legacy/`) |
+| Product & architecture docs | `docs/` (`docs/gyan/`, `docs/branches/`, `docs/architecture/`, `docs/cursor/`) |
+| Transient logs & API dumps | `docs/dev-notes/` (gitignored where noted) |
+| Local SQLite / caches | `data/local-cache/` (gitignored) |
+| Cursor agent memory & SQL notes | `.cursor/memory.md`, `.cursor/docs/` |
+| Cursor rules (`.mdc`) | `.cursor/rules/` only — **not** `.cursor/.cursor/rules/` |
+| CodeGraph index | `.codegraph/` (local index, gitignored) |
+
+## Cursor rules in this repo
+
+- `.cursorrules` — entrypoint; always read
+- `.cursor/rules/codegraph.mdc` — CodeGraph MCP
+- `.cursor/rules/karpathy-guidelines.mdc` — coding behavior
+- `.cursor/rules/repo-layout.mdc` — this file
+
+Human setup notes: `docs/cursor/karpathy-guidelines-setup.md`
+
+## Before deleting or moving files
+
+1. Confirm nothing imports the path (use CodeGraph or search).
+2. Prefer **move** over delete for docs and scripts.
+3. Never commit `.env`, `__pycache__/`, `data/local-cache/`, or `.next/`.

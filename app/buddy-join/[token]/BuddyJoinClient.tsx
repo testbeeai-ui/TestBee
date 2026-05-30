@@ -6,7 +6,11 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { acceptBuddyInvite, previewBuddyInvite, type BuddyInvitePreview } from "@/lib/buddy/buddyClient";
+import {
+  acceptBuddyInvite,
+  previewBuddyInvite,
+  type BuddyInvitePreview,
+} from "@/lib/buddy/buddyClient";
 
 const BUDDY_PENDING_TOKEN_KEY = "buddy_pending_token";
 
@@ -160,8 +164,8 @@ export default function BuddyJoinClient({ token }: { token: string }) {
                   : "You're invited as a study buddy"}
               </h1>
               <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-                Track each other's progress on Gyan++, subtopics, Play Arena, and mock tests. Push each
-                other to stay consistent.
+                Track each other&apos;s progress on Gyan++, subtopics, Play Arena, and mock tests.
+                Push each other to stay consistent.
               </p>
 
               {state.preview.invite.status !== "pending" ? (
@@ -196,7 +200,7 @@ export default function BuddyJoinClient({ token }: { token: string }) {
                     Sign up to join
                   </Button>
                   <p className="text-[11px] text-muted-foreground">
-                    New here? You'll also earn referral RDM after onboarding.
+                    New here? You&apos;ll also earn referral RDM after onboarding.
                   </p>
                 </div>
               )}

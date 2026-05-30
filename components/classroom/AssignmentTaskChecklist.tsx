@@ -157,7 +157,8 @@ function withAssignmentTrackingParams(
     task.kind === "chapter_quiz" ||
     task.kind === "mock_paper" ||
     task.kind === "past_paper" ||
-    href.startsWith("/mock") || href.startsWith("/mock-test");
+    href.startsWith("/mock") ||
+    href.startsWith("/mock-test");
   if (!shouldTrack) return href;
   try {
     const isAbsolute = /^https?:\/\//i.test(href);
@@ -208,7 +209,11 @@ export default function AssignmentTaskChecklist({
 
   useEffect(() => {
     if (!initialTasks?.length) return;
-    setTasks(shouldCollapseConceptFocus ? collapseConceptFocusTasks({ tasks: initialTasks, postTitle }) : initialTasks);
+    setTasks(
+      shouldCollapseConceptFocus
+        ? collapseConceptFocusTasks({ tasks: initialTasks, postTitle })
+        : initialTasks
+    );
   }, [initialTasks, postTitle, shouldCollapseConceptFocus]);
 
   const load = useCallback(
@@ -295,10 +300,13 @@ export default function AssignmentTaskChecklist({
 
         if (needsResponses) {
           setResponsesLoading(true);
-          const respRes = await fetch(`/api/classroom/${classroomId}/posts/${postId}/task-response`, {
-            headers,
-            credentials: "include",
-          });
+          const respRes = await fetch(
+            `/api/classroom/${classroomId}/posts/${postId}/task-response`,
+            {
+              headers,
+              credentials: "include",
+            }
+          );
           const respData = (await respRes.json().catch(() => ({}))) as {
             responses?: TaskResponseRow[];
             error?: string;
@@ -559,9 +567,7 @@ export default function AssignmentTaskChecklist({
   if (tasks.length === 0) return null;
 
   const conceptFocusStudentDone =
-    !isTeacherView &&
-    postType === "Concept Focus" &&
-    tasks.some((t) => completed.has(t.id));
+    !isTeacherView && postType === "Concept Focus" && tasks.some((t) => completed.has(t.id));
 
   const conceptFocusDisplayTitle = (() => {
     const raw = (postTitle ?? "").trim();
@@ -575,7 +581,11 @@ export default function AssignmentTaskChecklist({
     <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="text-xs font-extrabold uppercase tracking-wider text-muted-foreground">
-          {isTeacherView ? "Task list (class view)" : postType === "Concept Focus" ? "Your subtopic" : "Your tasks"}
+          {isTeacherView
+            ? "Task list (class view)"
+            : postType === "Concept Focus"
+              ? "Your subtopic"
+              : "Your tasks"}
         </div>
         {!isTeacherView && postType === "Concept Focus" && conceptFocusStudentDone ? (
           <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/35 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-bold text-emerald-800 dark:text-emerald-300">
@@ -606,10 +616,7 @@ export default function AssignmentTaskChecklist({
               ) : null}
               <div className="flex-1 min-w-0">
                 <div className="font-semibold text-foreground">{t.label}</div>
-                {!isTeacherView &&
-                postType === "Concept Focus" &&
-                completed.has(t.id) &&
-                t.href ? (
+                {!isTeacherView && postType === "Concept Focus" && completed.has(t.id) && t.href ? (
                   <div className="mt-2 rounded-xl border border-pink-500/25 bg-linear-to-br from-pink-500/8 to-transparent px-3 py-2.5 dark:border-pink-400/20 dark:from-pink-950/30">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
@@ -621,8 +628,8 @@ export default function AssignmentTaskChecklist({
                           {conceptFocusDisplayTitle}
                         </p>
                         <p className="mt-1 text-[11px] text-muted-foreground">
-                          You finished the lesson checklist and marked complete. Your teacher sees this as
-                          submitted.
+                          You finished the lesson checklist and marked complete. Your teacher sees
+                          this as submitted.
                         </p>
                       </div>
                       <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-emerald-500/35 bg-emerald-500/12 px-2.5 py-1.5 text-[11px] font-semibold text-emerald-800 dark:border-emerald-400/30 dark:bg-emerald-500/15 dark:text-emerald-200">
@@ -675,9 +682,9 @@ export default function AssignmentTaskChecklist({
                         ? "Open the mock paper and complete it. Submit to record your score."
                         : t.kind === "past_paper"
                           ? "Open the past paper and complete it. Submit to record your score."
-                        : postType === "Concept Focus"
-                          ? "Open the lesson, complete the checklist, then tap Mark as complete on the topic page."
-                          : "Open the link, complete the task, then come back here."}
+                          : postType === "Concept Focus"
+                            ? "Open the lesson, complete the checklist, then tap Mark as complete on the topic page."
+                            : "Open the link, complete the task, then come back here."}
                   </div>
                 ) : null}
                 {showResponseBox ? (

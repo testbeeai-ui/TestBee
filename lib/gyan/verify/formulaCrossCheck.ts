@@ -64,7 +64,8 @@ function findSectionContent(markdown: string, headerPattern: RegExp): string | n
  * Must contain at least one of: =, ∫, d/dx, Σ, trig functions, powers, fractions.
  */
 function looksLikeFormula(latex: string): boolean {
-  const indicators = /[=∫∑∏\\frac|\\sin|\\cos|\\tan|\\log|\\lim|\\sqrt|\^|_.*=|d[a-z]\/d[a-z]|\\vec|\\nabla|\\partial/i;
+  const indicators =
+    /[=∫∑∏\\frac|\\sin|\\cos|\\tan|\\log|\\lim|\\sqrt|\^|_.*=|d[a-z]\/d[a-z]|\\vec|\\nabla|\\partial/i;
   return indicators.test(latex) && latex.length > 5;
 }
 
@@ -75,7 +76,10 @@ function looksLikeFormula(latex: string): boolean {
 /** Extract the main formula from Sarvam's answer. */
 function extractAnswerFormula(answer: string): string | null {
   // Try **Formula:** section first
-  const formulaSection = findSectionContent(answer, /\*\*(?:Formula|Governing\s*(?:law|equation)|Principle)\s*:?\*\*/i);
+  const formulaSection = findSectionContent(
+    answer,
+    /\*\*(?:Formula|Governing\s*(?:law|equation)|Principle)\s*:?\*\*/i
+  );
   if (formulaSection) {
     const blocks = extractAllLatex(formulaSection);
     const formulas = blocks.filter(looksLikeFormula);
@@ -170,18 +174,36 @@ export async function crossCheckFormulaWithRag(params: {
 
   // Only for math and physics
   if (subject !== "math" && subject !== "physics") {
-    return { ran: false, matches: null, textbookFormula: null, answerFormula: null, confidence: "low" };
+    return {
+      ran: false,
+      matches: null,
+      textbookFormula: null,
+      answerFormula: null,
+      confidence: "low",
+    };
   }
 
   // Need RAG context
   if (!ragContext || ragContext.length < 50) {
-    return { ran: false, matches: null, textbookFormula: null, answerFormula: null, confidence: "low" };
+    return {
+      ran: false,
+      matches: null,
+      textbookFormula: null,
+      answerFormula: null,
+      confidence: "low",
+    };
   }
 
   // Extract formula from answer
   const answerFormula = extractAnswerFormula(answer);
   if (!answerFormula) {
-    return { ran: false, matches: null, textbookFormula: null, answerFormula: null, confidence: "low" };
+    return {
+      ran: false,
+      matches: null,
+      textbookFormula: null,
+      answerFormula: null,
+      confidence: "low",
+    };
   }
 
   // Extract formulas from RAG passages

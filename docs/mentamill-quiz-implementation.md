@@ -10,7 +10,9 @@ The quiz features two distinct phases per question to prevent immediate brute-fo
 - **Options Phase (e.g., last 10 seconds):** The multiple-choice options are revealed.
 
 ### Required State Variables
+
 To manage this flow and the anti-cheat mechanics, the component requires the following state:
+
 - `hasStarted` / `runFinished` / `securityLocked`: Tracks the macro-level state of the quiz session.
 - `index`: The current question index.
 - `timeLeft`: A timer driven by a wall-clock deadline.
@@ -42,7 +44,7 @@ useEffect(() => {
   const tick = () => {
     const end = questionEndAtRef.current;
     if (!end) return;
-    
+
     const secs = Math.max(0, Math.ceil((end - Date.now()) / 1000));
     setTimeLeft(secs);
 
@@ -68,18 +70,24 @@ useEffect(() => {
 A major feature of this quiz is preventing screenshots, screen recordings, and copy-pasting. Because web browsers run in a sandbox, we cannot intercept all OS-level capture events natively. However, we can use an aggressive combination of DOM events to maximize protection.
 
 ### A. The CSS Shield (Soft Wash)
+
 Apply a static, soft-light radial gradient to the question and options containers. It should use `mix-blend-mode: soft-light` or similar so that text remains highly legible to the naked eye but gets heavily distorted by basic OCR or visual capture tools.
-- *Avoid moving scanlines or moiré patterns as they cause visual fatigue.*
+
+- _Avoid moving scanlines or moiré patterns as they cause visual fatigue._
 
 ### B. Polling for Document Focus
+
 Many screenshot tools steal focus from the document without triggering standard keyboard events.
+
 - **Poll `document.hasFocus()`** every ~200ms while the quiz is active.
 - If it returns `false`, immediately trigger the full-screen capture block overlay.
 
 ### C. The Aggressive Event Listener Suite
+
 Attach listeners on the **capture phase** (setting the third argument of `addEventListener` to `true`) so that React's synthetic event bubbling (or focus traps) doesn't swallow keyboard shortcuts.
 
 The required listeners are:
+
 1. `keydown` (Capture Phase): Intercept `PrintScreen`, `Meta+Shift+S`, `Ctrl+Shift+S`, `Meta+C`, `Ctrl+C`, and DevTools shortcuts (`F12`, `Ctrl+Shift+I`).
 2. `keyup` (Capture Phase): Specifically intercept `PrintScreen` release.
 3. `visibilitychange`: Trigger the block overlay immediately if `document.visibilityState === "hidden"`. Use a double-check timeout to keep the block up if the user returns quickly.
@@ -88,7 +96,9 @@ The required listeners are:
 6. DOM-level text selection: Set `document.body.style.userSelect = "none"`.
 
 ### D. The Block Overlay implementation
+
 When an event fires, trigger a full-screen overlay for a specific duration (e.g., 2.5 to 3 seconds).
+
 - **Important:** Use `useRef` for the timeout ID so that if multiple events fire at once (e.g., `blur` + `keydown`), you can clear the existing timeout and extend the duration, rather than the overlay flickering off instantly.
 
 ```typescript
@@ -107,26 +117,28 @@ const triggerCaptureBlockOverlay = useCallback((durationMs = 2400) => {
 ## 4. Strict Mode (Optional Screen Sharing)
 
 For high-stakes assessments, you can optionally require the user to share their screen using `navigator.mediaDevices.getDisplayMedia`.
+
 - If the user stops sharing (the `videoTrack` fires an `"ended"` event), you immediately lock the quiz by setting `securityLocked = true`.
 
 ## 5. Earn & Learn (`InlineRdmChallenge`) — per-challenge timing
 
 Refer challenges read pacing from `ReferChallengePublicSpec` in `lib/referEarnChallenges.ts` (wall-clock deadline per question + `referChallengeSessionDurationSec` for the session):
 
-| Challenge | Session (MM:SS) | Stem (read-only) | Choices (final segment) |
-|-----------|-----------------|------------------|-------------------------|
-| MentaMill Blitz | 05:00 | 00:20 | 00:10 |
-| FunBrain Quiz | 07:20 (`sessionTailSeconds: 20` on top of 7 min) | 00:20 | 00:10 |
-| Academic Arena | 10:00 | 00:50 | 00:10 |
-| Academic Arena Pro | 25:00 | 00:50 | 00:10 |
+| Challenge          | Session (MM:SS)                                  | Stem (read-only) | Choices (final segment) |
+| ------------------ | ------------------------------------------------ | ---------------- | ----------------------- |
+| MentaMill Blitz    | 05:00                                            | 00:20            | 00:10                   |
+| FunBrain Quiz      | 07:20 (`sessionTailSeconds: 20` on top of 7 min) | 00:20            | 00:10                   |
+| Academic Arena     | 10:00                                            | 00:50            | 00:10                   |
+| Academic Arena Pro | 25:00                                            | 00:50            | 00:10                   |
 
 Reveal rule matches §1: show options when `perQuestionLeft <= optionsPhaseSec`. UI copy should keep numeric durations in **timer tokens** (`MM:SS`), not spelled-out “minutes/seconds” in prose.
 
 ## Summary Checklist for New Quizzes
+
 - [ ] Use `questionEndAtRef` (wall-clock) instead of relative `setInterval` subtraction for timers.
 - [ ] Render the Question separate from the Options, gating option visibility by checking `timeLeft <= REVEAL_OPTIONS_AT`.
 - [ ] Add the CSS "soft shield" overlay behind the question text and options.
-- [ ] Implement the `isDemoRunActive()` check so anti-cheat only applies *during* the quiz, not on the start/end screens.
+- [ ] Implement the `isDemoRunActive()` check so anti-cheat only applies _during_ the quiz, not on the start/end screens.
 - [ ] Mount the `document.hasFocus()` poller.
 - [ ] Mount window `capture phase` listeners for keyboard shortcuts.
 - [ ] Provide a clear, non-harsh full-screen overlay (e.g., Slate/Grey gradient, not blinding white) explaining that captures are disabled when triggered.

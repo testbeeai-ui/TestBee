@@ -20,7 +20,10 @@ import { EXPLORE_APP_PATH } from "@/components/AppLayout";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserStore } from "@/store/useUserStore";
 import { useStudyStreakFromApi } from "@/hooks/useStudyStreakFromApi";
-import { countInstacueRevisionDue, formatEdufundRdmBadge } from "@/lib/dashboard/dashboardSidebarMetrics";
+import {
+  countInstacueRevisionDue,
+  formatEdufundRdmBadge,
+} from "@/lib/dashboard/dashboardSidebarMetrics";
 
 type NavItem = { href: string; label: string; icon: LucideIcon; badge?: string | null };
 
@@ -102,7 +105,7 @@ export default function DashboardSidebar() {
   const learning: NavItem[] = [
     { href: "/home", label: "Dashboard", icon: LayoutDashboard },
     { href: "/magic-wall", label: "Community feed", icon: Sparkles, badge: "Live" },
-    { href: "/mock", label: "Testbee mocks", icon: GraduationCap },
+    { href: "/mock", label: "Magic Wall", icon: GraduationCap },
     { href: "/mock-test", label: "Mock test library", icon: Library },
     {
       href: "/revision",

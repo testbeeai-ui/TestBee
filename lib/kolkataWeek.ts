@@ -1,7 +1,10 @@
 /**
  * Calendar week (Mon 00:00 – Sun 23:59:59.999) in Asia/Kolkata, as UTC ms bounds for ISO timestamp comparisons.
  */
-export function kolkataWeekRangeMs(reference: Date = new Date()): { startMs: number; endMs: number } {
+export function kolkataWeekRangeMs(reference: Date = new Date()): {
+  startMs: number;
+  endMs: number;
+} {
   const ymd = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Kolkata",
     year: "numeric",

@@ -42,7 +42,9 @@ export type AcademicRecordExtrasShape = {
   puc2InternalsPercent?: string;
 };
 
-export function parseAcademicRecordExtras(json: Json | null | undefined): AcademicRecordExtrasShape {
+export function parseAcademicRecordExtras(
+  json: Json | null | undefined
+): AcademicRecordExtrasShape {
   if (!json || typeof json !== "object" || Array.isArray(json)) return {};
   const o = json as Record<string, unknown>;
   const cx = o.classXSubjects;

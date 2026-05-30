@@ -121,6 +121,9 @@ export function useNewsBlogState(opts?: {
     };
   }, [user?.id, profile?.role]);
 
+  const [newsSection, setNewsSection] = useState<NewsSection>(initialNewsSection(nav));
+  const [blogSection, setBlogSection] = useState<BlogSection>(initialBlogSection(nav));
+
   useEffect(() => {
     setNewsSection((cur) => coerceNewsSectionForRole(cur));
   }, [canManageNewsBlog]);
@@ -134,8 +137,6 @@ export function useNewsBlogState(opts?: {
   const [blogExamFilter, setBlogExamFilter] = useState<ExamId>(
     portal0 === "blog" ? (nav?.exam ?? "all") : "all"
   );
-  const [newsSection, setNewsSection] = useState<NewsSection>(initialNewsSection(nav));
-  const [blogSection, setBlogSection] = useState<BlogSection>(initialBlogSection(nav));
   const [draft, setDraft] = useState<Draft>(() => createInitialDraft());
   const [posts, setPosts] = useState<Post[]>(opts?.initialPosts ?? []);
   const [loading, setLoading] = useState(opts?.initialPosts === undefined);

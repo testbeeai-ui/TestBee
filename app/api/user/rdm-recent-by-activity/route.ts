@@ -35,7 +35,9 @@ export async function GET(req: NextRequest) {
   if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const rawDays = Number(req.nextUrl.searchParams.get("days") ?? "28");
-  const windowDays = Number.isFinite(rawDays) ? Math.min(366, Math.max(1, Math.floor(rawDays))) : 28;
+  const windowDays = Number.isFinite(rawDays)
+    ? Math.min(366, Math.max(1, Math.floor(rawDays)))
+    : 28;
   const { fromIst, toIst } = rollingIstDateRangeInclusive(windowDays);
   const uid = auth.user.id;
 

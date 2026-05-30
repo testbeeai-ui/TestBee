@@ -181,7 +181,9 @@ export default function AdminTeacherDirectoryPage() {
                       </TableCell>
                       <TableCell className="text-right tabular-nums">{fmt(t.classrooms)}</TableCell>
                       <TableCell className="text-right tabular-nums">{fmt(t.sections)}</TableCell>
-                      <TableCell className="text-right tabular-nums">{fmt(t.assignments)}</TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {fmt(t.assignments)}
+                      </TableCell>
                       <TableCell className="text-right tabular-nums">
                         {fmt(t.upcomingSessions)}
                       </TableCell>
@@ -211,4 +213,3 @@ export default function AdminTeacherDirectoryPage() {
     </div>
   );
 }
-

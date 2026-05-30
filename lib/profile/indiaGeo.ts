@@ -64,16 +64,7 @@ const CITY_BY_STATE: Record<string, string[]> = {
     "Davangere",
     "Tumakuru",
   ],
-  Maharashtra: [
-    "Mumbai",
-    "Pune",
-    "Nagpur",
-    "Thane",
-    "Nashik",
-    "Aurangabad",
-    "Solapur",
-    "Kolhapur",
-  ],
+  Maharashtra: ["Mumbai", "Pune", "Nagpur", "Thane", "Nashik", "Aurangabad", "Solapur", "Kolhapur"],
   "Tamil Nadu": ["Chennai", "Coimbatore", "Madurai", "Tiruchirappalli", "Salem", "Tirunelveli"],
   "Andhra Pradesh": ["Visakhapatnam", "Vijayawada", "Guntur", "Nellore", "Tirupati", "Kurnool"],
   Telangana: ["Hyderabad", "Warangal", "Nizamabad", "Karimnagar", "Khammam"],
@@ -119,9 +110,15 @@ export function getCitiesForState(state: string | null | undefined): string[] {
 }
 
 export function toStateSelectItems(): { label: string; value: string }[] {
-  return [{ label: "Select state", value: "" }, ...INDIAN_STATES_AND_UTS.map((s) => ({ label: s, value: s }))];
+  return [
+    { label: "Select state", value: "" },
+    ...INDIAN_STATES_AND_UTS.map((s) => ({ label: s, value: s })),
+  ];
 }
 
 export function toCitySelectItems(cities: string[]): { label: string; value: string }[] {
-  return [{ label: "Select city / town", value: "" }, ...cities.map((c) => ({ label: c, value: c }))];
+  return [
+    { label: "Select city / town", value: "" },
+    ...cities.map((c) => ({ label: c, value: c })),
+  ];
 }

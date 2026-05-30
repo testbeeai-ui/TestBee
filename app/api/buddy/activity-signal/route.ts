@@ -24,10 +24,7 @@ export async function GET(request: Request) {
 
   const admin = createAdminClient();
   if (!admin) {
-    return NextResponse.json(
-      { error: "SUPABASE_SERVICE_ROLE_KEY is not set" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "SUPABASE_SERVICE_ROLE_KEY is not set" }, { status: 500 });
   }
   const db = admin;
 
@@ -64,9 +61,7 @@ export async function GET(request: Request) {
   ] = await Promise.all([
     db
       .from("student_learning_presence" as never)
-      .select(
-        "board, subject, class_level, topic, subtopic_name, level, panel, updated_at"
-      )
+      .select("board, subject, class_level, topic, subtopic_name, level, panel, updated_at")
       .eq("user_id" as never, buddyId as never)
       .maybeSingle(),
     supabase
@@ -151,7 +146,7 @@ export async function GET(request: Request) {
       ? Date.parse(tableMarkedAt) >= Date.parse(engagementMarkedAt)
         ? tableMarkedAt
         : engagementMarkedAt
-      : tableMarkedAt ?? engagementMarkedAt;
+      : (tableMarkedAt ?? engagementMarkedAt);
   const latestQuiz = latestBuddyTopicQuizAttempt(profileRes.data?.bits_test_attempts);
   const revision = buildBuddyActivityRevision({
     presenceFingerprint,

@@ -25,6 +25,7 @@ import {
   Star,
   Users,
   UserPlus,
+  UserMinus,
   WandSparkles,
   X,
 } from "lucide-react";
@@ -106,14 +107,33 @@ import { assignmentPostDueStillActive } from "@/lib/teacherPortal/assignmentDueA
 import { assignmentItemIsNudgeMcqTarget } from "@/lib/teacherPortal/nudgeMcqPosts";
 
 import type { MyClassroomViewProps } from "./types";
-import type { JoinRequestRow, ClassroomCohortTab, DetailTab, MotivationMessageType, MotivationTarget } from "./types";
+import type {
+  JoinRequestRow,
+  ClassroomCohortTab,
+  DetailTab,
+  MotivationMessageType,
+  MotivationTarget,
+} from "./types";
 import { WIZARD_TASKS, type WizardTask } from "./wizard/constants";
-import { buildWizardShellInitialState, ClassroomHelpChip, readWizardShellPersisted, writeWizardShellPersisted, type WizardShellPersistedV2, type WizardSectionDraftPersist } from "./wizard/shell-persist";
+import {
+  buildWizardShellInitialState,
+  ClassroomHelpChip,
+  readWizardShellPersisted,
+  writeWizardShellPersisted,
+  type WizardShellPersistedV2,
+  type WizardSectionDraftPersist,
+} from "./wizard/shell-persist";
 import { StatCard } from "./components/StatCard";
 import { AssignmentCard } from "./components/AssignmentCard";
 import { TaskPreviewBody } from "./components/TaskPreviewBody";
 import { TeacherWizardPopup } from "./wizards/TeacherWizardPopup";
-import { SUBJECT_OPTIONS, PUC_OPTIONS, EXAM_OPTIONS, WEEKDAYS, SHOW_CLASSROOM_SCHEDULE_FORM } from "./constants";
+import {
+  SUBJECT_OPTIONS,
+  PUC_OPTIONS,
+  EXAM_OPTIONS,
+  WEEKDAYS,
+  SHOW_CLASSROOM_SCHEDULE_FORM,
+} from "./constants";
 import * as display from "./utils/display";
 import * as assignmentHelpers from "./assignment/helpers";
 import { normalizeTeacherMotivationExternalUrl } from "./utils/motivation-url";
@@ -152,6 +172,7 @@ export default function MyClassroomView({
       ? qpDetailRaw
       : null;
   const [activeClassroomId, setActiveClassroomId] = useState<string | null>(null);
+  const [removingStudentId, setRemovingStudentId] = useState<string | null>(null);
   const [detailTab, setDetailTab] = useState<DetailTab>("students");
   const [open, setOpen] = useState(false);
   const [wizardOpen, setWizardOpen] = useState(false);
@@ -179,7 +200,12 @@ export default function MyClassroomView({
   const [taskPreview, setTaskPreview] = useState<{
     open: boolean;
     href: string;
-    mode: "assignment-test" | "mock-paper" | "chapter-quiz-preview" | "concept-focus-preview" | "iframe";
+    mode:
+      | "assignment-test"
+      | "mock-paper"
+      | "chapter-quiz-preview"
+      | "concept-focus-preview"
+      | "iframe";
     title: string;
     chapterQuizRef?: {
       board: string;
@@ -210,17 +236,18 @@ export default function MyClassroomView({
     completedAt: string | null;
     sources?: { assignmentProgress: boolean; lessonMarkedComplete: boolean };
   };
-  const [conceptFocusCompletion, setConceptFocusCompletion] = useState<ConceptFocusCompletionRowApi[]>(
-    []
-  );
+  const [conceptFocusCompletion, setConceptFocusCompletion] = useState<
+    ConceptFocusCompletionRowApi[]
+  >([]);
   const [conceptFocusCompletionLoading, setConceptFocusCompletionLoading] = useState(false);
-  const [conceptFocusCompletionError, setConceptFocusCompletionError] = useState<string | null>(null);
+  const [conceptFocusCompletionError, setConceptFocusCompletionError] = useState<string | null>(
+    null
+  );
   const ASSIGNMENT_SCORES_CACHE_KEY = "teacherPortal.assignmentScoresCache.v1";
 
   const wizardAutoOpenOnceRef = useRef(false);
   const wizardDismissedRef = useRef(false);
   const wizardOpenRef = useRef(false);
-
 
   const assignmentScoresCacheRef = useRef<
     Record<string, { scores: AssignmentScoreRow[]; updatedAt: string }>
@@ -966,7 +993,12 @@ export default function MyClassroomView({
       const total = Math.max(1, Number(a.totalCount) || Number(prev?.totalCount) || 1);
       const mergedPct = Math.min(100, Math.round((100 * mergedCount) / total));
       const prevPct = prev?.completionPercent ?? -1;
-      if (!prev || prev.completedCount !== mergedCount || prevPct !== mergedPct || prev.totalCount !== total) {
+      if (
+        !prev ||
+        prev.completedCount !== mergedCount ||
+        prevPct !== mergedPct ||
+        prev.totalCount !== total
+      ) {
         assignmentProgressCacheRef.current[a.id] = {
           completedCount: mergedCount,
           completionPercent: mergedPct,
@@ -1137,12 +1169,7 @@ export default function MyClassroomView({
       cancelled = true;
       window.clearInterval(intervalId);
     };
-  }, [
-    assignmentDetail,
-    activeClassroomId,
-    cohortStudents.length,
-    ASSIGNMENT_PROGRESS_CACHE_KEY,
-  ]);
+  }, [assignmentDetail, activeClassroomId, cohortStudents.length, ASSIGNMENT_PROGRESS_CACHE_KEY]);
 
   useEffect(() => {
     if (!assignmentDetail || !activeClassroomId) return;
@@ -1181,7 +1208,8 @@ export default function MyClassroomView({
           }
           return;
         }
-        if (!cancelled) setConceptFocusCompletion(Array.isArray(data.students) ? data.students : []);
+        if (!cancelled)
+          setConceptFocusCompletion(Array.isArray(data.students) ? data.students : []);
       } catch {
         if (!cancelled) {
           setConceptFocusCompletionError("Network error while loading lesson completion.");
@@ -1781,6 +1809,39 @@ export default function MyClassroomView({
     }
   };
 
+  const removeStudentFromClassroom = async (studentUserId: string, studentName: string) => {
+    if (!activeClassroomId) return;
+    if (
+      !confirm(`Remove ${studentName} from this class? They will need to request to join again.`)
+    ) {
+      return;
+    }
+    setRemovingStudentId(studentUserId);
+    try {
+      const { error } = await supabase
+        .from("classroom_members")
+        .delete()
+        .eq("classroom_id", activeClassroomId)
+        .eq("user_id", studentUserId);
+
+      if (error) throw error;
+
+      await onRefreshTeacherPortal({ silent: true });
+      toast({
+        title: "Student removed",
+        description: `${studentName} has been removed from this classroom.`,
+      });
+    } catch (e) {
+      toast({
+        title: "Could not remove student",
+        description: e instanceof Error ? e.message : "Try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setRemovingStudentId(null);
+    }
+  };
+
   const rejectJoinRequest = async (req: JoinRequestRow) => {
     if (!teacherId) return;
     setActingJoinRequestId(req.id);
@@ -2048,15 +2109,22 @@ export default function MyClassroomView({
     ];
 
     let removed = 0;
-    const failed: Array<{ scope: "classroom" | "section"; sectionId?: string | null; error: string }> = [];
+    const failed: Array<{
+      scope: "classroom" | "section";
+      sectionId?: string | null;
+      error: string;
+    }> = [];
     for (const t of targets) {
       try {
-        const res = await fetchWithClientAuth(`/api/integrations/google/classrooms/${classroomId}/stop`, {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ mode: "delete_series", sectionId: t.sectionId }),
-        });
+        const res = await fetchWithClientAuth(
+          `/api/integrations/google/classrooms/${classroomId}/stop`,
+          {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ mode: "delete_series", sectionId: t.sectionId }),
+          }
+        );
         if (res.ok) {
           removed += 1;
           continue;
@@ -2342,7 +2410,10 @@ export default function MyClassroomView({
                       <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-60" aria-hidden />
                     </button>
                   </PopoverTrigger>
-                  <PopoverContent align="end" className="w-52 border-white/10 bg-[#15162b] p-1 shadow-xl">
+                  <PopoverContent
+                    align="end"
+                    className="w-52 border-white/10 bg-[#15162b] p-1 shadow-xl"
+                  >
                     <button
                       type="button"
                       onClick={() => void connectGoogleCalendarFromToolbar()}
@@ -2831,6 +2902,20 @@ export default function MyClassroomView({
                               className={`h-6 rounded-full border px-2.5 text-[10px] font-semibold ${display.actionClass(display.recommendedAction(s))}`}
                             >
                               {display.actionLabel(display.recommendedAction(s))}
+                            </button>
+                            <button
+                              type="button"
+                              disabled={removingStudentId === s.userId}
+                              onClick={() => void removeStudentFromClassroom(s.userId, s.name)}
+                              className="inline-flex h-6 items-center gap-1 rounded-full border border-rose-500/40 bg-rose-500/10 px-2 text-[10px] font-semibold text-rose-200 hover:bg-rose-500/20 disabled:opacity-50"
+                              title={`Remove ${s.name}`}
+                            >
+                              {removingStudentId === s.userId ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <UserMinus className="h-3 w-3" />
+                              )}
+                              Remove
                             </button>
                           </div>
                         </div>
@@ -3505,14 +3590,17 @@ export default function MyClassroomView({
                                         }
                                         className="rounded-full border border-rose-500/40 bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-100 hover:bg-rose-500/20 disabled:opacity-50"
                                       >
-                                        {sectionDeletingId === sec.id ? "Deleting…" : "Delete section"}
+                                        {sectionDeletingId === sec.id
+                                          ? "Deleting…"
+                                          : "Delete section"}
                                       </button>
                                     </div>
                                   </div>
                                   {expired ? (
                                     <div className="mt-2 text-[11px] leading-snug text-slate-400">
-                                      This section is inactive (end date passed). Move students to an active section to
-                                      resume section-based assignments, messages, and scheduling.
+                                      This section is inactive (end date passed). Move students to
+                                      an active section to resume section-based assignments,
+                                      messages, and scheduling.
                                     </div>
                                   ) : null}
                                 </li>
@@ -4062,7 +4150,10 @@ export default function MyClassroomView({
                     <label className="mb-1 block text-[10px] font-semibold text-slate-500 sm:text-xs">
                       Start time
                     </label>
-                    <WallTimeSelects value={sectionScheduleTime} onChange={setSectionScheduleTime} />
+                    <WallTimeSelects
+                      value={sectionScheduleTime}
+                      onChange={setSectionScheduleTime}
+                    />
                   </div>
                   <div>
                     <label className="mb-1 block text-[10px] font-semibold text-slate-500 sm:text-xs">
@@ -5049,7 +5140,8 @@ export default function MyClassroomView({
                         // not just MCQ submissions. The completion stats already include `lessonChecklistMarkedCompleteAt`.
                         if (assignmentDetail.type === "Concept Focus") {
                           const completed =
-                            assignmentProgressCacheRef.current[assignmentDetail.id]?.completedCount ??
+                            assignmentProgressCacheRef.current[assignmentDetail.id]
+                              ?.completedCount ??
                             assignmentDetail.completedCount ??
                             0;
                           return completed;
@@ -5057,8 +5149,8 @@ export default function MyClassroomView({
                         return (
                           (assignmentScores.length > 0
                             ? assignmentScores.length
-                            : (assignmentProgressCacheRef.current[assignmentDetail.id]?.completedCount ??
-                              assignmentDetail.completedCount)) ?? 0
+                            : (assignmentProgressCacheRef.current[assignmentDetail.id]
+                                ?.completedCount ?? assignmentDetail.completedCount)) ?? 0
                         );
                       })()}
                       /{cohortStudents.length}
@@ -5082,8 +5174,8 @@ export default function MyClassroomView({
                               ) / 10
                             }%`
                           : `${
-                              assignmentProgressCacheRef.current[assignmentDetail.id]?.completionPercent ??
-                              assignmentDetail.completionPercent
+                              assignmentProgressCacheRef.current[assignmentDetail.id]
+                                ?.completionPercent ?? assignmentDetail.completionPercent
                             }%`}
                       </span>
                     </div>
@@ -5108,10 +5200,14 @@ export default function MyClassroomView({
                     </div>
                     <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
                       <span className="text-slate-400">Assigned:</span>
-                      <span className="font-semibold text-slate-200">{assignmentDetail.assignedToLabel}</span>
+                      <span className="font-semibold text-slate-200">
+                        {assignmentDetail.assignedToLabel}
+                      </span>
                       <span className="text-slate-600">•</span>
                       <span className="text-slate-400">Reward:</span>
-                      <span className="font-semibold text-amber-300">+{assignmentDetail.rewardRdm} RDM</span>
+                      <span className="font-semibold text-amber-300">
+                        +{assignmentDetail.rewardRdm} RDM
+                      </span>
                       <span className="text-slate-600">•</span>
                       <span className="text-slate-400">Completion:</span>
                       <span className="font-semibold text-sky-200">
@@ -5119,8 +5215,8 @@ export default function MyClassroomView({
                           ? `${Math.round(
                               ((assignmentScores.length > 0
                                 ? assignmentScores.length
-                                : (assignmentProgressCacheRef.current[assignmentDetail.id]?.completedCount ??
-                                  assignmentDetail.completedCount)) /
+                                : (assignmentProgressCacheRef.current[assignmentDetail.id]
+                                    ?.completedCount ?? assignmentDetail.completedCount)) /
                                 Math.max(1, cohortStudents.length)) *
                                 100
                             )}%`
@@ -5179,19 +5275,26 @@ export default function MyClassroomView({
                           assignmentDetail.type === "Concept Focus"
                             ? // For Concept Focus, the teacher expects the subtopic preview / concepts first,
                               // not the MCQ quiz panel.
-                              (assignmentDetail.tasks?.find((t) => t.kind === "topic_path" && Boolean(t.href)) ??
-                                assignmentDetail.tasks?.find((t) => t.kind === "instacue" && Boolean(t.href)) ??
-                                assignmentDetail.tasks?.find((t) => t.kind === "bits" && Boolean(t.href)) ??
-                                assignmentDetail.tasks?.find((t) => Boolean(t.href)))
-                            : assignmentDetail.tasks?.find(
+                              (assignmentDetail.tasks?.find(
+                                (t) => t.kind === "topic_path" && Boolean(t.href)
+                              ) ??
+                              assignmentDetail.tasks?.find(
+                                (t) => t.kind === "instacue" && Boolean(t.href)
+                              ) ??
+                              assignmentDetail.tasks?.find(
+                                (t) => t.kind === "bits" && Boolean(t.href)
+                              ) ??
+                              assignmentDetail.tasks?.find((t) => Boolean(t.href)))
+                            : (assignmentDetail.tasks?.find(
                                 (t) => t.kind === "chapter_quiz" && Boolean(t.href)
-                              ) ?? assignmentDetail.tasks?.find((t) => Boolean(t.href));
+                              ) ?? assignmentDetail.tasks?.find((t) => Boolean(t.href)));
                         if (!primaryHrefTask?.href) return null;
                         const cfCompleted =
                           assignmentDetail.type === "Concept Focus"
-                            ? (assignmentProgressCacheRef.current[assignmentDetail.id]?.completedCount ??
-                                assignmentDetail.completedCount ??
-                                0)
+                            ? (assignmentProgressCacheRef.current[assignmentDetail.id]
+                                ?.completedCount ??
+                              assignmentDetail.completedCount ??
+                              0)
                             : 0;
                         const conceptFocusClassDone =
                           assignmentDetail.type === "Concept Focus" &&
@@ -5205,10 +5308,7 @@ export default function MyClassroomView({
                             .replace(/\{\{POST_ID\}\}/g, postId)
                             .replace(/\{\{CLASSROOM_ID\}\}/g, classroomId)
                             .replace(/%7B%7BPOST_ID%7D%7D/gi, encodeURIComponent(postId))
-                            .replace(
-                              /%7B%7BCLASSROOM_ID%7D%7D/gi,
-                              encodeURIComponent(classroomId)
-                            );
+                            .replace(/%7B%7BCLASSROOM_ID%7D%7D/gi, encodeURIComponent(classroomId));
                           const safeResolved = (() => {
                             // If a Concept Focus link accidentally points at `panel=quiz`, force the concepts panel.
                             if (assignmentDetail.type !== "Concept Focus") return resolved;
@@ -5216,7 +5316,8 @@ export default function MyClassroomView({
                               const url = resolved.startsWith("http")
                                 ? new URL(resolved)
                                 : new URL(resolved, "https://edublast.local");
-                              if (url.searchParams.get("panel") === "quiz") url.searchParams.set("panel", "concepts");
+                              if (url.searchParams.get("panel") === "quiz")
+                                url.searchParams.set("panel", "concepts");
                               return resolved.startsWith("http")
                                 ? url.toString()
                                 : `${url.pathname}${url.search}${url.hash}`;
@@ -5553,7 +5654,6 @@ export default function MyClassroomView({
                         </div>
                       </div>
                     ) : null}
-
                   </div>
                 ) : null}
 
@@ -5580,7 +5680,8 @@ export default function MyClassroomView({
                     conceptFocusRosterRows.length === 0 &&
                     !conceptFocusCompletionError ? (
                       <div className="rounded-lg border border-dashed border-white/10 bg-black/10 px-4 py-6 text-center text-xs text-slate-400">
-                        No students match this assignment&apos;s audience (section or targeted list).
+                        No students match this assignment&apos;s audience (section or targeted
+                        list).
                       </div>
                     ) : conceptFocusRosterRows.length > 0 ? (
                       <div className="max-h-80 overflow-y-auto overflow-x-hidden rounded-lg border border-white/5">
@@ -5635,13 +5736,15 @@ export default function MyClassroomView({
                       </div>
                     ) : conceptFocusCompletionLoading ? (
                       <div className="flex items-center gap-2 rounded-lg border border-white/5 bg-black/10 px-4 py-6 text-xs text-slate-400">
-                        <Loader2 className="h-4 w-4 shrink-0 animate-spin" /> Loading student progress…
+                        <Loader2 className="h-4 w-4 shrink-0 animate-spin" /> Loading student
+                        progress…
                       </div>
                     ) : null}
                     <div className="border-t border-white/5 pt-3 text-[11px] leading-relaxed text-slate-300">
-                      <span className="font-semibold text-slate-100">Concept Focus</span> is tracked by{" "}
-                      <span className="font-semibold">Mark as complete</span> on the subtopic lesson (not quiz
-                      scores). Rows reflect lesson checklist and assignment sync when both exist.
+                      <span className="font-semibold text-slate-100">Concept Focus</span> is tracked
+                      by <span className="font-semibold">Mark as complete</span> on the subtopic
+                      lesson (not quiz scores). Rows reflect lesson checklist and assignment sync
+                      when both exist.
                     </div>
                   </div>
                 ) : null}

@@ -15,10 +15,7 @@ import {
   type BuddyPrivacyKey,
   type BuddyPrivacySettings,
 } from "@/lib/buddy/buddyPrivacy";
-import {
-  fetchBuddyPrivacySettings,
-  updateBuddyPrivacySettings,
-} from "@/lib/buddy/buddyClient";
+import { fetchBuddyPrivacySettings, updateBuddyPrivacySettings } from "@/lib/buddy/buddyClient";
 import { useToast } from "@/hooks/use-toast";
 
 const TOGGLE_META: { key: BuddyPrivacyKey; title: string; description: string }[] = [
@@ -140,9 +137,7 @@ export function PrivacySettingsModal({ open, onOpenChange }: PrivacySettingsModa
                     type="button"
                     role="switch"
                     aria-checked={settings[row.key]}
-                    onClick={() =>
-                      setSettings((prev) => ({ ...prev, [row.key]: !prev[row.key] }))
-                    }
+                    onClick={() => setSettings((prev) => ({ ...prev, [row.key]: !prev[row.key] }))}
                     className={[
                       "relative h-5 w-9 shrink-0 rounded-full border transition-colors",
                       settings[row.key]
@@ -153,9 +148,7 @@ export function PrivacySettingsModal({ open, onOpenChange }: PrivacySettingsModa
                     <span
                       className={[
                         "absolute top-0.5 h-3.5 w-3.5 rounded-full transition-all",
-                        settings[row.key]
-                          ? "left-[18px] bg-white"
-                          : "left-0.5 bg-[#9BA3B8]",
+                        settings[row.key] ? "left-[18px] bg-white" : "left-0.5 bg-[#9BA3B8]",
                       ].join(" ")}
                     />
                   </button>

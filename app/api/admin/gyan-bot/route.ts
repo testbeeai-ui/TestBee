@@ -3,7 +3,10 @@ import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
 import { isAdminUser } from "@/lib/admin/admin";
 import { createAdminClient } from "@/integrations/supabase/server";
 import { getStudentPersonaByIndex } from "@/lib/gyanBotPersonas";
-import { getGyanBotCapabilities, getGyanBotSetupWarnings } from "@/lib/gyan/bot/gyanBotCapabilities";
+import {
+  getGyanBotCapabilities,
+  getGyanBotSetupWarnings,
+} from "@/lib/gyan/bot/gyanBotCapabilities";
 import { runGyanBotPostCycle } from "@/lib/gyan/bot/gyanBotPostCycle";
 
 function missingTableHint(message: string): string | undefined {

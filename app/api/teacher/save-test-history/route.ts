@@ -12,8 +12,8 @@ function isSubject(x: unknown): x is Subject {
   return typeof x === "string" && SUBJECTS.has(x as Subject);
 }
 
-function isValidScope(x: unknown): x is "Topic-wise" | "Unit-wise" {
-  return x === "Topic-wise" || x === "Unit-wise";
+function isValidScope(x: unknown): x is "Topic-wise" | "Unit-wise" | "Chapter-wise" | "Full paper" {
+  return x === "Topic-wise" || x === "Unit-wise" || x === "Chapter-wise" || x === "Full paper";
 }
 
 export async function POST(req: Request) {
@@ -65,7 +65,10 @@ export async function POST(req: Request) {
     );
   }
   if (!isValidScope(scope)) {
-    return NextResponse.json({ error: "scope must be Topic-wise or Unit-wise" }, { status: 400 });
+    return NextResponse.json(
+      { error: "scope must be Topic-wise, Unit-wise, Chapter-wise, or Full paper" },
+      { status: 400 }
+    );
   }
   if (!Array.isArray(questions) || questions.length === 0) {
     return NextResponse.json({ error: "questions must be a non-empty array" }, { status: 400 });

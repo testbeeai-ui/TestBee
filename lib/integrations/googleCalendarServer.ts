@@ -77,8 +77,9 @@ type CalendarEventBody = {
 
 function meetUriFromEvent(event: unknown): string | null {
   if (!event || typeof event !== "object") return null;
-  const cd = (event as { conferenceData?: { entryPoints?: Array<{ entryPointType?: string; uri?: string }> } })
-    .conferenceData;
+  const cd = (
+    event as { conferenceData?: { entryPoints?: Array<{ entryPointType?: string; uri?: string }> } }
+  ).conferenceData;
   const eps = cd?.entryPoints;
   if (!Array.isArray(eps)) return null;
   const video = eps.find((e) => e.entryPointType === "video");

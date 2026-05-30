@@ -23,7 +23,8 @@ from pydantic import BaseModel
 from config import settings
 from embed import get_embedding, load_model
 from retriever import retrieve_chunks, format_passages
-from cas_verify import CalcVerifyRequest, CalcVerifyResponse, verify_calculation
+from cas_verify import CalcVerifyRequest as _BaseCalcRequest, CalcVerifyResponse as _BaseCalcResponse
+from cas_verify_plus import CalcVerifyRequest, CalcVerifyResponse, verify_calculation_plus as verify_calculation
 
 logging.basicConfig(
     level=logging.INFO,

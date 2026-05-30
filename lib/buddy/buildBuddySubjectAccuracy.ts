@@ -61,8 +61,7 @@ export function buildBuddySubjectAccuracyWeek(input: {
 
   const subjects = PCM.map((subject) => {
     const bucket = totals.get(subject)!;
-    const pct =
-      bucket.total > 0 ? Math.round((100 * bucket.correct) / bucket.total) : null;
+    const pct = bucket.total > 0 ? Math.round((100 * bucket.correct) / bucket.total) : null;
     return {
       subject,
       name: SUBJECT_LABEL[subject],

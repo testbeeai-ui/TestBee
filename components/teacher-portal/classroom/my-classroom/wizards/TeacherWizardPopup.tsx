@@ -117,10 +117,12 @@ import {
   type TPWizardExam,
 } from "../wizard/shell-persist";
 import { SUBJECT_OPTIONS, PUC_OPTIONS, EXAM_OPTIONS, WEEKDAYS } from "../constants";
-import { TeacherNudgeWithRdmWizard, type TeacherNudgeWithRdmWizardHandle } from "./TeacherNudgeWithRdmWizard";
+import {
+  TeacherNudgeWithRdmWizard,
+  type TeacherNudgeWithRdmWizardHandle,
+} from "./TeacherNudgeWithRdmWizard";
 import { TeacherAssignmentProgressWizard } from "./TeacherAssignmentProgressWizard";
 import { TeacherCounselStudentWizard } from "./TeacherCounselStudentWizard";
-
 
 export function TeacherWizardPopup(props: {
   onClose: () => void;
@@ -176,8 +178,12 @@ export function TeacherWizardPopup(props: {
   const [cwAllowAdhocTrial, setCwAllowAdhocTrial] = useState(wsInitial.cwAllowAdhocTrial);
   const [cwSections, setCwSections] = useState<WizardSectionDraft[]>(wsInitial.cwSections);
   const [cwSectionName, setCwSectionName] = useState(wsInitial.cwSectionName);
-  const [cwSectionScheduleDate, setCwSectionScheduleDate] = useState(wsInitial.cwSectionScheduleDate);
-  const [cwSectionScheduleTime, setCwSectionScheduleTime] = useState(wsInitial.cwSectionScheduleTime);
+  const [cwSectionScheduleDate, setCwSectionScheduleDate] = useState(
+    wsInitial.cwSectionScheduleDate
+  );
+  const [cwSectionScheduleTime, setCwSectionScheduleTime] = useState(
+    wsInitial.cwSectionScheduleTime
+  );
   const [cwSectionDurationMinutes, setCwSectionDurationMinutes] = useState(
     wsInitial.cwSectionDurationMinutes
   );
@@ -197,10 +203,7 @@ export function TeacherWizardPopup(props: {
   const [googleConnected, setGoogleConnected] = useState<boolean | null>(null);
   const [googleGateOpen, setGoogleGateOpen] = useState(false);
   const [googleGatePending, setGoogleGatePending] = useState<
-    | null
-    | { kind: "next" }
-    | { kind: "jump"; stepIdx: number }
-    | { kind: "addSection" }
+    null | { kind: "next" } | { kind: "jump"; stepIdx: number } | { kind: "addSection" }
   >(null);
 
   const [sectionGateOpen, setSectionGateOpen] = useState(false);
@@ -227,7 +230,9 @@ export function TeacherWizardPopup(props: {
     setCwSectionScheduleDate(s.cwSectionScheduleDate);
     setCwSectionScheduleTime(s.cwSectionScheduleTime);
     setCwSectionDurationMinutes(s.cwSectionDurationMinutes);
-    setCwSectionRepeatDays(s.cwSectionRepeatDays.length ? s.cwSectionRepeatDays : ["Mon", "Wed", "Fri"]);
+    setCwSectionRepeatDays(
+      s.cwSectionRepeatDays.length ? s.cwSectionRepeatDays : ["Mon", "Wed", "Fri"]
+    );
     setCwSectionScheduleEndDate(s.cwSectionScheduleEndDate);
     setCwSectionFormOpen(s.cwSections?.[0] ? false : true);
   }, [props.teacherId]);
@@ -359,12 +364,7 @@ export function TeacherWizardPopup(props: {
         variant: "destructive",
       });
     }
-  }, [
-    GOOGLE_CONNECT_PROMPTED_SESSION_KEY,
-    props,
-    refreshGoogleConnected,
-    setSessionFlag,
-  ]);
+  }, [GOOGLE_CONNECT_PROMPTED_SESSION_KEY, props, refreshGoogleConnected, setSessionFlag]);
 
   const shouldGateGoogle = useCallback(() => {
     if (googleConnected === true) return false;
@@ -405,13 +405,10 @@ export function TeacherWizardPopup(props: {
     jumpStep(activeTask, (currentSteps[activeTask] ?? 0) - 1);
   }, [activeTask, currentSteps, jumpStep]);
 
-  const openGoogleGate = useCallback(
-    (pending: NonNullable<typeof googleGatePending>) => {
-      setGoogleGatePending(pending);
-      setGoogleGateOpen(true);
-    },
-    []
-  );
+  const openGoogleGate = useCallback((pending: NonNullable<typeof googleGatePending>) => {
+    setGoogleGatePending(pending);
+    setGoogleGateOpen(true);
+  }, []);
 
   const clearSectionFormAndDraft = useCallback(() => {
     setCwSectionName("");
@@ -726,7 +723,9 @@ export function TeacherWizardPopup(props: {
           {!collapsed ? (
             <div className="min-w-0 flex-1">
               <div className="text-[12px] font-semibold sm:text-sm">Task Wizard</div>
-              <div className="text-[10.5px] text-slate-400 sm:text-[11px]">Click a task to get started</div>
+              <div className="text-[10.5px] text-slate-400 sm:text-[11px]">
+                Click a task to get started
+              </div>
             </div>
           ) : null}
           {!collapsed ? (
@@ -924,7 +923,9 @@ export function TeacherWizardPopup(props: {
                       initialClassroomId={createdSummary?.classroomId ?? null}
                       variant="embedded"
                       sessionDraftKey={embeddedAssignmentDraftKey}
-                      externalStep={Math.max(1, Math.min(4, (currentSteps[1] ?? 0) + 1)) as 1 | 2 | 3 | 4}
+                      externalStep={
+                        Math.max(1, Math.min(4, (currentSteps[1] ?? 0) + 1)) as 1 | 2 | 3 | 4
+                      }
                       onStepChange={(s) => jumpStep(1, s - 1)}
                       onCancel={() => {
                         setActiveTask(null);
@@ -948,7 +949,9 @@ export function TeacherWizardPopup(props: {
                     <ScheduleLiveSessionPanel
                       variant="embedded"
                       sessionDraftKey={embeddedScheduleDraftKey}
-                      externalStep={Math.max(1, Math.min(5, (currentSteps[2] ?? 0) + 1)) as 1 | 2 | 3 | 4 | 5}
+                      externalStep={
+                        Math.max(1, Math.min(5, (currentSteps[2] ?? 0) + 1)) as 1 | 2 | 3 | 4 | 5
+                      }
                       onStepChange={(s) => jumpStep(2, s - 1)}
                       classrooms={props.classrooms}
                       toast={props.toast}
@@ -971,7 +974,9 @@ export function TeacherWizardPopup(props: {
                   <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl border border-white/10 bg-[#15162b] p-3 sm:p-4">
                     <CreateTestsView
                       embedded
-                      externalStep={Math.max(1, Math.min(5, (currentSteps[3] ?? 0) + 1)) as 1 | 2 | 3 | 4 | 5}
+                      externalStep={
+                        Math.max(1, Math.min(5, (currentSteps[3] ?? 0) + 1)) as 1 | 2 | 3 | 4 | 5
+                      }
                       onStepChange={(s) => jumpStep(3, s - 1)}
                       teacherId={props.teacherId}
                       classrooms={props.classrooms}
@@ -1182,7 +1187,8 @@ export function TeacherWizardPopup(props: {
                                   </select>
                                 </div>
                                 <div className="md:col-span-2 rounded-lg border border-emerald-400/15 bg-emerald-500/5 px-3 py-2 text-[11px] leading-snug text-slate-300 sm:rounded-xl sm:px-4 sm:py-2.5 sm:text-xs">
-                                  Tip: Include batch (A/B), exam target, and year so students recognize the class.
+                                  Tip: Include batch (A/B), exam target, and year so students
+                                  recognize the class.
                                 </div>
                               </div>
                             ) : null}
@@ -1234,7 +1240,9 @@ export function TeacherWizardPopup(props: {
                             {stepIdx === 2 ? (
                               <div className="mt-3 space-y-2 sm:mt-4 sm:space-y-3">
                                 <div className="rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2 text-xs leading-snug text-slate-300 sm:rounded-xl sm:px-4 sm:text-[13px]">
-                                  <span className="font-semibold text-slate-100">Sections are optional.</span>{" "}
+                                  <span className="font-semibold text-slate-100">
+                                    Sections are optional.
+                                  </span>{" "}
                                   Skip and add later under Sections &amp; Google Calendar.
                                 </div>
 
@@ -1263,7 +1271,9 @@ export function TeacherWizardPopup(props: {
                                               <input
                                                 type="date"
                                                 value={cwSectionScheduleDate}
-                                                onChange={(e) => setCwSectionScheduleDate(e.target.value)}
+                                                onChange={(e) =>
+                                                  setCwSectionScheduleDate(e.target.value)
+                                                }
                                                 className="h-9 w-full min-w-0 rounded-lg border border-white/15 bg-[#070b17] px-2 text-sm outline-none focus:border-emerald-400 sm:h-10 sm:rounded-xl sm:px-3"
                                               />
                                             </div>
@@ -1300,7 +1310,9 @@ export function TeacherWizardPopup(props: {
                                                 <select
                                                   value={String(cwSectionDurationMinutes)}
                                                   onChange={(e) =>
-                                                    setCwSectionDurationMinutes(Number(e.target.value))
+                                                    setCwSectionDurationMinutes(
+                                                      Number(e.target.value)
+                                                    )
                                                   }
                                                   className="h-9 w-full appearance-none rounded-lg border border-white/15 bg-[#070b17] px-2 pr-8 text-sm outline-none focus:border-emerald-400 sm:h-10 sm:rounded-xl sm:px-3 sm:pr-9"
                                                 >
@@ -1366,7 +1378,8 @@ export function TeacherWizardPopup(props: {
                                             <button
                                               type="button"
                                               onClick={async () => {
-                                                const isVerified = await ensureVerifiedForClassroomFlow();
+                                                const isVerified =
+                                                  await ensureVerifiedForClassroomFlow();
                                                 if (!isVerified) return;
                                                 if (activeTask === 0 && shouldGateGoogle()) {
                                                   openGoogleGate({ kind: "addSection" });
@@ -1383,7 +1396,8 @@ export function TeacherWizardPopup(props: {
                                         </div>
 
                                         <div className="text-[11px] leading-snug text-slate-500 sm:text-xs">
-                                          One section only. Syncs to Google Calendar when you launch.
+                                          One section only. Syncs to Google Calendar when you
+                                          launch.
                                         </div>
                                       </div>
                                     </div>
@@ -1434,24 +1448,34 @@ export function TeacherWizardPopup(props: {
                                       <div className="mt-2 grid gap-1.5 text-[11px] text-slate-200 sm:grid-cols-2 sm:text-xs">
                                         <div className="min-w-0">
                                           <span className="text-slate-500">Start:</span>{" "}
-                                          <span className="font-semibold">{cwSections[0].scheduleDate}</span>{" "}
+                                          <span className="font-semibold">
+                                            {cwSections[0].scheduleDate}
+                                          </span>{" "}
                                           <span className="text-slate-400">·</span>{" "}
-                                          <span className="font-semibold">{cwSections[0].scheduleTime}</span>
+                                          <span className="font-semibold">
+                                            {cwSections[0].scheduleTime}
+                                          </span>
                                         </div>
                                         <div className="min-w-0">
                                           <span className="text-slate-500">Duration:</span>{" "}
-                                          <span className="font-semibold">{cwSections[0].durationMinutes}m</span>
+                                          <span className="font-semibold">
+                                            {cwSections[0].durationMinutes}m
+                                          </span>
                                         </div>
                                         <div className="min-w-0 sm:col-span-2">
                                           <span className="text-slate-500">Repeat:</span>{" "}
                                           <span className="font-semibold">
-                                            {cwSections[0].repeatDays?.length ? cwSections[0].repeatDays.join(", ") : "—"}
+                                            {cwSections[0].repeatDays?.length
+                                              ? cwSections[0].repeatDays.join(", ")
+                                              : "—"}
                                           </span>
                                         </div>
                                         {cwSections[0].scheduleEndDate ? (
                                           <div className="min-w-0 sm:col-span-2">
                                             <span className="text-slate-500">End:</span>{" "}
-                                            <span className="font-semibold">{cwSections[0].scheduleEndDate}</span>
+                                            <span className="font-semibold">
+                                              {cwSections[0].scheduleEndDate}
+                                            </span>
                                           </div>
                                         ) : null}
                                       </div>
@@ -1508,10 +1532,7 @@ export function TeacherWizardPopup(props: {
                                     }
                                     void createClassroomFromWizard();
                                   }}
-                                  disabled={
-                                    creating ||
-                                    !cwName.trim()
-                                  }
+                                  disabled={creating || !cwName.trim()}
                                   className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-emerald-500 px-4 py-2.5 text-xs font-semibold text-black hover:bg-emerald-400 disabled:opacity-60 sm:text-sm"
                                 >
                                   {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
@@ -1533,7 +1554,9 @@ export function TeacherWizardPopup(props: {
                               props.mockNudgeSubmittedAttemptsByPostId
                             }
                             onCreateAssignment={props.onCreateAssignment}
-                            allowStructuredAssignmentCreate={props.allowNudgeStructuredAssignmentCreate !== false}
+                            allowStructuredAssignmentCreate={
+                              props.allowNudgeStructuredAssignmentCreate !== false
+                            }
                             onRequireVerifiedAction={props.onRequireVerifiedAction}
                             onMotivateStudents={props.onMotivateStudents}
                             toast={props.toast}
@@ -1563,8 +1586,8 @@ export function TeacherWizardPopup(props: {
                           />
                         ) : (
                           <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.02] p-4 text-sm text-slate-300">
-                            This task is not wired yet in the wizard. (Create classroom, assignment, webinar scheduling,
-                            PDF tests, and assignment progress are wired.)
+                            This task is not wired yet in the wizard. (Create classroom, assignment,
+                            webinar scheduling, PDF tests, and assignment progress are wired.)
                           </div>
                         )}
 
@@ -1586,7 +1609,7 @@ export function TeacherWizardPopup(props: {
                                 )}
                                 <button
                                   type="button"
-                                    onClick={() => void guardedNext()}
+                                  onClick={() => void guardedNext()}
                                   disabled={stepIdx >= stepCount - 1}
                                   className="inline-flex items-center gap-2 rounded-full bg-emerald-500 px-4 py-2 text-xs font-semibold text-black hover:bg-emerald-400 disabled:opacity-60"
                                 >
@@ -1637,7 +1660,9 @@ export function TeacherWizardPopup(props: {
             <DialogHeader className="border-b border-white/10 p-4 pb-3 sm:p-5 sm:pb-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <DialogTitle className="font-serif text-xl sm:text-2xl">Connect Google Calendar</DialogTitle>
+                  <DialogTitle className="font-serif text-xl sm:text-2xl">
+                    Connect Google Calendar
+                  </DialogTitle>
                   <p className="mt-1 text-sm text-slate-300">
                     Make sure to connect Google Calendar to work the class properly.
                   </p>
@@ -1703,8 +1728,8 @@ export function TeacherWizardPopup(props: {
                   <p className="mt-1 text-sm text-slate-300">
                     You started typing section info. For a clean setup, either{" "}
                     <span className="font-semibold text-slate-100">Clear</span> it, or complete the
-                    fields and click <span className="font-semibold text-slate-100">“+ Add section”</span>{" "}
-                    to save.
+                    fields and click{" "}
+                    <span className="font-semibold text-slate-100">“+ Add section”</span> to save.
                   </p>
                 </div>
                 <button
@@ -1844,4 +1869,3 @@ type TeacherWizardScoreRow = {
   total: number;
   submittedAt: string | null;
 };
-

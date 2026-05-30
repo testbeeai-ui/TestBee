@@ -1,20 +1,24 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Check, Copy, Loader2, Mail, MessageSquareShare, Trash2 } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { Check, Copy, Loader2, MessageSquareShare, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { OnboardingClickHerePointer } from "@/components/onboarding/OnboardingClickHerePointer";
 import {
-  buildBuddyInviteMailto,
   buildBuddyInviteShareText,
   buildWaShareUrl,
   createBuddyInvite,
-  isBuddyInviteEmail,
   revokeBuddyInvite,
   type BuddyPendingInvite,
 } from "@/lib/buddy/buddyClient";
+import {
+  markEarnBuddyCompanionLinkCopied,
+  markEarnBuddyCompanionLinkShared,
+  shouldShowEarnBuddyOnboardingHints,
+} from "@/lib/onboarding/earnBuddyCompanionOnboarding";
 
 type LearningBuddyEmptyStateProps = {
   pendingInvites: BuddyPendingInvite[];
@@ -41,16 +45,19 @@ export function LearningBuddyEmptyState({
   className,
 }: LearningBuddyEmptyStateProps) {
   const { toast } = useToast();
-  const [email, setEmail] = useState("");
+  const searchParams = useSearchParams();
+  const isOnboardingBuddy =
+    searchParams.get("onboarding_buddy") === "1" || shouldShowEarnBuddyOnboardingHints();
   const [shareUrl, setShareUrl] = useState<string>("");
   const [shareText, setShareText] = useState<string>("");
   const [creating, setCreating] = useState(false);
   const [copied, setCopied] = useState(false);
   const [revoking, setRevoking] = useState<string | null>(null);
 
-  const emailValid = isBuddyInviteEmail(email);
-
-  const ensureInvite = useCallback(async (): Promise<{ shareUrl: string; shareText: string } | null> => {
+  const ensureInvite = useCallback(async (): Promise<{
+    shareUrl: string;
+    shareText: string;
+  } | null> => {
     if (shareUrl && shareText) return { shareUrl, shareText };
     setCreating(true);
     try {
@@ -60,8 +67,7 @@ export function LearningBuddyEmptyState({
       onChange();
       return { shareUrl: result.shareUrl, shareText: result.waText };
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Couldn't create your buddy link.";
+      const message = error instanceof Error ? error.message : "Couldn't create your buddy link.";
       toast({ title: "Couldn't generate link", description: message, variant: "destructive" });
       return null;
     } finally {
@@ -81,23 +87,6 @@ export function LearningBuddyEmptyState({
     }
   }, [pendingInvites, shareUrl]);
 
-  const handleSendEmail = async () => {
-    if (!emailValid) {
-      toast({
-        title: "Enter a valid email",
-        description: "Add your buddy's email address to send the invite.",
-        variant: "destructive",
-      });
-      return;
-    }
-    const invite = await ensureInvite();
-    if (!invite) return;
-    const mailto = buildBuddyInviteMailto(email, invite.shareText);
-    if (typeof window !== "undefined") {
-      window.location.href = mailto;
-    }
-  };
-
   const handleWhatsApp = async () => {
     const invite = await ensureInvite();
     if (!invite) return;
@@ -105,6 +94,7 @@ export function LearningBuddyEmptyState({
     if (typeof window !== "undefined") {
       window.open(target, "_blank", "noopener,noreferrer");
     }
+    markEarnBuddyCompanionLinkShared();
   };
 
   const handleCopy = async () => {
@@ -113,6 +103,7 @@ export function LearningBuddyEmptyState({
     try {
       await navigator.clipboard.writeText(invite.shareUrl);
       setCopied(true);
+      markEarnBuddyCompanionLinkCopied();
       toast({ title: "Buddy link copied" });
       setTimeout(() => setCopied(false), 1500);
     } catch {
@@ -150,48 +141,11 @@ export function LearningBuddyEmptyState({
           Get a study buddy. Both of you grow faster.
         </h3>
         <p className="mt-1 text-[11.5px] leading-snug text-slate-400">
-          Send a private invite by email, or share your buddy link another way. You&apos;ll both
-          see each other&apos;s progress.
+          Share your private buddy link. You&apos;ll both see each other&apos;s progress.
         </p>
       </div>
 
       <div className="rounded-[10px] border border-white/10 bg-white/[0.025] p-3 space-y-2.5">
-        <div className="space-y-1">
-          <label
-            htmlFor="buddy-invite-email"
-            className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400"
-          >
-            Buddy&apos;s email address <span className="text-cyan-400 font-bold ml-1">(Coming soon)</span>
-          </label>
-          <Input
-            id="buddy-invite-email"
-            type="email"
-            autoComplete="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="Email invite coming soon"
-            disabled
-            className="h-9 rounded-lg border-white/10 bg-black/30 text-[13px] opacity-50 cursor-not-allowed"
-          />
-          <p className="text-[10px] text-slate-500">
-            Opens your email app with the invite message ready — you send it from your inbox.
-          </p>
-        </div>
-
-        <Button
-          type="button"
-          onClick={handleSendEmail}
-          disabled
-          className="h-9 w-full rounded-lg bg-cyan-500 px-3 text-[12.5px] font-bold text-cyan-950 hover:bg-cyan-400 disabled:opacity-50"
-        >
-          {creating ? (
-            <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <Mail className="mr-1.5 h-3.5 w-3.5" />
-          )}
-          Send email invite (Coming soon)
-        </Button>
-
         {shareUrl ? (
           <div className="rounded-md border border-white/10 bg-black/30 px-2.5 py-1.5 text-[11px] text-slate-300 break-all">
             {shareUrl}
@@ -207,34 +161,45 @@ export function LearningBuddyEmptyState({
         </div>
 
         <div className="flex flex-col gap-2 sm:flex-row">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleCopy}
-            disabled={creating}
-            className="h-9 flex-1 rounded-lg border-white/15 bg-white/[0.04] px-3 text-[12.5px] font-semibold text-slate-200 hover:bg-white/[0.08]"
-          >
-            {copied ? (
-              <Check className="mr-1.5 h-3.5 w-3.5 text-emerald-400" />
-            ) : (
-              <Copy className="mr-1.5 h-3.5 w-3.5" />
-            )}
-            {copied ? "Copied" : "Copy link"}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleWhatsApp}
-            disabled={creating}
-            className="h-9 flex-1 rounded-lg border-emerald-500/35 bg-emerald-500/[0.08] px-3 text-[12.5px] font-semibold text-emerald-100 hover:bg-emerald-500/15"
-          >
-            {creating ? (
-              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <MessageSquareShare className="mr-1.5 h-3.5 w-3.5" />
-            )}
-            WhatsApp
-          </Button>
+          <div className="relative flex-1">
+            {isOnboardingBuddy ? (
+              <div className="pointer-events-none absolute -top-11 left-1/2 z-20 -translate-x-1/2">
+                <OnboardingClickHerePointer label="Copy link" />
+              </div>
+            ) : null}
+            <Button
+              type="button"
+              variant="outline"
+              data-earn-buddy-copy="1"
+              onClick={handleCopy}
+              disabled={creating}
+              className="h-9 w-full rounded-lg border-white/15 bg-white/[0.04] px-3 text-[12.5px] font-semibold text-slate-200 hover:bg-white/[0.08]"
+            >
+              {copied ? (
+                <Check className="mr-1.5 h-3.5 w-3.5 text-emerald-400" />
+              ) : (
+                <Copy className="mr-1.5 h-3.5 w-3.5" />
+              )}
+              {copied ? "Copied" : "Copy link"}
+            </Button>
+          </div>
+          <div className="relative flex-1">
+            <Button
+              type="button"
+              variant="outline"
+              data-earn-buddy-share="1"
+              onClick={handleWhatsApp}
+              disabled={creating}
+              className="h-9 w-full rounded-lg border-emerald-500/35 bg-emerald-500/[0.08] px-3 text-[12.5px] font-semibold text-emerald-100 hover:bg-emerald-500/15"
+            >
+              {creating ? (
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <MessageSquareShare className="mr-1.5 h-3.5 w-3.5" />
+              )}
+              WhatsApp
+            </Button>
+          </div>
         </div>
 
         <p className="text-[11px] leading-snug text-amber-300/80">

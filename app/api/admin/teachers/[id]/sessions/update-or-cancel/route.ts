@@ -47,7 +47,10 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     if (sErr) return NextResponse.json({ error: sErr.message }, { status: 500 });
     if (!session) return NextResponse.json({ error: "Session not found" }, { status: 404 });
     if ((session as any).teacher_id !== teacherId) {
-      return NextResponse.json({ error: "Session does not belong to this teacher" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Session does not belong to this teacher" },
+        { status: 400 }
+      );
     }
 
     if (action === "cancel") {
@@ -70,7 +73,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
 
     const patch: Record<string, unknown> = {};
     if (typeof body.title === "string" && body.title.trim()) patch.title = body.title.trim();
-    if (typeof body.scheduledAt === "string" && body.scheduledAt.trim()) patch.scheduled_at = body.scheduledAt.trim();
+    if (typeof body.scheduledAt === "string" && body.scheduledAt.trim())
+      patch.scheduled_at = body.scheduledAt.trim();
     if (Number.isFinite(body.durationMinutes) && Number(body.durationMinutes) > 0)
       patch.duration_minutes = Math.floor(Number(body.durationMinutes));
     if (typeof body.meetLink === "string") patch.meet_link = body.meetLink.trim() || null;
@@ -89,7 +93,11 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       targetTeacherId: teacherId,
       actionType: "teacher_session_update",
       reason: notes,
-      oldState: { sessionId, title: (session as any).title, scheduledAt: (session as any).scheduled_at },
+      oldState: {
+        sessionId,
+        title: (session as any).title,
+        scheduledAt: (session as any).scheduled_at,
+      },
       newState: { sessionId, ...patch },
     });
 
@@ -99,4 +107,3 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
-

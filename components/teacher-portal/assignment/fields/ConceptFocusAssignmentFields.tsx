@@ -310,7 +310,9 @@ export default function ConceptFocusAssignmentFields({
             ) : null}
           </div>
         ) : selectedNode ? (
-          <p className="text-[11px] leading-snug text-amber-200/90">This lesson has no subtopics listed yet.</p>
+          <p className="text-[11px] leading-snug text-amber-200/90">
+            This lesson has no subtopics listed yet.
+          </p>
         ) : null}
       </div>
 

@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/integrations/supabase/server";
-import { getPublicProfile, getPublicProfileWithProfileRow } from "@/lib/profile/publicProfileService";
+import {
+  getPublicProfile,
+  getPublicProfileWithProfileRow,
+} from "@/lib/profile/publicProfileService";
 
 /**
  * Ensures a profiles row exists for a given userId by backfilling from auth.users.

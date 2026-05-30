@@ -20,9 +20,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import {
-  LEARNING_BUDDY_REFER_TAB_URL,
-} from "@/lib/buddy/learningBuddyRoutes";
+import { LEARNING_BUDDY_REFER_TAB_URL } from "@/lib/buddy/learningBuddyRoutes";
 import {
   fetchBuddyState,
   revokeBuddyInvite,
@@ -30,6 +28,8 @@ import {
   type BuddyPendingInvite,
   type BuddyProfile,
 } from "@/lib/buddy/buddyClient";
+import { maybeMarkEarnBuddyOnboardingFromBuddyActivation } from "@/lib/subscription/freeTrialClient";
+import { markEarnBuddyCompanionLinkCopied } from "@/lib/onboarding/earnBuddyCompanionOnboarding";
 import { BuddyDetailPanel } from "@/components/refer-earn/learning-buddy-advanced/BuddyDetailPanel";
 import { PrivacySettingsModal } from "@/components/refer-earn/learning-buddy-advanced/PrivacySettingsModal";
 import { AddBuddyModal } from "@/components/refer-earn/learning-buddy-advanced/AddBuddyModal";
@@ -80,6 +80,8 @@ export function LearningBuddyAdvancedShell({ className }: LearningBuddyAdvancedS
     try {
       const res = await fetchBuddyState();
       if (gen !== loadGenRef.current || loadForUserId !== user?.id) return;
+      const joined = Boolean(res.hasInvitedBuddyJoined ?? res.hasBuddyInviteActivated);
+      maybeMarkEarnBuddyOnboardingFromBuddyActivation(joined);
       const list = res.buddies.map(withBuddyRdm);
       setBuddies(list);
       setPendingInvites(res.pendingInvites);
@@ -176,7 +178,10 @@ export function LearningBuddyAdvancedShell({ className }: LearningBuddyAdvancedS
         ? `${window.location.origin}/buddy-join/${token}`
         : `/buddy-join/${token}`;
     void navigator.clipboard.writeText(url).then(
-      () => toast({ title: "Link copied" }),
+      () => {
+        toast({ title: "Link copied" });
+        markEarnBuddyCompanionLinkCopied();
+      },
       () =>
         toast({
           title: "Couldn't copy",
@@ -386,7 +391,7 @@ export function LearningBuddyAdvancedShell({ className }: LearningBuddyAdvancedS
               <UserPlus className="mr-1.5 h-4 w-4" />
               Invite a buddy
             </Button>
-            <p className="mt-1.5 text-center text-[10px] text-slate-500">Email · link · WhatsApp</p>
+            <p className="mt-1.5 text-center text-[10px] text-slate-500">Link · WhatsApp</p>
           </div>
         </aside>
 

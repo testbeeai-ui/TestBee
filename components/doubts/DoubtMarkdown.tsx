@@ -25,7 +25,9 @@ export default function DoubtMarkdown({
   const src = stripSarvamThinking(content?.trim() ?? "");
   if (!src) return null;
 
-  const h12 = compact ? "text-xs font-bold mt-1 mb-0.5 first:mt-0" : "text-base font-bold mt-2 mb-1 first:mt-0";
+  const h12 = compact
+    ? "text-xs font-bold mt-1 mb-0.5 first:mt-0"
+    : "text-base font-bold mt-2 mb-1 first:mt-0";
   const h3Cls = compact
     ? "text-[11px] font-bold mt-1 mb-0 first:mt-0 leading-snug"
     : "text-sm font-bold mt-2 mb-0.5 first:mt-0";
@@ -38,7 +40,9 @@ export default function DoubtMarkdown({
     : "text-primary font-semibold underline underline-offset-2 hover:text-primary/90";
 
   return (
-    <div className={`doubt-markdown${compact ? " doubt-markdown-compact" : ""} ${className}`.trim()}>
+    <div
+      className={`doubt-markdown${compact ? " doubt-markdown-compact" : ""} ${className}`.trim()}
+    >
       <ReactMarkdown
         remarkPlugins={[remarkMath]}
         rehypePlugins={[rehypeKatex]}
@@ -69,13 +73,17 @@ export default function DoubtMarkdown({
             ),
           ul: ({ children }) =>
             compact ? (
-              <ul className="my-1 list-disc space-y-0.5 pl-4 text-[11px] leading-snug">{children}</ul>
+              <ul className="my-1 list-disc space-y-0.5 pl-4 text-[11px] leading-snug">
+                {children}
+              </ul>
             ) : (
               <ul>{children}</ul>
             ),
           ol: ({ children }) =>
             compact ? (
-              <ol className="my-1 list-decimal space-y-0.5 pl-4 text-[11px] leading-snug">{children}</ol>
+              <ol className="my-1 list-decimal space-y-0.5 pl-4 text-[11px] leading-snug">
+                {children}
+              </ol>
             ) : (
               <ol>{children}</ol>
             ),

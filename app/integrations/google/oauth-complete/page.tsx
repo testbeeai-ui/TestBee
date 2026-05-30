@@ -41,7 +41,8 @@ function OAuthCompleteInner() {
     <div className="flex min-h-[40vh] flex-col items-center justify-center gap-2 bg-[#07070f] p-8 text-center">
       <p className="text-sm font-medium text-slate-200">Google Calendar</p>
       <p className="max-w-sm text-xs text-slate-400">
-        Closing this window… Your EduBlast tab should update automatically. If this tab stays open, go back to EduBlast.
+        Closing this window… Your EduBlast tab should update automatically. If this tab stays open,
+        go back to EduBlast.
       </p>
     </div>
   );

@@ -41,7 +41,8 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       .limit(limit);
 
     const missingTable = Boolean(
-      res.error && /admin_user_actions|schema cache|does not exist|relation/i.test(res.error.message)
+      res.error &&
+      /admin_user_actions|schema cache|does not exist|relation/i.test(res.error.message)
     );
     if (res.error && !missingTable) {
       return NextResponse.json({ error: res.error.message }, { status: 500 });
@@ -61,4 +62,3 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
-

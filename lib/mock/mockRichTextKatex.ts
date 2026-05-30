@@ -89,7 +89,10 @@ export function patchMockHtmlImages(html: string): string {
     }
 
     if (TESTBEE_QIMAGE_RE.test(src)) {
-      attrs = attrs.replace(/\bsrc\s*=\s*"[^"]*"/i, `src="/api/mock/question-image?url=${encodeURIComponent(src)}"`);
+      attrs = attrs.replace(
+        /\bsrc\s*=\s*"[^"]*"/i,
+        `src="/api/mock/question-image?url=${encodeURIComponent(src)}"`
+      );
     }
 
     return `<img${attrs}>`;

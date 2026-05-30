@@ -7,7 +7,10 @@ import type { SavedRevisionCard } from "@/types";
 import { incrementPrepCalendarDay, localDayISO } from "@/lib/dashboard/prepCalendarClient";
 import { useUserStore } from "@/store/useUserStore";
 import { cn } from "@/lib/utils";
-import { REVISION_DASHBOARD_ROW_STYLES, REVISION_NAV_LINKS } from "@/lib/dashboard/revisionNavAccents";
+import {
+  REVISION_DASHBOARD_ROW_STYLES,
+  REVISION_NAV_LINKS,
+} from "@/lib/dashboard/revisionNavAccents";
 import { fetchSavedQuestionRows } from "@/lib/saved/savedQuestionsService";
 
 interface RevisionInstaCueSectionProps {
@@ -24,6 +27,8 @@ export default function RevisionInstaCueSection({
   onCalendarActivity,
 }: RevisionInstaCueSectionProps) {
   const user = useUserStore((s) => s.user);
+  const linkedAuthUserId = useUserStore((s) => s.linkedAuthUserId);
+  const storeMatchesSession = Boolean(userId && linkedAuthUserId === userId);
   const revisionLoggedRef = useRef(false);
   /** Same source as /revision Saved Questions tab (DB + local store merge). */
   const [savedQuestionIdsFromDb, setSavedQuestionIdsFromDb] = useState<string[]>([]);
@@ -54,13 +59,13 @@ export default function RevisionInstaCueSection({
   }, [userId, savedQuestionsStoreKey]);
 
   const navItems = useMemo(() => {
-    const savedIds = user?.savedQuestions ?? [];
+    const savedIds = storeMatchesSession ? (user?.savedQuestions ?? []) : [];
     const savedQ = new Set([...savedQuestionIdsFromDb, ...savedIds]).size;
-    const bits = user?.savedBits?.length ?? 0;
-    const formulas = user?.savedFormulas?.length ?? 0;
-    const instacue = user?.savedRevisionCards?.length ?? cards.length;
-    const units = user?.savedRevisionUnits?.length ?? 0;
-    const community = user?.savedCommunityPosts?.length ?? 0;
+    const bits = storeMatchesSession ? (user?.savedBits?.length ?? 0) : 0;
+    const formulas = storeMatchesSession ? (user?.savedFormulas?.length ?? 0) : 0;
+    const instacue = storeMatchesSession ? (user?.savedRevisionCards?.length ?? cards.length) : 0;
+    const units = storeMatchesSession ? (user?.savedRevisionUnits?.length ?? 0) : 0;
+    const community = storeMatchesSession ? (user?.savedCommunityPosts?.length ?? 0) : 0;
     const countById: Record<string, number> = {
       instacue,
       units,
@@ -72,7 +77,7 @@ export default function RevisionInstaCueSection({
       ...item,
       count: countById[item.id] ?? 0,
     }));
-  }, [user, cards.length, savedQuestionIdsFromDb]);
+  }, [user, cards.length, savedQuestionIdsFromDb, storeMatchesSession]);
 
   useEffect(() => {
     if (cards.length === 0) {

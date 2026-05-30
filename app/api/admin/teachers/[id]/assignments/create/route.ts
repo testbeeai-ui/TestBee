@@ -40,7 +40,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     if (!notes) return NextResponse.json({ error: "notes is required for audit" }, { status: 400 });
 
     const classroomId = typeof body.classroomId === "string" ? body.classroomId.trim() : "";
-    if (!classroomId) return NextResponse.json({ error: "classroomId is required" }, { status: 400 });
+    if (!classroomId)
+      return NextResponse.json({ error: "classroomId is required" }, { status: 400 });
 
     const { data: classroom, error: cErr } = await (admin as any)
       .from("classrooms")
@@ -50,7 +51,10 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     if (cErr) return NextResponse.json({ error: cErr.message }, { status: 500 });
     if (!classroom) return NextResponse.json({ error: "Classroom not found" }, { status: 404 });
     if (classroom.teacher_id !== teacherId) {
-      return NextResponse.json({ error: "Classroom does not belong to this teacher" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Classroom does not belong to this teacher" },
+        { status: 400 }
+      );
     }
 
     const created = await createClassroomAssignment(
@@ -58,7 +62,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         teacherId,
         classroomId,
         sectionId: typeof body.sectionId === "string" ? body.sectionId : null,
-        assignmentType: typeof body.assignmentType === "string" ? body.assignmentType : "assignment",
+        assignmentType:
+          typeof body.assignmentType === "string" ? body.assignmentType : "assignment",
         title: typeof body.title === "string" ? body.title : "",
         dueDate: typeof body.dueDate === "string" ? body.dueDate : null,
         assignToLabel: typeof body.assignToLabel === "string" ? body.assignToLabel : "All students",
@@ -92,4 +97,3 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
-

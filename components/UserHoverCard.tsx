@@ -5,14 +5,7 @@ import Link from "next/link";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import type { PublicProfile } from "@/lib/profile/publicProfileService";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  HelpCircle,
-  MessageSquare,
-  CheckCircle2,
-  Zap,
-  ChevronRight,
-  Flame,
-} from "lucide-react";
+import { HelpCircle, MessageSquare, CheckCircle2, Zap, ChevronRight, Flame } from "lucide-react";
 
 const SUBJECT_COLORS: Record<string, string> = {
   physics: "bg-blue-500",

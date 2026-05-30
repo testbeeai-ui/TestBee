@@ -13,15 +13,19 @@ const SARVAM_OUTPUT_TOKENS_MIN = 64;
 /** Hard ceiling so misconfigured env cannot blow past provider limits */
 const SARVAM_OUTPUT_TOKENS_ABS_MAX = 32_768;
 
+/** Per-call prompt slice caps in `sarvamChatCompletion` (chars). */
+export const SARVAM_SYSTEM_PROMPT_MAX_CHARS = 8000;
+export const SARVAM_USER_CONTENT_MAX_CHARS = 6000;
+
 export function getSarvamGyanModel(): string {
   return process.env.SARVAM_GYAN_MODEL?.trim() || process.env.SARVAM_MODEL?.trim() || "sarvam-m";
 }
 
 /**
  * Max completion tokens allowed for this deployment.
- * Default **2048** — this is the model-side hard limit for `sarvam-m`. Requesting more
- * causes Sarvam to reject with HTTP 400 ("Bad Request"). Set `SARVAM_MAX_OUTPUT_TOKENS`
- * (integer) only if you have upgraded to a larger Sarvam model that accepts more tokens.
+ * Default **4096** (override with `SARVAM_MAX_OUTPUT_TOKENS`). Legacy `sarvam-m` may reject
+ * values above 2048 — use POST `/api/admin/sarvam-limits` probe in Gyan bot admin to find the
+ * highest OK max_tokens for your model/key.
  */
 export function getSarvamMaxOutputTokensCap(): number {
   const raw = process.env.SARVAM_MAX_OUTPUT_TOKENS?.trim();
@@ -143,7 +147,10 @@ export function stripUntaggedReasoning(text: string): string {
     }
     return !REASONING_LINE_RE.test(t);
   });
-  return kept.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+  return kept
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 function stripUnclosedThinkingBlocks(text: string): string {
@@ -308,8 +315,14 @@ export async function sarvamChatCompletion(params: {
         model,
         messages: [
           // Hard caps after upstream truncation (Gyan policy + RAG) — avoids accidental token bombs
-          { role: "system", content: params.systemPrompt.slice(0, 8000) },
-          { role: "user", content: params.userContent.slice(0, 6000) },
+          {
+            role: "system",
+            content: params.systemPrompt.slice(0, SARVAM_SYSTEM_PROMPT_MAX_CHARS),
+          },
+          {
+            role: "user",
+            content: params.userContent.slice(0, SARVAM_USER_CONTENT_MAX_CHARS),
+          },
         ],
         temperature,
         max_tokens,

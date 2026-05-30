@@ -2,11 +2,7 @@ import { NextResponse } from "next/server";
 import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
 import { isAdminUser } from "@/lib/admin/admin";
 import { createAdminClient } from "@/integrations/supabase/server";
-import {
-  GYAN_STUDENT_PERSONAS,
-  PROF_PI_CONFIG,
-  getGyanBotSeedRdm,
-} from "@/lib/gyanBotPersonas";
+import { GYAN_STUDENT_PERSONAS, PROF_PI_CONFIG, getGyanBotSeedRdm } from "@/lib/gyanBotPersonas";
 
 const SEED_PASSWORD = process.env.GYAN_BOT_SEED_PASSWORD?.trim() || "GyanBotSeed2025!";
 

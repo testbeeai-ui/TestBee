@@ -16,6 +16,8 @@ export type TeacherTestQuestion = {
   options: string[];
   correctAnswerIndex: number | null;
   solution: string;
+  questionHtml?: string | null;
+  solutionHtml?: string | null;
 };
 
 type Bucket = {

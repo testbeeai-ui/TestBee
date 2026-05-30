@@ -80,8 +80,8 @@ export default function ExploreCommunityPage() {
               Community — your network
             </h1>
             <p className="text-[13px] text-muted-foreground sm:text-sm">
-              From your learning network. Use <span className="text-foreground/80">Filters</span> to narrow
-              subject and page size; paginate at the bottom.
+              From your learning network. Use <span className="text-foreground/80">Filters</span> to
+              narrow subject and page size; paginate at the bottom.
             </p>
           </header>
 

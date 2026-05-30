@@ -1,12 +1,6 @@
 /** Shared visual tokens for Learning Buddy Advanced (dark, high-contrast). */
 
-export type BuddyCardAccent =
-  | "teal"
-  | "blue"
-  | "amber"
-  | "lime"
-  | "purple"
-  | "rose";
+export type BuddyCardAccent = "teal" | "blue" | "amber" | "lime" | "purple" | "rose";
 
 export const BUDDY_CARD_ACCENT: Record<
   BuddyCardAccent,
@@ -89,5 +83,4 @@ export const lbAdvancedTopbar =
 export const lbAdvancedRoster =
   "relative z-10 flex flex-col border-white/[0.06] bg-gradient-to-b from-[#101622]/98 to-[#0c1018]/98 md:border-r";
 
-export const lbAdvancedDetailBg =
-  "relative flex min-h-[320px] min-w-0 flex-col bg-[#070a10]/80";
+export const lbAdvancedDetailBg = "relative flex min-h-[320px] min-w-0 flex-col bg-[#070a10]/80";

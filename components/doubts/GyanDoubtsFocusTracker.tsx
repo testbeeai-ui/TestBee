@@ -5,10 +5,12 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { getClientApiAuthHeaders } from "@/lib/auth/clientApiAuth";
 import { localDayBoundsIso } from "@/lib/dashboard/dashboardDayActivity";
-import { dispatchStudyDayBumped } from "@/lib/dashboard/studyDayBumpEvents";
+import { dispatchGyanDailyChecklistRefresh } from "@/lib/dashboard/studyDayBumpEvents";
+import { isDailyChecklistCompanionRetryActive } from "@/lib/onboarding/dailyChecklistCompanionRetry";
 import { cn } from "@/lib/utils";
 
 const FLUSH_EVERY_MS = 25_000;
+const GYAN_PRESENCE_MS = 2 * 60 * 1000;
 const TICK_MS = 1000;
 
 /** Milliseconds accumulated this session on Gyan++ not yet PATCHed to the server (for live UI). */
@@ -40,6 +42,7 @@ export function GyanDoubtsFocusTracker({ children }: { children?: ReactNode }) {
   const pendingRef = useRef(0);
   const lastTickRef = useRef(0);
   const lastFlushRef = useRef(0);
+  const lastGyanPresenceRef = useRef(0);
 
   useEffect(() => {
     if (!user?.id || !onGyan) {
@@ -50,8 +53,30 @@ export function GyanDoubtsFocusTracker({ children }: { children?: ReactNode }) {
     }
     lastTickRef.current = Date.now();
     lastFlushRef.current = Date.now();
+    lastGyanPresenceRef.current = 0;
+
+    const pingGyanPresence = async () => {
+      try {
+        const headers = await getClientApiAuthHeaders();
+        await fetch("/api/user/gyan-presence", {
+          method: "POST",
+          headers: { ...headers, "Content-Type": "application/json" },
+          body: "{}",
+        });
+      } catch {
+        /* non-fatal */
+      }
+    };
+
+    void pingGyanPresence();
 
     const flush = async () => {
+      /** Day-2+ streak Gyan task uses companion steps only — skip home checklist DB writes. */
+      if (isDailyChecklistCompanionRetryActive("gyan_plus")) {
+        pendingRef.current = 0;
+        setPendingDisplay(0);
+        return;
+      }
       const chunk = pendingRef.current;
       if (chunk < 1000) return;
       pendingRef.current = 0;
@@ -64,7 +89,7 @@ export function GyanDoubtsFocusTracker({ children }: { children?: ReactNode }) {
           body: JSON.stringify({ action: "doubts_focus", today, addMs: chunk }),
         });
         if (!res.ok) pendingRef.current += chunk;
-        else dispatchStudyDayBumped({ day: today, deltaMs: chunk });
+        else dispatchGyanDailyChecklistRefresh();
       } catch {
         pendingRef.current += chunk;
       }
@@ -82,6 +107,10 @@ export function GyanDoubtsFocusTracker({ children }: { children?: ReactNode }) {
       if (now - lastFlushRef.current >= FLUSH_EVERY_MS) {
         lastFlushRef.current = now;
         void flush();
+      }
+      if (now - lastGyanPresenceRef.current >= GYAN_PRESENCE_MS) {
+        lastGyanPresenceRef.current = now;
+        void pingGyanPresence();
       }
     }, TICK_MS);
 

@@ -6,7 +6,13 @@ import {
   type AssignmentTaskKind,
 } from "@/lib/classroom/assignmentTasks";
 
-const ASSIGNMENT_POST_TYPES = ["assignment", "quiz", "mock", "past_paper", "Concept Focus"] as const;
+const ASSIGNMENT_POST_TYPES = [
+  "assignment",
+  "quiz",
+  "mock",
+  "past_paper",
+  "Concept Focus",
+] as const;
 
 /**
  * Marks every student-visible assignment task whose `kind` is in `kinds` as complete

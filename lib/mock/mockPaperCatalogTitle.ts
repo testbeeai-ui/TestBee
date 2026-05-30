@@ -11,16 +11,25 @@ function stripExamPrefixFromSetName(exam: string, examSetName: string): string {
   let setPart = examSetName.trim();
   const ex = exam.trim();
   if (ex && setPart.toLowerCase().startsWith(ex.toLowerCase())) {
-    setPart = setPart.slice(ex.length).replace(/^[\s—\-–·|:]+/i, "").trim();
+    setPart = setPart
+      .slice(ex.length)
+      .replace(/^[\s—\-–·|:]+/i, "")
+      .trim();
   }
   return setPart;
 }
 
 /** Build DB / UI title for mock imports: `JEE Main 2024 — Mock Paper 10` (no duplicated exam name). */
-export function buildMockPaperCatalogTitle(examName: string, examTypeName: string, examSetName: string): string {
+export function buildMockPaperCatalogTitle(
+  examName: string,
+  examTypeName: string,
+  examSetName: string
+): string {
   const exam = examName.trim() || "JEE Main";
-  const year = yearFromCatalogTags([examTypeName.trim()]) ?? examTypeName.match(/\b(20\d{2})\b/)?.[1] ?? null;
-  const setPart = stripExamPrefixFromSetName(exam, examSetName.trim()) || examSetName.trim() || "Mock paper";
+  const year =
+    yearFromCatalogTags([examTypeName.trim()]) ?? examTypeName.match(/\b(20\d{2})\b/)?.[1] ?? null;
+  const setPart =
+    stripExamPrefixFromSetName(exam, examSetName.trim()) || examSetName.trim() || "Mock paper";
   if (year) return `${exam} ${year} — ${setPart}`;
   return `${exam} — ${setPart}`;
 }

@@ -56,10 +56,7 @@ export function TeacherRdmCostsProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("focus", onFocus);
   }, [refresh]);
 
-  const value = useMemo(
-    () => ({ costs, loading, refresh }),
-    [costs, loading, refresh]
-  );
+  const value = useMemo(() => ({ costs, loading, refresh }), [costs, loading, refresh]);
 
   return (
     <TeacherRdmCostsContext.Provider value={value}>{children}</TeacherRdmCostsContext.Provider>

@@ -36,7 +36,10 @@ export function formatAssignmentCardDate(iso: string | null): string | null {
 }
 
 /** Due datetime is strictly before now — surfaces under Past due. Open-ended (no due date) stays Active. */
-export function isTeacherAssignmentPastDue(item: TeacherPortalAssignmentItem, nowMs: number): boolean {
+export function isTeacherAssignmentPastDue(
+  item: TeacherPortalAssignmentItem,
+  nowMs: number
+): boolean {
   const raw = item.dueDateIso;
   if (typeof raw !== "string" || !raw.trim()) return false;
   const t = Date.parse(raw);
@@ -62,4 +65,3 @@ export function visibleTaskCountForCard(item: TeacherPortalAssignmentItem): numb
   const visible = tasks.filter((t) => t.visible_to_student).length;
   return visible > 0 ? visible : tasks.length;
 }
-

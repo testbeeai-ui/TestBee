@@ -12,12 +12,14 @@ const options = [
 
 export default function ThemeSwitcher() {
   const { theme, setTheme } = useTheme();
-  const current = theme ?? "light";
+  const current = theme ?? "dark";
 
   return (
     <div className="space-y-3">
       <Label className="text-sm font-extrabold text-foreground">Appearance</Label>
-      <p className="text-xs text-muted-foreground">Choose light (default) or dark mode.</p>
+      <p className="text-xs text-muted-foreground">
+        Dark mode is the default. Choose light or system if you prefer.
+      </p>
       <div className="flex flex-wrap gap-2">
         {options.map(({ value, label, icon: Icon }) => (
           <button

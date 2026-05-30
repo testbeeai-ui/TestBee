@@ -84,7 +84,8 @@ function withAssignmentTrackingParams(
     task.kind === "chapter_quiz" ||
     task.kind === "mock_paper" ||
     task.kind === "past_paper" ||
-    href.startsWith("/mock") || href.startsWith("/mock-test");
+    href.startsWith("/mock") ||
+    href.startsWith("/mock-test");
   if (!shouldTrack) return href;
   try {
     const isAbsolute = /^https?:\/\//i.test(href);
@@ -205,9 +206,13 @@ export default function PostDetailModal({
 
       const normalizeHref = (href: string) => {
         try {
-          const url = href.startsWith("http") ? new URL(href) : new URL(href, "https://edublast.local");
+          const url = href.startsWith("http")
+            ? new URL(href)
+            : new URL(href, "https://edublast.local");
           if (url.searchParams.get("panel") === "quiz") url.searchParams.set("panel", "concepts");
-          return href.startsWith("http") ? url.toString() : `${url.pathname}${url.search}${url.hash}`;
+          return href.startsWith("http")
+            ? url.toString()
+            : `${url.pathname}${url.search}${url.hash}`;
         } catch {
           return href;
         }
@@ -308,11 +313,7 @@ export default function PostDetailModal({
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent
         className={`max-h-[90vh] overflow-y-auto rounded-2xl w-[96vw] ${
-          gyanStudent
-            ? "max-w-xl sm:max-w-2xl"
-            : isAssignmentLike
-              ? "max-w-5xl"
-              : "max-w-lg"
+          gyanStudent ? "max-w-xl sm:max-w-2xl" : isAssignmentLike ? "max-w-5xl" : "max-w-lg"
         }`}
       >
         <DialogHeader>
@@ -485,17 +486,19 @@ export default function PostDetailModal({
                             How to complete
                           </p>
                           <p className="text-sm leading-relaxed text-muted-foreground">
-                            {canEdit
-                              ? "Use the resource buttons below to open the assignment content and review student submissions."
-                              : (
-                                  <>
-                                    Complete the tasks on the right. You can either{" "}
-                                    <span className="font-semibold text-foreground">submit a response</span>{" "}
-                                    (text/links) or simply{" "}
-                                    <span className="font-semibold text-foreground">Mark as done</span>{" "}
-                                    when finished.
-                                  </>
-                                )}
+                            {canEdit ? (
+                              "Use the resource buttons below to open the assignment content and review student submissions."
+                            ) : (
+                              <>
+                                Complete the tasks on the right. You can either{" "}
+                                <span className="font-semibold text-foreground">
+                                  submit a response
+                                </span>{" "}
+                                (text/links) or simply{" "}
+                                <span className="font-semibold text-foreground">Mark as done</span>{" "}
+                                when finished.
+                              </>
+                            )}
                           </p>
                         </div>
                       </div>
@@ -538,13 +541,16 @@ export default function PostDetailModal({
                       <ul className="space-y-2 text-sm leading-relaxed text-foreground/95 sm:text-[15px]">
                         {assignmentTaskHints.hasLink ? (
                           <li>
-                            - {canEdit
+                            -{" "}
+                            {canEdit
                               ? "Use the Resources buttons above to open the link."
                               : "Click the task button on the right to open the link."}
                           </li>
                         ) : null}
                         {assignmentTaskHints.hasMcq ? (
-                          <li>- For MCQs/mock: submit to record your score (retry anytime to improve).</li>
+                          <li>
+                            - For MCQs/mock: submit to record your score (retry anytime to improve).
+                          </li>
                         ) : null}
                         {assignmentTaskHints.hasCustom ? (
                           <li>
@@ -552,7 +558,9 @@ export default function PostDetailModal({
                             <span className="font-semibold">Submit response</span>.
                           </li>
                         ) : null}
-                        <li>- Complete what the task asks, then come back and you’ll see it tracked.</li>
+                        <li>
+                          - Complete what the task asks, then come back and you’ll see it tracked.
+                        </li>
                       </ul>
                       {assignmentInstructions ? (
                         <div className="rounded-xl border border-border/80 bg-muted/40 px-3 py-3 text-sm">
@@ -643,16 +651,16 @@ export default function PostDetailModal({
                   post.type === "mock" ||
                   post.type === "past_paper" ||
                   post.type === "Concept Focus") ? (
-                  <AssignmentTaskChecklist
-                    key={post.id}
-                    classroomId={classroomId}
-                    postId={post.id}
-                    postType={post.type}
-                    postTitle={post.title}
-                    isTeacherView={canEdit}
-                    initialTasks={checklistInitialTasks}
-                  />
-                ) : null}
+                <AssignmentTaskChecklist
+                  key={post.id}
+                  classroomId={classroomId}
+                  postId={post.id}
+                  postType={post.type}
+                  postTitle={post.title}
+                  isTeacherView={canEdit}
+                  initialTasks={checklistInitialTasks}
+                />
+              ) : null}
               <p className="text-[11px] text-muted-foreground/80">
                 {post.profiles?.name || "Teacher"} ·{" "}
                 {format(new Date(post.created_at), "MMM d, yyyy h:mm a")}

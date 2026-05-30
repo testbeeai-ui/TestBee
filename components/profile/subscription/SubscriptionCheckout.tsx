@@ -1,7 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { Receipt, Lock, Smartphone, CreditCard, Building2, Wallet, ShieldCheck, Info } from "lucide-react";
+import {
+  Receipt,
+  Lock,
+  Smartphone,
+  CreditCard,
+  Building2,
+  Wallet,
+  ShieldCheck,
+  Info,
+} from "lucide-react";
 
 const TABS = [
   { id: "upi", label: "UPI", icon: Smartphone },
@@ -39,7 +48,9 @@ export default function SubscriptionCheckout() {
 
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-sm font-semibold text-foreground dark:text-white">Complete payment via Razorpay</p>
+      <p className="text-sm font-semibold text-foreground dark:text-white">
+        Complete payment via Razorpay
+      </p>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {/* Order summary */}
@@ -47,15 +58,21 @@ export default function SubscriptionCheckout() {
           <div className="rounded-xl border border-border bg-card p-4 dark:border-white/10 dark:bg-[#0c1017]">
             <div className="flex items-center gap-2 border-b border-border pb-3 dark:border-white/10">
               <Receipt className="h-4 w-4 text-emerald-400" />
-              <span className="text-sm font-semibold text-foreground dark:text-white">Order summary</span>
+              <span className="text-sm font-semibold text-foreground dark:text-white">
+                Order summary
+              </span>
             </div>
             <div className="mt-3 flex flex-col gap-2 text-xs">
               <div className="flex justify-between border-b border-border pb-2 dark:border-white/10">
-                <span className="text-muted-foreground dark:text-slate-400">Champion plan — annual</span>
+                <span className="text-muted-foreground dark:text-slate-400">
+                  Champion plan — annual
+                </span>
                 <span className="font-semibold text-foreground dark:text-white">₹6,999</span>
               </div>
               <div className="flex justify-between border-b border-border pb-2 dark:border-white/10">
-                <span className="text-muted-foreground dark:text-slate-400">Scholar credit (unused)</span>
+                <span className="text-muted-foreground dark:text-slate-400">
+                  Scholar credit (unused)
+                </span>
                 <span className="font-semibold text-emerald-400">-₹1,833</span>
               </div>
               <div className="flex justify-between border-b border-border pb-2 dark:border-white/10">
@@ -63,13 +80,16 @@ export default function SubscriptionCheckout() {
                 <span className="font-semibold text-foreground dark:text-white">₹921</span>
               </div>
               <div className="flex justify-between pt-2 text-sm">
-                <span className="font-semibold text-foreground dark:text-white">Total due today</span>
+                <span className="font-semibold text-foreground dark:text-white">
+                  Total due today
+                </span>
                 <span className="font-bold text-emerald-400">₹6,087</span>
               </div>
             </div>
             <div className="mt-3 flex items-start gap-2 rounded-lg bg-blue-500/10 p-3 text-xs leading-relaxed text-blue-300">
               <Info className="mt-0.5 h-4 w-4 shrink-0" />
-              Pro-rated Scholar credit for the unused 179 days has been applied. Cancel anytime — refund policy applies within 7 days.
+              Pro-rated Scholar credit for the unused 179 days has been applied. Cancel anytime —
+              refund policy applies within 7 days.
             </div>
           </div>
         </div>
@@ -78,7 +98,9 @@ export default function SubscriptionCheckout() {
         <div className="rounded-xl border border-border bg-card dark:border-white/10 dark:bg-[#0c1017]">
           <div className="rounded-t-xl bg-[#041E3A] p-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[#3395FF] text-xs font-bold text-white">R</div>
+              <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[#3395FF] text-xs font-bold text-white">
+                R
+              </div>
               <span className="text-sm font-semibold text-white">Razorpay</span>
             </div>
             <div className="text-right">
@@ -111,7 +133,9 @@ export default function SubscriptionCheckout() {
             {/* UPI */}
             {tab === "upi" && (
               <div className="flex flex-col gap-3">
-                <p className="text-xs text-muted-foreground dark:text-slate-400">Enter your UPI ID or scan QR</p>
+                <p className="text-xs text-muted-foreground dark:text-slate-400">
+                  Enter your UPI ID or scan QR
+                </p>
                 <input
                   placeholder="yourname@upi (e.g. rahul@paytm)"
                   className="rounded-lg border border-muted-foreground/20 bg-muted px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-blue-400 focus:outline-none dark:border-white/10 dark:bg-white/5 dark:text-white dark:placeholder:text-slate-500"
@@ -135,7 +159,9 @@ export default function SubscriptionCheckout() {
                 </div>
                 <div className="flex items-center justify-center rounded-lg border border-dashed border-muted-foreground/20 p-6 dark:border-white/10">
                   <div className="text-center">
-                    <p className="text-[11px] text-muted-foreground dark:text-slate-500">QR code placeholder</p>
+                    <p className="text-[11px] text-muted-foreground dark:text-slate-500">
+                      QR code placeholder
+                    </p>
                     <div className="mx-auto mt-2 flex h-20 w-20 items-center justify-center rounded-lg border border-muted-foreground/20 bg-muted dark:border-white/10 dark:bg-white/5">
                       <span className="text-3xl text-muted-foreground dark:text-slate-500">⊞</span>
                     </div>
@@ -155,13 +181,27 @@ export default function SubscriptionCheckout() {
             {/* Card */}
             {tab === "card" && (
               <div className="flex flex-col gap-3">
-                <p className="text-xs text-muted-foreground dark:text-slate-400">Credit or debit card</p>
-                <input placeholder="Card number" className="rounded-lg border border-muted-foreground/20 bg-muted px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-blue-400 focus:outline-none dark:border-white/10 dark:bg-white/5 dark:text-white dark:placeholder:text-slate-500" />
+                <p className="text-xs text-muted-foreground dark:text-slate-400">
+                  Credit or debit card
+                </p>
+                <input
+                  placeholder="Card number"
+                  className="rounded-lg border border-muted-foreground/20 bg-muted px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-blue-400 focus:outline-none dark:border-white/10 dark:bg-white/5 dark:text-white dark:placeholder:text-slate-500"
+                />
                 <div className="grid grid-cols-2 gap-3">
-                  <input placeholder="MM / YY" className="rounded-lg border border-muted-foreground/20 bg-muted px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-blue-400 focus:outline-none dark:border-white/10 dark:bg-white/5 dark:text-white dark:placeholder:text-slate-500" />
-                  <input placeholder="CVV" className="rounded-lg border border-muted-foreground/20 bg-muted px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-blue-400 focus:outline-none dark:border-white/10 dark:bg-white/5 dark:text-white dark:placeholder:text-slate-500" />
+                  <input
+                    placeholder="MM / YY"
+                    className="rounded-lg border border-muted-foreground/20 bg-muted px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-blue-400 focus:outline-none dark:border-white/10 dark:bg-white/5 dark:text-white dark:placeholder:text-slate-500"
+                  />
+                  <input
+                    placeholder="CVV"
+                    className="rounded-lg border border-muted-foreground/20 bg-muted px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-blue-400 focus:outline-none dark:border-white/10 dark:bg-white/5 dark:text-white dark:placeholder:text-slate-500"
+                  />
                 </div>
-                <input placeholder="Name on card" className="rounded-lg border border-muted-foreground/20 bg-muted px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-blue-400 focus:outline-none dark:border-white/10 dark:bg-white/5 dark:text-white dark:placeholder:text-slate-500" />
+                <input
+                  placeholder="Name on card"
+                  className="rounded-lg border border-muted-foreground/20 bg-muted px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-blue-400 focus:outline-none dark:border-white/10 dark:bg-white/5 dark:text-white dark:placeholder:text-slate-500"
+                />
                 <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground dark:text-slate-400">
                   <ShieldCheck className="h-4 w-4 text-emerald-400" />
                   EMI available from ₹583/mo on select cards
@@ -180,7 +220,9 @@ export default function SubscriptionCheckout() {
             {/* Net banking */}
             {tab === "nb" && (
               <div className="flex flex-col gap-2">
-                <p className="text-xs text-muted-foreground dark:text-slate-400">Select your bank</p>
+                <p className="text-xs text-muted-foreground dark:text-slate-400">
+                  Select your bank
+                </p>
                 {BANKS.map((bank) => (
                   <button
                     key={bank.id}
@@ -193,8 +235,14 @@ export default function SubscriptionCheckout() {
                   >
                     <Building2 className="h-4 w-4 text-muted-foreground dark:text-slate-400" />
                     <div>
-                      <p className="text-xs font-semibold text-foreground dark:text-white">{bank.label}</p>
-                      {bank.sub && <p className="text-[10px] text-muted-foreground dark:text-slate-500">{bank.sub}</p>}
+                      <p className="text-xs font-semibold text-foreground dark:text-white">
+                        {bank.label}
+                      </p>
+                      {bank.sub && (
+                        <p className="text-[10px] text-muted-foreground dark:text-slate-500">
+                          {bank.sub}
+                        </p>
+                      )}
                     </div>
                   </button>
                 ))}
@@ -225,8 +273,14 @@ export default function SubscriptionCheckout() {
                   >
                     <Wallet className="h-4 w-4 text-muted-foreground dark:text-slate-400" />
                     <div>
-                      <p className="text-xs font-semibold text-foreground dark:text-white">{w.label}</p>
-                      {w.sub && <p className="text-[10px] text-muted-foreground dark:text-slate-500">{w.sub}</p>}
+                      <p className="text-xs font-semibold text-foreground dark:text-white">
+                        {w.label}
+                      </p>
+                      {w.sub && (
+                        <p className="text-[10px] text-muted-foreground dark:text-slate-500">
+                          {w.sub}
+                        </p>
+                      )}
                     </div>
                   </button>
                 ))}

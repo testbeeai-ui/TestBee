@@ -1167,7 +1167,10 @@ export default function AgentOrchestratorRunner() {
   }, [requeueFailedJob, runJob]);
 
   const hasActionableJobs = useMemo(
-    () => jobs.some((job) => job.status === "pending" || job.status === "running" || job.status === "failed"),
+    () =>
+      jobs.some(
+        (job) => job.status === "pending" || job.status === "running" || job.status === "failed"
+      ),
     [jobs]
   );
 

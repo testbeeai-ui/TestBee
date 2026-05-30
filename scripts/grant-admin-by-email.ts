@@ -27,8 +27,7 @@ async function main() {
   while (page <= 20 && !found) {
     const { data, error } = await supabase.auth.admin.listUsers({ page, perPage: 200 });
     if (error) throw error;
-    found =
-      data.users.find((u) => (u.email ?? "").trim().toLowerCase() === email) ?? null;
+    found = data.users.find((u) => (u.email ?? "").trim().toLowerCase() === email) ?? null;
     if (data.users.length < 200) break;
     page += 1;
   }

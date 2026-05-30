@@ -1,6 +1,9 @@
 "use client";
 
-import type { TeacherPortalAssignmentItem, TeacherPortalClassroomSection } from "@/lib/teacherPortal/types";
+import type {
+  TeacherPortalAssignmentItem,
+  TeacherPortalClassroomSection,
+} from "@/lib/teacherPortal/types";
 import {
   formatAssignmentCardDate,
   primaryAssignmentBadge,
@@ -85,4 +88,3 @@ export function AssignmentCard({
     </button>
   );
 }
-

@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
 import { enforceSameOriginForCookieAuth } from "@/lib/auth/securityGuards";
 
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function isUuid(s: string): boolean {
   return UUID_RE.test(s.trim());
@@ -34,7 +33,10 @@ export async function POST(request: NextRequest) {
 
   const answers = b.answers;
   if (!Array.isArray(answers) || answers.length === 0) {
-    return NextResponse.json({ error: "answers must be a non-empty array of integers" }, { status: 400 });
+    return NextResponse.json(
+      { error: "answers must be a non-empty array of integers" },
+      { status: 400 }
+    );
   }
 
   const normalized: number[] = [];

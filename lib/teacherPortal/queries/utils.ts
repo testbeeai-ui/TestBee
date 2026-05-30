@@ -19,7 +19,8 @@ export function ensureError(err: unknown): Error {
 
 export function normalizeIndianPhone(raw: string | null | undefined): string {
   const digits = (raw ?? "").replace(/\D/g, "");
-  const core = digits.startsWith("91") && digits.length >= 12 ? digits.slice(2, 12) : digits.slice(0, 10);
+  const core =
+    digits.startsWith("91") && digits.length >= 12 ? digits.slice(2, 12) : digits.slice(0, 10);
   return core.length === 10 ? `+91 ${core}` : "";
 }
 
@@ -39,7 +40,8 @@ export function hasIdentityDocs(input: {
 }): boolean {
   return (
     (hasValue(input.aadhar_photo_url) || hasValue(input.aadhar_share_link)) &&
-    (hasValue(input.institute_certificate_photo_url) || hasValue(input.institute_certificate_share_link))
+    (hasValue(input.institute_certificate_photo_url) ||
+      hasValue(input.institute_certificate_share_link))
   );
 }
 

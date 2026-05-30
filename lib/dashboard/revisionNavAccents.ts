@@ -32,12 +32,7 @@ export const REVISION_NAV_ACCENTS = [
   },
 ] as const;
 
-export type RevisionNavTabId =
-  | "instacue"
-  | "units"
-  | "saved"
-  | "community"
-  | "questions";
+export type RevisionNavTabId = "instacue" | "units" | "saved" | "community" | "questions";
 
 export const REVISION_NAV_LINKS: { id: RevisionNavTabId; label: string }[] = [
   { id: "instacue", label: "InstaCue Cards" },

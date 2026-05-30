@@ -9,13 +9,14 @@ import {
   useRef,
   useState,
 } from "react";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import AppLayout from "@/components/AppLayout";
 import InlineRdmChallenge from "@/components/play/InlineRdmChallenge";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsAppAdmin } from "@/hooks/useIsAppAdmin";
+import { useToast } from "@/hooks/use-toast";
 import { useUserStore } from "@/store/useUserStore";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -40,6 +41,40 @@ import {
 } from "@/lib/rdm/rdmConfig";
 import type { PlayDomain } from "@/types";
 import { EarnLearnRightColumn } from "@/components/refer-earn/EarnLearnRightColumn";
+import { OnboardingClickHerePointer } from "@/components/onboarding/OnboardingClickHerePointer";
+import {
+  EARN_CHALLENGE_ONBOARDING_QUERY,
+  advanceEarnChallengeToStartStep,
+  clearEarnChallengeOnboardingFlow,
+  clearEarnChallengePickGuideStep,
+  clearEarnChallengeStartGuideStep,
+  isEarnChallengeOnboardingFlowActive,
+  isEarnChallengeOnboardingPickKey,
+  shouldShowEarnChallengePickGuide,
+  shouldShowEarnChallengeStartGuide,
+  startEarnChallengeOnboardingFlow,
+} from "@/lib/onboarding/earnChallengeOnboardingFlow";
+import {
+  isEarnChallengeCompanionTrackingActive,
+  markEarnChallengeCompanionPicked,
+  markEarnChallengeCompanionRoundComplete,
+  markEarnChallengeCompanionStarted,
+  reconcileEarnChallengeCompanionSteps,
+} from "@/lib/onboarding/earnChallengeCompanionOnboarding";
+import { fetchEarnChallengeCommunityPostStatus } from "@/lib/onboarding/earnChallengeCompanionApi";
+import { fetchBuddyState } from "@/lib/buddy/buddyClient";
+import {
+  isEarnBuddyCompanionTrackingActive,
+  markEarnBuddyCompanionLinkCopied,
+  markEarnBuddyCompanionLinkShared,
+  markEarnBuddyCompanionTabOpened,
+  reconcileEarnBuddyCompanionSteps,
+} from "@/lib/onboarding/earnBuddyCompanionOnboarding";
+import { fetchEarnBuddyOnboardingStatus } from "@/lib/onboarding/earnBuddyCompanionApi";
+import {
+  isOnboardingTaskCompanionLaunched,
+  ONBOARDING_ACTIVE_TASK_CHANGED_EVENT,
+} from "@/lib/onboarding/onboardingTaskCompanion";
 import { EDUFUND_RDM_GATES } from "@/lib/dashboard/dashboardSidebarMetrics";
 import {
   BarChart3,
@@ -157,27 +192,79 @@ function formatReferralCreditedAt(iso: string): string {
   }
 }
 
-const REFER_TAB_KEYS = new Set<ReferTab>([
-  "how",
-  "tiers",
-  "leaderboard",
-  "faq",
-  "learning_buddy",
-]);
+const REFER_TAB_KEYS = new Set<ReferTab>(["how", "tiers", "leaderboard", "faq", "learning_buddy"]);
 
 function ReferEarnPageContent() {
   const { profile } = useAuth();
   const user = useUserStore((s) => s.user);
   const isReferAdmin = useIsAppAdmin();
+  const { toast } = useToast();
+  const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const [tab, setTab] = useState<ReferTab>("how");
+  const onboardingEarnChallengeQuery = searchParams.get(EARN_CHALLENGE_ONBOARDING_QUERY);
+  const [showEarnChallengePickGuide, setShowEarnChallengePickGuide] = useState(false);
+  const [showEarnChallengeStartGuide, setShowEarnChallengeStartGuide] = useState(false);
+
+  const earnChallengeOnboardingActive =
+    onboardingEarnChallengeQuery === "1" ||
+    isEarnChallengeOnboardingFlowActive() ||
+    isOnboardingTaskCompanionLaunched("earn_challenge");
+
+  const syncEarnChallengeOnboardingGuides = useCallback(() => {
+    setShowEarnChallengePickGuide(shouldShowEarnChallengePickGuide());
+    setShowEarnChallengeStartGuide(shouldShowEarnChallengeStartGuide());
+  }, []);
+
+  const dismissEarnChallengePickGuide = useCallback(() => {
+    advanceEarnChallengeToStartStep();
+    setShowEarnChallengePickGuide(false);
+    setShowEarnChallengeStartGuide(true);
+  }, []);
+
+  const completeEarnChallengeOnboarding = useCallback(() => {
+    clearEarnChallengeOnboardingFlow();
+    setShowEarnChallengePickGuide(false);
+    setShowEarnChallengeStartGuide(false);
+  }, []);
 
   useEffect(() => {
     const fromUrl = searchParams.get("tab");
-    if (fromUrl && REFER_TAB_KEYS.has(fromUrl as ReferTab)) {
-      setTab(fromUrl as ReferTab);
+    if (!fromUrl || !REFER_TAB_KEYS.has(fromUrl as ReferTab)) return;
+    if (fromUrl === "learning_buddy" && earnChallengeOnboardingActive) {
+      setTab("how");
+      return;
     }
-  }, [searchParams]);
+    setTab(fromUrl as ReferTab);
+  }, [searchParams, earnChallengeOnboardingActive]);
+
+  useEffect(() => {
+    if (!isEarnBuddyCompanionTrackingActive()) return;
+    if (isOnboardingTaskCompanionLaunched("earn_challenge")) return;
+    if (tab !== "learning_buddy") {
+      setTab("learning_buddy");
+    }
+  }, [tab]);
+
+  useEffect(() => {
+    if (!isEarnBuddyCompanionTrackingActive()) return;
+    const syncBuddyOnboarding = () => {
+      void fetchEarnBuddyOnboardingStatus().then((status) => {
+        reconcileEarnBuddyCompanionSteps(status.hasInvitedBuddyJoined);
+      });
+    };
+    syncBuddyOnboarding();
+    const pollId = window.setInterval(syncBuddyOnboarding, 12_000);
+    return () => window.clearInterval(pollId);
+  }, []);
+
+  useEffect(() => {
+    if (searchParams.get("onboarding_buddy") !== "1") return;
+    if (!isOnboardingTaskCompanionLaunched("earn_buddy")) return;
+    if (isOnboardingTaskCompanionLaunched("earn_challenge")) return;
+    if (tab !== "learning_buddy") setTab("learning_buddy");
+  }, [searchParams, tab]);
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [copied, setCopied] = useState(false);
   const [selectedClaim, setSelectedClaim] = useState<ReferClaimKey | null>(null);
@@ -194,9 +281,62 @@ function ReferEarnPageContent() {
   const inlineChallengeRef = useRef<HTMLDivElement>(null);
   const [activeReferClaim, setActiveReferClaim] = useState<ReferClaimKey | null>(null);
   /** Snapshot at challenge start so `rdmConfig` refetches do not replace `spec` and reset MCQ state. */
-  const [challengeSessionSpec, setChallengeSessionSpec] =
-    useState<ReferChallengePublicSpec | null>(null);
+  const [challengeSessionSpec, setChallengeSessionSpec] = useState<ReferChallengePublicSpec | null>(
+    null
+  );
   const challengeActiveRef = useRef(false);
+
+  const showEarnChallengeChallengesView = useCallback(() => {
+    setActiveReferClaim(null);
+    setChallengeSessionSpec(null);
+    setSelectedClaim(null);
+    setTab((current) => (current === "learning_buddy" ? "how" : current));
+    if (searchParams.get("tab") === "learning_buddy") {
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("tab");
+      const qs = params.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    }
+  }, [pathname, router, searchParams]);
+
+  useEffect(() => {
+    if (onboardingEarnChallengeQuery === "1") {
+      startEarnChallengeOnboardingFlow();
+      showEarnChallengeChallengesView();
+      syncEarnChallengeOnboardingGuides();
+      return;
+    }
+    if (!isEarnChallengeOnboardingFlowActive()) {
+      clearEarnChallengePickGuideStep();
+      clearEarnChallengeStartGuideStep();
+      setShowEarnChallengePickGuide(false);
+      setShowEarnChallengeStartGuide(false);
+      return;
+    }
+    syncEarnChallengeOnboardingGuides();
+  }, [
+    onboardingEarnChallengeQuery,
+    showEarnChallengeChallengesView,
+    syncEarnChallengeOnboardingGuides,
+  ]);
+
+  useEffect(() => {
+    if (!earnChallengeOnboardingActive) return;
+    showEarnChallengeChallengesView();
+  }, [earnChallengeOnboardingActive, showEarnChallengeChallengesView]);
+
+  useEffect(() => {
+    const onActiveTaskChanged = (e: Event) => {
+      const taskId = (e as CustomEvent<string>).detail;
+      if (taskId !== "earn_challenge") return;
+      startEarnChallengeOnboardingFlow();
+      showEarnChallengeChallengesView();
+      syncEarnChallengeOnboardingGuides();
+    };
+    window.addEventListener(ONBOARDING_ACTIVE_TASK_CHANGED_EVENT, onActiveTaskChanged);
+    return () =>
+      window.removeEventListener(ONBOARDING_ACTIVE_TASK_CHANGED_EVENT, onActiveTaskChanged);
+  }, [showEarnChallengeChallengesView, syncEarnChallengeOnboardingGuides]);
   const [friendsReferred, setFriendsReferred] = useState(0);
   const [weeklyReferrals, setWeeklyReferrals] = useState(0);
   const [leaderboardRows, setLeaderboardRows] = useState<
@@ -488,9 +628,18 @@ function ReferEarnPageContent() {
     const link =
       shareUrl ||
       `${typeof window !== "undefined" ? window.location.origin : ""}/join?ref=${refCode}`;
-    await navigator.clipboard.writeText(link);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopied(true);
+      markEarnBuddyCompanionLinkCopied();
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast({
+        title: "Couldn't copy",
+        description: "Select the link and copy manually, or use WhatsApp share.",
+        variant: "destructive",
+      });
+    }
   };
 
   const shareText = encodeURIComponent(
@@ -510,11 +659,24 @@ function ReferEarnPageContent() {
 
   const handleReferChallengeTerminal = useCallback(
     (_info: { claimKey: ReferClaimKey; outcome: "won" | "lost" }) => {
+      markEarnChallengeCompanionRoundComplete();
       void reportChallengeYourselfAttempt();
       void loadGauntletMeta();
     },
     [loadGauntletMeta]
   );
+
+  useEffect(() => {
+    if (!isEarnChallengeCompanionTrackingActive()) return;
+    const sync = () => {
+      void fetchEarnChallengeCommunityPostStatus().then((hasPost) =>
+        reconcileEarnChallengeCompanionSteps(hasPost, activeReferClaim)
+      );
+    };
+    sync();
+    const pollId = window.setInterval(sync, 12_000);
+    return () => window.clearInterval(pollId);
+  }, [activeReferClaim]);
 
   const tierBanner = useMemo(() => {
     const next = GRANT_TIERS.find((t) => rdm < t.threshold);
@@ -586,22 +748,22 @@ function ReferEarnPageContent() {
                   RDM (Reward Miles) unlock practice packs, mock tests &amp; exclusive study tools.
                   Share EduBlast and earn more with every friend who joins.
                 </p>
-                  <div className="mt-3 grid grid-cols-3 gap-2">
-                    <div className="rounded-lg border border-white/10 bg-black/20 px-2 py-2.5 text-center">
-                      <p className="text-xl font-bold tabular-nums text-slate-300">
-                        {friendsReferred}
-                      </p>
-                      <p className={reLabel}>Friends referred</p>
-                    </div>
-                    <div className="rounded-lg border border-white/10 bg-black/20 px-2 py-2.5 text-center">
-                      <p className="text-xl font-bold tabular-nums text-teal-400">+{perReferral}</p>
-                      <p className={reLabel}>RDM per referral</p>
-                    </div>
-                    <div className="rounded-lg border border-white/10 bg-black/20 px-2 py-2.5 text-center">
-                      <p className="text-xl font-bold tabular-nums text-amber-400">+{bonusAtFive}</p>
-                      <p className={reLabel}>Bonus at {weeklyTarget} / week</p>
-                    </div>
+                <div className="mt-3 grid grid-cols-3 gap-2">
+                  <div className="rounded-lg border border-white/10 bg-black/20 px-2 py-2.5 text-center">
+                    <p className="text-xl font-bold tabular-nums text-slate-300">
+                      {friendsReferred}
+                    </p>
+                    <p className={reLabel}>Friends referred</p>
                   </div>
+                  <div className="rounded-lg border border-white/10 bg-black/20 px-2 py-2.5 text-center">
+                    <p className="text-xl font-bold tabular-nums text-teal-400">+{perReferral}</p>
+                    <p className={reLabel}>RDM per referral</p>
+                  </div>
+                  <div className="rounded-lg border border-white/10 bg-black/20 px-2 py-2.5 text-center">
+                    <p className="text-xl font-bold tabular-nums text-amber-400">+{bonusAtFive}</p>
+                    <p className={reLabel}>Bonus at {weeklyTarget} / week</p>
+                  </div>
+                </div>
               </section>
 
               <div>
@@ -618,6 +780,7 @@ function ReferEarnPageContent() {
                   </div>
                   <Button
                     type="button"
+                    data-earn-buddy-copy="1"
                     onClick={() => void copyReferralLink()}
                     className="h-11 shrink-0 rounded-lg bg-[var(--re-purple)] px-5 font-semibold text-white hover:opacity-95"
                   >
@@ -638,6 +801,8 @@ function ReferEarnPageContent() {
                 <span className="font-medium text-slate-500">Share via</span>
                 <a
                   href={shareUrl ? waHref : undefined}
+                  data-earn-buddy-share="1"
+                  onClick={() => markEarnBuddyCompanionLinkShared()}
                   className="inline-flex items-center rounded-full border border-emerald-500/35 bg-emerald-500/10 px-3 py-1.5 font-semibold text-emerald-300 hover:bg-emerald-500/15"
                 >
                   WhatsApp
@@ -672,7 +837,9 @@ function ReferEarnPageContent() {
                           <Icon
                             className={cn(
                               "h-3.5 w-3.5",
-                              active ? "text-amber-200" : "text-cyan-300 group-hover:text-fuchsia-200"
+                              active
+                                ? "text-amber-200"
+                                : "text-cyan-300 group-hover:text-fuchsia-200"
                             )}
                           />
                           {label}
@@ -842,8 +1009,9 @@ function ReferEarnPageContent() {
                         Week starting {leaderboardWeekLabel} (IST)
                       </p>
                       <p className={cn("text-[11px] text-slate-500/90")}>
-                        This ranking counts only referrals <span className="text-slate-400">credited in that IST week</span>{" "}
-                        (for the weekly leaderboard &amp; +100 bonus). Your full history is below.
+                        This ranking counts only referrals{" "}
+                        <span className="text-slate-400">credited in that IST week</span> (for the
+                        weekly leaderboard &amp; +100 bonus). Your full history is below.
                       </p>
                     </div>
                   ) : null}
@@ -915,8 +1083,8 @@ function ReferEarnPageContent() {
                       <span className="h-px min-w-[2rem] flex-1 bg-white/10" />
                     </p>
                     <p className={cn("mt-1 text-[11px] text-slate-500")}>
-                      Everyone who finished onboarding through your link — newest first. Includes every week, not only
-                      the current one.
+                      Everyone who finished onboarding through your link — newest first. Includes
+                      every week, not only the current one.
                     </p>
                     {myReferralHistory.length === 0 ? (
                       <p
@@ -925,7 +1093,8 @@ function ReferEarnPageContent() {
                           reBody
                         )}
                       >
-                        No completed referrals yet. When friends use your link and finish setup, they appear here.
+                        No completed referrals yet. When friends use your link and finish setup,
+                        they appear here.
                       </p>
                     ) : (
                       <ul className="mt-3 max-h-[min(360px,50vh)] space-y-2 overflow-y-auto pr-1">
@@ -952,7 +1121,9 @@ function ReferEarnPageContent() {
                               </div>
                             </div>
                             <div className="shrink-0 text-left sm:text-right">
-                              <p className={cn(reBody, "text-[11px] text-slate-500")}>IST week (for bonus)</p>
+                              <p className={cn(reBody, "text-[11px] text-slate-500")}>
+                                IST week (for bonus)
+                              </p>
                               <p className="text-xs font-medium tabular-nums text-slate-300">
                                 {row.creditedWeekStartIst}
                               </p>
@@ -994,8 +1165,8 @@ function ReferEarnPageContent() {
                     </div>
                   )}
                   <p className="border-t border-white/10 pt-3 text-center text-[11px] text-slate-500">
-                    Refer {weeklyTarget} friends in a week for +{bonusAtFive} RDM
-                    bonus · Leaderboard resets every Monday (IST)
+                    Refer {weeklyTarget} friends in a week for +{bonusAtFive} RDM bonus ·
+                    Leaderboard resets every Monday (IST)
                   </p>
                 </div>
               ) : null}
@@ -1108,7 +1279,9 @@ function ReferEarnPageContent() {
                       reLabel
                     )}
                   >
-                    <span className="text-slate-300">STEP 1 · CHOOSE YOUR CHALLENGE (AUTO-CLAIM RDM)</span>
+                    <span className="text-slate-300">
+                      STEP 1 · CHOOSE YOUR CHALLENGE (AUTO-CLAIM RDM)
+                    </span>
                     <span className="h-px flex-1 bg-white/10" />
                   </p>
                   {isReferAdmin ? (
@@ -1125,83 +1298,100 @@ function ReferEarnPageContent() {
                       const lockedByCap =
                         !isReferAdmin && dailyRdmEarned + c.totalRdm > dailyChallengeRdmCap;
                       const minPct = referMinPct(c);
+                      const showChallengePickGuide =
+                        showEarnChallengePickGuide && isEarnChallengeOnboardingPickKey(c.key);
                       return (
-                        <button
-                          key={c.key}
-                          type="button"
-                          disabled={lockedByCap}
-                          onClick={() => {
-                            setSelectedClaim(c.key);
-                            window.setTimeout(() => {
-                              detailPanelRef.current?.scrollIntoView({
-                                behavior: "smooth",
-                                block: "start",
-                              });
-                            }, 80);
-                          }}
-                          className={cn(
-                            "relative flex w-full flex-col items-center overflow-hidden rounded-[12px] border px-3 pb-3 pt-3 text-center transition",
-                            "border-white/10 bg-black/20",
-                            "hover:bg-white/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/40 disabled:cursor-not-allowed disabled:opacity-45",
-                            sel &&
-                              cn(
-                                "z-[1] border-transparent ring-2 ring-offset-2 ring-offset-[var(--re-card)]",
-                                c.selClass,
-                                c.key === "50" && "shadow-[0_0_32px_rgba(245,166,35,0.28)]",
-                                c.key !== "50" && "shadow-[0_0_28px_rgba(124,107,255,0.2)]"
-                              )
-                          )}
-                        >
-                          <div
-                            className={cn(
-                              "font-sans text-2xl font-semibold tabular-nums",
-                              c.accent
-                            )}
-                          >
-                            {c.totalRdm}
-                          </div>
-                          <p className={cn(reBody, "text-[11px] text-slate-500")}>RDM</p>
-                          <span
-                            className={cn(
-                              "mt-1 rounded px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
-                              c.domain === "funbrain"
-                                ? "bg-sky-500/15 text-sky-300"
-                                : "bg-violet-500/15 text-violet-200"
-                            )}
-                          >
-                            {c.typeLabel}
-                          </span>
-                          <p className={cn("mt-2 max-w-full", reTitle)}>{c.name}</p>
-                          <p className={cn("mt-1 max-w-full", reBody, "text-[11px]")}>
-                            {c.cardDesc}
-                          </p>
-                          <p
-                            className={cn(
-                              "mt-0.5 max-w-full",
-                              reBody,
-                              "text-[10px] text-slate-500"
-                            )}
-                          >
-                            {c.cardSubline}
-                          </p>
-                          <span className="mt-2 inline-flex items-center justify-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-semibold text-slate-300">
-                            <Check className="h-3 w-3 text-emerald-400" />
-                            Min {minPct}% to win
-                          </span>
-                          <span className="mt-1 inline-flex items-center justify-center gap-1 rounded-full border border-white/10 bg-white/[0.03] px-2 py-0.5 text-[10px] font-semibold text-slate-300">
-                            Win +{c.winRdm} · Share +{c.shareRdm} · Auto-claim
-                          </span>
-                          {lockedByCap ? (
-                            <span className="absolute left-2 top-2 rounded-full bg-rose-500/20 px-2 py-0.5 text-[10px] font-bold text-rose-200">
-                              Cap lock
-                            </span>
+                        <div key={c.key} className="relative">
+                          {showChallengePickGuide ? (
+                            <div className="pointer-events-none absolute -top-10 left-1/2 z-20 -translate-x-1/2">
+                              <OnboardingClickHerePointer label="Click here" />
+                            </div>
                           ) : null}
-                          {done ? (
-                            <span className="absolute right-2 top-2 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
-                              Win + share credited
+                          <button
+                            type="button"
+                            disabled={lockedByCap}
+                            onClick={() => {
+                              if (
+                                showEarnChallengePickGuide &&
+                                isEarnChallengeOnboardingPickKey(c.key)
+                              ) {
+                                dismissEarnChallengePickGuide();
+                              }
+                              markEarnChallengeCompanionPicked(c.key);
+                              setSelectedClaim(c.key);
+                              window.setTimeout(() => {
+                                detailPanelRef.current?.scrollIntoView({
+                                  behavior: "smooth",
+                                  block: "start",
+                                });
+                              }, 80);
+                            }}
+                            className={cn(
+                              "relative flex w-full flex-col items-center overflow-hidden rounded-[12px] border px-3 pb-3 pt-3 text-center transition",
+                              "border-white/10 bg-black/20",
+                              "hover:bg-white/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/40 disabled:cursor-not-allowed disabled:opacity-45",
+                              sel &&
+                                cn(
+                                  "z-[1] border-transparent ring-2 ring-offset-2 ring-offset-[var(--re-card)]",
+                                  c.selClass,
+                                  c.key === "50" && "shadow-[0_0_32px_rgba(245,166,35,0.28)]",
+                                  c.key !== "50" && "shadow-[0_0_28px_rgba(124,107,255,0.2)]"
+                                ),
+                              showChallengePickGuide &&
+                                "border-sky-400/40 ring-2 ring-sky-400/30 ring-offset-2 ring-offset-[var(--re-card)]"
+                            )}
+                          >
+                            <div
+                              className={cn(
+                                "font-sans text-2xl font-semibold tabular-nums",
+                                c.accent
+                              )}
+                            >
+                              {c.totalRdm}
+                            </div>
+                            <p className={cn(reBody, "text-[11px] text-slate-500")}>RDM</p>
+                            <span
+                              className={cn(
+                                "mt-1 rounded px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
+                                c.domain === "funbrain"
+                                  ? "bg-sky-500/15 text-sky-300"
+                                  : "bg-violet-500/15 text-violet-200"
+                              )}
+                            >
+                              {c.typeLabel}
                             </span>
-                          ) : null}
-                        </button>
+                            <p className={cn("mt-2 max-w-full", reTitle)}>{c.name}</p>
+                            <p className={cn("mt-1 max-w-full", reBody, "text-[11px]")}>
+                              {c.cardDesc}
+                            </p>
+                            <p
+                              className={cn(
+                                "mt-0.5 max-w-full",
+                                reBody,
+                                "text-[10px] text-slate-500"
+                              )}
+                            >
+                              {c.cardSubline}
+                            </p>
+                            <span className="mt-2 inline-flex items-center justify-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-semibold text-slate-300">
+                              <Check className="h-3 w-3 text-emerald-400" />
+                              Min {minPct}% to win
+                            </span>
+                            <span className="mt-1 inline-flex items-center justify-center gap-1 rounded-full border border-white/10 bg-white/[0.03] px-2 py-0.5 text-[10px] font-semibold text-slate-300">
+                              Win +{c.winRdm} · Share +{c.shareRdm} · Auto-claim
+                            </span>
+                            {lockedByCap ? (
+                              <span className="absolute left-2 top-2 rounded-full bg-rose-500/20 px-2 py-0.5 text-[10px] font-bold text-rose-200">
+                                Cap lock
+                              </span>
+                            ) : null}
+                            {done ? (
+                              <span className="absolute right-2 top-2 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
+                                Win + share credited
+                              </span>
+                            ) : null}
+                          </button>
+                        </div>
                       );
                     })}
                   </div>
@@ -1249,7 +1439,9 @@ function ReferEarnPageContent() {
                           <span className="inline-flex items-center gap-1.5 rounded-full border border-white/12 bg-black/35 px-2.5 py-1 text-[11px] font-semibold text-slate-200">
                             <Clock className="h-3.5 w-3.5 shrink-0 text-amber-400" />
                             <span className="font-mono tabular-nums text-amber-100/95">
-                              {formatReferDurationMmSs(referChallengeSessionDurationSec(selectedCard))}
+                              {formatReferDurationMmSs(
+                                referChallengeSessionDurationSec(selectedCard)
+                              )}
                             </span>
                             <span className="font-normal text-slate-400">session</span>
                           </span>
@@ -1382,23 +1574,46 @@ function ReferEarnPageContent() {
                           >
                             Clear selection
                           </Button>
-                          <Button
-                            type="button"
-                            disabled={startChallengeLocked}
-                            className={cn(
-                              "inline-flex items-center gap-2 bg-[var(--re-purple)] font-semibold text-white shadow-sm hover:opacity-95 disabled:opacity-45",
-                              "ring-2 ring-violet-300/45 ring-offset-2 ring-offset-[var(--re-card)]"
-                            )}
-                            onClick={() => {
-                              setChallengeSessionSpec(selectedCard);
-                              setActiveReferClaim(selectedCard.key);
-                            }}
-                          >
-                            <Play className="h-4 w-4 fill-current" />
-                            {startChallengeLocked
-                              ? "Daily cap reached for this card"
-                              : "Start challenge"}
-                          </Button>
+                          <div className="relative">
+                            {showEarnChallengeStartGuide &&
+                            selectedClaim &&
+                            isEarnChallengeOnboardingPickKey(selectedClaim) &&
+                            !startChallengeLocked ? (
+                              <div className="pointer-events-none absolute -top-10 right-0 z-20">
+                                <OnboardingClickHerePointer label="Click here" />
+                              </div>
+                            ) : null}
+                            <Button
+                              type="button"
+                              disabled={startChallengeLocked}
+                              className={cn(
+                                "inline-flex items-center gap-2 bg-[var(--re-purple)] font-semibold text-white shadow-sm hover:opacity-95 disabled:opacity-45",
+                                "ring-2 ring-violet-300/45 ring-offset-2 ring-offset-[var(--re-card)]",
+                                showEarnChallengeStartGuide &&
+                                  selectedClaim &&
+                                  isEarnChallengeOnboardingPickKey(selectedClaim) &&
+                                  !startChallengeLocked &&
+                                  "ring-primary/50 ring-offset-primary/10"
+                              )}
+                              onClick={() => {
+                                if (
+                                  showEarnChallengeStartGuide &&
+                                  selectedClaim &&
+                                  isEarnChallengeOnboardingPickKey(selectedClaim)
+                                ) {
+                                  completeEarnChallengeOnboarding();
+                                }
+                                markEarnChallengeCompanionStarted();
+                                setChallengeSessionSpec(selectedCard);
+                                setActiveReferClaim(selectedCard.key);
+                              }}
+                            >
+                              <Play className="h-4 w-4 fill-current" />
+                              {startChallengeLocked
+                                ? "Daily cap reached for this card"
+                                : "Start challenge"}
+                            </Button>
+                          </div>
                         </div>
                         {startChallengeLocked ? (
                           <p className="mt-2 text-center text-[11px] text-rose-200/90">

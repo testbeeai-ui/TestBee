@@ -37,20 +37,15 @@ import {
   asStringArray,
   type DbClient,
 } from "./utils";
-import {
-  allocateUniqueJoinCode,
-} from "./helpers";
-import {
-  assertTeacherApprovedForMutations,
-  type TeacherMutationGuardOptions,
-} from "./guards";
+import { allocateUniqueJoinCode } from "./helpers";
+import { assertTeacherApprovedForMutations, type TeacherMutationGuardOptions } from "./guards";
 
 export async function postTeacherSection(
   input: {
-  doubtId: string;
-  teacherId: string;
-  body: string;
-},
+    doubtId: string;
+    teacherId: string;
+    body: string;
+  },
   client?: DbClient,
   options?: TeacherMutationGuardOptions
 ): Promise<void> {
@@ -68,18 +63,18 @@ export async function postTeacherSection(
 
 export async function updateTeacherProfile(
   input: {
-  userId: string;
-  name: string;
-  bio: string;
-  visibility: string;
-  subjects: string[];
-  examTags: string[];
-  teachingLevels: number[];
-  /** Full public URL (e.g. Supabase Storage public URL or OAuth picture URL). */
-  avatarUrl?: string | null;
-  details?: TeacherProfileDetails;
-  bypassVerificationLock?: boolean;
-},
+    userId: string;
+    name: string;
+    bio: string;
+    visibility: string;
+    subjects: string[];
+    examTags: string[];
+    teachingLevels: number[];
+    /** Full public URL (e.g. Supabase Storage public URL or OAuth picture URL). */
+    avatarUrl?: string | null;
+    details?: TeacherProfileDetails;
+    bypassVerificationLock?: boolean;
+  },
   client?: DbClient
 ): Promise<void> {
   const db = client ?? supabase;
@@ -114,7 +109,10 @@ export async function updateTeacherProfile(
   const dbAny = db as unknown as {
     from: (t: string) => {
       select: (cols: string) => {
-        eq: (c: string, v: string) => {
+        eq: (
+          c: string,
+          v: string
+        ) => {
           maybeSingle: () => Promise<{
             data: {
               verified_contact_email?: string | null;
@@ -151,7 +149,8 @@ export async function updateTeacherProfile(
 
   const nextEmailNorm = (d.email ?? "").trim().toLowerCase();
   const prevVerifiedNorm = (
-    (prevTeacherDetails as { verified_contact_email?: string | null } | null)?.verified_contact_email ?? ""
+    (prevTeacherDetails as { verified_contact_email?: string | null } | null)
+      ?.verified_contact_email ?? ""
   )
     .trim()
     .toLowerCase();
@@ -270,19 +269,19 @@ export async function updateTeacherProfile(
 
 export async function createTeacherClassroom(
   input: {
-  userId: string;
-  name: string;
-  subject: string;
-  pucLevel: "PUC 1" | "PUC 2" | "Both";
-  examTarget: string;
-  scheduleDate: string | null;
-  scheduleTime: string | null;
-  durationMinutes: number;
-  repeatDays: string[];
-  /** Optional last day for recurrence (YYYY-MM-DD); also sent to Google as RRULE UNTIL when set. */
-  scheduleEndDate?: string | null;
-  allowAdhocTrial: boolean;
-},
+    userId: string;
+    name: string;
+    subject: string;
+    pucLevel: "PUC 1" | "PUC 2" | "Both";
+    examTarget: string;
+    scheduleDate: string | null;
+    scheduleTime: string | null;
+    durationMinutes: number;
+    repeatDays: string[];
+    /** Optional last day for recurrence (YYYY-MM-DD); also sent to Google as RRULE UNTIL when set. */
+    scheduleEndDate?: string | null;
+    allowAdhocTrial: boolean;
+  },
   client?: DbClient,
   options?: TeacherMutationGuardOptions
 ): Promise<{ classroomId: string }> {
@@ -296,8 +295,9 @@ export async function createTeacherClassroom(
     input.scheduleDate && input.scheduleTime
       ? `${input.scheduleDate} ${input.scheduleTime} · ${input.durationMinutes} mins`
       : "Schedule not set";
-  const endNote =
-    input.scheduleEndDate?.trim() ? `End date: ${input.scheduleEndDate.trim()}` : "End date: open-ended";
+  const endNote = input.scheduleEndDate?.trim()
+    ? `End date: ${input.scheduleEndDate.trim()}`
+    : "End date: open-ended";
   const notes = [
     `Exam target: ${input.examTarget}`,
     `Ad-hoc trial: ${input.allowAdhocTrial ? "Enabled" : "Disabled"}`,
@@ -351,13 +351,13 @@ export async function createTeacherClassroom(
 
 export async function updateTeacherClassroom(
   input: {
-  teacherId: string;
-  classroomId: string;
-  name: string;
-  subject: string | null;
-  section: string | null;
-  introVideoUrl?: string | null;
-},
+    teacherId: string;
+    classroomId: string;
+    name: string;
+    subject: string | null;
+    section: string | null;
+    introVideoUrl?: string | null;
+  },
   client?: DbClient,
   options?: TeacherMutationGuardOptions
 ): Promise<void> {
@@ -380,9 +380,9 @@ export async function updateTeacherClassroom(
 
 export async function deleteTeacherClassroom(
   input: {
-  teacherId: string;
-  classroomId: string;
-},
+    teacherId: string;
+    classroomId: string;
+  },
   client?: DbClient,
   options?: TeacherMutationGuardOptions
 ): Promise<void> {
@@ -398,36 +398,36 @@ export async function deleteTeacherClassroom(
 
 export async function createClassroomAssignment(
   input: {
-  teacherId: string;
-  classroomId: string;
-  sectionId?: string | null;
-  assignmentType: string;
-  title: string;
-  dueDate: string | null;
-  /** Optional exact due datetime (ISO) for timed publishing flows. */
-  dueDateIso?: string | null;
-  assignToLabel: string;
-  /** When provided, the assignment is visible only to these students (within the selected scope). */
-  targetStudentIds?: string[] | null;
-  rewardRdm: number;
-  instructions: string;
-  /** When empty, defaults are derived from assignment type label */
-  tasks?: AssignmentTaskStored[];
-  /** Selected catalog paper for `mock` assignments */
-  mockPaper?: TeacherPortalMockPaperRef | null;
-  /** Selected catalog paper for `past_paper` assignments */
-  pastPaper?: TeacherPortalPastPaperRef | null;
-  /** Syllabus + subtopic scope for `quiz` assignments */
-  chapterQuiz?: TeacherPortalChapterQuizRef | null;
-  /** Funbrain streak lane for DailyDose-style assignments */
-  dailyDoseStreak?: TeacherPortalDailyDoseStreakRef | null;
-  /** Optional topic/subtopic hints for Gyan++ engagement assignments */
-  gyanEngagement?: TeacherPortalGyanEngagementRef | null;
-  /** Optional extra payload persisted inside content_json for custom assignment flows. */
-  extraContentJson?: Record<string, Json> | null;
-  /** Optional visibility override (default: classroom). */
-  visibility?: string;
-},
+    teacherId: string;
+    classroomId: string;
+    sectionId?: string | null;
+    assignmentType: string;
+    title: string;
+    dueDate: string | null;
+    /** Optional exact due datetime (ISO) for timed publishing flows. */
+    dueDateIso?: string | null;
+    assignToLabel: string;
+    /** When provided, the assignment is visible only to these students (within the selected scope). */
+    targetStudentIds?: string[] | null;
+    rewardRdm: number;
+    instructions: string;
+    /** When empty, defaults are derived from assignment type label */
+    tasks?: AssignmentTaskStored[];
+    /** Selected catalog paper for `mock` assignments */
+    mockPaper?: TeacherPortalMockPaperRef | null;
+    /** Selected catalog paper for `past_paper` assignments */
+    pastPaper?: TeacherPortalPastPaperRef | null;
+    /** Syllabus + subtopic scope for `quiz` assignments */
+    chapterQuiz?: TeacherPortalChapterQuizRef | null;
+    /** Funbrain streak lane for DailyDose-style assignments */
+    dailyDoseStreak?: TeacherPortalDailyDoseStreakRef | null;
+    /** Optional topic/subtopic hints for Gyan++ engagement assignments */
+    gyanEngagement?: TeacherPortalGyanEngagementRef | null;
+    /** Optional extra payload persisted inside content_json for custom assignment flows. */
+    extraContentJson?: Record<string, Json> | null;
+    /** Optional visibility override (default: classroom). */
+    visibility?: string;
+  },
   client?: DbClient,
   options?: TeacherMutationGuardOptions
 ): Promise<{ id: string }> {
@@ -445,9 +445,7 @@ export async function createClassroomAssignment(
         ? {
             ...t,
             label: mock.title,
-            href: mock.slug
-              ? `/mock-test?paper=${encodeURIComponent(mock.slug)}`
-              : "/mock-test",
+            href: mock.slug ? `/mock-test?paper=${encodeURIComponent(mock.slug)}` : "/mock-test",
           }
         : t
     );
@@ -459,9 +457,7 @@ export async function createClassroomAssignment(
         ? {
             ...t,
             label: past.title,
-            href: past.slug
-              ? `/mock-test?paper=${encodeURIComponent(past.slug)}`
-              : "/mock-test",
+            href: past.slug ? `/mock-test?paper=${encodeURIComponent(past.slug)}` : "/mock-test",
           }
         : t
     );
@@ -678,24 +674,24 @@ export type MotivationRecommendActionId =
 
 export async function createMotivationAction(
   input: {
-  teacherId: string;
-  classroomId: string;
-  sectionId?: string | null;
-  actionKind: "boost" | "nudge" | "urgent_nudge";
-  targetStudentIds: string[];
-  message: string;
-  rdmDelta: number;
-  /** Optional deep-link target (e.g. assignment post id). */
-  relatedPostId?: string;
-  relatedPostTitle?: string;
-  /** Optional recommended action to show as link in notifications. */
-  recommendActionId?: MotivationRecommendActionId;
-  recommendActionLabel?: string;
-  recommendActionUrl?: string;
-  /** Short title shown in the student notification bell (optional for legacy rows). */
-  notificationTitle?: string;
-  nudgeGoal?: MotivationNudgeGoal;
-},
+    teacherId: string;
+    classroomId: string;
+    sectionId?: string | null;
+    actionKind: "boost" | "nudge" | "urgent_nudge";
+    targetStudentIds: string[];
+    message: string;
+    rdmDelta: number;
+    /** Optional deep-link target (e.g. assignment post id). */
+    relatedPostId?: string;
+    relatedPostTitle?: string;
+    /** Optional recommended action to show as link in notifications. */
+    recommendActionId?: MotivationRecommendActionId;
+    recommendActionLabel?: string;
+    recommendActionUrl?: string;
+    /** Short title shown in the student notification bell (optional for legacy rows). */
+    notificationTitle?: string;
+    nudgeGoal?: MotivationNudgeGoal;
+  },
   client?: DbClient,
   options?: TeacherMutationGuardOptions
 ): Promise<void> {
@@ -729,13 +725,13 @@ export async function createMotivationAction(
 
 export async function createRewardTopStudentsAction(
   input: {
-  teacherId: string;
-  classroomId: string;
-  sectionId?: string | null;
-  targetStudentIds: string[];
-  message: string;
-  rdmDelta: number;
-},
+    teacherId: string;
+    classroomId: string;
+    sectionId?: string | null;
+    targetStudentIds: string[];
+    message: string;
+    rdmDelta: number;
+  },
   client?: DbClient,
   options?: TeacherMutationGuardOptions
 ): Promise<void> {
@@ -799,41 +795,41 @@ export async function listMotivationLogForClassroom(
 
 export async function createTeacherLiveSession(
   input: {
-  teacherId: string;
-  classroomId: string;
-  sectionId?: string | null;
-  title: string;
-  date: string;
-  startTime: string;
-  durationMinutes: number;
-  meetLink: string;
-  allowAdhocTrial: boolean;
-  preWork: string;
-  postWork: string;
-  preWorkMode?: "none" | "custom" | "concept_focus";
-  preWorkConceptRef?: {
-    board: string;
-    subject: "physics" | "chemistry" | "math";
-    classLevel: 11 | 12;
-    chapterTitle: string;
-    topic: string;
-    subtopicName: string;
-    level: "basics" | "intermediate" | "advanced";
-    advancedSet?: 1 | 2 | 3;
-  } | null;
-  postWorkMode?: "none" | "custom" | "concept_focus";
-  postWorkConceptRef?: {
-    board: string;
-    subject: "physics" | "chemistry" | "math";
-    classLevel: 11 | 12;
-    chapterTitle: string;
-    topic: string;
-    subtopicName: string;
-    level: "basics" | "intermediate" | "advanced";
-    advancedSet?: 1 | 2 | 3;
-  } | null;
-  postWorkDelayDays?: number;
-},
+    teacherId: string;
+    classroomId: string;
+    sectionId?: string | null;
+    title: string;
+    date: string;
+    startTime: string;
+    durationMinutes: number;
+    meetLink: string;
+    allowAdhocTrial: boolean;
+    preWork: string;
+    postWork: string;
+    preWorkMode?: "none" | "custom" | "concept_focus";
+    preWorkConceptRef?: {
+      board: string;
+      subject: "physics" | "chemistry" | "math";
+      classLevel: 11 | 12;
+      chapterTitle: string;
+      topic: string;
+      subtopicName: string;
+      level: "basics" | "intermediate" | "advanced";
+      advancedSet?: 1 | 2 | 3;
+    } | null;
+    postWorkMode?: "none" | "custom" | "concept_focus";
+    postWorkConceptRef?: {
+      board: string;
+      subject: "physics" | "chemistry" | "math";
+      classLevel: 11 | 12;
+      chapterTitle: string;
+      topic: string;
+      subtopicName: string;
+      level: "basics" | "intermediate" | "advanced";
+      advancedSet?: 1 | 2 | 3;
+    } | null;
+    postWorkDelayDays?: number;
+  },
   client?: DbClient,
   options?: TeacherMutationGuardOptions
 ): Promise<void> {
@@ -862,15 +858,15 @@ export async function createTeacherLiveSession(
     (input.preWorkMode ?? "custom") === "none"
       ? []
       : (input.preWorkMode ?? "custom") === "concept_focus" && input.preWorkConceptRef
-      ? [`Concept Focus · ${input.preWorkConceptRef.subtopicName}`]
-      : [input.preWork.trim()].filter(Boolean);
+        ? [`Concept Focus · ${input.preWorkConceptRef.subtopicName}`]
+        : [input.preWork.trim()].filter(Boolean);
 
   const postWorkPreview =
     (input.postWorkMode ?? "custom") === "none"
       ? []
       : (input.postWorkMode ?? "custom") === "concept_focus" && input.postWorkConceptRef
-      ? [`Concept Focus · ${input.postWorkConceptRef.subtopicName}`]
-      : [input.postWork.trim()].filter(Boolean);
+        ? [`Concept Focus · ${input.postWorkConceptRef.subtopicName}`]
+        : [input.postWork.trim()].filter(Boolean);
 
   /** Canonical copy on `live_sessions.plan_json` (same shape as legacy `session_plan` post). */
   const planContent: Record<string, Json> = {
@@ -932,35 +928,36 @@ export async function createTeacherLiveSession(
     const cq = input.preWorkConceptRef;
     const created = await createClassroomAssignment(
       {
-      teacherId: input.teacherId,
-      classroomId: input.classroomId,
-      sectionId: input.sectionId ?? null,
-      assignmentType: "Concept Focus",
-      title: `${sessionTitle} · Pre-work`,
-      dueDate: null,
-      dueDateIso: scheduledAt.toISOString(),
-      assignToLabel: "All students",
-      rewardRdm: 15,
-      instructions: input.preWork.trim() || "Complete concept-focus pre-work before class starts.",
-      chapterQuiz: {
-        board: cq.board,
-        subject: cq.subject,
-        classLevel: cq.classLevel,
-        chapterTitle: cq.chapterTitle,
-        topic: cq.topic,
-        subtopicName: cq.subtopicName,
-        level: cq.level,
-        ...(cq.level === "advanced" && cq.advancedSet ? { advancedSet: cq.advancedSet } : {}),
-      },
-      extraContentJson: {
-        releaseAt: preReleaseAt,
-        autoScheduledFromSession: true,
-        sessionPhase: "pre_work",
-        liveSessionId,
-        sessionTitle,
-        sessionScheduledAt: scheduledAt.toISOString(),
-        sessionDurationMinutes: input.durationMinutes,
-      },
+        teacherId: input.teacherId,
+        classroomId: input.classroomId,
+        sectionId: input.sectionId ?? null,
+        assignmentType: "Concept Focus",
+        title: `${sessionTitle} · Pre-work`,
+        dueDate: null,
+        dueDateIso: scheduledAt.toISOString(),
+        assignToLabel: "All students",
+        rewardRdm: 15,
+        instructions:
+          input.preWork.trim() || "Complete concept-focus pre-work before class starts.",
+        chapterQuiz: {
+          board: cq.board,
+          subject: cq.subject,
+          classLevel: cq.classLevel,
+          chapterTitle: cq.chapterTitle,
+          topic: cq.topic,
+          subtopicName: cq.subtopicName,
+          level: cq.level,
+          ...(cq.level === "advanced" && cq.advancedSet ? { advancedSet: cq.advancedSet } : {}),
+        },
+        extraContentJson: {
+          releaseAt: preReleaseAt,
+          autoScheduledFromSession: true,
+          sessionPhase: "pre_work",
+          liveSessionId,
+          sessionTitle,
+          sessionScheduledAt: scheduledAt.toISOString(),
+          sessionDurationMinutes: input.durationMinutes,
+        },
       },
       db,
       options
@@ -969,25 +966,25 @@ export async function createTeacherLiveSession(
   } else if (input.preWork.trim()) {
     const created = await createClassroomAssignment(
       {
-      teacherId: input.teacherId,
-      classroomId: input.classroomId,
-      sectionId: input.sectionId ?? null,
-      assignmentType: "assignment",
-      title: `${sessionTitle} · Pre-work`,
-      dueDate: null,
-      dueDateIso: scheduledAt.toISOString(),
-      assignToLabel: "All students",
-      rewardRdm: 10,
-      instructions: input.preWork.trim(),
-      extraContentJson: {
-        releaseAt: preReleaseAt,
-        autoScheduledFromSession: true,
-        sessionPhase: "pre_work",
-        liveSessionId,
-        sessionTitle,
-        sessionScheduledAt: scheduledAt.toISOString(),
-        sessionDurationMinutes: input.durationMinutes,
-      },
+        teacherId: input.teacherId,
+        classroomId: input.classroomId,
+        sectionId: input.sectionId ?? null,
+        assignmentType: "assignment",
+        title: `${sessionTitle} · Pre-work`,
+        dueDate: null,
+        dueDateIso: scheduledAt.toISOString(),
+        assignToLabel: "All students",
+        rewardRdm: 10,
+        instructions: input.preWork.trim(),
+        extraContentJson: {
+          releaseAt: preReleaseAt,
+          autoScheduledFromSession: true,
+          sessionPhase: "pre_work",
+          liveSessionId,
+          sessionTitle,
+          sessionScheduledAt: scheduledAt.toISOString(),
+          sessionDurationMinutes: input.durationMinutes,
+        },
       },
       db,
       options
@@ -1003,37 +1000,37 @@ export async function createTeacherLiveSession(
     const postDueAt = new Date(postReleaseAt).toISOString();
     const created = await createClassroomAssignment(
       {
-      teacherId: input.teacherId,
-      classroomId: input.classroomId,
-      sectionId: input.sectionId ?? null,
-      assignmentType: "Concept Focus",
-      title: `${sessionTitle} · Post-work`,
-      dueDate: null,
-      dueDateIso: postDueAt,
-      assignToLabel: "All students",
-      rewardRdm: 15,
-      instructions:
-        input.postWork.trim() || "Complete this concept-focus post-work after class completion.",
-      chapterQuiz: {
-        board: cq.board,
-        subject: cq.subject,
-        classLevel: cq.classLevel,
-        chapterTitle: cq.chapterTitle,
-        topic: cq.topic,
-        subtopicName: cq.subtopicName,
-        level: cq.level,
-        ...(cq.level === "advanced" && cq.advancedSet ? { advancedSet: cq.advancedSet } : {}),
-      },
-      extraContentJson: {
-        releaseAt: postReleaseAt,
-        autoScheduledFromSession: true,
-        sessionPhase: "post_work",
-        liveSessionId,
-        sessionTitle,
-        postWorkDelayDays: postDelayDays,
-        sessionScheduledAt: scheduledAt.toISOString(),
-        sessionDurationMinutes: input.durationMinutes,
-      },
+        teacherId: input.teacherId,
+        classroomId: input.classroomId,
+        sectionId: input.sectionId ?? null,
+        assignmentType: "Concept Focus",
+        title: `${sessionTitle} · Post-work`,
+        dueDate: null,
+        dueDateIso: postDueAt,
+        assignToLabel: "All students",
+        rewardRdm: 15,
+        instructions:
+          input.postWork.trim() || "Complete this concept-focus post-work after class completion.",
+        chapterQuiz: {
+          board: cq.board,
+          subject: cq.subject,
+          classLevel: cq.classLevel,
+          chapterTitle: cq.chapterTitle,
+          topic: cq.topic,
+          subtopicName: cq.subtopicName,
+          level: cq.level,
+          ...(cq.level === "advanced" && cq.advancedSet ? { advancedSet: cq.advancedSet } : {}),
+        },
+        extraContentJson: {
+          releaseAt: postReleaseAt,
+          autoScheduledFromSession: true,
+          sessionPhase: "post_work",
+          liveSessionId,
+          sessionTitle,
+          postWorkDelayDays: postDelayDays,
+          sessionScheduledAt: scheduledAt.toISOString(),
+          sessionDurationMinutes: input.durationMinutes,
+        },
       },
       db,
       options
@@ -1043,26 +1040,26 @@ export async function createTeacherLiveSession(
     const postDueAt = new Date(postReleaseAt).toISOString();
     const created = await createClassroomAssignment(
       {
-      teacherId: input.teacherId,
-      classroomId: input.classroomId,
-      sectionId: input.sectionId ?? null,
-      assignmentType: "assignment",
-      title: `${sessionTitle} · Post-work`,
-      dueDate: null,
-      dueDateIso: postDueAt,
-      assignToLabel: "All students",
-      rewardRdm: 10,
-      instructions: input.postWork.trim(),
-      extraContentJson: {
-        releaseAt: postReleaseAt,
-        autoScheduledFromSession: true,
-        sessionPhase: "post_work",
-        liveSessionId,
-        sessionTitle,
-        postWorkDelayDays: postDelayDays,
-        sessionScheduledAt: scheduledAt.toISOString(),
-        sessionDurationMinutes: input.durationMinutes,
-      },
+        teacherId: input.teacherId,
+        classroomId: input.classroomId,
+        sectionId: input.sectionId ?? null,
+        assignmentType: "assignment",
+        title: `${sessionTitle} · Post-work`,
+        dueDate: null,
+        dueDateIso: postDueAt,
+        assignToLabel: "All students",
+        rewardRdm: 10,
+        instructions: input.postWork.trim(),
+        extraContentJson: {
+          releaseAt: postReleaseAt,
+          autoScheduledFromSession: true,
+          sessionPhase: "post_work",
+          liveSessionId,
+          sessionTitle,
+          postWorkDelayDays: postDelayDays,
+          sessionScheduledAt: scheduledAt.toISOString(),
+          sessionDurationMinutes: input.durationMinutes,
+        },
       },
       db,
       options

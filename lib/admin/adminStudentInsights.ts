@@ -76,12 +76,7 @@ export function rollupDwellEvents(
   const map = new Map<string, DwellMsByPanel>();
   for (const e of events) {
     const panel = e.panel;
-    if (
-      panel !== "theory" &&
-      panel !== "bits" &&
-      panel !== "numerals" &&
-      panel !== "instacue"
-    ) {
+    if (panel !== "theory" && panel !== "bits" && panel !== "numerals" && panel !== "instacue") {
       continue;
     }
     const classLevel = Number(e.class_level);
@@ -122,7 +117,9 @@ export function mergeDwellIntoSubtopicRows(
   }));
 }
 
-export function splitEngagementStorageKey(storageKey: string): Omit<EngagementScopeParts, "storageKey"> {
+export function splitEngagementStorageKey(
+  storageKey: string
+): Omit<EngagementScopeParts, "storageKey"> {
   const parts = storageKey.split("||");
   if (parts.length !== 6) {
     return {
@@ -179,7 +176,9 @@ function summarizeSnapshot(snapshot: SubtopicEngagementSnapshot): SubtopicInsigh
       ? Object.keys(snapshot.formulaByIdx).length
       : 0;
 
-  const conceptsPagesCount = Array.isArray(snapshot.conceptsPages) ? snapshot.conceptsPages.length : 0;
+  const conceptsPagesCount = Array.isArray(snapshot.conceptsPages)
+    ? snapshot.conceptsPages.length
+    : 0;
 
   return {
     lessonChecklistMarkedCompleteAt: snapshot.lessonChecklistMarkedCompleteAt ?? null,

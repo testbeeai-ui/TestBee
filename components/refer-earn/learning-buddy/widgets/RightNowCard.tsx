@@ -39,8 +39,7 @@ export function RightNowCard({
     buddyOnline &&
     (isQuiz || isGyanActive || isCommunityPosted || isGyanBrowsing || isStudying || isOnline);
 
-  const subject =
-    "subject" in rightNow && rightNow.subject != null ? rightNow.subject : null;
+  const subject = "subject" in rightNow && rightNow.subject != null ? rightNow.subject : null;
   const topic = "topic" in rightNow ? rightNow.topic : null;
   const subtopic = "subtopic" in rightNow ? rightNow.subtopic : null;
   const panel = "panel" in rightNow ? rightNow.panel : null;
@@ -65,11 +64,17 @@ export function RightNowCard({
       : isCommunityPosted
         ? "Posted on Community"
         : isGyanBrowsing
-          ? (buddyOnline ? "On Gyan++ now" : "Recently on Gyan++")
+          ? buddyOnline
+            ? "On Gyan++ now"
+            : "Recently on Gyan++"
           : isStudying
-            ? (buddyOnline ? "Studying now" : "Recently studying")
+            ? buddyOnline
+              ? "Studying now"
+              : "Recently studying"
             : isOnline
-              ? (buddyOnline ? "Online now" : "Recently online")
+              ? buddyOnline
+                ? "Online now"
+                : "Recently online"
               : hasRecentScope
                 ? "Recently on"
                 : "Idle";
@@ -82,16 +87,15 @@ export function RightNowCard({
         ? `${subject} · ${topic ?? ""}${subtopic ? ` · ${subtopic}` : ""}`
         : "Nothing recent yet.";
 
-  const accent =
-    isQuiz
-      ? "sky"
-      : isCommunityPosted
-        ? "violet"
-        : isGyanActive || isGyanBrowsing
-          ? "cyan"
-          : isStudying || isOnline
-            ? "emerald"
-            : "neutral";
+  const accent = isQuiz
+    ? "sky"
+    : isCommunityPosted
+      ? "violet"
+      : isGyanActive || isGyanBrowsing
+        ? "cyan"
+        : isStudying || isOnline
+          ? "emerald"
+          : "neutral";
 
   const borderClass =
     accent === "sky"
@@ -127,16 +131,10 @@ export function RightNowCard({
             : "text-slate-200";
 
   const linkClass =
-    accent === "violet"
-      ? "text-violet-300"
-      : accent === "sky"
-        ? "text-sky-300"
-        : "text-cyan-300";
+    accent === "violet" ? "text-violet-300" : accent === "sky" ? "text-sky-300" : "text-cyan-300";
 
   const subjectBadgeClass =
-    accent === "violet"
-      ? "bg-violet-500/15 text-violet-200"
-      : "bg-cyan-500/15 text-cyan-200";
+    accent === "violet" ? "bg-violet-500/15 text-violet-200" : "bg-cyan-500/15 text-cyan-200";
 
   const openLinkLabel = isCommunityPosted
     ? "Open community post →"
@@ -148,10 +146,7 @@ export function RightNowCard({
     <div className={cn("rounded-[10px] border px-3 py-2.5", borderClass)}>
       <div className="flex items-center gap-2">
         <span
-          className={cn(
-            "inline-flex h-6 w-6 items-center justify-center rounded-full",
-            iconClass
-          )}
+          className={cn("inline-flex h-6 w-6 items-center justify-center rounded-full", iconClass)}
         >
           {isLive ? (
             <span className="relative">
@@ -183,11 +178,7 @@ export function RightNowCard({
               className="buddy-right-now-gyan-wrap text-[12px] leading-snug text-slate-300"
               title={socialTitle ?? undefined}
             >
-              <DoubtMarkdown
-                content={socialPreview}
-                compact
-                className="buddy-right-now-gyan"
-              />
+              <DoubtMarkdown content={socialPreview} compact className="buddy-right-now-gyan" />
             </div>
           </Link>
           {subject ? (

@@ -4,6 +4,7 @@ import type { Board, Subject } from "@/types";
 import { safeGetSession } from "@/lib/auth/safeSession";
 import { localStudyCalendarDay } from "@/lib/dashboard/studyDayBump";
 import { dispatchStudyDayBumped } from "@/lib/dashboard/studyDayBumpEvents";
+import { track } from "@/lib/analytics/track";
 
 const API = "/api/user/bits-attempts";
 
@@ -87,6 +88,19 @@ export async function saveBitsAttempt(
   if (!res.ok) {
     throw new Error(data.error || "Failed to save quiz attempt");
   }
+  const { notifyBuddyActivityRefresh } = await import("@/lib/buddy/buddyActivityEvents");
+  notifyBuddyActivityRefresh();
+  track("bits_quiz_submitted", {
+    board: attempt.board,
+    subject: attempt.subject,
+    classLevel: attempt.classLevel,
+    topic: attempt.topic,
+    subtopic: attempt.subtopicName,
+    level: attempt.level,
+    totalQuestions: attempt.totalQuestions,
+    correctCount: attempt.correctCount,
+    wrongCount: attempt.wrongCount,
+  });
   return data.attempt ?? attempt;
 }
 
