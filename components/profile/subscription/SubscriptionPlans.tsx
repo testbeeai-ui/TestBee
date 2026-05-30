@@ -1,15 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Check, ChevronDown, ChevronUp, Loader2, RefreshCw, Lock } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, RefreshCw, Lock } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { PLAN_TIERS } from "./types";
 import type { SubViewId } from "./StudentSubscriptionHub";
 import type { Profile } from "@/hooks/useAuth";
-import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
-import { useToast } from "@/hooks/use-toast";
-import { setUserSubscriptionPlan } from "@/lib/subscription/subscriptionPlanApi";
 import {
   fetchSubscriptionConfig,
   getPlanLimits,
@@ -68,9 +65,6 @@ function patchItemBadge(
 }
 
 export default function SubscriptionPlans({ profile }: Props) {
-  const { toast } = useToast();
-  const { refreshProfile } = useAuth();
-  const [switchingPlan, setSwitchingPlan] = useState<SubscriptionPlanKey | null>(null);
   const [billingMode, setBillingMode] = useState<"monthly" | "annual">("monthly");
   const [expanded, setExpanded] = useState<Record<SubscriptionPlanKey, boolean>>({
     free_trial: false,
@@ -124,28 +118,6 @@ export default function SubscriptionPlans({ profile }: Props) {
     });
   }, [config]);
 
-  const activate = async (plan: SubscriptionPlanKey) => {
-    if (switchingPlan) return;
-    setSwitchingPlan(plan);
-    try {
-      await setUserSubscriptionPlan(plan);
-      await refreshProfile();
-      await loadConfig(true);
-      toast({
-        title: "Plan updated",
-        description: `Active plan is now ${plan.replace("_", " ")}.`,
-      });
-    } catch (e) {
-      toast({
-        title: "Could not switch plan",
-        description: e instanceof Error ? e.message : "Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setSwitchingPlan(null);
-    }
-  };
-
   return (
     <div className="flex flex-col gap-6">
       {/* Premium Glassmorphic Header */}
@@ -160,7 +132,7 @@ export default function SubscriptionPlans({ profile }: Props) {
               Choose a plan
             </h2>
             <p className="mt-1.5 text-sm font-medium text-slate-400">
-              Testing mode is active. Activate Free Trial, Free, Starter, or Pro anytime.
+              Compare plan limits. Trial activation and paid upgrades use verified checkout flows.
             </p>
           </div>
           <button
@@ -223,17 +195,8 @@ export default function SubscriptionPlans({ profile }: Props) {
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2 2xl:grid-cols-4">
         {displayPlans.map((plan) => {
           const isCurrent = currentPlan === plan.id;
-          const isLoading = switchingPlan === plan.id;
           const isExpanded = expanded[plan.id] === true;
-          const buttonText = isCurrent
-            ? "Active plan"
-            : plan.id === "free_trial"
-              ? "Activate Free Trial"
-              : plan.id === "free"
-                ? "Activate Free"
-                : plan.id === "starter"
-                  ? "Activate Starter"
-                  : "Activate Pro";
+          const buttonText = isCurrent ? "Active plan" : "Start from home trial wizard";
 
           // Premium visual properties
           const cardTheme = {
@@ -462,8 +425,7 @@ export default function SubscriptionPlans({ profile }: Props) {
                 <div className="mt-auto pt-6">
                   <button
                     type="button"
-                    disabled={isCurrent || isLoading || billingMode === "annual" || configLoading}
-                    onClick={() => activate(plan.id)}
+                    disabled
                     className={cn(
                       "inline-flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-xs font-bold tracking-wider uppercase transition-all duration-300 active:scale-[0.98]",
                       isCurrent
@@ -473,11 +435,7 @@ export default function SubscriptionPlans({ profile }: Props) {
                       configLoading && "bg-slate-800 text-slate-400 border border-white/5"
                     )}
                   >
-                    {isLoading || configLoading ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      buttonText
-                    )}
+                    {buttonText}
                   </button>
                 </div>
               ) : (

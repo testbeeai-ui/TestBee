@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { createClient, createClientWithToken } from "@/integrations/supabase/server";
+import {
+  createAdminClient,
+  createClient,
+  createClientWithToken,
+} from "@/integrations/supabase/server";
 import { enforceSameOriginForCookieAuth } from "@/lib/auth/securityGuards";
 import type { TargetExamKey } from "@/lib/profile/targetExam";
 import { validateTrialOnboardingForActivate } from "@/lib/subscription/trialOnboardingAnswers";
@@ -73,24 +77,48 @@ export async function POST(request: Request) {
       }
     }
 
-    const activatedAt = new Date().toISOString();
+    const { data: existingProfile, error: profileErr } = await supabase
+      .from("profiles")
+      .select("free_trial_activated_at, onboarding_reward_claimed_at")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (profileErr) {
+      console.error("activate-trial profile read error", profileErr);
+      return NextResponse.json({ error: profileErr.message }, { status: 500 });
+    }
+
+    const admin = createAdminClient();
+    if (!admin) {
+      return NextResponse.json(
+        { error: "SUPABASE_SERVICE_ROLE_KEY is not set" },
+        { status: 500 }
+      );
+    }
+
+    const activatedAt = existingProfile?.free_trial_activated_at ?? new Date().toISOString();
+    const isFirstActivation = !existingProfile?.free_trial_activated_at;
 
     // 2. Perform database update
-    const { error } = await supabase
+    const updates: Record<string, unknown> = {
+      plan_tier: "free_trial",
+      free_trial_activated: true,
+      free_trial_activated_at: activatedAt,
+      trial_onboarding_answers: answers,
+      class_level: classLevel,
+      current_class_label: answers.classLevel,
+      board: boardName,
+      target_exam: targetExam,
+      onboarding_complete: true,
+    };
+
+    if (isFirstActivation && !existingProfile?.onboarding_reward_claimed_at) {
+      updates.onboarding_reward_progress = {};
+    }
+
+    const { error } = await admin
       .from("profiles")
-      .update({
-        plan_tier: "free_trial",
-        free_trial_activated: true,
-        free_trial_activated_at: activatedAt,
-        trial_onboarding_answers: answers,
-        class_level: classLevel,
-        current_class_label: answers.classLevel,
-        board: boardName,
-        target_exam: targetExam,
-        onboarding_complete: true,
-        onboarding_reward_progress: {},
-        onboarding_reward_claimed_at: null,
-      })
+      .update(updates)
       .eq("id", user.id);
 
     if (error) {
@@ -98,7 +126,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ ok: true, free_trial_activated_at: activatedAt });
+    return NextResponse.json({
+      ok: true,
+      free_trial_activated_at: activatedAt,
+      alreadyActivated: !isFirstActivation,
+    });
   } catch (e) {
     console.error("activate-trial POST error", e);
     return NextResponse.json({ error: "Server error" }, { status: 500 });

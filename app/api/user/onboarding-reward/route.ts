@@ -102,8 +102,16 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "already_claimed" }, { status: 409 });
     }
 
+    const admin = createAdminClient();
+    if (!admin) {
+      return NextResponse.json(
+        { error: "SUPABASE_SERVICE_ROLE_KEY is not set" },
+        { status: 500 }
+      );
+    }
+
     if (body.reset === true) {
-      const { error: resetErr } = await supabase
+      const { error: resetErr } = await admin
         .from("profiles")
         .update({ onboarding_reward_progress: {} })
         .eq("id", user.id);
@@ -135,13 +143,6 @@ export async function PATCH(request: NextRequest) {
     }
 
     if (markComplete && !isAdmin && (taskId === "earn_buddy" || taskId === "earn_buddy_step_2")) {
-      const admin = createAdminClient();
-      if (!admin) {
-        return NextResponse.json(
-          { error: "SUPABASE_SERVICE_ROLE_KEY is not set" },
-          { status: 500 }
-        );
-      }
       const buddyStatus = await verifyBuddyOnboardingForInviter(supabase, admin, user.id);
       if (!buddyStatus.hasInvitedBuddyJoined) {
         return NextResponse.json({ error: "buddy_not_joined" }, { status: 403 });
@@ -163,7 +164,7 @@ export async function PATCH(request: NextRequest) {
       delete progress[taskId];
     }
 
-    const { error: updateErr } = await supabase
+    const { error: updateErr } = await admin
       .from("profiles")
       .update({ onboarding_reward_progress: progress })
       .eq("id", user.id);
