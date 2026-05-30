@@ -34,8 +34,7 @@ export function resolveBuddySubtopicActivity(
 } {
   let latest: BuddySubtopicActivitySource | null = null;
   if (presence && dwell) {
-    latest =
-      Date.parse(presence.occurredAt) >= Date.parse(dwell.occurredAt) ? presence : dwell;
+    latest = Date.parse(presence.occurredAt) >= Date.parse(dwell.occurredAt) ? presence : dwell;
   } else {
     latest = presence ?? dwell;
   }

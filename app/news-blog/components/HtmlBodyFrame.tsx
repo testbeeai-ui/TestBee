@@ -132,9 +132,7 @@ export function HtmlBodyFrame({
       if (!doc?.body) return;
 
       const ro =
-        typeof ResizeObserver !== "undefined"
-          ? new ResizeObserver(() => scheduleMeasure())
-          : null;
+        typeof ResizeObserver !== "undefined" ? new ResizeObserver(() => scheduleMeasure()) : null;
       ro?.observe(doc.body);
 
       const settleTimer = window.setTimeout(() => {

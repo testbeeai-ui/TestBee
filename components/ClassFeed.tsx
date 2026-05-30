@@ -323,8 +323,14 @@ const ClassFeed = ({
       const genericClient = supabase as unknown as {
         from: (table: string) => {
           select: (columns: string) => {
-            eq: (column: string, value: string) => {
-              in: (column: string, values: string[]) => Promise<{
+            eq: (
+              column: string,
+              value: string
+            ) => {
+              in: (
+                column: string,
+                values: string[]
+              ) => Promise<{
                 data: Array<{ post_id: string; task_id: string }> | null;
                 error: { message?: string } | null;
               }>;
@@ -349,9 +355,7 @@ const ClassFeed = ({
       const done = new Set<string>();
       for (const p of assignmentLike) {
         const completed = completedByPost.get(p.id) ?? new Set<string>();
-        if (
-          studentVisibleAssignmentIsDone(p, completed, submittedPostIds, subtopicEngagement)
-        ) {
+        if (studentVisibleAssignmentIsDone(p, completed, submittedPostIds, subtopicEngagement)) {
           done.add(p.id);
         }
       }
@@ -359,14 +363,7 @@ const ClassFeed = ({
       setDonePostIds(done);
     };
     void fetchTaskProgressDone();
-  }, [
-    classroomId,
-    posts,
-    submittedPostIds,
-    viewerIsTeacher,
-    assignmentProgressBump,
-    refreshKey,
-  ]);
+  }, [classroomId, posts, submittedPostIds, viewerIsTeacher, assignmentProgressBump, refreshKey]);
 
   useEffect(() => {
     if (viewerIsTeacher) return;
@@ -381,7 +378,9 @@ const ClassFeed = ({
 
   const visiblePosts = useMemo(() => {
     // Students should see reminders only in Notifications, not inside Posts feed.
-    const base = posts.filter((post) => isReleasedForViewer(post, nowMs, currentUserId, viewerIsTeacher));
+    const base = posts.filter((post) =>
+      isReleasedForViewer(post, nowMs, currentUserId, viewerIsTeacher)
+    );
     return viewerIsTeacher ? base : base.filter((p) => p.type !== "motivation");
   }, [posts, currentUserId, nowMs, viewerIsTeacher]);
 
@@ -495,7 +494,8 @@ const ClassFeed = ({
           {(() => {
             const tasks = studentVisibleTasks(
               parseAssignmentTasks(
-                (post.content_json as unknown as import("@/integrations/supabase/types").Json) ?? null,
+                (post.content_json as unknown as import("@/integrations/supabase/types").Json) ??
+                  null,
                 post.type
               )
             );
@@ -542,7 +542,8 @@ const ClassFeed = ({
           })()}
           {post.due_date && (
             <p className="text-[10px] font-bold text-destructive flex items-center gap-0.5 mt-2">
-              <Calendar className="w-3 h-3 shrink-0" /> Due {format(new Date(post.due_date), "MMM d")}
+              <Calendar className="w-3 h-3 shrink-0" /> Due{" "}
+              {format(new Date(post.due_date), "MMM d")}
             </p>
           )}
           <p className="text-[11px] text-muted-foreground/70 mt-auto pt-3">
@@ -576,15 +577,7 @@ const ClassFeed = ({
         </div>
       );
     },
-    [
-      classroomId,
-      currentUserId,
-      nowMs,
-      onSelectPost,
-      sectionOptions,
-      donePostIds,
-      viewerIsTeacher,
-    ]
+    [classroomId, currentUserId, nowMs, onSelectPost, sectionOptions, donePostIds, viewerIsTeacher]
   );
 
   if (loading) {
@@ -622,12 +615,17 @@ const ClassFeed = ({
         </p>
         {isEnrolledStudent ? (
           <ul className="text-xs text-muted-foreground max-w-md mx-auto space-y-1.5 text-left list-disc pl-5">
-            <li>You only see posts your account is allowed to read (same rules as the database).</li>
             <li>
-              Section-only work: your <span className="font-semibold text-foreground">Members</span> teaching section
-              must match the post&apos;s section.
+              You only see posts your account is allowed to read (same rules as the database).
             </li>
-            <li>If you were moved after work was published, ask your teacher to fix scope or republish.</li>
+            <li>
+              Section-only work: your <span className="font-semibold text-foreground">Members</span>{" "}
+              teaching section must match the post&apos;s section.
+            </li>
+            <li>
+              If you were moved after work was published, ask your teacher to fix scope or
+              republish.
+            </li>
           </ul>
         ) : (
           <p className="text-xs text-muted-foreground max-w-md mx-auto">
@@ -638,7 +636,12 @@ const ClassFeed = ({
     );
   }
 
-  if (!viewerIsTeacher && posts.length > 0 && visiblePosts.length === 0 && upcomingPosts.length > 0) {
+  if (
+    !viewerIsTeacher &&
+    posts.length > 0 &&
+    visiblePosts.length === 0 &&
+    upcomingPosts.length > 0
+  ) {
     const next = upcomingPosts[0];
     const nextMs = getReleaseMs(next);
     return (
@@ -650,7 +653,9 @@ const ClassFeed = ({
             {nextMs ? ` starting ${format(new Date(nextMs), "MMM d, h:mm a")}` : " soon"}.
           </p>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4">{upcomingPosts.map(renderPostCard)}</div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4">
+          {upcomingPosts.map(renderPostCard)}
+        </div>
       </div>
     );
   }

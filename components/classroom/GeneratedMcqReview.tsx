@@ -56,7 +56,8 @@ export default function GeneratedMcqReview({
               {q.options.map((opt, optIdx) => {
                 const selectedHere = selected === optIdx;
                 const isCorrect = q.correctAnswerIndex === optIdx;
-                const isWrongSelected = submitted && showCorrectAnswers && selectedHere && !isCorrect;
+                const isWrongSelected =
+                  submitted && showCorrectAnswers && selectedHere && !isCorrect;
                 const isCorrectRevealed = submitted && showCorrectAnswers && isCorrect;
 
                 return (
@@ -112,8 +113,7 @@ export default function GeneratedMcqReview({
             </div>
             {submitted && showCorrectAnswers ? (
               <div className="mt-2 text-xs text-slate-400">
-                Your answer:{" "}
-                {selected >= 0 ? String.fromCharCode(65 + selected) : "Not answered"}
+                Your answer: {selected >= 0 ? String.fromCharCode(65 + selected) : "Not answered"}
                 {" · "}
                 Correct answer:{" "}
                 {typeof q.correctAnswerIndex === "number"
@@ -127,4 +127,3 @@ export default function GeneratedMcqReview({
     </div>
   );
 }
-

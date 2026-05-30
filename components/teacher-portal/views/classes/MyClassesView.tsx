@@ -90,7 +90,12 @@ function shortWorkLine(kind: TeacherPortalSessionWorkKind, body: string): string
   if (kind === "none") return "No assignment";
   const raw = body.trim();
   if (!raw) return "Not set";
-  return raw.split("\n").map((s) => s.trim()).find(Boolean) ?? raw;
+  return (
+    raw
+      .split("\n")
+      .map((s) => s.trim())
+      .find(Boolean) ?? raw
+  );
 }
 
 export default function MyClassesView({
@@ -205,7 +210,9 @@ export default function MyClassesView({
                       {timeLabel(session.scheduledAt)} · {session.durationMinutes} min
                     </div>
                     <div className="mt-0.5 text-[11px] font-semibold text-slate-500">
-                      {session.sectionId ? `Only ${session.sectionName ?? "section"}` : "Whole class"}
+                      {session.sectionId
+                        ? `Only ${session.sectionName ?? "section"}`
+                        : "Whole class"}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">

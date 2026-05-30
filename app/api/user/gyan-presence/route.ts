@@ -34,10 +34,9 @@ export async function POST(request: Request) {
         });
       }
     }
-    const { error } = await supabase.from("student_gyan_presence" as never).upsert(
-      { user_id: user.id, updated_at: now } as never,
-      { onConflict: "user_id" }
-    );
+    const { error } = await supabase
+      .from("student_gyan_presence" as never)
+      .upsert({ user_id: user.id, updated_at: now } as never, { onConflict: "user_id" });
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

@@ -43,7 +43,10 @@ export async function GET() {
     return NextResponse.json({ weekStartIst: weekStart, entries: [] as LeaderboardEntry[] });
   }
 
-  const { data: profiles, error: pErr } = await admin.from("profiles").select("id, name").in("id", ids);
+  const { data: profiles, error: pErr } = await admin
+    .from("profiles")
+    .select("id, name")
+    .in("id", ids);
 
   if (pErr) {
     return NextResponse.json({ error: pErr.message }, { status: 500 });

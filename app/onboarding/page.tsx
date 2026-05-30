@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense, useRef } from "react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -29,7 +30,28 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { readPendingDeepLink, clearPendingDeepLink } from "@/lib/auth/safeNextPath";
 import { TEACHER_PORTAL_CLASSROOMS_URL } from "@/lib/teacherPortal/routes";
 import { useToast } from "@/hooks/use-toast";
-import { clearPendingReferralRef, resolvePendingReferralRef } from "@/lib/rdm/referral/referralClient";
+import {
+  clearPendingReferralRef,
+  resolvePendingReferralRef,
+} from "@/lib/rdm/referral/referralClient";
+import { OnboardingTermsAcceptance } from "@/components/legal/OnboardingTermsAcceptance";
+import { track } from "@/lib/analytics/track";
+
+const EDUBLAST_LOGO_SRC = "/images/logo-2.png";
+
+function OnboardingLoadingLogo() {
+  return (
+    <Image
+      src={EDUBLAST_LOGO_SRC}
+      alt="EduBlast"
+      width={170}
+      height={48}
+      priority
+      draggable={false}
+      className="h-11 w-auto animate-pulse opacity-95"
+    />
+  );
+}
 
 const subjects = ["Physics", "Chemistry", "Math"];
 const studentExamTargets: { key: TargetExamKey; label: string; tag?: string; locked?: boolean }[] =
@@ -57,7 +79,7 @@ export default function Onboarding() {
     <Suspense
       fallback={
         <div className="min-h-screen flex items-center justify-center bg-background">
-          <span className="text-4xl animate-pulse">🎯</span>
+          <OnboardingLoadingLogo />
         </div>
       }
     >
@@ -89,6 +111,7 @@ function OnboardingContent() {
   const [selectedExams, setSelectedExams] = useState<string[]>([]);
   const [visibility, setVisibility] = useState("public");
   const [saving, setSaving] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [profileTimeout, setProfileTimeout] = useState(false);
   const teacherFormHydratedFor = useRef<string | null>(null);
 
@@ -119,6 +142,12 @@ function OnboardingContent() {
   }, [user?.id, profile]);
 
   useEffect(() => {
+    if (user && !profile?.onboarding_complete) {
+      track("onboarding_started");
+    }
+  }, [user, profile?.onboarding_complete]);
+
+  useEffect(() => {
     if (loading) return;
     if (!user) router.replace("/auth");
     else if (profile?.onboarding_complete) {
@@ -145,11 +174,13 @@ function OnboardingContent() {
     if (fromUrl) {
       setRole(requestedRole as "student" | "teacher");
       setStep("details");
+      track("onboarding_role_selected", { role: requestedRole });
       return;
     }
     if (fromProfile) {
       setRole(profile!.role as "student" | "teacher");
       setStep("details");
+      track("onboarding_role_selected", { role: profile!.role });
     }
     if (profileTimeout && !role) {
       // Use URL param or sessionStorage fallback instead of hardcoded student
@@ -185,15 +216,15 @@ function OnboardingContent() {
   if (loading)
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <span className="text-4xl animate-pulse">🎯</span>
+        <OnboardingLoadingLogo />
       </div>
     );
   if (!user) return null;
   if (profile?.onboarding_complete) return null;
   if (user && profile === null && !profileTimeout)
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <span className="text-4xl animate-pulse">🎯</span>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background">
+        <OnboardingLoadingLogo />
         <p className="mt-3 text-sm text-muted-foreground">Loading your profile…</p>
       </div>
     );
@@ -282,12 +313,17 @@ function OnboardingContent() {
         }
       }
 
+      track("onboarding_completed", {
+        role,
+        classLevel: role === "student" ? studentClassLevel : undefined,
+        targetExams: role === "student" ? studentTargetExams : undefined,
+        subjects: role === "teacher" ? teachingSubjects : undefined,
+      });
       import("canvas-confetti").then((c) =>
         c.default({ particleCount: 150, spread: 80, origin: { y: 0.6 } })
       );
       const pending = readPendingDeepLink();
-      const dest =
-        pending ?? (role === "teacher" ? TEACHER_PORTAL_CLASSROOMS_URL : "/home");
+      const dest = pending ?? (role === "teacher" ? TEACHER_PORTAL_CLASSROOMS_URL : "/home");
       clearPendingDeepLink();
       router.replace(dest);
     } finally {
@@ -525,22 +561,31 @@ function OnboardingContent() {
                 </div>
               </div>
 
-              <div className="flex gap-3 pt-3">
-                <Button
-                  variant="outline"
-                  onClick={() => setStep("role")}
-                  className="auth-glass-outline-btn rounded-xl min-w-24"
-                >
-                  Back
-                </Button>
-                <Button
-                  onClick={handleComplete}
-                  disabled={saving}
-                  className="flex-1 rounded-xl edu-btn-primary h-12 text-base font-extrabold"
-                >
-                  {saving ? "Saving..." : "Continue"} <ArrowRight className="w-4 h-4 ml-1" />
-                </Button>
-              </div>
+              <OnboardingTermsAcceptance
+                accepted={termsAccepted}
+                onAcceptedChange={setTermsAccepted}
+                action={
+                  <div className="flex gap-3">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setTermsAccepted(false);
+                        setStep("role");
+                      }}
+                      className="auth-glass-outline-btn min-w-24 rounded-xl"
+                    >
+                      Back
+                    </Button>
+                    <Button
+                      onClick={handleComplete}
+                      disabled={saving}
+                      className="edu-btn-primary h-12 flex-1 rounded-xl text-base font-extrabold"
+                    >
+                      {saving ? "Saving..." : "Continue"} <ArrowRight className="ml-1 h-4 w-4" />
+                    </Button>
+                  </div>
+                }
+              />
               <p className="mt-4 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center text-[11px] text-zinc-500">
                 <Link href="/" className="underline-offset-2 hover:text-zinc-300 hover:underline">
                   Exit to home
@@ -713,24 +758,34 @@ function OnboardingContent() {
                 </div>
               </div>
 
-              <div className="mt-5 flex flex-col-reverse gap-2 border-t border-white/10 pt-4 sm:flex-row sm:items-center sm:justify-end sm:gap-3 lg:mt-6">
-                <Button
-                  variant="outline"
-                  onClick={() => setStep("role")}
-                  className="auth-glass-outline-btn h-10 shrink-0 rounded-lg px-5 text-sm font-semibold sm:w-auto"
-                >
-                  Back
-                </Button>
-                <Button
-                  onClick={handleComplete}
-                  disabled={saving}
-                  className="h-10 flex-1 gap-2 rounded-lg bg-gradient-to-r from-primary to-primary/90 text-sm font-bold shadow-md shadow-primary/20 hover:from-primary/95 hover:to-primary/85 sm:min-w-[220px] sm:text-base"
-                >
-                  <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                  {saving ? "Saving..." : "Create Profile!"}
-                  <ArrowRight className="ml-0.5 h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                </Button>
-              </div>
+              <OnboardingTermsAcceptance
+                className="mt-5 lg:mt-6"
+                accepted={termsAccepted}
+                onAcceptedChange={setTermsAccepted}
+                action={
+                  <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-3">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setTermsAccepted(false);
+                        setStep("role");
+                      }}
+                      className="auth-glass-outline-btn h-10 shrink-0 rounded-lg px-5 text-sm font-semibold sm:w-auto"
+                    >
+                      Back
+                    </Button>
+                    <Button
+                      onClick={handleComplete}
+                      disabled={saving}
+                      className="h-10 flex-1 gap-2 rounded-lg bg-gradient-to-r from-primary to-primary/90 text-sm font-bold shadow-md shadow-primary/20 hover:from-primary/95 hover:to-primary/85 sm:min-w-[220px] sm:text-base"
+                    >
+                      <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                      {saving ? "Saving..." : "Create Profile!"}
+                      <ArrowRight className="ml-0.5 h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                    </Button>
+                  </div>
+                }
+              />
               <p className="mt-3 flex flex-wrap justify-center gap-x-3 gap-y-1 text-center text-[11px] text-zinc-500">
                 <Link href="/" className="underline-offset-2 hover:text-zinc-300 hover:underline">
                   Exit to home

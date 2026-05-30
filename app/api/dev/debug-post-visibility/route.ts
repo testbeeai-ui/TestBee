@@ -80,12 +80,14 @@ export async function GET(request: NextRequest) {
     for (const h of history) {
       // class-wide
       if (postSection == null) {
-        if (inInterval(createdAt, h.joined_at, h.left_at)) return { ok: true, via: "class_interval" };
+        if (inInterval(createdAt, h.joined_at, h.left_at))
+          return { ok: true, via: "class_interval" };
         continue;
       }
       // section scoped
       if ((h.section_id ?? null) !== postSection) continue;
-      if (inInterval(createdAt, h.joined_at, h.left_at)) return { ok: true, via: "section_interval" };
+      if (inInterval(createdAt, h.joined_at, h.left_at))
+        return { ok: true, via: "section_interval" };
       // pending exception (created before join, due after join)
       if (due) {
         const c = Date.parse(createdAt);
@@ -113,7 +115,7 @@ export async function GET(request: NextRequest) {
       const tIds = Array.isArray(payload.targetStudentIds) ? payload.targetStudentIds : [];
       const hasTarget = Array.isArray(tIds) && tIds.length > 0;
       const sectionLabel =
-        p.section_id == null ? "WHOLE_CLASS" : sectionNameById.get(p.section_id) ?? "SECTION";
+        p.section_id == null ? "WHOLE_CLASS" : (sectionNameById.get(p.section_id) ?? "SECTION");
       return {
         id: p.id,
         type: p.type,
@@ -129,4 +131,3 @@ export async function GET(request: NextRequest) {
     }),
   });
 }
-

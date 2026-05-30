@@ -35,7 +35,10 @@ const TEACHER_PORTAL_BUNDLE_SNAPSHOT_PREFIX = "teacherPortal.bundleSnapshot.v1:"
 
 function persistTeacherPortalBundleSnapshot(userId: string, bundle: TeacherPortalDataBundle) {
   try {
-    sessionStorage.setItem(`${TEACHER_PORTAL_BUNDLE_SNAPSHOT_PREFIX}${userId}`, JSON.stringify(bundle));
+    sessionStorage.setItem(
+      `${TEACHER_PORTAL_BUNDLE_SNAPSHOT_PREFIX}${userId}`,
+      JSON.stringify(bundle)
+    );
   } catch {
     // Quota / private mode
   }
@@ -297,20 +300,26 @@ export function useTeacherPortalData(
       if (input.scheduleDate && input.scheduleTime) {
         const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
         try {
-          const res = await fetchWithClientAuth(`/api/integrations/google/classrooms/${classroomId}/recurring`, {
-            method: "POST",
-            credentials: "include",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              timeZone,
-              scheduleDate: input.scheduleDate,
-              scheduleTime: input.scheduleTime,
-              durationMinutes: input.durationMinutes,
-              repeatDays: input.repeatDays,
-              scheduleEndDate: input.scheduleEndDate?.trim() || null,
-            }),
-          });
-          const payload = (await res.json().catch(() => ({}))) as { error?: string; skipped?: boolean };
+          const res = await fetchWithClientAuth(
+            `/api/integrations/google/classrooms/${classroomId}/recurring`,
+            {
+              method: "POST",
+              credentials: "include",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                timeZone,
+                scheduleDate: input.scheduleDate,
+                scheduleTime: input.scheduleTime,
+                durationMinutes: input.durationMinutes,
+                repeatDays: input.repeatDays,
+                scheduleEndDate: input.scheduleEndDate?.trim() || null,
+              }),
+            }
+          );
+          const payload = (await res.json().catch(() => ({}))) as {
+            error?: string;
+            skipped?: boolean;
+          };
           if (!res.ok && res.status !== 409) {
             console.warn("[google calendar] sync:", payload.error ?? res.status);
           }

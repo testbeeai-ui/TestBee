@@ -114,16 +114,15 @@ function legacyTasksFromPayload(
         ? "Complete mock paper"
         : postType === "past_paper"
           ? "Complete past paper"
-        : postType === "quiz"
-          ? "Complete chapter quiz"
-          : "Complete assignment";
+          : postType === "quiz"
+            ? "Complete chapter quiz"
+            : "Complete assignment";
     return [
       {
         id: "legacy-0",
         kind,
         label,
-        href:
-          postType === "mock" || postType === "past_paper" ? "/mock-test" : "/exam-prep",
+        href: postType === "mock" || postType === "past_paper" ? "/mock-test" : "/exam-prep",
         visible_to_student: true,
         position: 0,
         reward_rdm: null,

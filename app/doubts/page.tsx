@@ -31,11 +31,33 @@ import DoubtLeftSidebar from "@/components/doubts/DoubtLeftSidebar";
 import DoubtRightSidebar from "@/components/doubts/DoubtRightSidebar";
 import { GyanDoubtsFocusTracker } from "@/components/doubts/GyanDoubtsFocusTracker";
 import { GyanDailyChecklistTracker } from "@/components/doubts/GyanDailyChecklistTracker";
-import GyanFeedPagination, {
-  GYAN_FEED_PAGE_SIZE,
-} from "@/components/doubts/GyanFeedPagination";
+import GyanFeedPagination, { GYAN_FEED_PAGE_SIZE } from "@/components/doubts/GyanFeedPagination";
 import { dispatchStudyDayBumped } from "@/lib/dashboard/studyDayBumpEvents";
 import { DEFAULT_RDM_CONFIG, fetchRdmConfig } from "@/lib/rdm/rdmConfig";
+import { OnboardingGuidanceBanner } from "@/components/onboarding/OnboardingGuidanceBanner";
+import {
+  clearGyanPlusOnboardingQueryParams,
+  gyanDoubtsPathFromSearchParams,
+  isGyanPlusCompanionFlowComplete,
+  isGyanPlusOnboardingComplete,
+  isGyanPlusOnboardingSessionActive,
+  isGyanPlusSubstepDone,
+  recordGyanPlusSubstep,
+} from "@/lib/onboarding/gyanPlusOnboarding";
+import { isDailyChecklistCompanionRetryActive } from "@/lib/onboarding/dailyChecklistCompanionRetry";
+import {
+  isGyanPlusCompanionTrackingActive,
+  markGyanPlusCompanionComment,
+  markGyanPlusCompanionPost,
+  markGyanPlusCompanionUpvote,
+  reconcileGyanPlusCompanionSteps,
+  startGyanPlusBrowseCountdown,
+  tickGyanPlusBrowseCountdown,
+} from "@/lib/onboarding/gyanPlusCompanionOnboarding";
+import {
+  getOnboardingProgress,
+  ONBOARDING_PROGRESS_EVENT,
+} from "@/lib/subscription/freeTrialClient";
 
 type SimpleDoubtRow = {
   id: string;
@@ -76,16 +98,104 @@ function DoubtsPageContent() {
   // UI state
   const [askOpen, setAskOpen] = useState(false);
 
+  const gyanOnboardingActive = isGyanPlusOnboardingSessionActive(searchParams);
+
+  const [showGyanPostGuide, setShowGyanPostGuide] = useState(false);
+  const [showGyanEngageGuide, setShowGyanEngageGuide] = useState(false);
+
+  const syncGyanOnboardingGuides = useCallback(() => {
+    if (!gyanOnboardingActive) {
+      setShowGyanPostGuide(false);
+      setShowGyanEngageGuide(false);
+      return;
+    }
+    const progress = getOnboardingProgress();
+    const flowDone =
+      isGyanPlusCompanionTrackingActive() || isDailyChecklistCompanionRetryActive("gyan_plus")
+        ? isGyanPlusCompanionFlowComplete(progress)
+        : isGyanPlusOnboardingComplete(progress);
+    if (flowDone) {
+      setShowGyanPostGuide(false);
+      setShowGyanEngageGuide(false);
+      return;
+    }
+    setShowGyanPostGuide(
+      isGyanPlusSubstepDone("gyan_browse") && !isGyanPlusSubstepDone("gyan_post")
+    );
+    setShowGyanEngageGuide(
+      isGyanPlusSubstepDone("gyan_post") && !isGyanPlusSubstepDone("gyan_engagement")
+    );
+  }, [gyanOnboardingActive]);
+
+  useEffect(() => {
+    if (!gyanOnboardingActive) {
+      syncGyanOnboardingGuides();
+      return;
+    }
+    const progress = getOnboardingProgress();
+    const companionSession =
+      isGyanPlusCompanionTrackingActive() || isDailyChecklistCompanionRetryActive("gyan_plus");
+    const flowDone = companionSession
+      ? isGyanPlusCompanionFlowComplete(progress)
+      : isGyanPlusOnboardingComplete(progress);
+
+    if (flowDone && !companionSession) {
+      const next = clearGyanPlusOnboardingQueryParams(new URLSearchParams(searchParams.toString()));
+      const target = gyanDoubtsPathFromSearchParams(next);
+      const current = gyanDoubtsPathFromSearchParams(new URLSearchParams(searchParams.toString()));
+      if (target !== current) {
+        router.replace(target, { scroll: false });
+      }
+      return;
+    }
+    reconcileGyanPlusCompanionSteps();
+    syncGyanOnboardingGuides();
+  }, [gyanOnboardingActive, searchParams, router, syncGyanOnboardingGuides]);
+
+  /** Step 0: browse doubt wall ~1 min — visible countdown in task companion. */
+  useEffect(() => {
+    if (!gyanOnboardingActive || !isGyanPlusCompanionTrackingActive()) return;
+    reconcileGyanPlusCompanionSteps();
+    startGyanPlusBrowseCountdown();
+    const intervalId = window.setInterval(() => {
+      const justFinished = tickGyanPlusBrowseCountdown();
+      if (justFinished) {
+        if (!isGyanPlusSubstepDone("gyan_browse")) {
+          recordGyanPlusSubstep("gyan_browse", { showChecklistToast: false });
+        }
+        syncGyanOnboardingGuides();
+      }
+    }, 1000);
+    tickGyanPlusBrowseCountdown();
+    return () => window.clearInterval(intervalId);
+  }, [gyanOnboardingActive, syncGyanOnboardingGuides]);
+
+  useEffect(() => {
+    const onProgress = () => syncGyanOnboardingGuides();
+    window.addEventListener(ONBOARDING_PROGRESS_EVENT, onProgress);
+    return () => window.removeEventListener(ONBOARDING_PROGRESS_EVENT, onProgress);
+  }, [syncGyanOnboardingGuides]);
+
+  const handleAskClick = useCallback(() => {
+    setAskOpen(true);
+    if (showGyanPostGuide) {
+      setShowGyanPostGuide(false);
+    }
+  }, [showGyanPostGuide]);
+
   useEffect(() => {
     if (openedAskFromQuery.current) return;
     if (searchParams.get("ask") !== "1") return;
     openedAskFromQuery.current = true;
-    setAskOpen(true);
+    handleAskClick();
     const next = new URLSearchParams(searchParams.toString());
     next.delete("ask");
-    const qs = next.toString();
-    router.replace(qs ? `/doubts?${qs}` : "/doubts", { scroll: false });
-  }, [router, searchParams]);
+    const target = gyanDoubtsPathFromSearchParams(next);
+    const current = gyanDoubtsPathFromSearchParams(new URLSearchParams(searchParams.toString()));
+    if (target !== current) {
+      router.replace(target, { scroll: false });
+    }
+  }, [router, searchParams, handleAskClick]);
   const [sort, setSort] = useState<SortOption>("recent");
   const [subjectFilters, setSubjectFilters] = useState<string[]>([]);
   const [unansweredOnly, setUnansweredOnly] = useState(false);
@@ -152,6 +262,19 @@ function DoubtsPageContent() {
     },
     [toast]
   );
+
+  const handleCommentSuccess = useCallback(() => {
+    void fetchDoubts();
+    if (gyanOnboardingActive) {
+      markGyanPlusCompanionComment();
+      if (!isGyanPlusSubstepDone("gyan_engagement")) {
+        recordGyanPlusSubstep("gyan_engagement", {
+          toastActionLine: "You commented on a doubt!",
+        });
+      }
+      syncGyanOnboardingGuides();
+    }
+  }, [fetchDoubts, gyanOnboardingActive, syncGyanOnboardingGuides]);
 
   const fetchProfile = async () => {
     if (!user?.id) return;
@@ -534,6 +657,17 @@ function DoubtsPageContent() {
   const handleVoteFeed = async (doubtId: string, direction: 1 | -1) => {
     if (!user?.id) return;
     const current = myVotes.get(doubtId) ?? 0;
+
+    if (gyanOnboardingActive && direction === 1) {
+      markGyanPlusCompanionUpvote();
+      if (!isGyanPlusSubstepDone("gyan_engagement")) {
+        recordGyanPlusSubstep("gyan_engagement", {
+          toastActionLine: "You upvoted a doubt!",
+        });
+      }
+      syncGyanOnboardingGuides();
+    }
+
     // Optimistic UI update
     setDoubts((prev) =>
       prev.map((d) => {
@@ -631,7 +765,9 @@ function DoubtsPageContent() {
       toast({
         title: "Saved for revision",
         description:
-          gained >= gyanRdm.save ? `+${gyanRdm.save} RDM — first save milestone today (IST).` : undefined,
+          gained >= gyanRdm.save
+            ? `+${gyanRdm.save} RDM — first save milestone today (IST).`
+            : undefined,
       });
       void refreshProfile();
       void fetchUserRdmToday();
@@ -649,6 +785,16 @@ function DoubtsPageContent() {
     void fetchTrending();
     void fetchTopContributors();
     void fetchUserRdmToday();
+
+    if (gyanOnboardingActive) {
+      markGyanPlusCompanionPost();
+      if (!isGyanPlusSubstepDone("gyan_post")) {
+        recordGyanPlusSubstep("gyan_post", {
+          toastActionLine: "You asked a doubt on Gyan++!",
+        });
+      }
+      syncGyanOnboardingGuides();
+    }
   };
 
   // ─── Render ──────────────────────────────────────────────────
@@ -686,8 +832,9 @@ function DoubtsPageContent() {
               <main className="lg:col-span-6 order-1 lg:order-2 min-w-0">
                 <LiveQAHeader
                   todayCount={todayCount}
-                  onAskClick={() => setAskOpen(true)}
+                  onAskClick={handleAskClick}
                   askRewardRdm={gyanRdm.post}
+                  showAskPointer={showGyanPostGuide}
                 />
                 {isAdmin ? (
                   <div className="mb-4">
@@ -708,7 +855,7 @@ function DoubtsPageContent() {
                       thread.
                     </p>
                     <div className="flex flex-wrap justify-center gap-3">
-                      <Button className="rounded-xl" onClick={() => setAskOpen(true)}>
+                      <Button className="rounded-xl" onClick={handleAskClick}>
                         Ask a question
                       </Button>
                     </div>
@@ -726,7 +873,7 @@ function DoubtsPageContent() {
                           index={(feedPage - 1) * GYAN_FEED_PAGE_SIZE + i}
                           isSaved={savedDoubtIds.has(d.id)}
                           onToggleSave={toggleSave}
-                          onRefresh={() => void fetchDoubts()}
+                          onRefresh={handleCommentSuccess}
                           profileAvatarUrl={profile?.avatar_url}
                           profileName={profile?.name}
                           myVote={myVotes.get(d.id) ?? 0}
@@ -739,6 +886,7 @@ function DoubtsPageContent() {
                           saveRewardRdm={gyanRdm.save}
                           teacherRewardRdm={gyanRdm.teacher}
                           commentRewardRdm={gyanRdm.comment}
+                          showEngagePointer={showGyanEngageGuide && i === 0 && feedPage === 1}
                         />
                       ))}
                     </div>

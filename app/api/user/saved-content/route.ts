@@ -11,6 +11,12 @@ import type {
 import type { PlanTier, ItemType } from "@/lib/saved/savedItemCap";
 import { getSaveCap } from "@/lib/saved/savedItemCap";
 import type { Json } from "@/integrations/supabase/types";
+import {
+  fetchSubscriptionConfig,
+  getPlanLimits,
+  isUnlimited,
+  normalizePlanTier,
+} from "@/lib/subscription/subscriptionConfig";
 
 async function getSupabaseAndUser(request: Request) {
   const cookieClient = await createClient();
@@ -119,14 +125,22 @@ async function checkCap(
   // Get user's plan tier
   const { data: profile } = await supabase
     .from("profiles")
-    .select("plan_tier")
+    .select("plan_tier, free_trial_activated")
     .eq("id", userId)
     .maybeSingle();
 
-  const tier = ((profile?.plan_tier as string) ?? "free") as PlanTier;
-  const cap = getSaveCap(tier, itemType);
+  const tier = normalizePlanTier(
+    (profile?.plan_tier as string | null | undefined) ?? "free",
+    profile?.free_trial_activated
+  );
+  const cfg = await fetchSubscriptionConfig(supabase as unknown as any);
+  const planLimits = getPlanLimits(cfg, tier);
+  const cap =
+    itemType === "saved_revision_card"
+      ? planLimits.instacueCardLimit
+      : getSaveCap(tier as PlanTier, itemType);
 
-  if (cap === Infinity) return { error: null }; // unlimited
+  if (cap === Infinity || isUnlimited(cap)) return { error: null }; // unlimited
 
   // Count existing items of this type
   const { count } = await supabase

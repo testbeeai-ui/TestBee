@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminClient, createClient, createClientWithToken } from "@/integrations/supabase/server";
+import {
+  createAdminClient,
+  createClient,
+  createClientWithToken,
+} from "@/integrations/supabase/server";
 
 /**
  * Teacher-only diagnostic endpoint to explain why a student can/can't see posts.
@@ -41,7 +45,8 @@ export async function GET(request: NextRequest, ctx: { params: Promise<{ id: str
     .eq("id", classroomId)
     .maybeSingle();
   if (!room) return NextResponse.json({ error: "Classroom not found." }, { status: 404 });
-  if (room.teacher_id !== user.id) return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+  if (room.teacher_id !== user.id)
+    return NextResponse.json({ error: "Forbidden." }, { status: 403 });
 
   const [memberRes, histRes, postsRes] = await Promise.all([
     admin
@@ -87,4 +92,3 @@ export async function GET(request: NextRequest, ctx: { params: Promise<{ id: str
     })),
   });
 }
-

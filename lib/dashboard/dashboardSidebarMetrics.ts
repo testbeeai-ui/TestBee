@@ -22,9 +22,7 @@ export const EDUFUND_RDM_GATES = [
 export const EDUFUND_MIN_RDM_CREATE_PROPOSAL = EDUFUND_RDM_GATES[0].need;
 
 /** Next tier gate if below Champion; null if already at or above final gate. */
-export function getEdufundNextGate(
-  rdm: number
-): (typeof EDUFUND_RDM_GATES)[number] | null {
+export function getEdufundNextGate(rdm: number): (typeof EDUFUND_RDM_GATES)[number] | null {
   const n = Math.max(0, Math.floor(rdm));
   return EDUFUND_RDM_GATES.find((g) => n < g.need) ?? null;
 }

@@ -50,7 +50,9 @@ export default function TeacherVerificationsPage() {
   const [selectedTeacherId, setSelectedTeacherId] = useState<string | null>(null);
   const [adminNotesDraft, setAdminNotesDraft] = useState("");
   const [saving, setSaving] = useState(false);
-  const [avatarLoadFailedByTeacherId, setAvatarLoadFailedByTeacherId] = useState<Record<string, boolean>>({});
+  const [avatarLoadFailedByTeacherId, setAvatarLoadFailedByTeacherId] = useState<
+    Record<string, boolean>
+  >({});
 
   const load = async () => {
     setLoading(true);
@@ -192,7 +194,9 @@ export default function TeacherVerificationsPage() {
                     >
                       <td className="px-3 py-2">
                         <div className="font-medium">{item.name}</div>
-                        <div className="text-xs text-muted-foreground">{item.subjects.join(", ") || "—"}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {item.subjects.join(", ") || "—"}
+                        </div>
                       </td>
                       <td className="px-3 py-2 capitalize">{item.verificationStatus}</td>
                       <td className="px-3 py-2 text-xs text-muted-foreground">
@@ -235,7 +239,10 @@ export default function TeacherVerificationsPage() {
                 <h2 className="text-lg font-semibold">{selected.name}</h2>
               </div>
               <div className="grid gap-1">
-                <p>Status: <span className="font-medium capitalize">{selected.verificationStatus}</span></p>
+                <p>
+                  Status:{" "}
+                  <span className="font-medium capitalize">{selected.verificationStatus}</span>
+                </p>
                 <p>Subjects: {selected.subjects.join(", ") || "—"}</p>
                 <p>Specialisation: {selected.examTags.join(", ") || "—"}</p>
                 <p>Location: {selected.location || "—"}</p>
@@ -249,7 +256,12 @@ export default function TeacherVerificationsPage() {
                 <p>
                   Aadhaar:{" "}
                   {selected.docs.aadharPhotoLink ? (
-                    <a href={selected.docs.aadharPhotoLink} target="_blank" rel="noreferrer" className="underline">
+                    <a
+                      href={selected.docs.aadharPhotoLink}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="underline"
+                    >
                       View upload
                     </a>
                   ) : (
@@ -258,7 +270,12 @@ export default function TeacherVerificationsPage() {
                   {selected.docs.aadharShareLink ? (
                     <>
                       {" · "}
-                      <a href={selected.docs.aadharShareLink} target="_blank" rel="noreferrer" className="underline">
+                      <a
+                        href={selected.docs.aadharShareLink}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="underline"
+                      >
                         Share link
                       </a>
                     </>
@@ -303,17 +320,26 @@ export default function TeacherVerificationsPage() {
                   placeholder="Explain what to fix and re-submit"
                 />
                 <p className="text-xs text-muted-foreground">
-                  To send this note to the teacher, use <span className="font-medium">Request resubmission</span>.
+                  To send this note to the teacher, use{" "}
+                  <span className="font-medium">Request resubmission</span>.
                 </p>
               </div>
               <div className="flex flex-wrap gap-2 pt-1">
                 <Button onClick={() => void applyStatus("approved")} disabled={saving}>
                   Approve
                 </Button>
-                <Button variant="destructive" onClick={() => void applyStatus("rejected")} disabled={saving}>
+                <Button
+                  variant="destructive"
+                  onClick={() => void applyStatus("rejected")}
+                  disabled={saving}
+                >
                   Request resubmission
                 </Button>
-                <Button variant="outline" onClick={() => void applyStatus("pending")} disabled={saving}>
+                <Button
+                  variant="outline"
+                  onClick={() => void applyStatus("pending")}
+                  disabled={saving}
+                >
                   Keep pending
                 </Button>
               </div>

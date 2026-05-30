@@ -1,11 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { Check, ChevronRight, Code2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import type { Subject } from "@/types";
+import type { Subject, Question } from "@/types";
 import type { AssignmentTaskStored } from "@/lib/classroom/assignmentTasks";
 import type { Json } from "@/integrations/supabase/types";
+import { supabase } from "@/integrations/supabase/client";
+import { MCQ_CHAPTERS } from "@/components/prep-mock/constants";
+import { mapCatalogQuestionRowToQuestion, stripHtmlToPlain } from "@/lib/mock/catalogQuestionMap";
 import {
   collectCreateTestTopicMatchPhrases,
   collectUnitTopicTitles,
@@ -14,7 +18,10 @@ import {
 } from "@/lib/curriculum/curriculumService";
 import { countQuestionBankForCreateTest } from "@/lib/play/quiz/countQuestionBankForCreateTest";
 import { fetchTeacherTestBankRows } from "@/lib/play/quiz/fetchTeacherTestBankRows";
-import { buildTeacherTestQuestionSet } from "@/lib/play/quiz/buildTeacherTestQuestionSet";
+import {
+  buildTeacherTestQuestionSet,
+  type TeacherTestQuestion,
+} from "@/lib/play/quiz/buildTeacherTestQuestionSet";
 import type { GeneratedTeacherTest } from "@/lib/teacherPortal/generatedTest";
 import GeneratedTestPreview from "@/components/teacher-portal/views/tests/GeneratedTestPreview";
 import { openTeacherTestPrintPreview } from "@/lib/teacherPortal/openTeacherTestPrintPreview";
@@ -31,7 +38,7 @@ import { useTeacherRdmCosts } from "@/hooks/TeacherRdmCostsContext";
 /** Only CBSE is available in the wizard today; KCET / JEE Main are surfaced as “Coming soon”. */
 type ExamType = "CBSE Board";
 type ClassLevel = "Class 11 (PUC 1)" | "Class 12 (PUC 2)";
-type TestScope = "Topic-wise" | "Unit-wise";
+type TestScope = "Topic-wise" | "Unit-wise" | "Chapter-wise" | "Full paper";
 type QuestionSource = "Created by AI" | "From Question Bank";
 
 function compositeChapterId(unitId: string, chapterId: string): string {
@@ -239,6 +246,7 @@ export default function CreateTestsView({
   /** Must be chosen explicitly on step 4 (required). */
   const [duration, setDuration] = useState<number | null>(null);
   const [testName, setTestName] = useState("");
+  const [isNameManuallyEdited, setIsNameManuallyEdited] = useState(false);
   const [generateLoading, setGenerateLoading] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
   const [generatedTest, setGeneratedTest] = useState<GeneratedTeacherTest | null>(null);
@@ -252,9 +260,117 @@ export default function CreateTestsView({
   const [assignSuccess, setAssignSuccess] = useState<string | null>(null);
   const [testHistory, setTestHistory] = useState<TestHistoryItem[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyScopeFilter, setHistoryScopeFilter] = useState<
+    "All" | "Topic-wise" | "Unit-wise" | "Chapter-wise" | "Full paper"
+  >("All");
 
   const primarySubject = useMemo(() => displayLabelToSubject(subject) ?? "physics", [subject]);
   const classNumeric = useMemo(() => (classLevel.includes("11") ? 11 : 12), [classLevel]);
+
+  const [selectedCbseChapterId, setSelectedCbseChapterId] = useState("");
+  const [selectedCbseChapterIds, setSelectedCbseChapterIds] = useState<string[]>([]);
+
+  const cbseChaptersList = useMemo(() => {
+    const activeSubKey = displayLabelToSubject(subject) ?? "physics";
+    return MCQ_CHAPTERS[classNumeric as 11 | 12][activeSubKey] || [];
+  }, [classNumeric, subject]);
+
+  const usedQuestionStemsSet = useMemo(() => {
+    const stems = new Set<string>();
+    for (const item of testHistory) {
+      if (item.class_level !== classNumeric || item.subject !== primarySubject) continue;
+      const qList = Array.isArray(item.questions) ? item.questions : [];
+      for (const q of qList) {
+        const stem = (q as any)?.question;
+        if (typeof stem === "string") {
+          stems.add(stem.trim().toLowerCase());
+        }
+      }
+    }
+    return stems;
+  }, [testHistory, classNumeric, primarySubject]);
+
+  const displayedTestHistory = useMemo(() => {
+    let filtered = testHistory;
+    if (historyScopeFilter !== "All") {
+      filtered = filtered.filter((item) => item.scope === historyScopeFilter);
+    }
+
+    if (step === 1) {
+      return filtered;
+    }
+
+    return filtered.filter((item) => {
+      // Filter by class and subject
+      if (item.class_level !== classNumeric || item.subject !== primarySubject) {
+        return false;
+      }
+
+      // Filter by scope and selected chapter/topic/unit
+      if (scope === "Chapter-wise") {
+        if (!selectedCbseChapterId) return true;
+        const chName = cbseChaptersList.find((c) => c.id === selectedCbseChapterId)?.name;
+        return item.scope === "Chapter-wise" && item.chapter_title === chName;
+      }
+
+      if (scope === "Full paper") {
+        return item.scope === "Full paper";
+      }
+
+      if (scope === "Unit-wise") {
+        if (!selectedUnitId) return true;
+        const unitName = findUnitLabel(curriculumUnits, selectedUnitId);
+        return item.scope === "Unit-wise" && item.unit_title === unitName;
+      }
+
+      if (scope === "Topic-wise") {
+        if (!chapterId) return true;
+        const chName = findChapterTitleOnly(curriculumUnits, chapterId);
+        if (item.scope !== "Topic-wise" || item.chapter_title !== chName) return false;
+
+        if (selectedTopicId) {
+          const tName = getTopicsForComposite(curriculumUnits, chapterId).find(
+            (t) => t.id === selectedTopicId
+          )?.title;
+          return item.topic_title === tName;
+        }
+        return true;
+      }
+
+      return true;
+    });
+  }, [
+    testHistory,
+    historyScopeFilter,
+    step,
+    scope,
+    classNumeric,
+    primarySubject,
+    selectedCbseChapterId,
+    cbseChaptersList,
+    selectedUnitId,
+    curriculumUnits,
+    chapterId,
+    selectedTopicId,
+  ]);
+
+  // Sync / Reset CBSE chapter selections on subject or classLevel changes
+  useEffect(() => {
+    if (cbseChaptersList.length > 0) {
+      setSelectedCbseChapterId(cbseChaptersList[0].id);
+      setSelectedCbseChapterIds([]); // Start empty/cleared by default
+    } else {
+      setSelectedCbseChapterId("");
+      setSelectedCbseChapterIds([]);
+    }
+  }, [cbseChaptersList]);
+
+  // Clear CBSE selected chapters when switching to Full paper
+  useEffect(() => {
+    if (scope === "Full paper") {
+      setSelectedCbseChapterIds([]);
+    }
+  }, [scope]);
 
   useEffect(() => {
     let cancelled = false;
@@ -309,6 +425,91 @@ export default function CreateTestsView({
   useEffect(() => {
     let cancelled = false;
     if (step !== 3) return;
+
+    if (scope === "Chapter-wise" || scope === "Full paper") {
+      const selectedSlugs =
+        scope === "Chapter-wise" ? [selectedCbseChapterId] : selectedCbseChapterIds;
+      if (selectedSlugs.length === 0) {
+        setQuestionBankLoading(false);
+        setQuestionBankCount(0);
+        setQuestionBankRawCount(0);
+        setQuestionBankUsedCount(0);
+        setQuestionBankError(null);
+        return;
+      }
+      setQuestionBankLoading(true);
+      setQuestionBankError(null);
+
+      void supabase
+        .from("mock_papers")
+        .select("id, slug, question_count")
+        .eq("paper_type", "chapter")
+        .eq("board", "CBSE")
+        .in("slug", selectedSlugs)
+        .eq("class_level", classNumeric)
+        .eq("published", true)
+        .then(async ({ data: papers, error }) => {
+          if (cancelled) return;
+          if (error) {
+            setQuestionBankCount(null);
+            setQuestionBankRawCount(null);
+            setQuestionBankUsedCount(null);
+            setQuestionBankError(error.message);
+            setQuestionBankLoading(false);
+            return;
+          }
+          if (!papers || papers.length === 0) {
+            setQuestionBankCount(0);
+            setQuestionBankRawCount(0);
+            setQuestionBankUsedCount(0);
+            setQuestionBankError(null);
+            setQuestionBankLoading(false);
+            return;
+          }
+
+          const paperIds = papers.map((p) => p.id);
+          const { data: qRows, error: qErr } = await supabase
+            .from("mock_questions")
+            .select("id, question_html")
+            .in("paper_id", paperIds);
+
+          if (cancelled) return;
+          setQuestionBankLoading(false);
+
+          if (qErr) {
+            setQuestionBankCount(null);
+            setQuestionBankRawCount(null);
+            setQuestionBankUsedCount(null);
+            setQuestionBankError(qErr.message);
+            return;
+          }
+
+          const totalQuestionsCount = qRows?.length ?? 0;
+          let usedCount = 0;
+          let availableCount = 0;
+          if (qRows) {
+            for (const q of qRows) {
+              const plainText = q.question_html
+                ? stripHtmlToPlain(q.question_html).trim().toLowerCase()
+                : "";
+              if (usedQuestionStemsSet.has(plainText)) {
+                usedCount++;
+              } else {
+                availableCount++;
+              }
+            }
+          }
+
+          setQuestionBankCount(availableCount);
+          setQuestionBankRawCount(totalQuestionsCount);
+          setQuestionBankUsedCount(usedCount);
+          setQuestionBankError(null);
+        });
+      return () => {
+        cancelled = true;
+      };
+    }
+
     if (!curriculumUnits.length) {
       setQuestionBankCount(null);
       setQuestionBankError(null);
@@ -374,6 +575,8 @@ export default function CreateTestsView({
     scope,
     selectedTopicId,
     selectedUnitId,
+    selectedCbseChapterId,
+    selectedCbseChapterIds,
   ]);
 
   useEffect(() => {
@@ -413,6 +616,9 @@ export default function CreateTestsView({
   };
 
   const currentMatch = useMemo(() => {
+    if (scope === "Chapter-wise" || scope === "Full paper") {
+      return null;
+    }
     const topicTitles =
       scope === "Unit-wise"
         ? collectUnitTopicTitles(curriculumUnits, selectedUnitId)
@@ -429,6 +635,16 @@ export default function CreateTestsView({
   }, [chapterId, curriculumUnits, scope, selectedTopicId, selectedUnitId]);
 
   const scopeDetails = useMemo(() => {
+    if (scope === "Chapter-wise") {
+      const ch = cbseChaptersList.find((c) => c.id === selectedCbseChapterId);
+      return [`Chapter: ${ch?.name || "Chapter MCQ"}`];
+    }
+    if (scope === "Full paper") {
+      const names = selectedCbseChapterIds.map(
+        (id) => cbseChaptersList.find((c) => c.id === id)?.name || id
+      );
+      return [`Chapters included: ${names.join(", ")}`];
+    }
     if (scope === "Unit-wise") {
       return [
         `Unit: ${findUnitLabel(curriculumUnits, selectedUnitId)}`,
@@ -440,7 +656,16 @@ export default function CreateTestsView({
       `Chapter: ${findChapterFlatLabel(curriculumUnits, chapterId)}`,
       `Topic: ${findTopicTitle(curriculumUnits, chapterId, selectedTopicId)}`,
     ];
-  }, [chapterId, curriculumUnits, scope, selectedTopicId, selectedUnitId]);
+  }, [
+    chapterId,
+    curriculumUnits,
+    scope,
+    selectedTopicId,
+    selectedUnitId,
+    cbseChaptersList,
+    selectedCbseChapterId,
+    selectedCbseChapterIds,
+  ]);
 
   const flatChapters = useMemo(() => flattenChapters(curriculumUnits), [curriculumUnits]);
   const unitsForClass = curriculumUnits;
@@ -457,15 +682,19 @@ export default function CreateTestsView({
 
   const canProceedStep4 = duration !== null;
   const canProceedStep2 =
-    !curriculumLoading &&
-    flatChapters.length > 0 &&
-    Boolean(chapterId) &&
-    (topicsForSelectedChapter.length === 0 || Boolean(selectedTopicId)) &&
-    (scope !== "Unit-wise" || Boolean(selectedUnitId));
+    scope === "Chapter-wise"
+      ? Boolean(selectedCbseChapterId)
+      : scope === "Full paper"
+        ? selectedCbseChapterIds.length > 0
+        : !curriculumLoading &&
+          flatChapters.length > 0 &&
+          Boolean(chapterId) &&
+          (topicsForSelectedChapter.length === 0 || Boolean(selectedTopicId)) &&
+          (scope !== "Unit-wise" || Boolean(selectedUnitId));
 
   const canGenerateNow =
     duration !== null &&
-    currentMatch !== null &&
+    (scope === "Chapter-wise" || scope === "Full paper" ? true : currentMatch !== null) &&
     questionBankCount !== null &&
     effectiveTestQuestionCount > 0;
   const canAssignToClassroom = Boolean(teacherId && onCreateAssignment && classrooms.length > 0);
@@ -481,7 +710,7 @@ export default function CreateTestsView({
   useEffect(() => {
     let cancelled = false;
     setHistoryLoading(true);
-    void fetchTestHistory({ subject: primarySubject, limit: 20 }).then(({ history, error }) => {
+    void fetchTestHistory({ limit: 50 }).then(({ history, error }) => {
       if (cancelled) return;
       setHistoryLoading(false);
       if (error) {
@@ -496,10 +725,15 @@ export default function CreateTestsView({
   }, [primarySubject]);
 
   const handleGenerateTestNow = async () => {
-    if (!canGenerateNow || !currentMatch || duration === null) return;
+    if (
+      !canGenerateNow ||
+      (scope !== "Chapter-wise" && scope !== "Full paper" && !currentMatch) ||
+      duration === null
+    )
+      return;
     if (onRequireVerifiedAction) {
-      const allowed = await onRequireVerifiedAction("Generate test");
-      if (!allowed) return;
+      const inlineAllowed = await onRequireVerifiedAction("Generate test");
+      if (!inlineAllowed) return;
     }
     setGenerateLoading(true);
     setGenerateError(null);
@@ -514,6 +748,128 @@ export default function CreateTestsView({
             ? e.message
             : "Could not charge RDM for test generation."
       );
+      return;
+    }
+
+    if (scope === "Chapter-wise" || scope === "Full paper") {
+      const selectedSlugs =
+        scope === "Chapter-wise" ? [selectedCbseChapterId] : selectedCbseChapterIds;
+
+      try {
+        // 1) Fetch paper rows to get paper IDs
+        const { data: papers, error: papersErr } = await supabase
+          .from("mock_papers")
+          .select("id")
+          .eq("paper_type", "chapter")
+          .eq("board", "CBSE")
+          .in("slug", selectedSlugs)
+          .eq("class_level", classNumeric)
+          .eq("published", true);
+
+        if (papersErr) throw papersErr;
+        if (!papers || papers.length === 0) {
+          throw new Error("No active CBSE papers found for the selected chapters.");
+        }
+
+        // 2) Fetch all questions under these paper IDs
+        const paperIds = papers.map((p) => p.id);
+        const { data: qRows, error: qErr } = await supabase
+          .from("mock_questions")
+          .select(
+            "id, paper_id, sort_order, subject, topic, chapter, difficulty, question_html, solution_html, correct_letter, options_json"
+          )
+          .in("paper_id", paperIds);
+
+        if (qErr) throw qErr;
+        if (!qRows || qRows.length === 0) {
+          throw new Error("No questions found in the database for the selected chapters.");
+        }
+
+        // 3) Map catalog question rows to Question objects, filtering out used ones
+        const availableQuestions = qRows
+          .map((row) => mapCatalogQuestionRowToQuestion(row, "Mock"))
+          .filter((q) => !usedQuestionStemsSet.has(q.question.trim().toLowerCase()));
+
+        // 4) Randomize and pick the requested number of questions
+        const shuffled = [...availableQuestions].sort(() => Math.random() - 0.5);
+        const pickedQuestions: TeacherTestQuestion[] = shuffled
+          .slice(0, effectiveTestQuestionCount)
+          .map((q) => ({
+            id: q.id,
+            topic: q.topic,
+            subtopicName: "",
+            level: "unknown",
+            question: q.question,
+            options: q.options,
+            correctAnswerIndex: q.correctAnswer,
+            solution: q.solution,
+            questionHtml: q.questionHtml,
+            solutionHtml: q.solutionHtml,
+          }));
+
+        const generatedTestData: GeneratedTeacherTest = {
+          id: `teacher-test-${classNumeric}-${primarySubject}-${pickedQuestions.length}-${Date.now()}`,
+          name: computedTestName,
+          examType: "CBSE Board" as ExamType,
+          board: "CBSE Board",
+          classLevelLabel: classLevel,
+          classLevelNumeric: classNumeric as 11 | 12,
+          subjectLabel: subject,
+          sourceLabel: "Question bank",
+          scopeLabel: scope,
+          scopeDetails,
+          durationMinutes: duration,
+          requestedCount: effectiveTestQuestionCount,
+          pickedCount: pickedQuestions.length,
+          bankAvailable: questionBankCount,
+          classLevelUsed: classNumeric as 11 | 12,
+          generatedAtIso: new Date().toISOString(),
+          questions: pickedQuestions,
+        };
+
+        setGeneratedTest(generatedTestData);
+        setGenerateLoading(false);
+        void refreshTeacherRdmCosts();
+
+        // 5) Save test history
+        void saveTestHistory({
+          board: "CBSE",
+          classLevel: classNumeric as 11 | 12,
+          subject: primarySubject,
+          scope,
+          chapterTitle:
+            scope === "Chapter-wise"
+              ? cbseChaptersList.find((c) => c.id === selectedCbseChapterId)?.name || null
+              : "Full Paper",
+          topicTitle: null,
+          unitTitle: null,
+          questions: pickedQuestions,
+          questionCount: pickedQuestions.length,
+          durationMinutes: duration,
+          usedQuestionStems: pickedQuestions.map((q) => q.question.trim().toLowerCase()),
+        }).then(({ error }) => {
+          if (error) {
+            console.error("Failed to save test history:", error);
+            toast.error("Failed to save test history: " + error);
+            return;
+          }
+          toast.success("Test generated and saved to history!");
+          // Refresh history list
+          void fetchTestHistory({ limit: 50 }).then(({ history }) => {
+            setTestHistory(history);
+          });
+        });
+      } catch (err) {
+        await refundTeacherRdm("generate_test", teacherRdmCosts).catch(() => {});
+        setGenerateLoading(false);
+        setGenerateError(err instanceof Error ? err.message : "Failed to generate test.");
+      }
+      return;
+    }
+
+    if (!currentMatch) {
+      setGenerateLoading(false);
+      setGenerateError("Invalid test configuration matching.");
       return;
     }
 
@@ -585,10 +941,12 @@ export default function CreateTestsView({
     }).then(({ error }) => {
       if (error) {
         console.error("Failed to save test history:", error);
+        toast.error("Failed to save test history: " + error);
         return;
       }
+      toast.success("Test generated and saved to history!");
       // Refresh history list
-      void fetchTestHistory({ subject: primarySubject, limit: 20 }).then(({ history }) => {
+      void fetchTestHistory({ limit: 50 }).then(({ history }) => {
         setTestHistory(history);
       });
     });
@@ -695,6 +1053,16 @@ export default function CreateTestsView({
 
   const computedTestName = useMemo(() => {
     if (testName.trim()) return testName.trim();
+    if (scope === "Chapter-wise") {
+      const ch = cbseChaptersList.find((c) => c.id === selectedCbseChapterId);
+      return `CBSE Board — Chapter: ${ch?.name || "Chapter MCQ"}`;
+    }
+    if (scope === "Full paper") {
+      const names = selectedCbseChapterIds
+        .map((id) => cbseChaptersList.find((c) => c.id === id)?.name || id)
+        .join(", ");
+      return `CBSE Board — Chapters: ${names || "Full Paper"}`;
+    }
     const ch = findChapterFlatLabel(curriculumUnits, chapterId);
     if (scope === "Topic-wise" && selectedTopicId) {
       const topicTitle = findTopicTitle(curriculumUnits, chapterId, selectedTopicId);
@@ -709,7 +1077,62 @@ export default function CreateTestsView({
       return `${examType} — ${scope}: ${u} — ${ch}${topicPart}`;
     }
     return `${examType} — ${ch}`;
-  }, [chapterId, curriculumUnits, examType, scope, selectedTopicId, selectedUnitId, testName]);
+  }, [
+    chapterId,
+    curriculumUnits,
+    examType,
+    scope,
+    selectedTopicId,
+    selectedUnitId,
+    testName,
+    cbseChaptersList,
+    selectedCbseChapterId,
+    selectedCbseChapterIds,
+  ]);
+
+  // Pre-populate testName dynamically with the computed default test name whenever selections change, until manually edited
+  useEffect(() => {
+    if (isNameManuallyEdited) return;
+
+    let defaultName = "";
+    if (scope === "Chapter-wise") {
+      const ch = cbseChaptersList.find((c) => c.id === selectedCbseChapterId);
+      defaultName = `CBSE Board — Chapter: ${ch?.name || "Chapter MCQ"}`;
+    } else if (scope === "Full paper") {
+      const names = selectedCbseChapterIds
+        .map((id) => cbseChaptersList.find((c) => c.id === id)?.name || id)
+        .join(", ");
+      defaultName = `CBSE Board — Chapters: ${names || "Full Paper"}`;
+    } else {
+      const ch = findChapterFlatLabel(curriculumUnits, chapterId);
+      if (scope === "Topic-wise" && selectedTopicId) {
+        const topicTitle = findTopicTitle(curriculumUnits, chapterId, selectedTopicId);
+        defaultName = `${examType} — ${ch} — ${topicTitle}`;
+      } else if (scope === "Unit-wise") {
+        const u = findUnitLabel(curriculumUnits, selectedUnitId);
+        const topicTitle = selectedTopicId
+          ? findTopicTitle(curriculumUnits, chapterId, selectedTopicId)
+          : "";
+        const topicPart = topicTitle ? ` — ${topicTitle}` : "";
+        defaultName = `${examType} — ${scope}: ${u} — ${ch}${topicPart}`;
+      } else {
+        defaultName = `${examType} — ${ch}`;
+      }
+    }
+
+    setTestName(defaultName);
+  }, [
+    isNameManuallyEdited,
+    scope,
+    cbseChaptersList,
+    selectedCbseChapterId,
+    selectedCbseChapterIds,
+    curriculumUnits,
+    chapterId,
+    selectedTopicId,
+    selectedUnitId,
+    examType,
+  ]);
   const pillBase =
     "rounded-full border px-3 py-1 text-[13px] font-semibold transition-colors sm:px-3.5 sm:py-1.5 sm:text-sm";
   const pillClassLevel = (active: boolean) =>
@@ -721,10 +1144,9 @@ export default function CreateTestsView({
   const pillClassNeutral = (active: boolean) =>
     `${pillBase} ${active ? "border-emerald-400/50 bg-emerald-500/12 text-emerald-100" : "border-white/10 bg-[#0c1020] text-slate-300 hover:bg-white/[0.04]"}`;
 
-  const stepFooterClass =
-    embedded
-      ? "relative mt-auto flex flex-col gap-2 border-t border-white/[0.06] pt-3 sm:block sm:min-h-[38px] sm:pt-3"
-      : "relative mt-2 flex flex-col gap-3 border-t border-white/[0.06] pt-4 sm:block sm:min-h-[44px] sm:pt-5";
+  const stepFooterClass = embedded
+    ? "relative mt-auto flex flex-col gap-2 border-t border-white/[0.06] pt-3 sm:block sm:min-h-[38px] sm:pt-3"
+    : "relative mt-2 flex flex-col gap-3 border-t border-white/[0.06] pt-4 sm:block sm:min-h-[44px] sm:pt-5";
   const step1FooterClass = embedded
     ? "relative mt-auto flex flex-col gap-2 border-t border-white/[0.06] pt-3 sm:block sm:min-h-[38px] sm:pt-3"
     : "relative mt-5 flex flex-col gap-3 border-t border-white/[0.06] pt-4 sm:block sm:min-h-[44px] sm:pt-5";
@@ -732,9 +1154,7 @@ export default function CreateTestsView({
     ? "relative mt-auto flex min-h-[38px] flex-col gap-2 border-t border-white/[0.06] pt-3 sm:block"
     : "relative mt-1 flex min-h-[44px] flex-col gap-3 border-t border-white/[0.06] pt-5 sm:block";
 
-  const stepperPad = embedded
-    ? "px-1.5 py-1.5 sm:px-2 sm:py-2"
-    : "px-2 py-2 sm:px-3 sm:py-3";
+  const stepperPad = embedded ? "px-1.5 py-1.5 sm:px-2 sm:py-2" : "px-2 py-2 sm:px-3 sm:py-3";
   const stepperDot = embedded
     ? "mx-auto mb-0.5 flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold"
     : "mx-auto mb-1 flex h-5.5 w-5.5 items-center justify-center rounded-full text-[10px] font-bold sm:h-6 sm:w-6 sm:text-[11px]";
@@ -742,7 +1162,9 @@ export default function CreateTestsView({
   return (
     <div
       className={
-        embedded ? "flex h-full min-h-0 w-full min-w-0 flex-col text-left" : "w-full min-w-0 text-left"
+        embedded
+          ? "flex h-full min-h-0 w-full min-w-0 flex-col text-left"
+          : "w-full min-w-0 text-left"
       }
     >
       {embedded ? (
@@ -764,49 +1186,47 @@ export default function CreateTestsView({
         </>
       )}
 
-        <div
-          className={`overflow-hidden rounded-2xl border border-white/[0.09] bg-[#101428] shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset] ${
-            embedded ? "mt-1 flex min-h-0 flex-1 flex-col sm:mt-2" : "mt-3 sm:mt-5"
-          }`}
-        >
+      <div
+        className={`overflow-hidden rounded-2xl border border-white/[0.09] bg-[#101428] shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset] ${
+          embedded ? "mt-1 flex min-h-0 flex-1 flex-col sm:mt-2" : "mt-3 sm:mt-5"
+        }`}
+      >
         <div className="-mx-px overflow-x-auto border-b border-white/[0.08] sm:mx-0 sm:overflow-visible">
           <div className="grid min-w-[min(100%,28rem)] grid-cols-2 min-[480px]:grid-cols-3 sm:min-w-0 sm:grid-cols-5">
-          {stepLabels.map((label, idx) => {
-            const i = idx + 1;
-            const active = step === i;
-            const done = step > i;
-            return (
-              <div
-                key={label}
-                className={`${stepperPad} text-center ${active ? "bg-emerald-500/[0.09]" : ""}`}
-              >
+            {stepLabels.map((label, idx) => {
+              const i = idx + 1;
+              const active = step === i;
+              const done = step > i;
+              return (
                 <div
-                  className={`${stepperDot} ${
-                    done
-                      ? "bg-emerald-500/25 text-emerald-200"
-                      : active
-                        ? "bg-emerald-500/20 text-emerald-300"
-                        : "bg-white/[0.06] text-slate-500"
-                  }`}
+                  key={label}
+                  className={`${stepperPad} text-center ${active ? "bg-emerald-500/[0.09]" : ""}`}
                 >
-                  {done ? <Check className="h-3.5 w-3.5 stroke-[3]" aria-hidden /> : i}
+                  <div
+                    className={`${stepperDot} ${
+                      done
+                        ? "bg-emerald-500/25 text-emerald-200"
+                        : active
+                          ? "bg-emerald-500/20 text-emerald-300"
+                          : "bg-white/[0.06] text-slate-500"
+                    }`}
+                  >
+                    {done ? <Check className="h-3.5 w-3.5 stroke-[3]" aria-hidden /> : i}
+                  </div>
+                  <div
+                    className={`text-[10px] font-semibold leading-tight sm:text-xs ${active ? "text-emerald-300" : done ? "text-slate-300" : "text-slate-500"}`}
+                  >
+                    {label}
+                  </div>
                 </div>
-                <div
-                  className={`text-[10px] font-semibold leading-tight sm:text-xs ${active ? "text-emerald-300" : done ? "text-slate-300" : "text-slate-500"}`}
-                >
-                  {label}
-                </div>
-              </div>
-            );
-          })}
+              );
+            })}
           </div>
         </div>
 
         <div
           className={
-            embedded
-              ? "flex min-h-0 flex-1 flex-col overflow-y-auto p-3 sm:p-4"
-              : "p-3 sm:p-5"
+            embedded ? "flex min-h-0 flex-1 flex-col overflow-y-auto p-3 sm:p-4" : "p-3 sm:p-5"
           }
         >
           {step === 1 ? (
@@ -926,28 +1346,128 @@ export default function CreateTestsView({
                   Test scope
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {(["Topic-wise", "Unit-wise"] as const).map((item) => (
-                    <button
-                      key={item}
-                      type="button"
-                      onClick={() => setScope(item)}
-                      className={pillClassScope(scope === item)}
-                    >
-                      {item}
-                    </button>
-                  ))}
+                  {(["Topic-wise", "Unit-wise", "Chapter-wise", "Full paper"] as const).map(
+                    (item) => (
+                      <button
+                        key={item}
+                        type="button"
+                        onClick={() => setScope(item)}
+                        className={pillClassScope(scope === item)}
+                      >
+                        {item}
+                      </button>
+                    )
+                  )}
                 </div>
               </div>
 
-              {curriculumLoading ? (
+              {scope !== "Chapter-wise" && scope !== "Full paper" && curriculumLoading ? (
                 <p className="text-sm text-slate-400" role="status">
                   Loading curriculum from the question bank…
                 </p>
               ) : null}
-              {curriculumError && !curriculumLoading ? (
+              {scope !== "Chapter-wise" &&
+              scope !== "Full paper" &&
+              curriculumError &&
+              !curriculumLoading ? (
                 <p className="rounded-lg border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-sm text-amber-100/95">
                   {curriculumError}
                 </p>
+              ) : null}
+
+              {scope === "Chapter-wise" ? (
+                <div className="space-y-3">
+                  <div>
+                    <label
+                      htmlFor="create-tests-cbse-chapter"
+                      className="mb-1 block text-sm font-semibold text-slate-300"
+                    >
+                      Select chapter (CBSE MCQ)
+                    </label>
+                    <select
+                      id="create-tests-cbse-chapter"
+                      value={selectedCbseChapterId}
+                      onChange={(e) => setSelectedCbseChapterId(e.target.value)}
+                      className="h-10 w-full rounded-xl border border-white/10 bg-[#0b1020] px-3 text-sm outline-none focus:border-emerald-400 sm:h-11"
+                    >
+                      {cbseChaptersList.length === 0 ? (
+                        <option value="">No chapters available</option>
+                      ) : null}
+                      {cbseChaptersList.map((ch) => (
+                        <option key={ch.id} value={ch.id}>
+                          {ch.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              ) : null}
+
+              {scope === "Full paper" ? (
+                <div className="space-y-3">
+                  <label className="block text-sm font-semibold text-slate-300">
+                    Select chapters to include (CBSE MCQ)
+                  </label>
+                  {selectedCbseChapterIds.length === 0 ? (
+                    <p className="text-xs font-semibold text-amber-400 animate-pulse">
+                      ⚠️ Please select the chapters you want to include in this test.
+                    </p>
+                  ) : (
+                    <p className="text-xs font-semibold text-slate-500">
+                      {selectedCbseChapterIds.length} chapter
+                      {selectedCbseChapterIds.length === 1 ? "" : "s"} selected.
+                    </p>
+                  )}
+                  <div className="max-h-[220px] overflow-y-auto rounded-xl border border-white/10 bg-[#0b1020] p-3 space-y-2">
+                    {cbseChaptersList.length === 0 ? (
+                      <p className="text-sm text-slate-500">No chapters available</p>
+                    ) : null}
+                    {cbseChaptersList.map((ch) => {
+                      const checked = selectedCbseChapterIds.includes(ch.id);
+                      return (
+                        <label
+                          key={ch.id}
+                          className="flex items-center gap-2.5 text-sm text-slate-300 hover:text-slate-100 cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedCbseChapterIds([...selectedCbseChapterIds, ch.id]);
+                              } else {
+                                setSelectedCbseChapterIds(
+                                  selectedCbseChapterIds.filter((id) => id !== ch.id)
+                                );
+                              }
+                            }}
+                            className="rounded border-white/20 bg-transparent text-emerald-500 focus:ring-emerald-500 h-4 w-4"
+                          />
+                          <span>{ch.name}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                  {cbseChaptersList.length > 0 ? (
+                    <div className="flex gap-2 text-xs">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedCbseChapterIds(cbseChaptersList.map((c) => c.id))}
+                        className="font-semibold text-emerald-400 hover:text-emerald-300"
+                      >
+                        Select All
+                      </button>
+                      <span className="text-slate-600">|</span>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedCbseChapterIds([])}
+                        className="font-semibold text-slate-400 hover:text-slate-300"
+                      >
+                        Clear All
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
               ) : null}
 
               {scope === "Topic-wise" ? (
@@ -1147,7 +1667,8 @@ export default function CreateTestsView({
                   >
                     {questionBankCount}
                   </div>
-                  <p className={`text-slate-500 ${embedded ? "mt-1 text-[11px] leading-snug" : "mt-2 text-xs leading-relaxed"}`}
+                  <p
+                    className={`text-slate-500 ${embedded ? "mt-1 text-[11px] leading-snug" : "mt-2 text-xs leading-relaxed"}`}
                   >
                     {questionBankCount === 0
                       ? "No matching questions yet for this scope. Try another chapter or topic, or a different unit."
@@ -1171,7 +1692,8 @@ export default function CreateTestsView({
                   >
                     How many questions in this test
                   </div>
-                  <p className={`text-slate-500 ${embedded ? "mb-1 text-[11px] leading-snug" : "mb-2 text-xs"}`}
+                  <p
+                    className={`text-slate-500 ${embedded ? "mb-1 text-[11px] leading-snug" : "mb-2 text-xs"}`}
                   >
                     Use a quick preset or enter any count up to your bank total. Presets above your
                     bank size are disabled.
@@ -1371,12 +1893,17 @@ export default function CreateTestsView({
                 </div>
               </div>
               <div>
-                <label className="mb-1 block text-sm font-semibold text-slate-300">
-                  Test name (optional)
-                </label>
+                <label className="mb-1 block text-sm font-semibold text-slate-300">Test name</label>
                 <input
                   value={testName}
-                  onChange={(e) => setTestName(e.target.value)}
+                  onChange={(e) => {
+                    setTestName(e.target.value);
+                    if (e.target.value.trim() === "") {
+                      setIsNameManuallyEdited(false);
+                    } else {
+                      setIsNameManuallyEdited(true);
+                    }
+                  }}
                   placeholder={`e.g. ${examType} - ${scope} Test - April 2026`}
                   className="h-10 w-full max-w-xl rounded-xl border border-white/10 bg-[#0b1020] px-3 text-sm outline-none placeholder:text-slate-500 focus:border-emerald-400 sm:h-11"
                 />
@@ -1511,7 +2038,11 @@ export default function CreateTestsView({
                     }}
                     className="inline-flex h-11 min-w-[min(100%,18rem)] items-center justify-center gap-2 rounded-full bg-emerald-500 px-6 text-sm font-bold text-black shadow-[0_0_24px_-4px_rgba(52,211,153,0.45)] transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60 sm:h-12 sm:min-w-[min(100%,20rem)] sm:px-10 sm:text-base"
                   >
-                    <Code2 className="h-4 w-4 shrink-0 opacity-90 sm:h-5 sm:w-5" strokeWidth={2.25} aria-hidden />
+                    <Code2
+                      className="h-4 w-4 shrink-0 opacity-90 sm:h-5 sm:w-5"
+                      strokeWidth={2.25}
+                      aria-hidden
+                    />
                     {generateLoading
                       ? "Generating..."
                       : `Generate Test Now (-${teacherRdmCosts.generate_test} RDM)`}
@@ -1540,175 +2071,236 @@ export default function CreateTestsView({
 
       {/* Test History Section — separate card below the wizard (full page only) */}
       {!embedded ? (
-      <div className="mt-4 overflow-hidden rounded-2xl border border-white/[0.09] bg-[#101428] shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset] sm:mt-6">
-        <div className="border-b border-white/[0.08] px-3 py-2.5 sm:px-5 sm:py-4 lg:px-6">
-          <div className="flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-violet-500/15 text-violet-300">
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
+        <div className="mt-4 overflow-hidden rounded-2xl border border-white/[0.09] bg-[#101428] shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset] sm:mt-6">
+          <div className="border-b border-white/[0.08] px-3 py-2.5 sm:px-5 sm:py-4 lg:px-6">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-2">
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-violet-500/15 text-violet-300">
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                </div>
+                <h3 className="text-sm font-semibold text-slate-200">
+                  Your Generated Test History
+                </h3>
+              </div>
+
+              {/* Scope Filter Pills */}
+              <div className="flex flex-wrap gap-1.5 rounded-xl border border-white/10 bg-white/[0.02] p-1">
+                {(["All", "Topic-wise", "Unit-wise", "Chapter-wise", "Full paper"] as const).map(
+                  (filterOpt) => {
+                    const active = historyScopeFilter === filterOpt;
+                    return (
+                      <button
+                        key={filterOpt}
+                        type="button"
+                        onClick={() => setHistoryScopeFilter(filterOpt)}
+                        className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition ${
+                          active
+                            ? "bg-violet-500 text-white shadow-[0_0_12px_rgba(139,92,246,0.3)]"
+                            : "text-slate-400 hover:bg-white/[0.04] hover:text-slate-200"
+                        }`}
+                      >
+                        {filterOpt}
+                      </button>
+                    );
+                  }
+                )}
+              </div>
             </div>
-            <h3 className="text-sm font-semibold text-slate-200">Your Generated Test History</h3>
+          </div>
+          <div className="p-3 sm:p-5 lg:p-6">
+            {historyLoading ? (
+              <div className="flex items-center gap-2 text-sm text-slate-500">
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-600 border-t-slate-300" />
+                Loading history...
+              </div>
+            ) : testHistory.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-white/10 bg-[#0c1020] p-3 text-center sm:p-6">
+                <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-slate-800/50 text-slate-500">
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A2.25 2.25 0 0113.5 6.25v-1.5a2.25 2.25 0 00-2.25-2.25H8.25A2.25 2.25 0 006 4.75v15a2.25 2.25 0 002.25 2.25h10.5"
+                    />
+                  </svg>
+                </div>
+                <p className="text-sm text-slate-400">No tests generated yet</p>
+                <p className="mt-1 text-xs text-slate-600">
+                  Generate your first test above — it will appear here
+                </p>
+              </div>
+            ) : displayedTestHistory.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-white/10 bg-[#0c1020] p-3 text-center sm:p-6">
+                <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-slate-800/50 text-slate-500">
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A2.25 2.25 0 0113.5 6.25v-1.5a2.25 2.25 0 00-2.25-2.25H8.25A2.25 2.25 0 006 4.75v15a2.25 2.25 0 002.25 2.25h10.5"
+                    />
+                  </svg>
+                </div>
+                <p className="text-sm text-slate-400">No tests generated yet for this selection</p>
+                <p className="mt-1 text-xs text-slate-600">
+                  Generate your first test for this scope above — it will appear here
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
+                {displayedTestHistory.map((item) => (
+                  <div
+                    key={item.id}
+                    className="group relative overflow-hidden rounded-xl border border-white/10 bg-[#0b1020] p-3.5 transition hover:border-white/20 hover:bg-[#0d1223] sm:p-4"
+                  >
+                    <div className="absolute right-3 top-3">
+                      <span className="rounded border border-white/10 bg-white/5 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                        {item.scope}
+                      </span>
+                    </div>
+                    <div className="mb-1 text-xs font-medium text-violet-400">
+                      {new Date(item.generated_at).toLocaleDateString(undefined, {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })}
+                    </div>
+                    <div className="mb-2 pr-14 text-sm font-semibold text-slate-100 line-clamp-2 sm:mb-3 sm:pr-16">
+                      {item.topic_title ||
+                        item.unit_title ||
+                        item.chapter_title ||
+                        "Generated Test"}
+                    </div>
+                    <div className="mb-3 flex items-center gap-2 text-xs text-slate-500 sm:mb-4 sm:gap-3">
+                      <span className="flex items-center gap-1">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                        {item.question_count} questions
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-400" />
+                        {item.duration_minutes || 30} min
+                      </span>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const historyTest: GeneratedTeacherTest = {
+                            id: item.id,
+                            name: `CBSE Board — ${item.chapter_title || item.unit_title || "Generated Test"}`,
+                            examType: "CBSE Board" as ExamType,
+                            board: "CBSE Board",
+                            classLevelLabel:
+                              item.class_level === 11 ? "Class 11 (PUC 1)" : "Class 12 (PUC 2)",
+                            classLevelNumeric: item.class_level as 11 | 12,
+                            subjectLabel:
+                              item.subject.charAt(0).toUpperCase() + item.subject.slice(1),
+                            sourceLabel: "Question bank",
+                            scopeLabel: item.scope,
+                            scopeDetails:
+                              item.scope === "Chapter-wise"
+                                ? [`Chapter: ${item.chapter_title || "Chapter MCQ"}`]
+                                : item.scope === "Full paper"
+                                  ? ["Chapters: Full Paper"]
+                                  : [item.topic_title || item.unit_title || ""].filter(Boolean),
+                            durationMinutes: item.duration_minutes || 30,
+                            requestedCount: item.question_count,
+                            pickedCount: item.question_count,
+                            bankAvailable: item.question_count,
+                            classLevelUsed: item.class_level as 11 | 12,
+                            generatedAtIso: item.generated_at,
+                            questions: (
+                              item.questions as Array<{
+                                id: string;
+                                question: string;
+                                options: string[];
+                                correctAnswerIndex: number;
+                                explanation?: string;
+                                questionHtml?: string | null;
+                                solutionHtml?: string | null;
+                              }>
+                            ).map((q) => ({
+                              ...q,
+                              topic: "",
+                              subtopicName: "",
+                              level: "unknown" as const,
+                              solution: q.explanation ?? "",
+                            })),
+                          };
+                          void openTeacherTestPrintPreview(historyTest);
+                        }}
+                        className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs font-medium text-slate-300 transition hover:bg-white/10 hover:text-white sm:px-3 sm:py-2"
+                      >
+                        Print
+                      </button>
+                      <button
+                        type="button"
+                        disabled={!canAssignToClassroom}
+                        onClick={() => {
+                          const historyTest: GeneratedTeacherTest = {
+                            id: item.id,
+                            name: `CBSE Board — ${item.chapter_title || item.unit_title || "Generated Test"}`,
+                            examType: "CBSE Board" as ExamType,
+                            board: "CBSE Board",
+                            classLevelLabel:
+                              item.class_level === 11 ? "Class 11 (PUC 1)" : "Class 12 (PUC 2)",
+                            classLevelNumeric: item.class_level as 11 | 12,
+                            subjectLabel:
+                              item.subject.charAt(0).toUpperCase() + item.subject.slice(1),
+                            sourceLabel: "Question bank",
+                            scopeLabel: item.scope,
+                            scopeDetails:
+                              item.scope === "Chapter-wise"
+                                ? [`Chapter: ${item.chapter_title || "Chapter MCQ"}`]
+                                : item.scope === "Full paper"
+                                  ? ["Chapters: Full Paper"]
+                                  : [item.topic_title || item.unit_title || ""].filter(Boolean),
+                            durationMinutes: item.duration_minutes || 30,
+                            requestedCount: item.question_count,
+                            pickedCount: item.question_count,
+                            bankAvailable: item.question_count,
+                            classLevelUsed: item.class_level as 11 | 12,
+                            generatedAtIso: item.generated_at,
+                            questions: (
+                              item.questions as Array<{
+                                id: string;
+                                question: string;
+                                options: string[];
+                                correctAnswerIndex: number;
+                                explanation?: string;
+                                questionHtml?: string | null;
+                                solutionHtml?: string | null;
+                              }>
+                            ).map((q) => ({
+                              ...q,
+                              topic: "",
+                              subtopicName: "",
+                              level: "unknown" as const,
+                              solution: q.explanation ?? "",
+                            })),
+                          };
+                          setGeneratedTest(historyTest);
+                          openAssignDialog();
+                        }}
+                        className="flex-1 rounded-lg border border-violet-500/20 bg-violet-500/10 px-2.5 py-1.5 text-xs font-medium text-violet-300 transition hover:bg-violet-500/15 hover:text-violet-200 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-violet-500/10 disabled:hover:text-violet-300 sm:px-3 sm:py-2"
+                      >
+                        Assign to class
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
-        <div className="p-3 sm:p-5 lg:p-6">
-          {historyLoading ? (
-            <div className="flex items-center gap-2 text-sm text-slate-500">
-              <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-600 border-t-slate-300" />
-              Loading history...
-            </div>
-          ) : testHistory.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-white/10 bg-[#0c1020] p-3 text-center sm:p-6">
-              <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-slate-800/50 text-slate-500">
-                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
-                    d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A2.25 2.25 0 0113.5 6.25v-1.5a2.25 2.25 0 00-2.25-2.25H8.25A2.25 2.25 0 006 4.75v15a2.25 2.25 0 002.25 2.25h10.5"
-                  />
-                </svg>
-              </div>
-              <p className="text-sm text-slate-400">No tests generated yet</p>
-              <p className="mt-1 text-xs text-slate-600">
-                Generate your first test above — it will appear here
-              </p>
-            </div>
-          ) : (
-            <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
-              {testHistory.map((item) => (
-                <div
-                  key={item.id}
-                  className="group relative overflow-hidden rounded-xl border border-white/10 bg-[#0b1020] p-3.5 transition hover:border-white/20 hover:bg-[#0d1223] sm:p-4"
-                >
-                  <div className="absolute right-3 top-3">
-                    <span className="rounded border border-white/10 bg-white/5 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-                      {item.scope}
-                    </span>
-                  </div>
-                  <div className="mb-1 text-xs font-medium text-violet-400">
-                    {new Date(item.generated_at).toLocaleDateString(undefined, {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                    })}
-                  </div>
-                  <div className="mb-2 pr-14 text-sm font-semibold text-slate-100 line-clamp-2 sm:mb-3 sm:pr-16">
-                    {item.topic_title || item.unit_title || item.chapter_title || "Generated Test"}
-                  </div>
-                  <div className="mb-3 flex items-center gap-2 text-xs text-slate-500 sm:mb-4 sm:gap-3">
-                    <span className="flex items-center gap-1">
-                      <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                      {item.question_count} questions
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-400" />
-                      {item.duration_minutes || 30} min
-                    </span>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const historyTest: GeneratedTeacherTest = {
-                          id: item.id,
-                          name: `CBSE Board — ${item.chapter_title || item.unit_title || "Generated Test"}`,
-                          examType: "CBSE Board" as ExamType,
-                          board: "CBSE Board",
-                          classLevelLabel:
-                            item.class_level === 11 ? "Class 11 (PUC 1)" : "Class 12 (PUC 2)",
-                          classLevelNumeric: item.class_level as 11 | 12,
-                          subjectLabel:
-                            item.subject.charAt(0).toUpperCase() + item.subject.slice(1),
-                          sourceLabel: "Question bank",
-                          scopeLabel: item.scope,
-                          scopeDetails: [item.topic_title || item.unit_title || ""].filter(Boolean),
-                          durationMinutes: item.duration_minutes || 30,
-                          requestedCount: item.question_count,
-                          pickedCount: item.question_count,
-                          bankAvailable: item.question_count,
-                          classLevelUsed: item.class_level as 11 | 12,
-                          generatedAtIso: item.generated_at,
-                          questions: (
-                            item.questions as Array<{
-                              id: string;
-                              question: string;
-                              options: string[];
-                              correctAnswerIndex: number;
-                              explanation?: string;
-                            }>
-                          ).map((q) => ({
-                            ...q,
-                            topic: "",
-                            subtopicName: "",
-                            level: "unknown" as const,
-                            solution: q.explanation ?? "",
-                          })),
-                        };
-                        void openTeacherTestPrintPreview(historyTest);
-                      }}
-                      className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs font-medium text-slate-300 transition hover:bg-white/10 hover:text-white sm:px-3 sm:py-2"
-                    >
-                      Print
-                    </button>
-                    <button
-                      type="button"
-                      disabled={!canAssignToClassroom}
-                      onClick={() => {
-                        const historyTest: GeneratedTeacherTest = {
-                          id: item.id,
-                          name: `CBSE Board — ${item.chapter_title || item.unit_title || "Generated Test"}`,
-                          examType: "CBSE Board" as ExamType,
-                          board: "CBSE Board",
-                          classLevelLabel:
-                            item.class_level === 11 ? "Class 11 (PUC 1)" : "Class 12 (PUC 2)",
-                          classLevelNumeric: item.class_level as 11 | 12,
-                          subjectLabel:
-                            item.subject.charAt(0).toUpperCase() + item.subject.slice(1),
-                          sourceLabel: "Question bank",
-                          scopeLabel: item.scope,
-                          scopeDetails: [item.topic_title || item.unit_title || ""].filter(Boolean),
-                          durationMinutes: item.duration_minutes || 30,
-                          requestedCount: item.question_count,
-                          pickedCount: item.question_count,
-                          bankAvailable: item.question_count,
-                          classLevelUsed: item.class_level as 11 | 12,
-                          generatedAtIso: item.generated_at,
-                          questions: (
-                            item.questions as Array<{
-                              id: string;
-                              question: string;
-                              options: string[];
-                              correctAnswerIndex: number;
-                              explanation?: string;
-                            }>
-                          ).map((q) => ({
-                            ...q,
-                            topic: "",
-                            subtopicName: "",
-                            level: "unknown" as const,
-                            solution: q.explanation ?? "",
-                          })),
-                        };
-                        setGeneratedTest(historyTest);
-                        openAssignDialog();
-                      }}
-                      className="flex-1 rounded-lg border border-violet-500/20 bg-violet-500/10 px-2.5 py-1.5 text-xs font-medium text-violet-300 transition hover:bg-violet-500/15 hover:text-violet-200 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-violet-500/10 disabled:hover:text-violet-300 sm:px-3 sm:py-2"
-                    >
-                      Assign to class
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
       ) : null}
 
       {assignError ? (

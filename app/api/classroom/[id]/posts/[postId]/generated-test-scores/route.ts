@@ -121,7 +121,9 @@ export async function GET(
       ? ((post as { content_json?: unknown }).content_json as Record<string, unknown> | null)
       : null;
   const cq =
-    content?.chapterQuiz && typeof content.chapterQuiz === "object" && !Array.isArray(content.chapterQuiz)
+    content?.chapterQuiz &&
+    typeof content.chapterQuiz === "object" &&
+    !Array.isArray(content.chapterQuiz)
       ? (content.chapterQuiz as Record<string, unknown>)
       : null;
   if (cq) {
@@ -142,7 +144,10 @@ export async function GET(
         .select("id,bits_test_attempts")
         .in("id", memberIds);
       const seen = new Set(results.map((r) => r.userId));
-      for (const profile of (profiles ?? []) as Array<{ id: string; bits_test_attempts?: unknown }>) {
+      for (const profile of (profiles ?? []) as Array<{
+        id: string;
+        bits_test_attempts?: unknown;
+      }>) {
         if (seen.has(profile.id)) continue;
         const rows = parseBitsTestAttemptsStore(profile.bits_test_attempts ?? null);
         const match = rows
@@ -160,7 +165,10 @@ export async function GET(
           userId: profile.id,
           score: Number(match.correctCount) || 0,
           total: Number(match.totalQuestions) || 0,
-          submittedAt: typeof match.submittedAtMs === "number" ? new Date(match.submittedAtMs).toISOString() : null,
+          submittedAt:
+            typeof match.submittedAtMs === "number"
+              ? new Date(match.submittedAtMs).toISOString()
+              : null,
           answers: [],
         });
       }

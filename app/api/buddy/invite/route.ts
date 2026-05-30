@@ -71,8 +71,5 @@ export async function POST(request: Request) {
     if (error && error.code !== "23505") break;
   }
 
-  return NextResponse.json(
-    { error: lastError ?? "Failed to create invite" },
-    { status: 500 }
-  );
+  return NextResponse.json({ error: lastError ?? "Failed to create invite" }, { status: 500 });
 }

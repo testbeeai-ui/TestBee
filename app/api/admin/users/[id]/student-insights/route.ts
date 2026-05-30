@@ -88,7 +88,9 @@ function sanitizeSavedBits(raw: unknown): SavedBit[] {
       unitName: safeStr(o.unitName, 300) || undefined,
       level: safeStr(o.level, 30) || undefined,
       board: (safeStr(o.board, 10) as SavedBit["board"]) || undefined,
-      sectionIndex: Number.isFinite(Number(o.sectionIndex)) ? (Number(o.sectionIndex) as number) : undefined,
+      sectionIndex: Number.isFinite(Number(o.sectionIndex))
+        ? (Number(o.sectionIndex) as number)
+        : undefined,
       formulaName: safeStr(o.formulaName, 240) || undefined,
       formulaLatex: safeStr(o.formulaLatex, 1200) || undefined,
     };
@@ -123,7 +125,9 @@ function sanitizeSavedFormulas(raw: unknown): SavedFormula[] {
       unitName: safeStr(o.unitName, 300) || undefined,
       level: safeStr(o.level, 30) || undefined,
       board: (safeStr(o.board, 10) as SavedFormula["board"]) || undefined,
-      sectionIndex: Number.isFinite(Number(o.sectionIndex)) ? (Number(o.sectionIndex) as number) : undefined,
+      sectionIndex: Number.isFinite(Number(o.sectionIndex))
+        ? (Number(o.sectionIndex) as number)
+        : undefined,
     };
   });
 }
@@ -145,7 +149,9 @@ function sanitizeSavedRevisionCards(raw: unknown): SavedRevisionCard[] {
       status: safeStr(o.status, 20) as SavedRevisionCard["status"],
       level: safeStr(o.level, 30) as SavedRevisionCard["level"],
       board: safeStr(o.board, 10) as SavedRevisionCard["board"],
-      sectionIndex: Number.isFinite(Number(o.sectionIndex)) ? (Number(o.sectionIndex) as number) : undefined,
+      sectionIndex: Number.isFinite(Number(o.sectionIndex))
+        ? (Number(o.sectionIndex) as number)
+        : undefined,
     };
   });
 }
@@ -234,20 +240,12 @@ function shouldSkipCurrTopicNode(
   return false;
 }
 
-function mapCurrExamRelevance(arr: string[] | null): Array<
-  "JEE" | "KCET" | "JEE_Mains" | "JEE_Advance" | "other"
-> {
+function mapCurrExamRelevance(
+  arr: string[] | null
+): Array<"JEE" | "KCET" | "JEE_Mains" | "JEE_Advance" | "other"> {
   if (!arr?.length) return [];
-  const allowed = new Set([
-    "JEE",
-    "KCET",
-    "JEE_Mains",
-    "JEE_Advance",
-    "other",
-  ]);
-  const out: Array<
-    "JEE" | "KCET" | "JEE_Mains" | "JEE_Advance" | "other"
-  > = [];
+  const allowed = new Set(["JEE", "KCET", "JEE_Mains", "JEE_Advance", "other"]);
+  const out: Array<"JEE" | "KCET" | "JEE_Mains" | "JEE_Advance" | "other"> = [];
   for (const value of arr) {
     const trimmed = value.trim();
     if (!allowed.has(trimmed)) continue;
@@ -477,9 +475,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       admin.auth.admin.getUserById(userId),
       admin
         .from("profiles")
-        .select(
-          "id, role, name, subtopic_engagement, bits_test_attempts, daily_checklist_state"
-        )
+        .select("id, role, name, subtopic_engagement, bits_test_attempts, daily_checklist_state")
         .eq("id", userId)
         .maybeSingle(),
       // Read saved items from the new table instead of JSONB arrays
@@ -600,10 +596,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
         .eq("user_id", userId)
         .order("created_at", { ascending: false })
         .limit(MAX_DOUBTS_LIST),
-      admin
-        .from("doubt_answers")
-        .select("*", { head: true, count: "exact" })
-        .eq("user_id", userId),
+      admin.from("doubt_answers").select("*", { head: true, count: "exact" }).eq("user_id", userId),
       admin
         .from("lessons_raw_posts")
         .select("id", { head: true, count: "exact" })
@@ -733,7 +726,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     const playHistoryJoined = (playRecentRes.data ?? []) as PlayHistoryJoinedRow[];
     const playHistoryRecent = playHistoryJoined.map((row) => {
       const joined = row.play_questions;
-      const pq = joined == null ? null : Array.isArray(joined) ? joined[0] ?? null : joined;
+      const pq = joined == null ? null : Array.isArray(joined) ? (joined[0] ?? null) : joined;
       const options = pq ? parsePlayQuestionOptions(pq.options) : [];
       const stemPlain = pq ? playQuestionStemPlain(pq.content) : "";
       const chosenFull =
@@ -752,7 +745,8 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
         session_label: poolKeyLabel(row.pool_key),
         stem_preview: trunc(stemPlain, 200),
         chosen_preview:
-          chosenFull || (row.selected_answer_index == null ? null : `Index ${row.selected_answer_index}`),
+          chosenFull ||
+          (row.selected_answer_index == null ? null : `Index ${row.selected_answer_index}`),
         correct_preview: correctFull || null,
         question: pq
           ? {
@@ -856,7 +850,8 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
 
     const doubtsPayload = (doubts as DoubtRowWithCurriculum[]).map((d) => {
       const nodesRaw = d.gyan_curriculum_nodes;
-      const node = nodesRaw == null ? null : Array.isArray(nodesRaw) ? nodesRaw[0] ?? null : nodesRaw;
+      const node =
+        nodesRaw == null ? null : Array.isArray(nodesRaw) ? (nodesRaw[0] ?? null) : nodesRaw;
       const curriculum = node
         ? {
             chapter: node.chapter_label,
@@ -869,7 +864,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       const answers = answersForDoubt.map((a) => {
         const profRaw = a.profiles;
         const prof =
-          profRaw == null ? null : Array.isArray(profRaw) ? profRaw[0] ?? null : profRaw;
+          profRaw == null ? null : Array.isArray(profRaw) ? (profRaw[0] ?? null) : profRaw;
         const { kind, label } = classifyGyanAnswerKind(prof);
         return {
           id: a.id,
@@ -1025,117 +1020,117 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
         isStudent,
         streakTodayKeyUsed: streakTodayKey,
         studyDays: {
-        days: normalizedStudyDays,
-        summary: streakSummaryClient,
-        streakActiveMsNote: STREAK_ACTIVE_MS_NOTE,
-        presenceMsNote: STUDY_PRESENCE_MS_NOTE,
-      },
-      chapterAccuracy: {
-        rows: chapterAccuracyRows,
-        needsAttention: chapterNeedsAttention,
-        taxonomyNote: chapterAccuracyNote,
-        progressSourceNote:
-          "Same idea as the student Subject accuracy card: only subtopics with Lessons/Progress Mark as complete persisted (lessonChecklistMarkedCompleteAt). Chapter % = marked subtopics ÷ total curriculum subtopics in that chapter; ordering follows student dashboard (chapters with ≥1 mark first, newest activity first).",
-      },
-      bitsQuiz: {
-        submittedAttemptRowCount: bitsQuizInsight.attemptCount,
-        draftGradedEngagementRows: engagementDraftRowsForQuiz.length,
-        subjectRollup: bitsQuizInsight.subjectRollup,
-        attemptDetails: bitsQuizInsight.attemptDetails,
-        rollupNote:
-          "Matches Performance topic-quiz slice: profiles.bits_test_attempts rows plus in-progress graded rows in subtopic_engagement (drafts). Play arena attempts stay under Play / Arena. Retakes overwrite the same storage key; advanced sets may use distinct keys (||set:N).",
-      },
-      profileLearning: {
-        dailyChecklistState: profile?.daily_checklist_state ?? null,
-        bitsTestAttemptsKeys: jsonLen(profile?.bits_test_attempts as Json | null),
-        savedBitsCount: savedBitsRaw.length,
-        savedFormulasCount: savedFormulasRaw.length,
-        savedRevisionCardsCount: savedRevisionCardsRaw.length,
-        savedRevisionUnitsCount: savedRevisionUnitsRaw.length,
-        savedCommunityPostsCount: savedCommunityPostsRaw.length,
-      },
-      savedContent,
-      dwellTotalsLast90DaysMs: dwellTotalsMs,
-      learningMap: {
-        rows: learningRowsWithDwell,
-        totalKeysInStore: learningMap.totalKeysInStore,
-        capped: learningMap.capped,
-      },
-      magicWall: {
-        items: magicRes.data ?? [],
-        count: (magicRes.data ?? []).length,
-      },
-      classroomTasks: {
-        rows: classroomRows,
-        count: classroomRows.length,
-      },
-      gyanDoubts: {
-        recent: doubtsPayload,
-        recentCount: doubtsPayload.length,
-        totals: {
-          answersSubmitted: answersCountRes.count ?? 0,
+          days: normalizedStudyDays,
+          summary: streakSummaryClient,
+          streakActiveMsNote: STREAK_ACTIVE_MS_NOTE,
+          presenceMsNote: STUDY_PRESENCE_MS_NOTE,
+        },
+        chapterAccuracy: {
+          rows: chapterAccuracyRows,
+          needsAttention: chapterNeedsAttention,
+          taxonomyNote: chapterAccuracyNote,
+          progressSourceNote:
+            "Same idea as the student Subject accuracy card: only subtopics with Lessons/Progress Mark as complete persisted (lessonChecklistMarkedCompleteAt). Chapter % = marked subtopics ÷ total curriculum subtopics in that chapter; ordering follows student dashboard (chapters with ≥1 mark first, newest activity first).",
+        },
+        bitsQuiz: {
+          submittedAttemptRowCount: bitsQuizInsight.attemptCount,
+          draftGradedEngagementRows: engagementDraftRowsForQuiz.length,
+          subjectRollup: bitsQuizInsight.subjectRollup,
+          attemptDetails: bitsQuizInsight.attemptDetails,
+          rollupNote:
+            "Matches Performance topic-quiz slice: profiles.bits_test_attempts rows plus in-progress graded rows in subtopic_engagement (drafts). Play arena attempts stay under Play / Arena. Retakes overwrite the same storage key; advanced sets may use distinct keys (||set:N).",
+        },
+        profileLearning: {
+          dailyChecklistState: profile?.daily_checklist_state ?? null,
+          bitsTestAttemptsKeys: jsonLen(profile?.bits_test_attempts as Json | null),
+          savedBitsCount: savedBitsRaw.length,
+          savedFormulasCount: savedFormulasRaw.length,
+          savedRevisionCardsCount: savedRevisionCardsRaw.length,
+          savedRevisionUnitsCount: savedRevisionUnitsRaw.length,
+          savedCommunityPostsCount: savedCommunityPostsRaw.length,
+        },
+        savedContent,
+        dwellTotalsLast90DaysMs: dwellTotalsMs,
+        learningMap: {
+          rows: learningRowsWithDwell,
+          totalKeysInStore: learningMap.totalKeysInStore,
+          capped: learningMap.capped,
+        },
+        magicWall: {
+          items: magicRes.data ?? [],
+          count: (magicRes.data ?? []).length,
+        },
+        classroomTasks: {
+          rows: classroomRows,
+          count: classroomRows.length,
+        },
+        gyanDoubts: {
+          recent: doubtsPayload,
+          recentCount: doubtsPayload.length,
+          totals: {
+            answersSubmitted: answersCountRes.count ?? 0,
+          },
+        },
+        community: {
+          totals: {
+            postsInDb: communityPostsCountRes.count ?? 0,
+            commentsInDb: communityCommentsCountRes.count ?? 0,
+            postsLoaded: (rawPostsRes.data ?? []).length,
+            commentsLoaded: (rawCommentsRes.data ?? []).length,
+            postsCapped: (rawPostsRes.data ?? []).length >= MAX_COMMUNITY_ITEMS,
+            commentsCapped: (rawCommentsRes.data ?? []).length >= MAX_COMMUNITY_ITEMS,
+          },
+          posts: (rawPostsRes.data ?? []).map((p) => ({
+            id: p.id,
+            kind: p.kind,
+            title: trunc(p.title, MAX_COMMUNITY_TITLE_CHARS),
+            content: trunc(p.content, MAX_COMMUNITY_BODY_CHARS),
+            tags: p.tags ?? [],
+            subject: p.subject,
+            sourceType: p.source_type,
+            topicRef: p.topic_ref,
+            subtopicRef: p.subtopic_ref,
+            boardRef: p.board_ref,
+            gradeRef: p.grade_ref,
+            unitRef: p.unit_ref,
+            chapterRef: p.chapter_ref,
+            createdAt: p.created_at,
+            updatedAt: p.updated_at,
+            upvoteCount: Number(p.upvote_count ?? 0),
+            downvoteCount: Number(p.downvote_count ?? 0),
+            commentCount: Number(p.comment_count ?? 0),
+            boostCount: Number(p.boost_count ?? 0),
+          })),
+          comments: (rawCommentsRes.data ?? []).map((c) => ({
+            id: c.id,
+            postId: c.post_id,
+            body: trunc(c.body, MAX_COMMUNITY_BODY_CHARS),
+            createdAt: c.created_at,
+          })),
+        },
+        subjectTopicChat: {
+          messages: (chatRes.data ?? []).map((m) => ({
+            id: m.id,
+            contextKey: m.context_key,
+            role: m.role,
+            /** Admin review: much larger than old 320-char preview; capped below DB max per row. */
+            body: trunc(m.content, 6000),
+            createdAt: m.created_at,
+          })),
+        },
+        playArena: {
+          playHistoryTotal: playCountRes.count ?? 0,
+          playHistoryRecent,
+          playSessionsInferenceNote: PLAY_SESSION_INFERENCE_NOTE,
+          playSessions,
+          userPlayStats: playStatsRes.data ?? [],
+          dailyGauntletAttempts: gauntletRes.data ?? [],
+          arenaStreakDays,
+        },
+        referEarn: {
+          claims: referRes.data ?? [],
         },
       },
-      community: {
-        totals: {
-          postsInDb: communityPostsCountRes.count ?? 0,
-          commentsInDb: communityCommentsCountRes.count ?? 0,
-          postsLoaded: (rawPostsRes.data ?? []).length,
-          commentsLoaded: (rawCommentsRes.data ?? []).length,
-          postsCapped: (rawPostsRes.data ?? []).length >= MAX_COMMUNITY_ITEMS,
-          commentsCapped: (rawCommentsRes.data ?? []).length >= MAX_COMMUNITY_ITEMS,
-        },
-        posts: (rawPostsRes.data ?? []).map((p) => ({
-          id: p.id,
-          kind: p.kind,
-          title: trunc(p.title, MAX_COMMUNITY_TITLE_CHARS),
-          content: trunc(p.content, MAX_COMMUNITY_BODY_CHARS),
-          tags: p.tags ?? [],
-          subject: p.subject,
-          sourceType: p.source_type,
-          topicRef: p.topic_ref,
-          subtopicRef: p.subtopic_ref,
-          boardRef: p.board_ref,
-          gradeRef: p.grade_ref,
-          unitRef: p.unit_ref,
-          chapterRef: p.chapter_ref,
-          createdAt: p.created_at,
-          updatedAt: p.updated_at,
-          upvoteCount: Number(p.upvote_count ?? 0),
-          downvoteCount: Number(p.downvote_count ?? 0),
-          commentCount: Number(p.comment_count ?? 0),
-          boostCount: Number(p.boost_count ?? 0),
-        })),
-        comments: (rawCommentsRes.data ?? []).map((c) => ({
-          id: c.id,
-          postId: c.post_id,
-          body: trunc(c.body, MAX_COMMUNITY_BODY_CHARS),
-          createdAt: c.created_at,
-        })),
-      },
-      subjectTopicChat: {
-        messages: (chatRes.data ?? []).map((m) => ({
-          id: m.id,
-          contextKey: m.context_key,
-          role: m.role,
-          /** Admin review: much larger than old 320-char preview; capped below DB max per row. */
-          body: trunc(m.content, 6000),
-          createdAt: m.created_at,
-        })),
-      },
-      playArena: {
-        playHistoryTotal: playCountRes.count ?? 0,
-        playHistoryRecent,
-        playSessionsInferenceNote: PLAY_SESSION_INFERENCE_NOTE,
-        playSessions,
-        userPlayStats: playStatsRes.data ?? [],
-        dailyGauntletAttempts: gauntletRes.data ?? [],
-        arenaStreakDays,
-      },
-      referEarn: {
-        claims: referRes.data ?? [],
-      },
-    },
       {
         headers: {
           "Cache-Control": "private, max-age=60, stale-while-revalidate=300",

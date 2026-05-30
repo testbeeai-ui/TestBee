@@ -32,7 +32,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     if (verified !== "verified" && verified !== "unverified") {
       return NextResponse.json(
-        { error: "Body must include verified: \"verified\" | \"unverified\"" },
+        { error: 'Body must include verified: "verified" | "unverified"' },
         { status: 400 }
       );
     }

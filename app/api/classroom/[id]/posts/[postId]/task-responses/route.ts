@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { createAdminClient, createClient, createClientWithToken } from "@/integrations/supabase/server";
+import {
+  createAdminClient,
+  createClient,
+  createClientWithToken,
+} from "@/integrations/supabase/server";
 
 async function getAuthedUser(request: Request) {
   const tokenFromHeader = request.headers.get("Authorization")?.replace(/^Bearer\s+/i, "") ?? null;
@@ -88,4 +92,3 @@ export async function GET(
 
   return NextResponse.json({ responses: out });
 }
-

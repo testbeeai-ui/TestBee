@@ -19,11 +19,17 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const status = (url.searchParams.get("status") ?? "pending").toLowerCase();
 
-    let query = admin.from("profile_academics").select("*").order("created_at", { ascending: false });
+    let query = admin
+      .from("profile_academics")
+      .select("*")
+      .order("created_at", { ascending: false });
     if (status === "pending") {
       query = query.eq("verified", "pending");
     } else if (status !== "all") {
-      return NextResponse.json({ error: "Invalid status filter (use pending or all)" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Invalid status filter (use pending or all)" },
+        { status: 400 }
+      );
     }
 
     const { data: rows, error } = await query;

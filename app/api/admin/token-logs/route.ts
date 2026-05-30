@@ -40,8 +40,7 @@ export async function GET(request: Request) {
     return NextResponse.json(
       {
         rows,
-        nextCursor:
-          rows.length === limit ? rows[rows.length - 1]?.created_at ?? null : null,
+        nextCursor: rows.length === limit ? (rows[rows.length - 1]?.created_at ?? null) : null,
         calculatedAt: new Date().toISOString(),
       },
       {

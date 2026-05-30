@@ -31,7 +31,11 @@ export function truncatePlain(s: string, max: number): string {
 }
 
 function stripLightMarkdown(s: string): string {
-  return s.replace(/\*\*/g, "").replace(/`/g, "").replace(/\[([^\]]+)\]\([^)]+\)/g, "$1").trim();
+  return s
+    .replace(/\*\*/g, "")
+    .replace(/`/g, "")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .trim();
 }
 
 export function formatMcqChoiceLabel(

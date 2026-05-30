@@ -22,7 +22,9 @@ export async function signGoogleOAuthState(
     .sign(stateSecret());
 }
 
-export async function verifyGoogleOAuthState(token: string): Promise<{ userId: string; popup: boolean }> {
+export async function verifyGoogleOAuthState(
+  token: string
+): Promise<{ userId: string; popup: boolean }> {
   const { payload } = await jwtVerify(token, stateSecret(), {
     algorithms: ["HS256"],
   });

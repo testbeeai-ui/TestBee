@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FileText, LayoutTemplate } from "lucide-react";
 import { resolvePostHtml } from "../resolve-post-html";
 import type { Post } from "../types";
 import { ArticleTextBody } from "./ArticleTextBody";
 import { HtmlBodyFrame } from "./HtmlBodyFrame";
 import { useIsAppAdmin } from "@/hooks/useIsAppAdmin";
+import { ArticleOnboardingTracker } from "./ArticleOnboardingTracker";
 
 export function ArticlePageContent({
   post,
@@ -19,11 +20,13 @@ export function ArticlePageContent({
   const isAdmin = isAdminFromServer || isAdminClient;
   const rawHtml = resolvePostHtml(post);
   const [viewMode, setViewMode] = useState<"rendered" | "text">(rawHtml ? "rendered" : "text");
+
   const showPageHeader = !rawHtml || viewMode === "text";
   const canToggle = Boolean(rawHtml);
 
   return (
     <>
+      <ArticleOnboardingTracker />
       {showPageHeader ? (
         <h1 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">
           {post.title}

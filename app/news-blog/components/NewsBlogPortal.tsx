@@ -562,7 +562,13 @@ export function NewsBlogPortal(props: NewsBlogPortalProps) {
               ) : isKeyDatesPortalView ? (
                 <div className="overflow-hidden rounded-xl border border-slate-600/30 bg-[#1a2434] px-2">
                   {visiblePosts.map((p) => (
-                    <KeyDatesPostRow key={p.id} post={p} href={getPostHref(p)} isAdmin={isAdmin} onEdit={startEditPost} />
+                    <KeyDatesPostRow
+                      key={p.id}
+                      post={p}
+                      href={getPostHref(p)}
+                      isAdmin={isAdmin}
+                      onEdit={startEditPost}
+                    />
                   ))}
                 </div>
               ) : (
@@ -573,108 +579,108 @@ export function NewsBlogPortal(props: NewsBlogPortalProps) {
                       className="group block cursor-pointer overflow-hidden rounded-xl border border-slate-600/35 bg-gradient-to-br from-[#1e2d42] via-[#1a2635] to-[#161f2e] shadow-lg shadow-black/15 transition-colors duration-200 hover:border-emerald-500/35 sm:rounded-2xl"
                     >
                       <article>
-                      <div className="p-4 sm:p-5 lg:p-7">
-                        <div className="mb-3 flex flex-wrap items-center gap-1.5 text-[11px] sm:mb-4 sm:gap-2 sm:text-xs">
-                          <span className="rounded-full bg-[#0d1e30] px-2 py-0.5 font-medium text-blue-200/95 sm:px-2.5">
-                            {getExamLabel(featuredPost.exam)}
-                          </span>
-                          <span className="rounded-full bg-[#171425] px-2 py-0.5 font-medium text-violet-200/95 sm:px-2.5">
-                            {getSectionLabel(featuredPost.section)}
-                          </span>
-                          {featuredPost.section === "blast" && featuredPost.revisionPlan ? (
-                            <span className="rounded-full border border-rose-500/40 bg-rose-950/35 px-2 py-0.5 font-medium text-rose-100/90 sm:px-2.5">
-                              {revisionPlanDisplayLabel(featuredPost.revisionPlan)}
+                        <div className="p-4 sm:p-5 lg:p-7">
+                          <div className="mb-3 flex flex-wrap items-center gap-1.5 text-[11px] sm:mb-4 sm:gap-2 sm:text-xs">
+                            <span className="rounded-full bg-[#0d1e30] px-2 py-0.5 font-medium text-blue-200/95 sm:px-2.5">
+                              {getExamLabel(featuredPost.exam)}
                             </span>
-                          ) : null}
-                          <time
-                            className="ml-auto tabular-nums text-slate-500"
-                            dateTime={featuredPost.createdAt}
-                          >
-                            {formatDdMonYyyy(featuredPost.createdAt)}
-                          </time>
-                        </div>
-                        <h3 className="text-lg font-semibold leading-tight tracking-tight text-slate-50 sm:text-xl lg:text-3xl">
-                          {featuredPost.title}
-                        </h3>
-                        {(() => {
-                          const lead = featuredPost.summary.trim() || feedCardBlurb(featuredPost);
-                          const teaser =
-                            featuredPost.contentFormat !== "html" ? featuredPost.body.trim() : "";
-                          if (
-                            featuredPost.contentFormat === "html" &&
-                            featuredPost.rawHtml.trim()
-                          ) {
-                            return lead ? (
-                              <p className="mt-2.5 text-sm leading-relaxed text-slate-300 sm:mt-3 sm:text-base">
-                                {lead}
-                              </p>
-                            ) : null;
-                          }
-                          return (
-                            <>
-                              {lead ? (
-                                <p className="mt-2.5 line-clamp-4 text-sm leading-relaxed text-slate-300 sm:mt-3 sm:text-base">
+                            <span className="rounded-full bg-[#171425] px-2 py-0.5 font-medium text-violet-200/95 sm:px-2.5">
+                              {getSectionLabel(featuredPost.section)}
+                            </span>
+                            {featuredPost.section === "blast" && featuredPost.revisionPlan ? (
+                              <span className="rounded-full border border-rose-500/40 bg-rose-950/35 px-2 py-0.5 font-medium text-rose-100/90 sm:px-2.5">
+                                {revisionPlanDisplayLabel(featuredPost.revisionPlan)}
+                              </span>
+                            ) : null}
+                            <time
+                              className="ml-auto tabular-nums text-slate-500"
+                              dateTime={featuredPost.createdAt}
+                            >
+                              {formatDdMonYyyy(featuredPost.createdAt)}
+                            </time>
+                          </div>
+                          <h3 className="text-lg font-semibold leading-tight tracking-tight text-slate-50 sm:text-xl lg:text-3xl">
+                            {featuredPost.title}
+                          </h3>
+                          {(() => {
+                            const lead = featuredPost.summary.trim() || feedCardBlurb(featuredPost);
+                            const teaser =
+                              featuredPost.contentFormat !== "html" ? featuredPost.body.trim() : "";
+                            if (
+                              featuredPost.contentFormat === "html" &&
+                              featuredPost.rawHtml.trim()
+                            ) {
+                              return lead ? (
+                                <p className="mt-2.5 text-sm leading-relaxed text-slate-300 sm:mt-3 sm:text-base">
                                   {lead}
                                 </p>
-                              ) : null}
-                              <PostImages
-                                heroImageUrl={featuredPost.heroImageUrl}
-                                inlineImageUrl={featuredPost.inlineImageUrl}
-                                heroImageCaption={featuredPost.heroImageCaption}
-                                inlineImageCaption={featuredPost.inlineImageCaption}
-                              />
-                              {teaser ? (
-                                <p className="mt-2 line-clamp-3 text-[13px] leading-relaxed text-slate-400 sm:mt-3 sm:text-sm">
-                                  {teaser}
-                                </p>
-                              ) : null}
-                            </>
-                          );
-                        })()}
-                        <div className="mt-4 flex flex-wrap items-center justify-end gap-2 border-t border-slate-700/50 pt-3 text-[11px] text-slate-500 sm:mt-5 sm:gap-3 sm:pt-4 sm:text-xs">
-                          <div className="flex shrink-0 flex-wrap items-center gap-2">
-                            <span className="hidden items-center gap-1 text-[11px] font-semibold text-emerald-300/95 sm:inline-flex">
-                              Read <ArrowRight className="h-3.5 w-3.5" aria-hidden />
-                            </span>
-                            {portal === "blog"
-                              ? blogEditorPickSlotButton(featuredPost, false)
-                              : null}
-                            {isAdmin && (
+                              ) : null;
+                            }
+                            return (
                               <>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    startEditPost(featuredPost);
-                                  }}
-                                  className="inline-flex items-center gap-1 rounded-md border border-slate-600 px-2.5 py-1.5 text-sky-300 transition hover:border-sky-500/80 hover:bg-sky-950/25"
-                                >
-                                  <Pencil className="h-3.5 w-3.5" /> Edit
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={async (e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    await dbDeletePost(featuredPost.id);
-                                    removeDeletedFromEditorPicks(featuredPost.id);
-                                    setEditingPostId((cur) =>
-                                      cur === featuredPost.id ? null : cur
-                                    );
-                                    setPosts((prev) =>
-                                      prev.filter((p) => p.id !== featuredPost.id)
-                                    );
-                                  }}
-                                  className="inline-flex items-center gap-1 rounded-md border border-slate-600 px-2.5 py-1.5 text-rose-300 transition hover:border-rose-500/80 hover:bg-rose-950/25"
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" /> Delete
-                                </button>
+                                {lead ? (
+                                  <p className="mt-2.5 line-clamp-4 text-sm leading-relaxed text-slate-300 sm:mt-3 sm:text-base">
+                                    {lead}
+                                  </p>
+                                ) : null}
+                                <PostImages
+                                  heroImageUrl={featuredPost.heroImageUrl}
+                                  inlineImageUrl={featuredPost.inlineImageUrl}
+                                  heroImageCaption={featuredPost.heroImageCaption}
+                                  inlineImageCaption={featuredPost.inlineImageCaption}
+                                />
+                                {teaser ? (
+                                  <p className="mt-2 line-clamp-3 text-[13px] leading-relaxed text-slate-400 sm:mt-3 sm:text-sm">
+                                    {teaser}
+                                  </p>
+                                ) : null}
                               </>
-                            )}
+                            );
+                          })()}
+                          <div className="mt-4 flex flex-wrap items-center justify-end gap-2 border-t border-slate-700/50 pt-3 text-[11px] text-slate-500 sm:mt-5 sm:gap-3 sm:pt-4 sm:text-xs">
+                            <div className="flex shrink-0 flex-wrap items-center gap-2">
+                              <span className="hidden items-center gap-1 text-[11px] font-semibold text-emerald-300/95 sm:inline-flex">
+                                Read <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+                              </span>
+                              {portal === "blog"
+                                ? blogEditorPickSlotButton(featuredPost, false)
+                                : null}
+                              {isAdmin && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      startEditPost(featuredPost);
+                                    }}
+                                    className="inline-flex items-center gap-1 rounded-md border border-slate-600 px-2.5 py-1.5 text-sky-300 transition hover:border-sky-500/80 hover:bg-sky-950/25"
+                                  >
+                                    <Pencil className="h-3.5 w-3.5" /> Edit
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={async (e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      await dbDeletePost(featuredPost.id);
+                                      removeDeletedFromEditorPicks(featuredPost.id);
+                                      setEditingPostId((cur) =>
+                                        cur === featuredPost.id ? null : cur
+                                      );
+                                      setPosts((prev) =>
+                                        prev.filter((p) => p.id !== featuredPost.id)
+                                      );
+                                    }}
+                                    className="inline-flex items-center gap-1 rounded-md border border-slate-600 px-2.5 py-1.5 text-rose-300 transition hover:border-rose-500/80 hover:bg-rose-950/25"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" /> Delete
+                                  </button>
+                                </>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
                       </article>
                     </Link>
                   ) : null}
@@ -688,80 +694,80 @@ export function NewsBlogPortal(props: NewsBlogPortalProps) {
                           className="flex cursor-pointer flex-col overflow-hidden rounded-lg border border-slate-600/30 bg-[#1a2434] transition-colors duration-200 hover:border-sky-500/30 sm:rounded-xl"
                         >
                           <article className="flex flex-1 flex-col">
-                          <div className="flex flex-1 flex-col p-3 sm:p-4">
-                            <div className="mb-2 flex flex-wrap items-center gap-1.5 text-[10px] sm:mb-3 sm:gap-2 sm:text-[11px]">
-                              <span className="rounded-full bg-[#0d1e30] px-1.5 py-0.5 font-medium text-blue-200/95 sm:px-2">
-                                {getExamLabel(post.exam)}
-                              </span>
-                              <span className="rounded-full bg-[#171425] px-1.5 py-0.5 font-medium text-violet-200/95 sm:px-2">
-                                {getSectionLabel(post.section)}
-                              </span>
-                              {post.section === "blast" && post.revisionPlan ? (
-                                <span className="rounded-full border border-rose-500/40 bg-rose-950/30 px-1.5 py-0.5 font-medium text-rose-100/90 sm:px-2">
-                                  {revisionPlanDisplayLabel(post.revisionPlan)}
+                            <div className="flex flex-1 flex-col p-3 sm:p-4">
+                              <div className="mb-2 flex flex-wrap items-center gap-1.5 text-[10px] sm:mb-3 sm:gap-2 sm:text-[11px]">
+                                <span className="rounded-full bg-[#0d1e30] px-1.5 py-0.5 font-medium text-blue-200/95 sm:px-2">
+                                  {getExamLabel(post.exam)}
                                 </span>
-                              ) : null}
-                              <time
-                                className="ml-auto tabular-nums text-slate-500"
-                                dateTime={post.createdAt}
-                              >
-                                {formatDdMonYyyy(post.createdAt)}
-                              </time>
-                            </div>
-                            <h4 className="line-clamp-2 text-[15px] font-semibold leading-snug tracking-tight text-slate-50 sm:text-base lg:text-lg">
-                              {post.title}
-                            </h4>
-                            {post.heroImageUrl.trim() ? (
-                              <div className="mt-2.5 overflow-hidden rounded-lg border border-slate-700/60 bg-[#101a2a] sm:mt-3">
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img
-                                  src={post.heroImageUrl}
-                                  alt={post.heroImageCaption || post.title}
-                                  className="h-24 w-full object-cover sm:h-28 lg:h-32"
-                                />
+                                <span className="rounded-full bg-[#171425] px-1.5 py-0.5 font-medium text-violet-200/95 sm:px-2">
+                                  {getSectionLabel(post.section)}
+                                </span>
+                                {post.section === "blast" && post.revisionPlan ? (
+                                  <span className="rounded-full border border-rose-500/40 bg-rose-950/30 px-1.5 py-0.5 font-medium text-rose-100/90 sm:px-2">
+                                    {revisionPlanDisplayLabel(post.revisionPlan)}
+                                  </span>
+                                ) : null}
+                                <time
+                                  className="ml-auto tabular-nums text-slate-500"
+                                  dateTime={post.createdAt}
+                                >
+                                  {formatDdMonYyyy(post.createdAt)}
+                                </time>
                               </div>
-                            ) : null}
-                            {(() => {
-                              const blurb = feedCardBlurb(post);
-                              return blurb ? (
-                                <p className="mt-1.5 line-clamp-2 text-[13px] leading-relaxed text-slate-400 sm:mt-2 sm:text-sm">
-                                  {blurb}
-                                </p>
-                              ) : null;
-                            })()}
-                          </div>
-                          <div className="flex items-center justify-end gap-1.5 border-t border-slate-600/25 px-3 py-2 sm:gap-2 sm:px-4 sm:py-2.5">
-                            {portal === "blog" ? blogEditorPickSlotButton(post, true) : null}
-                            {isAdmin && (
-                              <>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    startEditPost(post);
-                                  }}
-                                  className="inline-flex items-center gap-1 rounded-md border border-slate-700 px-2 py-1 text-[11px] font-medium text-sky-300 transition hover:border-sky-500/70 hover:bg-sky-950/20"
-                                >
-                                  <Pencil className="h-3 w-3" /> Edit
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={async (e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    await dbDeletePost(post.id);
-                                    removeDeletedFromEditorPicks(post.id);
-                                    setEditingPostId((cur) => (cur === post.id ? null : cur));
-                                    setPosts((prev) => prev.filter((p) => p.id !== post.id));
-                                  }}
-                                  className="inline-flex items-center gap-1 rounded-md border border-slate-700 px-2 py-1 text-[11px] font-medium text-rose-300 transition hover:border-rose-500/70 hover:bg-rose-950/20"
-                                >
-                                  <Trash2 className="h-3 w-3" /> Delete
-                                </button>
-                              </>
-                            )}
-                          </div>
+                              <h4 className="line-clamp-2 text-[15px] font-semibold leading-snug tracking-tight text-slate-50 sm:text-base lg:text-lg">
+                                {post.title}
+                              </h4>
+                              {post.heroImageUrl.trim() ? (
+                                <div className="mt-2.5 overflow-hidden rounded-lg border border-slate-700/60 bg-[#101a2a] sm:mt-3">
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img
+                                    src={post.heroImageUrl}
+                                    alt={post.heroImageCaption || post.title}
+                                    className="h-24 w-full object-cover sm:h-28 lg:h-32"
+                                  />
+                                </div>
+                              ) : null}
+                              {(() => {
+                                const blurb = feedCardBlurb(post);
+                                return blurb ? (
+                                  <p className="mt-1.5 line-clamp-2 text-[13px] leading-relaxed text-slate-400 sm:mt-2 sm:text-sm">
+                                    {blurb}
+                                  </p>
+                                ) : null;
+                              })()}
+                            </div>
+                            <div className="flex items-center justify-end gap-1.5 border-t border-slate-600/25 px-3 py-2 sm:gap-2 sm:px-4 sm:py-2.5">
+                              {portal === "blog" ? blogEditorPickSlotButton(post, true) : null}
+                              {isAdmin && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      startEditPost(post);
+                                    }}
+                                    className="inline-flex items-center gap-1 rounded-md border border-slate-700 px-2 py-1 text-[11px] font-medium text-sky-300 transition hover:border-sky-500/70 hover:bg-sky-950/20"
+                                  >
+                                    <Pencil className="h-3 w-3" /> Edit
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={async (e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      await dbDeletePost(post.id);
+                                      removeDeletedFromEditorPicks(post.id);
+                                      setEditingPostId((cur) => (cur === post.id ? null : cur));
+                                      setPosts((prev) => prev.filter((p) => p.id !== post.id));
+                                    }}
+                                    className="inline-flex items-center gap-1 rounded-md border border-slate-700 px-2 py-1 text-[11px] font-medium text-rose-300 transition hover:border-rose-500/70 hover:bg-rose-950/20"
+                                  >
+                                    <Trash2 className="h-3 w-3" /> Delete
+                                  </button>
+                                </>
+                              )}
+                            </div>
                           </article>
                         </Link>
                       ))}

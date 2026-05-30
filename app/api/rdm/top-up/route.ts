@@ -26,7 +26,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Valid amount required" }, { status: 400 });
     }
     const targetUserId =
-      isProd && typeof body?.userId === "string" && body.userId.trim() ? body.userId.trim() : auth.user.id;
+      isProd && typeof body?.userId === "string" && body.userId.trim()
+        ? body.userId.trim()
+        : auth.user.id;
 
     const admin = createAdminClient();
     if (!admin) {

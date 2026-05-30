@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -77,6 +78,22 @@ const PLAY_HUB_KEYS = [
   "study_streak_bonus_week_number",
   "study_streak_bonus_rdm",
 ] as const;
+
+const FREE_TRIAL_KEYS = [
+  "free_trial_checklist_reward_rdm",
+  "free_trial_daily_streak_reward_rdm",
+] as const;
+
+const FREE_TRIAL_META: Record<(typeof FREE_TRIAL_KEYS)[number], { title: string; hint: string }> = {
+  free_trial_checklist_reward_rdm: {
+    title: "Checklist completion reward",
+    hint: "RDM paid when a student completes all 10 onboarding tasks and claims. Trial wizard welcome-bonus copy uses this same amount.",
+  },
+  free_trial_daily_streak_reward_rdm: {
+    title: "Daily streak reward (Day 2–10)",
+    hint: "RDM paid when a student completes all 6 daily checklist tasks for the current trial day (claim_free_trial_daily_streak_reward).",
+  },
+};
 
 const PLAY_HUB_META: Record<
   (typeof PLAY_HUB_KEYS)[number],
@@ -179,7 +196,10 @@ function TeacherRdmGroupBlock({
     const meta = TEACHER_RDM_ADMIN_META[key];
     if (!row || !meta) {
       return (
-        <div key={key} className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">
+        <div
+          key={key}
+          className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground"
+        >
           Missing row <span className="font-mono">{key}</span> — apply migration{" "}
           <span className="font-mono">20260517140000_teacher_portal_rdm_config</span>
           {key === "gyan_teacher_answer_rdm" ? (
@@ -235,20 +255,25 @@ function TeacherRdmGroupBlock({
       <div className="border-b bg-muted/40 px-4 py-3">
         <h2 className="text-lg font-semibold">Teachers (portal charges &amp; rewards)</h2>
         <p className="mt-1 text-xs text-muted-foreground">
-          Live-linked to the teacher portal: classroom, section, assignment, schedule, test generation, and Gyan++
-          teacher rewards. After <span className="font-semibold">Save Changes</span>, amounts apply on the next
-          teacher action (wallet labels refresh when the teacher refocuses the tab).
+          Live-linked to the teacher portal: classroom, section, assignment, schedule, test
+          generation, and Gyan++ teacher rewards. After{" "}
+          <span className="font-semibold">Save Changes</span>, amounts apply on the next teacher
+          action (wallet labels refresh when the teacher refocuses the tab).
         </p>
       </div>
       <div className="space-y-8 p-4">
         <div className="space-y-3">
-          <h3 className="text-sm font-semibold text-foreground">Charges (deduct from teacher wallet)</h3>
+          <h3 className="text-sm font-semibold text-foreground">
+            Charges (deduct from teacher wallet)
+          </h3>
           <div className="grid gap-4 md:grid-cols-2">
             {TEACHER_RDM_ADMIN_CHARGE_KEYS.map((k) => renderCard(k))}
           </div>
         </div>
         <div className="space-y-3">
-          <h3 className="text-sm font-semibold text-foreground">Rewards (credit to teacher wallet)</h3>
+          <h3 className="text-sm font-semibold text-foreground">
+            Rewards (credit to teacher wallet)
+          </h3>
           <div className="grid gap-4 md:grid-cols-2">
             {TEACHER_RDM_ADMIN_REWARD_KEYS.map((k) => renderCard(k))}
           </div>
@@ -259,6 +284,12 @@ function TeacherRdmGroupBlock({
 }
 
 const MOCK_TEST_RDM_KEYS = ["mock_community_share_rdm", "mock_score_bonus_rdm"] as const;
+
+const CBSE_MCQ_RDM_KEYS = [
+  "cbse_mcq_community_share_rdm",
+  "cbse_mcq_min_accuracy_pct",
+  "cbse_mcq_win_rdm",
+] as const;
 
 function SubtopicRdmGroupBlock({
   configs,
@@ -274,7 +305,10 @@ function SubtopicRdmGroupBlock({
     const meta = SUBTOPIC_RDM_META[key];
     if (!row) {
       return (
-        <div key={key} className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">
+        <div
+          key={key}
+          className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground"
+        >
           Missing row <span className="font-mono">{key}</span> — apply migration{" "}
           <span className="font-mono">20260521120000_subtopic_rdm_config</span> or{" "}
           <span className="font-mono">20260524120000_quiz_numerals_share_rdm</span>.
@@ -292,7 +326,9 @@ function SubtopicRdmGroupBlock({
             Server claim: <span className="text-sky-400/90">{meta.claimRpc}</span>
           </div>
         </div>
-        {meta.hint ? <p className="text-[11px] leading-snug text-muted-foreground">{meta.hint}</p> : null}
+        {meta.hint ? (
+          <p className="text-[11px] leading-snug text-muted-foreground">{meta.hint}</p>
+        ) : null}
         <div className="flex items-center gap-2">
           <Input
             type="number"
@@ -316,14 +352,16 @@ function SubtopicRdmGroupBlock({
         <p className="mt-1 text-xs text-muted-foreground">
           <span className="font-semibold text-foreground/90">Config keys</span> in{" "}
           <span className="font-mono">rdm_config</span> drive amounts;{" "}
-          <span className="font-semibold text-foreground/90">claims</span> are enforced by the RPCs below (not by the
-          client).
+          <span className="font-semibold text-foreground/90">claims</span> are enforced by the RPCs
+          below (not by the client).
         </p>
         <ul className="mt-2 list-inside list-disc text-[11px] text-muted-foreground space-y-0.5">
           <li>
             Daily:{" "}
             <span className="font-mono text-sky-400/90">claim_topic_quiz_advanced_daily_rdm</span>,{" "}
-            <span className="font-mono text-sky-400/90">claim_numerals_pack_complete_daily_rdm</span>
+            <span className="font-mono text-sky-400/90">
+              claim_numerals_pack_complete_daily_rdm
+            </span>
           </li>
           <li>
             Post &amp; earn / share:{" "}
@@ -343,7 +381,9 @@ function SubtopicRdmGroupBlock({
                   : "Milestone RDM for completing quiz / numerals targets (daily window on the server)."}
               </p>
             </div>
-            <div className="grid gap-4 md:grid-cols-2">{section.subheadingKeys.map((k) => renderCard(k))}</div>
+            <div className="grid gap-4 md:grid-cols-2">
+              {section.subheadingKeys.map((k) => renderCard(k))}
+            </div>
           </div>
         ))}
       </div>
@@ -365,8 +405,8 @@ function GyanRdmGroupBlock({
       <div className="border-b bg-muted/40 px-4 py-3">
         <h2 className="text-lg font-semibold">Gyan ++ (Q&A Wall)</h2>
         <p className="mt-1 text-xs text-muted-foreground">
-          Controls user-facing Gyan++ rewards (post, comment, first upvote milestone, and save)
-          and wallet payouts via server-side functions/triggers.
+          Controls user-facing Gyan++ rewards (post, comment, first upvote milestone, and save) and
+          wallet payouts via server-side functions/triggers.
         </p>
       </div>
       <div className="p-4">
@@ -386,7 +426,9 @@ function GyanRdmGroupBlock({
             }
             return (
               <div key={key} className="flex flex-col gap-1.5 rounded-lg border bg-muted/10 p-3">
-                <label className="text-sm font-medium text-foreground">{row.description || key}</label>
+                <label className="text-sm font-medium text-foreground">
+                  {row.description || key}
+                </label>
                 <div className="mb-1 font-mono text-xs text-muted-foreground">{key}</div>
                 <div className="flex items-center gap-2">
                   <Input
@@ -396,6 +438,68 @@ function GyanRdmGroupBlock({
                     className="bg-background font-mono"
                   />
                   <span className="shrink-0 text-sm font-semibold text-amber-400">RDM</span>
+                </div>
+                <div className="mt-1 text-[10px] text-muted-foreground">
+                  Last updated: {new Date(row.updated_at).toLocaleString()}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CbseMcqRdmGroupBlock({
+  configs,
+  drafts,
+  onDraftChange,
+}: {
+  configs: Record<string, RdmConfigRow>;
+  drafts: Record<string, string>;
+  onDraftChange: (key: string, value: string) => void;
+}) {
+  return (
+    <div className="scroll-mt-20 rounded-xl border bg-card overflow-hidden">
+      <div className="border-b bg-muted/40 px-4 py-3">
+        <h2 className="text-lg font-semibold">CBSE MCQ&apos;s (chapter quiz)</h2>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Two rewards only (separate from mock test): win RDM when accuracy ≥ minimum % (
+          <span className="font-mono">claim_cbse_mcq_chapter_score_rdm</span>), plus community share
+          (<span className="font-mono">claim_cbse_mcq_community_share_rdm</span>).
+        </p>
+      </div>
+      <div className="p-4">
+        <div className="grid gap-4">
+          {CBSE_MCQ_RDM_KEYS.map((key) => {
+            const row = configs[key];
+            if (!row) {
+              return (
+                <div
+                  key={key}
+                  className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground"
+                >
+                  Missing row <span className="font-mono">{key}</span> — apply migration{" "}
+                  <span className="font-mono">20260621140000_cbse_mcq_rdm</span>.
+                </div>
+              );
+            }
+            const suffix = key === "cbse_mcq_min_accuracy_pct" ? "%" : "RDM";
+            return (
+              <div key={key} className="flex flex-col gap-1.5 rounded-lg border bg-muted/10 p-3">
+                <label className="text-sm font-medium text-foreground">
+                  {row.description || key}
+                </label>
+                <div className="mb-1 font-mono text-xs text-muted-foreground">{key}</div>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    value={drafts[key] || ""}
+                    onChange={(e) => onDraftChange(key, e.target.value)}
+                    className="bg-background font-mono"
+                  />
+                  <span className="shrink-0 text-sm font-semibold text-amber-400">{suffix}</span>
                 </div>
                 <div className="mt-1 text-[10px] text-muted-foreground">
                   Last updated: {new Date(row.updated_at).toLocaleString()}
@@ -424,9 +528,9 @@ function MockTestRdmGroupBlock({
         <h2 className="text-lg font-semibold">Mock test (Share bonus)</h2>
         <p className="mt-1 text-xs text-muted-foreground">
           Controls verified mock result community-share bonus consumed by{" "}
-          <span className="font-mono">claim_mock_community_share_rdm</span> and credited to wallet via{" "}
-          <span className="font-mono">add_rdm</span>; plus catalog test completion score bonus (≥60%) from{" "}
-          <span className="font-mono">claim_mock_rdm_bonus</span>.
+          <span className="font-mono">claim_mock_community_share_rdm</span> and credited to wallet
+          via <span className="font-mono">add_rdm</span>; plus catalog test completion score bonus
+          (≥60%) from <span className="font-mono">claim_mock_rdm_bonus</span>.
         </p>
       </div>
       <div className="p-4">
@@ -448,8 +552,76 @@ function MockTestRdmGroupBlock({
             }
             return (
               <div key={key} className="flex flex-col gap-1.5 rounded-lg border bg-muted/10 p-3">
-                <label className="text-sm font-medium text-foreground">{row.description || key}</label>
+                <label className="text-sm font-medium text-foreground">
+                  {row.description || key}
+                </label>
                 <div className="mb-1 font-mono text-xs text-muted-foreground">{key}</div>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    value={drafts[key] || ""}
+                    onChange={(e) => onDraftChange(key, e.target.value)}
+                    className="bg-background font-mono"
+                  />
+                  <span className="shrink-0 text-sm font-semibold text-amber-400">RDM</span>
+                </div>
+                <div className="mt-1 text-[10px] text-muted-foreground">
+                  Last updated: {new Date(row.updated_at).toLocaleString()}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FreeTrialRdmGroupBlock({
+  configs,
+  drafts,
+  onDraftChange,
+}: {
+  configs: Record<string, RdmConfigRow>;
+  drafts: Record<string, string>;
+  onDraftChange: (key: string, value: string) => void;
+}) {
+  return (
+    <div className="scroll-mt-20 rounded-xl border bg-card overflow-hidden">
+      <div className="border-b bg-muted/40 px-4 py-3">
+        <h2 className="text-lg font-semibold">Free trial · onboarding rewards</h2>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Controls copy in the trial activation wizard and checklist claim payouts (
+          <span className="font-mono">claim_free_trial_checklist_reward</span>,{" "}
+          <span className="font-mono">claim_free_trial_daily_streak_reward</span>).
+        </p>
+      </div>
+      <div className="p-4">
+        <div className="grid gap-4 md:grid-cols-2">
+          {FREE_TRIAL_KEYS.map((key) => {
+            const row = configs[key];
+            const meta = FREE_TRIAL_META[key];
+            if (!row) {
+              return (
+                <div
+                  key={key}
+                  className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground"
+                >
+                  Missing row <span className="font-mono">{key}</span> — apply migration{" "}
+                  <span className="font-mono">
+                    {key === "free_trial_daily_streak_reward_rdm"
+                      ? "20260530180000_free_trial_daily_streak"
+                      : "20260629120000_free_trial_onboarding_rdm"}
+                  </span>
+                  .
+                </div>
+              );
+            }
+            return (
+              <div key={key} className="flex flex-col gap-1.5 rounded-lg border bg-muted/10 p-3">
+                <label className="text-sm font-medium text-foreground">{meta.title}</label>
+                <div className="mb-1 font-mono text-xs text-muted-foreground">{key}</div>
+                <p className="text-[11px] leading-snug text-muted-foreground">{meta.hint}</p>
                 <div className="flex items-center gap-2">
                   <Input
                     type="number"
@@ -485,8 +657,8 @@ function PlayHubGroupBlock({
       <div className="border-b bg-muted/40 px-4 py-3">
         <h2 className="text-lg font-semibold">Play hub · DailyDose &amp; dual-domain streak</h2>
         <p className="mt-1 text-xs text-muted-foreground">
-          These values are read by <span className="font-mono">submit_daily_gauntlet</span> (DailyDose RDM per domain and
-          dual-domain streak milestones at 7 and 30 days).
+          These values are read by <span className="font-mono">submit_daily_gauntlet</span>{" "}
+          (DailyDose RDM per domain and dual-domain streak milestones at 7 and 30 days).
         </p>
       </div>
       <div className="p-4">
@@ -570,7 +742,9 @@ function RdmGroupBlock({
             const suffix = valueSuffix(key);
             return (
               <div key={key} className="flex flex-col gap-1.5 p-3 rounded-lg border bg-muted/10">
-                <label className="text-sm font-medium text-foreground">{row.description || key}</label>
+                <label className="text-sm font-medium text-foreground">
+                  {row.description || key}
+                </label>
                 <div className="text-xs text-muted-foreground font-mono mb-1">{key}</div>
                 <div className="flex items-center gap-2">
                   <Input
@@ -602,7 +776,7 @@ const navPillPrimary =
 const navPillInactive =
   "border-border/50 bg-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground";
 
-type RdmTableTab = "learn" | "play" | "subtopic" | "gyan" | "teachers";
+type RdmTableTab = "learn" | "play" | "subtopic" | "gyan" | "teachers" | "free_trial";
 
 function readInitialRdmTab(): RdmTableTab {
   if (typeof window === "undefined") return "learn";
@@ -611,6 +785,7 @@ function readInitialRdmTab(): RdmTableTab {
   if (sp.get("tab") === "subtopic") return "subtopic";
   if (sp.get("tab") === "gyan") return "gyan";
   if (sp.get("tab") === "teachers") return "teachers";
+  if (sp.get("tab") === "free-trial") return "free_trial";
   if (window.location.hash === "#rdm-play-hub") return "play";
   return "learn";
 }
@@ -644,7 +819,9 @@ export default function RdmTablePage() {
             ? `${path}?tab=gyan`
             : tab === "teachers"
               ? `${path}?tab=teachers`
-              : path;
+              : tab === "free_trial"
+                ? `${path}?tab=free-trial`
+                : path;
     window.history.replaceState(null, "", next);
   }, []);
 
@@ -694,10 +871,13 @@ export default function RdmTablePage() {
       const { data } = await supabase.from("rdm_config").select("*");
       if (data) {
         const conf: Record<string, RdmConfigRow> = {};
+        const drf: Record<string, string> = {};
         for (const row of data) {
           conf[row.key] = row as RdmConfigRow;
+          drf[row.key] = String(row.value);
         }
         setConfigs(conf);
+        setDrafts(drf);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to save");
@@ -724,7 +904,8 @@ export default function RdmTablePage() {
             RDM Table (Rewards Configuration)
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Manage all RDM payouts globally. Changes here reflect instantly across the platform without redeployment.
+            Manage all RDM payouts globally. Changes here reflect instantly across the platform
+            without redeployment.
           </p>
         </div>
         <Button
@@ -732,17 +913,25 @@ export default function RdmTablePage() {
           disabled={saving}
           className="min-w-32 bg-amber-500 hover:bg-amber-600 text-black font-semibold"
         >
-          {saving ? "Saving..." : <>
+          {saving ? (
+            "Saving..."
+          ) : (
+            <>
               <Save className="h-4 w-4 mr-2" /> Save Changes
-            </>}
+            </>
+          )}
         </Button>
       </div>
 
       {error && (
-        <div className="p-3 bg-destructive/10 text-destructive rounded-md border border-destructive/20">{error}</div>
+        <div className="p-3 bg-destructive/10 text-destructive rounded-md border border-destructive/20">
+          {error}
+        </div>
       )}
       {success && (
-        <div className="p-3 bg-emerald-500/10 text-emerald-500 rounded-md border border-emerald-500/20">{success}</div>
+        <div className="p-3 bg-emerald-500/10 text-emerald-500 rounded-md border border-emerald-500/20">
+          {success}
+        </div>
       )}
 
       <nav
@@ -796,6 +985,16 @@ export default function RdmTablePage() {
         <button
           type="button"
           role="tab"
+          aria-selected={activeTab === "free_trial"}
+          id="rdm-tab-free-trial"
+          className={`${navPillBase} ${activeTab === "free_trial" ? navPillPrimary : navPillInactive}`}
+          onClick={() => selectTab("free_trial")}
+        >
+          Free trial
+        </button>
+        <button
+          type="button"
+          role="tab"
           aria-selected={activeTab === "teachers"}
           id="rdm-tab-teachers"
           className={`${navPillBase} ${activeTab === "teachers" ? navPillPrimary : navPillInactive}`}
@@ -814,8 +1013,9 @@ export default function RdmTablePage() {
         <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-3">
           <p className="text-sm font-semibold text-foreground">Learn &amp; earn</p>
           <p className="text-xs text-muted-foreground mt-1">
-            Referral rewards, weekly referral bonuses, the daily cap on refer challenge claims, redemption “from RDM”
-            marketing numbers, and Earn &amp; Learn MCQ win/share amounts (MentaMill Blitz, FunBrain, 20Q, 50Q).
+            Referral rewards, weekly referral bonuses, the daily cap on refer challenge claims,
+            redemption “from RDM” marketing numbers, and Earn &amp; Learn MCQ win/share amounts
+            (MentaMill Blitz, FunBrain, 20Q, 50Q).
           </p>
         </div>
 
@@ -857,12 +1057,14 @@ export default function RdmTablePage() {
         <div className="rounded-lg border border-violet-500/25 bg-violet-500/5 px-4 py-3">
           <p className="text-sm font-semibold text-foreground">Play hub</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            DailyDose RDM (academic and funbrain full runs) and dual-domain streak milestones (7- and 30-day). Use{" "}
-            <span className="font-semibold">Save Changes</span> at the top to persist values.
+            DailyDose RDM (academic and funbrain full runs) and dual-domain streak milestones (7-
+            and 30-day). Use <span className="font-semibold">Save Changes</span> at the top to
+            persist values.
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Also includes the Student Dashboard <span className="font-semibold">Study streak bonus</span> badge copy
-            (week number + RDM label).
+            Also includes the Student Dashboard{" "}
+            <span className="font-semibold">Study streak bonus</span> badge copy (week number + RDM
+            label).
           </p>
         </div>
         <PlayHubGroupBlock configs={configs} drafts={drafts} onDraftChange={onDraftChange} />
@@ -877,7 +1079,10 @@ export default function RdmTablePage() {
         <div className="rounded-lg border border-fuchsia-500/25 bg-fuchsia-500/5 px-4 py-3">
           <p className="text-sm font-semibold text-foreground">Gyan ++</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Controls Gyan++ and Mock test reward copy and matching wallet payouts. Use{" "}
+            Gyan++ wall rewards, <span className="font-semibold text-foreground/90">Mock test</span>{" "}
+            (past papers / catalog), and{" "}
+            <span className="font-semibold text-foreground/90">CBSE MCQ&apos;s</span> chapter quiz —
+            each with its own config keys and claim RPCs. Use{" "}
             <span className="font-semibold">Save Changes</span> at the top to persist values.
           </p>
         </div>
@@ -885,6 +1090,7 @@ export default function RdmTablePage() {
           <GyanRdmGroupBlock configs={configs} drafts={drafts} onDraftChange={onDraftChange} />
           <MockTestRdmGroupBlock configs={configs} drafts={drafts} onDraftChange={onDraftChange} />
         </div>
+        <CbseMcqRdmGroupBlock configs={configs} drafts={drafts} onDraftChange={onDraftChange} />
       </div>
 
       <div
@@ -897,12 +1103,49 @@ export default function RdmTablePage() {
           <p className="text-sm font-semibold text-foreground">Subtopic (Lessons)</p>
           <p className="mt-1 text-xs text-muted-foreground">
             Lesson-page rewards: daily quiz/numerals completion and{" "}
-            <span className="font-semibold text-foreground/90">Post &amp; earn</span> share bonuses (quiz per set,
-            numerals per formula). Use <span className="font-semibold">Save Changes</span> at the top to persist
-            values.
+            <span className="font-semibold text-foreground/90">Post &amp; earn</span> share bonuses
+            (quiz per set, numerals per formula). Use{" "}
+            <span className="font-semibold">Save Changes</span> at the top to persist values.
           </p>
         </div>
         <SubtopicRdmGroupBlock configs={configs} drafts={drafts} onDraftChange={onDraftChange} />
+      </div>
+
+      <div
+        role="tabpanel"
+        aria-labelledby="rdm-tab-free-trial"
+        hidden={activeTab !== "free_trial"}
+        className="space-y-4"
+      >
+        <div className="rounded-lg border border-teal-500/25 bg-teal-500/5 px-4 py-3">
+          <p className="text-sm font-semibold text-foreground">Free trial</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Day 1 checklist reward (10 site-tour tasks) and Day 2–10 daily streak reward (6 tasks
+            per day). Trial wizard welcome-bonus copy uses the Day 1 amount. Changes apply on the
+            next student claim.
+          </p>
+        </div>
+        <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 flex items-center gap-3">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/15">
+            <span className="text-primary text-sm">→</span>
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-foreground">
+              Full free trial configuration has moved to Subscriptions
+            </p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Magic Wall topic limits, onboarding rewards, and more are now managed in the dedicated{" "}
+              <Link
+                href="/admin/subscriptions"
+                className="font-semibold text-primary hover:underline"
+              >
+                Subscriptions → Free Trial
+              </Link>{" "}
+              page. You can still edit the checklist reward here.
+            </p>
+          </div>
+        </div>
+        <FreeTrialRdmGroupBlock configs={configs} drafts={drafts} onDraftChange={onDraftChange} />
       </div>
 
       <div
@@ -914,10 +1157,10 @@ export default function RdmTablePage() {
         <div className="rounded-lg border border-orange-500/25 bg-orange-500/5 px-4 py-3">
           <p className="text-sm font-semibold text-foreground">Teachers (portal)</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Same live connection as the teacher portal: My Classroom (class + sections), Create assignment, Schedule
-            live class, Generate test, and Gyan++ teacher rewards. Edit amounts below and click{" "}
-            <span className="font-semibold">Save Changes</span> — the next charge or reward uses the new value; button
-            labels refresh when teachers refocus the portal tab.
+            Same live connection as the teacher portal: My Classroom (class + sections), Create
+            assignment, Schedule live class, Generate test, and Gyan++ teacher rewards. Edit amounts
+            below and click <span className="font-semibold">Save Changes</span> — the next charge or
+            reward uses the new value; button labels refresh when teachers refocus the portal tab.
           </p>
         </div>
         <TeacherRdmGroupBlock configs={configs} drafts={drafts} onDraftChange={onDraftChange} />

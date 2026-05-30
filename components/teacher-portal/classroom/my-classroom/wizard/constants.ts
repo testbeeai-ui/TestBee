@@ -26,12 +26,7 @@ export const WIZARD_TASKS: WizardTask[] = [
       badge: "🏫 Task 1 of 7 · Create classroom",
       title: { before: "Create your ", emphasis: "classroom" },
       subtitle: "Set up a new classroom batch, add sections, and launch — all in 4 steps.",
-      stepTabs: [
-        "Name & Subject",
-        "Level & Target",
-        "Add Sections",
-        "Review & Launch",
-      ],
+      stepTabs: ["Name & Subject", "Level & Target", "Add Sections", "Review & Launch"],
     },
   },
   {
@@ -68,13 +63,7 @@ export const WIZARD_TASKS: WizardTask[] = [
       title: { before: "Schedule a ", emphasis: "lesson / webinar" },
       subtitle:
         "Five steps with a top stepper — same scheduling logic as My Classes (calendar, Meet, pre/post work).",
-      stepTabs: [
-        "Title & Classroom",
-        "Date & Meet",
-        "Pre-work",
-        "Post-work",
-        "Trial & Publish",
-      ],
+      stepTabs: ["Title & Classroom", "Date & Meet", "Pre-work", "Post-work", "Trial & Publish"],
     },
   },
   {

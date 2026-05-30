@@ -75,9 +75,7 @@ export function AvatarCropDialog({
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-md border-white/10 bg-[#15162b] text-slate-100 sm:rounded-xl">
         <DialogHeader>
-          <DialogTitle className="font-serif text-lg text-slate-100">
-            Adjust photo
-          </DialogTitle>
+          <DialogTitle className="font-serif text-lg text-slate-100">Adjust photo</DialogTitle>
           <p className="text-sm text-slate-400">
             Drag to reposition, use the slider to zoom. The preview matches your profile circle.
           </p>

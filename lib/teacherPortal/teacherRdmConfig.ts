@@ -39,7 +39,10 @@ const ALL_TEACHER_RDM_CONFIG_KEYS = [
 type RdmConfigClient = {
   from: (table: "rdm_config") => {
     select: (columns: string) => {
-      in: (column: string, values: readonly string[]) => PromiseLike<{
+      in: (
+        column: string,
+        values: readonly string[]
+      ) => PromiseLike<{
         data: Array<{ key: string; value: number | null }> | null;
         error: unknown;
       }>;

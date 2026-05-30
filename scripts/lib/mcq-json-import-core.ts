@@ -41,7 +41,9 @@ export function normalizeSubject(raw: string): Subject | null {
   return null;
 }
 
-function extractStemAndOptionsAbcd(rawHtml: string): { stemHtml: string; options: string[] } | null {
+function extractStemAndOptionsAbcd(
+  rawHtml: string
+): { stemHtml: string; options: string[] } | null {
   const html = rawHtml.trim();
   if (!html) return null;
 
@@ -132,7 +134,9 @@ function extractStemAndOptions124(rawHtml: string): { stemHtml: string; options:
   return { stemHtml, options: [o1, o2, o3, o4] };
 }
 
-function extractStemOptionsAcDMissingBWithImg(rawHtml: string): { stemHtml: string; options: string[] } | null {
+function extractStemOptionsAcDMissingBWithImg(
+  rawHtml: string
+): { stemHtml: string; options: string[] } | null {
   const html = rawHtml.trim();
   if (/\(\s*b\s*\)/i.test(html)) return null;
 
@@ -165,7 +169,9 @@ function extractStemOptionsAcDMissingBWithImg(rawHtml: string): { stemHtml: stri
   return { stemHtml, options: [optA, optB, optC, optD] };
 }
 
-function extractStemOptionsFirstFourMarkers(rawHtml: string): { stemHtml: string; options: string[] } | null {
+function extractStemOptionsFirstFourMarkers(
+  rawHtml: string
+): { stemHtml: string; options: string[] } | null {
   const html = rawHtml.trim();
   const re = /\(\s*([1-4]|[a-dA-D])\s*\.?\s*\)/g;
   const hits: { start: number; end: number }[] = [];
@@ -204,7 +210,9 @@ function extractImageOnlyMcq(rawHtml: string): { stemHtml: string; options: stri
   return { stemHtml: `${html}\n${note}`.trim(), options };
 }
 
-export function extractStemAndOptions(rawHtml: string): { stemHtml: string; options: string[] } | null {
+export function extractStemAndOptions(
+  rawHtml: string
+): { stemHtml: string; options: string[] } | null {
   return (
     extractStemAndOptionsAbcd(rawHtml) ??
     extractStemOptionsAcDMissingBWithImg(rawHtml) ??
@@ -232,7 +240,8 @@ function resolveMcqLetter(q: JsonQuestion): "A" | "B" | "C" | "D" | null {
   }
   const fromAnswer = numericChoiceToLetter(str(q, "answer"));
   if (fromAnswer) return fromAnswer;
-  const fromOpt = numericChoiceToLetter(str(q, "fk_optionId")) ?? numericChoiceToLetter(str(q, "optionId"));
+  const fromOpt =
+    numericChoiceToLetter(str(q, "fk_optionId")) ?? numericChoiceToLetter(str(q, "optionId"));
   if (fromOpt) return fromOpt;
   return null;
 }
@@ -253,7 +262,9 @@ function parseNumericAnswerHint(answerRaw: string): number | null {
   return null;
 }
 
-function buildNumericMcq(answerRaw: string): { options: string[]; correctLetter: "A" | "B" | "C" | "D" } | null {
+function buildNumericMcq(
+  answerRaw: string
+): { options: string[]; correctLetter: "A" | "B" | "C" | "D" } | null {
   const num = parseNumericAnswerHint(answerRaw);
   if (num == null) return null;
   const n = Math.round(num);
@@ -324,8 +335,7 @@ export function prepareQuestionsFromExamJson(
       continue;
     }
 
-    const subj =
-      opts.forcedSubject ?? normalizeSubject(str(q, "subjectName"));
+    const subj = opts.forcedSubject ?? normalizeSubject(str(q, "subjectName"));
     if (!subj) {
       skipped++;
       opts.onSkip?.("bad_subject", str(q, "questionId"));
@@ -371,8 +381,7 @@ export function prepareQuestionsFromExamJson(
       parseInt(str(q, "set_question_number") || str(q, "questionNumber") || "0", 10) ||
       prepared.length + 999;
 
-    const chapter =
-      str(q, "chapterName") || opts.defaultChapter || null;
+    const chapter = str(q, "chapterName") || opts.defaultChapter || null;
 
     prepared.push({
       _sortKey: sortKey,

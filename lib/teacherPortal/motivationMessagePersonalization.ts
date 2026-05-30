@@ -12,7 +12,9 @@ function trimStr(v: string | null | undefined): string {
 /**
  * Best-effort first name for teacher motivation / counsel copy that uses the `[name]` token.
  */
-export function studentFirstNameForMotivationGreeting(input: StudentFirstNameForMotivationInput): string {
+export function studentFirstNameForMotivationGreeting(
+  input: StudentFirstNameForMotivationInput
+): string {
   const fromProfile = trimStr(input.profileFirstName);
   if (fromProfile) return fromProfile;
 

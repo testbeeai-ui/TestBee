@@ -18,6 +18,10 @@ import type { Json } from "@/integrations/supabase/types";
 import { getClientApiAuthHeaders } from "@/lib/auth/clientApiAuth";
 import { safeGetSession } from "@/lib/auth/safeSession";
 import { profileShouldForceOnboardingComplete } from "@/lib/profile/profileOnboardingRepair";
+import {
+  ensureOnboardingLocalStateForUser,
+  syncOnboardingSiteTourClaimedFromProfile,
+} from "@/lib/subscription/freeTrialClient";
 import { readPendingDeepLink } from "@/lib/auth/safeNextPath";
 
 export interface Profile {
@@ -52,6 +56,15 @@ export interface Profile {
   /** Supabase auth originally used Google — not the same as Calendar OAuth. */
   signup_google?: boolean;
   onboarding_complete: boolean;
+  free_trial_activated?: boolean | null;
+  free_trial_activated_at?: string | null;
+  plan_tier?: string;
+  time_travel_enabled?: boolean;
+  time_travel_offset_ms?: number;
+  trial_onboarding_answers?: Json | null;
+  onboarding_reward_progress?: Json | null;
+  onboarding_reward_claimed_at?: string | null;
+  free_trial_daily_streak?: Json | null;
   /** Consecutive days (same gauntlet_date) completing both academic + funbrain DailyDose. */
   daily_dose_streak?: number;
   rdm?: number;
@@ -140,13 +153,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           .maybeSingle();
         if (updated) {
           const updatedProfile = updated as unknown as Profile;
+          ensureOnboardingLocalStateForUser(userId);
           setProfile(updatedProfile);
+          syncOnboardingSiteTourClaimedFromProfile(updatedProfile);
           if (typeof updatedProfile.rdm === "number")
             useUserStore.getState().setRdmFromProfile(updatedProfile.rdm);
           return;
         }
       }
+      ensureOnboardingLocalStateForUser(userId);
       setProfile(row);
+      syncOnboardingSiteTourClaimedFromProfile(row);
       if (typeof row.rdm === "number") useUserStore.getState().setRdmFromProfile(row.rdm);
       return;
     }
@@ -185,7 +202,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .maybeSingle();
       if (inserted) {
         const p = inserted as unknown as Profile;
+        ensureOnboardingLocalStateForUser(userId);
         setProfile(p);
+        syncOnboardingSiteTourClaimedFromProfile(p);
         if (typeof p.rdm === "number") useUserStore.getState().setRdmFromProfile(p.rdm);
       } else {
         // Row exists but ignoreDuplicates prevented update; refetch to get current state
@@ -211,7 +230,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               console.error("[auth] repair onboarding_complete (refetch):", repairErr.message);
             if (repaired) row = repaired as unknown as Profile;
           }
+          ensureOnboardingLocalStateForUser(userId);
           setProfile(row);
+          syncOnboardingSiteTourClaimedFromProfile(row);
           if (typeof row.rdm === "number") useUserStore.getState().setRdmFromProfile(row.rdm);
         } else setProfile(null);
       }

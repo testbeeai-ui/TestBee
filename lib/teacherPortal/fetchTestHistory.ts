@@ -6,7 +6,7 @@ export interface TestHistoryItem {
   board: string;
   class_level: number;
   subject: string;
-  scope: "Topic-wise" | "Unit-wise";
+  scope: "Topic-wise" | "Unit-wise" | "Chapter-wise" | "Full paper";
   chapter_title: string | null;
   topic_title: string | null;
   unit_title: string | null;

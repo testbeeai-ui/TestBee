@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
@@ -115,6 +115,22 @@ const tabs: { id: Tab; label: string; icon: typeof Home; emoji: string }[] = [
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { getEmbedUrl } from "@/lib/video/videoEmbed";
 import { normalizeMeetLink } from "@/lib/meetLink";
+import { OnboardingClickHerePointer } from "@/components/onboarding/OnboardingClickHerePointer";
+import { OnboardingFlowHint } from "@/components/onboarding/OnboardingFlowHint";
+import { cn } from "@/lib/utils";
+import {
+  armPrepClassesWatchVideoGuide,
+  shouldShowPrepClassesWatchVideoGuide,
+} from "@/lib/onboarding/prepClassesOnboardingFlow";
+import {
+  isPrepClassesOnboardingCompanionActive,
+  markPrepClassesStep1FromClassOpened,
+  markPrepClassesStep2FromVideoEngaged,
+  markPrepClassesStep3FromLiveTab,
+} from "@/lib/onboarding/prepClassesCompanionOnboarding";
+import { listenForEmbedVideoPlay } from "@/lib/onboarding/listenForEmbedVideoPlay";
+import { ONBOARDING_ACTIVE_TASK_CHANGED_EVENT } from "@/lib/onboarding/onboardingTaskCompanion";
+import { ONBOARDING_PROGRESS_EVENT } from "@/lib/subscription/freeTrialClient";
 
 const ClassroomDetail = () => {
   const params = useParams();
@@ -167,6 +183,75 @@ const ClassroomDetail = () => {
     ready: false,
     approved: false,
   });
+  const [showWatchVideoGuide, setShowWatchVideoGuide] = useState(false);
+  const [prepClassesVideoTracking, setPrepClassesVideoTracking] = useState(
+    () => typeof window !== "undefined" && isPrepClassesOnboardingCompanionActive()
+  );
+  const introVideoIframeRef = useRef<HTMLIFrameElement | null>(null);
+
+  const introEmbedUrl = useMemo(() => {
+    const raw = classroom?.intro_video_url?.trim();
+    if (!raw) return null;
+    return getEmbedUrl(raw, {
+      enableJsApi: prepClassesVideoTracking,
+      origin: typeof window !== "undefined" ? window.location.origin : undefined,
+    });
+  }, [classroom?.intro_video_url, prepClassesVideoTracking]);
+
+  useEffect(() => {
+    const syncTracking = () =>
+      setPrepClassesVideoTracking(isPrepClassesOnboardingCompanionActive());
+    syncTracking();
+    window.addEventListener(ONBOARDING_PROGRESS_EVENT, syncTracking);
+    window.addEventListener(ONBOARDING_ACTIVE_TASK_CHANGED_EVENT, syncTracking);
+    return () => {
+      window.removeEventListener(ONBOARDING_PROGRESS_EVENT, syncTracking);
+      window.removeEventListener(ONBOARDING_ACTIVE_TASK_CHANGED_EVENT, syncTracking);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!id || loading || !classroom) return;
+    markPrepClassesStep1FromClassOpened();
+    armPrepClassesWatchVideoGuide();
+    setShowWatchVideoGuide(shouldShowPrepClassesWatchVideoGuide());
+  }, [id, loading, classroom?.id]);
+
+  useEffect(() => {
+    const syncGuide = () => setShowWatchVideoGuide(shouldShowPrepClassesWatchVideoGuide());
+    window.addEventListener(ONBOARDING_PROGRESS_EVENT, syncGuide);
+    return () => window.removeEventListener(ONBOARDING_PROGRESS_EVENT, syncGuide);
+  }, []);
+
+  useEffect(() => {
+    if (!prepClassesVideoTracking || !introEmbedUrl) return;
+    return listenForEmbedVideoPlay(() => markPrepClassesStep2FromVideoEngaged());
+  }, [prepClassesVideoTracking, introEmbedUrl]);
+
+  /** Clicks on the YouTube iframe do not bubble — blur/focus is a reliable fallback. */
+  useEffect(() => {
+    if (!prepClassesVideoTracking) return;
+    const onWindowBlur = () => {
+      window.setTimeout(() => {
+        if (document.activeElement === introVideoIframeRef.current) {
+          markPrepClassesStep2FromVideoEngaged();
+        }
+      }, 80);
+    };
+    window.addEventListener("blur", onWindowBlur);
+    return () => window.removeEventListener("blur", onWindowBlur);
+  }, [prepClassesVideoTracking]);
+
+  const handleIntroVideoEngage = useCallback(() => {
+    markPrepClassesStep2FromVideoEngaged();
+  }, []);
+
+  const handleTabSelect = useCallback((tab: Tab) => {
+    setActiveTab(tab);
+    if (tab === "live") {
+      markPrepClassesStep3FromLiveTab();
+    }
+  }, []);
 
   // Deep-link support: /classroom/:id?tab=posts&post=<postId>
   useEffect(() => {
@@ -255,7 +340,10 @@ const ClassroomDetail = () => {
       supabase as unknown as {
         from: (name: string) => {
           select: (cols: string) => {
-            eq: (col: string, val: string) => {
+            eq: (
+              col: string,
+              val: string
+            ) => {
               maybeSingle: () => Promise<{
                 data: { verification_status?: string | null } | null;
                 error: { message?: string } | null;
@@ -308,7 +396,8 @@ const ClassroomDetail = () => {
       .order("created_at", { ascending: true })
       .then(({ data }) => {
         const rows =
-          (data as Array<{ id: string; name: string; google_meet_link: string | null }> | null) ?? [];
+          (data as Array<{ id: string; name: string; google_meet_link: string | null }> | null) ??
+          [];
         setScheduleSectionOptions(
           rows.map((r) => ({ id: r.id, name: r.name, googleMeetLink: r.google_meet_link ?? null }))
         );
@@ -421,10 +510,7 @@ const ClassroomDetail = () => {
   const isOwner = classroom?.teacher_id === user?.id;
   const studentPreview = searchParams.get("view") === "student";
   const showTeacherControls = Boolean(
-    isOwner &&
-      !studentPreview &&
-      ownerTeacherGate.ready &&
-      ownerTeacherGate.approved
+    isOwner && !studentPreview && ownerTeacherGate.ready && ownerTeacherGate.approved
   );
   const isClassMember = useMemo(
     () => Boolean(user?.id && members.some((m) => m.user_id === user.id)),
@@ -771,7 +857,8 @@ const ClassroomDetail = () => {
       .not("google_recurring_event_id", "is", null);
     const hasSectionCalendars = (sectionsWithSeries?.length ?? 0) > 0;
     const googleSeriesLinked = Boolean(
-      (classroom as unknown as { google_recurring_event_id?: string | null })?.google_recurring_event_id
+      (classroom as unknown as { google_recurring_event_id?: string | null })
+        ?.google_recurring_event_id
     );
     if (!hasSectionCalendars && googleSeriesLinked) {
       try {
@@ -882,8 +969,8 @@ const ClassroomDetail = () => {
           ) : null}
           {isOwner && !studentPreview && ownerTeacherGate.ready && !ownerTeacherGate.approved ? (
             <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-950 dark:text-amber-50">
-              <strong>Teacher verification required.</strong> Admin approval is required before you can post,
-              schedule sessions, or manage members from this page.{" "}
+              <strong>Teacher verification required.</strong> Admin approval is required before you
+              can post, schedule sessions, or manage members from this page.{" "}
               <Link
                 href="/teacher-portal?section=profile&edit=1"
                 className="font-semibold underline underline-offset-2"
@@ -899,7 +986,9 @@ const ClassroomDetail = () => {
             className="relative overflow-hidden rounded-2xl gradient-primary p-4 text-primary-foreground sm:rounded-3xl sm:p-6 lg:p-8"
           >
             <div className="relative z-10">
-              <h1 className="text-xl font-display mb-1 sm:text-2xl lg:text-3xl">{classroom.name}</h1>
+              <h1 className="text-xl font-display mb-1 sm:text-2xl lg:text-3xl">
+                {classroom.name}
+              </h1>
               {classroom.subject && (
                 <p className="text-primary-foreground/80 font-bold">{classroom.subject}</p>
               )}
@@ -962,7 +1051,7 @@ const ClassroomDetail = () => {
               .map((t) => (
                 <button
                   key={t.id}
-                  onClick={() => setActiveTab(t.id)}
+                  onClick={() => handleTabSelect(t.id)}
                   className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-bold whitespace-nowrap transition-all ${activeTab === t.id ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
                 >
                   <span className="text-sm">{t.emoji}</span> {t.label}
@@ -1040,7 +1129,9 @@ const ClassroomDetail = () => {
                     variant="outline"
                     size="sm"
                     className="rounded-xl"
-                    onClick={() => window.open(nextExplorerMeetHref, "_blank", "noopener,noreferrer")}
+                    onClick={() =>
+                      window.open(nextExplorerMeetHref, "_blank", "noopener,noreferrer")
+                    }
                   >
                     Open next Meet
                   </Button>
@@ -1085,7 +1176,7 @@ const ClassroomDetail = () => {
                     <Button
                       type="button"
                       className="rounded-xl edu-btn-primary shrink-0 font-bold"
-                      onClick={() => setActiveTab("live")}
+                      onClick={() => handleTabSelect("live")}
                     >
                       View Live tab
                     </Button>
@@ -1096,7 +1187,9 @@ const ClassroomDetail = () => {
               <div className="grid grid-cols-1 md:grid-cols-[1fr_340px] gap-4 items-start">
                 {/* About this class - takes most space */}
                 <div className="edu-card p-4 sm:p-6">
-                  <h3 className="font-display text-base text-foreground mb-2.5 sm:text-lg sm:mb-3">About this class</h3>
+                  <h3 className="font-display text-base text-foreground mb-2.5 sm:text-lg sm:mb-3">
+                    About this class
+                  </h3>
                   {(classroom.subject || classroom.section) && (
                     <div className="flex flex-wrap gap-2 mb-3">
                       {classroom.subject && (
@@ -1117,14 +1210,34 @@ const ClassroomDetail = () => {
                     </p>
                   )}
                   {(() => {
-                    const embedUrl = classroom.intro_video_url
-                      ? getEmbedUrl(classroom.intro_video_url)
-                      : null;
+                    const embedUrl = introEmbedUrl;
                     if (embedUrl) {
                       return (
                         <div className="max-w-full">
-                          <div className="rounded-xl overflow-hidden aspect-video bg-muted border border-border w-full">
+                          {showWatchVideoGuide ? (
+                            <p className="mb-2 text-xs text-muted-foreground">
+                              Site tour:{" "}
+                              <OnboardingFlowHint className="normal-case tracking-normal">
+                                tap play on the video
+                              </OnboardingFlowHint>{" "}
+                              and watch for a moment.
+                            </p>
+                          ) : null}
+                          <div
+                            className={cn(
+                              "relative rounded-xl overflow-hidden aspect-video bg-muted border border-border w-full",
+                              showWatchVideoGuide &&
+                                "border-violet-500/50 shadow-[0_0_20px_rgba(139,92,246,0.25)] ring-1 ring-violet-500/40"
+                            )}
+                            onPointerDown={handleIntroVideoEngage}
+                          >
+                            {showWatchVideoGuide ? (
+                              <div className="absolute top-2 right-2 z-10 pointer-events-none">
+                                <OnboardingClickHerePointer label="Play video" variant="violet" />
+                              </div>
+                            ) : null}
                             <iframe
+                              ref={introVideoIframeRef}
                               src={embedUrl}
                               className="w-full h-full"
                               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -1183,10 +1296,14 @@ const ClassroomDetail = () => {
                 </div>
                 {/* Class Overview - compact block, natural height */}
                 <div className="edu-card p-4 self-start sm:p-6">
-                  <h3 className="font-display text-base text-foreground mb-2.5 sm:text-lg sm:mb-3">Class Overview</h3>
+                  <h3 className="font-display text-base text-foreground mb-2.5 sm:text-lg sm:mb-3">
+                    Class Overview
+                  </h3>
                   <div className="grid grid-cols-2 gap-2 text-sm mb-4">
                     <div className="bg-muted/30 rounded-xl p-2.5 text-center">
-                      <p className="text-xl font-extrabold text-foreground">{studentVisibleMembers.length}</p>
+                      <p className="text-xl font-extrabold text-foreground">
+                        {studentVisibleMembers.length}
+                      </p>
                       <p className="text-muted-foreground text-[10px] font-bold">Members</p>
                     </div>
                     <div className="bg-muted/30 rounded-xl p-2.5 text-center">
@@ -1225,29 +1342,55 @@ const ClassroomDetail = () => {
                           )
                           .slice(0, 4)
                           .map((m) => (
-                            <li key={m.user_id} className="flex items-center gap-2">
-                              <Avatar className="h-7 w-7 rounded-full border border-border">
-                                <AvatarImage src={m.profiles?.avatar_url ?? undefined} alt="" />
-                                <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
-                                  {(m.profiles?.name ?? "?").slice(0, 2).toUpperCase()}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div className="min-w-0 flex-1">
-                                <p className="text-xs font-bold text-foreground truncate">
-                                  {m.profiles?.name ?? "Member"}
-                                </p>
-                                <p className="text-[10px] text-muted-foreground">
-                                  joined{" "}
-                                  {formatDistanceToNow(new Date(m.joined_at), { addSuffix: true })}
-                                </p>
-                                <p className="text-[10px] text-muted-foreground">
-                                  section:{" "}
-                                  {m.section_id
-                                    ? scheduleSectionOptions.find((s) => s.id === m.section_id)
-                                        ?.name ?? "section"
-                                    : "unassigned"}
-                                </p>
+                            <li
+                              key={m.user_id}
+                              className="flex items-center justify-between gap-2 py-1 border-b border-border/30 last:border-0"
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                <Avatar className="h-7 w-7 rounded-full border border-border shrink-0">
+                                  <AvatarImage src={m.profiles?.avatar_url ?? undefined} alt="" />
+                                  <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
+                                    {(m.profiles?.name ?? "?").slice(0, 2).toUpperCase()}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div className="min-w-0">
+                                  <p className="text-xs font-bold text-foreground truncate">
+                                    {m.profiles?.name ?? "Member"}
+                                  </p>
+                                  <p className="text-[10px] text-muted-foreground">
+                                    joined{" "}
+                                    {formatDistanceToNow(new Date(m.joined_at), {
+                                      addSuffix: true,
+                                    })}
+                                  </p>
+                                  <p className="text-[10px] text-muted-foreground">
+                                    section:{" "}
+                                    {m.section_id
+                                      ? (scheduleSectionOptions.find((s) => s.id === m.section_id)
+                                          ?.name ?? "section")
+                                      : "unassigned"}
+                                  </p>
+                                </div>
                               </div>
+                              {showTeacherControls && (
+                                <Button
+                                  type="button"
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={() =>
+                                    handleRemoveMember(m.user_id, m.profiles?.name || "Student")
+                                  }
+                                  disabled={!!removingMemberId}
+                                  className="h-7 w-7 rounded-lg text-destructive hover:bg-destructive/10 hover:text-destructive shrink-0"
+                                  title={`Remove ${m.profiles?.name || "student"}`}
+                                >
+                                  {removingMemberId === m.user_id ? (
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                  ) : (
+                                    <UserMinus className="h-3.5 w-3.5" />
+                                  )}
+                                </Button>
+                              )}
                             </li>
                           ))}
                       </ul>
@@ -1373,8 +1516,8 @@ const ClassroomDetail = () => {
                               {s.section_id ? (
                                 <p className="mt-1 text-xs text-muted-foreground">
                                   Only{" "}
-                                  {scheduleSectionOptions.find((sec) => sec.id === s.section_id)?.name ??
-                                    "section"}
+                                  {scheduleSectionOptions.find((sec) => sec.id === s.section_id)
+                                    ?.name ?? "section"}
                                 </p>
                               ) : (
                                 <p className="mt-1 text-xs text-muted-foreground">Whole class</p>
@@ -1715,7 +1858,9 @@ const ClassroomDetail = () => {
                               <p className="text-sm font-bold text-foreground sm:text-base">
                                 {req.profiles?.name || "Student"}
                               </p>
-                              <p className="text-[11px] text-muted-foreground sm:text-xs">Requested to join</p>
+                              <p className="text-[11px] text-muted-foreground sm:text-xs">
+                                Requested to join
+                              </p>
                             </div>
                           </div>
                           <div className="flex gap-2 shrink-0">
@@ -1774,8 +1919,8 @@ const ClassroomDetail = () => {
                       <p className="mt-0.5 text-[11px] text-muted-foreground">
                         Showing:{" "}
                         {currentStudentSectionId
-                          ? scheduleSectionOptions.find((s) => s.id === currentStudentSectionId)
-                              ?.name ?? "your section"
+                          ? (scheduleSectionOptions.find((s) => s.id === currentStudentSectionId)
+                              ?.name ?? "your section")
                           : "whole class (unassigned)"}
                       </p>
                     )}
@@ -1807,10 +1952,7 @@ const ClassroomDetail = () => {
                                 disabled={assigningSectionUserId === m.user_id}
                                 onChange={(e) => {
                                   const v = e.target.value;
-                                  void assignMemberTeachingSection(
-                                    m.user_id,
-                                    v === "" ? null : v
-                                  );
+                                  void assignMemberTeachingSection(m.user_id, v === "" ? null : v);
                                 }}
                                 aria-label={`Teaching section for ${m.profiles?.name ?? "student"}`}
                               >
@@ -1828,8 +1970,8 @@ const ClassroomDetail = () => {
                           ) : (
                             <p className="mt-0.5 text-[11px] text-muted-foreground">
                               {m.section_id
-                                ? scheduleSectionOptions.find((s) => s.id === m.section_id)?.name ??
-                                  "Teaching section"
+                                ? (scheduleSectionOptions.find((s) => s.id === m.section_id)
+                                    ?.name ?? "Teaching section")
                                 : "No teaching section"}
                             </p>
                           )}
@@ -1950,7 +2092,8 @@ const ClassroomDetail = () => {
                 const url = new URL(window.location.href);
                 url.searchParams.delete("post");
                 router.replace(
-                  url.pathname + (url.searchParams.toString() ? `?${url.searchParams.toString()}` : "")
+                  url.pathname +
+                    (url.searchParams.toString() ? `?${url.searchParams.toString()}` : "")
                 );
               } catch {
                 // ignore

@@ -202,7 +202,11 @@ export default function DoubtRightSidebar({
         </Collapsible>
 
         {/* Top helpers — same trigger pattern */}
-        <Collapsible open={helpersOpen} onOpenChange={setHelpersOpen} className="edu-card rounded-2xl min-w-0">
+        <Collapsible
+          open={helpersOpen}
+          onOpenChange={setHelpersOpen}
+          className="edu-card rounded-2xl min-w-0"
+        >
           <div className="p-4">
             <CollapsibleTrigger asChild>
               <button
@@ -244,7 +248,9 @@ export default function DoubtRightSidebar({
                         </div>
                       </div>
                     </UserHoverCard>
-                    <span className="text-edu-orange font-bold text-sm shrink-0">+{c.total} RDM</span>
+                    <span className="text-edu-orange font-bold text-sm shrink-0">
+                      +{c.total} RDM
+                    </span>
                   </li>
                 ))}
                 {topContributors.length === 0 && (

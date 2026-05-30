@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import DoubtMarkdown from "@/components/doubts/DoubtMarkdown";
 import {
   Dialog,
   DialogContent,
@@ -21,6 +21,7 @@ import {
   applyNormalizedPasteToField,
   normalizePastedMathForDoubt,
 } from "@/lib/normalizePastedDoubtMath";
+import { notifyBuddyActivityRefresh } from "@/lib/buddy/buddyActivityEvents";
 import { incrementPrepCalendarDay, localDayISO } from "@/lib/dashboard/prepCalendarClient";
 import { safeGetSession } from "@/lib/auth/safeSession";
 
@@ -33,15 +34,22 @@ interface AskDoubtDialogProps {
 
 const DRAFT_KEY = "doubts-ask-draft";
 
-export default function AskDoubtDialog({
-  open,
-  onOpenChange,
-  onDoubtPosted,
-}: AskDoubtDialogProps) {
+export default function AskDoubtDialog({ open, onOpenChange, onDoubtPosted }: AskDoubtDialogProps) {
   const { toast } = useToast();
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [subject, setSubject] = useState("");
+
+  /** Live KaTeX preview of the typed/pasted question, post-normalization. */
+  const previewSrc = useMemo(() => {
+    const trimmed = title.trim();
+    if (!trimmed) return "";
+    try {
+      return normalizePastedMathForDoubt(trimmed);
+    } catch {
+      return trimmed;
+    }
+  }, [title]);
   const [askStep, setAskStep] = useState(1);
   const [duplicateMatches, setDuplicateMatches] = useState<
     { id: string; title: string; similarity_score: number }[]
@@ -147,6 +155,7 @@ export default function AskDoubtDialog({
       return;
     }
     if (res?.ok) {
+      notifyBuddyActivityRefresh();
       clearDraft();
       toast({
         title: "Doubt posted!",
@@ -266,7 +275,7 @@ export default function AskDoubtDialog({
           <DialogTitle>Ask a Doubt</DialogTitle>
           <DialogDescription>
             {askStep === 1 &&
-              "Ask anything you want — type it in your own words or paste from notes, a textbook, or the web. We tidy common math formats for you. Then pick a subject."}
+              "Type your question — paste from notes, a textbook, or the web. We tidy LaTeX automatically. Use the live preview to confirm your math renders the way you want."}
             {askStep === 2 && "Checking for similar questions..."}
             {askStep === 3 && "We found similar questions. Is yours here?"}
           </DialogDescription>
@@ -275,8 +284,8 @@ export default function AskDoubtDialog({
           {askStep === 1 && (
             <>
               <div>
-                <Label className="text-sm font-bold">Title</Label>
-                <Input
+                <Label className="text-sm font-bold">Question</Label>
+                <textarea
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   onPaste={(e) => {
@@ -292,43 +301,37 @@ export default function AskDoubtDialog({
                     setTitle(value);
                     queueMicrotask(() => el.setSelectionRange(caret, caret));
                   }}
-                  placeholder={"Write your question however you like — one clear line"}
-                  className="rounded-xl mt-1"
+                  placeholder={"Write your question — paste LaTeX, equations or working freely"}
+                  className="w-full rounded-xl border border-input bg-transparent px-3 py-2 text-sm mt-1 resize-none font-mono overflow-y-auto leading-relaxed"
+                  rows={4}
+                  style={{ maxHeight: "9.5rem" }}
                 />
                 <p className="text-xs text-muted-foreground mt-1.5">
-                  Longer working or big equations fit best in Details. Math is cleaned up when you
-                  paste; you can also use{" "}
-                  <code className="rounded bg-muted px-1 py-0.5 text-[11px]">$…$</code> if you want.
+                  Use <code className="rounded bg-muted px-1 py-0.5 text-[11px]">$…$</code> for
+                  inline math and{" "}
+                  <code className="rounded bg-muted px-1 py-0.5 text-[11px]">$$…$$</code> for block
+                  math. Fenced{" "}
+                  <code className="rounded bg-muted px-1 py-0.5 text-[11px]">```latex</code> and{" "}
+                  <code className="rounded bg-muted px-1 py-0.5 text-[11px]">\[ … \]</code> and{" "}
+                  <code className="rounded bg-muted px-1 py-0.5 text-[11px]">[ … ]</code> blocks are
+                  converted automatically.
                 </p>
               </div>
               <div>
-                <Label className="text-sm font-bold">Details (optional)</Label>
-                <textarea
-                  value={body}
-                  onChange={(e) => setBody(e.target.value)}
-                  onPaste={(e) => {
-                    e.preventDefault();
-                    const pasted = e.clipboardData.getData("text/plain");
-                    const el = e.currentTarget;
-                    const { value, caret } = applyNormalizedPasteToField(
-                      body,
-                      el.selectionStart ?? 0,
-                      el.selectionEnd ?? 0,
-                      pasted
-                    );
-                    setBody(value);
-                    queueMicrotask(() => el.setSelectionRange(caret, caret));
-                  }}
-                  placeholder={"Optional: more context"}
-                  className="w-full min-h-[100px] rounded-xl border border-input bg-transparent px-3 py-2 text-sm mt-1 resize-y font-mono"
-                  rows={4}
-                />
-                <p className="text-xs text-muted-foreground mt-1.5">
-                  Formats like{" "}
-                  <code className="rounded bg-muted px-1 py-0.5 text-[11px]">\[ … \]</code> or
-                  fenced <code className="rounded bg-muted px-1 py-0.5 text-[11px]">```latex</code>{" "}
-                  are converted when you paste or post.
-                </p>
+                <Label className="text-sm font-bold">Preview</Label>
+                <div
+                  className="mt-1 rounded-xl border border-dashed border-input bg-muted/30 px-3 py-2 text-sm overflow-y-auto"
+                  style={{ minHeight: "4.5rem", maxHeight: "9.5rem" }}
+                  aria-live="polite"
+                >
+                  {previewSrc.trim() ? (
+                    <DoubtMarkdown content={previewSrc} className="text-sm" />
+                  ) : (
+                    <p className="text-xs text-muted-foreground italic">
+                      Start typing — your question will render here with formatted math.
+                    </p>
+                  )}
+                </div>
               </div>
               <div>
                 <Label className="text-sm font-bold">

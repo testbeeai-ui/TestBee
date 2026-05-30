@@ -1,24 +1,26 @@
 # Testbee — agent rules (read every task)
 
 ## Memory (required)
-1. **Start:** Read `.cursor/memory.md` (stack, active branch, key paths, Decisions Log).
-2. **After any repo change:**
+1. **Start:** Read `.cursor/memory.md` (stack, active branch, key paths, **Repository layout**, Decisions Log).
+2. **Layout:** Follow `.cursor/rules/repo-layout.mdc` — do not add clutter to project root.
+3. **After any repo change:**
    - **Small / medium** → one line in `.cursor/memory.md` **Decisions Log** (ISO date + what changed).
-   - **Big** (multi-file feature, audit, migration, long design) → full doc in `.cursor/docs/<topic>.md`, then one Decisions Log line linking to it (e.g. `see .cursor/docs/prof-pi.md`).
-3. Do **not** paste long write-ups into `memory.md` — keep it an index.
+   - **Big** (multi-file feature, audit, migration, long design) → full doc in `.cursor/docs/<topic>.md` or `docs/<area>/`, then one Decisions Log line linking to it.
+4. Do **not** paste long write-ups into `memory.md` — keep it an index.
 
 ## Code discipline
 - **Minimize scope** — only change what the task needs; match existing patterns in the file.
-- **No secrets in git** — never commit `.env`, keys, or `news-blog.local.sqlite*`.
+- **No secrets in git** — never commit `.env`, keys, or `data/local-cache/news-blog.local.sqlite*`.
 - **Commits / push** — only when the user explicitly asks.
 - **Tests** — run `npx vitest run <file>` when touching `lib/sarvamGyanClient*` or verifier logic.
 - **Gyan++/Prof-Pi** — math layout unchanged unless asked; physics uses `PROF_PI_PHYSICS_STRUCTURE_CONTRACT` in `lib/gyanContentPolicy.ts`.
 
 ## Deploy / ops (when relevant)
-- **Next dev:** `npm run dev:turbo` (restart after `.env` changes).
+- **Next dev:** `npm run dev` or `npm run dev:turbo` (restart after `.env` changes).
 - **Modal RAG** (from `modal-rag/`): `python -m modal deploy modal_app.py` — on Windows if `modal` not on PATH: `& "$env:APPDATA\Python\Python314\Scripts\modal.exe" deploy modal_app.py` and set `$env:PYTHONIOENCODING="utf-8"` if build fails on charmap.
 - **Modal URL** — see `memory.md`; set `RAG_SIDECAR_URL` in `.env` (not committed).
 
 ## Docs
-- Product audit / long Gyan notes: `gyan++review.md` or `.cursor/docs/`.
-- Optional rule file: `.cursor/.cursor/rules/karpathy-guidelines.mdc` (project-specific; keep in sync if used).
+- Product audit / long Gyan notes: `docs/gyan/gyan++review.md` or `.cursor/docs/`.
+- Cursor / Karpathy setup (humans): `docs/cursor/karpathy-guidelines-setup.md`.
+- Agent rules live in `.cursor/rules/*.mdc` (not `.cursor/.cursor/rules/`).

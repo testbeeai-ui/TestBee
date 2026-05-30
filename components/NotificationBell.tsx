@@ -8,12 +8,7 @@ import {
 } from "@/lib/teacherPortal/motivationMessagePersonalization";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useRouter } from "next/navigation";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface Notification {
   id: string;
@@ -44,8 +39,11 @@ const NotificationBell = () => {
         profileFirstName: profile?.first_name,
         profileFullName: profile?.name,
         userMetaFullName:
-          typeof user?.user_metadata?.full_name === "string" ? user.user_metadata.full_name : undefined,
-        userMetaName: typeof user?.user_metadata?.name === "string" ? user.user_metadata.name : undefined,
+          typeof user?.user_metadata?.full_name === "string"
+            ? user.user_metadata.full_name
+            : undefined,
+        userMetaName:
+          typeof user?.user_metadata?.name === "string" ? user.user_metadata.name : undefined,
       }),
     [profile?.first_name, profile?.name, user?.user_metadata?.full_name, user?.user_metadata?.name]
   );
@@ -246,7 +244,8 @@ const NotificationBell = () => {
     while (s.startsWith("/")) s = s.slice(1);
     const httpIdx = s.indexOf("http");
     if (httpIdx > 0) s = s.slice(httpIdx);
-    if (/^https\/\//i.test(s) === false && /^https\//i.test(s)) s = s.replace(/^https\//i, "https://");
+    if (/^https\/\//i.test(s) === false && /^https\//i.test(s))
+      s = s.replace(/^https\//i, "https://");
     if (/^http\/\//i.test(s) === false && /^http\//i.test(s)) s = s.replace(/^http\//i, "http://");
     if (/^www\./i.test(s)) s = `https://${s}`;
     try {
@@ -353,7 +352,9 @@ const NotificationBell = () => {
                     n.read ? "" : "bg-primary/5"
                   }`}
                 >
-                  <p className={`text-sm font-bold ${n.read ? "text-muted-foreground" : "text-foreground"}`}>
+                  <p
+                    className={`text-sm font-bold ${n.read ? "text-muted-foreground" : "text-foreground"}`}
+                  >
                     {n.title}
                   </p>
                   {n.body && (
@@ -387,7 +388,10 @@ const NotificationBell = () => {
                 <>
                   <div className="rounded-2xl border border-border/60 bg-muted/20 p-4 text-sm leading-relaxed whitespace-pre-wrap text-foreground shadow-sm">
                     {selected.body
-                      ? personalizeTeacherMotivationMessage(selected.body, motivationStudentFirstName)
+                      ? personalizeTeacherMotivationMessage(
+                          selected.body,
+                          motivationStudentFirstName
+                        )
                       : ""}
                   </div>
                   <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-3 text-xs font-semibold text-amber-100">

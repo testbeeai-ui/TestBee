@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,7 +16,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import {
   Plus,
   Users,
@@ -34,7 +34,17 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { StarRatingBadge } from "@/components/StarRating";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import {
+  PREP_CLASSES_ONBOARDING_QUERY,
+  shouldShowPrepClassesPickClassGuide,
+} from "@/lib/onboarding/prepClassesOnboardingFlow";
+import { OnboardingClickHerePointer } from "@/components/onboarding/OnboardingClickHerePointer";
+import { OnboardingFlowHint } from "@/components/onboarding/OnboardingFlowHint";
 import { cn } from "@/lib/utils";
+import {
+  maybeMarkPrepClassesOnboardingFromClassroomsVisit,
+  ONBOARDING_PROGRESS_EVENT,
+} from "@/lib/subscription/freeTrialClient";
 
 interface Classroom {
   id: string;
@@ -64,10 +74,7 @@ interface ExploreClassroom {
 
 /** Normalized text from class fields for client-side filter/search (lowercase). */
 function exploreHaystack(c: ExploreClassroom): string {
-  return [c.name, c.subject, c.section, c.description]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
+  return [c.name, c.subject, c.section, c.description].filter(Boolean).join(" ").toLowerCase();
 }
 
 /**
@@ -106,8 +113,7 @@ const EXPLORE_CLASS_FILTERS: { id: string; label: string; match: (hay: string) =
   {
     id: "mathematics",
     label: "Mathematics",
-    match: (hay) =>
-      hay.includes("mathematics") || hay.includes("maths") || /\bmath\b/.test(hay),
+    match: (hay) => hay.includes("mathematics") || hay.includes("maths") || /\bmath\b/.test(hay),
   },
   {
     id: "pcm",
@@ -213,8 +219,7 @@ function ExploreClassesSection({
     });
   }, [exploreClassrooms, exploreSearch, selectedFilterIds]);
 
-  const hasActiveFilters =
-    exploreSearch.trim().length > 0 || selectedFilterIds.length > 0;
+  const hasActiveFilters = exploreSearch.trim().length > 0 || selectedFilterIds.length > 0;
 
   const clearExploreFilters = () => {
     setExploreSearch("");
@@ -371,9 +376,7 @@ function ExploreClassesSection({
                                 <span
                                   className={cn(
                                     "flex h-5 w-5 shrink-0 items-center justify-center rounded border transition-colors",
-                                    on
-                                      ? "border-white/40 bg-white/20"
-                                      : "border-border bg-muted/50"
+                                    on ? "border-white/40 bg-white/20" : "border-border bg-muted/50"
                                   )}
                                   aria-hidden
                                 >
@@ -397,8 +400,8 @@ function ExploreClassesSection({
               <School className="w-12 h-12 text-muted-foreground/50 mx-auto mb-3" />
               <h3 className="font-display text-lg text-foreground mb-1">No matching classes</h3>
               <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                Try different keywords or quick filters. Teachers label classes in the title, subject,
-                section, or description — matching is based on those fields.
+                Try different keywords or quick filters. Teachers label classes in the title,
+                subject, section, or description — matching is based on those fields.
               </p>
               {hasActiveFilters && (
                 <Button
@@ -413,86 +416,88 @@ function ExploreClassesSection({
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {filteredExploreClassrooms.map((c) => {
-              const isMember = myMemberClassroomIds.has(c.id);
-              const requestStatus = myRequestMap[c.id];
-              return (
-                <motion.div
-                  key={c.id}
-                  layout
-                  className="edu-card p-5 rounded-2xl border border-border hover:border-primary/30 hover:shadow-md transition-all flex flex-col min-h-[200px]"
-                >
-                  <div className="flex-1 min-h-0 flex flex-col">
-                    <h3 className="font-extrabold text-foreground text-base line-clamp-2">
-                      {c.name}
-                    </h3>
-                    {c.subject && (
-                      <p className="text-sm text-muted-foreground mt-1 line-clamp-1">{c.subject}</p>
-                    )}
-                    {c.teacher_name && (
-                      <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
-                        by {c.teacher_name}
-                      </p>
-                    )}
-                    <div className="mt-1.5">
-                      <StarRatingBadge rating={c.avg_rating ?? 0} count={c.review_count ?? 0} />
+              {filteredExploreClassrooms.map((c) => {
+                const isMember = myMemberClassroomIds.has(c.id);
+                const requestStatus = myRequestMap[c.id];
+                return (
+                  <motion.div
+                    key={c.id}
+                    layout
+                    className="edu-card p-5 rounded-2xl border border-border hover:border-primary/30 hover:shadow-md transition-all flex flex-col min-h-[200px]"
+                  >
+                    <div className="flex-1 min-h-0 flex flex-col">
+                      <h3 className="font-extrabold text-foreground text-base line-clamp-2">
+                        {c.name}
+                      </h3>
+                      {c.subject && (
+                        <p className="text-sm text-muted-foreground mt-1 line-clamp-1">
+                          {c.subject}
+                        </p>
+                      )}
+                      {c.teacher_name && (
+                        <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
+                          by {c.teacher_name}
+                        </p>
+                      )}
+                      <div className="mt-1.5">
+                        <StarRatingBadge rating={c.avg_rating ?? 0} count={c.review_count ?? 0} />
+                      </div>
+                      {c.section && (
+                        <span className="edu-chip bg-muted text-muted-foreground text-xs mt-2 inline-block w-fit">
+                          {c.section}
+                        </span>
+                      )}
                     </div>
-                    {c.section && (
-                      <span className="edu-chip bg-muted text-muted-foreground text-xs mt-2 inline-block w-fit">
-                        {c.section}
-                      </span>
-                    )}
-                  </div>
-                  <div className="shrink-0 mt-4 pt-3 border-t border-border/50">
-                    {isMember ? (
-                      <Button
-                        onClick={() => onOpenClass(c.id)}
-                        size="sm"
-                        className="w-full rounded-xl font-bold gap-2"
-                      >
-                        Open class
-                      </Button>
-                    ) : requestStatus === "pending" ? (
-                      <Button
-                        type="button"
-                        disabled
-                        size="sm"
-                        variant="secondary"
-                        className="w-full rounded-xl font-bold gap-2 border border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
-                      >
-                        <Check className="w-4 h-4 shrink-0" />
-                        Sent
-                      </Button>
-                    ) : (
-                      <>
+                    <div className="shrink-0 mt-4 pt-3 border-t border-border/50">
+                      {isMember ? (
+                        <Button
+                          onClick={() => onOpenClass(c.id)}
+                          size="sm"
+                          className="w-full rounded-xl font-bold gap-2"
+                        >
+                          Open class
+                        </Button>
+                      ) : requestStatus === "pending" ? (
                         <Button
                           type="button"
-                          onClick={() => onRequestJoin(c.id)}
-                          disabled={requestingId === c.id}
+                          disabled
                           size="sm"
-                          className="w-full rounded-xl font-bold gap-2 edu-btn-primary"
+                          variant="secondary"
+                          className="w-full rounded-xl font-bold gap-2 border border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
                         >
-                          {requestingId === c.id ? (
-                            <>
-                              <Loader2 className="w-4 h-4 animate-spin shrink-0" />
-                              Sending…
-                            </>
-                          ) : (
-                            "Express interest"
-                          )}
+                          <Check className="w-4 h-4 shrink-0" />
+                          Sent
                         </Button>
-                        {requestStatus === "rejected" ? (
-                          <p className="text-xs text-center text-muted-foreground mt-2">
-                            Your previous request was not approved. You can send interest again.
-                          </p>
-                        ) : null}
-                      </>
-                    )}
-                  </div>
-                </motion.div>
-              );
-            })}
-          </div>
+                      ) : (
+                        <>
+                          <Button
+                            type="button"
+                            onClick={() => onRequestJoin(c.id)}
+                            disabled={requestingId === c.id}
+                            size="sm"
+                            className="w-full rounded-xl font-bold gap-2 edu-btn-primary"
+                          >
+                            {requestingId === c.id ? (
+                              <>
+                                <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                                Sending…
+                              </>
+                            ) : (
+                              "Express interest"
+                            )}
+                          </Button>
+                          {requestStatus === "rejected" ? (
+                            <p className="text-xs text-center text-muted-foreground mt-2">
+                              Your previous request was not approved. You can send interest again.
+                            </p>
+                          ) : null}
+                        </>
+                      )}
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
           )}
         </>
       )}
@@ -504,6 +509,7 @@ const Classrooms = () => {
   const { user, profile, session } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
   const [loading, setLoading] = useState(true);
@@ -521,6 +527,21 @@ const Classrooms = () => {
   const [withdrawingId, setWithdrawingId] = useState<string | null>(null);
 
   const isTeacher = profile?.role === "teacher";
+  const prepClassesOnboardingParam = searchParams.get(PREP_CLASSES_ONBOARDING_QUERY);
+  const [showPickClassGuide, setShowPickClassGuide] = useState(false);
+
+  useEffect(() => {
+    const syncGuide = () => setShowPickClassGuide(shouldShowPrepClassesPickClassGuide());
+    syncGuide();
+    window.addEventListener(ONBOARDING_PROGRESS_EVENT, syncGuide);
+    return () => window.removeEventListener(ONBOARDING_PROGRESS_EVENT, syncGuide);
+  }, []);
+
+  useEffect(() => {
+    if (prepClassesOnboardingParam !== "1") return;
+    maybeMarkPrepClassesOnboardingFromClassroomsVisit();
+    router.replace(pathname);
+  }, [prepClassesOnboardingParam, pathname, router]);
 
   const fetchClassrooms = useCallback(async () => {
     await Promise.resolve();
@@ -722,7 +743,10 @@ const Classrooms = () => {
       supabase as unknown as {
         from: (name: string) => {
           select: (cols: string) => {
-            eq: (col: string, val: string) => {
+            eq: (
+              col: string,
+              val: string
+            ) => {
               maybeSingle: () => Promise<{ data: { verification_status?: string | null } | null }>;
             };
           };
@@ -936,6 +960,14 @@ const Classrooms = () => {
             </div>
           ) : classrooms.length > 0 ? (
             <div className="space-y-6">
+              {showPickClassGuide ? (
+                <p className="text-sm text-muted-foreground">
+                  Site tour: tap an enrolled class below —{" "}
+                  <OnboardingFlowHint className="normal-case tracking-normal">
+                    open a class card
+                  </OnboardingFlowHint>
+                </p>
+              ) : null}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {classrooms.map((c, i) => (
                   <motion.div
@@ -944,8 +976,18 @@ const Classrooms = () => {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.05 }}
                     onClick={() => router.push(`/classroom/${c.id}`)}
-                    className="edu-card p-4 cursor-pointer hover:border-primary/30 transition-all group sm:p-6"
+                    className={cn(
+                      "edu-card relative p-4 cursor-pointer hover:border-primary/30 transition-all group sm:p-6",
+                      showPickClassGuide &&
+                        i === 0 &&
+                        "border-violet-500/50 shadow-[0_0_20px_rgba(139,92,246,0.25)] ring-1 ring-violet-500/40"
+                    )}
                   >
+                    {showPickClassGuide && i === 0 ? (
+                      <div className="absolute -top-10 right-2 z-10 pointer-events-none">
+                        <OnboardingClickHerePointer label="Tap class" variant="violet" />
+                      </div>
+                    ) : null}
                     <div className="flex items-start justify-between mb-2.5 sm:mb-3">
                       <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center text-primary-foreground text-lg shadow-md sm:w-12 sm:h-12 sm:rounded-2xl sm:text-xl">
                         {c.type === "google_linked" ? "🔗" : "📚"}
@@ -971,7 +1013,9 @@ const Classrooms = () => {
                     )}
                     <div className="flex items-center gap-1.5 mt-1.5 sm:gap-2 sm:mt-2">
                       {c.section && (
-                        <span className="edu-chip bg-muted text-muted-foreground text-[11px] sm:text-xs">{c.section}</span>
+                        <span className="edu-chip bg-muted text-muted-foreground text-[11px] sm:text-xs">
+                          {c.section}
+                        </span>
                       )}
                       <span className="edu-chip bg-muted text-muted-foreground text-[10px]">
                         {c.type === "google_linked" ? "Google" : "ESM"}
@@ -1063,4 +1107,16 @@ const Classrooms = () => {
   );
 };
 
-export default Classrooms;
+export default function ClassroomsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-[40vh] items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      }
+    >
+      <Classrooms />
+    </Suspense>
+  );
+}

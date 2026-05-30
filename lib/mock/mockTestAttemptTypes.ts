@@ -1,10 +1,6 @@
 ﻿import type { Subject } from "@/types";
 
-export type MockLibraryHistoryKind =
-  | "past_paper"
-  | "mock_paper"
-  | "quick_mock"
-  | "mcq_chapter";
+export type MockLibraryHistoryKind = "past_paper" | "mock_paper" | "quick_mock" | "mcq_chapter";
 
 export type MockSubjectScore = {
   subject: Subject;
@@ -54,11 +50,7 @@ export function parseSubjectBreakdownJson(raw: unknown): MockSubjectScore[] {
     const correct = row.correct;
     const total = row.total;
     const percent = row.percent;
-    if (
-      subject !== "physics" &&
-      subject !== "chemistry" &&
-      subject !== "math"
-    ) {
+    if (subject !== "physics" && subject !== "chemistry" && subject !== "math") {
       continue;
     }
     if (

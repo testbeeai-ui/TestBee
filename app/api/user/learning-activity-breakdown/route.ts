@@ -5,7 +5,13 @@ import { parseAssignmentTasks, studentVisibleTasks } from "@/lib/classroom/assig
 import { parseEngagementStore } from "@/lib/curriculum/subtopicEngagementStoreParse";
 import type { SubtopicEngagementSnapshot } from "@/lib/curriculum/subtopicEngagementService";
 
-const ASSIGNMENT_POST_TYPES = ["assignment", "quiz", "mock", "past_paper", "Concept Focus"] as const;
+const ASSIGNMENT_POST_TYPES = [
+  "assignment",
+  "quiz",
+  "mock",
+  "past_paper",
+  "Concept Focus",
+] as const;
 const GAUNTLET_QUESTIONS = 5;
 
 type RpcRow = { subject: string; avg_pct: number | null; paper_count: number | null };
@@ -29,7 +35,8 @@ function parseBitsAttemptsAggregate(raw: unknown): {
   attempts: number;
   accuracyPct: number | null;
 } {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { attempts: 0, accuracyPct: null };
+  if (!raw || typeof raw !== "object" || Array.isArray(raw))
+    return { attempts: 0, accuracyPct: null };
   let attempts = 0;
   let correct = 0;
   let denom = 0;
@@ -74,7 +81,9 @@ function daysSinceJoinInclusive(createdAtIso: string | null | undefined): number
 
 function parseRevisionCards(json: Json | null | undefined): Array<{ status?: string }> {
   if (!Array.isArray(json)) return [];
-  return json.filter((x) => x && typeof x === "object" && !Array.isArray(x)) as Array<{ status?: string }>;
+  return json.filter((x) => x && typeof x === "object" && !Array.isArray(x)) as Array<{
+    status?: string;
+  }>;
 }
 
 /** GET — cumulative learning stats for profile “Learning activity breakdown” grid. */
@@ -99,9 +108,15 @@ export async function GET(request: Request) {
       .select("created_at, bits_test_attempts, subtopic_engagement")
       .eq("id", uid)
       .maybeSingle(),
-    supabase.from("daily_gauntlet_attempts").select("gauntlet_date, correct_count").eq("user_id", uid),
+    supabase
+      .from("daily_gauntlet_attempts")
+      .select("gauntlet_date, correct_count")
+      .eq("user_id", uid),
     supabase.from("mock_rdm_bonus_attempts").select("score_percent").eq("user_id", uid),
-    supabase.from("refer_challenge_claims").select("id", { count: "exact", head: true }).eq("user_id", uid),
+    supabase
+      .from("refer_challenge_claims")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", uid),
     supabase
       .from("student_lesson_mark_completions" as never)
       .select("id", { count: "exact", head: true })
@@ -151,7 +166,9 @@ export async function GET(request: Request) {
     gauntletAnswerSlots += GAUNTLET_QUESTIONS;
   }
   const dailyDoseAccuracyPct =
-    gauntletAnswerSlots > 0 ? Math.min(100, Math.round((100 * gauntletCorrect) / gauntletAnswerSlots)) : null;
+    gauntletAnswerSlots > 0
+      ? Math.min(100, Math.round((100 * gauntletCorrect) / gauntletAnswerSlots))
+      : null;
 
   const dailyDoseAttemptedPct =
     dailyDoseAvailableSlots > 0
@@ -214,7 +231,10 @@ export async function GET(request: Request) {
   const revisionRetentionPct =
     withStatus > 0 ? Math.min(100, Math.round((100 * knowIt) / withStatus)) : null;
 
-  const membershipsRes = await supabase.from("classroom_members").select("classroom_id").eq("user_id", uid);
+  const membershipsRes = await supabase
+    .from("classroom_members")
+    .select("classroom_id")
+    .eq("user_id", uid);
   const classroomIds = [...new Set((membershipsRes.data ?? []).map((m) => m.classroom_id))];
 
   let assignmentsAssigned = 0;
@@ -229,7 +249,10 @@ export async function GET(request: Request) {
         .select("id, type, content_json")
         .in("classroom_id", classroomIds)
         .in("type", [...ASSIGNMENT_POST_TYPES]),
-      supabase.from("classroom_assignment_task_progress").select("post_id, task_id").eq("user_id", uid),
+      supabase
+        .from("classroom_assignment_task_progress")
+        .select("post_id, task_id")
+        .eq("user_id", uid),
       supabase
         .from("live_sessions")
         .select("id")

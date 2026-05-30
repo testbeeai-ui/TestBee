@@ -1,12 +1,12 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import { makeSubtopicEngagementStorageKey } from "@/lib/curriculum/subtopicEngagementStorageKey";
-import { parseTeacherProfileMetaFromBio, type TeacherProfileDetails } from "@/lib/profile/teacherProfileMeta";
-import { appendQueryParams, buildTopicPath } from "@/lib/curriculum/topicRoutes";
 import {
-  parseAssignmentTasks,
-  studentVisibleTasks,
-} from "@/lib/classroom/assignmentTasks";
+  parseTeacherProfileMetaFromBio,
+  type TeacherProfileDetails,
+} from "@/lib/profile/teacherProfileMeta";
+import { appendQueryParams, buildTopicPath } from "@/lib/curriculum/topicRoutes";
+import { parseAssignmentTasks, studentVisibleTasks } from "@/lib/classroom/assignmentTasks";
 import {
   formatConceptFocusRefForDisplay,
   inferSessionWorkKind,
@@ -216,11 +216,12 @@ export async function loadTeacherPortalBundle(
   ]);
 
   const postsFromClassrooms =
-    classroomIds.length > 0 ? await fetchAllPostsForTeacherClassrooms(db, userId, classroomIds) : [];
+    classroomIds.length > 0
+      ? await fetchAllPostsForTeacherClassrooms(db, userId, classroomIds)
+      : [];
 
   const members = memberRowsBase.data ?? membersRes.data ?? [];
-  const posts =
-    classroomIds.length > 0 ? postsFromClassrooms : (postsRes.data ?? []);
+  const posts = classroomIds.length > 0 ? postsFromClassrooms : (postsRes.data ?? []);
   const sessions = sessionRows.data ?? sessionsRes.data ?? [];
   const sectionRows = sectionRowsRes.data ?? [];
   const doubts = doubtsRes.data ?? [];
@@ -339,7 +340,8 @@ export async function loadTeacherPortalBundle(
     // nearest upcoming/live only
     if (end < nowMs) return;
 
-    if (!nextSessionMap.has(s.classroom_id)) nextSessionMap.set(s.classroom_id, String(s.scheduled_at));
+    if (!nextSessionMap.has(s.classroom_id))
+      nextSessionMap.set(s.classroom_id, String(s.scheduled_at));
     const sid =
       typeof (s as { section_id?: unknown }).section_id === "string"
         ? String((s as { section_id: string }).section_id)
@@ -426,7 +428,9 @@ export async function loadTeacherPortalBundle(
       if (classMeet && nextMeetLink === classMeet) nextMeetScopeLabel = "Whole class";
       else {
         const secHit = secs.find(
-          (sec) => ((sec as { google_meet_link?: string | null }).google_meet_link ?? null) === nextMeetLink
+          (sec) =>
+            ((sec as { google_meet_link?: string | null }).google_meet_link ?? null) ===
+            nextMeetLink
         );
         if (secHit) nextMeetScopeLabel = `Only ${secHit.name}`;
       }
@@ -508,8 +512,7 @@ export async function loadTeacherPortalBundle(
         const planScheduledAt =
           typeof payload.scheduledAt === "string" ? payload.scheduledAt.trim() : "";
         return planScheduledAt && planScheduledAt === s.scheduled_at;
-      }) ??
-      plansForRoom.find((p) => p.title?.trim() === `${s.title} plan`);
+      }) ?? plansForRoom.find((p) => p.title?.trim() === `${s.title} plan`);
 
     const sessionPlanPayload = hasRowPlan
       ? rowPlan
@@ -584,7 +587,8 @@ export async function loadTeacherPortalBundle(
           formatConceptFocusRefForDisplay(preConceptRef).trim() ||
           normalizePreviewList(preConceptRef).join(" · ");
         if (!preWorkDisplay) {
-          preWorkDisplay = "Concept focus — choose chapter, topic, and subtopic in the session plan.";
+          preWorkDisplay =
+            "Concept focus — choose chapter, topic, and subtopic in the session plan.";
         }
       } else {
         preWorkDisplay = preWorkFromField.join("\n\n").trim();
@@ -654,8 +658,9 @@ export async function loadTeacherPortalBundle(
       meetLink: s.meet_link,
       studentCount:
         (s as { section_id?: string | null }).section_id != null
-          ? memberCountBySectionId.get((s as { section_id?: string | null }).section_id ?? "") ?? 0
-          : memberCountMap.get(s.classroom_id) ?? 0,
+          ? (memberCountBySectionId.get((s as { section_id?: string | null }).section_id ?? "") ??
+            0)
+          : (memberCountMap.get(s.classroom_id) ?? 0),
       status: s.status,
       isTrial: classroom?.description?.toLowerCase().includes("ad-hoc trial: enabled") ?? false,
       rewardRdm: typeof assignmentPayload.rewardRdm === "number" ? assignmentPayload.rewardRdm : 20,
@@ -681,18 +686,16 @@ export async function loadTeacherPortalBundle(
   const memberProfilesRes = classroomIds.length
     ? await db
         .from("classroom_members")
-        .select("classroom_id, user_id, role, joined_at, section_id, profiles(name, avatar_url, rdm)")
+        .select(
+          "classroom_id, user_id, role, joined_at, section_id, profiles(name, avatar_url, rdm)"
+        )
         .in("classroom_id", classroomIds)
     : { data: [], error: null };
   const anyDemoShowcaseClassroom = classrooms.some((c) =>
     isTeacherPortalDemoShowcaseClassroom(c.id, c.name)
   );
   const demoStudentsRes = anyDemoShowcaseClassroom
-    ? await db
-        .from("profiles")
-        .select("id, name, avatar_url, rdm")
-        .eq("role", "student")
-        .limit(12)
+    ? await db.from("profiles").select("id, name, avatar_url, rdm").eq("role", "student").limit(12)
     : { data: [], error: null };
   const memberRows =
     (memberProfilesRes.data as Array<{
@@ -734,14 +737,18 @@ export async function loadTeacherPortalBundle(
         })(),
         scheduleLabel: (() => {
           const repeat = Array.isArray((s as { repeat_days?: unknown }).repeat_days)
-            ? (((s as unknown as { repeat_days: string[] }).repeat_days ?? []) as string[]).filter(Boolean)
+            ? (((s as unknown as { repeat_days: string[] }).repeat_days ?? []) as string[]).filter(
+                Boolean
+              )
             : [];
-          const date = typeof (s as { schedule_date?: unknown }).schedule_date === "string"
-            ? String((s as unknown as { schedule_date: string }).schedule_date)
-            : "";
-          const time = typeof (s as { schedule_time?: unknown }).schedule_time === "string"
-            ? String((s as unknown as { schedule_time: string }).schedule_time)
-            : "";
+          const date =
+            typeof (s as { schedule_date?: unknown }).schedule_date === "string"
+              ? String((s as unknown as { schedule_date: string }).schedule_date)
+              : "";
+          const time =
+            typeof (s as { schedule_time?: unknown }).schedule_time === "string"
+              ? String((s as unknown as { schedule_time: string }).schedule_time)
+              : "";
           const dur =
             typeof (s as { duration_minutes?: unknown }).duration_minutes === "number"
               ? Number((s as unknown as { duration_minutes: number }).duration_minutes)
@@ -756,7 +763,10 @@ export async function loadTeacherPortalBundle(
           const start = new Date(`${normalizedDate}T${time}:00`);
           if (Number.isNaN(start.getTime())) return null;
           const end = new Date(start.getTime() + dur * 60 * 1000);
-          const startLabel = start.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+          const startLabel = start.toLocaleTimeString("en-US", {
+            hour: "numeric",
+            minute: "2-digit",
+          });
           const endLabel = end.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
           const repeatLabel = repeat.length ? repeat.join(" / ") : "One-time";
           return `${repeatLabel} · ${startLabel}–${endLabel}`;
@@ -886,10 +896,7 @@ export async function loadTeacherPortalBundle(
       .toLowerCase();
 
   const studentEngagementByUser = new Map<string, Record<string, unknown>>();
-  const bitsAttemptsByUserId = new Map<
-    string,
-    ReturnType<typeof parseBitsTestAttemptsStore>
-  >();
+  const bitsAttemptsByUserId = new Map<string, ReturnType<typeof parseBitsTestAttemptsStore>>();
   if (studentIdsAcrossClassrooms.length > 0) {
     const { data: profileRows, error: profileErr } = await db
       .from("profiles")
@@ -904,7 +911,10 @@ export async function loadTeacherPortalBundle(
         } else {
           studentEngagementByUser.set(row.id, {});
         }
-        bitsAttemptsByUserId.set(row.id, parseBitsTestAttemptsStore(row.bits_test_attempts ?? null));
+        bitsAttemptsByUserId.set(
+          row.id,
+          parseBitsTestAttemptsStore(row.bits_test_attempts ?? null)
+        );
       }
     }
   }
@@ -998,10 +1008,23 @@ export async function loadTeacherPortalBundle(
         db as unknown as {
           from: (t: string) => {
             select: (c: string) => {
-              in: (col: string, vals: string[]) => {
-                not: (col: string, op: string, v: null) => {
-                  order: (col: string, o: { ascending: boolean }) => {
-                    range: (a: number, b: number) => Promise<{
+              in: (
+                col: string,
+                vals: string[]
+              ) => {
+                not: (
+                  col: string,
+                  op: string,
+                  v: null
+                ) => {
+                  order: (
+                    col: string,
+                    o: { ascending: boolean }
+                  ) => {
+                    range: (
+                      a: number,
+                      b: number
+                    ) => Promise<{
                       data: CgtaBundleRow[] | null;
                       error: { message?: string } | null;
                     }>;
@@ -1066,7 +1089,11 @@ export async function loadTeacherPortalBundle(
           );
         })
         .sort((a, b) => (b.submittedAtMs ?? 0) - (a.submittedAtMs ?? 0))[0];
-      if (!match || typeof match.submittedAtMs !== "number" || !Number.isFinite(match.submittedAtMs)) {
+      if (
+        !match ||
+        typeof match.submittedAtMs !== "number" ||
+        !Number.isFinite(match.submittedAtMs)
+      ) {
         continue;
       }
 
@@ -1313,11 +1340,11 @@ export async function loadTeacherPortalBundle(
           ? "Full Physics Mock — JEE Pattern"
           : post.type === "past_paper"
             ? "Past Paper — JEE Pattern"
-          : post.type === "quiz"
-            ? "Electrostatics — Chapter Quiz"
-            : post.type === "Concept Focus"
-              ? "Concept Focus Assignment"
-              : "DailyDose Streak — Week 3 Challenge"),
+            : post.type === "quiz"
+              ? "Electrostatics — Chapter Quiz"
+              : post.type === "Concept Focus"
+                ? "Concept Focus Assignment"
+                : "DailyDose Streak — Week 3 Challenge"),
       type: post.type,
       sectionId:
         typeof (post as unknown as { section_id?: unknown }).section_id === "string"

@@ -41,10 +41,17 @@ export async function GET(request: Request) {
       .select("body, is_accepted")
       .eq("user_id", uid)
       .eq("hidden", false),
-    supabase.from("doubt_votes").select("id", { count: "exact", head: true }).eq("user_id", uid).eq("vote_type", 1),
+    supabase
+      .from("doubt_votes")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", uid)
+      .eq("vote_type", 1),
     supabase.from("doubts").select("upvotes").eq("user_id", uid),
     supabase.from("doubt_answers").select("upvotes").eq("user_id", uid).eq("hidden", false),
-    supabase.from("doubt_saves").select("doubt_id", { count: "exact", head: true }).eq("user_id", uid),
+    supabase
+      .from("doubt_saves")
+      .select("doubt_id", { count: "exact", head: true })
+      .eq("user_id", uid),
   ]);
 
   if (
@@ -76,7 +83,8 @@ export async function GET(request: Request) {
   let commentsPosted = 0;
   const rows = (myAnswersRes.data ?? []) as { body: string; is_accepted: boolean }[];
   for (const r of rows) {
-    const substantive = Boolean(r.is_accepted) || strippedBodyLen(String(r.body ?? "")) >= ANSWER_MIN_STRIPPED_LEN;
+    const substantive =
+      Boolean(r.is_accepted) || strippedBodyLen(String(r.body ?? "")) >= ANSWER_MIN_STRIPPED_LEN;
     if (substantive) answersGivenLongform += 1;
     else commentsPosted += 1;
   }
@@ -85,11 +93,17 @@ export async function GET(request: Request) {
 
   let upvotesReceived = 0;
   for (const r of doubtsUpvotesRes.data ?? []) {
-    const n = typeof (r as { upvotes?: number }).upvotes === "number" ? (r as { upvotes: number }).upvotes : 0;
+    const n =
+      typeof (r as { upvotes?: number }).upvotes === "number"
+        ? (r as { upvotes: number }).upvotes
+        : 0;
     upvotesReceived += Math.max(0, n);
   }
   for (const r of answersUpvotesRes.data ?? []) {
-    const n = typeof (r as { upvotes?: number }).upvotes === "number" ? (r as { upvotes: number }).upvotes : 0;
+    const n =
+      typeof (r as { upvotes?: number }).upvotes === "number"
+        ? (r as { upvotes: number }).upvotes
+        : 0;
     upvotesReceived += Math.max(0, n);
   }
 

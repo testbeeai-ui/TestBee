@@ -95,7 +95,10 @@ export async function POST(
     return NextResponse.json({ error: access.error }, { status: access.status });
   }
   if (access.isTeacher) {
-    return NextResponse.json({ error: "Teachers cannot submit student attempts." }, { status: 403 });
+    return NextResponse.json(
+      { error: "Teachers cannot submit student attempts." },
+      { status: 403 }
+    );
   }
 
   const postType = access.post.type;

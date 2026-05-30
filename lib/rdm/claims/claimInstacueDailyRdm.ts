@@ -16,7 +16,8 @@ function parseRpcPayload(raw: unknown): InstacueDailyRdmResult {
   return {
     awarded: Boolean(o.awarded),
     amount: typeof o.amount === "number" ? o.amount : Number(o.amount) || 0,
-    balance: typeof o.balance === "number" ? o.balance : o.balance == null ? null : Number(o.balance),
+    balance:
+      typeof o.balance === "number" ? o.balance : o.balance == null ? null : Number(o.balance),
     claim_date_ist: typeof o.claim_date_ist === "string" ? o.claim_date_ist : undefined,
     reason: typeof o.reason === "string" ? o.reason : undefined,
   };

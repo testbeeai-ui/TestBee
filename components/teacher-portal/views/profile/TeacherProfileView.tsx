@@ -140,9 +140,7 @@ export default function TeacherProfileView({
   const [pendingVerificationPersistEmail, setPendingVerificationPersistEmail] = useState("");
   const pendingVerifyEmailRef = useRef<string>("");
 
-  const canManageAvatar = Boolean(
-    allowAvatarUpload && user?.id && profile.id === user.id
-  );
+  const canManageAvatar = Boolean(allowAvatarUpload && user?.id && profile.id === user.id);
 
   /** Same gate as avatar: teacher editing own portal (not admin impersonation view). */
   const canSendEmailVerifyCode = Boolean(canManageAvatar && user?.email);
@@ -215,18 +213,17 @@ export default function TeacherProfileView({
 
   const contactEmailShowsVerified = Boolean(
     profile.details.contactEmailVerifiedAt &&
-      currentContactEmail &&
-      verifiedContactEmail &&
-      normalizeEmail(currentContactEmail) === normalizeEmail(verifiedContactEmail)
+    currentContactEmail &&
+    verifiedContactEmail &&
+    normalizeEmail(currentContactEmail) === normalizeEmail(verifiedContactEmail)
   );
   const optimisticContactEmailShowsVerified = Boolean(
-    optimisticVerifiedEmail &&
-      normalizeEmail(email) === normalizeEmail(optimisticVerifiedEmail)
+    optimisticVerifiedEmail && normalizeEmail(email) === normalizeEmail(optimisticVerifiedEmail)
   );
   const contactEmailIsVerified = contactEmailShowsVerified || optimisticContactEmailShowsVerified;
   const contactEmailPendingPersist = Boolean(
     pendingVerificationPersistEmail &&
-      normalizeEmail(email) === normalizeEmail(pendingVerificationPersistEmail)
+    normalizeEmail(email) === normalizeEmail(pendingVerificationPersistEmail)
   );
   const contactEmailVerificationUiState: ContactEmailVerificationUiState = contactEmailIsVerified
     ? "verifiedPersisted"
@@ -255,8 +252,13 @@ export default function TeacherProfileView({
     const sbAny = supabase as unknown as {
       from: (t: string) => {
         update: (row: Record<string, unknown>) => {
-          eq: (c: string, v: string) => {
-            select: (cols: string) => Promise<{ data: unknown[] | null; error: { message?: string } | null }>;
+          eq: (
+            c: string,
+            v: string
+          ) => {
+            select: (
+              cols: string
+            ) => Promise<{ data: unknown[] | null; error: { message?: string } | null }>;
           };
         };
       };
@@ -331,7 +333,10 @@ export default function TeacherProfileView({
       const raw =
         e instanceof Error
           ? e.message
-          : e && typeof e === "object" && "message" in e && typeof (e as { message: unknown }).message === "string"
+          : e &&
+              typeof e === "object" &&
+              "message" in e &&
+              typeof (e as { message: unknown }).message === "string"
             ? (e as { message: string }).message
             : String(e);
       const friendly = formatSupabaseAuthError(raw);
@@ -351,9 +356,8 @@ export default function TeacherProfileView({
       if (!canManageAvatar) {
         toast({
           variant: "destructive",
-        title: "Email verification unavailable",
-        description:
-          "You can only confirm while signed in as this teacher (not in admin view).",
+          title: "Email verification unavailable",
+          description: "You can only confirm while signed in as this teacher (not in admin view).",
         });
       } else if (!user?.email) {
         toast({
@@ -425,7 +429,10 @@ export default function TeacherProfileView({
       const raw =
         e instanceof Error
           ? e.message
-          : e && typeof e === "object" && "message" in e && typeof (e as { message: unknown }).message === "string"
+          : e &&
+              typeof e === "object" &&
+              "message" in e &&
+              typeof (e as { message: unknown }).message === "string"
             ? (e as { message: string }).message
             : String(e);
       const friendly = formatSupabaseAuthError(raw);
@@ -461,10 +468,12 @@ export default function TeacherProfileView({
     setUploadingAvatar(true);
     try {
       const path = `${profile.id}/avatar-${Date.now()}.jpg`;
-      const { error: upErr } = await supabase.storage.from(PROFILE_AVATARS_BUCKET).upload(path, file, {
-        contentType: file.type || "image/jpeg",
-        upsert: false,
-      });
+      const { error: upErr } = await supabase.storage
+        .from(PROFILE_AVATARS_BUCKET)
+        .upload(path, file, {
+          contentType: file.type || "image/jpeg",
+          upsert: false,
+        });
       if (upErr) throw upErr;
       const { data: pub } = supabase.storage.from(PROFILE_AVATARS_BUCKET).getPublicUrl(path);
       const publicUrl = pub.publicUrl;
@@ -480,7 +489,10 @@ export default function TeacherProfileView({
       const raw =
         e instanceof Error
           ? e.message
-          : e && typeof e === "object" && "message" in e && typeof (e as { message: unknown }).message === "string"
+          : e &&
+              typeof e === "object" &&
+              "message" in e &&
+              typeof (e as { message: unknown }).message === "string"
             ? (e as { message: string }).message
             : String(e);
       const bucketHint = /bucket not found/i.test(raw)
@@ -652,9 +664,7 @@ export default function TeacherProfileView({
       return;
     }
     if (!hasAadhar || !hasInstituteCertificate) {
-      setValidationError(
-        "Add Aadhaar proof and institute certificate before Save."
-      );
+      setValidationError("Add Aadhaar proof and institute certificate before Save.");
       return;
     }
 
@@ -999,24 +1009,20 @@ export default function TeacherProfileView({
                           setEmail(e.target.value);
                         }}
                         placeholder="teacher@example.com"
-                        disabled={
-                          contactEmailLockedInEdit ||
-                          Boolean(emailOtpMode)
-                        }
+                        disabled={contactEmailLockedInEdit || Boolean(emailOtpMode)}
                         readOnly={contactEmailLockedInEdit}
                         title={
                           contactEmailLockedInEdit
                             ? "Contact email cannot be changed here."
                             : contactEmailVerificationUiState === "otpInProgress"
-                            ? "Finish entering the code or change email after cancelling."
-                            : contactEmailVerificationUiState === "confirmedPendingPersist"
-                              ? "Code confirmed. Click Submit to persist verification."
-                            : undefined
+                              ? "Finish entering the code or change email after cancelling."
+                              : contactEmailVerificationUiState === "confirmedPendingPersist"
+                                ? "Code confirmed. Click Submit to persist verification."
+                                : undefined
                         }
                         className="h-9 min-w-[12rem] flex-1 rounded-md border border-white/20 bg-[#07070f] px-3 text-sm outline-none focus:border-violet-400 disabled:cursor-not-allowed disabled:opacity-70"
                       />
-                      {canManageAvatar &&
-                      contactEmailVerificationUiState === "unverifiedIdle" ? (
+                      {canManageAvatar && contactEmailVerificationUiState === "unverifiedIdle" ? (
                         <button
                           type="button"
                           disabled={emailOtpBusy || !canSendEmailVerifyCode}
@@ -1047,8 +1053,7 @@ export default function TeacherProfileView({
                           <CheckCircle2 className="h-3.5 w-3.5" /> Code confirmed - Submit to save
                         </span>
                       ) : null}
-                      {canManageAvatar &&
-                      contactEmailVerificationUiState === "otpInProgress" ? (
+                      {canManageAvatar && contactEmailVerificationUiState === "otpInProgress" ? (
                         <button
                           type="button"
                           disabled={emailOtpBusy}
@@ -1069,8 +1074,8 @@ export default function TeacherProfileView({
                     email.trim() &&
                     contactEmailVerificationUiState === "unverifiedIdle" ? (
                       <p className="text-[11px] leading-snug text-amber-200/90">
-                        This email differs from your login ({user?.email ?? "—"}). Sending a code will
-                        update your login email after you confirm it.
+                        This email differs from your login ({user?.email ?? "—"}). Sending a code
+                        will update your login email after you confirm it.
                       </p>
                     ) : null}
                     {contactEmailVerificationUiState === "otpInProgress" ? (
@@ -1145,10 +1150,10 @@ export default function TeacherProfileView({
                       className="h-full w-full rounded-r-md bg-transparent px-2 outline-none"
                     />
                   </div>
+                ) : profile.details?.phone && formatIndianPhone(profile.details.phone) !== "+91" ? (
+                  formatIndianPhone(profile.details.phone)
                 ) : (
-                  (profile.details?.phone && formatIndianPhone(profile.details.phone) !== "+91"
-                    ? formatIndianPhone(profile.details.phone)
-                    : "—")
+                  "—"
                 )}
               </div>
             </div>
@@ -1245,9 +1250,14 @@ export default function TeacherProfileView({
                     <div className="flex flex-wrap items-center gap-2">
                       <button
                         type="button"
-                        disabled={openingAadhar || !(profile.details?.docs?.aadharPhotoUrl ?? "").trim()}
+                        disabled={
+                          openingAadhar || !(profile.details?.docs?.aadharPhotoUrl ?? "").trim()
+                        }
                         onClick={() =>
-                          void openTeacherVerificationDoc(profile.details?.docs?.aadharPhotoUrl ?? "", "aadhar")
+                          void openTeacherVerificationDoc(
+                            profile.details?.docs?.aadharPhotoUrl ?? "",
+                            "aadhar"
+                          )
                         }
                         className="inline-flex h-8 items-center gap-1 rounded-md border border-white/15 bg-white/5 px-3 text-xs font-semibold text-slate-200 hover:bg-white/10 disabled:opacity-60"
                       >
@@ -1289,14 +1299,21 @@ export default function TeacherProfileView({
                       <button
                         type="button"
                         disabled={
-                          lockVerifiedFields || openingCertificate || !instituteCertificatePhotoUrl.trim()
+                          lockVerifiedFields ||
+                          openingCertificate ||
+                          !instituteCertificatePhotoUrl.trim()
                         }
                         onClick={() =>
-                          void openTeacherVerificationDoc(instituteCertificatePhotoUrl, "certificate")
+                          void openTeacherVerificationDoc(
+                            instituteCertificatePhotoUrl,
+                            "certificate"
+                          )
                         }
                         className="inline-flex h-9 items-center gap-1 rounded-md border border-white/15 bg-white/5 px-3 text-xs font-semibold text-slate-200 hover:bg-white/10 disabled:opacity-60"
                       >
-                        {openingCertificate ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                        {openingCertificate ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : null}
                         View
                       </button>
                       <input
@@ -1351,11 +1368,15 @@ export default function TeacherProfileView({
                         }
                         className="inline-flex h-8 items-center gap-1 rounded-md border border-white/15 bg-white/5 px-3 text-xs font-semibold text-slate-200 hover:bg-white/10 disabled:opacity-60"
                       >
-                        {openingCertificate ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                        {openingCertificate ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : null}
                         View document
                       </button>
                       <div className="min-w-0 text-xs text-slate-400">
-                        {profile.details?.docs?.instituteCertificatePhotoUrl ? "Private (signed link)" : "—"}
+                        {profile.details?.docs?.instituteCertificatePhotoUrl
+                          ? "Private (signed link)"
+                          : "—"}
                       </div>
                     </div>
                     <div className="text-xs text-slate-400">

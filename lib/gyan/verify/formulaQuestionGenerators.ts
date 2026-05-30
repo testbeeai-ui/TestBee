@@ -1,5 +1,8 @@
 import type { BitsQuestion } from "@/data/deepDiveContent";
-import type { ArtifactBitsQuestion, ArtifactFormula } from "@/lib/curriculum/subtopicContentService";
+import type {
+  ArtifactBitsQuestion,
+  ArtifactFormula,
+} from "@/lib/curriculum/subtopicContentService";
 
 /**
  * Formula practice question generators for the Deep Dive "Regenerate" button.

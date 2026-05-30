@@ -74,10 +74,7 @@ export async function GET(request: Request) {
     const { data: profileRows } = await db.from("profiles").select("id, name").in("id", uniqueIds);
 
     const byId = new Map(
-      (profileRows ?? []).map((p: { id: string; name: string | null }) => [
-        p.id,
-        safeName(p.name),
-      ])
+      (profileRows ?? []).map((p: { id: string; name: string | null }) => [p.id, safeName(p.name)])
     );
     const members = uniqueIds.map((id) => ({
       id,

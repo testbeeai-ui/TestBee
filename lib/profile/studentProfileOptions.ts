@@ -17,13 +17,7 @@ export const BOARD_OPTIONS = [
   "State Board — Other",
 ] as const;
 
-export const CLASS_YEAR_OPTIONS = [
-  "PUC I",
-  "PUC II",
-  "Class X",
-  "Class 11",
-  "Class 12",
-] as const;
+export const CLASS_YEAR_OPTIONS = ["PUC I", "PUC II", "Class X", "Class 11", "Class 12"] as const;
 
 export const STREAM_OPTIONS = [
   "PCM (Physics, Chemistry, Maths)",
@@ -73,6 +67,8 @@ export function streamSelectionToProfileFields(streamLabel: string): {
   }
 }
 
-export function toSelectItems<T extends string>(options: readonly T[]): { label: string; value: string }[] {
+export function toSelectItems<T extends string>(
+  options: readonly T[]
+): { label: string; value: string }[] {
   return options.map((o) => ({ label: o, value: o }));
 }

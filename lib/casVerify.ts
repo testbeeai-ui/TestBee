@@ -19,6 +19,17 @@ export type CalcVerifyResult = {
   confidence: "high" | "medium" | "low";
   explanation: string;
   error: string | null;
+  // Multi-step support
+  steps?: Array<{
+    step: number;
+    operation: string;
+    input: string;
+    output: string;
+    correct: boolean;
+    confidence: string;
+    explanation?: string;
+  }>;
+  detectedType?: string | null;
 };
 
 // ---------------------------------------------------------------------------
@@ -36,12 +47,23 @@ export async function verifyCalculation(params: {
   variable?: string;
   claimedResult: string;
   gradeLevel?: number;
+  // Multi-step support
+  steps?: Array<{
+    operation: string;
+    expression: string;
+    variable: string;
+    params?: Record<string, unknown>;
+  }>;
+  params?: Record<string, unknown>;
+  questionText?: string;
 }): Promise<CalcVerifyResult | null> {
   const sidecarUrl = process.env.RAG_SIDECAR_URL;
   if (!sidecarUrl) return null;
 
   try {
     const internalToken = process.env.RAG_INTERNAL_TOKEN;
+    // Multi-step gets more time
+    const timeoutMs = params.steps && params.steps.length > 1 ? 10_000 : 5_000;
 
     const response = await fetch(`${sidecarUrl}/verify-calc`, {
       method: "POST",
@@ -55,8 +77,11 @@ export async function verifyCalculation(params: {
         variable: params.variable ?? "x",
         claimed_result: params.claimedResult,
         grade_level: params.gradeLevel ?? 12,
+        steps: params.steps ?? [],
+        params: params.params ?? {},
+        question_text: params.questionText ?? "",
       }),
-      signal: AbortSignal.timeout(5_000), // SymPy is fast
+      signal: AbortSignal.timeout(timeoutMs),
     });
 
     if (!response.ok) {
@@ -72,13 +97,15 @@ export async function verifyCalculation(params: {
       confidence: data.confidence ?? "low",
       explanation: data.explanation ?? "",
       error: data.error ?? null,
+      steps: data.steps ?? [],
+      detectedType: data.detected_type ?? null,
     };
   } catch (error) {
     const isTimeout =
       error instanceof Error &&
       (error.name === "TimeoutError" || error.message.toLowerCase().includes("timeout"));
     if (isTimeout) {
-      console.warn("[CAS] Verification timed out (5s). Skipping.");
+      console.warn("[CAS] Verification timed out. Skipping.");
     } else {
       console.warn("[CAS] Sidecar unreachable, skipping verification:", error);
     }

@@ -24,11 +24,7 @@ export default function Profile() {
   }, [authLoading, profile?.role, router]);
 
   if (!authLoading && !authUser) {
-    return (
-      <ProtectedRoute>
-        {null}
-      </ProtectedRoute>
-    );
+    return <ProtectedRoute>{null}</ProtectedRoute>;
   }
 
   if (authLoading || (authUser && !profile)) {
@@ -52,11 +48,7 @@ export default function Profile() {
   }
 
   if (!authUser || !profile) {
-    return (
-      <ProtectedRoute>
-        {null}
-      </ProtectedRoute>
-    );
+    return <ProtectedRoute>{null}</ProtectedRoute>;
   }
 
   return (

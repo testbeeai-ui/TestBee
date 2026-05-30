@@ -4,17 +4,20 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Plus, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { OnboardingClickHerePointer } from "@/components/onboarding/OnboardingClickHerePointer";
 
 interface LiveQAHeaderProps {
   todayCount: number;
   onAskClick: () => void;
   askRewardRdm?: number;
+  showAskPointer?: boolean;
 }
 
 export default function LiveQAHeader({
   todayCount,
   onAskClick,
   askRewardRdm = 5,
+  showAskPointer = false,
 }: LiveQAHeaderProps) {
   const { toast } = useToast();
 
@@ -30,7 +33,12 @@ export default function LiveQAHeader({
       </div>
 
       {/* Ask bar — wraps on narrow center column so the input keeps priority */}
-      <div className="flex flex-col sm:flex-row gap-2 sm:items-stretch">
+      <div className="relative flex flex-col sm:flex-row gap-2 sm:items-stretch">
+        {showAskPointer && (
+          <div className="absolute -top-11 left-6 z-10 pointer-events-none">
+            <OnboardingClickHerePointer label="Click here" />
+          </div>
+        )}
         <Input
           placeholder="Ask a doubt, add a question, or browse the wall..."
           className="rounded-xl flex-1 min-w-0 h-11"

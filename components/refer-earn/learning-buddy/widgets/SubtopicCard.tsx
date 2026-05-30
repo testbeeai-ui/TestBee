@@ -29,11 +29,7 @@ function formatRelative(iso: string): string {
   return `${Math.round(hours / 24)}d ago`;
 }
 
-export function SubtopicCard({
-  data,
-}: {
-  data: BuddyDashboardResponse["subtopic"];
-}) {
+export function SubtopicCard({ data }: { data: BuddyDashboardResponse["subtopic"] }) {
   const recent = data.completedRecent.slice(0, 5);
   const showCurrent = data.current;
   const showLastOn = !showCurrent && data.lastOn;
@@ -81,19 +77,11 @@ export function SubtopicCard({
                 href={data.lastOn!.href}
                 className="block truncate text-[11.5px] font-medium text-slate-200 hover:underline"
               >
-                {compactSubtopic(
-                  data.lastOn!.subject,
-                  data.lastOn!.topic,
-                  data.lastOn!.subtopic
-                )}
+                {compactSubtopic(data.lastOn!.subject, data.lastOn!.topic, data.lastOn!.subtopic)}
               </Link>
             ) : (
               <p className="truncate text-[11.5px] font-medium text-slate-200">
-                {compactSubtopic(
-                  data.lastOn!.subject,
-                  data.lastOn!.topic,
-                  data.lastOn!.subtopic
-                )}
+                {compactSubtopic(data.lastOn!.subject, data.lastOn!.topic, data.lastOn!.subtopic)}
               </p>
             )}
           </div>

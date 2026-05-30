@@ -2,13 +2,11 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { track } from "@/lib/analytics/track";
 import { motion, AnimatePresence } from "framer-motion";
 import AppLayout from "@/components/AppLayout";
 import { useUserStore } from "@/store/useUserStore";
-import {
-  saveQuestionToDb,
-  type SavedQuestionSource,
-} from "@/lib/saved/savedQuestionsService";
+import { saveQuestionToDb, type SavedQuestionSource } from "@/lib/saved/savedQuestionsService";
 import { useAuth } from "@/hooks/useAuth";
 import { getMockQuestions, questions as questionBank } from "@/data/questions";
 import { useTheme } from "next-themes";
@@ -49,7 +47,11 @@ import {
   Shuffle,
   Users,
 } from "lucide-react";
-import type { MockPaper, PastPaper, Question, Subject } from "@/types";
+import type { MockPaper, MockPaperType, PastPaper, Question, Subject } from "@/types";
+import {
+  subjectBreakdownFromSection,
+  type MockLibraryHistoryKind,
+} from "@/lib/mock/mockTestAttemptTypes";
 import {
   filterMockPapers,
   mockPaperTypeLabel,
@@ -97,6 +99,37 @@ import MockTestLibraryView from "@/components/prep-mock/library/MockTestLibraryV
 import PrepMockDashboardView from "@/components/prep-mock/dashboard/PrepMockDashboardView";
 
 import { incrementPrepCalendarDay, localDayISO } from "@/lib/dashboard/prepCalendarClient";
+import {
+  CBSE_MCQ_ONBOARDING_QUERY,
+  advanceCbseMcqToTabStep,
+  cbseMcqOnboardingLibraryHref,
+  clearCbseMcqOnboardingFlow,
+  clearCbseMcqTabGuideStep,
+  isCbseMcqOnboardingFlowActive,
+  shouldShowCbseMcqTabGuide,
+  startCbseMcqOnboardingFlow,
+  hasCbseMcqViewAllStepPending,
+} from "@/lib/onboarding/cbseMcqOnboardingFlow";
+import { isDailyCbseMcqChecklistTrackingActive } from "@/lib/onboarding/dailyCbseMcqChecklist";
+import {
+  PREP_CLASSES_ONBOARDING_QUERY,
+  prepClassesOnboardingClassroomsHref,
+  clearPrepClassesOnboardingFlow,
+  clearPrepClassesViewAllGuideStep,
+  startPrepClassesOnboardingFlow,
+} from "@/lib/onboarding/prepClassesOnboardingFlow";
+import { isOnboardingTaskCompanionLaunched } from "@/lib/onboarding/onboardingTaskCompanion";
+import {
+  clearOnboardingStepComplete,
+  getOnboardingProgress,
+  markOnboardingStepComplete,
+} from "@/lib/subscription/freeTrialClient";
+import {
+  fetchSubscriptionConfig,
+  getPlanLimits,
+  normalizePlanTier,
+  type SubscriptionConfig,
+} from "@/lib/subscription/subscriptionConfig";
 import { cn } from "@/lib/utils";
 import {
   saveMockAssignmentTracking,
@@ -113,7 +146,6 @@ import {
   getMockShareOutcome,
   pickNextMockShareTemplate,
 } from "@/lib/mock/mockTestShareTemplates";
-
 
 export type MockPageContentProps = {
   /** `dashboard` = Prep + Mock hub (`/mock`); `library` = mock test library + exam (`/mock-test`). */
@@ -138,8 +170,8 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
   const mockCalendarLoggedRef = useRef(false);
   /** Dedupes bonus claim effect (e.g. React Strict Mode) per finished attempt. */
   const mockRdmBonusClaimEndTimeRef = useRef<number | null>(null);
-  /** One reminder per mount when finishing without class assignment tracking. */
-  const classTrackingMissingToastShownRef = useRef(false);
+  const mockRecordAttemptEndTimeRef = useRef<number | null>(null);
+  const [activeMockPaperType, setActiveMockPaperType] = useState<MockPaperType | null>(null);
 
   const subjects: Subject[] = useMemo(() => ["physics", "chemistry", "math"], []);
   const isAdminUser = profile?.role === "admin";
@@ -148,6 +180,11 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
   const [duration, setDuration] = useState<number>(90);
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
   const [libraryCollectionTab, setLibraryCollectionTab] = useState<LibraryCollectionTab>("past");
+  const cbseMcqOnboardingParam = searchParams.get(CBSE_MCQ_ONBOARDING_QUERY);
+  const [showCbseMcqViewAllGuide, setShowCbseMcqViewAllGuide] = useState(false);
+  const [showCbseMcqTabGuide, setShowCbseMcqTabGuide] = useState(false);
+  const prepClassesOnboardingParam = searchParams.get(PREP_CLASSES_ONBOARDING_QUERY);
+  const [showPrepClassesViewAllGuide, setShowPrepClassesViewAllGuide] = useState(false);
   const [mockLibraryCategory, setMockLibraryCategory] = useState<LibraryCategoryFilter>("all");
   const [librarySearch, setLibrarySearch] = useState("");
   const [librarySubjectFilter, setLibrarySubjectFilter] = useState<Subject | "all">("all");
@@ -184,6 +221,77 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
   const [mockPostingToFeed, setMockPostingToFeed] = useState(false);
   const [mockShareRewardRdm, setMockShareRewardRdm] = useState(40);
   const [mockScoreBonusRdm, setMockScoreBonusRdm] = useState(50);
+
+  const [monthlyAttemptsCount, setMonthlyAttemptsCount] = useState<number | null>(null);
+  const [subscriptionConfig, setSubscriptionConfig] = useState<SubscriptionConfig | null>(null);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+
+  const currentPlan = useMemo(() => {
+    return normalizePlanTier(profile?.plan_tier, profile?.free_trial_activated);
+  }, [profile?.plan_tier, profile?.free_trial_activated]);
+
+  const planLimits = useMemo(() => {
+    if (!subscriptionConfig) return null;
+    return getPlanLimits(subscriptionConfig, currentPlan);
+  }, [subscriptionConfig, currentPlan]);
+
+  const mocksPerMonthLimit = planLimits ? planLimits.mocksPerMonth : 3;
+
+  const getNextResetDateFormatted = useCallback(() => {
+    const nextMonth = new Date();
+    nextMonth.setUTCDate(1);
+    nextMonth.setUTCHours(0, 0, 0, 0);
+    nextMonth.setUTCMonth(nextMonth.getUTCMonth() + 1);
+    return nextMonth.toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!authUser?.id) {
+      setMonthlyAttemptsCount(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    const fetchCountsAndConfig = async () => {
+      try {
+        const cfg = await fetchSubscriptionConfig();
+        if (cancelled) return;
+        setSubscriptionConfig(cfg);
+
+        const startOfMonth = new Date();
+        startOfMonth.setUTCDate(1);
+        startOfMonth.setUTCHours(0, 0, 0, 0);
+
+        const { count, error } = await supabase
+          .from("mock_test_attempts")
+          .select("*", { head: true, count: "exact" })
+          .eq("user_id", authUser.id)
+          .gte("created_at", startOfMonth.toISOString());
+
+        if (error) {
+          console.error("Error fetching mock test attempts count:", error);
+          return;
+        }
+
+        if (!cancelled && typeof count === "number") {
+          setMonthlyAttemptsCount(count);
+        }
+      } catch (err) {
+        console.error("Failed to load attempt count and config:", err);
+      }
+    };
+
+    void fetchCountsAndConfig();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authUser?.id, view]);
 
   const deepLinkPaperSlug = (searchParams.get("paper") ?? "").trim();
   const urlTrackingClassroomId = (searchParams.get("classroomId") ?? "").trim();
@@ -222,6 +330,13 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
     setView("results");
     setSubmitDialogOpen(false);
 
+    track("mock_test_submitted", {
+      paperId: activePaperId,
+      totalQuestions: questions.length,
+      answeredCount: Object.keys(answers).length,
+      durationMs: finishedAt - (startTime ?? finishedAt),
+    });
+
     // If the mock was opened from a classroom assignment, persist the attempt so
     // the classroom feed can show "Done" and teachers can review. Uses sessionStorage
     // when query params were lost after client-side navigation.
@@ -236,7 +351,9 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
     }
 
     if (authUser?.id && questions.length > 0) {
-      const computedCorrectCount = questions.filter((q) => answers[q.id] === q.correctAnswer).length;
+      const computedCorrectCount = questions.filter(
+        (q) => answers[q.id] === q.correctAnswer
+      ).length;
       const orderedAnswers = questions.map((q) => {
         const v = answers[q.id];
         return typeof v === "number" ? v : -1;
@@ -291,13 +408,6 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
             variant: "destructive",
           });
         }
-      } else if (!classTrackingMissingToastShownRef.current) {
-        classTrackingMissingToastShownRef.current = true;
-        toast({
-          title: "Practice session only",
-          description:
-            "To send this score to your teacher, open the mock from your class assignment (so the class link is included).",
-        });
       }
     }
 
@@ -341,6 +451,14 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
 
   const startQuickTest = useCallback(() => {
     if (!user) return;
+    if (
+      monthlyAttemptsCount !== null &&
+      mocksPerMonthLimit !== -1 &&
+      monthlyAttemptsCount >= mocksPerMonthLimit
+    ) {
+      setShowUpgradeModal(true);
+      return;
+    }
     const chosenSubjects = effectiveSubject ? [effectiveSubject] : subjects;
     const qc = estimateQuickQuestionCount(chosenSubjects, user.classLevel ?? 11, duration);
     setNtaPendingMeta({
@@ -353,7 +471,7 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
       quickSubjects: chosenSubjects,
     });
     setView("nta_instructions");
-  }, [duration, effectiveSubject, subjects, user]);
+  }, [duration, effectiveSubject, subjects, user, monthlyAttemptsCount, mocksPerMonthLimit]);
 
   const handleNtaProceed = useCallback(
     async (declarationAccepted: boolean) => {
@@ -362,6 +480,14 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
         return;
       }
       if (!user) return;
+      if (
+        monthlyAttemptsCount !== null &&
+        mocksPerMonthLimit !== -1 &&
+        monthlyAttemptsCount >= mocksPerMonthLimit
+      ) {
+        setShowUpgradeModal(true);
+        return;
+      }
       const meta = ntaPendingMeta;
       if (!meta) return;
       setNtaWarningOpen(false);
@@ -397,6 +523,7 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
 
         mockCalendarLoggedRef.current = false;
         mockRdmBonusClaimEndTimeRef.current = null;
+        mockRecordAttemptEndTimeRef.current = null;
         setDuration(durationMin);
         if (subjectsForSession.length === 1) setSelectedSubject(subjectsForSession[0]!);
         setQuestions(qs);
@@ -416,10 +543,14 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
               : null;
           setActivePaperSlug(slug);
           setActivePaperSource(meta.paperSource ?? "mock");
+          setActiveMockPaperType(
+            meta.paperSource === "mock" ? (meta.paper as MockPaper).type : null
+          );
         } else {
           setActivePaperId(null);
           setActivePaperSlug(null);
           setActivePaperSource(null);
+          setActiveMockPaperType(null);
         }
         setNtaPendingMeta(null);
         setView("test");
@@ -439,6 +570,14 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
       paperSource: PaperSource,
       back: "landing" | "setup" = "setup"
     ) => {
+      if (
+        monthlyAttemptsCount !== null &&
+        mocksPerMonthLimit !== -1 &&
+        monthlyAttemptsCount >= mocksPerMonthLimit
+      ) {
+        setShowUpgradeModal(true);
+        return;
+      }
       setNtaInstructionBackView(back);
       setNtaPendingMeta({
         kind: "paper",
@@ -451,7 +590,7 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
       });
       setView("nta_instructions");
     },
-    []
+    [monthlyAttemptsCount, mocksPerMonthLimit]
   );
 
   useEffect(() => {
@@ -502,6 +641,14 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
 
   const handleQuickStartMock = useCallback(
     (subject: Subject) => {
+      if (
+        monthlyAttemptsCount !== null &&
+        mocksPerMonthLimit !== -1 &&
+        monthlyAttemptsCount >= mocksPerMonthLimit
+      ) {
+        setShowUpgradeModal(true);
+        return;
+      }
       if (!isLibraryPage) {
         router.push(`/mock-test?tab=quick&subject=${encodeURIComponent(subject)}`);
         return;
@@ -511,7 +658,7 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
       setLibraryCollectionTab("quick");
       setView("setup");
     },
-    [isLibraryPage, router]
+    [isLibraryPage, router, monthlyAttemptsCount, mocksPerMonthLimit]
   );
 
   useEffect(() => {
@@ -535,7 +682,6 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
     };
   }, []);
 
-
   useEffect(() => {
     if (isLibraryPage) return;
     if (deepLinkPaperSlug) {
@@ -555,26 +701,116 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
   }, [isLibraryPage, initialViewParam, router]);
 
   useEffect(() => {
+    if (isLibraryPage) {
+      setShowCbseMcqViewAllGuide(false);
+      return;
+    }
+
+    const dailyCbseRetry = isDailyCbseMcqChecklistTrackingActive();
+    if (cbseMcqOnboardingParam !== "1" || (getOnboardingProgress().prep_mcq && !dailyCbseRetry)) {
+      setShowCbseMcqViewAllGuide(false);
+      return;
+    }
+
+    startCbseMcqOnboardingFlow();
+    setShowCbseMcqViewAllGuide(true);
+  }, [cbseMcqOnboardingParam, isLibraryPage]);
+
+  /** Undo mistaken step 0 ticks from older builds (landing on /mock alone). */
+  useEffect(() => {
+    if (isLibraryPage || !isOnboardingTaskCompanionLaunched("prep_mcq")) return;
+    if (!hasCbseMcqViewAllStepPending()) return;
+    if (getOnboardingProgress()["prep_mcq_step_0"]) {
+      clearOnboardingStepComplete("prep_mcq", 0);
+    }
+  }, [isLibraryPage]);
+
+  /** CBSE MCQ's tab guide — site-tour popup link or Day-2 daily checklist companion. */
+  useEffect(() => {
+    if (!isLibraryPage) {
+      setShowCbseMcqTabGuide(false);
+      return;
+    }
+
+    const dailyCbseRetry = isDailyCbseMcqChecklistTrackingActive();
+    const companion = isOnboardingTaskCompanionLaunched("prep_mcq");
+    if (getOnboardingProgress().prep_mcq && !dailyCbseRetry) {
+      clearCbseMcqOnboardingFlow();
+      setShowCbseMcqTabGuide(false);
+      return;
+    }
+
+    if (dailyCbseRetry && companion) {
+      startCbseMcqOnboardingFlow();
+      if (!getOnboardingProgress()["prep_mcq_step_1"]) {
+        advanceCbseMcqToTabStep();
+      }
+      setShowCbseMcqTabGuide(libraryCollectionTab !== "mcq");
+      return;
+    }
+
+    if (cbseMcqOnboardingParam === "1" && shouldShowCbseMcqTabGuide()) {
+      setShowCbseMcqTabGuide(true);
+      return;
+    }
+
+    setShowCbseMcqTabGuide(false);
+    if (!isCbseMcqOnboardingFlowActive()) {
+      clearCbseMcqTabGuideStep();
+    }
+  }, [cbseMcqOnboardingParam, isLibraryPage, libraryCollectionTab]);
+
+  /** Day-2 deep link to /mock-test?tab=mcq — skip View all step when companion is active. */
+  useEffect(() => {
+    if (!isLibraryPage) return;
+    if (!isDailyCbseMcqChecklistTrackingActive()) return;
+    if (!isOnboardingTaskCompanionLaunched("prep_mcq")) return;
+    if (getOnboardingProgress()["prep_mcq_step_0"]) return;
+    markOnboardingStepComplete("prep_mcq", 0);
+    advanceCbseMcqToTabStep();
+  }, [isLibraryPage]);
+
+  /** MCQ tab open (click or ?tab=mcq) — tick step 1 for companion progress. */
+  useEffect(() => {
+    if (!isLibraryPage || libraryCollectionTab !== "mcq") return;
+    const dailyCbseRetry = isDailyCbseMcqChecklistTrackingActive();
+    const companion = isOnboardingTaskCompanionLaunched("prep_mcq");
+    if (!companion) return;
+    if (getOnboardingProgress().prep_mcq && !dailyCbseRetry) return;
+    if (!getOnboardingProgress()["prep_mcq_step_1"]) {
+      markOnboardingStepComplete("prep_mcq", 1);
+    }
+  }, [isLibraryPage, libraryCollectionTab]);
+
+  /** Violet "View all" guide only when URL has popup link query (`?onboarding_prep_classes=1`), not on normal /mock visits. */
+  useEffect(() => {
+    if (isLibraryPage) {
+      setShowPrepClassesViewAllGuide(false);
+      return;
+    }
+
+    if (prepClassesOnboardingParam !== "1" || getOnboardingProgress().prep_classes) {
+      setShowPrepClassesViewAllGuide(false);
+      return;
+    }
+
+    startPrepClassesOnboardingFlow();
+    setShowPrepClassesViewAllGuide(true);
+  }, [prepClassesOnboardingParam, isLibraryPage]);
+
+  useEffect(() => {
     if (!isLibraryPage) return;
     const tab = searchParams.get("tab");
     if (tab === "past" || tab === "mock" || tab === "quick") {
       setLibraryCollectionTab(tab);
-    } else if (tab === "mcq" && isAdminUser) {
+    } else if (tab === "mcq") {
       setLibraryCollectionTab("mcq");
     }
     const subj = searchParams.get("subject");
     if (subj === "physics" || subj === "chemistry" || subj === "math") {
       setSelectedSubject(subj);
     }
-  }, [isLibraryPage, searchParams, isAdminUser]);
-
-  useEffect(() => {
-    if (!isLibraryPage) return;
-    if (libraryCollectionTab === "mcq" && !isAdminUser) {
-      setLibraryCollectionTab("past");
-    }
-  }, [isLibraryPage, libraryCollectionTab, isAdminUser]);
-
+  }, [isLibraryPage, searchParams]);
 
   /** Standalone library URL has no prep dashboard; keep users in the library shell. */
   useEffect(() => {
@@ -710,14 +946,7 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
       });
     }
     saveQuestionToStore(id);
-  }, [
-    questions,
-    currentIndex,
-    activePaperSource,
-    authUser?.id,
-    saveQuestionToStore,
-    toast,
-  ]);
+  }, [questions, currentIndex, activePaperSource, authUser?.id, saveQuestionToStore, toast]);
 
   const handleNtaSaveAndNext = useCallback(() => {
     persistBookmarkForCurrentQuestion();
@@ -759,6 +988,29 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
     () => questions.filter((q) => answers[q.id] === q.correctAnswer).length,
     [questions, answers]
   );
+
+  const handleBackFromResults = useCallback(() => {
+    if (isLibraryPage) {
+      setView("setup");
+      const tab = libraryCollectionTab;
+      if (tab === "past" || tab === "mock" || tab === "quick" || tab === "mcq") {
+        router.replace(`/mock-test?tab=${tab}`);
+      } else {
+        router.replace("/mock-test");
+      }
+    } else {
+      router.push("/mock-test");
+    }
+    setQuestions([]);
+    setAnswers({});
+    setActiveExamTitle(null);
+    setActivePaperId(null);
+    setActivePaperSlug(null);
+    mockRdmBonusClaimEndTimeRef.current = null;
+    setVisitedQuestionIds(new Set());
+    setExpandedReviewId(null);
+    setReviewSubjectFilter("all");
+  }, [isLibraryPage, libraryCollectionTab, router]);
 
   const sectionBreakdown = useMemo(() => {
     const bySubject: Record<string, { correct: number; total: number }> = {};
@@ -897,6 +1149,7 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
             outcome: mockShareOutcome,
             attemptKey,
             sharePaperKind: isPastPaperShare ? "past_paper" : "catalog_mock",
+            subjectBreakdown: subjectBreakdownFromSection(sectionBreakdown),
           },
         })
         .select("id")
@@ -910,7 +1163,8 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
       const communityRdmMessages: Record<string, string> = {
         already_claimed_session: `You already received ${rewardLabel} for sharing this mock run. Your new post is still live.`,
         missing_attempt_key: "This post could not be tied to a finished attempt for the bonus.",
-        invalid_source: "This post did not qualify for the community share bonus. Contact support if that seems wrong.",
+        invalid_source:
+          "This post did not qualify for the community share bonus. Contact support if that seems wrong.",
         wrong_owner: "Account mismatch while claiming RDM.",
         post_not_found: "Post was not found when claiming RDM.",
         unauthenticated: "Sign in to claim RDM.",
@@ -940,8 +1194,7 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
           }
           rdmLine = ` +${awarded} RDM added for sharing.`;
         } else {
-          const reason =
-            typeof claim?.denial_reason === "string" ? claim.denial_reason : "unknown";
+          const reason = typeof claim?.denial_reason === "string" ? claim.denial_reason : "unknown";
           rdmLine = ` ${communityRdmMessages[reason] ?? `No bonus RDM (${reason}).`}`;
         }
       }
@@ -984,6 +1237,7 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
     toast,
     setRdmFromProfile,
     refreshProfile,
+    sectionBreakdown,
   ]);
 
   const handleMockShareWhatsApp = useCallback(() => {
@@ -1005,6 +1259,61 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
     if (reviewSubjectFilter === "all") return questions;
     return questions.filter((q) => q.subject === reviewSubjectFilter);
   }, [questions, reviewSubjectFilter]);
+
+  /** Persist every finished session (all scores, all retakes) with PCM breakdown. */
+  useEffect(() => {
+    if (view !== "results") return;
+    if (questions.length === 0 || endTime == null) return;
+    if (!authUser?.id) return;
+    if (mockRecordAttemptEndTimeRef.current === endTime) return;
+    mockRecordAttemptEndTimeRef.current = endTime;
+
+    const attemptKey = `${String(endTime)}:${activePaperId ?? "quick"}`;
+    let sessionKind: MockLibraryHistoryKind = "quick_mock";
+    if (activePaperId) {
+      if (activePaperSource === "past") sessionKind = "past_paper";
+      else if (activeMockPaperType === "chapter") sessionKind = "mcq_chapter";
+      else sessionKind = "mock_paper";
+    }
+
+    const headers: HeadersInit = { "Content-Type": "application/json" };
+    const token = session?.access_token;
+    if (token) headers.Authorization = `Bearer ${token}`;
+
+    void fetch("/api/mock/record-attempt", {
+      method: "POST",
+      credentials: "include",
+      headers,
+      body: JSON.stringify({
+        attemptKey,
+        sessionKind,
+        catalogPaperId: activePaperId && activePaperSource === "mock" ? activePaperId : null,
+        pastPaperId: activePaperId && activePaperSource === "past" ? activePaperId : null,
+        paperSlug: activePaperSlug,
+        paperTitle: activeExamTitle ?? "Mock session",
+        correct: correctCount,
+        total: questions.length,
+        durationSeconds: timeTakenSeconds,
+        subjectBreakdown: subjectBreakdownFromSection(sectionBreakdown),
+      }),
+    }).catch(() => {
+      /* Non-blocking; history still shows legacy catalog/community rows */
+    });
+  }, [
+    view,
+    questions.length,
+    endTime,
+    authUser?.id,
+    activePaperId,
+    activePaperSlug,
+    activePaperSource,
+    activeMockPaperType,
+    activeExamTitle,
+    correctCount,
+    sectionBreakdown,
+    timeTakenSeconds,
+    session?.access_token,
+  ]);
 
   /** Catalog mock: optional +50 RDM when server confirms score >= 60% (IST day + per-paper rules). */
   useEffect(() => {
@@ -1060,14 +1369,16 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
         const messages: Record<string, string> = {
           below_60: "Need at least 60% (correct ÷ total questions) for this bonus.",
           already_claimed_paper: `You already received the +${mockScoreBonusRdm} RDM bonus for this catalog paper.`,
-          already_claimed_today:
-            `You already claimed a catalog mock +${mockScoreBonusRdm} RDM bonus today (India time). Try another paper tomorrow.`,
+          already_claimed_today: `You already claimed a catalog mock +${mockScoreBonusRdm} RDM bonus today (India time). Try another paper tomorrow.`,
           paper_not_found: "This paper is not eligible for the bonus.",
           invalid_payload: "Could not verify answers with the server.",
           no_questions: "This paper has no questions in the database.",
           unauthenticated: "Sign in to claim RDM bonuses.",
         };
-        toast({ title: "Mock bonus (RDM)", description: messages[reason] ?? `No bonus: ${reason}` });
+        toast({
+          title: "Mock bonus (RDM)",
+          description: messages[reason] ?? `No bonus: ${reason}`,
+        });
       })
       .catch(() => {
         toast({
@@ -1158,12 +1469,41 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
               accuracy={overallAccuracy}
               subjects={subjects}
               onStartMock={handleQuickStartMock}
-              onViewAll={() => router.push("/mock-test?tab=past")}
+              onViewAll={() => {
+                const cbseMcqCompanion =
+                  isOnboardingTaskCompanionLaunched("prep_mcq") || showCbseMcqViewAllGuide;
+                if (cbseMcqCompanion) {
+                  markOnboardingStepComplete("prep_mcq", 0);
+                  advanceCbseMcqToTabStep();
+                  setShowCbseMcqViewAllGuide(false);
+                  router.push(cbseMcqOnboardingLibraryHref());
+                  return;
+                }
+                router.push("/mock-test?tab=past");
+              }}
+              showCbseMcqViewAllGuide={showCbseMcqViewAllGuide}
+              showClassesViewAllGuide={showPrepClassesViewAllGuide}
+              classesViewAllHref={
+                showPrepClassesViewAllGuide ? prepClassesOnboardingClassroomsHref() : "/classrooms"
+              }
+              onClassesViewAllClick={() => {
+                if (!showPrepClassesViewAllGuide) return;
+                clearPrepClassesViewAllGuideStep();
+                setShowPrepClassesViewAllGuide(false);
+              }}
               featuredPaper={featuredDashboardPaper ?? null}
               featuredLoading={featuredCatalogLoading}
               onStartFeaturedPaper={() => {
                 const p = featuredDashboardPaper;
                 if (p) {
+                  if (
+                    monthlyAttemptsCount !== null &&
+                    mocksPerMonthLimit !== -1 &&
+                    monthlyAttemptsCount >= mocksPerMonthLimit
+                  ) {
+                    setShowUpgradeModal(true);
+                    return;
+                  }
                   router.push(`/mock-test?paper=${encodeURIComponent(p.slug ?? "")}`);
                 }
               }}
@@ -1177,7 +1517,18 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
               onBack={() => router.push("/mock")}
               isAdminUser={isAdminUser}
               libraryCollectionTab={libraryCollectionTab}
-              setLibraryCollectionTab={setLibraryCollectionTab}
+              setLibraryCollectionTab={(tab) => {
+                setLibraryCollectionTab(tab);
+                if (tab === "mcq") {
+                  if (isOnboardingTaskCompanionLaunched("prep_mcq")) {
+                    markOnboardingStepComplete("prep_mcq", 1);
+                  }
+                  if (showCbseMcqTabGuide) {
+                    clearCbseMcqTabGuideStep();
+                    setShowCbseMcqTabGuide(false);
+                  }
+                }
+              }}
               mockLibraryCategory={mockLibraryCategory}
               setMockLibraryCategory={setMockLibraryCategory}
               duration={duration}
@@ -1198,6 +1549,9 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
               catalogLoading={catalogLoading}
               catalogError={catalogError}
               openNtaInstructionsForPaper={openNtaInstructionsForPaper}
+              showCbseMcqTabGuide={showCbseMcqTabGuide && libraryCollectionTab !== "mcq"}
+              monthlyAttemptsCount={monthlyAttemptsCount}
+              mocksPerMonthLimit={mocksPerMonthLimit}
             />
           )}
 
@@ -1274,6 +1628,19 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
               exit={{ opacity: 0 }}
               className="max-w-4xl mx-auto space-y-8"
             >
+              <div className="flex justify-start">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="rounded-xl gap-1.5 font-semibold"
+                  onClick={handleBackFromResults}
+                >
+                  <ArrowLeft className="h-4 w-4 shrink-0" />
+                  Back to mock tests
+                </Button>
+              </div>
+
               <div className="edu-page-header text-center">
                 <div className="text-6xl mb-4">
                   {correctCount >= questions.length * 0.8
@@ -1389,8 +1756,9 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
                     </Button>
                   </div>
                   <p className="mt-2 text-sm font-semibold text-foreground dark:text-slate-200">
-                    <strong>Share bonus today:</strong> up to <strong>{`+${mockShareRewardRdm} RDM`}</strong> on a
-                    verified <strong>Post to Community</strong> share. <strong>WhatsApp</strong> is for
+                    <strong>Share bonus today:</strong> up to{" "}
+                    <strong>{`+${mockShareRewardRdm} RDM`}</strong> on a verified{" "}
+                    <strong>Post to Community</strong> share. <strong>WhatsApp</strong> is for
                     external sharing only.
                   </p>
                   <Dialog open={mockPostPreviewOpen} onOpenChange={setMockPostPreviewOpen}>
@@ -1557,20 +1925,7 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
                   size="lg"
                   variant="outline"
                   className="rounded-xl font-bold"
-                  onClick={() => {
-                    if (isLibraryPage) {
-                      setView("setup");
-                    } else {
-                      router.push("/mock-test");
-                    }
-                    setQuestions([]);
-                    setAnswers({});
-                    setActiveExamTitle(null);
-                    setActivePaperId(null);
-                    setActivePaperSlug(null);
-                    mockRdmBonusClaimEndTimeRef.current = null;
-                    setVisitedQuestionIds(new Set());
-                  }}
+                  onClick={handleBackFromResults}
                 >
                   <RotateCcw className="w-5 h-5 mr-2" />
                   Try another mock
@@ -1579,6 +1934,57 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
             </motion.div>
           )}
         </AnimatePresence>
+
+        <Dialog open={showUpgradeModal} onOpenChange={setShowUpgradeModal}>
+          <DialogContent className="sm:max-w-[480px] bg-slate-950/95 border-slate-800 text-white rounded-2xl overflow-hidden shadow-2xl backdrop-blur-xl">
+            <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 via-transparent to-pink-500/10 pointer-events-none" />
+            <div className="relative p-6 flex flex-col items-center text-center space-y-6">
+              <div className="relative flex items-center justify-center w-16 h-16 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 shadow-[0_0_20px_rgba(99,102,241,0.2)] animate-pulse">
+                <ClipboardList className="w-8 h-8" />
+              </div>
+
+              <div className="space-y-2">
+                <DialogTitle className="text-2xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-indigo-200 to-indigo-400">
+                  UPGRADE PREMIUM TO UNLOCK
+                </DialogTitle>
+                <div className="text-sm text-slate-400 font-medium px-4 leading-relaxed space-y-3">
+                  <p>
+                    You have reached your limit of{" "}
+                    <span className="text-indigo-300 font-bold">{mocksPerMonthLimit} tests</span>{" "}
+                    per month on the Free plan.
+                  </p>
+                  <div className="mt-3 text-xs text-slate-400 border border-slate-800/80 bg-slate-900/60 rounded-xl p-3 inline-block">
+                    Next attempts unlock on:{" "}
+                    <span className="text-indigo-400 font-semibold">
+                      {getNextResetDateFormatted()}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="w-full pt-2 flex flex-col gap-3">
+                <Button
+                  type="button"
+                  onClick={() => {
+                    setShowUpgradeModal(false);
+                    router.push("/profile?section=sub-plans");
+                  }}
+                  className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-extrabold rounded-xl py-6 text-base shadow-[0_4px_20px_rgba(99,102,241,0.3)] transition-all hover:scale-[1.02]"
+                >
+                  Upgrade to Premium
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setShowUpgradeModal(false)}
+                  className="w-full text-slate-400 hover:text-white hover:bg-white/5 font-semibold py-4 rounded-xl text-sm"
+                >
+                  Go Back
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </AppLayout>
     </ProtectedRoute>
   );

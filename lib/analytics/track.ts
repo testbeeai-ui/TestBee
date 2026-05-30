@@ -25,11 +25,7 @@ function getSessionId(): string {
 /**
  * Track a student event. Fire-and-forget ΓÇö does not block or throw.
  */
-export function track(
-  eventName: string,
-  data?: Record<string, unknown>,
-  userId?: string
-): void {
+export function track(eventName: string, data?: Record<string, unknown>, userId?: string): void {
   try {
     const body = JSON.stringify({
       event_name: eventName,
@@ -55,9 +51,19 @@ export function track(
   }
 }
 
+let lastPageViewKey: string | null = null;
+let lastPageViewAt = 0;
+const PAGE_VIEW_DEDUPE_MS = 5_000;
+
 /**
  * Track a page view. Call this from a route change listener.
  */
 export function trackPageView(path: string): void {
+  const now = Date.now();
+  if (lastPageViewKey === path && now - lastPageViewAt < PAGE_VIEW_DEDUPE_MS) {
+    return;
+  }
+  lastPageViewKey = path;
+  lastPageViewAt = now;
   track("page_view", { path });
 }

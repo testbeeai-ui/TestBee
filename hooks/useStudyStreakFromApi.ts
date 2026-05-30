@@ -4,7 +4,11 @@ import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { getClientApiAuthHeaders } from "@/lib/auth/clientApiAuth";
 import { EDUBLAST_STUDY_DAYS_REFRESH } from "@/lib/dashboard/studyDayBumpEvents";
-import { addDaysLocal, localDayKeyFromDate, startOfLocalDay } from "@/lib/dashboard/dashboardDayActivity";
+import {
+  addDaysLocal,
+  localDayKeyFromDate,
+  startOfLocalDay,
+} from "@/lib/dashboard/dashboardDayActivity";
 import { computeStudyStreakFromDayMs } from "@/lib/dashboard/studyStreakClient";
 
 /**

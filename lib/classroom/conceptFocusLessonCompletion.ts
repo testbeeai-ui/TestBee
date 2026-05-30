@@ -63,7 +63,9 @@ export function getConceptFocusLessonMarkedAtIso(
   const key = engagementKeyForConceptFocusChapterQuiz(ref);
   const snap = (store as Record<string, unknown>)[key];
   if (!snap || typeof snap !== "object" || Array.isArray(snap)) return null;
-  const markedAt = String((snap as Record<string, unknown>).lessonChecklistMarkedCompleteAt ?? "").trim();
+  const markedAt = String(
+    (snap as Record<string, unknown>).lessonChecklistMarkedCompleteAt ?? ""
+  ).trim();
   return markedAt || null;
 }
 

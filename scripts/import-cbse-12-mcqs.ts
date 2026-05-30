@@ -81,10 +81,7 @@ const CHAPTER_ID_ALIASES: Record<11 | 12, Record<string, string>> = {
 };
 
 /** Same examSetName in different NCERT subjects (e.g. Thermodynamics). */
-const FOLDER_CHAPTER_ALIASES: Record<
-  11 | 12,
-  Partial<Record<Subject, Record<string, string>>>
-> = {
+const FOLDER_CHAPTER_ALIASES: Record<11 | 12, Partial<Record<Subject, Record<string, string>>>> = {
   12: {},
   11: {
     physics: { thermodynamics: "p11-12" },
@@ -199,7 +196,11 @@ async function importOneFile(
   try {
     exam = JSON.parse(fs.readFileSync(filePath, "utf8")) as ExamJson;
   } catch (e) {
-    return { ok: false, file: rel, error: `JSON parse: ${e instanceof Error ? e.message : String(e)}` };
+    return {
+      ok: false,
+      file: rel,
+      error: `JSON parse: ${e instanceof Error ? e.message : String(e)}`,
+    };
   }
 
   const examSetName = (exam.examSetName ?? "").trim();
@@ -279,13 +280,16 @@ async function importOneFile(
           question_count: batch.length,
           marking_scheme: CBSE_NCERT_CHAPTER_MARKING,
           class_level: classLevel,
-          tags: ["CBSE", `Class ${classLevel}`, "NCERT", examTypeName, chapter.name].filter(Boolean),
+          tags: ["CBSE", `Class ${classLevel}`, "NCERT", examTypeName, chapter.name].filter(
+            Boolean
+          ),
           subjects_covered: [folderSubject],
           published: true,
         })
         .select("id")
         .single();
-      if (paperErr || !data) throw new Error(shortError(paperErr?.message ?? "mock_papers insert failed"));
+      if (paperErr || !data)
+        throw new Error(shortError(paperErr?.message ?? "mock_papers insert failed"));
       return data;
     });
 
@@ -330,10 +334,7 @@ function parseClassLevel(): 11 | 12 {
   return 12;
 }
 
-async function syncChapterCatalog(
-  supabase: SupabaseAdmin,
-  classLevel: 11 | 12
-): Promise<void> {
+async function syncChapterCatalog(supabase: SupabaseAdmin, classLevel: 11 | 12): Promise<void> {
   const subjects = MCQ_CHAPTERS[classLevel];
   const rows: {
     chapter_id: string;
@@ -355,7 +356,9 @@ async function syncChapterCatalog(
       });
     });
   }
-  const { error } = await supabase.from("cbse_mcq_chapters").upsert(rows, { onConflict: "chapter_id" });
+  const { error } = await supabase
+    .from("cbse_mcq_chapters")
+    .upsert(rows, { onConflict: "chapter_id" });
   if (error) throw new Error(`cbse_mcq_chapters upsert: ${shortError(error.message)}`);
 }
 
@@ -379,7 +382,12 @@ async function main() {
   if (onlyChapterId) {
     files = files.filter(({ filePath, subject }) => {
       const exam = JSON.parse(fs.readFileSync(filePath, "utf8")) as ExamJson;
-      const ch = resolveChapter(chapterLookup, (exam.examSetName ?? "").trim(), subject, classLevel);
+      const ch = resolveChapter(
+        chapterLookup,
+        (exam.examSetName ?? "").trim(),
+        subject,
+        classLevel
+      );
       return ch?.id === onlyChapterId;
     });
     if (files.length === 0) {

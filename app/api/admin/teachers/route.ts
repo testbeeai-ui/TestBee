@@ -58,9 +58,7 @@ export async function GET(request: Request) {
 
     const profilesRes = await admin
       .from("profiles")
-      .select(
-        "id, name, role, subjects, teaching_levels, google_connected, created_at, updated_at"
-      )
+      .select("id, name, role, subjects, teaching_levels, google_connected, created_at, updated_at")
       .eq("role", "teacher")
       .order("created_at", { ascending: false })
       .limit(5000);
@@ -84,10 +82,7 @@ export async function GET(request: Request) {
 
     const [classroomsRes, postsRes, sessionsRes] = await Promise.all([
       teacherIds.length
-        ? (admin as any)
-            .from("classrooms")
-            .select("id, teacher_id")
-            .in("teacher_id", teacherIds)
+        ? (admin as any).from("classrooms").select("id, teacher_id").in("teacher_id", teacherIds)
         : Promise.resolve({ data: [], error: null }),
       teacherIds.length
         ? admin
@@ -105,7 +100,8 @@ export async function GET(request: Request) {
 
     if (classroomsRes.error)
       return NextResponse.json({ error: classroomsRes.error.message }, { status: 500 });
-    if (postsRes.error) return NextResponse.json({ error: postsRes.error.message }, { status: 500 });
+    if (postsRes.error)
+      return NextResponse.json({ error: postsRes.error.message }, { status: 500 });
     if (sessionsRes.error)
       return NextResponse.json({ error: sessionsRes.error.message }, { status: 500 });
 
@@ -147,7 +143,10 @@ export async function GET(request: Request) {
     const teacherIdByClassroomId = new Map<string, string>();
     for (const c of classroomRows) {
       teacherIdByClassroomId.set(c.id, c.teacher_id);
-      classroomCountByTeacher.set(c.teacher_id, (classroomCountByTeacher.get(c.teacher_id) ?? 0) + 1);
+      classroomCountByTeacher.set(
+        c.teacher_id,
+        (classroomCountByTeacher.get(c.teacher_id) ?? 0) + 1
+      );
     }
     for (const s of sectionRows) {
       const tid = teacherIdByClassroomId.get(s.classroom_id);
@@ -228,11 +227,23 @@ export async function GET(request: Request) {
         return Number.isFinite(ts) && ts >= thirtyDaysAgoMs;
       }).length;
       const googleConnectedTeachers = directory.filter((r) => r.googleConnected).length;
-      const classroomsTotal = Array.from(classroomCountByTeacher.values()).reduce((a, b) => a + b, 0);
+      const classroomsTotal = Array.from(classroomCountByTeacher.values()).reduce(
+        (a, b) => a + b,
+        0
+      );
       const sectionsTotal = Array.from(sectionsCountByTeacher.values()).reduce((a, b) => a + b, 0);
-      const assignmentsTotal = Array.from(assignmentsCountByTeacher.values()).reduce((a, b) => a + b, 0);
-      const upcomingSessionsTotal = Array.from(upcomingSessionsByTeacher.values()).reduce((a, b) => a + b, 0);
-      const motivationActionsTotal = Array.from(motivationCountByTeacher.values()).reduce((a, b) => a + b, 0);
+      const assignmentsTotal = Array.from(assignmentsCountByTeacher.values()).reduce(
+        (a, b) => a + b,
+        0
+      );
+      const upcomingSessionsTotal = Array.from(upcomingSessionsByTeacher.values()).reduce(
+        (a, b) => a + b,
+        0
+      );
+      const motivationActionsTotal = Array.from(motivationCountByTeacher.values()).reduce(
+        (a, b) => a + b,
+        0
+      );
 
       const summary: Summary = {
         totalTeachers,
@@ -257,4 +268,3 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
-

@@ -20,6 +20,7 @@ import { safeGetSession } from "@/lib/auth/safeSession";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { IntelligenceHubEntryCard } from "@/components/admin/IntelligenceHubEntryCard";
 
 type AnalyticsPayload = {
   kpis: {
@@ -111,7 +112,7 @@ export default function AdminDashboardPage() {
       { label: "Total RDM", value: formatNumber(data.kpis.totalRdm) },
       { label: "Lifetime RDM", value: formatNumber(data.kpis.lifetimeRdm) },
       { label: "Saved Content", value: formatNumber(data.kpis.totalSavedItems) },
-      { label: "AI Calls", value: formatNumber(data.kpis.aiCalls) },
+      { label: "AI Calls", value: formatNumber(data.kpis.aiCalls), pairedIntelligence: true },
     ];
   }, [data]);
 
@@ -145,28 +146,48 @@ export default function AdminDashboardPage() {
       {data ? (
         <>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            {kpiCards.map((item) => (
-              <Card
-                key={item.label}
-                size="sm"
-                className={("href" in item ? "transition-colors hover:bg-muted/40" : "") as string}
-              >
-                <CardHeader className="pb-2">
-                  <CardDescription className="flex items-center justify-between">
-                    <span>{item.label}</span>
-                    {"href" in item ? (
-                      <a
-                        href={item.href}
-                        className="text-xs font-medium text-primary hover:underline"
-                      >
-                        View
-                      </a>
-                    ) : null}
-                  </CardDescription>
-                  <CardTitle className="text-2xl font-bold">{item.value}</CardTitle>
-                </CardHeader>
-              </Card>
-            ))}
+            {kpiCards.map((item) => {
+              if ("pairedIntelligence" in item && item.pairedIntelligence) {
+                return (
+                  <div
+                    key={item.label}
+                    className="grid gap-3 sm:col-span-2 xl:col-span-2 sm:grid-cols-2"
+                  >
+                    <Card size="sm">
+                      <CardHeader className="pb-2">
+                        <CardDescription>{item.label}</CardDescription>
+                        <CardTitle className="text-2xl font-bold">{item.value}</CardTitle>
+                      </CardHeader>
+                    </Card>
+                    <IntelligenceHubEntryCard />
+                  </div>
+                );
+              }
+              return (
+                <Card
+                  key={item.label}
+                  size="sm"
+                  className={
+                    ("href" in item ? "transition-colors hover:bg-muted/40" : "") as string
+                  }
+                >
+                  <CardHeader className="pb-2">
+                    <CardDescription className="flex items-center justify-between">
+                      <span>{item.label}</span>
+                      {"href" in item ? (
+                        <a
+                          href={item.href}
+                          className="text-xs font-medium text-primary hover:underline"
+                        >
+                          View
+                        </a>
+                      ) : null}
+                    </CardDescription>
+                    <CardTitle className="text-2xl font-bold">{item.value}</CardTitle>
+                  </CardHeader>
+                </Card>
+              );
+            })}
           </div>
 
           <div className="grid gap-4 xl:grid-cols-2">

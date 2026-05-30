@@ -29,6 +29,7 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Local Claude worktree / copies — not the app under active development; avoids duplicate lint noise.
     ".claude/**",
+    "scripts/legacy/**",
   ]),
 ]);
 

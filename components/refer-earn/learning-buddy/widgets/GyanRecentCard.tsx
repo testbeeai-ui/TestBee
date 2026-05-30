@@ -8,11 +8,7 @@ import { TileFrame } from "./TileFrame";
 
 const LIST_LIMIT = 5;
 
-export function GyanRecentCard({
-  rows,
-}: {
-  rows: BuddyDashboardResponse["gyanRecent"];
-}) {
+export function GyanRecentCard({ rows }: { rows: BuddyDashboardResponse["gyanRecent"] }) {
   const items = rows.slice(0, LIST_LIMIT);
 
   return (

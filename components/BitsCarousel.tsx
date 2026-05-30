@@ -26,7 +26,8 @@ export function BitsCarousel({ bits, onUnsave }: BitsCarouselProps) {
           onClick={() => setIndex((i) => Math.max(0, i - 1))}
           disabled={index === 0}
         >
-          <ChevronLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> <span className="hidden sm:inline">Previous</span>
+          <ChevronLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" />{" "}
+          <span className="hidden sm:inline">Previous</span>
         </Button>
         <span className="text-[11px] font-bold text-muted-foreground sm:text-sm">
           {index + 1}/{bits.length}
@@ -38,7 +39,8 @@ export function BitsCarousel({ bits, onUnsave }: BitsCarouselProps) {
           onClick={() => setIndex((i) => Math.min(bits.length - 1, i + 1))}
           disabled={index === bits.length - 1}
         >
-          <span className="hidden sm:inline">Next</span> <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+          <span className="hidden sm:inline">Next</span>{" "}
+          <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
         </Button>
       </div>
       <InteractiveBit key={bit.id} bit={bit} onUnsave={onUnsave} />

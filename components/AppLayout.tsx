@@ -26,6 +26,9 @@ import BreakScreen from "@/components/BreakScreen";
 import RecallExercise from "@/components/RecallExercise";
 import { useStreakTimer } from "@/hooks/useStreakTimer";
 import AgentOrchestratorRunner from "@/components/AgentOrchestratorRunner";
+import { OnboardingRewardToastListener } from "@/components/onboarding/OnboardingRewardToastListener";
+import { FloatingTaskCompanion } from "@/components/onboarding/FloatingTaskCompanion";
+import { OnboardingNextTaskPrompt } from "@/components/onboarding/OnboardingNextTaskPrompt";
 import { SitePresenceProvider } from "@/components/providers/SitePresenceProvider";
 import { cn } from "@/lib/utils";
 import { TEACHER_PORTAL_CLASSROOMS_URL } from "@/lib/teacherPortal/routes";
@@ -297,6 +300,9 @@ const AppLayout = ({
           />
         )}
         {isAdminOnLocalhost && <AgentOrchestratorRunner />}
+        <OnboardingRewardToastListener />
+        <FloatingTaskCompanion />
+        <OnboardingNextTaskPrompt />
 
         {/* Footer */}
         {!isTeacher ? (

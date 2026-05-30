@@ -74,8 +74,6 @@ export function buildPlaySessionsFromAttempts<A extends AttemptLike>(
     };
   });
 
-  summaries.sort(
-    (a, b) => new Date(b.endedAt).getTime() - new Date(a.endedAt).getTime()
-  );
+  summaries.sort((a, b) => new Date(b.endedAt).getTime() - new Date(a.endedAt).getTime());
   return summaries;
 }

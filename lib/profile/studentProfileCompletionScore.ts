@@ -48,16 +48,27 @@ function clampPct(n: number): number {
   return Math.max(0, Math.min(100, n));
 }
 
-function academicRowForSlot(rows: AcademicRowLite[], slot: "class_x" | "puc_i" | "puc_ii"): AcademicRowLite | null {
+function academicRowForSlot(
+  rows: AcademicRowLite[],
+  slot: "class_x" | "puc_i" | "puc_ii"
+): AcademicRowLite | null {
   const examIncludes = (exam: string, keyword: string) => exam.toLowerCase().includes(keyword);
   for (const row of rows) {
     const exam = row.exam.toLowerCase();
-    if (slot === "class_x" && (examIncludes(exam, "class x") || examIncludes(exam, "class 10"))) return row;
-    if (slot === "puc_i" && (examIncludes(exam, "puc i") || examIncludes(exam, "class xi") || examIncludes(exam, "class 11")))
+    if (slot === "class_x" && (examIncludes(exam, "class x") || examIncludes(exam, "class 10")))
+      return row;
+    if (
+      slot === "puc_i" &&
+      (examIncludes(exam, "puc i") ||
+        examIncludes(exam, "class xi") ||
+        examIncludes(exam, "class 11"))
+    )
       return row;
     if (
       slot === "puc_ii" &&
-      (examIncludes(exam, "puc ii") || examIncludes(exam, "class xii") || examIncludes(exam, "class 12"))
+      (examIncludes(exam, "puc ii") ||
+        examIncludes(exam, "class xii") ||
+        examIncludes(exam, "class 12"))
     )
       return row;
   }
@@ -88,8 +99,16 @@ function academicCompletionPct(rows: AcademicRowLite[], extras: AcademicRecordEx
   const pucII = academicRowForSlot(rows, "puc_ii");
   const subjects = extras.classXSubjects ?? {};
   const checks = [
-    classX != null && hasText(classX.board) && hasText(classX.score) && hasText(classX.academic_year) && hasText(classX.marksheet_path),
-    pucI != null && hasText(pucI.board) && hasText(pucI.score) && hasText(pucI.academic_year) && hasText(pucI.marksheet_path),
+    classX != null &&
+      hasText(classX.board) &&
+      hasText(classX.score) &&
+      hasText(classX.academic_year) &&
+      hasText(classX.marksheet_path),
+    pucI != null &&
+      hasText(pucI.board) &&
+      hasText(pucI.score) &&
+      hasText(pucI.academic_year) &&
+      hasText(pucI.marksheet_path),
     hasText(extras.puc2InternalsPercent) || (pucII != null && hasText(pucII.score)),
     hasText(subjects.physicsScience),
     hasText(subjects.mathematics),
@@ -140,6 +159,8 @@ export function computeStudentProfileCompletion(input: ProfileCompletionInput): 
     achievements: achievementsCompletionPct(input.achievements),
     activity: activityCompletionPct(input.attendance),
   };
-  const overall = Math.round((sections.personal + sections.academic + sections.achievements + sections.activity) / 4);
+  const overall = Math.round(
+    (sections.personal + sections.academic + sections.achievements + sections.activity) / 4
+  );
   return { overall, sections };
 }

@@ -59,11 +59,27 @@ import {
   isDailyDoseStreakTrackId,
 } from "@/lib/teacherPortal/dailyDoseStreakTracks";
 import {
+  fetchSubscriptionConfig,
+  SUBSCRIPTION_CONFIG_DEFAULTS,
+} from "@/lib/subscription/subscriptionConfig";
+import {
+  formatDailyDoseQuestionLabel,
+  resolveDailyDoseQuestionsForProfile,
+} from "@/lib/play/dailyDoseSessionLimits";
+import {
   DEFAULT_RDM_CONFIG,
   fetchRdmConfig,
   rdmConfigShallowEqual,
   type RdmConfigParams,
 } from "@/lib/rdm/rdmConfig";
+import { OnboardingClickHerePointer } from "@/components/onboarding/OnboardingClickHerePointer";
+import {
+  handlePlayDailyDoseGauntletComplete,
+  markPlayDailyDoseCompanionGauntletActive,
+  markPlayDailyDoseCompanionOnPlayPage,
+  markPlayDailyDoseCompanionStarted,
+  shouldShowPlayDailyDoseGuide,
+} from "@/lib/onboarding/playDailyDoseCompanionOnboarding";
 
 /** PCM only — matches Gyan++ / investor spec. */
 const PCM_CATEGORIES = [
@@ -78,7 +94,6 @@ const FUNBRAIN_STREAK_POOL = "funbrain_all";
 
 /** Streak survival: up to this many questions per run (5 min session cap). */
 const STREAK_SESSION_QUESTIONS = 10;
-const DAILYDOSE_SESSION_QUESTIONS = 10;
 
 function streakPoolForDomain(domain: PlayDomain): string {
   return domain === "academic" ? ACADEMIC_STREAK_POOL : FUNBRAIN_STREAK_POOL;
@@ -203,6 +218,9 @@ function PlayPageContent() {
   const streakTimer = useStreakTimer();
 
   const [rdmConfig, setRdmConfig] = useState<RdmConfigParams>(() => ({ ...DEFAULT_RDM_CONFIG }));
+  const [dailyDoseQuestionCount, setDailyDoseQuestionCount] = useState(() =>
+    resolveDailyDoseQuestionsForProfile(SUBSCRIPTION_CONFIG_DEFAULTS, null)
+  );
 
   const [view, setView] = useState<View>("dashboard");
   const [userStats, setUserStats] = useState<
@@ -268,6 +286,10 @@ function PlayPageContent() {
 
   // Daily Gauntlet
   const [gauntletQuestions, setGauntletQuestions] = useState<PlayQuestionRow[]>([]);
+  /** Plan-based session length (5 free trial, 10 starter/pro); set when DailyDose starts. */
+  const [gauntletSessionQuestionTotal, setGauntletSessionQuestionTotal] = useState(() =>
+    resolveDailyDoseQuestionsForProfile(SUBSCRIPTION_CONFIG_DEFAULTS, null)
+  );
   const [gauntletIndex, setGauntletIndex] = useState(0);
   const [gauntletResults, setGauntletResults] = useState<PlayGauntletAnswerPayload[]>([]);
   const gauntletResultsRef = useRef<PlayGauntletAnswerPayload[]>([]);
@@ -402,6 +424,18 @@ function PlayPageContent() {
       document.removeEventListener("visibilitychange", onVisible);
     };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const cfg = await fetchSubscriptionConfig();
+      const count = resolveDailyDoseQuestionsForProfile(cfg, profile);
+      if (!cancelled) setDailyDoseQuestionCount(count);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [profile]);
 
   const todayDate = () => {
     const d = new Date();
@@ -608,9 +642,7 @@ function PlayPageContent() {
         ? "✓ Correct!"
         : `✗ Incorrect — correct answer was option ${streakQuestion.correct_answer_index + 1}`,
     });
-    setStreakResultPauseMs(
-      remainingOptionsReviewMs(streakQTimeLeftRef.current, OPTIONS_PHASE_SEC)
-    );
+    setStreakResultPauseMs(remainingOptionsReviewMs(streakQTimeLeftRef.current, OPTIONS_PHASE_SEC));
     setStreakRoundAnswered(true);
   };
 
@@ -631,9 +663,7 @@ function PlayPageContent() {
       type: "skip",
       message: "→ Skipped — marked as unanswered",
     });
-    setStreakResultPauseMs(
-      remainingOptionsReviewMs(streakQTimeLeftRef.current, OPTIONS_PHASE_SEC)
-    );
+    setStreakResultPauseMs(remainingOptionsReviewMs(streakQTimeLeftRef.current, OPTIONS_PHASE_SEC));
     setStreakRoundAnswered(true);
   }, [streakQuestion, selectedDomain]);
 
@@ -686,14 +716,15 @@ function PlayPageContent() {
       type: "skip",
       message: "⏱ Time up — marked as unanswered",
     });
-    setStreakResultPauseMs(
-      remainingOptionsReviewMs(streakQTimeLeftRef.current, OPTIONS_PHASE_SEC)
-    );
+    setStreakResultPauseMs(remainingOptionsReviewMs(streakQTimeLeftRef.current, OPTIONS_PHASE_SEC));
     setStreakRoundAnswered(true);
   }, [streakQuestion, selectedDomain]);
 
   const checkGauntletAndStart = async (domain: PlayDomain) => {
     if (!user?.id) return;
+    if (shouldShowPlayDailyDoseGuide()) {
+      markPlayDailyDoseCompanionStarted();
+    }
     setSelectedDomain(domain);
     setGauntletLoadFailed(false);
     setGauntletLoading(true);
@@ -744,10 +775,15 @@ function PlayPageContent() {
         /* ignore */
       }
     }
+    const cfg = await fetchSubscriptionConfig();
+    const sessionCount = resolveDailyDoseQuestionsForProfile(cfg, profile);
+    setDailyDoseQuestionCount(sessionCount);
+    setGauntletSessionQuestionTotal(sessionCount);
+
     const questions = await fetchDailyGauntletQuestionsWithFallback(supabase, {
       domain,
       dateIso: today,
-      questionCount: DAILYDOSE_SESSION_QUESTIONS,
+      questionCount: sessionCount,
     });
     setGauntletLoading(false);
     if (questions.length === 0) {
@@ -758,7 +794,8 @@ function PlayPageContent() {
       setLeaderboard([]);
       return;
     }
-    setGauntletQuestions(questions.map((q) => shufflePlayQuestionOptions(q)));
+    const sessionQuestions = questions.slice(0, sessionCount);
+    setGauntletQuestions(sessionQuestions.map((q) => shufflePlayQuestionOptions(q)));
     setGauntletIndex(0);
     setGauntletResults([]);
     setGauntletSubmitted(null);
@@ -771,6 +808,7 @@ function PlayPageContent() {
     gauntletSessionEndRef.current = false;
     gauntletSubmitLockRef.current = false;
     setView("gauntlet");
+    markPlayDailyDoseCompanionGauntletActive();
   };
 
   const fetchLeaderboard = async (date: string, domain: PlayDomain = "funbrain") => {
@@ -884,8 +922,26 @@ function PlayPageContent() {
       setGauntletSubmitted({ correct_count: localCorrect, total_time_ms: localTimeMs });
       setView("gauntlet_result");
       void fetchLeaderboard(today, currentDomain);
+
+      if (uid) {
+        handlePlayDailyDoseGauntletComplete({
+          userId: uid,
+          claimedAt: profile?.onboarding_reward_claimed_at ?? null,
+          nowMs: Date.now() + (profile?.time_travel_offset_ms ?? 0),
+          questionCount: results.length,
+          requiredQuestionCount: dailyDoseQuestionCount,
+        });
+      }
     },
-    [selectedDomain, user?.id, isPlayAdmin, refreshProfile]
+    [
+      selectedDomain,
+      user?.id,
+      isPlayAdmin,
+      refreshProfile,
+      profile?.onboarding_reward_claimed_at,
+      profile?.time_travel_offset_ms,
+      dailyDoseQuestionCount,
+    ]
   );
 
   const handleGauntletNext = useCallback(() => {
@@ -989,6 +1045,12 @@ function PlayPageContent() {
   const academicLiveStreak = view === "streak" && selectedDomain === "academic";
   const funbrainLiveGauntlet = view === "gauntlet" && selectedDomain === "funbrain";
   const funbrainLiveStreak = view === "streak" && selectedDomain === "funbrain";
+  const showDailyDoseGuide = view === "dashboard" && shouldShowPlayDailyDoseGuide();
+
+  useEffect(() => {
+    if (view !== "dashboard") return;
+    markPlayDailyDoseCompanionOnPlayPage();
+  }, [view]);
 
   const academicClockSec = academicLiveGauntlet
     ? gauntletSessionLeft
@@ -1201,7 +1263,7 @@ function PlayPageContent() {
                             ? `${gauntletTotalQ} questions · 5 min session`
                             : academicLiveStreak
                               ? "Streak · 10 Q max · 5 min session"
-                              : "10 questions · 5 min total"}
+                              : `${formatDailyDoseQuestionLabel(dailyDoseQuestionCount)} · 5 min total`}
                         </div>
                         <div className="text-[11px] text-zinc-600 dark:text-[#f0f0ff]/52 mt-1 leading-snug">
                           {academicLiveGauntlet
@@ -1268,40 +1330,48 @@ function PlayPageContent() {
                     </TooltipContent>
                   </Tooltip>
 
-                  <button
-                    type="button"
-                    className={cn(
-                      "w-full flex items-center justify-center gap-2 rounded-[11px] border py-3 text-[13px] font-semibold mb-1.5 transition-colors",
-                      academicDoseLocked
-                        ? "border-emerald-400/45 text-emerald-800 bg-emerald-500/10 cursor-default opacity-95 dark:border-emerald-500/30 dark:text-emerald-300 dark:bg-emerald-500/12"
-                        : cn(
-                            "border-zinc-200 bg-zinc-100/50 text-zinc-700 hover:bg-zinc-100",
-                            "dark:border-white/[0.11] dark:bg-white/[0.06] dark:text-[#f0f0ff]/70 dark:hover:bg-white/10"
-                          )
-                    )}
-                    onClick={() => !academicDoseLocked && checkGauntletAndStart("academic")}
-                    disabled={streakLoading || gauntletLoading || academicDoseLocked}
-                  >
-                    {academicDoseLocked ? (
-                      <>
-                        <Check className="h-4 w-4 shrink-0" strokeWidth={2.5} />
-                        DailyDose — Done (+{rdmConfig.play_dailydose_academic_rdm} RDM)
-                      </>
-                    ) : gauntletLoading && selectedDomain === "academic" ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <>
-                        <Clock className="h-4 w-4 opacity-80" />
-                        DailyDose — all subjects (+{rdmConfig.play_dailydose_academic_rdm} RDM)
-                      </>
-                    )}
-                  </button>
+                  <div className="relative">
+                    {showDailyDoseGuide ? (
+                      <div className="pointer-events-none absolute -top-11 left-1/2 z-20 -translate-x-1/2">
+                        <OnboardingClickHerePointer label="Click here" variant="emerald" />
+                      </div>
+                    ) : null}
+                    <button
+                      type="button"
+                      data-play-dailydose="1"
+                      className={cn(
+                        "w-full flex items-center justify-center gap-2 rounded-[11px] border py-3 text-[13px] font-semibold mb-1.5 transition-colors",
+                        academicDoseLocked
+                          ? "border-emerald-400/45 text-emerald-800 bg-emerald-500/10 cursor-default opacity-95 dark:border-emerald-500/30 dark:text-emerald-300 dark:bg-emerald-500/12"
+                          : cn(
+                              "border-zinc-200 bg-zinc-100/50 text-zinc-700 hover:bg-zinc-100",
+                              "dark:border-white/[0.11] dark:bg-white/[0.06] dark:text-[#f0f0ff]/70 dark:hover:bg-white/10"
+                            )
+                      )}
+                      onClick={() => !academicDoseLocked && checkGauntletAndStart("academic")}
+                      disabled={streakLoading || gauntletLoading || academicDoseLocked}
+                    >
+                      {academicDoseLocked ? (
+                        <>
+                          <Check className="h-4 w-4 shrink-0" strokeWidth={2.5} />
+                          DailyDose — Done (+{rdmConfig.play_dailydose_academic_rdm} RDM)
+                        </>
+                      ) : gauntletLoading && selectedDomain === "academic" ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <>
+                          <Clock className="h-4 w-4 opacity-80" />
+                          DailyDose — all subjects (+{rdmConfig.play_dailydose_academic_rdm} RDM)
+                        </>
+                      )}
+                    </button>
+                  </div>
 
                   <div className="flex flex-wrap items-center justify-between gap-2 mt-1.5 text-[10px] text-zinc-400 dark:text-[#f0f0ff]/30">
                     <span>
                       {isPlayAdmin
-                        ? "DailyDose 30s/Q (20+10) · Streak 10 Q/5 min · auto next · unlimited (admin)"
-                        : `DailyDose +${rdmConfig.play_dailydose_academic_rdm} RDM (full run) · 30s/Q (20+10) · 1/day · Streak 10 Q/5 min · auto next · 1/day`}
+                        ? `DailyDose ${dailyDoseQuestionCount} Q · 30s/Q (20+10) · Streak 10 Q/5 min · auto next · unlimited (admin)`
+                        : `DailyDose ${dailyDoseQuestionCount} Q (+${rdmConfig.play_dailydose_academic_rdm} RDM full run) · 30s/Q (20+10) · 1/day · Streak 10 Q/5 min · auto next · 1/day`}
                     </span>
                     <button
                       type="button"
@@ -1480,7 +1550,7 @@ function PlayPageContent() {
                             ? `${gauntletTotalQ} questions · 5 min session`
                             : funbrainLiveStreak
                               ? "Streak · 10 Q max · 5 min session"
-                              : "10 questions · 5 min total"}
+                              : `${formatDailyDoseQuestionLabel(dailyDoseQuestionCount)} · 5 min total`}
                         </div>
                         <div className="text-[11px] text-zinc-600 dark:text-[#f0f0ff]/52 mt-1 leading-snug">
                           {funbrainLiveGauntlet
@@ -1573,40 +1643,48 @@ function PlayPageContent() {
                     </TooltipContent>
                   </Tooltip>
 
-                  <button
-                    type="button"
-                    className={cn(
-                      "w-full flex items-center justify-center gap-2 rounded-[11px] border py-3 text-[13px] font-semibold mb-1.5",
-                      funbrainDoseLocked
-                        ? "border-emerald-300/50 text-emerald-700 bg-emerald-500/8 cursor-default opacity-90 dark:border-emerald-500/25 dark:text-emerald-400"
-                        : cn(
-                            "border-zinc-200 bg-zinc-100/50 text-zinc-700 hover:bg-zinc-100",
-                            "dark:border-white/[0.11] dark:bg-white/[0.06] dark:text-[#f0f0ff]/70 dark:hover:bg-white/10"
-                          )
-                    )}
-                    onClick={() => !funbrainDoseLocked && checkGauntletAndStart("funbrain")}
-                    disabled={streakLoading || gauntletLoading || funbrainDoseLocked}
-                  >
-                    {funbrainDoseLocked ? (
-                      <>
-                        <Check className="h-4 w-4 shrink-0" strokeWidth={2.5} />
-                        DailyDose — Done (+{rdmConfig.play_dailydose_funbrain_rdm} RDM)
-                      </>
-                    ) : gauntletLoading && selectedDomain === "funbrain" ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <>
-                        <Trophy className="h-4 w-4 opacity-80" />
-                        DailyDose — all modes (+{rdmConfig.play_dailydose_funbrain_rdm} RDM)
-                      </>
-                    )}
-                  </button>
+                  <div className="relative">
+                    {showDailyDoseGuide ? (
+                      <div className="pointer-events-none absolute -top-11 left-1/2 z-20 -translate-x-1/2">
+                        <OnboardingClickHerePointer label="Click here" variant="emerald" />
+                      </div>
+                    ) : null}
+                    <button
+                      type="button"
+                      data-play-dailydose="1"
+                      className={cn(
+                        "w-full flex items-center justify-center gap-2 rounded-[11px] border py-3 text-[13px] font-semibold mb-1.5",
+                        funbrainDoseLocked
+                          ? "border-emerald-300/50 text-emerald-700 bg-emerald-500/8 cursor-default opacity-90 dark:border-emerald-500/25 dark:text-emerald-400"
+                          : cn(
+                              "border-zinc-200 bg-zinc-100/50 text-zinc-700 hover:bg-zinc-100",
+                              "dark:border-white/[0.11] dark:bg-white/[0.06] dark:text-[#f0f0ff]/70 dark:hover:bg-white/10"
+                            )
+                      )}
+                      onClick={() => !funbrainDoseLocked && checkGauntletAndStart("funbrain")}
+                      disabled={streakLoading || gauntletLoading || funbrainDoseLocked}
+                    >
+                      {funbrainDoseLocked ? (
+                        <>
+                          <Check className="h-4 w-4 shrink-0" strokeWidth={2.5} />
+                          DailyDose — Done (+{rdmConfig.play_dailydose_funbrain_rdm} RDM)
+                        </>
+                      ) : gauntletLoading && selectedDomain === "funbrain" ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <>
+                          <Trophy className="h-4 w-4 opacity-80" />
+                          DailyDose — all modes (+{rdmConfig.play_dailydose_funbrain_rdm} RDM)
+                        </>
+                      )}
+                    </button>
+                  </div>
 
                   <div className="flex flex-wrap items-center justify-between gap-2 mt-1.5 text-[10px] text-zinc-400 dark:text-[#f0f0ff]/30">
                     <span>
                       {isPlayAdmin
-                        ? "DailyDose 30s/Q (20+10) · ranked · Streak 10 Q/5 min · auto next · unlimited (admin)"
-                        : `DailyDose +${rdmConfig.play_dailydose_funbrain_rdm} RDM (full run) · ranked · 30s/Q (20+10) · Streak 10 Q/5 min · auto next · 1/day each`}
+                        ? `DailyDose ${dailyDoseQuestionCount} Q · 30s/Q (20+10) · ranked · Streak 10 Q/5 min · auto next · unlimited (admin)`
+                        : `DailyDose ${dailyDoseQuestionCount} Q (+${rdmConfig.play_dailydose_funbrain_rdm} RDM full run) · ranked · 30s/Q (20+10) · Streak 10 Q/5 min · auto next · 1/day each`}
                     </span>
                     <button
                       type="button"
@@ -1689,6 +1767,9 @@ function PlayPageContent() {
                           <div className="flex flex-wrap items-start justify-between gap-2 gap-y-2 border-b border-zinc-200/80 dark:border-white/[0.08] pb-2.5 mb-2.5">
                             <div className="text-[13px] sm:text-[15px] font-extrabold text-zinc-900 dark:text-[#f0f0ff]">
                               {ttl}
+                              <span className="ml-1.5 text-[11px] font-semibold text-zinc-500 dark:text-[#f0f0ff]/45">
+                                · Streak Survival
+                              </span>
                             </div>
                             <div className="flex flex-wrap items-center justify-end gap-x-2 gap-y-1 text-[11px] sm:text-xs font-semibold text-zinc-600 dark:text-[#f0f0ff]/70">
                               <span className="tabular-nums">Session · {streakCount} correct</span>
@@ -1754,7 +1835,8 @@ function PlayPageContent() {
                                 )}
                                 {streakQuestion.category === "mental_math" && (
                                   <span className="text-[10px] font-semibold text-zinc-500 dark:text-[#f0f0ff]/40">
-                                    20s read + 10s options · auto next · full bank cycles when finished
+                                    20s read + 10s options · auto next · full bank cycles when
+                                    finished
                                   </span>
                                 )}
                               </div>
@@ -1876,7 +1958,7 @@ function PlayPageContent() {
                   gauntletQuestions.length > 0 &&
                   (() => {
                     const ttl = selectedDomain === "funbrain" ? "Funbrain Forge" : "Academic Arena";
-                    const tot = gauntletQuestions.length;
+                    const tot = gauntletSessionQuestionTotal;
                     const idx = gauntletIndex;
                     const ptsEach = selectedDomain === "funbrain" ? 20 : 10;
                     const sc = gauntletResults.filter((r) => r.is_correct).length * ptsEach;
@@ -1895,7 +1977,7 @@ function PlayPageContent() {
                             </div>
                             <div className="flex flex-wrap items-center justify-end gap-x-2 gap-y-1 text-[11px] sm:text-xs font-semibold text-zinc-600 dark:text-[#f0f0ff]/70">
                               <span className="tabular-nums">
-                                Q {idx + 1} of {tot}
+                                Q {idx + 1}/{Math.max(1, tot)}
                               </span>
                               <span className="tabular-nums">Score: {sc}</span>
                               <span
@@ -1931,9 +2013,9 @@ function PlayPageContent() {
                               readPhaseSec={READ_PHASE_SEC}
                               optionsPhaseSec={OPTIONS_PHASE_SEC}
                               questionIndex={gauntletIndex}
-                              questionTotal={gauntletQuestions.length}
+                              questionTotal={gauntletSessionQuestionTotal}
                               dotStates={buildEduBlastDotStates(
-                                gauntletQuestions.length,
+                                gauntletSessionQuestionTotal,
                                 gauntletIndex,
                                 gauntletOutcomes
                               )}
@@ -1944,9 +2026,7 @@ function PlayPageContent() {
                               difficultyLabel={difficultyRatingToLabel(
                                 gauntletQuestions[gauntletIndex]?.difficulty_rating ?? 3
                               )}
-                              correctCount={
-                                gauntletResults.filter((r) => r.is_correct).length
-                              }
+                              correctCount={gauntletResults.filter((r) => r.is_correct).length}
                               wrongCount={gauntletOutcomes.filter((o) => o === "wrong").length}
                               skipCount={gauntletOutcomes.filter((o) => o === "skip").length}
                               playDomain={selectedDomain ?? "funbrain"}

@@ -28,12 +28,9 @@ export function normalizePost(p: DbPost): Post | null {
   if (!isSectionId(rawSection)) return null;
   if (p.portal === "news" && rawSection === "bmind") return null;
   const section: SectionId =
-    p.portal === "blog" && rawSection === "bmind"
-      ? "bmattitude"
-      : (rawSection as SectionId);
+    p.portal === "blog" && rawSection === "bmind" ? "bmattitude" : (rawSection as SectionId);
   const rp = p.revisionPlan;
-  const revisionPlan: RevisionPlanId =
-    rp === "180" || rp === "60" || rp === "3" ? rp : "";
+  const revisionPlan: RevisionPlanId = rp === "180" || rp === "60" || rp === "3" ? rp : "";
   return {
     ...p,
     portal: p.portal,
@@ -81,8 +78,7 @@ export function createInitialDraft(overrides?: Partial<Draft>): Draft {
 
 export function postToDraft(p: Post): Draft {
   const rp = p.revisionPlan;
-  const revisionPlan: RevisionPlanId =
-    rp === "180" || rp === "60" || rp === "3" ? rp : "";
+  const revisionPlan: RevisionPlanId = rp === "180" || rp === "60" || rp === "3" ? rp : "";
   return {
     portal: p.portal,
     section: p.section,

@@ -20,35 +20,41 @@ export async function GET(request: Request) {
   const monday = getIstWeekMondayDateString();
   const weekStartIso = `${monday}T00:00:00+05:30`;
 
-  const [
-    classroomsRes,
-    assignmentsRes,
-    profileRes,
-    mocksRes,
-    instacueRes,
-    studyTotalsRes,
-  ] = await Promise.all([
-    supabase.from("classroom_members").select("id", { count: "exact", head: true }).eq("user_id", user.id),
-    supabase
-      .from("classroom_assignment_task_progress")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", user.id),
-    supabase.from("profiles").select("daily_dose_streak").eq("id", user.id).maybeSingle(),
-    supabase.from("mock_rdm_bonus_attempts").select("id", { count: "exact", head: true }).eq("user_id", user.id),
-    supabase
-      .from("student_learning_dwell_events")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", user.id)
-      .eq("panel", "instacue")
-      .gte("occurred_at", weekStartIso),
-    supabase.from("user_study_day_totals" as never).select("active_ms").eq("user_id", user.id),
-  ]);
+  const [classroomsRes, assignmentsRes, profileRes, mocksRes, instacueRes, studyTotalsRes] =
+    await Promise.all([
+      supabase
+        .from("classroom_members")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id),
+      supabase
+        .from("classroom_assignment_task_progress")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id),
+      supabase.from("profiles").select("daily_dose_streak").eq("id", user.id).maybeSingle(),
+      supabase
+        .from("mock_rdm_bonus_attempts")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id),
+      supabase
+        .from("student_learning_dwell_events")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("panel", "instacue")
+        .gte("occurred_at", weekStartIso),
+      supabase
+        .from("user_study_day_totals" as never)
+        .select("active_ms")
+        .eq("user_id", user.id),
+    ]);
 
   if (classroomsRes.error) {
     console.error("[profile-attendance-summary] classroom_members", classroomsRes.error.message);
   }
   if (assignmentsRes.error) {
-    console.error("[profile-attendance-summary] classroom_assignment_task_progress", assignmentsRes.error.message);
+    console.error(
+      "[profile-attendance-summary] classroom_assignment_task_progress",
+      assignmentsRes.error.message
+    );
   }
   if (profileRes.error) {
     console.error("[profile-attendance-summary] profiles", profileRes.error.message);
@@ -57,10 +63,16 @@ export async function GET(request: Request) {
     console.error("[profile-attendance-summary] mock_rdm_bonus_attempts", mocksRes.error.message);
   }
   if (instacueRes.error) {
-    console.error("[profile-attendance-summary] student_learning_dwell_events", instacueRes.error.message);
+    console.error(
+      "[profile-attendance-summary] student_learning_dwell_events",
+      instacueRes.error.message
+    );
   }
   if (studyTotalsRes.error) {
-    console.error("[profile-attendance-summary] user_study_day_totals", studyTotalsRes.error.message);
+    console.error(
+      "[profile-attendance-summary] user_study_day_totals",
+      studyTotalsRes.error.message
+    );
   }
 
   let studyMsTotal = 0;

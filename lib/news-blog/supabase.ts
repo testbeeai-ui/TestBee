@@ -63,7 +63,9 @@ export function mapSupabaseNewsBlogPostRow(
   };
 }
 
-function mapPostToInsert(post: NewsBlogPostInsert): Database["public"]["Tables"]["news_blog_posts"]["Insert"] {
+function mapPostToInsert(
+  post: NewsBlogPostInsert
+): Database["public"]["Tables"]["news_blog_posts"]["Insert"] {
   const updatedAt = post.updatedAt ?? new Date().toISOString();
   return {
     id: post.id,

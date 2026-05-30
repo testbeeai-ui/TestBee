@@ -57,9 +57,10 @@ describe("stripUntaggedReasoning", () => {
   });
 
   it("formatSarvamAssistantReply applies untagged reasoning strip", () => {
-    const raw =
-      "Wait, I'll use parts.\n\n**Answer:** $x \\sin^{-1} x + \\sqrt{1-x^2} + C$";
-    expect(formatSarvamAssistantReply(raw)).toBe("**Answer:** $x \\sin^{-1} x + \\sqrt{1-x^2} + C$");
+    const raw = "Wait, I'll use parts.\n\n**Answer:** $x \\sin^{-1} x + \\sqrt{1-x^2} + C$";
+    expect(formatSarvamAssistantReply(raw)).toBe(
+      "**Answer:** $x \\sin^{-1} x + \\sqrt{1-x^2} + C$"
+    );
   });
 });
 
@@ -85,9 +86,9 @@ $\\int \\sin^{-1}(x)\\,dx = x\\sin^{-1}x + \\sqrt{1-x^2} + C$
 
 describe("physics structure and narration", () => {
   it("uses physics-only structure contract", () => {
-    expect(getProfPiStructureContract("physics")).toMatch(/\*\*.*Given:\*\*/);
-    expect(getProfPiStructureContract("math")).toContain("**Formula:**");
-    expect(getProfPiStructureContract("math")).not.toContain("**Given:**");
+    expect(getProfPiStructureContract("physics")).toMatch(/Given:/);
+    expect(getProfPiStructureContract("math")).toContain("Formula:");
+    expect(getProfPiStructureContract("math")).not.toContain("Given:");
   });
 
   it("detects physics ramble drafts", () => {

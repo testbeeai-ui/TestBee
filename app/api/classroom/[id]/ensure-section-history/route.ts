@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminClient, createClient, createClientWithToken } from "@/integrations/supabase/server";
+import {
+  createAdminClient,
+  createClient,
+  createClientWithToken,
+} from "@/integrations/supabase/server";
 
 /**
  * Best-effort repair for temporal section history.
@@ -80,4 +84,3 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ id: st
 
   return NextResponse.json({ ok: true, repaired: true }, { status: 200 });
 }
-

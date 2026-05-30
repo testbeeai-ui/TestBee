@@ -139,10 +139,7 @@ export function maskDashboardForPrivacy(
 
   if (!v.share_gyan) {
     masked.gyanRecent = [];
-    if (
-      masked.rightNow.kind === "gyan_active" ||
-      masked.rightNow.kind === "gyan_browsing"
-    ) {
+    if (masked.rightNow.kind === "gyan_active" || masked.rightNow.kind === "gyan_browsing") {
       masked.rightNow = { kind: "idle", lastActiveAt: masked.rightNow.lastActiveAt ?? null };
     }
   }

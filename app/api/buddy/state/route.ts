@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient, createClient } from "@/integrations/supabase/server";
 import { listActiveBuddyPairsForUser } from "@/lib/buddy/activeBuddyLink";
+import { verifyBuddyOnboardingForInviter } from "@/lib/buddy/buddyOnboardingVerification";
 import { BUDDY_MAX_ACTIVE } from "@/lib/buddy/buddyPrivacy";
 import { normalizeBuddyRdm } from "@/lib/buddy/buddyClient";
 import { requireAuthenticatedUser } from "@/lib/auth/securityGuards";
@@ -14,13 +15,10 @@ export async function GET(request: Request) {
   const uid = auth.user.id;
   const admin = createAdminClient();
   if (!admin) {
-    return NextResponse.json(
-      { error: "SUPABASE_SERVICE_ROLE_KEY is not set" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "SUPABASE_SERVICE_ROLE_KEY is not set" }, { status: 500 });
   }
 
-  const [pairsResult, invitesRes] = await Promise.all([
+  const [pairsResult, invitesRes, buddyOnboarding] = await Promise.all([
     listActiveBuddyPairsForUser(admin, uid),
     supabase
       .from("buddy_invites")
@@ -28,6 +26,7 @@ export async function GET(request: Request) {
       .eq("inviter_user_id", uid)
       .eq("status", "pending")
       .order("created_at", { ascending: false }),
+    verifyBuddyOnboardingForInviter(supabase, admin, uid),
   ]);
 
   if (pairsResult.error) {
@@ -62,8 +61,7 @@ export async function GET(request: Request) {
         id: row.buddy_user_id,
         name: profileRow?.name ?? null,
         avatarUrl: profileRow?.avatar_url ?? null,
-        classLevel:
-          typeof profileRow?.class_level === "number" ? profileRow.class_level : null,
+        classLevel: typeof profileRow?.class_level === "number" ? profileRow.class_level : null,
         rdm: normalizeBuddyRdm(profileRow?.rdm),
         pairedAt: row.created_at,
       });
@@ -74,16 +72,20 @@ export async function GET(request: Request) {
 
   return NextResponse.json(
     {
-    buddies,
-    buddy,
-    pendingInvites: (invitesRes.data ?? []).map((row) => ({
-      id: row.id,
-      token: row.token,
-      status: row.status,
-      createdAt: row.created_at,
-      expiresAt: row.expires_at,
-    })),
-    maxBuddies: BUDDY_MAX_ACTIVE,
+      buddies,
+      buddy,
+      pendingInvites: (invitesRes.data ?? []).map((row) => ({
+        id: row.id,
+        token: row.token,
+        status: row.status,
+        createdAt: row.created_at,
+        expiresAt: row.expires_at,
+      })),
+      maxBuddies: BUDDY_MAX_ACTIVE,
+      /** Legacy — accepted invite exists (may not be actively paired). */
+      hasBuddyInviteActivated: buddyOnboarding.hasAcceptedInvite,
+      /** Checklist source of truth — invite accepted AND buddy actively paired. */
+      hasInvitedBuddyJoined: buddyOnboarding.hasInvitedBuddyJoined,
     },
     { headers: { "Cache-Control": "private, no-store, max-age=0" } }
   );

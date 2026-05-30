@@ -21,6 +21,7 @@ import {
   applyNormalizedPasteToField,
   normalizePastedMathForDoubt,
 } from "@/lib/normalizePastedDoubtMath";
+import { notifyBuddyActivityRefresh } from "@/lib/buddy/buddyActivityEvents";
 
 /** Stored on post — only these three (no life-science option in this composer). */
 type PostSubjectSlug = "physics" | "chemistry" | "math";
@@ -93,6 +94,7 @@ export default function RawPostComposer({ onPosted }: RawPostComposerProps) {
         setDialogSubject(null);
         setSubjectPickerOpen(false);
         toast({ title: "Posted", description: "Your update is live on the feed." });
+        notifyBuddyActivityRefresh();
         onPosted?.();
         return true;
       } catch {

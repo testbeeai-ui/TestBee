@@ -65,7 +65,8 @@ export default function GyanWallView({
             Gyan++ <span className="text-emerald-400 italic">Teacher Wall</span>
           </h1>
           <p className="text-xs sm:text-sm text-slate-400">
-            Add expert Teacher Sections to student doubts. Earn +{teacherRewardRdm} RDM per teacher section.
+            Add expert Teacher Sections to student doubts. Earn +{teacherRewardRdm} RDM per teacher
+            section.
           </p>
         </div>
         <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-semibold text-emerald-200 sm:px-3 sm:py-1.5 sm:text-xs">
@@ -140,10 +141,7 @@ export default function GyanWallView({
                             expandedAiById[item.doubtId] ? "" : "line-clamp-4"
                           }`}
                         >
-                          <ReactMarkdown
-                            remarkPlugins={[remarkMath]}
-                            rehypePlugins={[rehypeKatex]}
-                          >
+                          <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
                             {item.aiAnswerBody}
                           </ReactMarkdown>
                         </div>
@@ -244,10 +242,7 @@ export default function GyanWallView({
                           AI answer (quick)
                         </div>
                         <div className="mt-1 doubt-markdown doubt-markdown-compact gyan-wall-ai-markdown">
-                          <ReactMarkdown
-                            remarkPlugins={[remarkMath]}
-                            rehypePlugins={[rehypeKatex]}
-                          >
+                          <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
                             {active.aiAnswerBody}
                           </ReactMarkdown>
                         </div>

@@ -53,22 +53,11 @@ function LandingPageContent() {
       }
       router.replace(profile?.role === "teacher" ? TEACHER_PORTAL_CLASSROOMS_URL : "/home");
     }
-  }, [
-    user,
-    profile?.onboarding_complete,
-    profile?.role,
-    loading,
-    router,
-    safeNextFromUrl,
-  ]);
+  }, [user, profile?.onboarding_complete, profile?.role, loading, router, safeNextFromUrl]);
 
   return (
     <div className="landing-page min-h-screen scroll-smooth bg-[#050505] text-zinc-100">
-      <LandingNavbar
-        variant="dark"
-        navLinks={INVESTOR_NAV_LINKS}
-        sharedNext={safeNextFromUrl}
-      />
+      <LandingNavbar variant="dark" navLinks={INVESTOR_NAV_LINKS} sharedNext={safeNextFromUrl} />
       <EduBlastInvestorLanding />
       <LandingFooter variant="dark" />
     </div>

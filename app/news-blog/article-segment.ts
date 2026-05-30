@@ -116,7 +116,10 @@ export function segment(body: string): Block[] {
 
   for (let i = 0; i < chunks.length; i++) {
     const chunk = chunks[i];
-    const lines = chunk.split("\n").map((l) => l.trim()).filter(Boolean);
+    const lines = chunk
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean);
     if (lines.length === 0) continue;
 
     if (lines.length >= 2 && lines.every((l) => OL_ITEM.test(l))) {
@@ -321,8 +324,8 @@ export function hostnameOf(url: string): string {
 }
 
 const EXAM_SAME_AS: Record<string, string[]> = {
-  "all": [],
-  "board": [
+  all: [],
+  board: [
     "https://en.wikipedia.org/wiki/Central_Board_of_Secondary_Education",
     "https://www.cbse.gov.in/",
   ],
@@ -335,15 +338,9 @@ const EXAM_SAME_AS: Record<string, string[]> = {
     "https://jeeadv.ac.in/",
   ],
   "state-cet": ["https://en.wikipedia.org/wiki/Common_Entrance_Test"],
-  "bitsat": [
-    "https://en.wikipedia.org/wiki/BITSAT",
-    "https://www.bitsadmission.com/",
-  ],
-  "mht-cet": [
-    "https://en.wikipedia.org/wiki/MHT-CET",
-    "https://cetcell.mahacet.org/",
-  ],
-  "other": [],
+  bitsat: ["https://en.wikipedia.org/wiki/BITSAT", "https://www.bitsadmission.com/"],
+  "mht-cet": ["https://en.wikipedia.org/wiki/MHT-CET", "https://cetcell.mahacet.org/"],
+  other: [],
 };
 
 const EXAM_KEYWORDS: { id: string; label: string; pattern: RegExp }[] = [
@@ -381,13 +378,13 @@ export function buildNewsArticleLd(post: SeoPost): string {
   const examLabel = getExamLabel(post.exam);
   const aboutSameAs = EXAM_SAME_AS[post.exam] ?? [];
 
-  const mentions = EXAM_KEYWORDS.filter(
-    (k) => k.id !== post.exam && k.pattern.test(post.body)
-  ).map((k) => ({
-    "@type": "Thing",
-    name: k.label,
-    sameAs: EXAM_SAME_AS[k.id]?.[0],
-  }));
+  const mentions = EXAM_KEYWORDS.filter((k) => k.id !== post.exam && k.pattern.test(post.body)).map(
+    (k) => ({
+      "@type": "Thing",
+      name: k.label,
+      sameAs: EXAM_SAME_AS[k.id]?.[0],
+    })
+  );
 
   const data = {
     "@context": "https://schema.org",

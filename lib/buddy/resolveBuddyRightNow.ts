@@ -160,8 +160,7 @@ export function resolveBuddyRightNow(input: {
       );
       const total = latestQuiz.totalQuestions;
       const correct = latestQuiz.correctCount;
-      const scorePercent =
-        total > 0 ? Math.round((correct / total) * 1000) / 10 : null;
+      const scorePercent = total > 0 ? Math.round((correct / total) * 1000) / 10 : null;
       return {
         kind: "quiz_attempted",
         subject: latestQuiz.subject,
@@ -179,10 +178,7 @@ export function resolveBuddyRightNow(input: {
     }
   }
 
-  const recentSocial = pickRecentSocialActivity(
-    input.latestGyanDoubt,
-    input.latestCommunityPost
-  );
+  const recentSocial = pickRecentSocialActivity(input.latestGyanDoubt, input.latestCommunityPost);
   if (recentSocial) return recentSocial;
 
   const { latest, isRecent, href } = resolveBuddySubtopicActivity(
@@ -192,12 +188,10 @@ export function resolveBuddyRightNow(input: {
   );
 
   const gyanBrowseAge = ageMs(input.gyanPresenceUpdatedAt);
-  const gyanBrowsingRecent =
-    gyanBrowseAge != null && gyanBrowseAge <= input.activityRecentMs;
+  const gyanBrowsingRecent = gyanBrowseAge != null && gyanBrowseAge <= input.activityRecentMs;
 
   const siteBrowseAge = ageMs(input.sitePresenceUpdatedAt);
-  const siteBrowsingRecent =
-    siteBrowseAge != null && siteBrowseAge <= input.activityRecentMs;
+  const siteBrowsingRecent = siteBrowseAge != null && siteBrowseAge <= input.activityRecentMs;
 
   if (latest && isRecent) {
     return {
@@ -237,12 +231,8 @@ export function resolveBuddyRightNow(input: {
   const subtopicMs = latest ? Date.parse(latest.occurredAt) : 0;
   const gyanMs = gyanDoubt ? Date.parse(gyanDoubt.createdAt) : 0;
   const communityMs = communityPost ? Date.parse(communityPost.createdAt) : 0;
-  const gyanPresenceMs = input.gyanPresenceUpdatedAt
-    ? Date.parse(input.gyanPresenceUpdatedAt)
-    : 0;
-  const sitePresenceMs = input.sitePresenceUpdatedAt
-    ? Date.parse(input.sitePresenceUpdatedAt)
-    : 0;
+  const gyanPresenceMs = input.gyanPresenceUpdatedAt ? Date.parse(input.gyanPresenceUpdatedAt) : 0;
+  const sitePresenceMs = input.sitePresenceUpdatedAt ? Date.parse(input.sitePresenceUpdatedAt) : 0;
 
   const bestMs = Math.max(
     Number.isFinite(subtopicMs) ? subtopicMs : 0,
@@ -268,11 +258,7 @@ export function resolveBuddyRightNow(input: {
     return { kind: "idle", lastActiveAt: gyanDoubt.createdAt };
   }
 
-  if (
-    input.gyanPresenceUpdatedAt &&
-    gyanPresenceMs === bestMs &&
-    Number.isFinite(gyanPresenceMs)
-  ) {
+  if (input.gyanPresenceUpdatedAt && gyanPresenceMs === bestMs && Number.isFinite(gyanPresenceMs)) {
     const browseAge = ageMs(input.gyanPresenceUpdatedAt);
     if (browseAge != null && browseAge <= input.activityRecentMs) {
       return {
@@ -284,11 +270,7 @@ export function resolveBuddyRightNow(input: {
     return { kind: "idle", lastActiveAt: input.gyanPresenceUpdatedAt };
   }
 
-  if (
-    input.sitePresenceUpdatedAt &&
-    sitePresenceMs === bestMs &&
-    Number.isFinite(sitePresenceMs)
-  ) {
+  if (input.sitePresenceUpdatedAt && sitePresenceMs === bestMs && Number.isFinite(sitePresenceMs)) {
     const browseAge = ageMs(input.sitePresenceUpdatedAt);
     if (browseAge != null && browseAge <= input.activityRecentMs) {
       return {

@@ -215,7 +215,9 @@ export default function InstaCuePlayer({ cards, onClose }: Props) {
                 </span>
                 <span className="text-[10px] font-semibold sm:text-[14px]">{tab.label}</span>
               </div>
-              <span className="text-base font-extrabold text-foreground sm:text-[22px]">{tab.count}</span>
+              <span className="text-base font-extrabold text-foreground sm:text-[22px]">
+                {tab.count}
+              </span>
             </button>
           ))}
         </div>

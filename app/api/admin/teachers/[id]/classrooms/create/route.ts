@@ -94,4 +94,3 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
-

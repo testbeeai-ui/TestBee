@@ -2,10 +2,7 @@ import { NextResponse } from "next/server";
 import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
 import { isAdminUser } from "@/lib/admin/admin";
 import { createAdminClient } from "@/integrations/supabase/server";
-import {
-  createMotivationAction,
-  createRewardTopStudentsAction,
-} from "@/lib/teacherPortal/queries";
+import { createMotivationAction, createRewardTopStudentsAction } from "@/lib/teacherPortal/queries";
 import { auditAdminTeacherAction } from "../../_audit";
 
 type Body = {
@@ -37,7 +34,12 @@ type Body = {
 };
 
 function parseKind(value: unknown): NonNullable<Body["actionKind"]> {
-  if (value === "boost" || value === "nudge" || value === "urgent_nudge" || value === "reward_top_students") {
+  if (
+    value === "boost" ||
+    value === "nudge" ||
+    value === "urgent_nudge" ||
+    value === "reward_top_students"
+  ) {
     return value;
   }
   return "boost";
@@ -64,7 +66,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     if (!notes) return NextResponse.json({ error: "notes is required for audit" }, { status: 400 });
 
     const classroomId = typeof body.classroomId === "string" ? body.classroomId.trim() : "";
-    if (!classroomId) return NextResponse.json({ error: "classroomId is required" }, { status: 400 });
+    if (!classroomId)
+      return NextResponse.json({ error: "classroomId is required" }, { status: 400 });
 
     const { data: classroom, error: cErr } = await (admin as any)
       .from("classrooms")
@@ -74,7 +77,10 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     if (cErr) return NextResponse.json({ error: cErr.message }, { status: 500 });
     if (!classroom) return NextResponse.json({ error: "Classroom not found" }, { status: 404 });
     if (classroom.teacher_id !== teacherId) {
-      return NextResponse.json({ error: "Classroom does not belong to this teacher" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Classroom does not belong to this teacher" },
+        { status: 400 }
+      );
     }
 
     const kind = parseKind(body.actionKind);
@@ -170,4 +176,3 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
-

@@ -20,6 +20,32 @@ import {
   appendQueryParams,
 } from "@/lib/curriculum/topicRoutes";
 import {
+  LESSONS_ONBOARDING_QUERY,
+  clearLessonsOnboardingFlow,
+  clearLessonsProgressPanelStep,
+  isLessonsOnboardingFlowActive,
+} from "@/lib/onboarding/lessonsOnboardingFlow";
+import {
+  isLessonsOnboardingCompanionActive,
+  markLessonsOnboardingQuizOrInstacue,
+  markLessonsOnboardingSubtopicOpened,
+} from "@/lib/onboarding/lessonsOnboarding";
+import { ONBOARDING_ACTIVE_TASK_CHANGED_EVENT } from "@/lib/onboarding/onboardingTaskCompanion";
+import {
+  handleDailyLessonsChecklistComplete,
+  isDailyLessonsChecklistTrackingActive,
+  markDailyLessonsProgressPanelOpened,
+} from "@/lib/onboarding/dailyLessonsChecklist";
+import {
+  enterOnboardingSiteTourQuizUiBlock,
+  exitOnboardingSiteTourQuizUiBlock,
+} from "@/lib/onboarding/onboardingSiteTourPromo";
+import {
+  buildOnboardingRewardChecklistToast,
+  getOnboardingProgress,
+  markOnboardingTaskComplete,
+} from "@/lib/subscription/freeTrialClient";
+import {
   humanReadableSubtopicTitle,
   prettifySubtopicTitle,
   subtopicDeepDiveHeadingMarkdown,
@@ -542,6 +568,7 @@ function TopicPageInner() {
   /** Primitives only — do not put `searchParams` in effect deps (new object ref most renders; wiped InstaCue lesson progress to 0/32). */
   const quizSetParam = searchParams.get("quizSet");
   const postIdParam = searchParams.get("postId");
+  const onboardingLessonsParam = searchParams.get(LESSONS_ONBOARDING_QUERY);
   type PanelTab = "instacue" | "quiz" | "numerals" | "concepts";
   const initialPanelTab: PanelTab =
     panelParam === "quiz" || panelParam === "numerals" || panelParam === "concepts"
@@ -581,7 +608,11 @@ function TopicPageInner() {
     Record<number, { qIdx: number; answers: Record<number, number> }>
   >({});
   const engagementHydratedRef = useRef<string | null>(null);
+  /** After Supabase engagement hydrates `bitsSelectedAnswers`, ignore that snapshot for Lessons step-4 until the learner changes answers or submits (avoids false "quiz done"). */
+  const bitsQuizOnboardingBaselineRef = useRef<string | null>(null);
   const engagementSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Day-2 Lessons: auto-open Progress panel once per sub-topic during daily checklist flow. */
+  const dailyProgressAutoOpenedRef = useRef<string | null>(null);
   /** Persisted in Supabase (`lessonChecklistMarkedCompleteAt`); state drives UI so refresh shows "Marked completed". */
   const [lessonChecklistMarkedCompleteAt, setLessonChecklistMarkedCompleteAt] = useState<
     string | null
@@ -708,6 +739,72 @@ function TopicPageInner() {
   const isOverview = resolved?.isOverview === true;
   const subtopicIndex = resolved?.subtopicIndex ?? 0;
   const subtopicName = resolved?.subtopicName ?? "";
+
+  useEffect(() => {
+    if (onboardingLessonsParam !== "1") {
+      clearLessonsProgressPanelStep();
+      return;
+    }
+
+    if (getOnboardingProgress().lessons) {
+      clearLessonsOnboardingFlow();
+      return;
+    }
+
+    // Site-tour uses FloatingTaskCompanion; do not auto-open Lessons / Progress here.
+    clearLessonsProgressPanelStep();
+  }, [onboardingLessonsParam, topicSlug, level, unitSlug, isOverview]);
+
+  useEffect(() => {
+    if (!isLessonsOnboardingCompanionActive() || isOverview || !subtopicName.trim()) return;
+    // Reaching a curriculum sub-topic implies chapters are unlocked (saved or lock off).
+    markLessonsOnboardingSubtopicOpened({ chapterLockActive: false });
+  }, [isOverview, subtopicName]);
+
+  useEffect(() => {
+    const onCompanion = (event: Event) => {
+      if ((event as CustomEvent<string>).detail !== "lessons") return;
+      if (isOverview || !subtopicName.trim()) return;
+      markLessonsOnboardingSubtopicOpened({ chapterLockActive: false });
+    };
+    window.addEventListener(ONBOARDING_ACTIVE_TASK_CHANGED_EVENT, onCompanion);
+    return () => window.removeEventListener(ONBOARDING_ACTIVE_TASK_CHANGED_EVENT, onCompanion);
+  }, [isOverview, subtopicName]);
+
+  /** Day-2 t2: auto-open Lessons / Progress when the learner lands on a sub-topic. */
+  useEffect(() => {
+    if (!isDailyLessonsChecklistTrackingActive()) return;
+    if (isOverview || !subtopicName.trim()) return;
+
+    const subtopicKey = `${board}/${subject}/${grade}/${unitSlug}/${topicSlug}/${level}`;
+    if (dailyProgressAutoOpenedRef.current === subtopicKey) return;
+    dailyProgressAutoOpenedRef.current = subtopicKey;
+
+    markDailyLessonsProgressPanelOpened();
+    setProgressQueueOpen(true);
+  }, [board, subject, grade, unitSlug, topicSlug, level, isOverview, subtopicName]);
+
+  const lessonNavQueryExtras = useMemo(() => {
+    const params: Record<string, string> = {};
+    if (isMagicWallSource) params.source = "magic-wall";
+    if (
+      onboardingLessonsParam === "1" &&
+      isLessonsOnboardingFlowActive() &&
+      !getOnboardingProgress().lessons
+    ) {
+      params[LESSONS_ONBOARDING_QUERY] = "1";
+    }
+    return params;
+  }, [isMagicWallSource, onboardingLessonsParam]);
+
+  const withLessonNavQuery = useCallback(
+    (path: string) =>
+      Object.keys(lessonNavQueryExtras).length > 0
+        ? appendQueryParams(path, lessonNavQueryExtras)
+        : path,
+    [lessonNavQueryExtras]
+  );
+
   const topicRefForShareClaim = (topicNode?.topic ?? topicSlug).trim();
   const subtopicRefForShareClaim = subtopicName.trim();
   const difficultyLevel = (resolved?.level ?? "basics") as DifficultyLevel;
@@ -758,10 +855,7 @@ function TopicPageInner() {
   const { toast } = useToast();
   const { loading: authLoading, session, profile, refreshProfile } = useAuth();
 
-  const boardNormalizedForLessons = useMemo(
-    () => String(board).trim().toLowerCase(),
-    [board]
-  );
+  const boardNormalizedForLessons = useMemo(() => String(board).trim().toLowerCase(), [board]);
 
   const [advancedLessonKeys, setAdvancedLessonKeys] = useState<Set<string>>(() => new Set());
 
@@ -859,15 +953,7 @@ function TopicPageInner() {
     if (replaced === pathname) return;
     const q = searchParams.toString();
     router.replace(q ? `${replaced}?${q}` : replaced);
-  }, [
-    authLoading,
-    topicNode,
-    isAdminUser,
-    difficultyLevel,
-    pathname,
-    router,
-    searchParams,
-  ]);
+  }, [authLoading, topicNode, isAdminUser, difficultyLevel, pathname, router, searchParams]);
 
   const [dbTheory, setDbTheory] = useState<string>("");
   const [dbTheoryExists, setDbTheoryExists] = useState(false);
@@ -977,6 +1063,13 @@ function TopicPageInner() {
   const [generatingBits, setGeneratingBits] = useState(false);
   const [generatingFormulas, setGeneratingFormulas] = useState(false);
   const [bitsDialogOpen, setBitsDialogOpen] = useState(false);
+  useEffect(() => {
+    if (bitsDialogOpen) {
+      enterOnboardingSiteTourQuizUiBlock();
+      return () => exitOnboardingSiteTourQuizUiBlock();
+    }
+    return undefined;
+  }, [bitsDialogOpen]);
   const [referencesDialogOpen, setReferencesDialogOpen] = useState(false);
   const [activeSectionIdx, setActiveSectionIdx] = useState(0);
   const [conceptsPage, setConceptsPage] = useState(0);
@@ -1039,6 +1132,23 @@ function TopicPageInner() {
     () => isAdvancedMultiSet(difficultyLevel, dbBitsQuestions.length),
     [difficultyLevel, dbBitsQuestions.length]
   );
+
+  useEffect(() => {
+    if (!isLessonsOnboardingCompanionActive()) return;
+    if (!bitsDialogOpen || rightPanelTab !== "quiz") return;
+    const hasAnswer = Object.values(bitsSelectedAnswers).some((v) => typeof v === "number");
+    if (!hasAnswer) return;
+
+    const baseline = bitsQuizOnboardingBaselineRef.current;
+    const serialized = JSON.stringify(bitsSelectedAnswers);
+    const answersChangedSinceHydration = baseline !== null && serialized !== baseline;
+    const firstAnswerThisDialogSession = baseline === null;
+
+    if (answersChangedSinceHydration || firstAnswerThisDialogSession) {
+      markLessonsOnboardingQuizOrInstacue();
+    }
+  }, [bitsDialogOpen, bitsSelectedAnswers, rightPanelTab]);
+
   const activeSetBounds = useMemo(() => {
     const n = dbBitsQuestions.length;
     if (!useAdvancedSetsUi) return { start: 0, end: n, length: n };
@@ -1103,6 +1213,7 @@ function TopicPageInner() {
     }
     setBitsVisitedIndices(new Set());
     setBitsCurrentIdx(0);
+    bitsQuizOnboardingBaselineRef.current = null;
     setBitsSelectedAnswers({});
     setBitsDialogOpen(false);
     setBitsReviewMode(false);
@@ -1138,8 +1249,7 @@ function TopicPageInner() {
     const openQuizDirect = searchParams.get("openQuiz") === "1";
     if (panel !== "quiz") return;
 
-    const fromAssignment =
-      Boolean(postId) && (qs === "1" || qs === "2" || qs === "3");
+    const fromAssignment = Boolean(postId) && (qs === "1" || qs === "2" || qs === "3");
     const fromDirectStart = openQuizDirect;
     if (!fromAssignment && !fromDirectStart) return;
 
@@ -1281,7 +1391,9 @@ function TopicPageInner() {
     const attempt = formulaNumeralsAttemptByIdx[selectedFormulaIdx];
     if (!attempt) return null;
     const scorePercent =
-      attempt.totalQuestions > 0 ? Math.round((attempt.correctCount / attempt.totalQuestions) * 100) : 0;
+      attempt.totalQuestions > 0
+        ? Math.round((attempt.correctCount / attempt.totalQuestions) * 100)
+        : 0;
     const drafts = buildNumeralsPostDrafts({
       subject: topicNode?.subject ?? subject,
       chapter: topicNode?.topic ?? unitSlug,
@@ -1372,7 +1484,9 @@ function TopicPageInner() {
     const attempt = formulaNumeralsAttemptByIdx[selectedFormulaIdx];
     if (!attempt) return;
     const scorePercent =
-      attempt.totalQuestions > 0 ? Math.round((attempt.correctCount / attempt.totalQuestions) * 100) : 0;
+      attempt.totalQuestions > 0
+        ? Math.round((attempt.correctCount / attempt.totalQuestions) * 100)
+        : 0;
     const correctTotalLine = `${attempt.correctCount}/${attempt.totalQuestions}`;
     const titleWithMetrics = /\d{1,3}%/.test(numeralsPostTitle)
       ? numeralsPostTitle.trim()
@@ -1395,7 +1509,9 @@ function TopicPageInner() {
     }
     setPublishingNumeralsPost(true);
     const sourceSubject = (topicNode?.subject ?? subject ?? "physics").toLowerCase();
-    const selectedTemplate = numeralsPostDrafts.find((d) => d.templateId === numeralsPostTemplateId);
+    const selectedTemplate = numeralsPostDrafts.find(
+      (d) => d.templateId === numeralsPostTemplateId
+    );
     const tags = selectedTemplate?.tags ?? ["numerals"];
     const payload = {
       templateId: numeralsPostTemplateId,
@@ -1527,18 +1643,21 @@ function TopicPageInner() {
           data: { session },
         } = await supabase.auth.getSession();
         if (!session?.access_token) return;
-        const res = await fetch(`/api/classroom/${classroomId}/posts/${postId}/generated-test-attempt`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({
-            submit: true,
-            chapterQuizScore: { score, total },
-            chapterQuizAttempt: attemptSnapshot ?? null,
-          }),
-        });
+        const res = await fetch(
+          `/api/classroom/${classroomId}/posts/${postId}/generated-test-attempt`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({
+              submit: true,
+              chapterQuizScore: { score, total },
+              chapterQuizAttempt: attemptSnapshot ?? null,
+            }),
+          }
+        );
         if (res.ok) {
           dispatchClassroomAssignmentProgressChanged({ classroomId, postId });
         }
@@ -1619,9 +1738,12 @@ function TopicPageInner() {
     const postId = data?.id;
     let quizShareClaimNote = `+${rdmConfig.quiz_community_share_rdm} RDM share bonus claimed.`;
     if (postId) {
-      const { data: claimRaw, error: claimError } = await supabase.rpc("claim_quiz_community_share_rdm", {
-        p_post_id: postId,
-      });
+      const { data: claimRaw, error: claimError } = await supabase.rpc(
+        "claim_quiz_community_share_rdm",
+        {
+          p_post_id: postId,
+        }
+      );
       if (claimError) {
         quizShareClaimNote = "Post published, but share bonus claim failed. Try again shortly.";
       } else {
@@ -1761,8 +1883,7 @@ function TopicPageInner() {
       totalCorrect,
       totalQuestions,
       remaining: withQ - submitted,
-      overallPct:
-        totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : null,
+      overallPct: totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : null,
     };
   }, [dbPracticeFormulas, formulaQuestionsOverride, formulaNumeralsAttemptByIdx]);
 
@@ -2746,7 +2867,10 @@ function TopicPageInner() {
               if (Number.isInteger(nk)) sa[nk] = v;
             }
             setBitsSelectedAnswers(sa);
+            bitsQuizOnboardingBaselineRef.current = JSON.stringify(sa);
             setBitsVisitedIndices(new Set(e.bits.visitedIndices));
+          } else {
+            bitsQuizOnboardingBaselineRef.current = null;
           }
           if (e.formulaByIdx) {
             const m: Record<number, { qIdx: number; answers: Record<number, number> }> = {};
@@ -2934,14 +3058,7 @@ function TopicPageInner() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed by numeralsAttemptHydrateKey only to avoid ref-churn reruns
-  }, [
-    numeralsAttemptHydrateKey,
-    topicNode,
-    subtopicName,
-    difficultyLevel,
-    board,
-    isOverview,
-  ]);
+  }, [numeralsAttemptHydrateKey, topicNode, subtopicName, difficultyLevel, board, isOverview]);
 
   useEffect(() => {
     if (!topicNode || !isOverview) {
@@ -3064,6 +3181,9 @@ function TopicPageInner() {
       next.add(index);
       return next;
     });
+    if (isLessonsOnboardingCompanionActive()) {
+      markLessonsOnboardingQuizOrInstacue();
+    }
   }, []);
 
   const handleInstaCueNav = useCallback((index: number) => {
@@ -3705,7 +3825,7 @@ function TopicPageInner() {
   const focusedTheoryIsPh =
     !focusedSubtopicTheoryData ||
     (!dbTheoryExists && subtopicTheoryIsPlaceholder(focusedSubtopicTheoryData.theory));
-  const overviewHref = appendQueryParams(
+  const overviewHref = withLessonNavQuery(
     buildTopicOverviewPath(
       board,
       topicNode.subject,
@@ -3713,8 +3833,7 @@ function TopicPageInner() {
       topicNode.topic,
       difficultyLevel,
       isRandomMode ? "random" : undefined
-    ),
-    isMagicWallSource ? { source: "magic-wall" } : {}
+    )
   );
   /** Subtopic view: top Back goes to topic overview (same as old in-card "Topic overview"). Overview: Back to Explore unit. */
   const topBackHref = isOverview ? backHref : overviewHref;
@@ -3725,7 +3844,7 @@ function TopicPageInner() {
       ? topicNode.subtopics[subtopicIndex + 1]
       : null;
   const prevSubtopicHref = prevSubtopic
-    ? appendQueryParams(
+    ? withLessonNavQuery(
         buildTopicPath(
           board,
           topicNode.subject,
@@ -3734,12 +3853,11 @@ function TopicPageInner() {
           prevSubtopic.name,
           difficultyLevel,
           isRandomMode ? "random" : undefined
-        ),
-        isMagicWallSource ? { source: "magic-wall" } : {}
+        )
       )
     : null;
   const nextSubtopicHref = nextSubtopic
-    ? appendQueryParams(
+    ? withLessonNavQuery(
         buildTopicPath(
           board,
           topicNode.subject,
@@ -3748,8 +3866,7 @@ function TopicPageInner() {
           nextSubtopic.name,
           difficultyLevel,
           isRandomMode ? "random" : undefined
-        ),
-        isMagicWallSource ? { source: "magic-wall" } : {}
+        )
       )
     : null;
   const dashedBorderClass = `border-dashed ${
@@ -3811,7 +3928,7 @@ function TopicPageInner() {
                         return (
                           <li key={item.topicKey}>
                             <Link
-                              href={appendQueryParams(
+                              href={withLessonNavQuery(
                                 buildTopicOverviewPath(
                                   board,
                                   item.subject,
@@ -3820,8 +3937,7 @@ function TopicPageInner() {
                                   difficultyLevel,
                                   undefined,
                                   item.chapterTitle
-                                ),
-                                { source: "magic-wall" }
+                                )
                               )}
                               onClick={() => setMagicWallQueueOpen(false)}
                               className={`block w-full text-left p-3 rounded-xl border transition-all ${
@@ -3871,7 +3987,12 @@ function TopicPageInner() {
       <>
         <button
           type="button"
-          onClick={() => setProgressQueueOpen(true)}
+          onClick={() => {
+            setProgressQueueOpen(true);
+            if (isDailyLessonsChecklistTrackingActive()) {
+              markDailyLessonsProgressPanelOpened();
+            }
+          }}
           className={`fixed z-[44] left-0 flex h-[4.25rem] w-[3.25rem] flex-col items-center justify-center gap-0.5 rounded-r-2xl border-y border-r border-blue-500/45 bg-gradient-to-b from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-950/25 hover:from-blue-500 hover:to-blue-600 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
             isMagicWallSource ? "top-[calc(max(7rem,28vh)+4.75rem)]" : "top-[max(7rem,28vh)]"
           }`}
@@ -4160,15 +4281,36 @@ function TopicPageInner() {
                                 });
                               }
                               await syncDailyChecklistLessonBCredit("credit");
+                              if (profile?.id) {
+                                handleDailyLessonsChecklistComplete({
+                                  userId: profile.id,
+                                  claimedAt: profile.onboarding_reward_claimed_at ?? null,
+                                  nowMs: Date.now() + (profile.time_travel_offset_ms ?? 0),
+                                });
+                              }
                               if (difficultyLevel === "advanced") {
                                 void refreshAdvancedLessonKeys();
                               }
-                              toast({
-                                title: "Topic marked as complete!",
-                                description: assignPostId
-                                  ? "Saved. Your class assignment for this post is updated to Done."
-                                  : "Saved to your progress for today’s checklist.",
-                              });
+                              const completedOnboardingLessons =
+                                onboardingLessonsParam === "1" && isLessonsOnboardingFlowActive();
+                              if (completedOnboardingLessons) {
+                                markOnboardingTaskComplete("lessons", {
+                                  showChecklistToast: false,
+                                });
+                                clearLessonsOnboardingFlow();
+                                toast(
+                                  buildOnboardingRewardChecklistToast(
+                                    "You completed a Lessons subtopic!"
+                                  )
+                                );
+                              } else {
+                                toast({
+                                  title: "Topic marked as complete!",
+                                  description: assignPostId
+                                    ? "Saved. Your class assignment for this post is updated to Done."
+                                    : "Saved to your progress for today’s checklist.",
+                                });
+                              }
                             } catch {
                               setLessonChecklistMarkedCompleteAt(null);
                               toast({
@@ -4227,7 +4369,8 @@ function TopicPageInner() {
                             })
                               .then(() => syncDailyChecklistLessonBCredit("revoke"))
                               .then(() => {
-                                if (difficultyLevel === "advanced") void refreshAdvancedLessonKeys();
+                                if (difficultyLevel === "advanced")
+                                  void refreshAdvancedLessonKeys();
                               })
                               .catch(() => {});
                           }
@@ -4246,16 +4389,18 @@ function TopicPageInner() {
 
       <div className="max-w-6xl mx-auto w-full min-w-0 px-4 -mt-6 pt-2 pb-6">
         <div className="mb-6 flex flex-wrap items-center gap-2 sm:gap-3">
-          <Button
-            variant="ghost"
-            size="sm"
-            asChild
-            className="rounded-full font-bold -ml-1 shrink-0"
-          >
-            <Link href={topBackHref}>
-              <ArrowLeft className="w-4 h-4 mr-1" /> Back
-            </Link>
-          </Button>
+          {isMagicWallSource && isOverview ? null : (
+            <Button
+              variant="ghost"
+              size="sm"
+              asChild
+              className="rounded-full font-bold -ml-1 shrink-0"
+            >
+              <Link href={topBackHref}>
+                <ArrowLeft className="w-4 h-4 mr-1" /> Back
+              </Link>
+            </Button>
+          )}
           <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 text-sm font-bold text-primary shrink-0">
             <Zap className="w-4 h-4" />
             {topicNode.subject.charAt(0).toUpperCase() + topicNode.subject.slice(1)}
@@ -4368,8 +4513,7 @@ function TopicPageInner() {
                     Learning Flow
                   </p>
                   <p className="text-[11px] text-foreground/80 leading-snug">
-                    Open a subtopic below to access InstaCue cards, Quiz, Numerals, and
-                    Concepts.
+                    Open a subtopic below to access InstaCue cards, Quiz, Numerals, and Concepts.
                   </p>
                 </div>
               </div>
@@ -4468,12 +4612,7 @@ function TopicPageInner() {
             </aside>
           )}
 
-          <main
-            className={cn(
-              "flex-1 min-w-0",
-              isSubtopicDashboardLayout && "order-2 lg:order-1"
-            )}
-          >
+          <main className={cn("flex-1 min-w-0", isSubtopicDashboardLayout && "order-2 lg:order-1")}>
             <div
               data-theory-card
               className={cn(
@@ -4492,7 +4631,7 @@ function TopicPageInner() {
                     <div className="flex flex-col gap-2 mb-6">
                       <div className="flex flex-wrap gap-2">
                         {LEVELS.map(({ value, label }) => {
-                          const href = appendQueryParams(
+                          const href = withLessonNavQuery(
                             buildTopicOverviewPath(
                               board,
                               topicNode.subject,
@@ -4500,14 +4639,11 @@ function TopicPageInner() {
                               topicNode.topic,
                               value,
                               isRandomMode ? "random" : undefined
-                            ),
-                            isMagicWallSource ? { source: "magic-wall" } : {}
+                            )
                           );
                           const isActive = difficultyLevel === value;
                           const isPreviewOnlyLevel =
-                            LEVEL_PREVIEW_ROLES.has(value) &&
-                            !authLoading &&
-                            !isAdminUser;
+                            LEVEL_PREVIEW_ROLES.has(value) && !authLoading && !isAdminUser;
 
                           if (isPreviewOnlyLevel) {
                             return (
@@ -4561,8 +4697,8 @@ function TopicPageInner() {
                       {!authLoading && !isAdminUser ? (
                         <p className="text-[11px] text-muted-foreground leading-snug max-w-xl">
                           <span className="font-semibold text-foreground/90">Basic</span> and{" "}
-                          <span className="font-semibold text-foreground/90">Intermediate</span>{" "}
-                          are rolling out soon. Continue with{" "}
+                          <span className="font-semibold text-foreground/90">Intermediate</span> are
+                          rolling out soon. Continue with{" "}
                           <span className="font-semibold text-primary">Advanced</span> for now.
                         </p>
                       ) : null}
@@ -4973,7 +5109,7 @@ function TopicPageInner() {
                             className="h-auto min-h-[3.25rem] w-full justify-start rounded-xl border-2 px-4 py-3 font-semibold shadow-sm hover:bg-muted/50"
                           >
                             <Link
-                              href={appendQueryParams(
+                              href={withLessonNavQuery(
                                 buildTopicOverviewPath(
                                   board,
                                   topicLevelSiblings.prev.subject,
@@ -4981,8 +5117,7 @@ function TopicPageInner() {
                                   topicLevelSiblings.prev.topic,
                                   difficultyLevel,
                                   isRandomMode ? "random" : undefined
-                                ),
-                                isMagicWallSource ? { source: "magic-wall" } : {}
+                                )
                               )}
                               className="flex w-full items-center gap-3 text-left"
                             >
@@ -5006,7 +5141,7 @@ function TopicPageInner() {
                             className="edu-btn-primary h-auto min-h-[3.25rem] w-full justify-start rounded-xl px-4 py-3 font-semibold shadow-sm sm:justify-end"
                           >
                             <Link
-                              href={appendQueryParams(
+                              href={withLessonNavQuery(
                                 buildTopicOverviewPath(
                                   board,
                                   topicLevelSiblings.next.subject,
@@ -5014,8 +5149,7 @@ function TopicPageInner() {
                                   topicLevelSiblings.next.topic,
                                   difficultyLevel,
                                   isRandomMode ? "random" : undefined
-                                ),
-                                isMagicWallSource ? { source: "magic-wall" } : {}
+                                )
                               )}
                               className="flex w-full items-center gap-3 text-left sm:flex-row-reverse sm:text-right"
                             >
@@ -5615,21 +5749,23 @@ function TopicPageInner() {
                   <section className="rounded-2xl border border-border/80 bg-muted/15 p-4 sm:p-5 dark:bg-muted/10">
                     <p className="text-sm font-bold text-foreground mb-1">Continue to subtopics</p>
                     <p className="text-xs text-muted-foreground mb-3">
-                      Open each subtopic to view InstaCue cards, Quiz, Numerals, and
-                      Concepts.
+                      Open each subtopic to view InstaCue cards, Quiz, Numerals, and Concepts.
                     </p>
                     <div className="flex flex-col gap-2.5">
                       {topicNode.subtopics.map((st, idx) => {
                         const isGuidedFirstSubtopic = showSubtopicGuide && idx === 0;
                         const accent = SUBTOPIC_NAV_ACCENTS[idx % SUBTOPIC_NAV_ACCENTS.length];
-                        const subAdvComplete = isSubtopicLessonCompleteAtAdvanced(advancedLessonKeys, {
-                          board: boardNormalizedForLessons,
-                          subject: topicNode.subject,
-                          classLevel: topicNode.classLevel as 11 | 12,
-                          topic: topicNode.topic,
-                          subtopicName: st.name,
-                        });
-                        const href = appendQueryParams(
+                        const subAdvComplete = isSubtopicLessonCompleteAtAdvanced(
+                          advancedLessonKeys,
+                          {
+                            board: boardNormalizedForLessons,
+                            subject: topicNode.subject,
+                            classLevel: topicNode.classLevel as 11 | 12,
+                            topic: topicNode.topic,
+                            subtopicName: st.name,
+                          }
+                        );
+                        const href = withLessonNavQuery(
                           buildTopicPath(
                             board,
                             topicNode.subject,
@@ -5637,9 +5773,8 @@ function TopicPageInner() {
                             topicNode.topic,
                             st.name,
                             difficultyLevel,
-                            undefined
-                          ),
-                          isMagicWallSource ? { source: "magic-wall" } : {}
+                            isRandomMode ? "random" : undefined
+                          )
                         );
                         return (
                           <div key={st.name} className="relative">
@@ -5773,7 +5908,7 @@ function TopicPageInner() {
                       <div className="flex flex-wrap gap-2">
                         {topicNode.subtopics.map((st, idx) => {
                           const isGuidedFirstSubtopic = showSubtopicGuide && idx === 0;
-                          const href = appendQueryParams(
+                          const href = withLessonNavQuery(
                             buildTopicPath(
                               board,
                               topicNode.subject,
@@ -5781,9 +5916,8 @@ function TopicPageInner() {
                               topicNode.topic,
                               st.name,
                               difficultyLevel,
-                              undefined
-                            ),
-                            isMagicWallSource ? { source: "magic-wall" } : {}
+                              isRandomMode ? "random" : undefined
+                            )
                           );
                           return (
                             <div key={st.name} className="relative">
@@ -6721,7 +6855,10 @@ function TopicPageInner() {
                                                 </MathText>
                                               </span>
                                               {answered && isCorrect && (
-                                                <CheckCircle2 className="h-4 w-4 shrink-0 self-center text-green-600 dark:text-green-400 ml-auto" aria-hidden />
+                                                <CheckCircle2
+                                                  className="h-4 w-4 shrink-0 self-center text-green-600 dark:text-green-400 ml-auto"
+                                                  aria-hidden
+                                                />
                                               )}
                                             </button>
                                           );
@@ -6977,7 +7114,11 @@ function TopicPageInner() {
                                                 title: "Set submitted",
                                                 description: `Correct: ${correctCount}, Wrong: ${wrongCount}`,
                                               });
-                                              if (activeQuizSet === 3 && topicNode && subtopicName) {
+                                              if (
+                                                activeQuizSet === 3 &&
+                                                topicNode &&
+                                                subtopicName
+                                              ) {
                                                 try {
                                                   const reward =
                                                     await applyTopicQuizAdvancedDailyRdmReward(
@@ -7176,78 +7317,76 @@ function TopicPageInner() {
                         </div>
                       ) : (
                         <>
-                        <div
-                          className="grid grid-cols-1 gap-2 pb-1 min-[420px]:grid-cols-2 max-h-none overflow-visible lg:max-h-[calc(100vh-220px)] lg:overflow-y-auto lg:no-scrollbar"
-                        >
-                          {dbPracticeFormulas.map((formula, i) => {
-                            const numeralDone = numeralCardCompleted[i] ?? false;
-                            return (
-                            <button
-                              key={i}
-                              type="button"
-                              onClick={() => {
-                                // #region agent log
-                                fetch(
-                                  "http://127.0.0.1:7826/ingest/70e4f01b-2a33-46c4-8228-3ea27639475c",
-                                  {
-                                    method: "POST",
-                                    headers: {
-                                      "Content-Type": "application/json",
-                                      "X-Debug-Session-Id": "548b33",
-                                    },
-                                    body: JSON.stringify({
-                                      sessionId: "548b33",
-                                      runId: "pre-fix",
-                                      hypothesisId: "H1",
-                                      location: "page.tsx:4460",
-                                      message: "numeral card clicked",
-                                      data: {
-                                        formulaIdx: i,
-                                        formulaName: formula.name,
-                                        formulasDialogOpenBefore: formulasDialogOpen,
-                                        selectedFormulaIdxBefore: selectedFormulaIdx,
-                                      },
-                                      timestamp: Date.now(),
-                                    }),
-                                  }
-                                ).catch(() => {});
-                                // #endregion
-                                setFormulaNumeralsReviewMode(false);
-                                setSelectedFormulaIdx(i);
-                                setFormulasDialogOpen(true);
-                              }}
-                              className={cn(
-                                "edu-card relative w-full h-full p-2.5 sm:p-3 rounded-xl border text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60",
-                                numeralDone
-                                  ? "border-green-500/40 bg-green-500/[0.07] hover:border-green-500/55"
-                                  : "border-border/60 hover:border-primary/45"
-                              )}
-                              aria-label={`Open numeral ${i + 1}: ${formula.name}${numeralDone ? " (completed)" : ""}`}
-                            >
-                              <div className="flex items-start justify-between gap-2 mb-1">
-                                <p className="text-[9px] sm:text-[10px] font-extrabold text-primary uppercase">
-                                  Numeral {i + 1}
-                                </p>
-                                {numeralDone ? (
-                                  <span
-                                    className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-green-500/20 px-1.5 py-0.5 text-[10px] font-bold text-green-700 dark:text-green-400"
-                                    title="Numerals submitted"
-                                  >
-                                    <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
-                                    Done
+                          <div className="grid grid-cols-1 gap-2 pb-1 min-[420px]:grid-cols-2 max-h-none overflow-visible lg:max-h-[calc(100vh-220px)] lg:overflow-y-auto lg:no-scrollbar">
+                            {dbPracticeFormulas.map((formula, i) => {
+                              const numeralDone = numeralCardCompleted[i] ?? false;
+                              return (
+                                <button
+                                  key={i}
+                                  type="button"
+                                  onClick={() => {
+                                    // #region agent log
+                                    fetch(
+                                      "http://127.0.0.1:7826/ingest/70e4f01b-2a33-46c4-8228-3ea27639475c",
+                                      {
+                                        method: "POST",
+                                        headers: {
+                                          "Content-Type": "application/json",
+                                          "X-Debug-Session-Id": "548b33",
+                                        },
+                                        body: JSON.stringify({
+                                          sessionId: "548b33",
+                                          runId: "pre-fix",
+                                          hypothesisId: "H1",
+                                          location: "page.tsx:4460",
+                                          message: "numeral card clicked",
+                                          data: {
+                                            formulaIdx: i,
+                                            formulaName: formula.name,
+                                            formulasDialogOpenBefore: formulasDialogOpen,
+                                            selectedFormulaIdxBefore: selectedFormulaIdx,
+                                          },
+                                          timestamp: Date.now(),
+                                        }),
+                                      }
+                                    ).catch(() => {});
+                                    // #endregion
+                                    setFormulaNumeralsReviewMode(false);
+                                    setSelectedFormulaIdx(i);
+                                    setFormulasDialogOpen(true);
+                                  }}
+                                  className={cn(
+                                    "edu-card relative w-full h-full p-2.5 sm:p-3 rounded-xl border text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60",
+                                    numeralDone
+                                      ? "border-green-500/40 bg-green-500/[0.07] hover:border-green-500/55"
+                                      : "border-border/60 hover:border-primary/45"
+                                  )}
+                                  aria-label={`Open numeral ${i + 1}: ${formula.name}${numeralDone ? " (completed)" : ""}`}
+                                >
+                                  <div className="flex items-start justify-between gap-2 mb-1">
+                                    <p className="text-[9px] sm:text-[10px] font-extrabold text-primary uppercase">
+                                      Numeral {i + 1}
+                                    </p>
+                                    {numeralDone ? (
+                                      <span
+                                        className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-green-500/20 px-1.5 py-0.5 text-[10px] font-bold text-green-700 dark:text-green-400"
+                                        title="Numerals submitted"
+                                      >
+                                        <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
+                                        Done
+                                      </span>
+                                    ) : null}
+                                  </div>
+                                  <p className="mb-1 break-words text-xs font-bold sm:text-sm">
+                                    {formula.name}
+                                  </p>
+                                  <span className="text-primary text-[11px] sm:text-xs font-bold hover:underline">
+                                    Try this →
                                   </span>
-                                ) : null}
-                              </div>
-                              <p className="mb-1 break-words text-xs font-bold sm:text-sm">
-                                {formula.name}
-                              </p>
-                              <span className="text-primary text-[11px] sm:text-xs font-bold hover:underline">
-                                Try this →
-                              </span>
-                            </button>
-                          );
-                          })}
-                        </div>
+                                </button>
+                              );
+                            })}
+                          </div>
                         </>
                       )}
                     </TabsContent>
@@ -7613,7 +7752,11 @@ function TopicPageInner() {
                                     size="sm"
                                     className="rounded-xl h-8 px-3 text-xs sm:justify-self-center"
                                     onClick={async () => {
-                                      if (!topicNode || !subtopicName || selectedFormulaIdx === null)
+                                      if (
+                                        !topicNode ||
+                                        !subtopicName ||
+                                        selectedFormulaIdx === null
+                                      )
                                         return;
                                       try {
                                         await clearFormulaPracticeAttempt(
@@ -7761,8 +7904,7 @@ function TopicPageInner() {
                         const isCorrectSelection =
                           answered && q.options[selected] === q.correctAnswer;
                         const useTwoColumns = shouldUseTwoColumnOptions(q.options);
-                        const isLastFormulaQ =
-                          formulaBitsCurrentIdx >= formulaQuestions.length - 1;
+                        const isLastFormulaQ = formulaBitsCurrentIdx >= formulaQuestions.length - 1;
                         let formulaNumeralsFilledCount = 0;
                         for (let i = 0; i < formulaQuestions.length; i++) {
                           if (typeof formulaBitsSelectedAnswers[i] === "number") {
@@ -7841,8 +7983,7 @@ function TopicPageInner() {
                                     if (isCorrect)
                                       cls = "bg-green-500/12 border-green-500 text-foreground";
                                     else if (selected === oi && !isCorrectSelection)
-                                      cls =
-                                        "bg-destructive/10 border-destructive text-foreground";
+                                      cls = "bg-destructive/10 border-destructive text-foreground";
                                     else cls = "bg-muted/60 text-muted-foreground border-border";
                                   }
                                   return (
@@ -7869,7 +8010,10 @@ function TopicPageInner() {
                                         </MathText>
                                       </span>
                                       {answered && isCorrect && (
-                                        <CheckCircle2 className="h-4 w-4 shrink-0 self-center text-green-600 dark:text-green-400 ml-auto" aria-hidden />
+                                        <CheckCircle2
+                                          className="h-4 w-4 shrink-0 self-center text-green-600 dark:text-green-400 ml-auto"
+                                          aria-hidden
+                                        />
                                       )}
                                     </button>
                                   );
@@ -7931,11 +8075,16 @@ function TopicPageInner() {
                                     if (!topicNode || !subtopicName || selectedFormulaIdx === null)
                                       return;
                                     const total = formulaQuestions.length;
-                                    const correctCount = formulaQuestions.reduce((acc, item, idx) => {
-                                      const si = formulaBitsSelectedAnswers[idx];
-                                      if (typeof si !== "number") return acc;
-                                      return item.options[si] === item.correctAnswer ? acc + 1 : acc;
-                                    }, 0);
+                                    const correctCount = formulaQuestions.reduce(
+                                      (acc, item, idx) => {
+                                        const si = formulaBitsSelectedAnswers[idx];
+                                        if (typeof si !== "number") return acc;
+                                        return item.options[si] === item.correctAnswer
+                                          ? acc + 1
+                                          : acc;
+                                      },
+                                      0
+                                    );
                                     const wrongCount = total - correctCount;
                                     const attemptSnapshot = {
                                       version: 1 as const,
@@ -8022,9 +8171,7 @@ function TopicPageInner() {
                                             description:
                                               "Numerals: ≥60% overall with every formula submitted. Credited once per IST day across subtopics.",
                                           });
-                                        } else if (
-                                          packClaim.reason === "already_claimed_today"
-                                        ) {
+                                        } else if (packClaim.reason === "already_claimed_today") {
                                           toast({
                                             title: "Daily numerals bonus already used",
                                             description: `You already earned +${rdmConfig.subtopic_numerals_pack_rdm} RDM from numerals today (IST).`,
@@ -8072,8 +8219,7 @@ function TopicPageInner() {
                                   ) : isLastFormulaQ ? (
                                     submittingFormulaNumerals ? (
                                       <>
-                                        <Loader2 className="w-4 h-4 mr-1 animate-spin" />{" "}
-                                        Submitting
+                                        <Loader2 className="w-4 h-4 mr-1 animate-spin" /> Submitting
                                       </>
                                     ) : (
                                       "Submit"
@@ -8112,10 +8258,8 @@ function TopicPageInner() {
                                     toast({ title: "Removed from Saved Formulas" });
                                     return;
                                   }
-                                  const {
-                                    formula: activeFormula,
-                                    question: activeQuestion,
-                                  } = currentFormulaQuestion;
+                                  const { formula: activeFormula, question: activeQuestion } =
+                                    currentFormulaQuestion;
                                   const payload: SavedFormula = {
                                     id: `formula-${Date.now()}-${Math.random().toString(36).slice(2)}`,
                                     name: activeFormula.name,
@@ -8161,9 +8305,7 @@ function TopicPageInner() {
                                   );
                                   if (next.length > 0) {
                                     const updatedFormulas = practiceFormulasForUi.map((f, i) =>
-                                      i === selectedFormulaIdx
-                                        ? { ...f, bitsQuestions: next }
-                                        : f
+                                      i === selectedFormulaIdx ? { ...f, bitsQuestions: next } : f
                                     );
                                     setFormulaQuestionsOverride((prev) => ({
                                       ...prev,
@@ -8196,8 +8338,7 @@ function TopicPageInner() {
                                       });
                                     } catch (e) {
                                       toast({
-                                        title:
-                                          e instanceof Error ? e.message : "Save failed",
+                                        title: e instanceof Error ? e.message : "Save failed",
                                         description:
                                           "Regenerated locally, but Supabase save failed.",
                                         variant: "destructive",

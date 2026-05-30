@@ -2,6 +2,8 @@
 
 import { ClipboardList, ArrowRight } from "lucide-react";
 import type { PastPaper, Subject } from "@/types";
+import { OnboardingClickHerePointer } from "@/components/onboarding/OnboardingClickHerePointer";
+import { OnboardingGuidanceBanner } from "@/components/onboarding/OnboardingGuidanceBanner";
 import { cn } from "@/lib/utils";
 
 const subjectConfig: Record<
@@ -82,6 +84,8 @@ interface MockTestsSectionProps {
   featuredPaper: PastPaper | null;
   featuredLoading?: boolean;
   onStartFeaturedPaper: () => void;
+  /** Onboarding popup only: highlight Mock tests → View all. */
+  showCbseMcqViewAllGuide?: boolean;
 }
 
 export default function MockTestsSection({
@@ -91,26 +95,40 @@ export default function MockTestsSection({
   featuredPaper,
   featuredLoading,
   onStartFeaturedPaper,
+  showCbseMcqViewAllGuide = false,
 }: MockTestsSectionProps) {
   const hidePhysicsRow = Boolean(featuredPaper || featuredLoading);
   const listSubjects = hidePhysicsRow ? subjects.filter((s) => s !== "physics") : subjects;
 
   return (
     <section className="space-y-3">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <button
+          type="button"
           onClick={onViewAll}
           className="font-display font-bold text-foreground text-sm flex items-center gap-2 hover:text-primary transition-colors"
         >
           <ClipboardList className="w-4 h-4 text-primary" />
           Mock tests
         </button>
-        <button
-          onClick={onViewAll}
-          className="text-xs font-bold text-primary hover:underline flex items-center gap-1"
-        >
-          View all <ArrowRight className="w-3 h-3" />
-        </button>
+        <div className="relative flex flex-col items-end gap-1 shrink-0">
+          {showCbseMcqViewAllGuide ? (
+            <div className="absolute -top-11 right-0 pointer-events-none z-10">
+              <OnboardingClickHerePointer label="Click here" variant="violet" />
+            </div>
+          ) : null}
+          <button
+            type="button"
+            onClick={onViewAll}
+            className={cn(
+              "text-xs font-semibold text-primary hover:underline flex items-center gap-1 rounded-lg border border-transparent px-2 py-1 transition-all",
+              showCbseMcqViewAllGuide &&
+                "border-primary/25 bg-primary/[0.06] shadow-sm hover:border-primary/35"
+            )}
+          >
+            View all <ArrowRight className="w-3 h-3" aria-hidden />
+          </button>
+        </div>
       </div>
 
       <div className="space-y-2">

@@ -436,74 +436,74 @@ export type Database = {
         ];
       };
       teacher_google_calendar_tokens: {
-      classroom_sections: {
-        Row: {
-          classroom_id: string;
-          created_at: string;
-          duration_minutes: number | null;
-          google_calendar_list_id: string;
-          google_meet_link: string | null;
-          google_recurrence_end_date: string | null;
-          google_recurring_event_id: string | null;
-          google_rrule: string | null;
-          google_time_zone: string | null;
-          id: string;
-          name: string;
-          repeat_days: string[] | null;
-          schedule_date: string | null;
-          schedule_end_date: string | null;
-          schedule_time: string | null;
-          sort_order: number;
-          updated_at: string;
+        classroom_sections: {
+          Row: {
+            classroom_id: string;
+            created_at: string;
+            duration_minutes: number | null;
+            google_calendar_list_id: string;
+            google_meet_link: string | null;
+            google_recurrence_end_date: string | null;
+            google_recurring_event_id: string | null;
+            google_rrule: string | null;
+            google_time_zone: string | null;
+            id: string;
+            name: string;
+            repeat_days: string[] | null;
+            schedule_date: string | null;
+            schedule_end_date: string | null;
+            schedule_time: string | null;
+            sort_order: number;
+            updated_at: string;
+          };
+          Insert: {
+            classroom_id: string;
+            created_at?: string;
+            duration_minutes?: number | null;
+            google_calendar_list_id?: string;
+            google_meet_link?: string | null;
+            google_recurrence_end_date?: string | null;
+            google_recurring_event_id?: string | null;
+            google_rrule?: string | null;
+            google_time_zone?: string | null;
+            id?: string;
+            name: string;
+            repeat_days?: string[] | null;
+            schedule_date?: string | null;
+            schedule_end_date?: string | null;
+            schedule_time?: string | null;
+            sort_order?: number;
+            updated_at?: string;
+          };
+          Update: {
+            classroom_id?: string;
+            created_at?: string;
+            duration_minutes?: number | null;
+            google_calendar_list_id?: string;
+            google_meet_link?: string | null;
+            google_recurrence_end_date?: string | null;
+            google_recurring_event_id?: string | null;
+            google_rrule?: string | null;
+            google_time_zone?: string | null;
+            id?: string;
+            name?: string;
+            repeat_days?: string[] | null;
+            schedule_date?: string | null;
+            schedule_end_date?: string | null;
+            schedule_time?: string | null;
+            sort_order?: number;
+            updated_at?: string;
+          };
+          Relationships: [
+            {
+              foreignKeyName: "classroom_sections_classroom_id_fkey";
+              columns: ["classroom_id"];
+              isOneToOne: false;
+              referencedRelation: "classrooms";
+              referencedColumns: ["id"];
+            },
+          ];
         };
-        Insert: {
-          classroom_id: string;
-          created_at?: string;
-          duration_minutes?: number | null;
-          google_calendar_list_id?: string;
-          google_meet_link?: string | null;
-          google_recurrence_end_date?: string | null;
-          google_recurring_event_id?: string | null;
-          google_rrule?: string | null;
-          google_time_zone?: string | null;
-          id?: string;
-          name: string;
-          repeat_days?: string[] | null;
-          schedule_date?: string | null;
-          schedule_end_date?: string | null;
-          schedule_time?: string | null;
-          sort_order?: number;
-          updated_at?: string;
-        };
-        Update: {
-          classroom_id?: string;
-          created_at?: string;
-          duration_minutes?: number | null;
-          google_calendar_list_id?: string;
-          google_meet_link?: string | null;
-          google_recurrence_end_date?: string | null;
-          google_recurring_event_id?: string | null;
-          google_rrule?: string | null;
-          google_time_zone?: string | null;
-          id?: string;
-          name?: string;
-          repeat_days?: string[] | null;
-          schedule_date?: string | null;
-          schedule_end_date?: string | null;
-          schedule_time?: string | null;
-          sort_order?: number;
-          updated_at?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "classroom_sections_classroom_id_fkey";
-            columns: ["classroom_id"];
-            isOneToOne: false;
-            referencedRelation: "classrooms";
-            referencedColumns: ["id"];
-          },
-        ];
-      };
         Row: {
           access_token: string | null;
           access_token_expires_at: string | null;
@@ -1953,6 +1953,12 @@ export type Database = {
           lifetime_answer_rdm: number;
           name: string;
           onboarding_complete: boolean;
+          onboarding_reward_claimed_at: string | null;
+          onboarding_reward_progress: Json;
+          free_trial_activated: boolean;
+          free_trial_activated_at: string | null;
+          trial_onboarding_answers: Json;
+          free_trial_daily_streak: Json;
           phone: string | null;
           plan_tier: string;
           rdm: number;
@@ -1998,6 +2004,12 @@ export type Database = {
           lifetime_answer_rdm?: number;
           name?: string;
           onboarding_complete?: boolean;
+          onboarding_reward_claimed_at?: string | null;
+          onboarding_reward_progress?: Json;
+          free_trial_activated?: boolean;
+          free_trial_activated_at?: string | null;
+          trial_onboarding_answers?: Json;
+          free_trial_daily_streak?: Json;
           phone?: string | null;
           plan_tier?: string;
           rdm?: number;
@@ -2043,6 +2055,12 @@ export type Database = {
           lifetime_answer_rdm?: number;
           name?: string;
           onboarding_complete?: boolean;
+          onboarding_reward_claimed_at?: string | null;
+          onboarding_reward_progress?: Json;
+          free_trial_activated?: boolean;
+          free_trial_activated_at?: string | null;
+          trial_onboarding_answers?: Json;
+          free_trial_daily_streak?: Json;
           phone?: string | null;
           plan_tier?: string;
           rdm?: number;
@@ -3380,6 +3398,10 @@ export type Database = {
       };
       get_refer_challenge_day_status: {
         Args: { p_claim_date?: string };
+        Returns: Json;
+      };
+      claim_free_trial_checklist_reward: {
+        Args: Record<PropertyKey, never>;
         Returns: Json;
       };
       claim_refer_challenge_reward: {

@@ -7,9 +7,7 @@ import type { Database } from "@/integrations/supabase/types";
  * include updated Set-Cookie headers. Call `getUser()` on the client before
  * branching on auth — see Supabase SSR middleware docs.
  */
-export function createSupabaseMiddleware(
-  request: NextRequest
-): {
+export function createSupabaseMiddleware(request: NextRequest): {
   supabase: ReturnType<typeof createServerClient<Database>>;
   getResponse: () => NextResponse;
 } {

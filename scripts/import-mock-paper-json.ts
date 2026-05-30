@@ -51,7 +51,9 @@ function normalizeSubject(raw: string): Subject | null {
 }
 
 /** (A)(B)(C)(D) markers — same idea as scripts/import-past-paper-csv.ts */
-function extractStemAndOptionsAbcd(rawHtml: string): { stemHtml: string; options: string[] } | null {
+function extractStemAndOptionsAbcd(
+  rawHtml: string
+): { stemHtml: string; options: string[] } | null {
   const html = rawHtml.trim();
   if (!html) return null;
 
@@ -150,7 +152,9 @@ function extractStemAndOptions124(rawHtml: string): { stemHtml: string; options:
 /**
  * (a)(b)(c)(d) with (b) omitted but an <img> between (a) and (c) carries option B (source data quirk).
  */
-function extractStemOptionsAcDMissingBWithImg(rawHtml: string): { stemHtml: string; options: string[] } | null {
+function extractStemOptionsAcDMissingBWithImg(
+  rawHtml: string
+): { stemHtml: string; options: string[] } | null {
   const html = rawHtml.trim();
   if (/\(\s*b\s*\)/i.test(html)) return null;
 
@@ -187,7 +191,9 @@ function extractStemOptionsAcDMissingBWithImg(rawHtml: string): { stemHtml: stri
  * First four `(1)–(4)` or `(a)–(d)` markers in order — tolerates duplicate labels (e.g. two `(b)`)
  * and mixed `(4)` / `(d)`. Skips derivative `(n)` after `f'`.
  */
-function extractStemOptionsFirstFourMarkers(rawHtml: string): { stemHtml: string; options: string[] } | null {
+function extractStemOptionsFirstFourMarkers(
+  rawHtml: string
+): { stemHtml: string; options: string[] } | null {
   const html = rawHtml.trim();
   const re = /\(\s*([1-4]|[a-dA-D])\s*\.?\s*\)/g;
   const hits: { start: number; end: number }[] = [];
@@ -255,7 +261,8 @@ function resolveMcqLetter(q: JsonQuestion): "A" | "B" | "C" | "D" | null {
   }
   const fromAnswer = numericChoiceToLetter(str(q, "answer"));
   if (fromAnswer) return fromAnswer;
-  const fromOpt = numericChoiceToLetter(str(q, "fk_optionId")) ?? numericChoiceToLetter(str(q, "optionId"));
+  const fromOpt =
+    numericChoiceToLetter(str(q, "fk_optionId")) ?? numericChoiceToLetter(str(q, "optionId"));
   if (fromOpt) return fromOpt;
   return null;
 }
@@ -281,7 +288,9 @@ function parseNumericAnswerHint(answerRaw: string): number | null {
  * Numerical (integer) questions: synthesize 4 integer choices so NtaExamShell MCQ UI works.
  * Correct answer uses JEE-style rounding of the source `answer` field.
  */
-function buildNumericMcq(answerRaw: string): { options: string[]; correctLetter: "A" | "B" | "C" | "D" } | null {
+function buildNumericMcq(
+  answerRaw: string
+): { options: string[]; correctLetter: "A" | "B" | "C" | "D" } | null {
   const num = parseNumericAnswerHint(answerRaw);
   if (num == null) return null;
   const n = Math.round(num);

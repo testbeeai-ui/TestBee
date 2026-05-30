@@ -119,12 +119,12 @@ describe("PROF_PI_FACT_CONTRACT", () => {
 });
 
 describe("getProfPiDefaultTemperatureForRagKey", () => {
-  it("orders chemistry most deterministic, then math, then physics", () => {
+  it("orders physics most deterministic, then chemistry, then math", () => {
     const chem = getProfPiDefaultTemperatureForRagKey("chemistry");
     const math = getProfPiDefaultTemperatureForRagKey("math");
     const phys = getProfPiDefaultTemperatureForRagKey("physics");
+    expect(phys).toBeLessThanOrEqual(chem);
     expect(chem).toBeLessThanOrEqual(math);
-    expect(math).toBeLessThanOrEqual(phys);
   });
 });
 
@@ -136,9 +136,9 @@ describe("getProfPiRephraseTemperatureForRagKey", () => {
 });
 
 describe("getProfPiRetryTemperatureForRagKey", () => {
-  it("uses chemistry lowest retry temp", () => {
-    expect(getProfPiRetryTemperatureForRagKey("chemistry")).toBeLessThan(
-      getProfPiRetryTemperatureForRagKey("physics")
+  it("uses physics lowest retry temp", () => {
+    expect(getProfPiRetryTemperatureForRagKey("physics")).toBeLessThan(
+      getProfPiRetryTemperatureForRagKey("chemistry")
     );
   });
 });

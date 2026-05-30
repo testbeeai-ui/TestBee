@@ -30,6 +30,7 @@ import { cn } from "@/lib/utils";
 import { UserHoverCard } from "@/components/UserHoverCard";
 import CommentInput from "./CommentInput";
 import { useToast } from "@/hooks/use-toast";
+import { OnboardingClickHerePointer } from "@/components/onboarding/OnboardingClickHerePointer";
 import {
   DOUBT_FLAIRS,
   type ExpandedDoubtRow,
@@ -72,6 +73,7 @@ interface DoubtFeedCardProps {
   saveRewardRdm?: number;
   teacherRewardRdm?: number;
   commentRewardRdm?: number;
+  showEngagePointer?: boolean;
 }
 
 const PROF_PI_GENERATION_STAGES = [
@@ -99,6 +101,7 @@ export default function DoubtFeedCard({
   saveRewardRdm = 3,
   teacherRewardRdm = 30,
   commentRewardRdm = 5,
+  showEngagePointer = false,
 }: DoubtFeedCardProps) {
   const { toast } = useToast();
   const [subjectPopoverOpen, setSubjectPopoverOpen] = useState(false);
@@ -113,8 +116,7 @@ export default function DoubtFeedCard({
   const authorInitials = authorName.slice(0, 2).toUpperCase();
   const net = d.upvotes - d.downvotes;
   const subjectCanon = canonicalDoubtSubject(d.subject);
-  const subjectDisplayLabel =
-    subjectCanon ?? (d.subject?.trim() ? d.subject.trim() : null);
+  const subjectDisplayLabel = subjectCanon ?? (d.subject?.trim() ? d.subject.trim() : null);
   const hasTaggedSubject = Boolean(subjectDisplayLabel);
   const subjectColor = getSubjectColor(subjectCanon ?? d.subject);
   const titleMd = stripHtml(d.title);
@@ -234,7 +236,9 @@ export default function DoubtFeedCard({
                   </Avatar>
                 )}
                 <div className="flex items-center gap-1 min-w-0 flex-wrap">
-                  <span className="text-[13px] font-bold text-foreground sm:text-sm">{authorName}</span>
+                  <span className="text-[13px] font-bold text-foreground sm:text-sm">
+                    {authorName}
+                  </span>
                   {isAuthorAI && (
                     <span className="text-[9px] font-bold uppercase bg-purple-500/15 text-purple-600 px-1 py-0.5 rounded-full sm:text-[10px] sm:px-1.5">
                       {PROF_PI_ANSWER_LABEL} tutor
@@ -337,71 +341,79 @@ export default function DoubtFeedCard({
 
           {/* Action row — compact vote pill: up = blue, down = orange when active */}
           <div className="flex items-center gap-2 -ml-1 flex-wrap">
-            <div
-              className={cn(
-                "inline-flex h-8 shrink-0 items-center overflow-hidden rounded-full border shadow-sm transition-colors duration-150",
-                // Neutral: charcoal capsule — same height as adjacent h-8 actions
-                myVote === 0 && "border-zinc-600/90 bg-[#2e3238] dark:bg-[#2a2e35]",
-                // Upvoted: blue (per product preference)
-                myVote === 1 &&
-                  "border-blue-400 bg-[#2e3238] dark:bg-[#2a2e35] ring-1 ring-blue-400/25",
-                // Downvoted: orange
-                myVote === -1 &&
-                  "border-orange-400 bg-[#2e3238] dark:bg-[#2a2e35] ring-1 ring-orange-400/25"
+            <div className="relative">
+              {showEngagePointer && (
+                <div className="absolute -top-11 left-4 z-10 pointer-events-none">
+                  <OnboardingClickHerePointer label="Click here" />
+                </div>
               )}
-            >
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    onClick={() => onVote?.(d.id, 1)}
-                    className={cn(
-                      "flex h-8 w-8 shrink-0 items-center justify-center transition-colors",
-                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-                      myVote === 0 && "text-zinc-100 hover:bg-blue-400/12 hover:text-blue-300",
-                      myVote === 1 && "bg-blue-400/14 text-blue-400",
-                      myVote === -1 && "text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.04]"
-                    )}
-                    aria-label="Upvote"
-                  >
-                    <ArrowBigUp className="h-[18px] w-[18px]" strokeWidth={1.75} aria-hidden />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="text-xs font-semibold max-w-[14rem]">
-                  Upvote · +{upvoteRewardRdm} RDM first upvote today (IST)
-                </TooltipContent>
-              </Tooltip>
               <div
                 className={cn(
-                  "flex h-8 min-w-[1.75rem] max-w-[3rem] items-center justify-center border-x border-zinc-600/70 px-1.5 tabular-nums text-xs font-bold leading-none",
-                  myVote === 0 && "bg-black/25 text-zinc-100 dark:bg-black/30",
-                  myVote === 1 && "border-blue-400/35 bg-black/35 text-sky-100",
-                  myVote === -1 && "border-orange-400/35 bg-black/35 text-amber-100"
+                  "inline-flex h-8 shrink-0 items-center overflow-hidden rounded-full border shadow-sm transition-colors duration-150",
+                  // Neutral: charcoal capsule — same height as adjacent h-8 actions
+                  myVote === 0 && "border-zinc-600/90 bg-[#2e3238] dark:bg-[#2a2e35]",
+                  // Upvoted: blue (per product preference)
+                  myVote === 1 &&
+                    "border-blue-400 bg-[#2e3238] dark:bg-[#2a2e35] ring-1 ring-blue-400/25",
+                  // Downvoted: orange
+                  myVote === -1 &&
+                    "border-orange-400 bg-[#2e3238] dark:bg-[#2a2e35] ring-1 ring-orange-400/25"
                 )}
               >
-                {net}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={() => onVote?.(d.id, 1)}
+                      className={cn(
+                        "flex h-8 w-8 shrink-0 items-center justify-center transition-colors",
+                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                        myVote === 0 && "text-zinc-100 hover:bg-blue-400/12 hover:text-blue-300",
+                        myVote === 1 && "bg-blue-400/14 text-blue-400",
+                        myVote === -1 && "text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.04]"
+                      )}
+                      aria-label="Upvote"
+                    >
+                      <ArrowBigUp className="h-[18px] w-[18px]" strokeWidth={1.75} aria-hidden />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="text-xs font-semibold max-w-[14rem]">
+                    Upvote · +{upvoteRewardRdm} RDM first upvote today (IST)
+                  </TooltipContent>
+                </Tooltip>
+                <div
+                  className={cn(
+                    "flex h-8 min-w-[1.75rem] max-w-[3rem] items-center justify-center border-x border-zinc-600/70 px-1.5 tabular-nums text-xs font-bold leading-none",
+                    myVote === 0 && "bg-black/25 text-zinc-100 dark:bg-black/30",
+                    myVote === 1 && "border-blue-400/35 bg-black/35 text-sky-100",
+                    myVote === -1 && "border-orange-400/35 bg-black/35 text-amber-100"
+                  )}
+                >
+                  {net}
+                </div>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={() => onVote?.(d.id, -1)}
+                      className={cn(
+                        "flex h-8 w-8 shrink-0 items-center justify-center transition-colors",
+                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                        myVote === 0 &&
+                          "text-zinc-100 hover:bg-orange-400/12 hover:text-orange-300",
+                        myVote === -1 && "bg-orange-400/14 text-orange-400",
+                        myVote === 1 && "text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.04]"
+                      )}
+                      aria-label="Downvote"
+                    >
+                      <ArrowBigDown className="h-[18px] w-[18px]" strokeWidth={1.75} aria-hidden />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="text-xs font-semibold">
+                    Downvote
+                  </TooltipContent>
+                </Tooltip>
               </div>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    onClick={() => onVote?.(d.id, -1)}
-                    className={cn(
-                      "flex h-8 w-8 shrink-0 items-center justify-center transition-colors",
-                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-                      myVote === 0 && "text-zinc-100 hover:bg-orange-400/12 hover:text-orange-300",
-                      myVote === -1 && "bg-orange-400/14 text-orange-400",
-                      myVote === 1 && "text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.04]"
-                    )}
-                    aria-label="Downvote"
-                  >
-                    <ArrowBigDown className="h-[18px] w-[18px]" strokeWidth={1.75} aria-hidden />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="text-xs font-semibold">
-                  Downvote
-                </TooltipContent>
-              </Tooltip>
             </div>
             <Button
               type="button"
@@ -413,7 +425,14 @@ export default function DoubtFeedCard({
               <Bookmark
                 className={`w-3.5 h-3.5 mr-1 ${isSaved ? "fill-current text-primary" : ""}`}
               />
-              {isSaved ? "Saved" : <><span className="hidden sm:inline">Save for revision (+{saveRewardRdm} RDM)</span><span className="sm:hidden">Save</span></>}
+              {isSaved ? (
+                "Saved"
+              ) : (
+                <>
+                  <span className="hidden sm:inline">Save for revision (+{saveRewardRdm} RDM)</span>
+                  <span className="sm:hidden">Save</span>
+                </>
+              )}
             </Button>
             <Popover open={subjectPopoverOpen} onOpenChange={setSubjectPopoverOpen}>
               <PopoverTrigger asChild>
@@ -672,7 +691,10 @@ export default function DoubtFeedCard({
                         </span>
                       </div>
                       <div className="px-3 sm:px-5 pb-2.5 pt-0 sm:pb-3">
-                        <DoubtMarkdown content={ta.body} className="text-[13px] text-foreground sm:text-sm" />
+                        <DoubtMarkdown
+                          content={ta.body}
+                          className="text-[13px] text-foreground sm:text-sm"
+                        />
                         <div className="flex items-center gap-2.5 mt-1.5 text-[11px] text-muted-foreground flex-wrap sm:gap-3 sm:mt-2 sm:text-xs">
                           <span className="inline-flex items-center gap-1">
                             <ChevronUp className="w-3.5 h-3.5" /> {tNet} teacher upvotes
@@ -756,7 +778,12 @@ export default function DoubtFeedCard({
         )}
 
         {/* ── Comment input ── */}
-        <div className="px-3 sm:px-5 pb-4">
+        <div className="px-3 sm:px-5 pb-4 relative">
+          {showEngagePointer && (
+            <div className="absolute -top-11 left-8 z-10 pointer-events-none">
+              <OnboardingClickHerePointer label="Comment here" variant="emerald" />
+            </div>
+          )}
           <CommentInput
             doubtId={d.id}
             onCommentPosted={onRefresh}

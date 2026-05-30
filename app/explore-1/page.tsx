@@ -6,7 +6,7 @@ import AppLayout from "@/components/AppLayout";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserStore } from "@/store/useUserStore";
 import { questions } from "@/data/questions";
-import { Question, Subject, ExamType, ClassLevel, SubjectCombo, Board } from "@/types";
+import { Question, Subject, ExamType, ClassLevel, Board } from "@/types";
 import { TopicNode } from "@/data/topicTaxonomy";
 import { useTopicTaxonomy } from "@/hooks/useTopicTaxonomy";
 import ExploreHubDashboard from "@/components/explore/ExploreHubDashboard";
@@ -28,6 +28,8 @@ import {
   XCircle,
   Bot,
   Filter,
+  Lock,
+  AlertTriangle,
 } from "lucide-react";
 import { getTheoryOrPlaceholder, type InteractiveBlock } from "@/data/topicTheory";
 import InteractiveTheoryRenderer from "@/components/InteractiveTheoryRenderer";
@@ -50,6 +52,25 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { buildTopicOverviewPath, buildDeepDivePath } from "@/lib/curriculum/topicRoutes";
+import {
+  LESSONS_ONBOARDING_QUERY,
+  appendLessonsOnboardingToUrl,
+  advanceLessonsToProgressPanelStep,
+  clearLessonsOnboardingFlow,
+  clearLessonsSubjectPickGuideStep,
+  startLessonsOnboardingFlow,
+} from "@/lib/onboarding/lessonsOnboardingFlow";
+import {
+  isLessonsOnboardingCompanionActive,
+  markLessonsOnboardingChaptersSaved,
+  markLessonsOnboardingSubjectSelected,
+  markLessonsOnboardingSubtopicOpened,
+  reconcileLessonsOnboardingProgress,
+} from "@/lib/onboarding/lessonsOnboarding";
+import {
+  isOnboardingTaskCompanionLaunched,
+  ONBOARDING_ACTIVE_TASK_CHANGED_EVENT,
+} from "@/lib/onboarding/onboardingTaskCompanion";
 import { slugify } from "@/lib/slugs";
 import TheoryContent from "@/components/TheoryContent";
 import TopicAgentTracePanel from "@/components/TopicAgentTracePanel";
@@ -105,6 +126,12 @@ import {
   isTopicCompleteAtAdvanced,
 } from "@/lib/curriculum/lessonCompletionRollup";
 import { fetchAdvancedLessonCompletionKeys } from "@/lib/curriculum/lessonCompletionClient";
+import { getFreeTrialActivated, getOnboardingProgress } from "@/lib/subscription/freeTrialClient";
+import {
+  fetchSubscriptionConfig,
+  getPlanLimits,
+  normalizePlanTier,
+} from "@/lib/subscription/subscriptionConfig";
 
 const EMPTY_LESSON_KEY_SET = new Set<string>();
 
@@ -203,10 +230,7 @@ function getVisibleExamTypes(): ExamType[] {
   return EXAM_TYPES_11_12;
 }
 
-function getVisibleSubjects(
-  _classLevel: ClassLevel | null,
-  _subjectCombo: SubjectCombo | null
-): Subject[] {
+function getVisibleSubjects(): Subject[] {
   return ["physics", "chemistry", "math"];
 }
 
@@ -399,6 +423,102 @@ const UNIT_ICONS: Record<string, string> = {
   "Oscillations and Waves": "〰️",
 };
 
+export interface PlanLockConfig {
+  lockChapters: boolean;
+  maxChapters: number;
+  unlockLabel: string;
+  bannerGradient: string;
+  modalDescription: string;
+  iconBorderClass: string;
+  iconBgClass: string;
+  iconTextClass: string;
+  labelClass: string;
+}
+
+export const PLAN_LOCKS: Record<string, PlanLockConfig> = {
+  free_trial: {
+    lockChapters: true,
+    maxChapters: 2,
+    unlockLabel: "Free Trial — Chapter Unlock",
+    bannerGradient: "from-violet-950/60 via-card to-violet-950/20 border-violet-400/30",
+    modalDescription: "during your free trial. Make sure you select the chapters properly.",
+    iconBorderClass: "border-violet-400/30",
+    iconBgClass: "bg-violet-500/15",
+    iconTextClass: "text-violet-300",
+    labelClass: "text-violet-400",
+  },
+  free: {
+    lockChapters: true,
+    maxChapters: 2,
+    unlockLabel: "Free Tier — Chapter Unlock",
+    bannerGradient: "from-blue-950/60 via-card to-blue-950/20 border-blue-400/30",
+    modalDescription: "on the free plan. Upgrade to Starter or Pro to unlock everything!",
+    iconBorderClass: "border-blue-400/30",
+    iconBgClass: "bg-blue-500/15",
+    iconTextClass: "text-blue-300",
+    labelClass: "text-blue-400",
+  },
+  scholar: {
+    lockChapters: false,
+    maxChapters: Infinity,
+    unlockLabel: "",
+    bannerGradient: "",
+    modalDescription: "",
+    iconBorderClass: "",
+    iconBgClass: "",
+    iconTextClass: "",
+    labelClass: "",
+  },
+  starter: {
+    lockChapters: false,
+    maxChapters: Infinity,
+    unlockLabel: "",
+    bannerGradient: "",
+    modalDescription: "",
+    iconBorderClass: "",
+    iconBgClass: "",
+    iconTextClass: "",
+    labelClass: "",
+  },
+  champion: {
+    lockChapters: false,
+    maxChapters: Infinity,
+    unlockLabel: "",
+    bannerGradient: "",
+    modalDescription: "",
+    iconBorderClass: "",
+    iconBgClass: "",
+    iconTextClass: "",
+    labelClass: "",
+  },
+  pro: {
+    lockChapters: false,
+    maxChapters: Infinity,
+    unlockLabel: "",
+    bannerGradient: "",
+    modalDescription: "",
+    iconBorderClass: "",
+    iconBgClass: "",
+    iconTextClass: "",
+    labelClass: "",
+  },
+  pro_plus: {
+    lockChapters: false,
+    maxChapters: Infinity,
+    unlockLabel: "",
+    bannerGradient: "",
+    modalDescription: "",
+    iconBorderClass: "",
+    iconBgClass: "",
+    iconTextClass: "",
+    labelClass: "",
+  },
+};
+
+function freeTrialChapterStorageKey(userId: string, subject: string, classLevel: number) {
+  return `edublast_ft_chapters_${userId}_${subject}_${classLevel}`;
+}
+
 interface UnitRoadmapProps {
   topics: TopicNode[];
   subject: Subject;
@@ -414,6 +534,14 @@ interface UnitRoadmapProps {
   /** Advanced lesson marks for this subject + class (from `student_lesson_mark_completions`). */
   advancedLessonKeys: Set<string>;
   boardNormalized: string;
+  isLockActive: boolean;
+  activePlan: string;
+  savedChapters: Set<string>;
+  selectedForUnlock: Set<string>;
+  onToggleChapterSelect: (chapterTitle: string) => void;
+  userId?: string;
+  isSaved?: boolean;
+  isRestricted?: boolean;
 }
 
 function UnitRoadmap({
@@ -425,7 +553,58 @@ function UnitRoadmap({
   correctByTopic,
   advancedLessonKeys,
   boardNormalized,
+  isLockActive,
+  activePlan,
+  savedChapters,
+  selectedForUnlock,
+  onToggleChapterSelect,
+  userId,
+  isSaved: isSavedProp,
+  isRestricted = false,
 }: UnitRoadmapProps) {
+  const isFreeTrial = isLockActive; // Keeps rendering and checks aligned
+  const isSaved = isRestricted
+    ? true
+    : isSavedProp !== undefined
+      ? isSavedProp
+      : isLockActive && savedChapters.size > 0;
+
+  const { toast } = useToast();
+
+  const handleChapterCardClick = (
+    representative: TopicNode,
+    chapterTitle: string,
+    preferredTopic: string
+  ) => {
+    if (isLockActive && userId) {
+      if (isRestricted) {
+        const subjectLabel = subject.charAt(0).toUpperCase() + subject.slice(1);
+        toast({
+          title: "Selection Locked 🔒",
+          description: `You have already unlocked chapters in Class ${classLevel === 11 ? "12" : "11"} ${subjectLabel}. Only one class selection is allowed.`,
+          variant: "default",
+        });
+        return;
+      }
+      if (isSaved) {
+        // Already saved: only allow unlocked chapters
+        if (!savedChapters.has(chapterTitle)) {
+          toast({
+            title: "Chapter Locked 🔒",
+            description: `This chapter is locked on your ${activePlan === "free_trial" ? "free trial" : "free plan"}. Upgrade to Starter or Pro to unlock all chapters!`,
+            variant: "default",
+          });
+          return;
+        }
+      } else {
+        // Selection mode: toggle chapter selection in parent
+        onToggleChapterSelect(chapterTitle);
+        return;
+      }
+    }
+    onTopicClick(representative, classLevel, chapterTitle, preferredTopic);
+  };
+
   // Sort by unit → chapter only; keep syllabus order within a chapter (do not sort by topic title —
   // alphabetical order made chapter cards open the wrong "first" topic, e.g. Capacitors before Electric Potential).
   const sorted = [...topics]
@@ -524,26 +703,58 @@ function UnitRoadmap({
       advancedLessonKeys,
       boardNormalized
     );
+    const isChapterLocked = isFreeTrial && isSaved && !savedChapters.has(chapterTitle);
+    const isChapterSelectedForUnlock =
+      isFreeTrial && !isSaved && selectedForUnlock.has(chapterTitle);
     return (
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: animDelay, type: "spring", stiffness: 260, damping: 24 }}
-        whileHover={{ scale: 1.015, transition: { duration: 0.15 } }}
+        whileHover={
+          isChapterLocked ? { scale: 1.003 } : { scale: 1.015, transition: { duration: 0.15 } }
+        }
         whileTap={{ scale: 0.99 }}
-        onClick={() => onTopicClick(representative, classLevel, chapterTitle, representative.topic)}
+        onClick={() => handleChapterCardClick(representative, chapterTitle, representative.topic)}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
-            onTopicClick(representative, classLevel, chapterTitle, representative.topic);
+            handleChapterCardClick(representative, chapterTitle, representative.topic);
           }
         }}
         role="button"
         tabIndex={0}
-        aria-label={`Open ${chapterTitle}`}
-        className="w-full text-left rounded-2xl border border-border/80 bg-card shadow-md hover:shadow-lg transition-shadow duration-200 p-4 sm:p-5 min-h-[232px] flex flex-col cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 overflow-hidden"
-        style={{ borderTopWidth: 3, borderTopStyle: "solid", borderTopColor: c.stroke }}
+        aria-label={
+          isChapterLocked ? `${chapterTitle} — Locked (Free Trial)` : `Open ${chapterTitle}`
+        }
+        className={`relative w-full text-left rounded-2xl border ${
+          isChapterLocked
+            ? "border-border/30 cursor-not-allowed"
+            : isChapterSelectedForUnlock
+              ? "border-violet-400/70 shadow-[0_0_0_3px_rgba(139,92,246,0.3)] cursor-pointer"
+              : "border-border/80"
+        } bg-card shadow-md hover:shadow-lg transition-all duration-200 p-4 sm:p-5 min-h-[232px] flex flex-col focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 overflow-hidden`}
+        style={
+          isChapterLocked || isChapterSelectedForUnlock
+            ? undefined
+            : { borderTopWidth: 3, borderTopStyle: "solid", borderTopColor: c.stroke }
+        }
       >
+        {isChapterLocked && (
+          <div className="absolute inset-0 z-10 rounded-2xl backdrop-blur-[2px] bg-background/40 flex flex-col items-center justify-center gap-2">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-muted/80 shadow-inner">
+              <Lock className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <span className="text-[11px] font-semibold text-muted-foreground text-center px-3">
+              Locked · Upgrade to Premium
+            </span>
+          </div>
+        )}
+        {isChapterSelectedForUnlock && (
+          <div className="absolute top-3 right-3 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-violet-500 shadow-md">
+            <CheckCircle2 className="h-4 w-4 text-white" />
+          </div>
+        )}
         <div className="flex items-start justify-between gap-2">
           <span className="text-[11px] font-extrabold tracking-widest text-muted-foreground">
             {unitNumberLabel}
@@ -617,26 +828,58 @@ function UnitRoadmap({
       advancedLessonKeys,
       boardNormalized
     );
+    const isChapterLocked = isFreeTrial && isSaved && !savedChapters.has(chapterTitle);
+    const isChapterSelectedForUnlock =
+      isFreeTrial && !isSaved && selectedForUnlock.has(chapterTitle);
     return (
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: animDelay, type: "spring", stiffness: 250, damping: 24 }}
-        whileHover={{ scale: 1.012, transition: { duration: 0.15 } }}
+        whileHover={
+          isChapterLocked ? { scale: 1.003 } : { scale: 1.012, transition: { duration: 0.15 } }
+        }
         whileTap={{ scale: 0.99 }}
-        onClick={() => onTopicClick(representative, classLevel, chapterTitle, representative.topic)}
+        onClick={() => handleChapterCardClick(representative, chapterTitle, representative.topic)}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
-            onTopicClick(representative, classLevel, chapterTitle, representative.topic);
+            handleChapterCardClick(representative, chapterTitle, representative.topic);
           }
         }}
         role="button"
         tabIndex={0}
-        aria-label={`Open ${chapterTitle}`}
-        className="w-full text-left rounded-2xl border border-border/70 bg-card/95 shadow-[0_8px_24px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_30px_rgba(0,0,0,0.36)] hover:shadow-[0_12px_30px_rgba(0,0,0,0.13)] dark:hover:shadow-[0_14px_34px_rgba(0,0,0,0.5)] transition-shadow duration-200 p-4 sm:p-5 min-h-[232px] flex flex-col cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 overflow-hidden"
-        style={{ borderTopWidth: 2, borderTopStyle: "solid", borderTopColor: c.stroke }}
+        aria-label={
+          isChapterLocked ? `${chapterTitle} — Locked (Free Trial)` : `Open ${chapterTitle}`
+        }
+        className={`relative w-full text-left rounded-2xl border ${
+          isChapterLocked
+            ? "border-border/30 cursor-not-allowed"
+            : isChapterSelectedForUnlock
+              ? "border-violet-400/70 shadow-[0_0_0_3px_rgba(139,92,246,0.3)] cursor-pointer"
+              : "border-border/70"
+        } bg-card/95 shadow-[0_8px_24px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_30px_rgba(0,0,0,0.36)] transition-all duration-200 p-4 sm:p-5 min-h-[232px] flex flex-col focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 overflow-hidden`}
+        style={
+          isChapterLocked || isChapterSelectedForUnlock
+            ? undefined
+            : { borderTopWidth: 2, borderTopStyle: "solid", borderTopColor: c.stroke }
+        }
       >
+        {isChapterLocked && (
+          <div className="absolute inset-0 z-10 rounded-2xl backdrop-blur-[2px] bg-background/40 flex flex-col items-center justify-center gap-2">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-muted/80 shadow-inner">
+              <Lock className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <span className="text-[11px] font-semibold text-muted-foreground text-center px-3">
+              Locked · Upgrade to Premium
+            </span>
+          </div>
+        )}
+        {isChapterSelectedForUnlock && (
+          <div className="absolute top-3 right-3 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-violet-500 shadow-md">
+            <CheckCircle2 className="h-4 w-4 text-white" />
+          </div>
+        )}
         <div className="flex items-start justify-between gap-2">
           <span className="text-[11px] font-extrabold tracking-widest text-muted-foreground/90">
             {unitNumberLabel}
@@ -725,26 +968,71 @@ function UnitRoadmap({
       advancedLessonKeys,
       boardNormalized
     );
+    // Free trial: chapter lock state
+    const isChapterLocked =
+      isFreeTrial &&
+      isSaved &&
+      !savedChapters.has(displayTitle) &&
+      !savedChapters.has(chapter.chapterTitle);
+    const isChapterSelectedForUnlock =
+      isFreeTrial &&
+      !isSaved &&
+      (selectedForUnlock.has(displayTitle) || selectedForUnlock.has(chapter.chapterTitle));
+    const effectiveChapterKey = displayTitle;
+
     return (
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: animDelay, type: "spring", stiffness: 250, damping: 24 }}
-        whileHover={{ scale: 1.012, transition: { duration: 0.15 } }}
+        whileHover={
+          isChapterLocked ? { scale: 1.003 } : { scale: 1.012, transition: { duration: 0.15 } }
+        }
         whileTap={{ scale: 0.99 }}
-        onClick={() => onTopicClick(representative, classLevel, displayTitle, representative.topic)}
+        onClick={() =>
+          handleChapterCardClick(representative, effectiveChapterKey, representative.topic)
+        }
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
-            onTopicClick(representative, classLevel, displayTitle, representative.topic);
+            handleChapterCardClick(representative, effectiveChapterKey, representative.topic);
           }
         }}
         role="button"
         tabIndex={0}
-        aria-label={`Open ${displayTitle}`}
-        className="w-full text-left rounded-2xl border border-border/70 bg-card/95 shadow-[0_8px_24px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_30px_rgba(0,0,0,0.36)] hover:shadow-[0_12px_30px_rgba(0,0,0,0.13)] dark:hover:shadow-[0_14px_34px_rgba(0,0,0,0.5)] transition-shadow duration-200 p-4 sm:p-5 min-h-[232px] flex flex-col cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 overflow-hidden"
-        style={{ borderTopWidth: 2, borderTopStyle: "solid", borderTopColor: c.stroke }}
+        aria-label={
+          isChapterLocked ? `${displayTitle} — Locked (Free Trial)` : `Open ${displayTitle}`
+        }
+        className={`relative w-full text-left rounded-2xl border ${
+          isChapterLocked
+            ? "border-border/30 cursor-not-allowed"
+            : isChapterSelectedForUnlock
+              ? "border-violet-400/70 shadow-[0_0_0_3px_rgba(139,92,246,0.3)] cursor-pointer"
+              : "border-border/70"
+        } bg-card/95 shadow-[0_8px_24px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_30px_rgba(0,0,0,0.36)] transition-all duration-200 p-4 sm:p-5 min-h-[232px] flex flex-col focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 overflow-hidden`}
+        style={
+          isChapterLocked || isChapterSelectedForUnlock
+            ? undefined
+            : { borderTopWidth: 2, borderTopStyle: "solid", borderTopColor: c.stroke }
+        }
       >
+        {/* Lock overlay */}
+        {isChapterLocked && (
+          <div className="absolute inset-0 z-10 rounded-2xl backdrop-blur-[2px] bg-background/40 flex flex-col items-center justify-center gap-2">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-muted/80 shadow-inner">
+              <Lock className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <span className="text-[11px] font-semibold text-muted-foreground text-center px-3">
+              Locked · Upgrade to Premium
+            </span>
+          </div>
+        )}
+        {/* Selection checkmark */}
+        {isChapterSelectedForUnlock && (
+          <div className="absolute top-3 right-3 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-violet-500 shadow-md">
+            <CheckCircle2 className="h-4 w-4 text-white" />
+          </div>
+        )}
         <div className="flex items-start justify-between gap-2">
           <span className="text-[11px] font-extrabold tracking-widest text-muted-foreground/90">
             {unitNumberLabel}
@@ -820,74 +1108,79 @@ function UnitRoadmap({
     }
     const footerDelay = chapterCards.length * 0.03 + 0.2;
     return (
-      <div className="w-full max-w-6xl mx-auto py-4 sm:py-5 2xl:py-8 select-none px-2">
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-          className="rounded-2xl border border-primary/30 bg-gradient-to-r from-primary/10 via-card to-primary/10 p-4 sm:p-5 mb-6 flex items-center justify-between gap-4"
-        >
-          <div className="flex items-start gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg border border-primary/35 bg-primary/15 shrink-0">
-              ✨
-            </div>
-            <div className="min-w-0">
-              <div className="text-[10px] sm:text-[11px] font-extrabold uppercase tracking-[0.16em] text-primary">
-                Your unit map
+      <>
+        <div className="w-full max-w-6xl mx-auto pt-1 pb-4 sm:pb-5 2xl:pb-8 select-none px-2">
+          {!isFreeTrial && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+              className="rounded-2xl border border-primary/30 bg-gradient-to-r from-primary/10 via-card to-primary/10 p-4 sm:p-5 mb-6 flex items-center justify-between gap-4"
+            >
+              <div className="flex items-start gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg border border-primary/35 bg-primary/15 shrink-0">
+                  ✨
+                </div>
+                <div className="min-w-0">
+                  <div className="text-[10px] sm:text-[11px] font-extrabold uppercase tracking-[0.16em] text-primary">
+                    Your unit map
+                  </div>
+                  <h2 className="text-xl sm:text-2xl font-extrabold text-foreground leading-tight">
+                    Pick a unit. Unlock it.
+                  </h2>
+                  <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                    Tap a unit below — read the theory, master each topic, then crush practice. Each
+                    card shows how many topics you&apos;ll cover across {unitCountLabel} of{" "}
+                    {classBadgeLabel}.
+                  </p>
+                </div>
               </div>
-              <h2 className="text-xl sm:text-2xl font-extrabold text-foreground leading-tight">
-                Pick a unit. Unlock it.
-              </h2>
-              <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-                Tap a unit below — read the theory, master each topic, then crush practice. Each
-                card shows how many topics you&apos;ll cover across {unitCountLabel} of{" "}
-                {classBadgeLabel}.
+              <div className="hidden sm:flex flex-col items-end shrink-0">
+                <span className="text-[11px] font-extrabold tracking-widest uppercase text-muted-foreground">
+                  Units · {classBadgeLabel}
+                </span>
+              </div>
+            </motion.div>
+          )}
+
+          {sections.map((sec, secIndex) => (
+            <section key={sec.heading} className={secIndex > 0 ? "mt-8" : ""}>
+              <h3 className="text-[11px] sm:text-xs font-extrabold tracking-[0.18em] text-muted-foreground uppercase mb-4">
+                {sec.heading}
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+                {sec.chapters.map((title) => {
+                  const chapter = getChapterByAnyTitle(title);
+                  if (!chapter) return null;
+                  const ai = titleToAnimIndex.get(title) ?? 0;
+                  const pi = titleToPaletteIndex.get(title) ?? 0;
+                  return (
+                    <div
+                      key={`${classLevel}-${chapter.unitLabel}-${chapter.chapterTitle}-${chapter.representative.topic}`}
+                    >
+                      {renderInvestorCard(chapter, title, ai * 0.03, pi, blurbs, icons)}
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
+
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: footerDelay }}
+            className="flex justify-center mt-8"
+          >
+            <div className="bg-muted/60 rounded-xl px-4 py-2.5 inline-flex items-center gap-2 border border-border/60">
+              <p className="text-xs font-bold text-muted-foreground text-center">
+                Ready to level up? Pick a unit above to begin. · {unitCountLabel} ·{" "}
+                {classBadgeLabel}
               </p>
             </div>
-          </div>
-          <div className="hidden sm:flex flex-col items-end shrink-0">
-            <span className="text-[11px] font-extrabold tracking-widest uppercase text-muted-foreground">
-              Units · {classBadgeLabel}
-            </span>
-          </div>
-        </motion.div>
-
-        {sections.map((sec, secIndex) => (
-          <section key={sec.heading} className={secIndex > 0 ? "mt-8" : ""}>
-            <h3 className="text-[11px] sm:text-xs font-extrabold tracking-[0.18em] text-muted-foreground uppercase mb-4">
-              {sec.heading}
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
-              {sec.chapters.map((title) => {
-                const chapter = getChapterByAnyTitle(title);
-                if (!chapter) return null;
-                const ai = titleToAnimIndex.get(title) ?? 0;
-                const pi = titleToPaletteIndex.get(title) ?? 0;
-                return (
-                  <div
-                    key={`${classLevel}-${chapter.unitLabel}-${chapter.chapterTitle}-${chapter.representative.topic}`}
-                  >
-                    {renderInvestorCard(chapter, title, ai * 0.03, pi, blurbs, icons)}
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-        ))}
-
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: footerDelay }}
-          className="flex justify-center mt-8"
-        >
-          <div className="bg-muted/60 rounded-xl px-4 py-2.5 inline-flex items-center gap-2 border border-border/60">
-            <p className="text-xs font-bold text-muted-foreground text-center">
-              Ready to level up? Pick a unit above to begin. · {unitCountLabel} · {classBadgeLabel}
-            </p>
-          </div>
-        </motion.div>
-      </div>
+          </motion.div>
+        </div>
+      </>
     );
   };
 
@@ -917,26 +1210,59 @@ function UnitRoadmap({
       advancedLessonKeys,
       boardNormalized
     );
+
+    // Free trial: chapter lock state
+    const isChapterLocked = isFreeTrial && isSaved && !savedChapters.has(chapterTitle);
+    const isChapterSelectedForUnlock =
+      isFreeTrial && !isSaved && selectedForUnlock.has(chapterTitle);
+
     return (
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: animDelay, type: "spring", stiffness: 260, damping: 24 }}
-        whileHover={{ scale: 1.02, transition: { duration: 0.15 } }}
+        whileHover={
+          isChapterLocked ? { scale: 1.005 } : { scale: 1.02, transition: { duration: 0.15 } }
+        }
         whileTap={{ scale: 0.98 }}
-        onClick={() => onTopicClick(representative, classLevel, chapterTitle, representative.topic)}
+        onClick={() => handleChapterCardClick(representative, chapterTitle, representative.topic)}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
-            onTopicClick(representative, classLevel, chapterTitle, representative.topic);
+            handleChapterCardClick(representative, chapterTitle, representative.topic);
           }
         }}
         role="button"
         tabIndex={0}
-        aria-label={`Open ${chapterTitle}`}
-        className={`w-full text-left bg-white rounded-2xl border-2 ${c.outline} shadow-md hover:shadow-xl active:shadow-lg transition-shadow duration-200 p-5 sm:p-6 min-h-[184px] sm:min-h-[210px] flex flex-col justify-between group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40`}
+        aria-label={
+          isChapterLocked ? `${chapterTitle} — Locked (Free Trial)` : `Open ${chapterTitle}`
+        }
+        className={`relative w-full text-left bg-white rounded-2xl border-2 ${
+          isChapterLocked
+            ? "border-border/30 cursor-not-allowed"
+            : isChapterSelectedForUnlock
+              ? "border-violet-400/70 shadow-[0_0_0_3px_rgba(139,92,246,0.3)] cursor-pointer"
+              : c.outline
+        } shadow-md hover:shadow-xl active:shadow-lg transition-all duration-200 p-5 sm:p-6 min-h-[184px] sm:min-h-[210px] flex flex-col justify-between group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 overflow-hidden`}
       >
-        <div className="flex items-start gap-3 sm:gap-4">
+        {/* Lock overlay for locked free trial chapters */}
+        {isChapterLocked && (
+          <div className="absolute inset-0 z-10 rounded-2xl backdrop-blur-[2px] bg-background/40 flex flex-col items-center justify-center gap-2">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-muted/80 shadow-inner">
+              <Lock className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <span className="text-[11px] font-semibold text-muted-foreground text-center px-3">
+              Locked · Upgrade to Premium
+            </span>
+          </div>
+        )}
+        {/* Selection glow for free trial selection mode */}
+        {isChapterSelectedForUnlock && (
+          <div className="absolute top-3 right-3 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-violet-500 shadow-md">
+            <CheckCircle2 className="h-4 w-4 text-white" />
+          </div>
+        )}
+        <div className={`flex items-start gap-3 sm:gap-4 ${isChapterLocked ? "opacity-30" : ""}`}>
           <div
             className={`w-14 h-14 sm:w-16 sm:h-16 rounded-xl flex items-center justify-center text-3xl sm:text-4xl shrink-0 ${c.accent} border border-current/20`}
           >
@@ -961,7 +1287,9 @@ function UnitRoadmap({
             </div>
           </div>
         </div>
-        <div className="mt-3 pt-3 border-t border-border/60 space-y-1">
+        <div
+          className={`mt-3 pt-3 border-t border-border/60 space-y-1 ${isChapterLocked ? "opacity-30" : ""}`}
+        >
           <div className="flex items-center justify-between">
             <span className="text-sm sm:text-base font-bold text-muted-foreground">
               {periods > 0 ? `${periods} periods` : ""}
@@ -1008,75 +1336,79 @@ function UnitRoadmap({
     }
     const footerDelay = chapterCards.length * 0.03 + 0.2;
     return (
-      <div className="w-full max-w-6xl mx-auto py-4 sm:py-5 2xl:py-8 select-none px-2">
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-          className="rounded-2xl border border-primary/30 bg-gradient-to-r from-primary/10 via-card to-primary/10 p-4 sm:p-5 mb-6 flex items-center justify-between gap-4"
-        >
-          <div className="flex items-start gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg border border-primary/35 bg-primary/15 shrink-0">
-              ✨
-            </div>
-            <div className="min-w-0">
-              <div className="text-[10px] sm:text-[11px] font-extrabold uppercase tracking-[0.16em] text-primary">
-                Your unit map
+      <>
+        <div className="w-full max-w-6xl mx-auto pt-1 pb-4 sm:pb-5 2xl:pb-8 select-none px-2">
+          {!isFreeTrial && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+              className="rounded-2xl border border-primary/30 bg-gradient-to-r from-primary/10 via-card to-primary/10 p-4 sm:p-5 mb-6 flex items-center justify-between gap-4"
+            >
+              <div className="flex items-start gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg border border-primary/35 bg-primary/15 shrink-0">
+                  ✨
+                </div>
+                <div className="min-w-0">
+                  <div className="text-[10px] sm:text-[11px] font-extrabold uppercase tracking-[0.16em] text-primary">
+                    Your unit map
+                  </div>
+                  <h2 className="text-xl sm:text-2xl font-extrabold text-foreground leading-tight">
+                    Pick a unit. Unlock it.
+                  </h2>
+                  <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                    This is all Physics for Class 11. Each card shows chapter scope, topic count,
+                    and your path to start.
+                  </p>
+                </div>
               </div>
-              <h2 className="text-xl sm:text-2xl font-extrabold text-foreground leading-tight">
-                Pick a unit. Unlock it.
-              </h2>
-              <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-                This is all Physics for Class 11. Each card shows chapter scope, topic count, and
-                your path to start.
+              <div className="hidden sm:flex flex-col items-end shrink-0">
+                <span className="text-3xl font-extrabold text-primary leading-none">10</span>
+                <span className="text-[11px] font-extrabold tracking-widest uppercase text-muted-foreground">
+                  Units · Class 11
+                </span>
+              </div>
+            </motion.div>
+          )}
+
+          {CLASS11_PHYSICS_SECTIONS.map((sec, secIndex) => (
+            <section key={sec.heading} className={secIndex > 0 ? "mt-8" : ""}>
+              <h3 className="text-[11px] sm:text-xs font-extrabold tracking-[0.18em] text-muted-foreground uppercase mb-4">
+                {sec.heading}
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+                {sec.chapters.map((title) => {
+                  const chapter = chapterByTitle.get(title);
+                  if (!chapter) return null;
+                  const ai = titleToAnimIndex.get(title) ?? 0;
+                  const pi = titleToPaletteIndex.get(title) ?? 0;
+                  return (
+                    <div
+                      key={`${classLevel}-${chapter.unitLabel}-${chapter.chapterTitle}-${chapter.representative.topic}`}
+                    >
+                      {renderPhysics11Card(chapter, ai * 0.03, pi)}
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
+
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: footerDelay }}
+            className="flex justify-center mt-8"
+          >
+            <div className="bg-muted/60 rounded-xl px-4 py-2.5 inline-flex items-center gap-2 border border-border/60">
+              <p className="text-xs font-bold text-muted-foreground text-center">
+                Ready to level up? Pick a unit above to begin. · {CLASS11_PHYSICS_UNIT_COUNT_LABEL}{" "}
+                · Class 11 Physics
               </p>
             </div>
-          </div>
-          <div className="hidden sm:flex flex-col items-end shrink-0">
-            <span className="text-3xl font-extrabold text-primary leading-none">10</span>
-            <span className="text-[11px] font-extrabold tracking-widest uppercase text-muted-foreground">
-              Units · Class 11
-            </span>
-          </div>
-        </motion.div>
-
-        {CLASS11_PHYSICS_SECTIONS.map((sec, secIndex) => (
-          <section key={sec.heading} className={secIndex > 0 ? "mt-8" : ""}>
-            <h3 className="text-[11px] sm:text-xs font-extrabold tracking-[0.18em] text-muted-foreground uppercase mb-4">
-              {sec.heading}
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
-              {sec.chapters.map((title) => {
-                const chapter = chapterByTitle.get(title);
-                if (!chapter) return null;
-                const ai = titleToAnimIndex.get(title) ?? 0;
-                const pi = titleToPaletteIndex.get(title) ?? 0;
-                return (
-                  <div
-                    key={`${classLevel}-${chapter.unitLabel}-${chapter.chapterTitle}-${chapter.representative.topic}`}
-                  >
-                    {renderPhysics11Card(chapter, ai * 0.03, pi)}
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-        ))}
-
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: footerDelay }}
-          className="flex justify-center mt-8"
-        >
-          <div className="bg-muted/60 rounded-xl px-4 py-2.5 inline-flex items-center gap-2 border border-border/60">
-            <p className="text-xs font-bold text-muted-foreground text-center">
-              Ready to level up? Pick a unit above to begin. · {CLASS11_PHYSICS_UNIT_COUNT_LABEL} ·
-              Class 11 Physics
-            </p>
-          </div>
-        </motion.div>
-      </div>
+          </motion.div>
+        </div>
+      </>
     );
   }
 
@@ -1134,7 +1466,7 @@ function UnitRoadmap({
     }
     const footerDelay = chapterCards.length * 0.03 + 0.2;
     return (
-      <div className="w-full max-w-6xl mx-auto py-4 sm:py-5 2xl:py-8 select-none px-2">
+      <div className="w-full max-w-6xl mx-auto pt-1 pb-4 sm:pb-5 2xl:pb-8 select-none px-2">
         {CLASS12_PHYSICS_SECTIONS.map((sec, secIndex) => (
           <section key={sec.heading} className={secIndex > 0 ? "mt-10" : ""}>
             <h3 className="text-[11px] sm:text-xs font-extrabold tracking-[0.18em] text-muted-foreground uppercase mb-4">
@@ -1184,67 +1516,71 @@ function UnitRoadmap({
     );
   }
 
+  // ── Free Trial chapter save confirmation dialog ──
   return (
-    <div className="w-full max-w-4xl mx-auto py-4 sm:py-5 2xl:py-8 select-none px-2">
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-5">
-        {/* Intro card: spans full width, sets the tone inside the deck */}
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-          className="sm:col-span-2 md:col-span-3 rounded-2xl border-2 border-primary/20 bg-gradient-to-br from-primary/5 via-background to-primary/5 p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center gap-4"
-        >
-          <div className="flex items-center gap-3 shrink-0">
-            <span className="text-4xl">🗺️</span>
-            <div>
-              <div className="text-xs font-extrabold uppercase tracking-wider text-primary">
-                Your unit map
+    <>
+      <div className="w-full max-w-4xl mx-auto pt-1 pb-4 sm:pb-5 2xl:pb-8 select-none px-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-5">
+          {!isFreeTrial && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+              className="sm:col-span-2 md:col-span-3 rounded-2xl border-2 border-primary/20 bg-gradient-to-br from-primary/5 via-background to-primary/5 p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center gap-4"
+            >
+              <div className="flex items-center gap-3 shrink-0">
+                <span className="text-4xl">🗺️</span>
+                <div>
+                  <div className="text-xs font-extrabold uppercase tracking-wider text-primary">
+                    Your unit map
+                  </div>
+                  <h2 className="text-xl sm:text-2xl font-extrabold text-foreground">
+                    Pick a unit. Unlock it.
+                  </h2>
+                </div>
               </div>
-              <h2 className="text-xl sm:text-2xl font-extrabold text-foreground">
-                Pick a unit. Unlock it.
-              </h2>
+              <p className="text-sm text-muted-foreground sm:border-l sm:border-border sm:pl-5 sm:ml-2">
+                Tap a unit below → read the theory, master each topic, then crush practice. Each
+                card shows how many periods and topics you will cover.
+              </p>
+            </motion.div>
+          )}
+
+          {chapterCards.map((chapter, index) => (
+            <div
+              key={`${classLevel}-${chapter.unitLabel}-${chapter.chapterTitle}-${chapter.chapterIndex}-${chapter.representative.topic}-${index}`}
+            >
+              {renderCard(
+                chapter.unitLabel,
+                chapter.unitTopics,
+                chapter.chapterTitle,
+                chapter.chapterTopics,
+                chapter.representative,
+                chapter.unitRepresentative,
+                chapter.unitIndex,
+                chapter.chapterIndex,
+                index * 0.03
+              )}
             </div>
-          </div>
-          <p className="text-sm text-muted-foreground sm:border-l sm:border-border sm:pl-5 sm:ml-2">
-            Tap a unit below → read the theory, master each topic, then crush practice. Each card
-            shows how many periods and topics you’ll cover.
-          </p>
-        </motion.div>
-
-        {chapterCards.map((chapter, index) => (
-          <div
-            key={`${classLevel}-${chapter.unitLabel}-${chapter.chapterTitle}-${chapter.chapterIndex}-${chapter.representative.topic}-${index}`}
-          >
-            {renderCard(
-              chapter.unitLabel,
-              chapter.unitTopics,
-              chapter.chapterTitle,
-              chapter.chapterTopics,
-              chapter.representative,
-              chapter.unitRepresentative,
-              chapter.unitIndex,
-              chapter.chapterIndex,
-              index * 0.03
-            )}
-          </div>
-        ))}
-      </div>
-
-      {/* Hint */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: unitCards.length * 0.03 + 0.2 }}
-        className="flex justify-center mt-6"
-      >
-        <div className="bg-muted/60 rounded-xl px-4 py-2.5 inline-flex items-center gap-2 border border-border/60">
-          <p className="text-xs font-bold text-muted-foreground">
-            Ready to level up? Pick a unit above to begin. · {unitKeys.length} units · Class{" "}
-            {classLevel}
-          </p>
+          ))}
         </div>
-      </motion.div>
-    </div>
+
+        {/* Hint */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: unitCards.length * 0.03 + 0.2 }}
+          className="flex justify-center mt-6"
+        >
+          <div className="bg-muted/60 rounded-xl px-4 py-2.5 inline-flex items-center gap-2 border border-border/60">
+            <p className="text-xs font-bold text-muted-foreground">
+              Ready to level up? Pick a unit above to begin. · {unitKeys.length} units · Class{" "}
+              {classLevel}
+            </p>
+          </div>
+        </motion.div>
+      </div>
+    </>
   );
 }
 
@@ -1260,16 +1596,16 @@ const Explore = () => {
     profile?.role === "admin" &&
     typeof window !== "undefined" &&
     (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
-  const classLevel: ClassLevel | null =
+  const profileClassLevel: ClassLevel | null =
     profile?.role === "student"
       ? profile.class_level != null
         ? (profile.class_level as ClassLevel)
         : null
       : (user?.classLevel ?? null);
-  const subjectCombo: SubjectCombo | null =
-    profile?.role === "student" && profile?.subject_combo
-      ? (profile.subject_combo as SubjectCombo)
-      : (user?.subjectCombo ?? null);
+
+  const [subjectEntryClassLevel, setSubjectEntryClassLevel] = useState<ClassLevel | null>(null);
+
+  const classLevel = subjectEntryClassLevel ?? profileClassLevel;
 
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
   const profileExamType = useUserStore((s) => s.user?.examType ?? null);
@@ -1321,13 +1657,250 @@ const Explore = () => {
     loading: taxonomyLoading,
     error: taxonomyError,
   } = useTopicTaxonomy();
+
+  /** Record site-tour step 1 on any subject pick (session flag applies before companion is active). */
+  const notifyLessonsCompanionSubjectPicked = useCallback(() => {
+    markLessonsOnboardingSubjectSelected();
+  }, []);
+
+  /** Reconcile when companion launches after user already chose a subject (otherwise effect never re-runs). */
+  const [lessonsCompanionLaunchRevision, setLessonsCompanionLaunchRevision] = useState(0);
+  useEffect(() => {
+    const onActiveTask = (event: Event) => {
+      const taskId = (event as CustomEvent<string>).detail;
+      if (taskId === "lessons") setLessonsCompanionLaunchRevision((n) => n + 1);
+    };
+    window.addEventListener(ONBOARDING_ACTIVE_TASK_CHANGED_EVENT, onActiveTask);
+    return () => window.removeEventListener(ONBOARDING_ACTIVE_TASK_CHANGED_EVENT, onActiveTask);
+  }, []);
+
+  /** Companion may launch before this page mounts — catch already-active Lessons task once. */
+  useEffect(() => {
+    if (isOnboardingTaskCompanionLaunched("lessons")) {
+      setLessonsCompanionLaunchRevision((n) => n + 1);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!selectedSubject) return;
+    markLessonsOnboardingSubjectSelected();
+  }, [selectedSubject, lessonsCompanionLaunchRevision]);
+
+  /** Topics / topic-detail views imply a subject was chosen (covers missed click handlers). */
+  useEffect(() => {
+    if (!selectedSubject || view === "hub") return;
+    markLessonsOnboardingSubjectSelected();
+  }, [selectedSubject, view, lessonsCompanionLaunchRevision]);
+
   const orchestratorJobs = useOrchestratorStore((s) => s.jobs);
   const scheduleChapterJob = useOrchestratorStore((s) => s.scheduleChapterJob);
+
+  const [chapterLockLimits, setChapterLockLimits] = useState<{ free: number; free_trial: number }>({
+    free: 2,
+    free_trial: 2,
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetchSubscriptionConfig().then((cfg) => {
+      if (cancelled) return;
+      const free = getPlanLimits(cfg, "free").lessonsChapterLimit;
+      const trial = getPlanLimits(cfg, "free_trial").lessonsChapterLimit;
+      setChapterLockLimits({
+        free: free > 0 ? free : 2,
+        free_trial: trial > 0 ? trial : 2,
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Lifted locks state — free trial = 2 chapters; use getFreeTrialActivated (profile + localStorage), not plan_tier === "free" only.
+  const tier = normalizePlanTier(profile?.plan_tier, profile?.free_trial_activated);
+  const tierLockConfig = PLAN_LOCKS[tier];
+  const activePlan =
+    tierLockConfig && !tierLockConfig.lockChapters
+      ? tier
+      : getFreeTrialActivated(profile)
+        ? "free_trial"
+        : "free";
+  const baseLockConfig = PLAN_LOCKS[activePlan] ?? PLAN_LOCKS.free;
+  const lockConfig =
+    activePlan === "free"
+      ? { ...baseLockConfig, maxChapters: chapterLockLimits.free }
+      : activePlan === "free_trial"
+        ? { ...baseLockConfig, maxChapters: chapterLockLimits.free_trial }
+        : baseLockConfig;
+  const isLockActive = lockConfig.lockChapters;
+
+  const [savedChapters11, setSavedChapters11] = useState<Set<string>>(new Set());
+  const [savedChapters12, setSavedChapters12] = useState<Set<string>>(new Set());
+  const [selectedForUnlock, setSelectedForUnlock] = useState<Set<string>>(new Set());
+  const [saveConfirmOpen, setSaveConfirmOpen] = useState(false);
+
+  useEffect(() => {
+    if (!isLockActive || !profile?.id || !selectedSubject) {
+      setSavedChapters11(new Set());
+      setSavedChapters12(new Set());
+      setSelectedForUnlock(new Set());
+      return;
+    }
+    const key11 = freeTrialChapterStorageKey(profile.id, selectedSubject, 11);
+    const key12 = freeTrialChapterStorageKey(profile.id, selectedSubject, 12);
+
+    let set11 = new Set<string>();
+    let set12 = new Set<string>();
+    try {
+      const raw11 = localStorage.getItem(key11);
+      if (raw11) set11 = new Set(JSON.parse(raw11) as string[]);
+    } catch {}
+    try {
+      const raw12 = localStorage.getItem(key12);
+      if (raw12) set12 = new Set(JSON.parse(raw12) as string[]);
+    } catch {}
+
+    setSavedChapters11(set11);
+    setSavedChapters12(set12);
+    setSelectedForUnlock(new Set());
+  }, [profile?.id, selectedSubject, isLockActive]);
+
+  const handleToggleChapterSelect = (chapterTitle: string) => {
+    if (isCurrentClassRestricted) {
+      toast({
+        title: "Selection Locked 🔒",
+        description: `You have already unlocked chapters in Class ${classLevel === 11 ? "12" : "11"} ${subjectMeta?.label}. Only one class selection is allowed.`,
+        variant: "default",
+      });
+      return;
+    }
+
+    const tryingToAdd = !selectedForUnlock.has(chapterTitle);
+    if (tryingToAdd && selectedForUnlock.size >= lockConfig.maxChapters) {
+      toast({
+        title: `Maximum ${lockConfig.maxChapters} ${lockConfig.maxChapters === 1 ? "chapter" : "chapters"}`,
+        description: `You can only select ${lockConfig.maxChapters} ${lockConfig.maxChapters === 1 ? "chapter" : "chapters"} on the ${activePlan === "free_trial" ? "free trial" : "free plan"}. Deselect one to pick another.`,
+        variant: "default",
+      });
+      return;
+    }
+
+    setSelectedForUnlock((prev) => {
+      const next = new Set(prev);
+      if (next.has(chapterTitle)) {
+        next.delete(chapterTitle);
+      } else {
+        next.add(chapterTitle);
+      }
+      return next;
+    });
+  };
+
+  const handleSaveUnlock = () => {
+    if (!profile?.id || !selectedSubject || classLevel === null) return;
+    const storageKey = freeTrialChapterStorageKey(profile.id, selectedSubject, classLevel);
+    const arr = Array.from(selectedForUnlock);
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(arr));
+    } catch {}
+    if (classLevel === 11) {
+      setSavedChapters11(new Set(arr));
+    } else if (classLevel === 12) {
+      setSavedChapters12(new Set(arr));
+    }
+    setSelectedForUnlock(new Set());
+    setSaveConfirmOpen(false);
+    if (isLessonsOnboardingCompanionActive()) {
+      markLessonsOnboardingChaptersSaved();
+    }
+    toast({
+      title: "Chapters Unlocked! ✅",
+      description: `You've unlocked: ${arr.join(" & ")}. Enjoy your study journey!`,
+    });
+  };
+
+  const hasSavedChapters11 = savedChapters11.size > 0;
+  const hasSavedChapters12 = savedChapters12.size > 0;
+  const hasSavedAnyClass = isLockActive && (hasSavedChapters11 || hasSavedChapters12);
+
+  const isClass11Restricted = isLockActive && hasSavedChapters12;
+  const isClass12Restricted = isLockActive && hasSavedChapters11;
+  const isCurrentClassRestricted =
+    (classLevel === 11 && isClass11Restricted) || (classLevel === 12 && isClass12Restricted);
+
+  /** After first unlock, "Save changes" vanished — show it again whenever the user taps to change picks. */
+  const profileChapterLockGate = profileClassLevel === null || classLevel === profileClassLevel;
+  const showChapterPickBanner =
+    isLockActive &&
+    profileChapterLockGate &&
+    !isCurrentClassRestricted &&
+    (!hasSavedAnyClass || selectedForUnlock.size > 0);
+  const showChapterSuccessBadge =
+    isLockActive &&
+    profileChapterLockGate &&
+    hasSavedAnyClass &&
+    !isCurrentClassRestricted &&
+    selectedForUnlock.size === 0;
+
+  const liftedSaveConfirmDialog =
+    isLockActive && profile?.id ? (
+      <Dialog open={saveConfirmOpen} onOpenChange={setSaveConfirmOpen}>
+        <DialogContent
+          className="max-w-sm rounded-2xl border border-amber-500/20 bg-[#0a0f18]/97 p-0 shadow-2xl backdrop-blur-xl animate-in fade-in-50 zoom-in-95 duration-200"
+          onPointerDownOutside={(e) => e.preventDefault()}
+        >
+          <div className="relative flex flex-col gap-0">
+            <div
+              className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl"
+              aria-hidden
+            >
+              <div className="absolute -top-12 left-1/2 h-40 w-64 -translate-x-1/2 rounded-full bg-amber-500/10 blur-3xl" />
+            </div>
+            <div className="relative flex flex-col items-center gap-3 px-6 pb-4 pt-6">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-amber-400/25 bg-amber-500/15 shadow-inner">
+                <AlertTriangle className="h-7 w-7 text-amber-300" strokeWidth={1.75} />
+              </div>
+              <DialogHeader className="text-center">
+                <DialogTitle className="text-base font-extrabold text-white sm:text-lg">
+                  Confirm Chapter Selection
+                </DialogTitle>
+                <DialogDescription className="mt-1 text-[13px] leading-relaxed text-zinc-400">
+                  Once saved, you <span className="font-bold text-amber-300">cannot undo</span> this
+                  choice. You will only have access to{" "}
+                  <span className="font-bold text-violet-300">
+                    {Array.from(selectedForUnlock).join(" & ")}
+                  </span>{" "}
+                  {lockConfig.modalDescription}
+                </DialogDescription>
+              </DialogHeader>
+            </div>
+            <DialogFooter className="flex flex-col gap-2 px-6 pb-6 pt-0 sm:flex-col">
+              <Button
+                id="ft-chapter-save-confirm-btn"
+                onClick={handleSaveUnlock}
+                className="w-full gap-2 rounded-xl bg-violet-600 font-bold text-white shadow-md hover:bg-violet-500 active:scale-[0.98]"
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                Yes, save my chapter selection
+              </Button>
+              <Button
+                id="ft-chapter-save-cancel-btn"
+                variant="ghost"
+                onClick={() => setSaveConfirmOpen(false)}
+                className="w-full rounded-xl border border-border/50 text-zinc-400 hover:border-border hover:text-foreground"
+              >
+                Let me review again
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
+    ) : null;
 
   const THEORY_TRUNCATE_CHARS = 450; // ~4–5 lines; show "Read more" beyond this
 
   const visibleExamTypes = getVisibleExamTypes();
-  const visibleSubjectValues = getVisibleSubjects(classLevel, subjectCombo);
+  const visibleSubjectValues = getVisibleSubjects();
   const visibleSubjectsList = useMemo(
     () => subjects.filter((s) => visibleSubjectValues.includes(s.value)),
     [visibleSubjectValues]
@@ -1357,7 +1930,8 @@ const Explore = () => {
     setSelectedChapterTopicName(topicNode.topic);
     setView("topic-detail");
     setFocusedSubtopicIndex(null);
-  }, [searchParams, topicTaxonomy]);
+    notifyLessonsCompanionSubjectPicked();
+  }, [searchParams, topicTaxonomy, notifyLessonsCompanionSubjectPicked]);
 
   // Get question count for a specific subject
   const getSubjectCount = (subject: Subject) => {
@@ -1475,6 +2049,7 @@ const Explore = () => {
   const handleSubjectSelect = (subject: Subject) => {
     setSelectedSubject(subject);
     setView("topics");
+    notifyLessonsCompanionSubjectPicked();
   };
 
   const handleTopicClick = (
@@ -1517,6 +2092,7 @@ const Explore = () => {
   /** Back from unit map (topics view) goes to Explore hub. */
   const handleBackFromTopicsToExploreLearning = () => {
     setSelectedSubject(null);
+    setSubjectEntryClassLevel(null);
     setView("hub");
   };
 
@@ -1791,6 +2367,96 @@ const Explore = () => {
 
   const boardSlug = (profileBoard || "cbse").toLowerCase();
 
+  const onboardingLessonsQuery = searchParams.get(LESSONS_ONBOARDING_QUERY);
+  const [showLessonsSubjectPickGuide, setShowLessonsSubjectPickGuide] = useState(false);
+
+  const dismissLessonsSubjectPickGuide = useCallback(() => {
+    clearLessonsSubjectPickGuideStep();
+    setShowLessonsSubjectPickGuide(false);
+  }, []);
+
+  useEffect(() => {
+    if (onboardingLessonsQuery !== "1") {
+      clearLessonsOnboardingFlow();
+      setShowLessonsSubjectPickGuide(false);
+      return;
+    }
+
+    if (!isOnboardingTaskCompanionLaunched("lessons")) {
+      clearLessonsOnboardingFlow();
+      setShowLessonsSubjectPickGuide(false);
+      return;
+    }
+
+    if (getOnboardingProgress().lessons) {
+      clearLessonsOnboardingFlow();
+      setShowLessonsSubjectPickGuide(false);
+      return;
+    }
+
+    startLessonsOnboardingFlow();
+    setShowLessonsSubjectPickGuide(view === "hub");
+  }, [onboardingLessonsQuery, view]);
+
+  useEffect(() => {
+    if (!isLessonsOnboardingCompanionActive()) return;
+    reconcileLessonsOnboardingProgress({
+      subjectSelected: Boolean(selectedSubject),
+      chapterLockActive: isLockActive,
+      inAppSubtopicFocused: view === "topic-detail" && focusedSubtopicIndex !== null,
+    });
+  }, [
+    selectedSubject,
+    isLockActive,
+    hasSavedChapters11,
+    hasSavedChapters12,
+    classLevel,
+    view,
+    focusedSubtopicIndex,
+    lessonsCompanionLaunchRevision,
+  ]);
+
+  /** Step 3 — focused a sub-topic card inside explore (not chapter hub). */
+  useEffect(() => {
+    if (!isLessonsOnboardingCompanionActive()) return;
+    if (view !== "topic-detail" || focusedSubtopicIndex === null) return;
+    markLessonsOnboardingSubtopicOpened({ chapterLockActive: isLockActive });
+  }, [view, focusedSubtopicIndex, isLockActive, lessonsCompanionLaunchRevision]);
+
+  const pushWithLessonsOnboarding = useCallback(
+    (path: string) => {
+      if (onboardingLessonsQuery !== "1") {
+        router.push(path);
+        return;
+      }
+      advanceLessonsToProgressPanelStep();
+      router.push(appendLessonsOnboardingToUrl(path));
+    },
+    [router, onboardingLessonsQuery]
+  );
+
+  /** Onboarding popup flow: Random topic → full topic URL (not in-app topic-detail). */
+  const handleExploreHubTopic = (node: TopicNode) => {
+    if (onboardingLessonsQuery === "1") {
+      advanceLessonsToProgressPanelStep();
+      router.push(
+        appendLessonsOnboardingToUrl(
+          buildTopicOverviewPath(
+            boardSlug,
+            node.subject,
+            node.classLevel,
+            node.topic,
+            "advanced",
+            "random",
+            node.chapterTitle
+          )
+        )
+      );
+      return;
+    }
+    handleTopicClick(node, node.classLevel, node.chapterTitle ?? undefined, node.topic);
+  };
+
   const runImmediateTopicHubGeneration = useCallback(async () => {
     if (
       !topicForHub.trim() ||
@@ -1931,7 +2597,7 @@ const Explore = () => {
       ? (selectedChapterTopic ?? selectedChapterGroup?.topics?.[0] ?? null)
       : selectedTopicNode;
     if (!effectiveTopic) return;
-    router.push(
+    pushWithLessonsOnboarding(
       buildTopicOverviewPath(
         boardSlug,
         selectedSubject,
@@ -1943,7 +2609,7 @@ const Explore = () => {
       )
     );
   }, [
-    router,
+    pushWithLessonsOnboarding,
     selectedSubject,
     selectedTopicClassLevel,
     selectedTopicNode,
@@ -2069,6 +2735,7 @@ const Explore = () => {
                 onNavigateToSubject={handleSubjectSelect}
                 onNavigateToTopic={(node) => {
                   setSelectedSubject(node.subject);
+                  notifyLessonsCompanionSubjectPicked();
                   handleTopicClick(
                     node,
                     node.classLevel,
@@ -2076,10 +2743,20 @@ const Explore = () => {
                     node.topic
                   );
                 }}
-                onNavigateToSubjectWithExam={(subject, exam) => {
+                onExploreRandomTopic={handleExploreHubTopic}
+                showLessonsSubjectPickGuide={showLessonsSubjectPickGuide}
+                onLessonsSubjectPickGuideDismiss={dismissLessonsSubjectPickGuide}
+                onNavigateToSubjectWithExam={(subject, exam, cl) => {
+                  if (showLessonsSubjectPickGuide) {
+                    dismissLessonsSubjectPickGuide();
+                  }
                   setExamType(exam ?? null);
                   setSelectedSubject(subject);
+                  if (cl) {
+                    setSubjectEntryClassLevel(cl);
+                  }
                   setView("topics");
+                  notifyLessonsCompanionSubjectPicked();
                 }}
               />
             </motion.div>
@@ -2197,6 +2874,7 @@ const Explore = () => {
               className="w-full max-w-6xl mx-auto px-4"
             >
               {/* Header */}
+              {liftedSaveConfirmDialog}
               <div className="flex items-center gap-2 mb-4 flex-wrap sm:gap-3 sm:mb-6">
                 <Button
                   variant="ghost"
@@ -2217,6 +2895,79 @@ const Explore = () => {
                     {getExamLabel(profileExamType)}
                   </Badge>
                 )}
+
+                {/* Chapter lock: Save changes (also after unlock when selecting a new pair) */}
+                {showChapterPickBanner && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className={`flex items-center gap-2.5 px-3 py-1.5 rounded-xl border bg-gradient-to-r shadow-md backdrop-blur-md text-[11px] sm:text-xs font-semibold select-none sm:ml-auto ${lockConfig.bannerGradient}`}
+                  >
+                    <div
+                      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border ${lockConfig.iconBorderClass} ${lockConfig.iconBgClass}`}
+                    >
+                      <Lock className={`h-3 w-3 ${lockConfig.iconTextClass}`} />
+                    </div>
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="text-zinc-300 hidden md:inline">
+                        {hasSavedAnyClass && selectedForUnlock.size > 0
+                          ? "New pick:"
+                          : `${lockConfig.unlockLabel}:`}
+                      </span>
+                      <span className="font-extrabold text-white shrink-0">
+                        {selectedForUnlock.size} of {lockConfig.maxChapters} chapters selected
+                      </span>
+                    </div>
+                    <Button
+                      size="sm"
+                      disabled={selectedForUnlock.size < lockConfig.maxChapters}
+                      onClick={() => setSaveConfirmOpen(true)}
+                      className="h-7 px-3 py-0 rounded-lg bg-violet-600 font-extrabold text-white text-[11px] hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.97] transition-all"
+                    >
+                      Save changes
+                    </Button>
+                  </motion.div>
+                )}
+
+                {/* Success after save — hides while user is drafting a replacement selection */}
+                {showChapterSuccessBadge && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-emerald-500/25 bg-emerald-950/20 text-emerald-300 text-[11px] sm:text-xs font-semibold backdrop-blur-md shadow-inner sm:ml-auto"
+                  >
+                    <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />
+                    <span>
+                      <span className="font-extrabold">
+                        {activePlan === "free_trial" ? "Free Trial:" : "Free Plan:"}
+                      </span>{" "}
+                      Unlocked{" "}
+                      <span className="font-extrabold text-white">
+                        {hasSavedChapters12
+                          ? `${Array.from(savedChapters12).join(" & ")} (Class 12)`
+                          : `${Array.from(savedChapters11).join(" & ")} (Class 11)`}
+                      </span>
+                    </span>
+                  </motion.div>
+                )}
+
+                {/* Restricted alternative class warning banner */}
+                {isCurrentClassRestricted && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl border border-amber-500/25 bg-amber-950/20 text-amber-300 text-[11px] sm:text-xs font-semibold backdrop-blur-md shadow-inner sm:ml-auto select-none"
+                  >
+                    <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400" />
+                    <span>
+                      Selection Locked: You have already unlocked chapters in{" "}
+                      <span className="font-extrabold text-white">
+                        Class {classLevel === 11 ? "12" : "11"} {subjectMeta?.label}
+                      </span>
+                      . No chapters can be selected in Class {classLevel}.
+                    </span>
+                  </motion.div>
+                )}
               </div>
 
               {taxonomyLoading && (
@@ -2233,19 +2984,43 @@ const Explore = () => {
               {/* Gamified Unit Roadmap (intro text lives inside the grid) */}
               {classesToRender
                 .filter((cl) => topicsByClass[cl] && topicsByClass[cl].length > 0)
-                .map((cl) => (
-                  <UnitRoadmap
-                    key={cl}
-                    topics={topicsByClass[cl]}
-                    subject={selectedSubject}
-                    classLevel={cl as ClassLevel}
-                    onTopicClick={handleTopicClick}
-                    getTopicCount={getTopicCount}
-                    correctByTopic={correctByTopic}
-                    advancedLessonKeys={advancedLessonKeysByClass[cl] ?? EMPTY_LESSON_KEY_SET}
-                    boardNormalized={boardNormForLessonCompletions}
-                  />
-                ))}
+                .map((cl) => {
+                  const clNum = cl as ClassLevel;
+                  const isSavedForCl = hasSavedAnyClass
+                    ? clNum === 11
+                      ? hasSavedChapters11
+                      : hasSavedChapters12
+                    : profileClassLevel !== null && clNum !== profileClassLevel;
+                  const savedChaptersForCl =
+                    clNum === 11
+                      ? savedChapters11
+                      : clNum === 12
+                        ? savedChapters12
+                        : new Set<string>();
+                  const isRestrictedForCl =
+                    clNum === 11 ? isClass11Restricted : isClass12Restricted;
+                  return (
+                    <UnitRoadmap
+                      key={cl}
+                      topics={topicsByClass[cl]}
+                      subject={selectedSubject}
+                      classLevel={clNum}
+                      onTopicClick={handleTopicClick}
+                      getTopicCount={getTopicCount}
+                      correctByTopic={correctByTopic}
+                      advancedLessonKeys={advancedLessonKeysByClass[cl] ?? EMPTY_LESSON_KEY_SET}
+                      boardNormalized={boardNormForLessonCompletions}
+                      isLockActive={isLockActive}
+                      activePlan={activePlan}
+                      savedChapters={savedChaptersForCl}
+                      selectedForUnlock={selectedForUnlock}
+                      onToggleChapterSelect={handleToggleChapterSelect}
+                      userId={profile?.id}
+                      isSaved={isSavedForCl}
+                      isRestricted={isRestrictedForCl}
+                    />
+                  );
+                })}
             </motion.div>
           )}
 
@@ -3027,7 +3802,7 @@ const Explore = () => {
                                       setSelectedChapterTopicName(topic.topic);
                                       if (!selectedSubject || selectedTopicClassLevel === null)
                                         return;
-                                      router.push(
+                                      pushWithLessonsOnboarding(
                                         buildTopicOverviewPath(
                                           boardSlug,
                                           selectedSubject,

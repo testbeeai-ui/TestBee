@@ -212,7 +212,10 @@ export default function CreateAssignmentWizard(props: {
   useLayoutEffect(() => {
     const key = props.sessionDraftKey;
     if (!key || props.variant !== "embedded") return;
-    const classroomSig = props.classrooms.map((c) => c.id).sort().join(",");
+    const classroomSig = props.classrooms
+      .map((c) => c.id)
+      .sort()
+      .join(",");
     const marker = `${key}|${classroomSig}`;
     let raw: string | null = null;
     try {
@@ -232,7 +235,8 @@ export default function CreateAssignmentWizard(props: {
       if (lastEmbeddedAssignmentDraftMarkerRef.current === marker) return;
       lastEmbeddedAssignmentDraftMarkerRef.current = marker;
 
-      if (typeof d.step === "number" && d.step >= 1 && d.step <= 4) setStep(d.step as 1 | 2 | 3 | 4);
+      if (typeof d.step === "number" && d.step >= 1 && d.step <= 4)
+        setStep(d.step as 1 | 2 | 3 | 4);
       if (
         d.typeKey === "quiz" ||
         d.typeKey === "concept_focus" ||
@@ -243,8 +247,10 @@ export default function CreateAssignmentWizard(props: {
         setTypeKey(d.typeKey);
       if (typeof d.title === "string") setTitle(d.title);
       titleTouchedRef.current = Boolean(d.titleTouched);
-      if (d.chapterQuizSel && typeof d.chapterQuizSel === "object") setChapterQuizSel(d.chapterQuizSel);
-      if (d.conceptFocusSel && typeof d.conceptFocusSel === "object") setConceptFocusSel(d.conceptFocusSel);
+      if (d.chapterQuizSel && typeof d.chapterQuizSel === "object")
+        setChapterQuizSel(d.chapterQuizSel);
+      if (d.conceptFocusSel && typeof d.conceptFocusSel === "object")
+        setConceptFocusSel(d.conceptFocusSel);
       if (typeof d.gyanTopicFocus === "string") setGyanTopicFocus(d.gyanTopicFocus);
       if (typeof d.gyanSubtopicHint === "string") setGyanSubtopicHint(d.gyanSubtopicHint);
       if (d.selectedMockPaperId === null || typeof d.selectedMockPaperId === "string")
@@ -254,10 +260,12 @@ export default function CreateAssignmentWizard(props: {
       if (cid && props.classrooms.some((c) => c.id === cid)) setClassroomId(cid);
       if (d.scope === "full" || d.scope === "section" || d.scope === "students") setScope(d.scope);
       if (d.sectionId === null || typeof d.sectionId === "string") setSectionId(d.sectionId);
-      if (Array.isArray(d.studentIds)) setStudentIds(d.studentIds.filter((x): x is string => typeof x === "string"));
+      if (Array.isArray(d.studentIds))
+        setStudentIds(d.studentIds.filter((x): x is string => typeof x === "string"));
       if (typeof d.studentSearch === "string") setStudentSearch(d.studentSearch);
       if (typeof d.dueDate === "string") setDueDate(d.dueDate);
-      if (typeof d.rewardRdm === "number" && Number.isFinite(d.rewardRdm)) setRewardRdm(d.rewardRdm);
+      if (typeof d.rewardRdm === "number" && Number.isFinite(d.rewardRdm))
+        setRewardRdm(d.rewardRdm);
       if (typeof d.instructions === "string") setInstructions(d.instructions);
     } catch {
       // ignore corrupt draft
@@ -323,7 +331,8 @@ export default function CreateAssignmentWizard(props: {
     setTitle((prev) => {
       const prevTrim = prev.trim();
       const lastAuto = lastAutoTitleRef.current.trim();
-      const shouldAutoUpdate = !titleTouchedRef.current || !prevTrim || (lastAuto && prevTrim === lastAuto);
+      const shouldAutoUpdate =
+        !titleTouchedRef.current || !prevTrim || (lastAuto && prevTrim === lastAuto);
       if (!shouldAutoUpdate) return prev;
       lastAutoTitleRef.current = base;
       return base;
@@ -343,7 +352,9 @@ export default function CreateAssignmentWizard(props: {
       }
       try {
         const rows =
-          typeKey === "mock" ? await fetchMockPapersFromSupabase() : await fetchPastPapersFromSupabase();
+          typeKey === "mock"
+            ? await fetchMockPapersFromSupabase()
+            : await fetchPastPapersFromSupabase();
         if (cancelled) return;
         if (typeKey === "mock") {
           setMockPapers(rows as MockPaper[]);
@@ -385,9 +396,11 @@ export default function CreateAssignmentWizard(props: {
 
   const canContinueStep2 = useMemo(() => {
     if (typeKey === "quiz") return chapterQuizSelectionComplete(chapterQuizSel, taxonomy);
-    if (typeKey === "concept_focus") return conceptFocusSelectionComplete(conceptFocusSel, taxonomy);
+    if (typeKey === "concept_focus")
+      return conceptFocusSelectionComplete(conceptFocusSel, taxonomy);
     if (typeKey === "gyan") return true;
-    if (typeKey === "mock") return !mockPapersLoading && (mockPapers.length === 0 || Boolean(selectedMockPaperId));
+    if (typeKey === "mock")
+      return !mockPapersLoading && (mockPapers.length === 0 || Boolean(selectedMockPaperId));
     if (typeKey === "past_paper")
       return !pastPapersLoading && (pastPapers.length === 0 || Boolean(selectedPastPaperId));
     return true;
@@ -420,14 +433,14 @@ export default function CreateAssignmentWizard(props: {
     return `Custom (${studentIds.length})`;
   }, [detail?.sections, scope, sectionId, studentIds.length]);
 
-  const selectedMock = useMemo(() => mockPapers.find((p) => p.id === selectedMockPaperId) ?? null, [
-    mockPapers,
-    selectedMockPaperId,
-  ]);
-  const selectedPast = useMemo(() => pastPapers.find((p) => p.id === selectedPastPaperId) ?? null, [
-    pastPapers,
-    selectedPastPaperId,
-  ]);
+  const selectedMock = useMemo(
+    () => mockPapers.find((p) => p.id === selectedMockPaperId) ?? null,
+    [mockPapers, selectedMockPaperId]
+  );
+  const selectedPast = useMemo(
+    () => pastPapers.find((p) => p.id === selectedPastPaperId) ?? null,
+    [pastPapers, selectedPastPaperId]
+  );
 
   const chapterQuizRef: TeacherPortalChapterQuizRef | null = useMemo(() => {
     if (typeKey === "quiz") return chapterQuizToRef(chapterQuizSel, taxonomy);
@@ -488,7 +501,10 @@ export default function CreateAssignmentWizard(props: {
         tasks,
         mockPaper: meta.derivedType === "mock" ? mockPaper : null,
         pastPaper: meta.derivedType === "past_paper" ? pastPaper : null,
-        chapterQuiz: meta.derivedType === "quiz" || meta.derivedType === "Concept Focus" ? chapterQuizRef : null,
+        chapterQuiz:
+          meta.derivedType === "quiz" || meta.derivedType === "Concept Focus"
+            ? chapterQuizRef
+            : null,
         gyanEngagement,
       });
       if (props.sessionDraftKey) {
@@ -527,7 +543,7 @@ export default function CreateAssignmentWizard(props: {
             <div className="flex shrink-0 flex-wrap items-center gap-2">
               <button
                 type="button"
-                onClick={() => setStepSynced((step > 1 ? ((step - 1) as 1 | 2 | 3 | 4) : step))}
+                onClick={() => setStepSynced(step > 1 ? ((step - 1) as 1 | 2 | 3 | 4) : step)}
                 disabled={step === 1}
                 className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-2 text-xs font-semibold text-slate-200 enabled:hover:bg-white/[0.06] disabled:opacity-50"
               >
@@ -540,7 +556,9 @@ export default function CreateAssignmentWizard(props: {
                   else if (step === 2 && canContinueStep2) setStepSynced(3);
                   else if (step === 3 && canContinueStep3) setStepSynced(4);
                 }}
-                disabled={step === 2 ? !canContinueStep2 : step === 3 ? !canContinueStep3 : step === 4}
+                disabled={
+                  step === 2 ? !canContinueStep2 : step === 3 ? !canContinueStep3 : step === 4
+                }
                 className="rounded-full border border-emerald-400/30 bg-emerald-500/15 px-3 py-2 text-xs font-semibold text-emerald-100 enabled:hover:bg-emerald-500/20 disabled:opacity-50"
               >
                 Next
@@ -584,7 +602,7 @@ export default function CreateAssignmentWizard(props: {
             <div className="flex shrink-0 items-center gap-2">
               <button
                 type="button"
-                onClick={() => setStepSynced((step > 1 ? ((step - 1) as 1 | 2 | 3 | 4) : step))}
+                onClick={() => setStepSynced(step > 1 ? ((step - 1) as 1 | 2 | 3 | 4) : step)}
                 disabled={step === 1}
                 className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-2 text-xs font-semibold text-slate-200 enabled:hover:bg-white/[0.06] disabled:opacity-50"
               >
@@ -597,7 +615,9 @@ export default function CreateAssignmentWizard(props: {
                   else if (step === 2 && canContinueStep2) setStepSynced(3);
                   else if (step === 3 && canContinueStep3) setStepSynced(4);
                 }}
-                disabled={step === 2 ? !canContinueStep2 : step === 3 ? !canContinueStep3 : step === 4}
+                disabled={
+                  step === 2 ? !canContinueStep2 : step === 3 ? !canContinueStep3 : step === 4
+                }
                 className="rounded-full border border-emerald-400/30 bg-emerald-500/15 px-3 py-2 text-xs font-semibold text-emerald-100 enabled:hover:bg-emerald-500/20 disabled:opacity-50"
               >
                 Next
@@ -631,7 +651,9 @@ export default function CreateAssignmentWizard(props: {
 
       <div className="mt-4 rounded-2xl border border-white/10 bg-[#0b1020] p-4 sm:p-5">
         <div className="mb-4">
-          <div className="text-sm font-semibold text-slate-100">Step {step} — {sectionTitle(step)}</div>
+          <div className="text-sm font-semibold text-slate-100">
+            Step {step} — {sectionTitle(step)}
+          </div>
           <div className="mt-0.5 text-[11px] text-slate-500">
             Build a quiz, mock, or engagement challenge and assign it in 4 steps.
           </div>
@@ -671,7 +693,9 @@ export default function CreateAssignmentWizard(props: {
             </div>
 
             <div>
-              <label className="mb-1 block text-sm font-semibold text-slate-300">Topic / title *</label>
+              <label className="mb-1 block text-sm font-semibold text-slate-300">
+                Topic / title *
+              </label>
               <input
                 value={title}
                 onChange={(e) => {
@@ -714,7 +738,9 @@ export default function CreateAssignmentWizard(props: {
               />
             ) : typeKey === "mock" ? (
               <div>
-                <label className="mb-1 block text-sm font-semibold text-slate-300">Mock paper *</label>
+                <label className="mb-1 block text-sm font-semibold text-slate-300">
+                  Mock paper *
+                </label>
                 {mockPapersLoading ? (
                   <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-[#070b17] px-3 py-3 text-sm text-slate-400">
                     <Loader2 className="h-4 w-4 shrink-0 animate-spin text-emerald-300" />
@@ -747,7 +773,9 @@ export default function CreateAssignmentWizard(props: {
               </div>
             ) : (
               <div>
-                <label className="mb-1 block text-sm font-semibold text-slate-300">Past paper *</label>
+                <label className="mb-1 block text-sm font-semibold text-slate-300">
+                  Past paper *
+                </label>
                 {pastPapersLoading ? (
                   <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-[#070b17] px-3 py-3 text-sm text-slate-400">
                     <Loader2 className="h-4 w-4 shrink-0 animate-spin text-emerald-300" />
@@ -857,7 +885,9 @@ export default function CreateAssignmentWizard(props: {
             {scope === "students" ? (
               <div className="space-y-2">
                 <div>
-                  <label className="mb-1 block text-sm font-semibold text-slate-300">Students *</label>
+                  <label className="mb-1 block text-sm font-semibold text-slate-300">
+                    Students *
+                  </label>
                   <input
                     value={studentSearch}
                     onChange={(e) => setStudentSearch(e.target.value)}
@@ -894,7 +924,9 @@ export default function CreateAssignmentWizard(props: {
                     );
                   })}
                   {filteredStudents.length === 0 ? (
-                    <div className="px-3 py-6 text-center text-sm text-slate-400">No students found.</div>
+                    <div className="px-3 py-6 text-center text-sm text-slate-400">
+                      No students found.
+                    </div>
                   ) : null}
                 </div>
                 <div className="text-xs text-slate-400">Selected: {studentIds.length}</div>
@@ -916,7 +948,9 @@ export default function CreateAssignmentWizard(props: {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-semibold text-slate-300">RDM reward</label>
+                <label className="mb-1 block text-sm font-semibold text-slate-300">
+                  RDM reward
+                </label>
                 <div className="relative">
                   <select
                     value={String(rewardRdm)}
@@ -949,13 +983,16 @@ export default function CreateAssignmentWizard(props: {
               <div className="min-w-0">
                 <div className="text-sm font-semibold text-slate-100">Ready to publish</div>
                 <div className="mt-0.5 text-xs text-slate-400">
-                  {assignToLabel} · Reward {rewardRdm} RDM {dueDate ? `· Due ${dueDate}` : "· No due date"}
+                  {assignToLabel} · Reward {rewardRdm} RDM{" "}
+                  {dueDate ? `· Due ${dueDate}` : "· No due date"}
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => void publish()}
-                disabled={publishing || !classroomId || !title.trim() || (step === 4 && !canContinueStep3)}
+                disabled={
+                  publishing || !classroomId || !title.trim() || (step === 4 && !canContinueStep3)
+                }
                 className="inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-500/15 px-4 py-2 text-sm font-semibold text-emerald-100 enabled:hover:bg-emerald-500/20 disabled:opacity-50"
               >
                 {publishing ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
@@ -968,4 +1005,3 @@ export default function CreateAssignmentWizard(props: {
     </div>
   );
 }
-

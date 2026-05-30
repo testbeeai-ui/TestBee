@@ -118,7 +118,12 @@ export function restoreLatexEscapes(input: string): string {
 
 export function TaskPreviewBody(props: {
   href: string;
-  mode: "assignment-test" | "mock-paper" | "chapter-quiz-preview" | "concept-focus-preview" | "iframe";
+  mode:
+    | "assignment-test"
+    | "mock-paper"
+    | "chapter-quiz-preview"
+    | "concept-focus-preview"
+    | "iframe";
   title: string;
   chapterQuizRef?: {
     board: string;
@@ -151,7 +156,9 @@ export function TaskPreviewBody(props: {
     const subtopicName = (ref?.subtopicName ?? "").trim();
     const classLevelRaw = Number(ref?.classLevel);
     const boardUpper =
-      (ref?.board ?? "cbse").trim().toLowerCase() === "icse" ? ("ICSE" as const) : ("CBSE" as const);
+      (ref?.board ?? "cbse").trim().toLowerCase() === "icse"
+        ? ("ICSE" as const)
+        : ("CBSE" as const);
     if (!subject || !topic || !subtopicName) return null;
     return {
       board: boardUpper,

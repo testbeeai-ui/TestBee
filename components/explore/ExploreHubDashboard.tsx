@@ -17,18 +17,25 @@ interface ExploreHubDashboardProps {
   onNavigateToSubjects: () => void;
   onNavigateToSubject: (subject: Subject) => void;
   onNavigateToTopic?: (node: TopicNode) => void;
+  /** When set (e.g. onboarding reward flow), Random topic explorer uses this instead of onNavigateToTopic. */
+  onExploreRandomTopic?: (node: TopicNode) => void;
   onNavigateToSubjectWithExam?: (
     subject: Subject,
     exam: ExamType | null,
     classLevel: ClassLevel
   ) => void;
+  showLessonsSubjectPickGuide?: boolean;
+  onLessonsSubjectPickGuideDismiss?: () => void;
 }
 
 export default function ExploreHubDashboard({
   onNavigateToSubjects,
   onNavigateToSubject,
   onNavigateToTopic,
+  onExploreRandomTopic,
   onNavigateToSubjectWithExam,
+  showLessonsSubjectPickGuide = false,
+  onLessonsSubjectPickGuideDismiss,
 }: ExploreHubDashboardProps) {
   const { taxonomy } = useTopicTaxonomy();
   const [rawFeedRefresh, setRawFeedRefresh] = useState(0);
@@ -61,6 +68,8 @@ export default function ExploreHubDashboard({
         {/* Main content */}
         <div className="flex-1 min-w-0 space-y-4 sm:space-y-5 lg:space-y-6">
           <SubjectChips
+            showSubjectPickGuide={showLessonsSubjectPickGuide}
+            onSubjectPickGuideDismiss={onLessonsSubjectPickGuideDismiss}
             onSelectSubject={(subject, exam, classLevel) => {
               if (onNavigateToSubjectWithExam) {
                 onNavigateToSubjectWithExam(subject, exam, classLevel);
@@ -77,7 +86,10 @@ export default function ExploreHubDashboard({
               <RawCommunityFeed refreshKey={rawFeedRefresh} />
             </div>
             <div className="lg:col-span-2 space-y-4 order-1 lg:order-none">
-              <RandomTopicExplorer taxonomy={taxonomy} onExploreTopic={handleDirectTopic} />
+              <RandomTopicExplorer
+                taxonomy={taxonomy}
+                onExploreTopic={onExploreRandomTopic ?? handleDirectTopic}
+              />
               <TrendingTopics taxonomy={taxonomy} onExploreTopic={handleDirectTopic} />
             </div>
           </div>

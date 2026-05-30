@@ -73,10 +73,7 @@ export async function POST(request: Request) {
   }
 
   if (newRdm === null) {
-    return NextResponse.json(
-      { error: "Insufficient RDM", amount, action },
-      { status: 402 }
-    );
+    return NextResponse.json({ error: "Insufficient RDM", amount, action }, { status: 402 });
   }
 
   return NextResponse.json({ ok: true, rdm: newRdm, amount, action });

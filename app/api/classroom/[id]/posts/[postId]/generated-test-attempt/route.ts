@@ -152,7 +152,11 @@ function parseGeneratedTestPayload(contentJson: unknown): GeneratedPaperPayload 
 
 function sanitizeText(value: unknown, maxLen: number) {
   if (typeof value !== "string") return "";
-  return value.replace(/[\x00-\x1F\x7F]/g, " ").replace(/\s+/g, " ").trim().slice(0, maxLen);
+  return value
+    .replace(/[\x00-\x1F\x7F]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, maxLen);
 }
 
 function parseChapterQuizSnapshot(input: unknown): ChapterQuizAttemptSnapshotV1 | null {
@@ -223,10 +227,7 @@ function makeBitsAttemptKey(params: {
   return base;
 }
 
-function parseBitsAttemptStoreForKey(
-  raw: unknown,
-  key: string
-): BitsAttemptRecordLite | null {
+function parseBitsAttemptStoreForKey(raw: unknown, key: string): BitsAttemptRecordLite | null {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
   const row = (raw as Record<string, unknown>)[key];
   if (!row || typeof row !== "object" || Array.isArray(row)) return null;
@@ -381,7 +382,9 @@ export async function GET(
           ? (access.post.content_json as Record<string, unknown>)
           : null;
       const cq =
-        content?.chapterQuiz && typeof content.chapterQuiz === "object" && !Array.isArray(content.chapterQuiz)
+        content?.chapterQuiz &&
+        typeof content.chapterQuiz === "object" &&
+        !Array.isArray(content.chapterQuiz)
           ? (content.chapterQuiz as Record<string, unknown>)
           : null;
       const subject = normalizeKeyPart(cq?.subject, 80);
@@ -400,7 +403,8 @@ export async function GET(
           .select("bits_test_attempts")
           .eq("id", targetUserId)
           .maybeSingle();
-        const store = (profileRow as { bits_test_attempts?: unknown } | null)?.bits_test_attempts ?? null;
+        const store =
+          (profileRow as { bits_test_attempts?: unknown } | null)?.bits_test_attempts ?? null;
 
         // Try to match the same keying logic as /api/user/bits-attempts (CBSE/ICSE + optional set).
         const candidateBoards = ["CBSE", "ICSE"];
@@ -418,7 +422,14 @@ export async function GET(
           bitsAttempt = parseBitsAttemptStoreForKey(store, keyed);
           if (bitsAttempt) break;
           if (level === "advanced" && advancedSet === 1) {
-            const legacy = makeBitsAttemptKey({ board: b, subject, classLevel, topic, subtopicName, level });
+            const legacy = makeBitsAttemptKey({
+              board: b,
+              subject,
+              classLevel,
+              topic,
+              subtopicName,
+              level,
+            });
             bitsAttempt = parseBitsAttemptStoreForKey(store, legacy);
             if (bitsAttempt) break;
           }
@@ -437,7 +448,8 @@ export async function GET(
             .eq("level", level)
             .limit(1);
 
-          const bitsQuestions = (subtopicRows?.[0] as { bits_questions?: unknown } | undefined)?.bits_questions;
+          const bitsQuestions = (subtopicRows?.[0] as { bits_questions?: unknown } | undefined)
+            ?.bits_questions;
           if (Array.isArray(bitsQuestions) && bitsQuestions.length > 0) {
             const items = Object.entries(bitsAttempt.selectedAnswers)
               .map(([k, v]) => ({ idx: Number(k), selected: v }))

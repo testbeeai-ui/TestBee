@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminClient, createClient, createClientWithToken } from "@/integrations/supabase/server";
+import {
+  createAdminClient,
+  createClient,
+  createClientWithToken,
+} from "@/integrations/supabase/server";
 import {
   deleteCalendarEvent,
   getCalendarEvent,
@@ -31,7 +35,10 @@ export async function POST(
 
   const admin = createAdminClient();
   if (!admin) {
-    return NextResponse.json({ error: "Server is missing SUPABASE_SERVICE_ROLE_KEY." }, { status: 500 });
+    return NextResponse.json(
+      { error: "Server is missing SUPABASE_SERVICE_ROLE_KEY." },
+      { status: 500 }
+    );
   }
 
   let body: Body;
@@ -41,7 +48,10 @@ export async function POST(
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
   if (body.mode !== "until_today" && body.mode !== "delete_series") {
-    return NextResponse.json({ error: "mode must be until_today or delete_series." }, { status: 400 });
+    return NextResponse.json(
+      { error: "mode must be until_today or delete_series." },
+      { status: 400 }
+    );
   }
 
   const { data: room, error: roomErr } = await admin
@@ -61,7 +71,9 @@ export async function POST(
   const sectionRes = sectionId
     ? await admin
         .from("classroom_sections" as any)
-        .select("id, classroom_id, google_calendar_list_id, google_recurring_event_id, google_rrule")
+        .select(
+          "id, classroom_id, google_calendar_list_id, google_recurring_event_id, google_rrule"
+        )
         .eq("id", sectionId)
         .eq("classroom_id", classroomId)
         .maybeSingle()
@@ -70,22 +82,19 @@ export async function POST(
     return NextResponse.json({ error: "Section not found." }, { status: 404 });
   }
 
-  const sectionRow = (sectionRes?.data ?? null) as
-    | {
-        google_calendar_list_id?: string | null;
-        google_recurring_event_id?: string | null;
-        google_rrule?: string | null;
-      }
-    | null;
-  const eventId = sectionId ? sectionRow?.google_recurring_event_id ?? null : room.google_recurring_event_id;
+  const sectionRow = (sectionRes?.data ?? null) as {
+    google_calendar_list_id?: string | null;
+    google_recurring_event_id?: string | null;
+    google_rrule?: string | null;
+  } | null;
+  const eventId = sectionId
+    ? (sectionRow?.google_recurring_event_id ?? null)
+    : room.google_recurring_event_id;
   const calId = sectionId
     ? sectionRow?.google_calendar_list_id?.trim() || "primary"
     : room.google_calendar_list_id?.trim() || "primary";
   if (!eventId) {
-    return NextResponse.json(
-      { error: "No Google Calendar series linked." },
-      { status: 409 }
-    );
+    return NextResponse.json({ error: "No Google Calendar series linked." }, { status: 409 });
   }
 
   const { data: tokenRow, error: tokErr } = await admin
@@ -122,11 +131,11 @@ export async function POST(
         eventId,
       });
     } else {
-      const ev = await getCalendarEvent({
+      const ev = (await getCalendarEvent({
         accessToken: refreshed.access_token,
         calendarId: calId,
         eventId,
-      }) as { recurrence?: string[] };
+      })) as { recurrence?: string[] };
       const current = ev.recurrence?.[0];
       if (!current || !current.startsWith("RRULE:")) {
         await deleteCalendarEvent({
@@ -146,7 +155,9 @@ export async function POST(
           return `${y}${m}${day}T${h}${min}${s}Z`;
         };
         let base = current.replace(/^RRULE:/, "");
-        const parts = base.split(";").filter((p) => !p.startsWith("UNTIL=") && !p.startsWith("COUNT="));
+        const parts = base
+          .split(";")
+          .filter((p) => !p.startsWith("UNTIL=") && !p.startsWith("COUNT="));
         base = parts.join(";");
         const nextRrule = `RRULE:${base};UNTIL=${fmtUtc(now)}`;
         await patchCalendarEvent({

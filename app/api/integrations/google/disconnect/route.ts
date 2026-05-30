@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { createAdminClient, createClient, createClientWithToken } from "@/integrations/supabase/server";
+import {
+  createAdminClient,
+  createClient,
+  createClientWithToken,
+} from "@/integrations/supabase/server";
 async function revokeGoogleToken(token: string): Promise<void> {
   try {
     await fetch("https://oauth2.googleapis.com/revoke", {
@@ -25,7 +29,10 @@ export async function POST(request: Request) {
 
   const admin = createAdminClient();
   if (!admin) {
-    return NextResponse.json({ error: "Server is missing SUPABASE_SERVICE_ROLE_KEY." }, { status: 500 });
+    return NextResponse.json(
+      { error: "Server is missing SUPABASE_SERVICE_ROLE_KEY." },
+      { status: 500 }
+    );
   }
 
   const { data: row } = await admin
@@ -38,7 +45,10 @@ export async function POST(request: Request) {
     await revokeGoogleToken(row.refresh_token);
   }
 
-  const { error: delErr } = await admin.from("teacher_google_calendar_tokens").delete().eq("user_id", user.id);
+  const { error: delErr } = await admin
+    .from("teacher_google_calendar_tokens")
+    .delete()
+    .eq("user_id", user.id);
   if (delErr) {
     return NextResponse.json({ error: delErr.message }, { status: 500 });
   }

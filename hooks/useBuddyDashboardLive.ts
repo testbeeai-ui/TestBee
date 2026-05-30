@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   fetchBuddyActivitySignal,
   fetchBuddyDashboard,
-  type   BuddyAdvancedDashboardResponse,
+  type BuddyAdvancedDashboardResponse,
   type BuddyProfile,
 } from "@/lib/buddy/buddyClient";
 import { EDUBLAST_BUDDY_ACTIVITY_REFRESH } from "@/lib/buddy/buddyActivityEvents";
@@ -32,24 +32,27 @@ export function useBuddyDashboardLive(buddy: BuddyProfile): UseBuddyDashboardLiv
   const loadGenRef = useRef(0);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const loadFull = useCallback(async (opts?: { showLoading?: boolean }) => {
-    const gen = ++loadGenRef.current;
-    if (opts?.showLoading) {
-      setError(null);
-      setData(null);
-    }
-    try {
-      const result = await fetchBuddyDashboard(buddy.id);
-      if (gen !== loadGenRef.current) return;
-      setData(result);
-      setError(null);
-    } catch (err) {
-      if (gen !== loadGenRef.current) return;
+  const loadFull = useCallback(
+    async (opts?: { showLoading?: boolean }) => {
+      const gen = ++loadGenRef.current;
       if (opts?.showLoading) {
-        setError(err instanceof Error ? err.message : "Could not load buddy data.");
+        setError(null);
+        setData(null);
       }
-    }
-  }, [buddy.id]);
+      try {
+        const result = await fetchBuddyDashboard(buddy.id);
+        if (gen !== loadGenRef.current) return;
+        setData(result);
+        setError(null);
+      } catch (err) {
+        if (gen !== loadGenRef.current) return;
+        if (opts?.showLoading) {
+          setError(err instanceof Error ? err.message : "Could not load buddy data.");
+        }
+      }
+    },
+    [buddy.id]
+  );
 
   const scheduleFullLoad = useCallback(
     (opts?: { showLoading?: boolean }) => {

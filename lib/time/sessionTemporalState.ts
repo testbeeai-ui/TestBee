@@ -29,7 +29,10 @@ export function evaluateSessionTemporalState(input: {
   durationMinutes: number;
 }): SessionTemporalEvaluation {
   const { nowMs, startMs } = input;
-  const durMin = Number.isFinite(input.durationMinutes) && input.durationMinutes > 0 ? input.durationMinutes : 60;
+  const durMin =
+    Number.isFinite(input.durationMinutes) && input.durationMinutes > 0
+      ? input.durationMinutes
+      : 60;
   const endMs = startMs + durMin * MIN;
 
   const visibleFromMs = startMs - 30 * MIN;
@@ -67,6 +70,7 @@ export function evaluateSessionTemporalState(input: {
 }
 
 export function isActiveMeetState(state: SessionTemporalState) {
-  return state === "COUNTDOWN" || state === "PRE_JOIN" || state === "LIVE" || state === "GRACE_PERIOD";
+  return (
+    state === "COUNTDOWN" || state === "PRE_JOIN" || state === "LIVE" || state === "GRACE_PERIOD"
+  );
 }
-

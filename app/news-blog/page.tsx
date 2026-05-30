@@ -7,11 +7,7 @@ import { getPublicPostsServer } from "@/lib/news-blog/server-loader";
 import { NewsBlogClient } from "./NewsBlogClient";
 import { NewsBlogSeoIndex } from "./components/NewsBlogSeoIndex";
 import { PublicShell } from "./PublicShell";
-import {
-  normalizeListNav,
-  parseListNavFromSearchParams,
-  searchParamsFromNext,
-} from "./nav-query";
+import { normalizeListNav, parseListNavFromSearchParams, searchParamsFromNext } from "./nav-query";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 60;

@@ -97,7 +97,12 @@ type TeacherBundle = {
     string,
     {
       classroomId: string;
-      sections: Array<{ id: string; name: string; scheduleLabel: string | null; isActive: boolean }>;
+      sections: Array<{
+        id: string;
+        name: string;
+        scheduleLabel: string | null;
+        isActive: boolean;
+      }>;
       assignments: Array<{
         id: string;
         title: string;
@@ -437,7 +442,9 @@ export default function AdminTeacherDetailPage() {
             <Card size="sm">
               <CardHeader className="pb-2">
                 <CardDescription>Classrooms</CardDescription>
-                <CardTitle className="text-2xl font-bold">{fmt(bundle.summary.activeClassrooms)}</CardTitle>
+                <CardTitle className="text-2xl font-bold">
+                  {fmt(bundle.summary.activeClassrooms)}
+                </CardTitle>
               </CardHeader>
             </Card>
             <Card size="sm">
@@ -456,7 +463,10 @@ export default function AdminTeacherDetailPage() {
               <CardHeader className="pb-2">
                 <CardDescription>Upcoming sessions</CardDescription>
                 <CardTitle className="text-2xl font-bold">
-                  {fmt((bundle.sessions ?? []).filter((s) => Date.parse(s.scheduledAt) > Date.now()).length)}
+                  {fmt(
+                    (bundle.sessions ?? []).filter((s) => Date.parse(s.scheduledAt) > Date.now())
+                      .length
+                  )}
                 </CardTitle>
               </CardHeader>
             </Card>
@@ -507,7 +517,9 @@ export default function AdminTeacherDetailPage() {
                   </div>
                   <div className="rounded-xl border bg-background p-3">
                     Gyan++ answers written:{" "}
-                    <span className="font-semibold">{fmt(bundle.summary.teacherSectionsWritten)}</span>
+                    <span className="font-semibold">
+                      {fmt(bundle.summary.teacherSectionsWritten)}
+                    </span>
                   </div>
                 </CardContent>
               </Card>
@@ -523,8 +535,16 @@ export default function AdminTeacherDetailPage() {
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div className="grid gap-2 md:grid-cols-2">
-                    <Input value={ccName} onChange={(e) => setCcName(e.target.value)} placeholder="Class name" />
-                    <Input value={ccSubject} onChange={(e) => setCcSubject(e.target.value)} placeholder="Subject" />
+                    <Input
+                      value={ccName}
+                      onChange={(e) => setCcName(e.target.value)}
+                      placeholder="Class name"
+                    />
+                    <Input
+                      value={ccSubject}
+                      onChange={(e) => setCcSubject(e.target.value)}
+                      placeholder="Subject"
+                    />
                     <div>
                       <label className="text-xs text-muted-foreground">PUC level</label>
                       <select
@@ -661,8 +681,12 @@ export default function AdminTeacherDetailPage() {
                                   {c.id}
                                 </TableCell>
                                 <TableCell className="text-xs tabular-nums">{c.joinCode}</TableCell>
-                                <TableCell className="text-right tabular-nums">{fmt(c.studentCount)}</TableCell>
-                                <TableCell className="text-right tabular-nums">{fmt(c.assignmentCount)}</TableCell>
+                                <TableCell className="text-right tabular-nums">
+                                  {fmt(c.studentCount)}
+                                </TableCell>
+                                <TableCell className="text-right tabular-nums">
+                                  {fmt(c.assignmentCount)}
+                                </TableCell>
                                 <TableCell className="text-sm">{c.nextSessionLabel}</TableCell>
                                 <TableCell className="text-right">
                                   <div className="flex flex-wrap justify-end gap-1">
@@ -715,17 +739,23 @@ export default function AdminTeacherDetailPage() {
                                           onClick={async () => {
                                             setClassroomsStatus("");
                                             try {
-                                              if (!renameNotes.trim()) throw new Error("Reason required.");
-                                              await postAdmin(`/api/admin/teachers/${teacherId}/classrooms/update`, {
-                                                classroomId: c.id,
-                                                name: renameName.trim(),
-                                                notes: renameNotes.trim(),
-                                              });
+                                              if (!renameNotes.trim())
+                                                throw new Error("Reason required.");
+                                              await postAdmin(
+                                                `/api/admin/teachers/${teacherId}/classrooms/update`,
+                                                {
+                                                  classroomId: c.id,
+                                                  name: renameName.trim(),
+                                                  notes: renameNotes.trim(),
+                                                }
+                                              );
                                               setRenameClassroomId(null);
                                               setClassroomsStatus("Classroom updated.");
                                               await load();
                                             } catch (e) {
-                                              setClassroomsStatus(e instanceof Error ? e.message : "Failed");
+                                              setClassroomsStatus(
+                                                e instanceof Error ? e.message : "Failed"
+                                              );
                                             }
                                           }}
                                         >
@@ -759,7 +789,8 @@ export default function AdminTeacherDetailPage() {
                   <CardHeader>
                     <CardTitle>Confirm delete classroom</CardTitle>
                     <CardDescription>
-                      This will delete classroom <span className="font-mono text-xs">{deleteClassroomId}</span>.
+                      This will delete classroom{" "}
+                      <span className="font-mono text-xs">{deleteClassroomId}</span>.
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-2">
@@ -790,7 +821,11 @@ export default function AdminTeacherDetailPage() {
                       >
                         Delete permanently
                       </Button>
-                      <Button variant="outline" type="button" onClick={() => setDeleteClassroomId(null)}>
+                      <Button
+                        variant="outline"
+                        type="button"
+                        onClick={() => setDeleteClassroomId(null)}
+                      >
                         Cancel
                       </Button>
                     </div>
@@ -801,7 +836,9 @@ export default function AdminTeacherDetailPage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Sections</CardTitle>
-                  <CardDescription>Schedules and activity status across classrooms.</CardDescription>
+                  <CardDescription>
+                    Schedules and activity status across classrooms.
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="rounded-xl border">
@@ -815,8 +852,8 @@ export default function AdminTeacherDetailPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {Object.values(bundle.classroomDetails).flatMap((d) => d.sections ?? []).length ===
-                        0 ? (
+                        {Object.values(bundle.classroomDetails).flatMap((d) => d.sections ?? [])
+                          .length === 0 ? (
                           <TableRow>
                             <TableCell colSpan={4} className="text-muted-foreground">
                               No sections.
@@ -826,14 +863,20 @@ export default function AdminTeacherDetailPage() {
                           Object.values(bundle.classroomDetails).flatMap((d) =>
                             (d.sections ?? []).map((s) => (
                               <TableRow key={`${d.classroomId}:${s.id}`}>
-                                <TableCell className="text-xs tabular-nums">{d.classroomId}</TableCell>
+                                <TableCell className="text-xs tabular-nums">
+                                  {d.classroomId}
+                                </TableCell>
                                 <TableCell className="font-medium">{s.name}</TableCell>
                                 <TableCell className="text-sm">{s.scheduleLabel ?? "—"}</TableCell>
                                 <TableCell>
                                   {s.isActive ? (
-                                    <Badge className="bg-emerald-600 hover:bg-emerald-600">Active</Badge>
+                                    <Badge className="bg-emerald-600 hover:bg-emerald-600">
+                                      Active
+                                    </Badge>
                                   ) : (
-                                    <Badge className="bg-slate-600 hover:bg-slate-600">Inactive</Badge>
+                                    <Badge className="bg-slate-600 hover:bg-slate-600">
+                                      Inactive
+                                    </Badge>
                                   )}
                                 </TableCell>
                               </TableRow>
@@ -852,7 +895,8 @@ export default function AdminTeacherDetailPage() {
                 <CardHeader>
                   <CardTitle>Schedule a lesson (live session)</CardTitle>
                   <CardDescription>
-                    Creates a session for one of this teacher&apos;s classrooms. Reason is required for audit.
+                    Creates a session for one of this teacher&apos;s classrooms. Reason is required
+                    for audit.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
@@ -892,13 +936,16 @@ export default function AdminTeacherDetailPage() {
                       />
                     </div>
                   </div>
-                  {lessonsStatus ? <p className="text-sm text-muted-foreground">{lessonsStatus}</p> : null}
+                  {lessonsStatus ? (
+                    <p className="text-sm text-muted-foreground">{lessonsStatus}</p>
+                  ) : null}
                   <Button
                     type="button"
                     onClick={async () => {
                       setLessonsStatus("");
                       try {
-                        if (!sessionCreateNotes.trim()) throw new Error("Reason (audit) is required.");
+                        if (!sessionCreateNotes.trim())
+                          throw new Error("Reason (audit) is required.");
                         await postAdmin(`/api/admin/teachers/${teacherId}/sessions/create`, {
                           classroomId: createClassroomId.trim(),
                           title: createTitle.trim(),
@@ -931,7 +978,9 @@ export default function AdminTeacherDetailPage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Live sessions</CardTitle>
-                  <CardDescription>Upcoming and past sessions. Cancel requires an audit reason.</CardDescription>
+                  <CardDescription>
+                    Upcoming and past sessions. Cancel requires an audit reason.
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="rounded-xl border">
@@ -968,14 +1017,21 @@ export default function AdminTeacherDetailPage() {
                                 </TableCell>
                                 <TableCell className="text-xs">
                                   {s.meetLink ? (
-                                    <a href={s.meetLink} target="_blank" rel="noreferrer" className="underline">
+                                    <a
+                                      href={s.meetLink}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="underline"
+                                    >
                                       link
                                     </a>
                                   ) : (
                                     <span className="text-muted-foreground">—</span>
                                   )}
                                 </TableCell>
-                                <TableCell className="text-right tabular-nums">{fmt(s.durationMinutes)}m</TableCell>
+                                <TableCell className="text-right tabular-nums">
+                                  {fmt(s.durationMinutes)}m
+                                </TableCell>
                                 <TableCell className="text-right">
                                   {!sessionCancelled(s.status) ? (
                                     <Button
@@ -1028,7 +1084,9 @@ export default function AdminTeacherDetailPage() {
                                               setLessonsStatus("Session cancelled.");
                                               await load();
                                             } catch (e) {
-                                              setLessonsStatus(e instanceof Error ? e.message : "Failed");
+                                              setLessonsStatus(
+                                                e instanceof Error ? e.message : "Failed"
+                                              );
                                             }
                                           }}
                                         >
@@ -1212,7 +1270,8 @@ export default function AdminTeacherDetailPage() {
                                   </TableCell>
                                   <TableCell className="text-sm">{a.dueDateLabel}</TableCell>
                                   <TableCell className="text-right tabular-nums">
-                                    {fmt(a.completionPercent)}% ({fmt(a.completedCount)}/{fmt(a.totalCount)})
+                                    {fmt(a.completionPercent)}% ({fmt(a.completedCount)}/
+                                    {fmt(a.totalCount)})
                                   </TableCell>
                                 </TableRow>
                               ))
@@ -1238,7 +1297,9 @@ export default function AdminTeacherDetailPage() {
                   {testHistoryLoading ? (
                     <p className="text-sm text-muted-foreground">Loading test history…</p>
                   ) : null}
-                  {testHistoryError ? <p className="text-sm text-destructive">{testHistoryError}</p> : null}
+                  {testHistoryError ? (
+                    <p className="text-sm text-destructive">{testHistoryError}</p>
+                  ) : null}
                   {!testHistoryLoading && !testHistoryError ? (
                     <div className="rounded-xl border">
                       <Table>
@@ -1269,7 +1330,9 @@ export default function AdminTeacherDetailPage() {
                                     : "—"}
                                 </TableCell>
                                 <TableCell className="capitalize">{row.subject}</TableCell>
-                                <TableCell className="tabular-nums">{fmt(row.class_level)}</TableCell>
+                                <TableCell className="tabular-nums">
+                                  {fmt(row.class_level)}
+                                </TableCell>
                                 <TableCell>{row.scope}</TableCell>
                                 <TableCell className="max-w-[280px] text-sm">
                                   {row.chapter_title ? (
@@ -1278,20 +1341,32 @@ export default function AdminTeacherDetailPage() {
                                     </span>
                                   ) : null}
                                   {row.topic_title ? (
-                                    <span className="block truncate text-muted-foreground" title={row.topic_title ?? ""}>
+                                    <span
+                                      className="block truncate text-muted-foreground"
+                                      title={row.topic_title ?? ""}
+                                    >
                                       {row.topic_title}
                                     </span>
                                   ) : null}
                                   {row.unit_title ? (
-                                    <span className="block truncate text-muted-foreground" title={row.unit_title ?? ""}>
+                                    <span
+                                      className="block truncate text-muted-foreground"
+                                      title={row.unit_title ?? ""}
+                                    >
                                       Unit: {row.unit_title}
                                     </span>
                                   ) : null}
-                                  {!row.chapter_title && !row.topic_title && !row.unit_title ? "—" : null}
+                                  {!row.chapter_title && !row.topic_title && !row.unit_title
+                                    ? "—"
+                                    : null}
                                 </TableCell>
-                                <TableCell className="text-right tabular-nums">{fmt(row.question_count)}</TableCell>
                                 <TableCell className="text-right tabular-nums">
-                                  {row.duration_minutes != null ? `${fmt(row.duration_minutes)}m` : "—"}
+                                  {fmt(row.question_count)}
+                                </TableCell>
+                                <TableCell className="text-right tabular-nums">
+                                  {row.duration_minutes != null
+                                    ? `${fmt(row.duration_minutes)}m`
+                                    : "—"}
                                 </TableCell>
                               </TableRow>
                             ))
@@ -1309,8 +1384,8 @@ export default function AdminTeacherDetailPage() {
                 <CardHeader>
                   <CardTitle>Motivation & notifications</CardTitle>
                   <CardDescription>
-                    Recent boosts, nudges, and rewards logged per classroom. For targeted sends (requires student
-                    IDs), use{" "}
+                    Recent boosts, nudges, and rewards logged per classroom. For targeted sends
+                    (requires student IDs), use{" "}
                     <Link
                       href={`/teacher-portal?adminTeacherId=${encodeURIComponent(teacherId)}&section=myClassroom`}
                       className="underline"
@@ -1354,7 +1429,9 @@ export default function AdminTeacherDetailPage() {
                                     <Badge variant="secondary">{m.actionKind}</Badge>
                                   </TableCell>
                                   <TableCell className="text-sm">{m.message}</TableCell>
-                                  <TableCell className="text-right tabular-nums">{fmt(m.rdmDelta)}</TableCell>
+                                  <TableCell className="text-right tabular-nums">
+                                    {fmt(m.rdmDelta)}
+                                  </TableCell>
                                 </TableRow>
                               ))
                             )}
@@ -1372,13 +1449,17 @@ export default function AdminTeacherDetailPage() {
                 <CardHeader>
                   <CardTitle>Edit teacher profile</CardTitle>
                   <CardDescription>
-                    Updates profile fields and preserves extended teacher details from the current bundle. Reason is
-                    required for audit.
+                    Updates profile fields and preserves extended teacher details from the current
+                    bundle. Reason is required for audit.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div className="grid gap-2 md:grid-cols-2">
-                    <Input value={profileName} onChange={(e) => setProfileName(e.target.value)} placeholder="Name" />
+                    <Input
+                      value={profileName}
+                      onChange={(e) => setProfileName(e.target.value)}
+                      placeholder="Name"
+                    />
                     <Input
                       value={profileVisibility}
                       onChange={(e) => setProfileVisibility(e.target.value)}
@@ -1386,7 +1467,11 @@ export default function AdminTeacherDetailPage() {
                     />
                     <div className="md:col-span-2">
                       <label className="text-sm font-medium">Bio (student-facing)</label>
-                      <Textarea value={profileBio} onChange={(e) => setProfileBio(e.target.value)} rows={4} />
+                      <Textarea
+                        value={profileBio}
+                        onChange={(e) => setProfileBio(e.target.value)}
+                        rows={4}
+                      />
                     </div>
                     <div className="md:col-span-2">
                       <label className="text-sm font-medium">Subjects (comma-separated)</label>
@@ -1405,7 +1490,9 @@ export default function AdminTeacherDetailPage() {
                       />
                     </div>
                     <div className="md:col-span-2">
-                      <label className="text-sm font-medium">Teaching levels (comma-separated numbers)</label>
+                      <label className="text-sm font-medium">
+                        Teaching levels (comma-separated numbers)
+                      </label>
                       <Input
                         value={profileLevelsRaw}
                         onChange={(e) => setProfileLevelsRaw(e.target.value)}
@@ -1421,13 +1508,16 @@ export default function AdminTeacherDetailPage() {
                       />
                     </div>
                   </div>
-                  {profileStatus ? <p className="text-sm text-muted-foreground">{profileStatus}</p> : null}
+                  {profileStatus ? (
+                    <p className="text-sm text-muted-foreground">{profileStatus}</p>
+                  ) : null}
                   <Button
                     type="button"
                     onClick={async () => {
                       setProfileStatus("");
                       try {
-                        if (!profileSaveNotes.trim()) throw new Error("Reason (audit) is required.");
+                        if (!profileSaveNotes.trim())
+                          throw new Error("Reason (audit) is required.");
                         await postAdmin(`/api/admin/teachers/${teacherId}/profile/update`, {
                           name: profileName.trim(),
                           bio: profileBio,
@@ -1454,7 +1544,9 @@ export default function AdminTeacherDetailPage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Verification & details (read-only)</CardTitle>
-                  <CardDescription>Location, qualification, and document flags from the bundle.</CardDescription>
+                  <CardDescription>
+                    Location, qualification, and document flags from the bundle.
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="grid gap-3 text-sm lg:grid-cols-2">
                   <div className="rounded-xl border bg-background p-3">
@@ -1463,7 +1555,9 @@ export default function AdminTeacherDetailPage() {
                   </div>
                   <div className="rounded-xl border bg-background p-3">
                     <div className="text-muted-foreground text-xs">Qualification</div>
-                    <div className="font-semibold">{bundle.profile.details?.qualification ?? "—"}</div>
+                    <div className="font-semibold">
+                      {bundle.profile.details?.qualification ?? "—"}
+                    </div>
                   </div>
                   <div className="rounded-xl border bg-background p-3">
                     <div className="text-muted-foreground text-xs">Experience</div>
@@ -1472,8 +1566,11 @@ export default function AdminTeacherDetailPage() {
                   <div className="rounded-xl border bg-background p-3">
                     <div className="text-muted-foreground text-xs">Docs</div>
                     <div className="font-semibold">
-                      Aadhar: {bundle.profile.details?.docs?.aadharPhotoUrl ? "Uploaded" : "—"} · Certificate:{" "}
-                      {bundle.profile.details?.docs?.instituteCertificatePhotoUrl ? "Uploaded" : "—"}
+                      Aadhar: {bundle.profile.details?.docs?.aadharPhotoUrl ? "Uploaded" : "—"} ·
+                      Certificate:{" "}
+                      {bundle.profile.details?.docs?.instituteCertificatePhotoUrl
+                        ? "Uploaded"
+                        : "—"}
                     </div>
                   </div>
                 </CardContent>

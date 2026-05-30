@@ -53,17 +53,15 @@ function dedupeKey(row: {
   ].join("|");
 }
 
-function toItem(
-  row: {
-    board: string | null;
-    subject: string | null;
-    classLevel: number | null;
-    topic: string;
-    subtopic: string;
-    level: string;
-    completedAt: string;
-  }
-): BuddyCompletedSubtopic {
+function toItem(row: {
+  board: string | null;
+  subject: string | null;
+  classLevel: number | null;
+  topic: string;
+  subtopic: string;
+  level: string;
+  completedAt: string;
+}): BuddyCompletedSubtopic {
   const subj = asSubject(row.subject);
   const href = subj
     ? buildTopicPath(

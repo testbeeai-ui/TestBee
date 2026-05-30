@@ -22,11 +22,16 @@ function parseRpcPayload(raw: unknown): TopicQuizAdvancedRdmResult {
   return {
     awarded: Boolean(o.awarded),
     amount: typeof o.amount === "number" ? o.amount : Number(o.amount) || 0,
-    balance: typeof o.balance === "number" ? o.balance : o.balance == null ? null : Number(o.balance),
+    balance:
+      typeof o.balance === "number" ? o.balance : o.balance == null ? null : Number(o.balance),
     claim_date_ist: typeof o.claim_date_ist === "string" ? o.claim_date_ist : undefined,
     reason: typeof o.reason === "string" ? o.reason : undefined,
     score_percent:
-      typeof scorePercent === "number" ? scorePercent : scorePercent == null ? undefined : Number(scorePercent),
+      typeof scorePercent === "number"
+        ? scorePercent
+        : scorePercent == null
+          ? undefined
+          : Number(scorePercent),
     correct: typeof correct === "number" ? correct : correct == null ? undefined : Number(correct),
     total: typeof total === "number" ? total : total == null ? undefined : Number(total),
   };

@@ -61,9 +61,7 @@ export async function POST(request: Request) {
 
     const raw = prof.subtopic_engagement;
     const store =
-      raw && typeof raw === "object" && !Array.isArray(raw)
-        ? (raw as Record<string, unknown>)
-        : {};
+      raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {};
 
     const nextEngagement: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(store)) {

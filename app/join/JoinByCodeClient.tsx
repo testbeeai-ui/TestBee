@@ -9,7 +9,10 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import type { Database } from "@/integrations/supabase/types";
-import { normalizeReferralRef, persistPendingReferralRefFromUrl } from "@/lib/rdm/referral/referralClient";
+import {
+  normalizeReferralRef,
+  persistPendingReferralRefFromUrl,
+} from "@/lib/rdm/referral/referralClient";
 
 const REFERRAL_LANDING_REDIRECT_SEC = 3;
 
@@ -67,7 +70,11 @@ export default function JoinByCodeClient() {
         return;
       }
       setLoadingRoom(true);
-      const { data } = await supabase.from("classrooms").select("*").eq("join_code", c).maybeSingle();
+      const { data } = await supabase
+        .from("classrooms")
+        .select("*")
+        .eq("join_code", c)
+        .maybeSingle();
       setClassroom(data ?? null);
       setLoadingRoom(false);
     };
@@ -151,7 +158,11 @@ export default function JoinByCodeClient() {
   const c = code.trim().toUpperCase();
   const canPreview = Boolean(classroom);
   const joinDisabled =
-    submitting || loadingRoom || !canPreview || requestStatus === "pending" || requestStatus === "rejected";
+    submitting ||
+    loadingRoom ||
+    !canPreview ||
+    requestStatus === "pending" ||
+    requestStatus === "rejected";
 
   const normalizedRef = normalizeReferralRef(refFromUrl);
   const validRef = Boolean(normalizedRef);
@@ -175,12 +186,15 @@ export default function JoinByCodeClient() {
           <span className="text-5xl" aria-hidden>
             🎉
           </span>
-          <h1 id="referral-invite-title" className="mt-4 font-display text-2xl font-semibold text-foreground">
+          <h1
+            id="referral-invite-title"
+            className="mt-4 font-display text-2xl font-semibold text-foreground"
+          >
             Your friend invited you
           </h1>
           <p className="mt-3 text-sm text-muted-foreground leading-relaxed">
-            Your invite is saved. Sign up or log in from the home page, then finish onboarding — you and your friend get
-            RDM after that, once per account.
+            Your invite is saved. Sign up or log in from the home page, then finish onboarding — you
+            and your friend get RDM after that, once per account.
           </p>
           <p className="mt-5 text-xs font-medium text-teal-600 dark:text-teal-400/90">
             Opening the home page in {inviteSecondsLeft}s…
@@ -211,7 +225,8 @@ export default function JoinByCodeClient() {
             <span className="text-5xl block mb-4">📚</span>
             <h1 className="text-2xl font-display text-foreground mb-1">Join a classroom</h1>
             <p className="text-sm text-muted-foreground">
-              Enter the join code from your teacher. You’ll send a request — the teacher approves it.
+              Enter the join code from your teacher. You’ll send a request — the teacher approves
+              it.
             </p>
             {validRef ? (
               <p className="mt-3 text-xs text-teal-600 dark:text-teal-400/90 font-medium">
@@ -239,11 +254,17 @@ export default function JoinByCodeClient() {
             ) : classroom ? (
               <div className="rounded-xl bg-muted/20 border border-border/50 p-3">
                 <div className="text-sm font-extrabold text-foreground">{classroom.name}</div>
-                {classroom.subject ? <div className="text-xs text-muted-foreground">{classroom.subject}</div> : null}
+                {classroom.subject ? (
+                  <div className="text-xs text-muted-foreground">{classroom.subject}</div>
+                ) : null}
                 {requestStatus === "pending" ? (
-                  <div className="mt-2 text-xs text-amber-600 font-bold">Request pending approval</div>
+                  <div className="mt-2 text-xs text-amber-600 font-bold">
+                    Request pending approval
+                  </div>
                 ) : requestStatus === "rejected" ? (
-                  <div className="mt-2 text-xs text-red-600 font-bold">Request rejected — contact your teacher</div>
+                  <div className="mt-2 text-xs text-red-600 font-bold">
+                    Request rejected — contact your teacher
+                  </div>
                 ) : requestStatus === "approved" ? (
                   <div className="mt-2 text-xs text-emerald-600 font-bold">You’re already in</div>
                 ) : null}
@@ -277,4 +298,3 @@ export default function JoinByCodeClient() {
     </div>
   );
 }
-

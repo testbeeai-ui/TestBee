@@ -6,7 +6,10 @@ import { CheckCircle2, ChevronLeft, ChevronRight, Trash2, XCircle } from "lucide
 import type { Question } from "@/types";
 import { useUserStore } from "@/store/useUserStore";
 import { sanitizeMockHtml } from "@/lib/mock/mockHtml";
-import { patchNtaHtmlPresentation, wrapPlainMockTextForKatexHtml } from "@/lib/mock/mockRichTextKatex";
+import {
+  patchNtaHtmlPresentation,
+  wrapPlainMockTextForKatexHtml,
+} from "@/lib/mock/mockRichTextKatex";
 import { useKatexAutoRender } from "@/hooks/useKatexAutoRender";
 import { cn } from "@/lib/utils";
 
@@ -103,13 +106,7 @@ const SavedRevisionSolutionBody = memo(function SavedRevisionSolutionBody({
   );
 });
 
-function SavedQuestionSlide({
-  question,
-  onUnsave,
-}: {
-  question: Question;
-  onUnsave: () => void;
-}) {
+function SavedQuestionSlide({ question, onUnsave }: { question: Question; onUnsave: () => void }) {
   const { recordAnswer } = useUserStore();
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const answered = selectedOption !== null;

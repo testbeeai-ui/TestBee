@@ -44,7 +44,12 @@ const sections: Array<{ key: TeacherPortalSection; label: string; icon: typeof L
 ];
 
 const WALLET_EARNING_RATES = [
-  { label: "Gyan++ answer", amount: DEFAULT_RDM_CONFIG.gyan_teacher_answer_rdm, icon: Star, color: "text-amber-300" },
+  {
+    label: "Gyan++ answer",
+    amount: DEFAULT_RDM_CONFIG.gyan_teacher_answer_rdm,
+    icon: Star,
+    color: "text-amber-300",
+  },
   { label: "Live class conversion", amount: 30, icon: Zap, color: "text-emerald-300" },
   { label: "Refer a teacher", amount: 100, icon: Users, color: "text-violet-300" },
   { label: "Content co-creation", amount: 20, icon: TrendingUp, color: "text-sky-300" },
@@ -187,9 +192,7 @@ export default function TeacherPortalShell({
             </button>
             <button
               type="button"
-              onClick={() =>
-                router.push("/teacher-portal?section=myClassroom&wizard=1")
-              }
+              onClick={() => router.push("/teacher-portal?section=myClassroom&wizard=1")}
               className="flex w-full items-center gap-2 rounded-lg border border-transparent px-2.5 py-1.5 text-left text-[12px] text-slate-400 hover:border-white/10 hover:bg-white/5 hover:text-white sm:px-3 sm:py-2 sm:text-sm"
             >
               <Star className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
@@ -230,37 +233,58 @@ export default function TeacherPortalShell({
 
       {/* Wallet popup */}
       {walletOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setWalletOpen(false)}>
-          <div className="w-full max-w-sm rounded-2xl border border-amber-400/20 bg-[#0d0d22] p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={() => setWalletOpen(false)}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl border border-amber-400/20 bg-[#0d0d22] p-5 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="mb-4 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Coins className="h-5 w-5 text-amber-300" />
                 <h2 className="text-lg font-semibold text-slate-100">RDM Wallet</h2>
               </div>
-              <button type="button" onClick={() => setWalletOpen(false)} className="rounded-md p-1 text-slate-400 hover:text-white">
+              <button
+                type="button"
+                onClick={() => setWalletOpen(false)}
+                className="rounded-md p-1 text-slate-400 hover:text-white"
+              >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
             <div className="mb-4 rounded-xl border border-amber-400/20 bg-amber-400/5 p-4 text-center">
-              <div className="font-serif text-3xl text-amber-300">{rdmBalance.toLocaleString("en-IN")}</div>
+              <div className="font-serif text-3xl text-amber-300">
+                {rdmBalance.toLocaleString("en-IN")}
+              </div>
               <div className="text-sm text-slate-400">RDM balance</div>
             </div>
 
             <div className="mb-4">
-              <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">Ways to earn</div>
+              <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                Ways to earn
+              </div>
               <div className="space-y-1.5">
                 {WALLET_EARNING_RATES.map(({ label, amount, icon: Icon, color }) => (
-                  <div key={label} className="flex items-center gap-2.5 rounded-lg border border-white/10 bg-black/20 px-3 py-2">
+                  <div
+                    key={label}
+                    className="flex items-center gap-2.5 rounded-lg border border-white/10 bg-black/20 px-3 py-2"
+                  >
                     <Icon className={"h-3.5 w-3.5 shrink-0 " + color} />
                     <span className="flex-1 text-sm text-slate-300">{label}</span>
-                    <span className="font-serif text-sm font-semibold text-amber-300">+{amount}</span>
+                    <span className="font-serif text-sm font-semibold text-amber-300">
+                      +{amount}
+                    </span>
                   </div>
                 ))}
               </div>
             </div>
 
-            <p className="text-center text-[11px] text-slate-500">Contact admin for top-up requests.</p>
+            <p className="text-center text-[11px] text-slate-500">
+              Contact admin for top-up requests.
+            </p>
           </div>
         </div>
       ) : null}

@@ -74,6 +74,12 @@ import { getClientApiAuthHeaders } from "@/lib/auth/clientApiAuth";
 import { EDUBLAST_STUDY_DAYS_REFRESH } from "@/lib/dashboard/studyDayBumpEvents";
 import { useSitePresenceLiveMsToday } from "@/components/providers/SitePresenceProvider";
 import { eachDayOfInterval, endOfWeek, format, startOfWeek } from "date-fns";
+import {
+  buildTopicQuizSubjectStats,
+  TOPIC_QUIZ_SUBJECT_BAR_COLOR,
+  TOPIC_QUIZ_SUBJECT_LABEL,
+  totalTopicQuizzesTaken,
+} from "@/lib/performance/topicQuizSubjectStats";
 
 const ACADEMIC_BUCKET = "academic-marksheets";
 const ACHIEVEMENT_BUCKET = "achievement-marksheets";
@@ -121,8 +127,7 @@ function achievementLevelPillClass(level: Achievement["level"]): string {
 }
 
 function AchievementListIcon({ level }: { level: Achievement["level"] }) {
-  const box =
-    "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg sm:h-10 sm:w-10";
+  const box = "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg sm:h-10 sm:w-10";
   if (level === "School") {
     return (
       <div className={cn(box, "bg-lime-500/15 text-lime-400")}>
@@ -221,7 +226,9 @@ function hasAcademicRowData(row: DbAcademic | undefined): boolean {
   );
 }
 
-function verificationLabel(verified: string | undefined): "Pending" | "Verified" | "Rejected" | null {
+function verificationLabel(
+  verified: string | undefined
+): "Pending" | "Verified" | "Rejected" | null {
   if (verified === "verified") return "Verified";
   if (verified === "unverified") return "Rejected";
   if (verified === "pending") return "Pending";
@@ -266,8 +273,12 @@ export function StudentProfileAcademicPanel({
   const [internalsXii, setInternalsXii] = useState("");
 
   const [subj, setSubj] = useState<NonNullable<AcademicRecordExtrasShape["classXSubjects"]>>({});
-  const [subjXi, setSubjXi] = useState<NonNullable<AcademicRecordExtrasShape["classXSubjects"]>>({});
-  const [subjXii, setSubjXii] = useState<NonNullable<AcademicRecordExtrasShape["classXSubjects"]>>({});
+  const [subjXi, setSubjXi] = useState<NonNullable<AcademicRecordExtrasShape["classXSubjects"]>>(
+    {}
+  );
+  const [subjXii, setSubjXii] = useState<NonNullable<AcademicRecordExtrasShape["classXSubjects"]>>(
+    {}
+  );
   const [coachingName, setCoachingName] = useState("");
   const [coachingSince, setCoachingSince] = useState("");
   const [coachingNameXi, setCoachingNameXi] = useState("");
@@ -321,7 +332,9 @@ export function StudentProfileAcademicPanel({
 
       setEditingX(!hasAcademicRowData(rx ?? undefined));
       setEditingXi(!hasAcademicRowData(rxi ?? undefined));
-      setEditingXii(!(hasAcademicRowData(rxii ?? undefined) || hasTextValue(extras.puc2InternalsPercent)));
+      setEditingXii(
+        !(hasAcademicRowData(rxii ?? undefined) || hasTextValue(extras.puc2InternalsPercent))
+      );
     } catch (e: unknown) {
       toast({
         title: "Could not load academic record",
@@ -393,7 +406,10 @@ export function StudentProfileAcademicPanel({
     }
   };
 
-  const shouldPersistSlot = (fields: { year: string; score: string; board: string }, file: File | null): boolean => {
+  const shouldPersistSlot = (
+    fields: { year: string; score: string; board: string },
+    file: File | null
+  ): boolean => {
     return Boolean(fields.year.trim() || fields.score.trim() || fields.board.trim() || file);
   };
 
@@ -477,9 +493,17 @@ export function StudentProfileAcademicPanel({
   const activeSubjects =
     activeDetailsSlot === "class_x" ? subj : activeDetailsSlot === "puc_i" ? subjXi : subjXii;
   const setActiveSubjects =
-    activeDetailsSlot === "class_x" ? setSubj : activeDetailsSlot === "puc_i" ? setSubjXi : setSubjXii;
+    activeDetailsSlot === "class_x"
+      ? setSubj
+      : activeDetailsSlot === "puc_i"
+        ? setSubjXi
+        : setSubjXii;
   const activeCoachingName =
-    activeDetailsSlot === "class_x" ? coachingName : activeDetailsSlot === "puc_i" ? coachingNameXi : coachingNameXii;
+    activeDetailsSlot === "class_x"
+      ? coachingName
+      : activeDetailsSlot === "puc_i"
+        ? coachingNameXi
+        : coachingNameXii;
   const setActiveCoachingName =
     activeDetailsSlot === "class_x"
       ? setCoachingName
@@ -487,7 +511,11 @@ export function StudentProfileAcademicPanel({
         ? setCoachingNameXi
         : setCoachingNameXii;
   const activeCoachingSince =
-    activeDetailsSlot === "class_x" ? coachingSince : activeDetailsSlot === "puc_i" ? coachingSinceXi : coachingSinceXii;
+    activeDetailsSlot === "class_x"
+      ? coachingSince
+      : activeDetailsSlot === "puc_i"
+        ? coachingSinceXi
+        : coachingSinceXii;
   const setActiveCoachingSince =
     activeDetailsSlot === "class_x"
       ? setCoachingSince
@@ -495,7 +523,11 @@ export function StudentProfileAcademicPanel({
         ? setCoachingSinceXi
         : setCoachingSinceXii;
   const activeIsEditing =
-    activeDetailsSlot === "class_x" ? editingX : activeDetailsSlot === "puc_i" ? editingXi : editingXii;
+    activeDetailsSlot === "class_x"
+      ? editingX
+      : activeDetailsSlot === "puc_i"
+        ? editingXi
+        : editingXii;
 
   if (loading) {
     return (
@@ -510,7 +542,9 @@ export function StudentProfileAcademicPanel({
       <section className="rounded-xl border border-border bg-card p-3 dark:border-white/10 dark:bg-[#0c1017] sm:rounded-2xl sm:p-4 md:p-5 lg:p-6">
         <div className="mb-4 flex flex-wrap items-center gap-2 border-b border-border pb-3 dark:border-white/10">
           <FileText className="h-5 w-5 shrink-0 text-emerald-400" />
-          <h2 className="text-base font-black text-foreground sm:text-lg dark:text-white">Academic record</h2>
+          <h2 className="text-base font-black text-foreground sm:text-lg dark:text-white">
+            Academic record
+          </h2>
           <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10.5px] font-bold text-emerald-700 dark:text-emerald-400">
             Shared with EduFund &amp; NGOs
           </span>
@@ -584,7 +618,9 @@ export function StudentProfileAcademicPanel({
             <p className="text-xs font-bold text-foreground dark:text-slate-100">
               {examTitleWithBoard("puc_ii", boardXii)}
             </p>
-            <p className="text-[11px] text-muted-foreground dark:text-slate-500">{defaultSubtitle("puc_ii")}</p>
+            <p className="text-[11px] text-muted-foreground dark:text-slate-500">
+              {defaultSubtitle("puc_ii")}
+            </p>
             {!editingXii ? (
               <p className="mt-1 text-[11px] text-muted-foreground dark:text-slate-400">
                 {xiiSummary || "No data submitted"}
@@ -674,7 +710,9 @@ export function StudentProfileAcademicPanel({
               ] as const
             ).map(([key, label]) => (
               <div key={key} className="min-w-0">
-                <label className="mb-1 block text-[11px] font-semibold dark:text-slate-200">{label}</label>
+                <label className="mb-1 block text-[11px] font-semibold dark:text-slate-200">
+                  {label}
+                </label>
                 <Input
                   value={activeSubjects[key] ?? ""}
                   onChange={(e) => setActiveSubjects((s) => ({ ...s, [key]: e.target.value }))}
@@ -696,7 +734,10 @@ export function StudentProfileAcademicPanel({
                 ["secondLanguage", "Second language"],
               ] as const
             ).map(([key, label]) => (
-              <div key={key} className="min-w-0 rounded-md border border-border/80 bg-muted/20 p-2.5 dark:border-white/10 dark:bg-white/[0.02]">
+              <div
+                key={key}
+                className="min-w-0 rounded-md border border-border/80 bg-muted/20 p-2.5 dark:border-white/10 dark:bg-white/[0.02]"
+              >
                 <p className="text-[11px] font-semibold dark:text-slate-300">{label}</p>
                 <p className="mt-0.5 text-xs text-muted-foreground dark:text-slate-400">
                   {activeSubjects[key]?.trim() || "—"}
@@ -714,7 +755,9 @@ export function StudentProfileAcademicPanel({
         {activeIsEditing ? (
           <div className="grid grid-cols-1 gap-3 min-[500px]:grid-cols-2">
             <div>
-              <label className="mb-1 block text-[11px] font-semibold dark:text-slate-200">Coaching institute name</label>
+              <label className="mb-1 block text-[11px] font-semibold dark:text-slate-200">
+                Coaching institute name
+              </label>
               <Input
                 value={activeCoachingName}
                 onChange={(e) => setActiveCoachingName(e.target.value)}
@@ -723,7 +766,9 @@ export function StudentProfileAcademicPanel({
               />
             </div>
             <div>
-              <label className="mb-1 block text-[11px] font-semibold dark:text-slate-200">Attending since</label>
+              <label className="mb-1 block text-[11px] font-semibold dark:text-slate-200">
+                Attending since
+              </label>
               <Input
                 type="month"
                 value={activeCoachingSince}
@@ -735,23 +780,34 @@ export function StudentProfileAcademicPanel({
         ) : (
           <div className="grid grid-cols-1 gap-3 min-[500px]:grid-cols-2">
             <div className="rounded-md border border-border/80 bg-muted/20 p-2.5 dark:border-white/10 dark:bg-white/[0.02]">
-              <p className="text-[11px] font-semibold dark:text-slate-300">Coaching institute name</p>
-              <p className="mt-0.5 text-xs text-muted-foreground dark:text-slate-400">{activeCoachingName.trim() || "—"}</p>
+              <p className="text-[11px] font-semibold dark:text-slate-300">
+                Coaching institute name
+              </p>
+              <p className="mt-0.5 text-xs text-muted-foreground dark:text-slate-400">
+                {activeCoachingName.trim() || "—"}
+              </p>
             </div>
             <div className="rounded-md border border-border/80 bg-muted/20 p-2.5 dark:border-white/10 dark:bg-white/[0.02]">
               <p className="text-[11px] font-semibold dark:text-slate-300">Attending since</p>
-              <p className="mt-0.5 text-xs text-muted-foreground dark:text-slate-400">{activeCoachingSince.trim() || "—"}</p>
+              <p className="mt-0.5 text-xs text-muted-foreground dark:text-slate-400">
+                {activeCoachingSince.trim() || "—"}
+              </p>
             </div>
           </div>
         )}
 
         <div className="mt-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-[11px] leading-relaxed text-emerald-200/90 dark:border-emerald-500/20 dark:bg-emerald-950/40">
-          Marksheets are stored securely and only shared with the EduFund committee and partner NGOs when you apply for
-          a grant.
+          Marksheets are stored securely and only shared with the EduFund committee and partner NGOs
+          when you apply for a grant.
         </div>
 
         <div className="mt-4 flex flex-wrap gap-2 border-t border-border pt-4 dark:border-white/10">
-          <Button type="button" variant="outline" onClick={() => void load()} className="text-xs font-bold sm:text-sm">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => void load()}
+            className="text-xs font-bold sm:text-sm"
+          >
             Cancel
           </Button>
           <Button
@@ -822,14 +878,21 @@ function AcademicRowEditor({
         className="flex flex-wrap items-center gap-2 border-b border-border py-3 dark:border-white/10 sm:gap-3"
         onClick={activate}
       >
-        <div className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-lg sm:h-9 sm:w-9", iconClass)}>
+        <div
+          className={cn(
+            "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg sm:h-9 sm:w-9",
+            iconClass
+          )}
+        >
           <FileText className="h-4 w-4" />
         </div>
         <div className="min-w-0 flex-1 basis-[200px]">
           <p className="text-xs font-bold text-foreground dark:text-slate-100">{title}</p>
           <p className="text-[11px] text-muted-foreground dark:text-slate-500">{subtitle}</p>
           {!isEditing ? (
-            <p className="mt-1 text-[11px] text-muted-foreground dark:text-slate-400">{summary || "No data submitted"}</p>
+            <p className="mt-1 text-[11px] text-muted-foreground dark:text-slate-400">
+              {summary || "No data submitted"}
+            </p>
           ) : (
             <Input
               value={board}
@@ -914,7 +977,9 @@ function AcademicRowEditor({
             className="flex w-full flex-col items-center rounded-lg border border-dashed border-border bg-muted/30 px-4 py-3 text-center transition-colors hover:border-emerald-500/50 hover:bg-emerald-500/5 dark:border-white/15 dark:bg-white/[0.03]"
           >
             <Upload className="mb-1 h-5 w-5 text-emerald-400" />
-            <span className="text-xs font-semibold text-foreground dark:text-slate-200">{uploadLabel}</span>
+            <span className="text-xs font-semibold text-foreground dark:text-slate-200">
+              {uploadLabel}
+            </span>
             <span className="mt-0.5 text-[10.5px] text-muted-foreground dark:text-slate-500">
               PDF or image · max 10 MB · {displayDocName ?? "scholarship verification"}
             </span>
@@ -1018,7 +1083,9 @@ export function StudentProfileAchievementsPanel({ userId }: { userId: string }) 
   };
 
   const openAchievementMarksheet = async (path: string) => {
-    const { data, error } = await supabase.storage.from(ACHIEVEMENT_BUCKET).createSignedUrl(path, 120);
+    const { data, error } = await supabase.storage
+      .from(ACHIEVEMENT_BUCKET)
+      .createSignedUrl(path, 120);
     if (!error && data?.signedUrl) window.open(data.signedUrl, "_blank", "noopener,noreferrer");
   };
 
@@ -1029,7 +1096,11 @@ export function StudentProfileAchievementsPanel({ userId }: { userId: string }) 
     const { error: upErr } = await supabase.storage.from(ACHIEVEMENT_BUCKET).upload(path, file, {
       contentType: file.type || undefined,
     });
-    if (!upErr) await supabase.from("profile_achievements").update({ marksheet_path: path }).eq("id", achievementId);
+    if (!upErr)
+      await supabase
+        .from("profile_achievements")
+        .update({ marksheet_path: path })
+        .eq("id", achievementId);
   };
 
   const submitForm = async () => {
@@ -1054,9 +1125,11 @@ export function StudentProfileAchievementsPanel({ userId }: { userId: string }) 
         if (formFile) {
           const safeName = formFile.name.replace(/[^a-zA-Z0-9._-]/g, "_");
           newPath = `${userId}/${editingId}/${Date.now()}-${safeName}`;
-          const { error: upErr } = await supabase.storage.from(ACHIEVEMENT_BUCKET).upload(newPath, formFile, {
-            contentType: formFile.type || undefined,
-          });
+          const { error: upErr } = await supabase.storage
+            .from(ACHIEVEMENT_BUCKET)
+            .upload(newPath, formFile, {
+              contentType: formFile.type || undefined,
+            });
           if (upErr) newPath = undefined;
         }
         const { error } = await supabase
@@ -1105,15 +1178,18 @@ export function StudentProfileAchievementsPanel({ userId }: { userId: string }) 
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3 dark:border-white/10">
           <div className="flex items-center gap-2">
             <Medal className="h-5 w-5 shrink-0 text-emerald-400" />
-            <h2 className="text-base font-black dark:text-white sm:text-lg">Achievements &amp; competitions</h2>
+            <h2 className="text-base font-black dark:text-white sm:text-lg">
+              Achievements &amp; competitions
+            </h2>
           </div>
           <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10.5px] font-bold text-emerald-700 dark:text-emerald-400">
             Strengthens scholarship profile
           </span>
         </div>
         <p className="mb-4 text-[11px] leading-relaxed text-muted-foreground dark:text-slate-400">
-          Every verified achievement improves your grant eligibility score and makes you visible to partner NGOs and
-          corporate CSR programmes. Higher-level achievements carry significantly more weight.
+          Every verified achievement improves your grant eligibility score and makes you visible to
+          partner NGOs and corporate CSR programmes. Higher-level achievements carry significantly
+          more weight.
         </p>
 
         {loading ? (
@@ -1128,10 +1204,15 @@ export function StudentProfileAchievementsPanel({ userId }: { userId: string }) 
               const org = a.percentage?.trim();
               const metaParts = [`${a.level} level`, String(a.year), org].filter(Boolean);
               return (
-                <li key={a.id} className="flex flex-col gap-3 py-4 first:pt-0 sm:flex-row sm:items-center sm:gap-4">
+                <li
+                  key={a.id}
+                  className="flex flex-col gap-3 py-4 first:pt-0 sm:flex-row sm:items-center sm:gap-4"
+                >
                   <AchievementListIcon level={a.level} />
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-bold text-foreground dark:text-slate-100">{a.name}</p>
+                    <p className="text-sm font-bold text-foreground dark:text-slate-100">
+                      {a.name}
+                    </p>
                     <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground dark:text-slate-500">
                       {metaParts.join(" · ")}
                     </p>
@@ -1211,7 +1292,9 @@ export function StudentProfileAchievementsPanel({ userId }: { userId: string }) 
               />
             </div>
             <div className="min-w-0">
-              <Label className="text-[11px] font-semibold text-foreground dark:text-slate-200">Result / rank / medal</Label>
+              <Label className="text-[11px] font-semibold text-foreground dark:text-slate-200">
+                Result / rank / medal
+              </Label>
               <Input
                 value={formResult}
                 onChange={(e) => setFormResult(e.target.value)}
@@ -1225,7 +1308,10 @@ export function StudentProfileAchievementsPanel({ userId }: { userId: string }) 
               <Label className="text-[11px] font-semibold text-foreground dark:text-slate-200">
                 Level <span className="text-red-500">*</span>
               </Label>
-              <Select value={formLevel} onValueChange={(v) => setFormLevel(v as Achievement["level"])}>
+              <Select
+                value={formLevel}
+                onValueChange={(v) => setFormLevel(v as Achievement["level"])}
+              >
                 <SelectTrigger className={cn("mt-1 h-9 w-full", fieldFocus)}>
                   <SelectValue />
                 </SelectTrigger>
@@ -1241,7 +1327,9 @@ export function StudentProfileAchievementsPanel({ userId }: { userId: string }) 
               </Select>
             </div>
             <div>
-              <Label className="text-[11px] font-semibold text-foreground dark:text-slate-200">Year</Label>
+              <Label className="text-[11px] font-semibold text-foreground dark:text-slate-200">
+                Year
+              </Label>
               <Select value={formYear} onValueChange={(v) => v != null && setFormYear(v)}>
                 <SelectTrigger className={cn("mt-1 h-9 w-full", fieldFocus)}>
                   <SelectValue />
@@ -1258,7 +1346,9 @@ export function StudentProfileAchievementsPanel({ userId }: { userId: string }) 
               </Select>
             </div>
             <div className="min-w-0 sm:col-span-1">
-              <Label className="text-[11px] font-semibold text-foreground dark:text-slate-200">Organising body</Label>
+              <Label className="text-[11px] font-semibold text-foreground dark:text-slate-200">
+                Organising body
+              </Label>
               <Input
                 value={formOrganizer}
                 onChange={(e) => setFormOrganizer(e.target.value)}
@@ -1303,7 +1393,10 @@ export function StudentProfileAchievementsPanel({ userId }: { userId: string }) 
               )}
             >
               {formFile ? (
-                <Check className="mb-2 h-5 w-5 text-emerald-400 motion-safe:animate-pulse" aria-hidden />
+                <Check
+                  className="mb-2 h-5 w-5 text-emerald-400 motion-safe:animate-pulse"
+                  aria-hidden
+                />
               ) : (
                 <Upload className="mb-2 h-5 w-5 text-emerald-400" aria-hidden />
               )}
@@ -1474,7 +1567,15 @@ function formatPlatformStudyHours(activeMs: number): string {
   return hours >= 10 ? `${Math.round(hours)} h` : `${hours.toFixed(1)} h`;
 }
 
-function AttendanceKpiCell({ label, value, sub }: { label: string; value: string; sub: ReactNode }) {
+function AttendanceKpiCell({
+  label,
+  value,
+  sub,
+}: {
+  label: string;
+  value: string;
+  sub: ReactNode;
+}) {
   return (
     <div className="bg-card p-3 font-sans sm:p-4 dark:bg-[#0d1118]">
       <p className="text-[10.5px] font-bold uppercase tracking-wide text-muted-foreground dark:text-slate-500">
@@ -1483,7 +1584,9 @@ function AttendanceKpiCell({ label, value, sub }: { label: string; value: string
       <p className="mt-1.5 text-xl font-black tabular-nums leading-none tracking-tight text-foreground antialiased dark:text-white sm:text-2xl">
         {value}
       </p>
-      <div className="mt-1 text-[10.5px] leading-snug text-muted-foreground dark:text-slate-500">{sub}</div>
+      <div className="mt-1 text-[10.5px] leading-snug text-muted-foreground dark:text-slate-500">
+        {sub}
+      </div>
     </div>
   );
 }
@@ -1519,7 +1622,9 @@ function ProfileMetricGridCell({
           <p className="mt-1 text-xl font-black tabular-nums leading-none tracking-tight text-foreground antialiased dark:text-white sm:text-2xl">
             {value}
           </p>
-          <p className="mt-1 text-[10.5px] leading-snug text-muted-foreground dark:text-slate-500">{sub}</p>
+          <p className="mt-1 text-[10.5px] leading-snug text-muted-foreground dark:text-slate-500">
+            {sub}
+          </p>
         </div>
       </div>
     </div>
@@ -1599,6 +1704,22 @@ export function StudentProfileActivityPanel({ profile }: { profile: Profile }) {
   const rdm = profile.rdm ?? 0;
   const dailyDoseStreak = profile.daily_dose_streak ?? 0;
   const livePresencePendingMs = useSitePresenceLiveMsToday();
+  const allResults = useUserStore((s) => s.allResults);
+
+  const topicQuizSubjectStats = useMemo(
+    () =>
+      buildTopicQuizSubjectStats({
+        bitsAttemptsJson: profile.bits_test_attempts ?? null,
+        subtopicEngagementJson: profile.subtopic_engagement ?? null,
+        playResults: allResults,
+      }),
+    [profile.bits_test_attempts, profile.subtopic_engagement, allResults]
+  );
+
+  const topicQuizzesTotal = useMemo(
+    () => totalTopicQuizzesTaken(topicQuizSubjectStats),
+    [topicQuizSubjectStats]
+  );
 
   const [dashboardClock, setDashboardClock] = useState(() => Date.now());
   const now = useMemo(() => new Date(dashboardClock), [dashboardClock]);
@@ -1618,7 +1739,9 @@ export function StudentProfileActivityPanel({ profile }: { profile: Profile }) {
     streak: number;
     activeDaysThisMonth: number;
   } | null>(null);
-  const [studyDaysStatus, setStudyDaysStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [studyDaysStatus, setStudyDaysStatus] = useState<"idle" | "loading" | "ready" | "error">(
+    "idle"
+  );
   const studyDaysCommittedRef = useRef(false);
 
   const loadStudyDays = useCallback(async () => {
@@ -1679,7 +1802,9 @@ export function StudentProfileActivityPanel({ profile }: { profile: Profile }) {
     totalInWindow: number;
     recentClaims: RdmRecentClaimRow[];
   } | null>(null);
-  const [rdmRecentStatus, setRdmRecentStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [rdmRecentStatus, setRdmRecentStatus] = useState<"idle" | "loading" | "ready" | "error">(
+    "idle"
+  );
 
   const loadRdmRecent = useCallback(async () => {
     if (!profile.id) {
@@ -1714,7 +1839,10 @@ export function StudentProfileActivityPanel({ profile }: { profile: Profile }) {
               typeof c.detail === "string" &&
               typeof c.amount === "number" &&
               typeof c.at === "string" &&
-              (c.category === "gyan" || c.category === "play" || c.category === "mocks" || c.category === "revision")
+              (c.category === "gyan" ||
+                c.category === "play" ||
+                c.category === "mocks" ||
+                c.category === "revision")
           )
         : [];
       setRdmRecent({
@@ -1738,7 +1866,9 @@ export function StudentProfileActivityPanel({ profile }: { profile: Profile }) {
     chemistry: { avg: number | null; count: number };
     math: { avg: number | null; count: number };
   } | null>(null);
-  const [mockSubjectStatus, setMockSubjectStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [mockSubjectStatus, setMockSubjectStatus] = useState<
+    "idle" | "loading" | "ready" | "error"
+  >("idle");
 
   const [attendanceStats, setAttendanceStats] = useState<{
     classroomsJoined: number;
@@ -1780,7 +1910,10 @@ export function StudentProfileActivityPanel({ profile }: { profile: Profile }) {
         assignmentTasksDone: Math.max(0, Math.trunc(Number(json.assignmentTasksDone) || 0)),
         dailyDoseDualStreak: Math.max(0, Math.trunc(Number(json.dailyDoseDualStreak) || 0)),
         mocksAttempted: Math.max(0, Math.trunc(Number(json.mocksAttempted) || 0)),
-        instacueDwellEventsThisWeek: Math.max(0, Math.trunc(Number(json.instacueDwellEventsThisWeek) || 0)),
+        instacueDwellEventsThisWeek: Math.max(
+          0,
+          Math.trunc(Number(json.instacueDwellEventsThisWeek) || 0)
+        ),
         studyMsTotal: Math.max(0, Math.trunc(Number(json.studyMsTotal) || 0)),
       });
       setAttendanceStatsStatus("ready");
@@ -1790,7 +1923,9 @@ export function StudentProfileActivityPanel({ profile }: { profile: Profile }) {
     }
   }, [profile.id]);
 
-  const [learningActivity, setLearningActivity] = useState<LearningActivityBreakdownApi | null>(null);
+  const [learningActivity, setLearningActivity] = useState<LearningActivityBreakdownApi | null>(
+    null
+  );
   const [learningActivityStatus, setLearningActivityStatus] = useState<
     "idle" | "loading" | "ready" | "error"
   >("idle");
@@ -1971,7 +2106,13 @@ export function StudentProfileActivityPanel({ profile }: { profile: Profile }) {
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [profile.id, loadStudyDays, loadAttendanceStats, loadLearningActivity, loadGyanPlusEngagement]);
+  }, [
+    profile.id,
+    loadStudyDays,
+    loadAttendanceStats,
+    loadLearningActivity,
+    loadGyanPlusEngagement,
+  ]);
 
   useEffect(() => {
     const onFocus = () => void loadStudyDays();
@@ -2171,7 +2312,11 @@ export function StudentProfileActivityPanel({ profile }: { profile: Profile }) {
   );
 
   const streakDisplay =
-    studyDaysStatus === "loading" || studyDaysStatus === "idle" ? "…" : studyDaysStatus === "error" ? "—" : String(studyStreak);
+    studyDaysStatus === "loading" || studyDaysStatus === "idle"
+      ? "…"
+      : studyDaysStatus === "error"
+        ? "—"
+        : String(studyStreak);
   const streakSub =
     studyDaysStatus === "ready"
       ? `Active days this month: ${activeDaysThisMonth}/${monthDays}`
@@ -2179,8 +2324,7 @@ export function StudentProfileActivityPanel({ profile }: { profile: Profile }) {
         ? "Could not load — refresh the page"
         : "Same source as dashboard";
 
-  const attendanceRollupLoading =
-    studyDaysStatus === "loading" || studyDaysStatus === "idle";
+  const attendanceRollupLoading = studyDaysStatus === "loading" || studyDaysStatus === "idle";
   const attendanceRollupError = studyDaysStatus === "error";
   const weekStudyStr = attendanceRollupLoading
     ? "…"
@@ -2193,8 +2337,7 @@ export function StudentProfileActivityPanel({ profile }: { profile: Profile }) {
       ? "—"
       : formatPlatformStudyHours(studyMsTodayWithLive);
 
-  const attStatsLoading =
-    attendanceStatsStatus === "loading" || attendanceStatsStatus === "idle";
+  const attStatsLoading = attendanceStatsStatus === "loading" || attendanceStatsStatus === "idle";
   const attStatsError = attendanceStatsStatus === "error";
   const attN = (n: number) => (attStatsLoading ? "…" : attStatsError ? "—" : n.toLocaleString());
 
@@ -2220,7 +2363,8 @@ export function StudentProfileActivityPanel({ profile }: { profile: Profile }) {
       ? Math.max(0, Math.floor((dashboardClock - joinDate.getTime()) / 86_400_000))
       : null;
   const daysSinceJoinStr = joinDateOk && daysSinceJoin != null ? String(daysSinceJoin) : "—";
-  const daysSinceJoinSub = joinDateOk && joinDate ? `since ${format(joinDate, "MMM yyyy")}` : "Join date unavailable";
+  const daysSinceJoinSub =
+    joinDateOk && joinDate ? `since ${format(joinDate, "MMM yyyy")}` : "Join date unavailable";
 
   const learningActivitiesStr = attStatsLoading
     ? "…"
@@ -2258,14 +2402,23 @@ export function StudentProfileActivityPanel({ profile }: { profile: Profile }) {
   const laError = learningActivityStatus === "error";
   const laN = (n: number) => (laLoading ? "…" : laError ? "—" : n.toLocaleString());
   const laPct = (p: number | null | undefined) =>
-    laLoading ? "…" : laError ? "—" : p == null || !Number.isFinite(Number(p)) ? "—" : `${Math.round(Number(p))}%`;
+    laLoading
+      ? "…"
+      : laError
+        ? "—"
+        : p == null || !Number.isFinite(Number(p))
+          ? "—"
+          : `${Math.round(Number(p))}%`;
   const laStr = (s: string) => (laLoading ? "…" : laError ? "—" : s);
 
   const dailyDoseAvail = la?.dailyDoseAvailableSlots ?? 0;
   const dailyDoseAtt = la?.dailyDoseAttempted ?? 0;
   const dailyDoseAttPct = la?.dailyDoseAttemptedPct ?? 0;
-  const dailyDoseAttemptedSub =
-    laLoading ? "Syncing…" : laError ? "Could not load" : `of ${dailyDoseAvail.toLocaleString()} available · ${dailyDoseAttPct}%`;
+  const dailyDoseAttemptedSub = laLoading
+    ? "Syncing…"
+    : laError
+      ? "Could not load"
+      : `of ${dailyDoseAvail.toLocaleString()} available · ${dailyDoseAttPct}%`;
 
   const dailyDoseQPergauntlet = Math.max(
     1,
@@ -2283,19 +2436,28 @@ export function StudentProfileActivityPanel({ profile }: { profile: Profile }) {
   const liveSched = la?.liveScheduled ?? 0;
   const liveAtt = la?.liveAttended ?? 0;
   const livePct = liveSched > 0 ? Math.min(100, Math.round((100 * liveAtt) / liveSched)) : 0;
-  const liveSub =
-    laLoading ? "Syncing…" : laError ? "Could not load" : `of ${liveSched.toLocaleString()} scheduled · ${livePct}%`;
+  const liveSub = laLoading
+    ? "Syncing…"
+    : laError
+      ? "Could not load"
+      : `of ${liveSched.toLocaleString()} scheduled · ${livePct}%`;
 
   const asgDone = la?.assignmentsDone ?? 0;
   const asgAss = la?.assignmentsAssigned ?? 0;
   const asgPct = asgAss > 0 ? Math.min(100, Math.round((100 * asgDone) / asgAss)) : 0;
-  const asgSub =
-    laLoading ? "Syncing…" : laError ? "Could not load" : `of ${asgAss.toLocaleString()} assigned · ${asgPct}%`;
+  const asgSub = laLoading
+    ? "Syncing…"
+    : laError
+      ? "Could not load"
+      : `of ${asgAss.toLocaleString()} assigned · ${asgPct}%`;
 
   const lec = la?.lecturesReviewed ?? 0;
   const revRet = la?.revisionRetentionPct;
-  const lecturesSub =
-    laLoading ? "Syncing…" : laError ? "Could not load" : `spaced repetition · ${revRet == null ? "—" : `${revRet}%`} retention`;
+  const lecturesSub = laLoading
+    ? "Syncing…"
+    : laError
+      ? "Could not load"
+      : `spaced repetition · ${revRet == null ? "—" : `${revRet}%`} retention`;
 
   const gye = gyanEngagement;
   const gyeLoading = gyanEngagementStatus === "loading" || gyanEngagementStatus === "idle";
@@ -2303,23 +2465,42 @@ export function StudentProfileActivityPanel({ profile }: { profile: Profile }) {
   const gyN = (n: number) =>
     gyeLoading ? "…" : gyeError ? "—" : Math.max(0, Math.trunc(Number(n))).toLocaleString();
   const answersAcceptedByAsker = Math.max(0, Math.trunc(Number(gye?.answersAcceptedByAsker) || 0));
-  const answersGivenSub =
-    gyeLoading ? "Syncing…" : gyeError ? "Could not load" : `${answersAcceptedByAsker.toLocaleString()} accepted by asker`;
+  const answersGivenSub = gyeLoading
+    ? "Syncing…"
+    : gyeError
+      ? "Could not load"
+      : `${answersAcceptedByAsker.toLocaleString()} accepted by asker`;
   const upvotesReceivedN = Math.max(0, Math.trunc(Number(gye?.upvotesReceived) || 0));
-  const gyanEngagementBannerText =
-    gyeLoading ? "Loading…"
-    : gyeError ? "Could not load Gyan++ engagement."
-    : `Gyan++ engagement is one of the strongest credibility signals. Students who ask and answer doubts consistently demonstrate deeper subject engagement than passive learners. This student's ${upvotesReceivedN.toLocaleString()} upvotes received confirms community-verified answer quality.`;
+  const gyanEngagementBannerText = gyeLoading
+    ? "Loading…"
+    : gyeError
+      ? "Could not load Gyan++ engagement."
+      : `Gyan++ engagement is one of the strongest credibility signals. Students who ask and answer doubts consistently demonstrate deeper subject engagement than passive learners. This student's ${upvotesReceivedN.toLocaleString()} upvotes received confirms community-verified answer quality.`;
 
   return (
     <div className="w-full min-w-0 space-y-4 font-sans sm:space-y-5">
       <div className="grid grid-cols-2 gap-2 min-[480px]:grid-cols-4 lg:gap-3">
-        <StatCard label="Total RDM earned" value={rdm.toLocaleString()} sub="all time" valueClass="text-amber-400" />
+        <StatCard
+          label="Total RDM earned"
+          value={rdm.toLocaleString()}
+          sub="all time"
+          valueClass="text-amber-400"
+        />
         <StatCard label="Study streak" value={streakDisplay} sub={streakSub} />
-        <StatCard label="DailyDose streak" value={String(dailyDoseStreak)} sub="Play · both domains" />
+        <StatCard
+          label="DailyDose streak"
+          value={String(dailyDoseStreak)}
+          sub="Play · both domains"
+        />
         <StatCard
           label="Active this month"
-          value={studyDaysStatus === "ready" ? `${activeDaysThisMonth}/${monthDays}` : studyDaysStatus === "loading" || studyDaysStatus === "idle" ? "…" : "—"}
+          value={
+            studyDaysStatus === "ready"
+              ? `${activeDaysThisMonth}/${monthDays}`
+              : studyDaysStatus === "loading" || studyDaysStatus === "idle"
+                ? "…"
+                : "—"
+          }
           sub="days with study time"
         />
       </div>
@@ -2347,7 +2528,11 @@ export function StudentProfileActivityPanel({ profile }: { profile: Profile }) {
             value={attN(attendanceStats?.mocksAttempted ?? 0)}
             sub="Mock & bonus attempts"
           />
-          <AttendanceKpiCell label="Total time dedicated" value={weekStudyStr} sub="Last 7 days · study timer" />
+          <AttendanceKpiCell
+            label="Total time dedicated"
+            value={weekStudyStr}
+            sub="Last 7 days · study timer"
+          />
           <AttendanceKpiCell
             label="Study hours on platform"
             value={todayStudyStr}
@@ -2412,7 +2597,9 @@ export function StudentProfileActivityPanel({ profile }: { profile: Profile }) {
         <div className="mb-3 flex flex-wrap items-end justify-between gap-2 border-b border-border pb-3 dark:border-white/10">
           <div className="flex items-center gap-2">
             <Coins className="h-5 w-5 shrink-0 text-amber-400" aria-hidden />
-            <h2 className="text-base font-black dark:text-white sm:text-lg">Recent RDM by activity</h2>
+            <h2 className="text-base font-black dark:text-white sm:text-lg">
+              Recent RDM by activity
+            </h2>
           </div>
           <p className="text-[10.5px] font-medium text-muted-foreground dark:text-slate-500">
             Last {rdmRecent?.windowDays ?? 28} days · refreshes when you return to this tab
@@ -2438,7 +2625,8 @@ export function StudentProfileActivityPanel({ profile }: { profile: Profile }) {
           />
         ) : rdmRecent && rdmRecent.recentClaims.length === 0 ? (
           <p className="py-6 text-center text-[11px] text-muted-foreground dark:text-slate-500">
-            No claims above 1 RDM in this window — micro-rewards still count toward your total below.
+            No claims above 1 RDM in this window — micro-rewards still count toward your total
+            below.
           </p>
         ) : (
           rdmRecent?.recentClaims.map((c) => (
@@ -2469,14 +2657,18 @@ export function StudentProfileActivityPanel({ profile }: { profile: Profile }) {
               · excludes spends & grants outside this list
             </span>
           </span>
-          <span className="text-sm font-bold text-amber-400">Wallet balance {rdm.toLocaleString()} RDM</span>
+          <span className="text-sm font-bold text-amber-400">
+            Wallet balance {rdm.toLocaleString()} RDM
+          </span>
         </div>
       </section>
 
       <section className="rounded-xl border border-border bg-card p-3 dark:border-white/10 dark:bg-[#0c1017] sm:rounded-2xl sm:p-4 md:p-5">
         <div className="mb-4 flex items-center gap-2 border-b border-border pb-3 dark:border-white/10">
           <Flame className="h-5 w-5 text-orange-400" />
-          <h2 className="text-base font-black dark:text-white sm:text-lg">Activity streaks &amp; heatmap</h2>
+          <h2 className="text-base font-black dark:text-white sm:text-lg">
+            Activity streaks &amp; heatmap
+          </h2>
         </div>
 
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-start lg:gap-8">
@@ -2531,8 +2723,7 @@ export function StudentProfileActivityPanel({ profile }: { profile: Profile }) {
                   <div className="flex gap-[3px] pl-0.5">
                     {weeks.map((week, wi) => {
                       const mon = format(week[0]!.date, "MMM");
-                      const prevMon =
-                        wi > 0 ? format(weeks[wi - 1]![0]!.date, "MMM") : null;
+                      const prevMon = wi > 0 ? format(weeks[wi - 1]![0]!.date, "MMM") : null;
                       return (
                         <div
                           key={`wk-${wi}`}
@@ -2597,7 +2788,10 @@ export function StudentProfileActivityPanel({ profile }: { profile: Profile }) {
               </div>
               <span>More</span>
               <span className="text-[10.5px] text-muted-foreground/80 dark:text-slate-600">
-                · {studyDaysStatus === "ready" ? "Live data · matches dashboard study map" : "Loading activity…"}
+                ·{" "}
+                {studyDaysStatus === "ready"
+                  ? "Live data · matches dashboard study map"
+                  : "Loading activity…"}
               </span>
             </div>
           </div>
@@ -2607,7 +2801,9 @@ export function StudentProfileActivityPanel({ profile }: { profile: Profile }) {
       <section className="rounded-xl border border-border bg-card p-3 dark:border-white/10 dark:bg-[#0c1017] sm:rounded-2xl sm:p-4 md:p-5">
         <div className="mb-2 flex items-center gap-2 border-b border-border pb-3 dark:border-white/10">
           <FileText className="h-5 w-5 shrink-0 text-emerald-400" aria-hidden />
-          <h2 className="text-base font-black dark:text-white sm:text-lg">Learning activity breakdown</h2>
+          <h2 className="text-base font-black dark:text-white sm:text-lg">
+            Learning activity breakdown
+          </h2>
         </div>
         <p className="mb-3 text-[10.5px] leading-snug text-muted-foreground dark:text-slate-500">
           All figures are cumulative since date of joining · last updated live
@@ -2675,7 +2871,11 @@ export function StudentProfileActivityPanel({ profile }: { profile: Profile }) {
           <h2 className="text-base font-black dark:text-white sm:text-lg">Gyan++ engagement</h2>
         </div>
         <div className="grid grid-cols-1 gap-px overflow-hidden rounded-lg bg-border dark:bg-white/10 sm:grid-cols-3">
-          <AttendanceKpiCell label="Doubts asked" value={gyN(gye?.doubtsAsked ?? 0)} sub="questions posted on wall" />
+          <AttendanceKpiCell
+            label="Doubts asked"
+            value={gyN(gye?.doubtsAsked ?? 0)}
+            sub="questions posted on wall"
+          />
           <AttendanceKpiCell
             label="Answers given"
             value={gyN(gye?.answersGiven ?? 0)}
@@ -2713,14 +2913,33 @@ export function StudentProfileActivityPanel({ profile }: { profile: Profile }) {
       <section className="rounded-xl border border-border bg-card p-3 dark:border-white/10 dark:bg-[#0c1017] sm:rounded-2xl sm:p-4 md:p-5">
         <div className="mb-3 flex items-center gap-2 border-b border-border pb-3 dark:border-white/10">
           <LineChart className="h-5 w-5 text-emerald-400" />
-          <h2 className="text-base font-black dark:text-white sm:text-lg">Performance by subject</h2>
+          <h2 className="text-base font-black dark:text-white sm:text-lg">
+            Performance by subject
+          </h2>
         </div>
-        <p className="mb-2 text-[11px] text-muted-foreground">
-          Based on your performance across various subject quizzes.
+        <p className="mb-2 text-[11px] leading-relaxed text-muted-foreground dark:text-slate-500">
+          Same accuracy as Performance → Quiz breakdown by subject: topic quizzes in Lessons,
+          in-progress graded attempts, and Question Gun answers. Formula: correct ÷ total answered.
         </p>
-        <BarRow label="Physics" pct={82} color="bg-blue-500" />
-        <BarRow label="Maths" pct={78} color="bg-violet-500" />
-        <BarRow label="Chemistry" pct={62} color="bg-amber-500" />
+        {topicQuizSubjectStats.map((row) => (
+          <BarRow
+            key={row.subject}
+            label={TOPIC_QUIZ_SUBJECT_LABEL[row.subject]}
+            pct={row.total > 0 ? row.accuracy : null}
+            color={TOPIC_QUIZ_SUBJECT_BAR_COLOR[row.subject]}
+          />
+        ))}
+        <p className="mt-2 text-[10.5px] text-muted-foreground/85 dark:text-slate-600">
+          {topicQuizzesTotal > 0
+            ? `${topicQuizzesTotal} topic quiz${topicQuizzesTotal === 1 ? "" : "es"} · ${topicQuizSubjectStats
+                .filter((r) => r.total > 0)
+                .map(
+                  (r) =>
+                    `${TOPIC_QUIZ_SUBJECT_LABEL[r.subject]} ${r.correct}/${r.total} (${r.accuracy}%)`
+                )
+                .join(" · ")}`
+            : "No topic quiz data yet — finish a subtopic quiz in Lessons or practice on Play to see accuracy here."}
+        </p>
       </section>
 
       <section className="rounded-xl border border-border bg-card p-3 dark:border-white/10 dark:bg-[#0c1017] sm:rounded-2xl sm:p-4 md:p-5">
@@ -2728,24 +2947,24 @@ export function StudentProfileActivityPanel({ profile }: { profile: Profile }) {
           Mock test average score per subject
         </p>
         <p className="mb-3 text-[10.5px] leading-relaxed text-muted-foreground dark:text-slate-500">
-          Library mocks only. We take your latest score on each paper and average them by subject—Physics, Maths, or
-          Chemistry.
+          Library mocks only. We take your latest score on each paper and average them by
+          subject—Physics, Maths, or Chemistry.
         </p>
         <BarRow
           label="Physics"
-          pct={mockSubjectStatus === "ready" ? mockSubjectAverages?.physics.avg ?? null : null}
+          pct={mockSubjectStatus === "ready" ? (mockSubjectAverages?.physics.avg ?? null) : null}
           color="bg-blue-500"
           loading={mockSubjectStatus === "loading" || mockSubjectStatus === "idle"}
         />
         <BarRow
           label="Maths"
-          pct={mockSubjectStatus === "ready" ? mockSubjectAverages?.math.avg ?? null : null}
+          pct={mockSubjectStatus === "ready" ? (mockSubjectAverages?.math.avg ?? null) : null}
           color="bg-violet-500"
           loading={mockSubjectStatus === "loading" || mockSubjectStatus === "idle"}
         />
         <BarRow
           label="Chemistry"
-          pct={mockSubjectStatus === "ready" ? mockSubjectAverages?.chemistry.avg ?? null : null}
+          pct={mockSubjectStatus === "ready" ? (mockSubjectAverages?.chemistry.avg ?? null) : null}
           color="bg-amber-500"
           loading={mockSubjectStatus === "loading" || mockSubjectStatus === "idle"}
         />
@@ -2774,8 +2993,17 @@ function StatCard({
 }) {
   return (
     <div className="rounded-lg bg-muted/40 p-2.5 dark:bg-white/[0.04] sm:p-3">
-      <p className="text-[10.5px] font-bold uppercase tracking-wide text-muted-foreground dark:text-slate-500">{label}</p>
-      <p className={cn("mt-0.5 text-lg font-black text-foreground dark:text-white sm:text-xl", valueClass)}>{value}</p>
+      <p className="text-[10.5px] font-bold uppercase tracking-wide text-muted-foreground dark:text-slate-500">
+        {label}
+      </p>
+      <p
+        className={cn(
+          "mt-0.5 text-lg font-black text-foreground dark:text-white sm:text-xl",
+          valueClass
+        )}
+      >
+        {value}
+      </p>
       <p className="text-[10.5px] text-muted-foreground dark:text-slate-500">{sub}</p>
     </div>
   );
@@ -2848,17 +3076,21 @@ function ActivityRow({
   loading?: boolean;
   errored?: boolean;
 }) {
-  const right =
-    errored ? "—" : loading || amount === null ? "…" : `+${amount.toLocaleString()}`;
-  const when =
-    whenIso && !loading && !errored ? formatRdmClaimWhen(whenIso) : "";
+  const right = errored ? "—" : loading || amount === null ? "…" : `+${amount.toLocaleString()}`;
+  const when = whenIso && !loading && !errored ? formatRdmClaimWhen(whenIso) : "";
   return (
     <div className="flex items-center gap-2 border-b border-border py-2 last:border-0 dark:border-white/10 sm:gap-3">
       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md p-0">{icon}</div>
       <div className="min-w-0 flex-1">
         <p className="text-xs font-bold text-foreground dark:text-slate-100">{title}</p>
-        {detail ? <p className="text-[10.5px] text-muted-foreground dark:text-slate-500">{detail}</p> : null}
-        {when ? <p className="text-[10.5px] tabular-nums text-slate-600 dark:text-slate-600">{when} IST</p> : null}
+        {detail ? (
+          <p className="text-[10.5px] text-muted-foreground dark:text-slate-500">{detail}</p>
+        ) : null}
+        {when ? (
+          <p className="text-[10.5px] tabular-nums text-slate-600 dark:text-slate-600">
+            {when} IST
+          </p>
+        ) : null}
       </div>
       <span
         className={cn(
@@ -2884,18 +3116,21 @@ function BarRow({
   loading?: boolean;
 }) {
   const safe = pct === null || loading ? null : Math.min(100, Math.max(0, Math.round(pct)));
-  const right =
-    loading ? "…" : safe === null ? "—" : `${safe}%`;
+  const right = loading ? "…" : safe === null ? "—" : `${safe}%`;
   return (
     <div className="flex items-center gap-2 py-1.5">
-      <span className="w-20 shrink-0 text-xs text-muted-foreground dark:text-slate-400">{label}</span>
+      <span className="w-20 shrink-0 text-xs text-muted-foreground dark:text-slate-400">
+        {label}
+      </span>
       <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted dark:bg-slate-800">
         <div
           className={cn("h-full rounded-full transition-all", safe === null ? "opacity-0" : color)}
           style={{ width: safe === null ? "0%" : `${safe}%` }}
         />
       </div>
-      <span className="w-10 shrink-0 text-right text-xs font-bold tabular-nums dark:text-slate-200">{right}</span>
+      <span className="w-10 shrink-0 text-right text-xs font-bold tabular-nums dark:text-slate-200">
+        {right}
+      </span>
     </div>
   );
 }
@@ -2948,13 +3183,16 @@ export function StudentProfileEduFundPanel({ profile }: { profile: Profile }) {
       <section className="rounded-xl border border-border bg-card p-3 dark:border-white/10 dark:bg-[#0c1017] sm:rounded-2xl sm:p-4 md:p-5 lg:p-6">
         <div className="mb-3 flex flex-wrap items-center gap-2 border-b border-border pb-3 dark:border-white/10">
           <Heart className="h-5 w-5 text-rose-400" />
-          <h2 className="text-base font-black dark:text-white sm:text-lg">EduFund eligibility &amp; funder visibility</h2>
+          <h2 className="text-base font-black dark:text-white sm:text-lg">
+            EduFund eligibility &amp; funder visibility
+          </h2>
         </div>
         <div className="mb-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-[11px] leading-relaxed text-emerald-100 dark:border-emerald-500/20 dark:bg-emerald-950/40">
-          Your activity, academic profile, and achievements can be compiled into a portfolio for partner NGOs when you
-          apply for a grant. Completing your academic record and achievements raises your eligibility score. Progress below
-          uses your <span className="font-semibold text-emerald-50">wallet RDM balance</span> (same numbers as the rest of
-          your profile).
+          Your activity, academic profile, and achievements can be compiled into a portfolio for
+          partner NGOs when you apply for a grant. Completing your academic record and achievements
+          raises your eligibility score. Progress below uses your{" "}
+          <span className="font-semibold text-emerald-50">wallet RDM balance</span> (same numbers as
+          the rest of your profile).
         </div>
         <div className="space-y-3">
           {gates.map((gate, i) => {
@@ -2969,7 +3207,11 @@ export function StudentProfileEduFundPanel({ profile }: { profile: Profile }) {
 
             const shellClass = cn(
               "rounded-xl border p-3",
-              isFocus ? accent.focus : done ? accent.done : "border border-border dark:border-white/10"
+              isFocus
+                ? accent.focus
+                : done
+                  ? accent.done
+                  : "border border-border dark:border-white/10"
             );
 
             return (
@@ -2999,8 +3241,9 @@ export function StudentProfileEduFundPanel({ profile }: { profile: Profile }) {
 
                 {waitingPrior ? (
                   <p className="mt-2 text-[11px] text-muted-foreground dark:text-slate-400">
-                    Reach {prev!.name} ({prev!.need.toLocaleString()} RDM in wallet) to show progress toward {gate.name} (
-                    {gate.need.toLocaleString()} RDM · {formatEdufundInr(gate.unlockInrAmount)}).
+                    Reach {prev!.name} ({prev!.need.toLocaleString()} RDM in wallet) to show
+                    progress toward {gate.name} ({gate.need.toLocaleString()} RDM ·{" "}
+                    {formatEdufundInr(gate.unlockInrAmount)}).
                   </p>
                 ) : done ? (
                   <p className="mt-2 text-[11px] text-muted-foreground dark:text-slate-400">
@@ -3019,21 +3262,24 @@ export function StudentProfileEduFundPanel({ profile }: { profile: Profile }) {
 
                 {i === 0 ? (
                   <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground dark:text-slate-400">
-                    Build RDM and keep a consistent study streak — Sprout opens EduFund proposal tracks aligned with your
-                    tier.
+                    Build RDM and keep a consistent study streak — Sprout opens EduFund proposal
+                    tracks aligned with your tier.
                   </p>
                 ) : i === 1 ? (
                   <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground dark:text-slate-400">
                     Higher tiers unlock larger proposal ceilings — see{" "}
-                    <Link href="/edufund" className="font-bold text-emerald-400 underline-offset-2 hover:underline">
+                    <Link
+                      href="/edufund"
+                      className="font-bold text-emerald-400 underline-offset-2 hover:underline"
+                    >
                       EduFund
                     </Link>{" "}
                     for the full table.
                   </p>
                 ) : (
                   <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground dark:text-slate-400">
-                    Full consideration typically combines wallet RDM with verified marksheets, achievements, and sustained
-                    activity.
+                    Full consideration typically combines wallet RDM with verified marksheets,
+                    achievements, and sustained activity.
                   </p>
                 )}
               </div>
@@ -3045,22 +3291,31 @@ export function StudentProfileEduFundPanel({ profile }: { profile: Profile }) {
       <section className="rounded-xl border border-border bg-card p-3 dark:border-white/10 dark:bg-[#0c1017] sm:rounded-2xl sm:p-4 md:p-5 lg:p-6">
         <div className="mb-3 flex flex-wrap items-center gap-2 border-b border-border pb-3 dark:border-white/10">
           <Building2 className="h-5 w-5 text-blue-400" />
-          <h2 className="text-base font-black dark:text-white sm:text-lg">Partner NGOs &amp; philanthropists</h2>
-          <span className="rounded-full bg-muted px-2 py-0.5 text-[10.5px] font-bold dark:bg-slate-800">EduFund</span>
+          <h2 className="text-base font-black dark:text-white sm:text-lg">
+            Partner NGOs &amp; philanthropists
+          </h2>
+          <span className="rounded-full bg-muted px-2 py-0.5 text-[10.5px] font-bold dark:bg-slate-800">
+            EduFund
+          </span>
         </div>
         <p className="mb-4 text-[11px] leading-relaxed text-muted-foreground dark:text-slate-400">
-          Partner organisations receive your verified portfolio when you apply and consent to share. Your data is not
-          sold or shared without that step.
+          Partner organisations receive your verified portfolio when you apply and consent to share.
+          Your data is not sold or shared without that step.
         </p>
         <div className="rounded-xl border border-dashed border-border bg-muted/25 py-10 text-center dark:border-white/15 dark:bg-white/[0.03]">
-          <p className="text-sm font-black tracking-tight text-foreground dark:text-white">Coming soon</p>
+          <p className="text-sm font-black tracking-tight text-foreground dark:text-white">
+            Coming soon
+          </p>
           <p className="mx-auto mt-2 max-w-sm text-[11px] leading-relaxed text-muted-foreground dark:text-slate-400">
-            We’re not listing partner NGOs or funders here yet. This section will show trusted partners when the programme
-            is live.
+            We’re not listing partner NGOs or funders here yet. This section will show trusted
+            partners when the programme is live.
           </p>
         </div>
         <div className="mt-4 rounded-lg border border-amber-500/25 bg-amber-500/10 p-3 text-[11px] text-amber-100 dark:bg-amber-950/35">
-          <Link href="/edufund" className="inline-flex items-center font-bold text-amber-200 underline-offset-2 hover:underline">
+          <Link
+            href="/edufund"
+            className="inline-flex items-center font-bold text-amber-200 underline-offset-2 hover:underline"
+          >
             Open EduFund →
           </Link>{" "}
           to apply, track RDM, and see live eligibility requirements.

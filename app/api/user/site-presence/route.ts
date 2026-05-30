@@ -24,12 +24,18 @@ export async function POST(request: Request) {
 
     if (body?.offline) {
       await Promise.all([
-        admin.from("student_site_presence" as never).delete().eq("user_id" as never, user.id as never),
+        admin
+          .from("student_site_presence" as never)
+          .delete()
+          .eq("user_id" as never, user.id as never),
         admin
           .from("student_learning_presence" as never)
           .delete()
           .eq("user_id" as never, user.id as never),
-        admin.from("student_gyan_presence" as never).delete().eq("user_id" as never, user.id as never),
+        admin
+          .from("student_gyan_presence" as never)
+          .delete()
+          .eq("user_id" as never, user.id as never),
       ]);
       return NextResponse.json({ ok: true, offline: true, cleared: true });
     }
@@ -54,10 +60,9 @@ export async function POST(request: Request) {
       }
     }
 
-    const { error } = await admin.from("student_site_presence" as never).upsert(
-      { user_id: user.id, updated_at: now } as never,
-      { onConflict: "user_id" }
-    );
+    const { error } = await admin
+      .from("student_site_presence" as never)
+      .upsert({ user_id: user.id, updated_at: now } as never, { onConflict: "user_id" });
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

@@ -1,8 +1,9 @@
 "use client";
 
 import { Code2, Edit3, FileDown, School } from "lucide-react";
-import PlayQuestionMarkdown from "@/components/PlayQuestionMarkdown";
+import { NtaQuestionStem, NtaOptionBody } from "@/components/prep-mock/nta/ntaExamParts";
 import type { GeneratedTeacherTest } from "@/lib/teacherPortal/generatedTest";
+import { cleanOptionHtml, balanceHtmlTags } from "@/lib/teacherPortal/openTeacherTestPrintPreview";
 
 type Props = {
   test: GeneratedTeacherTest;
@@ -114,11 +115,17 @@ export default function GeneratedTestPreview({
               </span>
             </div>
 
-            <PlayQuestionMarkdown
-              source={q.question}
-              variant="stem"
-              className="mb-2 text-[14px] font-semibold leading-snug text-slate-100 sm:text-[15px]"
-            />
+            <div className="mb-2 text-[14px] font-semibold leading-relaxed text-slate-100 sm:text-[15px]">
+              <NtaQuestionStem
+                q={
+                  {
+                    ...q,
+                    questionHtml: q.questionHtml ? balanceHtmlTags(q.questionHtml) : q.questionHtml,
+                  } as any
+                }
+                mobile
+              />
+            </div>
 
             <div className="grid gap-2 sm:grid-cols-2">
               {q.options.map((opt, optionIndex) => (
@@ -130,11 +137,9 @@ export default function GeneratedTestPreview({
                     <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-[10px] font-bold text-slate-400">
                       {String.fromCharCode(65 + optionIndex)}
                     </span>
-                    <PlayQuestionMarkdown
-                      source={opt}
-                      variant="option"
-                      className="min-w-0 text-sm leading-snug text-slate-200"
-                    />
+                    <div className="min-w-0 text-sm leading-snug text-slate-200">
+                      <NtaOptionBody text={cleanOptionHtml(opt)} mobile />
+                    </div>
                   </div>
                 </div>
               ))}

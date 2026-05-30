@@ -6,7 +6,10 @@ import { useAuth } from "@/hooks/useAuth";
 import { getClientApiAuthHeaders } from "@/lib/auth/clientApiAuth";
 import { localDayBoundsIso } from "@/lib/dashboard/dashboardDayActivity";
 import type { DailyChecklistApiResponse } from "@/lib/dashboard/dailyChecklistState";
-import { EDUBLAST_STUDY_DAYS_REFRESH } from "@/lib/dashboard/studyDayBumpEvents";
+import {
+  EDUBLAST_GYAN_DAILY_CHECKLIST_REFRESH,
+  EDUBLAST_STUDY_DAYS_REFRESH,
+} from "@/lib/dashboard/studyDayBumpEvents";
 import {
   GyanFeedFocusTimer,
   useGyanDoubtsPendingFocusMs,
@@ -18,6 +21,7 @@ const FIVE_MIN_MS = 5 * 60 * 1000;
 /** Same subject scope as home dashboard checklist GET. */
 const CHECKLIST_SUBJECTS_PARAM = "physics,chemistry,math";
 const POLL_MS = 60_000;
+const REFRESH_DEBOUNCE_MS = 2_000;
 
 type RowProps = {
   done: boolean;
@@ -104,30 +108,52 @@ export function GyanDailyChecklistTracker() {
   }, [user?.id]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
-
-  useEffect(() => {
+    if (!open) return;
     const id = window.setInterval(() => {
       if (document.visibilityState !== "visible") return;
       void load();
     }, POLL_MS);
     return () => window.clearInterval(id);
-  }, [load]);
+  }, [load, open]);
 
   useEffect(() => {
+    if (!open) return;
     const onVis = () => {
       if (document.visibilityState === "visible") void load();
     };
     document.addEventListener("visibilitychange", onVis);
     return () => document.removeEventListener("visibilitychange", onVis);
-  }, [load]);
+  }, [load, open]);
 
   useEffect(() => {
-    const onBump = () => void load();
-    window.addEventListener(EDUBLAST_STUDY_DAYS_REFRESH, onBump);
-    return () => window.removeEventListener(EDUBLAST_STUDY_DAYS_REFRESH, onBump);
-  }, [load]);
+    let debounceId: number | null = null;
+    const scheduleLoad = () => {
+      if (debounceId) window.clearTimeout(debounceId);
+      debounceId = window.setTimeout(() => {
+        debounceId = null;
+        void load();
+      }, REFRESH_DEBOUNCE_MS);
+    };
+    const onGyanBump = () => {
+      if (!open) return;
+      scheduleLoad();
+    };
+    const onStudyBump = () => {
+      if (!open) return;
+      scheduleLoad();
+    };
+    window.addEventListener(EDUBLAST_GYAN_DAILY_CHECKLIST_REFRESH, onGyanBump);
+    window.addEventListener(EDUBLAST_STUDY_DAYS_REFRESH, onStudyBump);
+    return () => {
+      if (debounceId) window.clearTimeout(debounceId);
+      window.removeEventListener(EDUBLAST_GYAN_DAILY_CHECKLIST_REFRESH, onGyanBump);
+      window.removeEventListener(EDUBLAST_STUDY_DAYS_REFRESH, onStudyBump);
+    };
+  }, [load, open]);
+
+  useEffect(() => {
+    if (open) void load();
+  }, [open, load]);
 
   useEffect(() => {
     if (!open) return;

@@ -45,7 +45,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     if (!notes) return NextResponse.json({ error: "notes is required for audit" }, { status: 400 });
 
     const classroomId = typeof body.classroomId === "string" ? body.classroomId.trim() : "";
-    if (!classroomId) return NextResponse.json({ error: "classroomId is required" }, { status: 400 });
+    if (!classroomId)
+      return NextResponse.json({ error: "classroomId is required" }, { status: 400 });
 
     const { data: teacherProfile, error: tErr } = await admin
       .from("profiles")
@@ -66,7 +67,10 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     if (cErr) return NextResponse.json({ error: cErr.message }, { status: 500 });
     if (!classroom) return NextResponse.json({ error: "Classroom not found" }, { status: 404 });
     if (classroom.teacher_id !== teacherId) {
-      return NextResponse.json({ error: "Classroom does not belong to this teacher" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Classroom does not belong to this teacher" },
+        { status: 400 }
+      );
     }
 
     await createTeacherLiveSession(
@@ -116,4 +120,3 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
-

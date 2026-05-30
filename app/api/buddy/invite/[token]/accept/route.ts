@@ -6,10 +6,7 @@ import {
 } from "@/lib/auth/securityGuards";
 
 /** POST /api/buddy/invite/[token]/accept — accept the invite as the signed-in user. */
-export async function POST(
-  request: Request,
-  context: { params: Promise<{ token: string }> }
-) {
+export async function POST(request: Request, context: { params: Promise<{ token: string }> }) {
   const csrfFail = enforceSameOriginForCookieAuth(request);
   if (csrfFail) return csrfFail;
 
@@ -23,10 +20,7 @@ export async function POST(
 
   const admin = createAdminClient();
   if (!admin) {
-    return NextResponse.json(
-      { error: "SUPABASE_SERVICE_ROLE_KEY is not set" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "SUPABASE_SERVICE_ROLE_KEY is not set" }, { status: 500 });
   }
 
   const { data, error } = await admin.rpc("accept_buddy_invite", {

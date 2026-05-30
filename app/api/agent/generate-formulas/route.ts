@@ -9,7 +9,10 @@ import {
 import { isAdminUser } from "@/lib/admin/admin";
 import { supabaseForLongJobPersist } from "@/lib/supabase/supabaseAdminPersist";
 import { resolveGeminiModelId, resolveVertexTopicModelId } from "@/lib/gyan/gemini/geminiModel";
-import { normalizeSubjectKey, normalizeSubtopicContentKey } from "@/lib/curriculum/subtopicContentKeys";
+import {
+  normalizeSubjectKey,
+  normalizeSubtopicContentKey,
+} from "@/lib/curriculum/subtopicContentKeys";
 import { getGeminiApiKeyFromEnv } from "@/lib/gyan/gemini/geminiEnv";
 import { logAiUsage } from "@/lib/aiLogger";
 import { repairEscapedLatexCommands } from "@/lib/gyan/stripFormulaDelimiters";

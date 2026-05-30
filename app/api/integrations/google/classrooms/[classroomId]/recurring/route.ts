@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminClient, createClient, createClientWithToken } from "@/integrations/supabase/server";
+import {
+  createAdminClient,
+  createClient,
+  createClientWithToken,
+} from "@/integrations/supabase/server";
 import {
   buildEventPayload,
   insertCalendarEventWithMeet,
@@ -45,7 +49,10 @@ export async function POST(
 
   const admin = createAdminClient();
   if (!admin) {
-    return NextResponse.json({ error: "Server is missing SUPABASE_SERVICE_ROLE_KEY." }, { status: 500 });
+    return NextResponse.json(
+      { error: "Server is missing SUPABASE_SERVICE_ROLE_KEY." },
+      { status: 500 }
+    );
   }
 
   let body: Body;
@@ -96,9 +103,12 @@ export async function POST(
       .eq("id", sectionId)
       .eq("classroom_id", classroomId)
       .maybeSingle();
-    const sectionRow = section as
-      | { id: string; classroom_id: string; name: string; google_recurring_event_id?: string | null }
-      | null;
+    const sectionRow = section as {
+      id: string;
+      classroom_id: string;
+      name: string;
+      google_recurring_event_id?: string | null;
+    } | null;
     if (secErr || !sectionRow) {
       return NextResponse.json({ error: "Section not found." }, { status: 404 });
     }

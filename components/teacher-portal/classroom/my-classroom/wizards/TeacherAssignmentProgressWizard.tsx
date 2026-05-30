@@ -114,7 +114,6 @@ import {
 } from "./wizard-scores-cache";
 import { formatRelativeTime, initials } from "../utils/display";
 
-
 export function TeacherAssignmentProgressWizard(props: {
   variant: "compact";
   teacherId: string;
@@ -148,9 +147,13 @@ export function TeacherAssignmentProgressWizard(props: {
   const [sendingReminder, setSendingReminder] = useState(false);
   const [sentToastKey, setSentToastKey] = useState(0);
 
-  const assignmentDraft = classroomId && assignmentId ? props.classroomDetails[classroomId]?.assignments.find((a) => a.id === assignmentId) ?? null : null;
+  const assignmentDraft =
+    classroomId && assignmentId
+      ? (props.classroomDetails[classroomId]?.assignments.find((a) => a.id === assignmentId) ??
+        null)
+      : null;
 
-  const detail = classroomId ? props.classroomDetails[classroomId] ?? null : null;
+  const detail = classroomId ? (props.classroomDetails[classroomId] ?? null) : null;
   const sections = detail?.sections ?? [];
   const roster = useMemo(() => {
     if (!detail) return [];
@@ -395,7 +398,10 @@ export function TeacherAssignmentProgressWizard(props: {
     const rosterSorted = [...roster].sort((a, b) => a.name.localeCompare(b.name));
     const submittedIds = new Set(scores.map((s) => s.userId));
     // Submitted first (sorted by submittedAt), then pending.
-    const merged: Array<{ student: TeacherPortalClassroomStudent; row: AssignmentScoreRow | null }> = [];
+    const merged: Array<{
+      student: TeacherPortalClassroomStudent;
+      row: AssignmentScoreRow | null;
+    }> = [];
     for (const sr of submittedStudents) {
       if (sr.student) merged.push({ student: sr.student, row: sr.scoreRow });
     }
@@ -550,16 +556,17 @@ export function TeacherAssignmentProgressWizard(props: {
         {assignmentDraft ? (
           (() => {
             const total = Math.max(0, roster.length);
-            const completed = scoresReady && completion.completed != null ? Math.max(0, completion.completed) : null;
+            const completed =
+              scoresReady && completion.completed != null
+                ? Math.max(0, completion.completed)
+                : null;
             const pending = completed == null ? null : Math.max(0, total - completed);
             const dueIso = assignmentDraft.dueDateIso;
             const dueInDays =
               dueIso != null
                 ? Math.max(
                     0,
-                    Math.ceil(
-                      (new Date(dueIso).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
-                    )
+                    Math.ceil((new Date(dueIso).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
                   )
                 : null;
 
@@ -665,7 +672,10 @@ export function TeacherAssignmentProgressWizard(props: {
           <div className="space-y-2">
             {visibleRows.slice(0, 5).map((r) => {
               const submitted = Boolean(r.row);
-              const pct = submitted && r.row ? Math.round((r.row.score / Math.max(1, r.row.total)) * 100) : null;
+              const pct =
+                submitted && r.row
+                  ? Math.round((r.row.score / Math.max(1, r.row.total)) * 100)
+                  : null;
               return (
                 <div
                   key={r.student.userId}
@@ -680,15 +690,21 @@ export function TeacherAssignmentProgressWizard(props: {
                       {initials(r.student.name)}
                     </div>
                     <div className="min-w-0">
-                      <div className="truncate text-sm font-semibold text-slate-200">{r.student.name}</div>
+                      <div className="truncate text-sm font-semibold text-slate-200">
+                        {r.student.name}
+                      </div>
                       {submitted && r.row?.submittedAt ? (
-                        <div className="text-[11px] text-slate-400">Submitted {formatRelativeTime(r.row.submittedAt)}</div>
+                        <div className="text-[11px] text-slate-400">
+                          Submitted {formatRelativeTime(r.row.submittedAt)}
+                        </div>
                       ) : (
                         <div className="text-[11px] text-slate-400">Pending</div>
                       )}
                     </div>
                   </div>
-                  <div className={`text-right text-sm font-semibold ${submitted ? "text-emerald-200" : "text-rose-200"}`}>
+                  <div
+                    className={`text-right text-sm font-semibold ${submitted ? "text-emerald-200" : "text-rose-200"}`}
+                  >
                     {submitted ? `Submitted • ${pct}%` : "Pending"}
                   </div>
                 </div>
@@ -697,7 +713,8 @@ export function TeacherAssignmentProgressWizard(props: {
 
             {visibleRows.length > 5 ? (
               <div className="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs text-slate-400">
-                + {hiddenRows.length} more students ({hiddenSubmittedCount} submitted, {hiddenPendingCount} pending)
+                + {hiddenRows.length} more students ({hiddenSubmittedCount} submitted,{" "}
+                {hiddenPendingCount} pending)
               </div>
             ) : null}
           </div>
@@ -713,7 +730,8 @@ export function TeacherAssignmentProgressWizard(props: {
           <>Checking who still needs to submit…</>
         ) : (
           <>
-            {pendingCount} student{pendingCount === 1 ? "" : "s"} haven&apos;t submitted yet. Send them a quick reminder.
+            {pendingCount} student{pendingCount === 1 ? "" : "s"} haven&apos;t submitted yet. Send
+            them a quick reminder.
           </>
         )}
       </div>
@@ -731,7 +749,9 @@ export function TeacherAssignmentProgressWizard(props: {
 
       <div className="grid gap-3 md:grid-cols-2">
         <div>
-          <label className="mb-1 block text-xs font-semibold text-slate-300">Send reminder to</label>
+          <label className="mb-1 block text-xs font-semibold text-slate-300">
+            Send reminder to
+          </label>
           <div className="relative">
             <select
               value={reminderTarget}
@@ -758,14 +778,18 @@ export function TeacherAssignmentProgressWizard(props: {
         </div>
 
         <div>
-          <label className="mb-1 block text-xs font-semibold text-slate-300">Add RDM incentive?</label>
+          <label className="mb-1 block text-xs font-semibold text-slate-300">
+            Add RDM incentive?
+          </label>
           <div className="relative">
             <select
               value={String(extraRdm)}
               onChange={(e) => setExtraRdm(Number(e.target.value))}
               className={selectCompactClassName}
             >
-              <option value="0">No extra RDM (they already earn +{baseRewardRdm} on completion)</option>
+              <option value="0">
+                No extra RDM (they already earn +{baseRewardRdm} on completion)
+              </option>
               <option value="5">Add +5 RDM extra for submitting today</option>
               <option value="10">Add +10 RDM extra for submitting today</option>
             </select>
@@ -798,77 +822,77 @@ export function TeacherAssignmentProgressWizard(props: {
             targetIds.length > 0 &&
             message.trim().length > 0;
           return (
-        <button
-          type="button"
-          disabled={!canSendReminder}
-          onClick={async () => {
-            if (!assignmentDraft) return;
-            if (sendingReminder) return;
-            if (pendingCount === 0) {
-              toast({
-                title: "No pending students",
-                description: "Everyone in this scope has already submitted.",
-              });
-              return;
-            }
-            if (!targetIds.length) {
-              toast({
-                title: "Pick recipients",
-                description: "Choose who you want to remind.",
-              });
-              return;
-            }
-            try {
-              setSendingReminder(true);
-              await props.onMotivateStudents({
-                classroomId,
-                sectionId: sectionId ?? undefined,
-                actionKind,
-                targetStudentIds: targetIds,
-                message,
-                rdmDelta: extraRdm,
-                relatedPostId: assignmentId,
-                relatedPostTitle: assignmentDraft.title,
-                nudgeGoal: "complete_pending_assignment",
-                notificationTitle: assignmentDraft.title?.trim()
-                  ? `Teacher nudge: complete this assignment — ${assignmentDraft.title.trim()}`
-                  : "Teacher nudge: complete this assignment",
-              });
-              toast({
-                title: targetIds.length > 1 ? "Reminders sent" : "Reminder sent",
-                description:
-                  targetIds.length > 1
-                    ? `Sent to ${targetIds.length} students.`
-                    : "Sent to 1 student.",
-              });
-              setSentToastKey((k) => k + 1);
-              window.setTimeout(() => setSentToastKey(0), 2200);
-              props.onDone();
-            } catch (e) {
-              toast({
-                title: "Could not send reminder",
-                description: e instanceof Error ? e.message : "Try again.",
-                variant: "destructive",
-              });
-            } finally {
-              setSendingReminder(false);
-            }
-          }}
-          className={`group inline-flex items-center justify-center gap-2 rounded-full bg-emerald-500 px-5 py-2 text-xs font-semibold text-black transition hover:bg-emerald-400 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 ${
-            !canSendReminder ? "pointer-events-none blur-[0.2px]" : ""
-          }`}
-        >
-          {sendingReminder ? (
-            <>
-              <span className="inline-flex h-3.5 w-3.5 animate-spin rounded-full border-2 border-black/30 border-t-black" />
-              Sending…
-            </>
-          ) : targetIds.length > 1 ? (
-            "Send reminders"
-          ) : (
-            "Send reminder"
-          )}
-        </button>
+            <button
+              type="button"
+              disabled={!canSendReminder}
+              onClick={async () => {
+                if (!assignmentDraft) return;
+                if (sendingReminder) return;
+                if (pendingCount === 0) {
+                  toast({
+                    title: "No pending students",
+                    description: "Everyone in this scope has already submitted.",
+                  });
+                  return;
+                }
+                if (!targetIds.length) {
+                  toast({
+                    title: "Pick recipients",
+                    description: "Choose who you want to remind.",
+                  });
+                  return;
+                }
+                try {
+                  setSendingReminder(true);
+                  await props.onMotivateStudents({
+                    classroomId,
+                    sectionId: sectionId ?? undefined,
+                    actionKind,
+                    targetStudentIds: targetIds,
+                    message,
+                    rdmDelta: extraRdm,
+                    relatedPostId: assignmentId,
+                    relatedPostTitle: assignmentDraft.title,
+                    nudgeGoal: "complete_pending_assignment",
+                    notificationTitle: assignmentDraft.title?.trim()
+                      ? `Teacher nudge: complete this assignment — ${assignmentDraft.title.trim()}`
+                      : "Teacher nudge: complete this assignment",
+                  });
+                  toast({
+                    title: targetIds.length > 1 ? "Reminders sent" : "Reminder sent",
+                    description:
+                      targetIds.length > 1
+                        ? `Sent to ${targetIds.length} students.`
+                        : "Sent to 1 student.",
+                  });
+                  setSentToastKey((k) => k + 1);
+                  window.setTimeout(() => setSentToastKey(0), 2200);
+                  props.onDone();
+                } catch (e) {
+                  toast({
+                    title: "Could not send reminder",
+                    description: e instanceof Error ? e.message : "Try again.",
+                    variant: "destructive",
+                  });
+                } finally {
+                  setSendingReminder(false);
+                }
+              }}
+              className={`group inline-flex items-center justify-center gap-2 rounded-full bg-emerald-500 px-5 py-2 text-xs font-semibold text-black transition hover:bg-emerald-400 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 ${
+                !canSendReminder ? "pointer-events-none blur-[0.2px]" : ""
+              }`}
+            >
+              {sendingReminder ? (
+                <>
+                  <span className="inline-flex h-3.5 w-3.5 animate-spin rounded-full border-2 border-black/30 border-t-black" />
+                  Sending…
+                </>
+              ) : targetIds.length > 1 ? (
+                "Send reminders"
+              ) : (
+                "Send reminder"
+              )}
+            </button>
           );
         })()}
       </div>
@@ -885,4 +909,3 @@ export function TeacherAssignmentProgressWizard(props: {
 
   return props.stepIdx === 0 ? step1 : props.stepIdx === 1 ? step2View : step3Reminder;
 }
-

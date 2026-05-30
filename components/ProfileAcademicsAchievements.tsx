@@ -128,7 +128,10 @@ export default function ProfileAcademicsAchievements({ userId }: { userId: strin
           contentType: marksheetFile.type || undefined,
         });
       if (!uploadErr) {
-        await supabase.from("profile_academics").update({ marksheet_path: path }).eq("id", inserted.id);
+        await supabase
+          .from("profile_academics")
+          .update({ marksheet_path: path })
+          .eq("id", inserted.id);
       }
     }
 
@@ -211,7 +214,10 @@ export default function ProfileAcademicsAchievements({ userId }: { userId: strin
           contentType: marksheetFile.type || undefined,
         });
       if (!uploadErr) {
-        await supabase.from("profile_achievements").update({ marksheet_path: path }).eq("id", inserted.id);
+        await supabase
+          .from("profile_achievements")
+          .update({ marksheet_path: path })
+          .eq("id", inserted.id);
       }
     }
 
@@ -219,7 +225,11 @@ export default function ProfileAcademicsAchievements({ userId }: { userId: strin
     load();
   };
 
-  const handleUpdateAchievement = async (id: string, data: Achievement, marksheetFile: File | null) => {
+  const handleUpdateAchievement = async (
+    id: string,
+    data: Achievement,
+    marksheetFile: File | null
+  ) => {
     let newPath: string | undefined;
     if (marksheetFile) {
       const safeName = marksheetFile.name.replace(/[^a-zA-Z0-9._-]/g, "_");
@@ -487,7 +497,10 @@ function AcademicFormDialog({
   open: boolean;
   edit?: AcademicRow;
   onClose: () => void;
-  onSave: (d: Pick<AcademicRecord, "exam" | "board" | "score">, marksheetFile: File | null) => void | Promise<void>;
+  onSave: (
+    d: Pick<AcademicRecord, "exam" | "board" | "score">,
+    marksheetFile: File | null
+  ) => void | Promise<void>;
   onOpenMarksheet: (path: string) => void | Promise<void>;
 }) {
   const [exam, setExam] = useState("");

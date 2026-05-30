@@ -26,7 +26,7 @@ export default function StudentSubscriptionHub({ profile, activeView, onSectionC
     case "overview":
       return <SubscriptionOverview onNavigate={navigate} />;
     case "plans":
-      return <SubscriptionPlans onNavigate={navigate} />;
+      return <SubscriptionPlans profile={profile} onNavigate={navigate} />;
     case "payment":
       return <SubscriptionPayment onNavigate={navigate} />;
     case "checkout":

@@ -1,8 +1,14 @@
+export type EmbedUrlOptions = {
+  /** Enables YouTube iframe postMessage events (onboarding play detection). */
+  enableJsApi?: boolean;
+  origin?: string;
+};
+
 /**
  * Normalize YouTube and Vimeo URLs to embeddable iframe URLs.
  * Returns null if the URL is not supported.
  */
-export function getEmbedUrl(url: string): string | null {
+export function getEmbedUrl(url: string, opts?: EmbedUrlOptions): string | null {
   if (!url || typeof url !== "string") return null;
   const trimmed = url.trim();
   if (!trimmed) return null;
@@ -16,6 +22,10 @@ export function getEmbedUrl(url: string): string | null {
     if (ytMatch) {
       const id = ytMatch[1];
       const params = new URLSearchParams({ rel: "0", modestbranding: "1" });
+      if (opts?.enableJsApi) {
+        params.set("enablejsapi", "1");
+        if (opts.origin) params.set("origin", opts.origin);
+      }
       return `https://www.youtube.com/embed/${id}?${params.toString()}`;
     }
 

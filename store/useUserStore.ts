@@ -147,8 +147,7 @@ export const useUserStore = create<UserState>()(
           user: state.user ? { ...state.user, examType } : null,
         })),
 
-      logout: () =>
-        set({ user: null, linkedAuthUserId: null, currentRound: [], allResults: [] }),
+      logout: () => set({ user: null, linkedAuthUserId: null, currentRound: [], allResults: [] }),
 
       addRdm: (amount) =>
         set((state) => ({
@@ -400,10 +399,13 @@ export const useUserStore = create<UserState>()(
       name: "edublast-user",
       version: 2,
       migrate: (persistedState: unknown, fromVersion: number) => {
-        const state = persistedState as {
-          user?: Record<string, unknown>;
-          linkedAuthUserId?: string | null;
-        } | null | undefined;
+        const state = persistedState as
+          | {
+              user?: Record<string, unknown>;
+              linkedAuthUserId?: string | null;
+            }
+          | null
+          | undefined;
         if (fromVersion < 2) {
           return {
             ...state,

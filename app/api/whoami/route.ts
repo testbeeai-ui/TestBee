@@ -11,4 +11,3 @@ export async function GET(request: NextRequest) {
   if (!user) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   return NextResponse.json({ userId: user.id, email: user.email ?? null });
 }
-

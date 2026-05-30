@@ -1,13 +1,27 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { Suspense, useState, useMemo, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import AppLayout from "@/components/AppLayout";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import { OnboardingClickHerePointer } from "@/components/onboarding/OnboardingClickHerePointer";
+import {
+  getOnboardingProgress,
+  maybeMarkEdufundOnboardingFromCreateProposal,
+} from "@/lib/subscription/freeTrialClient";
+import {
+  EDUFUND_ONBOARDING_QUERY,
+  clearEdufundCreateProposalGuideStep,
+  clearEdufundOnboardingFlow,
+  isEdufundOnboardingFlowActive,
+  startEdufundOnboardingFlow,
+} from "@/lib/onboarding/edufundOnboardingFlow";
+import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -231,6 +245,36 @@ function ProposalCard({
 }
 
 export default function EduFundPage() {
+  return (
+    <Suspense fallback={null}>
+      <EduFundPageContent />
+    </Suspense>
+  );
+}
+
+function EduFundPageContent() {
+  const searchParams = useSearchParams();
+  const onboardingEdufundQuery = searchParams.get(EDUFUND_ONBOARDING_QUERY);
+  const [showCreateProposalGuide, setShowCreateProposalGuide] = useState(false);
+
+  useEffect(() => {
+    if (onboardingEdufundQuery === "1") {
+      startEdufundOnboardingFlow();
+      setShowCreateProposalGuide(true);
+      return;
+    }
+    if (!isEdufundOnboardingFlowActive()) {
+      clearEdufundCreateProposalGuideStep();
+    }
+    setShowCreateProposalGuide(false);
+  }, [onboardingEdufundQuery]);
+
+  const dismissCreateProposalGuide = useCallback(() => {
+    clearEdufundCreateProposalGuideStep();
+    clearEdufundOnboardingFlow();
+    setShowCreateProposalGuide(false);
+  }, []);
+
   const { user, profile } = useAuth();
   const { toast } = useToast();
   const [requirementsOpen, setRequirementsOpen] = useState(false);
@@ -250,9 +294,7 @@ export default function EduFundPage() {
   const nextGate = getEdufundNextGate(userRdm);
   const shortfallToNext = getEdufundRdmShortfallToNext(userRdm);
   const daysToNextAtRate =
-    nextGate != null
-      ? estimateDaysToEarnRdmAtDailyRate(shortfallToNext, ASSUMED_DAILY_RDM)
-      : null;
+    nextGate != null ? estimateDaysToEarnRdmAtDailyRate(shortfallToNext, ASSUMED_DAILY_RDM) : null;
   const unlockAmountAtNextTier = nextGate != null ? nextGate.unlockInrAmount : null;
   const canContinueToProposal = userRdm >= EDUFUND_MIN_RDM_CREATE_PROPOSAL;
   const [communityMembers, setCommunityMembers] = useState<{ id: string; name: string }[]>([]);
@@ -352,20 +394,47 @@ export default function EduFundPage() {
                 <span className="text-edu-yellow">💛</span>
                 EduFund
               </h1>
-              <p className="edu-page-desc">
-                Support academically committed students who need help funding their education
-                essentials.
+              <p
+                className={cn(
+                  "edu-page-desc",
+                  showCreateProposalGuide && "max-w-lg text-muted-foreground"
+                )}
+              >
+                {showCreateProposalGuide
+                  ? "Tap Create Proposal below to continue your onboarding checklist."
+                  : "Support academically committed students who need help funding their education essentials."}
               </p>
             </div>
 
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 2xl:gap-4 2xl:mb-6">
-              <Button
-                onClick={() => setRequirementsOpen(true)}
-                className="edu-btn-primary flex items-center gap-2"
+              <div
+                className={cn("relative inline-flex", showCreateProposalGuide && "pt-10 sm:pt-11")}
               >
-                <Heart className="w-4 h-4" />
-                Create Proposal
-              </Button>
+                {showCreateProposalGuide ? (
+                  <div className="pointer-events-none absolute top-0 left-1/2 z-20 -translate-x-1/2 sm:left-8 sm:translate-x-0">
+                    <OnboardingClickHerePointer label="Click here" variant="violet" />
+                  </div>
+                ) : null}
+                <Button
+                  onClick={() => {
+                    if (showCreateProposalGuide) {
+                      dismissCreateProposalGuide();
+                    }
+                    setRequirementsOpen(true);
+                    if (!getOnboardingProgress().edufund) {
+                      maybeMarkEdufundOnboardingFromCreateProposal();
+                    }
+                  }}
+                  className={cn(
+                    "edu-btn-primary flex items-center gap-2",
+                    showCreateProposalGuide &&
+                      "ring-2 ring-violet-400/40 ring-offset-2 ring-offset-background"
+                  )}
+                >
+                  <Heart className="w-4 h-4" />
+                  Create Proposal
+                </Button>
+              </div>
               <p className="text-sm text-muted-foreground font-medium">
                 {proposals.length} active proposals
               </p>
@@ -465,8 +534,8 @@ export default function EduFundPage() {
                 </li>
               </ul>
               <p className="text-xs text-muted-foreground mt-4 pt-3 border-t border-border">
-                When self-serve proposals open, you will need all of the above. You cannot submit from the
-                app yet — use Create Proposal only to review tier progress for now.
+                When self-serve proposals open, you will need all of the above. You cannot submit
+                from the app yet — use Create Proposal only to review tier progress for now.
               </p>
             </div>
           </aside>
@@ -482,8 +551,8 @@ export default function EduFundPage() {
               <DialogDescription className="text-left text-slate-400">
                 <span className="block pt-1 leading-relaxed">
                   EduFund proposals unlock step by step as you earn{" "}
-                  <strong className="font-semibold text-white">RDM</strong> through learning and engagement
-                  activity on the platform.
+                  <strong className="font-semibold text-white">RDM</strong> through learning and
+                  engagement activity on the platform.
                 </span>
               </DialogDescription>
             </DialogHeader>
@@ -500,7 +569,9 @@ export default function EduFundPage() {
                       <thead>
                         <tr className="border-b border-slate-700/90 bg-slate-900/80 text-left text-[10px] uppercase tracking-wide text-slate-500 sm:text-xs">
                           <th className="px-3 py-2.5 font-semibold">Level / Badge</th>
-                          <th className="px-3 py-2.5 text-right font-semibold tabular-nums">Threshold RDM</th>
+                          <th className="px-3 py-2.5 text-right font-semibold tabular-nums">
+                            Threshold RDM
+                          </th>
                           <th className="px-3 py-2.5 text-right font-semibold">Amount unlocked</th>
                         </tr>
                       </thead>
@@ -539,9 +610,10 @@ export default function EduFundPage() {
 
                 <div className="mt-auto rounded-lg border-2 border-sky-500/70 bg-slate-900/50 px-3 py-3 sm:px-4">
                   <p className="text-[11px] leading-relaxed text-slate-300 sm:text-sm">
-                    Creation Proposal feature will become automatically enabled for you once the minimum
-                    threshold of {EDUFUND_MIN_RDM_CREATE_PROPOSAL.toLocaleString("en-IN")} RDM is achieved through
-                    learning and engagement on the Edublast site. So, please check back later...
+                    Creation Proposal feature will become automatically enabled for you once the
+                    minimum threshold of {EDUFUND_MIN_RDM_CREATE_PROPOSAL.toLocaleString("en-IN")}{" "}
+                    RDM is achieved through learning and engagement on the Edublast site. So, please
+                    check back later...
                   </p>
                 </div>
               </div>
@@ -589,16 +661,23 @@ export default function EduFundPage() {
                         </>
                       ) : null}
                       <p className="text-[11px] leading-snug text-slate-400 sm:text-xs">
-                        At about <strong className="font-semibold text-white">{ASSUMED_DAILY_RDM} RDM/day</strong>, you
-                        may reach <strong className="font-semibold text-white">{nextGate.name}</strong> in{" "}
+                        At about{" "}
+                        <strong className="font-semibold text-white">
+                          {ASSUMED_DAILY_RDM} RDM/day
+                        </strong>
+                        , you may reach{" "}
+                        <strong className="font-semibold text-white">{nextGate.name}</strong> in{" "}
                         <strong className="font-semibold text-white">
                           {daysToNextAtRate != null ? daysToNextAtRate : "—"}
                         </strong>{" "}
                         day{daysToNextAtRate === 1 ? "" : "s"}
                         {daysToNextAtRate == null ? " (set a positive earn rate)" : ""}. Unlocking{" "}
-                        <strong className="font-semibold text-white">{nextGate.name}</strong> can open up to{" "}
+                        <strong className="font-semibold text-white">{nextGate.name}</strong> can
+                        open up to{" "}
                         <strong className="font-semibold text-white">
-                          {unlockAmountAtNextTier != null ? formatAmount(unlockAmountAtNextTier) : "—"}
+                          {unlockAmountAtNextTier != null
+                            ? formatAmount(unlockAmountAtNextTier)
+                            : "—"}
                         </strong>{" "}
                         proposal amount.
                       </p>
@@ -606,8 +685,8 @@ export default function EduFundPage() {
                   ) : (
                     <p className="text-sm text-slate-400">
                       You are at or above the highest RDM tier shown here (
-                      {EDUFUND_RDM_GATES[EDUFUND_RDM_GATES.length - 1]?.name}). In-app proposal submission
-                      remains subject to product rollout and account checks.
+                      {EDUFUND_RDM_GATES[EDUFUND_RDM_GATES.length - 1]?.name}). In-app proposal
+                      submission remains subject to product rollout and account checks.
                     </p>
                   )}
                 </div>
@@ -617,29 +696,31 @@ export default function EduFundPage() {
                     Notes to students
                   </p>
                   <p>
-                    <strong className="text-white">Note:</strong> MasterBlaster can unlock scholarships up to
-                    INR 10L once they get a Rank in a recognized college.
+                    <strong className="text-white">Note:</strong> MasterBlaster can unlock
+                    scholarships up to INR 10L once they get a Rank in a recognized college.
                   </p>
                   <p>
-                    <strong className="text-white">Imp:</strong> Although you can unlock funds, such diligence
-                    on its own can help a student earn high Board marks and a Rank in a recognized competitive
-                    exam.
+                    <strong className="text-white">Imp:</strong> Although you can unlock funds, such
+                    diligence on its own can help a student earn high Board marks and a Rank in a
+                    recognized competitive exam.
                   </p>
                   <p>
-                    <strong className="text-white">Total EduFund grants: ₹90,000</strong> can be raised through
-                    consistent learning alone in <strong className="text-white">12 months</strong>.
+                    <strong className="text-white">Total EduFund grants: ₹90,000</strong> can be
+                    raised through consistent learning alone in{" "}
+                    <strong className="text-white">12 months</strong>.
                   </p>
                   <p>
-                    <strong className="text-white">Note:</strong> The unlocked amount is the amount for which
-                    the student can create a proposal to raise funds from philanthropists and/or NGOs.
+                    <strong className="text-white">Note:</strong> The unlocked amount is the amount
+                    for which the student can create a proposal to raise funds from philanthropists
+                    and/or NGOs.
                   </p>
                 </div>
 
                 <div className="rounded-xl border border-slate-700/60 bg-slate-900/35 p-3 sm:p-4">
                   <p className="text-[11px] leading-snug sm:text-xs">
-                    <strong className="text-white">Investor notes:</strong> Proposals cannot be submitted from
-                    this screen until your RDM meets the Sprout gate and the compose flow is enabled. Future
-                    applications will require a healthy account check.
+                    <strong className="text-white">Investor notes:</strong> Proposals cannot be
+                    submitted from this screen until your RDM meets the Sprout gate and the compose
+                    flow is enabled. Future applications will require a healthy account check.
                   </p>
                 </div>
               </section>

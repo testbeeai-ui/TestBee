@@ -36,6 +36,11 @@ import {
   type ReferChallengeShareTemplate,
 } from "@/lib/rdm/referral/referChallengeShareTemplates";
 import { bumpUserStudyDayMs } from "@/lib/dashboard/studyDayBump";
+import {
+  markEarnChallengeCompanionCommunityShared,
+  markEarnChallengeCompanionStarted,
+  markEarnChallengeCompanionRoundComplete,
+} from "@/lib/onboarding/earnChallengeCompanionOnboarding";
 import { shufflePlayQuestionOptions } from "@/lib/play/questions/shufflePlayQuestionOptions";
 import {
   referChallengePerQuestionTotalSec,
@@ -162,6 +167,7 @@ export default function InlineRdmChallenge({
     (outcome: "won" | "lost") => {
       if (terminalFiredRef.current) return;
       terminalFiredRef.current = true;
+      markEarnChallengeCompanionRoundComplete();
       onTerminal?.({ claimKey: spec.key, outcome });
     },
     [onTerminal, spec.key]
@@ -204,6 +210,7 @@ export default function InlineRdmChallenge({
         return;
       }
       sessionStartedAtRef.current = Date.now();
+      markEarnChallengeCompanionStarted();
       const rows = rowsRaw.map((q) => shufflePlayQuestionOptions(q));
       setQuestions(rows);
       const n = rows.length;
@@ -457,11 +464,7 @@ export default function InlineRdmChallenge({
 
   const screenshotFilterEnabled = useScreenshotFilterEnabled();
   const { showCaptureBlockOverlay, dismissCaptureBlockOverlay } = useReferChallengeAntiCapture({
-    enabled:
-      screenshotFilterEnabled &&
-      phase === "playing" &&
-      questions.length > 0 &&
-      !bootLoading,
+    enabled: screenshotFilterEnabled && phase === "playing" && questions.length > 0 && !bootLoading,
     clipboardMessage:
       "Screenshots and screen capture are not available during this Earn & Learn challenge.",
   });
@@ -537,7 +540,8 @@ export default function InlineRdmChallenge({
       setWinClaimFailed(true);
       toast({
         title: "We couldn’t add win RDM just now",
-        description: error instanceof Error ? error.message : "Take a breath and try again in a moment.",
+        description:
+          error instanceof Error ? error.message : "Take a breath and try again in a moment.",
         variant: "destructive",
       });
     } finally {
@@ -740,7 +744,9 @@ export default function InlineRdmChallenge({
         "Come back tomorrow to earn the share bonus on this challenge again. (One share reward per challenge per day — you can still share a different challenge today if you haven’t.)",
     } as const;
 
-    const ensureShareRewardClaimed = async (opts?: { silent?: boolean }): Promise<ShareClaimResult> => {
+    const ensureShareRewardClaimed = async (opts?: {
+      silent?: boolean;
+    }): Promise<ShareClaimResult> => {
       if (shareClaimed) {
         return { ok: true, kind: "already", rewardRdm: spec.shareRdm };
       }
@@ -748,13 +754,12 @@ export default function InlineRdmChallenge({
       try {
         const result = await claimReward("share");
         setShareClaimed(true);
-        const shareAmt =
-          typeof result.reward_rdm === "number" ? result.reward_rdm : spec.shareRdm;
+        const shareAmt = typeof result.reward_rdm === "number" ? result.reward_rdm : spec.shareRdm;
         const kind: "fresh" | "already" = result.already_claimed ? "already" : "fresh";
         const rdm = typeof result.rdm === "number" ? result.rdm : undefined;
         if (!opts?.silent) {
-          const balanceLine =
-            rdm !== undefined ? ` You’re at ${rdm} RDM total.` : "";
+          const balanceLine = rdm !== undefined ? ` You’re at ${rdm} RDM total.` : "";
+          const shareAwarded = shareAmt > 0;
           toast(
             result.already_claimed
               ? {
@@ -762,8 +767,12 @@ export default function InlineRdmChallenge({
                   description: `${shareAlreadyClaimedToastCopy.description}${balanceLine}`,
                 }
               : {
-                  title: `Love it — +${shareAmt} RDM for sharing`,
-                  description: `Putting your progress out there matters. We’ve added your share bonus.${balanceLine}`,
+                  title: shareAwarded
+                    ? `Love it — +${shareAmt} RDM for sharing`
+                    : "Love it — shared successfully",
+                  description: shareAwarded
+                    ? `Putting your progress out there matters. We’ve added your share bonus.${balanceLine}`
+                    : `Putting your progress out there matters. Your share was recorded.${balanceLine}`,
                 }
           );
         }
@@ -803,9 +812,9 @@ export default function InlineRdmChallenge({
       }
       try {
         const postId = await postToCommunityFeed(bodyForPost, titleForPost);
-        const claim = await ensureShareRewardClaimed();
-        if (!claim.ok) return;
+        markEarnChallengeCompanionCommunityShared();
         setPostPreviewOpen(false);
+        void ensureShareRewardClaimed();
         toast({
           title: "Posted — your voice is live",
           description: "Thanks for sharing with the community. Open your post below.",
@@ -830,8 +839,7 @@ export default function InlineRdmChallenge({
     };
 
     const handleShareWhatsApp = async () => {
-      const tab =
-        typeof window !== "undefined" ? window.open("about:blank", "_blank") : null;
+      const tab = typeof window !== "undefined" ? window.open("about:blank", "_blank") : null;
       const claim = await ensureShareRewardClaimed({ silent: true });
       if (!claim.ok) {
         try {
@@ -849,7 +857,9 @@ export default function InlineRdmChallenge({
       const navigated = openUrlInPreparedTab(tab, url);
       if (!navigated) {
         const fallbackOpened =
-          typeof window !== "undefined" ? Boolean(window.open(url, "_blank", "noopener,noreferrer")) : false;
+          typeof window !== "undefined"
+            ? Boolean(window.open(url, "_blank", "noopener,noreferrer"))
+            : false;
         if (!fallbackOpened) {
           toast(
             claim.kind === "fresh"
@@ -1364,7 +1374,9 @@ export default function InlineRdmChallenge({
                 <span className="text-sm font-semibold tabular-nums text-emerald-400/95">
                   Score: {scoreLabel}
                   {tot > 0 ? (
-                    <span className="ml-1.5 font-normal text-slate-400">({accuracyPctRunning}%)</span>
+                    <span className="ml-1.5 font-normal text-slate-400">
+                      ({accuracyPctRunning}%)
+                    </span>
                   ) : null}
                 </span>
                 <Button
@@ -1383,8 +1395,8 @@ export default function InlineRdmChallenge({
                 <p className="text-[11px] leading-snug text-slate-400">
                   <span className="font-semibold text-emerald-200/90">Recorded</span> · Options stay
                   visible with any time left on the 10s answer clock (tap{" "}
-                  <span className="font-semibold text-white">Next</span> to skip). Session clock still
-                  runs.
+                  <span className="font-semibold text-white">Next</span> to skip). Session clock
+                  still runs.
                 </p>
               ) : (
                 <p className="text-[11px] leading-snug text-slate-400">
@@ -1439,13 +1451,8 @@ export default function InlineRdmChallenge({
                   questionIndex={idx}
                   questionTotal={tot}
                   dotStates={dotStates}
-                  subjectLabel={playCategoryToSubjectTag(
-                    currentQ?.category,
-                    spec.domain
-                  )}
-                  difficultyLabel={difficultyRatingToLabel(
-                    currentQ?.difficulty_rating ?? 3
-                  )}
+                  subjectLabel={playCategoryToSubjectTag(currentQ?.category, spec.domain)}
+                  difficultyLabel={difficultyRatingToLabel(currentQ?.difficulty_rating ?? 3)}
                   marksLabel={`+${spec.winRdm} RDM`}
                   correctCount={correctCount}
                   wrongCount={wrongCount}

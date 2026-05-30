@@ -150,7 +150,8 @@ const IG_WIN_DEFS: ReferChallengeTemplateDef[] = [
     id: "ig_win_02",
     tone: "achievement",
     hook: "Met the pass bar: {challengeName}.",
-    bodyPattern: "{accuracyPct}% across all {total} questions ({correct}/{total}) · {timeTakenLabel}.",
+    bodyPattern:
+      "{accuracyPct}% across all {total} questions ({correct}/{total}) · {timeTakenLabel}.",
     ctaPattern: "See how you compare: {appUrl}",
     waHook: "Met the pass bar on {challengeName}.",
     waBodyPattern:
@@ -256,7 +257,8 @@ const IG_LOSS_DEFS: ReferChallengeTemplateDef[] = [
     id: "ig_loss_01",
     tone: "comeback",
     hook: "Still working toward {challengeName} — this round did not pass.",
-    bodyPattern: "{correct}/{total} ({accuracyPct}%) in {timeTakenLabel}. Pass bar: {neededCorrect}/{total}.",
+    bodyPattern:
+      "{correct}/{total} ({accuracyPct}%) in {timeTakenLabel}. Pass bar: {neededCorrect}/{total}.",
     ctaPattern: "Practice on EduBlast: {appUrl}",
     waHook: "Honest update: I did not pass {challengeName} this time.",
     waBodyPattern:

@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminClient, createClient, createClientWithToken } from "@/integrations/supabase/server";
+import {
+  createAdminClient,
+  createClient,
+  createClientWithToken,
+} from "@/integrations/supabase/server";
 import {
   getCalendarEvent,
   patchCalendarEvent,
@@ -49,8 +53,10 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ id: st
     .select("id, teacher_id")
     .eq("id", classroomId)
     .maybeSingle();
-  if (roomErr || !room) return NextResponse.json({ error: "Classroom not found." }, { status: 404 });
-  if (room.teacher_id !== user.id) return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+  if (roomErr || !room)
+    return NextResponse.json({ error: "Classroom not found." }, { status: 404 });
+  if (room.teacher_id !== user.id)
+    return NextResponse.json({ error: "Forbidden." }, { status: 403 });
 
   try {
     await assertTeacherApprovedForMutations(user.id, admin);
@@ -86,9 +92,10 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ id: st
       .eq("classroom_id", classroomId)
       .maybeSingle();
 
-    const sectionRow = section as
-      | { google_calendar_list_id?: string | null; google_recurring_event_id?: string | null }
-      | null;
+    const sectionRow = section as {
+      google_calendar_list_id?: string | null;
+      google_recurring_event_id?: string | null;
+    } | null;
     const eventId = sectionRow?.google_recurring_event_id ?? null;
     const calendarId = sectionRow?.google_calendar_list_id?.trim() || "primary";
 
@@ -112,7 +119,9 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ id: st
             .from("teacher_google_calendar_tokens")
             .update({
               access_token: refreshed.access_token,
-              access_token_expires_at: new Date(Date.now() + refreshed.expires_in * 1000).toISOString(),
+              access_token_expires_at: new Date(
+                Date.now() + refreshed.expires_in * 1000
+              ).toISOString(),
               updated_at: new Date().toISOString(),
             })
             .eq("user_id", user.id);
@@ -163,4 +172,3 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ id: st
 
   return NextResponse.json({ ok: true });
 }
-

@@ -35,7 +35,10 @@ import {
   RefreshCw,
 } from "lucide-react";
 import type { BitsQuestion, PracticeFormula } from "@/data/deepDiveContent";
-import { canRegenerate, generateFormulaQuestions } from "@/lib/gyan/verify/formulaQuestionGenerators";
+import {
+  canRegenerate,
+  generateFormulaQuestions,
+} from "@/lib/gyan/verify/formulaQuestionGenerators";
 import PremiumFeatureDialog from "@/components/PremiumFeatureDialog";
 import { syncAllSavedContent } from "@/lib/saved/savedContentService";
 import { applyInstacueCreateDailyRdmReward } from "@/lib/rdm/claims/applyInstacueCreateDailyRdmReward";

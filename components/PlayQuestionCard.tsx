@@ -151,17 +151,12 @@ export default function PlayQuestionCard({
     if (timerSeconds > 0) onTimerTick?.(timeLeft);
   }, [timeLeft, timerSeconds, onTimerTick]);
 
-  const optsPhase =
-    optionsPhaseSec ?? (timerSeconds > 0 ? Math.min(10, timerSeconds) : 10);
-  const readPhase =
-    readPhaseSec ?? (timerSeconds > 0 ? Math.max(0, timerSeconds - optsPhase) : 20);
+  const optsPhase = optionsPhaseSec ?? (timerSeconds > 0 ? Math.min(10, timerSeconds) : 10);
+  const readPhase = readPhaseSec ?? (timerSeconds > 0 ? Math.max(0, timerSeconds - optsPhase) : 20);
   const perQuestionTotal = readPhase + optsPhase;
-  const secondsLeft =
-    secondsLeftProp ?? (timerSeconds > 0 ? timeLeft : perQuestionTotal);
+  const secondsLeft = secondsLeftProp ?? (timerSeconds > 0 ? timeLeft : perQuestionTotal);
 
-  const resolvedDots =
-    dotStates ??
-    buildEduBlastDotStates(questionTotal, questionIndex, []);
+  const resolvedDots = dotStates ?? buildEduBlastDotStates(questionTotal, questionIndex, []);
 
   if (useEduBlast) {
     const handleConfirm = (index: number, timeTakenMs: number) => {
@@ -182,13 +177,8 @@ export default function PlayQuestionCard({
         questionIndex={questionIndex}
         questionTotal={questionTotal}
         dotStates={resolvedDots}
-        subjectLabel={
-          subjectLabel ??
-          playCategoryToSubjectTag(question.category, playDomain)
-        }
-        difficultyLabel={
-          difficultyLabel ?? difficultyRatingToLabel(question.difficulty_rating)
-        }
+        subjectLabel={subjectLabel ?? playCategoryToSubjectTag(question.category, playDomain)}
+        difficultyLabel={difficultyLabel ?? difficultyRatingToLabel(question.difficulty_rating)}
         marksLabel={marksLabel}
         secondsLeft={secondsLeft}
         perQuestionTotalSec={perQuestionTotal}

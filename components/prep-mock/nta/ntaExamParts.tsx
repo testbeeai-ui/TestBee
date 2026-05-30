@@ -79,6 +79,47 @@ export const NtaOptionBody = memo(function NtaOptionBody({
   );
 });
 
+const cardRichMdClass =
+  "min-w-0 max-w-full break-words text-foreground/90 [&_.katex]:!text-foreground [&_.katex-display]:max-w-full [&_.katex-display]:overflow-x-auto [&_.katex-error]:!text-foreground [&_.katex-error]:!bg-transparent";
+
+/** Any mock HTML or plain string (solutions, hints) — same KaTeX pipeline as stems/options. */
+export const NtaRichTextBlock = memo(function NtaRichTextBlock({
+  text,
+  mobile = false,
+  className,
+}: {
+  text: string;
+  mobile?: boolean;
+  className?: string;
+}) {
+  const t = String(text ?? "").trim();
+  const htmlRef = useRef<HTMLDivElement>(null);
+  const safeHtml = useMemo(() => {
+    if (!t) return "";
+    const core = t.includes("<")
+      ? sanitizeMockHtml(t)
+      : sanitizeMockHtml(wrapPlainMockTextForKatexHtml(t));
+    return repairMathInMockHtml(patchNtaHtmlPresentation(core));
+  }, [t]);
+  useKatexAutoRender(htmlRef, safeHtml, t);
+
+  if (!safeHtml) return null;
+  return (
+    <div
+      ref={htmlRef}
+      className={cn(
+        "cbse-mcq-katex prose prose-sm max-w-none leading-relaxed",
+        cardRichMdClass,
+        ntaImgClass,
+        mobile ? ntaMobileOptionKatexClass : ntaOptionKatexClass,
+        "[&_.katex-display]:my-1",
+        className
+      )}
+      suppressHydrationWarning
+    />
+  );
+});
+
 export const NtaQuestionStem = memo(function NtaQuestionStem({
   q,
   mobile = false,
@@ -89,9 +130,7 @@ export const NtaQuestionStem = memo(function NtaQuestionStem({
   const htmlRef = useRef<HTMLDivElement>(null);
   const safeHtml = useMemo(() => {
     if (q.questionHtml) {
-      return repairMathInMockHtml(
-        patchNtaHtmlPresentation(sanitizeMockHtml(q.questionHtml))
-      );
+      return repairMathInMockHtml(patchNtaHtmlPresentation(sanitizeMockHtml(q.questionHtml)));
     }
     const plain = String(q.question ?? "").trim();
     if (!plain) return "";

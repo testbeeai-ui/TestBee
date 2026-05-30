@@ -80,8 +80,10 @@ export function useNewsBlogUrlSync(targets: SyncTargets): NewsBlogListNav {
     if (fromUrl.section) {
       if (isNewsSection(fromUrl.section)) {
         targets.setNewsSection(
-          normalizeListNav({ portal: "news", section: fromUrl.section }, { isAdmin: targets.isAdmin })
-            .section as NewsSection
+          normalizeListNav(
+            { portal: "news", section: fromUrl.section },
+            { isAdmin: targets.isAdmin }
+          ).section as NewsSection
         );
         if (!fromUrl.portal) targets.setPortal("news");
       } else if (isBlogSection(fromUrl.section)) {

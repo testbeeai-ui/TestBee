@@ -7,17 +7,66 @@ import { INVESTOR_NAV_LINKS } from "@/components/landing/landing-constants";
 
 type DocId = "overview" | "tnc" | "pp";
 
-const SIDEBAR_SECTIONS: Record<DocId, { id: string; icon: string; label: string; href?: string; scrollTo?: string }[]> = {
+const SIDEBAR_SECTIONS: Record<
+  DocId,
+  { id: string; icon: string; label: string; href?: string; scrollTo?: string }[]
+> = {
   overview: [
     { id: "overview", icon: "ti ti-files", label: "Document overview", href: "/terms-conditions" },
-    { id: "tnc", icon: "ti ti-file-text", label: "Terms & Conditions", href: "/terms-conditions/terms-and-conditions" },
-    { id: "pp", icon: "ti ti-shield-lock", label: "Privacy Policy", href: "/terms-conditions/privacy-policy" },
-    { id: "q-tnc-2", icon: "ti ti-users", label: "User eligibility", href: "/terms-conditions/terms-and-conditions", scrollTo: "tnc-2" },
-    { id: "q-tnc-6", icon: "ti ti-coin", label: "RDM & EduFund rules", href: "/terms-conditions/terms-and-conditions", scrollTo: "tnc-6" },
-    { id: "q-pp-3", icon: "ti ti-eye", label: "Data we collect", href: "/terms-conditions/privacy-policy", scrollTo: "pp-3" },
-    { id: "q-pp-7", icon: "ti ti-user-check", label: "Your DPDP rights", href: "/terms-conditions/privacy-policy", scrollTo: "pp-7" },
-    { id: "q-pp-10", icon: "ti ti-device-mobile", label: "Minor & child safety", href: "/terms-conditions/privacy-policy", scrollTo: "pp-10" },
-    { id: "q-pp-12", icon: "ti ti-mail", label: "Grievance officer", href: "/terms-conditions/privacy-policy", scrollTo: "pp-12" },
+    {
+      id: "tnc",
+      icon: "ti ti-file-text",
+      label: "Terms & Conditions",
+      href: "/terms-conditions/terms-and-conditions",
+    },
+    {
+      id: "pp",
+      icon: "ti ti-shield-lock",
+      label: "Privacy Policy",
+      href: "/terms-conditions/privacy-policy",
+    },
+    {
+      id: "q-tnc-2",
+      icon: "ti ti-users",
+      label: "User eligibility",
+      href: "/terms-conditions/terms-and-conditions",
+      scrollTo: "tnc-2",
+    },
+    {
+      id: "q-tnc-6",
+      icon: "ti ti-coin",
+      label: "RDM & EduFund rules",
+      href: "/terms-conditions/terms-and-conditions",
+      scrollTo: "tnc-6",
+    },
+    {
+      id: "q-pp-3",
+      icon: "ti ti-eye",
+      label: "Data we collect",
+      href: "/terms-conditions/privacy-policy",
+      scrollTo: "pp-3",
+    },
+    {
+      id: "q-pp-7",
+      icon: "ti ti-user-check",
+      label: "Your DPDP rights",
+      href: "/terms-conditions/privacy-policy",
+      scrollTo: "pp-7",
+    },
+    {
+      id: "q-pp-10",
+      icon: "ti ti-device-mobile",
+      label: "Minor & child safety",
+      href: "/terms-conditions/privacy-policy",
+      scrollTo: "pp-10",
+    },
+    {
+      id: "q-pp-12",
+      icon: "ti ti-mail",
+      label: "Grievance officer",
+      href: "/terms-conditions/privacy-policy",
+      scrollTo: "pp-12",
+    },
   ],
   tnc: [
     { id: "tnc-1", icon: "ti ti-circle-number-1", label: "Definitions" },
