@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
-import { enforceSameOriginForCookieAuth } from "@/lib/auth/securityGuards";
+import { enforceSameOriginForCookieAuth, isDangerousRouteEnabled } from "@/lib/auth/securityGuards";
 import type { SubscriptionPlanKey } from "@/lib/subscription/subscriptionConfig";
 
 type Body = {
@@ -25,6 +25,10 @@ function normalizePlan(raw: unknown): SubscriptionPlanKey | null {
  */
 export async function POST(request: Request) {
   try {
+    if (!isDangerousRouteEnabled("ALLOW_SUBSCRIPTION_PLAN_TESTING")) {
+      return NextResponse.json({ error: "Subscription plan testing is disabled." }, { status: 403 });
+    }
+
     const csrf = enforceSameOriginForCookieAuth(request);
     if (csrf) return csrf;
 

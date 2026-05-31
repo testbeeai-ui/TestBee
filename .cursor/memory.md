@@ -111,6 +111,7 @@ Anything that is not Next.js / tooling config now lives under:
 - Student-facing copy: English (Hindi optional when student writes in Hindi)
 
 ## Decisions Log
+- 2026-05-31: Critical reward/subscription hardening — production-gated `/api/user/subscription/set-plan` behind `ALLOW_SUBSCRIPTION_PLAN_TESTING`; activation/revoke no longer clear reward claim timestamp; migration `20260730130000_reward_claim_marker_integrity.sql` prevents client resets of checklist/daily streak claim markers.
 - 2026-05-30: Daily streak task sync — each t1–t6 completion PATCHes `sync_free_trial_daily_streak_task` into `profiles.free_trial_daily_streak` (partial `task_ids` + `tasks.{id}.completed_at`); claim RPC now requires all 6 on server; migration `20260730120000_free_trial_daily_streak_task_sync.sql`.
 - 2026-05-30: Daily streak reopen reliability fix — removed stale session-level reopen dedupe gates for Day 2 tasks `t1/t2/t3` so each fresh flow completion dispatches checklist reopen after 5s; flow-only credit path unchanged.
 - 2026-05-26: Site tour checklist UI — `OnboardingRewardDialog.tsx` sticky-board layout (10 notes + task detail drawer); same backend task IDs and completion hooks; no scroll list.

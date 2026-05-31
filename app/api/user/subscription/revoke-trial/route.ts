@@ -38,7 +38,6 @@ export async function POST(request: Request) {
         free_trial_activated: false,
         free_trial_activated_at: null,
         onboarding_reward_progress: {},
-        onboarding_reward_claimed_at: null,
       })
       .eq("id", user.id);
 

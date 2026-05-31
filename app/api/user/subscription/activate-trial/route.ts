@@ -89,7 +89,6 @@ export async function POST(request: Request) {
         target_exam: targetExam,
         onboarding_complete: true,
         onboarding_reward_progress: {},
-        onboarding_reward_claimed_at: null,
       })
       .eq("id", user.id);
 
