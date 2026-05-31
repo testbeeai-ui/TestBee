@@ -36,7 +36,11 @@ export type BuddyStateResponse = {
   /** First active buddy — legacy single-buddy UIs. */
   buddy: BuddyProfile | null;
   pendingInvites: BuddyPendingInvite[];
+  /** Effective cap for comparisons (from plan `buddies_limit`; 100 when unlimited). */
   maxBuddies: number;
+  /** Raw admin/plan value (-1 = unlimited). */
+  buddiesLimit?: number;
+  buddiesUnlimited?: boolean;
   /** True when at least one invite you sent was accepted (legacy). */
   hasBuddyInviteActivated: boolean;
   /** True when an acceptor from your invite is an active study buddy (checklist). */

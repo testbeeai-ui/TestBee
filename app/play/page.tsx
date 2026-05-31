@@ -92,9 +92,6 @@ const PCM_CATEGORIES = [
 const ACADEMIC_STREAK_POOL = "academic_all";
 const FUNBRAIN_STREAK_POOL = "funbrain_all";
 
-/** Streak survival: up to this many questions per run (5 min session cap). */
-const STREAK_SESSION_QUESTIONS = 10;
-
 function streakPoolForDomain(domain: PlayDomain): string {
   return domain === "academic" ? ACADEMIC_STREAK_POOL : FUNBRAIN_STREAK_POOL;
 }
@@ -233,13 +230,13 @@ function PlayPageContent() {
   /** Mental Math Elo for Global Rating only (browser); not written to Supabase. */
   const [mentalMathDisplayElo, setMentalMathDisplayElo] = useState(1000);
 
-  // Streak Survival (10 questions · 5 min session)
+  // Streak Survival
   const [streakQuestion, setStreakQuestion] = useState<PlayQuestionRow | null>(null);
   /** Prefetched stratified queue for the current streak session (same RPC batch as DailyDose). */
   const streakQueueRef = useRef<PlayQuestionRow[]>([]);
-  /** Length of current streak queue (for Q i/n UI); defaults to 10 before a session starts. */
+  /** Length of current streak queue (for Q i/n UI); defaults to dailyDoseQuestionCount before a session starts. */
   const [streakSessionQuestionCount, setStreakSessionQuestionCount] =
-    useState(STREAK_SESSION_QUESTIONS);
+    useState(dailyDoseQuestionCount);
   const [streakLoading, setStreakLoading] = useState(false);
   const [streakCount, setStreakCount] = useState(0);
   const [streakRoundIndex, setStreakRoundIndex] = useState(0);
@@ -590,18 +587,18 @@ function PlayPageContent() {
       rows = isPlayAdmin
         ? await fetchPlayQuestionsDomainRandom(supabase, {
             domain,
-            count: STREAK_SESSION_QUESTIONS,
+            count: dailyDoseQuestionCount,
           })
         : await fetchPlayQuestionsAdaptiveWithFallback(supabase, {
             domain,
             category: streakPoolForDomain(domain),
-            count: STREAK_SESSION_QUESTIONS,
+            count: dailyDoseQuestionCount,
           });
     }
     const shuffled = rows.map((q) => shufflePlayQuestionOptions(q));
     streakQueueRef.current = shuffled;
     const n = shuffled.length;
-    setStreakSessionQuestionCount(n > 0 ? n : STREAK_SESSION_QUESTIONS);
+    setStreakSessionQuestionCount(n > 0 ? n : dailyDoseQuestionCount);
     setStreakLoading(false);
     const q = shuffled[0] ?? null;
     setStreakQuestion(q);
@@ -674,7 +671,7 @@ function PlayPageContent() {
     setStreakResultFlash(null);
     const nextRound = streakRoundIndex + 1;
     const queue = streakQueueRef.current;
-    const sessionLen = queue.length > 0 ? queue.length : STREAK_SESSION_QUESTIONS;
+    const sessionLen = queue.length > 0 ? queue.length : dailyDoseQuestionCount;
     if (nextRound >= sessionLen) {
       streakSessionEndRef.current = true;
       setStreakGameoverMentalMath(
@@ -1022,7 +1019,7 @@ function PlayPageContent() {
   const backToDashboard = () => {
     streakSessionEndRef.current = false;
     streakQueueRef.current = [];
-    setStreakSessionQuestionCount(STREAK_SESSION_QUESTIONS);
+    setStreakSessionQuestionCount(dailyDoseQuestionCount);
     setView("dashboard");
     setStreakQuestion(null);
     setStreakRoundIndex(0);
@@ -1172,7 +1169,7 @@ function PlayPageContent() {
                     linkStreakTrack}
                 </strong>
                 . Scroll to <strong>Funbrain Forge</strong> and start{" "}
-                <strong>Streak Survival</strong> (10 questions · 5 minutes).
+                <strong>Streak Survival</strong> ({dailyDoseQuestionCount} questions · 5 minutes).
               </div>
             ) : null}
 
@@ -1326,7 +1323,7 @@ function PlayPageContent() {
                     <TooltipContent side="top">
                       {academicStreakLockedToday
                         ? "You’ve already used today’s Academic streak run. Funbrain streak is separate. Back tomorrow."
-                        : "Up to 10 questions · 5 min session · 20s read + 10s options · auto next"}
+                        : `Up to ${dailyDoseQuestionCount} questions · 5 min session · 20s read + 10s options · auto next`}
                     </TooltipContent>
                   </Tooltip>
 
@@ -1639,7 +1636,7 @@ function PlayPageContent() {
                     <TooltipContent side="top">
                       {funbrainStreakLockedToday
                         ? "You’ve already used today’s Funbrain streak run. Academic streak is separate. Back tomorrow."
-                        : "Up to 10 questions · 5 min session · 20s read + 10s options · auto next"}
+                        : `Up to ${dailyDoseQuestionCount} questions · 5 min session · 20s read + 10s options · auto next`}
                     </TooltipContent>
                   </Tooltip>
 

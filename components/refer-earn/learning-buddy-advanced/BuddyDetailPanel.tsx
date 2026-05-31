@@ -284,14 +284,14 @@ function ActivityGrid({
   const mockRecentRows = data.mcqRecent.filter((r) => r.source === "mock").slice(0, 5);
 
   const [heatmapMode, setHeatmapMode] = useState<"7" | "30">("7");
-  const [studyStreakBonusWeek, setStudyStreakBonusWeek] = useState(3);
-  const [studyStreakBonusRdm, setStudyStreakBonusRdm] = useState(150);
+  const [studyStreakBonusDays, setStudyStreakBonusDays] = useState(90);
+  const [studyStreakBonusRdm, setStudyStreakBonusRdm] = useState(500);
 
   useEffect(() => {
     let cancelled = false;
     void fetchRdmConfig().then((cfg) => {
       if (cancelled) return;
-      setStudyStreakBonusWeek(Math.max(1, Math.round(cfg.study_streak_bonus_week_number)));
+      setStudyStreakBonusDays(Math.max(1, Math.round(cfg.study_streak_bonus_days)));
       setStudyStreakBonusRdm(Math.max(0, Math.round(cfg.study_streak_bonus_rdm)));
     });
     return () => {
@@ -436,7 +436,7 @@ function ActivityGrid({
               </div>
               <span className="inline-flex w-fit items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/5 px-2.5 py-0.5 text-[10px] font-bold text-amber-400 sm:text-[11px]">
                 <Flame className="h-3 w-3 text-amber-500" />
-                Week {studyStreakBonusWeek} bonus: +{studyStreakBonusRdm.toLocaleString("en-IN")}{" "}
+                {studyStreakBonusDays} days Active streak bonus: +{studyStreakBonusRdm.toLocaleString("en-IN")}{" "}
                 RDM
               </span>
             </div>

@@ -54,6 +54,7 @@ export async function GET(request: NextRequest) {
       progress: parseProgress(profile?.onboarding_reward_progress),
       claimedAt: profile?.onboarding_reward_claimed_at ?? null,
       checklistRewardRdm: rdmConfig.free_trial_checklist_reward_rdm,
+      freeTrialWelcomeRdm: rdmConfig.free_trial_welcome_rdm,
       freeTrialActivated: profile?.free_trial_activated === true,
       dailyStreak: profile?.free_trial_daily_streak ?? {},
     });

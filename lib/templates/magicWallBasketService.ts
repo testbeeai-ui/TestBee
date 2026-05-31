@@ -1,7 +1,10 @@
 import { fetchWithClientAuth } from "@/lib/auth/clientApiAuth";
+import type { MagicWallUsage } from "@/lib/subscription/magicWallQuota";
 import type { Board, ClassLevel, ExamType, Subject } from "@/types";
 
 const API = "/api/magic-wall/basket";
+
+export type { MagicWallUsage };
 
 export type MagicWallBasketItem = {
   id: string;
@@ -26,6 +29,11 @@ export type MagicWallBasketInsert = {
   unitName: string;
   chapterTitle: string;
   topicName: string;
+};
+
+export type MagicWallBasketResponse = {
+  items: MagicWallBasketItem[];
+  usage: MagicWallUsage | null;
 };
 
 export function normalizeKeyPart(value: string): string {
@@ -71,6 +79,7 @@ function normalizeItems(data: unknown): MagicWallBasketItem[] {
       examTypeRaw === "JEE" ||
       examTypeRaw === "JEE_Mains" ||
       examTypeRaw === "JEE_Advance" ||
+      examTypeRaw === "NEET" ||
       examTypeRaw === "KCET" ||
       examTypeRaw === "other"
         ? examTypeRaw
@@ -98,14 +107,49 @@ function normalizeItems(data: unknown): MagicWallBasketItem[] {
   return out;
 }
 
-export async function fetchMagicWallBasket(): Promise<MagicWallBasketItem[]> {
+function normalizeUsage(data: unknown): MagicWallUsage | null {
+  if (!data || typeof data !== "object") return null;
+  const o = data as Record<string, unknown>;
+  const plan = o.plan;
+  if (
+    plan !== "free" &&
+    plan !== "free_trial" &&
+    plan !== "starter" &&
+    plan !== "pro"
+  ) {
+    return null;
+  }
+  const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
+  const numOrNull = (v: unknown) =>
+    v === null ? null : typeof v === "number" && Number.isFinite(v) ? v : 0;
+  const periodStart = typeof o.periodStart === "string" ? o.periodStart : "";
+  const periodEnd = typeof o.periodEnd === "string" ? o.periodEnd : "";
+  if (!periodStart || !periodEnd) return null;
+  return {
+    plan,
+    maxActive: num(o.maxActive),
+    monthlyLimit: num(o.monthlyLimit),
+    monthlyUsed: num(o.monthlyUsed),
+    monthlyRemaining: numOrNull(o.monthlyRemaining),
+    activeCount: num(o.activeCount),
+    activeSlotsRemaining: numOrNull(o.activeSlotsRemaining),
+    newPicksAllowed: numOrNull(o.newPicksAllowed),
+    periodStart,
+    periodEnd,
+  };
+}
+
+export async function fetchMagicWallBasket(): Promise<MagicWallBasketResponse> {
   const res = await fetchWithClientAuth(API, { cache: "no-store" });
   if (!res.ok) {
-    if (res.status === 401) return [];
+    if (res.status === 401) return { items: [], usage: null };
     throw new Error("Failed to fetch Magic Wall basket");
   }
-  const data = (await res.json()) as { items?: unknown };
-  return normalizeItems(data.items);
+  const data = (await res.json()) as { items?: unknown; usage?: unknown };
+  return {
+    items: normalizeItems(data.items),
+    usage: normalizeUsage(data.usage),
+  };
 }
 
 export async function upsertMagicWallBasketItems(items: MagicWallBasketInsert[]): Promise<void> {

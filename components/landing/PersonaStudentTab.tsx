@@ -115,9 +115,7 @@ export default function PersonaStudentTab() {
 
         {/* EduFund note */}
         <div className="bg-[#FAEEDA] rounded-lg p-[10px_12px] text-sm text-[#412402] leading-relaxed">
-          <span className="font-medium">EduFund:</span> Your 1,740 RDM is already past the Sprout
-          threshold. Keep going for Scholar (3,000 RDM) to unlock financial aid &mdash; up to
-          &#8377;12,000 in grants for eligible students.
+          <span className="font-medium">EduFund:</span> Your 1,740 RDM is climbing toward the Sprout gate. Under the Free/Trial 0.25&times; multiplier, reaching 5,000 effective RDM requires 20,000 raw RDM. Upgrading to a premium plan boosts your multiplier &mdash; fast-tracking your grant!
         </div>
       </div>
     </div>

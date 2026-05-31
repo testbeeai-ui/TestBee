@@ -17,7 +17,6 @@ import {
   Trophy,
   HelpCircle,
   MessageSquare,
-  CheckCircle2,
   Target,
   ShieldCheck,
   Flame,
@@ -191,9 +190,9 @@ export default function PublicProfilePage() {
               { icon: HelpCircle, label: "Questions Asked", value: displayProfile.questionsAsked },
               { icon: MessageSquare, label: "Answers Given", value: displayProfile.answersGiven },
               {
-                icon: CheckCircle2,
-                label: "Accepted Answers",
-                value: displayProfile.acceptedAnswers,
+                icon: Flame,
+                label: "Active Streak",
+                value: `${displayProfile.streakDays}d`,
               },
               { icon: Target, label: "Strike Rate", value: `${displayProfile.strikeRate}%` },
             ].map(({ icon: Icon, label, value }) => (
@@ -301,12 +300,7 @@ export default function PublicProfilePage() {
                   value: displayProfile.rdmBreakdown.streakBonus,
                   color: "bg-orange-500",
                 },
-                {
-                  key: "bountiesWon",
-                  label: "Bounties Won",
-                  value: displayProfile.rdmBreakdown.bountiesWon,
-                  color: "bg-amber-500",
-                },
+
                 {
                   key: "doubtsAsked",
                   label: "Doubts Asked",
@@ -375,9 +369,7 @@ export default function PublicProfilePage() {
               <span className="font-bold text-foreground">
                 {displayProfile.rdmFromDoubts} RDM from Doubts
               </span>
-              <span className="font-bold text-foreground">
-                {displayProfile.bountiesWon} Bounties Won
-              </span>
+
               <span className="font-bold text-foreground">
                 {displayProfile.streakDays}d Active Streak
               </span>

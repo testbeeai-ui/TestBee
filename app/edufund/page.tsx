@@ -56,6 +56,13 @@ import {
   getEdufundNextGate,
   getEdufundRdmShortfallToNext,
 } from "@/lib/dashboard/dashboardSidebarMetrics";
+import {
+  calculateActiveMultiplier,
+  getMultiplierLabel,
+  fetchSubscriptionConfig,
+  SUBSCRIPTION_CONFIG_DEFAULTS,
+  type SubscriptionConfig,
+} from "@/lib/subscription/subscriptionConfig";
 
 /** Illustrative daily earn rate for “days to next tier” copy (not a guarantee). */
 const ASSUMED_DAILY_RDM = 100;
@@ -290,13 +297,41 @@ function EduFundPageContent() {
 
   const currentUserName = profile?.name ?? user?.user_metadata?.name ?? "Student";
   const currentUserId = user?.id ?? "";
+
+  const [subscriptionCfg, setSubscriptionCfg] = useState<SubscriptionConfig>(
+    SUBSCRIPTION_CONFIG_DEFAULTS
+  );
+
+  useEffect(() => {
+    fetchSubscriptionConfig().then(setSubscriptionCfg).catch(() => {});
+  }, []);
+
+  const planTier = (profile?.plan_tier ?? "free_trial") as
+    | "free"
+    | "free_trial"
+    | "starter"
+    | "pro";
+  const activeMultiplier = calculateActiveMultiplier(
+    planTier,
+    profile?.subscription_started_at,
+    profile?.created_at ?? new Date().toISOString(),
+    subscriptionCfg
+  );
+  const multiplierLabel = getMultiplierLabel(
+    planTier,
+    profile?.subscription_started_at,
+    profile?.created_at ?? new Date().toISOString(),
+    subscriptionCfg
+  );
+  const isSubscribed = planTier === "starter" || planTier === "pro";
   const userRdm = Math.max(0, Math.floor(Number(profile?.rdm ?? 0)));
-  const nextGate = getEdufundNextGate(userRdm);
-  const shortfallToNext = getEdufundRdmShortfallToNext(userRdm);
+  const effectiveUserRdm = Math.floor(userRdm * activeMultiplier);
+  const nextGate = getEdufundNextGate(effectiveUserRdm);
+  const shortfallToNext = getEdufundRdmShortfallToNext(effectiveUserRdm);
   const daysToNextAtRate =
     nextGate != null ? estimateDaysToEarnRdmAtDailyRate(shortfallToNext, ASSUMED_DAILY_RDM) : null;
   const unlockAmountAtNextTier = nextGate != null ? nextGate.unlockInrAmount : null;
-  const canContinueToProposal = userRdm >= EDUFUND_MIN_RDM_CREATE_PROPOSAL;
+  const canContinueToProposal = effectiveUserRdm >= EDUFUND_MIN_RDM_CREATE_PROPOSAL;
   const [communityMembers, setCommunityMembers] = useState<{ id: string; name: string }[]>([]);
 
   useEffect(() => {
@@ -558,13 +593,13 @@ function EduFundPageContent() {
             </DialogHeader>
 
             {/* Investor layout: left = tiers table + status (bottom); right = eligibility + notes */}
-            <div className="grid grid-cols-1 gap-4 py-2 lg:grid-cols-2 lg:items-stretch lg:gap-5">
-              <div className="flex min-h-0 flex-col gap-4">
-                <section className="rounded-xl border border-slate-700/70 bg-slate-950/40 p-3 sm:p-4">
+            <div className="grid grid-cols-1 gap-3 py-1 lg:grid-cols-2 lg:items-stretch lg:gap-4">
+              <div className="flex min-h-0 flex-col gap-3">
+                <section className="rounded-xl border border-slate-700/70 bg-slate-950/40 p-2.5 sm:p-3">
                   <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-sky-400 sm:text-[11px]">
                     EduFund tiers (RDM thresholds + unlocked amount)
                   </p>
-                  <div className="mt-3 overflow-x-auto rounded-lg border border-slate-700/80">
+                  <div className="mt-2 overflow-x-auto rounded-lg border border-slate-700/80">
                     <table className="w-full min-w-[280px] border-collapse text-sm">
                       <thead>
                         <tr className="border-b border-slate-700/90 bg-slate-900/80 text-left text-[10px] uppercase tracking-wide text-slate-500 sm:text-xs">
@@ -583,7 +618,7 @@ function EduFundPageContent() {
                               key={g.name}
                               className="border-b border-slate-800/90 last:border-b-0 odd:bg-slate-900/30 even:bg-slate-950/20"
                             >
-                              <td className="px-3 py-3">
+                              <td className="px-3 py-1.5">
                                 <span className="inline-flex items-center gap-2 font-semibold text-white">
                                   <Star
                                     className="h-3.5 w-3.5 shrink-0 fill-amber-400 text-amber-400"
@@ -592,10 +627,10 @@ function EduFundPageContent() {
                                   {g.name}
                                 </span>
                               </td>
-                              <td className="px-3 py-3 text-right tabular-nums text-slate-300">
+                              <td className="px-3 py-1.5 text-right tabular-nums text-slate-300">
                                 {g.need.toLocaleString("en-IN")} RDM
                               </td>
-                              <td className="px-3 py-3 text-right">
+                              <td className="px-3 py-1.5 text-right">
                                 <span className="inline-block rounded-md border border-white/25 bg-emerald-600/85 px-2.5 py-1 text-xs font-bold tabular-nums text-white shadow-sm sm:text-sm">
                                   {formatAmount(tierUnlockAmount)}
                                 </span>
@@ -608,25 +643,72 @@ function EduFundPageContent() {
                   </div>
                 </section>
 
-                <div className="mt-auto rounded-lg border-2 border-sky-500/70 bg-slate-900/50 px-3 py-3 sm:px-4">
-                  <p className="text-[11px] leading-relaxed text-slate-300 sm:text-sm">
-                    Creation Proposal feature will become automatically enabled for you once the
-                    minimum threshold of {EDUFUND_MIN_RDM_CREATE_PROPOSAL.toLocaleString("en-IN")}{" "}
-                    RDM is achieved through learning and engagement on the Edublast site. So, please
-                    check back later...
-                  </p>
-                </div>
-              </div>
+                <div className="mt-auto space-y-2">
+                  {!isSubscribed && (
+                    <>
+                      <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-2.5 sm:p-3 text-xs text-amber-300 space-y-1 shadow-md">
+                        <p className="font-bold flex items-center gap-1.5 text-xs sm:text-sm text-amber-400">
+                          <span>⚠️</span> Subscription Required to Publish Proposals
+                        </p>
+                        <p className="leading-relaxed text-[11px] sm:text-xs">
+                          Only premium subscribed students (<strong>Starter</strong> or <strong>Pro</strong>) can compose and submit proposals to raise funds.
+                        </p>
+                        <p className="leading-relaxed text-slate-300 text-[10px] sm:text-[11px]">
+                          Under your current Free/Trial multiplier of <strong>0.25×</strong>, a raw total of <strong>20,000 RDM</strong> is required to yield the 5,000 effective RDM Sprout gate. 
+                          Upgrading to a premium plan elevates your multiplier to 1.0× or higher—instantly fast-tracking your grant!
+                        </p>
+                      </div>
 
-              <section className="flex flex-col gap-3 rounded-xl border border-slate-700/70 bg-slate-950/30 p-3 text-[11px] leading-snug text-slate-400 sm:gap-4 sm:p-4 sm:text-xs">
-                <div className="space-y-2 rounded-xl border border-sky-500/25 bg-sky-950/25 p-3 sm:p-4">
+                      <div className="rounded-xl border border-violet-500/30 bg-violet-600/10 p-2.5 sm:p-3 text-violet-200 shadow-md">
+                        <p className="text-[11px] leading-snug sm:text-xs">
+                          Proposals require a premium subscription (Starter or Pro). Upgrade your plan to unlock full EduFund grant composing and unlock cash aid up to ₹50,000!
+                        </p>
+                      </div>
+                    </>
+                  )}
+
+                  {isSubscribed && (
+                    <div className="rounded-lg border border-sky-500/30 bg-slate-900/50 px-3 py-3 sm:px-4">
+                      <p className="text-[11px] leading-relaxed text-slate-300 sm:text-sm">
+                        Creation Proposal feature will become automatically enabled for you once the
+                        minimum threshold of {EDUFUND_MIN_RDM_CREATE_PROPOSAL.toLocaleString("en-IN")}{" "}
+                        RDM is achieved. Keep up the consistent study!
+                      </p>
+                    </div>
+                  )}
+              </div>
+            </div>
+            <section className="flex flex-col gap-2 rounded-xl border border-slate-700/70 bg-slate-950/30 p-2.5 sm:p-3 text-[10.5px] leading-snug text-slate-400 sm:text-xs">
+              <div className="space-y-1.5 rounded-xl border border-sky-500/25 bg-sky-950/25 p-2.5 sm:p-3">
                   <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-sky-400 sm:text-[11px]">
                     Eligibility Snapshot
                   </p>
                   <div className="flex justify-between gap-3 text-sm">
-                    <span>Your current RDM</span>
+                    <span>Your Raw RDM</span>
                     <span className="font-bold tabular-nums text-white">
                       {userRdm.toLocaleString("en-IN")}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-3 text-sm">
+                    <span>Active Multiplier</span>
+                    <div className="flex flex-col items-end gap-0.5">
+                      <span className={cn(
+                        "font-bold px-2.5 py-0.5 rounded-full text-[15px] sm:text-base border shadow-sm",
+                        isSubscribed 
+                          ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" 
+                          : "bg-amber-500/10 text-amber-300 border-amber-500/20"
+                      )}>
+                        {activeMultiplier.toFixed(2)}x
+                      </span>
+                      {planTier !== "free_trial" && (
+                        <span className="text-[10px] text-slate-500">{multiplierLabel.split("—")[1]?.trim() ?? ""}</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex justify-between gap-3 text-sm border-t border-slate-700/50 pt-2 dark:border-slate-800/50">
+                    <span className="font-semibold text-emerald-400">Effective EduFund RDM</span>
+                    <span className="font-extrabold text-emerald-400 tabular-nums">
+                      {effectiveUserRdm.toLocaleString("en-IN")}
                     </span>
                   </div>
                   {nextGate ? (
@@ -648,7 +730,7 @@ function EduFundPageContent() {
                       </div>
                       {unlockAmountAtNextTier != null ? (
                         <>
-                          <div className="border-t border-slate-600/80 pt-2.5" />
+                          <div className="border-t border-slate-600/80 pt-2" />
                           <div className="flex justify-between gap-3 text-sm">
                             <span className="inline-flex flex-wrap items-center gap-1 text-slate-300">
                               Amount unlocked at{" "}
@@ -660,6 +742,13 @@ function EduFundPageContent() {
                           </div>
                         </>
                       ) : null}
+                      
+                      {!isSubscribed && (
+                        <div className="rounded-lg bg-violet-600/10 border border-violet-500/20 p-2 text-[10px] text-violet-300 leading-normal">
+                          💡 Upgrading to premium instantly unlocks your <strong>1.0x rate</strong>—raising your effective RDM to <strong>{userRdm.toLocaleString("en-IN")} RDM</strong> and instantly shrinking your shortfall to only <strong>{Math.max(0, nextGate.need - userRdm).toLocaleString("en-IN")} RDM</strong>!
+                        </div>
+                      )}
+
                       <p className="text-[11px] leading-snug text-slate-400 sm:text-xs">
                         At about{" "}
                         <strong className="font-semibold text-white">
@@ -690,11 +779,10 @@ function EduFundPageContent() {
                     </p>
                   )}
                 </div>
-
-                <div className="space-y-2 rounded-xl border border-slate-700/80 bg-slate-900/45 p-3 sm:p-4">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-sky-400 sm:text-[11px]">
-                    Notes to students
-                  </p>
+                  <div className="space-y-1.5 rounded-xl border border-slate-700/80 bg-slate-900/45 p-2 sm:p-2.5 text-[10px] sm:text-[11px] leading-snug">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-sky-400 sm:text-[11px]">
+                      Notes to students
+                    </p>
                   <p>
                     <strong className="text-white">Note:</strong> MasterBlaster can unlock
                     scholarships up to INR 10L once they get a Rank in a recognized college.
@@ -713,14 +801,6 @@ function EduFundPageContent() {
                     <strong className="text-white">Note:</strong> The unlocked amount is the amount
                     for which the student can create a proposal to raise funds from philanthropists
                     and/or NGOs.
-                  </p>
-                </div>
-
-                <div className="rounded-xl border border-slate-700/60 bg-slate-900/35 p-3 sm:p-4">
-                  <p className="text-[11px] leading-snug sm:text-xs">
-                    <strong className="text-white">Investor notes:</strong> Proposals cannot be
-                    submitted from this screen until your RDM meets the Sprout gate and the compose
-                    flow is enabled. Future applications will require a healthy account check.
                   </p>
                 </div>
               </section>
@@ -742,11 +822,13 @@ function EduFundPageContent() {
                 >
                   Close
                 </Button>
-                <Button
+                 <Button
                   className="rounded-full border-0 bg-gradient-to-r from-violet-600 to-blue-600 font-bold text-white shadow-lg hover:from-violet-500 hover:to-blue-500 disabled:cursor-not-allowed disabled:opacity-45"
-                  disabled={!canContinueToProposal}
+                  disabled={!canContinueToProposal || !isSubscribed}
                   title={
-                    canContinueToProposal
+                    !isSubscribed
+                      ? "Premium plan subscription required"
+                      : canContinueToProposal
                       ? "Open the proposal form"
                       : `Reach ${EDUFUND_MIN_RDM_CREATE_PROPOSAL.toLocaleString("en-IN")} RDM (Sprout) to continue`
                   }

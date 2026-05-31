@@ -50,7 +50,8 @@ const FIELD_LABELS: Record<string, { title: string; hint: string; unit: string }
   },
   magic_wall_monthly_attempts: {
     title: "Magic Wall monthly attempts",
-    hint: "How many new topic picks are allowed per month. Use -1 for unlimited.",
+    hint:
+      "How many new topic picks per user billing month (rolling from account signup date, not calendar month). Carried-over basket topics still count toward the active cap. Use -1 for unlimited.",
     unit: "attempts",
   },
   gyan_doubts_per_day: {
@@ -80,18 +81,50 @@ const FIELD_LABELS: Record<string, { title: string; hint: string; unit: string }
   },
   buddies_limit: {
     title: "Learning buddies limit",
-    hint: "How many buddies this plan can keep. Use -1 for unlimited.",
+    hint:
+      "Max active learning buddy connections (invite + accept) at one time. Typical values: 0 (off), 1–6, or -1 for unlimited.",
     unit: "buddies",
-  },
-  study_groups_limit: {
-    title: "Study groups limit",
-    hint: "How many study groups this plan can join/create. Use -1 for unlimited.",
-    unit: "groups",
   },
   rdm_multiplier_pct: {
     title: "RDM multiplier %",
     hint: "100 = 1x, 150 = 1.5x, 200 = 2x.",
     unit: "%",
+  },
+  // Dynamic loyalty multiplier fields
+  free_trial_rdm_multiplier_pct: {
+    title: "Free Trial multiplier %",
+    hint: "Applied to all RDM during the 28-day trial period. Default = 25 (0.25×).",
+    unit: "%",
+  },
+  rdm_multiplier_months_1_3_pct: {
+    title: "RDM Multiplier — Months 1–3 (ramp-in)",
+    hint: "Starter ramp-in phase: first 3 months of subscription. Default = 50 (0.50×).",
+    unit: "%",
+  },
+  rdm_multiplier_months_4_plus_pct: {
+    title: "RDM Multiplier — Month 4 onwards",
+    hint: "Starter full rate from month 4+. Default = 100 (1.00×).",
+    unit: "%",
+  },
+  rdm_multiplier_months_1_5_pct: {
+    title: "RDM Multiplier — Months 1–5 (full rate)",
+    hint: "Pro full rate from day 1 through month 5. Default = 100 (1.00×).",
+    unit: "%",
+  },
+  rdm_multiplier_months_6_11_pct: {
+    title: "RDM Multiplier — Months 6–11 (loyalty bonus)",
+    hint: "Pro 6-month continuous loyalty bonus. Default = 150 (1.50×).",
+    unit: "%",
+  },
+  rdm_multiplier_months_12_plus_pct: {
+    title: "RDM Multiplier — Month 12+ (year loyalty bonus)",
+    hint: "Pro 12-month year-long loyalty bonus. Default = 200 (2.00×).",
+    unit: "%",
+  },
+  free_trial_welcome_rdm: {
+    title: "Free trial welcome bonus",
+    hint: "RDM welcome bonus copy displayed to the student in the free trial activation wizard welcome screen.",
+    unit: "RDM",
   },
   free_trial_checklist_reward_rdm: {
     title: "Free trial checklist reward (Day 1)",
@@ -101,6 +134,31 @@ const FIELD_LABELS: Record<string, { title: string; hint: string; unit: string }
   free_trial_daily_streak_reward_rdm: {
     title: "Daily streak reward (Day 2–10)",
     hint: "RDM paid when a student completes all 6 daily checklist tasks for the current trial day.",
+    unit: "RDM",
+  },
+  free_trial_inactive_penalty_rdm: {
+    title: "Free trial inactive penalty",
+    hint: "RDM deducted from a free-trial user when they spend less than 30 minutes on-site during a trial day. Set 0 to disable.",
+    unit: "RDM",
+  },
+  free_inactive_penalty_rdm: {
+    title: "Free plan inactive penalty",
+    hint: "RDM deducted from a free plan user when they spend less than 30 minutes on-site during a calendar day. Set 0 to disable.",
+    unit: "RDM",
+  },
+  starter_inactive_penalty_rdm: {
+    title: "Starter inactive penalty",
+    hint: "RDM deducted from a Starter plan user when they spend less than 30 minutes on-site during a calendar day. Set 0 to disable.",
+    unit: "RDM",
+  },
+  pro_inactive_penalty_rdm: {
+    title: "Pro inactive penalty",
+    hint: "RDM deducted from a Pro plan user when they spend less than 30 minutes on-site during a calendar day. Set 0 to disable.",
+    unit: "RDM",
+  },
+  inactive_penalty_rdm: {
+    title: "Inactive day penalty",
+    hint: "RDM deducted when the student spends less than 30 minutes on-site during a calendar day. Set 0 to disable for this plan.",
     unit: "RDM",
   },
 };
@@ -135,7 +193,7 @@ const CATEGORIES: CategoryGroup[] = [
     id: "community",
     title: "Social & Community",
     icon: Users,
-    keys: ["buddies_limit", "study_groups_limit"],
+    keys: ["buddies_limit"],
   },
   {
     id: "rewards",
@@ -143,8 +201,16 @@ const CATEGORIES: CategoryGroup[] = [
     icon: Coins,
     keys: [
       "rdm_multiplier_pct",
+      "free_trial_rdm_multiplier_pct",
+      "rdm_multiplier_months_1_3_pct",
+      "rdm_multiplier_months_4_plus_pct",
+      "rdm_multiplier_months_1_5_pct",
+      "rdm_multiplier_months_6_11_pct",
+      "rdm_multiplier_months_12_plus_pct",
+      "free_trial_welcome_rdm",
       "free_trial_checklist_reward_rdm",
       "free_trial_daily_streak_reward_rdm",
+      "inactive_penalty_rdm",
     ],
   },
 ];
@@ -176,6 +242,9 @@ export default function SubscriptionsPage() {
   const [students, setStudents] = useState<any[]>([]);
   const [studentsLoading, setStudentsLoading] = useState(false);
   const [studentSearchQuery, setStudentSearchQuery] = useState("");
+  const [overrideSaving, setOverrideSaving] = useState<Record<string, boolean>>({});
+  const [overrideError, setOverrideError] = useState<Record<string, string>>({});
+  const [overrideDrafts, setOverrideDrafts] = useState<Record<string, { plan: string; startedAt: string }>>({});
 
   useLayoutEffect(() => {
     setActiveTab(readInitialTab());
@@ -247,8 +316,19 @@ export default function SubscriptionsPage() {
       if (extractSuffix(key, activeTab) !== null) rows.add(key);
     }
     if (activeTab === "free_trial") {
+      rows.add("free_trial_welcome_rdm");
       rows.add("free_trial_checklist_reward_rdm");
       rows.add("free_trial_daily_streak_reward_rdm");
+      rows.add("free_trial_rdm_multiplier_pct");
+    }
+    if (activeTab === "starter") {
+      rows.add("starter_rdm_multiplier_months_1_3_pct");
+      rows.add("starter_rdm_multiplier_months_4_plus_pct");
+    }
+    if (activeTab === "pro") {
+      rows.add("pro_rdm_multiplier_months_1_5_pct");
+      rows.add("pro_rdm_multiplier_months_6_11_pct");
+      rows.add("pro_rdm_multiplier_months_12_plus_pct");
     }
     return Array.from(rows);
   }, [activeTab]);
@@ -462,40 +542,155 @@ export default function SubscriptionsPage() {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {filteredStudents.map((st) => (
-                  <div
-                    key={st.id}
-                    className="rounded-xl border border-white/5 bg-slate-950/20 p-4 hover:bg-slate-950/45 hover:border-white/10 transition-all duration-200 flex items-center justify-between gap-4"
-                  >
-                    <div className="min-w-0">
-                      <h4 className="text-xs font-bold text-slate-200 truncate">
-                        {st.name || "Unnamed Student"}
-                      </h4>
-                      <p className="text-[10px] text-slate-500 truncate mt-0.5">{st.email}</p>
-                      <span className="inline-block mt-2 rounded bg-white/5 border border-white/5 px-1.5 py-0.5 text-[9px] font-black uppercase text-slate-400">
-                        {st.plan_tier || "free"}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={cn(
-                          "text-[9px] font-bold font-mono tracking-wider",
-                          st.time_travel_enabled ? "text-emerald-400" : "text-slate-500"
+                {filteredStudents.map((st) => {
+                  const draft = overrideDrafts[st.id] ?? {
+                    plan: st.plan_tier || "free",
+                    startedAt: st.subscription_started_at
+                      ? st.subscription_started_at.slice(0, 10)
+                      : "",
+                  };
+                  const isSaving = overrideSaving[st.id];
+                  const err = overrideError[st.id];
+
+                  const applyOverride = async () => {
+                    setOverrideSaving((p) => ({ ...p, [st.id]: true }));
+                    setOverrideError((p) => ({ ...p, [st.id]: "" }));
+                    try {
+                      const body: Record<string, unknown> = {
+                        userId: st.id,
+                        plan: draft.plan,
+                      };
+                      if (draft.plan === "starter" || draft.plan === "pro") {
+                        body.subscription_started_at = draft.startedAt || null;
+                      }
+                      const res = await fetch("/api/admin/subscription-override", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(body),
+                      });
+                      const json = await res.json();
+                      if (!res.ok) throw new Error(json.error || "Failed");
+                      // Optimistically update local row
+                      setStudents((prev) =>
+                        prev.map((s) =>
+                          s.id === st.id
+                            ? {
+                                ...s,
+                                plan_tier: draft.plan,
+                                subscription_started_at: draft.startedAt || null,
+                              }
+                            : s
+                        )
+                      );
+                    } catch (e) {
+                      setOverrideError((p) => ({
+                        ...p,
+                        [st.id]: e instanceof Error ? e.message : "Error",
+                      }));
+                    } finally {
+                      setOverrideSaving((p) => ({ ...p, [st.id]: false }));
+                    }
+                  };
+
+                  return (
+                    <div
+                      key={st.id}
+                      className="rounded-xl border border-white/5 bg-slate-950/20 p-4 hover:bg-slate-950/45 hover:border-white/10 transition-all duration-200 space-y-3"
+                    >
+                      {/* Header row */}
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="min-w-0">
+                          <h4 className="text-xs font-bold text-slate-200 truncate">
+                            {st.name || "Unnamed Student"}
+                          </h4>
+                          <p className="text-[10px] text-slate-500 truncate mt-0.5">{st.email}</p>
+                        </div>
+                        {/* Time-travel toggle */}
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span
+                            className={cn(
+                              "text-[9px] font-bold font-mono tracking-wider",
+                              st.time_travel_enabled ? "text-emerald-400" : "text-slate-500"
+                            )}
+                          >
+                            {st.time_travel_enabled ? "ALLOWED" : "BLOCKED"}
+                          </span>
+                          <Switch
+                            checked={st.time_travel_enabled}
+                            onCheckedChange={() =>
+                              handleToggleStudentAccess(st.id, st.time_travel_enabled)
+                            }
+                          />
+                        </div>
+                      </div>
+
+                      {/* Plan override */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[10px] text-slate-400 mb-1 block font-semibold">Plan tier</label>
+                          <select
+                            value={draft.plan}
+                            onChange={(e) =>
+                              setOverrideDrafts((p) => ({
+                                ...p,
+                                [st.id]: { ...draft, plan: e.target.value },
+                              }))
+                            }
+                            className="w-full bg-[#0c1017] border border-white/5 text-xs text-white rounded-lg px-2 h-8 focus:outline-none focus:border-primary/50"
+                          >
+                            <option value="free">free</option>
+                            <option value="free_trial">free_trial</option>
+                            <option value="starter">starter</option>
+                            <option value="pro">pro</option>
+                          </select>
+                        </div>
+                        {(draft.plan === "starter" || draft.plan === "pro") && (
+                          <div>
+                            <label className="text-[10px] text-slate-400 mb-1 block font-semibold">
+                              Sub start date
+                            </label>
+                            <input
+                              type="date"
+                              value={draft.startedAt}
+                              onChange={(e) =>
+                                setOverrideDrafts((p) => ({
+                                  ...p,
+                                  [st.id]: { ...draft, startedAt: e.target.value },
+                                }))
+                              }
+                              className="w-full bg-[#0c1017] border border-white/5 text-xs text-white rounded-lg px-2 h-8 focus:outline-none focus:border-primary/50"
+                            />
+                          </div>
                         )}
+                      </div>
+
+                      {/* Multiplier preview */}
+                      {(draft.plan === "starter" || draft.plan === "pro") && (
+                        <p className="text-[10px] text-slate-500 leading-snug">
+                          {draft.plan === "starter"
+                            ? "Months 1–3 = 0.50× → Month 4+ = 1.00×"
+                            : "Months 1–5 = 1.00× → Months 6–11 = 1.50× → Month 12+ = 2.00×"}
+                        </p>
+                      )}
+                      {draft.plan === "free_trial" && (
+                        <p className="text-[10px] text-slate-500">Flat 0.25× during trial period</p>
+                      )}
+
+                      {err && <p className="text-[10px] text-red-400">{err}</p>}
+
+                      <button
+                        onClick={applyOverride}
+                        disabled={isSaving}
+                        className="w-full h-7 rounded-lg bg-primary/10 border border-primary/20 text-primary text-[10px] font-bold tracking-wide hover:bg-primary/20 transition-colors disabled:opacity-50"
                       >
-                        {st.time_travel_enabled ? "ALLOWED" : "BLOCKED"}
-                      </span>
-                      <Switch
-                        checked={st.time_travel_enabled}
-                        onCheckedChange={() =>
-                          handleToggleStudentAccess(st.id, st.time_travel_enabled)
-                        }
-                      />
+                        {isSaving ? "Saving…" : "Save Override"}
+                      </button>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
+
           </article>
         </section>
       ) : (
@@ -506,6 +701,7 @@ export default function SubscriptionsPage() {
             const catKeys = cat.keys
               .map((suf) => {
                 if (
+                  suf === "free_trial_welcome_rdm" ||
                   suf === "free_trial_checklist_reward_rdm" ||
                   suf === "free_trial_daily_streak_reward_rdm"
                 ) {
@@ -538,12 +734,18 @@ export default function SubscriptionsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   {catKeys.map((key) => {
                     const suffix = extractSuffix(key, activeTab as SubscriptionPlanKey);
-                    const labelKey =
+                    const isSpecialFullKey =
                       key === "free_trial_checklist_reward_rdm" ||
-                      key === "free_trial_daily_streak_reward_rdm"
-                        ? key
-                        : (suffix ?? key);
-                    const meta = FIELD_LABELS[labelKey] ?? {
+                      key === "free_trial_daily_streak_reward_rdm" ||
+                      key === "free_trial_rdm_multiplier_pct" ||
+                      key === "free_trial_welcome_rdm" ||
+                      key === "starter_rdm_multiplier_months_1_3_pct" ||
+                      key === "starter_rdm_multiplier_months_4_plus_pct" ||
+                      key === "pro_rdm_multiplier_months_1_5_pct" ||
+                      key === "pro_rdm_multiplier_months_6_11_pct" ||
+                      key === "pro_rdm_multiplier_months_12_plus_pct";
+                    const labelKey = isSpecialFullKey ? key : (suffix ?? key);
+                    const meta = (FIELD_LABELS[key] ?? FIELD_LABELS[labelKey]) ?? {
                       title: key,
                       hint: "Subscription setting",
                       unit: "",

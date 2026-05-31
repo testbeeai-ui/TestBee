@@ -1,5 +1,9 @@
 import type { TrialOnboardingAnswers } from "./types";
-import { TRIAL_OTHER_EDTECH_PLATFORM, TRIAL_OTHER_STATE_BOARD } from "./types";
+import {
+  TRIAL_OTHER_EDTECH_PLATFORM,
+  TRIAL_OTHER_STATE_BOARD,
+  TRIAL_PRIMARY_SCHOOL_ONLY,
+} from "./types";
 
 export type TrialValidationErrors = Partial<Record<string, string>>;
 
@@ -9,6 +13,10 @@ export function isOtherStateBoard(board: string | null) {
 
 export function hasOtherEdtechSecondary(answers: TrialOnboardingAnswers) {
   return answers.secondaryPlatforms.includes(TRIAL_OTHER_EDTECH_PLATFORM);
+}
+
+export function isSchoolOnlyPrimary(answers: TrialOnboardingAnswers) {
+  return answers.primaryPlatform === TRIAL_PRIMARY_SCHOOL_ONLY;
 }
 
 export function validateScreen1(answers: TrialOnboardingAnswers): TrialValidationErrors {
@@ -73,6 +81,14 @@ export function validateScreen3(answers: TrialOnboardingAnswers): TrialValidatio
   }
 
   return errors;
+}
+
+export function displayPrimaryPlatform(answers: TrialOnboardingAnswers): string {
+  if (!answers.primaryPlatform) return "—";
+  if (isSchoolOnlyPrimary(answers) && answers.schoolName.trim()) {
+    return `${TRIAL_PRIMARY_SCHOOL_ONLY} (${answers.schoolName.trim()})`;
+  }
+  return answers.primaryPlatform;
 }
 
 export function displaySecondaryPlatforms(answers: TrialOnboardingAnswers): string {

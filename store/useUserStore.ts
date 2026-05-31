@@ -28,7 +28,7 @@ function emptySavedUserProfile(
     subjectCombo,
     board: "CBSE",
     examType: null,
-    rdm: 100,
+    rdm: 0,
     answeredQuestions: [],
     savedQuestions: [],
     savedRevisionCards: [],

@@ -1,6 +1,7 @@
 import type { BuddyDashboardResponse } from "@/lib/buddy/buddyClient";
 
-export const BUDDY_MAX_ACTIVE = 5;
+/** @deprecated Prefer `maxBuddies` from `/api/buddy/state` (plan-driven). */
+export { BUDDY_MAX_ACTIVE_FALLBACK as BUDDY_MAX_ACTIVE } from "@/lib/buddy/buddyPlanLimits";
 
 export type BuddyPrivacyKey =
   | "share_streak"

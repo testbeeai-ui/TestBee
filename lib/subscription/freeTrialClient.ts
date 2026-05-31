@@ -30,6 +30,7 @@ import {
   isGyanPlusOnboardingComplete,
 } from "@/lib/onboarding/gyanPlusOnboarding";
 import { ONBOARDING_REWARD_TASK_IDS } from "@/lib/subscription/onboardingRewardConstants";
+import { resetStudyDaysReconcileSession } from "@/lib/dashboard/studyDaysClient";
 import { isFreeTrialPeriodEnded } from "@/lib/subscription/freeTrialTimer";
 
 export { ONBOARDING_REWARD_TASK_IDS };
@@ -362,7 +363,7 @@ export async function prepareOnboardingRewardClaim(): Promise<{
 
   await flushPendingOnboardingProgressSyncs();
 
-  let state = await fetchOnboardingRewardState();
+  let state = await fetchOnboardingRewardState({ fresh: true });
   if (isOnboardingRewardCompleteOnServer(state.progress)) {
     return { ready: true, incompleteTaskIds: [] };
   }
@@ -384,7 +385,7 @@ export async function prepareOnboardingRewardClaim(): Promise<{
     if (hasPendingOnboardingProgressSyncs()) {
       await flushPendingOnboardingProgressSyncs();
     }
-    state = await fetchOnboardingRewardState();
+    state = await fetchOnboardingRewardState({ fresh: true });
   }
 
   const incompleteTaskIds = ONBOARDING_REWARD_TASK_IDS.filter((id) => {
@@ -663,6 +664,7 @@ export function ensureOnboardingLocalStateForUser(userId: string): void {
   clearPendingOnboardingProgressSyncs();
   resetAllOnboardingGuideSessions();
   window.localStorage.setItem(ONBOARDING_LOCAL_OWNER_KEY, userId);
+  resetStudyDaysReconcileSession();
 
   if (previousOwner) {
     window.dispatchEvent(

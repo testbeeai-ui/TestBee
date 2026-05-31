@@ -93,8 +93,8 @@ export function estimatedStudyMinutesFromCount(count: number): number {
 export type ActivityHeatLevel = 0 | 1 | 2 | 3;
 
 export function activityGreenLevel(estimatedMinutes: number): ActivityHeatLevel {
-  if (estimatedMinutes < 10) return 0;
-  if (estimatedMinutes < 30) return 1;
+  if (estimatedMinutes < 30) return 0;
+  if (estimatedMinutes < 60) return 1;
   if (estimatedMinutes <= 120) return 2;
   return 3;
 }

@@ -27,12 +27,12 @@ export function computeStudyStreakFromDayMs(
 
   let activeDaysThisMonth = 0;
   for (const [day, ms] of msByDay) {
-    if (ms > 0 && day.startsWith(ym)) activeDaysThisMonth++;
+    if (ms >= 1800000 && day.startsWith(ym)) activeDaysThisMonth++;
   }
 
   let anchorKey: string | null = null;
   for (const [day, ms] of msByDay) {
-    if (ms <= 0) continue;
+    if (ms < 1800000) continue;
     if (day > todayKey) continue;
     if (anchorKey == null || day > anchorKey) anchorKey = day;
   }
@@ -46,7 +46,7 @@ export function computeStudyStreakFromDayMs(
   const cursor = new Date(start);
   for (;;) {
     const key = localDayKeyFromDate(cursor);
-    if ((msByDay.get(key) ?? 0) <= 0) break;
+    if ((msByDay.get(key) ?? 0) < 1800000) break;
     streak++;
     cursor.setDate(cursor.getDate() - 1);
     if (streak > 10000) break;

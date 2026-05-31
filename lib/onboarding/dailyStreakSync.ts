@@ -268,7 +268,7 @@ export async function prepareDailyStreakClaim(
     }
   }
 
-  let state = await fetchOnboardingRewardState();
+  let state = await fetchOnboardingRewardState({ fresh: true });
   const nowMs = Date.now();
   let serverIds = getDailyStreakDayTaskIdsFromServer(
     state.dailyStreak as DailyStreakServerState | undefined,
@@ -284,7 +284,7 @@ export async function prepareDailyStreakClaim(
       localOnly.map((taskId) => persistDailyStreakTaskToServer(userId, trialDayNumber, taskId))
     );
     await flushPendingDailyStreakSyncs();
-    state = await fetchOnboardingRewardState();
+    state = await fetchOnboardingRewardState({ fresh: true });
     serverIds = getDailyStreakDayTaskIdsFromServer(
       state.dailyStreak as DailyStreakServerState | undefined,
       trialDayNumber,
@@ -311,7 +311,7 @@ export async function prepareDailyStreakClaim(
     };
   }
 
-  state = await fetchOnboardingRewardState();
+  state = await fetchOnboardingRewardState({ fresh: true });
   serverIds = getDailyStreakDayTaskIdsFromServer(
     state.dailyStreak as DailyStreakServerState | undefined,
     trialDayNumber,

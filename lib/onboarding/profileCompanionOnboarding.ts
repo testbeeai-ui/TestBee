@@ -42,7 +42,6 @@ export type ProfileBasicFormDraft = {
   cityVal: string | null;
   phoneDigits: string;
   genderVal: string | null;
-  categoryVal: string | null;
   accountEmail?: string | null;
 };
 
@@ -55,7 +54,6 @@ export function isProfileBasicFormDraftComplete(draft: ProfileBasicFormDraft): b
     Boolean(draft.cityVal?.trim()) &&
     phone.length === 10 &&
     Boolean(draft.genderVal?.trim()) &&
-    Boolean(draft.categoryVal?.trim()) &&
     Boolean(draft.accountEmail?.trim())
   );
 }

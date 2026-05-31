@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { getClientApiAuthHeaders } from "@/lib/auth/clientApiAuth";
 import { EDUBLAST_STUDY_DAYS_REFRESH } from "@/lib/dashboard/studyDayBumpEvents";
+import { fetchStudyDays } from "@/lib/dashboard/studyDaysClient";
 import {
   addDaysLocal,
   localDayKeyFromDate,
@@ -32,29 +32,22 @@ export function useStudyStreakFromApi(): { streakDays: number; ready: boolean } 
     }
     await Promise.resolve();
     try {
-      const headers = await getClientApiAuthHeaders();
       const todayStart = startOfLocalDay(new Date());
       const toStr = localDayKeyFromDate(todayStart);
       const fromStr = localDayKeyFromDate(addDaysLocal(todayStart, -45));
-      const res = await fetch(`/api/user/study-days?from=${fromStr}&to=${toStr}&today=${toStr}`, {
-        headers,
-      });
-      if (!res.ok) return;
-      const json = (await res.json()) as {
-        days?: { day: string; active_ms: number }[];
-        summary?: { streak?: number } | null;
-      };
+      const json = await fetchStudyDays(fromStr, toStr, toStr);
+      if (json.error) return;
       const s = json.summary;
       if (s && typeof s.streak === "number") {
         setStreakDays(Math.max(0, s.streak));
       } else {
-        const map = new Map<string, number>();
+        const presenceMap = new Map<string, number>();
         for (const row of json.days ?? []) {
-          if (row?.day && typeof row.active_ms === "number" && row.active_ms >= 0) {
-            map.set(row.day, Math.max(0, row.active_ms));
+          if (row?.day && typeof row.presence_ms === "number" && row.presence_ms >= 0) {
+            presenceMap.set(row.day, Math.max(0, row.presence_ms));
           }
         }
-        setStreakDays(computeStudyStreakFromDayMs(map, toStr).streak);
+        setStreakDays(computeStudyStreakFromDayMs(presenceMap, toStr).streak);
       }
       setReady(true);
     } catch {

@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { getClientApiAuthHeaders } from "@/lib/auth/clientApiAuth";
 import { localDayBoundsIso } from "@/lib/dashboard/dashboardDayActivity";
+import { invalidateDailyChecklistCache } from "@/lib/dashboard/dailyChecklistClient";
 import { dispatchGyanDailyChecklistRefresh } from "@/lib/dashboard/studyDayBumpEvents";
 import { isDailyChecklistCompanionRetryActive } from "@/lib/onboarding/dailyChecklistCompanionRetry";
 import { cn } from "@/lib/utils";
@@ -89,7 +90,10 @@ export function GyanDoubtsFocusTracker({ children }: { children?: ReactNode }) {
           body: JSON.stringify({ action: "doubts_focus", today, addMs: chunk }),
         });
         if (!res.ok) pendingRef.current += chunk;
-        else dispatchGyanDailyChecklistRefresh();
+        else {
+          invalidateDailyChecklistCache();
+          dispatchGyanDailyChecklistRefresh();
+        }
       } catch {
         pendingRef.current += chunk;
       }

@@ -11,11 +11,11 @@ export function countInstacueRevisionDue(cards: SavedRevisionCard[] | undefined 
  * Keep in sync with product spec (single source of truth for thresholds + ₹ unlocked).
  */
 export const EDUFUND_RDM_GATES = [
-  { need: 3000, name: "Sprout", unlockInrAmount: 3000 },
-  { need: 12000, name: "Scholar", unlockInrAmount: 15000 },
-  { need: 25000, name: "Champion", unlockInrAmount: 50000 },
-  { need: 50000, name: "Elite", unlockInrAmount: 100000 },
-  { need: 100000, name: "MasterBlaster", unlockInrAmount: 200000 },
+  { need: 5000, name: "Sprout", unlockInrAmount: 3000 },
+  { need: 15000, name: "Scholar", unlockInrAmount: 12000 },
+  { need: 40000, name: "Champion", unlockInrAmount: 50000 },
+  { need: 80000, name: "Elite", unlockInrAmount: 100000 },
+  { need: 150000, name: "MasterBlaster", unlockInrAmount: 200000 },
 ] as const;
 
 /** Minimum RDM (Sprout) required to compose an EduFund proposal in the app UI. */

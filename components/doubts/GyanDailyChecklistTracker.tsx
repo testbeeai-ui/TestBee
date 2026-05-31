@@ -3,13 +3,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
-import { getClientApiAuthHeaders } from "@/lib/auth/clientApiAuth";
 import { localDayBoundsIso } from "@/lib/dashboard/dashboardDayActivity";
+import { fetchDailyChecklist } from "@/lib/dashboard/dailyChecklistClient";
 import type { DailyChecklistApiResponse } from "@/lib/dashboard/dailyChecklistState";
-import {
-  EDUBLAST_GYAN_DAILY_CHECKLIST_REFRESH,
-  EDUBLAST_STUDY_DAYS_REFRESH,
-} from "@/lib/dashboard/studyDayBumpEvents";
+import { EDUBLAST_GYAN_DAILY_CHECKLIST_REFRESH } from "@/lib/dashboard/studyDayBumpEvents";
 import {
   GyanFeedFocusTimer,
   useGyanDoubtsPendingFocusMs,
@@ -82,19 +79,17 @@ export function GyanDailyChecklistTracker() {
     if (!silent) setStatus("loading");
     try {
       const { today, dayStart, dayEnd } = localDayBoundsIso();
-      const headers = await getClientApiAuthHeaders();
       const q = new URLSearchParams({
         today,
         dayStart,
         dayEnd,
         subjects: CHECKLIST_SUBJECTS_PARAM,
       });
-      const res = await fetch(`/api/user/daily-checklist?${q.toString()}`, { headers });
-      if (!res.ok) {
+      const json = await fetchDailyChecklist(q);
+      if (!json) {
         if (!silent) setStatus("error");
         return;
       }
-      const json = (await res.json()) as DailyChecklistApiResponse;
       setData(json);
       committedRef.current = true;
       setStatus("ready");
@@ -138,16 +133,10 @@ export function GyanDailyChecklistTracker() {
       if (!open) return;
       scheduleLoad();
     };
-    const onStudyBump = () => {
-      if (!open) return;
-      scheduleLoad();
-    };
     window.addEventListener(EDUBLAST_GYAN_DAILY_CHECKLIST_REFRESH, onGyanBump);
-    window.addEventListener(EDUBLAST_STUDY_DAYS_REFRESH, onStudyBump);
     return () => {
       if (debounceId) window.clearTimeout(debounceId);
       window.removeEventListener(EDUBLAST_GYAN_DAILY_CHECKLIST_REFRESH, onGyanBump);
-      window.removeEventListener(EDUBLAST_STUDY_DAYS_REFRESH, onStudyBump);
     };
   }, [load, open]);
 

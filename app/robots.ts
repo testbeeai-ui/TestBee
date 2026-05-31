@@ -10,7 +10,45 @@ function siteBaseUrl(): string {
 export default function robots(): MetadataRoute.Robots {
   const base = siteBaseUrl();
   return {
-    rules: { userAgent: "*", allow: "/" },
+    rules: {
+      userAgent: "*",
+      allow: [
+        "/",
+        "/news-blog",
+        "/pricing",
+        "/contact",
+        "/terms-conditions"
+      ],
+      disallow: [
+        "/admin",
+        "/api",
+        "/auth",
+        "/auth-choice",
+        "/classroom",
+        "/classrooms",
+        "/onboarding",
+        "/select-role",
+        "/buddy-join",
+        "/home",
+        "/profile",
+        "/settings",
+        "/performance",
+        "/play",
+        "/revision",
+        "/refer-earn",
+        "/teacher-portal",
+        "/user",
+        "/explore",
+        "/explore-1",
+        "/doubts",
+        "/magic-wall",
+        "/edufund",
+        "/exam-prep",
+        "/mock-test",
+        "/mock"
+      ]
+    },
     sitemap: `${base}/sitemap.xml`,
   };
 }
+

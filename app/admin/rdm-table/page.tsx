@@ -75,29 +75,68 @@ const PLAY_HUB_KEYS = [
   "play_dailydose_funbrain_rdm",
   "play_dual_streak_7_rdm",
   "play_dual_streak_30_rdm",
-  "study_streak_bonus_week_number",
+  "study_streak_bonus_days",
   "study_streak_bonus_rdm",
 ] as const;
 
 const FREE_TRIAL_KEYS = [
+  "free_trial_welcome_rdm",
   "free_trial_checklist_reward_rdm",
   "free_trial_daily_streak_reward_rdm",
+  "free_trial_inactive_penalty_rdm",
+] as const;
+
+const PLAN_INACTIVE_PENALTY_KEYS = [
+  "free_trial_inactive_penalty_rdm",
+  "free_inactive_penalty_rdm",
+  "starter_inactive_penalty_rdm",
+  "pro_inactive_penalty_rdm",
 ] as const;
 
 const FREE_TRIAL_META: Record<(typeof FREE_TRIAL_KEYS)[number], { title: string; hint: string }> = {
+  free_trial_welcome_rdm: {
+    title: "Free trial welcome bonus",
+    hint: "Welcome bonus RDM credited immediately to the student upon activating the 14-day free trial.",
+  },
   free_trial_checklist_reward_rdm: {
     title: "Checklist completion reward",
-    hint: "RDM paid when a student completes all 10 onboarding tasks and claims. Trial wizard welcome-bonus copy uses this same amount.",
+    hint: "RDM paid when a student completes all 10 onboarding tasks and claims.",
   },
   free_trial_daily_streak_reward_rdm: {
     title: "Daily streak reward (Day 2–10)",
     hint: "RDM paid when a student completes all 6 daily checklist tasks for the current trial day (claim_free_trial_daily_streak_reward).",
   },
+  free_trial_inactive_penalty_rdm: {
+    title: "Free trial inactive penalty",
+    hint: "RDM deducted from a free-trial user when they spend less than 30 minutes on-site during a trial day.",
+  },
+};
+
+const PLAN_INACTIVE_PENALTY_META: Record<
+  (typeof PLAN_INACTIVE_PENALTY_KEYS)[number],
+  { title: string; hint: string }
+> = {
+  free_trial_inactive_penalty_rdm: {
+    title: "Free trial inactive penalty",
+    hint: "RDM deducted from a free-trial user when they spend less than 30 minutes on-site during a trial day.",
+  },
+  free_inactive_penalty_rdm: {
+    title: "Free plan inactive penalty",
+    hint: "RDM deducted from a free plan user when they spend less than 30 minutes on-site during a calendar day.",
+  },
+  starter_inactive_penalty_rdm: {
+    title: "Starter inactive penalty",
+    hint: "RDM deducted from a Starter plan user when they spend less than 30 minutes on-site during a calendar day.",
+  },
+  pro_inactive_penalty_rdm: {
+    title: "Pro inactive penalty",
+    hint: "RDM deducted from a Pro plan user when they spend less than 30 minutes on-site during a calendar day.",
+  },
 };
 
 const PLAY_HUB_META: Record<
   (typeof PLAY_HUB_KEYS)[number],
-  { title: string; unit: "RDM" | "week"; hint?: string }
+  { title: string; unit: "RDM" | "week" | "days"; hint?: string }
 > = {
   play_dailydose_academic_rdm: {
     title: "Play hub · DailyDose academic (full run, IST) RDM",
@@ -115,9 +154,9 @@ const PLAY_HUB_META: Record<
     title: "Play hub · Dual-domain DailyDose streak every 30 days RDM",
     unit: "RDM",
   },
-  study_streak_bonus_week_number: {
-    title: "Dashboard · Study streak bonus week label",
-    unit: "week",
+  study_streak_bonus_days: {
+    title: "Dashboard · Study streak bonus days label",
+    unit: "days",
     hint: "UI badge copy only (does not trigger wallet payout by itself).",
   },
   study_streak_bonus_rdm: {
@@ -597,7 +636,7 @@ function FreeTrialRdmGroupBlock({
         </p>
       </div>
       <div className="p-4">
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {FREE_TRIAL_KEYS.map((key) => {
             const row = configs[key];
             const meta = FREE_TRIAL_META[key];
@@ -614,6 +653,67 @@ function FreeTrialRdmGroupBlock({
                       : "20260629120000_free_trial_onboarding_rdm"}
                   </span>
                   .
+                </div>
+              );
+            }
+            return (
+              <div key={key} className="flex flex-col gap-1.5 rounded-lg border bg-muted/10 p-3">
+                <label className="text-sm font-medium text-foreground">{meta.title}</label>
+                <div className="mb-1 font-mono text-xs text-muted-foreground">{key}</div>
+                <p className="text-[11px] leading-snug text-muted-foreground">{meta.hint}</p>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    value={drafts[key] || ""}
+                    onChange={(e) => onDraftChange(key, e.target.value)}
+                    className="bg-background font-mono"
+                  />
+                  <span className="shrink-0 text-sm font-semibold text-amber-400">RDM</span>
+                </div>
+                <div className="mt-1 text-[10px] text-muted-foreground">
+                  Last updated: {new Date(row.updated_at).toLocaleString()}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PlanInactivePenaltyGroupBlock({
+  configs,
+  drafts,
+  onDraftChange,
+}: {
+  configs: Record<string, RdmConfigRow>;
+  drafts: Record<string, string>;
+  onDraftChange: (key: string, value: string) => void;
+}) {
+  return (
+    <div className="scroll-mt-20 rounded-xl border bg-card overflow-hidden">
+      <div className="border-b bg-muted/40 px-4 py-3">
+        <h2 className="text-lg font-semibold">Inactive day penalties (by plan)</h2>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Separate values per plan tier. Deducted when on-site foreground time is under 30 minutes for
+          a completed calendar day (<span className="font-mono">reconcile_inactive_day_penalties</span>
+          ). Set <span className="font-mono">0</span> to disable for a tier.
+        </p>
+      </div>
+      <div className="p-4">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {PLAN_INACTIVE_PENALTY_KEYS.map((key) => {
+            const row = configs[key];
+            const meta = PLAN_INACTIVE_PENALTY_META[key];
+            if (!row) {
+              return (
+                <div
+                  key={key}
+                  className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground"
+                >
+                  Missing row <span className="font-mono">{key}</span> — apply migration{" "}
+                  <span className="font-mono">20260801120200_tier_inactive_penalty_rdm</span>.
                 </div>
               );
             }
@@ -1146,6 +1246,7 @@ export default function RdmTablePage() {
           </div>
         </div>
         <FreeTrialRdmGroupBlock configs={configs} drafts={drafts} onDraftChange={onDraftChange} />
+        <PlanInactivePenaltyGroupBlock configs={configs} drafts={drafts} onDraftChange={onDraftChange} />
       </div>
 
       <div

@@ -76,9 +76,7 @@ export default function PersonaParentTab() {
         <div className="bg-[#FAEEDA] rounded-lg p-3 text-sm text-[#412402] leading-[1.7]">
           <p className="font-medium mb-1">EduFund progress</p>
           <p>
-            1,740 RDM accumulated &middot; Sprout threshold met &middot; 1,260 RDM to Scholar tier
-            &middot; Projected grant eligibility: April 20, 2026. Your child is on track for up to
-            &#8377;12,000 in educational financial aid &mdash; simply by studying consistently.
+            1,740 RDM accumulated &middot; Trial multiplier: 0.25&times; &middot; Reaching Sprout (5,000 effective RDM) requires 20,000 raw RDM. Upgrading your child to a premium plan applies a 1.0&times; or higher multiplier &mdash; making them eligible for up to &#8377;50,000 in grants!
           </p>
         </div>
       </div>

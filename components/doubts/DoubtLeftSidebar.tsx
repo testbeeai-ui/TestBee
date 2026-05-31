@@ -113,7 +113,7 @@ export default function DoubtLeftSidebar({
                 <p className="flex items-center gap-1 text-sm text-edu-orange font-semibold">
                   <Coins className="w-4 h-4 shrink-0" /> {profile?.rdm ?? 0} RDM
                 </p>
-                <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1 flex-wrap">
+                <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1 flex-wrap">
                   {strikeRate && strikeRate.total > 0 ? (
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -129,7 +129,7 @@ export default function DoubtLeftSidebar({
                   )}
                   <span className="text-emerald-600 font-medium">{rank}</span>
                   {nextRank && <span>{nextRank}</span>}
-                </p>
+                </div>
               </div>
             </div>
           </div>

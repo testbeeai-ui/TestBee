@@ -46,6 +46,10 @@ export function parseTrialOnboardingAnswersFromProfile(raw: unknown): TrialOnboa
     medExams: isStringArray(o.medExams) ? o.medExams : INITIAL_TRIAL_ONBOARDING_ANSWERS.medExams,
     primaryPlatform:
       pickString(o.primaryPlatform) ?? INITIAL_TRIAL_ONBOARDING_ANSWERS.primaryPlatform,
+    schoolName:
+      typeof o.schoolName === "string"
+        ? o.schoolName.trim().slice(0, 200)
+        : INITIAL_TRIAL_ONBOARDING_ANSWERS.schoolName,
     secondaryPlatforms: isStringArray(o.secondaryPlatforms)
       ? o.secondaryPlatforms
       : INITIAL_TRIAL_ONBOARDING_ANSWERS.secondaryPlatforms,
