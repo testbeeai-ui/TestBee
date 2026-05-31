@@ -11,7 +11,8 @@ import {
   type ReactNode,
 } from "react";
 import { fetchWithClientAuth, getClientApiAuthHeaders } from "@/lib/auth/clientApiAuth";
-import { EDUBLAST_STUDY_DAYS_REFRESH } from "@/lib/dashboard/studyDayBumpEvents";
+import { notifyStudyDaysRefresh } from "@/lib/dashboard/studyDayBumpEvents";
+import { invalidateStudyDaysCache } from "@/lib/dashboard/studyDaysClient";
 import { localStudyCalendarDay } from "@/lib/dashboard/studyDayBump";
 
 const SitePresenceLiveContext = createContext(0);
@@ -29,9 +30,8 @@ async function postPresenceDelta(day: string, deltaMs: number): Promise<boolean>
       body: JSON.stringify({ day, deltaPresenceMs: capped }),
     });
     if (!res.ok) return false;
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(new CustomEvent(EDUBLAST_STUDY_DAYS_REFRESH));
-    }
+    invalidateStudyDaysCache();
+    notifyStudyDaysRefresh();
     return true;
   } catch {
     return false;

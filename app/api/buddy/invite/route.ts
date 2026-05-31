@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { randomBytes } from "node:crypto";
-import { createClient } from "@/integrations/supabase/server";
+import { createAdminClient, createClient } from "@/integrations/supabase/server";
+import { listActiveBuddyPairsForUser } from "@/lib/buddy/activeBuddyLink";
+import { resolveMaxBuddiesForUserId } from "@/lib/buddy/buddyPlanLimits";
 import {
   enforceSameOriginForCookieAuth,
   requireAuthenticatedUser,
@@ -48,6 +50,33 @@ export async function POST(request: Request) {
     .maybeSingle();
   if (profileErr) {
     return NextResponse.json({ error: profileErr.message }, { status: 500 });
+  }
+
+  const admin = createAdminClient();
+  if (!admin) {
+    return NextResponse.json({ error: "SUPABASE_SERVICE_ROLE_KEY is not set" }, { status: 500 });
+  }
+
+  const [pairsResult, buddyLimit] = await Promise.all([
+    listActiveBuddyPairsForUser(admin, uid),
+    resolveMaxBuddiesForUserId(admin as unknown as Parameters<typeof resolveMaxBuddiesForUserId>[0], uid),
+  ]);
+  if (pairsResult.error) {
+    return NextResponse.json({ error: pairsResult.error }, { status: 500 });
+  }
+  if (buddyLimit.rawLimit === 0) {
+    return NextResponse.json(
+      { error: "Learning buddies are not available on your current plan." },
+      { status: 403 }
+    );
+  }
+  if (pairsResult.pairs.length >= buddyLimit.effectiveCap) {
+    return NextResponse.json(
+      {
+        error: `Active learning buddy limit reached (${buddyLimit.unlimited ? "unlimited" : buddyLimit.rawLimit}). End a buddy pair before inviting another.`,
+      },
+      { status: 403 }
+    );
   }
 
   let lastError: string | null = null;

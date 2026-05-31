@@ -1,4 +1,4 @@
-import { syncOnboardingTaskToServer } from "@/lib/subscription/onboardingRewardApi";
+import { bulkMergeOnboardingProgressToServer, syncOnboardingTaskToServer } from "@/lib/subscription/onboardingRewardApi";
 import { isOnboardingSiteTourClaimedLocally } from "@/lib/subscription/onboardingSiteTourClaimedLocal";
 
 const PENDING_SYNC_KEY = "edublast.onboarding_pending_sync_v1";
@@ -91,38 +91,76 @@ export async function flushPendingOnboardingProgressSyncs(): Promise<{
   const items = readPendingSyncs();
   if (items.length === 0) return { stillPendingTaskId: null };
 
-  let stillPendingTaskId: string | null = null;
+  const mergePayload: Record<string, boolean> = {};
+  const clearOnSuccess: string[] = [];
+  const sequentialItems: PendingOnboardingSync[] = [];
+
+  for (const item of items) {
+    if (item.completed) {
+      mergePayload[item.taskId] = true;
+      clearOnSuccess.push(item.taskId);
+    } else {
+      sequentialItems.push(item);
+    }
+  }
+
   let lastError: string | undefined;
+  let stillPendingTaskId: string | null = null;
 
-  await Promise.all(
-    items.map(async (item) => {
-      const result = await syncOnboardingTaskToServer(item.taskId, item.completed);
-      if (result.ok) {
-        removePendingSync(item.taskId);
-        return;
+  if (Object.keys(mergePayload).length > 0) {
+    const result = await bulkMergeOnboardingProgressToServer(mergePayload);
+    if (result.ok) {
+      for (const taskId of clearOnSuccess) {
+        removePendingSync(taskId);
       }
-
-      /** Site tour already claimed — companion keys are local-only for Day 2+. */
-      if (result.error === "already_claimed") {
-        removePendingSync(item.taskId);
-        return;
-      }
-
+    } else if (result.error === "already_claimed") {
+      clearPendingOnboardingProgressSyncs();
+      return { stillPendingTaskId: null };
+    } else {
       lastError = result.error;
-      stillPendingTaskId = item.taskId;
-      const nextAttempts = item.attempts + 1;
-      if (nextAttempts >= MAX_BACKGROUND_ATTEMPTS) {
-        return;
+      stillPendingTaskId = clearOnSuccess[0] ?? null;
+      for (const taskId of clearOnSuccess) {
+        const item = items.find((row) => row.taskId === taskId);
+        if (!item) continue;
+        const nextAttempts = item.attempts + 1;
+        if (nextAttempts >= MAX_BACKGROUND_ATTEMPTS) continue;
+        writePendingSyncs(
+          readPendingSyncs().map((row) =>
+            row.taskId === taskId
+              ? { ...row, attempts: nextAttempts, updatedAt: Date.now() }
+              : row
+          )
+        );
       }
-      writePendingSyncs(
-        readPendingSyncs().map((row) =>
-          row.taskId === item.taskId
-            ? { ...row, attempts: nextAttempts, updatedAt: Date.now() }
-            : row
-        )
-      );
-    })
-  );
+    }
+  }
+
+  for (const item of sequentialItems) {
+    const result = await syncOnboardingTaskToServer(item.taskId, item.completed);
+    if (result.ok) {
+      removePendingSync(item.taskId);
+      continue;
+    }
+
+    if (result.error === "already_claimed") {
+      removePendingSync(item.taskId);
+      continue;
+    }
+
+    lastError = result.error;
+    stillPendingTaskId = item.taskId;
+    const nextAttempts = item.attempts + 1;
+    if (nextAttempts >= MAX_BACKGROUND_ATTEMPTS) {
+      continue;
+    }
+    writePendingSyncs(
+      readPendingSyncs().map((row) =>
+        row.taskId === item.taskId
+          ? { ...row, attempts: nextAttempts, updatedAt: Date.now() }
+          : row
+      )
+    );
+  }
 
   const remaining = readPendingSyncs();
   return {

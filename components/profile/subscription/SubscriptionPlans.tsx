@@ -41,11 +41,11 @@ function fmtMultiplier(multiplierPct: number): string {
 
 function keyFeatures(limits: SubscriptionPlanLimits): string[] {
   return [
-    `Magic Wall active topics: ${fmt(limits.magicWallMaxActiveTopics, "slots")}`,
-    `Magic Wall monthly attempts: ${fmt(limits.magicWallMonthlyAttempts, "per month")}`,
+    `Magic Wall: up to ${fmt(limits.magicWallMaxActiveTopics, "active")}; ${fmt(limits.magicWallMonthlyAttempts, "new picks per billing month")} (from signup date)`,
     `Gyan++ doubts: ${fmt(limits.gyanDoubtsPerDay, "per day")}`,
     `Testbee mocks: ${fmt(limits.mocksPerMonth, "per month")}`,
     `DailyDose: ${fmt(limits.dailyDoseQuestionsPerDay, "per day")}`,
+    `Learning buddies: ${fmt(limits.buddiesLimit, "active connections")}`,
   ];
 }
 
@@ -55,14 +55,15 @@ function patchItemBadge(
   limits: SubscriptionPlanLimits
 ): string | undefined {
   const name = itemName.toLowerCase();
-  if (name.includes("magic wall")) return fmt(limits.magicWallMonthlyAttempts, "per month");
+  if (name.includes("magic wall")) {
+    return `${fmt(limits.magicWallMaxActiveTopics, "active")} · ${fmt(limits.magicWallMonthlyAttempts, "new picks/billing month")}`;
+  }
   if (name.includes("gyan++")) return fmt(limits.gyanDoubtsPerDay, "per day");
   if (name === "lessons") return fmt(limits.lessonsChapterLimit, "chapters");
   if (name.includes("instacue")) return fmt(limits.instacueCardLimit, "cards");
   if (name.includes("testbee mocks")) return fmt(limits.mocksPerMonth, "per month");
   if (name.includes("dailydose")) return fmt(limits.dailyDoseQuestionsPerDay, "per day");
-  if (name.includes("learning buddy")) return fmt(limits.buddiesLimit, "buddies");
-  if (name.includes("study groups")) return fmt(limits.studyGroupsLimit, "groups");
+  if (name.includes("learning buddy")) return fmt(limits.buddiesLimit, "active buddies");
   if (name.includes("rdm accumulation")) return fmtMultiplier(limits.rdmMultiplierPct);
   return baseBadge;
 }

@@ -27,16 +27,21 @@ import {
   parseClassLevelsFromLessonMarkedEngagementRaw,
 } from "@/lib/dashboard/dashboardChapterCompletion";
 import type { DailyChecklistApiResponse } from "@/lib/dashboard/dailyChecklistState";
-import { fetchWithClientAuth, getClientApiAuthHeaders } from "@/lib/auth/clientApiAuth";
+import { getClientApiAuthHeaders } from "@/lib/auth/clientApiAuth";
 import { fetchMockPapersFromSupabase } from "@/lib/mock/mockPapersFromSupabase";
 import {
   appendQueryParams,
   buildTopicOverviewPath,
   buildTopicPath,
 } from "@/lib/curriculum/topicRoutes";
-import { fetchAdvancedLessonCompletionKeys } from "@/lib/curriculum/lessonCompletionClient";
+import { fetchMergedAdvancedLessonCompletionKeys } from "@/lib/curriculum/lessonCompletionClient";
+import { fetchDailyChecklist } from "@/lib/dashboard/dailyChecklistClient";
 import { isSubtopicLessonCompleteAtAdvanced } from "@/lib/curriculum/lessonCompletionRollup";
-import { EDUBLAST_STUDY_DAYS_REFRESH } from "@/lib/dashboard/studyDayBumpEvents";
+import {
+  EDUBLAST_STUDY_DAYS_REFRESH,
+  notifyStudyDaysRefresh,
+} from "@/lib/dashboard/studyDayBumpEvents";
+import { fetchStudyDays } from "@/lib/dashboard/studyDaysClient";
 import { getLocalCalendarDateIso } from "@/lib/onboarding/dailyChecklistTaskStorage";
 import { supabase } from "@/integrations/supabase/client";
 import { useTopicTaxonomy } from "@/hooks/useTopicTaxonomy";
@@ -44,6 +49,14 @@ import type { TopicNode } from "@/data/topicTaxonomy";
 import type { Subject, SubjectCombo } from "@/types";
 import { DEFAULT_RDM_CONFIG, fetchRdmConfig } from "@/lib/rdm/rdmConfig";
 import { EDUFUND_RDM_GATES } from "@/lib/dashboard/dashboardSidebarMetrics";
+import {
+  calculateActiveMultiplier,
+  fetchSubscriptionConfig,
+  inactivePenaltyRdmForPlan,
+  normalizePlanTier,
+  SUBSCRIPTION_CONFIG_DEFAULTS,
+  type SubscriptionConfig,
+} from "@/lib/subscription/subscriptionConfig";
 import RawCommunityFeed from "@/components/explore/RawCommunityFeed";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -60,8 +73,6 @@ import {
   syncDailyChecklistArmFromProfile,
   getDailyChecklistCooldownRemainingMs,
   getFreeTrialActivated,
-  isDailyChecklistCooldownElapsed,
-  shouldAutoOpenDailyChecklistOnHome,
   hydrateFreeTrialRdmAmounts,
   hydrateOnboardingProgressFromServer,
   isOnboardingRewardClaimed,
@@ -105,8 +116,7 @@ const TOPIC_BAR_TONES = [
   "bg-cyan-500",
 ];
 
-/** Subject accuracy card: show this many chapters per page; pagination only when total exceeds this. */
-const CHAPTER_ACCURACY_PAGE_SIZE = 5;
+// const CHAPTER_ACCURACY_PAGE_SIZE = 5;
 
 /** Dashboard Today's checklist strip + modal (after onboarding RDM claim, from next page load). */
 const SHOW_DASHBOARD_CHECKLIST = true;
@@ -291,11 +301,14 @@ export default function StudentHomeDashboard() {
   const [studyDaysStatus, setStudyDaysStatus] = useState<"idle" | "loading" | "ready" | "error">(
     "idle"
   );
-  const [studyStreakBonusWeek, setStudyStreakBonusWeek] = useState(
-    DEFAULT_RDM_CONFIG.study_streak_bonus_week_number
+  const [studyStreakBonusDays, setStudyStreakBonusDays] = useState(
+    DEFAULT_RDM_CONFIG.study_streak_bonus_days
   );
   const [studyStreakBonusRdm, setStudyStreakBonusRdm] = useState(
     DEFAULT_RDM_CONFIG.study_streak_bonus_rdm
+  );
+  const [subscriptionCfg, setSubscriptionCfg] = useState<SubscriptionConfig>(
+    SUBSCRIPTION_CONFIG_DEFAULTS
   );
   /** Sum of RDM from tracked claims in the last 7 IST days (see /api/user/rdm-recent-by-activity). */
   const [rdmEarnedThisWeek, setRdmEarnedThisWeek] = useState<number | null>(null);
@@ -359,7 +372,7 @@ export default function StudentHomeDashboard() {
     let cancelled = false;
     void fetchRdmConfig().then((cfg) => {
       if (cancelled) return;
-      setStudyStreakBonusWeek(Math.max(1, Math.round(cfg.study_streak_bonus_week_number)));
+      setStudyStreakBonusDays(Math.max(1, Math.round(cfg.study_streak_bonus_days)));
       setStudyStreakBonusRdm(Math.max(0, Math.round(cfg.study_streak_bonus_rdm)));
     });
     return () => {
@@ -367,35 +380,57 @@ export default function StudentHomeDashboard() {
     };
   }, []);
 
+  useEffect(() => {
+    fetchSubscriptionConfig().then(setSubscriptionCfg).catch(() => {});
+  }, []);
+
   const rdm = profile?.rdm ?? storeUser?.rdm ?? 0;
 
   const edufundProgressData = useMemo(() => {
     const wallet = Math.max(0, Math.floor(Number(rdm) || 0));
-    const nextGate = EDUFUND_RDM_GATES.find((g) => wallet < g.need);
+    const planTier = (profile?.plan_tier ?? "free_trial") as "free" | "free_trial" | "starter" | "pro";
+    const activeMultiplier = calculateActiveMultiplier(
+      planTier,
+      profile?.subscription_started_at,
+      profile?.created_at ?? new Date().toISOString(),
+      subscriptionCfg
+    );
+    const effectiveWallet = Math.floor(wallet * activeMultiplier);
+
+    const nextGate = EDUFUND_RDM_GATES.find((g) => effectiveWallet < g.need);
     if (!nextGate) {
       return { displayPrimary: "100%" as const, displaySuffix: null as string | null };
     }
-    const pct = Math.min(100, Math.round((wallet / nextGate.need) * 100));
+    const pct = Math.min(100, Math.round((effectiveWallet / nextGate.need) * 100));
     return {
       displayPrimary: `${pct}%` as const,
       displaySuffix: ` (to ${nextGate.name})` as const,
     };
-  }, [rdm]);
+  }, [rdm, profile?.plan_tier, profile?.subscription_started_at, profile?.created_at, subscriptionCfg]);
 
   const edufundTiers = useMemo(() => {
     const wallet = Math.max(0, Math.floor(Number(rdm) || 0));
+    const planTier = (profile?.plan_tier ?? "free_trial") as "free" | "free_trial" | "starter" | "pro";
+    const activeMultiplier = calculateActiveMultiplier(
+      planTier,
+      profile?.subscription_started_at,
+      profile?.created_at ?? new Date().toISOString(),
+      subscriptionCfg
+    );
+    const effectiveWallet = Math.floor(wallet * activeMultiplier);
+
     const tierGates = EDUFUND_RDM_GATES.slice(0, 3);
-    const firstLockedIdx = tierGates.findIndex((g) => wallet < g.need);
+    const firstLockedIdx = tierGates.findIndex((g) => effectiveWallet < g.need);
     return tierGates.map((gate, idx) => {
       const prevNeed = idx === 0 ? 0 : tierGates[idx - 1]!.need;
       const span = Math.max(1, gate.need - prevNeed);
-      const progress = Math.max(0, Math.min(1, (wallet - prevNeed) / span));
-      const unlocked = wallet >= gate.need;
+      const progress = Math.max(0, Math.min(1, (effectiveWallet - prevNeed) / span));
+      const unlocked = effectiveWallet >= gate.need;
       const inProgress = !unlocked && firstLockedIdx === idx;
       const status = unlocked ? "Unlocked" : inProgress ? "In progress" : "Locked";
       const detail = unlocked
         ? `${gate.need.toLocaleString("en-IN")} RDM threshold met`
-        : `${gate.need.toLocaleString("en-IN")} RDM needed · ${Math.max(0, gate.need - wallet).toLocaleString("en-IN")} more to go`;
+        : `${gate.need.toLocaleString("en-IN")} RDM needed · ${Math.max(0, gate.need - effectiveWallet).toLocaleString("en-IN")} more to go`;
       return {
         name: gate.name,
         status,
@@ -410,7 +445,7 @@ export default function StudentHomeDashboard() {
               : "text-orange-400",
       };
     });
-  }, [rdm]);
+  }, [rdm, profile?.plan_tier, profile?.subscription_started_at, profile?.created_at, subscriptionCfg]);
 
   useEffect(() => {
     if (!profile?.id) {
@@ -453,6 +488,11 @@ export default function StudentHomeDashboard() {
   const streakDays = streakSummary?.streak ?? 0;
   const activeDaysThisMonth = streakSummary?.activeDaysThisMonth ?? 0;
 
+  const inactivePenaltyRdm = useMemo(() => {
+    const plan = normalizePlanTier(profile?.plan_tier, profile?.free_trial_activated);
+    return inactivePenaltyRdmForPlan(plan, subscriptionCfg);
+  }, [profile?.plan_tier, profile?.free_trial_activated, subscriptionCfg]);
+
   const loadStudyDays = useCallback(async () => {
     await Promise.resolve();
     if (!profile?.id) {
@@ -468,18 +508,11 @@ export default function StudentHomeDashboard() {
       setStudyDaysStatus("loading");
     }
     try {
-      const headers = await getClientApiAuthHeaders();
-      const res = await fetch(`/api/user/study-days?from=${fromStr}&to=${toStr}&today=${toStr}`, {
-        headers,
-      });
-      if (!res.ok) {
+      const json = await fetchStudyDays(fromStr, toStr, toStr);
+      if (json.error) {
         if (!silent) setStudyDaysStatus("error");
         return;
       }
-      const json = (await res.json()) as {
-        days?: { day: string; active_ms: number; presence_ms?: number }[];
-        summary?: { streak?: number; activeDaysThisMonth?: number } | null;
-      };
       const map = new Map<string, number>();
       const presenceMap = new Map<string, number>();
       for (const row of json.days ?? []) {
@@ -496,7 +529,7 @@ export default function StudentHomeDashboard() {
       if (s && typeof s.streak === "number" && typeof s.activeDaysThisMonth === "number") {
         setStreakSummary({ streak: s.streak, activeDaysThisMonth: s.activeDaysThisMonth });
       } else {
-        setStreakSummary(computeStudyStreakFromDayMs(map, toStr));
+        setStreakSummary(computeStudyStreakFromDayMs(presenceMap, toStr));
       }
       setStudyDaysStatus("ready");
       studyDaysCommittedRef.current = true;
@@ -541,10 +574,7 @@ export default function StudentHomeDashboard() {
         },
         () => {
           void loadStudyDays();
-          // Fan out so sidebar streak / checklist / profile listeners refresh without their own channels.
-          if (typeof window !== "undefined") {
-            window.dispatchEvent(new CustomEvent(EDUBLAST_STUDY_DAYS_REFRESH));
-          }
+          notifyStudyDaysRefresh();
         }
       )
       .subscribe();
@@ -584,20 +614,12 @@ export default function StudentHomeDashboard() {
     let cancelled = false;
     void (async () => {
       const subjects: Subject[] = ["physics", "chemistry", "math"];
-      const results = await Promise.all(
-        subjects.map((subject) =>
-          fetchAdvancedLessonCompletionKeys({
-            subject,
-            classLevel: effectiveClass,
-            board: boardNormForUpcomingLessons,
-          })
-        )
+      const merged = await fetchMergedAdvancedLessonCompletionKeys(
+        subjects,
+        effectiveClass,
+        boardNormForUpcomingLessons
       );
       if (cancelled) return;
-      const merged = new Set<string>();
-      for (const s of results) {
-        for (const k of s) merged.add(k);
-      }
       setAdvancedLessonKeys(merged);
     })();
     return () => {
@@ -771,9 +793,12 @@ export default function StudentHomeDashboard() {
 
   const [chapterAccuracyPageIdx, setChapterAccuracyPageIdx] = useState(0);
 
+  const isChapterAccuracyPaginated = chapterRows.length >= 5;
+  const chapterAccuracyPageSize = isChapterAccuracyPaginated ? 3 : 5;
+
   const chapterAccuracyPageCount = useMemo(
-    () => Math.max(1, Math.ceil(chapterRows.length / CHAPTER_ACCURACY_PAGE_SIZE)),
-    [chapterRows.length]
+    () => Math.max(1, Math.ceil(chapterRows.length / chapterAccuracyPageSize)),
+    [chapterRows.length, chapterAccuracyPageSize]
   );
 
   /** Clamp when chapter list shrinks so we never point past the last page. */
@@ -783,9 +808,9 @@ export default function StudentHomeDashboard() {
   );
 
   const chapterRowsVisible = useMemo(() => {
-    const start = effectiveChapterPageIdx * CHAPTER_ACCURACY_PAGE_SIZE;
-    return chapterRows.slice(start, start + CHAPTER_ACCURACY_PAGE_SIZE);
-  }, [chapterRows, effectiveChapterPageIdx]);
+    const start = effectiveChapterPageIdx * chapterAccuracyPageSize;
+    return chapterRows.slice(start, start + chapterAccuracyPageSize);
+  }, [chapterRows, effectiveChapterPageIdx, chapterAccuracyPageSize]);
 
   const [dailyChecklist, setDailyChecklist] = useState<DailyChecklistApiResponse | null>(null);
   const [dailyChecklistStatus, setDailyChecklistStatus] = useState<
@@ -799,6 +824,9 @@ export default function StudentHomeDashboard() {
     typeof window !== "undefined" ? getFreeTrialActivated(profile) : false
   );
   const [isOnboardingRewardOpen, setIsOnboardingRewardOpen] = useState(false);
+  const [welcomeRdm, setWelcomeRdm] = useState(
+    DEFAULT_RDM_CONFIG.free_trial_welcome_rdm
+  );
   const [checklistRewardRdm, setChecklistRewardRdm] = useState(
     DEFAULT_RDM_CONFIG.free_trial_checklist_reward_rdm
   );
@@ -818,21 +846,17 @@ export default function StudentHomeDashboard() {
     const silent = dailyChecklistCommittedRef.current;
     if (!silent) setDailyChecklistStatus("loading");
     try {
-      const headers = await getClientApiAuthHeaders();
       const q = new URLSearchParams({
         today,
         dayStart,
         dayEnd,
         subjects,
       });
-      const res = await fetchWithClientAuth(`/api/user/daily-checklist?${q.toString()}`, {
-        headers,
-      });
-      if (!res.ok) {
+      const json = await fetchDailyChecklist(q);
+      if (!json) {
         if (!silent) setDailyChecklistStatus("error");
         return;
       }
-      const json = (await res.json()) as DailyChecklistApiResponse;
       setDailyChecklist(json);
       setDailyChecklistStatus("ready");
       dailyChecklistCommittedRef.current = true;
@@ -909,6 +933,7 @@ export default function StudentHomeDashboard() {
         checklistRewardRdm: state.checklistRewardRdm,
       });
       setChecklistRewardRdm(state.checklistRewardRdm);
+      setWelcomeRdm(state.freeTrialWelcomeRdm ?? DEFAULT_RDM_CONFIG.free_trial_welcome_rdm);
       startTransition(() => applyDashboardPopupPhase());
     });
     return () => {
@@ -1491,13 +1516,18 @@ export default function StudentHomeDashboard() {
       {/* Study streak */}
       <section className="rounded-2xl border border-border bg-card/90 p-4 shadow-sm dark:bg-slate-950/60">
         <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2">
-            <CalendarDays className="h-5 w-5 text-teal-500" />
+          <div className="flex items-center gap-2 flex-wrap">
+            <CalendarDays className="h-5 w-5 text-teal-500 shrink-0" />
             <h2 className="text-base font-bold text-foreground sm:text-lg">Study streak</h2>
+            {inactivePenaltyRdm > 0 ? (
+              <span className="inline-flex w-fit items-center rounded-full border border-rose-500/40 bg-rose-500/10 px-2 py-0.5 text-[10px] font-bold text-rose-600 dark:text-rose-400 sm:px-2.5 sm:py-1 sm:text-[11px]">
+                -{inactivePenaltyRdm.toLocaleString("en-IN")} RDM Inactive streak
+              </span>
+            ) : null}
           </div>
           <span className="inline-flex w-fit items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-600 sm:px-2.5 sm:py-1 sm:text-[11px] dark:text-amber-300">
             <Flame className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-            Week {studyStreakBonusWeek} bonus: +{studyStreakBonusRdm.toLocaleString("en-IN")} RDM
+            {studyStreakBonusDays} days Active streak bonus: +{studyStreakBonusRdm.toLocaleString("en-IN")} RDM
           </span>
         </div>
 
@@ -1623,16 +1653,15 @@ export default function StudentHomeDashboard() {
           <span className="h-3 w-8 rounded bg-gradient-to-r from-red-950/70 via-emerald-500/60 to-emerald-950" />
           <span>More</span>
           <span className="ml-0 max-sm:hidden sm:ml-2">
-            Red = no focus or under 10 minutes that day; light → dark green = longer focus (same as
+            Red = no focus or under 30 minutes that day; light → dark green = longer focus (same as
             your profile heatmap). Cell numbers show time on EduBlast with this tab in the
-            foreground (pauses when you switch tabs). Tooltips also show saved study time toward
-            your streak (play + topic quizzes). A dash means no on-site time that day;{" "}
+            foreground (pauses when you switch tabs). A dash means no on-site time that day;{" "}
             <span className="font-mono">{"<1m"}</span> means under one minute on site. Streak =
-            consecutive calendar days with any saved study time, counted through your most recent
+            consecutive calendar days with at least 30 minutes of on-site time, counted through your most recent
             active day on or before today.
           </span>
           <span className="sm:hidden">
-            Red = under 10 min; green = longer focus. Tap cells for details.
+            Red = under 30 min; green = longer focus. Tap cells for details.
           </span>
         </div>
       </section>
@@ -1964,7 +1993,7 @@ export default function StudentHomeDashboard() {
             <>
               <ul className="space-y-3">
                 {chapterRowsVisible.map((row, i) => {
-                  const toneIdx = effectiveChapterPageIdx * CHAPTER_ACCURACY_PAGE_SIZE + i;
+                  const toneIdx = effectiveChapterPageIdx * chapterAccuracyPageSize + i;
                   const rowBody = (
                     <>
                       <div className="mb-1 flex justify-between text-sm font-semibold">
@@ -2003,12 +2032,12 @@ export default function StudentHomeDashboard() {
                   );
                 })}
               </ul>
-              {chapterRows.length > CHAPTER_ACCURACY_PAGE_SIZE ? (
+              {isChapterAccuracyPaginated ? (
                 <div className="mt-3 flex flex-col gap-2.5 border-t border-border/60 pt-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                   <p className="text-[11px] text-muted-foreground tabular-nums">
-                    Showing {effectiveChapterPageIdx * CHAPTER_ACCURACY_PAGE_SIZE + 1}–
+                    Showing {effectiveChapterPageIdx * chapterAccuracyPageSize + 1}–
                     {Math.min(
-                      (effectiveChapterPageIdx + 1) * CHAPTER_ACCURACY_PAGE_SIZE,
+                      (effectiveChapterPageIdx + 1) * chapterAccuracyPageSize,
                       chapterRows.length
                     )}{" "}
                     of {chapterRows.length} chapters
@@ -2183,37 +2212,86 @@ export default function StudentHomeDashboard() {
                 View grants →
               </Link>
             </div>
-            <ul className="space-y-4">
-              {edufundTiers.map((tier) => (
-                <li key={tier.name}>
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="font-bold">{tier.name}</p>
-                    <span
-                      className={cn(
-                        "rounded-full px-2 py-0.5 text-[10px] font-bold",
-                        tier.status === "Unlocked" && "bg-emerald-500/15 text-emerald-600",
-                        tier.status === "In progress" && "bg-indigo-500/15 text-indigo-300",
-                        tier.status === "Locked" && "bg-orange-500/15 text-orange-400"
-                      )}
-                    >
-                      {tier.status}
-                    </span>
+
+            {/* Multiplier scaling details card */}
+            {(() => {
+              const wallet = Math.max(0, Math.floor(Number(rdm) || 0));
+              const planTier = (profile?.plan_tier ?? "free_trial") as "free" | "free_trial" | "starter" | "pro";
+              const isSubscribed = planTier === "starter" || planTier === "pro";
+              const activeMultiplier = calculateActiveMultiplier(
+                planTier,
+                profile?.subscription_started_at,
+                profile?.created_at ?? new Date().toISOString(),
+                subscriptionCfg
+              );
+              const effectiveWallet = Math.floor(wallet * activeMultiplier);
+
+              return (
+                <>
+                  <div className="mb-4 rounded-xl border border-slate-700/60 bg-slate-900/40 p-2.5 text-xs text-slate-300 dark:border-slate-800/80">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-slate-400">Raw Earned RDM:</span>
+                      <span className="font-semibold text-white">{wallet.toLocaleString("en-IN")} RDM</span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs mt-1">
+                      <span className="text-slate-400">Active Multiplier:</span>
+                      <span className={cn(
+                        "font-bold px-2 py-0.5 rounded-full text-[12px] sm:text-xs border",
+                        isSubscribed 
+                          ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" 
+                          : "bg-amber-500/10 text-amber-300 border-amber-500/20 animate-pulse"
+                      )}>
+                        {activeMultiplier.toFixed(2)}x
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs mt-1.5 border-t border-slate-700/50 pt-1.5 dark:border-slate-800/50">
+                      <span className="font-semibold text-emerald-400">Effective EduFund RDM:</span>
+                      <span className="font-extrabold text-emerald-400 tabular-nums">{effectiveWallet.toLocaleString("en-IN")} RDM</span>
+                    </div>
                   </div>
-                  <p className="mt-1 text-xs text-muted-foreground">{tier.detail}</p>
-                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
-                    <div
-                      className={cn(
-                        "h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400"
-                      )}
-                      style={{ width: `${tier.progress * 100}%` }}
-                    />
-                  </div>
-                  <p className={cn("mt-1 text-sm font-bold", tier.tone)}>{tier.amount}</p>
-                </li>
-              ))}
-            </ul>
-            <p className="mt-2 text-[11px] text-muted-foreground">
-              Uses your live RDM balance and real EduFund tier thresholds.
+
+                  <ul className="space-y-4">
+                    {edufundTiers.map((tier) => (
+                      <li key={tier.name}>
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <p className="font-bold">{tier.name}</p>
+                          <span
+                            className={cn(
+                              "rounded-full px-2 py-0.5 text-[10px] font-bold",
+                              tier.status === "Unlocked" && "bg-emerald-500/15 text-emerald-600",
+                              tier.status === "In progress" && "bg-indigo-500/15 text-indigo-300",
+                              tier.status === "Locked" && "bg-orange-500/15 text-orange-400"
+                            )}
+                          >
+                            {tier.status}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-xs text-muted-foreground">{tier.detail}</p>
+                        <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
+                          <div
+                            className={cn(
+                              "h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400"
+                            )}
+                            style={{ width: `${tier.progress * 100}%` }}
+                          />
+                        </div>
+                        <p className={cn("mt-1 text-sm font-bold", tier.tone)}>{tier.amount}</p>
+                      </li>
+                    ))}
+                  </ul>
+
+                  {!isSubscribed && (
+                    <div className="mt-4 rounded-xl border border-violet-500/30 bg-violet-600/10 p-3 text-[11px] leading-relaxed text-violet-200">
+                      <span className="font-bold text-violet-400 block mb-0.5">🚀 Upgrade to Premium Rate!</span>
+                      Your raw effort has built <strong>{wallet.toLocaleString("en-IN")} RDM</strong>. Upgrading to premium unlocks a <strong>1.0x rate</strong>—boosting your grant progress from {effectiveWallet.toLocaleString("en-IN")} RDM to <strong>{wallet.toLocaleString("en-IN")} RDM</strong> instantly!
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+
+            <p className="mt-2.5 text-[10px] text-slate-500">
+              * RDM is subject to multiplier scaling based on active subscription tier.
             </p>
           </div>
         </div>
@@ -2222,6 +2300,7 @@ export default function StudentHomeDashboard() {
       <FreeTrialPromoDialog
         open={freeTrialDialogOpen}
         onOpenChange={setFreeTrialPromoOpen}
+        welcomeRdm={welcomeRdm}
         checklistRewardRdm={checklistRewardRdm}
       />
       <OnboardingRewardDialog

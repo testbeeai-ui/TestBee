@@ -15,7 +15,6 @@ export function isStudentProfileBasicInfoComplete(
   if (!hasText(profile.city)) return false;
   if ((profile.phone ?? "").replace(/\D/g, "").length !== 10) return false;
   if (!hasText(profile.gender)) return false;
-  if (!hasText(profile.category)) return false;
   if (!hasText(accountEmail)) return false;
   return true;
 }

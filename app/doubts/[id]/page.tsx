@@ -750,7 +750,7 @@ export default function DoubtDetailPage() {
                     <Flag className="w-3.5 h-3.5" />
                   </Button>
                 )}
-                {isAuthor && !doubt.is_resolved && !a.is_accepted && (
+                {isAuthor && user?.id !== a.user_id && !isAiTutorAnswer(a) && !doubt.is_resolved && !a.is_accepted && (
                   <Button
                     size="sm"
                     variant="outline"

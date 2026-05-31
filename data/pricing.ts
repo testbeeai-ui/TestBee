@@ -7,7 +7,6 @@ export const pricingPlans: PricingPlan[] = [
     price: "₹0",
     rdmAmount: 0,
     features: [
-      "100 RDM on signup",
       "Earn RDM through correct answers",
       "Basic question access",
       "Revision Bank (limited)",

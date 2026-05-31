@@ -2,7 +2,7 @@
 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Plus, Sparkles } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { OnboardingClickHerePointer } from "@/components/onboarding/OnboardingClickHerePointer";
 
@@ -51,15 +51,6 @@ export default function LiveQAHeader({
             onClick={onAskClick}
           >
             <Plus className="w-4 h-4 mr-1.5" /> Ask (+{askRewardRdm} RDM)
-          </Button>
-          <Button
-            variant="outline"
-            className="rounded-xl h-11 flex-1 sm:flex-initial font-bold border-edu-orange text-edu-orange hover:bg-edu-orange/10"
-            onClick={() => toast({ title: "AI-generated questions coming soon!" })}
-          >
-            <Sparkles className="w-4 h-4 sm:mr-1.5 shrink-0" />
-            <span className="hidden min-[380px]:inline">AI generate Q</span>
-            <span className="min-[380px]:hidden">AI Q</span>
           </Button>
         </div>
       </div>

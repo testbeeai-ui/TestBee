@@ -1,10 +1,17 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
 import {
+  buildMagicWallAddLimitError,
+  computeMagicWallUsage,
+  getRollingMonthlyPeriodBounds,
+} from "@/lib/subscription/magicWallQuota";
+import {
   fetchSubscriptionConfig,
   getPlanLimits,
   isUnlimited,
   normalizePlanTier,
+  type SubscriptionPlanKey,
+  type SubscriptionPlanLimits,
 } from "@/lib/subscription/subscriptionConfig";
 
 type InsertItem = {
@@ -86,12 +93,57 @@ function normalizeTopicKeys(raw: unknown): string[] {
   return out.slice(0, 500);
 }
 
+async function loadMagicWallUsage(
+  db: { from: (table: string) => any },
+  userId: string,
+  plan: SubscriptionPlanKey,
+  limits: SubscriptionPlanLimits,
+  accountCreatedAt: string | null,
+  activeCount: number
+) {
+  const anchorIso = accountCreatedAt ?? new Date().toISOString();
+  const { periodStart, periodEnd } = getRollingMonthlyPeriodBounds(anchorIso);
+
+  let monthlyUsed = 0;
+  if (!isUnlimited(limits.magicWallMonthlyAttempts)) {
+    const { count: attemptsUsed, error: attemptsErr } = await db
+      .from("magic_wall_topic_attempts")
+      .select("*", { head: true, count: "exact" })
+      .eq("user_id", userId)
+      .gte("attempted_at", periodStart.toISOString());
+    if (attemptsErr) throw new Error(attemptsErr.message);
+    monthlyUsed = attemptsUsed ?? 0;
+  }
+
+  return computeMagicWallUsage({
+    plan,
+    activeCount,
+    monthlyUsed,
+    maxActive: limits.magicWallMaxActiveTopics,
+    monthlyLimit: limits.magicWallMonthlyAttempts,
+    periodStart,
+    periodEnd,
+  });
+}
+
 export async function GET(request: Request) {
   try {
     const ctx = await getSupabaseAndUser(request);
     if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     const { supabase, user } = ctx;
     const db = supabase as any;
+
+    const { data: profile, error: profileErr } = await supabase
+      .from("profiles")
+      .select("plan_tier, free_trial_activated, created_at")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (profileErr) return NextResponse.json({ error: profileErr.message }, { status: 500 });
+
+    const plan = normalizePlanTier(profile?.plan_tier, profile?.free_trial_activated);
+    const cfg = await fetchSubscriptionConfig(supabase as unknown as any);
+    const limits = getPlanLimits(cfg, plan);
+
     const { data, error } = await db
       .from("magic_wall_basket_items")
       .select(
@@ -101,6 +153,7 @@ export async function GET(request: Request) {
       .order("created_at", { ascending: false })
       .limit(500);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
     const items = (data ?? []).map((row: Record<string, unknown>) => ({
       id: row.id,
       topicKey: row.topic_key,
@@ -114,7 +167,17 @@ export async function GET(request: Request) {
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     }));
-    return NextResponse.json({ items });
+
+    const usage = await loadMagicWallUsage(
+      db,
+      user.id,
+      plan,
+      limits,
+      profile?.created_at ?? null,
+      items.length
+    );
+
+    return NextResponse.json({ items, usage });
   } catch (e) {
     console.error("magic-wall basket GET error", e);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
@@ -133,7 +196,7 @@ export async function POST(request: Request) {
 
     const { data: profile, error: profileErr } = await supabase
       .from("profiles")
-      .select("plan_tier, free_trial_activated")
+      .select("plan_tier, free_trial_activated, created_at")
       .eq("id", user.id)
       .maybeSingle();
     if (profileErr) return NextResponse.json({ error: profileErr.message }, { status: 500 });
@@ -153,36 +216,32 @@ export async function POST(request: Request) {
     );
     const toAdd = items.filter((it) => !existing.has(it.topicKey));
 
+    const usage = await loadMagicWallUsage(
+      db,
+      user.id,
+      plan,
+      limits,
+      profile?.created_at ?? null,
+      existing.size
+    );
+
     if (!isUnlimited(limits.magicWallMaxActiveTopics)) {
       const finalSize = existing.size + toAdd.length;
       if (finalSize > limits.magicWallMaxActiveTopics) {
         return NextResponse.json(
           {
-            error: `Active topic limit reached (${limits.magicWallMaxActiveTopics}) for ${plan}.`,
+            error: `Active topic limit reached (${limits.magicWallMaxActiveTopics}) for ${plan}. Complete a topic to free a slot.`,
           },
           { status: 403 }
         );
       }
     }
 
-    if (!isUnlimited(limits.magicWallMonthlyAttempts)) {
-      const monthStart = new Date();
-      monthStart.setUTCDate(1);
-      monthStart.setUTCHours(0, 0, 0, 0);
-      const { count: attemptsUsed, error: attemptsErr } = await db
-        .from("magic_wall_topic_attempts")
-        .select("*", { head: true, count: "exact" })
-        .eq("user_id", user.id)
-        .gte("attempted_at", monthStart.toISOString());
-      if (attemptsErr) return NextResponse.json({ error: attemptsErr.message }, { status: 500 });
-      const used = attemptsUsed ?? 0;
-      if (used + toAdd.length > limits.magicWallMonthlyAttempts) {
-        return NextResponse.json(
-          {
-            error: `Monthly attempt limit reached (${limits.magicWallMonthlyAttempts}) for ${plan}.`,
-          },
-          { status: 403 }
-        );
+    if (toAdd.length > 0) {
+      const allowed = usage.newPicksAllowed;
+      if (allowed !== null && toAdd.length > allowed) {
+        const msg = buildMagicWallAddLimitError(usage, toAdd.length);
+        return NextResponse.json({ error: msg || "Topic pick limit reached." }, { status: 403 });
       }
     }
 

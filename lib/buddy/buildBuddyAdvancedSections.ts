@@ -82,10 +82,10 @@ export async function buildBuddyAdvancedSections(
 
   const studyRows = studyDaysRes.data ?? [];
   const activeDays60d = studyRows.filter(
-    (r) => Math.max(r.active_ms ?? 0, r.presence_ms ?? 0) > 0
+    (r) => (r.presence_ms ?? 0) >= 1800000
   ).length;
   const totalActiveMs = studyRows.reduce(
-    (s, r) => s + Math.max(r.active_ms ?? 0, r.presence_ms ?? 0),
+    (s, r) => s + (r.presence_ms ?? 0),
     0
   );
   const avgDailyMs = activeDays60d > 0 ? Math.round(totalActiveMs / activeDays60d) : 0;
@@ -93,7 +93,7 @@ export async function buildBuddyAdvancedSections(
   const msByDay = new Map<string, number>();
   for (const r of studyRows) {
     if (r.day) {
-      msByDay.set(r.day, Math.max(r.active_ms ?? 0, r.presence_ms ?? 0));
+      msByDay.set(r.day, r.presence_ms ?? 0);
     }
   }
   const dayStreak = computeStudyStreakFromDayMs(msByDay, istToday).streak;
@@ -105,7 +105,7 @@ export async function buildBuddyAdvancedSections(
     const key = d.toISOString().slice(0, 10);
     const hit = studyRows.find((r) => r.day === key);
     if (!hit) last10Days.push("unknown");
-    else if ((hit.active_ms ?? 0) > 0) last10Days.push("active");
+    else if ((hit.presence_ms ?? 0) >= 1800000) last10Days.push("active");
     else last10Days.push("miss");
   }
 

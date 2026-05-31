@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     // 2. Fetch all student profiles
     const { data: profiles, error: profilesError } = await (admin as any)
       .from("profiles")
-      .select("id, name, plan_tier, time_travel_enabled")
+      .select("id, name, plan_tier, time_travel_enabled, subscription_started_at")
       .eq("role", "student");
 
     if (profilesError) {
@@ -44,6 +44,7 @@ export async function GET(request: NextRequest) {
           email: u.email ?? null,
           name: p.name ?? null,
           plan_tier: p.plan_tier ?? "free",
+          subscription_started_at: p.subscription_started_at ?? null,
           time_travel_enabled: Boolean((p as any).time_travel_enabled),
         };
       })

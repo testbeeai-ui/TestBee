@@ -44,6 +44,12 @@ export async function GET(req: NextRequest) {
 
   // Table/RPC from migration `20260418160000_user_study_day_totals.sql`; add to `Database` when types are regenerated.
   const sb = auth.supabase as any;
+
+  const skipReconcile = url.searchParams.get("reconcile") === "0";
+  if (!skipReconcile) {
+    await sb.rpc("reconcile_inactive_day_penalties");
+  }
+
   const [{ data: rows, error }, summaryRes] = await Promise.all([
     sb
       .from("user_study_day_totals")
@@ -91,8 +97,8 @@ export async function GET(req: NextRequest) {
 
   if (today && summary == null && rows?.length) {
     const map = new Map<string, number>();
-    for (const r of rows as { day?: string; active_ms?: number }[]) {
-      if (r?.day && typeof r.active_ms === "number") map.set(r.day, Math.max(0, r.active_ms));
+    for (const r of rows as { day?: string; presence_ms?: number }[]) {
+      if (r?.day && typeof r.presence_ms === "number") map.set(r.day, Math.max(0, r.presence_ms));
     }
     summary = computeStudyStreakFromDayMs(map, today);
   }

@@ -45,7 +45,6 @@ export const PLAN_TIERS: PlanTier[] = [
           { name: "Gyan++ doubts", checked: true, badge: "1/day" },
           { name: "Leaderboard", checked: true },
           { name: "Learning buddy matching", checked: false },
-          { name: "Study groups", checked: false },
         ],
       },
       {
@@ -100,7 +99,6 @@ export const PLAN_TIERS: PlanTier[] = [
           { name: "Gyan++ doubts", checked: true, badge: "1/day" },
           { name: "Leaderboard", checked: true },
           { name: "Learning buddy matching", checked: false },
-          { name: "Study groups", checked: false },
         ],
       },
       {
@@ -156,7 +154,6 @@ export const PLAN_TIERS: PlanTier[] = [
           { name: "Gyan++ doubts", checked: true, badge: "30/day" },
           { name: "Leaderboard", checked: true, badge: "full rank" },
           { name: "Learning buddy matching", checked: true },
-          { name: "Study groups", checked: true, badge: "up to 2" },
         ],
       },
       {
@@ -212,7 +209,7 @@ export const PLAN_TIERS: PlanTier[] = [
         items: [
           { name: "Everything in Starter", checked: true },
           { name: "Gyan++ doubts", checked: true, badge: "unlimited" },
-          { name: "Study groups", checked: true, badge: "unlimited" },
+          { name: "Learning buddy matching", checked: true, badge: "unlimited" },
           { name: "Topper community access", checked: true },
         ],
       },

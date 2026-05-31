@@ -5,7 +5,7 @@ import Link from "next/link";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import type { PublicProfile } from "@/lib/profile/publicProfileService";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { HelpCircle, MessageSquare, CheckCircle2, Zap, ChevronRight, Flame } from "lucide-react";
+import { HelpCircle, MessageSquare, Zap, ChevronRight, Flame } from "lucide-react";
 
 const SUBJECT_COLORS: Record<string, string> = {
   physics: "bg-blue-500",
@@ -112,11 +112,11 @@ export function UserHoverCard({ userId, children, displayName }: UserHoverCardPr
                 <span className="text-[10px] text-muted-foreground">Answered</span>
               </div>
               <div className="rounded-lg bg-muted/60 p-2 text-center">
-                <CheckCircle2 className="w-3.5 h-3.5 text-muted-foreground mx-auto mb-0.5" />
+                <Flame className="w-3.5 h-3.5 text-edu-orange mx-auto mb-0.5" />
                 <span className="text-xs font-bold text-foreground block">
-                  {profile.acceptedAnswers}
+                  {profile.streakDays}d
                 </span>
-                <span className="text-[10px] text-muted-foreground">Accepted</span>
+                <span className="text-[10px] text-muted-foreground">Streak</span>
               </div>
               <div className="rounded-lg bg-muted/60 p-2 text-center">
                 <Zap className="w-3.5 h-3.5 text-muted-foreground mx-auto mb-0.5" />
@@ -240,9 +240,11 @@ export function UserHoverCard({ userId, children, displayName }: UserHoverCardPr
                 <span className="text-[10px] text-muted-foreground">Answered</span>
               </div>
               <div className="rounded-lg bg-muted/60 p-2 text-center">
-                <CheckCircle2 className="w-3.5 h-3.5 text-muted-foreground mx-auto mb-0.5" />
-                <span className="text-xs font-bold text-foreground block">0</span>
-                <span className="text-[10px] text-muted-foreground">Accepted</span>
+                <Flame className="w-3.5 h-3.5 text-muted-foreground mx-auto mb-0.5" />
+                <span className="text-xs font-bold text-foreground block">
+                  0d
+                </span>
+                <span className="text-[10px] text-muted-foreground">Streak</span>
               </div>
               <div className="rounded-lg bg-muted/60 p-2 text-center">
                 <Zap className="w-3.5 h-3.5 text-muted-foreground mx-auto mb-0.5" />

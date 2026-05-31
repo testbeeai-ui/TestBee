@@ -20,7 +20,6 @@ export type DailyDoseProfileFields = {
 /**
  * Questions per DailyDose session from admin subscription config
  * (e.g. `free_trial_daily_dose_questions_per_day` = 5).
- * Streak Survival stays on its own 10-Q cap in play/page.tsx.
  */
 export function resolveDailyDoseQuestionsPerSession(
   cfg: SubscriptionConfig,

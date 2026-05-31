@@ -29,8 +29,8 @@ export type RdmConfigParams = {
   play_dailydose_funbrain_rdm: number;
   play_dual_streak_7_rdm: number;
   play_dual_streak_30_rdm: number;
-  /** Dashboard badge copy only: week number shown for study streak bonus callout. */
-  study_streak_bonus_week_number: number;
+  /** Dashboard badge copy only: day count shown for study streak bonus callout. */
+  study_streak_bonus_days: number;
   /** Dashboard badge copy only: RDM amount shown for study streak bonus callout. */
   study_streak_bonus_rdm: number;
   /** Min questions in submit payload to award DailyDose RDM; keep in sync with question fetch */
@@ -56,7 +56,17 @@ export type RdmConfigParams = {
   /** Gyan++: teacher answer reward shown in Teacher Section UI */
   gyan_teacher_answer_rdm: number;
 
-  /** RDM for free-trial onboarding checklist (claim on completion; also used for trial wizard copy) */
+  /** Welcome bonus RDM credited immediately to the student upon activating the 14-day free trial. */
+  free_trial_welcome_rdm: number;
+  /** Penalty RDM deducted from a free-trial user when they spend less than 30 minutes on-site during a trial day. */
+  free_trial_inactive_penalty_rdm: number;
+  /** Penalty RDM deducted from a free plan user when they spend less than 30 minutes on-site during a calendar day. */
+  free_inactive_penalty_rdm: number;
+  /** Penalty RDM deducted from a Starter plan user when they spend less than 30 minutes on-site during a calendar day. */
+  starter_inactive_penalty_rdm: number;
+  /** Penalty RDM deducted from a Pro plan user when they spend less than 30 minutes on-site during a calendar day. Set 0 to disable. */
+  pro_inactive_penalty_rdm: number;
+  /** RDM for free-trial onboarding checklist (claim on completion) */
   free_trial_checklist_reward_rdm: number;
   free_trial_daily_streak_reward_rdm: number;
 
@@ -90,8 +100,8 @@ export const DEFAULT_RDM_CONFIG: RdmConfigParams = {
   play_dailydose_funbrain_rdm: 10,
   play_dual_streak_7_rdm: 50,
   play_dual_streak_30_rdm: 200,
-  study_streak_bonus_week_number: 3,
-  study_streak_bonus_rdm: 150,
+  study_streak_bonus_days: 90,
+  study_streak_bonus_rdm: 500,
   play_dailydose_min_questions_for_rdm: 10,
 
   subtopic_quiz_advanced_rdm: 15,
@@ -105,6 +115,11 @@ export const DEFAULT_RDM_CONFIG: RdmConfigParams = {
   gyan_save_rdm: 3,
   gyan_teacher_answer_rdm: 5,
 
+  free_trial_welcome_rdm: 500,
+  free_trial_inactive_penalty_rdm: 50,
+  free_inactive_penalty_rdm: 50,
+  starter_inactive_penalty_rdm: 50,
+  pro_inactive_penalty_rdm: 25,
   free_trial_checklist_reward_rdm: 100,
   free_trial_daily_streak_reward_rdm: 80,
 

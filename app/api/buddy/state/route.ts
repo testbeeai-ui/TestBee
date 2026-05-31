@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient, createClient } from "@/integrations/supabase/server";
 import { listActiveBuddyPairsForUser } from "@/lib/buddy/activeBuddyLink";
 import { verifyBuddyOnboardingForInviter } from "@/lib/buddy/buddyOnboardingVerification";
-import { BUDDY_MAX_ACTIVE } from "@/lib/buddy/buddyPrivacy";
+import { resolveMaxBuddiesForUserId } from "@/lib/buddy/buddyPlanLimits";
 import { normalizeBuddyRdm } from "@/lib/buddy/buddyClient";
 import { requireAuthenticatedUser } from "@/lib/auth/securityGuards";
 
@@ -18,7 +18,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "SUPABASE_SERVICE_ROLE_KEY is not set" }, { status: 500 });
   }
 
-  const [pairsResult, invitesRes, buddyOnboarding] = await Promise.all([
+  const [pairsResult, invitesRes, buddyOnboarding, buddyLimit] = await Promise.all([
     listActiveBuddyPairsForUser(admin, uid),
     supabase
       .from("buddy_invites")
@@ -27,6 +27,7 @@ export async function GET(request: Request) {
       .eq("status", "pending")
       .order("created_at", { ascending: false }),
     verifyBuddyOnboardingForInviter(supabase, admin, uid),
+    resolveMaxBuddiesForUserId(supabase as unknown as Parameters<typeof resolveMaxBuddiesForUserId>[0], uid),
   ]);
 
   if (pairsResult.error) {
@@ -81,7 +82,9 @@ export async function GET(request: Request) {
         createdAt: row.created_at,
         expiresAt: row.expires_at,
       })),
-      maxBuddies: BUDDY_MAX_ACTIVE,
+      maxBuddies: buddyLimit.effectiveCap,
+      buddiesLimit: buddyLimit.rawLimit,
+      buddiesUnlimited: buddyLimit.unlimited,
       /** Legacy — accepted invite exists (may not be actively paired). */
       hasBuddyInviteActivated: buddyOnboarding.hasAcceptedInvite,
       /** Checklist source of truth — invite accepted AND buddy actively paired. */

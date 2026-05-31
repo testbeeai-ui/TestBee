@@ -50,14 +50,17 @@ import {
   INITIAL_TRIAL_ONBOARDING_ANSWERS,
   TRIAL_OTHER_EDTECH_PLATFORM,
   TRIAL_OTHER_STATE_BOARD,
+  TRIAL_PRIMARY_SCHOOL_ONLY,
   TRIAL_STEP_PCTS,
   type TrialOnboardingAnswers,
 } from "@/components/dashboard/free-trial-onboarding/types";
 import {
   displayBoard,
   displayClass,
+  displayPrimaryPlatform,
   displaySecondaryPlatforms,
   hasOtherEdtechSecondary,
+  isSchoolOnlyPrimary,
   isOtherStateBoard,
   validateScreen1,
   validateScreen2,
@@ -69,6 +72,7 @@ import {
 type FreeTrialPromoDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  welcomeRdm?: number;
   checklistRewardRdm?: number;
 };
 
@@ -118,6 +122,7 @@ function CustomTextInput({
   value,
   onChange,
   error,
+  required = true,
 }: {
   id: string;
   label: string;
@@ -125,14 +130,17 @@ function CustomTextInput({
   value: string;
   onChange: (value: string) => void;
   error?: string;
+  required?: boolean;
 }) {
   return (
     <div className="mt-2.5">
       <label htmlFor={id} className="mb-1.5 block text-[11px] font-medium text-[#9BA3B8]">
         {label}
-        <span className="ml-0.5 text-[#D85A30]" aria-hidden>
-          *
-        </span>
+        {required ? (
+          <span className="ml-0.5 text-[#D85A30]" aria-hidden>
+            *
+          </span>
+        ) : null}
       </label>
       <input
         id={id}
@@ -274,6 +282,7 @@ function summaryTargetExam(answers: TrialOnboardingAnswers) {
 export function FreeTrialPromoDialog({
   open,
   onOpenChange,
+  welcomeRdm = DEFAULT_RDM_CONFIG.free_trial_welcome_rdm,
   checklistRewardRdm = DEFAULT_RDM_CONFIG.free_trial_checklist_reward_rdm,
 }: FreeTrialPromoDialogProps) {
   const { profile, refreshProfile } = useAuth();
@@ -513,7 +522,7 @@ export function FreeTrialPromoDialog({
                 </div>
                 <div className="mx-auto mb-3 inline-flex items-center gap-1.5 rounded-full border border-[#3a2810] bg-[#281C08] px-3 py-1 text-[11px] font-medium text-[#FAC775]">
                   <span className="h-[7px] w-[7px] rounded-full bg-[#EF9F27]" />
-                  {checklistRewardRdm} RDM welcome bonus included
+                  {welcomeRdm} RDM welcome bonus included
                 </div>
                 <h2 className="text-[22px] font-medium leading-snug text-[#E8EAF0]">
                   Your 2-week FREE trial
@@ -852,13 +861,18 @@ export function FreeTrialPromoDialog({
                       { label: "Self-study", icon: <Book className="h-3 w-3" /> },
                       { label: "Personal tutor", icon: <UserCheck className="h-3 w-3" /> },
                       { label: "Mentor", icon: <Star className="h-3 w-3" /> },
-                      { label: "School only", icon: <School className="h-3 w-3" /> },
+                      { label: TRIAL_PRIMARY_SCHOOL_ONLY, icon: <School className="h-3 w-3" /> },
                     ].map(({ label, icon }) => (
                       <Pill
                         key={label}
                         active={answers.primaryPlatform === label}
                         onClick={() => {
-                          pickOne("primaryPlatform", label);
+                          setAnswers((prev) => ({
+                            ...prev,
+                            primaryPlatform: label,
+                            schoolName:
+                              label === TRIAL_PRIMARY_SCHOOL_ONLY ? prev.schoolName : "",
+                          }));
                           setValidationErrors((prev) => {
                             const next = { ...prev };
                             delete next.primaryPlatform;
@@ -873,6 +887,16 @@ export function FreeTrialPromoDialog({
                   </div>
                   <FieldError message={validationErrors.primaryPlatform} />
                 </div>
+                {isSchoolOnlyPrimary(answers) ? (
+                  <CustomTextInput
+                    id="trial-school-name"
+                    label="Which school do you attend?"
+                    placeholder="e.g. Delhi Public School, Kendriya Vidyalaya"
+                    value={answers.schoolName}
+                    required={false}
+                    onChange={(value) => pickOne("schoolName", value)}
+                  />
+                ) : null}
                 <div className="h-px bg-[#2A3347]" />
                 <p className="text-[11px] font-medium uppercase tracking-[0.07em] text-[#5C6480]">
                   Secondary / additional platform (select all that apply)
@@ -1090,7 +1114,7 @@ export function FreeTrialPromoDialog({
                             : `${displayClass(answers)} · ${displayBoard(answers)}`,
                       },
                       { label: "Target exam", value: summaryTargetExam(answers) },
-                      { label: "Primary learning", value: answers.primaryPlatform ?? "—" },
+                      { label: "Primary learning", value: displayPrimaryPlatform(answers) },
                       {
                         label: "Also using",
                         value: displaySecondaryPlatforms(answers),
@@ -1108,7 +1132,7 @@ export function FreeTrialPromoDialog({
                   <Coins className="h-5 w-5 shrink-0 text-[#1D9E75]" />
                   <div>
                     <p className="text-xs font-medium text-[#9FE1CB]">
-                      {checklistRewardRdm} RDM welcome bonus
+                      {welcomeRdm} RDM welcome bonus
                     </p>
                     <p className="mt-0.5 text-[11px] text-[#1D9E75]">
                       Credited the moment you press Start — use it to reach EduFund grants faster.
@@ -1154,7 +1178,7 @@ export function FreeTrialPromoDialog({
               </div>
               <h2 className="text-[20px] font-medium text-[#E8EAF0]">Welcome to EduBlast!</h2>
               <p className="mx-auto mb-3 max-w-md text-xs leading-relaxed text-[#9BA3B8]">
-                Your 14-day free trial is now live. Your {checklistRewardRdm} RDM welcome bonus has
+                Your 14-day free trial is now live. Your {welcomeRdm} RDM welcome bonus has
                 been credited. Press OK to enter and your countdown begins.
               </p>
               <div className="mb-2.5 flex items-center gap-2.5 rounded-lg border border-[#1D9E75] bg-gradient-to-r from-[#0A2A20] to-[#171425] px-3 py-2 text-left">

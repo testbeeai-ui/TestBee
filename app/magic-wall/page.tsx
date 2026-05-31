@@ -32,10 +32,13 @@ import {
   fetchMagicWallBasket,
   type MagicWallBasketInsert,
   type MagicWallBasketItem,
+  type MagicWallUsage,
   upsertMagicWallBasketItems,
   removeMagicWallBasketItems,
   makeTopicKey,
 } from "@/lib/templates/magicWallBasketService";
+import { formatMagicWallPeriodEndLocal } from "@/lib/subscription/magicWallQuota";
+import { isUnlimited } from "@/lib/subscription/subscriptionConfig";
 import {
   BookOpen,
   Filter,
@@ -98,6 +101,14 @@ function setsEqual(a: Set<string>, b: Set<string>): boolean {
   if (a.size !== b.size) return false;
   for (const k of a) if (!b.has(k)) return false;
   return true;
+}
+
+function countNetNewTopicKeys(selected: Set<string>, saved: Set<string>): number {
+  let n = 0;
+  for (const k of selected) {
+    if (!saved.has(k)) n += 1;
+  }
+  return n;
 }
 
 /* ── Rain animation (EduBlast-style trickle + de-clustered flow) ─ */
@@ -202,7 +213,6 @@ export default function MagicWallPage() {
   const isAdmin = useIsAppAdmin();
   const [planMaxPicks, setPlanMaxPicks] = useState(DEFAULT_RDM_CONFIG.magic_wall_max_topics);
   const currentPlan = normalizePlanTier(profile?.plan_tier, profile?.free_trial_activated);
-  const maxPicks = isAdmin ? 5 : planMaxPicks;
   const [showSaveConfirmOpen, setShowSaveConfirmOpen] = useState(false);
   const storeUser = useUserStore((s) => s.user);
   const { toast } = useToast();
@@ -221,7 +231,15 @@ export default function MagicWallPage() {
   const selectedTopicKeysRef = useRef(selectedTopicKeys);
   selectedTopicKeysRef.current = selectedTopicKeys;
   const [basketItems, setBasketItems] = useState<MagicWallBasketItem[]>([]);
+  const [basketUsage, setBasketUsage] = useState<MagicWallUsage | null>(null);
   const [loadingBasket, setLoadingBasket] = useState(false);
+
+  const maxPicks = isAdmin
+    ? 5
+    : basketUsage && !isUnlimited(basketUsage.maxActive)
+      ? basketUsage.maxActive
+      : planMaxPicks;
+  const newPicksAllowed = isAdmin ? null : (basketUsage?.newPicksAllowed ?? null);
   const [savingBasket, setSavingBasket] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -730,8 +748,9 @@ export default function MagicWallPage() {
     void (async () => {
       try {
         await removeMagicWallBasketItems(completedTopicKeys);
-        const rows = await fetchMagicWallBasket();
+        const { items: rows, usage } = await fetchMagicWallBasket();
         setBasketItems(rows);
+        setBasketUsage(usage);
         setSelectedTopicKeys(new Set(rows.map((r) => r.topicKey)));
         selectedTopicKeysRef.current = new Set(rows.map((r) => r.topicKey));
       } catch {
@@ -752,8 +771,9 @@ export default function MagicWallPage() {
     if (!user?.id) return;
     setLoadingBasket(true);
     try {
-      const rows = await fetchMagicWallBasket();
+      const { items: rows, usage } = await fetchMagicWallBasket();
       setBasketItems(rows);
+      setBasketUsage(usage);
       setSelectedTopicKeys(new Set(rows.map((r) => r.topicKey)));
       syncMagicWallOnboardingStepsFromBasketState(rows.length, rows.length);
       if (rows.length > maxPicks) {
@@ -802,7 +822,7 @@ export default function MagicWallPage() {
         toast({
           title: "Saved topics cannot be undone",
           description:
-            "On Free and Free Trial, saved Magic Wall topics stay locked. Complete them to free a slot.",
+            "On Free and Free Trial, saved Magic Wall topics stay locked. Complete the topic to free a slot for a new pick.",
         });
         return;
       }
@@ -817,9 +837,27 @@ export default function MagicWallPage() {
     if (prev.size >= maxPicks) {
       toast({
         title: `Maximum ${maxPicks} topics`,
-        description: `You already have ${maxPicks} selected. Remove one from the list to add another.`,
+        description: `You already have ${maxPicks} active slots filled. Complete a saved topic to free a slot.`,
       });
       return;
+    }
+    const isNewPick = !basketKeySet.has(topicKey);
+    if (isNewPick && newPicksAllowed !== null) {
+      const netNew = countNetNewTopicKeys(prev, basketKeySet);
+      if (netNew >= newPicksAllowed) {
+        const monthlyHint =
+          basketUsage && !isUnlimited(basketUsage.monthlyLimit)
+            ? ` (${basketUsage.monthlyUsed}/${basketUsage.monthlyLimit} new picks used this period).`
+            : "";
+        toast({
+          title: "No new picks left this period",
+          description:
+            newPicksAllowed === 0
+              ? `Complete a topic or wait until ${formatMagicWallPeriodEndLocal(basketUsage?.periodEnd ?? "")} for more picks.${monthlyHint}`
+              : `You can add ${newPicksAllowed} more new topic${newPicksAllowed === 1 ? "" : "s"} this period. Carried-over topics count toward your ${maxPicks} active limit.${monthlyHint}`,
+        });
+        return;
+      }
     }
     setSelectedTopicKeys((s) => {
       const next = new Set(s);
@@ -839,9 +877,20 @@ export default function MagicWallPage() {
       });
       return;
     }
+    const toAdd = [...selectedTopicKeys].filter((key) => !basketKeySet.has(key));
+    if (!isAdmin && newPicksAllowed !== null && toAdd.length > newPicksAllowed) {
+      toast({
+        title: "Topic pick limit",
+        description:
+          newPicksAllowed === 0
+            ? "You cannot add more topics until you complete one or your billing period resets."
+            : `You can only add ${newPicksAllowed} more new topic${newPicksAllowed === 1 ? "" : "s"} this period.`,
+        variant: "destructive",
+      });
+      return;
+    }
     setSavingBasket(true);
     try {
-      const toAdd = [...selectedTopicKeys].filter((key) => !basketKeySet.has(key));
       const toRemove = [...basketKeySet].filter((key) => !selectedTopicKeys.has(key));
 
       const addPayload: MagicWallBasketInsert[] = toAdd
@@ -862,8 +911,9 @@ export default function MagicWallPage() {
         upsertMagicWallBasketItems(addPayload),
         removeMagicWallBasketItems(toRemove),
       ]);
-      const rows = await fetchMagicWallBasket();
+      const { items: rows, usage } = await fetchMagicWallBasket();
       setBasketItems(rows);
+      setBasketUsage(usage);
       setSelectedTopicKeys(new Set(rows.map((r) => r.topicKey)));
       syncMagicWallOnboardingStepsFromBasketState(rows.length, rows.length);
       toast({
@@ -1461,7 +1511,29 @@ export default function MagicWallPage() {
                     <span className="break-words">
                       Reading Basket: {selectedTopicKeys.size}/{maxPicks} selected ·{" "}
                       {basketItems.length} saved
+                      {basketUsage && !isAdmin ? (
+                        <>
+                          {" "}
+                          · Active {basketUsage.activeCount}/
+                          {isUnlimited(basketUsage.maxActive) ? "∞" : basketUsage.maxActive}
+                          {newPicksAllowed !== null ? (
+                            <>
+                              {" "}
+                              · {newPicksAllowed} new pick{newPicksAllowed === 1 ? "" : "s"}{" "}
+                              left
+                            </>
+                          ) : null}
+                        </>
+                      ) : null}
                     </span>
+                    {basketUsage && !isAdmin && !isUnlimited(basketUsage.monthlyLimit) ? (
+                      <span className="mt-0.5 block text-[10px] font-medium text-violet-200/80">
+                        New picks this period: {basketUsage.monthlyUsed}/{basketUsage.monthlyLimit}
+                        {basketUsage.periodEnd
+                          ? ` · Resets ${formatMagicWallPeriodEndLocal(basketUsage.periodEnd)}`
+                          : null}
+                      </span>
+                    ) : null}
                   </div>
                   <div className="flex flex-wrap items-center justify-end gap-1.5 sm:shrink-0">
                     {basketItems.length > 0 && (
@@ -1526,10 +1598,18 @@ export default function MagicWallPage() {
                   <p className="text-xs text-slate-400">Loading…</p>
                 ) : selectedDetails.length === 0 ? (
                   <p className="text-xs text-slate-400">
-                    No topics selected yet. Tap cards in Topic Rain (max {maxPicks}).
+                    No topics selected yet. Tap cards in Topic Rain (max {maxPicks} active).
                   </p>
                 ) : (
                   <div className="space-y-1.5 pr-1">
+                    {basketUsage && !isAdmin ? (
+                      <p className="mb-1.5 text-[10px] leading-snug text-slate-400">
+                        Up to {maxPicks} topics in your basket at once.
+                        {newPicksAllowed !== null && !isUnlimited(basketUsage.monthlyLimit)
+                          ? ` ${newPicksAllowed} new pick${newPicksAllowed === 1 ? "" : "s"} left this period (${basketUsage.monthlyUsed}/${basketUsage.monthlyLimit} used). Incomplete topics carry over and use a slot.`
+                          : null}
+                      </p>
+                    ) : null}
                     {selectedDetails.map((item) => (
                       <div
                         key={item.topicKey}

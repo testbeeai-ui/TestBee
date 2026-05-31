@@ -8,6 +8,8 @@ export type TrialOnboardingAnswers = {
   engExams: string[];
   medExams: string[];
   primaryPlatform: string | null;
+  /** When primaryPlatform is "School only". */
+  schoolName: string;
   secondaryPlatforms: string[];
   /** When "Other EdTech platform" is selected in secondaryPlatforms. */
   otherEdtechPlatformName: string;
@@ -19,6 +21,7 @@ export type TrialOnboardingAnswers = {
 
 export const TRIAL_OTHER_STATE_BOARD = "Other state board";
 export const TRIAL_OTHER_EDTECH_PLATFORM = "Other EdTech platform";
+export const TRIAL_PRIMARY_SCHOOL_ONLY = "School only";
 
 export const INITIAL_TRIAL_ONBOARDING_ANSWERS: TrialOnboardingAnswers = {
   classLevel: null,
@@ -30,6 +33,7 @@ export const INITIAL_TRIAL_ONBOARDING_ANSWERS: TrialOnboardingAnswers = {
   engExams: [],
   medExams: [],
   primaryPlatform: null,
+  schoolName: "",
   secondaryPlatforms: [],
   otherEdtechPlatformName: "",
   studyHours: null,

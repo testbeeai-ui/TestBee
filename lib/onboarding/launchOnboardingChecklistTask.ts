@@ -6,6 +6,7 @@ import { clearEarnBuddyCompanionSessionMarkers } from "@/lib/onboarding/earnBudd
 import { clearEarnChallengeCompanionSessionMarkers } from "@/lib/onboarding/earnChallengeCompanionOnboarding";
 import { clearProfileCompanionSessionMarkers } from "@/lib/onboarding/profileCompanionOnboarding";
 import { clearLessonsCompanionSessionMarkers } from "@/lib/onboarding/lessonsOnboarding";
+import { clearPlayDailyDoseCompanionSessionMarkers } from "@/lib/onboarding/playDailyDoseCompanionOnboarding";
 import { startCbseMcqOnboardingFlow } from "@/lib/onboarding/cbseMcqOnboardingFlow";
 import { startPrepClassesOnboardingFlow } from "@/lib/onboarding/prepClassesOnboardingFlow";
 import { startEarnChallengeOnboardingFlow } from "@/lib/onboarding/earnChallengeOnboardingFlow";
@@ -55,6 +56,9 @@ export function launchOnboardingChecklistTask(taskId: string): void {
     return;
   }
   if (taskId === "play_dailydose") {
+    if (prevCompanion !== "play_dailydose") {
+      clearPlayDailyDoseCompanionSessionMarkers();
+    }
     return;
   }
   if (

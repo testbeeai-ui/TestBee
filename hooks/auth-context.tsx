@@ -39,6 +39,8 @@ export interface Profile {
   free_trial_activated?: boolean | null;
   free_trial_activated_at?: string | null;
   plan_tier?: string;
+  /** ISO timestamp of when the student activated a paid plan (starter/pro). Used for loyalty multipliers. */
+  subscription_started_at?: string | null;
   time_travel_enabled?: boolean;
   time_travel_offset_ms?: number;
   trial_onboarding_answers?: Json | null;

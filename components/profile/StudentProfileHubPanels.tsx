@@ -72,6 +72,7 @@ import {
 import { computeStudyStreakFromDayMs } from "@/lib/dashboard/studyStreakClient";
 import { getClientApiAuthHeaders } from "@/lib/auth/clientApiAuth";
 import { EDUBLAST_STUDY_DAYS_REFRESH } from "@/lib/dashboard/studyDayBumpEvents";
+import { fetchStudyDays } from "@/lib/dashboard/studyDaysClient";
 import { useSitePresenceLiveMsToday } from "@/components/providers/SitePresenceProvider";
 import { eachDayOfInterval, endOfWeek, format, startOfWeek } from "date-fns";
 import {
@@ -1756,18 +1757,11 @@ export function StudentProfileActivityPanel({ profile }: { profile: Profile }) {
     const silent = studyDaysCommittedRef.current;
     if (!silent) setStudyDaysStatus("loading");
     try {
-      const headers = await getClientApiAuthHeaders();
-      const res = await fetch(`/api/user/study-days?from=${fromStr}&to=${toStr}&today=${toStr}`, {
-        headers,
-      });
-      if (!res.ok) {
+      const json = await fetchStudyDays(fromStr, toStr, toStr);
+      if (json.error) {
         if (!silent) setStudyDaysStatus("error");
         return;
       }
-      const json = (await res.json()) as {
-        days?: { day: string; active_ms: number; presence_ms?: number }[];
-        summary?: { streak?: number; activeDaysThisMonth?: number } | null;
-      };
       const map = new Map<string, number>();
       const presenceMap = new Map<string, number>();
       for (const row of json.days ?? []) {
@@ -1784,7 +1778,7 @@ export function StudentProfileActivityPanel({ profile }: { profile: Profile }) {
       if (s && typeof s.streak === "number" && typeof s.activeDaysThisMonth === "number") {
         setStreakSummary({ streak: s.streak, activeDaysThisMonth: s.activeDaysThisMonth });
       } else {
-        setStreakSummary(computeStudyStreakFromDayMs(map, toStr));
+        setStreakSummary(computeStudyStreakFromDayMs(presenceMap, toStr));
       }
       setStudyDaysStatus("ready");
       studyDaysCommittedRef.current = true;

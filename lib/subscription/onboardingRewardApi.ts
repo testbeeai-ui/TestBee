@@ -5,6 +5,8 @@ export type OnboardingRewardState = {
   progress: Record<string, boolean>;
   claimedAt: string | null;
   checklistRewardRdm: number;
+  freeTrialWelcomeRdm?: number;
+  freeTrialActivated?: boolean;
   dailyStreak?: Record<string, unknown>;
 };
 
@@ -22,20 +24,95 @@ export type OnboardingProgressSyncResult = {
   noop?: boolean;
 };
 
-export async function fetchOnboardingRewardState(): Promise<OnboardingRewardState> {
-  const authHeaders = await getClientApiAuthHeaders();
-  const res = await fetch("/api/user/onboarding-reward", {
-    headers: { ...authHeaders },
-    cache: "no-store",
-  });
-  if (!res.ok) {
-    return {
+const ONBOARDING_REWARD_CACHE_TTL_MS = 3_000;
+
+let onboardingRewardCached: { at: number; data: OnboardingRewardState } | null = null;
+let onboardingRewardInFlight: Promise<OnboardingRewardState> | null = null;
+
+export function invalidateOnboardingRewardStateCache(): void {
+  onboardingRewardCached = null;
+  onboardingRewardInFlight = null;
+}
+
+export async function fetchOnboardingRewardState(opts?: {
+  fresh?: boolean;
+}): Promise<OnboardingRewardState> {
+  const now = Date.now();
+  if (
+    !opts?.fresh &&
+    onboardingRewardCached &&
+    now - onboardingRewardCached.at < ONBOARDING_REWARD_CACHE_TTL_MS
+  ) {
+    return onboardingRewardCached.data;
+  }
+
+  if (!opts?.fresh && onboardingRewardInFlight) {
+    return onboardingRewardInFlight;
+  }
+
+  onboardingRewardInFlight = (async () => {
+    const authHeaders = await getClientApiAuthHeaders();
+    const res = await fetch("/api/user/onboarding-reward", {
+      headers: { ...authHeaders },
+      cache: "no-store",
+    });
+    const fallback: OnboardingRewardState = {
       progress: {},
       claimedAt: null,
       checklistRewardRdm: DEFAULT_RDM_CONFIG.free_trial_checklist_reward_rdm,
+      freeTrialWelcomeRdm: DEFAULT_RDM_CONFIG.free_trial_welcome_rdm,
     };
+    const data = res.ok ? ((await res.json()) as OnboardingRewardState) : fallback;
+    onboardingRewardCached = { at: Date.now(), data };
+    return data;
+  })();
+
+  try {
+    return await onboardingRewardInFlight;
+  } finally {
+    onboardingRewardInFlight = null;
   }
-  return (await res.json()) as OnboardingRewardState;
+}
+
+export async function bulkMergeOnboardingProgressToServer(
+  mergeProgress: Record<string, boolean>
+): Promise<OnboardingProgressSyncResult & { progress?: Record<string, boolean> }> {
+  const keys = Object.entries(mergeProgress).filter(([, done]) => done);
+  if (keys.length === 0) {
+    return { ok: true, noop: true };
+  }
+
+  try {
+    const authHeaders = await getClientApiAuthHeaders();
+    const res = await fetch("/api/user/onboarding-reward", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeaders,
+      },
+      body: JSON.stringify({
+        mergeProgress: Object.fromEntries(keys),
+      }),
+    });
+
+    const body = (await res.json().catch(() => ({}))) as {
+      error?: string;
+      noop?: boolean;
+      progress?: Record<string, boolean>;
+    };
+
+    if (!res.ok) {
+      return {
+        ok: false,
+        error: body.error ?? `http_${res.status}`,
+      };
+    }
+
+    invalidateOnboardingRewardStateCache();
+    return { ok: true, noop: body.noop, progress: body.progress };
+  } catch {
+    return { ok: false, error: "network" };
+  }
 }
 
 export async function syncOnboardingTaskToServer(
@@ -65,6 +142,7 @@ export async function syncOnboardingTaskToServer(
       };
     }
 
+    invalidateOnboardingRewardStateCache();
     return { ok: true, noop: body.noop };
   } catch {
     return { ok: false, error: "network" };
@@ -89,6 +167,7 @@ export async function resetOnboardingRewardOnServer(): Promise<OnboardingProgres
       return { ok: false, error: body.error ?? `http_${res.status}` };
     }
 
+    invalidateOnboardingRewardStateCache();
     return { ok: true };
   } catch {
     return { ok: false, error: "network" };
@@ -110,6 +189,7 @@ export async function claimOnboardingReward(): Promise<ClaimOnboardingRewardResu
       error: body.error ?? "claim_failed",
     };
   }
+  invalidateOnboardingRewardStateCache();
   return body;
 }
 
@@ -146,6 +226,7 @@ export async function claimDailyStreakReward(
       expectedDay: body.expectedDay,
     };
   }
+  invalidateOnboardingRewardStateCache();
   return body;
 }
 
@@ -183,6 +264,7 @@ export async function syncDailyStreakTaskToServer(
         expectedDay: body.expectedDay,
       };
     }
+    invalidateOnboardingRewardStateCache();
     return body;
   } catch {
     return { ok: false, error: "network" };
@@ -206,6 +288,7 @@ export async function resetDailyStreakDayOnServer(
     if (!res.ok) {
       return { ok: false, error: body.error ?? `http_${res.status}` };
     }
+    invalidateOnboardingRewardStateCache();
     return { ok: true };
   } catch {
     return { ok: false, error: "network" };

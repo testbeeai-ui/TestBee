@@ -654,7 +654,7 @@ function TopicPageInner() {
     let cancelled = false;
     setLoadingMagicWallBasket(true);
     fetchMagicWallBasket()
-      .then((items) => {
+      .then(({ items }) => {
         if (!cancelled) setMagicWallBasket(items);
       })
       .catch((err) => {

@@ -13,6 +13,7 @@ import { INITIAL_TRIAL_ONBOARDING_ANSWERS } from "@/components/dashboard/free-tr
 import { getClientApiAuthHeaders } from "@/lib/auth/clientApiAuth";
 import { DEFAULT_RDM_CONFIG } from "@/lib/rdm/rdmConfig";
 import {
+  bulkMergeOnboardingProgressToServer,
   fetchOnboardingRewardState,
   resetOnboardingRewardOnServer,
   syncOnboardingTaskToServer,
@@ -29,6 +30,7 @@ import {
   isGyanPlusOnboardingComplete,
 } from "@/lib/onboarding/gyanPlusOnboarding";
 import { ONBOARDING_REWARD_TASK_IDS } from "@/lib/subscription/onboardingRewardConstants";
+import { resetStudyDaysReconcileSession } from "@/lib/dashboard/studyDaysClient";
 import { isFreeTrialPeriodEnded } from "@/lib/subscription/freeTrialTimer";
 
 export { ONBOARDING_REWARD_TASK_IDS };
@@ -317,29 +319,29 @@ export function isOnboardingRewardCompleteOnServer(
 }
 
 /** Main checklist rows (+ gyan substeps when needed) — not every companion step key. */
-function collectOnboardingKeysToSyncBeforeClaim(
+function buildOnboardingMergePayloadFromLocal(
   local: Record<string, boolean>,
   server: Record<string, boolean>
-): string[] {
-  const keys: string[] = [];
+): Record<string, boolean> {
+  const merge: Record<string, boolean> = {};
 
   for (const id of ONBOARDING_REWARD_TASK_IDS) {
     if (id === "gyan_plus") {
       if (isGyanPlusOnboardingComplete(server)) continue;
       if (!isGyanPlusOnboardingComplete(local)) continue;
       if (local.gyan_plus) {
-        keys.push("gyan_plus");
+        merge.gyan_plus = true;
         continue;
       }
       for (const sub of GYAN_PLUS_SUBSTEP_IDS) {
-        if (local[sub] && !server[sub]) keys.push(sub);
+        if (local[sub] && !server[sub]) merge[sub] = true;
       }
       continue;
     }
-    if (local[id] && !server[id]) keys.push(id);
+    if (local[id] && !server[id]) merge[id] = true;
   }
 
-  return keys;
+  return merge;
 }
 
 /**
@@ -361,25 +363,29 @@ export async function prepareOnboardingRewardClaim(): Promise<{
 
   await flushPendingOnboardingProgressSyncs();
 
-  let state = await fetchOnboardingRewardState();
+  let state = await fetchOnboardingRewardState({ fresh: true });
   if (isOnboardingRewardCompleteOnServer(state.progress)) {
     return { ready: true, incompleteTaskIds: [] };
   }
 
   const local = getOnboardingProgress();
-  const keysToSync = collectOnboardingKeysToSyncBeforeClaim(local, state.progress);
+  const mergePayload = buildOnboardingMergePayloadFromLocal(local, state.progress);
 
-  if (keysToSync.length > 0) {
-    await Promise.all(
-      keysToSync.map(async (taskId) => {
-        const result = await syncOnboardingTaskToServer(taskId, true);
-        if (!result.ok) enqueueOnboardingProgressSync(taskId, true);
-      })
-    );
+  if (Object.keys(mergePayload).length > 0) {
+    let mergeResult = await bulkMergeOnboardingProgressToServer(mergePayload);
+    if (!mergeResult.ok) {
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      mergeResult = await bulkMergeOnboardingProgressToServer(mergePayload);
+    }
+    if (!mergeResult.ok) {
+      for (const taskId of Object.keys(mergePayload)) {
+        enqueueOnboardingProgressSync(taskId, true);
+      }
+    }
     if (hasPendingOnboardingProgressSyncs()) {
       await flushPendingOnboardingProgressSyncs();
     }
-    state = await fetchOnboardingRewardState();
+    state = await fetchOnboardingRewardState({ fresh: true });
   }
 
   const incompleteTaskIds = ONBOARDING_REWARD_TASK_IDS.filter((id) => {
@@ -658,6 +664,7 @@ export function ensureOnboardingLocalStateForUser(userId: string): void {
   clearPendingOnboardingProgressSyncs();
   resetAllOnboardingGuideSessions();
   window.localStorage.setItem(ONBOARDING_LOCAL_OWNER_KEY, userId);
+  resetStudyDaysReconcileSession();
 
   if (previousOwner) {
     window.dispatchEvent(

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Check, Copy, Loader2, MessageSquareShare, Shield, UserPlus } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { BUDDY_MAX_ACTIVE } from "@/lib/buddy/buddyPrivacy";
+import { BUDDY_MAX_ACTIVE_FALLBACK, BUDDY_UNLIMITED_CAP } from "@/lib/buddy/buddyPlanLimits";
 import {
   buildBuddyInviteShareText,
   buildWaShareUrl,
@@ -21,6 +21,9 @@ type AddBuddyModalProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   activeBuddyCount: number;
+  maxBuddies: number;
+  buddiesLimit?: number;
+  buddiesUnlimited?: boolean;
   pendingInvites: BuddyPendingInvite[];
   onInviteCreated: () => void;
 };
@@ -34,9 +37,20 @@ export function AddBuddyModal({
   open,
   onOpenChange,
   activeBuddyCount,
+  maxBuddies,
+  buddiesLimit,
+  buddiesUnlimited = false,
   pendingInvites,
   onInviteCreated,
 }: AddBuddyModalProps) {
+  const cap = buddiesUnlimited
+    ? BUDDY_UNLIMITED_CAP
+    : typeof buddiesLimit === "number"
+      ? Math.max(0, buddiesLimit)
+      : maxBuddies > 0
+        ? maxBuddies
+        : BUDDY_MAX_ACTIVE_FALLBACK;
+  const capLabel = buddiesUnlimited ? "unlimited" : String(cap);
   const { toast } = useToast();
   const [shareUrl, setShareUrl] = useState("");
   const [shareText, setShareText] = useState("");
@@ -44,7 +58,7 @@ export function AddBuddyModal({
   const [creating, setCreating] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const atLimit = activeBuddyCount >= BUDDY_MAX_ACTIVE;
+  const atLimit = !buddiesUnlimited && (cap === 0 || activeBuddyCount >= cap);
   const latestPending = pendingInvites.find((r) => r.status === "pending");
 
   useEffect(() => {
@@ -68,7 +82,7 @@ export function AddBuddyModal({
     if (atLimit) {
       toast({
         title: "Buddy limit reached",
-        description: `You can have up to ${BUDDY_MAX_ACTIVE} active buddies.`,
+        description: `You can have up to ${capLabel} active learning buddies on your plan.`,
         variant: "destructive",
       });
       return null;
@@ -95,7 +109,7 @@ export function AddBuddyModal({
     } finally {
       setCreating(false);
     }
-  }, [atLimit, inviteToken, onInviteCreated, shareText, shareUrl, toast]);
+  }, [atLimit, capLabel, inviteToken, onInviteCreated, shareText, shareUrl, toast]);
 
   const handleWhatsApp = async () => {
     const invite = await ensureInvite();
@@ -142,7 +156,7 @@ export function AddBuddyModal({
         </DialogTitle>
         <DialogDescription className="text-xs leading-relaxed text-[#9BA3B8]">
           Share your private invite link or code. They must accept before you see their activity. Up
-          to {BUDDY_MAX_ACTIVE} active buddies ({activeBuddyCount}/{BUDDY_MAX_ACTIVE} now).
+          to {capLabel} active learning buddies ({activeBuddyCount}/{capLabel} now).
         </DialogDescription>
 
         <div className="space-y-3">

@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
-import { createClient, createClientWithToken } from "@/integrations/supabase/server";
+import { createClient, createClientWithToken, createAdminClient } from "@/integrations/supabase/server";
 import { enforceSameOriginForCookieAuth } from "@/lib/auth/securityGuards";
 import type { TargetExamKey } from "@/lib/profile/targetExam";
 import { validateTrialOnboardingForActivate } from "@/lib/subscription/trialOnboardingAnswers";
+import { TRIAL_PRIMARY_SCHOOL_ONLY } from "@/components/dashboard/free-trial-onboarding/types";
+import { fetchRdmConfig } from "@/lib/rdm/rdmConfig";
 
 async function getSupabaseAndUser(request: Request) {
   const cookieClient = await createClient();
@@ -75,6 +77,23 @@ export async function POST(request: Request) {
 
     const activatedAt = new Date().toISOString();
 
+    // Check if free trial has already been activated before to prevent double-crediting
+    const { data: profile, error: readErr } = await supabase
+      .from("profiles")
+      .select("free_trial_activated")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (readErr) {
+      console.error("activate-trial read error", readErr);
+      return NextResponse.json({ error: readErr.message }, { status: 500 });
+    }
+
+    const shouldCreditWelcome = !profile?.free_trial_activated;
+
+    const schoolNameTrimmed =
+      answers.primaryPlatform === TRIAL_PRIMARY_SCHOOL_ONLY ? answers.schoolName.trim().slice(0, 200) : "";
+
     // 2. Perform database update
     const { error } = await supabase
       .from("profiles")
@@ -90,12 +109,33 @@ export async function POST(request: Request) {
         onboarding_complete: true,
         onboarding_reward_progress: {},
         onboarding_reward_claimed_at: null,
+        ...(schoolNameTrimmed ? { institution_name: schoolNameTrimmed } : {}),
       })
       .eq("id", user.id);
 
     if (error) {
       console.error("activate-trial POST error", error);
       return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    // 3. Immediately credit welcome bonus dynamically if first-time activation
+    if (shouldCreditWelcome) {
+      try {
+        const rdmConfig = await fetchRdmConfig(supabase);
+        const welcomeAmount = rdmConfig.free_trial_welcome_rdm ?? 500;
+        const adminClient = createAdminClient();
+        if (adminClient) {
+          const { error: rpcErr } = await adminClient.rpc("add_rdm", {
+            uid: user.id,
+            amt: welcomeAmount,
+          });
+          if (rpcErr) {
+            console.error("Failed to credit welcome bonus RDM immediately", rpcErr);
+          }
+        }
+      } catch (welcomeErr) {
+        console.error("Error crediting free trial welcome bonus immediately", welcomeErr);
+      }
     }
 
     return NextResponse.json({ ok: true, free_trial_activated_at: activatedAt });

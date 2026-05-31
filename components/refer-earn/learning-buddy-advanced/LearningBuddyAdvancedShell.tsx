@@ -66,6 +66,9 @@ export function LearningBuddyAdvancedShell({ className }: LearningBuddyAdvancedS
   const [loading, setLoading] = useState(true);
   const [buddies, setBuddies] = useState<BuddyProfile[]>([]);
   const [pendingInvites, setPendingInvites] = useState<BuddyPendingInvite[]>([]);
+  const [maxBuddies, setMaxBuddies] = useState(0);
+  const [buddiesLimit, setBuddiesLimit] = useState(0);
+  const [buddiesUnlimited, setBuddiesUnlimited] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [privacyOpen, setPrivacyOpen] = useState(false);
@@ -85,6 +88,9 @@ export function LearningBuddyAdvancedShell({ className }: LearningBuddyAdvancedS
       const list = res.buddies.map(withBuddyRdm);
       setBuddies(list);
       setPendingInvites(res.pendingInvites);
+      setMaxBuddies(res.maxBuddies);
+      setBuddiesLimit(typeof res.buddiesLimit === "number" ? res.buddiesLimit : res.maxBuddies);
+      setBuddiesUnlimited(Boolean(res.buddiesUnlimited));
       const userId = user?.id;
       let stored: string | null = null;
       if (userId && typeof window !== "undefined") {
@@ -439,6 +445,9 @@ export function LearningBuddyAdvancedShell({ className }: LearningBuddyAdvancedS
         open={addOpen}
         onOpenChange={setAddOpen}
         activeBuddyCount={buddies.length}
+        maxBuddies={maxBuddies}
+        buddiesLimit={buddiesLimit}
+        buddiesUnlimited={buddiesUnlimited}
         pendingInvites={pendingInvites}
         onInviteCreated={() => void loadState()}
       />

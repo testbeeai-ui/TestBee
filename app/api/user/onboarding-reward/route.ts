@@ -54,6 +54,7 @@ export async function GET(request: NextRequest) {
       progress: parseProgress(profile?.onboarding_reward_progress),
       claimedAt: profile?.onboarding_reward_claimed_at ?? null,
       checklistRewardRdm: rdmConfig.free_trial_checklist_reward_rdm,
+      freeTrialWelcomeRdm: rdmConfig.free_trial_welcome_rdm,
       freeTrialActivated: profile?.free_trial_activated === true,
       dailyStreak: profile?.free_trial_daily_streak ?? {},
     });
@@ -77,6 +78,8 @@ export async function PATCH(request: NextRequest) {
       taskId?: string;
       reset?: boolean;
       completed?: boolean;
+      /** Merge many checklist keys in one read/write (avoids parallel PATCH races). */
+      mergeProgress?: Record<string, unknown>;
     };
 
     const { data: profile, error: readErr } = await supabase
@@ -112,6 +115,66 @@ export async function PATCH(request: NextRequest) {
         return NextResponse.json({ error: resetErr.message }, { status: 500 });
       }
       return NextResponse.json({ ok: true, progress: {} });
+    }
+
+    if (
+      body.mergeProgress &&
+      typeof body.mergeProgress === "object" &&
+      !Array.isArray(body.mergeProgress)
+    ) {
+      const progress = parseProgress(profile?.onboarding_reward_progress);
+      const incoming = body.mergeProgress as Record<string, unknown>;
+      const keysToMark = Object.keys(incoming).filter((key) => {
+        if (!isValidTaskId(key)) return false;
+        const val = incoming[key];
+        return val === true || val === "true" || val === 1;
+      });
+
+      if (keysToMark.length === 0) {
+        return NextResponse.json({ ok: true, progress, noop: true });
+      }
+
+      const needsBuddyVerify =
+        !isAdmin &&
+        keysToMark.some((key) => key === "earn_buddy" || key === "earn_buddy_step_2") &&
+        !progress.earn_buddy &&
+        !progress.earn_buddy_step_2;
+
+      if (needsBuddyVerify) {
+        const admin = createAdminClient();
+        if (!admin) {
+          return NextResponse.json(
+            { error: "SUPABASE_SERVICE_ROLE_KEY is not set" },
+            { status: 500 }
+          );
+        }
+        const buddyStatus = await verifyBuddyOnboardingForInviter(supabase, admin, user.id);
+        if (!buddyStatus.hasInvitedBuddyJoined) {
+          return NextResponse.json({ error: "buddy_not_joined" }, { status: 403 });
+        }
+      }
+
+      let changed = false;
+      for (const taskId of keysToMark) {
+        if (progress[taskId]) continue;
+        progress[taskId] = true;
+        changed = true;
+      }
+
+      if (!changed) {
+        return NextResponse.json({ ok: true, progress, noop: true });
+      }
+
+      const { error: mergeErr } = await supabase
+        .from("profiles")
+        .update({ onboarding_reward_progress: progress })
+        .eq("id", user.id);
+
+      if (mergeErr) {
+        return NextResponse.json({ error: mergeErr.message }, { status: 500 });
+      }
+
+      return NextResponse.json({ ok: true, progress });
     }
 
     const taskId = body.taskId?.trim();

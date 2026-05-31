@@ -30,7 +30,6 @@ import {
 import { getCitiesForState, INDIAN_STATES_AND_UTS } from "@/lib/profile/indiaGeo";
 import {
   BOARD_OPTIONS,
-  CATEGORY_OPTIONS,
   CLASS_YEAR_OPTIONS,
   GENDER_OPTIONS,
   STREAM_OPTIONS,
@@ -130,7 +129,6 @@ export default function StudentProfilePersonalHub({
   const [cityVal, setCityVal] = useState<string | null>(null);
   const [phoneDigits, setPhoneDigits] = useState("");
   const [genderVal, setGenderVal] = useState<string | null>(null);
-  const [categoryVal, setCategoryVal] = useState<string | null>(null);
   const [dobVal, setDobVal] = useState("");
   const [bioVal, setBioVal] = useState("");
 
@@ -250,7 +248,6 @@ export default function StudentProfilePersonalHub({
     setCityVal(profile.city?.trim() ? profile.city : null);
     setPhoneDigits((profile.phone ?? "").replace(/\D/g, "").slice(0, 10));
     setGenderVal(profile.gender?.trim() ? profile.gender : null);
-    setCategoryVal(profile.category?.trim() ? profile.category : null);
     setDobVal(profile.date_of_birth ? profile.date_of_birth.slice(0, 10) : "");
     setBioVal(profile.bio?.slice(0, 100) ?? "");
     setInstitutionName(profile.institution_name?.trim() ?? "");
@@ -309,10 +306,6 @@ export default function StudentProfilePersonalHub({
       toast({ title: "Gender required", variant: "destructive" });
       return;
     }
-    if (!categoryVal) {
-      toast({ title: "Category required", variant: "destructive" });
-      return;
-    }
     const bio = bioVal.slice(0, 100);
     const fullName = `${fn} ${ln}`.trim();
 
@@ -328,7 +321,6 @@ export default function StudentProfilePersonalHub({
           city: cityVal,
           phone,
           gender: genderVal,
-          category: categoryVal,
           date_of_birth: dobVal.trim() ? dobVal : null,
           bio: bio || null,
         })
@@ -344,7 +336,6 @@ export default function StudentProfilePersonalHub({
         city: cityVal,
         phone,
         gender: genderVal,
-        category: categoryVal,
       };
       if (isStudentProfileBasicInfoComplete(savedProfile, authUser.email)) {
         markProfileCompanionBasicSaved();
@@ -427,10 +418,9 @@ export default function StudentProfilePersonalHub({
       cityVal,
       phoneDigits,
       genderVal,
-      categoryVal,
       accountEmail: email,
     }),
-    [firstName, lastName, stateVal, cityVal, phoneDigits, genderVal, categoryVal, email]
+    [firstName, lastName, stateVal, cityVal, phoneDigits, genderVal, email]
   );
 
   return (
@@ -686,30 +676,6 @@ export default function StudentProfilePersonalHub({
                         {GENDER_OPTIONS.map((g) => (
                           <SelectItem key={g} value={g}>
                             {g}
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="min-w-0">
-                  <label className="mb-1 block text-[11px] font-semibold text-foreground sm:mb-1.5 sm:text-xs dark:text-slate-200">
-                    <Req>Category</Req>
-                  </label>
-                  <Select
-                    items={toSelectItems(CATEGORY_OPTIONS)}
-                    value={categoryVal}
-                    onValueChange={setCategoryVal}
-                    disabled={!editingPersonal}
-                  >
-                    <SelectTrigger className={cn("h-10 w-full min-w-0", fieldFocus)}>
-                      <SelectValue placeholder="Select" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        {CATEGORY_OPTIONS.map((c) => (
-                          <SelectItem key={c} value={c}>
-                            {c}
                           </SelectItem>
                         ))}
                       </SelectGroup>
