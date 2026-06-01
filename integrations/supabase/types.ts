@@ -1957,6 +1957,7 @@ export type Database = {
           onboarding_reward_progress: Json;
           free_trial_activated: boolean;
           free_trial_activated_at: string | null;
+          free_trial_welcome_credited_at: string | null;
           trial_onboarding_answers: Json;
           free_trial_daily_streak: Json;
           phone: string | null;
@@ -2008,6 +2009,7 @@ export type Database = {
           onboarding_reward_progress?: Json;
           free_trial_activated?: boolean;
           free_trial_activated_at?: string | null;
+          free_trial_welcome_credited_at?: string | null;
           trial_onboarding_answers?: Json;
           free_trial_daily_streak?: Json;
           phone?: string | null;
@@ -2059,6 +2061,7 @@ export type Database = {
           onboarding_reward_progress?: Json;
           free_trial_activated?: boolean;
           free_trial_activated_at?: string | null;
+          free_trial_welcome_credited_at?: string | null;
           trial_onboarding_answers?: Json;
           free_trial_daily_streak?: Json;
           phone?: string | null;
@@ -3401,6 +3404,10 @@ export type Database = {
         Returns: Json;
       };
       claim_free_trial_checklist_reward: {
+        Args: Record<PropertyKey, never>;
+        Returns: Json;
+      };
+      claim_free_trial_welcome_rdm: {
         Args: Record<PropertyKey, never>;
         Returns: Json;
       };
