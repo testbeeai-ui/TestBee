@@ -25,6 +25,10 @@ function normalizePlan(raw: unknown): SubscriptionPlanKey | null {
  */
 export async function POST(request: Request) {
   try {
+    if (process.env.NODE_ENV === "production") {
+      return NextResponse.json({ error: "Plan switching is disabled in production" }, { status: 403 });
+    }
+
     const csrf = enforceSameOriginForCookieAuth(request);
     if (csrf) return csrf;
 
