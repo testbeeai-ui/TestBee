@@ -77,10 +77,11 @@ export async function POST(request: Request) {
 
     const activatedAt = new Date().toISOString();
 
-    // Check if free trial has already been activated before to prevent double-crediting
+    // Check if free trial has already been activated before to prevent replayed requests
+    // from resetting checklist progress or crediting welcome RDM twice.
     const { data: profile, error: readErr } = await supabase
       .from("profiles")
-      .select("free_trial_activated")
+      .select("free_trial_activated, free_trial_activated_at")
       .eq("id", user.id)
       .maybeSingle();
 
@@ -89,13 +90,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: readErr.message }, { status: 500 });
     }
 
-    const shouldCreditWelcome = !profile?.free_trial_activated;
+    if (profile?.free_trial_activated) {
+      return NextResponse.json({
+        ok: true,
+        alreadyActivated: true,
+        free_trial_activated_at: profile.free_trial_activated_at,
+      });
+    }
 
     const schoolNameTrimmed =
       answers.primaryPlatform === TRIAL_PRIMARY_SCHOOL_ONLY ? answers.schoolName.trim().slice(0, 200) : "";
 
     // 2. Perform database update
-    const { error } = await supabase
+    const { data: activatedProfile, error } = await supabase
       .from("profiles")
       .update({
         plan_tier: "free_trial",
@@ -111,31 +118,49 @@ export async function POST(request: Request) {
         onboarding_reward_claimed_at: null,
         ...(schoolNameTrimmed ? { institution_name: schoolNameTrimmed } : {}),
       })
-      .eq("id", user.id);
+      .eq("id", user.id)
+      .or("free_trial_activated.is.false,free_trial_activated.is.null")
+      .select("free_trial_activated_at")
+      .maybeSingle();
 
     if (error) {
       console.error("activate-trial POST error", error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // 3. Immediately credit welcome bonus dynamically if first-time activation
-    if (shouldCreditWelcome) {
-      try {
-        const rdmConfig = await fetchRdmConfig(supabase);
-        const welcomeAmount = rdmConfig.free_trial_welcome_rdm ?? 500;
-        const adminClient = createAdminClient();
-        if (adminClient) {
-          const { error: rpcErr } = await adminClient.rpc("add_rdm", {
-            uid: user.id,
-            amt: welcomeAmount,
-          });
-          if (rpcErr) {
-            console.error("Failed to credit welcome bonus RDM immediately", rpcErr);
-          }
-        }
-      } catch (welcomeErr) {
-        console.error("Error crediting free trial welcome bonus immediately", welcomeErr);
+    if (!activatedProfile) {
+      const { data: currentProfile, error: currentReadErr } = await supabase
+        .from("profiles")
+        .select("free_trial_activated_at")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (currentReadErr) {
+        console.error("activate-trial concurrent read error", currentReadErr);
+        return NextResponse.json({ error: currentReadErr.message }, { status: 500 });
       }
+      return NextResponse.json({
+        ok: true,
+        alreadyActivated: true,
+        free_trial_activated_at: currentProfile?.free_trial_activated_at ?? null,
+      });
+    }
+
+    // 3. Immediately credit welcome bonus dynamically if first-time activation
+    try {
+      const rdmConfig = await fetchRdmConfig(supabase);
+      const welcomeAmount = rdmConfig.free_trial_welcome_rdm ?? 500;
+      const adminClient = createAdminClient();
+      if (adminClient) {
+        const { error: rpcErr } = await adminClient.rpc("add_rdm", {
+          uid: user.id,
+          amt: welcomeAmount,
+        });
+        if (rpcErr) {
+          console.error("Failed to credit welcome bonus RDM immediately", rpcErr);
+        }
+      }
+    } catch (welcomeErr) {
+      console.error("Error crediting free trial welcome bonus immediately", welcomeErr);
     }
 
     return NextResponse.json({ ok: true, free_trial_activated_at: activatedAt });
