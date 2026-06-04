@@ -42,6 +42,20 @@ export async function POST(request: Request) {
     }
 
     const nowIso = new Date().toISOString();
+    // Column exists in migrations; generated Supabase types have not been refreshed yet.
+    const { data: profile, error: readErr } = await (supabase as any)
+      .from("profiles")
+      .select("subscription_started_at")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (readErr) {
+      return NextResponse.json({ error: readErr.message }, { status: 500 });
+    }
+    if (!profile) {
+      return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+    }
+
     const updates: Record<string, unknown> = {
       plan_tier: requested,
     };
@@ -52,6 +66,10 @@ export async function POST(request: Request) {
     } else {
       updates.free_trial_activated = false;
       updates.free_trial_activated_at = null;
+      updates.subscription_started_at =
+        requested === "starter" || requested === "pro"
+          ? profile.subscription_started_at ?? nowIso
+          : null;
     }
 
     const { error } = await supabase.from("profiles").update(updates).eq("id", user.id);
