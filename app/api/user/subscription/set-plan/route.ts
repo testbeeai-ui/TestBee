@@ -42,7 +42,8 @@ export async function POST(request: Request) {
     }
 
     const nowIso = new Date().toISOString();
-    const { data: profile, error: readErr } = await supabase
+    // Column exists in migrations; generated Supabase types have not been refreshed yet.
+    const { data: profile, error: readErr } = await (supabase as any)
       .from("profiles")
       .select("subscription_started_at")
       .eq("id", user.id)
