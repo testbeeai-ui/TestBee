@@ -77,10 +77,9 @@ export async function POST(request: Request) {
 
     const activatedAt = new Date().toISOString();
 
-    // Check if free trial has already been activated before to prevent double-crediting
     const { data: profile, error: readErr } = await supabase
       .from("profiles")
-      .select("free_trial_activated")
+      .select("free_trial_activated, free_trial_activated_at")
       .eq("id", user.id)
       .maybeSingle();
 
@@ -88,14 +87,23 @@ export async function POST(request: Request) {
       console.error("activate-trial read error", readErr);
       return NextResponse.json({ error: readErr.message }, { status: 500 });
     }
+    if (!profile) {
+      return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+    }
 
-    const shouldCreditWelcome = !profile?.free_trial_activated;
+    if (profile.free_trial_activated === true) {
+      return NextResponse.json({
+        ok: true,
+        alreadyActivated: true,
+        free_trial_activated_at: profile.free_trial_activated_at ?? activatedAt,
+      });
+    }
 
     const schoolNameTrimmed =
       answers.primaryPlatform === TRIAL_PRIMARY_SCHOOL_ONLY ? answers.schoolName.trim().slice(0, 200) : "";
 
     // 2. Perform database update
-    const { error } = await supabase
+    const { data: activatedProfile, error } = await supabase
       .from("profiles")
       .update({
         plan_tier: "free_trial",
@@ -111,15 +119,35 @@ export async function POST(request: Request) {
         onboarding_reward_claimed_at: null,
         ...(schoolNameTrimmed ? { institution_name: schoolNameTrimmed } : {}),
       })
-      .eq("id", user.id);
+      .eq("id", user.id)
+      .eq("free_trial_activated", false)
+      .select("free_trial_activated_at")
+      .maybeSingle();
 
     if (error) {
       console.error("activate-trial POST error", error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // 3. Immediately credit welcome bonus dynamically if first-time activation
-    if (shouldCreditWelcome) {
+    if (!activatedProfile) {
+      const { data: racedProfile, error: racedReadErr } = await supabase
+        .from("profiles")
+        .select("free_trial_activated_at")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (racedReadErr) {
+        console.error("activate-trial race read error", racedReadErr);
+        return NextResponse.json({ error: racedReadErr.message }, { status: 500 });
+      }
+      return NextResponse.json({
+        ok: true,
+        alreadyActivated: true,
+        free_trial_activated_at: racedProfile?.free_trial_activated_at ?? activatedAt,
+      });
+    }
+
+    // 3. Immediately credit welcome bonus dynamically after the guarded first activation wins.
+    {
       try {
         const rdmConfig = await fetchRdmConfig(supabase);
         const welcomeAmount = rdmConfig.free_trial_welcome_rdm ?? 500;

@@ -589,11 +589,14 @@ export async function activateFreeTrial(
 
   const payload = (await res.json().catch(() => ({}))) as {
     free_trial_activated_at?: string;
+    alreadyActivated?: boolean;
   };
 
   if (typeof window === "undefined") return;
-  resetOnboardingRewardChecklist();
-  clearDailyChecklistAutoOpenArm();
+  if (payload.alreadyActivated !== true) {
+    resetOnboardingRewardChecklist();
+    clearDailyChecklistAutoOpenArm();
+  }
   window.localStorage.setItem(ACTIVATED_KEY, "1");
   const activatedAt =
     typeof payload.free_trial_activated_at === "string"
