@@ -49,6 +49,7 @@ export async function GET(req: NextRequest) {
     { data: mockShareRows, error: e3 },
     { data: quizShareRows, error: e4 },
     { data: numeralsShareRows, error: e5 },
+    { data: penaltyRows, error: e6 },
   ] = await Promise.all([
     sb
       .from("daily_reward_claims")
@@ -80,9 +81,15 @@ export async function GET(req: NextRequest) {
       .eq("user_id", uid)
       .gte("claimed_at", istStartIso(fromIst))
       .lt("claimed_at", istEndExclusiveIso(toIst)),
+    sb
+      .from("inactive_day_penalties")
+      .select("day,penalty_rdm,penalized_at")
+      .eq("user_id", uid)
+      .gte("day", fromIst)
+      .lte("day", toIst),
   ]);
 
-  const err = e1 ?? e2 ?? e3 ?? e4 ?? e5;
+  const err = e1 ?? e2 ?? e3 ?? e4 ?? e5 ?? e6;
   if (err) {
     console.error("[rdm-recent-by-activity]", err.message);
     return NextResponse.json({ error: err.message }, { status: 500 });
@@ -126,7 +133,17 @@ export async function GET(req: NextRequest) {
     sums.play += row.rdm_amount ?? 0;
   }
 
-  const totalInWindow = sums.gyan + sums.play + sums.mocks + sums.revision;
+  let totalPenalties = 0;
+  type PenaltyRow = {
+    day: string;
+    penalty_rdm: number;
+    penalized_at: string;
+  };
+  for (const row of (penaltyRows ?? []) as PenaltyRow[]) {
+    totalPenalties += row.penalty_rdm ?? 50;
+  }
+
+  const totalInWindow = sums.gyan + sums.play + sums.mocks + sums.revision - totalPenalties;
 
   const recentRaw: RecentClaimApi[] = [];
 
@@ -213,6 +230,18 @@ export async function GET(req: NextRequest) {
       detail: `${row.topic_ref} · formula #${row.formula_index + 1}`,
       amount: amt,
       at: row.claimed_at,
+    });
+  }
+
+  for (const row of (penaltyRows ?? []) as PenaltyRow[]) {
+    const amt = row.penalty_rdm ?? 50;
+    recentRaw.push({
+      key: `penalty:${row.day}`,
+      category: "penalty" as any,
+      title: "Inactive day penalty",
+      detail: `Under 30m on completed day ${row.day}`,
+      amount: -amt,
+      at: row.penalized_at,
     });
   }
 

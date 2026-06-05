@@ -12,8 +12,6 @@ import {
 import {
   createClassroomAssignment,
   createTeacherLiveSession,
-  createMotivationAction,
-  createRewardTopStudentsAction,
   createTeacherClassroom,
   deleteTeacherClassroom,
   loadTeacherPortalBundle,
@@ -364,12 +362,12 @@ export function useTeacherPortalData(
     [refresh, rdmCosts]
   );
 
-  const motivateStudents = useCallback(
+  const postTeacherMotivation = useCallback(
     async (input: {
       teacherId: string;
       classroomId: string;
       sectionId?: string | null;
-      actionKind: "boost" | "nudge" | "urgent_nudge";
+      actionKind: "boost" | "nudge" | "urgent_nudge" | "reward_top_students";
       targetStudentIds: string[];
       message: string;
       rdmDelta: number;
@@ -381,25 +379,44 @@ export function useTeacherPortalData(
       notificationTitle?: string;
       nudgeGoal?: MotivationNudgeGoal;
     }) => {
-      await createMotivationAction(input);
+      const res = await fetchWithClientAuth("/api/teacher/motivation/send", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      });
+      const payload = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        teacherCharged?: number;
+      };
+      if (!res.ok) {
+        throw new Error(payload.error ?? `Send failed (${res.status}).`);
+      }
       await refresh();
     },
     [refresh]
   );
 
-  const rewardTopStudents = useCallback(
-    async (input: {
-      teacherId: string;
-      classroomId: string;
-      sectionId?: string | null;
-      targetStudentIds: string[];
-      message: string;
-      rdmDelta: number;
-    }) => {
-      await createRewardTopStudentsAction(input);
-      await refresh();
+  const motivateStudents = useCallback(
+    async (
+      input: Parameters<typeof postTeacherMotivation>[0] & {
+        actionKind: "boost" | "nudge" | "urgent_nudge";
+      }
+    ) => {
+      await postTeacherMotivation(input);
     },
-    [refresh]
+    [postTeacherMotivation]
+  );
+
+  const rewardTopStudents = useCallback(
+    async (
+      input: Omit<Parameters<typeof postTeacherMotivation>[0], "actionKind"> & {
+        actionKind?: never;
+      }
+    ) => {
+      await postTeacherMotivation({ ...input, actionKind: "reward_top_students" });
+    },
+    [postTeacherMotivation]
   );
 
   const createSession = useCallback(

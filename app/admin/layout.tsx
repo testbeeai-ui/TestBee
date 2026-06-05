@@ -7,11 +7,15 @@ import {
   Shield,
   Users,
   FileClock,
+  Mail,
+  MessageSquare,
   GraduationCap,
   Medal,
   Coins,
   CreditCard,
   BadgeCheck,
+  Ticket,
+  ClipboardList,
 } from "lucide-react";
 import { AdminRoute } from "@/components/AdminRoute";
 import { cn } from "@/lib/utils";
@@ -42,6 +46,18 @@ const navItems = [
     match: (p: string) => p.startsWith("/admin/teacher-portal"),
   },
   {
+    href: "/admin/emails",
+    label: "Emails",
+    icon: Mail,
+    match: (p: string) => p.startsWith("/admin/emails"),
+  },
+  {
+    href: "/admin/feedback",
+    label: "F&W",
+    icon: MessageSquare,
+    match: (p: string) => p.startsWith("/admin/feedback") || p.startsWith("/admin/waitlist"),
+  },
+  {
     href: "/admin/token-logs",
     label: "Token Logs",
     icon: FileClock,
@@ -64,6 +80,12 @@ const navItems = [
     label: "Teacher Verifications",
     icon: BadgeCheck,
     match: (p: string) => p.startsWith("/admin/teacher-verifications"),
+  },
+  {
+    href: "/admin/coupons",
+    label: "Coupons",
+    icon: Ticket,
+    match: (p: string) => p.startsWith("/admin/coupons"),
   },
 ];
 

@@ -11,11 +11,17 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { computeOffsetForTrialDay } from "@/lib/onboarding/dailyChecklistTaskStorage";
 import { dispatchTimeTravelOffsetChanged } from "@/lib/dev/timeTravel";
+import { explainTrialGateDecision } from "@/lib/subscription/dashboardTrialPopups";
+import { computeOffsetForTrialEndFromProfile } from "@/lib/subscription/freeTrialTimer";
 import { clearDailyStreakChecklistSuppress } from "@/lib/onboarding/dailyStreakClient";
+import {
+  completeActiveTrialDay,
+  resetTrialToDayOne,
+} from "@/lib/subscription/trialDemoQuickActions";
+import EduBlastFeedbackForm, { ContactUsSettingsCard } from "./EduBlastFeedbackForm";
 import {
   Heart,
   LogOut,
-  MessageSquare,
   Monitor,
   Moon,
   Sun,
@@ -23,6 +29,9 @@ import {
   Calendar,
   Zap,
   Sparkles,
+  RotateCcw,
+  CheckCheck,
+  Loader2,
 } from "lucide-react";
 
 /** Account hub: Settings (left) + EduFund Eligibility & Contact cards (right), matching desktop reference layout. */
@@ -39,6 +48,10 @@ export default function StudentSettingsHub() {
   const [globalActive, setGlobalActive] = useState(false);
   const [loadingAccess, setLoadingAccess] = useState(true);
   const [customDatetime, setCustomDatetime] = useState("");
+
+  // Free-trial demo quick actions
+  const [resettingTrial, setResettingTrial] = useState(false);
+  const [completingDay, setCompletingDay] = useState(false);
 
   const currentOffset = profile?.time_travel_offset_ms ?? 0;
   const isTimeTravelActive = currentOffset > 0;
@@ -97,6 +110,22 @@ export default function StudentSettingsHub() {
         clearStreakSuppress: options?.clearStreakSuppress,
       });
 
+      if (label.includes("trial end") && profile) {
+        const simulatedNow = Date.now() + offsetMs;
+        const decision = explainTrialGateDecision(
+          { ...profile, time_travel_offset_ms: offsetMs },
+          simulatedNow
+        );
+        if (!decision.show) {
+          toast({
+            title: "Trial popup is blocked",
+            description: `${decision.blockers.join(" · ")}. Try “Reset trial to Day 1” first, then Day 14 again.`,
+            variant: "destructive",
+            duration: 8000,
+          });
+        }
+      }
+
       toast({
         title: "Time Shift Successful 🕒",
         description: `Successfully shifted to ${label}. All systems simulated!`,
@@ -119,6 +148,67 @@ export default function StudentSettingsHub() {
     const realNow = Date.now();
     const offsetMs = Math.max(0, targetMs - realNow);
     void handleUpdateOffset(offsetMs, new Date(targetMs).toLocaleString());
+  };
+
+  const handleResetTrial = async () => {
+    if (resettingTrial || completingDay) return;
+    setResettingTrial(true);
+    try {
+      await resetTrialToDayOne(profile?.id);
+      await refreshProfile();
+      toast({
+        title: "Trial reset to Day 1 🔄",
+        description:
+          "Trial clock, Day 1 checklist, and card/bonus flags (trial_end_bonus_activated) are cleared. Use Day 14 preset after this to test the upgrade popup.",
+        duration: 5000,
+      });
+    } catch (e) {
+      console.error("[settings] reset trial", e);
+      toast({
+        title: "Reset failed",
+        description: e instanceof Error ? e.message : "Could not reset the trial.",
+        variant: "destructive",
+      });
+    } finally {
+      setResettingTrial(false);
+    }
+  };
+
+  const handleCompleteActiveDay = async () => {
+    if (resettingTrial || completingDay) return;
+    setCompletingDay(true);
+    try {
+      const result = await completeActiveTrialDay();
+      await refreshProfile();
+      if (result.kind === "site_tour") {
+        toast({
+          title: `Day 1 site tour complete ✅ +${result.amount} RDM`,
+          description: "Time-travel to Day 2 and click again to roll the daily streak forward.",
+          duration: 4500,
+        });
+      } else if (result.kind === "daily") {
+        toast({
+          title: `Day ${result.day} complete ✅ +${result.amount} RDM`,
+          description: "Time-travel to the next day and click again to continue the streak.",
+          duration: 4500,
+        });
+      } else {
+        toast({
+          title: "All trial days already complete 🎉",
+          description: "Days 1–10 are claimed. Reset to Day 1 to demo again.",
+          duration: 4000,
+        });
+      }
+    } catch (e) {
+      console.error("[settings] complete active day", e);
+      toast({
+        title: "Couldn't complete tasks",
+        description: e instanceof Error ? e.message : "Something went wrong.",
+        variant: "destructive",
+      });
+    } finally {
+      setCompletingDay(false);
+    }
   };
 
   const handleLogout = async () => {
@@ -217,6 +307,12 @@ export default function StudentSettingsHub() {
                         <p className="text-xs text-muted-foreground dark:text-slate-400">
                           Simulate future daily habit resets and trial timer progression.
                         </p>
+                        {profile?.trial_end_bonus_activated ? (
+                          <p className="mt-2 text-xs font-semibold text-amber-400">
+                            Trial-end popup is off while bonus is claimed. Use “Reset trial to Day 1”
+                            below, then “Day 14 (trial end)”.
+                          </p>
+                        ) : null}
                       </div>
                       <div className="flex items-center gap-2">
                         <span
@@ -260,16 +356,12 @@ export default function StudentSettingsHub() {
                             const offset =
                               preset.trialDay === 0
                                 ? 0
-                                : preset.trialDay <= 10
-                                  ? computeOffsetForTrialDay(
-                                      profile?.onboarding_reward_claimed_at,
-                                      preset.trialDay
-                                    )
+                                : preset.trialDay === 14
+                                  ? computeOffsetForTrialEndFromProfile(profile)
                                   : computeOffsetForTrialDay(
                                       profile?.onboarding_reward_claimed_at,
-                                      10
-                                    ) +
-                                    (preset.trialDay - 10) * 24 * 60 * 60 * 1000;
+                                      preset.trialDay
+                                    );
                             return (
                               <button
                                 key={preset.label}
@@ -294,6 +386,44 @@ export default function StudentSettingsHub() {
                               </button>
                             );
                           })}
+                        </div>
+                      </div>
+
+                      <div className="pt-2 border-t border-border/50 dark:border-white/5">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">
+                          Free-trial demo · Quick actions:
+                        </p>
+                        <p className="mt-1 text-[11px] text-muted-foreground dark:text-slate-400">
+                          Reset jumps back to a clean Day 1 (site tour). “Complete all tasks” ticks
+                          every task for the active day and claims its RDM — no page hopping.
+                        </p>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => void handleResetTrial()}
+                            disabled={resettingTrial || completingDay}
+                            className="inline-flex items-center gap-1.5 rounded-xl bg-amber-600/15 border border-amber-500/30 px-3 py-1.5 text-xs font-bold text-amber-300 transition hover:bg-amber-600/25 disabled:opacity-60"
+                          >
+                            {resettingTrial ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <RotateCcw className="h-3.5 w-3.5" />
+                            )}
+                            Reset to Day 1
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void handleCompleteActiveDay()}
+                            disabled={resettingTrial || completingDay}
+                            className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600/15 border border-emerald-500/30 px-3 py-1.5 text-xs font-bold text-emerald-300 transition hover:bg-emerald-600/25 disabled:opacity-60"
+                          >
+                            {completingDay ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <CheckCheck className="h-3.5 w-3.5" />
+                            )}
+                            Complete all tasks
+                          </button>
                         </div>
                       </div>
 
@@ -376,31 +506,8 @@ export default function StudentSettingsHub() {
               </Button>
             </div>
 
-            <div className="rounded-2xl border border-cyan-400/25 bg-gradient-to-br from-cyan-500/10 via-transparent to-violet-500/10 p-4 dark:border-cyan-300/20 dark:bg-[radial-gradient(circle_at_top_right,rgba(45,212,191,0.16),transparent_55%),radial-gradient(circle_at_bottom_left,rgba(139,92,246,0.14),transparent_55%),rgba(13,17,24,0.96)] 2xl:rounded-[1.125rem] 2xl:p-6">
-              <div className="mb-0.5 flex items-center justify-between 2xl:mb-1">
-                <h2 className="flex items-center gap-1.5 text-lg font-black text-foreground dark:text-white 2xl:gap-2 2xl:text-xl">
-                  <MessageSquare
-                    className="h-4 w-4 shrink-0 text-[#2dd4bf] 2xl:h-5 2xl:w-5"
-                    strokeWidth={2}
-                  />
-                  Contact Us
-                </h2>
-                <span className="rounded-full bg-cyan-500/20 px-2 py-0.5 text-xs font-bold text-cyan-200">
-                  Help
-                </span>
-              </div>
-              <p className="text-sm text-muted-foreground dark:text-slate-300/90">
-                Report an issue, ask for partnerships, or share suggestions. We usually reply within
-                24–48 hours.
-              </p>
-              <Button
-                variant="link"
-                className="mt-2 h-auto p-0 text-[#2dd4bf] hover:text-cyan-200 2xl:mt-3"
-                onClick={() => router.push("/contact?from=/profile")}
-              >
-                Open contact desk →
-              </Button>
-            </div>
+            <ContactUsSettingsCard fromPath="/profile?section=settings" />
+            <EduBlastFeedbackForm />
           </div>
         </div>
       </div>

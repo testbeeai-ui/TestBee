@@ -41,12 +41,20 @@ export interface Profile {
   plan_tier?: string;
   /** ISO timestamp of when the student activated a paid plan (starter/pro). Used for loyalty multipliers. */
   subscription_started_at?: string | null;
+  /** Coupon- or admin-granted paid plan end; authoritative when set (see normalizePlanTier). */
+  subscription_expires_at?: string | null;
   time_travel_enabled?: boolean;
   time_travel_offset_ms?: number;
   trial_onboarding_answers?: Json | null;
   onboarding_reward_progress?: Json | null;
   onboarding_reward_claimed_at?: string | null;
   free_trial_daily_streak?: Json | null;
+  trial_second_round_activated?: boolean;
+  payment_card_details?: Json | null;
+  card_added_at?: string | null;
+  trial_end_bonus_activated?: boolean;
+  trial_streak_at_day_14?: number | null;
+  trial_original_ended_at?: string | null;
   /** Consecutive days (same gauntlet_date) completing both academic + funbrain DailyDose. */
   daily_dose_streak?: number;
   rdm?: number;

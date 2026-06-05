@@ -212,7 +212,7 @@ export default function MagicWallPage() {
   const { user, profile } = useAuth();
   const isAdmin = useIsAppAdmin();
   const [planMaxPicks, setPlanMaxPicks] = useState(DEFAULT_RDM_CONFIG.magic_wall_max_topics);
-  const currentPlan = normalizePlanTier(profile?.plan_tier, profile?.free_trial_activated);
+  const currentPlan = normalizePlanTier(profile?.plan_tier, profile?.free_trial_activated, profile);
   const [showSaveConfirmOpen, setShowSaveConfirmOpen] = useState(false);
   const storeUser = useUserStore((s) => s.user);
   const { toast } = useToast();

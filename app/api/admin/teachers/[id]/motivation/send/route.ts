@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
 import { isAdminUser } from "@/lib/admin/admin";
 import { createAdminClient } from "@/integrations/supabase/server";
-import { createMotivationAction, createRewardTopStudentsAction } from "@/lib/teacherPortal/queries";
+import { sendTeacherMotivation } from "@/lib/teacherPortal/sendTeacherMotivation";
 import { auditAdminTeacherAction } from "../../_audit";
 
 type Body = {
@@ -95,65 +95,35 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     const message = typeof body.message === "string" ? body.message.trim() : "";
     const rdmDelta = Number.isFinite(body.rdmDelta) ? Number(body.rdmDelta) : 0;
 
-    if (kind === "reward_top_students") {
-      await createRewardTopStudentsAction(
-        {
-          teacherId,
-          classroomId,
-          sectionId: typeof body.sectionId === "string" ? body.sectionId : null,
-          targetStudentIds,
-          message,
-          rdmDelta,
-        },
-        admin as any,
-        { skipVerificationCheck: true }
-      );
-    } else {
-      await createMotivationAction(
-        {
-          teacherId,
-          classroomId,
-          sectionId: typeof body.sectionId === "string" ? body.sectionId : null,
-          actionKind: kind,
-          targetStudentIds,
-          message,
-          rdmDelta,
-          ...(typeof body.relatedPostId === "string" && body.relatedPostId.trim()
-            ? { relatedPostId: body.relatedPostId.trim() }
-            : {}),
-          ...(typeof body.relatedPostTitle === "string" && body.relatedPostTitle.trim()
-            ? { relatedPostTitle: body.relatedPostTitle.trim() }
-            : {}),
-          ...(body.recommendActionId &&
-          (body.recommendActionId === "attempt_targeted_mock" ||
-            body.recommendActionId === "post_doubt" ||
-            body.recommendActionId === "watch_recorded" ||
-            body.recommendActionId === "concept_focus_resource" ||
-            body.recommendActionId === "none")
-            ? { recommendActionId: body.recommendActionId }
-            : {}),
-          ...(typeof body.recommendActionLabel === "string" && body.recommendActionLabel.trim()
-            ? { recommendActionLabel: body.recommendActionLabel.trim() }
-            : {}),
-          ...(typeof body.recommendActionUrl === "string" && body.recommendActionUrl.trim()
-            ? { recommendActionUrl: body.recommendActionUrl.trim() }
-            : {}),
-          ...(typeof body.notificationTitle === "string" && body.notificationTitle.trim()
-            ? { notificationTitle: body.notificationTitle.trim() }
-            : {}),
-          ...(body.nudgeGoal === "restart_streak" ||
-          body.nudgeGoal === "complete_pending_assignment" ||
-          body.nudgeGoal === "attempt_mock" ||
-          body.nudgeGoal === "answer_doubts" ||
-          body.nudgeGoal === "revise_chapter" ||
-          body.nudgeGoal === "watch_recorded_class"
-            ? { nudgeGoal: body.nudgeGoal }
-            : {}),
-        },
-        admin as any,
-        { skipVerificationCheck: true }
-      );
-    }
+    const sendResult = await sendTeacherMotivation(
+      admin,
+      {
+        teacherId,
+        classroomId,
+        sectionId: typeof body.sectionId === "string" ? body.sectionId : null,
+        actionKind: kind,
+        targetStudentIds,
+        message,
+        rdmDelta,
+        relatedPostId:
+          typeof body.relatedPostId === "string" && body.relatedPostId.trim()
+            ? body.relatedPostId.trim()
+            : undefined,
+        relatedPostTitle:
+          typeof body.relatedPostTitle === "string" && body.relatedPostTitle.trim()
+            ? body.relatedPostTitle.trim()
+            : undefined,
+        recommendActionId: body.recommendActionId,
+        recommendActionLabel:
+          typeof body.recommendActionLabel === "string" ? body.recommendActionLabel : undefined,
+        recommendActionUrl:
+          typeof body.recommendActionUrl === "string" ? body.recommendActionUrl : undefined,
+        notificationTitle:
+          typeof body.notificationTitle === "string" ? body.notificationTitle : undefined,
+        nudgeGoal: body.nudgeGoal,
+      },
+      { skipVerificationCheck: true }
+    );
 
     await auditAdminTeacherAction({
       admin,
@@ -166,11 +136,13 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         classroomName: classroom?.name ?? null,
         actionKind: kind,
         targetCount: targetStudentIds.length,
-        rdmDelta,
+        rdmDelta: sendResult.effectiveRdmDelta,
+        teacherCharged: sendResult.teacherCharged,
+        grantsCreated: sendResult.grantsCreated,
       },
     });
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, ...sendResult });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Server error";
     return NextResponse.json({ error: msg }, { status: 500 });

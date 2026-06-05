@@ -36,6 +36,8 @@ import {
   type ExamCategoryKey,
 } from "@/lib/mock/aggregateMockPerformanceByCategory";
 import { subjectEmojis, SUBJECT_LABELS } from "@/components/prep-mock/constants";
+import PerformanceUpgradeGate from "@/components/performance/PerformanceUpgradeGate";
+import { getPerformancePageAccess } from "@/lib/subscription/performancePageAccess";
 
 type SubjectStat = TopicQuizSubjectStat;
 
@@ -403,6 +405,16 @@ export default function PerformancePage() {
     return sq + sc + sb + sf;
   }, [user]);
 
+  const performanceAccess = useMemo(
+    () =>
+      getPerformancePageAccess(
+        profile?.plan_tier,
+        profile?.free_trial_activated,
+        profile ?? undefined
+      ),
+    [profile]
+  );
+
   if (profile?.role === "teacher") {
     return (
       <ProtectedRoute>
@@ -441,6 +453,22 @@ export default function PerformancePage() {
       iconTone: "text-violet-600 dark:text-violet-300",
     },
   ];
+
+  if (!performanceAccess.canViewFullPage) {
+    return (
+      <ProtectedRoute>
+        <DashboardLayout streakTimer={streakTimer}>
+          <PerformanceUpgradeGate
+            locked
+            upgradeTarget={performanceAccess.fullPageUpgradeTarget}
+            variant="page"
+          >
+            {null}
+          </PerformanceUpgradeGate>
+        </DashboardLayout>
+      </ProtectedRoute>
+    );
+  }
 
   return (
     <ProtectedRoute>
@@ -566,26 +594,32 @@ export default function PerformancePage() {
             </div>
           </section>
 
-          <section className="rounded-2xl border border-border bg-card/90 p-3 shadow-sm dark:bg-slate-950/60 2xl:rounded-3xl 2xl:p-4">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2 2xl:mb-4">
-              <h2 className="text-xl font-bold tracking-tight text-foreground 2xl:text-2xl">
-                Test performance by category
-              </h2>
-              <p className="text-sm text-muted-foreground">
-                Past papers & mock tests · marks as correct/total questions
-              </p>
-            </div>
-            <div className="grid gap-3 md:grid-cols-2">
-              {EXAM_CARDS.map((card) => (
-                <ExamCategoryCard
-                  key={card.key}
-                  card={card}
-                  stats={categoryStats[card.key]}
-                  classLevel={user?.classLevel}
-                />
-              ))}
-            </div>
-          </section>
+          <PerformanceUpgradeGate
+            locked={!performanceAccess.canViewCategoryReport}
+            upgradeTarget={performanceAccess.categoryUpgradeTarget}
+            variant="section"
+          >
+            <section className="rounded-2xl border border-border bg-card/90 p-3 shadow-sm dark:bg-slate-950/60 2xl:rounded-3xl 2xl:p-4">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2 2xl:mb-4">
+                <h2 className="text-xl font-bold tracking-tight text-foreground 2xl:text-2xl">
+                  Test performance by category
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  Past papers & mock tests · marks as correct/total questions
+                </p>
+              </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                {EXAM_CARDS.map((card) => (
+                  <ExamCategoryCard
+                    key={card.key}
+                    card={card}
+                    stats={categoryStats[card.key]}
+                    classLevel={user?.classLevel}
+                  />
+                ))}
+              </div>
+            </section>
+          </PerformanceUpgradeGate>
         </div>
       </DashboardLayout>
     </ProtectedRoute>

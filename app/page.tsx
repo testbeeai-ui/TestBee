@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, Suspense } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 
 import LandingNavbar from "@/components/landing/LandingNavbar";
 import LandingFooter from "@/components/landing/LandingFooter";
 import EduBlastInvestorLanding from "@/components/landing/EduBlastInvestorLanding";
+import SignInNoticeModal from "@/components/landing/SignInNoticeModal";
 import { INVESTOR_NAV_LINKS } from "@/components/landing/landing-constants";
 import {
   getSafeInternalNextPath,
@@ -35,6 +36,7 @@ function LandingPageContent() {
   const { user, profile, loading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [noticeOpen, setNoticeOpen] = useState(false);
   // Depend on the string, not the searchParams object (identity can churn and retrigger the effect).
   const nextParam = searchParams.get("next");
   const safeNextFromUrl = getSafeInternalNextPath(nextParam);
@@ -57,9 +59,21 @@ function LandingPageContent() {
 
   return (
     <div className="landing-page min-h-screen scroll-smooth bg-[#050505] text-zinc-100">
-      <LandingNavbar variant="dark" navLinks={INVESTOR_NAV_LINKS} sharedNext={safeNextFromUrl} />
-      <EduBlastInvestorLanding />
+      <LandingNavbar 
+        variant="dark" 
+        navLinks={INVESTOR_NAV_LINKS} 
+        sharedNext={safeNextFromUrl} 
+        onOpenWaitlist={(role) => router.push(role ? `/waitlist?role=${role}` : "/waitlist")}
+        onOpenSignInNotice={() => setNoticeOpen(true)}
+      />
+      <EduBlastInvestorLanding onOpenWaitlist={(role) => router.push(role ? `/waitlist?role=${role}` : "/waitlist")} />
       <LandingFooter variant="dark" />
+
+      <SignInNoticeModal
+        open={noticeOpen}
+        onOpenChange={setNoticeOpen}
+        onJoinWaitlist={() => router.push("/waitlist")}
+      />
     </div>
   );
 }

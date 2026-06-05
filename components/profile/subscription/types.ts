@@ -50,7 +50,7 @@ export const PLAN_TIERS: PlanTier[] = [
       {
         title: "Lessons & Revision",
         items: [
-          { name: "Lessons", checked: true, badge: "2 chapters" },
+          { name: "Lessons", checked: true, badge: "2/subject" },
           { name: "InstaCue cards", checked: true, badge: "20 cards" },
           { name: "Spaced repetition scheduler", checked: false, badge: "coming soon" },
           { name: "Performance dashboard", checked: true, badge: "basic" },
@@ -71,7 +71,7 @@ export const PLAN_TIERS: PlanTier[] = [
           { name: "DailyDose", checked: true, badge: "5/day" },
           { name: "MentalMill challenge", checked: true },
           { name: "Quant Blitz + Logic Maze", checked: false },
-          { name: "RDM accumulation", checked: true, badge: "1x rate" },
+          { name: "RDM accumulation", checked: true, badge: "0.25x rate" },
         ],
       },
       {
@@ -89,8 +89,8 @@ export const PLAN_TIERS: PlanTier[] = [
     name: "Free",
     priceMonthly: 0,
     priceYearly: 0,
-    description: "Always-available free tier with stricter monthly limits than trial.",
-    highlights: ["Magic Wall 2/month", "1 doubt/day", "3 mocks/month", "DailyDose 5/day"],
+    description: "Always-available free tier. Note: mock test access is limited to a total of 6 tests (2 months cap).",
+    highlights: ["Magic Wall 2/month", "1 doubt/day", "3 mocks/month (max 6 total)", "DailyDose 5/day"],
     categories: [
       {
         title: "Dashboard & Social",
@@ -104,7 +104,7 @@ export const PLAN_TIERS: PlanTier[] = [
       {
         title: "Lessons & Revision",
         items: [
-          { name: "Lessons", checked: true, badge: "2 chapters" },
+          { name: "Lessons", checked: true, badge: "2/subject" },
           { name: "InstaCue cards", checked: true, badge: "20 cards" },
           { name: "Spaced repetition scheduler", checked: false, badge: "coming soon" },
           { name: "Performance dashboard", checked: true, badge: "basic" },
@@ -114,7 +114,7 @@ export const PLAN_TIERS: PlanTier[] = [
       {
         title: "Prep + Mock Tests",
         items: [
-          { name: "Testbee mocks", checked: true, badge: "3/month" },
+          { name: "Testbee mocks", checked: true, badge: "3/month (2 months cap / 6 max)" },
           { name: "Adaptive difficulty", checked: false, badge: "coming soon" },
           { name: "AI calendar", checked: true, badge: "basic" },
         ],
@@ -125,7 +125,7 @@ export const PLAN_TIERS: PlanTier[] = [
           { name: "DailyDose", checked: true, badge: "5/day" },
           { name: "MentalMill challenge", checked: true },
           { name: "Quant Blitz + Logic Maze", checked: false },
-          { name: "RDM accumulation", checked: true, badge: "1x rate" },
+          { name: "RDM accumulation", checked: true, badge: "0.25x rate" },
         ],
       },
       {
@@ -181,7 +181,7 @@ export const PLAN_TIERS: PlanTier[] = [
           { name: "DailyDose", checked: true, badge: "10/day" },
           { name: "Quant Blitz + Logic Maze", checked: true },
           { name: "Challenge test box", checked: true },
-          { name: "RDM accumulation", checked: true, badge: "1.5x rate" },
+          { name: "RDM accumulation", checked: true, badge: "0.50x → 1.00x (loyalty)" },
         ],
       },
       {
@@ -237,7 +237,7 @@ export const PLAN_TIERS: PlanTier[] = [
         items: [
           { name: "DailyDose", checked: true, badge: "10/day" },
           { name: "MentalMill", checked: true, badge: "all play modes" },
-          { name: "RDM accumulation", checked: true, badge: "2x rate" },
+          { name: "RDM accumulation", checked: true, badge: "1.00x → 2.00x (loyalty)" },
           { name: "1-on-1 mentor sessions", checked: true, badge: "2/mo" },
         ],
       },
@@ -254,6 +254,13 @@ export const PLAN_TIERS: PlanTier[] = [
   },
 ];
 
+export type BillingRecordStatus =
+  | "paid"
+  | "refunded"
+  | "cancelled"
+  | "activated"
+  | "bonus";
+
 export interface BillingRecord {
   id: string;
   title: string;
@@ -261,7 +268,7 @@ export interface BillingRecord {
   method: string;
   txnId: string;
   amount: number;
-  status: "paid" | "refunded" | "cancelled";
+  status: BillingRecordStatus;
 }
 
 export const MOCK_BILLING: BillingRecord[] = [];

@@ -6,6 +6,7 @@ export type SubscriptionPlanLimits = {
   magicWallMaxActiveTopics: number;
   magicWallMonthlyAttempts: number;
   gyanDoubtsPerDay: number;
+  subjectChatMessagesPerDay: number;
   lessonsChapterLimit: number;
   instacueCardLimit: number;
   mocksPerMonth: number;
@@ -30,6 +31,16 @@ export const SUBSCRIPTION_CONFIG_DEFAULTS: SubscriptionConfig = {
   free_trial_gyan_doubts_per_day: 1,
   starter_gyan_doubts_per_day: 30,
   pro_gyan_doubts_per_day: -1,
+
+  free_subject_chat_messages_per_day: 3,
+  free_trial_subject_chat_messages_per_day: 3,
+  starter_subject_chat_messages_per_day: -1,
+  pro_subject_chat_messages_per_day: -1,
+
+  free_subject_chat_multilingual: 0,
+  free_trial_subject_chat_multilingual: 0,
+  starter_subject_chat_multilingual: 0,
+  pro_subject_chat_multilingual: 1,
 
   free_lessons_chapter_limit: 2,
   free_trial_lessons_chapter_limit: 2,
@@ -78,6 +89,17 @@ export const SUBSCRIPTION_CONFIG_DEFAULTS: SubscriptionConfig = {
   starter_inactive_penalty_rdm: 50,
   pro_inactive_penalty_rdm: 25,
   free_trial_checklist_reward_rdm: 100,
+
+  // Investor rule: Free trial length (base, no streak) in days.
+  free_trial_duration_days: 14,
+  // Investor rule: Extra days granted if the user keeps a streak across the
+  // base trial window. 14 base + 14 extension = 28 day second round.
+  free_trial_streak_extension_days: 14,
+  // Investor rule: Consecutive active days required to unlock the extension.
+  free_trial_streak_days_required: 14,
+  // Investor rule: Maximum calendar months a user may stay on the Free plan
+  // (3 mocks/month) before the mock quota is soft-blocked until they upgrade.
+  free_plan_max_months: 2,
 };
 
 export const SUBSCRIPTION_CONFIG_KEYS = Object.keys(
@@ -97,11 +119,58 @@ type SubscriptionConfigClient = {
 
 export function normalizePlanTier(
   rawPlanTier: string | null | undefined,
-  freeTrialActivated?: boolean | null
+  freeTrialActivated?: boolean | null,
+  profile?: {
+    subscription_started_at?: string | null;
+    subscription_expires_at?: string | null;
+    payment_card_details?: any;
+    time_travel_offset_ms?: number | null;
+  } | null
 ): SubscriptionPlanKey {
   const normalized = String(rawPlanTier ?? "")
     .trim()
     .toLowerCase();
+
+  const isPaid = normalized === "starter" || normalized === "scholar" || normalized === "pro" || normalized === "champion" || normalized === "pro_plus";
+
+  if (profile?.subscription_expires_at) {
+    const expiryMs = Date.parse(profile.subscription_expires_at);
+    const nowMs = Date.now() + (profile.time_travel_offset_ms ?? 0);
+    if (!Number.isNaN(expiryMs)) {
+      if (nowMs >= expiryMs) {
+        return freeTrialActivated === true ? "free_trial" : "free";
+      }
+      if (normalized === "starter" || normalized === "scholar") return "starter";
+      if (normalized === "pro" || normalized === "champion" || normalized === "pro_plus") return "pro";
+    }
+  }
+
+  if (isPaid && profile) {
+    try {
+      const details = typeof profile.payment_card_details === "string"
+        ? JSON.parse(profile.payment_card_details)
+        : profile.payment_card_details;
+
+      if (details && details.autoRenew === false) {
+        const startIso = profile.subscription_started_at || new Date().toISOString();
+        const startMs = Date.parse(startIso);
+
+        // Calculate days in period
+        const isAnnual = details.billingCycle === "annual";
+        const totalDays = isAnnual ? 365 : 30;
+        const endMs = startMs + totalDays * 24 * 60 * 60 * 1000;
+
+        const nowMs = Date.now() + (profile.time_travel_offset_ms ?? 0);
+        if (nowMs >= endMs) {
+          // Subscription has expired! Revert to free or free trial
+          return freeTrialActivated === true ? "free_trial" : "free";
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
   if (normalized === "free_trial") return "free_trial";
   if (normalized === "starter" || normalized === "scholar") return "starter";
   if (normalized === "pro" || normalized === "champion" || normalized === "pro_plus") return "pro";
@@ -109,6 +178,44 @@ export function normalizePlanTier(
     return freeTrialActivated === true ? "free_trial" : "free";
   }
   return freeTrialActivated === true ? "free_trial" : "free";
+}
+
+/** Plan-card copy: 25% must show as 0.25x, not 0.3x (single-decimal rounding bug). */
+export function formatRdmMultiplierRateLabel(multiplierPct: number): string {
+  const asX = multiplierPct / 100;
+  if (asX < 1) return `${asX.toFixed(2)}x rate`;
+  if (Number.isInteger(asX)) return `${asX.toFixed(0)}x rate`;
+  return `${asX.toFixed(1)}x rate`;
+}
+
+/** RDM % shown on subscription plan comparison cards (not loyalty-month aware). */
+export function resolvePlanCardRdmMultiplierPct(
+  cfg: SubscriptionConfig,
+  plan: SubscriptionPlanKey
+): number {
+  if (plan === "free") return cfg["free_rdm_multiplier_pct"] ?? 25;
+  if (plan === "free_trial") return cfg["free_trial_rdm_multiplier_pct"] ?? 25;
+  if (plan === "starter") return cfg["starter_rdm_multiplier_months_1_3_pct"] ?? 50;
+  if (plan === "pro") return cfg["pro_rdm_multiplier_months_1_5_pct"] ?? 100;
+  return 100;
+}
+
+export function formatPlanCardRdmMultiplierLabel(
+  cfg: SubscriptionConfig,
+  plan: SubscriptionPlanKey
+): string {
+  if (plan === "starter") {
+    const ramp = cfg["starter_rdm_multiplier_months_1_3_pct"] ?? 50;
+    const full = cfg["starter_rdm_multiplier_months_4_plus_pct"] ?? 100;
+    return `${formatRdmMultiplierRateLabel(ramp).replace(" rate", "")} → ${formatRdmMultiplierRateLabel(full).replace(" rate", "")} (loyalty)`;
+  }
+  if (plan === "pro") {
+    const m15 = cfg["pro_rdm_multiplier_months_1_5_pct"] ?? 100;
+    const m611 = cfg["pro_rdm_multiplier_months_6_11_pct"] ?? 150;
+    const m12 = cfg["pro_rdm_multiplier_months_12_plus_pct"] ?? 200;
+    return `${formatRdmMultiplierRateLabel(m15).replace(" rate", "")} → ${formatRdmMultiplierRateLabel(m611).replace(" rate", "")} → ${formatRdmMultiplierRateLabel(m12).replace(" rate", "")} (loyalty)`;
+  }
+  return formatRdmMultiplierRateLabel(resolvePlanCardRdmMultiplierPct(cfg, plan));
 }
 
 export function getPlanLimits(
@@ -124,17 +231,40 @@ export function getPlanLimits(
     magicWallMaxActiveTopics: read("magic_wall_max_active_topics", 3),
     magicWallMonthlyAttempts: read("magic_wall_monthly_attempts", 3),
     gyanDoubtsPerDay: read("gyan_doubts_per_day", 1),
+    subjectChatMessagesPerDay: read("subject_chat_messages_per_day", 3),
     lessonsChapterLimit: read("lessons_chapter_limit", 2),
     instacueCardLimit: read("instacue_card_limit", 20),
     mocksPerMonth: read("mocks_per_month", 3),
     dailyDoseQuestionsPerDay: read("daily_dose_questions_per_day", 5),
     buddiesLimit: read("buddies_limit", 0),
-    rdmMultiplierPct: read("rdm_multiplier_pct", 100),
+    rdmMultiplierPct: resolvePlanCardRdmMultiplierPct(cfg, plan),
   };
 }
 
 export function isUnlimited(limit: number): boolean {
   return limit < 0;
+}
+
+/** Admin + UI copy: Lessons (/explore-1) chapter picker — not a monthly quota. */
+export const LESSONS_CHAPTER_LIMIT_RDM_DESCRIPTION =
+  "Max chapters unlockable per PCM subject on Lessons (/explore-1). Separate cap for Physics, Chemistry, and Math. Not monthly. One class (11 or 12) per subject. -1 = unlimited (disables chapter lock).";
+
+export function resolveLessonsChapterCap(limit: number, fallback = 2): number {
+  if (isUnlimited(limit)) return Infinity;
+  return limit > 0 ? limit : fallback;
+}
+
+export function lessonsChapterLockEnabled(
+  lessonsChapterLimit: number,
+  planLocksChapters: boolean
+): boolean {
+  return planLocksChapters && !isUnlimited(lessonsChapterLimit);
+}
+
+export function formatLessonsChapterLimitLabel(limit: number): string {
+  if (isUnlimited(limit)) return "Unlimited chapters (all subjects)";
+  const n = limit > 0 ? limit : 2;
+  return `${n} chapter${n === 1 ? "" : "s"} per subject (Phy, Chem, Math)`;
 }
 
 export async function fetchSubscriptionConfig(
@@ -182,7 +312,7 @@ export function getLoyaltyMonths(
  *
  * Multiplier ladder:
  *  - free_trial : flat 0.25x (configurable via free_trial_rdm_multiplier_pct)
- *  - free       : flat 1.00x (no multiplier applied)
+ *  - free       : flat 0.25x (configurable via free_rdm_multiplier_pct)
  *  - starter    : month 1–3 → 0.50x | month 4+ → 1.00x
  *  - pro        : month 1–5 → 1.00x | month 6–11 → 1.50x | month 12+ → 2.00x
  *

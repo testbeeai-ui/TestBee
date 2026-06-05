@@ -2,12 +2,16 @@
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, X, ChevronDown, Globe, Copy, Check, ChevronUp } from "lucide-react";
+import { Send, X, ChevronDown, Globe, Copy, Check, ChevronUp, Lock } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import type { Subject } from "@/types";
 import { useAuth } from "@/hooks/useAuth";
+import {
+  fetchSubjectChatQuota,
+  type SubjectChatQuotaResponse,
+} from "@/lib/subscription/subjectChatClient";
 
 interface Message {
   id: string;
@@ -66,6 +70,9 @@ const LANGUAGES = [
   { code: "te", label: "తెలుగు" },
 ];
 
+const SUBJECT_CHAT_UPGRADE_COPY =
+  "**Starter** and **Pro** unlock unlimited chat and answers in Hindi, Kannada, Tamil, and Telugu.\n\nGo to **Profile → Change plan** to upgrade.";
+
 const TYPING_PHRASES: Record<string, string[]> = {
   physics: [
     "Applying Newton's laws...",
@@ -113,7 +120,7 @@ function BotBubble({
   return (
     <div className="group relative min-w-0 max-w-full w-full">
       <div
-        className={`min-w-0 max-w-full px-3.5 py-2.5 rounded-2xl rounded-bl-md shadow-sm border border-gray-100 bg-white text-gray-800 chat-markdown text-[15px] leading-relaxed ${!expanded ? "overflow-hidden" : "overflow-x-hidden"}`}
+        className={`min-w-0 max-w-full px-3 py-2 rounded-2xl rounded-bl-md shadow-sm border border-gray-100 bg-white text-gray-800 chat-markdown text-[14px] leading-snug ${!expanded ? "overflow-hidden" : "overflow-x-hidden"}`}
       >
         <ReactMarkdown
           remarkPlugins={[remarkMath]}
@@ -155,7 +162,7 @@ function BotBubble({
       {isLong && (
         <button
           onClick={() => setExpanded((p) => !p)}
-          className="mt-1 flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full hover:bg-gray-100 transition-colors"
+          className="mt-1 flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full hover:bg-gray-100 transition-colors"
           style={{ color: accentColor }}
         >
           {expanded ? (
@@ -293,6 +300,7 @@ export default function SubjectChatbot({
   chapterTitle,
 }: Props) {
   const { session } = useAuth();
+  const [chatQuota, setChatQuota] = useState<SubjectChatQuotaResponse | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -328,6 +336,38 @@ export default function SubjectChatbot({
   );
   const meta = SUBJECT_META[subject] ?? SUBJECT_META.physics;
   const presets = getPresetQuestions(topic, subtopic);
+  const refreshChatQuota = useCallback(async () => {
+    const q = await fetchSubjectChatQuota(session?.access_token);
+    setChatQuota(q);
+    return q;
+  }, [session?.access_token]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    void refreshChatQuota();
+  }, [isOpen, refreshChatQuota]);
+
+  const hasMultilingual = chatQuota?.multilingual ?? false;
+
+  const handleLanguageSelect = useCallback(
+    (code: string) => {
+      if (!hasMultilingual && code !== "en") {
+        setShowLangMenu(false);
+        const upgradeMsg: Message = {
+          id: crypto.randomUUID(),
+          role: "bot",
+          content: SUBJECT_CHAT_UPGRADE_COPY,
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, upgradeMsg]);
+        return;
+      }
+      setLanguage(code);
+      setShowLangMenu(false);
+    },
+    [hasMultilingual]
+  );
+
   const chatHistoryKey = buildChatHistoryKey({
     subject,
     topic,
@@ -463,7 +503,7 @@ export default function SubjectChatbot({
       const greeting: Message = {
         id: crypto.randomUUID(),
         role: "bot",
-        content: `Hi! I'm your ${meta.label} ${meta.emoji}\n\nI'm here to help you master **${topic}**. Ask me anything — I can explain concepts, solve examples, give memory tricks, or answer in your regional language!\n\nWhat would you like to know? 🚀`,
+        content: `Hi! I'm your ${meta.label} ${meta.emoji}\n\nI'm here to help you master **${topic}**. Ask me anything — I can explain concepts, solve examples, and give memory tricks!\n\nWhat would you like to know? 🚀`,
         timestamp: new Date(),
       };
       setTimeout(() => setMessages([greeting]), 300);
@@ -482,6 +522,17 @@ export default function SubjectChatbot({
       const trimmed = text.trim();
       if (!trimmed || isLoading) return;
 
+      if (!session?.access_token) {
+        const signInMsg: Message = {
+          id: crypto.randomUUID(),
+          role: "bot",
+          content: "Please **sign in** to use Subject Chat and save your conversation.",
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, signInMsg]);
+        return;
+      }
+
       const userMsg: Message = {
         id: crypto.randomUUID(),
         role: "user",
@@ -494,21 +545,17 @@ export default function SubjectChatbot({
       setIsLoading(true);
 
       try {
-        // Send last 6 messages as history for follow-up context
-        const historyToSend = messages.slice(-6).map((m) => ({ role: m.role, content: m.content }));
+        const headers: Record<string, string> = {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        };
 
-        const headers: Record<string, string> = { "Content-Type": "application/json" };
-        if (session?.access_token) {
-          headers.Authorization = `Bearer ${session.access_token}`;
-        }
-
-        // Logged-in: server loads thread from Supabase; omit history to reduce payload.
         const body: Record<string, unknown> = {
           message: trimmed,
           subject,
           topic,
           subtopic,
-          language,
+          language: hasMultilingual ? language : "en",
           gradeLevel: gradeLevel ?? 11,
         };
         if (board) body.board = board;
@@ -518,9 +565,6 @@ export default function SubjectChatbot({
         if (sectionSlug) body.sectionSlug = sectionSlug;
         if (unitLabel) body.unitLabel = unitLabel;
         if (chapterTitle) body.chapterTitle = chapterTitle;
-        if (!session?.access_token) {
-          body.history = historyToSend;
-        }
 
         const res = await fetch("/api/subject-chat", {
           method: "POST",
@@ -531,10 +575,44 @@ export default function SubjectChatbot({
 
         const data = await res.json();
 
+        if (res.status === 429 || data.code === "SUBJECT_CHAT_DAILY_LIMIT") {
+          setChatQuota((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  canSend: false,
+                  remaining: 0,
+                  usedToday: data.usedToday ?? prev.usedToday,
+                }
+              : prev
+          );
+        } else if (data.quota) {
+          setChatQuota((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  usedToday: data.quota.usedToday,
+                  remaining: data.quota.remaining,
+                  canSend: data.quota.canSend,
+                }
+              : prev
+          );
+        } else if (res.ok) {
+          void refreshChatQuota();
+        }
+
+        let botContent =
+          data.reply || data.error || "Sorry, I could not generate a response.";
+        if (res.status === 401 || data.code === "SUBJECT_CHAT_AUTH_REQUIRED") {
+          botContent = "Please **sign in** to continue chatting.";
+        } else if (res.status === 429 || data.code === "SUBJECT_CHAT_DAILY_LIMIT") {
+          botContent = SUBJECT_CHAT_UPGRADE_COPY;
+        }
+
         const botMsg: Message = {
           id: crypto.randomUUID(),
           role: "bot",
-          content: data.reply || data.error || "Sorry, I could not generate a response.",
+          content: botContent,
           timestamp: new Date(),
         };
         setMessages((prev) => [...prev, botMsg]);
@@ -558,7 +636,7 @@ export default function SubjectChatbot({
       language,
       gradeLevel,
       session?.access_token,
-      messages,
+      hasMultilingual,
       board,
       unitSlug,
       topicSlug,
@@ -566,6 +644,7 @@ export default function SubjectChatbot({
       sectionSlug,
       unitLabel,
       chapterTitle,
+      refreshChatQuota,
     ]
   );
 
@@ -850,7 +929,7 @@ export default function SubjectChatbot({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 60, scale: 0.9 }}
             transition={{ type: "spring", stiffness: 280, damping: 26 }}
-            className="fixed bottom-6 right-6 z-50 flex min-h-0 min-w-0 flex-col rounded-3xl overflow-hidden shadow-2xl"
+            className="subject-chat-panel fixed bottom-6 right-6 z-50 flex min-h-0 min-w-0 flex-col rounded-3xl overflow-hidden shadow-2xl"
             style={{
               width: `min(${chatSize.width}px, calc(100vw - 24px))`,
               height: `min(${chatSize.height}px, calc(100vh - 80px))`,
@@ -875,52 +954,78 @@ export default function SubjectChatbot({
             </div>
             {/* Header */}
             <div
-              className={`flex items-center justify-between px-4 py-3.5 bg-gradient-to-br ${meta.gradient} text-white shrink-0`}
+              className={`flex items-center justify-between px-3 py-2.5 bg-gradient-to-br ${meta.gradient} text-white shrink-0`}
             >
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center text-lg backdrop-blur-sm">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center text-base backdrop-blur-sm shrink-0">
                   {meta.emoji}
                 </div>
-                <div>
-                  <p className="font-bold text-[15px] leading-tight">{meta.label}</p>
-                  <p className="text-[11px] text-white/70 leading-tight">{topic}</p>
+                <div className="min-w-0">
+                  <p className="font-semibold text-sm leading-tight truncate">{meta.label}</p>
+                  <p className="text-[10px] text-white/70 leading-tight truncate">{topic}</p>
                 </div>
               </div>
 
               <div className="flex items-center gap-2">
-                {/* Language selector */}
                 <div className="relative">
                   <button
+                    type="button"
                     onClick={() => setShowLangMenu((p) => !p)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 transition-colors text-xs font-semibold"
+                    aria-expanded={showLangMenu}
+                    aria-haspopup="listbox"
+                    className="flex items-center gap-1.5 pl-2.5 pr-2 py-1.5 rounded-full bg-white shadow-sm border-2 transition-all hover:shadow-md text-xs font-semibold text-slate-800"
+                    style={{ borderColor: meta.accentColor }}
                   >
-                    <Globe className="w-3.5 h-3.5 opacity-80" />
-                    <span>{selectedLang.label}</span>
-                    <ChevronDown className="w-3 h-3 ml-0.5" />
+                    <Globe className="w-3.5 h-3.5 shrink-0" style={{ color: meta.accentColor }} />
+                    <span className="max-w-[5.5rem] truncate">{selectedLang.label}</span>
+                    <ChevronDown
+                      className={`w-3.5 h-3.5 shrink-0 text-slate-500 transition-transform ${showLangMenu ? "rotate-180" : ""}`}
+                    />
                   </button>
                   <AnimatePresence>
                     {showLangMenu && (
                       <motion.div
+                        role="listbox"
                         initial={{ opacity: 0, y: -6, scale: 0.95 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: -6, scale: 0.95 }}
-                        className="absolute right-0 top-full mt-1 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-10 min-w-[120px]"
+                        className="absolute right-0 top-full mt-1.5 bg-white rounded-xl shadow-lg overflow-hidden z-10 min-w-[9.5rem] border-2 py-0.5"
+                        style={{ borderColor: meta.accentColor }}
                       >
-                        {LANGUAGES.map((lang) => (
-                          <button
-                            key={lang.code}
-                            onClick={() => {
-                              setLanguage(lang.code);
-                              setShowLangMenu(false);
-                            }}
-                            className={`w-full flex items-center justify-between px-3.5 py-2.5 text-sm text-left hover:bg-gray-50 transition-colors ${language === lang.code ? "font-bold text-gray-900 bg-gray-50" : "text-gray-700"}`}
-                          >
-                            <span>{lang.label}</span>
-                            {language === lang.code && (
-                              <span className="text-[12px] text-[#10b981] font-extrabold">✓</span>
-                            )}
-                          </button>
-                        ))}
+                        {LANGUAGES.map((lang) => {
+                          const isActive = language === lang.code;
+                          const locked = !hasMultilingual && lang.code !== "en";
+                          return (
+                            <button
+                              key={lang.code}
+                              type="button"
+                              role="option"
+                              aria-selected={isActive}
+                              onClick={() => handleLanguageSelect(lang.code)}
+                              className={`w-full flex items-center justify-between gap-2 px-3 py-2 text-[13px] text-left transition-colors border-l-[3px] ${
+                                isActive
+                                  ? "font-semibold border-l-current"
+                                  : "font-medium text-slate-600 border-l-transparent hover:bg-slate-50"
+                              } ${locked ? "opacity-90" : ""}`}
+                              style={
+                                isActive
+                                  ? {
+                                      color: meta.accentColor,
+                                      backgroundColor: meta.lightBg,
+                                      borderLeftColor: meta.accentColor,
+                                    }
+                                  : undefined
+                              }
+                            >
+                              <span>{lang.label}</span>
+                              {locked ? (
+                                <Lock className="w-3 h-3 shrink-0 text-slate-400" aria-hidden />
+                              ) : isActive ? (
+                                <Check className="w-3.5 h-3.5 shrink-0" style={{ color: meta.accentColor }} />
+                              ) : null}
+                            </button>
+                          );
+                        })}
                       </motion.div>
                     )}
                   </AnimatePresence>
@@ -937,12 +1042,12 @@ export default function SubjectChatbot({
               </div>
             </div>
 
-            {/* Messages */}
-            <div className="relative flex-1 min-h-0 min-w-0 overflow-hidden">
+            {/* Messages + presets (single surface — avoids seam / dark line between sections) */}
+            <div className="relative flex-1 min-h-0 min-w-0 overflow-hidden bg-[#f8f9fc]">
               <div
                 ref={scrollContainerRef}
                 onScroll={handleScroll}
-                className="h-full min-h-0 min-w-0 overflow-y-auto overflow-x-hidden overscroll-contain bg-[#f8f9fc] px-4 py-3 space-y-3"
+                className="h-full min-h-0 min-w-0 overflow-y-auto overflow-x-hidden overscroll-contain px-3 py-2.5 space-y-2.5"
                 onClick={() => setShowLangMenu(false)}
               >
                 <AnimatePresence initial={false}>
@@ -956,7 +1061,7 @@ export default function SubjectChatbot({
                     >
                       {msg.role === "bot" && (
                         <div
-                          className={`w-7 h-7 rounded-xl flex items-center justify-center text-sm shrink-0 mt-0.5 bg-gradient-to-br ${meta.gradient} text-white`}
+                          className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs shrink-0 mt-0.5 bg-gradient-to-br ${meta.gradient} text-white`}
                         >
                           {meta.emoji}
                         </div>
@@ -966,7 +1071,7 @@ export default function SubjectChatbot({
                       >
                         {msg.role === "user" ? (
                           <div
-                            className="px-3.5 py-2.5 rounded-2xl text-[15px] leading-relaxed text-white rounded-br-md whitespace-pre-wrap"
+                            className="px-3 py-2 rounded-2xl text-[14px] leading-snug text-white rounded-br-md whitespace-pre-wrap"
                             style={{
                               background: `linear-gradient(135deg, ${meta.accentColor}, ${meta.accentColor}cc)`,
                             }}
@@ -997,11 +1102,11 @@ export default function SubjectChatbot({
                       className="flex items-center gap-2"
                     >
                       <div
-                        className={`w-7 h-7 rounded-xl flex items-center justify-center text-sm bg-gradient-to-br ${meta.gradient} text-white`}
+                        className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs bg-gradient-to-br ${meta.gradient} text-white`}
                       >
                         {meta.emoji}
                       </div>
-                      <div className="bg-white rounded-2xl rounded-bl-md px-4 py-3 shadow-sm border border-gray-100 flex items-center gap-2">
+                      <div className="bg-white rounded-2xl rounded-bl-md px-3 py-2 shadow-sm border border-gray-100 flex items-center gap-2">
                         <div className="flex items-center gap-1.5">
                           {[0, 0.15, 0.3].map((delay, i) => (
                             <motion.div
@@ -1013,11 +1118,28 @@ export default function SubjectChatbot({
                             />
                           ))}
                         </div>
-                        <span className="text-[11px] text-gray-400 italic">{typingPhrase}</span>
+                        <span className="text-[10px] text-gray-400 italic">{typingPhrase}</span>
                       </div>
                     </motion.div>
                   )}
                 </AnimatePresence>
+
+                {messages.length <= 1 && (
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {presets.map((q) => (
+                      <button
+                        key={q}
+                        type="button"
+                        onClick={() => sendMessage(q)}
+                        disabled={isLoading}
+                        className="text-[10px] font-medium px-2.5 py-1 rounded-full border border-gray-200 bg-white hover:border-blue-300 hover:text-blue-600 text-gray-600 transition-colors shadow-sm leading-snug disabled:opacity-50"
+                      >
+                        {q}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
                 <div ref={messagesEndRef} />
               </div>
 
@@ -1039,34 +1161,21 @@ export default function SubjectChatbot({
               </AnimatePresence>
             </div>
 
-            {/* Preset chips */}
-            {messages.length <= 1 && (
-              <div className="bg-[#f8f9fc] px-3 pb-2 flex flex-wrap gap-2 overflow-hidden shrink-0">
-                {presets.map((q) => (
-                  <button
-                    key={q}
-                    onClick={() => sendMessage(q)}
-                    className="text-[11px] font-semibold px-3 py-1.5 rounded-full border border-gray-200 bg-white hover:border-blue-300 hover:text-blue-600 text-gray-600 transition-colors shadow-sm"
-                  >
-                    {q}
-                  </button>
-                ))}
-              </div>
-            )}
-
             {/* Input bar */}
-            <div className="shrink-0 bg-white border-t border-gray-100 px-3 py-3 flex items-end gap-2">
-              <div className="flex-1 bg-[#f1f5f9] rounded-2xl px-3.5 py-2.5 flex items-end gap-2 min-h-[44px]">
+            <div className="shrink-0 bg-white border-t border-gray-100/80 px-2.5 py-2 flex items-end gap-2">
+              <div className="flex-1 bg-[#f1f5f9] rounded-xl px-3 py-2 flex items-end gap-2 min-h-[40px]">
                 <textarea
                   ref={inputRef}
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder={`Ask ${meta.label}...`}
+                  placeholder={
+                    !session?.access_token ? "Sign in to chat..." : `Ask ${meta.label}...`
+                  }
                   rows={1}
                   disabled={isLoading}
-                  className="flex-1 bg-transparent resize-none text-sm text-gray-800 placeholder-gray-400 outline-none leading-relaxed max-h-24 overflow-y-auto"
-                  style={{ minHeight: "20px" }}
+                  className="flex-1 bg-transparent resize-none text-xs text-gray-800 placeholder-gray-400 outline-none leading-snug max-h-24 overflow-y-auto"
+                  style={{ minHeight: "18px" }}
                   onInput={(e) => {
                     const el = e.currentTarget;
                     el.style.height = "auto";
@@ -1079,13 +1188,13 @@ export default function SubjectChatbot({
                 whileTap={{ scale: 0.92 }}
                 onClick={() => sendMessage(input)}
                 disabled={!input.trim() || isLoading}
-                className={`w-11 h-11 rounded-2xl flex items-center justify-center transition-all shrink-0 ${
+                className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all shrink-0 ${
                   input.trim() && !isLoading
                     ? `bg-gradient-to-br ${meta.gradient} text-white shadow-md`
                     : "bg-gray-100 text-gray-400"
                 }`}
               >
-                <Send className="w-4 h-4" />
+                <Send className="w-3.5 h-3.5" />
               </motion.button>
             </div>
           </motion.div>

@@ -24,6 +24,8 @@ import {
 import { notifyBuddyActivityRefresh } from "@/lib/buddy/buddyActivityEvents";
 import { incrementPrepCalendarDay, localDayISO } from "@/lib/dashboard/prepCalendarClient";
 import { safeGetSession } from "@/lib/auth/safeSession";
+import { getClientApiAuthHeaders } from "@/lib/auth/clientApiAuth";
+import { gyanDoubtLimitToastCopy } from "@/lib/subscription/gyanDoubtsLimits";
 
 interface AskDoubtDialogProps {
   open: boolean;
@@ -136,22 +138,45 @@ export default function AskDoubtDialog({ open, onOpenChange, onDoubtPosted }: As
     const nb = normalizePastedMathForDoubt(body.trim());
     setTitle(nt);
     setBody(nb);
-    const { data, error } = await supabase.rpc("create_doubt_with_escrow", {
-      p_title: nt,
-      p_body: nb || "",
-      p_subject: subject.trim(),
-      p_cost_rdm: 0,
-      p_bounty_rdm: 0,
+    const authHeaders = await getClientApiAuthHeaders();
+    const postRes = await fetch("/api/gyan/doubt-post", {
+      method: "POST",
+      credentials: "include",
+      headers: { ...authHeaders, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: nt,
+        body: nb || "",
+        subject: subject.trim(),
+        costRdm: 0,
+        bountyRdm: 0,
+      }),
     });
     setSubmitLoading(false);
-    const res = data as {
-      ok: boolean;
+    const res = (await postRes.json().catch(() => ({}))) as {
+      ok?: boolean;
       id?: unknown;
       error?: string;
+      limitReached?: boolean;
       daily_rdm?: { awarded?: boolean; amount?: number };
     };
-    if (error) {
-      toast({ title: "Could not post doubt", description: error.message, variant: "destructive" });
+    if (!postRes.ok) {
+      if (res.limitReached) {
+        const access = (res as { access?: { dailyLimit?: number } }).access;
+        const limit = access?.dailyLimit ?? 1;
+        const copy = gyanDoubtLimitToastCopy(limit);
+        toast({
+          variant: "destructive",
+          title: copy.title,
+          description: typeof res.error === "string" ? res.error : copy.description,
+        });
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Could not post doubt",
+          description:
+            typeof res.error === "string" ? res.error : `HTTP ${postRes.status}`,
+        });
+      }
       return;
     }
     if (res?.ok) {

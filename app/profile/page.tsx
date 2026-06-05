@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect } from "react";
+import { Suspense, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import AppLayout from "@/components/AppLayout";
 import { useAuth } from "@/hooks/useAuth";
@@ -9,17 +9,21 @@ import StudentProfilePersonalHub from "@/components/profile/StudentProfilePerson
 
 export default function Profile() {
   const router = useRouter();
+  const teacherRedirectedRef = useRef(false);
   const { user: authUser, profile, loading: authLoading, refreshProfile } = useAuth();
 
   useEffect(() => {
     if (authLoading) return;
     if (!authUser) return;
+    if (profile?.role === "teacher") return;
     void refreshProfile();
-  }, [authLoading, authUser, refreshProfile]);
+  }, [authLoading, authUser, profile?.role, refreshProfile]);
 
   useEffect(() => {
     if (authLoading) return;
     if (profile?.role !== "teacher") return;
+    if (teacherRedirectedRef.current) return;
+    teacherRedirectedRef.current = true;
     router.replace("/teacher-portal?section=profile");
   }, [authLoading, profile?.role, router]);
 

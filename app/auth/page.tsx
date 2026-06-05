@@ -235,6 +235,19 @@ function AuthContent() {
               />
             </div>
 
+            {searchParams.get("error") === "waitlist_not_approved" && (
+              <div className="mb-6 rounded-xl border border-amber-500/30 bg-amber-600/[0.1] px-4 py-3.5 text-left flex items-start gap-3">
+                <span className="text-xl shrink-0">⚠️</span>
+                <div>
+                  <h4 className="text-sm font-semibold text-amber-400">Access Restricted</h4>
+                  <p className="mt-1 text-xs text-white/70 leading-relaxed">
+                    Your account is not whitelisted. We are currently onboarding new members in structured batches. 
+                    Please <Link href="/waitlist" className="underline hover:text-white font-medium text-amber-300">join the waitlist</Link> to secure your spot and request access!
+                  </p>
+                </div>
+              </div>
+            )}
+
             {activePanel === "signin" ? (
               <div className="flex flex-1 flex-col justify-center">
                 <div className="mb-8 flex items-center gap-3 rounded-xl border border-violet-500/30 bg-violet-600/[0.12] px-4 py-3.5 sm:mb-10 sm:gap-3.5 sm:px-5 sm:py-4">

@@ -5,6 +5,7 @@ import {
   createClientWithToken,
 } from "@/integrations/supabase/server";
 import { parseAssignmentTasks, studentVisibleTasks } from "@/lib/classroom/assignmentTasks";
+import { tryFulfillAssignmentMotivationGrants } from "@/lib/teacherPortal/motivationRdm";
 
 type GeneratedPaperQuestion = {
   id: string;
@@ -630,6 +631,15 @@ export async function POST(
       );
     }
 
+    const adminAfterQuiz = createAdminClient();
+    if (adminAfterQuiz) {
+      try {
+        await tryFulfillAssignmentMotivationGrants(adminAfterQuiz, user.id, postId);
+      } catch {
+        // non-fatal
+      }
+    }
+
     return NextResponse.json({
       ok: true,
       progressAvailable: true,
@@ -689,6 +699,15 @@ export async function POST(
         task_id: payload.taskId,
         user_id: user.id,
       });
+    }
+
+    const adminAfterMcq = createAdminClient();
+    if (adminAfterMcq) {
+      try {
+        await tryFulfillAssignmentMotivationGrants(adminAfterMcq, user.id, postId);
+      } catch {
+        // non-fatal
+      }
     }
   }
 

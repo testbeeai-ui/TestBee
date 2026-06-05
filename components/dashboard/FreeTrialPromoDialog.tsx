@@ -36,7 +36,7 @@ import {
   X,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
-import { activateFreeTrial, cacheFreeTrialActivatedAt } from "@/lib/subscription/freeTrialClient";
+import { activateFreeTrial } from "@/lib/subscription/freeTrialClient";
 import {
   deriveObjectiveSub,
   hasSavedTrialOnboardingAnswers,
@@ -404,20 +404,15 @@ export function FreeTrialPromoDialog({
     }
     setActivating(true);
 
-    // Optimistically update client state immediately to show the checklist modal instantly!
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem("edublast.free_trial_activated_v1", "1");
-      cacheFreeTrialActivatedAt(new Date().toISOString());
-      window.localStorage.removeItem("edublast.onboarding_reward_dismissed_v1");
-      window.dispatchEvent(new CustomEvent("edublast-free-trial-activated"));
-    }
-    onOpenChange(false);
-
     try {
       await activateFreeTrial(answers);
       await refreshProfile();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("edublast-free-trial-activated"));
+      }
+      onOpenChange(false);
     } catch (err) {
-      console.error("Failed to activate free trial in background", err);
+      console.error("Failed to activate free trial", err);
     } finally {
       setActivating(false);
     }
@@ -429,17 +424,19 @@ export function FreeTrialPromoDialog({
         // Strict lock: do not allow closing on onboarding questionnaire screens 0-5
         return;
       }
-      // Optimistically update client state immediately if closing on the final screen
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem("edublast.free_trial_activated_v1", "1");
-        cacheFreeTrialActivatedAt(new Date().toISOString());
-        window.localStorage.removeItem("edublast.onboarding_reward_dismissed_v1");
-        window.dispatchEvent(new CustomEvent("edublast-free-trial-activated"));
-      }
-      // Run the background database activation without blocking the UI close
-      void activateFreeTrial(answers).catch((err) => {
-        console.error("Auto-activation failed on close", err);
-      });
+      onOpenChange(false);
+      void (async () => {
+        try {
+          await activateFreeTrial(answers);
+          await refreshProfile();
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(new CustomEvent("edublast-free-trial-activated"));
+          }
+        } catch (err) {
+          console.error("Auto-activation failed on close", err);
+        }
+      })();
+      return;
     }
     onOpenChange(nextOpen);
   };

@@ -6,6 +6,7 @@ import {
 } from "@/integrations/supabase/server";
 import { parseAssignmentTasks, studentVisibleTasks } from "@/lib/classroom/assignmentTasks";
 import { isConceptFocusLessonChecklistComplete } from "@/lib/classroom/conceptFocusLessonCompletion";
+import { tryFulfillAssignmentMotivationGrants } from "@/lib/teacherPortal/motivationRdm";
 import { parseBitsTestAttemptsStore } from "@/lib/play/bits/parseBitsTestAttemptsStore";
 
 function isMissingProgressTableError(err: { code?: string; message?: string } | null | undefined) {
@@ -284,6 +285,15 @@ export async function POST(
       }
       if (insErr.code === "23505") return NextResponse.json({ ok: true, duplicate: true });
       return NextResponse.json({ error: insErr.message }, { status: 500 });
+    }
+
+    const admin = createAdminClient();
+    if (admin) {
+      try {
+        await tryFulfillAssignmentMotivationGrants(admin, user.id, postId);
+      } catch {
+        // Non-fatal: progress saved even if grant fulfillment fails
+      }
     }
   } else {
     const { error: delErr } = await authedClient

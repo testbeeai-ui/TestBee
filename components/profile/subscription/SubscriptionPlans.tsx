@@ -12,6 +12,8 @@ import { useToast } from "@/hooks/use-toast";
 import { setUserSubscriptionPlan } from "@/lib/subscription/subscriptionPlanApi";
 import {
   fetchSubscriptionConfig,
+  formatLessonsChapterLimitLabel,
+  formatPlanCardRdmMultiplierLabel,
   getPlanLimits,
   isUnlimited,
   normalizePlanTier,
@@ -19,6 +21,7 @@ import {
   type SubscriptionPlanKey,
   type SubscriptionPlanLimits,
 } from "@/lib/subscription/subscriptionConfig";
+import { planHasSubjectChatMultilingual } from "@/lib/subscription/subjectChatLimits";
 
 interface Props {
   profile: Profile;
@@ -34,15 +37,11 @@ function fmt(limit: number, unit: string): string {
   return isUnlimited(limit) ? `Unlimited ${unit}` : `${limit} ${unit}`;
 }
 
-function fmtMultiplier(multiplierPct: number): string {
-  const asX = (multiplierPct / 100).toFixed(multiplierPct % 100 === 0 ? 0 : 1);
-  return `${asX}x rate`;
-}
-
-function keyFeatures(limits: SubscriptionPlanLimits): string[] {
+function keyFeatures(limits: SubscriptionPlanLimits, multilingual: boolean): string[] {
   return [
     `Magic Wall: up to ${fmt(limits.magicWallMaxActiveTopics, "active")}; ${fmt(limits.magicWallMonthlyAttempts, "new picks per billing month")} (from signup date)`,
     `Gyan++ doubts: ${fmt(limits.gyanDoubtsPerDay, "per day")}`,
+    `Subject chat-bot: ${fmt(limits.subjectChatMessagesPerDay, "questions per day")}${multilingual ? " · multilingual" : " · English only"}`,
     `Testbee mocks: ${fmt(limits.mocksPerMonth, "per month")}`,
     `DailyDose: ${fmt(limits.dailyDoseQuestionsPerDay, "per day")}`,
     `Learning buddies: ${fmt(limits.buddiesLimit, "active connections")}`,
@@ -52,23 +51,40 @@ function keyFeatures(limits: SubscriptionPlanLimits): string[] {
 function patchItemBadge(
   itemName: string,
   baseBadge: string | undefined,
-  limits: SubscriptionPlanLimits
+  limits: SubscriptionPlanLimits,
+  planKey?: string,
+  cfg?: SubscriptionConfig | null
 ): string | undefined {
   const name = itemName.toLowerCase();
   if (name.includes("magic wall")) {
     return `${fmt(limits.magicWallMaxActiveTopics, "active")} · ${fmt(limits.magicWallMonthlyAttempts, "new picks/billing month")}`;
   }
   if (name.includes("gyan++")) return fmt(limits.gyanDoubtsPerDay, "per day");
-  if (name === "lessons") return fmt(limits.lessonsChapterLimit, "chapters");
+  if (name.includes("subject chat-bot") || name.includes("subject chat")) {
+    const lang = planKey && cfg && planHasSubjectChatMultilingual(cfg, planKey as SubscriptionPlanKey)
+      ? "multilingual"
+      : "English only";
+    return `${fmt(limits.subjectChatMessagesPerDay, "per day")} · ${lang}`;
+  }
+  if (name === "lessons") return formatLessonsChapterLimitLabel(limits.lessonsChapterLimit);
   if (name.includes("instacue")) return fmt(limits.instacueCardLimit, "cards");
-  if (name.includes("testbee mocks")) return fmt(limits.mocksPerMonth, "per month");
+  if (name.includes("testbee mocks")) {
+    if (planKey === "free") {
+      const maxMonths = cfg && typeof cfg.free_plan_max_months === "number" ? cfg.free_plan_max_months : 2;
+      const totalCap = maxMonths * limits.mocksPerMonth;
+      return `${fmt(limits.mocksPerMonth, "per month")} (max ${totalCap} tests / ${maxMonths} months cap)`;
+    }
+    return fmt(limits.mocksPerMonth, "per month");
+  }
   if (name.includes("dailydose")) return fmt(limits.dailyDoseQuestionsPerDay, "per day");
   if (name.includes("learning buddy")) return fmt(limits.buddiesLimit, "active buddies");
-  if (name.includes("rdm accumulation")) return fmtMultiplier(limits.rdmMultiplierPct);
+  if (name.includes("rdm accumulation") && planKey && cfg) {
+    return formatPlanCardRdmMultiplierLabel(cfg, planKey as SubscriptionPlanKey);
+  }
   return baseBadge;
 }
 
-export default function SubscriptionPlans({ profile }: Props) {
+export default function SubscriptionPlans({ profile, onNavigate }: Props) {
   const { toast } = useToast();
   const { refreshProfile } = useAuth();
   const [switchingPlan, setSwitchingPlan] = useState<SubscriptionPlanKey | null>(null);
@@ -84,8 +100,8 @@ export default function SubscriptionPlans({ profile }: Props) {
   const [configRefreshing, setConfigRefreshing] = useState(false);
 
   const currentPlan = useMemo(
-    () => normalizePlanTier(profile?.plan_tier, profile?.free_trial_activated),
-    [profile?.plan_tier, profile?.free_trial_activated]
+    () => normalizePlanTier(profile?.plan_tier, profile?.free_trial_activated, profile),
+    [profile?.plan_tier, profile?.free_trial_activated, profile]
   );
 
   const loadConfig = async (refresh = false) => {
@@ -111,14 +127,15 @@ export default function SubscriptionPlans({ profile }: Props) {
     const liveConfig = config ?? ({} as SubscriptionConfig);
     return PLAN_TIERS.map((basePlan) => {
       const limits = getPlanLimits(liveConfig, basePlan.id);
+      const multilingual = planHasSubjectChatMultilingual(liveConfig, basePlan.id);
       return {
         ...basePlan,
-        keyFive: keyFeatures(limits),
+        keyFive: keyFeatures(limits, multilingual),
         categories: basePlan.categories.map((category) => ({
           ...category,
           items: category.items.map((item) => ({
             ...item,
-            badge: patchItemBadge(item.name, item.badge, limits),
+            badge: patchItemBadge(item.name, item.badge, limits, basePlan.id, liveConfig),
           })),
         })),
       };
@@ -126,6 +143,13 @@ export default function SubscriptionPlans({ profile }: Props) {
   }, [config]);
 
   const activate = async (plan: SubscriptionPlanKey) => {
+    if (plan === "starter" || plan === "pro") {
+      localStorage.setItem("testbee_checkout_plan", plan);
+      localStorage.setItem("testbee_checkout_billing_mode", billingMode);
+      onNavigate("checkout");
+      return;
+    }
+
     if (switchingPlan) return;
     setSwitchingPlan(plan);
     try {
@@ -458,32 +482,37 @@ export default function SubscriptionPlans({ profile }: Props) {
                 )}
               </AnimatePresence>
 
-              {/* Action Button — Free / Starter / Pro CTAs hidden for now; logic unchanged */}
-              {plan.id === "free_trial" ? (
-                <div className="mt-auto pt-6">
-                  <button
-                    type="button"
-                    disabled={isCurrent || isLoading || billingMode === "annual" || configLoading}
-                    onClick={() => activate(plan.id)}
-                    className={cn(
-                      "inline-flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-xs font-bold tracking-wider uppercase transition-all duration-300 active:scale-[0.98]",
-                      isCurrent
-                        ? "bg-emerald-600/15 border border-emerald-500/30 text-emerald-300 shadow-inner"
-                        : "hover:scale-[1.01] hover:brightness-110 disabled:opacity-60 disabled:hover:scale-100 disabled:hover:brightness-100",
-                      !isCurrent && !configLoading && cardTheme.button,
-                      configLoading && "bg-slate-800 text-slate-400 border border-white/5"
-                    )}
-                  >
-                    {isLoading || configLoading ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      buttonText
-                    )}
-                  </button>
-                </div>
-              ) : (
-                <div className="mt-auto pt-6" aria-hidden />
-              )}
+              <div className="mt-auto pt-6">
+                <button
+                  type="button"
+                  disabled={isCurrent || isLoading || billingMode === "annual" || configLoading}
+                  onClick={() => activate(plan.id)}
+                  className={cn(
+                    "inline-flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-xs font-bold tracking-wider uppercase transition-all duration-300 active:scale-[0.98]",
+                    isCurrent
+                      ? cn(
+                          "shadow-inner disabled:opacity-100",
+                          plan.id === "free_trial" &&
+                            "bg-emerald-600/15 border border-emerald-500/30 text-emerald-300",
+                          plan.id === "free" &&
+                            "bg-cyan-600/15 border border-cyan-500/30 text-cyan-300",
+                          plan.id === "starter" &&
+                            "bg-blue-600/15 border border-blue-500/30 text-blue-300",
+                          plan.id === "pro" &&
+                            "bg-purple-600/15 border border-purple-500/30 text-purple-300"
+                        )
+                      : "hover:scale-[1.01] hover:brightness-110 disabled:opacity-60 disabled:hover:scale-100 disabled:hover:brightness-100",
+                    !isCurrent && !configLoading && cardTheme.button,
+                    configLoading && "bg-slate-800 text-slate-400 border border-white/5"
+                  )}
+                >
+                  {isLoading || configLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    buttonText
+                  )}
+                </button>
+              </div>
             </motion.article>
           );
         })}

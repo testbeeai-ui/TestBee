@@ -135,12 +135,12 @@ export async function GET(request: Request) {
 
     const { data: profile, error: profileErr } = await supabase
       .from("profiles")
-      .select("plan_tier, free_trial_activated, created_at")
+      .select("plan_tier, free_trial_activated, created_at, payment_card_details, subscription_started_at, time_travel_offset_ms")
       .eq("id", user.id)
       .maybeSingle();
     if (profileErr) return NextResponse.json({ error: profileErr.message }, { status: 500 });
 
-    const plan = normalizePlanTier(profile?.plan_tier, profile?.free_trial_activated);
+    const plan = normalizePlanTier(profile?.plan_tier, profile?.free_trial_activated, profile);
     const cfg = await fetchSubscriptionConfig(supabase as unknown as any);
     const limits = getPlanLimits(cfg, plan);
 
@@ -196,12 +196,12 @@ export async function POST(request: Request) {
 
     const { data: profile, error: profileErr } = await supabase
       .from("profiles")
-      .select("plan_tier, free_trial_activated, created_at")
+      .select("plan_tier, free_trial_activated, created_at, payment_card_details, subscription_started_at, time_travel_offset_ms")
       .eq("id", user.id)
       .maybeSingle();
     if (profileErr) return NextResponse.json({ error: profileErr.message }, { status: 500 });
 
-    const plan = normalizePlanTier(profile?.plan_tier, profile?.free_trial_activated);
+    const plan = normalizePlanTier(profile?.plan_tier, profile?.free_trial_activated, profile);
     const cfg = await fetchSubscriptionConfig(supabase as unknown as any);
     const limits = getPlanLimits(cfg, plan);
 

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import {
   ArrowUpRight,
   BadgeCheck,
@@ -405,7 +405,16 @@ const TEACHER_TOOLKIT = [
   },
 ] as const;
 
-function TeacherInvestorSections() {
+function TeacherInvestorSections({ onOpenWaitlist }: { onOpenWaitlist?: (role?: string) => void }) {
+  const router = useRouter();
+  const handleWaitlist = (role?: string) => {
+    const roleStr = typeof role === "string" ? role : undefined;
+    if (onOpenWaitlist) {
+      onOpenWaitlist(roleStr);
+    } else {
+      router.push(roleStr ? `/waitlist?role=${roleStr}` : "/waitlist");
+    }
+  };
   return (
     <>
       <section className={`border-b border-white/10 bg-[#080910] ${SEC_PAD_SHORT}`}>
@@ -629,12 +638,12 @@ function TeacherInvestorSections() {
               </p>
             </div>
             <div className="flex flex-wrap gap-3">
-              <Link
-                href="/auth"
-                className="inline-flex items-center gap-2 rounded-full bg-[#6f71ff] px-7 py-3 text-sm font-bold text-white transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#5f62f7] hover:shadow-[0_12px_26px_-10px_rgba(111,113,255,0.6)]"
+              <button
+                onClick={() => handleWaitlist("teacher")}
+                className="inline-flex items-center gap-2 rounded-full bg-[#6f71ff] px-7 py-3 text-sm font-bold text-white transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#5f62f7] hover:shadow-[0_12px_26px_-10px_rgba(111,113,255,0.6)] cursor-pointer"
               >
                 Apply as teacher ambassador <ArrowUpRight className="h-4 w-4" />
-              </Link>
+              </button>
               <button
                 type="button"
                 className="rounded-full border border-white/25 px-7 py-3 text-sm font-semibold text-zinc-200 transition-all duration-300 hover:-translate-y-0.5 hover:border-white/45 hover:bg-white/[0.04]"
@@ -649,10 +658,20 @@ function TeacherInvestorSections() {
   );
 }
 
-export default function EduBlastInvestorLanding() {
+export default function EduBlastInvestorLanding({ onOpenWaitlist }: { onOpenWaitlist?: (role?: string) => void }) {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const initialPersona = searchParams.get("persona") === "teacher" ? "teacher" : "student";
   const [persona, setPersona] = useState<"student" | "teacher">(initialPersona);
+
+  const handleWaitlist = (role?: string) => {
+    const roleStr = typeof role === "string" ? role : undefined;
+    if (onOpenWaitlist) {
+      onOpenWaitlist(roleStr);
+    } else {
+      router.push(roleStr ? `/waitlist?role=${roleStr}` : "/waitlist");
+    }
+  };
 
   return (
     <div className="overflow-x-hidden bg-[#050505] text-zinc-100">
@@ -759,17 +778,17 @@ export default function EduBlastInvestorLanding() {
           </p>
 
           <div className="mt-9 flex flex-wrap justify-center gap-3">
-            <Link
-              href="/auth"
-              className={`inline-flex items-center gap-2 rounded-full px-8 py-3.5 text-sm font-bold shadow-[0_0_32px_rgba(52,245,164,0.3)] transition ${
-                persona === "teacher"
-                  ? "bg-[#6f71ff] text-white hover:bg-[#5f62f7]"
-                  : "bg-[#34f5a4] text-neutral-950 hover:bg-[#2ee89a]"
-              }`}
-            >
-              {persona === "teacher" ? "Apply as teacher" : "Join free — 2 minutes"}{" "}
-              <ArrowUpRight className="h-4 w-4 shrink-0" strokeWidth={2.5} />
-            </Link>
+              <button
+                onClick={() => handleWaitlist(persona === "teacher" ? "teacher" : "student")}
+                className={`inline-flex items-center gap-2 rounded-full px-8 py-3.5 text-sm font-bold shadow-[0_0_32px_rgba(52,245,164,0.3)] transition cursor-pointer ${
+                  persona === "teacher"
+                    ? "bg-[#6f71ff] text-white hover:bg-[#5f62f7]"
+                    : "bg-[#34f5a4] text-neutral-950 hover:bg-[#2ee89a]"
+                }`}
+              >
+                {persona === "teacher" ? "Apply as teacher" : "Join free — 2 minutes"}{" "}
+                <ArrowUpRight className="h-4 w-4 shrink-0" strokeWidth={2.5} />
+              </button>
             <button
               type="button"
               className="rounded-full border border-white/30 bg-transparent px-8 py-3.5 text-sm font-semibold text-white transition hover:border-white/50 hover:bg-white/[0.04]"
@@ -1153,12 +1172,12 @@ export default function EduBlastInvestorLanding() {
               </div>
 
               <div className="mt-10 flex justify-center">
-                <Link
-                  href="/auth"
+                <button
+                  onClick={() => handleWaitlist("student")}
                   className="inline-flex items-center gap-2 rounded-full bg-[#34f5a4] px-8 py-3.5 text-sm font-bold text-neutral-950 shadow-[0_0_32px_rgba(52,245,164,0.25)] transition hover:bg-[#2ee89a]"
                 >
                   Start earning RDM Today <ArrowUpRight className="h-4 w-4" />
-                </Link>
+                </button>
               </div>
 
               <p className="mt-6 text-center text-[11px] text-zinc-500">
@@ -1407,45 +1426,45 @@ export default function EduBlastInvestorLanding() {
                     </li>
                   ))}
                 </ul>
-                <Link
-                  href="/auth"
-                  className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-violet-500 py-3 text-sm font-bold text-white transition hover:bg-violet-600"
-                >
-                  Apply as Student Ambassador <ArrowUpRight className="h-4 w-4" />
-                </Link>
-              </div>
-              <div className="rounded-2xl border border-emerald-500/30 bg-gradient-to-b from-[#0c1a14] to-[#060a08] p-6 text-left">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold uppercase text-emerald-200">
-                    Teacher Ambassador · Paid
-                  </span>
-                  <span className="rounded-full border border-white/10 px-2 py-0.5 text-[10px] font-bold text-zinc-400">
-                    5 spots only
-                  </span>
-                </div>
-                <h3 className="mt-4 font-serif text-xl font-semibold text-white">
-                  For PCM teachers who want national reach
-                </h3>
-                <ul className="mt-4 space-y-2 text-sm text-zinc-300">
-                  {[
-                    "Paid teaching and mentoring role",
-                    "Host your own live webinar series",
-                    "National student visibility beyond your city",
-                    "RDM + cash compensation for verified contributions",
-                    "Shape syllabus-aligned content that ships to thousands",
-                  ].map((x) => (
-                    <li key={x} className="flex gap-2">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
-                      {x}
-                    </li>
-                  ))}
-                </ul>
-                <Link
-                  href="/auth"
-                  className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#34f5a4] py-3 text-sm font-bold text-neutral-950 transition hover:bg-[#2ee89a]"
-                >
-                  See Teacher Page <ArrowUpRight className="h-4 w-4" />
-                </Link>
+                    <button
+                      onClick={() => handleWaitlist("student")}
+                      className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-violet-500 py-3 text-sm font-bold text-white transition hover:bg-violet-600 cursor-pointer"
+                    >
+                      Apply as Student Ambassador <ArrowUpRight className="h-4 w-4" />
+                    </button>
+                  </div>
+                  <div className="rounded-2xl border border-emerald-500/30 bg-gradient-to-b from-[#0c1a14] to-[#060a08] p-6 text-left">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold uppercase text-emerald-200">
+                        Teacher Ambassador · Paid
+                      </span>
+                      <span className="rounded-full border border-white/10 px-2 py-0.5 text-[10px] font-bold text-zinc-400">
+                        5 spots only
+                      </span>
+                    </div>
+                    <h3 className="mt-4 font-serif text-xl font-semibold text-white">
+                      For PCM teachers who want national reach
+                    </h3>
+                     <ul className="mt-4 space-y-2 text-sm text-zinc-300">
+                       {[
+                         "Paid teaching and mentoring role",
+                         "Host your own live webinar series",
+                         "National student visibility beyond your city",
+                         "RDM + cash compensation for verified contributions",
+                         "Shape syllabus-aligned content that ships to thousands",
+                       ].map((x) => (
+                         <li key={x} className="flex gap-2">
+                           <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
+                           {x}
+                         </li>
+                       ))}
+                     </ul>
+                    <button
+                      onClick={() => handleWaitlist("teacher")}
+                      className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#34f5a4] py-3 text-sm font-bold text-neutral-950 transition hover:bg-[#2ee89a] cursor-pointer"
+                    >
+                      See Teacher Page <ArrowUpRight className="h-4 w-4" />
+                    </button>
               </div>
             </div>
           </section>
@@ -1473,18 +1492,18 @@ export default function EduBlastInvestorLanding() {
                 from behind.
               </p>
               <div className="mt-10 flex flex-wrap justify-center gap-3">
-                <Link
-                  href="/auth"
-                  className="inline-flex items-center gap-2 rounded-full bg-[#34f5a4] px-8 py-3.5 text-sm font-bold text-neutral-950 shadow-[0_0_0_1px_rgba(255,255,255,0.06)] transition hover:bg-[#2ee89a]"
+                <button
+                  onClick={() => handleWaitlist("student")}
+                  className="inline-flex items-center gap-2 rounded-full bg-[#34f5a4] px-8 py-3.5 text-sm font-bold text-neutral-950 shadow-[0_0_0_1px_rgba(255,255,255,0.06)] transition hover:bg-[#2ee89a] cursor-pointer"
                 >
                   Join EduBlast free →
-                </Link>
-                <Link
-                  href="/auth"
-                  className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-transparent px-8 py-3.5 text-sm font-semibold text-white transition hover:border-white/50 hover:bg-white/[0.04]"
+                </button>
+                <button
+                  onClick={() => handleWaitlist("teacher")}
+                  className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-transparent px-8 py-3.5 text-sm font-semibold text-white transition hover:border-white/50 hover:bg-white/[0.04] cursor-pointer"
                 >
                   I am a teacher →
-                </Link>
+                </button>
               </div>
               <p className="mt-6 text-[11px] leading-relaxed text-zinc-500">
                 No credit card · PUC 1 &amp; 2 PCM · Works alongside any coaching · Free to start
@@ -1495,7 +1514,7 @@ export default function EduBlastInvestorLanding() {
           <TickerStrip />
         </>
       ) : (
-        <TeacherInvestorSections />
+        <TeacherInvestorSections onOpenWaitlist={onOpenWaitlist} />
       )}
     </div>
   );

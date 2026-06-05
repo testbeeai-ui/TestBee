@@ -142,9 +142,6 @@ export default function TeacherProfileView({
 
   const canManageAvatar = Boolean(allowAvatarUpload && user?.id && profile.id === user.id);
 
-  /** Same gate as avatar: teacher editing own portal (not admin impersonation view). */
-  const canSendEmailVerifyCode = Boolean(canManageAvatar && user?.email);
-  const contactEmailLockedInEdit = true;
   const verificationStatus =
     optimisticVerificationStatus ?? profile.details?.verificationStatus ?? "unverified";
   const isApproved = verificationStatus === "approved";
@@ -1000,128 +997,13 @@ export default function TeacherProfileView({
               <div className="text-slate-500">Contact email</div>
               <div className="text-slate-200">
                 {editing ? (
-                  <div className="space-y-2">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <input
-                        value={email}
-                        onChange={(e) => {
-                          if (contactEmailLockedInEdit) return;
-                          setEmail(e.target.value);
-                        }}
-                        placeholder="teacher@example.com"
-                        disabled={contactEmailLockedInEdit || Boolean(emailOtpMode)}
-                        readOnly={contactEmailLockedInEdit}
-                        title={
-                          contactEmailLockedInEdit
-                            ? "Contact email cannot be changed here."
-                            : contactEmailVerificationUiState === "otpInProgress"
-                              ? "Finish entering the code or change email after cancelling."
-                              : contactEmailVerificationUiState === "confirmedPendingPersist"
-                                ? "Code confirmed. Click Submit to persist verification."
-                                : undefined
-                        }
-                        className="h-9 min-w-[12rem] flex-1 rounded-md border border-white/20 bg-[#07070f] px-3 text-sm outline-none focus:border-violet-400 disabled:cursor-not-allowed disabled:opacity-70"
-                      />
-                      {canManageAvatar && contactEmailVerificationUiState === "unverifiedIdle" ? (
-                        <button
-                          type="button"
-                          disabled={emailOtpBusy || !canSendEmailVerifyCode}
-                          title={
-                            !user?.email
-                              ? "Your login account has no email—add one in settings first."
-                              : undefined
-                          }
-                          onClick={() => void sendContactEmailOtp()}
-                          className="inline-flex h-9 shrink-0 items-center rounded-md border border-violet-400/40 bg-violet-500/15 px-3 text-xs font-semibold text-violet-200 hover:bg-violet-500/25 disabled:opacity-60"
-                        >
-                          {emailOtpBusy ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            "Send code"
-                          )}
-                        </button>
-                      ) : null}
-                      {canManageAvatar &&
-                      contactEmailVerificationUiState === "verifiedPersisted" ? (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-400">
-                          <CheckCircle2 className="h-3.5 w-3.5" /> Email verified
-                        </span>
-                      ) : null}
-                      {canManageAvatar &&
-                      contactEmailVerificationUiState === "confirmedPendingPersist" ? (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-300">
-                          <CheckCircle2 className="h-3.5 w-3.5" /> Code confirmed - Submit to save
-                        </span>
-                      ) : null}
-                      {canManageAvatar && contactEmailVerificationUiState === "otpInProgress" ? (
-                        <button
-                          type="button"
-                          disabled={emailOtpBusy}
-                          onClick={clearEmailOtpFlow}
-                          className="inline-flex h-9 shrink-0 items-center rounded-md border border-white/15 px-3 text-xs font-semibold text-slate-400 hover:bg-white/5 hover:text-slate-200 disabled:opacity-60"
-                        >
-                          Cancel
-                        </button>
-                      ) : null}
-                    </div>
-                    {canManageAvatar && !user?.email ? (
-                      <p className="text-[11px] leading-snug text-amber-200/90">
-                        Your sign-in has no email on file, so we cannot send a code. Add an email to
-                        your account in settings, then return here to verify your contact email.
-                      </p>
-                    ) : null}
-                    {normalizeEmail(email) !== user?.email?.toLowerCase() &&
-                    email.trim() &&
-                    contactEmailVerificationUiState === "unverifiedIdle" ? (
-                      <p className="text-[11px] leading-snug text-amber-200/90">
-                        This email differs from your login ({user?.email ?? "—"}). Sending a code
-                        will update your login email after you confirm it.
-                      </p>
-                    ) : null}
-                    {contactEmailVerificationUiState === "otpInProgress" ? (
-                      <div className="space-y-2 rounded-lg border border-white/10 bg-black/20 px-3 py-3">
-                        <p className="text-[11px] text-slate-400">
-                          Enter the code we emailed you, then confirm.
-                        </p>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <input
-                            value={emailOtpCode}
-                            onChange={(e) => setEmailOtpCode(e.target.value)}
-                            placeholder="6-digit code"
-                            inputMode="numeric"
-                            autoComplete="one-time-code"
-                            maxLength={12}
-                            className="h-9 min-w-[9rem] flex-1 rounded-md border border-white/20 bg-[#07070f] px-3 text-sm outline-none focus:border-violet-400 sm:max-w-[11rem]"
-                          />
-                          <button
-                            type="button"
-                            disabled={emailOtpBusy || !canSendEmailVerifyCode}
-                            onClick={() => void verifyContactEmailOtp()}
-                            className="inline-flex h-9 items-center rounded-md bg-emerald-500 px-4 text-xs font-semibold text-black hover:bg-emerald-400 disabled:opacity-60"
-                          >
-                            {emailOtpBusy ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            ) : (
-                              "Confirm"
-                            )}
-                          </button>
-                        </div>
-                        <button
-                          type="button"
-                          disabled={emailOtpBusy || !canSendEmailVerifyCode}
-                          title={
-                            !user?.email
-                              ? "Your login account has no email—add one in settings first."
-                              : undefined
-                          }
-                          onClick={() => void sendContactEmailOtp()}
-                          className="text-[11px] font-medium text-violet-300 underline-offset-2 hover:text-violet-200 hover:underline disabled:opacity-50"
-                        >
-                          Resend code
-                        </button>
-                      </div>
-                    ) : null}
-                  </div>
+                  <input
+                    value={email}
+                    readOnly
+                    disabled
+                    title="Contact email cannot be changed here."
+                    className="h-9 min-w-[12rem] w-full max-w-md rounded-md border border-white/20 bg-[#07070f] px-3 text-sm outline-none disabled:cursor-not-allowed disabled:opacity-70"
+                  />
                 ) : (
                   <div className="flex flex-wrap items-center gap-2">
                     <span>{profile.details?.email?.trim() || user?.email || "—"}</span>

@@ -3,7 +3,6 @@ import {
   dismissOnboardingTaskCompanion,
   isOnboardingTaskCompanionLaunched,
 } from "@/lib/onboarding/onboardingTaskCompanion";
-import { isDailyStreakChecklistSuppressed } from "@/lib/onboarding/dailyStreakClient";
 import { isMainOnboardingTaskId } from "@/lib/onboarding/onboardingNextTask";
 import { requestOnboardingSiteTourAfterTask } from "@/lib/onboarding/onboardingSiteTourPromo";
 import { markPrepClassesStep0FromClassroomsPage } from "@/lib/onboarding/prepClassesCompanionOnboarding";
@@ -31,7 +30,13 @@ import {
 } from "@/lib/onboarding/gyanPlusOnboarding";
 import { ONBOARDING_REWARD_TASK_IDS } from "@/lib/subscription/onboardingRewardConstants";
 import { resetStudyDaysReconcileSession } from "@/lib/dashboard/studyDaysClient";
-import { isFreeTrialPeriodEnded } from "@/lib/subscription/freeTrialTimer";
+import { resolveFreeTrialStartMs } from "@/lib/subscription/freeTrialTimer";
+import { normalizePlanTier } from "@/lib/subscription/subscriptionConfig";
+import {
+  hasExitedTrialToFreePlan,
+  shouldAutoOpenOnboardingRewardDialog,
+  shouldShowTrialExpirationOverlay,
+} from "@/lib/subscription/dashboardTrialPopups";
 
 export { ONBOARDING_REWARD_TASK_IDS };
 
@@ -83,13 +88,13 @@ export function migrateLessonsStep12SemanticSwapV2IfNeeded(): void {
   );
 }
 
-export function isOnboardingRewardDismissedCooldownActive(): boolean {
+export function isOnboardingRewardDismissedCooldownActive(nowMs = Date.now()): boolean {
   if (typeof window === "undefined") return false;
   const raw = window.localStorage.getItem(ONBOARDING_COOLDOWN_KEY);
   if (!raw) return false;
   const until = parseInt(raw, 10);
   if (Number.isNaN(until)) return false;
-  return Date.now() < until;
+  return nowMs < until;
 }
 
 export function setOnboardingRewardDismissedCooldown(): void {
@@ -112,6 +117,7 @@ import {
 export const DAILY_CHECKLIST_POST_CLAIM_DELAY_MS = 30_000;
 
 export const FREE_TRIAL_ACTIVATED_EVENT = "edublast-free-trial-activated";
+export const FREE_TRIAL_DEMO_RESET_EVENT = "edublast-free-trial-demo-reset";
 export const FREE_TRIAL_REVOKED_EVENT = "edublast-free-trial-revoked";
 export const ONBOARDING_PROGRESS_EVENT = "edublast-onboarding-progress";
 export const ONBOARDING_REWARD_CLAIMED_EVENT = "edublast-onboarding-reward-claimed";
@@ -153,9 +159,15 @@ export type OnboardingProfileFields = {
   plan_tier?: string | null;
   free_trial_activated?: boolean | null;
   free_trial_activated_at?: string | null;
+  created_at?: string | null;
   onboarding_reward_progress?: unknown;
   onboarding_reward_claimed_at?: string | null;
   time_travel_offset_ms?: number | null;
+  trial_end_bonus_activated?: boolean | null;
+  trial_second_round_activated?: boolean | null;
+  trial_original_ended_at?: string | null;
+  payment_card_details?: unknown;
+  subscription_started_at?: string | null;
 };
 
 export function cacheFreeTrialActivatedAt(iso: string): void {
@@ -172,16 +184,29 @@ export function getCachedFreeTrialActivatedAt(): string | null {
 
 /** Server timestamp wins; local cache survives refresh before profile reload. */
 export function resolveFreeTrialActivatedAt(
-  profile?: Pick<OnboardingProfileFields, "free_trial_activated_at"> | null
+  profile?: Pick<
+    OnboardingProfileFields,
+    "free_trial_activated_at" | "free_trial_activated" | "created_at"
+  > | null
 ): string | null {
   if (profile) {
-    return profile.free_trial_activated_at ?? null;
+    const startMs = resolveFreeTrialStartMs({
+      freeTrialActivatedAt: profile.free_trial_activated_at,
+      freeTrialActivated: profile.free_trial_activated,
+      createdAt: profile.created_at,
+    });
+    if (startMs != null) return new Date(startMs).toISOString();
   }
   return getCachedFreeTrialActivatedAt();
 }
 
 /** Which dashboard modal should auto-open (never more than one at once). */
-export type DashboardPopupPhase = "free_trial" | "onboarding" | "claim_reward" | "none";
+export type DashboardPopupPhase =
+  | "free_trial"
+  | "onboarding"
+  | "claim_reward"
+  | "trial_expiration"
+  | "none";
 
 export type OnboardingProgressEventDetail = {
   taskId: string;
@@ -247,10 +272,41 @@ function canUseStorage(): boolean {
   return typeof window !== "undefined";
 }
 
-export function getFreeTrialActivated(profile?: OnboardingProfileFields | null): boolean {
-  const tier = String(profile?.plan_tier ?? "")
+/** Merge browser trial activation cache when profile row is missing timestamps. */
+export function mergeLocalTrialClockIntoProfile(
+  profile?: OnboardingProfileFields | null
+): OnboardingProfileFields | null | undefined {
+  if (!profile || !canUseStorage()) return profile;
+  const localAt = getCachedFreeTrialActivatedAt();
+  const localOn = window.localStorage.getItem(ACTIVATED_KEY) === "1";
+  if (!localAt && !localOn) return profile;
+
+  return {
+    ...profile,
+    free_trial_activated:
+      profile.free_trial_activated === true ? true : localOn ? true : profile.free_trial_activated,
+    free_trial_activated_at: profile.free_trial_activated_at ?? localAt ?? profile.free_trial_activated_at,
+  };
+}
+
+/** Student was on the free-trial track (server and/or local), not a never-trial Free user. */
+export function hadActiveFreeTrialTrack(
+  profile?: OnboardingProfileFields | null
+): boolean {
+  if (!profile) return false;
+  const tier = String(profile.plan_tier ?? "")
     .trim()
     .toLowerCase();
+  if (tier === "free_trial") return true;
+  if (profile.free_trial_activated === true) return true;
+  if (profile.free_trial_activated_at) return true;
+  return getFreeTrialActivated(profile);
+}
+
+export function getFreeTrialActivated(profile?: OnboardingProfileFields | null): boolean {
+  const tier = normalizePlanTier(profile?.plan_tier, profile?.free_trial_activated, profile);
+  /** Paid Starter/Pro supersede trial UX (bonus month is a subscription period, not the 14-day trial). */
+  if (tier === "starter" || tier === "pro") return false;
   if (tier === "free_trial") return true;
   if (profile?.free_trial_activated === true) return true;
   if (!canUseStorage()) return false;
@@ -424,36 +480,37 @@ export function getDashboardPopupPhase(
   profile?: OnboardingProfileFields | null,
   userId?: string | null
 ): DashboardPopupPhase {
-  if (!getFreeTrialActivated(profile)) return "free_trial";
-  if (isOnboardingRewardClaimed(profile)) {
-    const claimedAt = profile?.onboarding_reward_claimed_at;
-    const offset = profile?.time_travel_offset_ms ?? 0;
-    const now = Date.now() + offset;
+  const merged = mergeLocalTrialClockIntoProfile(profile);
 
-    if (claimedAt) {
-      const claimDate = new Date(claimedAt);
-      const nextDay = new Date(claimDate);
-      nextDay.setDate(claimDate.getDate() + 1);
-      nextDay.setHours(9, 0, 0, 0); // 9:00 AM of next day
-      if (now < nextDay.getTime()) {
-        return "none"; // Wait until 9:00 AM after site-tour claim
-      }
-    }
+  /** Post-trial decisions — must run before getFreeTrialActivated (paid tier reads as "not on trial"). */
+  if (merged?.trial_end_bonus_activated === true) return "none";
+  if (hasExitedTrialToFreePlan(merged)) return "none";
 
-    if (userId && isDailyStreakChecklistSuppressed(userId, now)) {
-      return "none";
-    }
-
-    const activatedAt = profile?.free_trial_activated_at;
-    if (activatedAt && !isFreeTrialPeriodEnded(activatedAt, now)) {
-      if (isOnboardingRewardDismissedCooldownActive()) return "none";
-      return "onboarding";
-    }
+  const tier = String(merged?.plan_tier ?? "")
+    .trim()
+    .toLowerCase();
+  if (tier === "starter" || tier === "pro" || tier === "scholar" || tier === "champion" || tier === "pro_plus") {
     return "none";
   }
-  if (isOnboardingRewardComplete(profile)) return "claim_reward";
-  if (isOnboardingRewardDismissedCooldownActive()) return "none";
-  return "onboarding";
+
+  if (!getFreeTrialActivated(merged)) return "free_trial";
+
+  const offset = merged?.time_travel_offset_ms ?? 0;
+  const now = Date.now() + offset;
+
+  if (shouldShowTrialExpirationOverlay(merged, now)) {
+    return "trial_expiration";
+  }
+
+  if (shouldAutoOpenOnboardingRewardDialog(merged, now, userId)) {
+    return "onboarding";
+  }
+
+  if (isOnboardingRewardComplete(merged) && !isOnboardingRewardClaimed(merged)) {
+    return "claim_reward";
+  }
+
+  return "none";
 }
 
 export function getDailyChecklistAvailableAfterMs(): number | null {

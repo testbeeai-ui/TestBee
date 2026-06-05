@@ -51,7 +51,6 @@ export async function POST(request: Request) {
       updates.free_trial_activated_at = nowIso;
     } else {
       updates.free_trial_activated = false;
-      updates.free_trial_activated_at = null;
     }
 
     const { error } = await supabase.from("profiles").update(updates).eq("id", user.id);

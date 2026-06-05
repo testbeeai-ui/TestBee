@@ -19,7 +19,7 @@ if (!fs.existsSync(nextCli)) {
   process.exit(1);
 }
 
-const result = spawnSync(process.execPath, [nextCli, "dev", "--webpack"], {
+const result = spawnSync(process.execPath, [nextCli, "dev", "--webpack", "-p", "3000"], {
   stdio: "inherit",
   env,
   cwd: projectRoot,

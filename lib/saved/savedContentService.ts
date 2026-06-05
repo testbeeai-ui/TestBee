@@ -53,13 +53,17 @@ export async function fetchSavedContent(): Promise<{
   };
 }
 
+export type SyncSavedContentResult =
+  | { ok: true }
+  | { ok: false; error: string; limitReached: boolean };
+
 export async function syncSavedContent(
   savedBits: SavedBit[],
   savedFormulas: SavedFormula[],
   savedRevisionCards: SavedRevisionCard[],
   savedRevisionUnits: SavedRevisionUnit[],
   savedCommunityPosts: SavedCommunityPost[]
-): Promise<void> {
+): Promise<SyncSavedContentResult> {
   const authHeaders = await getAuthHeaders();
   const res = await fetch(API, {
     method: "POST",
@@ -72,16 +76,26 @@ export async function syncSavedContent(
       savedCommunityPosts,
     }),
   });
-  if (!res.ok && res.status !== 401) {
-    throw new Error("Failed to sync saved content");
+  if (res.ok || res.status === 401) {
+    return { ok: true };
   }
+  const body = (await res.json().catch(() => ({}))) as { error?: string };
+  const message =
+    typeof body.error === "string" && body.error.trim()
+      ? body.error
+      : "Failed to sync saved content";
+  return {
+    ok: false,
+    error: message,
+    limitReached: res.status === 403 && /save limit/i.test(message),
+  };
 }
 
 /** POST current store snapshot (bits, formulas, revision cards, revision units) for the signed-in user. */
-export async function syncAllSavedContent(): Promise<void> {
+export async function syncAllSavedContent(): Promise<SyncSavedContentResult> {
   const user = useUserStore.getState().user;
-  if (!user) return;
-  await syncSavedContent(
+  if (!user) return { ok: true };
+  return syncSavedContent(
     user.savedBits ?? [],
     user.savedFormulas ?? [],
     user.savedRevisionCards ?? [],

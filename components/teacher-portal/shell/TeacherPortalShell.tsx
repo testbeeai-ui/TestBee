@@ -6,6 +6,7 @@ import {
   BookOpen,
   ClipboardList,
   Coins,
+  CreditCard,
   Gift,
   GraduationCap,
   LayoutGrid,
@@ -40,6 +41,7 @@ const sections: Array<{ key: TeacherPortalSection; label: string; icon: typeof L
   { key: "createTests", label: "Create Tests", icon: BookOpen },
   /** Teacher referrals & challenges — not the student /refer-earn hub */
   { key: "referEarn", label: "Refer & earn", icon: Gift },
+  { key: "subscriptions", label: "Subscriptions", icon: CreditCard },
   { key: "profile", label: "Profile", icon: User },
 ];
 

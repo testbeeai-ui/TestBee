@@ -13,9 +13,12 @@ import {
   appendUserAndAssistantMessages,
   buildSubjectChatContextKey,
   loadThreadMessages,
-  normalizeAnonClientHistory,
   type SubjectChatScope,
 } from "@/lib/gyan/subjectChatMessages";
+import {
+  resolveSubjectChatAccessForUser,
+  resolveSubjectChatLanguage,
+} from "@/lib/subscription/subjectChatLimits";
 
 const SUBJECT_BOUNDARIES: Record<string, { allowed: string; forbidden: string[] }> = {
   physics: {
@@ -122,17 +125,55 @@ function sanitizeField(value: unknown, maxLen = 200): string {
 export async function POST(req: NextRequest) {
   try {
     const authCtx = await getSupabaseAndUser(req);
+    if (!authCtx) {
+      return NextResponse.json(
+        {
+          error: "Sign in to use Subject Chat.",
+          code: "SUBJECT_CHAT_AUTH_REQUIRED",
+        },
+        { status: 401 }
+      );
+    }
+
+    const { data: profile, error: profileError } = await authCtx.supabase
+      .from("profiles")
+      .select(
+        "plan_tier, free_trial_activated, payment_card_details, subscription_started_at, time_travel_offset_ms"
+      )
+      .eq("id", authCtx.user.id)
+      .maybeSingle();
+
+    if (profileError) {
+      return NextResponse.json({ error: profileError.message }, { status: 500 });
+    }
+
+    const chatAccess = await resolveSubjectChatAccessForUser(
+      authCtx.supabase,
+      authCtx.user.id,
+      profile
+    );
+
+    if (!chatAccess.canSend) {
+      return NextResponse.json(
+        {
+          error: `Daily limit reached (${chatAccess.dailyLimit} questions per day on your plan). Upgrade for unlimited chat.`,
+          code: "SUBJECT_CHAT_DAILY_LIMIT",
+          dailyLimit: chatAccess.dailyLimit,
+          usedToday: chatAccess.usedToday,
+          remaining: 0,
+          plan: chatAccess.plan,
+        },
+        { status: 429 }
+      );
+    }
+
     const body = await req.json();
     const rawMessage = body.message;
     const subject =
       typeof body.subject === "string" && SUBJECT_PERSONAS[body.subject] ? body.subject : "physics";
     const topic = sanitizeField(body.topic, 200);
     const subtopic = sanitizeField(body.subtopic, 200);
-    const language = typeof body.language === "string" ? body.language : "en";
     const gradeLevel = body.gradeLevel;
-    const history: { role: string; content: string }[] = Array.isArray(body.history)
-      ? body.history
-      : [];
     const grade = typeof gradeLevel === "number" && [11, 12].includes(gradeLevel) ? gradeLevel : 11;
     const board = sanitizeField(body.board, 80);
     const unitSlug = sanitizeField(body.unitSlug, 120);
@@ -156,6 +197,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const language = resolveSubjectChatLanguage(
+      typeof body.language === "string" ? body.language : "en",
+      chatAccess
+    );
+
     const persona = SUBJECT_PERSONAS[subject] ?? SUBJECT_PERSONAS.physics;
     const langInstruction = LANGUAGE_INSTRUCTIONS[language] ?? LANGUAGE_INSTRUCTIONS.en;
 
@@ -174,24 +220,43 @@ export async function POST(req: NextRequest) {
     if (chapterTitle) chatScope.chapterTitle = chapterTitle;
     const contextKey = buildSubjectChatContextKey(chatScope);
 
+    // Re-check after body parse / RAG prep — closes race if two sends started together.
+    const chatAccessFresh = await resolveSubjectChatAccessForUser(
+      authCtx.supabase,
+      authCtx.user.id,
+      profile
+    );
+    if (!chatAccessFresh.canSend) {
+      return NextResponse.json(
+        {
+          error: `Daily limit reached (${chatAccessFresh.dailyLimit} questions per day on your plan). Upgrade for unlimited chat.`,
+          code: "SUBJECT_CHAT_DAILY_LIMIT",
+          dailyLimit: chatAccessFresh.dailyLimit,
+          usedToday: chatAccessFresh.usedToday,
+          remaining: 0,
+          plan: chatAccessFresh.plan,
+        },
+        { status: 429 }
+      );
+    }
+
+
     const ragContext = await fetchRAGContext(message, subject, grade, topic, subtopic);
 
-    if (authCtx) {
-      await logAiUsage({
-        supabase: authCtx.supabase,
-        userId: authCtx.user.id,
-        actionType: "subject_chat_modal_retrieve",
-        modelId: "modal-rag-retrieve",
-        backend: "modal",
-        metadata: {
-          subject,
-          gradeLevel: grade,
-          topic,
-          subtopic,
-          ragChunkCount: ragContext?.chunkCount ?? 0,
-        },
-      });
-    }
+    await logAiUsage({
+      supabase: authCtx.supabase,
+      userId: authCtx.user.id,
+      actionType: "subject_chat_modal_retrieve",
+      modelId: "modal-rag-retrieve",
+      backend: "modal",
+      metadata: {
+        subject,
+        gradeLevel: grade,
+        topic,
+        subtopic,
+        ragChunkCount: ragContext?.chunkCount ?? 0,
+      },
+    });
 
     const ragBlock = ragContext
       ? `\n\nTEXTBOOK CONTEXT (for grounding):
@@ -226,8 +291,7 @@ ${subtopic ? `- Subtopic: ${subtopic}` : ""}
 - Curriculum: CBSE Class ${grade}
 
 ${langInstruction}
-
-If the student asks in a regional language, respond in that language.
+${chatAccessFresh.multilingual ? "\nIf the student asks in a regional language, respond in that language." : "\nRespond in English only."}
 Do NOT use <think> tags or show internal reasoning. Give the answer directly.
 
 ${SUBJECT_CHAT_LENGTH_CONTRACT}
@@ -244,25 +308,17 @@ FORMATTING RULES:
 - Use \text{...} only for short natural-language labels (e.g. \text{if } x > 0), never for chemical species/math tokens.
 ${ragBlock}`;
 
-    // Authenticated: history from Supabase for this thread (server source of truth).
-    // Anonymous: last 6 turns from client body only.
-    let recentHistory: { role: "user" | "assistant"; content: string }[] = [];
-    if (authCtx) {
-      const fromDb = await loadThreadMessages(authCtx.supabase, {
-        userId: authCtx.user.id,
-        contextKey,
-        limit: 40,
-      });
-      recentHistory = fromDb.slice(-12).map((m) => ({
+    const fromDb = await loadThreadMessages(authCtx.supabase, {
+      userId: authCtx.user.id,
+      contextKey,
+      limit: 40,
+    });
+    let recentHistory: { role: "user" | "assistant"; content: string }[] = fromDb
+      .slice(-12)
+      .map((m) => ({
         role: m.role,
         content: m.content.slice(0, 1000),
       }));
-    } else {
-      recentHistory = normalizeAnonClientHistory(history, 6).map((m) => ({
-        role: m.role,
-        content: m.content.slice(0, 1000),
-      }));
-    }
     while (recentHistory.length > 0 && recentHistory[0].role !== "user") {
       recentHistory.shift();
     }
@@ -315,32 +371,32 @@ ${ragBlock}`;
       userChars: historyChars + String(message).length,
       usage,
     });
-    if (authCtx) {
-      await logAiUsage({
-        supabase: authCtx.supabase,
-        userId: authCtx.user.id,
-        actionType: "subject_chat_sarvam",
-        modelId: getSarvamGyanModel(),
-        backend: "sarvam",
-        usage: usage
-          ? {
-              promptTokenCount: usage.prompt_tokens,
-              candidatesTokenCount: usage.completion_tokens,
-              totalTokenCount: usage.total_tokens,
-            }
-          : undefined,
-        metadata: {
-          subject,
-          gradeLevel: grade,
-          topic,
-          subtopic,
-          historyTurns: recentHistory.length,
-          ragChunkCount: ragContext?.chunkCount ?? 0,
-          contextKey,
-          dbHistoryTurns: recentHistory.length,
-        },
-      });
-    }
+    await logAiUsage({
+      supabase: authCtx.supabase,
+      userId: authCtx.user.id,
+      actionType: "subject_chat_sarvam",
+      modelId: getSarvamGyanModel(),
+      backend: "sarvam",
+      usage: usage
+        ? {
+            promptTokenCount: usage.prompt_tokens,
+            candidatesTokenCount: usage.completion_tokens,
+            totalTokenCount: usage.total_tokens,
+          }
+        : undefined,
+      metadata: {
+        subject,
+        gradeLevel: grade,
+        topic,
+        subtopic,
+        historyTurns: recentHistory.length,
+        ragChunkCount: ragContext?.chunkCount ?? 0,
+        contextKey,
+        dbHistoryTurns: recentHistory.length,
+          plan: chatAccessFresh.plan,
+          language,
+      },
+    });
     let reply =
       data.choices?.[0]?.message?.content ??
       "Sorry, I could not generate a response. Please try again.";
@@ -353,19 +409,33 @@ ${ragBlock}`;
     // Remove bad \text{token} wrappers that break chemistry/math rendering
     reply = normalizeTextWrappedFormulaTokens(reply);
 
-    if (authCtx) {
-      const persist = await appendUserAndAssistantMessages(authCtx.supabase, {
-        userId: authCtx.user.id,
-        contextKey,
-        userText: message,
-        assistantText: reply,
-      });
-      if (!persist.ok) {
-        console.warn("[api/subject-chat] failed to persist chat messages:", persist.error);
-      }
+    const persist = await appendUserAndAssistantMessages(authCtx.supabase, {
+      userId: authCtx.user.id,
+      contextKey,
+      userText: message,
+      assistantText: reply,
+    });
+    if (!persist.ok) {
+      console.warn("[api/subject-chat] failed to persist chat messages:", persist.error);
     }
 
-    return NextResponse.json({ reply });
+    const remainingAfter = chatAccessFresh.unlimited
+      ? null
+      : Math.max(0, chatAccessFresh.dailyLimit - chatAccessFresh.usedToday - 1);
+
+    return NextResponse.json({
+      reply,
+      quota: {
+        usedToday: chatAccessFresh.usedToday + 1,
+        remaining: remainingAfter,
+        dailyLimit: chatAccessFresh.unlimited ? null : chatAccessFresh.dailyLimit,
+        unlimited: chatAccessFresh.unlimited,
+        multilingual: chatAccessFresh.multilingual,
+        canSend:
+          chatAccessFresh.unlimited ||
+          chatAccessFresh.usedToday + 1 < chatAccessFresh.dailyLimit,
+      },
+    });
   } catch (err) {
     console.error("Subject chat error:", err);
     return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });

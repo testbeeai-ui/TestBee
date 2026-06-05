@@ -17,8 +17,10 @@ import {
   Coins,
   Flame,
   Settings,
+  Hourglass,
 } from "lucide-react";
 import {
+  LESSONS_CHAPTER_LIMIT_RDM_DESCRIPTION,
   SUBSCRIPTION_CONFIG_DEFAULTS,
   SUBSCRIPTION_CONFIG_KEYS,
   type SubscriptionPlanKey,
@@ -55,19 +57,31 @@ const FIELD_LABELS: Record<string, { title: string; hint: string; unit: string }
     unit: "attempts",
   },
   gyan_doubts_per_day: {
-    title: "Gyan++ doubts per day",
-    hint: "Maximum doubt posts per day. Use -1 for unlimited.",
+    title: "Gyan++ doubts per day (IST)",
+    hint:
+      "Max new doubt posts per IST calendar day on /doubts (Ask a doubt). Answers/comments not counted. Over limit → blocked with upgrade prompt. Separate from gyan_post_rdm (first-ASK bonus). Use -1 for unlimited.",
+    unit: "posts/day",
+  },
+  subject_chat_messages_per_day: {
+    title: "Subject chat-bot messages per day",
+    hint: "Subject chat-bot (chapter/topic tutor) user messages per IST day. Use -1 for unlimited.",
     unit: "per day",
   },
+  subject_chat_multilingual: {
+    title: "Subject chat-bot multilingual",
+    hint: "Subject chat-bot languages: 0 = English only. Investor rule: only Pro should be 1 (multilingual). Free/Starter/Trial = 0.",
+    unit: "flag",
+  },
   lessons_chapter_limit: {
-    title: "Lessons chapter limit",
-    hint: "Chapter access limit. Use -1 for all chapters.",
-    unit: "chapters",
+    title: "Lessons chapters per subject",
+    hint: LESSONS_CHAPTER_LIMIT_RDM_DESCRIPTION,
+    unit: "chapters/subject",
   },
   instacue_card_limit: {
-    title: "InstaCue card limit",
-    hint: "Maximum InstaCue cards. Use -1 for unlimited.",
-    unit: "cards",
+    title: "InstaCue saved cards limit",
+    hint:
+      "Max cards a student can save to Revision Bank (bookmark from Lessons InstaCue or create custom). Not the 32-card study deck on a topic. Over limit → save blocked with upgrade prompt. Use -1 for unlimited.",
+    unit: "saved cards",
   },
   mocks_per_month: {
     title: "Mocks per month",
@@ -136,6 +150,26 @@ const FIELD_LABELS: Record<string, { title: string; hint: string; unit: string }
     hint: "RDM paid when a student completes all 6 daily checklist tasks for the current trial day.",
     unit: "RDM",
   },
+  free_trial_duration_days: {
+    title: "Free trial base duration",
+    hint: "Investor rule: how many days the free trial lasts for a new user by default. The streak extension is added on top of this when the user keeps consecutive active days. Default = 14.",
+    unit: "days",
+  },
+  free_trial_streak_extension_days: {
+    title: "Streak extension bonus",
+    hint: "Investor rule: extra days added to the trial when the user completes the required streak. 14 base + 14 extension = 28 day second round. Default = 14.",
+    unit: "days",
+  },
+  free_trial_streak_days_required: {
+    title: "Streak days required for extension",
+    hint: "Investor rule: consecutive active days the user must complete during the base trial to unlock the streak extension. Default = 14 (full base window).",
+    unit: "days",
+  },
+  free_plan_max_months: {
+    title: "Free plan cap",
+    hint: "Investor rule: maximum calendar months a user may stay on the Free plan (3 mocks/month) before mocks are soft-blocked. Default = 2 (≈ 6 mocks/year).",
+    unit: "months",
+  },
   free_trial_inactive_penalty_rdm: {
     title: "Free trial inactive penalty",
     hint: "RDM deducted from a free-trial user when they spend less than 30 minutes on-site during a trial day. Set 0 to disable.",
@@ -168,6 +202,7 @@ interface CategoryGroup {
   title: string;
   icon: typeof LayoutGrid;
   keys: string[];
+  blurb?: string;
 }
 
 const CATEGORIES: CategoryGroup[] = [
@@ -175,12 +210,20 @@ const CATEGORIES: CategoryGroup[] = [
     id: "dashboard",
     title: "Dashboard & Social",
     icon: LayoutGrid,
-    keys: ["magic_wall_max_active_topics", "magic_wall_monthly_attempts", "gyan_doubts_per_day"],
+    keys: [
+      "magic_wall_max_active_topics",
+      "magic_wall_monthly_attempts",
+      "gyan_doubts_per_day",
+      "subject_chat_messages_per_day",
+      "subject_chat_multilingual",
+    ],
   },
   {
     id: "lessons",
     title: "Lessons & Revision",
     icon: BookOpen,
+    blurb:
+      "Chapter limit is per subject (Phy / Chem / Math) on /explore-1 — not per month. Mocks below are the monthly quota.",
     keys: ["lessons_chapter_limit", "instacue_card_limit"],
   },
   {
@@ -211,6 +254,17 @@ const CATEGORIES: CategoryGroup[] = [
       "free_trial_checklist_reward_rdm",
       "free_trial_daily_streak_reward_rdm",
       "inactive_penalty_rdm",
+    ],
+  },
+  {
+    id: "trial_caps",
+    title: "Trial & Free Plan Caps (Investor Rule)",
+    icon: Hourglass,
+    keys: [
+      "duration_days",
+      "streak_extension_days",
+      "streak_days_required",
+      "plan_max_months",
     ],
   },
 ];
@@ -343,12 +397,15 @@ export default function SubscriptionsPage() {
         if (raw === undefined) continue;
         const value = parseInt(raw, 10);
         if (Number.isNaN(value)) throw new Error(`Invalid number for ${key}`);
+        const description = key.endsWith("_lessons_chapter_limit")
+          ? LESSONS_CHAPTER_LIMIT_RDM_DESCRIPTION
+          : (configs[key]?.description ??
+            `Subscription setting ${key} (admin configurable).`);
         const { error: updateErr } = await supabase.from("rdm_config").upsert(
           {
             key,
             value,
-            description:
-              configs[key]?.description ?? `Subscription setting ${key} (admin configurable).`,
+            description,
           },
           { onConflict: "key" }
         );
@@ -727,7 +784,12 @@ export default function SubscriptionsPage() {
                   <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary border border-primary/20">
                     <CatIcon className="h-4 w-4" />
                   </span>
-                  <h2 className="text-sm font-bold tracking-tight text-white">{cat.title}</h2>
+                  <div>
+                    <h2 className="text-sm font-bold tracking-tight text-white">{cat.title}</h2>
+                    {cat.blurb ? (
+                      <p className="mt-1 text-[11px] leading-relaxed text-slate-400">{cat.blurb}</p>
+                    ) : null}
+                  </div>
                 </div>
 
                 {/* Grid block for category settings */}

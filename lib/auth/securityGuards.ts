@@ -62,13 +62,30 @@ export function enforceSameOriginForCookieAuth(request: Request): NextResponse |
 
   const origin = request.headers.get("origin");
   const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
-  const proto = request.headers.get("x-forwarded-proto") ?? "https";
   if (!host || !origin) {
     return NextResponse.json({ error: "Missing origin/host headers." }, { status: 403 });
   }
-  const expected = `${proto}://${host}`;
+
+  let expected: string;
+  try {
+    expected = new URL(request.url).origin;
+  } catch {
+    const proto =
+      request.headers.get("x-forwarded-proto") ??
+      (/localhost|127\.0\.0\.1/i.test(host) ? "http" : "https");
+    expected = `${proto}://${host}`;
+  }
+
   if (origin !== expected) {
-    return NextResponse.json({ error: "Cross-site request blocked." }, { status: 403 });
+    const isLocal = /localhost|127\.0\.0\.1/i;
+    if (isLocal.test(host) && isLocal.test(origin)) {
+      const normalize = (value: string) => value.replace(/^https:/i, "http:");
+      if (normalize(origin) !== normalize(expected)) {
+        return NextResponse.json({ error: "Cross-site request blocked." }, { status: 403 });
+      }
+    } else {
+      return NextResponse.json({ error: "Cross-site request blocked." }, { status: 403 });
+    }
   }
   return null;
 }

@@ -99,7 +99,7 @@ export const WIZARD_TASKS: WizardTask[] = [
       badge: "🎯 Task 5 of 7 · Nudge with RDM",
       title: { before: "Nudge students with ", emphasis: "RDM rewards" },
       subtitle:
-        "Re-engage students with personalised messages and instant RDM bonuses — in 4 steps.",
+        "Re-engage students with personalised messages; assignment-linked RDM bonuses pay on send and credit when work is done.",
       stepTabs: ["Choose who", "Nudge goal", "Write message", "RDM & Send"],
     },
   },
@@ -127,7 +127,7 @@ export const WIZARD_TASKS: WizardTask[] = [
       { label: "Select student from your classrooms" },
       { label: "Review their progress — scores, streaks, weak areas" },
       { label: "Write advice note / counselling template" },
-      { label: "Send message + optional RDM encouragement" },
+      { label: "Send counselling message (advice only)" },
     ],
     main: {
       badge: "💬 Task 7 of 7 · Counsel student",

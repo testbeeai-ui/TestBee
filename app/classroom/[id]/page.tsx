@@ -264,15 +264,38 @@ const ClassroomDetail = () => {
     let cancelled = false;
     const run = async () => {
       try {
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from("posts")
           .select("*, profiles!posts_teacher_id_fkey(name)")
           .eq("id", postId.trim())
           .maybeSingle();
         if (cancelled) return;
-        if (data) setSelectedPost(data as unknown as Post);
+        if (error) {
+          toast({
+            title: "Could not open assignment",
+            description: error.message,
+            variant: "destructive",
+          });
+          return;
+        }
+        if (data) {
+          setSelectedPost(data as unknown as Post);
+          return;
+        }
+        toast({
+          title: "Assignment not available",
+          description:
+            "Your teacher sent a reminder, but this assignment is not visible to your account yet. Check that your teaching section matches the post, or ask your teacher to republish to you.",
+          variant: "destructive",
+        });
       } catch {
-        // ignore
+        if (!cancelled) {
+          toast({
+            title: "Could not open assignment",
+            description: "Try again from the notification bell.",
+            variant: "destructive",
+          });
+        }
       }
     };
     void run();

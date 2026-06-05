@@ -109,6 +109,12 @@ export async function POST(request: Request) {
         onboarding_complete: true,
         onboarding_reward_progress: {},
         onboarding_reward_claimed_at: null,
+        trial_end_bonus_activated: false,
+        trial_second_round_activated: false,
+        trial_original_ended_at: null,
+        trial_streak_at_day_14: null,
+        card_added_at: null,
+        payment_card_details: null,
         ...(schoolNameTrimmed ? { institution_name: schoolNameTrimmed } : {}),
       })
       .eq("id", user.id);

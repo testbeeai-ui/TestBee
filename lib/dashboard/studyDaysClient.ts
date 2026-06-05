@@ -3,14 +3,15 @@ import { getClientApiAuthHeaders } from "@/lib/auth/clientApiAuth";
 export type StudyDaysApiResponse = {
   days?: { day: string; active_ms: number; presence_ms?: number }[];
   summary?: { streak?: number; activeDaysThisMonth?: number } | null;
+  reconcile?: { penaltiesApplied: number; totalDeducted: number } | null;
   error?: string;
   retryable?: boolean;
 };
 
 const CACHE_TTL_MS = 2_500;
 
-/** Run penalty reconcile RPC at most once per browser session on study-days GET. */
-let reconciledPenaltiesThisSession = false;
+/** Run penalty reconcile RPC once per IST day on study-days GET. */
+let reconciledPenaltyForToday: string | null = null;
 
 let cached:
   | {
@@ -31,7 +32,7 @@ export function invalidateStudyDaysCache(): void {
 }
 
 export function resetStudyDaysReconcileSession(): void {
-  reconciledPenaltiesThisSession = false;
+  reconciledPenaltyForToday = null;
 }
 
 /**
@@ -59,9 +60,9 @@ export async function fetchStudyDays(
     try {
       const headers = await getClientApiAuthHeaders();
       const q = new URLSearchParams({ from, to, today });
-      const runReconcile = opts?.fresh === true || !reconciledPenaltiesThisSession;
+      const runReconcile = opts?.fresh === true || reconciledPenaltyForToday !== today;
       if (runReconcile) {
-        reconciledPenaltiesThisSession = true;
+        reconciledPenaltyForToday = today;
       } else {
         q.set("reconcile", "0");
       }

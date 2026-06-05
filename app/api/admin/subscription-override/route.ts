@@ -52,14 +52,12 @@ export async function POST(request: NextRequest) {
       }
       updates.plan_tier = plan;
 
-      // Auto-manage related fields
       if (plan === "free_trial") {
         updates.free_trial_activated = true;
         updates.free_trial_activated_at = new Date().toISOString();
         updates.subscription_started_at = null; // trial uses its own date column
       } else if (plan === "starter" || plan === "pro") {
         updates.free_trial_activated = false;
-        updates.free_trial_activated_at = null;
         // Only auto-set start date if not explicitly provided
         if (json.subscription_started_at === undefined) {
           updates.subscription_started_at = new Date().toISOString();
@@ -67,7 +65,6 @@ export async function POST(request: NextRequest) {
       } else {
         // free
         updates.free_trial_activated = false;
-        updates.free_trial_activated_at = null;
         updates.subscription_started_at = null;
       }
     }

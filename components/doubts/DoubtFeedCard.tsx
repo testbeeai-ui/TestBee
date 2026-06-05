@@ -621,13 +621,6 @@ export default function DoubtFeedCard({
                     <ChevronUp className="w-3.5 h-3.5" /> {Math.max(0, ai.upvotes - ai.downvotes)}{" "}
                     helpful
                   </span>
-                  <Link
-                    href={`/doubts/${d.id}#answer-${ai.id}`}
-                    className="text-[11px] font-medium text-primary/80 hover:text-primary hover:underline"
-                    title="Open thread and use Report → Incorrect formula or fact"
-                  >
-                    Wrong formula? Report on thread
-                  </Link>
                 </div>
               </div>
             );

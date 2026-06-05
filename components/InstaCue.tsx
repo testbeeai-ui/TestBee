@@ -20,6 +20,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import type { InstaCueCard, InstaCueCardType, InstaCueLevel } from "@/data/instaCueCards";
 import type { SavedRevisionCard } from "@/types";
 import { syncAllSavedContent } from "@/lib/saved/savedContentService";
+import {
+  resolveRevisionCardSaveLimit,
+  revisionCardLimitToastCopy,
+} from "@/lib/saved/revisionCardSaveLimit";
 import { reportInstacueCardRead } from "@/lib/rdm/reports/reportInstacueCardRead";
 
 const TYPE_CONFIG: Record<
@@ -73,28 +77,50 @@ function getVisibleDotIndexes(total: number, current: number): number[] {
 
 function SaveCardButton({ card }: { card: InstaCueCard }) {
   const { user, saveRevisionCard, unsaveRevisionCard } = useUserStore();
+  const { profile } = useAuth();
   const { toast } = useToast();
   const [justSaved, setJustSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
   const saved = user?.savedRevisionCards?.some((c) => c.id === card.id) ?? false;
 
-  const handleClick = (e: React.MouseEvent) => {
+  const handleClick = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!user) {
-      toast({ title: "Sign in to save cards", variant: "destructive" });
+    if (!user || saving) {
+      if (!user) toast({ title: "Sign in to save cards", variant: "destructive" });
       return;
     }
     if (saved) {
       unsaveRevisionCard(card.id);
-      syncAllSavedContent().catch(() => {});
+      await syncAllSavedContent();
       toast({ title: "Removed from Revision Bank" });
-    } else {
-      saveRevisionCard(card as unknown as SavedRevisionCard);
-      syncAllSavedContent().catch(() => {});
-      setJustSaved(true);
-      toast({ title: "Saved to Revision Bank!" });
-      setTimeout(() => setJustSaved(false), 800);
+      return;
     }
+
+    const savedCount = user.savedRevisionCards?.length ?? 0;
+    const limit = await resolveRevisionCardSaveLimit(profile, savedCount);
+    if (limit.atLimit) {
+      const copy = revisionCardLimitToastCopy(limit.cap);
+      toast({ variant: "destructive", ...copy });
+      return;
+    }
+
+    setSaving(true);
+    saveRevisionCard(card as unknown as SavedRevisionCard);
+    const sync = await syncAllSavedContent();
+    setSaving(false);
+    if (!sync.ok) {
+      unsaveRevisionCard(card.id);
+      toast({
+        variant: "destructive",
+        title: sync.limitReached ? revisionCardLimitToastCopy(limit.cap).title : "Could not save",
+        description: sync.error,
+      });
+      return;
+    }
+    setJustSaved(true);
+    toast({ title: "Saved to Revision Bank!" });
+    setTimeout(() => setJustSaved(false), 800);
   };
 
   return (

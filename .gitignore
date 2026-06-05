@@ -2,6 +2,7 @@
 
 # local agent / IDE
 .claude/
+.codegraph/
 
 # dependencies
 /node_modules

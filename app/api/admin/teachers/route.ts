@@ -76,6 +76,11 @@ export async function GET(request: Request) {
       updated_at?: string | null;
     }>;
 
+    // Fetch auth users to resolve email addresses
+    const authRes = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+    const authUsers = authRes.data?.users ?? [];
+    const emailByUserId = new Map(authUsers.map((u) => [u.id, u.email ?? null]));
+
     const teacherIds = profiles.map((p) => p.id);
     const now = Date.now();
     const thirtyDaysAgoMs = now - 30 * 24 * 60 * 60 * 1000;
@@ -193,7 +198,7 @@ export async function GET(request: Request) {
       return {
         id: p.id,
         name: p.name ?? null,
-        email: null,
+        email: emailByUserId.get(p.id) ?? null,
         subjects: asStringArray(p.subjects),
         teachingLevels: asNumberArray(p.teaching_levels),
         googleConnected: Boolean(p.google_connected),

@@ -8,6 +8,7 @@ export type TeacherPortalSection =
   | "gyanWall"
   | "createTests"
   | "referEarn"
+  | "subscriptions"
   | "profile";
 
 export interface TeacherPortalClassroomCard {
