@@ -110,7 +110,27 @@ Anything that is not Next.js / tooling config now lives under:
 - **Chinese (CJK)** in repo: only `.cursor/skills/*` (agent skills), not in `app/` / `lib/` / `modal-rag/`
 - Student-facing copy: English (Hindi optional when student writes in Hindi)
 
+## Key paths (Admin coupons)
+| Area | Files |
+|------|--------|
+| Tab shell + URL state (`?tab=teacher\|student`) | `app/admin/coupons/page.tsx` |
+| Teacher RDM coupon manager | `app/admin/coupons/TeacherCouponsTab.tsx` |
+| Student plan coupon manager | `app/admin/coupons/StudentCouponsTab.tsx` |
+| Teacher admin API | `app/api/admin/coupons/route.ts` |
+| Student plan coupon API | `app/api/admin/coupons/student/route.ts` |
+| Student directory (admin picker) | `app/api/admin/students/route.ts` |
+| Student claim API | `app/api/user/coupons/claim-plan/route.ts` |
+| Student claim UI | `components/profile/subscription/SubscriptionCoupon.tsx` |
+| Coupon utils + extend logic | `lib/subscription/subscriptionCouponUtils.ts` |
+| Teacher DB | `supabase/migrations/20260807000000_create_coupons_table.sql` |
+| Student plan DB | `supabase/migrations/20260808120000_subscription_coupons.sql` |
+
 ## Decisions Log
+- 2026-06-05: **Student plan coupons** — `subscription_coupons` table + `profiles.subscription_expires_at`; admin generates Starter/Pro + N months (public or per-student email); student claims at Profile → Subscription → Coupon code (`POST /api/user/coupons/claim-plan`); extend stacks months on remaining time; `normalizePlanTier` honors `subscription_expires_at`.
+- 2026-06-05: **Admin coupons modularized** — `/admin/coupons` split into `TeacherCouponsTab` (full manager: list, filter, generate, redeem tracking) + `StudentCouponsTab` (premium coming-soon placeholder); unified `Tabs` shell in `page.tsx` with `?tab=teacher|student` URL sync via `router.replace`; production `npm run build` OK.
+- 2026-06-04: Posts RLS recursion — cycle was `posts` policy → `teacher_motivation_rdm_grants` → `posts`; fixed with SECURITY DEFINER helpers + `row_security = off` (`20260806140000`: `student_has_active_grant_for_assignment`, `teacher_owns_motivation_post`, `student_can_read_post_via_teacher_nudge`).
+- 2026-06-04: Posts RLS — students can read assignment posts linked from a teacher nudge (`relatedPostId` + `targetStudentIds`) or `teacher_motivation_rdm_grants`, even when section-history rules would hide them; migration `20260806120000_posts_read_linked_assignment_via_nudge.sql`.
+- 2026-06-04: Teacher motivation RDM (policy A) — `POST /api/teacher/motivation/send` charges teacher when assignment-linked bonus (`rdmDelta × students`); `teacher_motivation_rdm_grants` pending until student completes all visible tasks on `relatedPostId`; fulfillment on task-progress / generated-test-attempt; non-linked nudges message-only (no grant/charge).
 - 2026-05-30: Daily streak task sync — each t1–t6 completion PATCHes `sync_free_trial_daily_streak_task` into `profiles.free_trial_daily_streak` (partial `task_ids` + `tasks.{id}.completed_at`); claim RPC now requires all 6 on server; migration `20260730120000_free_trial_daily_streak_task_sync.sql`.
 - 2026-05-30: Daily streak reopen reliability fix — removed stale session-level reopen dedupe gates for Day 2 tasks `t1/t2/t3` so each fresh flow completion dispatches checklist reopen after 5s; flow-only credit path unchanged.
 - 2026-05-26: Site tour checklist UI — `OnboardingRewardDialog.tsx` sticky-board layout (10 notes + task detail drawer); same backend task IDs and completion hooks; no scroll list.
@@ -144,3 +164,10 @@ Anything that is not Next.js / tooling config now lives under:
 - 2026-05-29: Disabled automatic popup triggers for `"Today's checklist"` (the dialog with items a, b, c, d, e shown in the second image) inside `StudentHomeDashboard.tsx` by turning `tryAutoOpenDailyChecklist` into a no-op. The checklist popup will no longer auto-open on home visits or after the 30-second onboarding cooldown, but can still be opened manually by clicking on the dashboard strip.
 - 2026-05-29: Upgraded the `"Daily tasks — Day 2 of 10"` detail drawer in `OnboardingRewardDialog.tsx` with a premium dual-button design matching the onboarding detail drawer. Implemented `handleOpenDailyTask` which navigates the user straight to each task's page (e.g. `/play`, `/explore-1`, `/mock-test?tab=mcq`, `/doubts`, `/refer-earn?tab=challenges`, `/news-blog`) and automatically launches the corresponding step-by-step onboarding guide companion to guide them. Added a `useEffect` event listener for `ONBOARDING_PROGRESS_EVENT` that automatically synchronizes and checks off daily tasks when their respective activities are completed.
 - 2026-05-29: Fixed absolute positioning layout clipping/overlap bugs inside the `OnboardingRewardDialog.tsx` detail drawer by limiting `.drawer`'s height to `max-height: calc(100% - 20px)` and converting it to a vertical flex container, and making `.dbody` scrollable via `overflow-y: auto; flex: 1;`. Removed redundant secondary `"Mark as done"` and `"Open page again"` buttons (since students can already manually check rows off via the circular list checkboxes directly on the main daily checklist popup, as shown in the second image), leaving a single clean premium CTA button at the bottom of the drawer (`Open task — earn +X RDM!` or `Done — Open again`). This keeps the drawer perfectly compact, visually beautiful, and eliminates any vertical scrollbars on desktop screens.
+- 2026-06-02: Fixed inactive-penalty reconcile cadence in `lib/dashboard/studyDaysClient.ts` — run `reconcile_inactive_day_penalties` once per IST day (keyed by `today`) instead of once per browser session, so penalties apply without requiring a hard refresh after midnight.
+- 2026-06-02: Added student-facing inactive-penalty notice wired to real reconcile results: `/api/user/study-days` now returns `{ reconcile: { penaltiesApplied, totalDeducted } }`; dashboard + profile show a supportive toast only when a deduction is actually applied.
+- 2026-06-03: **New-user welcome email** — `lib/email/newUserWelcomeTemplate.ts`; `POST /api/user/login-notification` sends welcome once (`profiles.welcome_email_sent_at`, migration `20260803120000`) for accounts &lt;14d old, then login confirmation for returning students; triggers unchanged (`useAuth` sign-in, OAuth callback, OTP verify).
+- 2026-06-03: **Admin email volume** — `transactional_email_logs` + `EMAIL_DAILY_SEND_CAP` (default 500/IST day); `/admin/emails` + Overview card; `GET /api/admin/email-logs`.
+- 2026-06-04: **Trial-end decision gate** — `TrialExpirationGate` in `app/providers.tsx` blocks all student routes (z-index overlay) until card submit (`claim-bonus`) or **Continue with Free** (`exit-trial-to-free`); `shouldShowTrialExpirationOverlay` closes when `trial_original_ended_at` + `plan_tier=free`; exit API clears `free_trial_activated`.
+- 2026-06-04: **Settings feedback survey** — investor form in `EduBlastFeedbackForm.tsx`; DB-only via `POST /api/platform-feedback` → `platform_feedback_submissions` (migrations `20260804125000`, `20260804130000`); admin inbox `/admin/feedback` — **no email on submit** (welcome/login emails unchanged).
+- 2026-06-04: **`/performance` plan gating** — Performance nav always visible; **free/free_trial** click → Starter upgrade card only (no stats); **starter** → full page, category block → Pro; **pro** → full access.

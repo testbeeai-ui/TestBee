@@ -14,6 +14,7 @@ import MyClassroomView from "@/components/teacher-portal/classroom/my-classroom/
 import MyClassesView from "@/components/teacher-portal/views/classes/MyClassesView";
 import GyanWallView from "@/components/teacher-portal/views/gyan/GyanWallView";
 import ReferEarnView from "@/components/teacher-portal/views/refer/ReferEarnView";
+import SubscriptionsView from "@/components/teacher-portal/views/subscriptions/SubscriptionsView";
 import TeacherProfileView from "@/components/teacher-portal/views/profile/TeacherProfileView";
 import CreateTestsView from "@/components/teacher-portal/views/tests/CreateTestsView";
 import TeacherVerificationGate from "@/components/teacher-portal/shell/TeacherVerificationGate";
@@ -116,6 +117,7 @@ function TeacherPortalPageContent() {
     sectionParam === "gyanWall" ||
     sectionParam === "createTests" ||
     sectionParam === "referEarn" ||
+    sectionParam === "subscriptions" ||
     sectionParam === "profile"
       ? sectionParam
       : null;
@@ -390,6 +392,13 @@ function TeacherPortalPageContent() {
                   void navigator.clipboard.writeText(activeHook.data!.referStats.referralLink);
                   toast({ title: "Referral link copied" });
                 }}
+              />
+            ) : null}
+            {activeSection === "subscriptions" ? (
+              <SubscriptionsView
+                rdmBalance={rdmBalance}
+                teacherId={targetTeacherId ?? ""}
+                onRefresh={activeHook.refresh}
               />
             ) : null}
             {activeSection === "profile" ? (

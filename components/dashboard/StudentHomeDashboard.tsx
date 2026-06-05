@@ -62,10 +62,12 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useSitePresenceLiveMsToday } from "@/components/providers/SitePresenceProvider";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 import { FreeTrialPromoDialog } from "@/components/dashboard/FreeTrialPromoDialog";
 import { OnboardingRewardDialog } from "@/components/dashboard/OnboardingRewardDialog";
 import {
   FREE_TRIAL_ACTIVATED_EVENT,
+  FREE_TRIAL_DEMO_RESET_EVENT,
   FREE_TRIAL_REVOKED_EVENT,
   ONBOARDING_REWARD_CLAIMED_EVENT,
   enableAdminManualOnboardingChecklist,
@@ -95,7 +97,10 @@ import {
 } from "@/lib/onboarding/dailyChecklistTaskStorage";
 import { TIME_TRAVEL_OFFSET_CHANGED_EVENT } from "@/lib/dev/timeTravel";
 import { fetchOnboardingRewardState } from "@/lib/subscription/onboardingRewardApi";
-import { isFreeTrialPeriodEnded } from "@/lib/subscription/freeTrialTimer";
+import {
+  shouldAutoOpenOnboardingRewardDialog,
+  shouldShowTrialExpirationOverlay,
+} from "@/lib/subscription/dashboardTrialPopups";
 import {
   CalendarDays,
   CheckCircle2,
@@ -282,6 +287,7 @@ export default function StudentHomeDashboard() {
   const router = useRouter();
   const pathname = usePathname();
   const { profile, user, refreshProfile } = useAuth();
+  const { toast } = useToast();
   const isAppAdmin = useIsAppAdmin();
   const storeUser = useUserStore((s) => s.user);
 
@@ -319,6 +325,8 @@ export default function StudentHomeDashboard() {
   const [upcomingBlocks, setUpcomingBlocks] = useState<UpcomingBlock[] | null>(null);
   /** After first successful fetch, refetches stay quiet (no greeting/stat "…" flicker). */
   const studyDaysCommittedRef = useRef(false);
+  /** Prevent duplicate penalty notices during repeated refresh events. */
+  const seenPenaltyNoticeKeyRef = useRef<string | null>(null);
   const {
     taxonomy: fullTaxonomy,
     loading: taxonomyLoading,
@@ -338,12 +346,40 @@ export default function StudentHomeDashboard() {
     return new Set(Object.keys(raw as Record<string, unknown>));
   }, [profile?.bits_test_attempts]);
 
-  /** Stable clock for memo deps; ticks every minute so heatmap / greeting stay fresh without re-running memos every frame. */
-  const [dashboardClock, setDashboardClock] = useState(
+  /** Minute clock for heatmap / greeting / trial-day gates (avoids re-rendering the whole dashboard every second). */
+  const [minuteClock, setMinuteClock] = useState(
     () => Date.now() + (profile?.time_travel_offset_ms ?? 0)
   );
+  /** Second clock only while a live countdown is visible (streak suppress banner). */
+  const [fastClock, setFastClock] = useState(
+    () => Date.now() + (profile?.time_travel_offset_ms ?? 0)
+  );
+
+  useEffect(() => {
+    const offset = profile?.time_travel_offset_ms ?? 0;
+    const tick = () => setMinuteClock(Date.now() + offset);
+    tick();
+    const id = setInterval(tick, 60_000);
+    return () => clearInterval(id);
+  }, [profile?.time_travel_offset_ms]);
+
+  const needsFastClock = useMemo(() => {
+    if (!profile?.id) return false;
+    if (!isDailyStreakChecklistSuppressed(profile.id, minuteClock)) return false;
+    return getDailyStreakSuppressRemainingMs(profile.id, minuteClock) > 0;
+  }, [profile?.id, minuteClock]);
+
+  useEffect(() => {
+    if (!needsFastClock) return;
+    const offset = profile?.time_travel_offset_ms ?? 0;
+    const tick = () => setFastClock(Date.now() + offset);
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [profile?.time_travel_offset_ms, needsFastClock]);
+
+  const dashboardClock = needsFastClock ? fastClock : minuteClock;
   const now = useMemo(() => new Date(dashboardClock), [dashboardClock]);
-  /** Stable for one local calendar day — dashboardClock ticks every 1s for timers. */
   const dailyChecklistDayIso = useMemo(
     () => getLocalCalendarDateIso(dashboardClock),
     [dashboardClock]
@@ -352,21 +388,6 @@ export default function StudentHomeDashboard() {
     () => new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate(),
     [now]
   );
-
-  useEffect(() => {
-    const offset = profile?.time_travel_offset_ms ?? 0;
-    const initialSync = setTimeout(() => {
-      setDashboardClock(Date.now() + offset);
-    }, 0);
-    const id = setInterval(() => {
-      const currentOffset = profile?.time_travel_offset_ms ?? 0;
-      setDashboardClock(Date.now() + currentOffset);
-    }, 1000);
-    return () => {
-      clearTimeout(initialSync);
-      clearInterval(id);
-    };
-  }, [profile?.time_travel_offset_ms]);
 
   useEffect(() => {
     let cancelled = false;
@@ -388,9 +409,9 @@ export default function StudentHomeDashboard() {
 
   const edufundProgressData = useMemo(() => {
     const wallet = Math.max(0, Math.floor(Number(rdm) || 0));
-    const planTier = (profile?.plan_tier ?? "free_trial") as "free" | "free_trial" | "starter" | "pro";
+    const planKey = normalizePlanTier(profile?.plan_tier, profile?.free_trial_activated, profile);
     const activeMultiplier = calculateActiveMultiplier(
-      planTier,
+      planKey,
       profile?.subscription_started_at,
       profile?.created_at ?? new Date().toISOString(),
       subscriptionCfg
@@ -406,13 +427,13 @@ export default function StudentHomeDashboard() {
       displayPrimary: `${pct}%` as const,
       displaySuffix: ` (to ${nextGate.name})` as const,
     };
-  }, [rdm, profile?.plan_tier, profile?.subscription_started_at, profile?.created_at, subscriptionCfg]);
+  }, [rdm, profile, subscriptionCfg]);
 
   const edufundTiers = useMemo(() => {
     const wallet = Math.max(0, Math.floor(Number(rdm) || 0));
-    const planTier = (profile?.plan_tier ?? "free_trial") as "free" | "free_trial" | "starter" | "pro";
+    const planKey = normalizePlanTier(profile?.plan_tier, profile?.free_trial_activated, profile);
     const activeMultiplier = calculateActiveMultiplier(
-      planTier,
+      planKey,
       profile?.subscription_started_at,
       profile?.created_at ?? new Date().toISOString(),
       subscriptionCfg
@@ -445,7 +466,7 @@ export default function StudentHomeDashboard() {
               : "text-orange-400",
       };
     });
-  }, [rdm, profile?.plan_tier, profile?.subscription_started_at, profile?.created_at, subscriptionCfg]);
+  }, [rdm, profile, subscriptionCfg]);
 
   useEffect(() => {
     if (!profile?.id) {
@@ -483,15 +504,15 @@ export default function StudentHomeDashboard() {
     return () => {
       cancelled = true;
     };
-  }, [profile?.id]);
+  }, [profile?.id, toast]);
 
   const streakDays = streakSummary?.streak ?? 0;
   const activeDaysThisMonth = streakSummary?.activeDaysThisMonth ?? 0;
 
   const inactivePenaltyRdm = useMemo(() => {
-    const plan = normalizePlanTier(profile?.plan_tier, profile?.free_trial_activated);
+    const plan = normalizePlanTier(profile?.plan_tier, profile?.free_trial_activated, profile);
     return inactivePenaltyRdmForPlan(plan, subscriptionCfg);
-  }, [profile?.plan_tier, profile?.free_trial_activated, subscriptionCfg]);
+  }, [profile, subscriptionCfg]);
 
   const loadStudyDays = useCallback(async () => {
     await Promise.resolve();
@@ -512,6 +533,20 @@ export default function StudentHomeDashboard() {
       if (json.error) {
         if (!silent) setStudyDaysStatus("error");
         return;
+      }
+      const penaltiesApplied = json.reconcile?.penaltiesApplied ?? 0;
+      const totalDeducted = json.reconcile?.totalDeducted ?? 0;
+      if (penaltiesApplied > 0 && totalDeducted > 0) {
+        const noticeKey = `${toStr}:${penaltiesApplied}:${totalDeducted}`;
+        if (seenPenaltyNoticeKeyRef.current !== noticeKey) {
+          seenPenaltyNoticeKeyRef.current = noticeKey;
+          const dayWord = penaltiesApplied === 1 ? "day" : "days";
+          toast({
+            title: `RDM updated: -${totalDeducted} for ${penaltiesApplied} inactive ${dayWord}`,
+            description:
+              "Your account had under 30 minutes of on-site learning time for completed day(s). Keep at least 30 focused minutes today across any study activity to avoid tomorrow's deduction.",
+          });
+        }
       }
       const map = new Map<string, number>();
       const presenceMap = new Map<string, number>();
@@ -536,7 +571,7 @@ export default function StudentHomeDashboard() {
     } catch {
       if (!silent) setStudyDaysStatus("error");
     }
-  }, [profile?.id]);
+  }, [profile?.id, toast]);
 
   useEffect(() => {
     startTransition(() => {
@@ -908,13 +943,28 @@ export default function StudentHomeDashboard() {
   const applyDashboardPopupPhase = useCallback(() => {
     const activated = getFreeTrialActivated(profile);
     const phase = getDashboardPopupPhase(profile, profile?.id);
+    const popupNow = Date.now() + (profile?.time_travel_offset_ms ?? 0);
     setTrialActivated(activated);
     setFreeTrialPromoOpen(phase === "free_trial");
-    setIsOnboardingRewardOpen(phase === "onboarding" && SHOW_ONBOARDING_REWARD_AUTO_POPUP);
+    setIsOnboardingRewardOpen(
+      SHOW_ONBOARDING_REWARD_AUTO_POPUP &&
+        shouldAutoOpenOnboardingRewardDialog(profile, popupNow, profile?.id)
+    );
     if (phase === "claim_reward" && SHOW_ONBOARDING_REWARD_AUTO_POPUP) {
       requestOnboardingClaimRewardPromo();
     }
-  }, [profile]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- granular fields avoid re-running on unrelated profile columns (e.g. RDM ticks)
+  }, [
+    profile?.id,
+    profile?.plan_tier,
+    profile?.free_trial_activated,
+    profile?.free_trial_activated_at,
+    profile?.time_travel_offset_ms,
+    profile?.trial_end_bonus_activated,
+    profile?.trial_second_round_activated,
+    profile?.onboarding_reward_claimed_at,
+    profile?.onboarding_reward_progress,
+  ]);
 
   /** Backfill cooldown keys from profile without overriding a fresh post-claim arm. */
   useEffect(() => {
@@ -970,7 +1020,11 @@ export default function StudentHomeDashboard() {
       startTransition(() => applyDashboardPopupPhase());
     };
     window.addEventListener(FREE_TRIAL_ACTIVATED_EVENT, onTrialActivated);
-    return () => window.removeEventListener(FREE_TRIAL_ACTIVATED_EVENT, onTrialActivated);
+    window.addEventListener(FREE_TRIAL_DEMO_RESET_EVENT, onTrialActivated);
+    return () => {
+      window.removeEventListener(FREE_TRIAL_ACTIVATED_EVENT, onTrialActivated);
+      window.removeEventListener(FREE_TRIAL_DEMO_RESET_EVENT, onTrialActivated);
+    };
   }, [applyDashboardPopupPhase]);
 
   useEffect(() => {
@@ -1087,8 +1141,16 @@ export default function StudentHomeDashboard() {
   }, [profile?.id, dashboardClock]);
 
   const freeTrialEndedForClock = useMemo(() => {
-    return isFreeTrialPeriodEnded(profile?.free_trial_activated_at, dashboardClock);
-  }, [profile?.free_trial_activated_at, dashboardClock]);
+    return shouldShowTrialExpirationOverlay(profile, dashboardClock);
+  }, [profile, dashboardClock]);
+
+  useEffect(() => {
+    if (!freeTrialEndedForClock || profile?.trial_end_bonus_activated) return;
+    startTransition(() => {
+      setIsOnboardingRewardOpen(false);
+      setFreeTrialPromoOpen(false);
+    });
+  }, [freeTrialEndedForClock, profile?.trial_end_bonus_activated]);
 
   function formatSuppressCountdown(remainingMs: number): string {
     const totalSeconds = Math.max(0, Math.floor(remainingMs / 1000));
@@ -1098,13 +1160,20 @@ export default function StudentHomeDashboard() {
     return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   }
 
+  const trialExpirationOpen = useMemo(
+    () => shouldShowTrialExpirationOverlay(profile, dashboardClock),
+    [profile, dashboardClock]
+  );
+
   const freeTrialDialogOpen = !trialActivated && freeTrialPromoOpen;
   const onboardingDialogOpen =
     trialActivated &&
     isOnboardingRewardOpen &&
-    (!isOnboardingRewardComplete(profile) ||
-      (isOnboardingRewardClaimed(profile) && !freeTrialEndedForClock));
-  const higherPriorityPopupOpen = freeTrialDialogOpen || onboardingDialogOpen;
+    shouldAutoOpenOnboardingRewardDialog(profile, dashboardClock, profile?.id) &&
+    !trialExpirationOpen;
+
+  const higherPriorityPopupOpen =
+    freeTrialDialogOpen || onboardingDialogOpen || trialExpirationOpen;
 
   const tryAutoOpenDailyChecklist = useCallback(() => {
     // Disabled auto-opening of Today's checklist as requested by the user.
@@ -1667,6 +1736,8 @@ export default function StudentHomeDashboard() {
       </section>
 
       {trialActivated &&
+      !freeTrialEndedForClock &&
+      !profile?.trial_end_bonus_activated &&
       !isOnboardingRewardClaimed(profile) &&
       isOnboardingRewardComplete(profile) ? (
         <section className="rounded-2xl border border-emerald-500/25 bg-gradient-to-r from-emerald-500/10 via-violet-500/5 to-amber-500/10 p-4 shadow-sm">
@@ -1688,7 +1759,10 @@ export default function StudentHomeDashboard() {
             </span>
           </button>
         </section>
-      ) : trialActivated && !isOnboardingRewardComplete(profile) ? (
+      ) : trialActivated &&
+        !freeTrialEndedForClock &&
+        !profile?.trial_end_bonus_activated &&
+        !isOnboardingRewardComplete(profile) ? (
         <section className="rounded-2xl border border-amber-500/25 bg-gradient-to-r from-amber-500/10 via-violet-500/5 to-emerald-500/10 p-4 shadow-sm">
           <button
             type="button"
@@ -2308,6 +2382,7 @@ export default function StudentHomeDashboard() {
         onOpenChange={setIsOnboardingRewardOpen}
         checklistRewardRdm={checklistRewardRdm}
       />
+      {/* Trial-end payment gate: TrialExpirationGate in app/providers.tsx (single overlay) */}
     </div>
   );
 }

@@ -94,6 +94,7 @@ const PROFILE_SECTION_QUERY_VALUES: StudentProfileSectionId[] = [
   "sub-checkout",
   "sub-history",
   "sub-cancel",
+  "sub-coupon",
   "settings",
 ];
 
@@ -451,6 +452,7 @@ export default function StudentProfilePersonalHub({
           section === "sub-plans" ||
           section === "sub-payment" ||
           section === "sub-checkout" ||
+          section === "sub-coupon" ||
           section === "sub-history" ||
           section === "sub-cancel" ? (
           <StudentSubscriptionHub
@@ -461,6 +463,7 @@ export default function StudentProfilePersonalHub({
                 | "plans"
                 | "payment"
                 | "checkout"
+                | "coupon"
                 | "history"
                 | "cancel"
             }

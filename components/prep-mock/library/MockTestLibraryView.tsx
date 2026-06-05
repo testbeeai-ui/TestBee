@@ -24,6 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { isUnlimited } from "@/lib/subscription/subscriptionConfig";
 import { mockPaperTypeLabel, type LibraryCategoryFilter } from "@/lib/mock/mockPapersCatalog";
 import { QUICK_DURATIONS, subjectEmojis, SUBJECT_LABELS } from "@/components/prep-mock/constants";
 import McqChapterBrowser from "@/components/prep-mock/library/McqChapterBrowser";
@@ -181,26 +182,18 @@ export default function MockTestLibraryView({
             })}
           </div>
           <div className="flex items-center gap-2">
-            {typeof monthlyAttemptsCount === "number" && typeof mocksPerMonthLimit === "number" && (
+            {typeof monthlyAttemptsCount === "number" &&
+              typeof mocksPerMonthLimit === "number" &&
+              !isUnlimited(mocksPerMonthLimit) && (
               <div
                 className={cn(
                   "flex items-center gap-2 px-3 py-1.5 rounded-full border text-[11px] font-extrabold shrink-0 shadow-sm transition-all sm:text-xs",
-                  mocksPerMonthLimit === -1
-                    ? "border-emerald-500/20 bg-emerald-500/5 text-emerald-400"
-                    : "border-primary/20 bg-primary/5 text-primary"
+                  "border-primary/20 bg-primary/5 text-primary"
                 )}
               >
-                <span
-                  className={cn(
-                    "w-1.5 h-1.5 rounded-full animate-pulse",
-                    mocksPerMonthLimit === -1 ? "bg-emerald-400" : "bg-primary"
-                  )}
-                />
+                <span className="w-1.5 h-1.5 rounded-full animate-pulse bg-primary" />
                 <span>
-                  Usage:{" "}
-                  {mocksPerMonthLimit === -1
-                    ? `${monthlyAttemptsCount} / Unlimited`
-                    : `${monthlyAttemptsCount} / ${mocksPerMonthLimit} tests`}
+                  Usage: {monthlyAttemptsCount} / {mocksPerMonthLimit} tests
                 </span>
               </div>
             )}

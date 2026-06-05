@@ -15,9 +15,11 @@ import {
   CircleMinus,
   Settings,
   ChevronDown,
+  Ticket,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
+import { normalizePlanTier } from "@/lib/subscription/subscriptionConfig";
 
 export type StudentProfileSectionId =
   | "personal"
@@ -31,6 +33,7 @@ export type StudentProfileSectionId =
   | "sub-checkout"
   | "sub-history"
   | "sub-cancel"
+  | "sub-coupon"
   | "settings";
 
 const NAV: { id: StudentProfileSectionId; label: string; icon: typeof User }[] = [
@@ -54,12 +57,14 @@ const SUBSCRIPTION_GROUP: StudentProfileSectionId[] = [
   "sub-checkout",
   "sub-history",
   "sub-cancel",
+  "sub-coupon",
 ];
 const SUBSCRIPTION_ITEMS: { id: StudentProfileSectionId; label: string; icon: typeof User }[] = [
   { id: "sub-overview", label: "My subscription", icon: CreditCard },
   { id: "sub-plans", label: "Change plan", icon: LayoutGrid },
   { id: "sub-payment", label: "Payment methods", icon: CreditCard },
   { id: "sub-checkout", label: "Pay via Razorpay", icon: Wallet },
+  { id: "sub-coupon", label: "Coupon code", icon: Ticket },
   { id: "sub-history", label: "Billing history", icon: Receipt },
   { id: "sub-cancel", label: "Cancel subscription", icon: CircleMinus },
 ];
@@ -84,7 +89,7 @@ export default function StudentProfileShell({
   children,
 }: StudentProfileShellProps) {
   const router = useRouter();
-  const { signOut } = useAuth();
+  const { signOut, profile } = useAuth();
   const [loggingOut, setLoggingOut] = useState(false);
   const [personalSubCollapsed, setPersonalSubCollapsed] = useState(false);
   const [subscriptionSubCollapsed, setSubscriptionSubCollapsed] = useState(false);
@@ -92,6 +97,12 @@ export default function StudentProfileShell({
   const subscriptionOpen = SUBSCRIPTION_GROUP.includes(activeSection);
   const subMenuVisible = personalOpen && !personalSubCollapsed;
   const subscriptionMenuVisible = subscriptionOpen && !subscriptionSubCollapsed;
+
+  const planKey = normalizePlanTier(profile?.plan_tier, profile?.free_trial_activated, profile);
+  const isPaid = planKey === "starter" || planKey === "pro";
+  const hasPayment = !!profile?.payment_card_details;
+
+  const visibleSubscriptionItems = SUBSCRIPTION_ITEMS;
 
   useEffect(() => {
     if (!personalOpen) setPersonalSubCollapsed(false);
@@ -255,7 +266,7 @@ export default function StudentProfileShell({
             />
           </button>
           {subscriptionMenuVisible
-            ? SUBSCRIPTION_ITEMS.map(({ id, label, icon: SubIcon }) => {
+            ? visibleSubscriptionItems.map(({ id, label, icon: SubIcon }) => {
                 const active = activeSection === id;
                 return (
                   <button

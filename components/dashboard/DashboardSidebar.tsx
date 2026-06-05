@@ -45,6 +45,7 @@ function NavRow({ item, active }: { item: NavItem; active: boolean }) {
     <li>
       <Link
         href={item.href}
+        prefetch={!active}
         className={cn(
           "group flex min-h-[40px] items-center gap-3 rounded-lg px-2.5 py-2 text-sm font-semibold transition-colors",
           active

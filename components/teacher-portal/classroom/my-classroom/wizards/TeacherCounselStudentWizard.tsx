@@ -161,7 +161,6 @@ export function TeacherCounselStudentWizard(props: {
   const [adviceTouched, setAdviceTouched] = useState(false);
   const [advice, setAdvice] = useState("");
 
-  const [encourageRdm, setEncourageRdm] = useState<number>(10);
   type RecommendActionId = "attempt_targeted_mock" | "post_doubt" | "watch_recorded" | "none";
   const recommendActions: Array<{ id: RecommendActionId; label: string }> = [
     { id: "attempt_targeted_mock", label: "Attempt a Testbee targeted mock" },
@@ -572,42 +571,20 @@ export function TeacherCounselStudentWizard(props: {
   const step4 = (
     <div className="mt-3 space-y-2 sm:space-y-3">
       <div className="text-xs leading-relaxed text-slate-300">
-        Send your message with optional RDM encouragement. (Recommended actions list excludes
-        Instacue as requested.)
+        Send your counselling message. RDM bonuses are only available on assignment-linked
+        reminders (Assignment progress or Nudge wizard → Complete pending assignment).
       </div>
 
       {!selectedStudent ? (
         emptyState(
-          "Select a student first. Once a student is chosen, you can send the reminder and optional RDM encouragement here."
+          "Select a student first. Once a student is chosen, you can send your advice here."
         )
       ) : (
         <>
-          <div>
-            <div className="mb-1 text-xs font-semibold text-slate-300">Add RDM encouragement?</div>
-            <div className="flex flex-wrap gap-2">
-              {[
-                { label: "No RDM", value: 0 },
-                { label: "+10 RDM", value: 10 },
-                { label: "+25 RDM", value: 25 },
-                { label: "+50 RDM", value: 50 },
-              ].map((o) => {
-                const on = encourageRdm === o.value;
-                return (
-                  <button
-                    key={o.value}
-                    type="button"
-                    onClick={() => setEncourageRdm(o.value)}
-                    className={`rounded-full border px-3 py-2 text-xs font-semibold transition ${
-                      on
-                        ? "border-emerald-400/40 bg-emerald-500/10 text-emerald-200"
-                        : "border-white/10 bg-[#0d0d1c] text-slate-300 hover:bg-white/[0.03]"
-                    }`}
-                  >
-                    {o.label}
-                  </button>
-                );
-              })}
-            </div>
+          <div className="rounded-xl border border-amber-400/30 bg-amber-500/10 px-3 py-2.5 text-[11px] font-semibold leading-snug text-amber-200">
+            Counselling is message-only for students. To attach an RDM bonus, use Assignment
+            progress → Send reminder, or Nudge students with goal &quot;Complete pending
+            assignment&quot;.
           </div>
 
           <div>
@@ -658,15 +635,11 @@ export function TeacherCounselStudentWizard(props: {
               </div>
               <div className="flex items-start justify-between gap-3">
                 <span className="text-slate-400">RDM bonus</span>
-                <span className="text-slate-100 font-semibold">
-                  {encourageRdm > 0 ? `+${encourageRdm} RDM` : "No RDM"}
-                </span>
+                <span className="text-slate-100 font-semibold">None (advice only)</span>
               </div>
               <div className="flex items-start justify-between gap-3">
                 <span className="text-slate-400">Delivery</span>
-                <span className="text-slate-100 font-semibold">
-                  Instant — as teacher notification
-                </span>
+                <span className="text-slate-100 font-semibold">Notification bell</span>
               </div>
             </div>
           </div>
@@ -707,7 +680,7 @@ export function TeacherCounselStudentWizard(props: {
                     actionKind,
                     targetStudentIds: [selectedStudent.userId],
                     message: advice.trim(),
-                    rdmDelta: encourageRdm,
+                    rdmDelta: 0,
                     recommendActionId: recommendAction,
                     recommendActionLabel: actionText || undefined,
                     recommendActionUrl:
@@ -733,7 +706,7 @@ export function TeacherCounselStudentWizard(props: {
               }}
               className="rounded-full bg-emerald-500 px-5 py-2.5 text-xs font-semibold text-black hover:bg-emerald-400 disabled:opacity-60 sm:px-6 sm:py-3"
             >
-              {sending ? "Sending…" : "Send message + RDM"}
+              {sending ? "Sending…" : "Send message"}
             </button>
           </div>
         </>

@@ -130,7 +130,9 @@ import { getFreeTrialActivated, getOnboardingProgress } from "@/lib/subscription
 import {
   fetchSubscriptionConfig,
   getPlanLimits,
+  lessonsChapterLockEnabled,
   normalizePlanTier,
+  resolveLessonsChapterCap,
 } from "@/lib/subscription/subscriptionConfig";
 
 const EMPTY_LESSON_KEY_SET = new Set<string>();
@@ -1695,7 +1697,11 @@ const Explore = () => {
   const orchestratorJobs = useOrchestratorStore((s) => s.jobs);
   const scheduleChapterJob = useOrchestratorStore((s) => s.scheduleChapterJob);
 
-  const [chapterLockLimits, setChapterLockLimits] = useState<{ free: number; free_trial: number }>({
+  /** Raw values from Admin → Subscriptions (`*_lessons_chapter_limit` in rdm_config). */
+  const [lessonsChapterLimits, setLessonsChapterLimits] = useState<{
+    free: number;
+    free_trial: number;
+  }>({
     free: 2,
     free_trial: 2,
   });
@@ -1704,11 +1710,9 @@ const Explore = () => {
     let cancelled = false;
     void fetchSubscriptionConfig().then((cfg) => {
       if (cancelled) return;
-      const free = getPlanLimits(cfg, "free").lessonsChapterLimit;
-      const trial = getPlanLimits(cfg, "free_trial").lessonsChapterLimit;
-      setChapterLockLimits({
-        free: free > 0 ? free : 2,
-        free_trial: trial > 0 ? trial : 2,
+      setLessonsChapterLimits({
+        free: getPlanLimits(cfg, "free").lessonsChapterLimit,
+        free_trial: getPlanLimits(cfg, "free_trial").lessonsChapterLimit,
       });
     });
     return () => {
@@ -1716,8 +1720,8 @@ const Explore = () => {
     };
   }, []);
 
-  // Lifted locks state — free trial = 2 chapters; use getFreeTrialActivated (profile + localStorage), not plan_tier === "free" only.
-  const tier = normalizePlanTier(profile?.plan_tier, profile?.free_trial_activated);
+  // Chapter lock caps come from rdm_config (admin /admin/subscriptions), not a monthly quota.
+  const tier = normalizePlanTier(profile?.plan_tier, profile?.free_trial_activated, profile);
   const tierLockConfig = PLAN_LOCKS[tier];
   const activePlan =
     tierLockConfig && !tierLockConfig.lockChapters
@@ -1728,9 +1732,23 @@ const Explore = () => {
   const baseLockConfig = PLAN_LOCKS[activePlan] ?? PLAN_LOCKS.free;
   const lockConfig =
     activePlan === "free"
-      ? { ...baseLockConfig, maxChapters: chapterLockLimits.free }
+      ? {
+          ...baseLockConfig,
+          maxChapters: resolveLessonsChapterCap(lessonsChapterLimits.free),
+          lockChapters: lessonsChapterLockEnabled(
+            lessonsChapterLimits.free,
+            baseLockConfig.lockChapters
+          ),
+        }
       : activePlan === "free_trial"
-        ? { ...baseLockConfig, maxChapters: chapterLockLimits.free_trial }
+        ? {
+            ...baseLockConfig,
+            maxChapters: resolveLessonsChapterCap(lessonsChapterLimits.free_trial),
+            lockChapters: lessonsChapterLockEnabled(
+              lessonsChapterLimits.free_trial,
+              baseLockConfig.lockChapters
+            ),
+          }
         : baseLockConfig;
   const isLockActive = lockConfig.lockChapters;
 

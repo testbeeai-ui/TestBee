@@ -82,6 +82,8 @@ import {
   getLocalCalendarDateIso,
   parseDailyStreakServerState,
   reconcileDailyCbseMcqChecklistState,
+  markDailyChecklistTaskDone,
+  dailyCbseMcqDoneDateKey,
   ONBOARDING_DAILY_TASK_DONE_EVENT,
   type OnboardingDailyTaskDoneDetail,
 } from "@/lib/onboarding/dailyChecklistTaskStorage";
@@ -625,13 +627,13 @@ export function OnboardingRewardDialog({
   );
 
   const trialElapsedMs = useMemo(
-    () => getFreeTrialElapsedMs(trialActivatedAt, trialTimerNow),
-    [trialActivatedAt, trialTimerNow]
+    () => getFreeTrialElapsedMs(trialActivatedAt, trialTimerNow, profile?.trial_second_round_activated),
+    [trialActivatedAt, trialTimerNow, profile?.trial_second_round_activated]
   );
 
   const trialEnded = useMemo(
-    () => isFreeTrialPeriodEnded(trialActivatedAt, trialTimerNow),
-    [trialActivatedAt, trialTimerNow]
+    () => isFreeTrialPeriodEnded(trialActivatedAt, trialTimerNow, profile?.trial_second_round_activated),
+    [trialActivatedAt, trialTimerNow, profile?.trial_second_round_activated]
   );
 
   const [claimedLocally, setClaimedLocally] = useState(false);
@@ -725,7 +727,7 @@ export function OnboardingRewardDialog({
   }, [dailyCompleted]);
   const dailyAllCompleteHandledRef = useRef<number | null>(null);
 
-  /** Stable for the whole local calendar day (timer ticks every 1s but this string does not). */
+  /** Stable for the whole local calendar day (timer ticks every 1s while open but this string does not). */
   const reconcileDayKey = getLocalCalendarDateIso(trialTimerNow);
 
   const reconcileDailyChecklistForDay = useCallback(
@@ -1021,6 +1023,7 @@ export function OnboardingRewardDialog({
   }, [open]);
 
   useEffect(() => {
+    if (!open) return;
     const offset = profile?.time_travel_offset_ms ?? 0;
     setTrialTimerNow(Date.now() + offset);
     const id = window.setInterval(() => {
@@ -1028,7 +1031,7 @@ export function OnboardingRewardDialog({
       setTrialTimerNow(Date.now() + currentOffset);
     }, 1000);
     return () => window.clearInterval(id);
-  }, [profile?.time_travel_offset_ms]);
+  }, [open, profile?.time_travel_offset_ms]);
 
   useEffect(() => {
     if (!open) return;
@@ -1106,6 +1109,38 @@ export function OnboardingRewardDialog({
     toggleOnboardingTaskForAdmin(taskId, !done);
     syncProgress();
   };
+
+  const handleAdminToggleDailyTask = useCallback(
+    (taskId: string) => {
+      if (!isAdminManualChecklist || !profile?.id || trialDayNumber < 2) return;
+      if (dailyCompleted.includes(taskId)) return;
+
+      if (taskId === "t3") {
+        window.localStorage.setItem(
+          dailyCbseMcqDoneDateKey(profile.id, trialDayNumber),
+          getLocalCalendarDateIso(trialTimerNow)
+        );
+      }
+
+      markDailyChecklistTaskDone(profile.id, trialDayNumber, taskId);
+      const task = DAILY_TASKS.find((row) => row.id === taskId);
+      toast({
+        title: "Task marked complete",
+        description: task
+          ? `${task.name} — Day ${trialDayNumber} (${dailyCompleted.length + 1}/6)`
+          : `Day ${trialDayNumber} checklist updated.`,
+        duration: 2500,
+      });
+    },
+    [
+      isAdminManualChecklist,
+      profile?.id,
+      trialDayNumber,
+      dailyCompleted,
+      trialTimerNow,
+      toast,
+    ]
+  );
 
   const handleResetChecklist = () => {
     const hadProgress = Object.keys(getMergedOnboardingProgress(profile)).length > 0;
@@ -1201,7 +1236,7 @@ export function OnboardingRewardDialog({
             isDay2Plus
               ? {
                   width: "min(calc(100vw - 1.5rem), 960px)",
-                  height: "min(92dvh, 460px)",
+                  height: "min(92dvh, 500px)",
                   maxWidth: "none",
                   maxHeight: "none",
                   outline: "none",
@@ -1269,8 +1304,22 @@ export function OnboardingRewardDialog({
                 @media (min-width: 640px) {
                   .col-left {
                     width: 300px;
+                    flex: 0 0 300px;
+                    min-height: 0;
+                    overflow-x: hidden;
+                    overflow-y: auto;
                     border-right: 1px solid rgba(255, 255, 255, 0.05);
                     border-bottom: none;
+                    scrollbar-width: thin;
+                    scrollbar-color: rgba(255, 255, 255, 0.08) transparent;
+                  }
+                  .col-left::-webkit-scrollbar { width: 3px; }
+                  .col-left::-webkit-scrollbar-thumb {
+                    background: rgba(255, 255, 255, 0.08);
+                    border-radius: 20px;
+                  }
+                  .body-cols {
+                    align-items: stretch;
                   }
                 }
                 .coin-row { display: flex; align-items: center; gap: 8px; }
@@ -1312,19 +1361,58 @@ export function OnboardingRewardDialog({
                 .ben.bg svg { color: #10B981; }
                 .ben.bp svg { color: #A855F7; }
                 
-                .dots-section { margin-top: auto; }
-                .dots-lbl { font-size: 10.5px; color: rgba(255, 255, 255, 0.4); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .03em; font-weight: 600; }
-                .sbar-row { display: flex; items: center; justify-content: space-between; margin-bottom: 4px; }
+                .dots-section {
+                  padding-top: 2px;
+                  padding-bottom: 4px;
+                }
+                .dots-lbl {
+                  font-size: 10px;
+                  color: rgba(255, 255, 255, 0.4);
+                  margin-bottom: 8px;
+                  text-transform: uppercase;
+                  letter-spacing: 0.06em;
+                  font-weight: 600;
+                }
+                .sbar-row {
+                  display: flex;
+                  align-items: center;
+                  justify-content: space-between;
+                  margin-bottom: 4px;
+                }
                 .sbar-lbl { font-size: 10.5px; color: rgba(255, 255, 255, 0.4); font-weight: 600; }
                 .sbar-pct { font-size: 11.5px; font-weight: 700; color: #818CF8; }
                 .sbar-track { height: 5px; background: rgba(255, 255, 255, 0.05); border-radius: 20px; overflow: hidden; }
                 .sbar-fill { height: 100%; border-radius: 20px; background: linear-gradient(90deg, #6366F1, #A855F7); transition: width .3s; }
-                .day-dots { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 6px; }
-                .dd-w { display: flex; flex-direction: column; align-items: center; gap: 1px; }
+                .day-tracker-block { width: 100%; margin-top: 8px; }
+                .day-dots {
+                  display: grid;
+                  grid-template-columns: repeat(10, minmax(0, 1fr));
+                  gap: 2px;
+                  width: 100%;
+                  padding-bottom: 2px;
+                }
+                .dd-w {
+                  display: flex;
+                  flex-direction: column;
+                  align-items: center;
+                  justify-content: flex-start;
+                  gap: 3px;
+                  min-width: 0;
+                }
                 .dd {
-                  width: 20px; height: 20px; border-radius: 6px; background: rgba(255, 255, 255, 0.02);
-                  display: flex; items: center; justify-content: center; font-size: 10px;
-                  font-weight: 600; color: rgba(255, 255, 255, 0.4); border: 1px solid rgba(255, 255, 255, 0.05);
+                  width: 22px;
+                  height: 22px;
+                  flex-shrink: 0;
+                  border-radius: 6px;
+                  background: rgba(255, 255, 255, 0.06);
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  font-size: 10px;
+                  line-height: 1;
+                  font-weight: 700;
+                  color: rgba(255, 255, 255, 0.55);
+                  border: 1px solid rgba(255, 255, 255, 0.12);
                   transition: all 0.2s ease;
                 }
                 .dd.done { background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.4); color: #10B981; font-weight: 700; }
@@ -1337,7 +1425,19 @@ export function OnboardingRewardDialog({
                   0%, 100% { box-shadow: 0 0 4px rgba(99, 102, 241, 0.2); }
                   50% { box-shadow: 0 0 10px rgba(99, 102, 241, 0.4); border-color: #818CF8; }
                 }
-                .dd-sub { font-size: 8.5px; color: rgba(255, 255, 255, 0.35); }
+                .dd-sub {
+                  font-size: 7.5px;
+                  line-height: 1;
+                  min-height: 9px;
+                  color: rgba(255, 255, 255, 0.35);
+                  text-align: center;
+                  width: 100%;
+                }
+                @media (max-width: 420px) {
+                  .day-dots { gap: 1px; }
+                  .dd { width: 20px; height: 20px; font-size: 9px; border-radius: 5px; }
+                  .dd-sub { font-size: 7px; }
+                }
                 
                 .hdr-btns {
                   position: absolute;
@@ -2082,26 +2182,11 @@ export function OnboardingRewardDialog({
                         ? `Trial time left — streak can reach Day ${maxReachableStreakDay} only`
                         : "One day at a time — missed calendar days don\u2019t skip ahead"}
                     </div>
-                  </div>
-                  <div className="pop-sub">
-                    Do these tasks daily to earn <span className="ha">bonus RDM</span>, keep your
-                    streak alive, and qualify for an{" "}
-                    <span className="ht">additional 2-week FREE trial</span> +{" "}
-                    <span className="hp">ONE Month FREE</span> bonus thereafter.
-                  </div>
-                  <div className="ben-row">
-                    <div className="ben ba">
-                      <Coins size={12} aria-hidden="true" />
-                      <span>Daily RDM bonus</span>
-                    </div>
-                    <div className="ben bg">
-                      <Calendar size={12} aria-hidden="true" />
-                      <span>+14 day FREE trial extension</span>
-                    </div>
-                    <div className="ben bp">
-                      <Gift size={12} aria-hidden="true" />
-                      <span>ONE Month FREE bonus</span>
-                    </div>
+                    {isAdminManualChecklist ? (
+                      <p className="mt-1.5 text-[10px] font-semibold text-violet-300/90">
+                        Admin: tap a circle beside a task to mark it complete instantly.
+                      </p>
+                    ) : null}
                   </div>
                   <div className="dots-section">
                     <div>
@@ -2113,10 +2198,9 @@ export function OnboardingRewardDialog({
                         <div className="sbar-fill" style={{ width: `${streakProgressPct}%` }}></div>
                       </div>
                     </div>
-                    <div className="dots-lbl" style={{ marginTop: "6px" }}>
-                      Day tracker
-                    </div>
-                    <div className="day-dots">
+                    <div className="day-tracker-block">
+                      <div className="dots-lbl">Day tracker</div>
+                      <div className="day-dots" aria-label="10-day trial streak">
                       {Array.from({ length: 10 }).map((_, idx) => {
                         const dayVal = idx + 1;
                         const siteTourDone = Boolean(profile?.onboarding_reward_claimed_at);
@@ -2147,6 +2231,27 @@ export function OnboardingRewardDialog({
                           </div>
                         );
                       })}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="pop-sub">
+                    Do these tasks daily to earn <span className="ha">bonus RDM</span>, keep your
+                    streak alive, and qualify for an{" "}
+                    <span className="ht">additional 2-week FREE trial</span> +{" "}
+                    <span className="hp">ONE Month FREE</span> bonus thereafter.
+                  </div>
+                  <div className="ben-row">
+                    <div className="ben ba">
+                      <Coins size={12} aria-hidden="true" />
+                      <span>Daily RDM bonus</span>
+                    </div>
+                    <div className="ben bg">
+                      <Calendar size={12} aria-hidden="true" />
+                      <span>+14 day FREE trial extension</span>
+                    </div>
+                    <div className="ben bp">
+                      <Gift size={12} aria-hidden="true" />
+                      <span>ONE Month FREE bonus</span>
                     </div>
                   </div>
                 </div>
@@ -2216,7 +2321,34 @@ export function OnboardingRewardDialog({
                               onClick={() => setActiveDailyTaskId(t.id)}
                             >
                               <div className="t-inner">
-                                <div className="chk" onClick={(e) => e.stopPropagation()}>
+                                <div
+                                  className={cn(
+                                    "chk",
+                                    isAdminManualChecklist &&
+                                      !isDone &&
+                                      "cursor-pointer ring-0 hover:border-violet-400/70 hover:bg-violet-500/10"
+                                  )}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (isAdminManualChecklist && !isDone) {
+                                      handleAdminToggleDailyTask(t.id);
+                                    }
+                                  }}
+                                  role={isAdminManualChecklist ? "checkbox" : undefined}
+                                  aria-checked={isDone}
+                                  aria-label={
+                                    isAdminManualChecklist
+                                      ? isDone
+                                        ? `${t.name} completed`
+                                        : `Mark ${t.name} complete (admin)`
+                                      : undefined
+                                  }
+                                  title={
+                                    isAdminManualChecklist && !isDone
+                                      ? "Tap to mark complete (admin)"
+                                      : undefined
+                                  }
+                                >
                                   <Check size={9} style={{ display: isDone ? "block" : "none" }} />
                                 </div>
                                 <div className="tsk-ico-wrapper">
@@ -2275,7 +2407,7 @@ export function OnboardingRewardDialog({
                           <div className="fr-lbl">Trial timer</div>
                           <div className="fr-timer">
                             {trialActivatedAt
-                              ? formatFreeTrialElapsedTimer(trialElapsedMs)
+                              ? formatFreeTrialElapsedTimer(trialElapsedMs, profile?.trial_second_round_activated)
                               : "--:--:--"}
                           </div>
                         </div>
@@ -2429,7 +2561,7 @@ export function OnboardingRewardDialog({
                         }
                       >
                         {trialActivatedAt
-                          ? formatFreeTrialElapsedTimer(trialElapsedMs)
+                          ? formatFreeTrialElapsedTimer(trialElapsedMs, profile?.trial_second_round_activated)
                           : "--:--:--"}
                       </p>
                     </div>

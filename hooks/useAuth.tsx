@@ -13,6 +13,7 @@ import { safeGetSession } from "@/lib/auth/safeSession";
 import { profileShouldForceOnboardingComplete } from "@/lib/profile/profileOnboardingRepair";
 import { readPendingDeepLink } from "@/lib/auth/safeNextPath";
 import { AuthContext, type Profile } from "@/hooks/auth-context";
+import { triggerLoginNotificationEmail } from "@/lib/email/triggerLoginNotificationClient";
 
 export type { Profile } from "@/hooks/auth-context";
 
@@ -34,13 +35,71 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const fetchProfile = async (
     userId: string,
-    userMeta?: { name?: string; avatar_url?: string; provider?: string }
+    userMeta?: { name?: string; avatar_url?: string; provider?: string; email?: string }
   ) => {
     const { data, error } = await supabase
       .from("profiles")
       .select("*")
       .eq("id", userId)
       .maybeSingle();
+
+    const isComplete = data?.onboarding_complete === true;
+    const email = userMeta?.email;
+    let approvedRole: "student" | "teacher" | null = null;
+
+    if (!isComplete && email) {
+      // Check if user is admin via profile role or user_roles table
+      let isAdmin = false;
+      if (data?.role === "admin") {
+        isAdmin = true;
+      } else {
+        const { data: roleData } = await supabase
+          .from("user_roles")
+          .select("id")
+          .eq("user_id", userId)
+          .eq("role", "admin")
+          .maybeSingle();
+        if (roleData) isAdmin = true;
+      }
+
+      if (!isAdmin) {
+        // Query whitelisted approved_emails
+        const { data: approved } = (await supabase
+          .from("approved_emails" as any)
+          .select("role")
+          .eq("email", email.toLowerCase().trim())
+          .maybeSingle()) as any;
+
+        if (!approved) {
+          console.warn(`[auth] Sign-in blocked: ${email} is not whitelisted.`);
+          // Clear user session locally and sign out
+          setProfile(null);
+          setSession(null);
+          setUser(null);
+          useUserStore.getState().logout();
+          try {
+            sessionStorage.removeItem("auth_mode");
+            sessionStorage.removeItem("auth_intended_role");
+            sessionStorage.removeItem("auth_redirect_after_login");
+          } catch (_) {}
+          
+          await supabase.auth.signOut({ scope: "local" });
+          if (typeof window !== "undefined") {
+            window.location.assign("/auth?error=waitlist_not_approved");
+          }
+          return;
+        }
+
+        // Whitelisted! Ensure intended role matches approved role
+        if (approved) {
+          approvedRole = approved.role;
+          try {
+            sessionStorage.setItem("auth_intended_role", approved.role);
+          } catch (_) {}
+        }
+      }
+    }
+
     if (data) {
       let row = data as unknown as Profile;
       let isSignInFlow = false;
@@ -61,7 +120,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // from stale sessionStorage (e.g. a prior "join as student" visit).
       // Check if role needs correction based on explicit signup role choice only
       let intendedRole: "student" | "teacher" | null = null;
-      if (!isSignInFlow) {
+      if (approvedRole) {
+        intendedRole = approvedRole;
+      } else if (!isSignInFlow) {
         try {
           const stored = sessionStorage.getItem("auth_intended_role");
           if (stored === "teacher" || stored === "student") intendedRole = stored;
@@ -100,7 +161,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         isSignInFlow = sessionStorage.getItem("auth_mode") === "signin";
       } catch (_) {}
       let intendedRole: "student" | "teacher" = "student";
-      if (!isSignInFlow) {
+      if (approvedRole) {
+        intendedRole = approvedRole;
+      } else if (!isSignInFlow) {
         try {
           const stored = sessionStorage.getItem("auth_intended_role");
           if (stored === "teacher" || stored === "student") intendedRole = stored;
@@ -164,21 +227,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        const meta = session.user.user_metadata || {};
-        const provider = session.user.app_metadata?.provider;
-        setTimeout(
-          () =>
-            fetchProfile(session.user.id, {
-              name: meta.full_name || meta.name,
-              avatar_url: meta.avatar_url,
-              provider,
-            }),
-          0
-        );
+        // Token refresh fires often; re-fetching the full profile each time causes
+        // cascading client updates across dashboard + subscription UI.
+        if (event !== "TOKEN_REFRESHED") {
+          const meta = session.user.user_metadata || {};
+          const provider = session.user.app_metadata?.provider;
+          setTimeout(
+            () =>
+              fetchProfile(session.user.id, {
+                name: meta.full_name || meta.name,
+                avatar_url: meta.avatar_url,
+                provider,
+                email: session.user.email,
+              }),
+            0
+          );
+        }
       } else {
         setProfile(null);
       }
@@ -195,6 +263,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           name: meta.full_name || meta.name,
           avatar_url: meta.avatar_url,
           provider,
+          email: session.user.email,
         });
       }
       setLoading(false);
@@ -289,7 +358,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signInWithEmail = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (!error) await supabase.auth.signOut({ scope: "others" });
+    if (!error) {
+      await supabase.auth.signOut({ scope: "others" });
+      triggerLoginNotificationEmail();
+    }
     return { error };
   };
 
@@ -313,6 +385,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       token: cleaned,
       type: "signup",
     });
+    if (!error) {
+      triggerLoginNotificationEmail();
+    }
     return { error };
   };
 

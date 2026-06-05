@@ -54,7 +54,7 @@ export function istYmdInRange(ymd: string, fromIst: string, toIst: string): bool
 }
 
 /** UI bucket for icons / grouping — aligns with `bucketForDailyRewardAction`. */
-export type RdmClaimCategory = "gyan" | "play" | "mocks" | "revision";
+export type RdmClaimCategory = "gyan" | "play" | "mocks" | "revision" | "penalty";
 
 /**
  * Human-readable labels for `daily_reward_claims.action_type`.

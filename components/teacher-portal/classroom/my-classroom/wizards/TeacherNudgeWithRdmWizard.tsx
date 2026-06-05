@@ -231,6 +231,11 @@ export const TeacherNudgeWithRdmWizard = forwardRef<
   const [selectedLowScorerIds, setSelectedLowScorerIds] = useState<Set<string>>(new Set());
   const [selectedSpecificIds, setSelectedSpecificIds] = useState<Set<string>>(new Set());
   const [goal, setGoal] = useState<NudgeGoal>("restart_streak");
+  const rdmBonusAllowed = goal === "complete_pending_assignment";
+  const [rdmDelta, setRdmDelta] = useState(10);
+  useEffect(() => {
+    if (!rdmBonusAllowed && rdmDelta !== 0) setRdmDelta(0);
+  }, [rdmBonusAllowed, rdmDelta]);
   const [pendingAssignmentPostId, setPendingAssignmentPostId] = useState("");
   /** Hub-only mock link removed from UI; state kept so stale bundles / partial HMR cannot ReferenceError. Always false. */
   const [attemptMockHubOnly, setAttemptMockHubOnly] = useState(false);
@@ -257,7 +262,6 @@ export const TeacherNudgeWithRdmWizard = forwardRef<
   /** Teacher-chosen due date for Concept Focus assignment (no default — pick in step 2). */
   const [conceptFocusDueDate, setConceptFocusDueDate] = useState("");
   const [watchRecordedUrl, setWatchRecordedUrl] = useState("");
-  const [rdmDelta, setRdmDelta] = useState(10);
   const [messageTouched, setMessageTouched] = useState(false);
   const [message, setMessage] = useState(
     "Hey [name]! I noticed you haven't studied in 2 days. Your last score was great — don't let the streak break now. Come back today and I'm giving you a RDM boost to restart! 🔥"
@@ -1624,8 +1628,10 @@ export const TeacherNudgeWithRdmWizard = forwardRef<
   const step4 = (
     <div className="mt-3 space-y-2 sm:space-y-3">
       <div className="text-xs leading-relaxed text-slate-300">
-        RDM bonuses from teachers are credited instantly to the student&apos;s balance and boost
-        their EduFund progress.
+        For &quot;Complete pending assignment&quot;, students earn the RDM bonus only after they
+        finish that assignment. You are charged upfront when you send (bonus × students). Other
+        nudge goals are message-only — RDM bonus is not available until those goals are wired to
+        completion tracking.
       </div>
 
       <div>
@@ -1633,17 +1639,22 @@ export const TeacherNudgeWithRdmWizard = forwardRef<
         <div className="flex flex-wrap gap-2">
           {rdmOptions.map((o) => {
             const on = rdmDelta === o.value;
+            const disabled = !rdmBonusAllowed && o.value > 0;
             return (
               <button
                 key={o.value}
                 type="button"
+                disabled={disabled}
                 onClick={() => {
+                  if (disabled) return;
                   setRdmDelta(o.value);
                 }}
                 className={`rounded-full border px-3 py-2 text-xs font-semibold transition ${
-                  on
-                    ? "border-emerald-400/40 bg-emerald-500/10 text-emerald-200"
-                    : "border-white/10 bg-[#0d0d1c] text-slate-300 hover:bg-white/[0.03]"
+                  disabled
+                    ? "cursor-not-allowed border-white/5 bg-[#0d0d1c]/50 text-slate-600"
+                    : on
+                      ? "border-emerald-400/40 bg-emerald-500/10 text-emerald-200"
+                      : "border-white/10 bg-[#0d0d1c] text-slate-300 hover:bg-white/[0.03]"
                 }`}
               >
                 {o.label}
@@ -1680,7 +1691,7 @@ export const TeacherNudgeWithRdmWizard = forwardRef<
           <div className="flex items-start justify-between gap-3">
             <span className="text-slate-400">Total RDM cost</span>
             <span className="text-slate-100 font-semibold">
-              {rdmDelta > 0 ? `+${rdmDelta * targetCount} RDM` : "—"}
+              {rdmBonusAllowed && rdmDelta > 0 ? `−${rdmDelta * targetCount} RDM from you` : "—"}
             </span>
           </div>
         </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useStreakTimer } from "@/hooks/useStreakTimer";
@@ -14,7 +14,10 @@ export default function HomePage() {
   const router = useRouter();
   const streakTimer = useStreakTimer();
 
+  const profileHydratedRef = useRef(false);
   useEffect(() => {
+    if (profileHydratedRef.current) return;
+    profileHydratedRef.current = true;
     void refreshProfile();
   }, [refreshProfile]);
 

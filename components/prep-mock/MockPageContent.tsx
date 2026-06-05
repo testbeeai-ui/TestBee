@@ -130,6 +130,7 @@ import {
   normalizePlanTier,
   type SubscriptionConfig,
 } from "@/lib/subscription/subscriptionConfig";
+import { shouldBlockMocksForFreePlanCap, getFreePlanMaxMonths } from "@/lib/subscription/freePlanCap";
 import { cn } from "@/lib/utils";
 import {
   saveMockAssignmentTracking,
@@ -227,8 +228,8 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   const currentPlan = useMemo(() => {
-    return normalizePlanTier(profile?.plan_tier, profile?.free_trial_activated);
-  }, [profile?.plan_tier, profile?.free_trial_activated]);
+    return normalizePlanTier(profile?.plan_tier, profile?.free_trial_activated, profile);
+  }, [profile?.plan_tier, profile?.free_trial_activated, profile]);
 
   const planLimits = useMemo(() => {
     if (!subscriptionConfig) return null;
@@ -236,6 +237,29 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
   }, [subscriptionConfig, currentPlan]);
 
   const mocksPerMonthLimit = planLimits ? planLimits.mocksPerMonth : 3;
+
+  /**
+   * Investor rule: when the user is on the Free plan and has exceeded the
+   * configured calendar-month cap (default 2 months ≈ 6 mocks/year), soft-block
+   * the mock quota until they upgrade to Starter or Pro. Gyan++ doubts, lessons
+   * and daily dose remain available — only the mock test entry points are gated.
+   */
+  const freePlanCapBlocksMocks = useMemo(() => {
+    if (!profile || !subscriptionConfig) return false;
+    return shouldBlockMocksForFreePlanCap(profile, currentPlan, subscriptionConfig);
+  }, [profile, currentPlan, subscriptionConfig]);
+
+  const freePlanMaxMonths = useMemo(() => {
+    return getFreePlanMaxMonths(subscriptionConfig);
+  }, [subscriptionConfig]);
+
+  const totalFreeMocksCap = freePlanMaxMonths * mocksPerMonthLimit;
+
+  const mockQuotaBlocked =
+    freePlanCapBlocksMocks ||
+    (monthlyAttemptsCount !== null &&
+      mocksPerMonthLimit !== -1 &&
+      monthlyAttemptsCount >= mocksPerMonthLimit);
 
   const getNextResetDateFormatted = useCallback(() => {
     const nextMonth = new Date();
@@ -263,7 +287,10 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
         if (cancelled) return;
         setSubscriptionConfig(cfg);
 
-        const startOfMonth = new Date();
+        // Dev time-travel: anchor "start of month" to the time-shifted date so the
+        // monthly quota resets correctly when an admin jumps a student forward/back.
+        const offsetMs = profile?.time_travel_offset_ms ?? 0;
+        const startOfMonth = new Date(Date.now() + (offsetMs as number));
         startOfMonth.setUTCDate(1);
         startOfMonth.setUTCHours(0, 0, 0, 0);
 
@@ -291,7 +318,7 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
     return () => {
       cancelled = true;
     };
-  }, [authUser?.id, view]);
+  }, [authUser?.id, view, profile?.time_travel_offset_ms]);
 
   const deepLinkPaperSlug = (searchParams.get("paper") ?? "").trim();
   const urlTrackingClassroomId = (searchParams.get("classroomId") ?? "").trim();
@@ -451,11 +478,7 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
 
   const startQuickTest = useCallback(() => {
     if (!user) return;
-    if (
-      monthlyAttemptsCount !== null &&
-      mocksPerMonthLimit !== -1 &&
-      monthlyAttemptsCount >= mocksPerMonthLimit
-    ) {
+    if (mockQuotaBlocked) {
       setShowUpgradeModal(true);
       return;
     }
@@ -471,7 +494,7 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
       quickSubjects: chosenSubjects,
     });
     setView("nta_instructions");
-  }, [duration, effectiveSubject, subjects, user, monthlyAttemptsCount, mocksPerMonthLimit]);
+  }, [duration, effectiveSubject, subjects, user, mockQuotaBlocked]);
 
   const handleNtaProceed = useCallback(
     async (declarationAccepted: boolean) => {
@@ -480,11 +503,7 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
         return;
       }
       if (!user) return;
-      if (
-        monthlyAttemptsCount !== null &&
-        mocksPerMonthLimit !== -1 &&
-        monthlyAttemptsCount >= mocksPerMonthLimit
-      ) {
+      if (mockQuotaBlocked) {
         setShowUpgradeModal(true);
         return;
       }
@@ -561,7 +580,7 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
         setNtaProceedBusy(false);
       }
     },
-    [user, ntaPendingMeta, subjects, toast]
+    [user, ntaPendingMeta, subjects, toast, mockQuotaBlocked]
   );
 
   const openNtaInstructionsForPaper = useCallback(
@@ -570,11 +589,7 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
       paperSource: PaperSource,
       back: "landing" | "setup" = "setup"
     ) => {
-      if (
-        monthlyAttemptsCount !== null &&
-        mocksPerMonthLimit !== -1 &&
-        monthlyAttemptsCount >= mocksPerMonthLimit
-      ) {
+      if (mockQuotaBlocked) {
         setShowUpgradeModal(true);
         return;
       }
@@ -590,7 +605,7 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
       });
       setView("nta_instructions");
     },
-    [monthlyAttemptsCount, mocksPerMonthLimit]
+    [mockQuotaBlocked]
   );
 
   useEffect(() => {
@@ -641,11 +656,7 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
 
   const handleQuickStartMock = useCallback(
     (subject: Subject) => {
-      if (
-        monthlyAttemptsCount !== null &&
-        mocksPerMonthLimit !== -1 &&
-        monthlyAttemptsCount >= mocksPerMonthLimit
-      ) {
+      if (mockQuotaBlocked) {
         setShowUpgradeModal(true);
         return;
       }
@@ -658,7 +669,7 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
       setLibraryCollectionTab("quick");
       setView("setup");
     },
-    [isLibraryPage, router, monthlyAttemptsCount, mocksPerMonthLimit]
+    [isLibraryPage, router, mockQuotaBlocked]
   );
 
   useEffect(() => {
@@ -1496,11 +1507,7 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
               onStartFeaturedPaper={() => {
                 const p = featuredDashboardPaper;
                 if (p) {
-                  if (
-                    monthlyAttemptsCount !== null &&
-                    mocksPerMonthLimit !== -1 &&
-                    monthlyAttemptsCount >= mocksPerMonthLimit
-                  ) {
+                  if (mockQuotaBlocked) {
                     setShowUpgradeModal(true);
                     return;
                   }
@@ -1945,20 +1952,30 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
 
               <div className="space-y-2">
                 <DialogTitle className="text-2xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-indigo-200 to-indigo-400">
-                  UPGRADE PREMIUM TO UNLOCK
+                  {freePlanCapBlocksMocks ? "FREE PLAN DURATION EXCEEDED" : "UPGRADE PREMIUM TO UNLOCK"}
                 </DialogTitle>
                 <div className="text-sm text-slate-400 font-medium px-4 leading-relaxed space-y-3">
-                  <p>
-                    You have reached your limit of{" "}
-                    <span className="text-indigo-300 font-bold">{mocksPerMonthLimit} tests</span>{" "}
-                    per month on the Free plan.
-                  </p>
-                  <div className="mt-3 text-xs text-slate-400 border border-slate-800/80 bg-slate-900/60 rounded-xl p-3 inline-block">
-                    Next attempts unlock on:{" "}
-                    <span className="text-indigo-400 font-semibold">
-                      {getNextResetDateFormatted()}
-                    </span>
-                  </div>
+                  {freePlanCapBlocksMocks ? (
+                    <p>
+                      Free plan mock tests are capped at a total of{" "}
+                      <span className="text-indigo-300 font-bold">{totalFreeMocksCap} tests max</span>{" "}
+                      ({freePlanMaxMonths} months duration). You have exceeded this period.
+                    </p>
+                  ) : (
+                    <p>
+                      You have reached your limit of{" "}
+                      <span className="text-indigo-300 font-bold">{mocksPerMonthLimit} tests</span>{" "}
+                      per month on the Free plan.
+                    </p>
+                  )}
+                  {!freePlanCapBlocksMocks && (
+                    <div className="mt-3 text-xs text-slate-400 border border-slate-800/80 bg-slate-900/60 rounded-xl p-3 inline-block">
+                      Next attempts unlock on:{" "}
+                      <span className="text-indigo-400 font-semibold">
+                        {getNextResetDateFormatted()}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
 

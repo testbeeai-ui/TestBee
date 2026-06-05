@@ -21,6 +21,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { IntelligenceHubEntryCard } from "@/components/admin/IntelligenceHubEntryCard";
+import { AdminEmailOverviewCard } from "@/components/admin/AdminEmailOverviewCard";
+import { AdminFeedbackOverviewCard } from "@/components/admin/AdminFeedbackOverviewCard";
 
 type AnalyticsPayload = {
   kpis: {
@@ -145,6 +147,9 @@ export default function AdminDashboardPage() {
 
       {data ? (
         <>
+          <AdminEmailOverviewCard />
+          <AdminFeedbackOverviewCard />
+
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {kpiCards.map((item) => {
               if ("pairedIntelligence" in item && item.pairedIntelligence) {

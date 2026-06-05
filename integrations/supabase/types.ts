@@ -89,6 +89,45 @@ export type Database = {
         };
         Relationships: [];
       };
+      transactional_email_logs: {
+        Row: {
+          id: string;
+          created_at: string;
+          ist_date: string;
+          kind: string;
+          recipient: string;
+          user_id: string | null;
+          subject: string;
+          status: string;
+          message_id: string | null;
+          error_message: string | null;
+        };
+        Insert: {
+          id?: string;
+          created_at?: string;
+          ist_date: string;
+          kind: string;
+          recipient: string;
+          user_id?: string | null;
+          subject: string;
+          status: string;
+          message_id?: string | null;
+          error_message?: string | null;
+        };
+        Update: {
+          id?: string;
+          created_at?: string;
+          ist_date?: string;
+          kind?: string;
+          recipient?: string;
+          user_id?: string | null;
+          subject?: string;
+          status?: string;
+          message_id?: string | null;
+          error_message?: string | null;
+        };
+        Relationships: [];
+      };
       curriculum_units: {
         Row: {
           id: string;
@@ -1959,6 +1998,12 @@ export type Database = {
           free_trial_activated_at: string | null;
           trial_onboarding_answers: Json;
           free_trial_daily_streak: Json;
+          trial_second_round_activated: boolean;
+          payment_card_details: Json | null;
+          card_added_at: string | null;
+          trial_end_bonus_activated: boolean;
+          trial_streak_at_day_14: number | null;
+          trial_original_ended_at: string | null;
           phone: string | null;
           plan_tier: string;
           rdm: number;
@@ -1975,8 +2020,13 @@ export type Database = {
           subjects: string[] | null;
           target_exam: string | null;
           teaching_levels: number[] | null;
+          subscription_started_at: string | null;
+          subscription_expires_at: string | null;
+          time_travel_enabled: boolean;
+          time_travel_offset_ms: number;
           updated_at: string;
           visibility: string;
+          welcome_email_sent_at: string | null;
         };
         Insert: {
           academic_record_extras?: Json;
@@ -2010,6 +2060,12 @@ export type Database = {
           free_trial_activated_at?: string | null;
           trial_onboarding_answers?: Json;
           free_trial_daily_streak?: Json;
+          trial_second_round_activated?: boolean;
+          payment_card_details?: Json | null;
+          card_added_at?: string | null;
+          trial_end_bonus_activated?: boolean;
+          trial_streak_at_day_14?: number | null;
+          trial_original_ended_at?: string | null;
           phone?: string | null;
           plan_tier?: string;
           rdm?: number;
@@ -2026,8 +2082,13 @@ export type Database = {
           subjects?: string[] | null;
           target_exam?: string | null;
           teaching_levels?: number[] | null;
+          subscription_started_at?: string | null;
+          subscription_expires_at?: string | null;
+          time_travel_enabled?: boolean;
+          time_travel_offset_ms?: number;
           updated_at?: string;
           visibility?: string;
+          welcome_email_sent_at?: string | null;
         };
         Update: {
           academic_record_extras?: Json;
@@ -2061,6 +2122,12 @@ export type Database = {
           free_trial_activated_at?: string | null;
           trial_onboarding_answers?: Json;
           free_trial_daily_streak?: Json;
+          trial_second_round_activated?: boolean;
+          payment_card_details?: Json | null;
+          card_added_at?: string | null;
+          trial_end_bonus_activated?: boolean;
+          trial_streak_at_day_14?: number | null;
+          trial_original_ended_at?: string | null;
           phone?: string | null;
           plan_tier?: string;
           rdm?: number;
@@ -2077,8 +2144,13 @@ export type Database = {
           subjects?: string[] | null;
           target_exam?: string | null;
           teaching_levels?: number[] | null;
+          subscription_started_at?: string | null;
+          subscription_expires_at?: string | null;
+          time_travel_enabled?: boolean;
+          time_travel_offset_ms?: number;
           updated_at?: string;
           visibility?: string;
+          welcome_email_sent_at?: string | null;
         };
         Relationships: [];
       };

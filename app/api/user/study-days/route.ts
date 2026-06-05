@@ -46,8 +46,26 @@ export async function GET(req: NextRequest) {
   const sb = auth.supabase as any;
 
   const skipReconcile = url.searchParams.get("reconcile") === "0";
+  let reconcileResult:
+    | {
+        penaltiesApplied: number;
+        totalDeducted: number;
+      }
+    | null = null;
   if (!skipReconcile) {
-    await sb.rpc("reconcile_inactive_day_penalties");
+    const { data, error: reconcileError } = await sb.rpc("reconcile_inactive_day_penalties");
+    if (reconcileError) {
+      console.warn("[study-days reconcile]", reconcileError.message.slice(0, 240));
+    } else if (data && typeof data === "object") {
+      const penaltiesApplied = Number((data as { penalties_applied?: unknown }).penalties_applied ?? 0);
+      const totalDeducted = Number((data as { total_deducted?: unknown }).total_deducted ?? 0);
+      if (Number.isFinite(penaltiesApplied) && Number.isFinite(totalDeducted)) {
+        reconcileResult = {
+          penaltiesApplied: Math.max(0, Math.trunc(penaltiesApplied)),
+          totalDeducted: Math.max(0, Math.trunc(totalDeducted)),
+        };
+      }
+    }
   }
 
   const [{ data: rows, error }, summaryRes] = await Promise.all([
@@ -106,6 +124,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     days: rows ?? [],
     summary,
+    reconcile: reconcileResult,
   });
 }
 

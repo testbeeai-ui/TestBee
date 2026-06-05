@@ -1657,7 +1657,7 @@ function academicMarksBucketsFilled(profile: Profile): { filled: number; total: 
 
 type RdmRecentClaimRow = {
   key: string;
-  category: "gyan" | "play" | "mocks" | "revision";
+  category: "gyan" | "play" | "mocks" | "revision" | "penalty";
   title: string;
   detail: string;
   amount: number;
@@ -1702,6 +1702,7 @@ type GyanPlusEngagementApi = {
 
 /** Activity &amp; RDM — study streak + heatmap use the same `/api/user/study-days` pipeline as the home dashboard. */
 export function StudentProfileActivityPanel({ profile }: { profile: Profile }) {
+  const { toast } = useToast();
   const rdm = profile.rdm ?? 0;
   const dailyDoseStreak = profile.daily_dose_streak ?? 0;
   const livePresencePendingMs = useSitePresenceLiveMsToday();
@@ -1744,6 +1745,7 @@ export function StudentProfileActivityPanel({ profile }: { profile: Profile }) {
     "idle"
   );
   const studyDaysCommittedRef = useRef(false);
+  const seenPenaltyNoticeKeyRef = useRef<string | null>(null);
 
   const loadStudyDays = useCallback(async () => {
     if (!profile.id) {
@@ -1761,6 +1763,20 @@ export function StudentProfileActivityPanel({ profile }: { profile: Profile }) {
       if (json.error) {
         if (!silent) setStudyDaysStatus("error");
         return;
+      }
+      const penaltiesApplied = json.reconcile?.penaltiesApplied ?? 0;
+      const totalDeducted = json.reconcile?.totalDeducted ?? 0;
+      if (penaltiesApplied > 0 && totalDeducted > 0) {
+        const noticeKey = `${toStr}:${penaltiesApplied}:${totalDeducted}`;
+        if (seenPenaltyNoticeKeyRef.current !== noticeKey) {
+          seenPenaltyNoticeKeyRef.current = noticeKey;
+          const dayWord = penaltiesApplied === 1 ? "day" : "days";
+          toast({
+            title: `RDM updated: -${totalDeducted} for ${penaltiesApplied} inactive ${dayWord}`,
+            description:
+              "Your account had under 30 minutes of on-site learning time for completed day(s). Try to spend at least 30 focused minutes today across learning activities to avoid tomorrow's deduction.",
+          });
+        }
       }
       const map = new Map<string, number>();
       const presenceMap = new Map<string, number>();
@@ -1836,7 +1852,8 @@ export function StudentProfileActivityPanel({ profile }: { profile: Profile }) {
               (c.category === "gyan" ||
                 c.category === "play" ||
                 c.category === "mocks" ||
-                c.category === "revision")
+                c.category === "revision" ||
+                c.category === "penalty")
           )
         : [];
       setRdmRecent({
@@ -3042,6 +3059,12 @@ function rdmCategoryIcon(category: RdmRecentClaimRow["category"]): ReactNode {
       return (
         <span className="flex size-8 items-center justify-center rounded-md bg-violet-600 text-[10.5px] text-white">
           ★
+        </span>
+      );
+    case "penalty":
+      return (
+        <span className="flex size-8 items-center justify-center rounded-md bg-rose-600 font-black text-white text-[13px]">
+          -
         </span>
       );
     default:

@@ -23,6 +23,10 @@ function isStudentOnlyPath(pathname: string): boolean {
   );
 }
 
+function isStudentProfilePath(pathname: string): boolean {
+  return pathname === "/profile" || pathname.startsWith("/profile/");
+}
+
 /**
  * PKCE (Google OAuth) stores a code verifier in the browser per-origin.
  * localhost:3000 and 127.0.0.1:3000 are different origins — mixing them causes
@@ -74,17 +78,29 @@ export async function middleware(request: NextRequest) {
   }
 
   const needsStudentRole = isStudentOnlyPath(pathname);
-  if (needsStudentRole) {
+  const needsTeacherPortalProfile = isStudentProfilePath(pathname);
+
+  if (needsStudentRole || needsTeacherPortalProfile) {
     const { data: profile } = await supabase
       .from("profiles")
       .select("role")
       .eq("id", user.id)
       .maybeSingle();
-    if (profile?.role === "teacher") {
+
+    if (needsStudentRole && profile?.role === "teacher") {
       const url = request.nextUrl.clone();
       const target = new URL(TEACHER_PORTAL_CLASSROOMS_URL, request.url);
       url.pathname = target.pathname;
       url.search = target.search;
+      return NextResponse.redirect(url);
+    }
+
+    /** Teachers use the portal profile tab — never mount `/profile` (avoids client redirect loops). */
+    if (needsTeacherPortalProfile && profile?.role === "teacher") {
+      const url = request.nextUrl.clone();
+      url.pathname = "/teacher-portal";
+      url.search = "";
+      url.searchParams.set("section", "profile");
       return NextResponse.redirect(url);
     }
   }

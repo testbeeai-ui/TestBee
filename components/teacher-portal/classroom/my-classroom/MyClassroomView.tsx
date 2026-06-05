@@ -193,7 +193,6 @@ export default function MyClassroomView({
   const [motivationMessage, setMotivationMessage] = useState(
     "Great effort. Keep your streak alive!"
   );
-  const [motivationRdm, setMotivationRdm] = useState(10);
   const [assignmentDetail, setAssignmentDetail] = useState<TeacherPortalAssignmentItem | null>(
     null
   );
@@ -2009,7 +2008,6 @@ export default function MyClassroomView({
       action === "boost" ? "top_performer" : "streak_reengagement";
     setMotivationMessageType(defaultType);
     setMotivationMessage(display.messageTemplate(action, defaultType, student.name));
-    setMotivationRdm(action === "boost" ? 25 : action === "urgent_nudge" ? 10 : 10);
     setMotivationOpen(true);
   };
 
@@ -2032,7 +2030,7 @@ export default function MyClassroomView({
         actionKind: motivationAction,
         targetStudentIds,
         message: motivationMessage,
-        rdmDelta: motivationRdm,
+        rdmDelta: 0,
         sectionId: cohortTab.kind === "section" ? cohortTab.id : null,
       });
       setMotivationOpen(false);
@@ -2056,7 +2054,7 @@ export default function MyClassroomView({
         classroomId: activeClassroomId,
         targetStudentIds: topIds,
         message: "Rewarded top tier students for highest streak consistency.",
-        rdmDelta: 35,
+        rdmDelta: 0,
         sectionId: cohortTab.kind === "section" ? cohortTab.id : null,
       });
     } finally {
@@ -4925,10 +4923,11 @@ export default function MyClassroomView({
           <DialogHeader className="border-b border-white/10 px-5 py-3.5">
             <DialogTitle className="font-serif text-2xl leading-[1.05] tracking-tight text-white sm:text-3xl">
               <span className="mr-2 text-amber-300">☆</span>
-              Send personalised motivation + RDM
+              Send personalised motivation
             </DialogTitle>
             <p className="mt-1 text-[14px] leading-snug text-slate-400">
-              Send a custom motivational message and bonus RDM to re-engage or celebrate a student.
+              Message-only nudge. To attach an RDM bonus, use assignment reminders or the nudge wizard
+              with goal &quot;Complete pending assignment&quot;.
             </p>
           </DialogHeader>
           <div className="space-y-3 px-5 py-3.5">
@@ -5021,28 +5020,9 @@ export default function MyClassroomView({
               placeholder="Write your personalised message..."
               className="w-full rounded-xl border border-white/15 bg-[#0b1020] px-3 py-2.5 text-[15px] leading-relaxed outline-none placeholder:text-slate-500 focus:border-emerald-400"
             />
-            <div>
-              <label className="mb-1 block text-[15px] font-semibold text-slate-300">
-                RDM bonus to award
-              </label>
-              <div className="relative">
-                <select
-                  value={String(motivationRdm)}
-                  onChange={(e) => setMotivationRdm(Number(e.target.value))}
-                  className={`${selectClassName} h-11 rounded-xl border-white/15 bg-[#0b1020] text-[15px]`}
-                >
-                  <option value="10">+10 RDM (streak re-engagement)</option>
-                  <option value="25">+25 RDM (performance milestone)</option>
-                  <option value="50">+50 RDM (special recognition)</option>
-                  <option value="5">+5 RDM (daily encouragement)</option>
-                  <option value="0">No RDM - message only</option>
-                </select>
-                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-              </div>
-            </div>
             <div className="rounded-xl border border-amber-400/30 bg-amber-500/10 px-4 py-2.5 text-[14px] leading-snug font-semibold text-amber-200">
-              ⚡ RDM bonuses from teachers are credited instantly to the student&apos;s balance and
-              appear in their EduFund progress.
+              ⚡ RDM bonuses are only available on assignment-linked reminders (you pay when you send;
+              students earn after they finish the linked assignment).
             </div>
           </div>
           <div className="flex items-center justify-end gap-3 border-t border-white/10 bg-[#11162a] px-5 py-3">
@@ -5059,7 +5039,7 @@ export default function MyClassroomView({
               disabled={motivationSubmitting || !motivationMessage.trim()}
               className="inline-flex h-10 min-w-55 items-center justify-center rounded-full bg-emerald-500 px-6 text-[15px] font-semibold text-black transition hover:bg-emerald-400 disabled:opacity-60"
             >
-              {motivationSubmitting ? "Sending..." : "Send message + RDM"}
+              {motivationSubmitting ? "Sending..." : "Send message"}
             </button>
           </div>
         </DialogContent>

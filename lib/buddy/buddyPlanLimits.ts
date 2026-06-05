@@ -28,8 +28,11 @@ export function effectiveBuddyCap(rawLimit: number): number {
 export function resolveBuddyLimitFromProfile(profile: {
   plan_tier?: string | null;
   free_trial_activated?: boolean | null;
+  payment_card_details?: any;
+  subscription_started_at?: string | null;
+  time_travel_offset_ms?: number | null;
 } | null | undefined, cfg: Awaited<ReturnType<typeof fetchSubscriptionConfig>>): BuddyLimitResolution {
-  const plan = normalizePlanTier(profile?.plan_tier, profile?.free_trial_activated);
+  const plan = normalizePlanTier(profile?.plan_tier, profile?.free_trial_activated, profile);
   const rawLimit = getPlanLimits(cfg, plan).buddiesLimit;
   return {
     plan,
@@ -45,7 +48,7 @@ export async function resolveMaxBuddiesForUserId(
 ): Promise<BuddyLimitResolution> {
   const db = supabase as { from: (t: string) => any };
   const [{ data: profile, error }, cfg] = await Promise.all([
-    db.from("profiles").select("plan_tier, free_trial_activated").eq("id", userId).maybeSingle(),
+    db.from("profiles").select("plan_tier, free_trial_activated, payment_card_details, subscription_started_at, time_travel_offset_ms").eq("id", userId).maybeSingle(),
     fetchSubscriptionConfig(supabase as Parameters<typeof fetchSubscriptionConfig>[0]),
   ]);
   if (error) throw new Error(error.message);

@@ -15,6 +15,9 @@ export const DAILYDOSE_UNLIMITED_SESSION_FALLBACK = 10;
 export type DailyDoseProfileFields = {
   plan_tier?: string | null;
   free_trial_activated?: boolean | null;
+  payment_card_details?: any;
+  subscription_started_at?: string | null;
+  time_travel_offset_ms?: number | null;
 };
 
 /**
@@ -37,7 +40,7 @@ export function resolveDailyDoseQuestionsForProfile(
   cfg: SubscriptionConfig,
   profile: DailyDoseProfileFields | null | undefined
 ): number {
-  const plan = normalizePlanTier(profile?.plan_tier, getFreeTrialActivated(profile ?? undefined));
+  const plan = normalizePlanTier(profile?.plan_tier, getFreeTrialActivated(profile ?? undefined), profile);
   return resolveDailyDoseQuestionsPerSession(cfg, plan);
 }
 

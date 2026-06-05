@@ -661,10 +661,22 @@ const ClassFeed = ({
   }
 
   if (!viewerIsTeacher && posts.length > 0 && visiblePosts.length === 0) {
+    const onlyMotivation =
+      posts.length > 0 && posts.every((p) => p.type === "motivation");
     return (
-      <div className="text-center py-12 space-y-2">
+      <div className="text-center py-12 space-y-2 px-4">
         <span className="text-4xl block mb-2">📝</span>
-        <p className="text-muted-foreground text-sm">Nothing is available to open right now.</p>
+        <p className="text-muted-foreground text-sm font-medium">
+          {onlyMotivation
+            ? "Teacher reminders live in your notification bell — open one and tap Open link to reach the assignment."
+            : "Nothing is available to open right now."}
+        </p>
+        {!onlyMotivation ? (
+          <p className="text-xs text-muted-foreground max-w-md mx-auto">
+            Section-only or selected-student posts must match your Members teaching section. If
+            your teacher nudged you, use the bell icon first.
+          </p>
+        ) : null}
       </div>
     );
   }

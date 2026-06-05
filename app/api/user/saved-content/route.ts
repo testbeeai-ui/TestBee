@@ -125,13 +125,14 @@ async function checkCap(
   // Get user's plan tier
   const { data: profile } = await supabase
     .from("profiles")
-    .select("plan_tier, free_trial_activated")
+    .select("plan_tier, free_trial_activated, payment_card_details, subscription_started_at, time_travel_offset_ms")
     .eq("id", userId)
     .maybeSingle();
 
   const tier = normalizePlanTier(
     (profile?.plan_tier as string | null | undefined) ?? "free",
-    profile?.free_trial_activated
+    profile?.free_trial_activated,
+    profile
   );
   const cfg = await fetchSubscriptionConfig(supabase as unknown as any);
   const planLimits = getPlanLimits(cfg, tier);
@@ -152,8 +153,12 @@ async function checkCap(
   const currentCount = count ?? 0;
   // Only block growth, not deletions — allows users over cap (pre-migration) to still remove items
   if (newItemCount > cap && newItemCount > currentCount) {
+    const label =
+      itemType === "saved_revision_card"
+        ? `InstaCue revision save limit reached (${cap} card${cap === 1 ? "" : "s"} on your ${tier} plan).`
+        : `Save limit reached: ${cap} items allowed for your ${tier} plan.`;
     return {
-      error: `Save limit reached: ${cap} items allowed for your ${tier} plan. You have ${currentCount} saved.`,
+      error: `${label} You have ${currentCount} saved. Upgrade to save more.`,
     };
   }
 

@@ -7,6 +7,10 @@ import { useUserStore } from "@/store/useUserStore";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { syncAllSavedContent } from "@/lib/saved/savedContentService";
+import {
+  resolveRevisionCardSaveLimit,
+  revisionCardLimitToastCopy,
+} from "@/lib/saved/revisionCardSaveLimit";
 import { applyInstacueCreateDailyRdmReward } from "@/lib/rdm/claims/applyInstacueCreateDailyRdmReward";
 import { RevisionCardType, Subject } from "@/types";
 import { Brain, Calculator, AlertTriangle, Lightbulb, Plus } from "lucide-react";
@@ -49,8 +53,10 @@ const CARD_TYPES: {
 ];
 
 export default function AddRevisionCardModal({ isOpen, onClose }: Props) {
+  const user = useUserStore((s) => s.user);
   const saveRevisionCard = useUserStore((s) => s.saveRevisionCard);
-  const { refreshProfile } = useAuth();
+  const unsaveRevisionCard = useUserStore((s) => s.unsaveRevisionCard);
+  const { profile, refreshProfile } = useAuth();
   const { toast } = useToast();
   const [title, setTitle] = useState("");
   const [front, setFront] = useState("");
@@ -62,8 +68,17 @@ export default function AddRevisionCardModal({ isOpen, onClose }: Props) {
     e.preventDefault();
     if (!title || !front || !back || !subject) return;
 
+    const cardId = crypto.randomUUID();
+    const savedCount = user?.savedRevisionCards?.length ?? 0;
+    const limit = await resolveRevisionCardSaveLimit(profile, savedCount);
+    if (limit.atLimit) {
+      const copy = revisionCardLimitToastCopy(limit.cap);
+      toast({ variant: "destructive", ...copy });
+      return;
+    }
+
     saveRevisionCard({
-      id: crypto.randomUUID(),
+      id: cardId,
       type,
       frontContent: front,
       backContent: back,
@@ -73,10 +88,15 @@ export default function AddRevisionCardModal({ isOpen, onClose }: Props) {
       classLevel: 12,
       status: "new",
     });
-    try {
-      await syncAllSavedContent();
-    } catch {
-      /* saved-content best-effort */
+    const sync = await syncAllSavedContent();
+    if (!sync.ok) {
+      unsaveRevisionCard(cardId);
+      toast({
+        variant: "destructive",
+        title: sync.limitReached ? revisionCardLimitToastCopy(limit.cap).title : "Could not save",
+        description: sync.error,
+      });
+      return;
     }
 
     const reward = await applyInstacueCreateDailyRdmReward({ refreshProfile });

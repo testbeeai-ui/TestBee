@@ -283,7 +283,8 @@ export function SitePresenceProvider({
       const dt = Math.min(now - lastTickRef.current, 120_000);
       lastTickRef.current = now;
       unsentMsRef.current += dt;
-      setLiveMs(Math.floor(unsentMsRef.current));
+      const floored = Math.floor(unsentMsRef.current);
+      setLiveMs((prev) => (prev === floored ? prev : floored));
       if (unsentMsRef.current >= 25_000) {
         void tryFlush();
       }

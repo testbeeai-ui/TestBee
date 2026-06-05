@@ -15,6 +15,7 @@ import {
   destinationFromOAuthStored,
 } from "@/lib/auth/safeNextPath";
 import { TEACHER_PORTAL_CLASSROOMS_URL } from "@/lib/teacherPortal/routes";
+import { triggerLoginNotificationEmail } from "@/lib/email/triggerLoginNotificationClient";
 
 async function readClientSession() {
   try {
@@ -34,6 +35,7 @@ export default function AuthCallback() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirected = useRef(false);
+  const loginEmailSent = useRef(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
   const [oauthGateOpen, setOauthGateOpen] = useState(false);
@@ -103,6 +105,12 @@ export default function AuthCallback() {
     },
     [router]
   );
+
+  useEffect(() => {
+    if (!oauthGateOpen || !user?.id || loginEmailSent.current) return;
+    loginEmailSent.current = true;
+    triggerLoginNotificationEmail();
+  }, [oauthGateOpen, user?.id]);
 
   useEffect(() => {
     if (hasUrlError) {

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Menu, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { withNextQuery } from "@/lib/auth/safeNextPath";
@@ -19,16 +20,31 @@ export default function LandingNavbar({
   navLinks,
   /** When user opened a shared lesson link, preserve it on Sign in / auth nav. */
   sharedNext,
+  onOpenWaitlist,
+  onOpenSignInNotice,
 }: {
   variant?: "light" | "dark";
   navLinks?: NavItem[];
+  /** When user opened a shared lesson link, preserve it on Sign in / auth nav. */
   sharedNext?: string | null;
+  onOpenWaitlist?: (role?: string) => void;
+  onOpenSignInNotice?: () => void;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { user, profile, loading: authLoading } = useAuth();
+  const router = useRouter();
   const links = navLinks ?? NAV_LINKS;
   const isDark = variant === "dark";
   const isSignedIn = Boolean(user && profile?.onboarding_complete);
+
+  const handleWaitlist = (role?: string) => {
+    const roleStr = typeof role === "string" ? role : undefined;
+    if (onOpenWaitlist) {
+      onOpenWaitlist(roleStr);
+    } else {
+      router.push(roleStr ? `/waitlist?role=${roleStr}` : "/waitlist");
+    }
+  };
 
   return (
     <nav
@@ -110,26 +126,32 @@ export default function LandingNavbar({
             </Link>
           ) : (
             <>
-              <Link
-                href={withNextQuery("/auth?mode=signin", sharedNext)}
+              <button
+                onClick={() => {
+                  if (onOpenSignInNotice) {
+                    onOpenSignInNotice();
+                  } else {
+                    handleWaitlist();
+                  }
+                }}
                 className={
                   isDark
-                    ? "rounded-full border border-white/25 bg-transparent px-3 py-2 text-[11px] font-medium text-zinc-200 transition-colors hover:border-white/45 hover:text-white md:px-4 md:text-[12px] xl:text-[13px]"
-                    : "border border-gray-300 rounded-lg px-4 py-[7px] text-sm text-gray-500 hover:text-gray-900 hover:border-gray-400 transition-colors"
+                    ? "rounded-full border border-white/25 bg-transparent px-3 py-2 text-[11px] font-medium text-zinc-200 transition-colors hover:border-white/45 hover:text-white md:px-4 md:text-[12px] xl:text-[13px] cursor-pointer"
+                    : "border border-gray-300 rounded-lg px-4 py-[7px] text-sm text-gray-500 hover:text-gray-900 hover:border-gray-400 transition-colors cursor-pointer"
                 }
               >
                 Sign in
-              </Link>
-              <Link
-                href={withNextQuery("/auth", sharedNext)}
+              </button>
+              <button
+                onClick={() => handleWaitlist()}
                 className={
                   isDark
-                    ? "inline-flex items-center gap-1.5 rounded-full bg-[#34f5a4] px-3.5 py-2 text-[11px] font-bold text-neutral-950 shadow-[0_0_24px_rgba(52,245,164,0.22)] transition-colors hover:bg-[#2ee89a] md:px-5 md:py-2.5 md:text-[12px] xl:text-[13px]"
-                    : "bg-[#1D9E75] text-white rounded-lg px-[18px] py-2 text-sm font-medium hover:bg-[#178d68] transition-colors"
+                    ? "inline-flex items-center gap-1.5 rounded-full bg-[#34f5a4] px-3.5 py-2 text-[11px] font-bold text-neutral-950 shadow-[0_0_24px_rgba(52,245,164,0.22)] transition-colors hover:bg-[#2ee89a] md:px-5 md:py-2.5 md:text-[12px] xl:text-[13px] cursor-pointer"
+                    : "bg-[#1D9E75] text-white rounded-lg px-[18px] py-2 text-sm font-medium hover:bg-[#178d68] transition-colors cursor-pointer"
                 }
               >
-                Start free <span aria-hidden>↗</span>
-              </Link>
+                Join Now <span aria-hidden>↗</span>
+              </button>
             </>
           )}
         </div>
@@ -186,28 +208,36 @@ export default function LandingNavbar({
               </Link>
             ) : (
               <>
-                <Link
-                  href={withNextQuery("/auth?mode=signin", sharedNext)}
+                <button
+                  onClick={() => {
+                    setMobileOpen(false);
+                    if (onOpenSignInNotice) {
+                      onOpenSignInNotice();
+                    } else {
+                      handleWaitlist();
+                    }
+                  }}
                   className={
                     isDark
-                      ? "rounded-full border border-white/20 px-4 py-2 text-sm text-zinc-200 flex-1 text-center"
-                      : "border border-gray-300 rounded-lg px-4 py-2 text-sm text-gray-500 flex-1 text-center"
+                      ? "rounded-full border border-white/20 px-4 py-2 text-sm text-zinc-200 flex-1 text-center cursor-pointer"
+                      : "border border-gray-300 rounded-lg px-4 py-2 text-sm text-gray-500 flex-1 text-center cursor-pointer"
                   }
-                  onClick={() => setMobileOpen(false)}
                 >
                   Sign in
-                </Link>
-                <Link
-                  href={withNextQuery("/auth", sharedNext)}
+                </button>
+                <button
+                  onClick={() => {
+                    setMobileOpen(false);
+                    handleWaitlist();
+                  }}
                   className={
                     isDark
-                      ? "rounded-full bg-[#34f5a4] px-4 py-2 text-sm font-semibold text-neutral-950 flex-1 text-center"
-                      : "bg-[#1D9E75] text-white rounded-lg px-4 py-2 text-sm font-medium flex-1 text-center"
+                      ? "rounded-full bg-[#34f5a4] px-4 py-2 text-sm font-semibold text-neutral-950 flex-1 text-center cursor-pointer"
+                      : "bg-[#1D9E75] text-white rounded-lg px-4 py-2 text-sm font-medium flex-1 text-center cursor-pointer"
                   }
-                  onClick={() => setMobileOpen(false)}
                 >
-                  Start free
-                </Link>
+                  Join Now
+                </button>
               </>
             )}
           </div>

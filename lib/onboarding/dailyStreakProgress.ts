@@ -169,6 +169,31 @@ export function getStreakTrackerProgressPct(input: {
   return Math.min(100, Math.max(0, completed * 10));
 }
 
+/** Day 1 (site tour) + each claimed daily streak day (2–10). */
+export function getTrialTrackerDaysCompleted(
+  userId: string | undefined,
+  claimedAt: string | null | undefined,
+  serverStreak?: DailyStreakServerState
+): number {
+  let completed = claimedAt ? 1 : 0;
+  completed += countClaimedStreakDays(userId, serverStreak);
+  return completed;
+}
+
+export const TRIAL_EXTENSION_TRACKER_DAYS_REQUIRED = 10;
+
+/** Scenario 1 at trial end: completed all 10 onboarding track days within the 14-day window. */
+export function qualifiesForTrialExtensionBonus(
+  userId: string | undefined,
+  claimedAt: string | null | undefined,
+  serverStreak?: DailyStreakServerState
+): boolean {
+  return (
+    getTrialTrackerDaysCompleted(userId, claimedAt, serverStreak) >=
+    TRIAL_EXTENSION_TRACKER_DAYS_REQUIRED
+  );
+}
+
 /** Dev time-travel: land 9:01 AM on the calendar window for streak day N (after Day 1 claim). */
 export function getSimulatedTimeForStreakDay(
   claimedAt: string | null | undefined,

@@ -394,17 +394,31 @@ const NotificationBell = () => {
                         )
                       : ""}
                   </div>
-                  <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-3 text-xs font-semibold text-amber-100">
-                    {typeof selected.rdmDelta === "number" && selected.rdmDelta > 0
-                      ? `+${selected.rdmDelta} RDM encouragement included`
-                      : "No RDM encouragement included"}
-                  </div>
+                  {selected.recommendActionLabel &&
+                  selected.recommendActionId &&
+                  selected.recommendActionId !== "none" ? (
+                    <div className="rounded-xl border border-sky-500/20 bg-sky-500/10 p-3 text-xs font-semibold text-sky-100">
+                      Suggested next step: {selected.recommendActionLabel}
+                    </div>
+                  ) : null}
                 </>
               ) : (
-                <div className="text-sm text-muted-foreground whitespace-pre-wrap">
-                  {selected.body
-                    ? personalizeTeacherMotivationMessage(selected.body, motivationStudentFirstName)
-                    : ""}
+                <div className="space-y-2">
+                  <div className="text-sm text-muted-foreground whitespace-pre-wrap">
+                    {selected.body
+                      ? personalizeTeacherMotivationMessage(
+                          selected.body,
+                          motivationStudentFirstName
+                        )
+                      : ""}
+                  </div>
+                  {selected.kind === "assignment_reminder" &&
+                  typeof selected.rdmDelta === "number" &&
+                  selected.rdmDelta > 0 ? (
+                    <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-3 text-xs font-semibold text-amber-100">
+                      Earn +{selected.rdmDelta} RDM when you finish the linked assignment
+                    </div>
+                  ) : null}
                 </div>
               )}
             </div>
