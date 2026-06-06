@@ -40,6 +40,18 @@ function statusBadge(status: WaitlistAdminStatus) {
   return <Badge variant="secondary">reviewed</Badge>;
 }
 
+function tierBadge(tier: string | undefined) {
+  if (tier === "ambassador") {
+    return <Badge className="bg-violet-600/90 text-white">ambassador</Badge>;
+  }
+  return <Badge variant="outline" className="text-muted-foreground">waitlist only</Badge>;
+}
+
+function displayName(row: WaitlistSubmissionDbRow) {
+  const name = [row.first_name, row.last_name].filter(Boolean).join(" ").trim();
+  return name || "—";
+}
+
 interface WaitlistTabProps {
   initialId?: string | null;
   onSelectId?: (id: string | null) => void;
@@ -311,6 +323,7 @@ export function WaitlistTab({ initialId, onSelectId }: WaitlistTabProps) {
                     <th className="px-3 py-2.5">Waitlist ID</th>
                     <th className="px-3 py-2.5">Name</th>
                     <th className="px-3 py-2.5">Role</th>
+                    <th className="px-3 py-2.5">Tier</th>
                     <th className="px-3 py-2.5">Status</th>
                   </tr>
                 </thead>
@@ -333,20 +346,25 @@ export function WaitlistTab({ initialId, onSelectId }: WaitlistTabProps) {
                           {row.waitlist_id}
                         </td>
                         <td className="px-3 py-2">
-                          <span className="font-medium text-foreground">{row.first_name} {row.last_name}</span>
+                          <span className="font-medium text-foreground">{displayName(row)}</span>
                           <span className="block text-[10px] text-muted-foreground">{row.email}</span>
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap text-xs">
-                          <span className={cn(
-                            "px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase",
-                            row.role === "student" && "bg-emerald-500/10 text-emerald-400",
-                            row.role === "teacher" && "bg-sky-500/10 text-sky-400",
-                            row.role === "parent" && "bg-purple-500/10 text-purple-400",
-                            row.role === "other" && "bg-zinc-500/15 text-zinc-400"
-                          )}>
-                            {row.role}
-                          </span>
+                          {row.role ? (
+                            <span className={cn(
+                              "px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase",
+                              row.role === "student" && "bg-emerald-500/10 text-emerald-400",
+                              row.role === "teacher" && "bg-sky-500/10 text-sky-400",
+                              row.role === "parent" && "bg-purple-500/10 text-purple-400",
+                              row.role === "other" && "bg-zinc-500/15 text-zinc-400"
+                            )}>
+                              {row.role}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
                         </td>
+                        <td className="px-3 py-2 whitespace-nowrap">{tierBadge(row.signup_tier)}</td>
                         <td className="px-3 py-2 whitespace-nowrap">{statusBadge(row.admin_status)}</td>
                       </tr>
                     );
@@ -364,13 +382,18 @@ export function WaitlistTab({ initialId, onSelectId }: WaitlistTabProps) {
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>
                   <div className="flex items-center gap-2">
-                    <CardTitle className="text-lg">{selected.first_name} {selected.last_name}</CardTitle>
+                    <CardTitle className="text-lg">{displayName(selected)}</CardTitle>
                     <Badge variant="outline" className="font-mono text-xs text-primary bg-primary/5">{selected.waitlist_id}</Badge>
+                    {tierBadge(selected.signup_tier)}
                   </div>
                   <CardDescription className="mt-1">
                     {selected.email} · Phone: {selected.phone}
-                    <br />
-                    Location: {selected.city}, {selected.state}
+                    {(selected.city || selected.state) && (
+                      <>
+                        <br />
+                        Location: {[selected.city, selected.state].filter(Boolean).join(", ")}
+                      </>
+                    )}
                   </CardDescription>
                 </div>
                 <div className="flex flex-wrap gap-2">
