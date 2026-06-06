@@ -138,7 +138,7 @@ export async function POST(req: NextRequest) {
     const { data: profile, error: profileError } = await authCtx.supabase
       .from("profiles")
       .select(
-        "plan_tier, free_trial_activated, payment_card_details, subscription_started_at, time_travel_offset_ms"
+        "plan_tier, free_trial_activated, payment_card_details, subscription_started_at, subscription_expires_at, time_travel_offset_ms"
       )
       .eq("id", authCtx.user.id)
       .maybeSingle();
@@ -313,7 +313,7 @@ ${ragBlock}`;
       contextKey,
       limit: 40,
     });
-    let recentHistory: { role: "user" | "assistant"; content: string }[] = fromDb
+    const recentHistory: { role: "user" | "assistant"; content: string }[] = fromDb
       .slice(-12)
       .map((m) => ({
         role: m.role,

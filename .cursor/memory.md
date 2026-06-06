@@ -126,6 +126,7 @@ Anything that is not Next.js / tooling config now lives under:
 | Student plan DB | `supabase/migrations/20260808120000_subscription_coupons.sql` |
 
 ## Decisions Log
+- 2026-06-06: Subscription entitlement hardening — self-service plan switcher now only downgrades to Free; profile trigger blocks authenticated direct paid/trial entitlement writes; trial activation/reset/bonus/exit paths are guarded server-side; expired coupon grants are included in quota-plan normalization.
 - 2026-06-05: **Student plan coupons** — `subscription_coupons` table + `profiles.subscription_expires_at`; admin generates Starter/Pro + N months (public or per-student email); student claims at Profile → Subscription → Coupon code (`POST /api/user/coupons/claim-plan`); extend stacks months on remaining time; `normalizePlanTier` honors `subscription_expires_at`.
 - 2026-06-05: **Admin coupons modularized** — `/admin/coupons` split into `TeacherCouponsTab` (full manager: list, filter, generate, redeem tracking) + `StudentCouponsTab` (premium coming-soon placeholder); unified `Tabs` shell in `page.tsx` with `?tab=teacher|student` URL sync via `router.replace`; production `npm run build` OK.
 - 2026-06-04: Posts RLS recursion — cycle was `posts` policy → `teacher_motivation_rdm_grants` → `posts`; fixed with SECURITY DEFINER helpers + `row_security = off` (`20260806140000`: `student_has_active_grant_for_assignment`, `teacher_owns_motivation_post`, `student_can_read_post_via_teacher_nudge`).
