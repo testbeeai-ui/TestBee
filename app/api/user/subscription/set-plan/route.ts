@@ -1,27 +1,18 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
 import { enforceSameOriginForCookieAuth } from "@/lib/auth/securityGuards";
-import type { SubscriptionPlanKey } from "@/lib/subscription/subscriptionConfig";
+import {
+  isSelfServicePlanSwitchAllowed,
+  normalizePlanSwitchRequest,
+} from "@/lib/subscription/selfServicePlanSwitch";
 
 type Body = {
-  plan?: SubscriptionPlanKey | string;
+  plan?: string;
 };
 
-const ALLOWED: SubscriptionPlanKey[] = ["free_trial", "free", "starter", "pro"];
-
-function normalizePlan(raw: unknown): SubscriptionPlanKey | null {
-  const plan = String(raw ?? "")
-    .trim()
-    .toLowerCase();
-  if (plan === "free_trial" || plan === "free" || plan === "starter" || plan === "pro") {
-    return plan;
-  }
-  return null;
-}
-
 /**
- * Testing-mode plan switcher.
- * No payment gateway check here; user can switch between Free / Free Trial / Starter / Pro.
+ * Self-service downgrade endpoint. Paid plans and free-trial activation use
+ * dedicated guarded flows so this route cannot mint entitlements.
  */
 export async function POST(request: Request) {
   try {
@@ -33,25 +24,25 @@ export async function POST(request: Request) {
 
     const { supabase, user } = ctx;
     const body = (await request.json().catch(() => ({}))) as Body;
-    const requested = normalizePlan(body.plan);
-    if (!requested || !ALLOWED.includes(requested)) {
+    const requested = normalizePlanSwitchRequest(body.plan);
+    if (!requested) {
       return NextResponse.json(
         { error: "Invalid plan. Use free_trial, free, starter, or pro." },
         { status: 400 }
       );
     }
 
-    const nowIso = new Date().toISOString();
+    if (!isSelfServicePlanSwitchAllowed(requested)) {
+      return NextResponse.json(
+        { error: "This plan cannot be activated from the self-service switcher." },
+        { status: 403 }
+      );
+    }
+
     const updates: Record<string, unknown> = {
       plan_tier: requested,
+      free_trial_activated: false,
     };
-
-    if (requested === "free_trial") {
-      updates.free_trial_activated = true;
-      updates.free_trial_activated_at = nowIso;
-    } else {
-      updates.free_trial_activated = false;
-    }
 
     const { error } = await supabase.from("profiles").update(updates).eq("id", user.id);
     if (error) {

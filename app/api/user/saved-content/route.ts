@@ -125,7 +125,7 @@ async function checkCap(
   // Get user's plan tier
   const { data: profile } = await supabase
     .from("profiles")
-    .select("plan_tier, free_trial_activated, payment_card_details, subscription_started_at, time_travel_offset_ms")
+    .select("plan_tier, free_trial_activated, payment_card_details, subscription_started_at, subscription_expires_at, time_travel_offset_ms")
     .eq("id", userId)
     .maybeSingle();
 

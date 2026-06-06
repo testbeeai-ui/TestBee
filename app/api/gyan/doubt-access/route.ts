@@ -13,7 +13,7 @@ export async function GET(request: Request) {
     const { data: profile } = await supabase
       .from("profiles")
       .select(
-        "plan_tier, free_trial_activated, payment_card_details, subscription_started_at, time_travel_offset_ms"
+        "plan_tier, free_trial_activated, payment_card_details, subscription_started_at, subscription_expires_at, time_travel_offset_ms"
       )
       .eq("id", user.id)
       .maybeSingle();

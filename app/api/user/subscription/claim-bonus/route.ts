@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient, createClientWithToken } from "@/integrations/supabase/server";
+import { createAdminClient, createClient, createClientWithToken } from "@/integrations/supabase/server";
 import { enforceSameOriginForCookieAuth } from "@/lib/auth/securityGuards";
 import {
   parseDailyStreakServerState,
@@ -7,6 +7,7 @@ import {
   getTrialTrackerDaysCompleted,
 } from "@/lib/onboarding/dailyStreakProgress";
 import { isFreeTrialPeriodEndedForProfile } from "@/lib/subscription/freeTrialTimer";
+import { addMonthsToDate } from "@/lib/subscription/subscriptionCouponUtils";
 
 async function getSupabaseAndUser(request: Request) {
   const cookieClient = await createClient();
@@ -36,6 +37,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     const { supabase, user } = ctx;
+    const admin = createAdminClient();
+    if (!admin) {
+      return NextResponse.json({ error: "SUPABASE_SERVICE_ROLE_KEY is not set" }, { status: 500 });
+    }
     const body = (await request.json().catch(() => ({}))) as {
       plan?: string;
       cardDetails?: {
@@ -135,15 +140,17 @@ export async function POST(request: Request) {
     );
 
     const nowIso = new Date(simulatedNow).toISOString();
+    const bonusExpiresAt = addMonthsToDate(new Date(simulatedNow), 1).toISOString();
 
     const updates: Record<string, unknown> = {
       payment_card_details: {
-        cardNumber,
+        type: "trial_bonus_card",
+        cardLast4: cardNumber.slice(-4),
         cardholderName: body.cardDetails!.cardholderName.trim(),
         expiryDate: body.cardDetails!.expiryDate,
-        cvv,
         planSelected: selectedPlan,
         billingCycle: "monthly",
+        autoRenew: false,
       },
       card_added_at: nowIso,
       trial_end_bonus_activated: true,
@@ -158,9 +165,10 @@ export async function POST(request: Request) {
       updates.plan_tier = selectedPlan;
       updates.trial_second_round_activated = false;
       updates.subscription_started_at = nowIso;
+      updates.subscription_expires_at = bonusExpiresAt;
     }
 
-    const { error: updateErr } = await supabase
+    const { error: updateErr } = await admin
       .from("profiles")
       .update(updates)
       .eq("id", user.id);
