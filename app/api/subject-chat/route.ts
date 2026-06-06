@@ -313,7 +313,7 @@ ${ragBlock}`;
       contextKey,
       limit: 40,
     });
-    let recentHistory: { role: "user" | "assistant"; content: string }[] = fromDb
+    const recentHistory: { role: "user" | "assistant"; content: string }[] = fromDb
       .slice(-12)
       .map((m) => ({
         role: m.role,
