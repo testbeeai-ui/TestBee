@@ -68,18 +68,28 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "This coupon is linked to a different account and cannot be redeemed by you" }, { status: 403 });
     }
 
-    // Mark as redeemed
-    const { error: updateError } = await (admin as any)
+    // Atomically mark as redeemed. The status predicate prevents concurrent
+    // replays from crediting the same coupon more than once.
+    const { data: redeemedRows, error: updateError } = await (admin as any)
       .from("coupons")
       .update({
         status: "redeemed",
         redeemed_at: new Date().toISOString(),
         redeemed_by_teacher_id: user.id,
       })
-      .eq("id", coupon.id);
+      .eq("id", coupon.id)
+      .eq("status", "active")
+      .select("id");
 
     if (updateError) {
       return NextResponse.json({ error: "Failed to redeem coupon" }, { status: 500 });
+    }
+
+    if (!redeemedRows?.length) {
+      return NextResponse.json(
+        { error: "This coupon is already redeemed or expired" },
+        { status: 400 }
+      );
     }
 
     // Call add_rdm rpc to credit teacher's balance
@@ -97,7 +107,9 @@ export async function POST(request: Request) {
           redeemed_at: null,
           redeemed_by_teacher_id: null,
         })
-        .eq("id", coupon.id);
+        .eq("id", coupon.id)
+        .eq("status", "redeemed")
+        .eq("redeemed_by_teacher_id", user.id);
 
       return NextResponse.json({ error: rpcError.message }, { status: 500 });
     }
