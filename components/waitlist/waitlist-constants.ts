@@ -33,41 +33,6 @@ export const WAITLIST_INTERESTS: Record<string, string[]> = {
   ],
 };
 
-export const AMBASSADOR_PATHWAY_STEPS = [
-  {
-    num: "01",
-    title: "Join waitlist",
-    desc: "Fill the full form — all fields required for ambassador consideration",
-    iconKey: "list" as const,
-    bg: "bg-[#0A2A20]",
-    iconColor: "text-[#1D9E75]",
-  },
-  {
-    num: "02",
-    title: "Phone verification",
-    desc: "We call verified applicants for a 5-minute confirmation chat",
-    iconKey: "phone" as const,
-    bg: "bg-[#281C08]",
-    iconColor: "text-[#EF9F27]",
-  },
-  {
-    num: "03",
-    title: "Early preview",
-    desc: "Ambassadors get access before public launch for testing",
-    iconKey: "star" as const,
-    bg: "bg-[#171425]",
-    iconColor: "text-[#7F77DD]",
-  },
-  {
-    num: "04",
-    title: "Qualify for paid role",
-    desc: "3 months active + 5 referrals + 30-min interview",
-    iconKey: "trophy" as const,
-    bg: "bg-[#131D08]",
-    iconColor: "text-[#639922]",
-  },
-];
-
 /** Single source of truth — keep page copy in sync with stats row */
 export const WAITLIST_METRICS = {
   waitlistJoined: 247,

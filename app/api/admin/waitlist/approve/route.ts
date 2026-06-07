@@ -4,6 +4,7 @@ import { isAdminUser } from "@/lib/admin/admin";
 import { createAdminClient } from "@/integrations/supabase/server";
 import { waitlistSubmissionsTable } from "@/lib/waitlist/waitlistDb";
 import { sendEmail } from "@/lib/email/emailService";
+import { getPortalBaseUrl } from "@/lib/email/portalBaseUrl";
 
 export async function POST(request: Request) {
   try {
@@ -80,7 +81,7 @@ export async function POST(request: Request) {
     }
 
     // 4. Send approval email
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+    const siteUrl = getPortalBaseUrl();
     const signupUrl = `${siteUrl}/auth?mode=signup&role=${role}`;
     
     const defaultHtml = `

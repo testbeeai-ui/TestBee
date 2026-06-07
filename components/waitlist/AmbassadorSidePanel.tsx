@@ -1,10 +1,13 @@
 "use client";
 
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowRight,
   Clock,
   Heart,
   Lock,
+  Mail,
   Phone,
   Presentation,
   School,
@@ -55,12 +58,21 @@ const PATHWAY = [
   },
 ] as const;
 
+const shakeVariants = {
+  shake: {
+    x: [0, -6, 6, -6, 6, 0],
+    transition: { duration: 0.4 },
+  },
+};
+
 type Props = {
   step1Complete: boolean;
   role: string | null;
   onRoleChange: (role: string) => void;
   onRegisterClick: () => void;
   onFocusStep1: () => void;
+  completed?: boolean;
+  waitlistId?: string;
 };
 
 export function AmbassadorSidePanel({
@@ -69,16 +81,73 @@ export function AmbassadorSidePanel({
   onRoleChange,
   onRegisterClick,
   onFocusStep1,
+  completed = false,
+  waitlistId = "",
 }: Props) {
   const urgency = ambassadorUrgencyLine();
+  const [showRoleError, setShowRoleError] = useState(false);
+
+  if (completed) {
+    return (
+      <div className="relative overflow-hidden rounded-[14px] border border-[#2A3347]/80 bg-[#161C26] p-4 sm:p-5 before:absolute before:inset-x-0 before:top-0 before:h-[3px] before:rounded-t-[14px] before:bg-[#7F77DD] before:content-['']">
+        <div className="mb-2.5 inline-flex items-center gap-1.5 rounded-full border border-[#7F77DD] bg-[#171425] px-2.5 py-0.5 text-[11px] font-medium text-[#AFA9EC]">
+          <span className="flex h-[17px] w-[17px] shrink-0 items-center justify-center rounded-full bg-[#7F77DD] text-[10px] text-white">
+            ✓
+          </span>
+          Become an ambassador — done
+        </div>
+        <div className="py-4 text-center">
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full border-2 border-[#7F77DD] bg-[#171425]">
+            <Trophy className="h-6 w-6 text-[#7F77DD]" />
+          </div>
+          <p className="text-sm font-semibold text-white">Ambassador application received!</p>
+          <p className="mx-auto mt-2 max-w-[280px] text-xs leading-relaxed text-[#9BA3B8]">
+            Thank you for applying to the EduBlast Ambassador programme. Your details have been successfully recorded.
+          </p>
+
+          {waitlistId && (
+            <div className="mt-3.5 inline-flex items-center gap-1 bg-[#281C08] border border-[#EF9F27] rounded-full px-3 py-1 text-[11px] font-medium text-[#FAC775] shadow-sm">
+              Waitlist ID: <span className="font-mono">EB-2026-{waitlistId.replace("EB-2026-", "")}</span>
+            </div>
+          )}
+
+          <div className="mt-4 flex flex-col gap-2 text-left">
+            <div className="flex items-start gap-2.5 p-2.5 bg-[#1C2333]/80 border border-[#2A3347]/80 rounded-lg text-xs leading-relaxed text-[#9BA3B8]">
+              <Phone className="h-[16px] w-[16px] text-[#EF9F27] shrink-0 mt-0.5" />
+              <span>We will call your mobile number to verify your details — keep an eye out for a call from our team.</span>
+            </div>
+            <div className="flex items-start gap-2.5 p-2.5 bg-[#1C2333]/80 border border-[#2A3347]/80 rounded-lg text-xs leading-relaxed text-[#9BA3B8]">
+              <Mail className="h-[16px] w-[16px] text-[#1D9E75] shrink-0 mt-0.5" />
+              <span>A confirmation email is on its way. Check your spam folder if it doesn't arrive shortly.</span>
+            </div>
+            <div className="flex items-start gap-2.5 p-2.5 bg-[#1C2333]/80 border border-[#2A3347]/80 rounded-lg text-xs leading-relaxed text-[#9BA3B8]">
+              <User className="h-[16px] w-[16px] text-[#85B7EB] shrink-0 mt-0.5" />
+              <span>Share EduBlast with classmates. Each referral who joins the waitlist strengthens your application.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const handleRegister = () => {
     if (!step1Complete) {
       onFocusStep1();
       return;
     }
-    if (!role) return;
+    if (!role) {
+      setShowRoleError(true);
+      return;
+    }
+    setShowRoleError(false);
     onRegisterClick();
+  };
+
+  const handleRoleSelect = (roleId: string) => {
+    if (step1Complete) {
+      onRoleChange(roleId);
+      setShowRoleError(false);
+    }
   };
 
   return (
@@ -152,7 +221,9 @@ export function AmbassadorSidePanel({
       <p className="mb-2 text-[11px] font-medium text-[#9BA3B8]">
         I am a <span className="text-[#1D9E75]">*</span>
       </p>
-      <div
+      <motion.div
+        variants={shakeVariants}
+        animate={showRoleError ? "shake" : "default"}
         className={cn(
           "mb-3 grid grid-cols-2 gap-1.5",
           !step1Complete && "pointer-events-none opacity-60"
@@ -164,11 +235,15 @@ export function AmbassadorSidePanel({
           return (
             <div
               key={item.id}
-              onClick={() => step1Complete && onRoleChange(item.id)}
+              onClick={() => handleRoleSelect(item.id)}
               className={cn(
-                "min-w-0 rounded-[9px] border border-[#2A3347]/80 bg-[#1C2333] p-2 transition-colors sm:p-2.5",
+                "min-w-0 rounded-[9px] border bg-[#1C2333] p-2 transition-all duration-200 sm:p-2.5",
                 step1Complete && "cursor-pointer hover:border-[#344060] hover:bg-[#222B3C]",
-                sel && "border-[#1D9E75] bg-[#0A2A20]"
+                sel
+                  ? "border-[#1D9E75] bg-[#0A2A20]"
+                  : showRoleError
+                    ? "border-rose-500/40 shadow-[0_0_0_1px_rgba(244,63,94,0.1)]"
+                    : "border-[#2A3347]/80"
               )}
             >
               <div className="mb-1 flex items-center gap-1.5">
@@ -195,7 +270,23 @@ export function AmbassadorSidePanel({
             </div>
           );
         })}
-      </div>
+      </motion.div>
+
+      <AnimatePresence>
+        {showRoleError && (
+          <motion.div
+            initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+            animate={{ opacity: 1, height: "auto", marginBottom: 8 }}
+            exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 p-2.5 text-[11px] leading-relaxed text-rose-300 flex items-start gap-1.5 shadow-sm">
+              <span className="text-rose-400 font-bold shrink-0">⚠️</span>
+              <span>Please select your role from the options above to proceed.</span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <button
         type="button"

@@ -1,15 +1,7 @@
-import { applyEmailTemplate } from "@/lib/email/applyEmailTemplate";
+import { applyEmailTemplate, escapeHtml } from "@/lib/email/applyEmailTemplate";
 import { EDUBLAST_EMAIL_LOGO_PATH } from "@/lib/email/newUserWelcomeTemplate";
 import { getPortalBaseUrl } from "@/lib/email/portalBaseUrl";
 
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
 
 const EMAIL_SHELL = `<!DOCTYPE html>
 <html lang="en">

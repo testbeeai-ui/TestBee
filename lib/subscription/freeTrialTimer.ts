@@ -132,27 +132,6 @@ export function isFreeTrialActiveForProfile(
   return !isFreeTrialPeriodEndedForProfile(profile, nowMs, cfg);
 }
 
-/** Dev time-travel: land 1 minute after the trial window ends. */
-export function computeOffsetForTrialCalendarEnd(
-  freeTrialActivatedAt: string | null | undefined,
-  secondRound = false,
-  cfg?: SubscriptionConfig | null
-): number {
-  const start =
-    parseTrialStartMs(freeTrialActivatedAt) ??
-    Date.now();
-  const durationDays = secondRound
-    ? (cfg?.["free_trial_duration_days"] ??
-        SUBSCRIPTION_CONFIG_DEFAULTS.free_trial_duration_days) +
-      (cfg?.["free_trial_streak_extension_days"] ??
-        SUBSCRIPTION_CONFIG_DEFAULTS.free_trial_streak_extension_days)
-    : (cfg?.["free_trial_duration_days"] ??
-        SUBSCRIPTION_CONFIG_DEFAULTS.free_trial_duration_days);
-  const durationMs = durationDays * 24 * 60 * 60 * 1000;
-  const target = start + durationMs + 60_000;
-  return Math.max(0, target - Date.now());
-}
-
 /** Dev preset: jump to 1 minute after this profile's trial window ends (uses real trial anchor). */
 export function computeOffsetForTrialEndFromProfile(
   profile: FreeTrialClockProfile | null | undefined,

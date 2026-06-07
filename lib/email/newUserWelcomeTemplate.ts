@@ -1,4 +1,4 @@
-import { applyEmailTemplate } from "@/lib/email/applyEmailTemplate";
+import { applyEmailTemplate, escapeHtml } from "@/lib/email/applyEmailTemplate";
 import { NEW_USER_WELCOME_HTML_TEMPLATE } from "@/lib/email/templates/newUserWelcome.html";
 
 /** Same asset as auth/onboarding header (`public/images/logo-2.png`). */
@@ -33,14 +33,7 @@ const TEACHER_WELCOME_HTML = `<!DOCTYPE html>
 </table></td></tr></table>
 </body></html>`;
 
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
+
 
 function buildPlainTextWelcome(params: {
   displayName: string;

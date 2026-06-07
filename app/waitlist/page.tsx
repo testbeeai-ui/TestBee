@@ -159,7 +159,6 @@ function WaitlistContent() {
     quickPhone.trim() &&
     city.trim() &&
     state.trim() &&
-    whyJoin.trim() &&
     c1 &&
     c2;
 
@@ -272,8 +271,7 @@ function WaitlistContent() {
         </div>
       )}
 
-      {!ambassadorSubmitted ? (
-        <div id="main-view" className="animate-in fade-in duration-200">
+      <div id="main-view" className="animate-in fade-in duration-200">
           <div className="grid grid-cols-[1fr_auto_1fr] items-center border-b border-[#2A3347]/50 px-4 py-3.5 sm:px-12">
             <Link href="/" className="justify-self-start">
               <img
@@ -337,6 +335,8 @@ function WaitlistContent() {
                 onRoleChange={handleRoleChange}
                 onRegisterClick={handleRegisterAmbassador}
                 onFocusStep1={focusStep1Email}
+                completed={ambassadorSubmitted}
+                waitlistId={waitlistId}
               />
             </div>
 
@@ -828,14 +828,13 @@ function WaitlistContent() {
 
                     <div className="flex flex-col gap-1.5">
                       <span className="text-xs text-[#9BA3B8] font-medium">
-                        Why do you want to join early?<span className="text-[#1D9E75]">*</span>
+                        Why do you want to join early?
                       </span>
                       <textarea
                         placeholder="Tell us what excites you about EduBlast and what you hope to contribute as an early tester or ambassador..."
                         value={whyJoin}
                         onChange={(e) => setWhyJoin(e.target.value)}
                         className="w-full bg-[#1C2333] border border-[#2A3347] focus:border-[#1D9E75] rounded-lg px-3 py-2.5 text-xs text-white outline-none min-h-[80px] transition"
-                        required
                       />
                     </div>
                   </div>
@@ -968,76 +967,7 @@ function WaitlistContent() {
             </AmbassadorApplicationModal>
           </div>
         </div>
-      ) : (
-        <div id="ty-view" className="animate-in zoom-in-95 duration-200">
-          
-          {/* ── SUCCESS BANNER ── */}
-          <div className="bg-[#1D9E75] overflow-hidden relative mb-0">
-            <div className="flex items-center justify-center gap-3 px-5 py-3.5 relative z-10 max-w-4xl mx-auto">
-              <Check className="h-7 w-7 text-white shrink-0" strokeWidth={2.5} />
-              <div className="text-center">
-                <div className="text-base sm:text-[20px] font-medium text-white leading-tight tracking-tight mb-0.5">
-                  You're on the waitlist!
-                </div>
-                <div className="text-xs sm:text-[13px] text-white/80 leading-normal">
-                  We will be in touch as we approach launch across India
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="max-w-[680px] mx-auto px-4 mt-6">
-            <div className="text-center py-12">
-              <div className="w-[72px] h-[72px] rounded-full bg-[#0A2A20] border-2 border-[#1D9E75] flex items-center justify-center mx-auto mb-4 shadow-sm">
-                <Check className="h-8 w-8 text-[#1D9E75]" strokeWidth={2.5} />
-              </div>
-              <h2 className="text-[22px] font-medium text-white mb-2" id="ty-title">Ambassador application received</h2>
-              <p className="text-sm text-[#9BA3B8] max-w-[420px] mx-auto mb-6 leading-relaxed" id="ty-sub">
-                Thank you for applying to the EduBlast Ambassador programme. Your information has been recorded and we will reach out to verify your details.
-              </p>
-              
-              <div className="inline-flex items-center gap-1.5 bg-[#281C08] border border-[#EF9F27] rounded-full px-4 py-1.5 text-sm font-medium text-[#FAC775] mb-6 shadow-sm">
-                Waitlist ID: <span id="ty-ref" className="font-mono">EB-2026-{waitlistId.replace("EB-2026-", "")}</span>
-              </div>
-
-              <div className="flex flex-col gap-2 max-w-[420px] mx-auto text-left mb-6">
-                <div className="flex items-start gap-2.5 p-2.5 bg-[#161B25] border border-[#2A3347] rounded-lg text-xs leading-relaxed text-[#9BA3B8]">
-                  <Phone className="h-[16px] w-[16px] text-[#EF9F27] shrink-0 mt-0.5" />
-                  <span>We will call your registered mobile number to verify your details — keep an eye out for a call from the EduBlast team.</span>
-                </div>
-                <div className="flex items-start gap-2.5 p-2.5 bg-[#161B25] border border-[#2A3347] rounded-lg text-xs leading-relaxed text-[#9BA3B8]">
-                  <Mail className="h-[16px] w-[16px] text-[#1D9E75] shrink-0 mt-0.5" />
-                  <span>A confirmation email is on its way. Check your spam folder if you do not see it within 10 minutes.</span>
-                </div>
-                <div className="flex items-start gap-2.5 p-2.5 bg-[#161B25] border border-[#2A3347] rounded-lg text-xs leading-relaxed text-[#9BA3B8]">
-                  <User className="h-[16px] w-[16px] text-[#85B7EB] shrink-0 mt-0.5" />
-                  <span>Share EduBlast with classmates or students across India. Each person you refer who joins the waitlist strengthens your ambassador application.</span>
-                </div>
-              </div>
-
-              {(role === "student" || role === "teacher") && (
-                <div className="bg-[#171425] border border-[#534AB7] rounded-xl p-3.5 max-w-[420px] mx-auto text-left space-y-1 mb-6 shadow-sm">
-                  <p className="text-[13px] font-semibold text-[#AFA9EC]" id="ty-amb-title">
-                    {(role === "student" ? "Student" : "Teacher")} Ambassador pathway — what happens next
-                  </p>
-                  <p className="text-xs text-[#AFA9EC]/80 leading-relaxed" id="ty-amb-sub">
-                    Your application has been flagged for ambassador consideration. We will call your registered mobile within 3 business days to verify your details. If selected, you will receive an early access invitation before public launch. Keep your daily activity high after launch — 3 months of consistent use, 5 referrals, and a 30-minute interview with the EduBlast team qualifies you for a paid Ambassador position.
-                  </p>
-                </div>
-              )}
-
-              <Link
-                href="/"
-                className="inline-flex items-center gap-2 bg-[#1C2333] hover:bg-[#222A3A] text-white border border-[#2A3347] rounded-full px-6 py-2 text-xs font-semibold cursor-pointer transition shadow-md"
-              >
-                <ArrowLeft className="h-4 w-4" />
-                Back to Home
-              </Link>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+      </div>
   );
 }
 

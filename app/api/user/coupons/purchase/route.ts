@@ -1,30 +1,13 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
 import { createAdminClient } from "@/integrations/supabase/server";
+import { generateSubscriptionCouponCode } from "@/lib/subscription/subscriptionCouponUtils";
 
 const PACKS: Record<string, { rdm: number; price: number }> = {
   pack_500: { rdm: 500, price: 300 },
   pack_1000: { rdm: 1000, price: 500 },
   pack_2200: { rdm: 2200, price: 1000 },
 };
-
-function generateCouponCode(): string {
-  const yearSuffix = new Date().getFullYear().toString().slice(-2); // e.g. "26"
-  const letters = "ABCDEFGHJKLMNPQRSTUVWXYZ"; // Exclude confusing characters I, O
-  const digits = "123456789"; // Exclude 0 to avoid confusion with O
-
-  const startWithLetter = Math.random() < 0.5;
-  let randomPart = "";
-  for (let i = 0; i < 6; i++) {
-    const pickLetter = startWithLetter ? i % 2 === 0 : i % 2 !== 0;
-    if (pickLetter) {
-      randomPart += letters.charAt(Math.floor(Math.random() * letters.length));
-    } else {
-      randomPart += digits.charAt(Math.floor(Math.random() * digits.length));
-    }
-  }
-  return `${yearSuffix}${randomPart}`;
-}
 
 export async function POST(request: Request) {
   try {
@@ -64,7 +47,7 @@ export async function POST(request: Request) {
     const randomDigits = Math.floor(10000000 + Math.random() * 90000000).toString();
     const orderId = body.orderId || `pay_${randomDigits}`;
 
-    const newCouponCode = generateCouponCode();
+    const newCouponCode = generateSubscriptionCouponCode();
 
     const { data: coupon, error: insertError } = await (admin as any)
       .from("coupons")

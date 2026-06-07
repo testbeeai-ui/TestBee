@@ -54,10 +54,9 @@ function displayName(row: WaitlistSubmissionDbRow) {
 
 interface WaitlistTabProps {
   initialId?: string | null;
-  onSelectId?: (id: string | null) => void;
 }
 
-export function WaitlistTab({ initialId, onSelectId }: WaitlistTabProps) {
+export function WaitlistTab({ initialId }: WaitlistTabProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [data, setData] = useState<Payload | null>(null);
@@ -192,7 +191,6 @@ export function WaitlistTab({ initialId, onSelectId }: WaitlistTabProps) {
 
   const handleSelect = (id: string) => {
     setSelectedId(id);
-    if (onSelectId) onSelectId(id);
   };
 
   const roleCountsMap = useMemo(() => {

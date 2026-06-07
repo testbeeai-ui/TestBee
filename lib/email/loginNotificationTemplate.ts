@@ -1,3 +1,5 @@
+import { escapeHtml } from "@/lib/email/applyEmailTemplate";
+
 export type LoginNotificationTemplateParams = {
   studentName: string;
   loginAtLabel: string;
@@ -66,11 +68,4 @@ export function buildStudentLoginNotificationEmail(
   return { subject, html };
 }
 
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
+
