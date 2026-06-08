@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
-import { createClient, createClientWithToken } from "@/integrations/supabase/server";
-import { enforceSameOriginForCookieAuth } from "@/lib/auth/securityGuards";
+import {
+  createAdminClient,
+  createClient,
+  createClientWithToken,
+} from "@/integrations/supabase/server";
+import { enforceSameOriginForCookieAuth, isDangerousRouteEnabled } from "@/lib/auth/securityGuards";
 
 async function getSupabaseAndUser(request: Request) {
   const cookieClient = await createClient();
@@ -28,6 +32,10 @@ async function getSupabaseAndUser(request: Request) {
  */
 export async function POST(request: Request) {
   try {
+    if (!isDangerousRouteEnabled("ALLOW_TRIAL_DEMO_RESET")) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
     const csrf = enforceSameOriginForCookieAuth(request);
     if (csrf) return csrf;
 
@@ -35,11 +43,15 @@ export async function POST(request: Request) {
     if (!ctx) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    const { supabase, user } = ctx;
+    const { user } = ctx;
+    const admin = createAdminClient();
+    if (!admin) {
+      return NextResponse.json({ error: "SUPABASE_SERVICE_ROLE_KEY is not set" }, { status: 500 });
+    }
 
     const activatedAt = new Date().toISOString();
 
-    const { error } = await supabase
+    const { error } = await admin
       .from("profiles")
       .update({
         plan_tier: "free_trial",

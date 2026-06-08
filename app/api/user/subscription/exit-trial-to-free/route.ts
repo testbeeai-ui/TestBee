@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { createClient, createClientWithToken } from "@/integrations/supabase/server";
+import {
+  createAdminClient,
+  createClient,
+  createClientWithToken,
+} from "@/integrations/supabase/server";
 import { enforceSameOriginForCookieAuth } from "@/lib/auth/securityGuards";
 import { isFreeTrialPeriodEndedForProfile } from "@/lib/subscription/freeTrialTimer";
 
@@ -66,7 +70,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: profileErr.message }, { status: 500 });
     }
 
-    const currentTier = String(profileRow?.plan_tier ?? "").trim().toLowerCase();
+    const currentTier = String(profileRow?.plan_tier ?? "")
+      .trim()
+      .toLowerCase();
     if (currentTier === "starter" || currentTier === "pro") {
       return NextResponse.json(
         { error: "Cannot exit trial to Free — user is on a paid plan." },
@@ -74,8 +80,19 @@ export async function POST(request: Request) {
       );
     }
 
-    const simulatedNow =
-      Date.now() + Math.max(0, Number(profileRow?.time_travel_offset_ms ?? 0));
+    if (
+      currentTier === "free" &&
+      profileRow?.free_trial_activated === false &&
+      profileRow?.trial_original_ended_at
+    ) {
+      return NextResponse.json({
+        ok: true,
+        plan_tier: "free",
+        trial_original_ended_at: profileRow.trial_original_ended_at,
+      });
+    }
+
+    const simulatedNow = Date.now() + Math.max(0, Number(profileRow?.time_travel_offset_ms ?? 0));
     const trialEnded = isFreeTrialPeriodEndedForProfile(
       {
         free_trial_activated_at: profileRow?.free_trial_activated_at,
@@ -87,17 +104,19 @@ export async function POST(request: Request) {
     );
 
     if (!trialEnded) {
-      return NextResponse.json(
-        { error: "Free trial period has not ended yet." },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Free trial period has not ended yet." }, { status: 400 });
     }
 
     // Stamp the transition moment (matches the existing semantic used by
     // claim-bonus). The 2-month cap measures calendar months from this point.
     const nowIso = new Date().toISOString();
 
-    const { error: updateErr } = await supabase
+    const admin = createAdminClient();
+    if (!admin) {
+      return NextResponse.json({ error: "SUPABASE_SERVICE_ROLE_KEY is not set" }, { status: 500 });
+    }
+
+    const { error: updateErr } = await admin
       .from("profiles")
       .update({
         plan_tier: "free",
