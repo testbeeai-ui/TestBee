@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
-import { createClient, createClientWithToken } from "@/integrations/supabase/server";
-import { enforceSameOriginForCookieAuth } from "@/lib/auth/securityGuards";
+import {
+  createAdminClient,
+  createClient,
+  createClientWithToken,
+} from "@/integrations/supabase/server";
+import { enforceSameOriginForCookieAuth, isDangerousRouteEnabled } from "@/lib/auth/securityGuards";
 import {
   parseDailyStreakServerState,
   qualifiesForTrialExtensionBonus,
@@ -101,8 +105,7 @@ export async function POST(request: Request) {
       });
     }
 
-    const simulatedNow =
-      Date.now() + Math.max(0, Number(profileRow?.time_travel_offset_ms ?? 0));
+    const simulatedNow = Date.now() + Math.max(0, Number(profileRow?.time_travel_offset_ms ?? 0));
     if (
       !isFreeTrialPeriodEndedForProfile(
         {
@@ -134,14 +137,21 @@ export async function POST(request: Request) {
       serverStreak
     );
 
+    if (!hasStreakBonus && !isDangerousRouteEnabled("ALLOW_SIMULATED_PAYMENTS")) {
+      return NextResponse.json(
+        { error: "Payment verification is required before upgrading." },
+        { status: 403 }
+      );
+    }
+
     const nowIso = new Date(simulatedNow).toISOString();
+    const cardLast4 = cardNumber.slice(-4);
 
     const updates: Record<string, unknown> = {
       payment_card_details: {
-        cardNumber,
+        cardNumber: `**** **** **** ${cardLast4}`,
         cardholderName: body.cardDetails!.cardholderName.trim(),
         expiryDate: body.cardDetails!.expiryDate,
-        cvv,
         planSelected: selectedPlan,
         billingCycle: "monthly",
       },
@@ -160,10 +170,12 @@ export async function POST(request: Request) {
       updates.subscription_started_at = nowIso;
     }
 
-    const { error: updateErr } = await supabase
-      .from("profiles")
-      .update(updates)
-      .eq("id", user.id);
+    const admin = createAdminClient();
+    if (!admin) {
+      return NextResponse.json({ error: "SUPABASE_SERVICE_ROLE_KEY is not set" }, { status: 500 });
+    }
+
+    const { error: updateErr } = await admin.from("profiles").update(updates).eq("id", user.id);
 
     if (updateErr) {
       console.error("claim-bonus: failed to update profile", updateErr);

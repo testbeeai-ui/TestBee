@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { createClient, createClientWithToken, createAdminClient } from "@/integrations/supabase/server";
+import {
+  createClient,
+  createClientWithToken,
+  createAdminClient,
+} from "@/integrations/supabase/server";
 import { enforceSameOriginForCookieAuth } from "@/lib/auth/securityGuards";
 import type { TargetExamKey } from "@/lib/profile/targetExam";
 import { validateTrialOnboardingForActivate } from "@/lib/subscription/trialOnboardingAnswers";
@@ -75,38 +79,37 @@ export async function POST(request: Request) {
       }
     }
 
-    const activatedAt = new Date().toISOString();
+    const schoolNameTrimmed =
+      answers.primaryPlatform === TRIAL_PRIMARY_SCHOOL_ONLY
+        ? answers.schoolName.trim().slice(0, 200)
+        : "";
 
-    // Check if free trial has already been activated before to prevent double-crediting
-    const { data: profile, error: readErr } = await supabase
-      .from("profiles")
-      .select("free_trial_activated")
-      .eq("id", user.id)
-      .maybeSingle();
-
-    if (readErr) {
-      console.error("activate-trial read error", readErr);
-      return NextResponse.json({ error: readErr.message }, { status: 500 });
+    const adminClient = createAdminClient();
+    if (!adminClient) {
+      return NextResponse.json({ error: "SUPABASE_SERVICE_ROLE_KEY is not set" }, { status: 500 });
     }
 
-    const shouldCreditWelcome = !profile?.free_trial_activated;
+    const activatedAt = new Date().toISOString();
+    const profileUpdates = {
+      trial_onboarding_answers: answers,
+      class_level: classLevel,
+      current_class_label: answers.classLevel,
+      board: boardName,
+      target_exam: targetExam,
+      onboarding_complete: true,
+      ...(schoolNameTrimmed ? { institution_name: schoolNameTrimmed } : {}),
+    };
 
-    const schoolNameTrimmed =
-      answers.primaryPlatform === TRIAL_PRIMARY_SCHOOL_ONLY ? answers.schoolName.trim().slice(0, 200) : "";
-
-    // 2. Perform database update
-    const { error } = await supabase
+    // 2. Perform database update. The trial clock and welcome credit are
+    // first-activation-only so concurrent requests cannot double-credit or
+    // reset the trial start.
+    const { data: activatedRows, error } = await adminClient
       .from("profiles")
       .update({
+        ...profileUpdates,
         plan_tier: "free_trial",
         free_trial_activated: true,
         free_trial_activated_at: activatedAt,
-        trial_onboarding_answers: answers,
-        class_level: classLevel,
-        current_class_label: answers.classLevel,
-        board: boardName,
-        target_exam: targetExam,
-        onboarding_complete: true,
         onboarding_reward_progress: {},
         onboarding_reward_claimed_at: null,
         trial_end_bonus_activated: false,
@@ -115,13 +118,28 @@ export async function POST(request: Request) {
         trial_streak_at_day_14: null,
         card_added_at: null,
         payment_card_details: null,
-        ...(schoolNameTrimmed ? { institution_name: schoolNameTrimmed } : {}),
       })
-      .eq("id", user.id);
+      .eq("id", user.id)
+      .or("free_trial_activated.is.false,free_trial_activated.is.null")
+      .select("id");
 
     if (error) {
       console.error("activate-trial POST error", error);
       return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    const shouldCreditWelcome = Boolean(activatedRows?.length);
+
+    if (!shouldCreditWelcome) {
+      const { error: profileUpdateError } = await adminClient
+        .from("profiles")
+        .update(profileUpdates)
+        .eq("id", user.id);
+
+      if (profileUpdateError) {
+        console.error("activate-trial profile update error", profileUpdateError);
+        return NextResponse.json({ error: profileUpdateError.message }, { status: 500 });
+      }
     }
 
     // 3. Immediately credit welcome bonus dynamically if first-time activation
@@ -129,15 +147,12 @@ export async function POST(request: Request) {
       try {
         const rdmConfig = await fetchRdmConfig(supabase);
         const welcomeAmount = rdmConfig.free_trial_welcome_rdm ?? 500;
-        const adminClient = createAdminClient();
-        if (adminClient) {
-          const { error: rpcErr } = await adminClient.rpc("add_rdm", {
-            uid: user.id,
-            amt: welcomeAmount,
-          });
-          if (rpcErr) {
-            console.error("Failed to credit welcome bonus RDM immediately", rpcErr);
-          }
+        const { error: rpcErr } = await adminClient.rpc("add_rdm", {
+          uid: user.id,
+          amt: welcomeAmount,
+        });
+        if (rpcErr) {
+          console.error("Failed to credit welcome bonus RDM immediately", rpcErr);
         }
       } catch (welcomeErr) {
         console.error("Error crediting free trial welcome bonus immediately", welcomeErr);

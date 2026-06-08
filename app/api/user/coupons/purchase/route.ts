@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
 import { createAdminClient } from "@/integrations/supabase/server";
+import { enforceSameOriginForCookieAuth, isDangerousRouteEnabled } from "@/lib/auth/securityGuards";
 
 const PACKS: Record<string, { rdm: number; price: number }> = {
   pack_500: { rdm: 500, price: 300 },
@@ -28,6 +29,16 @@ function generateCouponCode(): string {
 
 export async function POST(request: Request) {
   try {
+    if (!isDangerousRouteEnabled("ALLOW_SIMULATED_PAYMENTS")) {
+      return NextResponse.json(
+        { error: "Payment verification is not configured." },
+        { status: 403 }
+      );
+    }
+
+    const csrf = enforceSameOriginForCookieAuth(request);
+    if (csrf) return csrf;
+
     const ctx = await getSupabaseAndUser(request);
     if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -58,7 +69,10 @@ export async function POST(request: Request) {
     }
 
     if (profile.role !== "teacher") {
-      return NextResponse.json({ error: "Only teachers can purchase RDM credits" }, { status: 403 });
+      return NextResponse.json(
+        { error: "Only teachers can purchase RDM credits" },
+        { status: 403 }
+      );
     }
 
     const randomDigits = Math.floor(10000000 + Math.random() * 90000000).toString();
@@ -82,7 +96,10 @@ export async function POST(request: Request) {
       .single();
 
     if (insertError || !coupon) {
-      return NextResponse.json({ error: insertError?.message || "Failed to create coupon code" }, { status: 500 });
+      return NextResponse.json(
+        { error: insertError?.message || "Failed to create coupon code" },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({

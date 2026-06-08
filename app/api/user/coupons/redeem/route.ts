@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
 import { createAdminClient } from "@/integrations/supabase/server";
+import { enforceSameOriginForCookieAuth } from "@/lib/auth/securityGuards";
 
 export async function POST(request: Request) {
   try {
+    const csrf = enforceSameOriginForCookieAuth(request);
+    if (csrf) return csrf;
+
     const ctx = await getSupabaseAndUser(request);
     if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -32,7 +36,10 @@ export async function POST(request: Request) {
     }
 
     if (profile.role !== "teacher") {
-      return NextResponse.json({ error: "Only teachers can redeem RDM top-up coupons" }, { status: 403 });
+      return NextResponse.json(
+        { error: "Only teachers can redeem RDM top-up coupons" },
+        { status: 403 }
+      );
     }
 
     // Query coupon (using as any to bypass TS type constraints on new table)
@@ -53,33 +60,52 @@ export async function POST(request: Request) {
     const coupon = couponData as any;
 
     if (coupon.status !== "active") {
-      return NextResponse.json({ error: "This coupon is already redeemed or expired" }, { status: 400 });
+      return NextResponse.json(
+        { error: "This coupon is already redeemed or expired" },
+        { status: 400 }
+      );
     }
 
     // Check restrictions
     if (coupon.restricted_to_teacher_ids && coupon.restricted_to_teacher_ids.length > 0) {
       if (!coupon.restricted_to_teacher_ids.includes(user.id)) {
-        return NextResponse.json({ error: "This coupon is not valid for your account" }, { status: 403 });
+        return NextResponse.json(
+          { error: "This coupon is not valid for your account" },
+          { status: 403 }
+        );
       }
     }
 
     // Check purchased link
     if (coupon.is_purchased && coupon.bought_by_teacher_id !== user.id) {
-      return NextResponse.json({ error: "This coupon is linked to a different account and cannot be redeemed by you" }, { status: 403 });
+      return NextResponse.json(
+        { error: "This coupon is linked to a different account and cannot be redeemed by you" },
+        { status: 403 }
+      );
     }
 
-    // Mark as redeemed
-    const { error: updateError } = await (admin as any)
+    // Atomically mark as redeemed. Without the status predicate, concurrent
+    // requests can all pass the read above and each credit RDM.
+    const { data: redeemedRows, error: updateError } = await (admin as any)
       .from("coupons")
       .update({
         status: "redeemed",
         redeemed_at: new Date().toISOString(),
         redeemed_by_teacher_id: user.id,
       })
-      .eq("id", coupon.id);
+      .eq("id", coupon.id)
+      .eq("status", "active")
+      .select("id");
 
     if (updateError) {
       return NextResponse.json({ error: "Failed to redeem coupon" }, { status: 500 });
+    }
+
+    if (!redeemedRows?.length) {
+      return NextResponse.json(
+        { error: "This coupon is already redeemed or expired" },
+        { status: 400 }
+      );
     }
 
     // Call add_rdm rpc to credit teacher's balance

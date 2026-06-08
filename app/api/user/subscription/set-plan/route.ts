@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
-import { enforceSameOriginForCookieAuth } from "@/lib/auth/securityGuards";
+import { createAdminClient } from "@/integrations/supabase/server";
+import { enforceSameOriginForCookieAuth, isDangerousRouteEnabled } from "@/lib/auth/securityGuards";
 import type { SubscriptionPlanKey } from "@/lib/subscription/subscriptionConfig";
 
 type Body = {
@@ -31,7 +32,7 @@ export async function POST(request: Request) {
     const ctx = await getSupabaseAndUser(request);
     if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { supabase, user } = ctx;
+    const { user } = ctx;
     const body = (await request.json().catch(() => ({}))) as Body;
     const requested = normalizePlan(body.plan);
     if (!requested || !ALLOWED.includes(requested)) {
@@ -39,6 +40,18 @@ export async function POST(request: Request) {
         { error: "Invalid plan. Use free_trial, free, starter, or pro." },
         { status: 400 }
       );
+    }
+
+    if (requested !== "free" && !isDangerousRouteEnabled("ALLOW_TEST_PLAN_SWITCHER")) {
+      return NextResponse.json(
+        { error: "Self-service test plan switching is disabled." },
+        { status: 403 }
+      );
+    }
+
+    const admin = createAdminClient();
+    if (!admin) {
+      return NextResponse.json({ error: "SUPABASE_SERVICE_ROLE_KEY is not set" }, { status: 500 });
     }
 
     const nowIso = new Date().toISOString();
@@ -53,7 +66,7 @@ export async function POST(request: Request) {
       updates.free_trial_activated = false;
     }
 
-    const { error } = await supabase.from("profiles").update(updates).eq("id", user.id);
+    const { error } = await admin.from("profiles").update(updates).eq("id", user.id);
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
