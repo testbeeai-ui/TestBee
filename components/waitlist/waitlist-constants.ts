@@ -71,11 +71,9 @@ export const WAITLIST_STATS = [
 ] as const;
 
 export function ambassadorUrgencyLine(): { lead: string; detail: string } {
-  const remaining = ambassadorSpotsRemaining();
-  const { ambassadorsSelected, ambassadorPhase1Capacity, waitlistJoined } = WAITLIST_METRICS;
   return {
-    lead: `Only ${remaining} ambassador ${spotWord(remaining)} remaining`,
-    detail: `${ambassadorsSelected} of ${ambassadorPhase1Capacity} Phase 1 slots filled · ${waitlistJoined} on the waitlist`,
+    lead: "Only a few ambassador applications are remaining",
+    detail: "Phase 1 slots are filling quickly · join the waitlist to stay in the loop",
   };
 }
 

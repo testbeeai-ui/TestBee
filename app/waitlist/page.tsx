@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, Suspense, useRef } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { QuickWaitlistForm } from "@/components/waitlist/QuickWaitlistForm";
@@ -274,11 +275,14 @@ function WaitlistContent() {
       <div id="main-view" className="animate-in fade-in duration-200">
           <div className="grid grid-cols-[1fr_auto_1fr] items-center border-b border-[#2A3347]/50 px-4 py-3.5 sm:px-12">
             <Link href="/" className="justify-self-start">
-              <img
+              <Image
                 src="/images/logo-2.png"
                 alt="EduBlast Logo"
-                className="h-8 w-auto sm:h-9"
+                width={160}
+                height={36}
+                priority
                 draggable={false}
+                className="h-8 w-auto sm:h-9"
               />
             </Link>
             <div className="hidden justify-self-center sm:inline-flex sm:items-center sm:gap-1.5 sm:rounded-full sm:border sm:border-[#EF9F27] sm:bg-[#281C08] sm:px-3.5 sm:py-1 sm:text-[11px] sm:font-medium sm:text-[#FAC775]">

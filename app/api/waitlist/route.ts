@@ -5,6 +5,11 @@ import {
   sendWaitlistConfirmationEmail,
 } from "@/lib/email/sendWaitlistEmails";
 import { waitlistSubmissionsTable, type WaitlistSignupTier } from "@/lib/waitlist/waitlistDb";
+import {
+  generateNextWaitlistId,
+  isWaitlistTestEmail,
+  normalizeWaitlistEmail,
+} from "@/lib/waitlist/waitlistId";
 
 type WaitlistRole = "student" | "teacher" | "parent" | "other";
 
@@ -14,14 +19,6 @@ function isRole(v: unknown): v is WaitlistRole {
 
 function isSignupTier(v: unknown): v is WaitlistSignupTier {
   return v === "waitlist" || v === "ambassador";
-}
-
-function generateWaitlistId() {
-  return `EB-2026-${Math.floor(1000 + Math.random() * 9000)}`;
-}
-
-function normalizeEmail(email: string) {
-  return email.trim().toLowerCase();
 }
 
 export async function POST(request: Request) {
@@ -38,7 +35,7 @@ export async function POST(request: Request) {
       : "ambassador";
 
     const email =
-      typeof body.email === "string" ? normalizeEmail(body.email) : "";
+      typeof body.email === "string" ? normalizeWaitlistEmail(body.email) : "";
     const phone = typeof body.phone === "string" ? body.phone.trim() : "";
 
     if (!email) {
@@ -63,27 +60,22 @@ export async function POST(request: Request) {
         );
       }
 
-      const { data: existing } = await table
-        .select("waitlist_id, signup_tier")
-        .eq("email", email)
-        .maybeSingle();
+      if (!isWaitlistTestEmail(email)) {
+        const { data: existing } = await table
+          .select("waitlist_id, signup_tier")
+          .eq("email", email)
+          .maybeSingle();
 
-      if (existing) {
-        await table
-          .update({
-            phone: phone.slice(0, 50),
-            consent_updates: true,
-          })
-          .eq("email", email);
-
-        return NextResponse.json({
-          ok: true,
-          waitlistId: existing.waitlist_id,
-          alreadyRegistered: true,
-        });
+        if (existing) {
+          return NextResponse.json({
+            ok: true,
+            waitlistId: existing.waitlist_id,
+            alreadyRegistered: true,
+          });
+        }
       }
 
-      const generatedId = generateWaitlistId();
+      const generatedId = await generateNextWaitlistId(writer);
       const { error } = await table.insert({
         waitlist_id: generatedId,
         signup_tier: "waitlist",
@@ -268,7 +260,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true, waitlistId: byEmail.waitlist_id, emailSent });
     }
 
-    const generatedId = generateWaitlistId();
+    const generatedId = await generateNextWaitlistId(writer);
     const { error } = await table.insert({
       waitlist_id: generatedId,
       ...ambassadorRow,

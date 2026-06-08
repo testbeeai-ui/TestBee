@@ -1,7 +1,14 @@
 import { applyEmailTemplate, escapeHtml } from "@/lib/email/applyEmailTemplate";
 import { EDUBLAST_EMAIL_LOGO_PATH } from "@/lib/email/newUserWelcomeTemplate";
-import { getPortalBaseUrl } from "@/lib/email/portalBaseUrl";
+import { EDUBLAST_PUBLIC_ORIGIN } from "@/lib/email/portalBaseUrl";
 
+/** Public marketing site — used for waitlist links and footer copy in emails */
+export const EDUBLAST_WAITLIST_SITE = "https://www.edublast.in";
+
+/** Logo only: Vercel deployment until www.edublast.in serves /images. */
+function getWaitlistEmailLogoBase(): string {
+  return EDUBLAST_PUBLIC_ORIGIN.replace(/\/$/, "");
+}
 
 const EMAIL_SHELL = `<!DOCTYPE html>
 <html lang="en">
@@ -14,18 +21,20 @@ const EMAIL_SHELL = `<!DOCTYPE html>
 </td></tr>
 <tr><td style="padding:28px 32px;color:#E8EAF0;">{{bodyHtml}}</td></tr>
 <tr><td style="padding:20px 32px;background-color:#0f1419;border-top:1px solid #2A3347;">
-<p style="margin:0;font-size:12px;color:#5C6480;text-align:center;">&copy; {{year}} EduBlast. You joined the waitlist at {{siteUrl}}</p>
+<p style="margin:0;font-size:12px;color:#5C6480;text-align:center;">Contact <a href="mailto:join@edublast.in" style="color:#1D9E75;text-decoration:none;">join@edublast.in</a> should you have any questions</p>
+<p style="margin:8px 0 0;font-size:11px;color:#5C6480;text-align:center;">&copy; {{year}} EduBlast · {{siteUrl}}</p>
 </td></tr>
 </table></td></tr></table>
 </body></html>`;
 
 function wrapEmailBody(bodyHtml: string): string {
-  const base = getPortalBaseUrl().replace(/\/$/, "");
+  const siteBase = EDUBLAST_WAITLIST_SITE.replace(/\/$/, "");
+  const logoBase = getWaitlistEmailLogoBase();
   return applyEmailTemplate(EMAIL_SHELL, {
-    logoUrl: escapeHtml(`${base}${EDUBLAST_EMAIL_LOGO_PATH}`),
+    logoUrl: escapeHtml(`${logoBase}${EDUBLAST_EMAIL_LOGO_PATH}`),
     bodyHtml,
     year: escapeHtml(String(new Date().getFullYear())),
-    siteUrl: escapeHtml(base),
+    siteUrl: escapeHtml(siteBase),
   });
 }
 
@@ -40,8 +49,7 @@ export function buildWaitlistConfirmationEmail(params: WaitlistConfirmationEmail
   text: string;
 } {
   const { waitlistId, email } = params;
-  const base = getPortalBaseUrl().replace(/\/$/, "");
-  const waitlistUrl = `${base}/waitlist#ambassador`;
+  const waitlistUrl = `${EDUBLAST_WAITLIST_SITE}/waitlist#ambassador`;
 
   const bodyHtml = `
     <h2 style="color:#1D9E75;margin:0 0 16px;font-size:20px;font-weight:700;text-align:center;">You're on the waitlist!</h2>
@@ -50,23 +58,26 @@ export function buildWaitlistConfirmationEmail(params: WaitlistConfirmationEmail
       <p style="margin:0 0 4px;font-size:11px;color:#9FE1CB;text-transform:uppercase;letter-spacing:0.05em;">Your waitlist ID</p>
       <p style="margin:0;font-size:18px;font-weight:700;color:#1D9E75;font-family:ui-monospace,monospace;">${escapeHtml(waitlistId)}</p>
     </div>
-    <p style="margin:0 0 12px;font-size:14px;line-height:1.6;color:#9BA3B8;">We registered <strong style="color:#E8EAF0;">${escapeHtml(email)}</strong>. We'll email you again when we're ready to open early preview access across India.</p>
-    <p style="margin:0 0 20px;font-size:14px;line-height:1.6;color:#9BA3B8;">Want early preview access and a paid Ambassador role? Complete the optional ambassador application on the waitlist page.</p>
+    <p style="margin:0 0 12px;font-size:14px;line-height:1.6;color:#9BA3B8;">Your Registered Email: <strong style="color:#E8EAF0;">${escapeHtml(email)}</strong></p>
+    <p style="margin:0 0 12px;font-size:14px;line-height:1.6;color:#9BA3B8;">We'll email you again when we're ready to open early preview access across India.</p>
+    <p style="margin:0 0 20px;font-size:14px;line-height:1.6;color:#9BA3B8;">Keep an eye on your mobile and your inbox (including your spam box). Want early preview access and a paid Ambassador role? Complete the optional ambassador application on the waitlist page.</p>
     <div style="text-align:center;margin:24px 0;">
       <a href="${escapeHtml(waitlistUrl)}" style="background-color:#1D9E75;color:#ffffff;padding:12px 28px;text-decoration:none;border-radius:999px;font-weight:600;font-size:14px;display:inline-block;">Apply as Ambassador (optional)</a>
     </div>
-    <p style="margin:0;font-size:12px;color:#5C6480;text-align:center;">No spam. Reply to this email if you have questions.</p>
   `;
 
   const text = [
     "You're on the EduBlast waitlist!",
     "",
     `Waitlist ID: ${waitlistId}`,
-    `Registered email: ${email}`,
+    `Your Registered Email: ${email}`,
     "",
+    "Keep an eye on your mobile and your inbox (including your spam box).",
     "We'll contact you when early preview access opens.",
     "",
     `Optional ambassador application: ${waitlistUrl}`,
+    "",
+    "Contact join@edublast.in should you have any questions.",
     "",
     "— EduBlast",
   ].join("\n");
@@ -115,8 +126,8 @@ export function buildAmbassadorApplicationEmail(params: AmbassadorApplicationEma
       <p style="margin:0;font-size:13px;color:#FAC775;font-family:ui-monospace,monospace;">Waitlist ID: ${escapeHtml(waitlistId)}</p>
     </div>
     ${ambassadorBlock}
-    <p style="margin:0 0 12px;font-size:14px;line-height:1.6;color:#9BA3B8;">Registered email: <strong style="color:#E8EAF0;">${escapeHtml(email)}</strong></p>
-    <p style="margin:0;font-size:12px;color:#5C6480;">Keep an eye on your phone and inbox — the EduBlast team will be in touch as we approach launch.</p>
+    <p style="margin:0 0 12px;font-size:14px;line-height:1.6;color:#9BA3B8;">Your Registered Email: <strong style="color:#E8EAF0;">${escapeHtml(email)}</strong></p>
+    <p style="margin:0;font-size:14px;line-height:1.6;color:#9BA3B8;">Keep an eye on your mobile and your inbox (including your spam box) — the EduBlast team will be in touch as we approach launch.</p>
   `;
 
   const text = [
@@ -124,10 +135,14 @@ export function buildAmbassadorApplicationEmail(params: AmbassadorApplicationEma
     "",
     `Your EduBlast waitlist application was received (${roleLabel}).`,
     `Waitlist ID: ${waitlistId}`,
+    `Your Registered Email: ${email}`,
     "",
+    "Keep an eye on your mobile and your inbox (including your spam box).",
     isAmbassadorRole
       ? "Your application is flagged for Ambassador consideration. Expect a verification call within 3 business days."
       : "We'll be in touch as we approach launch.",
+    "",
+    "Contact join@edublast.in should you have any questions.",
     "",
     "— EduBlast",
   ].join("\n");

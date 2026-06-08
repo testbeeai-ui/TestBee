@@ -42,6 +42,7 @@ export function QuickWaitlistForm({
   const [c3, setC3] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const [alreadyRegistered, setAlreadyRegistered] = useState(false);
 
   const isValid = email.trim() && phone.trim() && c3;
 
@@ -66,6 +67,10 @@ export function QuickWaitlistForm({
       if (!res.ok) {
         throw new Error(data.error || "Failed to submit. Please try again.");
       }
+      if (data.alreadyRegistered) {
+        setAlreadyRegistered(true);
+        return;
+      }
       onSuccess(data.waitlistId);
     } catch (err: unknown) {
       setSubmitError(
@@ -79,6 +84,25 @@ export function QuickWaitlistForm({
   };
 
   const previewSpots = earlyPreviewSpotsRemaining();
+
+  if (alreadyRegistered) {
+    return (
+      <div className="relative overflow-hidden rounded-[14px] border border-[#2A3347]/80 bg-[#161C26] p-4 sm:p-5 before:absolute before:inset-x-0 before:top-0 before:h-[3px] before:rounded-t-[14px] before:bg-[#1D9E75] before:content-['']">
+        <div className="py-4 text-center">
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full border-2 border-[#1D9E75] bg-[#0A2A20]">
+            <Check className="h-6 w-6 text-[#1D9E75]" strokeWidth={2.5} />
+          </div>
+          <p className="text-sm font-semibold text-white">
+            Thank you, your email has already been registered.
+          </p>
+          <p className="mx-auto mt-2 max-w-[280px] text-xs leading-relaxed text-[#9BA3B8]">
+            We already have <span className="text-[#1D9E75]">{email}</span> on the waitlist. Keep
+            an eye on your inbox for early preview updates.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (completed) {
     return (
