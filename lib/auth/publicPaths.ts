@@ -1,4 +1,4 @@
-import { PREVIEW_AUTH_LEGACY_PATH, PREVIEW_AUTH_PATH } from "@/lib/auth/previewAuthPath";
+import { PREVIEW_AUTH_LEGACY_PATHS, PREVIEW_AUTH_PATH } from "@/lib/auth/previewAuthPath";
 
 /**
  * Paths that must be reachable without a Supabase session (Edge middleware).
@@ -17,7 +17,7 @@ export function isPublicPath(pathname: string): boolean {
     "/terms-conditions",
     "/waitlist",
     PREVIEW_AUTH_PATH,
-    PREVIEW_AUTH_LEGACY_PATH,
+    ...PREVIEW_AUTH_LEGACY_PATHS,
     "/integrations/google/oauth-complete",
   ] as const;
 

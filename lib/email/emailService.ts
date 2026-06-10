@@ -70,6 +70,14 @@ export function getEmailFromAddress(): string | null {
   return process.env.EMAIL_SERVER_USER?.trim() || null;
 }
 
+/** RFC5322 From header with display name (better inbox placement than bare address). */
+export function getEmailFromHeader(): string | null {
+  const addr = getEmailFromAddress();
+  if (!addr) return null;
+  const displayName = process.env.EMAIL_FROM_NAME?.trim() || "EduBlast";
+  return `"${displayName.replace(/"/g, "")}" <${addr}>`;
+}
+
 export function getEmailAdminAddress(): string | null {
   return process.env.EMAIL_ADMIN?.trim() || null;
 }
@@ -83,7 +91,7 @@ export function isEmailConfigured(): boolean {
  * Never throws — returns { success: false } on misconfiguration or transport errors.
  */
 export async function sendEmail(params: SendEmailParams): Promise<SendEmailResult> {
-  const from = getEmailFromAddress();
+  const from = getEmailFromHeader();
   const transporter = getTransporter();
 
   if (!from || !transporter) {
@@ -114,9 +122,11 @@ export async function sendEmail(params: SendEmailParams): Promise<SendEmailResul
   }
 
   try {
+    const replyTo = getEmailAdminAddress();
     const info = await transporter.sendMail({
       from,
       to,
+      replyTo: replyTo || undefined,
       subject: params.subject,
       html: params.html,
       text: params.text ?? stripHtmlToText(params.html),

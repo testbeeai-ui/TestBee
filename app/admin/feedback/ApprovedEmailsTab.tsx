@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { ShieldCheck, Plus, Trash2, Search, RefreshCw, X } from "lucide-react";
+import { ShieldCheck, Plus, Trash2, Search, RefreshCw, X, Mail } from "lucide-react";
 import { safeGetSession } from "@/lib/auth/safeSession";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -42,6 +42,7 @@ export function ApprovedEmailsTab() {
   const [newLastName, setNewLastName] = useState("");
   const [sendInvite, setSendInvite] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [resendingId, setResendingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -108,6 +109,16 @@ export function ApprovedEmailsTab() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to whitelist email");
 
+      if (sendInvite && !data.emailSent) {
+        setError(
+          `Whitelisted ${newEmail.trim().toLowerCase()}, but email failed: ${data.emailError || "SMTP error"}. Use Resend invite on the row below.`
+        );
+      } else if (sendInvite) {
+        alert(
+          `Whitelisted and approval email sent to ${newEmail.trim().toLowerCase()}. Ask them to check spam if missing.`
+        );
+      }
+
       // Reset form & reload
       setNewEmail("");
       setNewFirstName("");
@@ -119,6 +130,37 @@ export function ApprovedEmailsTab() {
       setError(e instanceof Error ? e.message : "Error submitting");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleResendInvite = async (id: string, email: string) => {
+    if (!confirm(`Resend approval / sign-in email to ${email}?`)) return;
+
+    setResendingId(id);
+    setError("");
+    try {
+      const { session } = await safeGetSession();
+      if (!session?.access_token) throw new Error("Unauthorized");
+
+      const res = await fetch("/api/admin/approved-emails/resend-invite", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ id }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.emailError || data.error || "Failed to resend invite");
+      }
+
+      alert(`Approval email sent to ${email}. Ask them to check inbox and spam folders.`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to resend invite");
+    } finally {
+      setResendingId(null);
     }
   };
 
@@ -246,14 +288,26 @@ export function ApprovedEmailsTab() {
                       {new Date(row.created_at).toLocaleString()}
                     </td>
                     <td className="px-5 py-3.5 whitespace-nowrap text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 p-2 h-auto"
-                        onClick={() => handleRevoke(row.id, row.email)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <div className="inline-flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          title="Resend approval email"
+                          className="text-muted-foreground hover:text-primary hover:bg-primary/10 p-2 h-auto"
+                          disabled={resendingId === row.id}
+                          onClick={() => void handleResendInvite(row.id, row.email)}
+                        >
+                          <Mail className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 p-2 h-auto"
+                          onClick={() => handleRevoke(row.id, row.email)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}

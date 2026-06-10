@@ -185,7 +185,16 @@ export function WaitlistTab({ initialId }: WaitlistTabProps) {
       const body = await res.json();
       if (!res.ok) throw new Error(body.error || "Approval failed");
 
-      alert(`Successfully whitelisted ${selected.email} as a ${targetRole}! Invitation email sent.`);
+      if (body.emailSent) {
+        alert(
+          `Successfully whitelisted ${selected.email} as a ${targetRole}.\n\nApproval email was sent. Ask them to check inbox and spam.`
+        );
+      } else {
+        alert(
+          `Whitelisted ${selected.email} as ${targetRole}, but the approval email FAILED to send.\n\nError: ${body.emailError || "Unknown SMTP error"}\n\nThey can still sign in if you share the link manually from Admin → Approved emails → Resend invite.`
+        );
+        setError(body.emailError || "Approval email failed to send");
+      }
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Approval failed");

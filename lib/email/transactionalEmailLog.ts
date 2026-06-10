@@ -4,7 +4,7 @@ import { createAdminClient } from "@/integrations/supabase/server";
 import { getEmailDailySendCap } from "@/lib/email/emailDailyCap";
 import { getIstCalendarDateIso } from "@/lib/subscription/subjectChatLimits";
 
-export type TransactionalEmailKind = "welcome" | "login" | "other";
+export type TransactionalEmailKind = "welcome" | "login" | "approval" | "other";
 export type TransactionalEmailStatus = "sent" | "failed" | "blocked_cap";
 
 export type LogTransactionalEmailInput = {

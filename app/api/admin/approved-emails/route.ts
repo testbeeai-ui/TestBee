@@ -2,8 +2,7 @@ import { NextResponse } from "next/server";
 import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
 import { isAdminUser } from "@/lib/admin/admin";
 import { createAdminClient } from "@/integrations/supabase/server";
-import { sendEmail } from "@/lib/email/emailService";
-import { buildApprovalInviteEmail } from "@/lib/email/approvalInviteEmail";
+import { sendApprovalInviteEmail } from "@/lib/email/sendApprovalInviteEmail";
 
 export async function GET(request: Request) {
   try {
@@ -91,25 +90,18 @@ export async function POST(request: Request) {
     let emailSent = false;
     let emailError = null;
 
+    let signupUrl: string | null = null;
     if (sendInvite) {
-      const invite = buildApprovalInviteEmail({
+      const emailRes = await sendApprovalInviteEmail({
         firstName: cleanFirstName,
         email: cleanEmail,
         role,
-      });
-
-      const emailRes = await sendEmail({
-        to: cleanEmail,
-        subject: invite.subject,
-        html: invite.html,
-        log: {
-          kind: "other",
-          userId: ctx.user.id,
-        },
+        adminUserId: ctx.user.id,
       });
 
       emailSent = emailRes.success;
-      if (!emailRes.success) emailError = (emailRes as any).error;
+      if (!emailRes.success) emailError = emailRes.error;
+      else signupUrl = emailRes.signupUrl ?? null;
     }
 
     return NextResponse.json({
@@ -117,6 +109,7 @@ export async function POST(request: Request) {
       row: inserted,
       emailSent,
       emailError,
+      signupUrl,
     });
   } catch (err) {
     console.error("[POST /api/admin/approved-emails] Server error:", err);
