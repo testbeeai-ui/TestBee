@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-  table: null as any,
+  table: null as unknown,
   sendAmbassadorApplicationEmail: vi.fn(),
   sendWaitlistConfirmationEmail: vi.fn(),
 }));

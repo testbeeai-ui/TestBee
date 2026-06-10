@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { PREVIEW_AUTH_PATH } from "@/lib/auth/previewAuthPath";
 import { isAdminUser } from "@/lib/admin/admin";
+import type { Database } from "@/integrations/supabase/types";
 import { evaluateWhitelistGate, waitlistBlockedAuthUrl } from "@/lib/waitlist/whitelistGate";
 
 vi.mock("@/lib/admin/admin", () => ({
@@ -50,7 +52,7 @@ describe("evaluateWhitelistGate", () => {
   it("does not treat onboarding_complete as a whitelist grant", async () => {
     const supabase = mockSupabase(null);
 
-    const gate = await evaluateWhitelistGate(supabase as any, {
+    const gate = await evaluateWhitelistGate(supabase as unknown as SupabaseClient<Database>, {
       userId: "user-1",
       email: "student@example.com",
       onboardingComplete: true,
@@ -62,7 +64,7 @@ describe("evaluateWhitelistGate", () => {
   it("allows approved emails", async () => {
     const supabase = mockSupabase("student");
 
-    const gate = await evaluateWhitelistGate(supabase as any, {
+    const gate = await evaluateWhitelistGate(supabase as unknown as SupabaseClient<Database>, {
       userId: "user-1",
       email: "Student@Example.com",
       onboardingComplete: false,
