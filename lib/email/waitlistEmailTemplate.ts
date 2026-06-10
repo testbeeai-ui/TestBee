@@ -2,10 +2,9 @@ import { applyEmailTemplate, escapeHtml } from "@/lib/email/applyEmailTemplate";
 import { EDUBLAST_EMAIL_LOGO_PATH } from "@/lib/email/newUserWelcomeTemplate";
 import { EDUBLAST_PUBLIC_ORIGIN } from "@/lib/email/portalBaseUrl";
 
-/** Public marketing site — used for waitlist links and footer copy in emails */
-export const EDUBLAST_WAITLIST_SITE = "https://www.edublast.in";
+/** Public marketing site — waitlist links and footer copy in emails */
+export const EDUBLAST_WAITLIST_SITE = EDUBLAST_PUBLIC_ORIGIN;
 
-/** Logo only: Vercel deployment until www.edublast.in serves /images. */
 function getWaitlistEmailLogoBase(): string {
   return EDUBLAST_PUBLIC_ORIGIN.replace(/\/$/, "");
 }

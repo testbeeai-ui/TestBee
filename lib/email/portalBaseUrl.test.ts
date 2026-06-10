@@ -9,13 +9,14 @@ describe("getPortalBaseUrl", () => {
   });
 
   it("uses NEXT_PUBLIC_SITE_URL when set", () => {
-    process.env.NEXT_PUBLIC_SITE_URL = "https://edublast.vercel.app/";
-    expect(getPortalBaseUrl()).toBe("https://edublast.vercel.app");
+    process.env.NEXT_PUBLIC_SITE_URL = "https://www.edublast.in/";
+    expect(getPortalBaseUrl()).toBe("https://www.edublast.in");
   });
 
-  it("falls back to edublast.vercel.app when unset", () => {
+  it("falls back to www.edublast.in when unset", () => {
     delete process.env.NEXT_PUBLIC_SITE_URL;
     delete process.env.VERCEL_URL;
     expect(getPortalBaseUrl()).toBe(EDUBLAST_PUBLIC_ORIGIN);
+    expect(EDUBLAST_PUBLIC_ORIGIN).toBe("https://www.edublast.in");
   });
 });

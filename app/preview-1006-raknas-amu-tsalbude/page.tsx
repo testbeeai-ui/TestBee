@@ -18,6 +18,7 @@ import {
 } from "@/lib/auth/safeNextPath";
 import { TEACHER_PORTAL_CLASSROOMS_URL } from "@/lib/teacherPortal/routes";
 import { OnboardingTermsAcceptance } from "@/components/legal/OnboardingTermsAcceptance";
+import { isOAuthAuthorizationCode } from "@/lib/auth/oauthCallbackRedirect";
 import { PREVIEW_AUTH_PATH } from "@/lib/auth/previewAuthPath";
 
 const PREVIEW_AUTH_BASE = PREVIEW_AUTH_PATH;
@@ -108,6 +109,11 @@ function PreviewAuthContent() {
     if (hash && hash.includes("access_token")) {
       window.location.replace("/auth/callback" + hash);
       return;
+    }
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("code");
+    if (isOAuthAuthorizationCode(code)) {
+      window.location.replace(`/auth/callback?${params.toString()}`);
     }
   }, []);
 

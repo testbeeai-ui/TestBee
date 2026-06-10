@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { shouldRedirectOAuthCodeToCallback } from "@/lib/auth/oauthCallbackRedirect";
 import { PREVIEW_AUTH_LEGACY_PATHS, PREVIEW_AUTH_PATH } from "@/lib/auth/previewAuthPath";
 import { isPublicPath } from "@/lib/auth/publicPaths";
 import { createSupabaseMiddleware } from "@/lib/supabase/middleware";
@@ -48,6 +49,14 @@ export async function middleware(request: NextRequest) {
   }
 
   const pathname = request.nextUrl.pathname;
+
+  /** Google OAuth sometimes lands on Site URL (`/?code=…`) instead of `/auth/callback`. */
+  const oauthCode = request.nextUrl.searchParams.get("code");
+  if (shouldRedirectOAuthCodeToCallback(pathname, oauthCode)) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/auth/callback";
+    return NextResponse.redirect(url, 307);
+  }
 
   /** Legacy preview login paths → canonical preview path (preserves query string). */
   for (const legacy of PREVIEW_AUTH_LEGACY_PATHS) {
