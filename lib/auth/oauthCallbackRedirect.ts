@@ -8,7 +8,9 @@ const OAUTH_CODE_EXCLUDED_PREFIXES = [
   "/join",
 ] as const;
 
-export function isOAuthAuthorizationCode(code: string | null | undefined): boolean {
+export function isOAuthAuthorizationCode(
+  code: string | null | undefined
+): code is string {
   if (!code?.trim()) return false;
   return OAUTH_CODE_RE.test(code.trim());
 }
