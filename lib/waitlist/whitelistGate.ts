@@ -5,7 +5,6 @@ import { isAdminUser } from "@/lib/admin/admin";
 export type WhitelistGateResult = {
   allowed: boolean;
   reason:
-    | "onboarding_complete"
     | "admin"
     | "approved"
     | "not_approved"
@@ -19,15 +18,11 @@ export type WhitelistGateInput = {
   onboardingComplete: boolean;
 };
 
-/** Returns true when the user may access the app (complete onboarding, admin, or approved email). */
+/** Returns true when the user may access the app (admin or approved email). */
 export async function evaluateWhitelistGate(
   supabase: SupabaseClient<Database>,
   input: WhitelistGateInput
 ): Promise<WhitelistGateResult> {
-  if (input.onboardingComplete) {
-    return { allowed: true, reason: "onboarding_complete" };
-  }
-
   if (await isAdminUser(supabase, input.userId)) {
     return { allowed: true, reason: "admin" };
   }
@@ -37,7 +32,6 @@ export async function evaluateWhitelistGate(
     return { allowed: false, reason: "no_email" };
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data } = (await (supabase.from as (name: string) => ReturnType<typeof supabase.from>)(
     "approved_emails"
   )
