@@ -287,12 +287,6 @@ function PreviewAuthContent() {
                   Continue with Google
                 </button>
 
-                <div className="my-8 flex items-center gap-3 text-sm text-white/25 sm:my-10 sm:text-base">
-                  <span className="h-px flex-1 bg-white/10" aria-hidden />
-                  <span>new here?</span>
-                  <span className="h-px flex-1 bg-white/10" aria-hidden />
-                </div>
-
                 <button
                   type="button"
                   onClick={() => {
@@ -301,7 +295,7 @@ function PreviewAuthContent() {
                     p.set("mode", "signup");
                     router.replace(`${PREVIEW_AUTH_BASE}?${p.toString()}`, { scroll: false });
                   }}
-                  className="group flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-white/12 bg-transparent text-base font-medium text-white/60 transition-all hover:border-violet-500/50 hover:bg-violet-600/[0.08] hover:text-white sm:h-14 sm:text-lg"
+                  className="group mt-8 flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-white/12 bg-transparent text-base font-medium text-white/60 transition-all hover:border-violet-500/50 hover:bg-violet-600/[0.08] hover:text-white sm:mt-10 sm:h-14 sm:text-lg"
                 >
                   Sign up now
                   <span className="text-lg transition-transform group-hover:translate-x-0.5 sm:text-xl">
