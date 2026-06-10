@@ -108,9 +108,10 @@ export default function AuthCallback() {
 
   useEffect(() => {
     if (!oauthGateOpen || !user?.id || loginEmailSent.current) return;
+    if (profile === null) return;
     loginEmailSent.current = true;
     triggerLoginNotificationEmail();
-  }, [oauthGateOpen, user?.id]);
+  }, [oauthGateOpen, user?.id, profile]);
 
   useEffect(() => {
     if (hasUrlError) {

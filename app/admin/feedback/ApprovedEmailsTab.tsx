@@ -23,6 +23,8 @@ type ApprovedEmailRow = {
   first_name: string;
   last_name: string;
   waitlist_submission_id: string | null;
+  approved_by: string | null;
+  approved_via: "waitlist_approve" | "manual" | null;
   created_at: string;
 };
 
@@ -74,6 +76,13 @@ export function ApprovedEmailsTab() {
   const handleManualWhitelist = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newEmail.trim()) return;
+
+    const confirmed = window.confirm(
+      `Whitelist ${newEmail.trim().toLowerCase()} as ${newRole}?${
+        sendInvite ? "\n\nAn approval email will be sent." : ""
+      }`
+    );
+    if (!confirmed) return;
 
     setSubmitting(true);
     setError("");
@@ -201,7 +210,7 @@ export function ApprovedEmailsTab() {
                   <th className="px-5 py-3">Email Address</th>
                   <th className="px-5 py-3">Role</th>
                   <th className="px-5 py-3">Name</th>
-                  <th className="px-5 py-3">Waitlist Ref</th>
+                  <th className="px-5 py-3">Source</th>
                   <th className="px-5 py-3">Date Approved</th>
                   <th className="px-5 py-3 text-right">Actions</th>
                 </tr>
@@ -224,12 +233,14 @@ export function ApprovedEmailsTab() {
                     <td className="px-5 py-3.5 whitespace-nowrap text-muted-foreground">
                       {row.first_name} {row.last_name || ""}
                     </td>
-                    <td className="px-5 py-3.5 whitespace-nowrap font-mono text-xs">
-                      {row.waitlist_submission_id ? (
-                        <span className="text-primary font-semibold">Yes (Linked)</span>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
+                    <td className="px-5 py-3.5 whitespace-nowrap text-xs text-muted-foreground">
+                      {row.approved_via === "waitlist_approve"
+                        ? "Waitlist approve"
+                        : row.approved_via === "manual"
+                          ? "Manual"
+                          : row.waitlist_submission_id
+                            ? "Waitlist (legacy)"
+                            : "—"}
                     </td>
                     <td className="px-5 py-3.5 whitespace-nowrap text-xs text-muted-foreground">
                       {new Date(row.created_at).toLocaleString()}

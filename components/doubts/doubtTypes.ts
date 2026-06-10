@@ -82,11 +82,11 @@ export function doubtHasAiTutorAnswer(d: ExpandedDoubtRow): boolean {
 
 /** Subject colors for colored chips — keys are lowercase */
 export const SUBJECT_COLORS: Record<string, { bg: string; text: string; dot: string }> = {
-  physics: { bg: "bg-blue-500/10", text: "text-blue-600", dot: "bg-blue-500" },
-  chemistry: { bg: "bg-purple-500/10", text: "text-purple-600", dot: "bg-purple-500" },
-  math: { bg: "bg-orange-500/10", text: "text-orange-600", dot: "bg-orange-500" },
-  "general question": { bg: "bg-gray-500/10", text: "text-gray-600", dot: "bg-gray-400" },
-  other: { bg: "bg-gray-500/10", text: "text-gray-600", dot: "bg-gray-400" },
+  physics: { bg: "bg-blue-950/40 border border-blue-500/30", text: "text-blue-400", dot: "bg-blue-400" },
+  chemistry: { bg: "bg-purple-950/40 border border-purple-500/30", text: "text-purple-400", dot: "bg-purple-400" },
+  math: { bg: "bg-indigo-950/40 border border-indigo-500/30", text: "text-indigo-400", dot: "bg-indigo-400" },
+  "general question": { bg: "bg-slate-800/40 border border-slate-700/30", text: "text-slate-400", dot: "bg-slate-400" },
+  other: { bg: "bg-slate-800/40 border border-slate-700/30", text: "text-slate-400", dot: "bg-slate-400" },
 };
 
 export function getSubjectColor(subject: string | null) {

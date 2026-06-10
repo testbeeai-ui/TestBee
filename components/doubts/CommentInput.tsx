@@ -4,7 +4,7 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Loader2, Send } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 
@@ -15,6 +15,8 @@ interface CommentInputProps {
   userName?: string | null;
   /** Teachers post into the teacher section (same table); copy matches that area. */
   variant?: "student" | "teacher";
+  /** Investor Gyan++ wall — rounded input + teal send button. */
+  appearance?: "default" | "gyan";
   commentRewardRdm?: number;
 }
 
@@ -24,6 +26,7 @@ export default function CommentInput({
   avatarUrl,
   userName,
   variant = "student",
+  appearance = "default",
   commentRewardRdm = 5,
 }: CommentInputProps) {
   const { user, refreshProfile } = useAuth();
@@ -82,6 +85,51 @@ export default function CommentInput({
       setPosting(false);
     }
   };
+
+  if (appearance === "gyan") {
+    return (
+      <div className="flex items-center gap-2 py-2">
+        <Avatar className="h-[26px] w-[26px] rounded-full shrink-0">
+          <AvatarImage src={avatarUrl ?? undefined} />
+          <AvatarFallback className="rounded-full text-[11px] font-medium bg-[#5B9A85] text-white">
+            {initials}
+          </AvatarFallback>
+        </Avatar>
+        <input
+          type="text"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onFocus={() => setExpanded(true)}
+          placeholder={
+            variant === "teacher"
+              ? "Add a teacher note (exam tips, corrections)…"
+              : "Add a comment on this question…"
+          }
+          className="flex-1 min-w-0 rounded-full border border-[#2A3347] bg-[#1C2333] px-3 py-1.5 text-xs font-sans text-[#E8EAF0] placeholder:text-[#5C6480] outline-none focus:border-[#5B9A85]"
+          disabled={posting}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && text.trim() && !posting) {
+              e.preventDefault();
+              void handlePost();
+            }
+          }}
+        />
+        <button
+          type="button"
+          className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full bg-[#5B9A85] text-white hover:bg-[#4A826F] transition-colors disabled:opacity-50"
+          onClick={() => void handlePost()}
+          disabled={posting || !text.trim()}
+          aria-label="Post comment"
+        >
+          {posting ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          ) : (
+            <Send className="w-3.5 h-3.5" />
+          )}
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div

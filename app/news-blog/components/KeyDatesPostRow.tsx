@@ -47,7 +47,7 @@ export function KeyDatesPostRow({
       </div>
       <div className="min-w-0 flex-1">
         <p
-          className={`font-serif font-semibold leading-snug text-slate-100 ${compact ? "text-xs" : "text-base"}`}
+          className={`font-sans font-semibold leading-snug text-slate-100 ${compact ? "text-xs" : "text-base"}`}
         >
           {post.title}
         </p>

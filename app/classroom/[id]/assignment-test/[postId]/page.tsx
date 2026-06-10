@@ -159,7 +159,7 @@ export default function ClassroomAssignmentTestPage() {
                 <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500">
                   Classroom Assignment
                 </div>
-                <h1 className="mt-1 break-words font-serif text-xl tracking-tight text-slate-50 sm:text-2xl md:text-3xl">
+                <h1 className="mt-1 break-words font-sans text-xl tracking-tight text-slate-50 sm:text-2xl md:text-3xl">
                   {payload.testTitle}
                 </h1>
                 <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">

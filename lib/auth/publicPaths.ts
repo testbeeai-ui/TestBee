@@ -1,3 +1,5 @@
+import { PREVIEW_AUTH_LEGACY_PATH, PREVIEW_AUTH_PATH } from "@/lib/auth/previewAuthPath";
+
 /**
  * Paths that must be reachable without a Supabase session (Edge middleware).
  * Keep in sync with marketing/auth flows — everything else requires login.
@@ -14,6 +16,8 @@ export function isPublicPath(pathname: string): boolean {
     "/news-blog",
     "/terms-conditions",
     "/waitlist",
+    PREVIEW_AUTH_PATH,
+    PREVIEW_AUTH_LEGACY_PATH,
     "/integrations/google/oauth-complete",
   ] as const;
 

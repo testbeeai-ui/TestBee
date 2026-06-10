@@ -18,7 +18,9 @@ import {
 } from "@/lib/auth/safeNextPath";
 import { TEACHER_PORTAL_CLASSROOMS_URL } from "@/lib/teacherPortal/routes";
 import { OnboardingTermsAcceptance } from "@/components/legal/OnboardingTermsAcceptance";
-import SignInNoticeModal from "@/components/landing/SignInNoticeModal";
+import { PREVIEW_AUTH_PATH } from "@/lib/auth/previewAuthPath";
+
+const PREVIEW_AUTH_BASE = PREVIEW_AUTH_PATH;
 
 const googlePathD = {
   blue: "M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z",
@@ -41,7 +43,7 @@ function GoogleGlyph({ className, cta }: { className?: string; cta?: boolean }) 
   );
 }
 
-export default function Auth() {
+export default function PreviewAuth() {
   return (
     <Suspense
       fallback={
@@ -50,13 +52,13 @@ export default function Auth() {
         </div>
       }
     >
-      <AuthContent />
+      <PreviewAuthContent />
     </Suspense>
   );
 }
 
-function AuthContent() {
-  const { user, profile, loading, signOut } = useAuth();
+function PreviewAuthContent() {
+  const { user, profile, loading, signInWithGoogle, signOut } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const roleParam = searchParams.get("role");
@@ -73,7 +75,6 @@ function AuthContent() {
     modeParam === "signup" ? "signup" : "signin"
   );
   const [signupTermsAccepted, setSignupTermsAccepted] = useState(false);
-  const [showWaitlistModal, setShowWaitlistModal] = useState(false);
 
   useEffect(() => {
     if (roleParam) {
@@ -125,7 +126,6 @@ function AuthContent() {
       clearPendingDeepLink();
       router.replace(dest);
     }
-    // Do not auto-send incomplete users to /auth → onboarding loop; show resume UI instead.
   }, [user, profile, profile?.onboarding_complete, profile?.role, loading, router]);
 
   const loadingOrRedirecting = loading || (user != null && profile === null && !profileWaitDone);
@@ -136,7 +136,29 @@ function AuthContent() {
       </div>
     );
 
-  const openWaitlistGate = () => setShowWaitlistModal(true);
+  const startGoogleSignIn = async () => {
+    try {
+      sessionStorage.setItem("auth_mode", "signin");
+      sessionStorage.setItem("auth_entry_base", PREVIEW_AUTH_BASE);
+      sessionStorage.removeItem("auth_intended_role");
+    } catch {
+      /* ignore */
+    }
+    await signInWithGoogle("/onboarding");
+  };
+
+  const startGoogleSignUp = async () => {
+    try {
+      sessionStorage.setItem("auth_mode", "signup");
+      sessionStorage.setItem("auth_entry_base", PREVIEW_AUTH_BASE);
+      sessionStorage.setItem("auth_intended_role", effectiveSignupRole);
+    } catch {
+      /* ignore */
+    }
+    const path =
+      effectiveSignupRole === "teacher" ? "/onboarding?role=teacher" : "/onboarding?role=student";
+    await signInWithGoogle(path);
+  };
 
   if (user && profile !== null && !profile.onboarding_complete) {
     const resumeRole = profile.role === "teacher" ? "teacher" : "student";
@@ -156,8 +178,7 @@ function AuthContent() {
             <p className="mt-3 text-sm text-muted-foreground">
               You&apos;re still signed in as{" "}
               <span className="font-semibold text-foreground">{displayName}</span>. Continue your
-              profile, or sign out to use a different account — you won&apos;t be bounced in a loop
-              from Login anymore.
+              profile, or sign out to use a different account.
             </p>
             <div className="mt-8 flex flex-col gap-3">
               <Button
@@ -171,7 +192,7 @@ function AuthContent() {
                 variant="outline"
                 className="auth-glass-outline-btn h-12 w-full rounded-xl font-semibold"
                 onClick={async () => {
-                  await signOut("/auth?mode=signin");
+                  await signOut(`${PREVIEW_AUTH_BASE}?mode=signin`);
                 }}
               >
                 Sign out
@@ -259,7 +280,7 @@ function AuthContent() {
 
                 <button
                   type="button"
-                  onClick={openWaitlistGate}
+                  onClick={() => void startGoogleSignIn()}
                   className="flex h-12 w-full items-center justify-center gap-3 rounded-xl border border-white/15 bg-white/[0.04] text-base font-medium text-white transition-colors hover:bg-white/[0.08] sm:h-14 sm:text-lg"
                 >
                   <GoogleGlyph className="h-5 w-5 shrink-0 sm:h-6 sm:w-6" />
@@ -274,7 +295,12 @@ function AuthContent() {
 
                 <button
                   type="button"
-                  onClick={openWaitlistGate}
+                  onClick={() => {
+                    setActivePanel("signup");
+                    const p = new URLSearchParams(searchParams.toString());
+                    p.set("mode", "signup");
+                    router.replace(`${PREVIEW_AUTH_BASE}?${p.toString()}`, { scroll: false });
+                  }}
                   className="group flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-white/12 bg-transparent text-base font-medium text-white/60 transition-all hover:border-violet-500/50 hover:bg-violet-600/[0.08] hover:text-white sm:h-14 sm:text-lg"
                 >
                   Sign up now
@@ -292,7 +318,7 @@ function AuthContent() {
                     setSignupTermsAccepted(false);
                     const p = new URLSearchParams(searchParams.toString());
                     p.set("mode", "signin");
-                    router.replace(`/auth?${p.toString()}`, { scroll: false });
+                    router.replace(`${PREVIEW_AUTH_BASE}?${p.toString()}`, { scroll: false });
                   }}
                   className="mb-6 flex items-center gap-2 bg-transparent p-0 text-sm text-white/45 transition-colors hover:text-white/85 sm:mb-8 sm:text-base"
                 >
@@ -348,7 +374,7 @@ function AuthContent() {
                   action={
                     <button
                       type="button"
-                      onClick={openWaitlistGate}
+                      onClick={() => void startGoogleSignUp()}
                       className="flex h-12 w-full items-center justify-center gap-2.5 rounded-xl border-0 bg-gradient-to-br from-[#7c3aed] to-[#e0496a] px-3 text-base font-medium text-white transition-opacity hover:opacity-[0.88] sm:h-14 sm:gap-3 sm:text-lg"
                     >
                       <GoogleGlyph cta className="h-5 w-5 shrink-0 sm:h-6 sm:w-6" />
@@ -376,7 +402,7 @@ function AuthContent() {
                   }
                   setSignupRolePick(null);
                   setActivePanel("signin");
-                  router.replace("/auth");
+                  router.replace(PREVIEW_AUTH_BASE);
                 }}
                 className="font-semibold text-violet-400 underline-offset-2 hover:underline"
               >
@@ -386,12 +412,6 @@ function AuthContent() {
           )}
         </div>
       </div>
-
-      <SignInNoticeModal
-        open={showWaitlistModal}
-        onOpenChange={setShowWaitlistModal}
-        onJoinWaitlist={() => router.push("/waitlist")}
-      />
     </div>
   );
 }

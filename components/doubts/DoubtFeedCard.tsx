@@ -10,9 +10,6 @@ import { canonicalDoubtSubject } from "@/lib/doubtSubject";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { motion } from "framer-motion";
 import {
-  ArrowBigDown,
-  ArrowBigUp,
-  ChevronUp,
   Bookmark,
   MessageSquare,
   Coins,
@@ -22,10 +19,20 @@ import {
   Loader2,
   Check,
   Circle,
+  School,
+  Clock,
+  Bot,
+  ThumbsUp,
 } from "lucide-react";
+import DoubtVotePill from "./DoubtVotePill";
+import {
+  gyanFeedCardClass,
+  gyanRdmTextClass,
+  gyanSaveBtnActiveClass,
+  gyanSaveBtnIdleClass,
+} from "./gyanWallStyles";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { UserHoverCard } from "@/components/UserHoverCard";
 import CommentInput from "./CommentInput";
@@ -34,8 +41,8 @@ import { OnboardingClickHerePointer } from "@/components/onboarding/OnboardingCl
 import {
   DOUBT_FLAIRS,
   type ExpandedDoubtRow,
-  getSubjectColor,
   formatTimeAgo,
+  getSubjectColor,
   stripHtml,
   isAiTutorAnswer,
   isAiTutorDoubtAuthor,
@@ -61,8 +68,8 @@ interface DoubtFeedCardProps {
   onRefresh: () => void;
   profileAvatarUrl?: string | null;
   profileName?: string | null;
-  myVote?: number;
-  onVote?: (doubtId: string, direction: 1 | -1) => void;
+  getMyVote?: (targetType: "doubt" | "answer", targetId: string) => number;
+  onVote?: (targetType: "doubt" | "answer", targetId: string, direction: 1 | -1) => void;
   currentUserId?: string | null;
   isAdmin?: boolean;
   /** True right after this user posted; Prof-Pi answer is generating */
@@ -91,7 +98,7 @@ export default function DoubtFeedCard({
   onRefresh,
   profileAvatarUrl,
   profileName,
-  myVote = 0,
+  getMyVote,
   onVote,
   currentUserId = null,
   isAdmin = false,
@@ -112,13 +119,14 @@ export default function DoubtFeedCard({
   const FEED_AI_PREVIEW = 720;
 
   const d = doubt;
+  const doubtMyVote = getMyVote?.("doubt", d.id) ?? 0;
   const authorName = d.profiles?.name ?? "Student";
   const authorInitials = authorName.slice(0, 2).toUpperCase();
-  const net = d.upvotes - d.downvotes;
+  const doubtLikeCount = d.upvotes;
   const subjectCanon = canonicalDoubtSubject(d.subject);
   const subjectDisplayLabel = subjectCanon ?? (d.subject?.trim() ? d.subject.trim() : null);
   const hasTaggedSubject = Boolean(subjectDisplayLabel);
-  const subjectColor = getSubjectColor(subjectCanon ?? d.subject);
+  const subjectChipColors = getSubjectColor(subjectCanon ?? d.subject ?? null);
   const titleMd = stripHtml(d.title);
   const bodyMd = stripHtml(d.body);
   const isLongBody = bodyMd.length > FEED_QUESTION_PREVIEW;
@@ -216,9 +224,9 @@ export default function DoubtFeedCard({
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.03, duration: 0.3 }}
     >
-      <div className="edu-card rounded-2xl overflow-hidden hover:border-primary/30 hover:shadow-md transition-all duration-200">
-        {/* ── Main post area ── */}
-        <div className="p-3 sm:p-5 lg:p-6 pb-2.5 sm:pb-3">
+      <div className={gyanFeedCardClass}>
+        {/* ── q-head ── */}
+        <div className="px-4 pt-3.5 pb-2.5">
           {/* Author row */}
           <div className="flex items-start justify-between gap-2 mb-3">
             <UserHoverCard userId={d.user_id}>
@@ -226,44 +234,33 @@ export default function DoubtFeedCard({
                 {isAuthorAI ? (
                   <ProfPiAvatar size="md" className="shrink-0" />
                 ) : (
-                  <Avatar className="h-8 w-8 rounded-full shrink-0 sm:h-9 sm:w-9">
+                  <Avatar className="h-[34px] w-[34px] rounded-full shrink-0 ring-1 ring-white/10">
                     <AvatarImage src={d.profiles?.avatar_url ?? undefined} />
-                    <AvatarFallback
-                      className={`rounded-full text-xs font-bold ${isAuthorTeacher ? "bg-blue-500 text-white" : ""}`}
-                    >
+                    <AvatarFallback className="rounded-full text-xs font-semibold bg-[#1e3a5f] text-[#8EB8E8]">
                       {authorInitials}
                     </AvatarFallback>
                   </Avatar>
                 )}
-                <div className="flex items-center gap-1 min-w-0 flex-wrap">
-                  <span className="text-[13px] font-bold text-foreground sm:text-sm">
-                    {authorName}
-                  </span>
-                  {isAuthorAI && (
-                    <span className="text-[9px] font-bold uppercase bg-purple-500/15 text-purple-600 px-1 py-0.5 rounded-full sm:text-[10px] sm:px-1.5">
-                      {PROF_PI_ANSWER_LABEL} tutor
-                    </span>
-                  )}
+                <div className="min-w-0">
+                  <p className="text-[13px] font-semibold text-white">{authorName}</p>
+                  <p className="text-[11px] text-slate-500">{formatTimeAgo(d.created_at)}</p>
                   {isAuthorTeacher && (
-                    <span className="text-[9px] font-bold uppercase bg-blue-500/15 text-blue-600 px-1 py-0.5 rounded-full flex items-center gap-0.5 sm:text-[10px] sm:px-1.5">
-                      <GraduationCap className="w-2 h-2 sm:w-2.5 sm:h-2.5" /> Teacher
+                    <span className="inline-flex items-center gap-0.5 mt-0.5 text-[9px] font-bold uppercase bg-[#1a2a45] text-[#5B9A85] px-1.5 py-px rounded-full border border-[#5B9A85]/20">
+                      <GraduationCap className="w-2.5 h-2.5" /> Teacher
                     </span>
                   )}
-                  <span className="text-[11px] text-muted-foreground sm:text-xs">
-                    {formatTimeAgo(d.created_at)}
-                  </span>
                 </div>
               </div>
             </UserHoverCard>
             <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
               {d.is_resolved && (
-                <span className="inline-flex items-center gap-1 text-xs text-emerald-600 font-semibold">
+                <span className="inline-flex items-center gap-1 text-xs text-emerald-400 font-semibold">
                   <Pin className="w-3.5 h-3.5" /> Pinned
                 </span>
               )}
               {(d.bounty_rdm ?? 0) > 0 && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-edu-orange/20 text-edu-orange text-xs font-bold px-2.5 py-1 border border-edu-orange/30">
-                  <Coins className="w-3 h-3" /> +{d.bounty_rdm} RDM bounty
+                <span className="inline-flex items-center gap-1 rounded-full bg-violet-500/10 text-violet-300 text-xs font-bold px-2.5 py-1 border border-violet-500/25">
+                  <Coins className="w-3 h-3" /> +{d.bounty_rdm} RDM
                 </span>
               )}
             </div>
@@ -274,7 +271,7 @@ export default function DoubtFeedCard({
             <div
               role="heading"
               aria-level={3}
-              className="text-[14px] sm:text-base font-bold text-foreground leading-snug sm:leading-tight group-hover:text-primary transition-colors"
+              className="text-sm font-medium text-[#E8EAF0] leading-snug group-hover:text-[#A8D5C5] transition-colors"
             >
               {titleMd ? (
                 <DoubtMarkdown content={titleMd} className={DOUBT_TITLE_MARKDOWN_CLASS} />
@@ -299,141 +296,58 @@ export default function DoubtFeedCard({
             </div>
           ) : null}
 
-          {/* Subject chip + syllabus strip on one line (strip sits right after subject) */}
-          <div className="mb-3 mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1.5">
-            {subjectCanon ? (
-              <span
-                className={`edu-chip shrink-0 text-xs font-semibold ${subjectColor.bg} ${subjectColor.text}`}
-              >
-                {subjectCanon}
-              </span>
-            ) : d.subject?.trim() ? (
-              <span
-                className="edu-chip shrink-0 text-xs font-semibold bg-muted text-muted-foreground"
-                title="Unrecognized subject — tag again to fix filters"
-              >
-                {d.subject.trim()}
-              </span>
-            ) : canOpenSubjectPicker ? (
-              <span className="edu-chip shrink-0 text-xs font-semibold bg-amber-500/15 text-amber-800 dark:text-amber-200">
-                Untagged
-              </span>
-            ) : null}
-            {showCurriculumSource && curriculumNode ? (
-              <AiCurriculumSourceStrip
-                node={curriculumNode}
-                className="min-w-0 flex-1 basis-[min(100%,14rem)] sm:basis-auto sm:flex-initial"
-              />
-            ) : null}
-            {d.is_resolved && (
-              <span className="edu-chip shrink-0 bg-emerald-500/10 text-emerald-600 text-xs font-semibold">
-                Resolved
-              </span>
-            )}
-            {teacherNames.length > 0 && (
-              <span className="edu-chip shrink-0 bg-blue-500/10 text-blue-600 text-xs font-semibold inline-flex items-center gap-1">
-                <GraduationCap className="w-3 h-3" />
-                Teacher replied
-                {teacherNames.length === 1 ? `: ${teacherNames[0]}` : ` (${teacherNames.length})`}
-              </span>
-            )}
-          </div>
+          {subjectDisplayLabel ? (
+            <span
+              className={cn(
+                "inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold border",
+                subjectChipColors.bg,
+                subjectChipColors.text
+              )}
+            >
+              {subjectDisplayLabel}
+            </span>
+          ) : null}
+          {showCurriculumSource && curriculumNode ? (
+            <div className="mt-1.5">
+              <AiCurriculumSourceStrip node={curriculumNode} className="min-w-0" />
+            </div>
+          ) : null}
+          {teacherNames.length > 0 && (
+            <p className="text-[11px] text-[#5B9A85] mt-1.5 flex items-center gap-1">
+              <GraduationCap className="w-3 h-3" />
+              Teacher replied
+              {teacherNames.length === 1 ? `: ${teacherNames[0]}` : ` (${teacherNames.length})`}
+            </p>
+          )}
 
-          {/* Action row — compact vote pill: up = blue, down = orange when active */}
-          <div className="flex items-center gap-2 -ml-1 flex-wrap">
+        </div>
+
+        {/* ── q-actions ── */}
+        <div className="flex items-center gap-1.5 flex-wrap px-4 py-2.5 bg-[#070c18] border-t border-white/[0.04]">
             <div className="relative">
               {showEngagePointer && (
                 <div className="absolute -top-11 left-4 z-10 pointer-events-none">
                   <OnboardingClickHerePointer label="Click here" />
                 </div>
               )}
-              <div
-                className={cn(
-                  "inline-flex h-8 shrink-0 items-center overflow-hidden rounded-full border shadow-sm transition-colors duration-150",
-                  // Neutral: charcoal capsule — same height as adjacent h-8 actions
-                  myVote === 0 && "border-zinc-600/90 bg-[#2e3238] dark:bg-[#2a2e35]",
-                  // Upvoted: blue (per product preference)
-                  myVote === 1 &&
-                    "border-blue-400 bg-[#2e3238] dark:bg-[#2a2e35] ring-1 ring-blue-400/25",
-                  // Downvoted: orange
-                  myVote === -1 &&
-                    "border-orange-400 bg-[#2e3238] dark:bg-[#2a2e35] ring-1 ring-orange-400/25"
-                )}
-              >
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      type="button"
-                      onClick={() => onVote?.(d.id, 1)}
-                      className={cn(
-                        "flex h-8 w-8 shrink-0 items-center justify-center transition-colors",
-                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-                        myVote === 0 && "text-zinc-100 hover:bg-blue-400/12 hover:text-blue-300",
-                        myVote === 1 && "bg-blue-400/14 text-blue-400",
-                        myVote === -1 && "text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.04]"
-                      )}
-                      aria-label="Upvote"
-                    >
-                      <ArrowBigUp className="h-[18px] w-[18px]" strokeWidth={1.75} aria-hidden />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom" className="text-xs font-semibold max-w-[14rem]">
-                    Upvote · +{upvoteRewardRdm} RDM first upvote today (IST)
-                  </TooltipContent>
-                </Tooltip>
-                <div
-                  className={cn(
-                    "flex h-8 min-w-[1.75rem] max-w-[3rem] items-center justify-center border-x border-zinc-600/70 px-1.5 tabular-nums text-xs font-bold leading-none",
-                    myVote === 0 && "bg-black/25 text-zinc-100 dark:bg-black/30",
-                    myVote === 1 && "border-blue-400/35 bg-black/35 text-sky-100",
-                    myVote === -1 && "border-orange-400/35 bg-black/35 text-amber-100"
-                  )}
-                >
-                  {net}
-                </div>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      type="button"
-                      onClick={() => onVote?.(d.id, -1)}
-                      className={cn(
-                        "flex h-8 w-8 shrink-0 items-center justify-center transition-colors",
-                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-                        myVote === 0 &&
-                          "text-zinc-100 hover:bg-orange-400/12 hover:text-orange-300",
-                        myVote === -1 && "bg-orange-400/14 text-orange-400",
-                        myVote === 1 && "text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.04]"
-                      )}
-                      aria-label="Downvote"
-                    >
-                      <ArrowBigDown className="h-[18px] w-[18px]" strokeWidth={1.75} aria-hidden />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom" className="text-xs font-semibold">
-                    Downvote
-                  </TooltipContent>
-                </Tooltip>
-              </div>
+              <DoubtVotePill
+                likeCount={doubtLikeCount}
+                liked={doubtMyVote === 1}
+                onLike={() => onVote?.("doubt", d.id, 1)}
+                likeTooltip={`Like · +${upvoteRewardRdm} RDM first like today (IST)`}
+              />
             </div>
-            <Button
+            <button
               type="button"
-              variant="ghost"
-              size="sm"
-              className="rounded-lg h-8 text-xs font-semibold text-muted-foreground hover:text-primary px-2.5"
+              className={cn(
+                "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium transition-all duration-150",
+                isSaved ? gyanSaveBtnActiveClass : gyanSaveBtnIdleClass
+              )}
               onClick={(e) => onToggleSave(d.id, e)}
             >
-              <Bookmark
-                className={`w-3.5 h-3.5 mr-1 ${isSaved ? "fill-current text-primary" : ""}`}
-              />
-              {isSaved ? (
-                "Saved"
-              ) : (
-                <>
-                  <span className="hidden sm:inline">Save for revision (+{saveRewardRdm} RDM)</span>
-                  <span className="sm:hidden">Save</span>
-                </>
-              )}
-            </Button>
+              <Bookmark className={cn("w-3.5 h-3.5", isSaved && "fill-current")} />
+              {isSaved ? "Saved" : <>Save <span className="text-[#5B9A85] font-normal">(+{saveRewardRdm} RDM)</span></>}
+            </button>
             <Popover open={subjectPopoverOpen} onOpenChange={setSubjectPopoverOpen}>
               <PopoverTrigger asChild>
                 <Button
@@ -441,10 +355,10 @@ export default function DoubtFeedCard({
                   variant="ghost"
                   size="sm"
                   className={cn(
-                    "rounded-lg h-8 max-w-[min(100%,11rem)] text-xs font-semibold px-2.5",
+                    "rounded-full h-7 max-w-[min(100%,11rem)] text-xs px-2.5 border border-transparent",
                     hasTaggedSubject
-                      ? "text-foreground hover:text-primary"
-                      : "text-muted-foreground hover:text-primary"
+                      ? "text-slate-400 hover:text-white hover:border-white/[0.08]"
+                      : "text-slate-500 hover:text-slate-300 hover:border-white/[0.06]"
                   )}
                   disabled={!canOpenSubjectPicker}
                   title={
@@ -455,7 +369,7 @@ export default function DoubtFeedCard({
                       : hasTaggedSubject
                         ? `Subject: ${subjectDisplayLabel}`
                         : d.is_resolved
-                          ? "Subject can’t be changed after the question is resolved"
+                          ? "Subject can't be changed after the question is resolved"
                           : "Only the author or an admin can tag the subject"
                   }
                   aria-label={
@@ -496,8 +410,8 @@ export default function DoubtFeedCard({
             </Popover>
             <Link
               href={`/doubts/${d.id}`}
-              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
-              title="Open full thread on the doubt page"
+              className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/[0.06] text-xs text-slate-500 hover:text-white hover:border-white/[0.12] hover:bg-white/[0.03] transition-all duration-150"
+              title="Open full thread"
             >
               <MessageSquare className="w-3.5 h-3.5" />
               {allAnswers.length > 0
@@ -505,7 +419,6 @@ export default function DoubtFeedCard({
                 : "Join discussion"}
             </Link>
           </div>
-        </div>
 
         {/* ── Prof-Pi generating (story beats while /api/gyan-bot-answer runs) ── */}
         {showProfPiPending && (
@@ -583,116 +496,149 @@ export default function DoubtFeedCard({
             const raw = ai.body ?? "";
             const aiLong = raw.length > FEED_AI_PREVIEW;
             const aiMd = aiLong ? truncatePreservingInlineMath(raw, FEED_AI_PREVIEW) : raw;
+            const aiLikeCount = ai.upvotes;
+            const aiMyVote = getMyVote?.("answer", ai.id) ?? 0;
             return (
-              <div className="border-t border-purple-200/40 bg-purple-500/5 px-3 sm:px-5 py-3">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <UserHoverCard userId={ai.user_id}>
-                      <span className="inline-flex cursor-pointer items-center gap-2 rounded-lg hover:opacity-90 min-w-0">
-                        <ProfPiAvatar size="sm" />
-                        <span className="text-[13px] font-bold text-purple-700 dark:text-purple-400 tracking-tight sm:text-sm">
-                          {PROF_PI_ANSWER_LABEL}
-                        </span>
-                      </span>
-                    </UserHoverCard>
-                    <span className="text-[11px] text-muted-foreground shrink-0 sm:text-xs">
-                      · Answered instantly
-                    </span>
+              <div className="border-t border-[#3d3580]/30 bg-gradient-to-b from-[#0f0d1f] to-[#0a0f1e]">
+                {/* prof-pi-head */}
+                <div className="flex items-center gap-2.5 px-4 pt-3.5 pb-2">
+                  <div className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#6c65c8] to-[#389e78] text-[13px] font-bold text-white ring-1 ring-white/10">
+                    P
                   </div>
-                  {ai.is_accepted && d.bounty_rdm ? (
-                    <span className="text-[11px] text-muted-foreground font-medium sm:text-xs">
-                      -{d.bounty_rdm} RDM · bounty distributed
-                    </span>
-                  ) : null}
+                  <UserHoverCard userId={ai.user_id}>
+                    <div className="flex min-w-0 cursor-pointer items-center gap-1.5 hover:opacity-90">
+                      <span className="text-[13px] font-semibold text-white">
+                        {PROF_PI_ANSWER_LABEL}
+                      </span>
+                      <span className="inline-flex items-center gap-1 rounded-full border border-[#4a43a0]/50 bg-[#13102a] px-2 py-px text-[10px] font-semibold text-[#9b96e0]">
+                        <Bot className="w-2.5 h-2.5" />
+                        AI Answer
+                      </span>
+                    </div>
+                  </UserHoverCard>
+                  <span className="ml-auto inline-flex items-center gap-1 text-[11px] text-[#389e78] shrink-0">
+                    <Clock className="w-3 h-3" />
+                    Answered instantly
+                  </span>
                 </div>
-                <div className="text-[13px] sm:text-sm text-foreground mb-2">
+
+                {/* ans-body */}
+                <div className="px-4 pb-3 text-[13px] text-slate-400 leading-[1.75] [&_strong]:text-white [&_li]:text-slate-400 [&_h3]:text-slate-200 [&_h3]:font-semibold">
                   <DoubtMarkdown content={aiMd} />
                   {aiLong ? (
                     <Link
                       href={`/doubts/${d.id}#answer-${ai.id}`}
-                      className="inline-block text-xs font-semibold text-primary hover:underline mt-2"
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-[#5B9A85] hover:text-[#A8D5C5] hover:underline mt-2.5 transition-colors"
                     >
                       Read full answer — open thread
                     </Link>
                   ) : null}
                 </div>
-                <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
-                  <span className="inline-flex items-center gap-1">
-                    <ChevronUp className="w-3.5 h-3.5" /> {Math.max(0, ai.upvotes - ai.downvotes)}{" "}
-                    helpful
-                  </span>
+
+                {/* ans-actions — vote pill only (no separate helpful row) */}
+                <div className="flex flex-wrap items-center gap-1.5 px-4 py-2.5 border-t border-white/[0.04]">
+                  <DoubtVotePill
+                    likeCount={aiLikeCount}
+                    liked={aiMyVote === 1}
+                    onLike={() => onVote?.("answer", ai.id, 1)}
+                  />
+                  <Link
+                    href={`/doubts/${d.id}#answer-${ai.id}`}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.06] px-2.5 py-1 text-xs text-slate-500 hover:border-[#5B9A85]/40 hover:text-[#5B9A85] transition-colors"
+                  >
+                    <MessageSquare className="w-3.5 h-3.5" />
+                    Open thread
+                  </Link>
+                  <button
+                    type="button"
+                    className={cn(
+                      "ml-auto inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-all duration-150",
+                      isSaved
+                        ? gyanSaveBtnActiveClass
+                        : gyanSaveBtnIdleClass
+                    )}
+                    onClick={(e) => onToggleSave(d.id, e)}
+                  >
+                    <Bookmark className={cn("w-3.5 h-3.5", isSaved && "fill-current")} />
+                    {isSaved ? "Saved" : `Save (+${saveRewardRdm} RDM)`}
+                  </button>
                 </div>
               </div>
             );
           })()}
 
-        {/* ── Teacher section (bar always when AI / pending / or teacher replies exist) ── */}
+        {/* ── Teacher section ── */}
         {showTeacherSection && (
-          <div id={`teacher-section-preview-${d.id}`} className="border-t border-emerald-200/40">
-            <div className="flex items-center justify-between px-3 sm:px-5 py-1.5 sm:py-2 bg-emerald-500/10">
-              <div className="flex items-center gap-1.5 min-w-0 sm:gap-2">
-                <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wide shrink-0 sm:text-xs">
-                  Teacher section
-                </span>
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" aria-hidden />
-              </div>
+          <div
+            id={`teacher-section-preview-${d.id}`}
+            className="border-t-2 border-[#378ADD]/25 bg-[#070d1a]"
+          >
+            <div className="flex items-center gap-2.5 px-4 py-2.5">
+              <span className="flex h-[24px] w-[24px] items-center justify-center rounded-full bg-[#1a2a45] shrink-0 border border-[#378ADD]/30">
+                <School className="w-3 h-3 text-[#8EB8E8]" />
+              </span>
+              <span className="text-[10px] font-bold text-[#8EB8E8] uppercase tracking-widest flex-1">
+                Teacher Section
+              </span>
+              <span className="inline-flex items-center gap-1 text-[10px] text-[#5B9A85]">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#389e78] animate-pulse" />
+                Live
+              </span>
             </div>
             {teacherAnswers.length === 0 ? (
               (aiAnswers.length > 0 || showProfPiPending) && (
-                <div className="px-3 sm:px-5 py-2.5 bg-emerald-500/5 sm:py-3">
-                  <p className="text-[13px] text-muted-foreground sm:text-sm">
-                    No teacher note yet. Teachers can add exam tips or corrections here; it stays
-                    separate from student comments.
+                <div className="px-4 pb-3 border-t border-white/[0.04]">
+                  <p className="text-xs text-slate-500 italic mt-2.5">
+                    No teacher note yet. Teachers can add exam tips or corrections here.
                   </p>
-                  <Link
-                    href={`/doubts/${d.id}#teacher-section`}
-                    className="inline-block text-xs font-semibold text-primary hover:underline mt-2"
-                  >
-                    Open thread — add in teacher section
-                  </Link>
                 </div>
               )
             ) : (
-              <div className="divide-y divide-emerald-200/30">
+              <div>
                 {teacherAnswers.map((ta) => {
                   const tName = ta.profiles?.name ?? "Teacher";
                   const tInitials = tName.slice(0, 2).toUpperCase();
-                  const tNet = ta.upvotes - ta.downvotes;
+                  const tLikeCount = ta.upvotes;
+                  const tMyVote = getMyVote?.("answer", ta.id) ?? 0;
                   return (
-                    <div key={ta.id} className="bg-emerald-500/5">
-                      <div className="flex items-center justify-between px-3 sm:px-5 py-2 gap-2 flex-wrap">
-                        <div className="flex items-center gap-2 flex-wrap min-w-0">
+                    <div key={ta.id} className="border-t border-white/[0.04] first:border-t-0">
+                      <div className="flex items-center justify-between px-4 py-2.5 gap-2 flex-wrap">
+                        <div className="flex items-center gap-2 min-w-0">
                           <UserHoverCard userId={ta.user_id}>
-                            <div className="flex items-center gap-1.5 cursor-pointer hover:opacity-80 min-w-0">
-                              <Avatar className="h-6 w-6 rounded-full shrink-0">
+                            <div className="flex items-center gap-1.5 cursor-pointer hover:opacity-80">
+                              <Avatar className="h-6 w-6 rounded-full shrink-0 ring-1 ring-white/10">
                                 <AvatarImage src={ta.profiles?.avatar_url ?? undefined} />
-                                <AvatarFallback className="rounded-full text-[9px] bg-blue-500 text-white font-bold">
+                                <AvatarFallback className="rounded-full text-[9px] bg-[#1e3a5f] text-[#8EB8E8] font-semibold">
                                   {tInitials}
                                 </AvatarFallback>
                               </Avatar>
-                              <span className="text-[11px] font-semibold text-foreground truncate sm:text-xs">
-                                {tName}
-                              </span>
+                              <span className="text-xs font-semibold text-white">{tName}</span>
                             </div>
                           </UserHoverCard>
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase bg-blue-500/15 text-blue-600 px-1.5 py-0.5 rounded-full shrink-0">
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase bg-[#1a2a45] text-[#8EB8E8] px-1.5 py-px rounded-full border border-[#378ADD]/20">
                             <GraduationCap className="w-2.5 h-2.5" /> Teacher
                           </span>
                         </div>
-                        <span className="text-[11px] text-emerald-600 font-semibold shrink-0 sm:text-xs">
+                        <span className={cn("text-[11px] font-semibold shrink-0", gyanRdmTextClass)}>
                           +{teacherRewardRdm} RDM earned
                         </span>
                       </div>
-                      <div className="px-3 sm:px-5 pb-2.5 pt-0 sm:pb-3">
-                        <DoubtMarkdown
-                          content={ta.body}
-                          className="text-[13px] text-foreground sm:text-sm"
+                      <div className="px-4 pb-2.5 text-[13px] text-slate-400 leading-relaxed [&_strong]:text-white">
+                        <DoubtMarkdown content={ta.body} />
+                      </div>
+                      <div className="flex flex-wrap items-center gap-1.5 px-4 py-2.5 border-t border-white/[0.04]">
+                        <DoubtVotePill
+                          likeCount={tLikeCount}
+                          liked={tMyVote === 1}
+                          onLike={() => onVote?.("answer", ta.id, 1)}
                         />
-                        <div className="flex items-center gap-2.5 mt-1.5 text-[11px] text-muted-foreground flex-wrap sm:gap-3 sm:mt-2 sm:text-xs">
-                          <span className="inline-flex items-center gap-1">
-                            <ChevronUp className="w-3.5 h-3.5" /> {tNet} teacher upvotes
-                          </span>
-                        </div>
+                        <Link
+                          href={`/doubts/${d.id}#answer-${ta.id}`}
+                          className="inline-flex items-center gap-1.5 rounded-full border border-[#378ADD]/20 px-2.5 py-1 text-xs text-slate-500 hover:border-[#378ADD]/50 hover:text-[#8EB8E8] transition-colors"
+                        >
+                          <MessageSquare className="w-3.5 h-3.5" />
+                          Open thread
+                        </Link>
                       </div>
                     </div>
                   );
@@ -704,17 +650,18 @@ export default function DoubtFeedCard({
 
         {/* ── Comments section ── */}
         {studentAnswers.length > 0 && (
-          <div className="border-t border-border/50 px-3 sm:px-5 pt-2.5 pb-1.5 space-y-2.5 bg-muted/10 sm:pt-3 sm:pb-2 sm:space-y-3">
+          <div className="border-t border-white/[0.04] px-4 pt-3 pb-2 space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide sm:text-xs">
-                Student comments ({studentAnswers.length})
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+                <span className="w-1 h-1 rounded-full bg-slate-600" />
+                Student Comments ({studentAnswers.length})
               </span>
             </div>
             {previewStudentComments.map((ans) => {
               const commentIsAI = isAiTutorAnswer(ans);
               const aName = commentIsAI ? PROF_PI_ANSWER_LABEL : (ans.profiles?.name ?? "Student");
               const aInitials = aName.slice(0, 2).toUpperCase();
-              const aNet = ans.upvotes - ans.downvotes;
+              const aLikes = ans.upvotes;
               return (
                 <div key={ans.id} className="flex gap-2.5">
                   {commentIsAI ? (
@@ -723,36 +670,37 @@ export default function DoubtFeedCard({
                     </div>
                   ) : (
                     <UserHoverCard userId={ans.user_id}>
-                      <Avatar className="h-7 w-7 rounded-full shrink-0 mt-0.5 cursor-pointer hover:opacity-80">
+                      <Avatar className="h-7 w-7 rounded-full shrink-0 mt-0.5 cursor-pointer hover:opacity-80 ring-1 ring-white/10">
                         <AvatarImage src={ans.profiles?.avatar_url ?? undefined} />
-                        <AvatarFallback className="rounded-full text-[10px] font-bold">
+                        <AvatarFallback className="rounded-full text-[10px] font-bold bg-[#1a1f2c] text-slate-400">
                           {aInitials}
                         </AvatarFallback>
                       </Avatar>
                     </UserHoverCard>
                   )}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5 flex-wrap sm:gap-2">
-                      <span
-                        className={`text-[13px] font-bold ${commentIsAI ? "text-purple-700 dark:text-purple-400" : "text-foreground"} sm:text-sm`}
-                      >
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className={`text-[12px] font-semibold ${commentIsAI ? "text-[#9b96e0]" : "text-white"}`}>
                         {aName}
                       </span>
                       {commentIsAI && (
-                        <span className="text-[9px] font-bold uppercase bg-purple-500/15 text-purple-600 px-1 py-0.5 rounded-full sm:text-[10px] sm:px-1.5">
+                        <span className="text-[9px] font-bold uppercase bg-[#13102a] text-[#9b96e0] px-1 py-0.5 rounded-full border border-[#4a43a0]/30">
                           AI tutor
                         </span>
                       )}
-                      <span className="text-[11px] text-muted-foreground sm:text-xs">
+                      <span className="text-[11px] text-slate-600">
                         {formatTimeAgo(ans.created_at)}
                       </span>
-                      {aNet > 0 && (
-                        <span className="inline-flex items-center gap-0.5 text-[11px] text-muted-foreground sm:text-xs">
-                          <ChevronUp className="w-3 h-3" /> {aNet}
+                      {aLikes > 0 && (
+                        <span className="inline-flex items-center gap-1 text-[11px] text-slate-500 tabular-nums">
+                          <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[#378ADD]">
+                            <ThumbsUp className="h-2 w-2 text-white fill-white" />
+                          </span>
+                          {aLikes}
                         </span>
                       )}
                     </div>
-                    <div className="text-[13px] text-foreground mt-0.5 sm:text-sm">
+                    <div className="text-[13px] text-slate-400 mt-0.5 leading-snug">
                       <DoubtMarkdown content={ans.body} />
                     </div>
                   </div>
@@ -762,16 +710,16 @@ export default function DoubtFeedCard({
             {moreStudentComments > 0 && (
               <Link
                 href={`/doubts/${d.id}#doubt-answers`}
-                className="inline-flex text-xs font-semibold text-primary hover:underline pb-1"
+                className="inline-flex text-xs font-semibold text-[#5B9A85] hover:text-[#A8D5C5] hover:underline pb-1 transition-colors"
               >
-                View {moreStudentComments} more in thread →
+                View {moreStudentComments} more in thread
               </Link>
             )}
           </div>
         )}
 
         {/* ── Comment input ── */}
-        <div className="px-3 sm:px-5 pb-4 relative">
+        <div className="px-4 pb-3.5 pt-2 border-t border-white/[0.04] bg-[#070c18] relative">
           {showEngagePointer && (
             <div className="absolute -top-11 left-8 z-10 pointer-events-none">
               <OnboardingClickHerePointer label="Comment here" variant="emerald" />
@@ -783,6 +731,7 @@ export default function DoubtFeedCard({
             avatarUrl={profileAvatarUrl}
             userName={profileName}
             variant={currentUserRole === "teacher" ? "teacher" : "student"}
+            appearance="gyan"
             commentRewardRdm={commentRewardRdm}
           />
         </div>

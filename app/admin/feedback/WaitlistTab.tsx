@@ -156,13 +156,18 @@ export function WaitlistTab({ initialId }: WaitlistTabProps) {
 
   const approveSubmission = async (roleOverride?: "student" | "teacher") => {
     if (!selected) return;
+
+    const targetRole = roleOverride || (selected.role === "teacher" ? "teacher" : "student");
+    const confirmed = window.confirm(
+      `Whitelist ${selected.email} as ${targetRole}?\n\nThis grants app access and sends an approval email to that address.`
+    );
+    if (!confirmed) return;
+
     setApproving(true);
     setError("");
     try {
       const { session } = await safeGetSession();
       if (!session?.access_token) throw new Error("Missing access token");
-
-      const targetRole = roleOverride || (selected.role === "teacher" ? "teacher" : "student");
 
       const res = await fetch("/api/admin/waitlist/approve", {
         method: "POST",
@@ -418,8 +423,9 @@ export function WaitlistTab({ initialId }: WaitlistTabProps) {
                     variant="outline"
                     disabled={saving || approving}
                     onClick={() => void patchRow({ admin_status: "resolved" })}
+                    title="Mark handled without granting app access"
                   >
-                    Resolve
+                    Close (no access)
                   </Button>
                 </div>
               </div>

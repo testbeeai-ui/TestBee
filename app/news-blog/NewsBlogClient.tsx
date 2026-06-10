@@ -1359,7 +1359,7 @@ export function NewsBlogClient({
                         </span>
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="font-serif text-sm font-semibold leading-snug text-slate-100">
+                        <p className="font-sans text-sm font-semibold leading-snug text-slate-100">
                           {draft.title || "Title"}
                         </p>
                         <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
