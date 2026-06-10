@@ -873,14 +873,13 @@ export default function WaitlistModal({ open, onOpenChange }: WaitlistModalProps
 
                       <div className="space-y-1">
                         <label className="text-[11px] text-[#9BA3B8] font-medium">
-                          Why do you want to join early?<span className="text-[#1D9E75]">*</span>
+                          Why do you want to join early?
                         </label>
                         <textarea
                           placeholder="Tell us what excites you about EduBlast..."
                           value={whyJoin}
                           onChange={(e) => setWhyJoin(e.target.value)}
                           className="w-full bg-[#1C2333] border border-[#2A3347] focus:border-[#1D9E75] rounded-lg px-3 py-2 text-xs text-white outline-none min-h-[80px]"
-                          required
                         />
                       </div>
                     </div>

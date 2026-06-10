@@ -15,6 +15,33 @@ describe("loginNotificationTemplate", () => {
   });
 });
 
+describe("waitlistEmailTemplate", () => {
+  it("builds Step 1 confirmation with waitlist id and ambassador link", async () => {
+    const { buildWaitlistConfirmationEmail } = await import("@/lib/email/waitlistEmailTemplate");
+    const { subject, html, text } = buildWaitlistConfirmationEmail({
+      waitlistId: "EB-2026-1234",
+      email: "arjun@example.com",
+    });
+    expect(subject).toContain("EB-2026-1234");
+    expect(html).toContain("arjun@example.com");
+    expect(html).toContain("#ambassador");
+    expect(text).toContain("EB-2026-1234");
+  });
+
+  it("builds Step 2 ambassador receipt for student role", async () => {
+    const { buildAmbassadorApplicationEmail } = await import("@/lib/email/waitlistEmailTemplate");
+    const { subject, html } = buildAmbassadorApplicationEmail({
+      waitlistId: "EB-2026-5678",
+      firstName: "Arjun",
+      lastName: "Sharma",
+      email: "arjun@example.com",
+      role: "student",
+    });
+    expect(subject).toContain("Ambassador");
+    expect(html).toContain("Arjun");
+    expect(html).toContain("Ambassador");
+  });
+});
 describe("newUserWelcomeTemplate", () => {
   it("builds student welcome with custom HTML and dashboard link", async () => {
     const { buildNewUserWelcomeEmail } = await import("@/lib/email/newUserWelcomeTemplate");

@@ -4,6 +4,7 @@ import { sendEmail, isEmailConfigured } from "@/lib/email/emailService";
 import { buildStudentLoginNotificationEmail } from "@/lib/email/loginNotificationTemplate";
 import { buildNewUserWelcomeEmail } from "@/lib/email/newUserWelcomeTemplate";
 import { getPortalBaseUrl } from "@/lib/email/portalBaseUrl";
+import { evaluateWhitelistGate } from "@/lib/waitlist/whitelistGate";
 
 /** Only treat sign-in as "fresh" within this window (avoids spam on token refresh / replays). */
 const FRESH_SIGN_IN_MS = 2 * 60 * 1000;
@@ -80,12 +81,25 @@ export async function POST(req: NextRequest) {
 
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
-    .select("name, role, welcome_email_sent_at")
+    .select("name, role, welcome_email_sent_at, onboarding_complete")
     .eq("id", user.id)
     .maybeSingle();
 
   if (profileError) {
     return NextResponse.json({ error: profileError.message }, { status: 500 });
+  }
+
+  const gate = await evaluateWhitelistGate(supabase, {
+    userId: user.id,
+    email: user.email,
+    onboardingComplete: profile?.onboarding_complete === true,
+  });
+  if (!gate.allowed) {
+    return NextResponse.json({
+      ok: true,
+      skipped: true,
+      reason: gate.reason,
+    });
   }
 
   const role = profile?.role ?? "student";

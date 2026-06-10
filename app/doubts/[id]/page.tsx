@@ -29,10 +29,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import DoubtVotePill from "@/components/doubts/DoubtVotePill";
 import {
   ArrowLeft,
-  ChevronUp,
-  ChevronDown,
   MessageSquare,
   Check,
   Loader2,
@@ -297,6 +296,40 @@ export default function DoubtDetailPage() {
 
   const handleVote = async (targetType: "doubt" | "answer", targetId: string, voteType: 1 | -1) => {
     if (!user || !targetId || votingId) return;
+    const current = getMyVote(targetType, targetId);
+    const optimisticUserVote = current === voteType ? 0 : voteType;
+
+    const applyVoteDelta = (up: number, down: number) => {
+      let nextUp = up;
+      let nextDown = down;
+      if (current === 1) nextUp--;
+      else if (current === -1) nextDown--;
+      if (current !== voteType) {
+        if (voteType === 1) nextUp++;
+        else nextDown++;
+      }
+      return { upvotes: nextUp, downvotes: nextDown };
+    };
+
+    const snapshotDoubt = doubt ? { upvotes: doubt.upvotes, downvotes: doubt.downvotes } : null;
+    const snapshotAnswer = answers.find((a) => a.id === targetId);
+
+    if (targetType === "doubt" && doubt?.id === targetId) {
+      setDoubt((d) => (d ? { ...d, ...applyVoteDelta(d.upvotes, d.downvotes) } : d));
+    } else if (targetType === "answer") {
+      setAnswers((prev) =>
+        prev.map((a) => (a.id === targetId ? { ...a, ...applyVoteDelta(a.upvotes, a.downvotes) } : a))
+      );
+    }
+
+    setMyVotes((prev) => {
+      const rest = prev.filter(
+        (v) => !(v.target_type === targetType && v.target_id === targetId)
+      );
+      if (optimisticUserVote === 0) return rest;
+      return [...rest, { target_type: targetType, target_id: targetId, vote_type: optimisticUserVote }];
+    });
+
     setVotingId(targetId);
     try {
       const { data, error } = await supabase.rpc("vote_on_doubt", {
@@ -309,10 +342,38 @@ export default function DoubtDetailPage() {
         ok: boolean;
         upvotes?: number;
         downvotes?: number;
+        user_vote?: number;
         error?: string;
         voter_daily_rdm?: { awarded?: boolean; amount?: number };
       };
       if (res?.ok) {
+        if (typeof res.user_vote === "number") {
+          setMyVotes((prev) => {
+            const rest = prev.filter(
+              (v) => !(v.target_type === targetType && v.target_id === targetId)
+            );
+            if (res.user_vote === 0) return rest;
+            return [
+              ...rest,
+              { target_type: targetType, target_id: targetId, vote_type: res.user_vote as 1 | -1 },
+            ];
+          });
+        }
+        if (res.upvotes !== undefined && res.downvotes !== undefined) {
+          if (targetType === "doubt") {
+            setDoubt((d) =>
+              d?.id === targetId ? { ...d, upvotes: res.upvotes!, downvotes: res.downvotes! } : d
+            );
+          } else {
+            setAnswers((prev) =>
+              prev.map((a) =>
+                a.id === targetId
+                  ? { ...a, upvotes: res.upvotes!, downvotes: res.downvotes! }
+                  : a
+              )
+            );
+          }
+        }
         if (res.voter_daily_rdm?.awarded && res.voter_daily_rdm.amount) {
           toast({
             title: `+${res.voter_daily_rdm.amount} RDM`,
@@ -320,7 +381,7 @@ export default function DoubtDetailPage() {
           });
           void refreshProfile();
         }
-        if (voteType === 1 && isGyanPlusCompanionTrackingActive()) {
+        if (voteType === 1 && optimisticUserVote === 1 && isGyanPlusCompanionTrackingActive()) {
           markGyanPlusCompanionUpvote();
           if (!isGyanPlusSubstepDone("gyan_engagement")) {
             recordGyanPlusSubstep("gyan_engagement", {
@@ -328,9 +389,27 @@ export default function DoubtDetailPage() {
             });
           }
         }
-        refetchAll();
+        void fetchMyVotes();
         dispatchStudyDayBumped({ day: "", deltaMs: 0 });
       } else {
+        if (targetType === "doubt" && snapshotDoubt && doubt?.id === targetId) {
+          setDoubt((d) => (d ? { ...d, ...snapshotDoubt } : d));
+        } else if (targetType === "answer" && snapshotAnswer) {
+          setAnswers((prev) =>
+            prev.map((a) =>
+              a.id === targetId
+                ? { ...a, upvotes: snapshotAnswer.upvotes, downvotes: snapshotAnswer.downvotes }
+                : a
+            )
+          );
+        }
+        setMyVotes((prev) => {
+          const rest = prev.filter(
+            (v) => !(v.target_type === targetType && v.target_id === targetId)
+          );
+          if (current === 0) return rest;
+          return [...rest, { target_type: targetType, target_id: targetId, vote_type: current as 1 | -1 }];
+        });
         toast({
           title: "Vote failed",
           description: res?.error ?? "Unable to process vote.",
@@ -338,6 +417,24 @@ export default function DoubtDetailPage() {
         });
       }
     } catch (error: unknown) {
+      if (targetType === "doubt" && snapshotDoubt && doubt?.id === targetId) {
+        setDoubt((d) => (d ? { ...d, ...snapshotDoubt } : d));
+      } else if (targetType === "answer" && snapshotAnswer) {
+        setAnswers((prev) =>
+          prev.map((a) =>
+            a.id === targetId
+              ? { ...a, upvotes: snapshotAnswer.upvotes, downvotes: snapshotAnswer.downvotes }
+              : a
+          )
+        );
+      }
+      setMyVotes((prev) => {
+        const rest = prev.filter(
+          (v) => !(v.target_type === targetType && v.target_id === targetId)
+        );
+        if (current === 0) return rest;
+        return [...rest, { target_type: targetType, target_id: targetId, vote_type: current as 1 | -1 }];
+      });
       toast({
         title: "Vote failed",
         description: getErrorMessage(error, "Network error while voting."),
@@ -614,7 +711,7 @@ export default function DoubtDetailPage() {
   }
 
   const isAuthor = user?.id === doubt.user_id;
-  const netDoubt = doubt.upvotes - doubt.downvotes;
+  const doubtLikeCount = doubt.upvotes;
   const subjectChip = canonicalDoubtSubject(doubt.subject) ?? doubt.subject?.trim() ?? null;
   const subjectForMock = subjectChip || "this topic";
   const curriculumNode = pickCurriculumNodeFromDoubt(doubt);
@@ -631,7 +728,6 @@ export default function DoubtDetailPage() {
   const showTeacherReplyForm = Boolean(user && hasAiThreadLayout && profile?.role === "teacher");
 
   const renderAnswerCard = (a: Answer) => {
-    const netAnswer = a.upvotes - a.downvotes;
     const myVote = getMyVote("answer", a.id);
     return (
       <motion.div
@@ -642,30 +738,17 @@ export default function DoubtDetailPage() {
         className={`edu-card p-5 rounded-2xl scroll-mt-24 ${a.is_accepted ? "border-edu-green/50 bg-edu-green/5" : ""}`}
       >
         <div className="flex gap-4">
-          <div className="flex flex-col items-center shrink-0">
-            <Button
-              variant={myVote === 1 ? "default" : "outline"}
-              size="icon"
-              className="rounded-xl h-8 w-8"
-              disabled={!!votingId}
-              onClick={() => handleVote("answer", a.id, 1)}
-            >
-              {votingId === a.id ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <ChevronUp className="w-3.5 h-3.5" />
-              )}
-            </Button>
-            <span className="font-bold text-sm my-0.5">{netAnswer}</span>
-            <Button
-              variant={myVote === -1 ? "default" : "outline"}
-              size="icon"
-              className="rounded-xl h-8 w-8"
-              disabled={!!votingId}
-              onClick={() => handleVote("answer", a.id, -1)}
-            >
-              <ChevronDown className="w-3.5 h-3.5" />
-            </Button>
+          <div className="shrink-0 pt-1">
+            {votingId === a.id ? (
+              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+            ) : (
+              <DoubtVotePill
+                likeCount={a.upvotes}
+                liked={myVote === 1}
+                onLike={() => handleVote("answer", a.id, 1)}
+                disabled={!!votingId}
+              />
+            )}
           </div>
           <div className="flex-1 min-w-0">
             {a.is_accepted && (
@@ -785,30 +868,17 @@ export default function DoubtDetailPage() {
 
             <div className="edu-card p-6 rounded-2xl">
               <div className="flex gap-4">
-                <div className="flex flex-col items-center shrink-0">
-                  <Button
-                    variant={getMyVote("doubt", doubt.id) === 1 ? "default" : "outline"}
-                    size="icon"
-                    className="rounded-xl h-9 w-9"
-                    disabled={!!votingId}
-                    onClick={() => handleVote("doubt", doubt.id, 1)}
-                  >
-                    {votingId === doubt.id ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <ChevronUp className="w-4 h-4" />
-                    )}
-                  </Button>
-                  <span className="font-bold text-foreground my-1">{netDoubt}</span>
-                  <Button
-                    variant={getMyVote("doubt", doubt.id) === -1 ? "default" : "outline"}
-                    size="icon"
-                    className="rounded-xl h-9 w-9"
-                    disabled={!!votingId}
-                    onClick={() => handleVote("doubt", doubt.id, -1)}
-                  >
-                    <ChevronDown className="w-4 h-4" />
-                  </Button>
+                <div className="shrink-0 pt-1">
+                  {votingId === doubt.id ? (
+                    <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                  ) : (
+                    <DoubtVotePill
+                      likeCount={doubtLikeCount}
+                      liked={getMyVote("doubt", doubt.id) === 1}
+                      onLike={() => handleVote("doubt", doubt.id, 1)}
+                      disabled={!!votingId}
+                    />
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-2">

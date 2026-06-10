@@ -39,6 +39,13 @@ export default function StudentSettingsHub() {
   const router = useRouter();
   const { signOut, profile, refreshProfile } = useAuth();
   const { theme, setTheme } = useTheme();
+
+  useEffect(() => {
+    if (theme !== "dark") {
+      setTheme("dark");
+    }
+  }, [theme, setTheme]);
+
   const { toast } = useToast();
   const [dailyReminders, setDailyReminders] = useState(true);
   const [examAlerts, setExamAlerts] = useState(false);
@@ -238,35 +245,9 @@ export default function StudentSettingsHub() {
               Settings
             </h1>
             <p className="mb-4 text-xs text-muted-foreground dark:text-slate-400 2xl:mb-5 2xl:text-sm">
-              Appearance & notifications
+              Manage notifications and settings
             </p>
             <div className="space-y-4 2xl:space-y-5">
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground dark:text-slate-500 2xl:text-xs">
-                  Appearance
-                </p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {[
-                    { value: "light", label: "Light", icon: Sun },
-                    { value: "dark", label: "Dark", icon: Moon },
-                    { value: "system", label: "System", icon: Monitor },
-                  ].map((opt) => (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => setTheme(opt.value)}
-                      className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-bold transition 2xl:px-3.5 2xl:py-2.5 ${
-                        (theme ?? "system") === opt.value
-                          ? "bg-[#7c3aed] text-white shadow-md shadow-violet-600/25"
-                          : "bg-muted text-muted-foreground hover:bg-muted/80 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
-                      }`}
-                    >
-                      <opt.icon className="h-3.5 w-3.5 2xl:h-4 2xl:w-4" />
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
               <div className="space-y-3 2xl:space-y-3">
                 <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-muted/30 px-3 py-2.5 dark:border-white/10 dark:bg-slate-900/70 2xl:px-4 2xl:py-3">
                   <div className="min-w-0">

@@ -65,7 +65,7 @@
     var(--font-geist-sans, ui-sans-serif), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     Roboto, "Helvetica Neue", Arial, sans-serif;
   /* Investor landing only — Playfair + Caveat from @fontsource (bundled woff2). */
-  --font-landing-serif: "Playfair Display Variable", ui-serif, Georgia, serif;
+  --font-landing-serif: var(--font-app-sans), ui-sans-serif, system-ui, sans-serif;
   --font-landing-script: "Caveat", cursive;
   --font-sans: var(--font-app-sans);
   --background: oklch(1 0 0);
@@ -469,7 +469,7 @@ html {
 /* overflow-x: hidden + overflow-y: visible forces y to compute to auto → stray vertical scrollbar */
 .subtopic-title-text {
   color: #0a0a0a;
-  font-family: "KaTeX_Main", "Times New Roman", serif !important;
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif !important;
   display: block;
   min-width: 0;
   max-width: 100%;
@@ -482,7 +482,7 @@ html {
 .subtopic-title-text .katex,
 .subtopic-title-text .katex * {
   color: #0a0a0a !important;
-  font-family: "KaTeX_Main", "Times New Roman", serif !important;
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif !important;
 }
 .subtopic-title-text .katex-display {
   max-width: 100%;
@@ -491,12 +491,12 @@ html {
 }
 .dark .subtopic-title-text {
   color: #fafafa;
-  font-family: "KaTeX_Main", "Times New Roman", serif !important;
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif !important;
 }
 .dark .subtopic-title-text .katex,
 .dark .subtopic-title-text .katex * {
   color: #fafafa !important;
-  font-family: "KaTeX_Main", "Times New Roman", serif !important;
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif !important;
 }
 
 /* Standard areas block: even vertical rhythm; one formula unit per row (scroll if narrow). */
@@ -639,35 +639,35 @@ html {
 :root {
   --edu-purple: 262 83% 58%;
   --edu-blue: 199 89% 48%;
-  --edu-green: 142 71% 45%;
-  --edu-orange: 25 95% 53%;
+  --edu-green: 150 45% 42%;
+  --edu-orange: 250 85% 65%;
   --edu-pink: 330 81% 60%;
-  --edu-yellow: 45 93% 58%;
+  --edu-yellow: 245 75% 75%;
   --edu-red: 0 84% 60%;
   /* Landing page brand palette (investor spec) */
-  --landing-green: #1d9e75;
+  --landing-green: #358b6e;
   --landing-purple: #534ab7;
   --landing-coral: #d85a30;
-  --landing-amber: #ef9f27;
+  --landing-amber: #818cf8;
   --landing-dark-teal: #085041;
-  --landing-bg-green: #e1f5ee;
+  --landing-bg-green: #eaf5f0;
   --landing-bg-purple: #eeedfe;
   --landing-bg-coral: #faece7;
-  --landing-bg-amber: #faeeda;
+  --landing-bg-amber: #e0e7ff;
   --landing-bg-red: #fcebeb;
   --landing-red-text: #a32d2d;
   --edu-physics: 199 89% 48%;
   --edu-chemistry: 262 83% 58%;
-  --edu-math: 25 95% 53%;
-  --edu-biology: 142 71% 45%;
+  --edu-math: 250 85% 65%;
+  --edu-biology: 150 45% 42%;
   --gradient-primary: linear-gradient(135deg, hsl(262 83% 58%), hsl(199 89% 48%));
-  --gradient-success: linear-gradient(135deg, hsl(142 71% 45%), hsl(160 84% 39%));
-  --gradient-fire: linear-gradient(135deg, hsl(25 95% 53%), hsl(0 84% 60%));
+  --gradient-success: linear-gradient(135deg, hsl(150 45% 42%), hsl(165 40% 36%));
+  --gradient-fire: linear-gradient(135deg, hsl(250 85% 65%), hsl(330 81% 60%));
   --gradient-hero: linear-gradient(
     135deg,
     hsl(262 83% 58%) 0%,
     hsl(199 89% 48%) 50%,
-    hsl(142 71% 45%) 100%
+    hsl(150 45% 42%) 100%
   );
 }
 
@@ -801,22 +801,22 @@ html {
 }
 
 .bg-edu-yellow\/15 {
-  background-color: hsl(45 93% 58% / 0.15);
+  background-color: hsl(245 75% 75% / 0.15);
 }
 .hover\:bg-edu-yellow\/25:hover {
-  background-color: hsl(45 93% 58% / 0.25);
+  background-color: hsl(245 75% 75% / 0.25);
 }
 .text-edu-orange {
-  color: hsl(25 95% 53%);
+  color: hsl(250 85% 65%);
 }
 .text-edu-yellow {
-  color: hsl(45 93% 58%);
+  color: hsl(245 75% 75%);
 }
 .text-edu-green {
-  color: hsl(142 71% 45%);
+  color: hsl(150 45% 42%);
 }
 .bg-edu-green\/15 {
-  background-color: hsl(142 71% 45% / 0.15);
+  background-color: hsl(150 45% 42% / 0.15);
 }
 
 @layer base {
@@ -831,6 +831,9 @@ html {
   select,
   button {
     font-family: inherit;
+  }
+  .font-serif {
+    font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif !important;
   }
 }
 
@@ -2002,3 +2005,44 @@ html {
     transform: scale(0.96);
   }
 }
+
+/* ══════════════════════════════════════════════════════════════ */
+/* Gyan++ Premium Dark Mode Overrides                            */
+/* ══════════════════════════════════════════════════════════════ */
+.text-\[\#E8EAF0\] {
+  color: #f8fafc !important;
+}
+.text-\[\#9BA3B8\] {
+  color: #cbd5e1 !important;
+}
+.text-\[\#5C6480\] {
+  color: #94a3b8 !important;
+}
+.bg-\[\#161B25\] {
+  background-color: #090e1a !important;
+}
+.bg-\[\#1C2333\] {
+  background-color: #0c1324 !important;
+}
+.bg-\[\#222A3A\] {
+  background-color: #121b30 !important;
+}
+.border-\[\#2A3347\] {
+  border-color: rgba(30, 41, 59, 0.7) !important;
+}
+.border-\[\#334060\] {
+  border-color: rgba(51, 65, 85, 0.7) !important;
+}
+.hover\:bg-\[\#222A3A\]\:hover:hover {
+  background-color: #121b30 !important;
+}
+.hover\:border-\[\#5B9A85\]\:hover:hover {
+  border-color: #389e78 !important;
+}
+.hover\:text-\[\#9BA3B8\]\:hover:hover {
+  color: #cbd5e1 !important;
+}
+.bg-\[\#1a2420\]\/70 {
+  background-color: rgba(6, 15, 12, 0.7) !important;
+}
+

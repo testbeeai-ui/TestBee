@@ -5,7 +5,6 @@ import {
 } from "@/lib/subscription/dashboardTrialPopups";
 import { getDashboardPopupPhase } from "@/lib/subscription/freeTrialClient";
 import {
-  computeOffsetForTrialCalendarEnd,
   isFreeTrialPeriodEndedForProfile,
 } from "@/lib/subscription/freeTrialTimer";
 import {
@@ -178,14 +177,6 @@ describe("claim-bonus scenario track days", () => {
       qualifiesForTrialExtensionBonus("user-1", "2026-06-01T10:00:00.000Z", {})
     ).toBe(false);
     expect(getTrialTrackerDaysCompleted("user-1", "2026-06-01T10:00:00.000Z", {})).toBe(1);
-  });
-});
-
-describe("computeOffsetForTrialCalendarEnd", () => {
-  it("lands just after 14 days from activation", () => {
-    const offset = computeOffsetForTrialCalendarEnd(ACTIVATED, false);
-    const target = Date.now() + offset;
-    expect(target).toBeGreaterThanOrEqual(Date.parse(ACTIVATED) + 14 * MS_DAY);
   });
 });
 

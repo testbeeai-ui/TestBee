@@ -2,17 +2,20 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type WaitlistRole = "student" | "teacher" | "parent" | "other";
 export type WaitlistAdminStatus = "new" | "reviewed" | "resolved";
+export type WaitlistSignupTier = "waitlist" | "ambassador";
 
 export type WaitlistSubmissionDbRow = {
   id: string;
   waitlist_id: string;
-  role: WaitlistRole;
-  first_name: string;
-  last_name: string;
+  signup_tier: WaitlistSignupTier;
+  ambassador_applied_at: string | null;
+  role: WaitlistRole | null;
+  first_name: string | null;
+  last_name: string | null;
   email: string;
   phone: string;
-  city: string;
-  state: string;
+  city: string | null;
+  state: string | null;
   
   // Student specific
   student_class: string | null;

@@ -30,8 +30,12 @@ import DoubtFeedCard from "@/components/doubts/DoubtFeedCard";
 import DoubtLeftSidebar from "@/components/doubts/DoubtLeftSidebar";
 import DoubtRightSidebar from "@/components/doubts/DoubtRightSidebar";
 import { GyanDoubtsFocusTracker } from "@/components/doubts/GyanDoubtsFocusTracker";
-import { GyanDailyChecklistTracker } from "@/components/doubts/GyanDailyChecklistTracker";
+import {
+  GyanDailyChecklistTracker,
+  GyanDailyChecklistSidebarCard,
+} from "@/components/doubts/GyanDailyChecklistTracker";
 import GyanFeedPagination, { GYAN_FEED_PAGE_SIZE } from "@/components/doubts/GyanFeedPagination";
+import { gyanWallFontClass, gyanWallGridClass } from "@/components/doubts/gyanWallStyles";
 import { dispatchStudyDayBumped } from "@/lib/dashboard/studyDayBumpEvents";
 import { DEFAULT_RDM_CONFIG, fetchRdmConfig } from "@/lib/rdm/rdmConfig";
 import { OnboardingGuidanceBanner } from "@/components/onboarding/OnboardingGuidanceBanner";
@@ -308,19 +312,41 @@ function DoubtsPageContent() {
     setAnsweredDoubtIds(new Set((data || []).map((r: { doubt_id: string }) => r.doubt_id)));
   };
 
-  const fetchMyVotes = async () => {
-    if (!user?.id) return;
-    const { data } = await supabase
-      .from("doubt_votes")
-      .select("target_id, vote_type")
-      .eq("user_id", user.id)
-      .eq("target_type", "doubt");
-    const map = new Map<string, number>();
-    (data || []).forEach((r: { target_id: string; vote_type: number }) =>
-      map.set(r.target_id, r.vote_type)
-    );
-    setMyVotes(map);
-  };
+  const fetchMyVotes = useCallback(
+    async (feedDoubts: ExpandedDoubtRow[]) => {
+      if (!user?.id) return;
+      const map = new Map<string, number>();
+
+      const doubtIds = feedDoubts.map((d) => d.id);
+      if (doubtIds.length > 0) {
+        const { data: doubtVoteRows } = await supabase
+          .from("doubt_votes")
+          .select("target_id, vote_type")
+          .eq("user_id", user.id)
+          .eq("target_type", "doubt")
+          .in("target_id", doubtIds);
+        (doubtVoteRows || []).forEach((r: { target_id: string; vote_type: number }) =>
+          map.set(`doubt:${r.target_id}`, r.vote_type)
+        );
+      }
+
+      const answerIds = feedDoubts.flatMap((d) => (d.doubt_answers ?? []).map((a) => a.id));
+      if (answerIds.length > 0) {
+        const { data: answerVoteRows } = await supabase
+          .from("doubt_votes")
+          .select("target_id, vote_type")
+          .eq("user_id", user.id)
+          .eq("target_type", "answer")
+          .in("target_id", answerIds);
+        (answerVoteRows || []).forEach((r: { target_id: string; vote_type: number }) =>
+          map.set(`answer:${r.target_id}`, r.vote_type)
+        );
+      }
+
+      setMyVotes(map);
+    },
+    [user?.id]
+  );
 
   const fetchTrending = async () => {
     const since = new Date();
@@ -451,7 +477,6 @@ function DoubtsPageContent() {
     fetchStrikeRate();
     fetchSaved();
     fetchAnsweredDoubtIds();
-    fetchMyVotes();
     fetchUserRdmToday();
   }, [user?.id]);
 
@@ -576,6 +601,10 @@ function DoubtsPageContent() {
     return filteredAndSorted.slice(start, start + GYAN_FEED_PAGE_SIZE);
   }, [filteredAndSorted, feedPage]);
 
+  useEffect(() => {
+    void fetchMyVotes(paginatedFeed);
+  }, [fetchMyVotes, paginatedFeed]);
+
   /** Reset to page 1 when filters / sort change so users don’t land on empty pages */
   useEffect(() => {
     setFeedPage(1);
@@ -654,11 +683,17 @@ function DoubtsPageContent() {
 
   // ─── Handlers ────────────────────────────────────────────────
 
-  const handleVoteFeed = async (doubtId: string, direction: 1 | -1) => {
+  const handleVote = async (
+    targetType: "doubt" | "answer",
+    targetId: string,
+    direction: 1 | -1
+  ) => {
     if (!user?.id) return;
-    const current = myVotes.get(doubtId) ?? 0;
+    const voteKey = `${targetType}:${targetId}`;
+    const current = myVotes.get(voteKey) ?? 0;
 
-    if (gyanOnboardingActive && direction === 1) {
+    const willLike = current !== direction && direction === 1;
+    if (gyanOnboardingActive && targetType === "doubt" && willLike) {
       markGyanPlusCompanionUpvote();
       if (!isGyanPlusSubstepDone("gyan_engagement")) {
         recordGyanPlusSubstep("gyan_engagement", {
@@ -668,45 +703,131 @@ function DoubtsPageContent() {
       syncGyanOnboardingGuides();
     }
 
-    // Optimistic UI update
+    const applyVoteDelta = (up: number, down: number) => {
+      let nextUp = up;
+      let nextDown = down;
+      if (current === 1) nextUp--;
+      else if (current === -1) nextDown--;
+      if (current !== direction) {
+        if (direction === 1) nextUp++;
+        else nextDown++;
+      }
+      return { upvotes: nextUp, downvotes: nextDown };
+    };
+
+    let snapshotUp = 0;
+    let snapshotDown = 0;
+    for (const d of doubts) {
+      if (targetType === "doubt" && d.id === targetId) {
+        snapshotUp = d.upvotes;
+        snapshotDown = d.downvotes;
+        break;
+      }
+      if (targetType === "answer") {
+        const a = (d.doubt_answers ?? []).find((x) => x.id === targetId);
+        if (a) {
+          snapshotUp = a.upvotes;
+          snapshotDown = a.downvotes;
+          break;
+        }
+      }
+    }
+
     setDoubts((prev) =>
       prev.map((d) => {
-        if (d.id !== doubtId) return d;
-        let up = d.upvotes;
-        let down = d.downvotes;
-        if (current === 1) up--;
-        else if (current === -1) down--;
-        if (current !== direction) {
-          if (direction === 1) up++;
-          else down++;
+        if (targetType === "doubt") {
+          if (d.id !== targetId) return d;
+          return { ...d, ...applyVoteDelta(d.upvotes, d.downvotes) };
         }
-        return { ...d, upvotes: up, downvotes: down };
+        const answers = d.doubt_answers ?? [];
+        if (!answers.some((a) => a.id === targetId)) return d;
+        return {
+          ...d,
+          doubt_answers: answers.map((a) =>
+            a.id === targetId ? { ...a, ...applyVoteDelta(a.upvotes, a.downvotes) } : a
+          ),
+        };
       })
     );
+    const optimisticUserVote = current === direction ? 0 : direction;
     setMyVotes((prev) => {
       const next = new Map(prev);
-      if (current === direction) next.delete(doubtId);
-      else next.set(doubtId, direction);
+      if (optimisticUserVote === 0) next.delete(voteKey);
+      else next.set(voteKey, optimisticUserVote);
       return next;
     });
+
     const { data, error } = await supabase.rpc("vote_on_doubt", {
-      p_target_type: "doubt",
-      p_target_id: doubtId,
+      p_target_type: targetType,
+      p_target_id: targetId,
       p_vote_type: direction,
     });
-    if (!error && (data as { ok?: boolean })?.ok) {
-      // Update with actual server counts
+    if (error || !(data as { ok?: boolean })?.ok) {
+      setMyVotes((prev) => {
+        const next = new Map(prev);
+        if (current === 0) next.delete(voteKey);
+        else next.set(voteKey, current);
+        return next;
+      });
+      setDoubts((prev) =>
+        prev.map((d) => {
+          if (targetType === "doubt" && d.id === targetId) {
+            return { ...d, upvotes: snapshotUp, downvotes: snapshotDown };
+          }
+          if (targetType === "answer") {
+            const answers = d.doubt_answers ?? [];
+            if (!answers.some((a) => a.id === targetId)) return d;
+            return {
+              ...d,
+              doubt_answers: answers.map((a) =>
+                a.id === targetId
+                  ? { ...a, upvotes: snapshotUp, downvotes: snapshotDown }
+                  : a
+              ),
+            };
+          }
+          return d;
+        })
+      );
+      return;
+    }
+
+    if ((data as { ok?: boolean })?.ok) {
       const res = data as {
         ok: boolean;
         upvotes?: number;
         downvotes?: number;
+        user_vote?: number;
         voter_daily_rdm?: { awarded?: boolean; amount?: number };
       };
+      if (typeof res.user_vote === "number") {
+        setMyVotes((prev) => {
+          const next = new Map(prev);
+          if (res.user_vote === 0) next.delete(voteKey);
+          else next.set(voteKey, res.user_vote as 1 | -1);
+          return next;
+        });
+      }
       if (res.upvotes !== undefined && res.downvotes !== undefined) {
         setDoubts((prev) =>
-          prev.map((d) =>
-            d.id === doubtId ? { ...d, upvotes: res.upvotes!, downvotes: res.downvotes! } : d
-          )
+          prev.map((d) => {
+            if (targetType === "doubt" && d.id === targetId) {
+              return { ...d, upvotes: res.upvotes!, downvotes: res.downvotes! };
+            }
+            if (targetType === "answer") {
+              const answers = d.doubt_answers ?? [];
+              if (!answers.some((a) => a.id === targetId)) return d;
+              return {
+                ...d,
+                doubt_answers: answers.map((a) =>
+                  a.id === targetId
+                    ? { ...a, upvotes: res.upvotes!, downvotes: res.downvotes! }
+                    : a
+                ),
+              };
+            }
+            return d;
+          })
         );
       }
       if (res.voter_daily_rdm?.awarded && res.voter_daily_rdm.amount) {
@@ -801,11 +922,15 @@ function DoubtsPageContent() {
 
   return (
     <ProtectedRoute allowRoles={["student"]}>
-      <AppLayout>
+      <AppLayout wideMain>
         <GyanDoubtsFocusTracker>
-          <GyanDailyChecklistTracker />
-          <div className="max-w-[1680px] mx-auto px-4 sm:px-5 py-4 sm:py-5 lg:py-6">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 xl:gap-7">
+          {/* Floating Daily Gyan button: mobile only (sidebar card replaces it on desktop) */}
+          <div className="lg:hidden">
+            <GyanDailyChecklistTracker />
+          </div>
+          <div
+            className={`grid min-h-0 grid-cols-1 ${gyanWallGridClass} ${gyanWallFontClass} gap-0 -mx-3 sm:-mx-4 lg:-mx-5`}
+          >
               {/* Left sidebar */}
               <DoubtLeftSidebar
                 profile={profile}
@@ -818,7 +943,6 @@ function DoubtsPageContent() {
                 askedCount={askedCount}
                 answeredCount={answeredCount}
                 savedCount={savedCount}
-                aiGeneratedCount={aiAuthoredDoubtCount}
                 unansweredOnly={unansweredOnly}
                 onToggleSubject={toggleSubject}
                 onSelectAllSubjects={() => setSubjectFilters([...DOUBT_FLAIRS])}
@@ -826,10 +950,11 @@ function DoubtsPageContent() {
                 onSetActivityView={setActivityView}
                 onSetSort={setSort}
                 onSetUnansweredOnly={setUnansweredOnly}
+                dailyGyanSlot={<GyanDailyChecklistSidebarCard />}
               />
 
-              {/* Center: header + tabs + feed — one scroll column (no sticky wall chrome) */}
-              <main className="lg:col-span-6 order-1 lg:order-2 min-w-0">
+              {/* Center: header + tabs + feed */}
+              <main className="order-1 lg:order-2 min-w-0 px-5 py-4 bg-[#03060e]">
                 <LiveQAHeader
                   todayCount={todayCount}
                   onAskClick={handleAskClick}
@@ -876,8 +1001,8 @@ function DoubtsPageContent() {
                           onRefresh={handleCommentSuccess}
                           profileAvatarUrl={profile?.avatar_url}
                           profileName={profile?.name}
-                          myVote={myVotes.get(d.id) ?? 0}
-                          onVote={handleVoteFeed}
+                          getMyVote={(type, id) => myVotes.get(`${type}:${id}`) ?? 0}
+                          onVote={handleVote}
                           currentUserId={user?.id ?? null}
                           isAdmin={isAdmin}
                           expectProfPiAnswer={Boolean(profPiPendingByDoubtId[d.id])}
@@ -914,7 +1039,6 @@ function DoubtsPageContent() {
                 postRewardRdm={gyanRdm.post}
                 wallTabKey={`${activeTab}-${activityView}`}
               />
-            </div>
           </div>
 
           <AskDoubtDialog

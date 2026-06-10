@@ -46,10 +46,9 @@ function displayUser(row: PlatformFeedbackRow) {
 
 interface FeedbackTabProps {
   initialId?: string | null;
-  onSelectId?: (id: string | null) => void;
 }
 
-export function FeedbackTab({ initialId, onSelectId }: FeedbackTabProps) {
+export function FeedbackTab({ initialId }: FeedbackTabProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [data, setData] = useState<Payload | null>(null);
@@ -137,7 +136,6 @@ export function FeedbackTab({ initialId, onSelectId }: FeedbackTabProps) {
 
   const handleSelect = (id: string) => {
     setSelectedId(id);
-    if (onSelectId) onSelectId(id);
   };
 
   return (

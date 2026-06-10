@@ -350,15 +350,7 @@ export default function TeacherProfile() {
             )}
           </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.15 }}
-            className="edu-card p-6"
-          >
-            <h3 className="font-display text-lg text-foreground mb-4">Settings</h3>
-            <ThemeSwitcher />
-          </motion.div>
+          <ThemeSwitcher />
         </div>
       </AppLayout>
     </ProtectedRoute>

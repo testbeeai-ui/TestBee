@@ -14,6 +14,10 @@ import { profileShouldForceOnboardingComplete } from "@/lib/profile/profileOnboa
 import { readPendingDeepLink } from "@/lib/auth/safeNextPath";
 import { AuthContext, type Profile } from "@/hooks/auth-context";
 import { triggerLoginNotificationEmail } from "@/lib/email/triggerLoginNotificationClient";
+import {
+  evaluateWhitelistGate,
+  waitlistBlockedAuthUrl,
+} from "@/lib/waitlist/whitelistGate";
 
 export type { Profile } from "@/hooks/auth-context";
 
@@ -63,16 +67,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       if (!isAdmin) {
-        // Query whitelisted approved_emails
-        const { data: approved } = (await supabase
-          .from("approved_emails" as any)
-          .select("role")
-          .eq("email", email.toLowerCase().trim())
-          .maybeSingle()) as any;
+        const gate = await evaluateWhitelistGate(supabase, {
+          userId,
+          email,
+          onboardingComplete: false,
+        });
 
-        if (!approved) {
-          console.warn(`[auth] Sign-in blocked: ${email} is not whitelisted.`);
-          // Clear user session locally and sign out
+        if (!gate.allowed) {
+          console.warn(`[auth] Sign-in blocked: ${email} is not whitelisted (${gate.reason}).`);
           setProfile(null);
           setSession(null);
           setUser(null);
@@ -82,19 +84,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             sessionStorage.removeItem("auth_intended_role");
             sessionStorage.removeItem("auth_redirect_after_login");
           } catch (_) {}
-          
+
           await supabase.auth.signOut({ scope: "local" });
           if (typeof window !== "undefined") {
-            window.location.assign("/auth?error=waitlist_not_approved");
+            let entryBase = "/auth";
+            try {
+              const stored = sessionStorage.getItem("auth_entry_base");
+              if (stored?.startsWith("/")) entryBase = stored;
+            } catch (_) {}
+            window.location.assign(
+              waitlistBlockedAuthUrl(window.location.origin, email, entryBase)
+            );
           }
           return;
         }
 
-        // Whitelisted! Ensure intended role matches approved role
-        if (approved) {
-          approvedRole = approved.role;
+        if (gate.approvedRole) {
+          approvedRole = gate.approvedRole;
           try {
-            sessionStorage.setItem("auth_intended_role", approved.role);
+            sessionStorage.setItem("auth_intended_role", gate.approvedRole);
           } catch (_) {}
         }
       }

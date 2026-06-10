@@ -1,8 +1,13 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { PREVIEW_AUTH_LEGACY_PATH, PREVIEW_AUTH_PATH } from "@/lib/auth/previewAuthPath";
 import { isPublicPath } from "@/lib/auth/publicPaths";
 import { createSupabaseMiddleware } from "@/lib/supabase/middleware";
 import { TEACHER_PORTAL_CLASSROOMS_URL } from "@/lib/teacherPortal/routes";
+import {
+  evaluateWhitelistGate,
+  waitlistBlockedAuthUrl,
+} from "@/lib/waitlist/whitelistGate";
 
 const STUDENT_ONLY_PREFIXES = [
   "/home",
@@ -44,6 +49,16 @@ export async function middleware(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
 
+  /** Legacy short preview login → obfuscated path (preserves query string). */
+  if (pathname === PREVIEW_AUTH_LEGACY_PATH || pathname.startsWith(`${PREVIEW_AUTH_LEGACY_PATH}/`)) {
+    const url = request.nextUrl.clone();
+    url.pathname =
+      pathname === PREVIEW_AUTH_LEGACY_PATH
+        ? PREVIEW_AUTH_PATH
+        : `${PREVIEW_AUTH_PATH}${pathname.slice(PREVIEW_AUTH_LEGACY_PATH.length)}`;
+    return NextResponse.redirect(url, 308);
+  }
+
   /** Legacy `/mock-test-library` links → `/mock-test`. Preserves `?paper=` etc. */
   if (pathname === "/mock-test-library" || pathname.startsWith("/mock-test-library/")) {
     const url = request.nextUrl.clone();
@@ -77,16 +92,31 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role, onboarding_complete")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  const gate = await evaluateWhitelistGate(supabase, {
+    userId: user.id,
+    email: user.email,
+    onboardingComplete: profile?.onboarding_complete === true,
+  });
+
+  if (!gate.allowed) {
+    const blockedPath = waitlistBlockedAuthUrl(request.nextUrl.origin, user.email);
+    const url = request.nextUrl.clone();
+    const blocked = new URL(blockedPath, request.url);
+    url.pathname = blocked.pathname;
+    url.search = blocked.search;
+    return NextResponse.redirect(url);
+  }
+
   const needsStudentRole = isStudentOnlyPath(pathname);
   const needsTeacherPortalProfile = isStudentProfilePath(pathname);
 
   if (needsStudentRole || needsTeacherPortalProfile) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .maybeSingle();
-
     if (needsStudentRole && profile?.role === "teacher") {
       const url = request.nextUrl.clone();
       const target = new URL(TEACHER_PORTAL_CLASSROOMS_URL, request.url);

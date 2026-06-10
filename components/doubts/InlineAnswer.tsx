@@ -1,7 +1,7 @@
 "use client";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ChevronUp, Check, GraduationCap } from "lucide-react";
+import { Check, GraduationCap, ThumbsUp } from "lucide-react";
 import { UserHoverCard } from "@/components/UserHoverCard";
 import { formatTimeAgo, type ExpandedAnswer } from "./doubtTypes";
 
@@ -14,7 +14,7 @@ export default function InlineAnswer({ answer }: InlineAnswerProps) {
   const isAccepted = answer.is_accepted;
   const name = answer.profiles?.name ?? "Student";
   const initials = name.slice(0, 2).toUpperCase();
-  const net = answer.upvotes - answer.downvotes;
+  const likeCount = answer.upvotes;
 
   return (
     <div
@@ -43,12 +43,14 @@ export default function InlineAnswer({ answer }: InlineAnswerProps) {
         <span className="text-xs text-muted-foreground">{formatTimeAgo(answer.created_at)}</span>
       </div>
       <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{answer.body}</p>
-      <div className="flex items-center gap-3 mt-2">
-        <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-          <ChevronUp className="w-3.5 h-3.5" />{" "}
-          {net > 0 ? `${net} helpful` : net === 0 ? "0" : `${net}`}
-        </span>
-      </div>
+      {likeCount > 0 ? (
+        <div className="flex items-center gap-1.5 mt-2">
+          <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[#378ADD]">
+            <ThumbsUp className="h-2.5 w-2.5 text-white fill-white" />
+          </span>
+          <span className="text-xs text-muted-foreground tabular-nums">{likeCount}</span>
+        </div>
+      ) : null}
     </div>
   );
 }

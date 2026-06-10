@@ -318,3 +318,179 @@ export function GyanDailyChecklistTracker() {
     </>
   );
 }
+/**
+ * Compact inline card for the left sidebar — shows daily Gyan++ task progress
+ * at a glance without the floating fixed button. Opens the same panel.
+ */
+export function GyanDailyChecklistSidebarCard() {
+  const { user } = useAuth();
+  const [open, setOpen] = useState(false);
+  const [data, setData] = useState<DailyChecklistApiResponse | null>(null);
+  const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const committedRef = useRef(false);
+
+  const load = useCallback(async () => {
+    if (!user?.id) { setData(null); setStatus("idle"); return; }
+    const silent = committedRef.current;
+    if (!silent) setStatus("loading");
+    try {
+      const { today, dayStart, dayEnd } = localDayBoundsIso();
+      const q = new URLSearchParams({ today, dayStart, dayEnd, subjects: CHECKLIST_SUBJECTS_PARAM });
+      const json = await fetchDailyChecklist(q);
+      if (!json) { if (!silent) setStatus("error"); return; }
+      setData(json); committedRef.current = true; setStatus("ready");
+    } catch { if (!silent) setStatus("error"); }
+  }, [user?.id]);
+
+  useEffect(() => { committedRef.current = false; }, [user?.id]);
+  useEffect(() => { void load(); }, [load]);
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      if (document.visibilityState === "visible") void load();
+    }, POLL_MS);
+    return () => window.clearInterval(id);
+  }, [load]);
+
+  const focusMs = data?.gyanPlusProgress.focusMs ?? 0;
+  const saves = data?.gyanPlusProgress.savesToday ?? 0;
+  const community = data?.gyanPlusProgress.communityActionsToday ?? 0;
+  const pendingFocus = useGyanDoubtsPendingFocusMs();
+  const liveFocusMs = Math.min(FIVE_MIN_MS, focusMs + pendingFocus);
+
+  const timeDone = Boolean(data?.gyanPlusDone) || liveFocusMs >= FIVE_MIN_MS;
+  const savesDone = saves >= 1;
+  const communityDone = community >= 1;
+  const doneCount = (timeDone ? 1 : 0) + (savesDone ? 1 : 0) + (communityDone ? 1 : 0);
+  const allDone = doneCount === 3;
+
+  if (!user?.id) return null;
+
+  return (
+    <>
+      {/* Inline card trigger */}
+      <button
+        type="button"
+        onClick={() => { setOpen((v) => !v); }}
+        className={cn(
+          "w-full rounded-xl border px-3.5 py-3 text-left transition-all duration-200",
+          allDone
+            ? "border-emerald-500/30 bg-emerald-950/20 hover:border-emerald-500/50"
+            : "border-white/[0.06] bg-[#070c18]/60 hover:border-white/[0.1]"
+        )}
+      >
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <ListChecks className={cn("w-3.5 h-3.5 shrink-0", allDone ? "text-emerald-400" : "text-slate-400")} />
+            <span className={cn("text-xs font-semibold", allDone ? "text-emerald-400" : "text-white")}>
+              Daily Gyan
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            {/* 3 task dots */}
+            {[timeDone, savesDone, communityDone].map((done, i) => (
+              <span
+                key={i}
+                className={cn(
+                  "w-2 h-2 rounded-full transition-all",
+                  done ? "bg-emerald-500" : "bg-white/10"
+                )}
+              />
+            ))}
+          </div>
+        </div>
+        <p className="text-[11px] mt-1 text-slate-500">
+          {allDone ? "All 3 tasks done today 🎉" : `${doneCount}/3 tasks complete today`}
+        </p>
+      </button>
+
+      {/* Modal panel */}
+      {open && (
+        <>
+          <button
+            type="button"
+            aria-label="Close checklist backdrop"
+            className="fixed inset-0 z-[47] bg-black/30 backdrop-blur-[1px]"
+            onClick={() => setOpen(false)}
+          />
+          <div
+            className="fixed z-[48] inset-x-2 bottom-4 sm:inset-x-auto sm:left-[4.5rem] sm:bottom-auto sm:top-[max(7rem,24vh)] sm:w-[min(84vw,22rem)] max-h-[70vh] overflow-hidden rounded-2xl border border-emerald-500/35 bg-gradient-to-b from-[#070c18] via-[#070c18] to-emerald-950/20 font-sans shadow-2xl shadow-emerald-950/35"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Gyan++ daily checklist"
+          >
+            <div className="border-b border-white/[0.06] px-4 pt-4 pb-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="flex items-center gap-2 text-sm font-semibold text-emerald-400">
+                    <ListChecks className="h-3.5 w-3.5 shrink-0" />
+                    Today on Gyan++
+                  </h3>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {doneCount}/3 done — finish all three to tick your dashboard checklist.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  aria-label="Close checklist"
+                  className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.04] text-slate-400 hover:text-white"
+                  onClick={() => setOpen(false)}
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+            <div className="max-h-[52vh] overflow-y-auto px-4 py-3.5">
+              {status === "loading" && !data ? (
+                <div className="flex items-center gap-2 py-4 text-xs text-slate-500">
+                  <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+                </div>
+              ) : status === "error" && !data ? (
+                <p className="text-xs text-rose-400 py-2">Could not load checklist. Try refreshing.</p>
+              ) : (
+                <div className="space-y-2">
+                  <TrackerRow
+                    done={timeDone}
+                    icon={<Clock className="h-4 w-4" />}
+                    title={timeDone ? "Feed time — goal met" : "Stay on this feed (tab visible)"}
+                    detail={timeDone ? "At least 5 minutes counted today." : "Timer runs while Gyan++ is open and visible."}
+                    end={<GyanFeedFocusTimer serverMs={focusMs} goalMs={FIVE_MIN_MS} />}
+                  />
+                  {!timeDone && (
+                    <div className="h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
+                      <div
+                        className="h-full rounded-full bg-emerald-500/80 transition-all"
+                        style={{ width: `${Math.min(100, Math.round((100 * liveFocusMs) / FIVE_MIN_MS))}%` }}
+                      />
+                    </div>
+                  )}
+                  <TrackerRow
+                    done={savesDone}
+                    icon={<Bookmark className="h-4 w-4" />}
+                    title={savesDone ? "Saved for revision" : "Save 1 doubt for revision"}
+                    detail={savesDone ? "You saved at least one post today." : `${saves} / 1 · bookmark a card in the feed`}
+                  />
+                  <TrackerRow
+                    done={communityDone}
+                    icon={<Users className="h-4 w-4" />}
+                    title={communityDone ? "Community action done" : "Engage with someone's post"}
+                    detail={communityDone ? "Upvoted, downvoted or commented today." : `${community} / 1 · vote or comment on a thread`}
+                  />
+                </div>
+              )}
+              <div className="mt-4 flex items-center gap-x-3 border-t border-white/[0.06] pt-3 text-[11px]">
+                <button type="button" className="font-semibold text-[#A8D5C5] hover:underline" onClick={() => void load()}>
+                  Refresh
+                </button>
+                <span className="text-slate-600">·</span>
+                <Link href="/home" className="font-semibold text-[#A8D5C5] hover:underline" onClick={() => setOpen(false)}>
+                  Full checklist
+                </Link>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </>
+  );
+}
