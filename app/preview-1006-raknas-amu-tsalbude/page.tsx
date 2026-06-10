@@ -18,6 +18,10 @@ import {
 } from "@/lib/auth/safeNextPath";
 import { TEACHER_PORTAL_CLASSROOMS_URL } from "@/lib/teacherPortal/routes";
 import { OnboardingTermsAcceptance } from "@/components/legal/OnboardingTermsAcceptance";
+import {
+  getCanonicalSiteOrigin,
+  isVercelPreviewHostname,
+} from "@/lib/auth/canonicalSignInOrigin";
 import { isOAuthAuthorizationCode } from "@/lib/auth/oauthCallbackRedirect";
 import { PREVIEW_AUTH_PATH } from "@/lib/auth/previewAuthPath";
 
@@ -105,6 +109,13 @@ function PreviewAuthContent() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    const host = window.location.hostname;
+    if (isVercelPreviewHostname(host)) {
+      const target = new URL(`${getCanonicalSiteOrigin()}${PREVIEW_AUTH_PATH}`);
+      target.search = window.location.search;
+      window.location.replace(target.toString());
+      return;
+    }
     const hash = window.location.hash;
     if (hash && hash.includes("access_token")) {
       window.location.replace("/auth/callback/finish" + hash);

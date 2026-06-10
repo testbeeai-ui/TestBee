@@ -1,9 +1,10 @@
+import { createServerClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
+import type { Database } from "@/integrations/supabase/types";
 import { isOAuthAuthorizationCode } from "@/lib/auth/oauthCallbackRedirect";
-import { createClient } from "@/integrations/supabase/server";
 
 /**
- * Exchange Google OAuth PKCE code on the server (cookies), then hand off to /auth/callback/finish.
+ * Exchange Google OAuth PKCE code on the server and attach session cookies to the redirect.
  * Supabase redirect URL must be: {origin}/auth/callback
  */
 export async function GET(request: NextRequest) {
@@ -15,14 +16,35 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(finish);
   }
 
-  const supabase = await createClient();
+  let response = NextResponse.redirect(finish);
+
+  const supabase = createServerClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+          response = NextResponse.redirect(finish);
+          cookiesToSet.forEach(({ name, value, options }) =>
+            response.cookies.set(name, value, options)
+          );
+        },
+      },
+    }
+  );
+
   const { error } = await supabase.auth.exchangeCodeForSession(code);
 
   if (error) {
     finish.searchParams.set("error", "oauth_exchange_failed");
     finish.searchParams.set("error_description", error.message);
-    return NextResponse.redirect(finish);
+    response = NextResponse.redirect(finish);
+    return response;
   }
 
-  return NextResponse.redirect(finish);
+  return response;
 }
