@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { shouldRedirectOAuthCodeToCallback } from "@/lib/auth/oauthCallbackRedirect";
+import {
+  isOAuthAuthorizationCode,
+  shouldRedirectOAuthCodeToCallback,
+} from "@/lib/auth/oauthCallbackRedirect";
 import { PREVIEW_AUTH_LEGACY_PATHS, PREVIEW_AUTH_PATH } from "@/lib/auth/previewAuthPath";
 import { isPublicPath } from "@/lib/auth/publicPaths";
 import { createSupabaseMiddleware } from "@/lib/supabase/middleware";
@@ -82,6 +85,11 @@ export async function middleware(request: NextRequest) {
 
   // API routes enforce their own auth; avoid session refresh work on every API call.
   if (pathname.startsWith("/api/")) {
+    return NextResponse.next();
+  }
+
+  /** Let the route handler exchange PKCE without middleware touching the session first. */
+  if (pathname === "/auth/callback" && isOAuthAuthorizationCode(oauthCode)) {
     return NextResponse.next();
   }
 
