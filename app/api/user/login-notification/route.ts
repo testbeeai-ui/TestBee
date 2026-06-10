@@ -52,7 +52,7 @@ function resolveDisplayName(
 
 /** POST — welcome letter for new accounts; login confirmation for returning students. */
 export async function POST(req: NextRequest) {
-  const auth = await getSupabaseAndUser(req);
+  const auth = await getSupabaseAndUser(req, { enforceWhitelist: false });
   if (!auth) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

@@ -214,9 +214,17 @@ export async function POST(request: Request) {
         );
       }
 
+      if (normalizeWaitlistEmail(byId.email) !== email) {
+        return NextResponse.json(
+          { error: "Waitlist ID does not match the submitted email address." },
+          { status: 409 }
+        );
+      }
+
       const { error } = await table
         .update(ambassadorRow)
-        .eq("waitlist_id", waitlistIdStr);
+        .eq("waitlist_id", waitlistIdStr)
+        .eq("email", email);
 
       if (error) {
         console.error("[POST /api/waitlist] Ambassador update error:", error);
@@ -240,24 +248,13 @@ export async function POST(request: Request) {
       .maybeSingle();
 
     if (byEmail) {
-      const { error } = await table
-        .update(ambassadorRow)
-        .eq("email", email);
-
-      if (error) {
-        console.error("[POST /api/waitlist] Ambassador email update error:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
-      }
-
-      const emailSent = await sendAmbassadorApplicationEmail({
-        waitlistId: byEmail.waitlist_id,
-        firstName: ambassadorRow.first_name,
-        lastName: ambassadorRow.last_name,
-        email,
-        role,
-      });
-
-      return NextResponse.json({ ok: true, waitlistId: byEmail.waitlist_id, emailSent });
+      return NextResponse.json(
+        {
+          error:
+            "This email is already on the waitlist. Use the waitlist ID from your confirmation email to complete Step 2.",
+        },
+        { status: 409 }
+      );
     }
 
     const generatedId = await generateNextWaitlistId(writer);

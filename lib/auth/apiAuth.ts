@@ -1,4 +1,31 @@
 import { createClient, createClientWithToken } from "@/integrations/supabase/server";
+import { evaluateWhitelistGate } from "@/lib/waitlist/whitelistGate";
+import type { User } from "@supabase/supabase-js";
+
+type ApiAuthOptions = {
+  /** Set false only for endpoints that intentionally perform their own whitelist decision. */
+  enforceWhitelist?: boolean;
+};
+
+type ApiAuthContext = {
+  supabase: Awaited<ReturnType<typeof createClient>>;
+  user: User;
+};
+
+async function maybeApplyWhitelistGate(
+  ctx: ApiAuthContext,
+  options: ApiAuthOptions
+): Promise<ApiAuthContext | null> {
+  if (options.enforceWhitelist === false) return ctx;
+
+  const gate = await evaluateWhitelistGate(ctx.supabase, {
+    userId: ctx.user.id,
+    email: ctx.user.email,
+    onboardingComplete: false,
+  });
+
+  return gate.allowed ? ctx : null;
+}
 
 /**
  * Resolve Supabase client + user from cookies or Bearer token (API routes).
@@ -6,7 +33,10 @@ import { createClient, createClientWithToken } from "@/integrations/supabase/ser
  * as the client (e.g. Prof-Pi right after posting a doubt). Cookie-only first would ignore a
  * valid Bearer and could mis-attribute the caller in edge cases.
  */
-export async function getSupabaseAndUser(request: Request) {
+export async function getSupabaseAndUser(
+  request: Request,
+  options: ApiAuthOptions = {}
+) {
   const cookieClient = await createClient();
   const bearer =
     request.headers
@@ -20,10 +50,13 @@ export async function getSupabaseAndUser(request: Request) {
       error,
     } = await cookieClient.auth.getUser(bearer);
     if (!error && tokenUser) {
-      return { supabase: createClientWithToken(bearer), user: tokenUser };
+      return maybeApplyWhitelistGate(
+        { supabase: createClientWithToken(bearer), user: tokenUser },
+        options
+      );
     }
   }
 
   const user = (await cookieClient.auth.getUser()).data?.user ?? null;
-  return user ? { supabase: cookieClient, user } : null;
+  return user ? maybeApplyWhitelistGate({ supabase: cookieClient, user }, options) : null;
 }
