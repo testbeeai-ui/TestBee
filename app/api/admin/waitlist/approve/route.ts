@@ -3,8 +3,7 @@ import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
 import { isAdminUser } from "@/lib/admin/admin";
 import { createAdminClient } from "@/integrations/supabase/server";
 import { waitlistSubmissionsTable } from "@/lib/waitlist/waitlistDb";
-import { sendEmail } from "@/lib/email/emailService";
-import { buildApprovalInviteEmail } from "@/lib/email/approvalInviteEmail";
+import { sendApprovalInviteEmail } from "@/lib/email/sendApprovalInviteEmail";
 
 export async function POST(request: Request) {
   try {
@@ -82,27 +81,19 @@ export async function POST(request: Request) {
       console.error("[approve waitlist] Failed to update status:", updateErr.message);
     }
 
-    const invite = buildApprovalInviteEmail({
+    const emailRes = await sendApprovalInviteEmail({
       firstName,
       email,
       role,
       customMessage,
-    });
-
-    const emailRes = await sendEmail({
-      to: email,
-      subject: invite.subject,
-      html: invite.html,
-      log: {
-        kind: "other",
-        userId: ctx.user.id,
-      },
+      adminUserId: ctx.user.id,
     });
 
     return NextResponse.json({
       success: true,
       emailSent: emailRes.success,
-      emailError: !emailRes.success ? (emailRes as any).error : null,
+      emailError: !emailRes.success ? emailRes.error : null,
+      signupUrl: emailRes.success ? emailRes.signupUrl : null,
     });
   } catch (err) {
     console.error("[POST /api/admin/waitlist/approve] Server error:", err);

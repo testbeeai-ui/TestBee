@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { PREVIEW_AUTH_LEGACY_PATH, PREVIEW_AUTH_PATH } from "@/lib/auth/previewAuthPath";
+import { PREVIEW_AUTH_LEGACY_PATHS, PREVIEW_AUTH_PATH } from "@/lib/auth/previewAuthPath";
 import { isPublicPath } from "@/lib/auth/publicPaths";
 import { createSupabaseMiddleware } from "@/lib/supabase/middleware";
 import { TEACHER_PORTAL_CLASSROOMS_URL } from "@/lib/teacherPortal/routes";
@@ -49,14 +49,16 @@ export async function middleware(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
 
-  /** Legacy short preview login → obfuscated path (preserves query string). */
-  if (pathname === PREVIEW_AUTH_LEGACY_PATH || pathname.startsWith(`${PREVIEW_AUTH_LEGACY_PATH}/`)) {
-    const url = request.nextUrl.clone();
-    url.pathname =
-      pathname === PREVIEW_AUTH_LEGACY_PATH
-        ? PREVIEW_AUTH_PATH
-        : `${PREVIEW_AUTH_PATH}${pathname.slice(PREVIEW_AUTH_LEGACY_PATH.length)}`;
-    return NextResponse.redirect(url, 308);
+  /** Legacy preview login paths → canonical preview path (preserves query string). */
+  for (const legacy of PREVIEW_AUTH_LEGACY_PATHS) {
+    if (pathname === legacy || pathname.startsWith(`${legacy}/`)) {
+      const url = request.nextUrl.clone();
+      url.pathname =
+        pathname === legacy
+          ? PREVIEW_AUTH_PATH
+          : `${PREVIEW_AUTH_PATH}${pathname.slice(legacy.length)}`;
+      return NextResponse.redirect(url, 308);
+    }
   }
 
   /** Legacy `/mock-test-library` links → `/mock-test`. Preserves `?paper=` etc. */
