@@ -26,6 +26,7 @@ export async function sendApprovalInviteEmail(
     to: cleanEmail,
     subject: invite.subject,
     html: invite.html,
+    text: invite.text,
     log: {
       kind: "approval",
       userId: input.adminUserId ?? null,

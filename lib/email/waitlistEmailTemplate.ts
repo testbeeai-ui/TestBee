@@ -27,7 +27,8 @@ const EMAIL_SHELL = `<!DOCTYPE html>
 </table></td></tr></table>
 </body></html>`;
 
-function wrapEmailBody(bodyHtml: string): string {
+/** Shared dark-shell wrapper used by waitlist + approval invite emails. */
+export function wrapTransactionalEmailBody(bodyHtml: string): string {
   const siteBase = EDUBLAST_WAITLIST_SITE.replace(/\/$/, "");
   const logoBase = getWaitlistEmailLogoBase();
   return applyEmailTemplate(EMAIL_SHELL, {
@@ -84,7 +85,7 @@ export function buildWaitlistConfirmationEmail(params: WaitlistConfirmationEmail
 
   return {
     subject: `You're on the EduBlast waitlist (${waitlistId})`,
-    html: wrapEmailBody(bodyHtml),
+    html: wrapTransactionalEmailBody(bodyHtml),
     text,
   };
 }
@@ -151,7 +152,7 @@ export function buildAmbassadorApplicationEmail(params: AmbassadorApplicationEma
     subject: isAmbassadorRole
       ? `Ambassador application received — ${waitlistId}`
       : `Waitlist application received — ${waitlistId}`,
-    html: wrapEmailBody(bodyHtml),
+    html: wrapTransactionalEmailBody(bodyHtml),
     text,
   };
 }

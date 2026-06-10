@@ -9,6 +9,8 @@ import { QuickWaitlistForm } from "@/components/waitlist/QuickWaitlistForm";
 import { AmbassadorSidePanel } from "@/components/waitlist/AmbassadorSidePanel";
 import { AmbassadorApplicationModal } from "@/components/waitlist/AmbassadorApplicationModal";
 import { WAITLIST_INTERESTS } from "@/components/waitlist/waitlist-constants";
+import { formatApiError } from "@/lib/waitlist/formatApiError";
+import { normalizeIndianMobile } from "@/lib/waitlist/phone";
 import {
   Rocket,
   Star,
@@ -157,7 +159,7 @@ function WaitlistContent() {
     firstName.trim() &&
     lastName.trim() &&
     quickEmail.trim() &&
-    quickPhone.trim() &&
+    normalizeIndianMobile(quickPhone).ok &&
     city.trim() &&
     state.trim() &&
     c1 &&
@@ -166,11 +168,11 @@ function WaitlistContent() {
   const handleStep1Success = (id: string) => {
     setWaitlistId(id);
     setStep1Complete(true);
-    if (pendingRoleRef.current) {
-      setRole(pendingRoleRef.current);
-    }
+    const nextRole = pendingRoleRef.current ?? "student";
+    setRole(nextRole);
     setTimeout(() => {
       step2Ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      setAmbassadorModalOpen(true);
     }, 300);
   };
 
@@ -190,6 +192,12 @@ function WaitlistContent() {
     setSubmitting(true);
     setSubmitError("");
 
+    const mobile = normalizeIndianMobile(quickPhone);
+    if (!mobile.ok) {
+      setSubmitError(mobile.error);
+      return;
+    }
+
     try {
       const res = await fetch("/api/waitlist", {
         method: "POST",
@@ -201,7 +209,7 @@ function WaitlistContent() {
           firstName,
           lastName,
           email: quickEmail,
-          phone: quickPhone,
+          phone: mobile.phone,
           city,
           state,
           studentClass,
@@ -230,7 +238,9 @@ function WaitlistContent() {
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || "Failed to submit. Please try again.");
+        throw new Error(
+          formatApiError(data.error, "Failed to submit. Please try again.")
+        );
       }
 
       setWaitlistId(data.waitlistId);

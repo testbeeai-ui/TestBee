@@ -10,6 +10,7 @@ import {
   isWaitlistTestEmail,
   normalizeWaitlistEmail,
 } from "@/lib/waitlist/waitlistId";
+import { normalizeIndianMobile } from "@/lib/waitlist/phone";
 
 type WaitlistRole = "student" | "teacher" | "parent" | "other";
 
@@ -36,14 +37,16 @@ export async function POST(request: Request) {
 
     const email =
       typeof body.email === "string" ? normalizeWaitlistEmail(body.email) : "";
-    const phone = typeof body.phone === "string" ? body.phone.trim() : "";
+    const phoneRaw = typeof body.phone === "string" ? body.phone : "";
+    const phoneResult = normalizeIndianMobile(phoneRaw);
 
     if (!email) {
       return NextResponse.json({ error: "Missing email address" }, { status: 400 });
     }
-    if (!phone) {
-      return NextResponse.json({ error: "Missing phone number" }, { status: 400 });
+    if (!phoneResult.ok) {
+      return NextResponse.json({ error: phoneResult.error }, { status: 400 });
     }
+    const phone = phoneResult.phone;
 
     const supabase = await createClient();
     const admin = createAdminClient();

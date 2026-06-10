@@ -14,6 +14,8 @@ import {
   Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatApiError } from "@/lib/waitlist/formatApiError";
+import { normalizeIndianMobile, sanitizeMobileInput } from "@/lib/waitlist/phone";
 import {
   WAITLIST_METRICS,
   earlyPreviewSpotsRemaining,
@@ -42,15 +44,26 @@ export function QuickWaitlistForm({
   const [c3, setC3] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const [phoneHint, setPhoneHint] = useState("");
   const [alreadyRegistered, setAlreadyRegistered] = useState(false);
 
-  const isValid = email.trim() && phone.trim() && c3;
+  const phoneNormalized = normalizeIndianMobile(phone);
+  const isValid =
+    email.trim() && phoneNormalized.ok && c3;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isValid || completed) return;
     setSubmitting(true);
     setSubmitError("");
+    setPhoneHint("");
+
+    const mobile = normalizeIndianMobile(phone);
+    if (!mobile.ok) {
+      setPhoneHint(mobile.error);
+      setSubmitting(false);
+      return;
+    }
 
     try {
       const res = await fetch("/api/waitlist", {
@@ -59,13 +72,15 @@ export function QuickWaitlistForm({
         body: JSON.stringify({
           signupTier: "waitlist",
           email,
-          phone,
+          phone: mobile.phone,
           c3,
         }),
       });
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || "Failed to submit. Please try again.");
+        throw new Error(
+          formatApiError(data.error, "Failed to submit. Please try again.")
+        );
       }
       if (data.alreadyRegistered) {
         setAlreadyRegistered(true);
@@ -178,13 +193,22 @@ export function QuickWaitlistForm({
           <Smartphone className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#5C6480]" />
           <input
             type="tel"
-            placeholder="+91 98765 43210"
+            inputMode="numeric"
+            autoComplete="tel-national"
+            placeholder="9876543210"
             value={phone}
-            onChange={(e) => onPhoneChange(e.target.value)}
+            onChange={(e) => {
+              onPhoneChange(sanitizeMobileInput(e.target.value));
+              setPhoneHint("");
+              setSubmitError("");
+            }}
             className="w-full rounded-lg border border-[#2A3347]/80 bg-[#1C2333] py-2 pl-9 pr-3 text-[13px] text-[#E8EAF0] outline-none transition focus:border-[#1D9E75] focus:shadow-[0_0_0_2px_rgba(29,158,117,0.15)]"
             required
           />
         </div>
+        {phoneHint ? (
+          <p className="mb-2.5 text-[11px] text-rose-400">{phoneHint}</p>
+        ) : null}
 
         <div className="mb-3 flex items-start gap-1.5 rounded-lg border border-[#4a3010] bg-[#281C08] px-2.5 py-2 text-[11px] leading-snug text-[#FAC775]">
           <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#EF9F27]" />
