@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 import { createAdminClient, createClient } from "@/integrations/supabase/server";
+
+export const dynamic = "force-dynamic";
+
 import {
   sendAmbassadorApplicationEmail,
   sendWaitlistConfirmationEmail,

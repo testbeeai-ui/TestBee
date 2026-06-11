@@ -39,7 +39,7 @@ function WaitlistContent() {
   const [waitlistId, setWaitlistId] = useState("");
   const [quickEmail, setQuickEmail] = useState("");
   const [quickPhone, setQuickPhone] = useState("");
-  const [dynamicJoinedCount, setDynamicJoinedCount] = useState(253);
+  const [dynamicJoinedCount, setDynamicJoinedCount] = useState(252);
 
   useEffect(() => {
     const r = searchParams.get("role");
@@ -50,13 +50,13 @@ function WaitlistContent() {
   }, [searchParams]);
 
   useEffect(() => {
-    fetch("/api/waitlist")
+    fetch("/api/waitlist", { cache: "no-store" })
       .then((res) => res.json())
       .then((data) => {
         if (data.ok && data.nextId) {
           const num = parseInt(data.nextId.replace("EB-2026-", ""), 10);
           if (!isNaN(num)) {
-            setDynamicJoinedCount(num);
+            setDynamicJoinedCount(num - 1);
           }
         }
       })
@@ -186,7 +186,7 @@ function WaitlistContent() {
     setStep1Complete(true);
     const num = parseInt(id.replace("EB-2026-", ""), 10);
     if (!isNaN(num)) {
-      setDynamicJoinedCount(num + 31);
+      setDynamicJoinedCount(num);
     }
     const nextRole = pendingRoleRef.current ?? "student";
     setRole(nextRole);

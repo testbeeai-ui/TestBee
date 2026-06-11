@@ -323,7 +323,7 @@ export default function WaitlistModal({ open, onOpenChange }: WaitlistModalProps
               {/* Stats Card */}
               <div className="grid grid-cols-3 gap-2">
                 {[
-                  { num: "253", lbl: "on the waitlist", color: "text-[#1D9E75]" },
+                  { num: "252", lbl: "on the waitlist", color: "text-[#1D9E75]" },
                   { num: "18", lbl: "ambassadors shortlisted", color: "text-[#EF9F27]" },
                   { num: "India-wide", lbl: "Phase 1 launch", color: "text-[#7F77DD]" },
                 ].map((s) => (
@@ -1089,7 +1089,7 @@ export default function WaitlistModal({ open, onOpenChange }: WaitlistModalProps
                   {
                     icon: <Star className="h-4 w-4 text-[#7F77DD]" />,
                     bg: "bg-[#171425] border-[#7F77DD]/15 text-[#9BA3B8]",
-                    text: "Share EduBlast with classmates or students across India. Each person you refer who joins the waitlist strengthens your ambassador application.",
+                    text: "Share EduBlast website with classmates or students across India. Each person who joins the website post-live strengthens your application for Ambassador.",
                   },
                 ].map((step, idx) => (
                   <div key={idx} className={`flex items-start gap-3 p-3 rounded-lg border ${step.bg} text-xs leading-relaxed`}>
