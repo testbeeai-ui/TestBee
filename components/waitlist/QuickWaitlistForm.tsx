@@ -143,7 +143,7 @@ export function QuickWaitlistForm({
             </div>
             <div className="flex items-start gap-2.5 p-2.5 bg-[#1C2333]/80 border border-[#2A3347]/80 rounded-lg text-xs leading-relaxed text-[#9BA3B8]">
               <User className="h-[16px] w-[16px] text-[#85B7EB] shrink-0 mt-0.5" />
-              <span>Share EduBlast with classmates. Each referral who joins the waitlist strengthens your application.</span>
+              <span>Share EduBlast website with classmates. Each person who joins the waitlist strengthens your application.</span>
             </div>
           </div>
         </div>
@@ -182,7 +182,7 @@ export function QuickWaitlistForm({
             </div>
             <div className="flex items-start gap-2.5 p-2.5 bg-[#1C2333]/80 border border-[#2A3347]/80 rounded-lg text-xs leading-relaxed text-[#9BA3B8]">
               <User className="h-[16px] w-[16px] text-[#85B7EB] shrink-0 mt-0.5" />
-              <span>Share EduBlast with classmates. Each referral who joins the waitlist strengthens your application.</span>
+              <span>Share EduBlast website with classmates. Each person who joins the waitlist strengthens your application.</span>
             </div>
           </div>
         </div>
