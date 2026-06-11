@@ -11,6 +11,7 @@ import {
   Rocket,
   Smartphone,
   Star,
+  User,
   Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -57,8 +58,8 @@ export function QuickWaitlistForm({
   const [alreadyRegistered, setAlreadyRegistered] = useState(false);
   
   const idNumber = waitlistJoined - 30;
-  // Decrements from 47 down to 10 as idNumber increases from 217, looping back to 47
-  const spotsRemaining = 47 - (Math.max(0, idNumber - 217) % 38);
+  // Decrements from 47 down to 1 as idNumber increases from 222, looping back to 47
+  const spotsRemaining = 47 - (Math.max(0, idNumber - 222) % 47);
 
   const isEmailValid = isValidEmail(email);
   const phoneNormalized = normalizeIndianMobile(phone);
@@ -135,6 +136,17 @@ export function QuickWaitlistForm({
               Waitlist ID: <span className="font-mono font-semibold text-white bg-[#1D9E75]/20 px-1.5 py-0.5 rounded">EB-2026-{waitlistId.replace("EB-2026-", "")}</span>
             </div>
           )}
+          
+          <div className="mt-4 flex flex-col gap-2 text-left">
+            <div className="flex items-start gap-2.5 p-2.5 bg-[#1C2333]/80 border border-[#2A3347]/80 rounded-lg text-xs leading-relaxed text-[#9BA3B8]">
+              <Mail className="h-[16px] w-[16px] text-[#1D9E75] shrink-0 mt-0.5" />
+              <span>A confirmation email is on its way. Check your spam folder if it doesn&apos;t arrive shortly.</span>
+            </div>
+            <div className="flex items-start gap-2.5 p-2.5 bg-[#1C2333]/80 border border-[#2A3347]/80 rounded-lg text-xs leading-relaxed text-[#9BA3B8]">
+              <User className="h-[16px] w-[16px] text-[#85B7EB] shrink-0 mt-0.5" />
+              <span>Share EduBlast with classmates. Each referral who joins the waitlist strengthens your application.</span>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -163,6 +175,17 @@ export function QuickWaitlistForm({
               Waitlist ID: <span className="font-mono font-semibold text-white bg-[#1D9E75]/20 px-1.5 py-0.5 rounded">EB-2026-{waitlistId.replace("EB-2026-", "")}</span>
             </div>
           )}
+
+          <div className="mt-4 flex flex-col gap-2 text-left">
+            <div className="flex items-start gap-2.5 p-2.5 bg-[#1C2333]/80 border border-[#2A3347]/80 rounded-lg text-xs leading-relaxed text-[#9BA3B8]">
+              <Mail className="h-[16px] w-[16px] text-[#1D9E75] shrink-0 mt-0.5" />
+              <span>A confirmation email is on its way. Check your spam folder if it doesn&apos;t arrive shortly.</span>
+            </div>
+            <div className="flex items-start gap-2.5 p-2.5 bg-[#1C2333]/80 border border-[#2A3347]/80 rounded-lg text-xs leading-relaxed text-[#9BA3B8]">
+              <User className="h-[16px] w-[16px] text-[#85B7EB] shrink-0 mt-0.5" />
+              <span>Share EduBlast with classmates. Each referral who joins the waitlist strengthens your application.</span>
+            </div>
+          </div>
         </div>
       </div>
     );

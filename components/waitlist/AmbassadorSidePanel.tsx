@@ -291,7 +291,14 @@ export function AmbassadorSidePanel({
 
       <div className="mb-3.5 grid grid-cols-3 gap-1.5">
         {WAITLIST_STATS.map((s) => {
-          const displayNum = s.lbl === "on the waitlist" ? String(waitlistJoined) : s.num;
+          let displayNum = s.num;
+          if (s.lbl === "on the waitlist") {
+            displayNum = String(waitlistJoined);
+          } else if (s.lbl === "ambassadors selected") {
+            const idNumber = waitlistJoined - 30;
+            const cycleOffset = Math.max(0, idNumber - 222) % 47;
+            displayNum = String(23 + cycleOffset);
+          }
           return (
             <div
               key={s.lbl}

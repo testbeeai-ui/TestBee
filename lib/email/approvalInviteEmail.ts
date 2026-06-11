@@ -61,7 +61,7 @@ export function buildApprovalInviteEmail(params: ApprovalInviteEmailParams): {
 
   return {
     subject: `EduBlast early access approved — sign in now (${email})`,
-    html: wrapTransactionalEmailBody(bodyHtml),
+    html: wrapTransactionalEmailBody(bodyHtml, email),
     text,
     signupUrl: signinUrl,
   };

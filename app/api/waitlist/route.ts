@@ -98,7 +98,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: error.message }, { status: 500 });
       }
 
-      const emailSent = await sendWaitlistConfirmationEmail(generatedId, email);
+      const emailSent = await sendWaitlistConfirmationEmail(generatedId, email, phone);
 
       return NextResponse.json({ ok: true, waitlistId: generatedId, emailSent });
     }
@@ -235,6 +235,7 @@ export async function POST(request: Request) {
         firstName: ambassadorRow.first_name,
         lastName: ambassadorRow.last_name,
         email,
+        phone,
         role,
       });
 
@@ -261,6 +262,7 @@ export async function POST(request: Request) {
         firstName: ambassadorRow.first_name,
         lastName: ambassadorRow.last_name,
         email,
+        phone,
         role,
       });
 
@@ -283,6 +285,7 @@ export async function POST(request: Request) {
       firstName: ambassadorRow.first_name,
       lastName: ambassadorRow.last_name,
       email,
+      phone,
       role,
     });
 
