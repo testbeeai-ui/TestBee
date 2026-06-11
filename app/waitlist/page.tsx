@@ -39,7 +39,7 @@ function WaitlistContent() {
   const [waitlistId, setWaitlistId] = useState("");
   const [quickEmail, setQuickEmail] = useState("");
   const [quickPhone, setQuickPhone] = useState("");
-  const [dynamicJoinedCount, setDynamicJoinedCount] = useState(247);
+  const [dynamicJoinedCount, setDynamicJoinedCount] = useState(253);
 
   useEffect(() => {
     const r = searchParams.get("role");
@@ -56,7 +56,7 @@ function WaitlistContent() {
         if (data.ok && data.nextId) {
           const num = parseInt(data.nextId.replace("EB-2026-", ""), 10);
           if (!isNaN(num)) {
-            setDynamicJoinedCount(num + 30);
+            setDynamicJoinedCount(num);
           }
         }
       })

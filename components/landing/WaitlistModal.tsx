@@ -323,8 +323,8 @@ export default function WaitlistModal({ open, onOpenChange }: WaitlistModalProps
               {/* Stats Card */}
               <div className="grid grid-cols-3 gap-2">
                 {[
-                  { num: "1,247", lbl: "on the waitlist", color: "text-[#1D9E75]" },
-                  { num: "38", lbl: "ambassadors selected", color: "text-[#EF9F27]" },
+                  { num: "253", lbl: "on the waitlist", color: "text-[#1D9E75]" },
+                  { num: "17", lbl: "ambassadors selected", color: "text-[#EF9F27]" },
                   { num: "India-wide", lbl: "Phase 1 launch", color: "text-[#7F77DD]" },
                 ].map((s) => (
                   <div key={s.lbl} className="bg-[#161B25] border border-[#2A3347] rounded-xl p-2.5 text-center">

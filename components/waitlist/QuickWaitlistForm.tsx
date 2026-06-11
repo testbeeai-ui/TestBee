@@ -57,9 +57,8 @@ export function QuickWaitlistForm({
   const [phoneTouched, setPhoneTouched] = useState(false);
   const [alreadyRegistered, setAlreadyRegistered] = useState(false);
   
-  const idNumber = waitlistJoined - 30;
-  // Decrements from 47 down to 1 as idNumber increases from 222, looping back to 47
-  const spotsRemaining = 47 - (Math.max(0, idNumber - 222) % 47);
+  // Decrements from 47 down to 1 as waitlistJoined increases from 253, looping back to 47
+  const spotsRemaining = 47 - (Math.max(0, waitlistJoined - 253) % 47);
 
   const isEmailValid = isValidEmail(email);
   const phoneNormalized = normalizeIndianMobile(phone);

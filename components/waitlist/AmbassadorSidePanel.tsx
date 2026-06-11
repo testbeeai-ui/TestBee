@@ -295,9 +295,7 @@ export function AmbassadorSidePanel({
           if (s.lbl === "on the waitlist") {
             displayNum = String(waitlistJoined);
           } else if (s.lbl === "ambassadors selected") {
-            const idNumber = waitlistJoined - 30;
-            const cycleOffset = Math.max(0, idNumber - 222) % 47;
-            displayNum = String(23 + cycleOffset);
+            displayNum = "17";
           }
           return (
             <div
