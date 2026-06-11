@@ -1,4 +1,7 @@
-type EnvLike = Pick<NodeJS.ProcessEnv, "NODE_ENV" | "RDM_COUPON_PURCHASE_SIMULATION_ENABLED">;
+type EnvLike = {
+  NODE_ENV?: string;
+  RDM_COUPON_PURCHASE_SIMULATION_ENABLED?: string;
+};
 
 /**
  * Coupon minting is safe only for local/manual simulations. Production purchases
