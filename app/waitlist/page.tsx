@@ -29,7 +29,7 @@ import {
 
 function WaitlistContent() {
   const searchParams = useSearchParams();
-  const [role, setRole] = useState<string | null>(null);
+  const [role, setRole] = useState<string | null>("student");
   const step2Ref = useRef<HTMLDivElement>(null);
   const [ambassadorModalOpen, setAmbassadorModalOpen] = useState(false);
   const pendingRoleRef = useRef<string | null>(null);
@@ -44,6 +44,7 @@ function WaitlistContent() {
     const r = searchParams.get("role");
     if (r && ["student", "teacher", "parent", "other"].includes(r)) {
       pendingRoleRef.current = r;
+      setRole(r);
     }
   }, [searchParams]);
 
@@ -172,7 +173,6 @@ function WaitlistContent() {
     setRole(nextRole);
     setTimeout(() => {
       step2Ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-      setAmbassadorModalOpen(true);
     }, 300);
   };
 

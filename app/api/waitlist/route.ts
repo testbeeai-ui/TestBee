@@ -11,6 +11,7 @@ import {
   normalizeWaitlistEmail,
 } from "@/lib/waitlist/waitlistId";
 import { normalizeIndianMobile } from "@/lib/waitlist/phone";
+import { isValidEmail } from "@/lib/waitlist/email";
 
 type WaitlistRole = "student" | "teacher" | "parent" | "other";
 
@@ -42,6 +43,9 @@ export async function POST(request: Request) {
 
     if (!email) {
       return NextResponse.json({ error: "Missing email address" }, { status: 400 });
+    }
+    if (!isValidEmail(email)) {
+      return NextResponse.json({ error: "Invalid email address format" }, { status: 400 });
     }
     if (!phoneResult.ok) {
       return NextResponse.json({ error: phoneResult.error }, { status: 400 });

@@ -16,6 +16,7 @@ import {
 import { cn } from "@/lib/utils";
 import { formatApiError } from "@/lib/waitlist/formatApiError";
 import { normalizeIndianMobile, sanitizeMobileInput } from "@/lib/waitlist/phone";
+import { isValidEmail } from "@/lib/waitlist/email";
 import {
   WAITLIST_METRICS,
   earlyPreviewSpotsRemaining,
@@ -46,10 +47,14 @@ export function QuickWaitlistForm({
   const [submitError, setSubmitError] = useState("");
   const [phoneHint, setPhoneHint] = useState("");
   const [alreadyRegistered, setAlreadyRegistered] = useState(false);
+  const [emailTouched, setEmailTouched] = useState(false);
+  const [phoneTouched, setPhoneTouched] = useState(false);
 
+  const isEmailValid = isValidEmail(email);
   const phoneNormalized = normalizeIndianMobile(phone);
+  const showPhoneError = phoneTouched && phone && !phoneNormalized.ok;
   const isValid =
-    email.trim() && phoneNormalized.ok && c3;
+    email.trim() && isEmailValid && phoneNormalized.ok && c3;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -167,6 +172,15 @@ export function QuickWaitlistForm({
         </span>
       </div>
 
+      <div className="mb-3 flex items-start gap-1.5 rounded-lg border border-[#4a3010] bg-[#281C08] px-2.5 py-2 text-[11px] leading-snug text-[#FAC775]">
+        <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#EF9F27]" />
+        <span>
+          Please provide accurate email and mobile details so we can reach you for verification
+          during ambassador selection. Inaccurate contact details will disqualify your
+          application.
+        </span>
+      </div>
+
       <form onSubmit={handleSubmit}>
         <label className="mb-1 flex items-center gap-1 text-[11px] text-[#9BA3B8]">
           <Mail className="h-3.5 w-3.5" />
@@ -179,15 +193,29 @@ export function QuickWaitlistForm({
             type="email"
             placeholder="yourname@email.com"
             value={email}
-            onChange={(e) => onEmailChange(e.target.value)}
-            className="w-full rounded-lg border border-[#2A3347]/80 bg-[#1C2333] py-2 pl-9 pr-3 text-[13px] text-[#E8EAF0] outline-none transition focus:border-[#1D9E75] focus:shadow-[0_0_0_2px_rgba(29,158,117,0.15)]"
+            onChange={(e) => {
+              onEmailChange(e.target.value);
+              setSubmitError("");
+            }}
+            onBlur={() => setEmailTouched(true)}
+            className={cn(
+              "w-full rounded-lg border bg-[#1C2333] py-2 pl-9 pr-3 text-[13px] text-[#E8EAF0] outline-none transition",
+              emailTouched && email && !isEmailValid
+                ? "border-rose-500/80 focus:border-rose-500 focus:shadow-[0_0_0_2px_rgba(244,63,94,0.15)]"
+                : "border-[#2A3347]/80 focus:border-[#1D9E75] focus:shadow-[0_0_0_2px_rgba(29,158,117,0.15)]"
+            )}
             required
           />
         </div>
+        {emailTouched && email && !isEmailValid ? (
+          <p className="mt-1 mb-2.5 text-[11px] text-rose-400">
+            Invalid email address. Please enter a correct, trusted email (e.g., name@gmail.com).
+          </p>
+        ) : null}
 
-        <label className="mb-1 flex items-center gap-1 text-[11px] text-[#9BA3B8]">
+        <label className="mb-1 flex flex-wrap items-center gap-x-1 gap-y-0.5 text-[11px] text-[#9BA3B8]">
           <Smartphone className="h-3.5 w-3.5" />
-          Mobile number <span className="text-[#1D9E75]">*</span>
+          <span>Mobile number <span className="text-[#1D9E75]">*</span> <span className="text-[#5C6480] font-normal">(+91 Country code is default, Enter only 10 digits of your Mobile Number)</span></span>
         </label>
         <div className="relative mb-2.5">
           <Smartphone className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#5C6480]" />
@@ -202,22 +230,23 @@ export function QuickWaitlistForm({
               setPhoneHint("");
               setSubmitError("");
             }}
-            className="w-full rounded-lg border border-[#2A3347]/80 bg-[#1C2333] py-2 pl-9 pr-3 text-[13px] text-[#E8EAF0] outline-none transition focus:border-[#1D9E75] focus:shadow-[0_0_0_2px_rgba(29,158,117,0.15)]"
+            onBlur={() => setPhoneTouched(true)}
+            className={cn(
+              "w-full rounded-lg border bg-[#1C2333] py-2 pl-9 pr-3 text-[13px] text-[#E8EAF0] outline-none transition",
+              showPhoneError
+                ? "border-rose-500/80 focus:border-rose-500 focus:shadow-[0_0_0_2px_rgba(244,63,94,0.15)]"
+                : "border-[#2A3347]/80 focus:border-[#1D9E75] focus:shadow-[0_0_0_2px_rgba(29,158,117,0.15)]"
+            )}
             required
           />
         </div>
-        {phoneHint ? (
+        {showPhoneError ? (
+          <p className="mt-1 mb-2.5 text-[11px] text-rose-400">
+            {phoneNormalized.error || "Please enter a valid 10-digit mobile number."}
+          </p>
+        ) : phoneHint ? (
           <p className="mb-2.5 text-[11px] text-rose-400">{phoneHint}</p>
         ) : null}
-
-        <div className="mb-3 flex items-start gap-1.5 rounded-lg border border-[#4a3010] bg-[#281C08] px-2.5 py-2 text-[11px] leading-snug text-[#FAC775]">
-          <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#EF9F27]" />
-          <span>
-            Please provide accurate email and mobile details so we can reach you for verification
-            during ambassador selection. Inaccurate contact details will disqualify your
-            application.
-          </span>
-        </div>
 
         <div
           role="checkbox"
