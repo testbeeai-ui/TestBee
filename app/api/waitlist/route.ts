@@ -292,3 +292,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
+
+export async function GET() {
+  try {
+    const supabase = await createClient();
+    const admin = createAdminClient();
+    const reader = admin ?? supabase;
+    const nextId = await generateNextWaitlistId(reader);
+    return NextResponse.json({ ok: true, nextId });
+  } catch (err) {
+    console.error("[GET /api/waitlist] Server error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}

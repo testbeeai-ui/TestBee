@@ -73,6 +73,7 @@ type Props = {
   onFocusStep1: () => void;
   completed?: boolean;
   waitlistId?: string;
+  waitlistJoined?: number;
 };
 
 export function AmbassadorSidePanel({
@@ -83,6 +84,7 @@ export function AmbassadorSidePanel({
   onFocusStep1,
   completed = false,
   waitlistId = "",
+  waitlistJoined = 247,
 }: Props) {
   const urgency = ambassadorUrgencyLine();
   const [showRoleError, setShowRoleError] = useState(false);
@@ -288,15 +290,18 @@ export function AmbassadorSidePanel({
       </button>
 
       <div className="mb-3.5 grid grid-cols-3 gap-1.5">
-        {WAITLIST_STATS.map((s) => (
-          <div
-            key={s.lbl}
-            className="min-w-0 rounded-lg border border-[#2A3347]/80 bg-[#1C2333] p-2 text-center"
-          >
-            <p className={cn("text-base font-medium sm:text-lg", s.color)}>{s.num}</p>
-            <p className="text-[10px] text-[#5C6480]">{s.lbl}</p>
-          </div>
-        ))}
+        {WAITLIST_STATS.map((s) => {
+          const displayNum = s.lbl === "on the waitlist" ? String(waitlistJoined) : s.num;
+          return (
+            <div
+              key={s.lbl}
+              className="min-w-0 rounded-lg border border-[#2A3347]/80 bg-[#1C2333] p-2 text-center"
+            >
+              <p className={cn("text-base font-medium sm:text-lg", s.color)}>{displayNum}</p>
+              <p className="text-[10px] text-[#5C6480]">{s.lbl}</p>
+            </div>
+          );
+        })}
       </div>
 
       <p className="flex items-start justify-center gap-1.5 text-center text-[11px] leading-relaxed text-[#9BA3B8]">

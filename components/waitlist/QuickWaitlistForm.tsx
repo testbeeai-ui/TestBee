@@ -23,6 +23,8 @@ import {
   spotWord,
 } from "@/components/waitlist/waitlist-constants";
 
+type classType = string;
+
 type Props = {
   email: string;
   phone: string;
@@ -31,6 +33,8 @@ type Props = {
   onSuccess: (waitlistId: string) => void;
   completed: boolean;
   emailInputId?: string;
+  waitlistJoined?: number;
+  waitlistId?: string;
 };
 
 export function QuickWaitlistForm({
@@ -41,14 +45,20 @@ export function QuickWaitlistForm({
   onSuccess,
   completed,
   emailInputId = "wl-email",
+  waitlistJoined = WAITLIST_METRICS.waitlistJoined,
+  waitlistId = "",
 }: Props) {
   const [c3, setC3] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [phoneHint, setPhoneHint] = useState("");
-  const [alreadyRegistered, setAlreadyRegistered] = useState(false);
   const [emailTouched, setEmailTouched] = useState(false);
   const [phoneTouched, setPhoneTouched] = useState(false);
+  const [alreadyRegistered, setAlreadyRegistered] = useState(false);
+  
+  const idNumber = waitlistJoined - 30;
+  // Decrements from 47 down to 10 as idNumber increases from 217, looping back to 47
+  const spotsRemaining = 47 - (Math.max(0, idNumber - 217) % 38);
 
   const isEmailValid = isValidEmail(email);
   const phoneNormalized = normalizeIndianMobile(phone);
@@ -89,6 +99,7 @@ export function QuickWaitlistForm({
       }
       if (data.alreadyRegistered) {
         setAlreadyRegistered(true);
+        onSuccess(data.waitlistId);
         return;
       }
       onSuccess(data.waitlistId);
@@ -119,6 +130,11 @@ export function QuickWaitlistForm({
             We already have <span className="text-[#1D9E75]">{email}</span> on the waitlist. Keep
             an eye on your inbox for early preview updates.
           </p>
+          {waitlistId && (
+            <div className="mt-3.5 inline-flex items-center gap-1.5 bg-[#0A2A20] border border-[#1D9E75]/30 rounded-full px-3.5 py-1 text-[11px] font-medium text-[#9FE1CB] shadow-sm">
+              Waitlist ID: <span className="font-mono font-semibold text-white bg-[#1D9E75]/20 px-1.5 py-0.5 rounded">EB-2026-{waitlistId.replace("EB-2026-", "")}</span>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -142,6 +158,11 @@ export function QuickWaitlistForm({
             Confirmation sent to <span className="text-[#1D9E75]">{email}</span>. Complete Step 2 on
             the right to apply as Ambassador.
           </p>
+          {waitlistId && (
+            <div className="mt-3.5 inline-flex items-center gap-1.5 bg-[#0A2A20] border border-[#1D9E75]/30 rounded-full px-3.5 py-1 text-[11px] font-medium text-[#9FE1CB] shadow-sm">
+              Waitlist ID: <span className="font-mono font-semibold text-white bg-[#1D9E75]/20 px-1.5 py-0.5 rounded">EB-2026-{waitlistId.replace("EB-2026-", "")}</span>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -160,14 +181,13 @@ export function QuickWaitlistForm({
         Get early access — before everyone else
       </h2>
       <p className="mb-3 text-xs leading-relaxed text-[#9BA3B8]">
-        Only {previewSpots} early-preview {spotWord(previewSpots)} left. Enter your details now to
-        secure your place.
+        Only <span className="font-semibold text-[#EF9F27]">{spotsRemaining}</span> early-preview spots left. Enter your details now to secure your place.
       </p>
 
       <div className="mb-3 flex items-center gap-1.5 rounded-lg border border-[#1D9E75]/40 bg-gradient-to-r from-[#0A2A20] to-[#0A2A20]/30 px-3 py-[7px] text-xs text-[#9FE1CB] sm:mb-3.5">
         <Users className="h-4 w-4 shrink-0 text-[#1D9E75]" />
         <span>
-          <strong className="text-sm text-[#1D9E75]">{WAITLIST_METRICS.waitlistJoined}</strong>{" "}
+          <strong className="text-sm text-[#1D9E75]">{waitlistJoined}</strong>{" "}
           students already on the waitlist — spots are filling fast
         </span>
       </div>

@@ -39,6 +39,7 @@ function WaitlistContent() {
   const [waitlistId, setWaitlistId] = useState("");
   const [quickEmail, setQuickEmail] = useState("");
   const [quickPhone, setQuickPhone] = useState("");
+  const [dynamicJoinedCount, setDynamicJoinedCount] = useState(247);
 
   useEffect(() => {
     const r = searchParams.get("role");
@@ -47,6 +48,20 @@ function WaitlistContent() {
       setRole(r);
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    fetch("/api/waitlist")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.ok && data.nextId) {
+          const num = parseInt(data.nextId.replace("EB-2026-", ""), 10);
+          if (!isNaN(num)) {
+            setDynamicJoinedCount(num + 30);
+          }
+        }
+      })
+      .catch((err) => console.error("[WaitlistPage] Failed to fetch stats:", err));
+  }, []);
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -169,6 +184,10 @@ function WaitlistContent() {
   const handleStep1Success = (id: string) => {
     setWaitlistId(id);
     setStep1Complete(true);
+    const num = parseInt(id.replace("EB-2026-", ""), 10);
+    if (!isNaN(num)) {
+      setDynamicJoinedCount(num + 31);
+    }
     const nextRole = pendingRoleRef.current ?? "student";
     setRole(nextRole);
     setTimeout(() => {
@@ -342,6 +361,8 @@ function WaitlistContent() {
                 onSuccess={handleStep1Success}
                 completed={step1Complete}
                 emailInputId="wl-email"
+                waitlistJoined={dynamicJoinedCount}
+                waitlistId={waitlistId}
               />
               <AmbassadorSidePanel
                 step1Complete={step1Complete}
@@ -351,6 +372,7 @@ function WaitlistContent() {
                 onFocusStep1={focusStep1Email}
                 completed={ambassadorSubmitted}
                 waitlistId={waitlistId}
+                waitlistJoined={dynamicJoinedCount}
               />
             </div>
 
