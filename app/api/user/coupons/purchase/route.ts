@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
 import { createAdminClient } from "@/integrations/supabase/server";
+import { isRdmCouponPurchaseSimulationEnabled } from "@/lib/subscription/rdmPurchaseGuard";
 import { generateSubscriptionCouponCode } from "@/lib/subscription/subscriptionCouponUtils";
 
 const PACKS: Record<string, { rdm: number; price: number }> = {
@@ -42,6 +43,13 @@ export async function POST(request: Request) {
 
     if (profile.role !== "teacher") {
       return NextResponse.json({ error: "Only teachers can purchase RDM credits" }, { status: 403 });
+    }
+
+    if (!isRdmCouponPurchaseSimulationEnabled()) {
+      return NextResponse.json(
+        { error: "RDM credit purchases are temporarily unavailable." },
+        { status: 501 }
+      );
     }
 
     const randomDigits = Math.floor(10000000 + Math.random() * 90000000).toString();
