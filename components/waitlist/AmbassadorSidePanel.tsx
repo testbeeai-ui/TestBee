@@ -51,7 +51,7 @@ const PATHWAY = [
   {
     num: "04",
     title: "Paid role",
-    sub: "3m active + 5 referrals + interview",
+    sub: "3mth active + 5 referrals + interview",
     icon: Trophy,
     iconBg: "bg-[#EAF5EE]",
     iconColor: "text-[#27AE60]",
@@ -294,8 +294,8 @@ export function AmbassadorSidePanel({
           let displayNum = s.num;
           if (s.lbl === "on the waitlist") {
             displayNum = String(waitlistJoined);
-          } else if (s.lbl === "ambassadors selected") {
-            displayNum = "17";
+          } else if (s.lbl === "ambassadors shortlisted") {
+            displayNum = "18";
           }
           return (
             <div

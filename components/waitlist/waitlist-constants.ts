@@ -38,7 +38,7 @@ export const WAITLIST_METRICS = {
   waitlistJoined: 253,
   earlyPreviewCapacity: 300,
   ambassadorPhase1Capacity: 30,
-  ambassadorsSelected: 17,
+  ambassadorsSelected: 18,
 } as const;
 
 export function earlyPreviewSpotsRemaining(): number {
@@ -64,7 +64,7 @@ export const WAITLIST_STATS = [
   },
   {
     num: String(WAITLIST_METRICS.ambassadorsSelected),
-    lbl: "ambassadors selected",
+    lbl: "ambassadors shortlisted",
     color: "text-[#EF9F27]",
   },
   { num: "India-wide", lbl: "Phase 1 launch", color: "text-[#7F77DD]" },
