@@ -105,7 +105,7 @@ function AuthContent() {
     if (typeof window === "undefined") return;
     const hash = window.location.hash;
     if (hash && hash.includes("access_token")) {
-      window.location.replace("/auth/callback" + hash);
+      window.location.replace("/auth/callback/finish" + hash);
       return;
     }
   }, []);

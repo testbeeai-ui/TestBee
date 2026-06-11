@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { waitlistSubmissionsTable } from "@/lib/waitlist/waitlistDb";
 
 export const WAITLIST_ID_PREFIX = "EB-2026-";
-export const WAITLIST_ID_START = 200;
+export const WAITLIST_ID_START = 253;
 
 /** Admin/test inboxes — may register multiple times for QA */
 export const WAITLIST_TEST_EMAILS = new Set([

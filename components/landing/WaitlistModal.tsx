@@ -20,6 +20,9 @@ import {
   Check,
   ChevronDown,
 } from "lucide-react";
+import { isValidEmail } from "@/lib/waitlist/email";
+import { normalizeIndianMobile, sanitizeMobileInput } from "@/lib/waitlist/phone";
+import { cn } from "@/lib/utils";
 
 interface WaitlistModalProps {
   open: boolean;
@@ -69,6 +72,8 @@ export default function WaitlistModal({ open, onOpenChange }: WaitlistModalProps
   const [phone, setPhone] = useState("");
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
+  const [emailTouched, setEmailTouched] = useState(false);
+  const [phoneTouched, setPhoneTouched] = useState(false);
 
   // Role specific fields
   const [studentClass, setStudentClass] = useState("");
@@ -137,6 +142,8 @@ export default function WaitlistModal({ open, onOpenChange }: WaitlistModalProps
       setC1(false);
       setC2(false);
       setC3(false);
+      setEmailTouched(false);
+      setPhoneTouched(false);
       setSubmitted(false);
       setWaitlistId("");
       setProgress(4);
@@ -186,11 +193,16 @@ export default function WaitlistModal({ open, onOpenChange }: WaitlistModalProps
     }
   };
 
+  const isEmailValid = isValidEmail(email);
+  const phoneNormalized = normalizeIndianMobile(phone);
+  const showPhoneError = phoneTouched && phone && !phoneNormalized.ok;
   const isFormValid =
     role &&
     firstName.trim() &&
     email.trim() &&
+    isEmailValid &&
     phone.trim() &&
+    phoneNormalized.ok &&
     c1 &&
     c2;
 
@@ -311,8 +323,8 @@ export default function WaitlistModal({ open, onOpenChange }: WaitlistModalProps
               {/* Stats Card */}
               <div className="grid grid-cols-3 gap-2">
                 {[
-                  { num: "1,247", lbl: "on the waitlist", color: "text-[#1D9E75]" },
-                  { num: "38", lbl: "ambassadors selected", color: "text-[#EF9F27]" },
+                  { num: "253", lbl: "on the waitlist", color: "text-[#1D9E75]" },
+                  { num: "18", lbl: "ambassadors shortlisted", color: "text-[#EF9F27]" },
                   { num: "India-wide", lbl: "Phase 1 launch", color: "text-[#7F77DD]" },
                 ].map((s) => (
                   <div key={s.lbl} className="bg-[#161B25] border border-[#2A3347] rounded-xl p-2.5 text-center">
@@ -460,22 +472,44 @@ export default function WaitlistModal({ open, onOpenChange }: WaitlistModalProps
                             placeholder="arjun@gmail.com"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            className="w-full bg-[#1C2333] border border-[#2A3347] focus:border-[#1D9E75] rounded-lg px-3 py-1.5 text-xs text-white outline-none"
+                            onBlur={() => setEmailTouched(true)}
+                            className={cn(
+                              "w-full bg-[#1C2333] border rounded-lg px-3 py-1.5 text-xs text-white outline-none transition",
+                              emailTouched && email && !isEmailValid
+                                ? "border-rose-500/80 focus:border-rose-500 focus:shadow-[0_0_0_2px_rgba(244,63,94,0.15)]"
+                                : "border-[#2A3347] focus:border-[#1D9E75]"
+                            )}
                             required
                           />
+                          {emailTouched && email && !isEmailValid ? (
+                            <p className="mt-1 text-[11px] text-rose-400">
+                              Invalid email address. Please enter a correct, trusted email (e.g., name@gmail.com).
+                            </p>
+                          ) : null}
                         </div>
                         <div className="space-y-1">
                           <label className="text-[11px] text-[#9BA3B8]">
-                            Mobile number<span className="text-[#1D9E75]">*</span>
+                            Mobile number<span className="text-[#1D9E75]">*</span> <span className="text-[#5C6480]">(+91 Country code is default, Enter only 10 digits of your Mobile Number)</span>
                           </label>
                           <input
                             type="tel"
-                            placeholder="+91 98XXX XXXXX"
+                            placeholder="9876543210"
                             value={phone}
-                            onChange={(e) => setPhone(e.target.value)}
-                            className="w-full bg-[#1C2333] border border-[#2A3347] focus:border-[#1D9E75] rounded-lg px-3 py-1.5 text-xs text-white outline-none"
+                            onChange={(e) => setPhone(sanitizeMobileInput(e.target.value))}
+                            onBlur={() => setPhoneTouched(true)}
+                            className={cn(
+                              "w-full bg-[#1C2333] border rounded-lg px-3 py-1.5 text-xs text-white outline-none transition",
+                              showPhoneError
+                                ? "border-rose-500/80 focus:border-rose-500 focus:shadow-[0_0_0_2px_rgba(244,63,94,0.15)]"
+                                : "border-[#2A3347] focus:border-[#1D9E75]"
+                            )}
                             required
                           />
+                          {showPhoneError ? (
+                            <p className="mt-1 text-[11px] text-rose-400">
+                              {phoneNormalized.error || "Please enter a valid 10-digit mobile number."}
+                            </p>
+                          ) : null}
                         </div>
                       </div>
 

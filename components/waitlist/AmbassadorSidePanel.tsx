@@ -51,7 +51,7 @@ const PATHWAY = [
   {
     num: "04",
     title: "Paid role",
-    sub: "3m active + 5 referrals + interview",
+    sub: "3mth active + 5 referrals + interview",
     icon: Trophy,
     iconBg: "bg-[#EAF5EE]",
     iconColor: "text-[#27AE60]",
@@ -73,6 +73,7 @@ type Props = {
   onFocusStep1: () => void;
   completed?: boolean;
   waitlistId?: string;
+  waitlistJoined?: number;
 };
 
 export function AmbassadorSidePanel({
@@ -83,6 +84,7 @@ export function AmbassadorSidePanel({
   onFocusStep1,
   completed = false,
   waitlistId = "",
+  waitlistJoined = 247,
 }: Props) {
   const urgency = ambassadorUrgencyLine();
   const [showRoleError, setShowRoleError] = useState(false);
@@ -206,17 +208,6 @@ export function AmbassadorSidePanel({
         })}
       </div>
 
-      <div className="mb-3 grid grid-cols-3 gap-1.5 sm:mb-3.5">
-        {WAITLIST_STATS.map((s) => (
-          <div
-            key={s.lbl}
-            className="min-w-0 rounded-lg border border-[#2A3347]/80 bg-[#1C2333] p-2 text-center"
-          >
-            <p className={cn("text-base font-medium sm:text-lg", s.color)}>{s.num}</p>
-            <p className="text-[10px] text-[#5C6480]">{s.lbl}</p>
-          </div>
-        ))}
-      </div>
 
       <p className="mb-2 text-[11px] font-medium text-[#9BA3B8]">
         I am a <span className="text-[#1D9E75]">*</span>
@@ -231,7 +222,8 @@ export function AmbassadorSidePanel({
       >
         {ROLE_OPTIONS.map((item) => {
           const sel = role === item.id;
-          const iconClass = cn("h-3.5 w-3.5", sel ? "text-[#1D9E75]" : "text-[#5C6480]");
+          const isSelected = sel && step1Complete;
+          const iconClass = cn("h-3.5 w-3.5", isSelected ? "text-[#7F77DD]" : "text-[#5C6480]");
           return (
             <div
               key={item.id}
@@ -239,8 +231,8 @@ export function AmbassadorSidePanel({
               className={cn(
                 "min-w-0 rounded-[9px] border bg-[#1C2333] p-2 transition-all duration-200 sm:p-2.5",
                 step1Complete && "cursor-pointer hover:border-[#344060] hover:bg-[#222B3C]",
-                sel
-                  ? "border-[#1D9E75] bg-[#0A2A20]"
+                isSelected
+                  ? "border-[#7F77DD] bg-[#171425] shadow-[0_0_12px_rgba(127,119,221,0.2)] ring-1 ring-[#7F77DD]/30"
                   : showRoleError
                     ? "border-rose-500/40 shadow-[0_0_0_1px_rgba(244,63,94,0.1)]"
                     : "border-[#2A3347]/80"
@@ -250,7 +242,7 @@ export function AmbassadorSidePanel({
                 <div
                   className={cn(
                     "flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#222B3C]",
-                    sel && "bg-[#0A2A20]"
+                    isSelected && "bg-[#171425] border border-[#7F77DD]/40"
                   )}
                 >
                   {item.id === "student" && <School className={iconClass} />}
@@ -291,11 +283,32 @@ export function AmbassadorSidePanel({
       <button
         type="button"
         onClick={handleRegister}
-        className="mb-2 flex w-full items-center justify-center gap-1.5 rounded-full border-0 bg-[#7F77DD] py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#534AB7]"
+        className="mb-2.5 flex w-full items-center justify-center gap-1.5 rounded-full border-0 bg-[#7F77DD] py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#534AB7]"
       >
         <ArrowRight className="h-4 w-4" />
         Register as Ambassador now
       </button>
+
+      <div className="mb-3.5 grid grid-cols-3 gap-1.5">
+        {WAITLIST_STATS.map((s) => {
+          let displayNum = s.num;
+          if (s.lbl === "on the waitlist") {
+            displayNum = String(waitlistJoined);
+          } else if (s.lbl === "ambassadors shortlisted") {
+            displayNum = "18";
+          }
+          return (
+            <div
+              key={s.lbl}
+              className="min-w-0 rounded-lg border border-[#2A3347]/80 bg-[#1C2333] p-2 text-center"
+            >
+              <p className={cn("text-base font-medium sm:text-lg", s.color)}>{displayNum}</p>
+              <p className="text-[10px] text-[#5C6480]">{s.lbl}</p>
+            </div>
+          );
+        })}
+      </div>
+
       <p className="flex items-start justify-center gap-1.5 text-center text-[11px] leading-relaxed text-[#9BA3B8]">
         <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#EF9F27]" />
         <span>

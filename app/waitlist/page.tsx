@@ -9,6 +9,8 @@ import { QuickWaitlistForm } from "@/components/waitlist/QuickWaitlistForm";
 import { AmbassadorSidePanel } from "@/components/waitlist/AmbassadorSidePanel";
 import { AmbassadorApplicationModal } from "@/components/waitlist/AmbassadorApplicationModal";
 import { WAITLIST_INTERESTS } from "@/components/waitlist/waitlist-constants";
+import { formatApiError } from "@/lib/waitlist/formatApiError";
+import { normalizeIndianMobile } from "@/lib/waitlist/phone";
 import {
   Rocket,
   Star,
@@ -27,7 +29,7 @@ import {
 
 function WaitlistContent() {
   const searchParams = useSearchParams();
-  const [role, setRole] = useState<string | null>(null);
+  const [role, setRole] = useState<string | null>("student");
   const step2Ref = useRef<HTMLDivElement>(null);
   const [ambassadorModalOpen, setAmbassadorModalOpen] = useState(false);
   const pendingRoleRef = useRef<string | null>(null);
@@ -37,13 +39,29 @@ function WaitlistContent() {
   const [waitlistId, setWaitlistId] = useState("");
   const [quickEmail, setQuickEmail] = useState("");
   const [quickPhone, setQuickPhone] = useState("");
+  const [dynamicJoinedCount, setDynamicJoinedCount] = useState(253);
 
   useEffect(() => {
     const r = searchParams.get("role");
     if (r && ["student", "teacher", "parent", "other"].includes(r)) {
       pendingRoleRef.current = r;
+      setRole(r);
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    fetch("/api/waitlist")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.ok && data.nextId) {
+          const num = parseInt(data.nextId.replace("EB-2026-", ""), 10);
+          if (!isNaN(num)) {
+            setDynamicJoinedCount(num);
+          }
+        }
+      })
+      .catch((err) => console.error("[WaitlistPage] Failed to fetch stats:", err));
+  }, []);
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -157,7 +175,7 @@ function WaitlistContent() {
     firstName.trim() &&
     lastName.trim() &&
     quickEmail.trim() &&
-    quickPhone.trim() &&
+    normalizeIndianMobile(quickPhone).ok &&
     city.trim() &&
     state.trim() &&
     c1 &&
@@ -166,9 +184,12 @@ function WaitlistContent() {
   const handleStep1Success = (id: string) => {
     setWaitlistId(id);
     setStep1Complete(true);
-    if (pendingRoleRef.current) {
-      setRole(pendingRoleRef.current);
+    const num = parseInt(id.replace("EB-2026-", ""), 10);
+    if (!isNaN(num)) {
+      setDynamicJoinedCount(num + 31);
     }
+    const nextRole = pendingRoleRef.current ?? "student";
+    setRole(nextRole);
     setTimeout(() => {
       step2Ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 300);
@@ -190,6 +211,12 @@ function WaitlistContent() {
     setSubmitting(true);
     setSubmitError("");
 
+    const mobile = normalizeIndianMobile(quickPhone);
+    if (!mobile.ok) {
+      setSubmitError(mobile.error);
+      return;
+    }
+
     try {
       const res = await fetch("/api/waitlist", {
         method: "POST",
@@ -201,7 +228,7 @@ function WaitlistContent() {
           firstName,
           lastName,
           email: quickEmail,
-          phone: quickPhone,
+          phone: mobile.phone,
           city,
           state,
           studentClass,
@@ -230,7 +257,9 @@ function WaitlistContent() {
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || "Failed to submit. Please try again.");
+        throw new Error(
+          formatApiError(data.error, "Failed to submit. Please try again.")
+        );
       }
 
       setWaitlistId(data.waitlistId);
@@ -332,6 +361,8 @@ function WaitlistContent() {
                 onSuccess={handleStep1Success}
                 completed={step1Complete}
                 emailInputId="wl-email"
+                waitlistJoined={dynamicJoinedCount}
+                waitlistId={waitlistId}
               />
               <AmbassadorSidePanel
                 step1Complete={step1Complete}
@@ -341,6 +372,7 @@ function WaitlistContent() {
                 onFocusStep1={focusStep1Email}
                 completed={ambassadorSubmitted}
                 waitlistId={waitlistId}
+                waitlistJoined={dynamicJoinedCount}
               />
             </div>
 

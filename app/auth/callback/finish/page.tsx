@@ -1,9 +1,6 @@
 "use client";
 
-// Supabase: Authentication → URL Configuration → Redirect URLs:
-//   http://localhost:3000/auth/callback   and   http://localhost:3000/auth
-
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,6 +11,7 @@ import {
   clearPendingDeepLink,
   destinationFromOAuthStored,
 } from "@/lib/auth/safeNextPath";
+import { oauthSignInFailedMessage, oauthTryAgainPath } from "@/lib/auth/oauthSignInHelp";
 import { TEACHER_PORTAL_CLASSROOMS_URL } from "@/lib/teacherPortal/routes";
 import { triggerLoginNotificationEmail } from "@/lib/email/triggerLoginNotificationClient";
 
@@ -26,11 +24,7 @@ async function readClientSession() {
   }
 }
 
-/** Shown when ?code= is still present but there is no session after init (SDK already ran PKCE once). */
-const OAUTH_CODE_FAILED_MESSAGE =
-  "Google sign-in did not complete. If the browser Network tab shows a failed …/auth/v1/token?grant_type=pkce request (often 401), your NEXT_PUBLIC_SUPABASE_ANON_KEY usually does not match NEXT_PUBLIC_SUPABASE_URL — copy the anon (public) key from Supabase Dashboard → Settings → API for that same project, restart npm run dev, and try again. Always finish login on the same origin you started on (http://localhost:3000 vs http://127.0.0.1:3000 — pick one). You can also clear site data for this origin (remove localStorage keys starting with sb-) and sign in again.";
-
-export default function AuthCallback() {
+function AuthCallbackFinishContent() {
   const { user, profile, loading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -38,7 +32,7 @@ export default function AuthCallback() {
   const loginEmailSent = useRef(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
-  const [oauthGateOpen, setOauthGateOpen] = useState(false);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -48,49 +42,32 @@ export default function AuthCallback() {
   const errorDescription = mounted ? searchParams.get("error_description") : null;
   const hasUrlError = !!(urlError || errorDescription);
 
-  // Let GoTrue init run: with detectSessionInUrl, PKCE runs once inside getSession/initialize.
-  // Do not call exchangeCodeForSession again here — a failed first attempt (e.g. 401) still removes
-  // the PKCE verifier, and a second call only shows a misleading "verifier missing" error.
   useEffect(() => {
-    if (!mounted || hasUrlError) {
-      setOauthGateOpen(true);
+    if (!mounted) return;
+    if (hasUrlError) {
+      const host = typeof window !== "undefined" ? window.location.hostname : undefined;
+      setAuthError(
+        urlError === "oauth_exchange_failed"
+          ? oauthSignInFailedMessage(host)
+          : errorDescription || urlError || oauthSignInFailedMessage(host)
+      );
+      setReady(true);
       return;
     }
 
-    let cancelled = false;
-
-    const run = async () => {
-      try {
+    if (typeof window === "undefined") return;
+    const hash = window.location.hash;
+    if (hash && hash.includes("access_token")) {
+      void (async () => {
         await readClientSession();
-        if (cancelled) return;
+        window.history.replaceState(null, "", "/auth/callback/finish");
+        setReady(true);
+      })();
+      return;
+    }
 
-        const session = await readClientSession();
-        const code =
-          typeof window !== "undefined"
-            ? new URLSearchParams(window.location.search).get("code")
-            : null;
-
-        if (session?.user) {
-          if (code) router.replace("/auth/callback");
-          return;
-        }
-
-        if (code) {
-          if (cancelled) return;
-          // Do not router.replace here — navigating can remount this page and drop authError state.
-          setAuthError(OAUTH_CODE_FAILED_MESSAGE);
-          return;
-        }
-      } finally {
-        if (!cancelled) setOauthGateOpen(true);
-      }
-    };
-
-    void run();
-    return () => {
-      cancelled = true;
-    };
-  }, [mounted, hasUrlError, router]);
+    setReady(true);
+  }, [mounted, hasUrlError, urlError, errorDescription]);
 
   const doRedirect = useCallback(
     (path: string, stored: string | null) => {
@@ -107,19 +84,14 @@ export default function AuthCallback() {
   );
 
   useEffect(() => {
-    if (!oauthGateOpen || !user?.id || loginEmailSent.current) return;
+    if (!ready || !user?.id || loginEmailSent.current) return;
     if (profile === null) return;
     loginEmailSent.current = true;
     triggerLoginNotificationEmail();
-  }, [oauthGateOpen, user?.id, profile]);
+  }, [ready, user?.id, profile]);
 
   useEffect(() => {
-    if (hasUrlError) {
-      setAuthError(errorDescription || urlError || "Sign-in failed");
-      return;
-    }
-    if (authError) return;
-    if (!oauthGateOpen) return;
+    if (!ready || authError) return;
 
     const stored =
       typeof window !== "undefined" ? sessionStorage.getItem("auth_redirect_after_login") : null;
@@ -129,7 +101,7 @@ export default function AuthCallback() {
     const onboardPath = isTeacher ? "/onboarding?role=teacher" : "/onboarding?role=student";
 
     if (user && profile?.onboarding_complete) {
-      (async () => {
+      void (async () => {
         await supabase.auth.signOut({ scope: "others" });
         const pending = readPendingDeepLink();
         const fromOAuth = destinationFromOAuthStored(stored);
@@ -140,7 +112,7 @@ export default function AuthCallback() {
       return;
     }
     if (user && profile !== null && !profile?.onboarding_complete) {
-      (async () => {
+      void (async () => {
         await supabase.auth.signOut({ scope: "others" });
         doRedirect(onboardPath, stored);
       })();
@@ -156,7 +128,7 @@ export default function AuthCallback() {
       const session = await readClientSession();
       if (!session?.user) {
         if (Date.now() < pollUntil) setTimeout(poll, 400);
-        else doRedirect("/auth", stored);
+        else doRedirect(oauthTryAgainPath(), stored);
       }
     };
 
@@ -174,29 +146,20 @@ export default function AuthCallback() {
     profile?.onboarding_complete,
     loading,
     router,
-    hasUrlError,
-    urlError,
-    errorDescription,
-    oauthGateOpen,
+    ready,
     authError,
     doRedirect,
   ]);
 
-  if (authError || hasUrlError) {
+  if (authError) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6 bg-background">
         <span className="text-4xl">⚠️</span>
         <h2 className="text-lg font-display text-foreground text-center">Sign-in failed</h2>
-        <p className="text-sm text-muted-foreground text-center max-w-md">
-          {authError || errorDescription || urlError}
+        <p className="whitespace-pre-line text-sm text-muted-foreground text-center max-w-md">
+          {authError}
         </p>
-        {errorDescription?.includes("Database") && (
-          <p className="text-xs text-muted-foreground text-center max-w-md">
-            This is usually fixed by running the latest database migration
-            (fix_handle_new_user_profile).
-          </p>
-        )}
-        <Button className="rounded-xl" onClick={() => router.replace("/auth")}>
+        <Button className="rounded-xl" onClick={() => router.replace(oauthTryAgainPath())}>
           Try again
         </Button>
       </div>
@@ -208,5 +171,19 @@ export default function AuthCallback() {
       <span className="text-4xl animate-pulse">🎯</span>
       <p className="text-sm text-muted-foreground">Signing you in…</p>
     </div>
+  );
+}
+
+export default function AuthCallbackFinishPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-background">
+          <span className="text-4xl animate-pulse">🎯</span>
+        </div>
+      }
+    >
+      <AuthCallbackFinishContent />
+    </Suspense>
   );
 }

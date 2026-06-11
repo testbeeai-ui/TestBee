@@ -1,5 +1,7 @@
 import { PREVIEW_AUTH_PATH } from "@/lib/auth/previewAuthPath";
+import { escapeHtml } from "@/lib/email/applyEmailTemplate";
 import { getPortalBaseUrl } from "@/lib/email/portalBaseUrl";
+import { wrapTransactionalEmailBody } from "@/lib/email/waitlistEmailTemplate";
 
 export type ApprovalInviteEmailParams = {
   firstName: string;
@@ -11,42 +13,56 @@ export type ApprovalInviteEmailParams = {
 export function buildApprovalInviteEmail(params: ApprovalInviteEmailParams): {
   subject: string;
   html: string;
+  text: string;
   signupUrl: string;
 } {
   const siteUrl = getPortalBaseUrl();
   const signinUrl = `${siteUrl}${PREVIEW_AUTH_PATH}?mode=signin&role=${params.role}`;
   const roleLabel = params.role === "student" ? "Student" : "Teacher";
+  const name = params.firstName.trim() || "there";
+  const email = params.email.toLowerCase().trim();
+
   const customBlock = params.customMessage
-    ? `<div style="background-color: #f3f4f6; border-left: 4px solid #1D9E75; padding: 12px 16px; margin: 20px 0; border-radius: 8px; font-style: italic;">"${params.customMessage}"</div>`
+    ? `<p style="margin:0 0 16px;font-size:14px;line-height:1.6;color:#9BA3B8;background-color:#171425;border:1px solid #534AB7;border-radius:12px;padding:14px 16px;font-style:italic;">${escapeHtml(params.customMessage)}</p>`
     : "";
 
-  const html = `
-      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1f2937; max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 16px; background-color: #ffffff; overflow: hidden; line-height: 1.6;">
-        <div style="background-color: #161b27; padding: 24px; text-align: center;">
-          <img src="${siteUrl}/images/logo-2.png" alt="EduBlast" height="36" style="height: 36px; width: auto; max-width: 100%; border: 0; display: block; margin: 0 auto;" />
-        </div>
-        <div style="padding: 28px;">
-          <h2 style="color: #1D9E75; margin-top: 0; font-size: 20px; font-weight: 700; text-align: center; margin-bottom: 20px;">Welcome to EduBlast early access!</h2>
-          <p>Hello ${params.firstName},</p>
-          <p>Your waitlist application has been approved for early access.</p>
-          <p>Sign in with this exact Google account: <a href="mailto:${params.email}" style="color: #1D9E75; text-decoration: none; font-weight: 600;">${params.email}</a></p>
-          <p>Complete onboarding as a <strong>${roleLabel}</strong>. Using a different email will be blocked.</p>
-          ${customBlock}
-          <div style="margin: 28px 0; text-align: center;">
-            <a href="${signinUrl}" style="background-color: #1D9E75; color: white; padding: 12px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block; box-shadow: 0 4px 6px -1px rgba(29, 158, 117, 0.2);">
-              Sign in and get access
-            </a>
-          </div>
-          <p style="font-size: 13px; color: #6b7280;">Or open <a href="${signinUrl}" style="color: #1D9E75;">${signinUrl}</a></p>
-          <hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
-          <p style="font-size: 12px; color: #6b7280; text-align: center;">If you did not apply for the waitlist, please reply to this email.</p>
-        </div>
-      </div>
-    `;
+  const bodyHtml = `
+    <h2 style="color:#1D9E75;margin:0 0 16px;font-size:20px;font-weight:700;text-align:center;">You're approved for early access!</h2>
+    <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#9BA3B8;">Hi ${escapeHtml(name)},</p>
+    <p style="margin:0 0 16px;font-size:14px;line-height:1.6;color:#9BA3B8;">Your EduBlast waitlist application has been approved. You can sign in now and complete onboarding as a <strong style="color:#E8EAF0;">${escapeHtml(roleLabel)}</strong>.</p>
+    <p style="margin:0 0 12px;font-size:14px;line-height:1.6;color:#9BA3B8;">Use this exact Google account: <strong style="color:#E8EAF0;">${escapeHtml(email)}</strong></p>
+    <p style="margin:0 0 20px;font-size:14px;line-height:1.6;color:#9BA3B8;">A different email will be blocked. Check spam/promotions if you don't see this message in your inbox.</p>
+    ${customBlock}
+    <div style="text-align:center;margin:24px 0;">
+      <a href="${escapeHtml(signinUrl)}" style="background-color:#1D9E75;color:#ffffff;padding:12px 28px;text-decoration:none;border-radius:999px;font-weight:600;font-size:14px;display:inline-block;">Sign in and get access</a>
+    </div>
+    <p style="margin:0;font-size:13px;line-height:1.6;color:#5C6480;text-align:center;">Or copy this link:<br/><a href="${escapeHtml(signinUrl)}" style="color:#1D9E75;word-break:break-all;">${escapeHtml(signinUrl)}</a></p>
+  `;
+
+  const text = [
+    `Hi ${name},`,
+    "",
+    "Your EduBlast waitlist application has been approved for early access.",
+    `Sign in as: ${email}`,
+    `Role: ${roleLabel}`,
+    "",
+    params.customMessage ? params.customMessage : "",
+    params.customMessage ? "" : "",
+    `Sign in here: ${signinUrl}`,
+    "",
+    "Use the same Google account listed above. Check spam if you don't see this email.",
+    "",
+    "Contact join@edublast.in if you did not apply.",
+    "",
+    "— EduBlast",
+  ]
+    .filter((line, i, arr) => !(line === "" && arr[i + 1] === ""))
+    .join("\n");
 
   return {
-    subject: "Your EduBlast waitlist application is approved — sign in to continue",
-    html,
+    subject: `EduBlast early access approved — sign in now (${email})`,
+    html: wrapTransactionalEmailBody(bodyHtml, email),
+    text,
     signupUrl: signinUrl,
   };
 }

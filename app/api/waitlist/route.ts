@@ -10,6 +10,8 @@ import {
   isWaitlistTestEmail,
   normalizeWaitlistEmail,
 } from "@/lib/waitlist/waitlistId";
+import { normalizeIndianMobile } from "@/lib/waitlist/phone";
+import { isValidEmail } from "@/lib/waitlist/email";
 
 type WaitlistRole = "student" | "teacher" | "parent" | "other";
 
@@ -36,14 +38,19 @@ export async function POST(request: Request) {
 
     const email =
       typeof body.email === "string" ? normalizeWaitlistEmail(body.email) : "";
-    const phone = typeof body.phone === "string" ? body.phone.trim() : "";
+    const phoneRaw = typeof body.phone === "string" ? body.phone : "";
+    const phoneResult = normalizeIndianMobile(phoneRaw);
 
     if (!email) {
       return NextResponse.json({ error: "Missing email address" }, { status: 400 });
     }
-    if (!phone) {
-      return NextResponse.json({ error: "Missing phone number" }, { status: 400 });
+    if (!isValidEmail(email)) {
+      return NextResponse.json({ error: "Invalid email address format" }, { status: 400 });
     }
+    if (!phoneResult.ok) {
+      return NextResponse.json({ error: phoneResult.error }, { status: 400 });
+    }
+    const phone = phoneResult.phone;
 
     const supabase = await createClient();
     const admin = createAdminClient();
@@ -91,7 +98,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: error.message }, { status: 500 });
       }
 
-      const emailSent = await sendWaitlistConfirmationEmail(generatedId, email);
+      const emailSent = await sendWaitlistConfirmationEmail(generatedId, email, phone);
 
       return NextResponse.json({ ok: true, waitlistId: generatedId, emailSent });
     }
@@ -228,6 +235,7 @@ export async function POST(request: Request) {
         firstName: ambassadorRow.first_name,
         lastName: ambassadorRow.last_name,
         email,
+        phone,
         role,
       });
 
@@ -254,6 +262,7 @@ export async function POST(request: Request) {
         firstName: ambassadorRow.first_name,
         lastName: ambassadorRow.last_name,
         email,
+        phone,
         role,
       });
 
@@ -276,12 +285,26 @@ export async function POST(request: Request) {
       firstName: ambassadorRow.first_name,
       lastName: ambassadorRow.last_name,
       email,
+      phone,
       role,
     });
 
     return NextResponse.json({ ok: true, waitlistId: generatedId, emailSent });
   } catch (err) {
     console.error("[POST /api/waitlist] Server error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
+
+export async function GET() {
+  try {
+    const supabase = await createClient();
+    const admin = createAdminClient();
+    const reader = admin ?? supabase;
+    const nextId = await generateNextWaitlistId(reader);
+    return NextResponse.json({ ok: true, nextId });
+  } catch (err) {
+    console.error("[GET /api/waitlist] Server error:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

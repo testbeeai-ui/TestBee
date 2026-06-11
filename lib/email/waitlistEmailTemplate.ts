@@ -2,10 +2,9 @@ import { applyEmailTemplate, escapeHtml } from "@/lib/email/applyEmailTemplate";
 import { EDUBLAST_EMAIL_LOGO_PATH } from "@/lib/email/newUserWelcomeTemplate";
 import { EDUBLAST_PUBLIC_ORIGIN } from "@/lib/email/portalBaseUrl";
 
-/** Public marketing site — used for waitlist links and footer copy in emails */
-export const EDUBLAST_WAITLIST_SITE = "https://www.edublast.in";
+/** Public marketing site — waitlist links and footer copy in emails */
+export const EDUBLAST_WAITLIST_SITE = EDUBLAST_PUBLIC_ORIGIN;
 
-/** Logo only: Vercel deployment until www.edublast.in serves /images. */
 function getWaitlistEmailLogoBase(): string {
   return EDUBLAST_PUBLIC_ORIGIN.replace(/\/$/, "");
 }
@@ -23,24 +22,29 @@ const EMAIL_SHELL = `<!DOCTYPE html>
 <tr><td style="padding:20px 32px;background-color:#0f1419;border-top:1px solid #2A3347;">
 <p style="margin:0;font-size:12px;color:#5C6480;text-align:center;">Contact <a href="mailto:join@edublast.in" style="color:#1D9E75;text-decoration:none;">join@edublast.in</a> should you have any questions</p>
 <p style="margin:8px 0 0;font-size:11px;color:#5C6480;text-align:center;">&copy; {{year}} EduBlast · {{siteUrl}}</p>
+{{unsubscribeHtml}}
 </td></tr>
 </table></td></tr></table>
 </body></html>`;
 
-function wrapEmailBody(bodyHtml: string): string {
+/** Shared dark-shell wrapper used by waitlist + approval invite emails. */
+export function wrapTransactionalEmailBody(bodyHtml: string, recipientEmail?: string): string {
   const siteBase = EDUBLAST_WAITLIST_SITE.replace(/\/$/, "");
   const logoBase = getWaitlistEmailLogoBase();
+  const unsubscribeHtml = `<p style="margin:12px 0 0;font-size:10px;color:#4B526D;text-align:center;line-height:1.4;">If you wish to unsubscribe, reply directly to this email or send a message to <a href="mailto:join@edublast.in" style="color:#1D9E75;text-decoration:none;">join@edublast.in</a>.</p>`;
   return applyEmailTemplate(EMAIL_SHELL, {
     logoUrl: escapeHtml(`${logoBase}${EDUBLAST_EMAIL_LOGO_PATH}`),
     bodyHtml,
     year: escapeHtml(String(new Date().getFullYear())),
     siteUrl: escapeHtml(siteBase),
+    unsubscribeHtml,
   });
 }
 
 export type WaitlistConfirmationEmailParams = {
   waitlistId: string;
   email: string;
+  phone: string;
 };
 
 export function buildWaitlistConfirmationEmail(params: WaitlistConfirmationEmailParams): {
@@ -48,9 +52,9 @@ export function buildWaitlistConfirmationEmail(params: WaitlistConfirmationEmail
   html: string;
   text: string;
 } {
-  const { waitlistId, email } = params;
+  const { waitlistId, email, phone } = params;
   const waitlistUrl = `${EDUBLAST_WAITLIST_SITE}/waitlist#ambassador`;
-
+ 
   const bodyHtml = `
     <h2 style="color:#1D9E75;margin:0 0 16px;font-size:20px;font-weight:700;text-align:center;">You're on the waitlist!</h2>
     <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#9BA3B8;">Thanks for signing up for early access to EduBlast — India's learning social network for PUC PCM students.</p>
@@ -59,10 +63,11 @@ export function buildWaitlistConfirmationEmail(params: WaitlistConfirmationEmail
       <p style="margin:0;font-size:18px;font-weight:700;color:#1D9E75;font-family:ui-monospace,monospace;">${escapeHtml(waitlistId)}</p>
     </div>
     <p style="margin:0 0 12px;font-size:14px;line-height:1.6;color:#9BA3B8;">Your Registered Email: <strong style="color:#E8EAF0;">${escapeHtml(email)}</strong></p>
+    <p style="margin:0 0 12px;font-size:14px;line-height:1.6;color:#9BA3B8;">Your Registered Number: <strong style="color:#E8EAF0;">${escapeHtml(phone)}</strong></p>
     <p style="margin:0 0 12px;font-size:14px;line-height:1.6;color:#9BA3B8;">We'll email you again when we're ready to open early preview access across India.</p>
     <p style="margin:0 0 20px;font-size:14px;line-height:1.6;color:#9BA3B8;">Keep an eye on your mobile and your inbox (including your spam box). Want early preview access and a paid Ambassador role? Complete the optional ambassador application on the waitlist page.</p>
     <div style="text-align:center;margin:24px 0;">
-      <a href="${escapeHtml(waitlistUrl)}" style="background-color:#1D9E75;color:#ffffff;padding:12px 28px;text-decoration:none;border-radius:999px;font-weight:600;font-size:14px;display:inline-block;">Apply as Ambassador (optional)</a>
+      <div style="background-color:#1D9E75;color:#ffffff;padding:12px 28px;text-decoration:none;border-radius:999px;font-weight:600;font-size:14px;display:inline-block;">Go back and register as Ambassador application</div>
     </div>
   `;
 
@@ -71,11 +76,12 @@ export function buildWaitlistConfirmationEmail(params: WaitlistConfirmationEmail
     "",
     `Waitlist ID: ${waitlistId}`,
     `Your Registered Email: ${email}`,
+    `Your Registered Number: ${phone}`,
     "",
     "Keep an eye on your mobile and your inbox (including your spam box).",
     "We'll contact you when early preview access opens.",
     "",
-    `Optional ambassador application: ${waitlistUrl}`,
+    "Go back and register as Ambassador application",
     "",
     "Contact join@edublast.in should you have any questions.",
     "",
@@ -84,7 +90,7 @@ export function buildWaitlistConfirmationEmail(params: WaitlistConfirmationEmail
 
   return {
     subject: `You're on the EduBlast waitlist (${waitlistId})`,
-    html: wrapEmailBody(bodyHtml),
+    html: wrapTransactionalEmailBody(bodyHtml, email),
     text,
   };
 }
@@ -94,6 +100,7 @@ export type AmbassadorApplicationEmailParams = {
   firstName: string;
   lastName: string;
   email: string;
+  phone: string;
   role: "student" | "teacher" | "parent" | "other";
 };
 
@@ -109,15 +116,15 @@ export function buildAmbassadorApplicationEmail(params: AmbassadorApplicationEma
   html: string;
   text: string;
 } {
-  const { waitlistId, firstName, lastName, email, role } = params;
+  const { waitlistId, firstName, lastName, email, phone, role } = params;
   const name = [firstName, lastName].filter(Boolean).join(" ").trim() || "there";
   const roleLabel = ROLE_LABELS[role];
   const isAmbassadorRole = role === "student" || role === "teacher";
-
+ 
   const ambassadorBlock = isAmbassadorRole
     ? `<p style="margin:0 0 16px;font-size:14px;line-height:1.6;color:#AFA9EC;background-color:#171425;border:1px solid #534AB7;border-radius:12px;padding:14px 16px;">Your application is flagged for <strong>${escapeHtml(roleLabel)} Ambassador</strong> consideration. We will call your registered mobile within 3 business days to verify your details.</p>`
     : "";
-
+ 
   const bodyHtml = `
     <h2 style="color:#1D9E75;margin:0 0 16px;font-size:20px;font-weight:700;text-align:center;">Application received</h2>
     <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#9BA3B8;">Hi ${escapeHtml(name)},</p>
@@ -127,6 +134,7 @@ export function buildAmbassadorApplicationEmail(params: AmbassadorApplicationEma
     </div>
     ${ambassadorBlock}
     <p style="margin:0 0 12px;font-size:14px;line-height:1.6;color:#9BA3B8;">Your Registered Email: <strong style="color:#E8EAF0;">${escapeHtml(email)}</strong></p>
+    <p style="margin:0 0 12px;font-size:14px;line-height:1.6;color:#9BA3B8;">Your Registered Number: <strong style="color:#E8EAF0;">${escapeHtml(phone)}</strong></p>
     <p style="margin:0;font-size:14px;line-height:1.6;color:#9BA3B8;">Keep an eye on your mobile and your inbox (including your spam box) — the EduBlast team will be in touch as we approach launch.</p>
   `;
 
@@ -136,6 +144,7 @@ export function buildAmbassadorApplicationEmail(params: AmbassadorApplicationEma
     `Your EduBlast waitlist application was received (${roleLabel}).`,
     `Waitlist ID: ${waitlistId}`,
     `Your Registered Email: ${email}`,
+    `Your Registered Number: ${phone}`,
     "",
     "Keep an eye on your mobile and your inbox (including your spam box).",
     isAmbassadorRole
@@ -151,7 +160,7 @@ export function buildAmbassadorApplicationEmail(params: AmbassadorApplicationEma
     subject: isAmbassadorRole
       ? `Ambassador application received — ${waitlistId}`
       : `Waitlist application received — ${waitlistId}`,
-    html: wrapEmailBody(bodyHtml),
+    html: wrapTransactionalEmailBody(bodyHtml, email),
     text,
   };
 }
