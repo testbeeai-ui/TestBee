@@ -41,7 +41,6 @@ export async function evaluateWhitelistGate(
 
   const email = input.email?.toLowerCase().trim();
   if (email) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data } = (await (supabase.from as (name: string) => ReturnType<typeof supabase.from>)(
       "approved_emails"
     )
