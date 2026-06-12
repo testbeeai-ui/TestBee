@@ -54,9 +54,10 @@ function displayName(row: WaitlistSubmissionDbRow) {
 
 interface WaitlistTabProps {
   initialId?: string | null;
+  tier: "waitlist" | "ambassador";
 }
 
-export function WaitlistTab({ initialId }: WaitlistTabProps) {
+export function WaitlistTab({ initialId, tier }: WaitlistTabProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [data, setData] = useState<Payload | null>(null);
@@ -68,6 +69,8 @@ export function WaitlistTab({ initialId }: WaitlistTabProps) {
   const [adminNote, setAdminNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [approving, setApproving] = useState(false);
+  const [referrals, setReferrals] = useState<WaitlistSubmissionDbRow[]>([]);
+  const [loadingReferrals, setLoadingReferrals] = useState(false);
 
   // Debounce search query
   useEffect(() => {
@@ -86,7 +89,10 @@ export function WaitlistTab({ initialId }: WaitlistTabProps) {
 
       const sp = new URLSearchParams();
       sp.set("status", statusFilter);
-      sp.set("role", roleFilter);
+      if (tier === "ambassador") {
+        sp.set("role", roleFilter);
+      }
+      sp.set("tier", tier);
       if (debouncedSearch) sp.set("search", debouncedSearch);
       sp.set("limit", "200");
 
@@ -101,7 +107,7 @@ export function WaitlistTab({ initialId }: WaitlistTabProps) {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, roleFilter, debouncedSearch]);
+  }, [statusFilter, roleFilter, debouncedSearch, tier]);
 
   useEffect(() => {
     void load();
@@ -129,6 +135,35 @@ export function WaitlistTab({ initialId }: WaitlistTabProps) {
   useEffect(() => {
     setAdminNote(selected?.admin_note ?? "");
   }, [selected?.id, selected?.admin_note]);
+
+  useEffect(() => {
+    if (!selectedId) {
+      setReferrals([]);
+      return;
+    }
+    const fetchReferrals = async () => {
+      setLoadingReferrals(true);
+      try {
+        const { session } = await safeGetSession();
+        if (!session?.access_token) return;
+        const res = await fetch(`/api/admin/waitlist/${selectedId}`, {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+        const body = await res.json();
+        if (res.ok && body.referrals) {
+          setReferrals(body.referrals);
+        } else {
+          setReferrals([]);
+        }
+      } catch (err) {
+        console.error("Error fetching referrals:", err);
+        setReferrals([]);
+      } finally {
+        setLoadingReferrals(false);
+      }
+    };
+    void fetchReferrals();
+  }, [selectedId]);
 
   const patchRow = async (patch: { admin_status?: WaitlistAdminStatus; admin_note?: string }) => {
     if (!selected) return;
@@ -227,9 +262,13 @@ export function WaitlistTab({ initialId }: WaitlistTabProps) {
               <ClipboardList className="h-6 w-6 text-primary" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold tracking-tight">Waitlist Inbox</h1>
+              <h1 className="text-2xl font-bold tracking-tight">
+                {tier === "waitlist" ? "Waitlist Signups" : "Ambassador Applications"}
+              </h1>
               <p className="mt-1 text-sm text-muted-foreground">
-                View and manage early access registrations from the public landing page.
+                {tier === "waitlist"
+                  ? "View and manage early access waitlist registrations (Step 1 only)."
+                  : "View and manage full ambassador program applications (Step 2)."}
               </p>
             </div>
           </div>
@@ -242,38 +281,61 @@ export function WaitlistTab({ initialId }: WaitlistTabProps) {
 
       {/* Metrics Row */}
       {data?.overview ? (
-        <div className="grid gap-3 grid-cols-2 lg:grid-cols-5">
-          <Card size="sm">
-            <CardHeader className="pb-2">
-              <CardDescription>Total waitlist</CardDescription>
-              <CardTitle className="text-2xl font-bold">{data.overview.total}</CardTitle>
-            </CardHeader>
-          </Card>
-          <Card size="sm">
-            <CardHeader className="pb-2">
-              <CardDescription>New signups</CardDescription>
-              <CardTitle className="text-2xl font-bold text-rose-500">{data.overview.newCount}</CardTitle>
-            </CardHeader>
-          </Card>
-          <Card size="sm">
-            <CardHeader className="pb-2">
-              <CardDescription>Students</CardDescription>
-              <CardTitle className="text-2xl font-bold text-emerald-500">{roleCountsMap.get("student") ?? 0}</CardTitle>
-            </CardHeader>
-          </Card>
-          <Card size="sm">
-            <CardHeader className="pb-2">
-              <CardDescription>Teachers / Tutors</CardDescription>
-              <CardTitle className="text-2xl font-bold text-sky-500">{roleCountsMap.get("teacher") ?? 0}</CardTitle>
-            </CardHeader>
-          </Card>
-          <Card size="sm" className="col-span-2 lg:col-span-1">
-            <CardHeader className="pb-2">
-              <CardDescription>Last 7 Days</CardDescription>
-              <CardTitle className="text-2xl font-bold text-amber-500">{data.overview.last7Days}</CardTitle>
-            </CardHeader>
-          </Card>
-        </div>
+        tier === "waitlist" ? (
+          <div className="grid gap-3 grid-cols-1 md:grid-cols-3">
+            <Card size="sm">
+              <CardHeader className="pb-2">
+                <CardDescription>Total waitlist signups</CardDescription>
+                <CardTitle className="text-2xl font-bold">{data.overview.total}</CardTitle>
+              </CardHeader>
+            </Card>
+            <Card size="sm">
+              <CardHeader className="pb-2">
+                <CardDescription>New signups</CardDescription>
+                <CardTitle className="text-2xl font-bold text-rose-500">{data.overview.newCount}</CardTitle>
+              </CardHeader>
+            </Card>
+            <Card size="sm">
+              <CardHeader className="pb-2">
+                <CardDescription>Last 7 Days</CardDescription>
+                <CardTitle className="text-2xl font-bold text-amber-500">{data.overview.last7Days}</CardTitle>
+              </CardHeader>
+            </Card>
+          </div>
+        ) : (
+          <div className="grid gap-3 grid-cols-2 lg:grid-cols-5">
+            <Card size="sm">
+              <CardHeader className="pb-2">
+                <CardDescription>Total applications</CardDescription>
+                <CardTitle className="text-2xl font-bold">{data.overview.total}</CardTitle>
+              </CardHeader>
+            </Card>
+            <Card size="sm">
+              <CardHeader className="pb-2">
+                <CardDescription>New applications</CardDescription>
+                <CardTitle className="text-2xl font-bold text-rose-500">{data.overview.newCount}</CardTitle>
+              </CardHeader>
+            </Card>
+            <Card size="sm">
+              <CardHeader className="pb-2">
+                <CardDescription>Students</CardDescription>
+                <CardTitle className="text-2xl font-bold text-emerald-500">{roleCountsMap.get("student") ?? 0}</CardTitle>
+              </CardHeader>
+            </Card>
+            <Card size="sm">
+              <CardHeader className="pb-2">
+                <CardDescription>Teachers / Tutors</CardDescription>
+                <CardTitle className="text-2xl font-bold text-sky-500">{roleCountsMap.get("teacher") ?? 0}</CardTitle>
+              </CardHeader>
+            </Card>
+            <Card size="sm" className="col-span-2 lg:col-span-1">
+              <CardHeader className="pb-2">
+                <CardDescription>Last 7 Days</CardDescription>
+                <CardTitle className="text-2xl font-bold text-amber-500">{data.overview.last7Days}</CardTitle>
+              </CardHeader>
+            </Card>
+          </div>
+        )
       ) : null}
 
       {/* Filters Toolbar */}
@@ -290,22 +352,24 @@ export function WaitlistTab({ initialId }: WaitlistTabProps) {
           </SelectContent>
         </Select>
 
-        <Select value={roleFilter} onValueChange={(val) => { if (val) setRoleFilter(val); }}>
-          <SelectTrigger className="w-[150px]">
-            <SelectValue placeholder="Role" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All roles</SelectItem>
-            <SelectItem value="student">Students</SelectItem>
-            <SelectItem value="teacher">Teachers</SelectItem>
-            <SelectItem value="parent">Parents</SelectItem>
-            <SelectItem value="other">Others</SelectItem>
-          </SelectContent>
-        </Select>
+        {tier === "ambassador" && (
+          <Select value={roleFilter} onValueChange={(val) => { if (val) setRoleFilter(val); }}>
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder="Role" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All roles</SelectItem>
+              <SelectItem value="student">Students</SelectItem>
+              <SelectItem value="teacher">Teachers</SelectItem>
+              <SelectItem value="parent">Parents</SelectItem>
+              <SelectItem value="other">Others</SelectItem>
+            </SelectContent>
+          </Select>
+        )}
 
         <Input
           type="search"
-          placeholder="Search by name, email, phone..."
+          placeholder={tier === "waitlist" ? "Search by email, phone..." : "Search by name, email, phone..."}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="max-w-xs h-9 bg-card border-border"
@@ -324,20 +388,30 @@ export function WaitlistTab({ initialId }: WaitlistTabProps) {
         {/* Submissions List */}
         <Card className="overflow-hidden">
           <CardHeader className="border-b py-3">
-            <CardTitle className="text-base">Registrations</CardTitle>
+            <CardTitle className="text-base">
+              {tier === "waitlist" ? "Waitlist Signups" : "Ambassador Applicants"}
+            </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             <div className="max-h-[550px] overflow-y-auto">
               <table className="w-full text-sm">
                 <thead className="sticky top-0 bg-muted/80 backdrop-blur">
-                  <tr className="text-left text-muted-foreground text-xs uppercase tracking-wider">
-                    <th className="px-3 py-2.5">When</th>
-                    <th className="px-3 py-2.5">Waitlist ID</th>
-                    <th className="px-3 py-2.5">Name</th>
-                    <th className="px-3 py-2.5">Role</th>
-                    <th className="px-3 py-2.5">Tier</th>
-                    <th className="px-3 py-2.5">Status</th>
-                  </tr>
+                  {tier === "waitlist" ? (
+                    <tr className="text-left text-muted-foreground text-xs uppercase tracking-wider">
+                      <th className="px-3 py-2.5">When</th>
+                      <th className="px-3 py-2.5">Waitlist ID</th>
+                      <th className="px-3 py-2.5">Email & Phone</th>
+                      <th className="px-3 py-2.5">Status</th>
+                    </tr>
+                  ) : (
+                    <tr className="text-left text-muted-foreground text-xs uppercase tracking-wider">
+                      <th className="px-3 py-2.5">When</th>
+                      <th className="px-3 py-2.5">Waitlist ID</th>
+                      <th className="px-3 py-2.5">Name</th>
+                      <th className="px-3 py-2.5">Role</th>
+                      <th className="px-3 py-2.5">Status</th>
+                    </tr>
+                  )}
                 </thead>
                 <tbody>
                   {(data?.rows ?? []).map((row) => {
@@ -357,27 +431,38 @@ export function WaitlistTab({ initialId }: WaitlistTabProps) {
                         <td className="px-3 py-2 font-mono text-xs font-semibold text-primary">
                           {row.waitlist_id}
                         </td>
-                        <td className="px-3 py-2">
-                          <span className="font-medium text-foreground">{displayName(row)}</span>
-                          <span className="block text-[10px] text-muted-foreground">{row.email}</span>
-                        </td>
-                        <td className="px-3 py-2 whitespace-nowrap text-xs">
-                          {row.role ? (
-                            <span className={cn(
-                              "px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase",
-                              row.role === "student" && "bg-emerald-500/10 text-emerald-400",
-                              row.role === "teacher" && "bg-sky-500/10 text-sky-400",
-                              row.role === "parent" && "bg-purple-500/10 text-purple-400",
-                              row.role === "other" && "bg-zinc-500/15 text-zinc-400"
-                            )}>
-                              {row.role}
-                            </span>
-                          ) : (
-                            <span className="text-muted-foreground">—</span>
-                          )}
-                        </td>
-                        <td className="px-3 py-2 whitespace-nowrap">{tierBadge(row.signup_tier)}</td>
-                        <td className="px-3 py-2 whitespace-nowrap">{statusBadge(row.admin_status)}</td>
+                        {tier === "waitlist" ? (
+                          <>
+                            <td className="px-3 py-2">
+                              <span className="font-medium text-foreground block">{row.email}</span>
+                              <span className="block text-[10px] text-muted-foreground">{row.phone}</span>
+                            </td>
+                            <td className="px-3 py-2 whitespace-nowrap">{statusBadge(row.admin_status)}</td>
+                          </>
+                        ) : (
+                          <>
+                            <td className="px-3 py-2">
+                              <span className="font-medium text-foreground">{displayName(row)}</span>
+                              <span className="block text-[10px] text-muted-foreground">{row.email}</span>
+                            </td>
+                            <td className="px-3 py-2 whitespace-nowrap text-xs">
+                              {row.role ? (
+                                <span className={cn(
+                                  "px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase",
+                                  row.role === "student" && "bg-emerald-500/10 text-emerald-400",
+                                  row.role === "teacher" && "bg-sky-500/10 text-sky-400",
+                                  row.role === "parent" && "bg-purple-500/10 text-purple-400",
+                                  row.role === "other" && "bg-zinc-500/15 text-zinc-400"
+                                )}>
+                                  {row.role}
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )}
+                            </td>
+                            <td className="px-3 py-2 whitespace-nowrap">{statusBadge(row.admin_status)}</td>
+                          </>
+                        )}
                       </tr>
                     );
                   })}
@@ -589,11 +674,63 @@ export function WaitlistTab({ initialId }: WaitlistTabProps) {
                   {selected.refcode ? (
                     <div>
                       <span className="text-muted-foreground block">Referral code used:</span>
-                      <span className="font-mono text-primary font-semibold">{selected.refcode}</span>
+                      {(() => {
+                        const referrerRow = data?.rows.find(
+                          (r) => r.waitlist_id?.toUpperCase() === selected.refcode?.toUpperCase()
+                        );
+                        if (referrerRow) {
+                          return (
+                            <button
+                              type="button"
+                              onClick={() => handleSelect(referrerRow.id)}
+                              className="font-mono text-primary font-semibold hover:underline bg-transparent border-none p-0 cursor-pointer text-left focus:outline-none"
+                            >
+                              {selected.refcode} ({displayName(referrerRow)})
+                            </button>
+                          );
+                        }
+                        return <span className="font-mono text-primary font-semibold">{selected.refcode}</span>;
+                      })()}
                     </div>
                   ) : null}
                 </div>
               ) : null}
+
+              {/* Referrals list section */}
+              <div className="border-t pt-3 space-y-2">
+                <p className="text-xs font-semibold uppercase text-muted-foreground flex items-center gap-1.5">
+                  <ClipboardList className="h-4 w-4" />
+                  Referrals / Shared With ({referrals.length})
+                </p>
+                {loadingReferrals ? (
+                  <p className="text-xs text-muted-foreground animate-pulse">Loading referrals...</p>
+                ) : referrals.length > 0 ? (
+                  <div className="space-y-1.5 max-h-[180px] overflow-y-auto pr-1">
+                    {referrals.map((ref) => (
+                      <div
+                        key={ref.id}
+                        onClick={() => handleSelect(ref.id)}
+                        className="flex items-center justify-between p-2 rounded bg-muted/30 border border-border/40 hover:bg-primary/5 hover:border-primary/20 cursor-pointer transition text-xs"
+                      >
+                        <div>
+                          <span className="font-semibold text-foreground">
+                            {displayName(ref)}
+                          </span>
+                          <span className="text-muted-foreground block text-[10px]">
+                            {ref.email} · {ref.phone}
+                          </span>
+                        </div>
+                        <div className="text-right flex items-center gap-2">
+                          <span className="font-mono text-[10px] text-primary">{ref.waitlist_id}</span>
+                          {tierBadge(ref.signup_tier)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground italic">No buddies have signed up using this user&apos;s waitlist ID yet.</p>
+                )}
+              </div>
 
               {/* Admin Note Section */}
               <div className="space-y-2 border-t pt-3">

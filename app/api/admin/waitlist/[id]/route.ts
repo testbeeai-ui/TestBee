@@ -63,3 +63,49 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
+
+export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
+  try {
+    const ctx = await getSupabaseAndUser(request);
+    if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!(await isAdminUser(ctx.supabase, ctx.user.id))) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const admin = createAdminClient();
+    if (!admin) {
+      return NextResponse.json({ error: "SUPABASE_SERVICE_ROLE_KEY is not set" }, { status: 500 });
+    }
+
+    const { id } = await context.params;
+    const table = waitlistSubmissionsTable(admin);
+
+    // Fetch the target user's waitlist_id
+    const { data: target, error: targetError } = await table
+      .select("waitlist_id")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (targetError) {
+      return NextResponse.json({ error: targetError.message }, { status: 500 });
+    }
+    if (!target) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    // Now find any other submissions whose refcode matches the target's waitlist_id
+    const { data: referrals, error: refError } = await table
+      .select("id, waitlist_id, email, first_name, last_name, phone, role, signup_tier, created_at, admin_status")
+      .ilike("refcode", target.waitlist_id)
+      .order("created_at", { ascending: false });
+
+    if (refError) {
+      return NextResponse.json({ error: refError.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ ok: true, referrals: referrals ?? [] });
+  } catch (err) {
+    console.error("[GET /api/admin/waitlist/[id]] Server error:", err);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
+  }
+}

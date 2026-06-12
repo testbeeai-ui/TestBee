@@ -8,6 +8,7 @@ import {
 } from "@/lib/buddy/buddyActivityRevision";
 import { latestLessonMarkedAtFromEngagement } from "@/lib/buddy/listBuddyCompletedSubtopics";
 import { latestBuddyTopicQuizAttempt } from "@/lib/buddy/listBuddyQuizMcq";
+import { flushSitePresenceToPostgres } from "@/lib/presence/sitePresenceBuffer";
 
 /**
  * GET /api/buddy/activity-signal — cheap revision check (1–2 indexed reads).
@@ -48,6 +49,8 @@ export async function GET(request: Request) {
     }
     buddyId = pair.buddy_user_id;
   }
+
+  await flushSitePresenceToPostgres(db, buddyId);
 
   const [
     presenceRes,

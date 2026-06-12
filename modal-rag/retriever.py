@@ -132,10 +132,15 @@ async def retrieve_chunks(
         grade_level, mapped_subject, len(chunks), best_pass1,
     )
 
+    # Pass 1 is good enough when we already have on-syllabus chunks above threshold —
+    # skip cross-subject / all-grade fallbacks (saves 1–2 vector RPCs per retrieve).
+    pass1_usable = [c for c in chunks if c.get("distance", 0) >= min_sim]
+    if pass1_usable or best_pass1 >= min_sim:
+        chunks = pass1_usable if pass1_usable else chunks
     # Only fall through to Pass 2 if Pass 1 is truly hopeless (below the subject floor).
     # A score in [PASS1_SUBJECT_FLOOR, min_sim) still stays in the right subject, which
     # is better than fetching a cross-subject result with a marginally higher score.
-    if best_pass1 < PASS1_SUBJECT_FLOOR:
+    elif best_pass1 < PASS1_SUBJECT_FLOOR:
         # Pass 2: Same grade, ALL subjects (cross-subject fallback)
         chunks = await _call_match_chunks(embedding, grade_level, None, match_count)
         logger.info(

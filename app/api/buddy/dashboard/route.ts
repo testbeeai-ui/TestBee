@@ -23,6 +23,7 @@ import {
 import { computeBuddyPlayArena, todayUtcDateString } from "@/lib/buddy/computeBuddyPlayArena";
 import { DEFAULT_RDM_CONFIG, type RdmConfigParams } from "@/lib/rdm/rdmConfig";
 import type { DifficultyLevel, Subject } from "@/types";
+import { flushSitePresenceToPostgres } from "@/lib/presence/sitePresenceBuffer";
 
 function todayIstDateString(): string {
   const f = new Intl.DateTimeFormat("en-CA", {
@@ -86,6 +87,8 @@ export async function GET(request: Request) {
   const sinceLatestDwell = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
   const sinceMcq = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString();
   const sincePlayHistory = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+  await flushSitePresenceToPostgres(admin, buddyId);
 
   const [
     profileRes,

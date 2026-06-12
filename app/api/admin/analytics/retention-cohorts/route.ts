@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
 import { isAdminUser } from "@/lib/admin/admin";
+import { getCachedAdminAnalytics } from "@/lib/admin/adminAnalyticsCache";
+import { ADMIN_ANALYTICS_CACHE_TTL_MS } from "@/lib/admin/adminAnalyticsConfig";
 import { createAdminClient } from "@/integrations/supabase/server";
+
+const CACHE_KEY = "retention_cohorts";
 
 export async function GET(request: Request) {
   try {
@@ -16,17 +20,27 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "SUPABASE_SERVICE_ROLE_KEY is not set" }, { status: 500 });
     }
 
-    const { data, error } = await (admin as any).rpc("admin_retention_cohorts");
+    const { data, cachedAt, fromCache } = await getCachedAdminAnalytics(
+      admin,
+      CACHE_KEY,
+      ADMIN_ANALYTICS_CACHE_TTL_MS,
+      async () => {
+        const { data: fresh, error } = await (admin as any).rpc(
+          "admin_retention_cohorts"
+        );
+        if (error) throw new Error(error.message);
+        return fresh;
+      }
+    );
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    return NextResponse.json(data, {
-      headers: {
-        "Cache-Control": "private, max-age=60, stale-while-revalidate=120",
-      },
-    });
+    return NextResponse.json(
+      { ...(data as object), cachedAt, fromCache },
+      {
+        headers: {
+          "Cache-Control": "private, max-age=60, stale-while-revalidate=120",
+        },
+      }
+    );
   } catch (e) {
     const message = e instanceof Error ? e.message : "Server error";
     return NextResponse.json({ error: message }, { status: 500 });

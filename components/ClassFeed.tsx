@@ -21,6 +21,7 @@ import {
 } from "@/lib/classroom/assignmentProgressSync";
 import { cn } from "@/lib/utils";
 import type { Json } from "@/integrations/supabase/types";
+import { CLASSROOM_FEED_PAGE_SIZE } from "@/lib/classroom/classroomFeedConstants";
 
 export interface Post {
   id: string;
@@ -200,6 +201,9 @@ const ClassFeed = ({
   onFeedCountsChange,
 }: Props) => {
   const [posts, setPosts] = useState<Post[]>([]);
+  const [totalPostCount, setTotalPostCount] = useState<number | null>(null);
+  const [hasMorePosts, setHasMorePosts] = useState(false);
+  const [loadingMorePosts, setLoadingMorePosts] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submittedPostIds, setSubmittedPostIds] = useState<Set<string>>(new Set());
   const [donePostIds, setDonePostIds] = useState<Set<string>>(new Set());
@@ -213,27 +217,68 @@ const ClassFeed = ({
     onFeedCountsChangeRef.current = onFeedCountsChange;
   }, [onFeedCountsChange]);
 
+  const fetchPostsPage = useCallback(
+    async (offset: number, append: boolean) => {
+      const from = offset;
+      const to = offset + CLASSROOM_FEED_PAGE_SIZE - 1;
+      const { data, count, error } = await supabase
+        .from("posts")
+        .select("*, profiles!posts_teacher_id_fkey(name)", { count: "exact" })
+        .eq("classroom_id", classroomId)
+        .order("created_at", { ascending: false })
+        .range(from, to);
+
+      if (error) throw error;
+
+      const rows = (data as unknown as Post[]) || [];
+      const total = count ?? rows.length;
+      setTotalPostCount(total);
+      setPosts((prev) => (append ? [...prev, ...rows] : rows));
+      setHasMorePosts(from + rows.length < total);
+    },
+    [classroomId]
+  );
+
+  const loadMorePosts = useCallback(async () => {
+    if (loadingMorePosts || !hasMorePosts) return;
+    setLoadingMorePosts(true);
+    try {
+      await fetchPostsPage(posts.length, true);
+    } finally {
+      setLoadingMorePosts(false);
+    }
+  }, [fetchPostsPage, hasMorePosts, loadingMorePosts, posts.length]);
+
   useEffect(() => {
     if (initialPosts !== undefined) {
       queueMicrotask(() => {
-        setPosts(initialPosts ?? []);
+        const rows = initialPosts ?? [];
+        setPosts(rows);
+        setTotalPostCount(rows.length);
+        setHasMorePosts(false);
         setLoading(false);
       });
       return;
     }
+    let cancelled = false;
     queueMicrotask(() => {
       setLoading(true);
-      supabase
-        .from("posts")
-        .select("*, profiles!posts_teacher_id_fkey(name)")
-        .eq("classroom_id", classroomId)
-        .order("created_at", { ascending: false })
-        .then(({ data }) => {
-          setPosts((data as unknown as Post[]) || []);
-          setLoading(false);
-        });
+      setHasMorePosts(false);
+      setTotalPostCount(null);
+      void (async () => {
+        try {
+          await fetchPostsPage(0, false);
+        } catch {
+          if (!cancelled) setPosts([]);
+        } finally {
+          if (!cancelled) setLoading(false);
+        }
+      })();
     });
-  }, [classroomId, refreshKey, initialPosts]);
+    return () => {
+      cancelled = true;
+    };
+  }, [classroomId, refreshKey, initialPosts, fetchPostsPage]);
 
   useEffect(() => {
     const tick = () => setNowMs(Date.now());
@@ -407,13 +452,14 @@ const ClassFeed = ({
   useEffect(() => {
     if (!onFeedCountsChangeRef.current || loading) return;
     onFeedCountsChangeRef.current({
-      total: posts.length,
+      total: totalPostCount ?? posts.length,
       active: viewerIsTeacher ? visiblePosts.length : activePosts.length,
       upcoming: upcomingPosts.length,
       done: donePosts.length,
     });
   }, [
     posts.length,
+    totalPostCount,
     visiblePosts.length,
     activePosts.length,
     upcomingPosts.length,
@@ -732,6 +778,25 @@ const ClassFeed = ({
       </div>
     ) : null;
 
+  const loadMoreControl =
+    initialPosts === undefined && hasMorePosts ? (
+      <div className="flex flex-col items-center gap-1 pt-4">
+        <button
+          type="button"
+          onClick={() => void loadMorePosts()}
+          disabled={loadingMorePosts}
+          className="rounded-full border border-border bg-muted/50 px-4 py-2 text-xs font-bold text-foreground hover:bg-muted disabled:opacity-60"
+        >
+          {loadingMorePosts ? "Loading…" : "Load more posts"}
+        </button>
+        {totalPostCount != null ? (
+          <p className="text-[10px] text-muted-foreground">
+            Showing {posts.length} of {totalPostCount}
+          </p>
+        ) : null}
+      </div>
+    ) : null;
+
   return (
     <div className="space-y-1">
       {tabBar}
@@ -741,6 +806,7 @@ const ClassFeed = ({
           {selectedPosts.map(renderPostCard)}
         </div>
       ) : null}
+      {loadMoreControl}
     </div>
   );
 };

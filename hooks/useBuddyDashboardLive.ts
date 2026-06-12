@@ -9,14 +9,11 @@ import {
   type BuddyProfile,
 } from "@/lib/buddy/buddyClient";
 import { EDUBLAST_BUDDY_ACTIVITY_REFRESH } from "@/lib/buddy/buddyActivityEvents";
-
-/** Lightweight revision poll while the panel is open (not a full dashboard fetch). */
-/** Match site-presence heartbeat (~20s) so “Online now” updates quickly for viewers. */
-const SIGNAL_POLL_MS = 20_000;
-/** Recompute buddyOnline from dashboard API (not only activity revision). */
-const ONLINE_REFRESH_MS = 20_000;
-/** Occasional full refresh for Gyan / Play / MCQ tiles that are not on the presence row. */
-const FULL_REFRESH_MS = 5 * 60 * 1000;
+import {
+  BUDDY_FULL_REFRESH_MS,
+  BUDDY_REALTIME_DEBOUNCE_MS,
+  BUDDY_SIGNAL_POLL_MS,
+} from "@/lib/dashboard/connectionRealtimeConstants";
 
 type UseBuddyDashboardLiveResult = {
   data: BuddyAdvancedDashboardResponse | null;
@@ -31,6 +28,7 @@ export function useBuddyDashboardLive(buddy: BuddyProfile): UseBuddyDashboardLiv
   const revisionRef = useRef<string | null>(null);
   const loadGenRef = useRef(0);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const realtimeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadFull = useCallback(
     async (opts?: { showLoading?: boolean }) => {
@@ -74,7 +72,15 @@ export function useBuddyDashboardLive(buddy: BuddyProfile): UseBuddyDashboardLiv
     } catch {
       /* non-fatal — next poll or realtime will retry */
     }
-  }, [scheduleFullLoad]);
+  }, [buddy.id, scheduleFullLoad]);
+
+  const scheduleSignalCheck = useCallback(() => {
+    if (realtimeDebounceRef.current) clearTimeout(realtimeDebounceRef.current);
+    realtimeDebounceRef.current = setTimeout(() => {
+      realtimeDebounceRef.current = null;
+      void checkSignalAndMaybeLoad();
+    }, BUDDY_REALTIME_DEBOUNCE_MS);
+  }, [checkSignalAndMaybeLoad]);
 
   const refresh = useCallback(() => {
     revisionRef.current = null;
@@ -99,32 +105,9 @@ export function useBuddyDashboardLive(buddy: BuddyProfile): UseBuddyDashboardLiv
       }
     })();
 
+    // Phase 3: one Realtime table (site heartbeat). Learning/gyan/dwell covered by activity-signal poll.
     const channel = supabase
       .channel(`buddy_presence:${buddy.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "student_learning_presence",
-          filter: `user_id=eq.${buddy.id}`,
-        },
-        () => {
-          void checkSignalAndMaybeLoad();
-        }
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "student_gyan_presence",
-          filter: `user_id=eq.${buddy.id}`,
-        },
-        () => {
-          void checkSignalAndMaybeLoad();
-        }
-      )
       .on(
         "postgres_changes",
         {
@@ -134,19 +117,7 @@ export function useBuddyDashboardLive(buddy: BuddyProfile): UseBuddyDashboardLiv
           filter: `user_id=eq.${buddy.id}`,
         },
         () => {
-          void checkSignalAndMaybeLoad();
-        }
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "student_learning_dwell_events",
-          filter: `user_id=eq.${buddy.id}`,
-        },
-        () => {
-          void checkSignalAndMaybeLoad();
+          scheduleSignalCheck();
         }
       )
       .subscribe();
@@ -154,17 +125,12 @@ export function useBuddyDashboardLive(buddy: BuddyProfile): UseBuddyDashboardLiv
     const signalInterval = window.setInterval(() => {
       if (document.visibilityState !== "visible") return;
       void checkSignalAndMaybeLoad();
-    }, SIGNAL_POLL_MS);
+    }, BUDDY_SIGNAL_POLL_MS);
 
     const fullInterval = window.setInterval(() => {
       if (document.visibilityState !== "visible") return;
       scheduleFullLoad();
-    }, FULL_REFRESH_MS);
-
-    const onlineInterval = window.setInterval(() => {
-      if (document.visibilityState !== "visible") return;
-      void loadFull();
-    }, ONLINE_REFRESH_MS);
+    }, BUDDY_FULL_REFRESH_MS);
 
     const onFocus = () => {
       void checkSignalAndMaybeLoad();
@@ -179,14 +145,14 @@ export function useBuddyDashboardLive(buddy: BuddyProfile): UseBuddyDashboardLiv
     return () => {
       loadGenRef.current += 1;
       if (debounceRef.current) clearTimeout(debounceRef.current);
+      if (realtimeDebounceRef.current) clearTimeout(realtimeDebounceRef.current);
       window.removeEventListener("focus", onFocus);
       window.removeEventListener(EDUBLAST_BUDDY_ACTIVITY_REFRESH, onBuddyActivity);
       window.clearInterval(signalInterval);
       window.clearInterval(fullInterval);
-      window.clearInterval(onlineInterval);
       void supabase.removeChannel(channel);
     };
-  }, [buddy.id, loadFull, scheduleFullLoad, checkSignalAndMaybeLoad]);
+  }, [buddy.id, loadFull, scheduleFullLoad, checkSignalAndMaybeLoad, scheduleSignalCheck]);
 
   return { data, error, refresh };
 }

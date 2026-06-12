@@ -75,13 +75,16 @@ import { slugify } from "@/lib/slugs";
 import TheoryContent from "@/components/TheoryContent";
 import TopicAgentTracePanel from "@/components/TopicAgentTracePanel";
 import {
-  fetchTopicContent,
+  fetchTopicHubDisplayBundle,
   generateTopicContent,
   upsertTopicContent,
   type TopicAgentTrace,
   type TopicSubtopicPreview,
   type TopicHubScope,
 } from "@/lib/curriculum/topicContentService";
+import { normalizeHubSectionForDisplay } from "@/lib/curriculum/topicHubDisplay";
+import TopicHubOverviewSections from "@/components/explore/TopicHubOverviewSections";
+import type { DifficultyLevel } from "@/lib/slugs";
 import { useToast } from "@/hooks/use-toast";
 import { fuzzySubtopicKey } from "@/lib/utils";
 import { useOrchestratorStore } from "@/store/useOrchestratorStore";
@@ -200,16 +203,6 @@ function chapterLookupKey(value: string): string {
     .replace(/[—–-]/g, " ")
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
-}
-
-/** Stored copy sometimes has literal `\n` / `\t` instead of real newlines — fix markdown/list rendering. */
-function decodeAiEscapes(text: string): string {
-  if (!text) return text;
-  return text
-    .replace(/\\r\\n/g, "\n")
-    .replace(/\\n/g, "\n")
-    .replace(/\\r/g, "\n")
-    .replace(/\\t/g, "\t");
 }
 
 function getExamLabel(value: ExamType): string {
@@ -1636,6 +1629,11 @@ const Explore = () => {
   const [topicRealWorld, setTopicRealWorld] = useState("");
   const [topicSubtopicPreviews, setTopicSubtopicPreviews] = useState<TopicSubtopicPreview[]>([]);
   const [topicContentExists, setTopicContentExists] = useState(false);
+  const [topicHubHasOverviewProse, setTopicHubHasOverviewProse] = useState(false);
+  const [topicHubHasSubtopicPreviews, setTopicHubHasSubtopicPreviews] = useState(false);
+  const [topicHubMissingGateLevels, setTopicHubMissingGateLevels] = useState<DifficultyLevel[]>(
+    []
+  );
   const [topicContentLoading, setTopicContentLoading] = useState(false);
   const [canEditTopicContent, setCanEditTopicContent] = useState(false);
   const [generatingTopic, setGeneratingTopic] = useState(false);
@@ -2326,6 +2324,9 @@ const Explore = () => {
       setTopicRealWorld("");
       setTopicSubtopicPreviews([]);
       setTopicContentExists(false);
+      setTopicHubHasOverviewProse(false);
+      setTopicHubHasSubtopicPreviews(false);
+      setTopicHubMissingGateLevels([]);
       setCanEditTopicContent(false);
       setTopicContentLoading(false);
       setTopicAgentTrace(null);
@@ -2334,12 +2335,11 @@ const Explore = () => {
     let cancelled = false;
     const boardName = (String(profileBoard).toUpperCase() === "ICSE" ? "ICSE" : "CBSE") as Board;
     setTopicContentLoading(true);
-    fetchTopicContent({
+    fetchTopicHubDisplayBundle({
       board: boardName,
       subject: selectedSubject,
       classLevel: selectedTopicClassLevel as 11 | 12,
       topic: topicForHub,
-      level: "basics",
       hubScope: hubScopeForHub,
     })
       .then((res) => {
@@ -2352,6 +2352,9 @@ const Explore = () => {
         setDraftWhatLearn(res.whatLearn);
         setDraftRealWorld(res.realWorld);
         setTopicContentExists(res.exists);
+        setTopicHubHasOverviewProse(res.hasOverviewProse);
+        setTopicHubHasSubtopicPreviews(res.hasSubtopicPreviews);
+        setTopicHubMissingGateLevels(res.missingGateLevels);
         setCanEditTopicContent(res.canEdit);
       })
       .catch(() => {
@@ -2364,6 +2367,9 @@ const Explore = () => {
         setDraftWhatLearn("");
         setDraftRealWorld("");
         setTopicContentExists(false);
+        setTopicHubHasOverviewProse(false);
+        setTopicHubHasSubtopicPreviews(false);
+        setTopicHubMissingGateLevels([]);
         setCanEditTopicContent(false);
         setTopicAgentTrace(null);
       })
@@ -2508,14 +2514,21 @@ const Explore = () => {
         mode: "generate",
         includeTrace: true,
       });
-      setTopicWhyStudy(out.whyStudy);
-      setTopicWhatLearn(out.whatLearn);
-      setTopicRealWorld(out.realWorld);
-      setTopicSubtopicPreviews(out.subtopicPreviews ?? []);
+      const whyStudy = normalizeHubSectionForDisplay(out.whyStudy);
+      const whatLearn = normalizeHubSectionForDisplay(out.whatLearn);
+      const realWorld = normalizeHubSectionForDisplay(out.realWorld);
+      const previews = out.subtopicPreviews ?? [];
+      setTopicWhyStudy(whyStudy);
+      setTopicWhatLearn(whatLearn);
+      setTopicRealWorld(realWorld);
+      setTopicSubtopicPreviews(previews);
       setDraftWhyStudy(out.whyStudy);
       setDraftWhatLearn(out.whatLearn);
       setDraftRealWorld(out.realWorld);
       setTopicContentExists(true);
+      setTopicHubHasOverviewProse(Boolean(whyStudy || whatLearn || realWorld));
+      setTopicHubHasSubtopicPreviews(previews.length > 0);
+      setTopicHubMissingGateLevels(["intermediate", "advanced"]);
       setTopicAgentTrace(out.trace ?? null);
       toast({
         title: hubAgentUi.toastGenerated,
@@ -3294,50 +3307,17 @@ const Explore = () => {
                                     onClear={() => setTopicAgentTrace(null)}
                                   />
                                 ) : null}
-                                <div className="space-y-4 text-sm text-muted-foreground leading-relaxed">
-                                  <div>
-                                    <h4 className="font-bold text-foreground text-sm mb-1">
-                                      Why study this topic?
-                                    </h4>
-                                    {topicContentLoading ? (
-                                      <p>Loading…</p>
-                                    ) : topicContentExists && topicWhyStudy.trim() ? (
-                                      <div className="theory-content">
-                                        <TheoryContent theory={decodeAiEscapes(topicWhyStudy)} />
-                                      </div>
-                                    ) : (
-                                      <p>—</p>
-                                    )}
-                                  </div>
-                                  <div>
-                                    <h4 className="font-bold text-foreground text-sm mb-1">
-                                      What you will learn
-                                    </h4>
-                                    {topicContentLoading ? (
-                                      <p>Loading…</p>
-                                    ) : topicContentExists && topicWhatLearn.trim() ? (
-                                      <div className="theory-content">
-                                        <TheoryContent theory={decodeAiEscapes(topicWhatLearn)} />
-                                      </div>
-                                    ) : (
-                                      <p>—</p>
-                                    )}
-                                  </div>
-                                  <div>
-                                    <h4 className="font-bold text-foreground text-sm mb-1">
-                                      Real-world importance
-                                    </h4>
-                                    {topicContentLoading ? (
-                                      <p>Loading…</p>
-                                    ) : topicContentExists && topicRealWorld.trim() ? (
-                                      <div className="theory-content">
-                                        <TheoryContent theory={decodeAiEscapes(topicRealWorld)} />
-                                      </div>
-                                    ) : (
-                                      <p>—</p>
-                                    )}
-                                  </div>
-                                </div>
+                                <TopicHubOverviewSections
+                                  loading={topicContentLoading}
+                                  whyStudy={topicWhyStudy}
+                                  whatLearn={topicWhatLearn}
+                                  realWorld={topicRealWorld}
+                                  topicContentExists={topicContentExists}
+                                  hasOverviewProse={topicHubHasOverviewProse}
+                                  hasSubtopicPreviews={topicHubHasSubtopicPreviews}
+                                  missingGateLevels={topicHubMissingGateLevels}
+                                  canEditTopicContent={canEditTopicContent}
+                                />
                                 {topicEditorOpen && canEditTopicContent && (
                                   <div className="mt-2 space-y-3 rounded-xl border border-border bg-background/80 p-3">
                                     <p className="text-xs font-semibold text-muted-foreground">
@@ -4206,14 +4186,20 @@ const Explore = () => {
                           },
                           includeTrace: true,
                         });
-                        setTopicWhyStudy(out.whyStudy);
-                        setTopicWhatLearn(out.whatLearn);
-                        setTopicRealWorld(out.realWorld);
-                        setTopicSubtopicPreviews(out.subtopicPreviews ?? []);
+                        const whyStudy = normalizeHubSectionForDisplay(out.whyStudy);
+                        const whatLearn = normalizeHubSectionForDisplay(out.whatLearn);
+                        const realWorld = normalizeHubSectionForDisplay(out.realWorld);
+                        const previews = out.subtopicPreviews ?? [];
+                        setTopicWhyStudy(whyStudy);
+                        setTopicWhatLearn(whatLearn);
+                        setTopicRealWorld(realWorld);
+                        setTopicSubtopicPreviews(previews);
                         setDraftWhyStudy(out.whyStudy);
                         setDraftWhatLearn(out.whatLearn);
                         setDraftRealWorld(out.realWorld);
                         setTopicContentExists(true);
+                        setTopicHubHasOverviewProse(Boolean(whyStudy || whatLearn || realWorld));
+                        setTopicHubHasSubtopicPreviews(previews.length > 0);
                         setTopicAgentTrace(out.trace ?? null);
                         toast({
                           title: hubAgentUi.toastRegenerated,

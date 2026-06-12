@@ -20,6 +20,7 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const statusFilter = (url.searchParams.get("status") ?? "all").toLowerCase();
     const roleFilter = (url.searchParams.get("role") ?? "all").toLowerCase();
+    const tierFilter = (url.searchParams.get("tier") ?? "all").toLowerCase();
     const searchQuery = (url.searchParams.get("search") ?? "").trim();
     const rawLimit = Number(url.searchParams.get("limit") ?? 100);
     const limit = Number.isFinite(rawLimit)
@@ -43,6 +44,11 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Invalid role filter" }, { status: 400 });
     }
 
+    // Apply tier filter
+    if (tierFilter === "waitlist" || tierFilter === "ambassador") {
+      query = query.eq("signup_tier", tierFilter);
+    }
+
     // Apply search filter (name, email, or phone)
     if (searchQuery) {
       query = query.or(`first_name.ilike.%${searchQuery}%,last_name.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%,phone.ilike.%${searchQuery}%`);
@@ -57,18 +63,23 @@ export async function GET(request: Request) {
     }
 
     // Overview counters
-    const { count: totalCount } = await table.select("id", { count: "exact", head: true });
-    const { count: newCount } = await table
-      .select("id", { count: "exact", head: true })
-      .eq("admin_status", "new");
-
+    let totalCountQuery = table.select("id", { count: "exact", head: true });
+    let newCountQuery = table.select("id", { count: "exact", head: true }).eq("admin_status", "new");
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-    const { count: last7 } = await table
-      .select("id", { count: "exact", head: true })
-      .gte("created_at", sevenDaysAgo);
+    let last7Query = table.select("id", { count: "exact", head: true }).gte("created_at", sevenDaysAgo);
+    let roleCountsQuery = table.select("role");
 
-    // Get count of each role
-    const { data: roleCountsRaw, error: roleError } = await table.select("role");
+    if (tierFilter === "waitlist" || tierFilter === "ambassador") {
+      totalCountQuery = totalCountQuery.eq("signup_tier", tierFilter);
+      newCountQuery = newCountQuery.eq("signup_tier", tierFilter);
+      last7Query = last7Query.eq("signup_tier", tierFilter);
+      roleCountsQuery = roleCountsQuery.eq("signup_tier", tierFilter);
+    }
+
+    const { count: totalCount } = await totalCountQuery;
+    const { count: newCount } = await newCountQuery;
+    const { count: last7 } = await last7Query;
+    const { data: roleCountsRaw, error: roleError } = await roleCountsQuery;
     const roleBreakdowns = { student: 0, teacher: 0, parent: 0, other: 0 };
     if (!roleError && roleCountsRaw) {
       for (const item of roleCountsRaw) {

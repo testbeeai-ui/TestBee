@@ -1,4 +1,12 @@
 import { fetchWithClientAuth } from "@/lib/auth/clientApiAuth";
+import {
+  hasDisplayableHubSection,
+  isTopicHubRowViable,
+  mergeHubSectionsAcrossLevels,
+  mergeSubtopicPreviewsAcrossLevels,
+  normalizeHubSectionForDisplay,
+} from "@/lib/curriculum/topicHubDisplay";
+import type { TopicContentGateRow } from "@/lib/curriculum/subtopicCompleteness";
 import type { DifficultyLevel } from "@/lib/slugs";
 import type { Board, Subject } from "@/types";
 
@@ -77,9 +85,117 @@ export type TopicContentResponse = {
 
 /** Same viability rule as `lib/subtopicCompleteness` topic hub gate (keep in sync). */
 export function isTopicContentResponseViable(r: TopicContentResponse): boolean {
-  const w = (s: string) => String(s ?? "").trim().length > 0;
-  if (w(r.whyStudy) || w(r.whatLearn) || w(r.realWorld)) return true;
+  if (
+    hasDisplayableHubSection(r.whyStudy) ||
+    hasDisplayableHubSection(r.whatLearn) ||
+    hasDisplayableHubSection(r.realWorld)
+  ) {
+    return true;
+  }
   return Array.isArray(r.subtopicPreviews) && r.subtopicPreviews.length > 0;
+}
+
+export type TopicHubDisplayBundle = {
+  exists: boolean;
+  whyStudy: string;
+  whatLearn: string;
+  realWorld: string;
+  subtopicPreviews: TopicSubtopicPreview[];
+  hasOverviewProse: boolean;
+  hasSubtopicPreviews: boolean;
+  levelsPresent: DifficultyLevel[];
+  missingGateLevels: DifficultyLevel[];
+  viableByLevel: Record<DifficultyLevel, boolean>;
+  primaryLevel: DifficultyLevel | null;
+  canEdit: boolean;
+  agentTrace: TopicAgentTrace | null;
+};
+
+/** Load all difficulty levels and merge the best overview for Explore hub UI. */
+export async function fetchTopicHubDisplayBundle(params: {
+  board: Board;
+  subject: Subject;
+  classLevel: 11 | 12;
+  topic: string;
+  hubScope?: TopicHubScope;
+}): Promise<TopicHubDisplayBundle> {
+  const hubScope = params.hubScope ?? "topic";
+  const levels: DifficultyLevel[] = ["basics", "intermediate", "advanced"];
+  const byLevel: Partial<
+    Record<
+      DifficultyLevel,
+      {
+        exists: boolean;
+        whyStudy: string;
+        whatLearn: string;
+        realWorld: string;
+        subtopicPreviews: TopicSubtopicPreview[];
+        gateRow: TopicContentGateRow | null;
+        canEdit: boolean;
+      }
+    >
+  > = {};
+
+  const results = await Promise.all(
+    levels.map((level) => fetchTopicContent({ ...params, level, hubScope }))
+  );
+
+  levels.forEach((level, index) => {
+    const res = results[index]!;
+    const gateRow: TopicContentGateRow | null = res.exists
+      ? {
+          why_study: res.whyStudy,
+          what_learn: res.whatLearn,
+          real_world: res.realWorld,
+          subtopic_previews: res.subtopicPreviews,
+        }
+      : null;
+    byLevel[level] = {
+      exists: res.exists,
+      whyStudy: normalizeHubSectionForDisplay(res.whyStudy),
+      whatLearn: normalizeHubSectionForDisplay(res.whatLearn),
+      realWorld: normalizeHubSectionForDisplay(res.realWorld),
+      subtopicPreviews: res.subtopicPreviews,
+      gateRow,
+      canEdit: res.canEdit,
+    };
+  });
+
+  const merged = mergeHubSectionsAcrossLevels(byLevel);
+  const subtopicPreviews = mergeSubtopicPreviewsAcrossLevels(
+    Object.fromEntries(
+      levels.map((l) => [l, byLevel[l]?.subtopicPreviews ?? []])
+    ) as Partial<Record<DifficultyLevel, TopicSubtopicPreview[]>>
+  );
+
+  const levelsPresent = levels.filter((l) => byLevel[l]?.exists);
+  const viableByLevel = Object.fromEntries(
+    levels.map((l) => [l, isTopicHubRowViable(byLevel[l]?.gateRow ?? null)])
+  ) as Record<DifficultyLevel, boolean>;
+  const missingGateLevels = levels.filter((l) => !viableByLevel[l]);
+
+  const primaryLevel =
+    levels.find((l) => byLevel[l]?.exists && viableByLevel[l]) ??
+    levels.find((l) => byLevel[l]?.exists) ??
+    null;
+
+  const hasOverviewProse =
+    Boolean(merged.whyStudy) || Boolean(merged.whatLearn) || Boolean(merged.realWorld);
+  const hasSubtopicPreviews = subtopicPreviews.length > 0;
+
+  return {
+    exists: levelsPresent.length > 0,
+    ...merged,
+    subtopicPreviews,
+    hasOverviewProse,
+    hasSubtopicPreviews,
+    levelsPresent,
+    missingGateLevels,
+    viableByLevel,
+    primaryLevel,
+    canEdit: levels.some((l) => byLevel[l]?.canEdit),
+    agentTrace: null,
+  };
 }
 
 /** Client-side prerequisite: topic hub rows exist for all three difficulties. */

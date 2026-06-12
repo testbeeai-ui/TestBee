@@ -15,6 +15,11 @@ import {
   Trophy,
   ListTodo,
   User,
+  Users,
+  Share2,
+  Check,
+  Instagram,
+  Facebook,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -88,10 +93,43 @@ export function AmbassadorSidePanel({
 }: Props) {
   const urgency = ambassadorUrgencyLine();
   const [showRoleError, setShowRoleError] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const handleShare = async () => {
+    const shareUrl = "https://edublast.in";
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "EduBlast Website",
+          text: "Join the waitlist for EduBlast - the social platform that makes PCM students love studying!",
+          url: shareUrl,
+        });
+      } catch (err) {
+        console.log("Error sharing:", err);
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch (err) {
+        console.error("Failed to copy text:", err);
+      }
+    }
+  };
 
   if (completed) {
+    const fullWaitlistId = waitlistId
+      ? (waitlistId.startsWith("EB-2026-") ? waitlistId : `EB-2026-${waitlistId}`)
+      : "EB-2026-XXX";
+
     return (
       <div className="relative overflow-hidden rounded-[14px] border border-[#2A3347]/80 bg-[#161C26] p-4 sm:p-5 before:absolute before:inset-x-0 before:top-0 before:h-[3px] before:rounded-t-[14px] before:bg-[#7F77DD] before:content-['']">
+        {/* Brand Header for shareable screenshots */}
+        <div className="mb-4 flex items-center justify-between border-b border-[#2A3347]/60 pb-3">
+          <img src="/images/logo-2.png" alt="EduBlast" className="h-8 w-auto shrink-0" />
+          <span className="text-xs font-semibold text-[#7F77DD] tracking-wider">www.edublast.in</span>
+        </div>
         <div className="mb-2.5 inline-flex items-center gap-1.5 rounded-full border border-[#7F77DD] bg-[#171425] px-2.5 py-0.5 text-[11px] font-medium text-[#AFA9EC]">
           <span className="flex h-[17px] w-[17px] shrink-0 items-center justify-center rounded-full bg-[#7F77DD] text-[10px] text-white">
             ✓
@@ -123,8 +161,58 @@ export function AmbassadorSidePanel({
               <span>A confirmation email is on its way. Check your spam folder if it doesn't arrive shortly.</span>
             </div>
             <div className="flex items-start gap-2.5 p-2.5 bg-[#1C2333]/80 border border-[#2A3347]/80 rounded-lg text-xs leading-relaxed text-[#9BA3B8]">
-              <User className="h-[16px] w-[16px] text-[#85B7EB] shrink-0 mt-0.5" />
-              <span>Share EduBlast website with classmates. Each person who joins the website post-live strengthens your application for Ambassador.</span>
+              <Users className="h-[16px] w-[16px] text-[#85B7EB] shrink-0 mt-0.5" />
+              <span>
+                Share Edublast Website (edublast.in) along with your Waitlist ID ({fullWaitlistId}) so that it is counted as your referral. Your buddy has to enter your Waitlist ID as the &apos;referral code&apos; when he/she fills the Ambassador form.
+              </span>
+            </div>
+            <div className="flex items-start gap-2.5 p-2.5 bg-[#1C2333]/80 border border-[#2A3347]/80 rounded-lg text-xs leading-relaxed text-[#9BA3B8]">
+              <Star className="h-[16px] w-[16px] text-[#7F77DD] shrink-0 mt-0.5" />
+              <span>
+                Congratulations on being waitlisted. You have signed up for an incredible journey. Please share this moment with your buddies on Instagram and/or Facebook with a screenshot of your confirmation screen. Thank you.
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={handleShare}
+              className="mt-1 w-full flex items-center justify-center gap-2 rounded-lg bg-[#7F77DD] hover:bg-[#6259CD] text-white py-2.5 px-4 text-xs font-semibold transition cursor-pointer shadow-md focus:outline-none"
+            >
+              {copied ? (
+                <>
+                  <Check className="h-4 w-4 text-white" />
+                  Link copied!
+                </>
+              ) : (
+                <>
+                  <Share2 className="h-4 w-4 text-white" />
+                  Share Website
+                </>
+              )}
+            </button>
+
+            <div className="mt-4 flex flex-col items-center gap-2 border-t border-[#2A3347]/60 pt-3.5 text-center">
+              <span className="text-[11px] font-medium text-[#9BA3B8] uppercase tracking-wider">Follow & Tag us on social media</span>
+              <div className="flex items-center gap-5 mt-1">
+                <a
+                  href="https://www.instagram.com/edublast.official"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-2 text-sm text-[#9BA3B8] hover:text-[#7F77DD] transition font-medium"
+                >
+                  <Instagram className="h-[18px] w-[18px] text-[#E1306C]" />
+                  <span>Instagram</span>
+                </a>
+                <span className="h-4 w-px bg-[#2A3347]" />
+                <a
+                  href="https://www.facebook.com/people/Edublast/61590741265251/"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-2 text-sm text-[#9BA3B8] hover:text-[#7F77DD] transition font-medium"
+                >
+                  <Facebook className="h-[18px] w-[18px] text-[#1877F2]" />
+                  <span>Facebook</span>
+                </a>
+              </div>
             </div>
           </div>
         </div>
@@ -161,7 +249,7 @@ export function AmbassadorSidePanel({
         Become an ambassador
       </div>
 
-      <h2 className="mb-1 text-base font-medium text-[#E8EAF0]">
+      <h2 className="mb-1 text-xl sm:text-2xl font-medium text-[#E8EAF0]">
         Want to be selected as <span className="text-[#7F77DD]">Ambassador?</span>
       </h2>
       <p className="mb-3 text-xs leading-relaxed text-[#9BA3B8] sm:mb-3.5">

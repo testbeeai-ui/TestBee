@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchRAGContext } from "@/lib/gyan/rag";
-import { SUBJECT_CHAT_LENGTH_CONTRACT } from "@/lib/gyanContentPolicy";
+import {
+  RAG_MATCH_COUNT_SUBJECT_CHAT,
+  SUBJECT_CHAT_LENGTH_CONTRACT,
+} from "@/lib/gyanContentPolicy";
 import {
   getSarvamGyanModel,
   logSarvamChatMetrics,
@@ -241,7 +244,14 @@ export async function POST(req: NextRequest) {
     }
 
 
-    const ragContext = await fetchRAGContext(message, subject, grade, topic, subtopic);
+    const ragContext = await fetchRAGContext(
+      message,
+      subject,
+      grade,
+      topic,
+      subtopic,
+      RAG_MATCH_COUNT_SUBJECT_CHAT
+    );
 
     await logAiUsage({
       supabase: authCtx.supabase,
