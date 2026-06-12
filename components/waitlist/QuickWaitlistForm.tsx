@@ -182,7 +182,7 @@ export function QuickWaitlistForm({
             <div className="flex items-start gap-2.5 p-2.5 bg-[#1C2333]/80 border border-[#2A3347]/80 rounded-lg text-xs leading-relaxed text-[#9BA3B8]">
               <Users className="h-[16px] w-[16px] text-[#85B7EB] shrink-0 mt-0.5" />
               <span>
-                Share Edublast Website (edublast.in) along with your Waitlist ID ({fullWaitlistId}) so that it is counted as your referral. Your buddy has to enter your Waitlist ID as the &apos;referral code&apos; when he/she fills the waitlist form.
+                Share Edublast Website (edublast.in) along with your Waitlist ID ({fullWaitlistId}) so that it is counted as your referral. Your buddy has to enter your Waitlist ID as the &apos;referral code&apos; when he/she fills the Ambassador form.
               </span>
             </div>
             <div className="flex items-start gap-2.5 p-2.5 bg-[#1C2333]/80 border border-[#2A3347]/80 rounded-lg text-xs leading-relaxed text-[#9BA3B8]">
@@ -276,7 +276,7 @@ export function QuickWaitlistForm({
             <div className="flex items-start gap-2.5 p-2.5 bg-[#1C2333]/80 border border-[#2A3347]/80 rounded-lg text-xs leading-relaxed text-[#9BA3B8]">
               <Users className="h-[16px] w-[16px] text-[#85B7EB] shrink-0 mt-0.5" />
               <span>
-                Share Edublast Website (edublast.in) along with your Waitlist ID ({fullWaitlistId}) so that it is counted as your referral. Your buddy has to enter your Waitlist ID as the &apos;referral code&apos; when he/she fills the waitlist form.
+                Share Edublast Website (edublast.in) along with your Waitlist ID ({fullWaitlistId}) so that it is counted as your referral. Your buddy has to enter your Waitlist ID as the &apos;referral code&apos; when he/she fills the Ambassador form.
               </span>
             </div>
             <div className="flex items-start gap-2.5 p-2.5 bg-[#1C2333]/80 border border-[#2A3347]/80 rounded-lg text-xs leading-relaxed text-[#9BA3B8]">
