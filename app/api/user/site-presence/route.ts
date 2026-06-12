@@ -20,7 +20,7 @@ export async function POST(request: Request) {
       signedOut?: boolean;
     } | null;
 
-    if (body?.offline) {
+    if (body?.offline && body?.signedOut) {
       await clearSitePresenceBuffer(user.id);
       await Promise.all([
         supabase
@@ -37,6 +37,10 @@ export async function POST(request: Request) {
           .eq("user_id" as never, user.id as never),
       ]);
       return NextResponse.json({ ok: true, offline: true, cleared: true });
+    }
+    if (body?.offline) {
+      await clearSitePresenceBuffer(user.id);
+      return NextResponse.json({ ok: true, offline: true, cleared: false });
     }
 
     const now = new Date().toISOString();

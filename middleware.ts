@@ -121,6 +121,7 @@ export async function middleware(request: NextRequest) {
     userId: user.id,
     email: user.email,
     onboardingComplete: profile?.onboarding_complete === true,
+    userCreatedAt: user.created_at,
   });
 
   if (!gate.allowed) {

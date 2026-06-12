@@ -39,7 +39,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const fetchProfile = async (
     userId: string,
-    userMeta?: { name?: string; avatar_url?: string; provider?: string; email?: string }
+    userMeta?: {
+      name?: string;
+      avatar_url?: string;
+      provider?: string;
+      email?: string;
+      createdAt?: string;
+    }
   ) => {
     const { data, error } = await supabase
       .from("profiles")
@@ -51,60 +57,43 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const email = userMeta?.email;
     let approvedRole: "student" | "teacher" | null = null;
 
-    if (!isComplete && email) {
-      // Check if user is admin via profile role or user_roles table
-      let isAdmin = false;
-      if (data?.role === "admin") {
-        isAdmin = true;
-      } else {
-        const { data: roleData } = await supabase
-          .from("user_roles")
-          .select("id")
-          .eq("user_id", userId)
-          .eq("role", "admin")
-          .maybeSingle();
-        if (roleData) isAdmin = true;
+    if (email) {
+      const gate = await evaluateWhitelistGate(supabase, {
+        userId,
+        email,
+        onboardingComplete: isComplete,
+        userCreatedAt: userMeta?.createdAt,
+      });
+
+      if (!gate.allowed) {
+        console.warn(`[auth] Sign-in blocked: ${email} is not whitelisted (${gate.reason}).`);
+        setProfile(null);
+        setSession(null);
+        setUser(null);
+        useUserStore.getState().logout();
+        try {
+          sessionStorage.removeItem("auth_mode");
+          sessionStorage.removeItem("auth_intended_role");
+          sessionStorage.removeItem("auth_redirect_after_login");
+        } catch (_) {}
+
+        await supabase.auth.signOut({ scope: "local" });
+        if (typeof window !== "undefined") {
+          let entryBase = "/auth";
+          try {
+            const stored = sessionStorage.getItem("auth_entry_base");
+            if (stored?.startsWith("/")) entryBase = stored;
+          } catch (_) {}
+          window.location.assign(waitlistBlockedAuthUrl(window.location.origin, email, entryBase));
+        }
+        return;
       }
 
-      if (!isAdmin) {
-        const gate = await evaluateWhitelistGate(supabase, {
-          userId,
-          email,
-          onboardingComplete: false,
-        });
-
-        if (!gate.allowed) {
-          console.warn(`[auth] Sign-in blocked: ${email} is not whitelisted (${gate.reason}).`);
-          setProfile(null);
-          setSession(null);
-          setUser(null);
-          useUserStore.getState().logout();
-          try {
-            sessionStorage.removeItem("auth_mode");
-            sessionStorage.removeItem("auth_intended_role");
-            sessionStorage.removeItem("auth_redirect_after_login");
-          } catch (_) {}
-
-          await supabase.auth.signOut({ scope: "local" });
-          if (typeof window !== "undefined") {
-            let entryBase = "/auth";
-            try {
-              const stored = sessionStorage.getItem("auth_entry_base");
-              if (stored?.startsWith("/")) entryBase = stored;
-            } catch (_) {}
-            window.location.assign(
-              waitlistBlockedAuthUrl(window.location.origin, email, entryBase)
-            );
-          }
-          return;
-        }
-
-        if (gate.approvedRole) {
-          approvedRole = gate.approvedRole;
-          try {
-            sessionStorage.setItem("auth_intended_role", gate.approvedRole);
-          } catch (_) {}
-        }
+      if (gate.approvedRole) {
+        approvedRole = gate.approvedRole;
+        try {
+          sessionStorage.setItem("auth_intended_role", gate.approvedRole);
+        } catch (_) {}
       }
     }
 
@@ -251,6 +240,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 avatar_url: meta.avatar_url,
                 provider,
                 email: session.user.email,
+                createdAt: session.user.created_at,
               }),
             0
           );
@@ -272,6 +262,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           avatar_url: meta.avatar_url,
           provider,
           email: session.user.email,
+          createdAt: session.user.created_at,
         });
       }
       setLoading(false);
