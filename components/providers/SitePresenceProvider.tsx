@@ -14,6 +14,7 @@ import { fetchWithClientAuth, getClientApiAuthHeaders } from "@/lib/auth/clientA
 import { notifyStudyDaysRefresh } from "@/lib/dashboard/studyDayBumpEvents";
 import { invalidateStudyDaysCache } from "@/lib/dashboard/studyDaysClient";
 import { localStudyCalendarDay } from "@/lib/dashboard/studyDayBump";
+import { SITE_PRESENCE_HEARTBEAT_MS } from "@/lib/dashboard/sitePresenceConstants";
 
 const SitePresenceLiveContext = createContext(0);
 
@@ -266,10 +267,9 @@ export function SitePresenceProvider({
       rollDayIfNeeded();
       const now = performance.now();
 
-      // Check if visible and need to send periodic heartbeat every 30 seconds
       if (document.visibilityState === "visible") {
         const timeSinceHeartbeat = Date.now() - lastHeartbeatTime.current;
-        if (timeSinceHeartbeat >= 20_000) {
+        if (timeSinceHeartbeat >= SITE_PRESENCE_HEARTBEAT_MS) {
           lastHeartbeatTime.current = Date.now();
           updateTabPresenceState(userId, tabId, true, false);
           void postSitePresence(false);

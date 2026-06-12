@@ -35,7 +35,7 @@ export const WAITLIST_INTERESTS: Record<string, string[]> = {
 
 /** Single source of truth — keep page copy in sync with stats row */
 export const WAITLIST_METRICS = {
-  waitlistJoined: 253,
+  waitlistJoined: 252,
   earlyPreviewCapacity: 300,
   ambassadorPhase1Capacity: 30,
   ambassadorsSelected: 18,

@@ -1746,6 +1746,8 @@ export function StudentProfileActivityPanel({ profile }: { profile: Profile }) {
   );
   const studyDaysCommittedRef = useRef(false);
   const seenPenaltyNoticeKeyRef = useRef<string | null>(null);
+  const profileRealtimeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const gyanEngagementDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadStudyDays = useCallback(async () => {
     if (!profile.id) {
@@ -1994,6 +1996,29 @@ export function StudentProfileActivityPanel({ profile }: { profile: Profile }) {
     }
   }, [profile.id]);
 
+  const scheduleProfileStudyDayReload = useCallback(() => {
+    if (profileRealtimeDebounceRef.current != null) {
+      clearTimeout(profileRealtimeDebounceRef.current);
+    }
+    profileRealtimeDebounceRef.current = setTimeout(() => {
+      profileRealtimeDebounceRef.current = null;
+      void loadStudyDays();
+      void loadAttendanceStats();
+      void loadLearningActivity();
+      void loadGyanPlusEngagement();
+    }, 450);
+  }, [loadStudyDays, loadAttendanceStats, loadLearningActivity, loadGyanPlusEngagement]);
+
+  const scheduleGyanEngagementReload = useCallback(() => {
+    if (gyanEngagementDebounceRef.current != null) {
+      clearTimeout(gyanEngagementDebounceRef.current);
+    }
+    gyanEngagementDebounceRef.current = setTimeout(() => {
+      gyanEngagementDebounceRef.current = null;
+      void loadGyanPlusEngagement();
+    }, 450);
+  }, [loadGyanPlusEngagement]);
+
   const [verifiedAchievementCount, setVerifiedAchievementCount] = useState<number | null>(null);
   const [verifiedAchievementLoadError, setVerifiedAchievementLoadError] = useState(false);
 
@@ -2107,23 +2132,18 @@ export function StudentProfileActivityPanel({ profile }: { profile: Profile }) {
           filter: `user_id=eq.${profile.id}`,
         },
         () => {
-          void loadStudyDays();
-          void loadAttendanceStats();
-          void loadLearningActivity();
-          void loadGyanPlusEngagement();
+          scheduleProfileStudyDayReload();
         }
       )
       .subscribe();
     return () => {
+      if (profileRealtimeDebounceRef.current != null) {
+        clearTimeout(profileRealtimeDebounceRef.current);
+        profileRealtimeDebounceRef.current = null;
+      }
       void supabase.removeChannel(channel);
     };
-  }, [
-    profile.id,
-    loadStudyDays,
-    loadAttendanceStats,
-    loadLearningActivity,
-    loadGyanPlusEngagement,
-  ]);
+  }, [profile.id, scheduleProfileStudyDayReload]);
 
   useEffect(() => {
     const onFocus = () => void loadStudyDays();
@@ -2180,15 +2200,14 @@ export function StudentProfileActivityPanel({ profile }: { profile: Profile }) {
           filter: `id=eq.${profile.id}`,
         },
         () => {
-          void loadAttendanceStats();
-          void loadLearningActivity();
+          scheduleProfileStudyDayReload();
         }
       )
       .subscribe();
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [profile.id, loadAttendanceStats, loadLearningActivity]);
+  }, [profile.id, scheduleProfileStudyDayReload]);
 
   useEffect(() => {
     startTransition(() => {
@@ -2218,7 +2237,7 @@ export function StudentProfileActivityPanel({ profile }: { profile: Profile }) {
     if (!profile.id) return;
     if (typeof document === "undefined") return;
 
-    const reload = () => void loadGyanPlusEngagement();
+    const reload = () => scheduleGyanEngagementReload();
     let channel: ReturnType<typeof supabase.channel> | null = null;
 
     const subscribe = () => {
@@ -2289,9 +2308,13 @@ export function StudentProfileActivityPanel({ profile }: { profile: Profile }) {
 
     return () => {
       document.removeEventListener("visibilitychange", onVisibility);
+      if (gyanEngagementDebounceRef.current != null) {
+        clearTimeout(gyanEngagementDebounceRef.current);
+        gyanEngagementDebounceRef.current = null;
+      }
       unsubscribe();
     };
-  }, [profile.id, loadGyanPlusEngagement]);
+  }, [profile.id, scheduleGyanEngagementReload]);
 
   const studyStreak = streakSummary?.streak ?? 0;
   const activeDaysThisMonth = streakSummary?.activeDaysThisMonth ?? 0;

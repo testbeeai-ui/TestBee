@@ -13,6 +13,10 @@ import {
   Star,
   User,
   Users,
+  Share2,
+  Tag,
+  Instagram,
+  Facebook,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatApiError } from "@/lib/waitlist/formatApiError";
@@ -51,11 +55,36 @@ export function QuickWaitlistForm({
 }: Props) {
   const [c3, setC3] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const handleShare = async () => {
+    const shareUrl = "https://edublast.in";
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "EduBlast Website",
+          text: "Join the waitlist for EduBlast - the social platform that makes PCM students love studying!",
+          url: shareUrl,
+        });
+      } catch (err) {
+        console.log("Error sharing:", err);
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch (err) {
+        console.error("Failed to copy text:", err);
+      }
+    }
+  };
   const [submitError, setSubmitError] = useState("");
   const [phoneHint, setPhoneHint] = useState("");
   const [emailTouched, setEmailTouched] = useState(false);
   const [phoneTouched, setPhoneTouched] = useState(false);
   const [alreadyRegistered, setAlreadyRegistered] = useState(false);
+  const [refcode, setRefcode] = useState("");
   
   // Decrements from 47 down to 1 as waitlistJoined increases from 253, looping back to 47
   const spotsRemaining = 47 - (Math.max(0, waitlistJoined - 253) % 47);
@@ -89,6 +118,7 @@ export function QuickWaitlistForm({
           email,
           phone: mobile.phone,
           c3,
+          refcode,
         }),
       });
       const data = await res.json();
@@ -115,10 +145,18 @@ export function QuickWaitlistForm({
   };
 
   const previewSpots = earlyPreviewSpotsRemaining();
+  const fullWaitlistId = waitlistId
+    ? (waitlistId.startsWith("EB-2026-") ? waitlistId : `EB-2026-${waitlistId}`)
+    : "EB-2026-XXX";
 
   if (alreadyRegistered) {
     return (
       <div className="relative overflow-hidden rounded-[14px] border border-[#2A3347]/80 bg-[#161C26] p-4 sm:p-5 before:absolute before:inset-x-0 before:top-0 before:h-[3px] before:rounded-t-[14px] before:bg-[#1D9E75] before:content-['']">
+        {/* Brand Header for shareable screenshots */}
+        <div className="mb-4 flex items-center justify-between border-b border-[#2A3347]/60 pb-3">
+          <img src="/images/logo-2.png" alt="EduBlast" className="h-8 w-auto shrink-0" />
+          <span className="text-xs font-semibold text-[#1D9E75] tracking-wider">www.edublast.in</span>
+        </div>
         <div className="py-4 text-center">
           <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full border-2 border-[#1D9E75] bg-[#0A2A20]">
             <Check className="h-6 w-6 text-[#1D9E75]" strokeWidth={2.5} />
@@ -142,8 +180,58 @@ export function QuickWaitlistForm({
               <span>A confirmation email is on its way. Check your spam folder if it doesn&apos;t arrive shortly.</span>
             </div>
             <div className="flex items-start gap-2.5 p-2.5 bg-[#1C2333]/80 border border-[#2A3347]/80 rounded-lg text-xs leading-relaxed text-[#9BA3B8]">
-              <User className="h-[16px] w-[16px] text-[#85B7EB] shrink-0 mt-0.5" />
-              <span>Share EduBlast with classmates. Each referral who joins the waitlist strengthens your application.</span>
+              <Users className="h-[16px] w-[16px] text-[#85B7EB] shrink-0 mt-0.5" />
+              <span>
+                Share Edublast Website (edublast.in) along with your Waitlist ID ({fullWaitlistId}) so that it is counted as your referral. Your buddy has to enter your Waitlist ID as the &apos;referral code&apos; when he/she fills the waitlist form.
+              </span>
+            </div>
+            <div className="flex items-start gap-2.5 p-2.5 bg-[#1C2333]/80 border border-[#2A3347]/80 rounded-lg text-xs leading-relaxed text-[#9BA3B8]">
+              <Star className="h-[16px] w-[16px] text-[#EF9F27] shrink-0 mt-0.5" />
+              <span>
+                Congratulations on being waitlisted. You have signed up for an incredible journey. Please share this moment with your buddies on Instagram and/or Facebook with a screenshot of your confirmation screen. Thank you.
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={handleShare}
+              className="mt-1 w-full flex items-center justify-center gap-2 rounded-lg bg-[#1D9E75] hover:bg-[#0F6E56] text-white py-2.5 px-4 text-xs font-semibold transition cursor-pointer shadow-md focus:outline-none"
+            >
+              {copied ? (
+                <>
+                  <Check className="h-4 w-4 text-white" />
+                  Link copied!
+                </>
+              ) : (
+                <>
+                  <Share2 className="h-4 w-4 text-white" />
+                  Share Website
+                </>
+              )}
+            </button>
+
+            <div className="mt-4 flex flex-col items-center gap-2 border-t border-[#2A3347]/60 pt-3.5 text-center">
+              <span className="text-[11px] font-medium text-[#9BA3B8] uppercase tracking-wider">Follow & Tag us on social media</span>
+              <div className="flex items-center gap-5 mt-1">
+                <a
+                  href="https://www.instagram.com/edublast.official"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-2 text-sm text-[#9BA3B8] hover:text-[#1D9E75] transition font-medium"
+                >
+                  <Instagram className="h-[18px] w-[18px] text-[#E1306C]" />
+                  <span>Instagram</span>
+                </a>
+                <span className="h-4 w-px bg-[#2A3347]" />
+                <a
+                  href="https://www.facebook.com/people/Edublast/61590741265251/"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-2 text-sm text-[#9BA3B8] hover:text-[#1D9E75] transition font-medium"
+                >
+                  <Facebook className="h-[18px] w-[18px] text-[#1877F2]" />
+                  <span>Facebook</span>
+                </a>
+              </div>
             </div>
           </div>
         </div>
@@ -154,6 +242,11 @@ export function QuickWaitlistForm({
   if (completed) {
     return (
       <div className="relative overflow-hidden rounded-[14px] border border-[#2A3347]/80 bg-[#161C26] p-4 sm:p-5 before:absolute before:inset-x-0 before:top-0 before:h-[3px] before:rounded-t-[14px] before:bg-[#1D9E75] before:content-['']">
+        {/* Brand Header for shareable screenshots */}
+        <div className="mb-4 flex items-center justify-between border-b border-[#2A3347]/60 pb-3">
+          <img src="/images/logo-2.png" alt="EduBlast" className="h-8 w-auto shrink-0" />
+          <span className="text-xs font-semibold text-[#1D9E75] tracking-wider">www.edublast.in</span>
+        </div>
         <div className="mb-2.5 inline-flex items-center gap-1.5 rounded-full border border-[#1D9E75] bg-[#0A2A20] px-2.5 py-0.5 text-[11px] font-medium text-[#9FE1CB]">
           <span className="flex h-[17px] w-[17px] shrink-0 items-center justify-center rounded-full bg-[#1D9E75] text-[10px] text-white">
             ✓
@@ -181,8 +274,58 @@ export function QuickWaitlistForm({
               <span>A confirmation email is on its way. Check your spam folder if it doesn&apos;t arrive shortly.</span>
             </div>
             <div className="flex items-start gap-2.5 p-2.5 bg-[#1C2333]/80 border border-[#2A3347]/80 rounded-lg text-xs leading-relaxed text-[#9BA3B8]">
-              <User className="h-[16px] w-[16px] text-[#85B7EB] shrink-0 mt-0.5" />
-              <span>Share EduBlast with classmates. Each referral who joins the waitlist strengthens your application.</span>
+              <Users className="h-[16px] w-[16px] text-[#85B7EB] shrink-0 mt-0.5" />
+              <span>
+                Share Edublast Website (edublast.in) along with your Waitlist ID ({fullWaitlistId}) so that it is counted as your referral. Your buddy has to enter your Waitlist ID as the &apos;referral code&apos; when he/she fills the waitlist form.
+              </span>
+            </div>
+            <div className="flex items-start gap-2.5 p-2.5 bg-[#1C2333]/80 border border-[#2A3347]/80 rounded-lg text-xs leading-relaxed text-[#9BA3B8]">
+              <Star className="h-[16px] w-[16px] text-[#EF9F27] shrink-0 mt-0.5" />
+              <span>
+                Congratulations on being waitlisted. You have signed up for an incredible journey. Please share this moment with your buddies on Instagram and/or Facebook with a screenshot of your confirmation screen. Thank you.
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={handleShare}
+              className="mt-1 w-full flex items-center justify-center gap-2 rounded-lg bg-[#1D9E75] hover:bg-[#0F6E56] text-white py-2.5 px-4 text-xs font-semibold transition cursor-pointer shadow-md focus:outline-none"
+            >
+              {copied ? (
+                <>
+                  <Check className="h-4 w-4 text-white" />
+                  Link copied!
+                </>
+              ) : (
+                <>
+                  <Share2 className="h-4 w-4 text-white" />
+                  Share Website
+                </>
+              )}
+            </button>
+
+            <div className="mt-4 flex flex-col items-center gap-2 border-t border-[#2A3347]/60 pt-3.5 text-center">
+              <span className="text-[11px] font-medium text-[#9BA3B8] uppercase tracking-wider">Follow & Tag us on social media</span>
+              <div className="flex items-center gap-5 mt-1">
+                <a
+                  href="https://www.instagram.com/edublast.official"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-2 text-sm text-[#9BA3B8] hover:text-[#1D9E75] transition font-medium"
+                >
+                  <Instagram className="h-[18px] w-[18px] text-[#E1306C]" />
+                  <span>Instagram</span>
+                </a>
+                <span className="h-4 w-px bg-[#2A3347]" />
+                <a
+                  href="https://www.facebook.com/people/Edublast/61590741265251/"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-2 text-sm text-[#9BA3B8] hover:text-[#1D9E75] transition font-medium"
+                >
+                  <Facebook className="h-[18px] w-[18px] text-[#1877F2]" />
+                  <span>Facebook</span>
+                </a>
+              </div>
             </div>
           </div>
         </div>
@@ -199,7 +342,7 @@ export function QuickWaitlistForm({
         Join the waitlist
       </div>
 
-      <h2 className="mb-1 text-base font-medium text-[#E8EAF0]">
+      <h2 className="mb-1 text-xl sm:text-2xl font-medium text-[#E8EAF0]">
         Get early access — before everyone else
       </h2>
       <p className="mb-3 text-xs leading-relaxed text-[#9BA3B8]">
@@ -287,8 +430,26 @@ export function QuickWaitlistForm({
             {phoneNormalized.error || "Please enter a valid 10-digit mobile number."}
           </p>
         ) : phoneHint ? (
-          <p className="mb-2.5 text-[11px] text-rose-400">{phoneHint}</p>
+          <p className="mb-2.5 text-[11px] text-[#EF9F27]">{phoneHint}</p>
         ) : null}
+
+        <label className="mb-1 flex items-center gap-1 text-[11px] text-[#9BA3B8] mt-2.5">
+          <Tag className="h-3.5 w-3.5" />
+          Referral Code (Optional)
+        </label>
+        <div className="relative mb-2.5">
+          <Tag className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#5C6480]" />
+          <input
+            type="text"
+            placeholder="e.g. EB-2026-123"
+            value={refcode}
+            onChange={(e) => {
+              setRefcode(e.target.value);
+              setSubmitError("");
+            }}
+            className="w-full rounded-lg border border-[#2A3347]/80 bg-[#1C2333] py-2 pl-9 pr-3 text-[13px] text-[#E8EAF0] outline-none transition focus:border-[#1D9E75] focus:shadow-[0_0_0_2px_rgba(29,158,117,0.15)]"
+          />
+        </div>
 
         <div
           role="checkbox"

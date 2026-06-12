@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 import { createAdminClient, createClient } from "@/integrations/supabase/server";
+
+export const dynamic = "force-dynamic";
+
 import {
   sendAmbassadorApplicationEmail,
   sendWaitlistConfirmationEmail,
@@ -82,6 +85,7 @@ export async function POST(request: Request) {
         }
       }
 
+      const refcode = typeof body.refcode === "string" ? body.refcode.trim().toUpperCase() : null;
       const generatedId = await generateNextWaitlistId(writer);
       const { error } = await table.insert({
         waitlist_id: generatedId,
@@ -91,6 +95,7 @@ export async function POST(request: Request) {
         consent_terms: true,
         consent_updates: true,
         admin_status: "new",
+        refcode: refcode || null,
       });
 
       if (error) {
@@ -199,7 +204,7 @@ export async function POST(request: Request) {
         typeof whyJoin === "string" ? whyJoin.trim().slice(0, 2000) : null,
       referral:
         typeof referral === "string" ? referral.trim().slice(0, 200) : null,
-      refcode: typeof refcode === "string" ? refcode.trim().slice(0, 100) : null,
+      refcode: typeof refcode === "string" ? refcode.trim().toUpperCase().slice(0, 100) : null,
       consent_terms: Boolean(c1),
       consent_updates: Boolean(c2),
       admin_status: "new" as const,

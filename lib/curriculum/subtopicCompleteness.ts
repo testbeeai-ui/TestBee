@@ -73,10 +73,20 @@ export type TopicContentGateRow = {
   subtopic_previews?: unknown;
 };
 
+function hasHubSectionText(s?: string | null): boolean {
+  const t = String(s ?? "").trim();
+  return t.length > 0 && t !== "-";
+}
+
 export function isTopicContentRowViable(row: TopicContentGateRow | null | undefined): boolean {
   if (!row) return false;
-  const w = (s?: string | null) => String(s ?? "").trim().length > 0;
-  if (w(row.why_study) || w(row.what_learn) || w(row.real_world)) return true;
+  if (
+    hasHubSectionText(row.why_study) ||
+    hasHubSectionText(row.what_learn) ||
+    hasHubSectionText(row.real_world)
+  ) {
+    return true;
+  }
   return Array.isArray(row.subtopic_previews) && row.subtopic_previews.length > 0;
 }
 

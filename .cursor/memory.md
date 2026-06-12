@@ -50,6 +50,15 @@ Import: `CBSE_CLASS_LEVEL=11|12` + `scripts/import-cbse-12-mcqs.ts` (see `.curso
 | `RAG_SIDECAR_URL` | Modal deploy URL |
 | `RAG_INTERNAL_TOKEN` | Must match Modal secret `custom-secret` |
 | `DEBUG_GYAN_PROMPT_SIZES` / `GYAN_LOG_SARVAM_USAGE` | Sarvam usage logs |
+| `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | Optional Phase 5 site-presence buffer |
+
+## Supabase projects (two — do not merge RAG)
+| Project | Ref | Use |
+|---------|-----|-----|
+| **TestBee** (main) | `bytsiknhtcnlxwzgqkrd` | App, auth, migrations in `supabase/migrations/` |
+| **TestBee RAG** | `yobzgdsecnutzyvuidqz` | `textbook_chunks` only — **never merge/pause/migrate** (Phase 4 Option A) |
+
+`NEXT_PUBLIC_SUPABASE_*` → main only. `RAG_SUPABASE_*` → Modal secret → RAG project only. Runbook: `docs/architecture/supabase-cost-phase4-infra-billing.md`.
 
 ## Modal RAG
 - **URL:** `https://testbeeai--testbee-rag-serve.modal.run`
@@ -126,6 +135,15 @@ Anything that is not Next.js / tooling config now lives under:
 | Student plan DB | `supabase/migrations/20260808120000_subscription_coupons.sql` |
 
 ## Decisions Log
+- 2026-06-11: **Supabase cost Phases 0–6 summary** — before/after doc `docs/architecture/supabase-cost-phases-0-6-before-after.md`.
+- 2026-06-11: **Supabase cost Phase 6** — topic hub UX: multi-level display bundle, `"-"` placeholder handling, `TopicHubOverviewSections`, admin coverage `/admin/topic-hub`; runbook `docs/architecture/supabase-cost-phase6-topic-hub-ux.md`.
+- 2026-06-11: **Supabase cost Phase 5** — opt-in Upstash site-presence buffer; admin cache 15min + warm cron; dwell monthly partitions; MCQ chapter cached API; runbook `docs/architecture/supabase-cost-phase5-scale-architecture.md`.
+- 2026-06-11: **Supabase cost Phase 4 (Option A)** — keep TestBee RAG `yobzgdsecnutzyvuidqz` separate permanently; defer Pro/`auth.edublast.in`; branch policy documented; billing checklist in `docs/architecture/supabase-cost-phase4-infra-billing.md`.
+- 2026-06-11: **Supabase cost Phase 3** — buddy Realtime 4→1 table, 50s/8min polls; ClassFeed paginated (40); site-presence uses user RLS + DELETE policies; teacher portal poll 120s; runbook `docs/architecture/supabase-cost-phase3-connections-realtime.md` (Supavisor = dashboard step).
+- 2026-06-11: **Supabase cost Phase 2 complete** — RLS initplan on 11 hot tables, 6 indexes dropped / 5 added, prune RPC + cron verified 200, admin analytics cache on all routes; phase2b migrations applied live; runbook `docs/architecture/supabase-cost-phase2-db-hygiene.md`.
+- 2026-06-11: **Supabase cost Phase 1 quick wins** — IST-once reconcile opt-in, 50s presence heartbeat, profile Realtime debounce, subject-chat RAG cap 5, retriever skip multi-pass; runbook `docs/architecture/supabase-cost-phase1-quick-wins.md` (Modal redeploy for retriever).
+- 2026-06-11: **Supabase cost Phase 0 crons** — removed all `vercel.json` cron schedules (no auto jobs in prod); routes remain for manual/external trigger; runbook `docs/architecture/supabase-cost-phase0-crons.md`.
+- 2026-06-11: **Supabase cost audit** — `docs/architecture/supabase-cost-audit-2026-06-11.md` (live MCP + repo; methodology section; 250 migrations not 258).
 - 2026-06-10: **Supabase OAuth branding (Step 1)** — use custom domain `auth.edublast.in` (CNAME → `bytsiknhtcnlxwzgqkrd.supabase.co`) so Google shows EduBlast domain not `*.supabase.co`; requires Pro + Custom Domains add-on (not enabled yet as of CLI check); runbook `docs/cursor/supabase-auth-custom-domain-step1.md`.
 - 2026-06-10: **Waitlist UX** — no static mobile hint under phone field (silent `sanitizeMobileInput` only); after Step 1 “Join the waitlist” succeeds, auto-select `student` (or `?role=` from URL) and open ambassador modal — no extra “Register as Ambassador” click.
 - 2026-06-08: **Waitlist refinements** — cleared `waitlist_submissions` test rows; sequential IDs from `EB-2026-200` via `lib/waitlist/waitlistId.ts`; duplicate email returns `alreadyRegistered` in UI except test inboxes (`michaelkillgta@gmail.com`, `testbeeai@gmail.com`, `mailidpwd@gmail.com`); ambassador urgency copy uses soft phrasing; waitlist emails use `www.edublast.in` + `join@edublast.in` footer.

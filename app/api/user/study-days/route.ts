@@ -45,14 +45,14 @@ export async function GET(req: NextRequest) {
   // Table/RPC from migration `20260418160000_user_study_day_totals.sql`; add to `Database` when types are regenerated.
   const sb = auth.supabase as any;
 
-  const skipReconcile = url.searchParams.get("reconcile") === "0";
+  const runReconcile = url.searchParams.get("reconcile") === "1";
   let reconcileResult:
     | {
         penaltiesApplied: number;
         totalDeducted: number;
       }
     | null = null;
-  if (!skipReconcile) {
+  if (runReconcile) {
     const { data, error: reconcileError } = await sb.rpc("reconcile_inactive_day_penalties");
     if (reconcileError) {
       console.warn("[study-days reconcile]", reconcileError.message.slice(0, 240));

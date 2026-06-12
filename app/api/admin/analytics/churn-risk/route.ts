@@ -1,9 +1,23 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
 import { isAdminUser } from "@/lib/admin/admin";
+import {
+  getCachedAdminAnalytics,
+  refreshAdminAnalyticsCache,
+} from "@/lib/admin/adminAnalyticsCache";
+import { ADMIN_ANALYTICS_CACHE_TTL_MS } from "@/lib/admin/adminAnalyticsConfig";
 import { createAdminClient } from "@/integrations/supabase/server";
 
 const CACHE_KEY = "churn_risk";
+
+async function computeChurnRisk(admin: NonNullable<ReturnType<typeof createAdminClient>>) {
+  const { data, error } = await (admin as any).rpc(
+    "admin_churn_risk",
+    { p_limit: 200 }
+  );
+  if (error) throw new Error(error.message);
+  return data;
+}
 
 export async function GET(request: Request) {
   try {
@@ -18,34 +32,17 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "SUPABASE_SERVICE_ROLE_KEY is not set" }, { status: 500 });
     }
 
-    // Try to read from cache
-    const { data: cached } = await (admin as any)
-      .from("admin_analytics_cache")
-      .select("data, refreshed_at")
-      .eq("key", CACHE_KEY)
-      .maybeSingle();
+    const { data, cachedAt, fromCache } = await getCachedAdminAnalytics(
+      admin,
+      CACHE_KEY,
+      ADMIN_ANALYTICS_CACHE_TTL_MS,
+      () => computeChurnRisk(admin)
+    );
 
-    if (cached) {
-      return NextResponse.json(
-        { ...cached.data, cachedAt: cached.refreshed_at },
-        { headers: { "Cache-Control": "private, max-age=60, stale-while-revalidate=120" } }
-      );
-    }
-
-    // No cache — compute fresh
-    const { data, error } = await (admin as any).rpc("admin_churn_risk", { p_limit: 200 });
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    // Store in cache
-    await (admin as any)
-      .from("admin_analytics_cache")
-      .upsert({ key: CACHE_KEY, data, refreshed_at: new Date().toISOString() });
-
-    return NextResponse.json(data, {
-      headers: { "Cache-Control": "private, max-age=60, stale-while-revalidate=120" },
-    });
+    return NextResponse.json(
+      { ...(data as object), cachedAt, fromCache },
+      { headers: { "Cache-Control": "private, max-age=60, stale-while-revalidate=120" } }
+    );
   } catch (e) {
     const message = e instanceof Error ? e.message : "Server error";
     return NextResponse.json({ error: message }, { status: 500 });
@@ -65,20 +62,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "SUPABASE_SERVICE_ROLE_KEY is not set" }, { status: 500 });
     }
 
-    // Force refresh
-    const { data, error } = await (admin as any).rpc("admin_churn_risk", { p_limit: 200 });
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
+    const { data, cachedAt } = await refreshAdminAnalyticsCache(admin, CACHE_KEY, () =>
+      computeChurnRisk(admin)
+    );
 
-    // Update cache
-    await (admin as any)
-      .from("admin_analytics_cache")
-      .upsert({ key: CACHE_KEY, data, refreshed_at: new Date().toISOString() });
-
-    return NextResponse.json(data, {
-      headers: { "Cache-Control": "no-cache" },
-    });
+    return NextResponse.json(
+      { ...(data as object), cachedAt, fromCache: false },
+      { headers: { "Cache-Control": "no-cache" } }
+    );
   } catch (e) {
     const message = e instanceof Error ? e.message : "Server error";
     return NextResponse.json({ error: message }, { status: 500 });

@@ -1,15 +1,18 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
-import { createAdminClient } from "@/integrations/supabase/server";
-
-const HEARTBEAT_INTERVAL_MS = 20 * 1000;
+import { SITE_PRESENCE_HEARTBEAT_MS } from "@/lib/dashboard/sitePresenceConstants";
+import {
+  clearSitePresenceBuffer,
+  isSitePresenceBufferEnabled,
+  touchSitePresenceBuffer,
+} from "@/lib/presence/sitePresenceBuffer";
 
 /** POST /api/user/site-presence — upsert site presence or handle explicit offline signal. */
 export async function POST(request: Request) {
   try {
     const ctx = await getSupabaseAndUser(request);
     if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const { user } = ctx;
+    const { supabase, user } = ctx;
 
     const body = (await request.json().catch(() => null)) as {
       offline?: boolean;
@@ -17,22 +20,18 @@ export async function POST(request: Request) {
       signedOut?: boolean;
     } | null;
 
-    const admin = createAdminClient();
-    if (!admin) {
-      return NextResponse.json({ error: "Service role key missing" }, { status: 500 });
-    }
-
     if (body?.offline) {
+      await clearSitePresenceBuffer(user.id);
       await Promise.all([
-        admin
+        supabase
           .from("student_site_presence" as never)
           .delete()
           .eq("user_id" as never, user.id as never),
-        admin
+        supabase
           .from("student_learning_presence" as never)
           .delete()
           .eq("user_id" as never, user.id as never),
-        admin
+        supabase
           .from("student_gyan_presence" as never)
           .delete()
           .eq("user_id" as never, user.id as never),
@@ -41,7 +40,14 @@ export async function POST(request: Request) {
     }
 
     const now = new Date().toISOString();
-    const { data: existing } = await admin
+    const useBuffer = isSitePresenceBufferEnabled();
+
+    if (useBuffer) {
+      await touchSitePresenceBuffer(user.id, now);
+      return NextResponse.json({ ok: true, updatedAt: now, skipped: false, buffered: true });
+    }
+
+    const { data: existing } = await supabase
       .from("student_site_presence" as never)
       .select("updated_at")
       .eq("user_id" as never, user.id as never)
@@ -50,8 +56,8 @@ export async function POST(request: Request) {
     const existingRow = existing as { updated_at: string } | null;
     if (existingRow?.updated_at) {
       const ageMs = Date.now() - new Date(existingRow.updated_at).getTime();
-      if (ageMs >= 0 && ageMs < HEARTBEAT_INTERVAL_MS) {
-        const { error: touchErr } = await admin
+      if (ageMs >= 0 && ageMs < SITE_PRESENCE_HEARTBEAT_MS) {
+        const { error: touchErr } = await supabase
           .from("student_site_presence" as never)
           .update({ updated_at: now } as never)
           .eq("user_id" as never, user.id as never);
@@ -60,7 +66,7 @@ export async function POST(request: Request) {
       }
     }
 
-    const { error } = await admin
+    const { error } = await supabase
       .from("student_site_presence" as never)
       .upsert({ user_id: user.id, updated_at: now } as never, { onConflict: "user_id" });
 

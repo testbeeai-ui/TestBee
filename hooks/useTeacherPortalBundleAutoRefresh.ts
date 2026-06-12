@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { TEACHER_PORTAL_POLL_MS } from "@/lib/dashboard/connectionRealtimeConstants";
 
 /** Polling while the teacher portal is open — backs up Realtime if the connection drops. */
-const POLL_INTERVAL_MS = 90_000;
+const POLL_INTERVAL_MS = TEACHER_PORTAL_POLL_MS;
 /** Batch rapid DB events into one bundle reload. */
 const REALTIME_DEBOUNCE_MS = 650;
 

@@ -8,7 +8,8 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    # Supabase project that stores textbook_chunks (SEPARATE from the main app DB)
+    # Dedicated RAG Supabase (yobzgdsecnutzyvuidqz) — NOT the main app DB (bytsiknhtcnlxwzgqkrd).
+    # Phase 4 Option A: do not merge or repoint to main; see docs/architecture/supabase-cost-phase4-infra-billing.md
     rag_supabase_url: str = ""
     rag_supabase_anon_key: str = ""
 

@@ -29,6 +29,7 @@ export const STUDENT_BOT_BODY_MAX_CHARS = 520;
 export const STUDENT_BOT_TITLE_MAX_CHARS = 200;
 
 /** RAG retrieve match_count defaults (dense retrieval) */
+export const RAG_MATCH_COUNT_SUBJECT_CHAT = 5;
 export const RAG_MATCH_COUNT_PROF_PI = 5;
 export const RAG_MATCH_COUNT_STUDENT_BOT = 5;
 

@@ -10,8 +10,17 @@ export type StudyDaysApiResponse = {
 
 const CACHE_TTL_MS = 2_500;
 
-/** Run penalty reconcile RPC once per IST day on study-days GET. */
-let reconciledPenaltyForToday: string | null = null;
+/** Penalty reconcile runs at most once per IST calendar day (not every dashboard poll). */
+let reconciledPenaltyForIstDay: string | null = null;
+
+function istCalendarDay(d = new Date()): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(d);
+}
 
 let cached:
   | {
@@ -32,7 +41,7 @@ export function invalidateStudyDaysCache(): void {
 }
 
 export function resetStudyDaysReconcileSession(): void {
-  reconciledPenaltyForToday = null;
+  reconciledPenaltyForIstDay = null;
 }
 
 /**
@@ -60,11 +69,11 @@ export async function fetchStudyDays(
     try {
       const headers = await getClientApiAuthHeaders();
       const q = new URLSearchParams({ from, to, today });
-      const runReconcile = opts?.fresh === true || reconciledPenaltyForToday !== today;
+      const istToday = istCalendarDay();
+      const runReconcile = opts?.fresh === true || reconciledPenaltyForIstDay !== istToday;
       if (runReconcile) {
-        reconciledPenaltyForToday = today;
-      } else {
-        q.set("reconcile", "0");
+        reconciledPenaltyForIstDay = istToday;
+        q.set("reconcile", "1");
       }
       const res = await fetch(`/api/user/study-days?${q.toString()}`, {
         headers,
