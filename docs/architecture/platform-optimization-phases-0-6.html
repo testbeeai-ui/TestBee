@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EduBlast — Platform Optimization (Phases 0–6)</title>
+  <style>
+    :root {
+      --bg: #0b0f1a;
+      --surface: #121829;
+      --surface-2: #1a2238;
+      --border: rgba(255, 255, 255, 0.08);
+      --text: #e8ecf4;
+      --muted: #9ba3b8;
+      --primary: #6366f1;
+      --primary-glow: rgba(99, 102, 241, 0.35);
+      --success: #34d399;
+      --success-bg: rgba(52, 211, 153, 0.12);
+      --before: #f87171;
+      --before-bg: rgba(248, 113, 113, 0.1);
+      --after: #34d399;
+      --after-bg: rgba(52, 211, 153, 0.1);
+      --accent: #f59e0b;
+      --radius: 16px;
+      --font: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { font-family: var(--font); background: var(--bg); color: var(--text); line-height: 1.65; font-size: 15px; }
+
+    .hero {
+      padding: 4rem 1.5rem 5rem; text-align: center;
+      background: radial-gradient(ellipse 80% 60% at 50% -20%, var(--primary-glow), transparent),
+        linear-gradient(180deg, #0f1424 0%, var(--bg) 100%);
+    }
+    .hero-badge {
+      display: inline-block; padding: 0.35rem 1rem; border-radius: 999px;
+      background: var(--surface-2); border: 1px solid var(--border);
+      font-size: 0.8rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+      color: var(--muted); margin-bottom: 1.25rem;
+    }
+    .hero h1 {
+      font-size: clamp(2rem, 5vw, 3rem); font-weight: 800; letter-spacing: -0.03em;
+      line-height: 1.15; max-width: 900px; margin: 0 auto 1rem;
+    }
+    .hero h1 span {
+      background: linear-gradient(135deg, #a5b4fc, #6366f1);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .hero p { max-width: 720px; margin: 0 auto; color: var(--muted); font-size: 1.05rem; }
+    .hero-meta { margin-top: 2rem; display: flex; flex-wrap: wrap; gap: 0.75rem; justify-content: center; }
+    .hero-meta span {
+      padding: 0.45rem 0.9rem; background: var(--surface); border: 1px solid var(--border);
+      border-radius: 999px; font-size: 0.82rem; color: var(--muted);
+    }
+
+    .container { max-width: 1140px; margin: 0 auto; padding: 0 1.5rem 4rem; }
+    section { margin-bottom: 3.5rem; }
+    .section-label {
+      font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--primary); margin-bottom: 0.4rem;
+    }
+    h2 { font-size: 1.65rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 0.75rem; }
+    h3 { font-size: 1.05rem; font-weight: 700; margin: 1.25rem 0 0.6rem; color: var(--text); }
+    h4 { font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--primary); margin: 1rem 0 0.5rem; }
+    .lead { color: var(--muted); font-size: 1rem; max-width: 760px; margin-bottom: 1.5rem; }
+
+    .stats {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 0.85rem; margin: -2.5rem 0 2.5rem; position: relative; z-index: 2;
+    }
+    .stat-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 1.25rem; text-align: center;
+    }
+    .stat-card .num { font-size: 1.85rem; font-weight: 800; color: var(--primary); line-height: 1; }
+    .stat-card .label { font-size: 0.78rem; color: var(--muted); margin-top: 0.3rem; }
+
+    .arch-diagram {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 1.75rem; display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
+      gap: 0.75rem 1.25rem; margin-bottom: 1.5rem;
+    }
+    .arch-node {
+      background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px;
+      padding: 0.85rem 1.1rem; text-align: center; min-width: 130px;
+    }
+    .arch-node strong { display: block; font-size: 0.9rem; }
+    .arch-node small { color: var(--muted); font-size: 0.72rem; }
+    .arch-arrow { color: var(--muted); font-size: 1.25rem; }
+
+    .impact-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem;
+    }
+    .impact-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem;
+    }
+    .impact-card .icon { font-size: 1.5rem; margin-bottom: 0.5rem; }
+    .impact-card h3 { font-size: 0.95rem; margin: 0 0 0.4rem; }
+    .impact-card p { font-size: 0.88rem; color: var(--muted); }
+
+    .phase-nav { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1.75rem; position: sticky; top: 0; z-index: 10;
+      background: rgba(11,15,26,0.92); backdrop-filter: blur(8px); padding: 0.75rem 0; border-bottom: 1px solid var(--border); }
+    .phase-nav a {
+      padding: 0.35rem 0.75rem; border-radius: 999px; background: var(--surface);
+      border: 1px solid var(--border); color: var(--muted); text-decoration: none;
+      font-size: 0.78rem; font-weight: 600;
+    }
+    .phase-nav a:hover { border-color: var(--primary); color: var(--text); }
+
+    .phase-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      margin-bottom: 2rem; overflow: hidden;
+    }
+    .phase-header {
+      padding: 1.35rem 1.5rem; border-bottom: 1px solid var(--border);
+      display: flex; flex-wrap: wrap; align-items: flex-start; gap: 0.85rem;
+    }
+    .phase-num {
+      width: 44px; height: 44px; border-radius: 11px;
+      background: linear-gradient(135deg, var(--primary), #4f46e5);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 1rem; flex-shrink: 0;
+    }
+    .phase-title-wrap { flex: 1; min-width: 180px; }
+    .phase-title-wrap h2 { font-size: 1.25rem; margin-bottom: 0.2rem; }
+    .phase-tagline { color: var(--muted); font-size: 0.9rem; }
+    .benefit-pill {
+      display: inline-flex; padding: 0.3rem 0.7rem; border-radius: 999px;
+      background: var(--success-bg); color: var(--success); font-size: 0.75rem; font-weight: 600;
+    }
+    .phase-body { padding: 1.5rem; }
+
+    .problem-box {
+      background: var(--surface-2); border-left: 3px solid var(--accent);
+      padding: 0.9rem 1.1rem; border-radius: 0 10px 10px 0; margin-bottom: 1.25rem;
+      font-size: 0.9rem; color: var(--muted);
+    }
+    .problem-box strong { color: var(--text); }
+
+    .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem; margin-bottom: 1.25rem; }
+    @media (max-width: 720px) { .compare-grid { grid-template-columns: 1fr; } }
+    .compare-col { border-radius: 11px; padding: 1.1rem; border: 1px solid var(--border); }
+    .compare-col.before { background: var(--before-bg); border-color: rgba(248,113,113,0.2); }
+    .compare-col.after { background: var(--after-bg); border-color: rgba(52,211,153,0.2); }
+    .compare-label {
+      font-size: 0.68rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 0.6rem;
+    }
+    .compare-col.before .compare-label { color: var(--before); }
+    .compare-col.after .compare-label { color: var(--after); }
+    .compare-col ul { list-style: none; font-size: 0.88rem; }
+    .compare-col li { padding: 0.32rem 0 0.32rem 1.1rem; position: relative; }
+    .compare-col.before li::before { content: "−"; position: absolute; left: 0; color: var(--before); font-weight: 700; }
+    .compare-col.after li::before { content: "+"; position: absolute; left: 0; color: var(--after); font-weight: 700; }
+
+    .detail-table {
+      width: 100%; border-collapse: collapse; font-size: 0.86rem; margin: 0.75rem 0 1rem;
+      background: var(--surface-2); border-radius: 10px; overflow: hidden;
+    }
+    .detail-table th, .detail-table td {
+      padding: 0.65rem 0.9rem; text-align: left; border-bottom: 1px solid var(--border); vertical-align: top;
+    }
+    .detail-table th {
+      background: rgba(0,0,0,0.2); color: var(--muted); font-weight: 600;
+      font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em;
+    }
+    .detail-table tr:last-child td { border-bottom: none; }
+    .detail-table code { font-size: 0.8rem; color: #a5b4fc; }
+
+    .helps-box {
+      background: rgba(99,102,241,0.08); border: 1px solid rgba(99,102,241,0.2);
+      border-radius: 11px; padding: 0.9rem 1.1rem; margin-top: 0.5rem;
+    }
+    .helps-box h4 { margin-top: 0; }
+    .helps-box p, .helps-box ul { font-size: 0.88rem; color: var(--muted); }
+    .helps-box ul { margin: 0.4rem 0 0 1.1rem; }
+
+    .note-box {
+      background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px;
+      padding: 0.85rem 1rem; font-size: 0.85rem; color: var(--muted); margin-top: 0.75rem;
+    }
+    .note-box strong { color: var(--accent); }
+
+    .reassure-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0.65rem; }
+    .reassure-item {
+      display: flex; gap: 0.6rem; padding: 0.85rem; background: var(--surface);
+      border: 1px solid var(--border); border-radius: 11px; font-size: 0.88rem;
+    }
+    .reassure-item .check { color: var(--success); font-weight: 700; flex-shrink: 0; }
+
+    .deferred-list li { color: var(--muted); font-size: 0.88rem; margin: 0.35rem 0 0.35rem 1.2rem; }
+
+    footer {
+      text-align: center; padding: 2.5rem 1.5rem; border-top: 1px solid var(--border);
+      color: var(--muted); font-size: 0.82rem;
+    }
+    footer strong { color: var(--text); }
+
+    @media print {
+      .phase-nav { position: static; }
+      .phase-card { break-inside: avoid; page-break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-badge">Engineering Report · June 2026</div>
+  <h1>Platform Optimization — <span>Complete Before &amp; After</span></h1>
+  <p>
+    Full detail on Phases 0 through 6: what the platform did before, what it does now,
+    and how each change helps students, teachers, and scale — without removing core features.
+  </p>
+  <div class="hero-meta">
+    <span>250 SQL migrations in repo</span>
+    <span>176 API routes</span>
+    <span>4,217 textbook AI chunks</span>
+    <span>6 new DB migrations (phases 2–5)</span>
+    <span>69 files in this release</span>
+  </div>
+</header>
+
+<div class="container">
+
+  <div class="stats">
+    <div class="stat-card"><div class="num">7</div><div class="label">Phases (0–6)</div></div>
+    <div class="stat-card"><div class="num">11</div><div class="label">Tables RLS-optimized</div></div>
+    <div class="stat-card"><div class="num">9</div><div class="label">Index changes (4 dropped, 5 added)</div></div>
+    <div class="stat-card"><div class="num">7</div><div class="label">Admin reports cached</div></div>
+    <div class="stat-card"><div class="num">6</div><div class="label">Maint. routes (manual)</div></div>
+    <div class="stat-card"><div class="num">2</div><div class="label">Isolated data systems</div></div>
+  </div>
+
+  <!-- Executive -->
+  <section>
+    <div class="section-label">Overview</div>
+    <h2>Platform at a glance</h2>
+    <p class="lead">
+      EduBlast runs on Next.js (Vercel), Supabase (main app database + auth + realtime),
+      Modal (AI embedding &amp; textbook search), and a separate Supabase project holding
+      4,217 NCERT textbook vector chunks for Gyan+ answers.
+    </p>
+    <div class="arch-diagram">
+      <div class="arch-node"><strong>Students &amp; teachers</strong><small>Browser app</small></div>
+      <span class="arch-arrow">→</span>
+      <div class="arch-node"><strong>Next.js API</strong><small>176 routes</small></div>
+      <span class="arch-arrow">→</span>
+      <div class="arch-node"><strong>Main Supabase</strong><small>Users, classrooms, doubts, content</small></div>
+      <span class="arch-arrow">↗</span>
+      <div class="arch-node"><strong>Modal AI sidecar</strong><small>BGE-M3 embeddings</small></div>
+      <span class="arch-arrow">→</span>
+      <div class="arch-node"><strong>RAG Supabase</strong><small>Textbook chunks only</small></div>
+    </div>
+    <div class="impact-grid">
+      <div class="impact-card"><div class="icon">⚡</div><h3>Less redundant work</h3><p>Heartbeats, profile reloads, RAG searches, and admin queries do not repeat unnecessarily.</p></div>
+      <div class="impact-card"><div class="icon">🛡️</div><h3>Stronger database layer</h3><p>Security rules and indexes tuned on the busiest tables (posts, doubts, classrooms, live sessions).</p></div>
+      <div class="impact-card"><div class="icon">📡</div><h3>Smarter live updates</h3><p>Buddy panel and classroom feeds use fewer websocket subscriptions and smaller payloads.</p></div>
+      <div class="impact-card"><div class="icon">📈</div><h3>Growth-ready</h3><p>Optional Redis presence buffer, partitioned analytics, server-side MCQ cache, connection pooling path.</p></div>
+      <div class="impact-card"><div class="icon">📚</div><h3>Better Explore UX</h3><p>Topic overviews show real content from all difficulty levels — not blank dashes.</p></div>
+      <div class="impact-card"><div class="icon">🎯</div><h3>Controlled operations</h3><p>Background maintenance runs when the team chooses — not on hidden timers.</p></div>
+    </div>
+  </section>
+
+  <nav class="phase-nav">
+    <a href="#phase-0">0 · Jobs</a>
+    <a href="#phase-1">1 · Quick wins</a>
+    <a href="#phase-2">2 · Database</a>
+    <a href="#phase-3">3 · Realtime</a>
+    <a href="#phase-4">4 · Architecture</a>
+    <a href="#phase-5">5 · Scale</a>
+    <a href="#phase-6">6 · Topic hub</a>
+    <a href="#appendix">Appendix</a>
+  </nav>
+
+  <!-- PHASE 0 -->
+  <article class="phase-card" id="phase-0">
+    <div class="phase-header">
+      <div class="phase-num">0</div>
+      <div class="phase-title-wrap">
+        <h2>Background jobs — manual control</h2>
+        <p class="phase-tagline">Removed automatic Vercel &amp; Supabase cron schedules</p>
+      </div>
+      <span class="benefit-pill">Operational control</span>
+    </div>
+    <div class="phase-body">
+      <div class="problem-box">
+        <strong>Before:</strong> Production could wake the app on a timer for refunds, classroom archiving, telemetry pruning, AI bot posts, and more — even when no students were active. Supabase <code>pg_cron</code> could also run database jobs automatically.
+      </div>
+      <div class="compare-grid">
+        <div class="compare-col before">
+          <div class="compare-label">Before</div>
+          <ul>
+            <li><code>vercel.json</code> listed cron schedules for production</li>
+            <li>Jobs fired without team oversight</li>
+            <li>Gyan bot could post on a timer (AI + database load)</li>
+            <li>Unclear when maintenance actually ran</li>
+          </ul>
+        </div>
+        <div class="compare-col after">
+          <div class="compare-label">After</div>
+          <ul>
+            <li><code>vercel.json</code> is empty — no auto schedules in dev or production</li>
+            <li><code>pg_cron</code> not enabled on production Supabase</li>
+            <li>All maintenance API routes still exist</li>
+            <li>Team triggers jobs manually or via external scheduler when ready</li>
+            <li><code>CRON_SECRET</code> supported when schedules are re-added</li>
+          </ul>
+        </div>
+      </div>
+
+      <h4>Maintenance routes still available (not on a timer)</h4>
+      <table class="detail-table">
+        <thead><tr><th>Route</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td><code>/api/cron/refund-doubt-bounties</code></td><td>Refund expired doubt bounties (7-day rule)</td></tr>
+          <tr><td><code>/api/cron/archive-classroom-sections</code></td><td>Deactivate classroom sections past <code>schedule_end_date</code></td></tr>
+          <tr><td><code>/api/cron/prune-telemetry-logs</code></td><td>Delete old AI logs (90d) and dwell events (180d); ensures dwell partitions exist</td></tr>
+          <tr><td><code>/api/cron/flush-site-presence</code></td><td>Flush Redis presence buffer → Postgres (Phase 5; needs Upstash)</td></tr>
+          <tr><td><code>/api/cron/warm-admin-analytics</code></td><td>Pre-warm admin dashboard cache (Phase 5)</td></tr>
+          <tr><td><code>/api/cron/gyan-bot-post</code></td><td>AI community bot post — <strong>do not schedule</strong> without explicit team review</td></tr>
+        </tbody>
+      </table>
+
+      <div class="helps-box">
+        <h4>How this helps</h4>
+        <p>Predictable operations. Maintenance runs when it makes sense — not at random hours. Prevents surprise server wake-ups during low-traffic periods. Safe routes (refunds, archiving) can be re-scheduled later; heavy AI jobs stay under human control.</p>
+      </div>
+      <div class="note-box"><strong>Note for investors:</strong> Doubt refunds and classroom archiving no longer happen automatically until the team schedules them again. This is intentional — full visibility over production behavior.</div>
+    </div>
+  </article>
+
+  <!-- PHASE 1 -->
+  <article class="phase-card" id="phase-1">
+    <div class="phase-header">
+      <div class="phase-num">1</div>
+      <div class="phase-title-wrap">
+        <h2>Quick wins — less work per student action</h2>
+        <p class="phase-tagline">Five targeted code changes; same student experience</p>
+      </div>
+      <span class="benefit-pill">Efficiency</span>
+    </div>
+    <div class="phase-body">
+      <div class="problem-box">
+        <strong>Before:</strong> Everyday actions — opening profile, staying online, asking Gyan+ — triggered more database writes, realtime reloads, and AI textbook searches than needed for the same UX.
+      </div>
+
+      <table class="detail-table">
+        <thead><tr><th>#</th><th>Area</th><th>Before</th><th>After</th><th>Where changed</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>1</td>
+            <td>Study-day penalty reconcile</td>
+            <td>Heavy reconcile could run on every profile/dashboard load</td>
+            <td>Runs at most <strong>once per IST calendar day</strong>, only when client sends <code>reconcile=1</code> on first load that day</td>
+            <td><code>studyDaysClient.ts</code>, <code>study-days/route.ts</code></td>
+          </tr>
+          <tr>
+            <td>2</td>
+            <td>Site presence heartbeat</td>
+            <td>Browser ping every <strong>20 seconds</strong></td>
+            <td>Ping every <strong>50 seconds</strong> (client + server dedupe aligned)</td>
+            <td><code>sitePresenceConstants.ts</code>, <code>SitePresenceProvider.tsx</code>, <code>site-presence/route.ts</code></td>
+          </tr>
+          <tr>
+            <td>3</td>
+            <td>Profile Realtime reloads</td>
+            <td>One realtime event → <strong>4 separate data reloads</strong></td>
+            <td>Events <strong>batched 450ms</strong> → one reload burst</td>
+            <td><code>StudentProfileHubPanels.tsx</code></td>
+          </tr>
+          <tr>
+            <td>4</td>
+            <td>Subject chat RAG passages</td>
+            <td>Up to <strong>10</strong> textbook passages per student question</td>
+            <td>Capped at <strong>5</strong> for subject chat (admin/agent routes still use 10–25)</td>
+            <td><code>gyanContentPolicy.ts</code>, <code>subject-chat/route.ts</code></td>
+          </tr>
+          <tr>
+            <td>5</td>
+            <td>Modal RAG retriever</td>
+            <td>Up to <strong>3 vector search passes</strong> per question (strict → cross-subject → all grades)</td>
+            <td><strong>Skips Pass 2 &amp; 3</strong> when Pass 1 already returns chunks above subject similarity threshold; only falls back if Pass 1 score below 0.28 floor</td>
+            <td><code>modal-rag/retriever.py</code> (deployed to Modal)</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h4>RAG multi-pass logic (simplified)</h4>
+      <div class="compare-grid">
+        <div class="compare-col before">
+          <div class="compare-label">Old search flow</div>
+          <ul>
+            <li>Pass 1: exact class + subject</li>
+            <li>Pass 2: same class, all subjects — often ran even when Pass 1 was fine</li>
+            <li>Pass 3: all classes, all subjects</li>
+            <li>Up to 3 Supabase vector RPC calls per Gyan+ question</li>
+          </ul>
+        </div>
+        <div class="compare-col after">
+          <div class="compare-label">New search flow</div>
+          <ul>
+            <li>Pass 1: exact class + subject</li>
+            <li>If good chunks found → <strong>stop here</strong></li>
+            <li>Pass 2/3 only when Pass 1 is truly weak (&lt; 0.28 relevance)</li>
+            <li>Usually 1 search instead of 3 — faster answers</li>
+            <li>Per-subject thresholds: Maths 0.42, Physics/Chemistry 0.36, Biology 0.30</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="helps-box">
+        <h4>How this helps</h4>
+        <ul>
+          <li>Students still get full Gyan+ and subject-chat answers grounded in NCERT textbooks.</li>
+          <li>Buddy “online” status still updates — slightly slower (30s) but still feels live.</li>
+          <li>Profile panels behave the same with fewer background network spikes.</li>
+          <li>Platform load grows slower as daily active users increase.</li>
+        </ul>
+      </div>
+    </div>
+  </article>
+
+  <!-- PHASE 2 -->
+  <article class="phase-card" id="phase-2">
+    <div class="phase-header">
+      <div class="phase-num">2</div>
+      <div class="phase-title-wrap">
+        <h2>Database hygiene — security, indexes, retention</h2>
+        <p class="phase-tagline">4 SQL migrations applied to production main database</p>
+      </div>
+      <span class="benefit-pill">Performance &amp; hygiene</span>
+    </div>
+    <div class="phase-body">
+      <div class="problem-box">
+        <strong>Before:</strong> Row-level security re-evaluated <code>auth.uid()</code> on every row (slow on large tables). Duplicate indexes wasted disk and slowed writes. AI usage logs and dwell events grew without retention. Admin dashboards re-ran heavy SQL on every refresh.
+      </div>
+
+      <h4>A. Row-level security (RLS) — 11 hot tables</h4>
+      <table class="detail-table">
+        <thead><tr><th>Before</th><th>After</th><th>Tables</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><code>auth.uid()</code> checked per row</td>
+            <td><code>(select auth.uid())</code> evaluated once per query</td>
+            <td>
+              <strong>Phase 2a:</strong> posts, profiles, classroom_members, doubts + post helper functions<br>
+              <strong>Phase 2b:</strong> doubt_answers, doubt_votes, doubt_saves, doubt_answer_reports, classrooms, live_sessions, class_exploration_sessions
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="note-box">Verified on live DB: <strong>0 policies</strong> still use bare <code>auth.uid()</code> on these hot tables. Students see identical permissions — queries simply run faster.</p>
+
+      <h4>B. Indexes — removed 4 redundant, added 5 targeted</h4>
+      <table class="detail-table">
+        <thead><tr><th>Action</th><th>Index</th><th>Why</th></tr></thead>
+        <tbody>
+          <tr><td>Dropped</td><td><code>idx_past_paper_questions_paper_sort</code></td><td>Redundant with UNIQUE (paper_id, sort_order)</td></tr>
+          <tr><td>Dropped</td><td><code>ai_token_logs_action_type_idx</code></td><td>Unused; created_at + user_id indexes remain</td></tr>
+          <tr><td>Dropped</td><td><code>doubt_answers_created_at_idx</code></td><td>Exact duplicate of another index</td></tr>
+          <tr><td>Dropped</td><td><code>idx_doubt_votes_user_target</code></td><td>Redundant with UNIQUE (user_id, target_type, target_id)</td></tr>
+          <tr><td>Added</td><td><code>idx_classrooms_teacher_id</code></td><td>Teacher portal classroom lookups</td></tr>
+          <tr><td>Added</td><td><code>idx_posts_teacher_id</code></td><td>Class feed &amp; teacher content</td></tr>
+          <tr><td>Added</td><td><code>idx_live_sessions_classroom_id</code></td><td>Live session queries</td></tr>
+          <tr><td>Added</td><td><code>idx_live_sessions_teacher_id</code></td><td>Teacher session lists</td></tr>
+          <tr><td>Added</td><td><code>idx_classroom_assignment_responses_classroom_id</code></td><td>Assignment response aggregation</td></tr>
+        </tbody>
+      </table>
+
+      <h4>C. Telemetry retention</h4>
+      <div class="compare-grid">
+        <div class="compare-col before">
+          <div class="compare-label">Before</div>
+          <ul>
+            <li><code>ai_token_logs</code> (12,000+ rows) grew forever</li>
+            <li><code>student_learning_dwell_events</code> grew forever</li>
+            <li>No automated cleanup path</li>
+          </ul>
+        </div>
+        <div class="compare-col after">
+          <div class="compare-label">After</div>
+          <ul>
+            <li>New Postgres function <code>prune_telemetry_logs()</code></li>
+            <li>Deletes AI logs older than <strong>90 days</strong></li>
+            <li>Deletes dwell events older than <strong>180 days</strong></li>
+            <li>Triggered via <code>/api/cron/prune-telemetry-logs</code> (manual)</li>
+          </ul>
+        </div>
+      </div>
+
+      <h4>D. Admin analytics cache (Phase 2 — later extended in Phase 5)</h4>
+      <table class="detail-table">
+        <thead><tr><th>Report</th><th>Cache TTL (Phase 2)</th></tr></thead>
+        <tbody>
+          <tr><td>Analytics summary</td><td>60 seconds</td></tr>
+          <tr><td>Feature adoption</td><td>120 seconds</td></tr>
+          <tr><td>Conversion funnel</td><td>120 seconds</td></tr>
+          <tr><td>Dropoff tracking</td><td>300 seconds</td></tr>
+          <tr><td>Retention cohorts</td><td>120 seconds</td></tr>
+          <tr><td>Events (by days)</td><td>60 seconds</td></tr>
+          <tr><td>Churn risk</td><td>120 seconds</td></tr>
+        </tbody>
+      </table>
+      <p class="note-box">Implemented in <code>adminAnalyticsCache.ts</code> across all <code>app/api/admin/analytics/*/route.ts</code> files. Phase 5 unified TTL to 15 minutes.</p>
+
+      <h4>SQL migrations shipped</h4>
+      <table class="detail-table">
+        <thead><tr><th>File</th><th>Content</th></tr></thead>
+        <tbody>
+          <tr><td><code>20260811120000_phase2_rls_initplan_hot_tables.sql</code></td><td>RLS initplan on posts, profiles, classroom_members, doubts</td></tr>
+          <tr><td><code>20260811120100_phase2_indexes_and_prune.sql</code></td><td>Index changes + prune_telemetry_logs RPC</td></tr>
+          <tr><td><code>20260811130000_phase2b_rls_initplan_extended.sql</code></td><td>RLS initplan on doubts ecosystem + classrooms + live sessions</td></tr>
+          <tr><td><code>20260811130100_phase2b_index_cleanup.sql</code></td><td>Further duplicate index removal</td></tr>
+        </tbody>
+      </table>
+
+      <div class="helps-box">
+        <h4>How this helps</h4>
+        <p>Classrooms, doubts, posts, and live sessions stay secure but respond faster. Database stays lean over time. Admin dashboards load faster without losing access to the same metrics.</p>
+      </div>
+      <div class="note-box"><strong>Intentionally deferred:</strong> ~80 other unused indexes (many are primary keys or future features — not bulk-dropped). RLS initplan on ~70 remaining tables scheduled for a future sweep.</div>
+    </div>
+  </article>
+
+  <!-- PHASE 3 -->
+  <article class="phase-card" id="phase-3">
+    <div class="phase-header">
+      <div class="phase-num">3</div>
+      <div class="phase-title-wrap">
+        <h2>Connections &amp; Realtime — lighter live updates</h2>
+        <p class="phase-tagline">Buddy panel, presence, teacher portal, classroom feeds</p>
+      </div>
+      <span class="benefit-pill">Realtime UX</span>
+    </div>
+    <div class="phase-body">
+      <div class="problem-box">
+        <strong>Before:</strong> Buddy dashboard subscribed to multiple live database channels. Classroom feeds loaded all posts at once. Site presence used elevated server credentials. Teacher portal polled aggressively as fallback.
+      </div>
+
+      <table class="detail-table">
+        <thead><tr><th>#</th><th>Area</th><th>Before</th><th>After</th><th>Files</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>1</td>
+            <td>Buddy dashboard Realtime</td>
+            <td><strong>4 table subscriptions</strong> for live buddy data</td>
+            <td><strong>1 table</strong> — <code>student_site_presence</code> only; backup poll <strong>50s</strong>; full refresh <strong>8 min</strong></td>
+            <td><code>useBuddyDashboardLive.ts</code>, <code>connectionRealtimeConstants.ts</code></td>
+          </tr>
+          <tr>
+            <td>2</td>
+            <td>Teacher portal backup poll</td>
+            <td>Refreshed every <strong>90 seconds</strong> if Realtime missed</td>
+            <td>Refreshed every <strong>120 seconds</strong>; Realtime on attempts/progress unchanged</td>
+            <td><code>useTeacherPortalBundleAutoRefresh.ts</code></td>
+          </tr>
+          <tr>
+            <td>3</td>
+            <td>Site presence API</td>
+            <td>Could rely on service-role / elevated access</td>
+            <td>Uses <strong>normal logged-in student RLS</strong>; no service role key required for this route</td>
+            <td><code>site-presence/route.ts</code></td>
+          </tr>
+          <tr>
+            <td>4</td>
+            <td>Classroom feed</td>
+            <td>Loaded <strong>all posts</strong> in one request</td>
+            <td><strong>40 posts per page</strong> + “Load more” + “Showing N of total” counter</td>
+            <td><code>ClassFeed.tsx</code>, <code>classroomFeedConstants.ts</code></td>
+          </tr>
+          <tr>
+            <td>5</td>
+            <td>Presence delete policy</td>
+            <td>Students could not cleanly remove own presence rows via RLS</td>
+            <td>Migration adds <strong>DELETE own row</strong> on student_site_presence, student_learning_presence, student_gyan_presence</td>
+            <td><code>20260811140000_phase3_presence_delete_own.sql</code></td>
+          </tr>
+          <tr>
+            <td>6</td>
+            <td>Connection pooling (Supavisor)</td>
+            <td>Not enabled / not documented</td>
+            <td><strong>Recommended</strong> in Supabase Dashboard → Database → Connection pooling (transaction mode). No app code change needed for current setup.</td>
+            <td>Dashboard step before large concurrent user growth</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="helps-box">
+        <h4>How this helps</h4>
+        <ul>
+          <li>Students still see who’s online in the buddy panel — with fewer websocket channels open per user.</li>
+          <li>Large classrooms load instantly (first 40 posts) instead of waiting for full history.</li>
+          <li>Presence is more secure — tied to the logged-in student, not a server master key.</li>
+          <li>Teacher portal still updates live on assignment attempts; backup poll is slightly less aggressive.</li>
+        </ul>
+      </div>
+    </div>
+  </article>
+
+  <!-- PHASE 4 -->
+  <article class="phase-card" id="phase-4">
+    <div class="phase-header">
+      <div class="phase-num">4</div>
+      <div class="phase-title-wrap">
+        <h2>Infrastructure architecture — two systems, one product</h2>
+        <p class="phase-tagline">Locked decision: keep app database and AI textbook library separate</p>
+      </div>
+      <span class="benefit-pill">Reliability</span>
+    </div>
+    <div class="phase-body">
+      <div class="problem-box">
+        <strong>Decision:</strong> EduBlast uses two Supabase projects. We evaluated merging them into one. We chose <strong>Option A — keep separate permanently</strong> to protect live Gyan+ Q&amp;A.
+      </div>
+
+      <table class="detail-table">
+        <thead><tr><th>Option</th><th>Decision</th><th>Rationale</th></tr></thead>
+        <tbody>
+          <tr><td><strong>A — Keep separate</strong></td><td>✅ Selected</td><td>Textbook vectors isolated; Modal retriever unchanged; zero migration risk to student AI answers</td></tr>
+          <tr><td>B — Merge into main</td><td>❌ Rejected</td><td>Would require migrating 4,217 chunks and risk breaking production Gyan+ path</td></tr>
+          <tr><td>C — External vector store</td><td>⏸ Deferred</td><td>Not needed at current scale</td></tr>
+        </tbody>
+      </table>
+
+      <h4>Two systems — roles</h4>
+      <table class="detail-table">
+        <thead><tr><th>System</th><th>Role</th><th>Contains</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Main Supabase</strong></td><td>App platform</td><td>Auth (38 users), profiles, classrooms, doubts, posts, lessons, telemetry, storage (~93 MB)</td></tr>
+          <tr><td><strong>RAG Supabase</strong></td><td>AI textbook library only</td><td><code>textbook_chunks</code> + <code>match_chunks</code> vector search (~70 MB, 4,217 chunks)</td></tr>
+          <tr><td><strong>Modal sidecar</strong></td><td>AI embedding &amp; retrieval</td><td>BGE-M3 model; connects to RAG Supabase only for search</td></tr>
+          <tr><td><strong>Next.js app</strong></td><td>Student &amp; teacher UI</td><td>Talks to main Supabase + Modal; never queries textbook chunks from main DB</td></tr>
+        </tbody>
+      </table>
+
+      <h4>Configuration rules (locked)</h4>
+      <table class="detail-table">
+        <thead><tr><th>Layer</th><th>Rule</th></tr></thead>
+        <tbody>
+          <tr><td>Modal secret <code>custom-secret</code></td><td><code>RAG_SUPABASE_URL</code> + <code>RAG_SUPABASE_ANON_KEY</code> → RAG project only</td></tr>
+          <tr><td>Next.js <code>RAG_SIDECAR_URL</code></td><td>Points to Modal only — not main Supabase</td></tr>
+          <tr><td>Next.js <code>NEXT_PUBLIC_SUPABASE_URL</code></td><td>Main project only — never RAG project</td></tr>
+          <tr><td>RAG secrets on Vercel</td><td>Not stored — live in Modal secrets only</td></tr>
+          <tr><td><code>SUPABASE_FETCH_RETRIES</code></td><td>Recommended value <code>1</code> (fewer retry storms on flaky networks)</td></tr>
+        </tbody>
+      </table>
+
+      <h4>Other infrastructure policies</h4>
+      <div class="compare-grid">
+        <div class="compare-col before">
+          <div class="compare-label">Considered</div>
+          <ul>
+            <li>Merge AI textbook DB into main app DB</li>
+            <li>Custom auth domain <code>auth.edublast.in</code> (Google shows Supabase URL today)</li>
+            <li>Supabase preview database branch per pull request</li>
+            <li>Pause or delete RAG project</li>
+          </ul>
+        </div>
+        <div class="compare-col after">
+          <div class="compare-label">Policy</div>
+          <ul>
+            <li><strong>Never merge, pause, or delete</strong> RAG project</li>
+            <li>Custom auth domain <strong>deferred</strong> — enable when team approves DNS + Pro setup</li>
+            <li><strong>Avoid</strong> preview DB branches unless truly needed; delete within 3–7 days if used</li>
+            <li>Git branches = app code only; no linked Supabase preview DB today</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="helps-box">
+        <h4>How this helps</h4>
+        <p>Zero risk to the AI tutor students already use. Textbook search stays independent and stable. Clear engineering rules prevent accidental misconfiguration. Team can scale Gyan+ via smarter retrieval (Phase 1) without touching the textbook library architecture.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- PHASE 5 -->
+  <article class="phase-card" id="phase-5">
+    <div class="phase-header">
+      <div class="phase-num">5</div>
+      <div class="phase-title-wrap">
+        <h2>Scale architecture — buffers, caches, partitions</h2>
+        <p class="phase-tagline">Telemetry and heavy reads no longer scale linearly with every open tab</p>
+      </div>
+      <span class="benefit-pill">Scalability</span>
+    </div>
+    <div class="phase-body">
+      <div class="problem-box">
+        <strong>Before:</strong> Every open browser tab wrote presence straight to Postgres. Every admin dashboard click re-ran heavy analytics SQL. MCQ chapter previews queried the database from the browser. Dwell analytics lived in one monolithic table.
+      </div>
+
+      <h4>1. Site presence buffer (Upstash Redis — optional)</h4>
+      <table class="detail-table">
+        <thead><tr><th>Condition</th><th>Behavior</th></tr></thead>
+        <tbody>
+          <tr><td><code>UPSTASH_REDIS_REST_URL</code> + <code>TOKEN</code> set</td><td>Heartbeats → <strong>Redis only</strong>; Postgres updated on flush (buddy poll, dashboard load, or cron every ~5 min)</td></tr>
+          <tr><td>Upstash <strong>not</strong> set</td><td>Identical to Phase 3 — direct Postgres writes every 50s heartbeat</td></tr>
+          <tr><td>Flush cron</td><td><code>/api/cron/flush-site-presence</code> — moves all buffered keys to Postgres</td></tr>
+          <tr><td>Package added</td><td><code>@upstash/redis</code> in <code>sitePresenceBuffer.ts</code></td></tr>
+        </tbody>
+      </table>
+
+      <h4>2. Admin analytics — 15-minute cache + warm job</h4>
+      <table class="detail-table">
+        <thead><tr><th>Before (Phase 2)</th><th>After (Phase 5)</th></tr></thead>
+        <tbody>
+          <tr><td>Per-report TTL: 60s – 300s</td><td>Unified <strong>15-minute</strong> TTL (<code>adminAnalyticsConfig.ts</code>)</td></tr>
+          <tr><td>Cold cache on first admin visit</td><td>Warm cron <code>/api/cron/warm-admin-analytics</code> pre-loads all 7 report keys</td></tr>
+          <tr><td>—</td><td>Recommend external trigger every 10–15 min while admins use dashboards</td></tr>
+        </tbody>
+      </table>
+      <p class="note-box">Reports cached: analytics summary, feature adoption, conversion funnel, dropoff tracking, retention cohorts, events, churn risk.</p>
+
+      <h4>3. Dwell events — monthly table partitions</h4>
+      <table class="detail-table">
+        <thead><tr><th>Before</th><th>After</th></tr></thead>
+        <tbody>
+          <tr><td>Single <code>student_learning_dwell_events</code> table</td><td><code>PARTITION BY RANGE (occurred_at)</code> — monthly partitions Jan 2024 → Dec 2028</td></tr>
+          <tr><td>Manual partition management</td><td><code>ensure_dwell_events_partition()</code> — auto-creates next month; called before prune cron</td></tr>
+        </tbody>
+      </table>
+      <p class="note-box">Migration: <code>20260811150000_phase5_dwell_events_partition.sql</code></p>
+
+      <h4>4. MCQ chapter preview — server cache</h4>
+      <table class="detail-table">
+        <thead><tr><th>Before</th><th>After</th></tr></thead>
+        <tbody>
+          <tr><td>Browser queried Supabase <code>mock_questions</code> directly on every Prep → CBSE MCQs open</td><td>Browser calls <code>/api/mock/cbse-chapter-mcqs</code> with <strong>1-hour server cache</strong> (<code>unstable_cache</code>)</td></tr>
+        </tbody>
+      </table>
+      <p class="note-box">Files: <code>cbse-chapter-mcqs/route.ts</code>, <code>fetchCbseChapterMcqsServer.ts</code>, <code>fetchCbseChapterMcqs.ts</code></p>
+
+      <div class="helps-box">
+        <h4>How this helps</h4>
+        <ul>
+          <li>More students can stay online simultaneously without each tab writing to the database every 50 seconds.</li>
+          <li>Admin team gets fast dashboards without hammering the database on every click.</li>
+          <li>Lesson-time analytics stay manageable over years (partitioned by month).</li>
+          <li>Mock test chapter previews load faster for students preparing for CBSE exams.</li>
+        </ul>
+      </div>
+    </div>
+  </article>
+
+  <!-- PHASE 6 -->
+  <article class="phase-card" id="phase-6">
+    <div class="phase-header">
+      <div class="phase-num">6</div>
+      <div class="phase-title-wrap">
+        <h2>Topic hub UX — Explore shows real content</h2>
+        <p class="phase-tagline">Product quality fix — not infrastructure; content was in DB but UI looked empty</p>
+      </div>
+      <span class="benefit-pill">Product quality</span>
+    </div>
+    <div class="phase-body">
+      <div class="problem-box">
+        <strong>Root causes:</strong> (1) Explore only loaded <code>basics</code> level — intermediate/advanced prose ignored. (2) AI agent stores <code>"-"</code> for skipped sections — UI showed blank dashes. (3) <code>hub_scope</code> <code>topic</code> vs <code>chapter</code> are different database rows. (4) Subtopic AI needs all 3 levels viable — admins had no visibility.
+      </div>
+
+      <h4>What shipped (6 deliverables)</h4>
+      <table class="detail-table">
+        <thead><tr><th>#</th><th>Deliverable</th><th>What it does</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td><code>topicHubDisplay.ts</code></td><td>Treats <code>"-"</code> as empty; helpers to merge sections across difficulty levels</td></tr>
+          <tr><td>2</td><td><code>fetchTopicHubDisplayBundle</code></td><td>Parallel fetch basics + intermediate + advanced; merges best overview text + subtopic previews</td></tr>
+          <tr><td>3</td><td><code>TopicHubOverviewSections.tsx</code></td><td>Shared Explore UI — honest empty states when previews exist but overview pending</td></tr>
+          <tr><td>4</td><td><code>explore-1/page.tsx</code></td><td>Uses display bundle instead of basics-only fetch; normalizes placeholders after AI generate/regenerate</td></tr>
+          <tr><td>5</td><td><code>subtopicCompleteness.ts</code></td><td>Gate viability ignores <code>"-"</code> placeholders — only real prose or previews count</td></tr>
+          <tr><td>6</td><td>Admin Topic hub page</td><td><code>/admin/topic-hub</code> + API <code>/api/admin/topic-hub-coverage</code> — per-topic status for all 3 levels</td></tr>
+        </tbody>
+      </table>
+
+      <div class="compare-grid">
+        <div class="compare-col before">
+          <div class="compare-label">Before (student sees)</div>
+          <ul>
+            <li>Chapter overview shows <code>—</code> even when DB has content</li>
+            <li>Only “basics” row consulted</li>
+            <li>Subtopic previews ignored when overview sections empty</li>
+            <li>Placeholder <code>"-"</code> treated as real text</li>
+            <li>No admin view of which topics need AI generation</li>
+          </ul>
+        </div>
+        <div class="compare-col after">
+          <div class="compare-label">After (student sees)</div>
+          <ul>
+            <li>Best available text from any difficulty level shown</li>
+            <li>Clear message: “Subtopic previews ready — overview still being filled”</li>
+            <li>Subtopic preview cards surface when overview prose missing</li>
+            <li>Admin hint: which levels still needed for subtopic AI gate</li>
+            <li>Admin dashboard filters by board, subject, class, scope, topic</li>
+          </ul>
+        </div>
+      </div>
+
+      <h4>Admin coverage badges per level</h4>
+      <table class="detail-table">
+        <thead><tr><th>Badge</th><th>Meaning</th></tr></thead>
+        <tbody>
+          <tr><td><strong>ok</strong></td><td>Level has real overview prose or subtopic previews — gate viable</td></tr>
+          <tr><td><strong>previews</strong></td><td>Row exists with subtopic previews but weak overview</td></tr>
+          <tr><td><strong>empty</strong></td><td>Row exists but no viable content</td></tr>
+          <tr><td><strong>missing</strong></td><td>No database row for that level</td></tr>
+        </tbody>
+      </table>
+
+      <div class="helps-box">
+        <h4>How this helps</h4>
+        <p>PCM students see meaningful chapter introductions in Explore instead of blank sections. Content team sees exactly which topics need AI generation across basics, intermediate, and advanced — directly supporting curriculum completeness and faster time-to-content.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Student promise -->
+  <section>
+    <div class="section-label">Student promise</div>
+    <h2>What we deliberately did NOT change</h2>
+    <div class="reassure-list">
+      <div class="reassure-item"><span class="check">✓</span> Gyan+ and Prof-Pi answer quality, structure, and personas</div>
+      <div class="reassure-item"><span class="check">✓</span> Textbook-grounded AI (RAG) for subject chat — still NCERT-based</div>
+      <div class="reassure-item"><span class="check">✓</span> Math answer layout (Formula / Proof / Steps / Intuition / Trap)</div>
+      <div class="reassure-item"><span class="check">✓</span> Physics answer layout (Given / Formula / Steps / Answer)</div>
+      <div class="reassure-item"><span class="check">✓</span> Buddy online status and social features</div>
+      <div class="reassure-item"><span class="check">✓</span> Classrooms, doubts, live sessions, mock tests, teacher portal</div>
+      <div class="reassure-item"><span class="check">✓</span> Separate AI textbook library (no risky merge)</div>
+      <div class="reassure-item"><span class="check">✓</span> Automatic Gyan bot posting (still manual only)</div>
+    </div>
+  </section>
+
+  <!-- Appendix -->
+  <section id="appendix">
+    <div class="section-label">Appendix</div>
+    <h2>Rollout status &amp; migrations</h2>
+
+    <table class="detail-table">
+      <thead><tr><th>Phase</th><th>Focus</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td>0</td><td>Background job control — empty vercel.json, no pg_cron</td><td>✅ Live</td></tr>
+        <tr><td>1</td><td>5 quick wins + Modal retriever deploy</td><td>✅ Live</td></tr>
+        <tr><td>2</td><td>4 SQL migrations + admin cache + prune route</td><td>✅ Live on production DB</td></tr>
+        <tr><td>3</td><td>Realtime, presence RLS, classroom pagination + 1 migration</td><td>✅ Live</td></tr>
+        <tr><td>4</td><td>Dual-system architecture policy locked</td><td>✅ Documented</td></tr>
+        <tr><td>5</td><td>Redis buffer (opt-in), 15min admin cache, dwell partitions, MCQ API + 1 migration</td><td>✅ Live</td></tr>
+        <tr><td>6</td><td>Explore topic hub UX + admin coverage</td><td>✅ Live</td></tr>
+      </tbody>
+    </table>
+
+    <h3>All database migrations (phases 2–5)</h3>
+    <table class="detail-table">
+      <thead><tr><th>Migration file</th><th>Phase</th></tr></thead>
+      <tbody>
+        <tr><td><code>20260811120000_phase2_rls_initplan_hot_tables.sql</code></td><td>2</td></tr>
+        <tr><td><code>20260811120100_phase2_indexes_and_prune.sql</code></td><td>2</td></tr>
+        <tr><td><code>20260811130000_phase2b_rls_initplan_extended.sql</code></td><td>2</td></tr>
+        <tr><td><code>20260811130100_phase2b_index_cleanup.sql</code></td><td>2</td></tr>
+        <tr><td><code>20260811140000_phase3_presence_delete_own.sql</code></td><td>3</td></tr>
+        <tr><td><code>20260811150000_phase5_dwell_events_partition.sql</code></td><td>5</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Health checklist (expected state today)</h3>
+    <table class="detail-table">
+      <thead><tr><th>Check</th><th>Expected</th></tr></thead>
+      <tbody>
+        <tr><td>Students can log in and use Gyan+ / subject chat</td><td>Yes</td></tr>
+        <tr><td>RAG uses separate textbook library project</td><td>Yes — never merged</td></tr>
+        <tr><td>Buddy / online features work</td><td>Yes</td></tr>
+        <tr><td>Large classroom feeds paginate</td><td>Yes — 40 + Load more</td></tr>
+        <tr><td>Explore shows content when DB has it</td><td>Yes — Phase 6 bundle</td></tr>
+        <tr><td>Production crons run automatically</td><td>No — by design (Phase 0)</td></tr>
+        <tr><td>Old telemetry deletes itself</td><td>No — only when prune route is called</td></tr>
+        <tr><td>Admin dashboard numbers real-time to the second</td><td>No — up to 15 min cache (Phase 5)</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+</div>
+
+<footer>
+  <p><strong>EduBlast</strong> — Platform Optimization Report (Phases 0–6)</p>
+  <p>June 2026 · Confidential · Open in browser or Print → Save as PDF</p>
+</footer>
+
+</body>
+</html>
