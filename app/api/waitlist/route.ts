@@ -225,6 +225,14 @@ export async function POST(request: Request) {
           { status: 404 }
         );
       }
+      const storedEmail =
+        typeof byId.email === "string" ? normalizeWaitlistEmail(byId.email) : "";
+      if (storedEmail !== email) {
+        return NextResponse.json(
+          { error: "Waitlist ID does not match this email address." },
+          { status: 403 }
+        );
+      }
 
       const { error } = await table
         .update(ambassadorRow)

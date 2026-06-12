@@ -93,6 +93,7 @@ export async function POST(req: NextRequest) {
     userId: user.id,
     email: user.email,
     onboardingComplete: profile?.onboarding_complete === true,
+    userCreatedAt: user.created_at,
   });
   if (!gate.allowed) {
     return NextResponse.json({

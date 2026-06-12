@@ -135,6 +135,7 @@ Anything that is not Next.js / tooling config now lives under:
 | Student plan DB | `supabase/migrations/20260808120000_subscription_coupons.sql` |
 
 ## Decisions Log
+- 2026-06-12: Critical bug automation — fixed waitlist ID/email binding, whitelist gate approval bypass, soft-offline presence deletes, and cached CBSE MCQ RLS reads.
 - 2026-06-11: **Supabase cost Phases 0–6 summary** — before/after doc `docs/architecture/supabase-cost-phases-0-6-before-after.md`.
 - 2026-06-11: **Supabase cost Phase 6** — topic hub UX: multi-level display bundle, `"-"` placeholder handling, `TopicHubOverviewSections`, admin coverage `/admin/topic-hub`; runbook `docs/architecture/supabase-cost-phase6-topic-hub-ux.md`.
 - 2026-06-11: **Supabase cost Phase 5** — opt-in Upstash site-presence buffer; admin cache 15min + warm cron; dwell monthly partitions; MCQ chapter cached API; runbook `docs/architecture/supabase-cost-phase5-scale-architecture.md`.

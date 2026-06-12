@@ -5,6 +5,7 @@ import type { TargetExamKey } from "@/lib/profile/targetExam";
 import { validateTrialOnboardingForActivate } from "@/lib/subscription/trialOnboardingAnswers";
 import { TRIAL_PRIMARY_SCHOOL_ONLY } from "@/components/dashboard/free-trial-onboarding/types";
 import { fetchRdmConfig } from "@/lib/rdm/rdmConfig";
+import { evaluateWhitelistGate } from "@/lib/waitlist/whitelistGate";
 
 async function getSupabaseAndUser(request: Request) {
   const cookieClient = await createClient();
@@ -80,7 +81,7 @@ export async function POST(request: Request) {
     // Check if free trial has already been activated before to prevent double-crediting
     const { data: profile, error: readErr } = await supabase
       .from("profiles")
-      .select("free_trial_activated")
+      .select("free_trial_activated, onboarding_complete")
       .eq("id", user.id)
       .maybeSingle();
 
@@ -90,6 +91,15 @@ export async function POST(request: Request) {
     }
 
     const shouldCreditWelcome = !profile?.free_trial_activated;
+    const gate = await evaluateWhitelistGate(supabase, {
+      userId: user.id,
+      email: user.email,
+      onboardingComplete: profile?.onboarding_complete === true,
+      userCreatedAt: user.created_at,
+    });
+    if (!gate.allowed) {
+      return NextResponse.json({ error: "Waitlist approval required" }, { status: 403 });
+    }
 
     const schoolNameTrimmed =
       answers.primaryPlatform === TRIAL_PRIMARY_SCHOOL_ONLY ? answers.schoolName.trim().slice(0, 200) : "";
