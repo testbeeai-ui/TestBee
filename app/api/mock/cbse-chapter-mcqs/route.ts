@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { unstable_cache } from "next/cache";
 import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
 import { fetchCbseChapterMcqsServer } from "@/lib/mock/fetchCbseChapterMcqsServer";
-import { createPublicSupabaseClient } from "@/integrations/supabase/server";
+import { createAdminClient } from "@/integrations/supabase/server";
 
 const CACHE_REVALIDATE_SEC = 3600;
 
@@ -24,7 +24,9 @@ export async function GET(request: Request) {
 
     const loadCached = unstable_cache(
       async () => {
-        const supabase = createPublicSupabaseClient();
+        // The outer route already verified a signed-in user; use service-role for
+        // the shared cache fill so authenticated-only RLS does not cache a false 404.
+        const supabase = createAdminClient() ?? ctx.supabase;
         return fetchCbseChapterMcqsServer(supabase, chapterId, classLevel);
       },
       ["cbse-chapter-mcqs", chapterId, String(classLevel)],
