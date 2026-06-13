@@ -135,6 +135,7 @@ Anything that is not Next.js / tooling config now lives under:
 | Student plan DB | `supabase/migrations/20260808120000_subscription_coupons.sql` |
 
 ## Decisions Log
+- 2026-06-13: **Critical bug fixes** — waitlist Step 2 email-bound updates + refcode preservation; MCQ cached route uses authenticated/server client; soft site-presence offline no longer clears learning/Gyan presence.
 - 2026-06-12: **Whitelist alexis36sg@gmail.com** — approved_emails + admin role live; migration `20260812120000_whitelist_alexis36sg_full_access.sql`.
 - 2026-06-12: **Investor HTML** — platform optimization before/after (phases 0–6, no financial framing): `docs/architecture/platform-optimization-phases-0-6.html`.
 - 2026-06-11: **Supabase cost Phases 0–6 summary** — before/after doc `docs/architecture/supabase-cost-phases-0-6-before-after.md`.

@@ -22,6 +22,9 @@ export async function POST(request: Request) {
 
     if (body?.offline) {
       await clearSitePresenceBuffer(user.id);
+      if (!body.signedOut) {
+        return NextResponse.json({ ok: true, offline: true, cleared: false });
+      }
       await Promise.all([
         supabase
           .from("student_site_presence" as never)
