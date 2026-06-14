@@ -226,13 +226,30 @@ export async function POST(request: Request) {
         );
       }
 
-      const { error } = await table
+      if (normalizeWaitlistEmail(byId.email) !== email) {
+        return NextResponse.json(
+          { error: "Waitlist ID does not match the submitted email." },
+          { status: 409 }
+        );
+      }
+
+      const { data: updated, error } = await table
         .update(ambassadorRow)
-        .eq("waitlist_id", waitlistIdStr);
+        .eq("waitlist_id", waitlistIdStr)
+        .eq("email", email)
+        .select("waitlist_id")
+        .maybeSingle();
 
       if (error) {
         console.error("[POST /api/waitlist] Ambassador update error:", error);
         return NextResponse.json({ error: error.message }, { status: 500 });
+      }
+
+      if (!updated) {
+        return NextResponse.json(
+          { error: "Waitlist ID does not match the submitted email." },
+          { status: 409 }
+        );
       }
 
       const emailSent = await sendAmbassadorApplicationEmail({
