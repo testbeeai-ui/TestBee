@@ -5,20 +5,13 @@ export async function isAdminUser(
   supabase: SupabaseClient<Database>,
   userId: string
 ): Promise<boolean> {
-  // Backward-compatible check: allow admin via `user_roles` table OR `profiles.role`.
   const { data, error } = await supabase
     .from("user_roles")
     .select("id")
     .eq("user_id", userId)
     .eq("role", "admin")
-    .maybeSingle();
-  if (!error && data) return true;
+    .limit(1);
 
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", userId)
-    .maybeSingle();
-  if (profileError) return false;
-  return profile?.role === "admin";
+  if (error) return false;
+  return Boolean(data?.length);
 }
