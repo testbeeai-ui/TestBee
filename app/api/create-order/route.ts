@@ -31,7 +31,13 @@ export async function POST(request: Request) {
     const razorpay = getRazorpayClient();
     const keyId = getRazorpayPublicKeyId();
     if (!razorpay || !keyId) {
-      return NextResponse.json({ error: "Razorpay credentials not configured" }, { status: 401 });
+      return NextResponse.json(
+        {
+          error:
+            "Razorpay credentials not configured on server. Set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in Vercel Production, then redeploy.",
+        },
+        { status: 503 },
+      );
     }
 
     const body = await request.json().catch(() => ({}));

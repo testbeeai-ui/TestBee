@@ -1,8 +1,20 @@
 import Razorpay from "razorpay";
+import { normalizeRazorpayEnvValue } from "@/lib/razorpay/razorpayEnv";
+
+function getRazorpayKeyId(): string | null {
+  return (
+    normalizeRazorpayEnvValue(process.env.RAZORPAY_KEY_ID) ??
+    normalizeRazorpayEnvValue(process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID)
+  );
+}
+
+function getRazorpayKeySecret(): string | null {
+  return normalizeRazorpayEnvValue(process.env.RAZORPAY_KEY_SECRET);
+}
 
 export function getRazorpayClient(): Razorpay | null {
-  const keyId = process.env.RAZORPAY_KEY_ID?.trim();
-  const keySecret = process.env.RAZORPAY_KEY_SECRET?.trim();
+  const keyId = getRazorpayKeyId();
+  const keySecret = getRazorpayKeySecret();
   if (!keyId || !keySecret) {
     return null;
   }
@@ -10,7 +22,7 @@ export function getRazorpayClient(): Razorpay | null {
 }
 
 export function getRazorpayPublicKeyId(): string | null {
-  return process.env.RAZORPAY_KEY_ID?.trim() || null;
+  return getRazorpayKeyId();
 }
 
 export interface RazorpayApiError {
@@ -21,13 +33,20 @@ export interface RazorpayApiError {
   };
 }
 
+const RAZORPAY_KEY_MISMATCH_HINT =
+  "Razorpay rejected your API keys. In Vercel Production, set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET to the same key pair from Razorpay Dashboard → API Keys (no quotes), match NEXT_PUBLIC_RAZORPAY_KEY_ID to the key id, then redeploy.";
+
 export function parseRazorpayError(e: unknown): { message: string; status: number } {
   if (e && typeof e === "object" && "statusCode" in e) {
     const err = e as RazorpayApiError;
-    const message =
-      err.error?.description ??
-      (err.statusCode === 401 ? "Razorpay authentication failed" : "Failed to create order");
-    const status = err.statusCode === 401 ? 401 : err.statusCode ?? 500;
+    const description = err.error?.description?.trim() ?? "";
+    const isAuthFailure =
+      err.statusCode === 401 ||
+      /authentication failed|unauthorized/i.test(description);
+    const message = isAuthFailure
+      ? RAZORPAY_KEY_MISMATCH_HINT
+      : description || "Failed to create order";
+    const status = isAuthFailure ? 502 : err.statusCode ?? 500;
     return { message, status: status >= 400 && status < 600 ? status : 500 };
   }
 
