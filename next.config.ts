@@ -10,7 +10,7 @@ const defaultSecurityHeaders = [
   {
     key: "Permissions-Policy",
     value:
-      "camera=(), microphone=(), geolocation=(), accelerometer=*, gyroscope=*, payment=(self \"https://api.razorpay.com\" \"https://checkout.razorpay.com\")",
+      "camera=(), microphone=(), geolocation=(), accelerometer=*, gyroscope=*, magnetometer=*, payment=(self \"https://api.razorpay.com\" \"https://checkout.razorpay.com\")",
   },
   { key: "X-DNS-Prefetch-Control", value: "on" },
 ];

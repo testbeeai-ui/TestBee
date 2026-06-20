@@ -72,9 +72,14 @@ interface VerifyPaymentResponse {
   error?: string;
 }
 
-const SITE_BASE =
-  process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || "https://edublast.vercel.app";
-const SITE_LOGO = `${SITE_BASE}/logo.png`;
+function checkoutLogoUrl(): string {
+  if (typeof window !== "undefined") {
+    return `${window.location.origin}/logo.png`;
+  }
+  const site =
+    process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || "https://www.edublast.in";
+  return `${site}/logo.png`;
+}
 
 export type RazorpayCreateOrderBody = Record<string, unknown>;
 
@@ -94,7 +99,6 @@ export interface RazorpayCheckoutButtonProps {
   /** Called after signature verification succeeds. When set, default success toast is skipped. */
   onPaymentVerified?: (response: RazorpaySuccessResponse) => void | Promise<void>;
   showSuccessToast?: boolean;
-  testModeLayout?: boolean;
 }
 
 export default function RazorpayCheckoutButton({
@@ -110,7 +114,6 @@ export default function RazorpayCheckoutButton({
   createOrderBody,
   onPaymentVerified,
   showSuccessToast,
-  testModeLayout = false,
 }: RazorpayCheckoutButtonProps) {
   const { toast } = useToast();
   const [scriptReady, setScriptReady] = useState(false);
@@ -185,12 +188,11 @@ export default function RazorpayCheckoutButton({
 
       const rzp = new window.Razorpay({
         key: keyId,
-        amount: checkoutAmount,
         currency: orderData.currency,
         name,
         description: description ?? `Payment of ₹${checkoutAmount / 100}`,
         order_id: orderData.order_id,
-        image: SITE_LOGO,
+        image: checkoutLogoUrl(),
         prefill: prefill ?? {
           name: "Test User",
           email: "test@edublast.in",
@@ -198,32 +200,6 @@ export default function RazorpayCheckoutButton({
         },
         theme: { color: "#3395FF" },
         retry: { enabled: true, max_count: 3 },
-        ...(testModeLayout
-          ? {
-              config: {
-                display: {
-                  blocks: {
-                    nb: {
-                      name: "Netbanking (recommended for test)",
-                      instruments: [{ method: "netbanking" }],
-                    },
-                    card: {
-                      name: "Debit / Credit Card",
-                      instruments: [{ method: "card" }],
-                    },
-                  },
-                  hide: [
-                    { method: "upi" },
-                    { method: "wallet" },
-                    { method: "paylater" },
-                    { method: "emi" },
-                  ],
-                  sequence: ["block.nb", "block.card"],
-                  preferences: { show_default_blocks: false },
-                },
-              },
-            }
-          : {}),
         handler: (response) => {
           void (async () => {
             try {
@@ -306,7 +282,6 @@ export default function RazorpayCheckoutButton({
     prefill,
     receipt,
     shouldShowSuccessToast,
-    testModeLayout,
     toast,
   ]);
 

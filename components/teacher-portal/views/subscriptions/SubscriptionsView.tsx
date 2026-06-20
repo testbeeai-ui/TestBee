@@ -624,7 +624,6 @@ export default function SubscriptionsView({
                   }}
                   onPaymentVerified={handleRdmPaymentVerified}
                   showSuccessToast={false}
-                  testModeLayout
                   className="w-full flex items-center justify-center gap-2 rounded-xl bg-blue-500 py-3 text-xs font-semibold text-white transition hover:bg-blue-600 disabled:opacity-60 cursor-pointer"
                 />
                 <div className="flex items-center justify-center gap-1.5 text-[9px] text-slate-500">

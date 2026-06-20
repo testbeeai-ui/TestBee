@@ -124,8 +124,9 @@ export default function SubscriptionCheckout({ profile, onNavigate }: Props) {
 
         <div className="rounded-xl border border-border bg-card p-4 dark:border-white/10 dark:bg-[#0c1017]">
           <p className="mb-3 text-xs text-muted-foreground dark:text-slate-400">
-            You will be redirected to Razorpay&apos;s secure checkout. Test mode uses the keys in
-            your environment; swap to live keys only when deploying to production.
+            You will be redirected to Razorpay&apos;s secure checkout. In test mode, use{" "}
+            <strong>Netbanking</strong> → any bank → <strong>Success</strong> for the most reliable
+            mock payment.
           </p>
           <RazorpayCheckoutButton
             amount={summary.amountPaise}
@@ -144,7 +145,6 @@ export default function SubscriptionCheckout({ profile, onNavigate }: Props) {
             }}
             onPaymentVerified={handlePaymentVerified}
             showSuccessToast={false}
-            testModeLayout
           />
           <p className="mt-3 text-center text-[10px] text-muted-foreground dark:text-slate-500">
             Secured by Razorpay · PCI-DSS compliant
