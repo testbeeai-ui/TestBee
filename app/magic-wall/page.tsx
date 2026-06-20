@@ -234,12 +234,13 @@ export default function MagicWallPage() {
   const [basketUsage, setBasketUsage] = useState<MagicWallUsage | null>(null);
   const [loadingBasket, setLoadingBasket] = useState(false);
 
-  const maxPicks = isAdmin
-    ? 5
-    : basketUsage && !isUnlimited(basketUsage.maxActive)
+  const maxPicks =
+    basketUsage && !isUnlimited(basketUsage.maxActive)
       ? basketUsage.maxActive
-      : planMaxPicks;
-  const newPicksAllowed = isAdmin ? null : (basketUsage?.newPicksAllowed ?? null);
+      : isAdmin
+        ? 5
+        : planMaxPicks;
+  const newPicksAllowed = basketUsage?.newPicksAllowed ?? null;
   const [savingBasket, setSavingBasket] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -878,7 +879,7 @@ export default function MagicWallPage() {
       return;
     }
     const toAdd = [...selectedTopicKeys].filter((key) => !basketKeySet.has(key));
-    if (!isAdmin && newPicksAllowed !== null && toAdd.length > newPicksAllowed) {
+    if (newPicksAllowed !== null && toAdd.length > newPicksAllowed) {
       toast({
         title: "Topic pick limit",
         description:
@@ -1509,24 +1510,16 @@ export default function MagicWallPage() {
                 <div className="flex flex-col gap-1.5 rounded-xl border border-violet-400/50 bg-violet-500/25 px-2.5 py-1.5 shadow-md shadow-violet-950/25 backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-3 sm:py-2">
                   <div className="min-w-0 text-[11px] font-bold leading-tight text-violet-100 sm:pr-2 sm:text-xs">
                     <span className="break-words">
-                      Reading Basket: {selectedTopicKeys.size}/{maxPicks} selected ·{" "}
-                      {basketItems.length} saved
-                      {basketUsage && !isAdmin ? (
+                      Reading Basket: {selectedTopicKeys.size}/{maxPicks} active slots filled
+                      {hasUnsavedChanges ? ` (${basketItems.length} currently saved)` : ""}
+                      {newPicksAllowed !== null && basketUsage && !isUnlimited(basketUsage.monthlyLimit) ? (
                         <>
                           {" "}
-                          · Active {basketUsage.activeCount}/
-                          {isUnlimited(basketUsage.maxActive) ? "∞" : basketUsage.maxActive}
-                          {newPicksAllowed !== null ? (
-                            <>
-                              {" "}
-                              · {newPicksAllowed} new pick{newPicksAllowed === 1 ? "" : "s"}{" "}
-                              left
-                            </>
-                          ) : null}
+                          · {newPicksAllowed} new pick{newPicksAllowed === 1 ? "" : "s"} left
                         </>
                       ) : null}
                     </span>
-                    {basketUsage && !isAdmin && !isUnlimited(basketUsage.monthlyLimit) ? (
+                    {basketUsage && !isUnlimited(basketUsage.monthlyLimit) ? (
                       <span className="mt-0.5 block text-[10px] font-medium text-violet-200/80">
                         New picks this period: {basketUsage.monthlyUsed}/{basketUsage.monthlyLimit}
                         {basketUsage.periodEnd
@@ -1602,7 +1595,7 @@ export default function MagicWallPage() {
                   </p>
                 ) : (
                   <div className="space-y-1.5 pr-1">
-                    {basketUsage && !isAdmin ? (
+                    {basketUsage ? (
                       <p className="mb-1.5 text-[10px] leading-snug text-slate-400">
                         Up to {maxPicks} topics in your basket at once.
                         {newPicksAllowed !== null && !isUnlimited(basketUsage.monthlyLimit)

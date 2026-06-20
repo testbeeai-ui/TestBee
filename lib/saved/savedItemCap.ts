@@ -1,4 +1,4 @@
-/** Plan-based save caps for user_saved_items. */
+/** Plan-based save caps for revision units and community posts only (bits/formulas/InstaCue use rdm_config). */
 
 export type PlanTier =
   | "free_trial"

@@ -18,6 +18,7 @@ import {
   Flame,
   Settings,
   Hourglass,
+  type LucideIcon,
 } from "lucide-react";
 import {
   LESSONS_CHAPTER_LIMIT_RDM_DESCRIPTION,
@@ -36,7 +37,16 @@ type RdmConfigRow = {
 
 type SubscriptionTab = SubscriptionPlanKey | "settings";
 
-const TABS: { key: SubscriptionTab; label: string; icon: any }[] = [
+type TimeTravelStudent = {
+  id: string;
+  email: string | null;
+  name: string | null;
+  plan_tier: string;
+  subscription_started_at: string | null;
+  time_travel_enabled: boolean;
+};
+
+const TABS: { key: SubscriptionTab; label: string; icon: LucideIcon }[] = [
   { key: "free_trial", label: "Free Trial", icon: Sparkles },
   { key: "free", label: "Free", icon: CreditCard },
   { key: "starter", label: "Starter", icon: Zap },
@@ -82,6 +92,24 @@ const FIELD_LABELS: Record<string, { title: string; hint: string; unit: string }
     hint:
       "Max cards a student can save to Revision Bank (bookmark from Lessons InstaCue or create custom). Not the 32-card study deck on a topic. Over limit → save blocked with upgrade prompt. Use -1 for unlimited.",
     unit: "saved cards",
+  },
+  saved_bit_limit: {
+    title: "Quiz bits save limit",
+    hint:
+      "Max quiz questions saved from Topic Quiz to Revision (Saved tab). Separate from InstaCue. Over limit → save blocked with upgrade prompt. Use -1 for unlimited.",
+    unit: "saved questions",
+  },
+  saved_formula_limit: {
+    title: "Numerals formulas save limit",
+    hint:
+      "Max formula practice sets saved from Numerals to Revision. Separate from quiz bits and InstaCue. Over limit → save blocked with upgrade prompt. Use -1 for unlimited.",
+    unit: "saved formulas",
+  },
+  saved_question_limit: {
+    title: "Saved questions limit (Mock / PYQ)",
+    hint:
+      "Max questions bookmarked from Mock tests and past papers to Revision → Saved Questions tab. Counts unique questions (not sources). Over limit → save blocked with upgrade prompt. Use -1 for unlimited.",
+    unit: "saved questions",
   },
   mocks_per_month: {
     title: "Mocks per month",
@@ -224,7 +252,13 @@ const CATEGORIES: CategoryGroup[] = [
     icon: BookOpen,
     blurb:
       "Chapter limit is per subject (Phy / Chem / Math) on /explore-1 — not per month. Mocks below are the monthly quota.",
-    keys: ["lessons_chapter_limit", "instacue_card_limit"],
+    keys: [
+      "lessons_chapter_limit",
+      "instacue_card_limit",
+      "saved_bit_limit",
+      "saved_formula_limit",
+      "saved_question_limit",
+    ],
   },
   {
     id: "prep",
@@ -293,7 +327,7 @@ export default function SubscriptionsPage() {
   const [activeTab, setActiveTab] = useState<SubscriptionTab>("free_trial");
 
   // Student developer permission states
-  const [students, setStudents] = useState<any[]>([]);
+  const [students, setStudents] = useState<TimeTravelStudent[]>([]);
   const [studentsLoading, setStudentsLoading] = useState(false);
   const [studentSearchQuery, setStudentSearchQuery] = useState("");
   const [overrideSaving, setOverrideSaving] = useState<Record<string, boolean>>({});
@@ -492,7 +526,11 @@ export default function SubscriptionsPage() {
       ) : null}
 
       {/* Elegant Nav Pills */}
-      <nav className="flex flex-wrap items-center gap-2 rounded-xl border bg-card/60 px-3 py-2.5 shadow-sm">
+      <nav
+        role="tablist"
+        aria-label="Subscription plan tiers"
+        className="flex flex-wrap items-center gap-2 rounded-xl border bg-card/60 px-3 py-2.5 shadow-sm"
+      >
         <span className="mr-2 hidden text-xs font-semibold uppercase tracking-wider text-muted-foreground sm:inline">
           Plan Tier
         </span>
@@ -503,6 +541,7 @@ export default function SubscriptionsPage() {
             <button
               key={tab.key}
               type="button"
+              role="tab"
               aria-selected={isActive}
               onClick={() => selectTab(tab.key)}
               className={cn(

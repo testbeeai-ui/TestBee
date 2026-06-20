@@ -20,7 +20,11 @@
     "audit:rag-strings": "tsx scripts/rag-string-audit.ts",
     "supabase:push": "npx supabase db push",
     "import:mock-jee-csv": "tsx --env-file-if-exists=.env scripts/import-jee-main-mock-csv.ts",
-    "migrate:news-blog": "tsx --env-file-if-exists=.env scripts/migrate-news-blog-sqlite-to-supabase.ts"
+    "migrate:news-blog": "tsx --env-file-if-exists=.env scripts/migrate-news-blog-sqlite-to-supabase.ts",
+    "hivemind:install": "hivemind install",
+    "hivemind:status": "hivemind status",
+    "hivemind:graph": "hivemind graph build --cwd .",
+    "hivemind:graph:init": "hivemind graph init --cwd ."
   },
   "dependencies": {
     "@base-ui/react": "^1.2.0",
@@ -80,6 +84,7 @@
     "next": "16.1.6",
     "next-themes": "^0.4.6",
     "nodemailer": "^8.0.10",
+    "razorpay": "^2.9.6",
     "react": "19.2.3",
     "react-day-picker": "^9.13.2",
     "react-dom": "19.2.3",

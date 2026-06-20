@@ -8,32 +8,38 @@ import {
   BookOpen,
   Clock,
   ClipboardList,
-  FileQuestion,
-  GraduationCap,
   Lightbulb,
   History,
   ListOrdered,
   Search,
-  ShieldCheck,
   Target,
+  Play,
+  Star,
+  Flag,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { MockLibraryHistorySheet } from "@/components/prep-mock/library/MockLibraryHistorySheet";
 import type { MockPaper, PastPaper, Subject } from "@/types";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { isUnlimited } from "@/lib/subscription/subscriptionConfig";
-import { mockPaperTypeLabel, type LibraryCategoryFilter } from "@/lib/mock/mockPapersCatalog";
+import {
+  mockPaperTypeLabel,
+  type LibraryCategoryFilter,
+  type LibraryExamFilter,
+} from "@/lib/mock/mockPapersCatalog";
 import { QUICK_DURATIONS, subjectEmojis, SUBJECT_LABELS } from "@/components/prep-mock/constants";
 import McqChapterBrowser from "@/components/prep-mock/library/McqChapterBrowser";
 import type { LibraryCollectionTab, PaperSource } from "@/components/prep-mock/types";
-import { OnboardingClickHerePointer } from "@/components/onboarding/OnboardingClickHerePointer";
+
+const EXAM_CHIPS: { id: LibraryExamFilter; label: string }[] = [
+  { id: "all", label: "All" },
+  { id: "kcet", label: "KCET" },
+  { id: "bitsat", label: "BITSAT" },
+  { id: "jee-main", label: "JEE Main" },
+];
 
 export type MockTestLibraryViewProps = {
   onBack: () => void;
-  /** CBSE chapter MCQ browser — admins only. */
   isAdminUser: boolean;
   libraryCollectionTab: LibraryCollectionTab;
   setLibraryCollectionTab: (tab: LibraryCollectionTab) => void;
@@ -48,8 +54,8 @@ export type MockTestLibraryViewProps = {
   startQuickTest: () => void;
   librarySearch: string;
   setLibrarySearch: (v: string) => void;
-  librarySubjectFilter: "all" | Subject;
-  setLibrarySubjectFilter: (v: "all" | Subject) => void;
+  libraryExamFilter: LibraryExamFilter;
+  setLibraryExamFilter: (v: LibraryExamFilter) => void;
   filteredPastCatalogPapers: PastPaper[];
   filteredMockCatalogPapers: MockPaper[];
   pastPapersByClassLevel: PastPaper[];
@@ -61,13 +67,10 @@ export type MockTestLibraryViewProps = {
     source: PaperSource,
     backView?: "landing" | "setup"
   ) => void;
-  /** Onboarding popup only: violet Click here overlaps the CBSE MCQ's tab pill until opened. */
   showCbseMcqTabGuide?: boolean;
   monthlyAttemptsCount?: number | null;
   mocksPerMonthLimit?: number;
 };
-
-/** CBSE MCQ tab guide: pointer overlaps the tab pill (same pattern as SubjectChips / View all). */
 
 const LIBRARY_TABS: { id: LibraryCollectionTab; label: string; adminOnly?: boolean }[] = [
   { id: "past", label: "Past papers" },
@@ -91,8 +94,8 @@ export default function MockTestLibraryView({
   startQuickTest,
   librarySearch,
   setLibrarySearch,
-  librarySubjectFilter,
-  setLibrarySubjectFilter,
+  libraryExamFilter,
+  setLibraryExamFilter,
   filteredPastCatalogPapers,
   filteredMockCatalogPapers,
   pastPapersByClassLevel,
@@ -106,7 +109,38 @@ export default function MockTestLibraryView({
 }: MockTestLibraryViewProps) {
   const { user } = useAuth();
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [selectedYear, setSelectedYear] = useState<string>("all");
+
   const visibleTabs = LIBRARY_TABS.filter((tab) => !tab.adminOnly || isAdminUser);
+
+  const getPaperYear = (title: string): number => {
+    const match = title.match(/\b(20\d{2}|19\d{2})\b/);
+    return match ? parseInt(match[0], 10) : 0;
+  };
+
+  const finalPastPapers = filteredPastCatalogPapers
+    .filter((p) => {
+      if (selectedYear === "all") return true;
+      return getPaperYear(p.title) === parseInt(selectedYear, 10);
+    })
+    .sort((a, b) => {
+      const yearA = getPaperYear(a.title);
+      const yearB = getPaperYear(b.title);
+      if (yearA !== yearB) return yearB - yearA;
+      return a.title.localeCompare(b.title);
+    });
+
+  const finalMockPapers = filteredMockCatalogPapers
+    .filter((p) => {
+      if (selectedYear === "all") return true;
+      return getPaperYear(p.title) === parseInt(selectedYear, 10);
+    })
+    .sort((a, b) => {
+      const yearA = getPaperYear(a.title);
+      const yearB = getPaperYear(b.title);
+      if (yearA !== yearB) return yearB - yearA;
+      return a.title.localeCompare(b.title);
+    });
 
   return (
     <motion.div
@@ -114,99 +148,737 @@ export default function MockTestLibraryView({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="mx-auto max-w-6xl space-y-6"
+      className="mock-test-page"
     >
-      <button
-        type="button"
-        onClick={onBack}
-        className="flex items-center gap-2 text-sm font-bold text-muted-foreground transition-colors hover:text-foreground"
-      >
-        <ArrowLeft className="h-4 w-4" /> Back to Prep + Mock
-      </button>
+      <style>{`
+        .mock-test-page {
+          --bg: var(--background);
+          --s1: var(--card);
+          --s2: var(--muted);
+          --s3: var(--accent);
+          --b1: var(--border);
+          --b2: var(--border);
+          --t1: var(--foreground);
+          --t2: var(--muted-foreground);
+          --t3: var(--muted-foreground);
+          --blue: #3b82f6;
+          --blb: rgba(59, 130, 246, 0.1);
+          --bll: #60a5fa;
+          --bld: #2563eb;
+          --teal: #10b981;
+          --tb: rgba(16, 185, 129, 0.1);
+          --tl: #34d399;
+          --amber: #f59e0b;
+          --ab: rgba(245, 158, 11, 0.1);
+          --al: #fbbf24;
+          --border-radius-md: 8px;
+          --border-radius-lg: 12px;
+          --font-sans: var(--font-app-sans), ui-sans-serif, system-ui, sans-serif;
 
-      <div className="rounded-2xl border border-border bg-card/80 px-4 py-6 shadow-sm sm:px-8">
-        <div className="flex flex-col gap-4 border-b border-border pb-6 md:flex-row md:items-end md:justify-between">
-          <div className="flex gap-4">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-primary/30 bg-primary/10">
-              <GraduationCap className="h-7 w-7 text-primary" />
-            </div>
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                Institute-style mock portal
-              </p>
-              <h1 className="edu-page-title mt-1 text-2xl md:text-3xl">Mock test library</h1>
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <ShieldCheck className="h-4 w-4 shrink-0 text-primary" />
-            <span>Timer · flagged review · submit when ready</span>
-          </div>
-        </div>
+          background-color: transparent !important;
+          color: var(--t1) !important;
+          font-family: var(--font-sans) !important;
+          min-height: auto !important;
+        }
+        .mock-test-page .page {
+          padding: 16px 0 32px !important;
+          max-width: 100% !important;
+          margin: 0 auto !important;
+          font-family: var(--font-sans) !important;
+        }
+        @media (min-width: 768px) {
+          .mock-test-page .page {
+            padding: 20px 0 40px !important;
+          }
+        }
+        @media (min-width: 1024px) {
+          .mock-test-page .page {
+            padding: 24px 0 48px !important;
+          }
+        }
+        @media (min-width: 1440px) {
+          .mock-test-page .page {
+            padding: 24px 0 48px !important;
+          }
+        }
+        .mock-test-page .back-btn {
+          display: inline-flex !important;
+          align-items: center !important;
+          gap: 6px !important;
+          padding: 8px 16px !important;
+          border: 1px solid var(--b1) !important;
+          border-radius: 9999px !important;
+          background: var(--s2) !important;
+          font-size: 12px !important;
+          font-weight: 600 !important;
+          cursor: pointer !important;
+          color: var(--t2) !important;
+          white-space: nowrap !important;
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+          font-family: var(--font-sans) !important;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+        }
+        .mock-test-page .back-btn:hover {
+          border-color: var(--blue) !important;
+          color: var(--t1) !important;
+          background: var(--s3) !important;
+          transform: translateX(-2px) !important;
+          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2), 0 0 8px rgba(59, 130, 246, 0.2) !important;
+        }
+        .mock-test-page .back-btn:active {
+          transform: translateX(0) scale(0.97) !important;
+        }
+        .mock-test-page .portal-badge {
+          font-size: 11px !important;
+          font-weight: 600 !important;
+          color: var(--blue) !important;
+          letter-spacing: .08em !important;
+          text-transform: uppercase !important;
+          margin-bottom: 6px !important;
+          font-family: var(--font-sans) !important;
+        }
+        .mock-test-page .page-title {
+          font-size: 28px !important;
+          font-weight: 700 !important;
+          color: var(--t1) !important;
+          font-family: var(--font-sans) !important;
+          letter-spacing: -0.02em !important;
+        }
+        .mock-test-page .top-hdr {
+          position: relative !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: space-between !important;
+          margin-bottom: 24px !important;
+          gap: 16px !important;
+          min-height: 56px !important;
+        }
+        .mock-test-page .hdr-left {
+          display: flex !important;
+          justify-content: flex-start !important;
+          position: relative !important;
+          z-index: 2 !important;
+        }
+        .mock-test-page .hdr-center {
+          display: flex !important;
+          flex-direction: column !important;
+          align-items: center !important;
+          text-align: center !important;
+          position: absolute !important;
+          left: 50% !important;
+          transform: translateX(-50%) !important;
+          z-index: 1 !important;
+          pointer-events: none !important;
+        }
+        .mock-test-page .hdr-center > * {
+          pointer-events: auto !important;
+        }
+        .mock-test-page .hdr-right {
+          display: flex !important;
+          justify-content: flex-end !important;
+          align-items: center !important;
+          gap: 8px !important;
+          position: relative !important;
+          z-index: 2 !important;
+        }
+        @media (min-width: 768px) and (max-width: 1023px) {
+          .mock-test-page .top-hdr {
+            display: flex !important;
+            flex-wrap: wrap !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            position: static !important;
+            gap: 16px !important;
+          }
+          .mock-test-page .hdr-left {
+            order: 1 !important;
+            flex: 1 1 auto !important;
+            justify-content: flex-start !important;
+          }
+          .mock-test-page .hdr-right {
+            order: 2 !important;
+            flex: 1 1 auto !important;
+            justify-content: flex-end !important;
+          }
+          .mock-test-page .hdr-center {
+            order: 3 !important;
+            flex: 0 0 100% !important;
+            position: static !important;
+            transform: none !important;
+            margin-top: 8px !important;
+          }
+        }
+        @media (max-width: 767px) {
+          .mock-test-page .top-hdr {
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            text-align: center !important;
+            position: static !important;
+            gap: 16px !important;
+          }
+          .mock-test-page .hdr-left {
+            order: 1 !important;
+            justify-content: center !important;
+            width: 100% !important;
+          }
+          .mock-test-page .hdr-center {
+            order: 2 !important;
+            position: static !important;
+            transform: none !important;
+            width: 100% !important;
+          }
+          .mock-test-page .hdr-right {
+            order: 3 !important;
+            justify-content: center !important;
+            width: 100% !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            gap: 10px !important;
+          }
+        }
+        .mock-test-page .history-btn {
+          display: inline-flex !important;
+          align-items: center !important;
+          gap: 6px !important;
+          padding: 8px 16px !important;
+          border: 1px solid var(--b1) !important;
+          border-radius: 9999px !important;
+          background: transparent !important;
+          font-size: 12px !important;
+          font-weight: 500 !important;
+          cursor: pointer !important;
+          color: var(--t2) !important;
+          white-space: nowrap !important;
+          transition: all .2s ease !important;
+          font-family: var(--font-sans) !important;
+        }
+        .mock-test-page .history-btn:hover {
+          border-color: var(--blue) !important;
+          color: var(--t1) !important;
+          background: var(--s2) !important;
+        }
+        .mock-test-page .tab-row {
+          display: flex !important;
+          align-items: center !important;
+          justify-content: space-between !important;
+          flex-wrap: wrap !important;
+          gap: 12px !important;
+          margin-bottom: 24px !important;
+        }
+        .mock-test-page .tab-bar {
+          display: flex !important;
+          gap: 8px !important;
+          overflow-x: auto !important;
+          -webkit-overflow-scrolling: touch !important;
+          max-width: 100% !important;
+          scrollbar-width: none !important;
+        }
+        .mock-test-page .tab-bar::-webkit-scrollbar {
+          display: none !important;
+        }
+        .mock-test-page .tab {
+          padding: 8px 18px !important;
+          border-radius: 9999px !important;
+          border: 1px solid var(--b1) !important;
+          background: var(--s2) !important;
+          font-size: 13px !important;
+          font-weight: 500 !important;
+          cursor: pointer !important;
+          color: var(--t2) !important;
+          transition: all 0.2s ease !important;
+          font-family: var(--font-sans) !important;
+        }
+        .mock-test-page .tab:hover {
+          border-color: var(--b2) !important;
+          color: var(--t1) !important;
+          background: var(--s3) !important;
+        }
+        .mock-test-page .tab.on {
+          background: var(--bld) !important;
+          border-color: var(--bld) !important;
+          color: #fff !important;
+          box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3) !important;
+        }
+        .mock-test-page .tab-meta {
+          display: flex !important;
+          align-items: center !important;
+          gap: 6px !important;
+          font-size: 12px !important;
+          color: var(--t3) !important;
+          font-family: var(--font-sans) !important;
+        }
+        .mock-test-page .tab-meta svg {
+          display: inline-block !important;
+          vertical-align: middle !important;
+          margin-top: -2px !important;
+        }
+        @media (max-width: 767px) {
+          .mock-test-page .tab-row {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 16px !important;
+          }
+          .mock-test-page .tab-bar {
+            justify-content: flex-start !important;
+            width: 100% !important;
+            padding-bottom: 4px !important;
+          }
+          .mock-test-page .tab-meta {
+            justify-content: center !important;
+            width: 100% !important;
+            background: var(--s2) !important;
+            padding: 8px 12px !important;
+            border-radius: 8px !important;
+            border: 1px solid var(--b1) !important;
+          }
+        }
+        .mock-test-page .sub-tab-bar {
+          scrollbar-width: none !important;
+          -webkit-overflow-scrolling: touch !important;
+        }
+        .mock-test-page .sub-tab-bar::-webkit-scrollbar {
+          display: none !important;
+        }
+        .mock-test-page .filter-row {
+          display: flex !important;
+          align-items: center !important;
+          gap: 12px !important;
+          flex-wrap: wrap !important;
+          margin-bottom: 20px !important;
+        }
+        .mock-test-page .search-wrap {
+          display: flex !important;
+          align-items: center !important;
+          gap: 8px !important;
+          background: var(--s2) !important;
+          border: 1px solid var(--b1) !important;
+          border-radius: var(--border-radius-md) !important;
+          padding: 8px 14px !important;
+          flex: 1 !important;
+          min-width: 240px !important;
+          transition: all 0.2s ease !important;
+        }
+        .mock-test-page .search-wrap:focus-within {
+          border-color: var(--blue) !important;
+          box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+          background: var(--s3) !important;
+        }
+        .mock-test-page .search-wrap svg {
+          color: var(--t3) !important;
+          flex-shrink: 0 !important;
+        }
+        .mock-test-page .search-wrap input {
+          border: none !important;
+          background: transparent !important;
+          font-size: 13px !important;
+          color: var(--t1) !important;
+          outline: none !important;
+          width: 100% !important;
+          font-family: var(--font-sans) !important;
+        }
+        .mock-test-page .search-wrap input::placeholder {
+          color: var(--t3) !important;
+        }
+        .mock-test-page select {
+          padding: 8px 32px 8px 14px !important;
+          background: var(--s2) !important;
+          border: 1px solid var(--b1) !important;
+          border-radius: var(--border-radius-md) !important;
+          color: var(--t1) !important;
+          font-size: 13px !important;
+          outline: none !important;
+          cursor: pointer !important;
+          transition: all 0.2s ease !important;
+          appearance: none !important;
+          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239BA3B8' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") !important;
+          background-repeat: no-repeat !important;
+          background-position: right 12px center !important;
+          font-family: var(--font-sans) !important;
+        }
+        .mock-test-page select:focus {
+          border-color: var(--blue) !important;
+          box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+          background: var(--s3) !important;
+        }
+        .mock-test-page select:hover {
+          border-color: var(--b2) !important;
+        }
+        .mock-test-page select option {
+          background: var(--s2) !important;
+          color: var(--t1) !important;
+        }
+        .mock-test-page .divider-v {
+          display: none !important;
+        }
+        @media (min-width: 1024px) {
+          .mock-test-page .divider-v {
+            display: block !important;
+            width: 1px !important;
+            height: 24px !important;
+            background: var(--b1) !important;
+            flex-shrink: 0 !important;
+          }
+        }
+        @media (max-width: 1023px) and (min-width: 640px) {
+          .mock-test-page .divider-v {
+            display: block !important;
+            width: 100% !important;
+            height: 0 !important;
+            background: transparent !important;
+            margin: 4px 0 !important;
+            flex-shrink: 0 !important;
+          }
+        }
+        @media (max-width: 639px) {
+          .mock-test-page .search-wrap {
+            width: 100% !important;
+            flex: none !important;
+          }
+          .mock-test-page select {
+            width: 100% !important;
+          }
+          .mock-test-page .filter-row {
+            gap: 8px !important;
+          }
+          .mock-test-page .exam-label {
+            width: 100% !important;
+            margin-top: 8px !important;
+            margin-bottom: 4px !important;
+          }
+          .mock-test-page .exam-pills {
+            width: 100% !important;
+          }
+        }
+        .mock-test-page .exam-label {
+          font-size: 13px !important;
+          font-weight: 500 !important;
+          color: var(--t2) !important;
+          white-space: nowrap !important;
+          font-family: var(--font-sans) !important;
+        }
+        .mock-test-page .exam-pills {
+          display: flex !important;
+          gap: 6px !important;
+          flex-wrap: wrap !important;
+        }
+        .mock-test-page .ep {
+          padding: 6px 14px !important;
+          border-radius: 9999px !important;
+          font-size: 12px !important;
+          font-weight: 500 !important;
+          cursor: pointer !important;
+          border: 1px solid var(--b1) !important;
+          background: var(--s2) !important;
+          color: var(--t2) !important;
+          transition: all 0.2s ease !important;
+          font-family: var(--font-sans) !important;
+        }
+        .mock-test-page .ep:hover {
+          border-color: var(--b2) !important;
+          color: var(--t1) !important;
+          background: var(--s3) !important;
+        }
+        .mock-test-page .ep.on {
+          background: var(--blue) !important;
+          border-color: var(--blue) !important;
+          color: #fff !important;
+          box-shadow: 0 4px 10px rgba(59, 130, 246, 0.25) !important;
+        }
+        .mock-test-page .showing {
+          font-size: 13px !important;
+          color: var(--t2) !important;
+          margin-bottom: 16px !important;
+          font-family: var(--font-sans) !important;
+        }
+        .mock-test-page .divl {
+          height: 1px !important;
+          background: var(--b1) !important;
+          margin-bottom: 20px !important;
+        }
+        .mock-test-page .grid {
+          display: grid !important;
+          grid-template-columns: repeat(1, 1fr) !important;
+          gap: 16px !important;
+        }
+        @media (min-width: 640px) {
+          .mock-test-page .grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+          }
+        }
+        @media (min-width: 1024px) {
+          .mock-test-page .grid {
+            grid-template-columns: repeat(3, 1fr) !important;
+          }
+        }
+        @media (min-width: 1280px) {
+          .mock-test-page .grid {
+            grid-template-columns: repeat(4, 1fr) !important;
+          }
+        }
+        .mock-test-page .card {
+          background: var(--s1) !important;
+          border: 1px solid var(--b1) !important;
+          border-radius: var(--border-radius-lg) !important;
+          padding: 18px !important;
+          display: flex !important;
+          flex-direction: column !important;
+          gap: 12px !important;
+          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+          position: relative !important;
+          overflow: hidden !important;
+        }
+        .mock-test-page .card:hover {
+          border-color: var(--blue) !important;
+          transform: translateY(-2px) !important;
+          box-shadow: 0 12px 20px -8px rgba(0, 0, 0, 0.5), 0 0 15px -3px rgba(59, 130, 246, 0.15) !important;
+        }
+        .mock-test-page .card.featured {
+          border-color: var(--bld) !important;
+          box-shadow: 0 0 10px -2px rgba(37, 99, 235, 0.1) !important;
+        }
+        .mock-test-page .card.featured:hover {
+          box-shadow: 0 12px 20px -8px rgba(0, 0, 0, 0.5), 0 0 20px -2px rgba(37, 99, 235, 0.25) !important;
+        }
+        .mock-test-page .card-meta {
+          display: flex !important;
+          align-items: center !important;
+          gap: 6px !important;
+          flex-wrap: wrap !important;
+        }
+        .mock-test-page .cmeta-tag {
+          font-size: 10px !important;
+          font-weight: 600 !important;
+          color: var(--t2) !important;
+          text-transform: uppercase !important;
+          letter-spacing: .06em !important;
+          font-family: var(--font-sans) !important;
+        }
+        .mock-test-page .standard {
+          font-size: 10px !important;
+          color: var(--t3) !important;
+          font-family: var(--font-sans) !important;
+        }
+        .mock-test-page .streak-badge {
+          display: inline-flex !important;
+          align-items: center !important;
+          gap: 4px !important;
+          font-size: 10px !important;
+          font-weight: 600 !important;
+          background: var(--blb) !important;
+          border: 1px solid rgba(59, 130, 246, 0.2) !important;
+          color: var(--bll) !important;
+          border-radius: 6px !important;
+          padding: 2px 8px !important;
+          font-family: var(--font-sans) !important;
+        }
+        .mock-test-page .streak-badge svg {
+          color: var(--blue) !important;
+        }
+        .mock-test-page .card-title {
+          font-size: 16px !important;
+          font-weight: 600 !important;
+          color: var(--t1) !important;
+          line-height: 1.3 !important;
+          font-family: var(--font-sans) !important;
+        }
+        .mock-test-page .stats-row {
+          display: flex !important;
+          align-items: center !important;
+          gap: 0 !important;
+        }
+        .mock-test-page .stat {
+          display: flex !important;
+          align-items: center !important;
+          gap: 4px !important;
+          flex: 1 !important;
+          padding: 6px 0 !important;
+        }
+        .mock-test-page .stat svg {
+          color: var(--blue) !important;
+          flex-shrink: 0 !important;
+        }
+        .mock-test-page .stat-body {
+          display: flex !important;
+          align-items: baseline !important;
+          gap: 2px !important;
+        }
+        .mock-test-page .stat-val {
+          font-size: 13px !important;
+          font-weight: 600 !important;
+          color: var(--t1) !important;
+          line-height: 1 !important;
+          font-family: var(--font-sans) !important;
+        }
+        .mock-test-page .stat-lbl {
+          font-size: 10px !important;
+          color: var(--t2) !important;
+          font-family: var(--font-sans) !important;
+        }
+        .mock-test-page .stat-sep {
+          width: 1px !important;
+          height: 16px !important;
+          background: var(--b1) !important;
+          flex-shrink: 0 !important;
+          margin: 0 8px !important;
+        }
+        .mock-test-page .play-btn {
+          width: 36px !important;
+          height: 36px !important;
+          border-radius: 50% !important;
+          background: var(--bld) !important;
+          border: none !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          cursor: pointer !important;
+          flex-shrink: 0 !important;
+          transition: all 0.2s ease !important;
+          align-self: center !important;
+          margin-left: 8px !important;
+          box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2) !important;
+        }
+        .mock-test-page .play-btn:hover {
+          background: var(--blue) !important;
+          transform: scale(1.08) !important;
+          box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4) !important;
+        }
+        .mock-test-page .play-btn:active {
+          transform: scale(0.95) !important;
+        }
+        @media (max-width: 479px) {
+          .mock-test-page .stats-row {
+            display: grid !important;
+            grid-template-columns: 1fr 1fr !important;
+            gap: 8px !important;
+            align-items: center !important;
+          }
+          .mock-test-page .stat-sep {
+            display: none !important;
+          }
+          .mock-test-page .stat {
+            padding: 4px 0 !important;
+          }
+          .mock-test-page .play-btn {
+            grid-column: 2 !important;
+            grid-row: 2 !important;
+            justify-self: end !important;
+            margin-left: 0 !important;
+          }
+        }
+        .mock-test-page .play-btn svg {
+          color: #fff !important;
+        }
+        
+        .mock-test-page .quick-mock-container {
+          margin-top: 2rem !important;
+          display: grid !important;
+          gap: 1.5rem !important;
+        }
+        @media (min-width: 1024px) {
+          .mock-test-page .quick-mock-container {
+            grid-template-columns: 1fr 280px !important;
+          }
+        }
+        .mock-test-page .quick-card {
+          background: var(--s1) !important;
+          border: 1px solid var(--b1) !important;
+          border-radius: var(--border-radius-lg) !important;
+          padding: 28px !important;
+          box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.3) !important;
+        }
+        .mock-test-page .quick-btn-primary {
+          background: var(--bld) !important;
+          color: #fff !important;
+          border-radius: 8px !important;
+          font-weight: 600 !important;
+          padding: 12px 24px !important;
+          transition: all 0.2s ease !important;
+          border: none !important;
+          cursor: pointer !important;
+          box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3) !important;
+        }
+        .mock-test-page .quick-btn-primary:hover {
+          background: var(--blue) !important;
+          box-shadow: 0 4px 16px rgba(59, 130, 246, 0.45) !important;
+          transform: translateY(-1px) !important;
+        }
+        .mock-test-page .quick-btn-primary:active {
+          transform: translateY(1px) !important;
+        }
+      `}</style>
 
-        <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-          <div
-            className={cn(
-              "flex min-w-0 flex-1 gap-3 pb-1",
-              showCbseMcqTabGuide ? "overflow-visible" : "overflow-x-auto"
-            )}
-          >
-            {visibleTabs.map((tab) => {
-              const isMcqTab = tab.id === "mcq";
-              const highlightMcqTab = isMcqTab && showCbseMcqTabGuide;
-              return (
-                <div key={tab.id} className="relative flex shrink-0 flex-col items-center">
-                  {highlightMcqTab ? (
-                    <div className="pointer-events-none absolute left-1/2 top-0 z-30 -translate-x-1/2 -translate-y-[42%]">
-                      <OnboardingClickHerePointer label="Click here" variant="violet" />
-                    </div>
-                  ) : null}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setLibraryCollectionTab(tab.id);
-                      if (tab.id !== "mock") setMockLibraryCategory("all");
-                    }}
-                    className={cn(
-                      "rounded-full border px-4 py-2 text-xs font-bold transition-all sm:text-sm",
-                      libraryCollectionTab === tab.id
-                        ? "border-primary bg-primary/15 text-primary"
-                        : "border-border bg-muted/30 text-muted-foreground hover:border-primary/40 hover:text-foreground",
-                      highlightMcqTab &&
-                        "border-primary/40 bg-primary/[0.07] ring-2 ring-primary/20 ring-offset-2 ring-offset-background"
-                    )}
-                  >
-                    {tab.label}
-                  </button>
-                </div>
-              );
-            })}
+      <div className="page">
+        {/* Header */}
+        <div className="top-hdr">
+          <div className="hdr-left">
+            <button
+              type="button"
+              onClick={onBack}
+              className="back-btn"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" /> Back to Prep + Mock
+            </button>
           </div>
-          <div className="flex items-center gap-2">
+
+          <div className="hdr-center">
+            <div className="portal-badge">Institute-style mock portal</div>
+            <h1 className="page-title">Mock test library</h1>
+          </div>
+
+          <div className="hdr-right">
             {typeof monthlyAttemptsCount === "number" &&
               typeof mocksPerMonthLimit === "number" &&
               !isUnlimited(mocksPerMonthLimit) && (
               <div
-                className={cn(
-                  "flex items-center gap-2 px-3 py-1.5 rounded-full border text-[11px] font-extrabold shrink-0 shadow-sm transition-all sm:text-xs",
-                  "border-primary/20 bg-primary/5 text-primary"
-                )}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-full border text-[11px] font-extrabold shrink-0 shadow-sm border-primary/20 bg-primary/5 text-primary"
               >
-                <span className="w-1.5 h-1.5 rounded-full animate-pulse bg-primary" />
+                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
                 <span>
                   Usage: {monthlyAttemptsCount} / {mocksPerMonthLimit} tests
                 </span>
               </div>
             )}
-            <Button
+            <button
               type="button"
-              variant="outline"
-              size="sm"
-              className="shrink-0 rounded-full border-primary/30 px-3 text-xs font-bold sm:text-sm"
+              className="history-btn"
               onClick={() => setHistoryOpen(true)}
             >
-              <History className="mr-1.5 h-3.5 w-3.5" />
-              Show history
-            </Button>
+              <History className="h-3.5 w-3.5" /> Show history
+            </button>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="tab-row">
+          <div className="tab-bar">
+            {visibleTabs.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => {
+                  setLibraryCollectionTab(tab.id);
+                  if (tab.id !== "mock") setMockLibraryCategory("all");
+                }}
+                className={cn(
+                  "tab",
+                  libraryCollectionTab === tab.id && "on",
+                  showCbseMcqTabGuide &&
+                    tab.id === "mcq" &&
+                    "ring-2 ring-primary ring-offset-2 ring-offset-background animate-pulse"
+                )}
+                aria-current={
+                  showCbseMcqTabGuide && tab.id === "mcq" ? "step" : undefined
+                }
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+          <div className="tab-meta">
+            <Clock className="h-3.5 w-3.5" /> Timer &nbsp;·&nbsp;
+            <Flag className="h-3.5 w-3.5" /> Flagged review &nbsp;·&nbsp;
+            Submit when ready
           </div>
         </div>
 
@@ -218,15 +890,14 @@ export default function MockTestLibraryView({
         />
 
         {libraryCollectionTab === "quick" ? (
-          <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_280px]">
-            <div className="edu-card space-y-6 rounded-2xl p-6">
+          <div className="quick-mock-container">
+            <div className="quick-card space-y-6">
               <h2 className="font-display flex items-center gap-2 text-lg font-bold text-foreground">
                 <Clock className="h-5 w-5 text-primary" />
                 Quick mock (adaptive pool)
               </h2>
               <p className="text-sm text-muted-foreground">
-                Same engine as before: mixed questions from your syllabus level, timed like exam
-                day.
+                Same engine as before: mixed questions from your syllabus level, timed like exam day.
               </p>
               <div>
                 <h3 className="mb-3 text-sm font-bold text-foreground">Duration</h3>
@@ -237,7 +908,7 @@ export default function MockTestLibraryView({
                       type="button"
                       onClick={() => setDuration(d)}
                       className={cn(
-                        "min-w-25 flex-1 rounded-xl border-2 px-4 py-3 text-sm font-bold transition-all",
+                        "min-w-[100px] flex-1 rounded-xl border-2 px-4 py-3 text-sm font-bold transition-all",
                         duration === d
                           ? "border-primary bg-primary/10 text-primary"
                           : "border-border bg-muted/30 text-muted-foreground hover:border-primary/50"
@@ -276,25 +947,25 @@ export default function MockTestLibraryView({
                 </div>
               </div>
               <div className="text-center sm:text-left">
-                <Button
-                  size="lg"
-                  className="edu-btn-primary w-full rounded-xl px-6 py-4 text-base font-bold sm:w-auto sm:px-10 sm:py-6 sm:text-lg"
+                <button
+                  type="button"
+                  className="quick-btn-primary w-full sm:w-auto"
                   onClick={startQuickTest}
                 >
-                  <ClipboardList className="mr-2 h-5 w-5" />
+                  <ClipboardList className="inline mr-2 h-5 w-5 align-text-bottom" />
                   Start mock test
-                </Button>
+                </button>
               </div>
             </div>
             <div className="space-y-4">
-              <div className="edu-card rounded-2xl border border-primary/20 bg-primary/5 p-5">
+              <div className="quick-card border border-primary/20 bg-primary/5 p-5">
                 <Target className="mb-2 h-8 w-8 text-primary" />
                 <h4 className="mb-1 font-bold text-foreground">Stamina</h4>
                 <p className="text-sm text-muted-foreground">
                   Long sits train focus for boards and entrances.
                 </p>
               </div>
-              <div className="edu-card rounded-2xl border border-border p-5">
+              <div className="quick-card border border-border p-5">
                 <Lightbulb className="mb-2 h-8 w-8 text-primary" />
                 <h4 className="mb-1 font-bold text-foreground">Strategy</h4>
                 <p className="text-sm text-muted-foreground">
@@ -307,42 +978,48 @@ export default function MockTestLibraryView({
           <McqChapterBrowser />
         ) : (
           <div className="mt-8 space-y-6">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="relative max-w-md flex-1">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
+            <div className="filter-row">
+              <div className="search-wrap">
+                <Search className="h-3.5 w-3.5" />
+                <input
+                  type="text"
+                  placeholder="Search by paper name or tag…"
                   value={librarySearch}
                   onChange={(e) => setLibrarySearch(e.target.value)}
-                  placeholder="Search by paper name or tag…"
-                  className="h-11 rounded-xl border-border pl-10"
-                  aria-label="Search mock papers"
                 />
               </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Subject
-                </span>
-                {(["all", ...subjects] as const).map((s) => (
+
+              <select
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(e.target.value)}
+                aria-label="Filter by year"
+              >
+                <option value="all">All years</option>
+                {Array.from({ length: 2024 - 2008 + 1 }, (_, i) => 2024 - i).map((yr) => (
+                  <option key={yr} value={yr}>
+                    {yr}
+                  </option>
+                ))}
+              </select>
+
+              <div className="divider-v"></div>
+              <span className="exam-label">Exam</span>
+              <div className="exam-pills">
+                {EXAM_CHIPS.map((chip) => (
                   <button
-                    key={s}
+                    key={chip.id}
                     type="button"
-                    onClick={() => setLibrarySubjectFilter(s)}
-                    className={cn(
-                      "rounded-lg border px-3 py-1.5 text-xs font-bold transition-all",
-                      librarySubjectFilter === s
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "border-border bg-muted/30 text-muted-foreground hover:border-primary/40"
-                    )}
+                    onClick={() => setLibraryExamFilter(chip.id)}
+                    className={cn("ep", libraryExamFilter === chip.id && "on")}
                   >
-                    {s === "all" ? "All" : subjectEmojis[s]}
-                    {s !== "all" ? <span className="ml-1 capitalize">{s}</span> : null}
+                    {chip.label}
                   </button>
                 ))}
               </div>
             </div>
 
             {libraryCollectionTab === "mock" ? (
-              <div className="flex gap-2 overflow-x-auto pb-1">
+              <div className="sub-tab-bar flex gap-2 overflow-x-auto pb-2">
                 {(
                   [
                     { id: "all" as const, label: "All mock papers" },
@@ -356,12 +1033,7 @@ export default function MockTestLibraryView({
                     key={tab.id}
                     type="button"
                     onClick={() => setMockLibraryCategory(tab.id)}
-                    className={cn(
-                      "shrink-0 rounded-full border px-3 py-1.5 text-xs font-bold transition-all",
-                      mockLibraryCategory === tab.id
-                        ? "border-primary bg-primary/15 text-primary"
-                        : "border-border bg-muted/30 text-muted-foreground hover:border-primary/40 hover:text-foreground"
-                    )}
+                    className={cn("ep", mockLibraryCategory === tab.id && "on")}
                   >
                     {tab.label}
                   </button>
@@ -369,22 +1041,23 @@ export default function MockTestLibraryView({
               </div>
             ) : null}
 
-            <p className="text-xs text-muted-foreground">
+            <div className="divl"></div>
+            <div className="showing">
               Showing{" "}
-              <span className="font-semibold text-foreground">
+              <span className="font-semibold">
                 {libraryCollectionTab === "past"
-                  ? filteredPastCatalogPapers.length
-                  : filteredMockCatalogPapers.length}
+                  ? finalPastPapers.length
+                  : finalMockPapers.length}
               </span>{" "}
               paper
               {(libraryCollectionTab === "past"
-                ? filteredPastCatalogPapers.length
-                : filteredMockCatalogPapers.length) === 1
+                ? finalPastPapers.length
+                : finalMockPapers.length) === 1
                 ? ""
                 : "s"}{" "}
               in this view
               {catalogLoading ? " · loading…" : ""}.
-            </p>
+            </div>
 
             {catalogError ? (
               <div className="edu-card rounded-2xl border border-destructive/30 bg-destructive/5 p-8 text-center text-sm text-destructive">
@@ -395,8 +1068,8 @@ export default function MockTestLibraryView({
                 Loading mock papers…
               </div>
             ) : (libraryCollectionTab === "past"
-                ? filteredPastCatalogPapers.length
-                : filteredMockCatalogPapers.length) === 0 ? (
+                ? finalPastPapers.length
+                : finalMockPapers.length) === 0 ? (
               <div className="edu-card rounded-2xl border border-dashed border-border p-12 text-center">
                 <ListOrdered className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
                 <p className="font-semibold text-foreground">
@@ -411,98 +1084,93 @@ export default function MockTestLibraryView({
                     ? pastPapersByClassLevel.length
                     : mockPapersByClassLevel.length) === 0
                     ? "Ask your admin to publish mock papers or run the seed import."
-                    : "Try another subject or clear the search."}
+                    : "Try another exam or clear the search."}
                 </p>
               </div>
             ) : (
-              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="grid">
                 {(libraryCollectionTab === "past"
-                  ? filteredPastCatalogPapers
-                  : filteredMockCatalogPapers
-                ).map((paper) => (
-                  <div
-                    key={paper.id}
-                    className="edu-card flex flex-col rounded-2xl border border-border p-5 transition-shadow hover:shadow-md"
-                  >
-                    <div className="mb-3 flex flex-wrap items-center gap-2">
-                      <Badge
-                        variant="secondary"
-                        className="text-[10px] font-semibold uppercase tracking-wide"
-                      >
-                        {libraryCollectionTab === "past"
-                          ? "Past Paper"
-                          : mockPaperTypeLabel((paper as MockPaper).type)}
-                      </Badge>
-                      <Badge variant="outline" className="text-[10px]">
-                        {paper.difficulty}
-                      </Badge>
-                      <span className="text-[10px] font-medium text-muted-foreground">
-                        Class {paper.classLevel}
-                      </span>
-                    </div>
-                    <h3 className="line-clamp-2 min-h-11 text-base font-bold leading-snug text-foreground">
-                      {paper.title}
-                    </h3>
-                    <div className="mt-4 grid grid-cols-3 gap-2 text-center text-[11px]">
-                      <div className="rounded-lg bg-muted/50 px-2 py-2">
-                        <FileQuestion className="mx-auto mb-1 h-4 w-4 text-primary" />
-                        <span className="font-bold tabular-nums text-foreground">
-                          {paper.questionsCount}
+                  ? finalPastPapers
+                  : finalMockPapers
+                ).map((paper) => {
+                  const paperYear = getPaperYear(paper.title);
+                  const isFeatured = paperYear === 2024;
+                  return (
+                    <div
+                      key={paper.id}
+                      className={cn("card", isFeatured && "featured")}
+                    >
+                      <div className="card-meta">
+                        <span className="cmeta-tag">
+                          {libraryCollectionTab === "past"
+                            ? "Past Paper"
+                            : mockPaperTypeLabel((paper as MockPaper).type)}
                         </span>
-                        <span className="block text-muted-foreground">Qs</span>
-                      </div>
-                      <div className="rounded-lg bg-muted/50 px-2 py-2">
-                        <Clock className="mx-auto mb-1 h-4 w-4 text-primary" />
-                        <span className="font-bold tabular-nums text-foreground">
-                          {paper.durationMinutes}
+                        <span className="standard">
+                          &middot;{" "}
+                          {paper.exam === "BITSAT" ||
+                          paper.exam === "JEE Main" ||
+                          paper.exam === "KCET"
+                            ? "12th standard"
+                            : `Class ${paper.classLevel}`}
                         </span>
-                        <span className="block text-muted-foreground">Min</span>
+                        {isFeatured ? (
+                          <span className="streak-badge">
+                            <Star className="h-2.5 w-2.5 fill-current" />
+                            Full syllabus
+                          </span>
+                        ) : null}
+                        {paper.exam === "KCET" &&
+                          (paper.subjectsCovered?.length ?? 0) >= 4 && (
+                            <span className="streak-badge">
+                              Dual Stream (PCMB)
+                            </span>
+                          )}
                       </div>
-                      <div className="rounded-lg bg-muted/50 px-2 py-2">
-                        <Award className="mx-auto mb-1 h-4 w-4 text-primary" />
-                        <span className="font-bold tabular-nums text-foreground">
-                          {paper.totalMarks}
-                        </span>
-                        <span className="block text-muted-foreground">Marks</span>
+                      <h3 className="card-title">
+                        {paper.title}
+                      </h3>
+                      <div className="stats-row">
+                        <div className="stat">
+                          <ClipboardList className="h-4 w-4" />
+                          <div className="stat-body">
+                            <div className="stat-val">{paper.questionsCount}</div>
+                            <div className="stat-lbl">Qs</div>
+                          </div>
+                        </div>
+                        <div className="stat-sep"></div>
+                        <div className="stat">
+                          <Clock className="h-4 w-4" />
+                          <div className="stat-body">
+                            <div className="stat-val">{paper.durationMinutes}</div>
+                            <div className="stat-lbl">Min</div>
+                          </div>
+                        </div>
+                        <div className="stat-sep"></div>
+                        <div className="stat">
+                          <Award className="h-4 w-4" />
+                          <div className="stat-body">
+                            <div className="stat-val">{paper.totalMarks}</div>
+                            <div className="stat-lbl">Marks</div>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          className="play-btn"
+                          aria-label={`Start ${paper.title} exam`}
+                          onClick={() =>
+                            openNtaInstructionsForPaper(
+                              paper,
+                              libraryCollectionTab === "past" ? "past" : "mock"
+                            )
+                          }
+                        >
+                          <Play className="h-4 w-4 fill-current text-white animate-pulse" />
+                        </button>
                       </div>
                     </div>
-                    <p className="mt-3 line-clamp-1 text-xs text-muted-foreground">
-                      {paper.tags.length > 0 ? `${paper.tags.join(" · ")} · ` : null}
-                      <span className="capitalize text-foreground/80">
-                        {(paper.subjectsCovered ?? [paper.subject]).join(", ")}
-                      </span>
-                    </p>
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="flex-1 rounded-xl"
-                        onClick={() =>
-                          openNtaInstructionsForPaper(
-                            paper,
-                            libraryCollectionTab === "past" ? "past" : "mock"
-                          )
-                        }
-                      >
-                        Instructions
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        className="edu-btn-primary flex-1 rounded-xl font-bold"
-                        onClick={() =>
-                          openNtaInstructionsForPaper(
-                            paper,
-                            libraryCollectionTab === "past" ? "past" : "mock"
-                          )
-                        }
-                      >
-                        Start exam
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

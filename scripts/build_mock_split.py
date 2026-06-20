@@ -57,8 +57,8 @@ export type MockTestLibraryViewProps = {
   startQuickTest: () => void;
   librarySearch: string;
   setLibrarySearch: (v: string) => void;
-  librarySubjectFilter: "all" | Subject;
-  setLibrarySubjectFilter: (v: "all" | Subject) => void;
+  libraryExamFilter: LibraryExamFilter;
+  setLibraryExamFilter: (v: LibraryExamFilter) => void;
   filteredPastCatalogPapers: PastPaper[];
   filteredMockCatalogPapers: MockPaper[];
   pastPapersByClassLevel: PastPaper[];
@@ -87,8 +87,8 @@ export default function MockTestLibraryView({
   startQuickTest,
   librarySearch,
   setLibrarySearch,
-  librarySubjectFilter,
-  setLibrarySubjectFilter,
+  libraryExamFilter,
+  setLibraryExamFilter,
   filteredPastCatalogPapers,
   filteredMockCatalogPapers,
   pastPapersByClassLevel,

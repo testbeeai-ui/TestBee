@@ -49,5 +49,14 @@ async function runPrune(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true, result: data });
+  const { data: partitionResult, error: partitionError } = await (admin as any).rpc(
+    "prune_empty_dwell_partitions",
+    { p_months_ahead: 12, p_months_behind: 6 }
+  );
+
+  if (partitionError) {
+    return NextResponse.json({ error: partitionError.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ ok: true, result: data, partitions: partitionResult });
 }

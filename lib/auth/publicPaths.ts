@@ -11,6 +11,8 @@ export function isPublicPath(pathname: string): boolean {
     "/auth",
     "/auth-choice",
     "/contact",
+    "/pricing",
+    "/razorpay-demo",
     "/select-role",
     "/join",
     "/news-blog",
@@ -26,4 +28,14 @@ export function isPublicPath(pathname: string): boolean {
   }
 
   return false;
+}
+
+/** Pathname (+ optional query) safe to open without login when stored in `?next=`. */
+export function isPublicDeepLinkTarget(raw: string | null | undefined): boolean {
+  const safe = raw?.trim();
+  if (!safe || !safe.startsWith("/")) return false;
+  const pathname = safe.split("?")[0]?.split("#")[0] ?? "";
+  if (!pathname || pathname === "/") return false;
+  if (pathname.startsWith("/auth")) return false;
+  return isPublicPath(pathname);
 }

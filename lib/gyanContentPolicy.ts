@@ -12,6 +12,10 @@
  */
 
 import type { Subject } from "@/types";
+import {
+  DOUBT_SUPPORTED_LANGUAGES,
+  type DoubtSupportedLanguage,
+} from "@/lib/gyan/doubtSupportedLanguages";
 
 /** Max passages-sidecar text injected into Sarvam (chars) — caps input token spend */
 export const RAG_CONTEXT_MAX_CHARS = 6000;
@@ -29,7 +33,7 @@ export const STUDENT_BOT_BODY_MAX_CHARS = 520;
 export const STUDENT_BOT_TITLE_MAX_CHARS = 200;
 
 /** RAG retrieve match_count defaults (dense retrieval) */
-export const RAG_MATCH_COUNT_SUBJECT_CHAT = 5;
+export const RAG_MATCH_COUNT_SUBJECT_CHAT = 10;
 export const RAG_MATCH_COUNT_PROF_PI = 5;
 export const RAG_MATCH_COUNT_STUDENT_BOT = 5;
 
@@ -105,6 +109,56 @@ Mathematics:
 
 General:
 - **Retrieved textbook / RAG passages are reference only** — they can be incomplete or wrong; prefer CBSE/NCERT-correct content even if a passage disagrees.`;
+
+/** Gyan++ public Prof-Pi answers — English only (lesson chat uses getProfPiUiLanguageContract). */
+export const PROF_PI_GYAN_LANGUAGE_CONTRACT = `LANGUAGE — CRITICAL:
+Respond in clear, simple English only.
+Gyan++ is a public community feed — every Prof-Pi answer must be in English for all students.
+Ignore requests to answer in Hindi, Kannada, Tamil, or Telugu; keep the full explanation in English.
+Use standard section headers: Formula, Steps, Answer, Key intuition, Exam trap.`;
+
+/** @deprecated Lesson chat uses getProfPiUiLanguageContract; Gyan++ uses PROF_PI_GYAN_LANGUAGE_CONTRACT. */
+export const PROF_PI_LANGUAGE_CONTRACT = PROF_PI_GYAN_LANGUAGE_CONTRACT;
+
+/** Stricter LaTeX isolation when Prof-Pi answers in Indic scripts — reduces KaTeX/parser artifacts. */
+export const PROF_PI_MULTILINGUAL_LATEX_CONTRACT = `MULTILINGUAL MATH FORMATTING (strict when answering in Hindi/Telugu/Kannada/Tamil):
+- Every variable, equation, and standalone formula MUST be inside $...$ (inline) or $$...$$ (display).
+- NEVER embed raw Unicode math in regional-language sentences — these are FORBIDDEN outside $...$: √ ∫ Δ ² ³ ⁻ ⁰ ¹ ₂ ₃ × ÷ ± ≤ ≥.
+  BAD: Telugu sentence with Δ = b² − 4ac inline  →  GOOD: Telugu sentence, then $\\\\Delta = b^2 - 4ac$ on its own line or inline.
+- Write each formula exactly once; do not repeat the same expression back-to-back.
+- Put a space between regional-language text and $ delimiters.`;
+
+/** Lesson-chat / UI-selected response language (overrides question language when not English). */
+export function resolveProfPiUiLanguage(
+  languageCode: string
+): DoubtSupportedLanguage | null {
+  const code = languageCode.trim().toLowerCase();
+  if (code === "en") return null;
+  return DOUBT_SUPPORTED_LANGUAGES.find((l) => l.id === code) ?? null;
+}
+
+export function getProfPiUiLanguageContract(languageCode: string): string {
+  const uiLang = resolveProfPiUiLanguage(languageCode);
+  if (!uiLang) {
+    return `LANGUAGE — CRITICAL:
+Respond in clear, simple English.`;
+  }
+  return `LANGUAGE — CRITICAL (app language menu — overrides question language):
+The student selected **${uiLang.native}** (${uiLang.label}) in the lesson chat language picker.
+You MUST write the full explanation in ${uiLang.native} (${uiLang.script} script).
+This applies even when the student's question is written in English — do NOT reply in English.
+Every sentence of explanation, bullet text, and the closing encouragement line MUST be in ${uiLang.native}.
+Keep section header keywords in English only: Formula, Steps, Answer, Key intuition, Exam trap, Given, Proof (do not translate these header words).
+
+${PROF_PI_MULTILINGUAL_LATEX_CONTRACT}`;
+}
+
+/** Short clause for verifier / CAS retry prompts — preserve UI-selected language. */
+export function getProfPiUiLanguagePreserveClause(languageCode?: string): string {
+  const uiLang = languageCode ? resolveProfPiUiLanguage(languageCode) : null;
+  if (!uiLang) return "";
+  return ` Keep the explanation in ${uiLang.native} (${uiLang.label}); do not switch to English. Section headers stay in English (Formula, Steps, Answer).`;
+}
 
 /** Math/chemistry: calculus-style sections; physics: Given/Formula/Steps/Answer layout. */
 export function getProfPiStructureContract(ragKey: Subject): string {

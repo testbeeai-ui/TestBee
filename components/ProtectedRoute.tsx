@@ -69,6 +69,7 @@ export function ProtectedRoute({
     profile?.onboarding_complete,
     profile?.role,
     loading,
+    allowRoles,
     allowRolesKey,
     redirectTo,
     router,

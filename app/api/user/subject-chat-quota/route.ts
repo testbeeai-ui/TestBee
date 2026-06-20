@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
   const { data: profile, error } = await auth.supabase
     .from("profiles")
     .select(
-      "plan_tier, free_trial_activated, payment_card_details, subscription_started_at, time_travel_offset_ms"
+      "plan_tier, free_trial_activated, payment_card_details, subscription_started_at, time_travel_offset_ms, subject_chat_regional_language"
     )
     .eq("id", auth.user.id)
     .maybeSingle();
@@ -34,6 +34,8 @@ export async function GET(req: NextRequest) {
     usedToday: access.usedToday,
     remaining: access.remaining,
     multilingual: access.multilingual,
+    regionalLanguage: access.regionalLanguage,
+    needsRegionalLanguageSelection: access.needsRegionalLanguageSelection,
     canSend: access.canSend,
     istDate: access.istDate,
   });

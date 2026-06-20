@@ -165,6 +165,34 @@ export function buildTopicPath(
   return base;
 }
 
+/** Panel tabs on the subtopic lesson page (`?panel=`). */
+export type SubtopicPanelTab = "instacue" | "quiz" | "numerals" | "concepts";
+
+/** Subtopic lesson URL with optional right-panel tab (quiz, numerals, instacue, concepts). */
+export function buildSubtopicPanelPath(
+  board: string,
+  subject: Subject,
+  classLevel: number,
+  unitName: string,
+  subtopicName: string,
+  level: DifficultyLevel,
+  panel?: SubtopicPanelTab,
+  chapterTitle?: string
+): string {
+  const base = buildTopicPath(
+    board,
+    subject,
+    classLevel,
+    unitName,
+    subtopicName,
+    level,
+    undefined,
+    chapterTitle
+  );
+  if (!panel || panel === "instacue") return base;
+  return appendQueryParams(base, { panel });
+}
+
 /**
  * Get previous and next topic nodes in syllabus order.
  * When `chapterTitle` is set on the current node, siblings are limited to the **same chapter**

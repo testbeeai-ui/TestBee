@@ -41,7 +41,7 @@ export const PLAN_TIERS: PlanTier[] = [
       {
         title: "Dashboard & Social",
         items: [
-          { name: "Magic Wall - monthly attempts", checked: true, badge: "Trial 3 / Free 2" },
+          { name: "Magic Wall", checked: true, badge: "Trial 3 / Free 2" },
           { name: "Gyan++ doubts", checked: true, badge: "1/day" },
           { name: "Leaderboard", checked: true },
           { name: "Learning buddy matching", checked: false },
@@ -60,7 +60,7 @@ export const PLAN_TIERS: PlanTier[] = [
       {
         title: "Prep + Mock Tests",
         items: [
-          { name: "Testbee mocks", checked: true, badge: "3/month" },
+          { name: "Testbee mocks", checked: true, badge: "3 mocks" },
           { name: "Adaptive difficulty", checked: false, badge: "coming soon" },
           { name: "AI calendar", checked: true, badge: "basic" },
         ],
@@ -89,13 +89,13 @@ export const PLAN_TIERS: PlanTier[] = [
     name: "Free",
     priceMonthly: 0,
     priceYearly: 0,
-    description: "Always-available free tier. Note: mock test access is limited to a total of 6 tests (2 months cap).",
-    highlights: ["Magic Wall 2/month", "1 doubt/day", "3 mocks/month (max 6 total)", "DailyDose 5/day"],
+    description: "Always-available free tier with focused practice limits.",
+    highlights: ["Magic Wall 2/month", "1 doubt/day", "3 mocks/month", "DailyDose 5/day"],
     categories: [
       {
         title: "Dashboard & Social",
         items: [
-          { name: "Magic Wall - monthly attempts", checked: true, badge: "2/month" },
+          { name: "Magic Wall", checked: true, badge: "2/month" },
           { name: "Gyan++ doubts", checked: true, badge: "1/day" },
           { name: "Leaderboard", checked: true },
           { name: "Learning buddy matching", checked: false },
@@ -114,7 +114,7 @@ export const PLAN_TIERS: PlanTier[] = [
       {
         title: "Prep + Mock Tests",
         items: [
-          { name: "Testbee mocks", checked: true, badge: "3/month (2 months cap / 6 max)" },
+          { name: "Testbee mocks", checked: true, badge: "3 mocks" },
           { name: "Adaptive difficulty", checked: false, badge: "coming soon" },
           { name: "AI calendar", checked: true, badge: "basic" },
         ],
@@ -169,7 +169,7 @@ export const PLAN_TIERS: PlanTier[] = [
       {
         title: "Prep + Mock Tests",
         items: [
-          { name: "Testbee mocks", checked: true, badge: "8/month" },
+          { name: "Testbee mocks", checked: true, badge: "8 mocks" },
           { name: "Adaptive difficulty", checked: true },
           { name: "Recorded classes", checked: true, badge: "10 hrs/mo" },
           { name: "AI calendar", checked: true, badge: "basic" },

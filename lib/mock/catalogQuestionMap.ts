@@ -14,7 +14,7 @@ export type CatalogQuestionRow = {
 };
 
 function isSubject(s: string): s is Subject {
-  return s === "physics" || s === "chemistry" || s === "math";
+  return s === "physics" || s === "chemistry" || s === "math" || s === "biology";
 }
 
 export function letterToIndex(letter: string): number {

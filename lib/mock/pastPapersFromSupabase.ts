@@ -23,7 +23,7 @@ type PastPaperRow = {
 };
 
 function isSubject(s: string): s is Subject {
-  return s === "physics" || s === "chemistry" || s === "math";
+  return s === "physics" || s === "chemistry" || s === "math" || s === "biology";
 }
 
 function isPastPaperType(s: string): s is PastPaperType {
@@ -48,6 +48,7 @@ export function mapPastPaperRowToPastPaper(row: PastPaperRow): PastPaper {
     type,
     subject: primary,
     subjectsCovered: covered.length > 0 ? covered : undefined,
+    exam: (row.exam_name ?? "").trim() || "Uncategorised",
     durationMinutes: row.duration_minutes,
     questionsCount: row.question_count,
     totalMarks: row.total_marks,

@@ -26,7 +26,6 @@ import {
   Box,
   CheckCircle2,
   XCircle,
-  Bot,
   Filter,
   Lock,
   AlertTriangle,
@@ -73,7 +72,6 @@ import {
 } from "@/lib/onboarding/onboardingTaskCompanion";
 import { slugify } from "@/lib/slugs";
 import TheoryContent from "@/components/TheoryContent";
-import TopicAgentTracePanel from "@/components/TopicAgentTracePanel";
 import {
   fetchTopicHubDisplayBundle,
   generateTopicContent,
@@ -83,7 +81,7 @@ import {
   type TopicHubScope,
 } from "@/lib/curriculum/topicContentService";
 import { normalizeHubSectionForDisplay } from "@/lib/curriculum/topicHubDisplay";
-import TopicHubOverviewSections from "@/components/explore/TopicHubOverviewSections";
+import ChapterHubInvestorView from "@/components/explore/ChapterHubInvestorView";
 import type { DifficultyLevel } from "@/lib/slugs";
 import { useToast } from "@/hooks/use-toast";
 import { fuzzySubtopicKey } from "@/lib/utils";
@@ -432,8 +430,8 @@ export interface PlanLockConfig {
 
 export const PLAN_LOCKS: Record<string, PlanLockConfig> = {
   free_trial: {
-    lockChapters: true,
-    maxChapters: 2,
+    lockChapters: false,
+    maxChapters: Infinity,
     unlockLabel: "Free Trial — Chapter Unlock",
     bannerGradient: "from-violet-950/60 via-card to-violet-950/20 border-violet-400/30",
     modalDescription: "during your free trial. Make sure you select the chapters properly.",
@@ -443,8 +441,8 @@ export const PLAN_LOCKS: Record<string, PlanLockConfig> = {
     labelClass: "text-violet-400",
   },
   free: {
-    lockChapters: true,
-    maxChapters: 2,
+    lockChapters: false,
+    maxChapters: Infinity,
     unlockLabel: "Free Tier — Chapter Unlock",
     bannerGradient: "from-blue-950/60 via-card to-blue-950/20 border-blue-400/30",
     modalDescription: "on the free plan. Upgrade to Starter or Pro to unlock everything!",
@@ -1584,7 +1582,7 @@ function UnitRoadmap({
 const Explore = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { profile } = useAuth();
+  const { profile, refreshProfile } = useAuth();
   const { toast } = useToast();
   const user = useUserStore((s) => s.user);
   const isAdminOnLocalhost =
@@ -1700,8 +1698,8 @@ const Explore = () => {
     free: number;
     free_trial: number;
   }>({
-    free: 2,
-    free_trial: 2,
+    free: -1,
+    free_trial: -1,
   });
 
   useEffect(() => {
@@ -2062,6 +2060,15 @@ const Explore = () => {
     };
   }, [view, selectedSubject, selectedTopicClassLevel, profile?.id, boardNormForLessonCompletions]);
 
+  useEffect(() => {
+    if (view !== "topic-detail" || !profile?.id) return;
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void refreshProfile();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [view, profile?.id, refreshProfile]);
+
   const handleSubjectSelect = (subject: Subject) => {
     setSelectedSubject(subject);
     setView("topics");
@@ -2170,15 +2177,6 @@ const Explore = () => {
     () => (isDetailedUnitView ? selectedChapterTopic : selectedTopicNode),
     [isDetailedUnitView, selectedChapterTopic, selectedTopicNode]
   );
-  const agentHeading = useMemo(
-    () =>
-      isDetailedUnitView
-        ? (selectedChapterGroup?.chapter ?? selectedTopicNode?.topic ?? "")
-        : (selectedTopicNode?.topic ?? ""),
-    [isDetailedUnitView, selectedChapterGroup, selectedTopicNode]
-  );
-
-  /** DB key + agent scope: chapter landing vs single-topic hub (must not share the same row). */
   const topicForHub = useMemo(() => {
     if (isDetailedUnitView && selectedChapterGroup) return selectedChapterGroup.chapter;
     return selectedTopicNode?.topic ?? "";
@@ -2250,6 +2248,21 @@ const Explore = () => {
     if (!isDetailedUnitView || !selectedChapterGroup) return [] as string[];
     return selectedChapterGroup.topics.map((t) => t.topic).filter(Boolean);
   }, [isDetailedUnitView, selectedChapterGroup]);
+
+  const chapterExamRelevance = useMemo(() => {
+    if (!selectedChapterGroup) return [] as ExamType[];
+    const set = new Set<ExamType>();
+    for (const t of selectedChapterGroup.topics) {
+      for (const e of t.examRelevance ?? []) set.add(e);
+    }
+    return Array.from(set);
+  }, [selectedChapterGroup]);
+
+  const chapterTotalPeriods = useMemo(() => {
+    if (!selectedChapterGroup?.topics.length) return selectedTopicNode?.totalPeriods ?? null;
+    const sum = selectedChapterGroup.topics.reduce((n, t) => n + (t.totalPeriods ?? 0), 0);
+    return sum > 0 ? sum : (selectedTopicNode?.totalPeriods ?? null);
+  }, [selectedChapterGroup, selectedTopicNode]);
 
   const topicPreviewByName = useMemo(() => {
     const exact = new Map<string, string>();
@@ -2634,7 +2647,7 @@ const Explore = () => {
         selectedSubject,
         selectedTopicClassLevel,
         effectiveTopic.topic,
-        "basics",
+        isDetailedUnitView ? "advanced" : "basics",
         undefined,
         effectiveTopic.chapterTitle
       )
@@ -3180,10 +3193,12 @@ const Explore = () => {
                   </div>
                 )}
 
+                {!(isDetailedUnitView && focusedSubtopicIndex === null) ? (
                 <h2 className="edu-page-title text-2xl mb-1 flex items-center gap-2">
                   <BookOpen className="w-6 h-6 text-primary" />
                   {selectedTopicNode.unitLabel ?? "Unit"}
                 </h2>
+                ) : null}
                 {!isDetailedUnitView && selectedTopicNode.chapterTitle ? (
                   <p className="text-sm font-semibold text-muted-foreground mb-4">
                     Chapter:{" "}
@@ -3191,238 +3206,135 @@ const Explore = () => {
                   </p>
                 ) : null}
 
+                {isDetailedUnitView &&
+                focusedSubtopicIndex === null &&
+                selectedChapterGroup &&
+                selectedSubject &&
+                selectedTopicClassLevel !== null ? (
+                  <ChapterHubInvestorView
+                    unitLabel={selectedTopicNode.unitLabel ?? "Unit"}
+                    chapterTitle={selectedChapterGroup.chapter}
+                    topics={selectedChapterGroup.topics}
+                    currentTopicName={selectedChapterTopic?.topic ?? null}
+                    boardSlug={boardSlug}
+                    subject={selectedSubject}
+                    classLevel={selectedTopicClassLevel}
+                    boardNormalized={boardNormForLessonCompletions}
+                    lessonCompletionKeys={topicDetailLessonKeys}
+                    bitsAttemptsJson={profile?.bits_test_attempts ?? null}
+                    subtopicEngagementJson={profile?.subtopic_engagement ?? null}
+                    totalPeriods={chapterTotalPeriods}
+                    examRelevance={chapterExamRelevance}
+                    onStartChapter={handleLinearMode}
+                    onNavigate={pushWithLessonsOnboarding}
+                    onCurrentTopicChange={setSelectedChapterTopicName}
+                    topicContentLoading={topicContentLoading}
+                    whyStudy={topicWhyStudy}
+                    whatLearn={topicWhatLearn}
+                    realWorld={topicRealWorld}
+                    topicContentExists={topicContentExists}
+                    hasOverviewProse={topicHubHasOverviewProse}
+                    hasSubtopicPreviews={topicHubHasSubtopicPreviews}
+                    missingGateLevels={topicHubMissingGateLevels}
+                    canEditTopicContent={canEditTopicContent}
+                    topicEditorOpen={topicEditorOpen}
+                    onToggleTopicEditor={() => {
+                      setDraftWhyStudy(topicWhyStudy);
+                      setDraftWhatLearn(topicWhatLearn);
+                      setDraftRealWorld(topicRealWorld);
+                      setTopicEditorOpen((prev) => !prev);
+                    }}
+                    draftWhyStudy={draftWhyStudy}
+                    draftWhatLearn={draftWhatLearn}
+                    draftRealWorld={draftRealWorld}
+                    onDraftWhyStudyChange={setDraftWhyStudy}
+                    onDraftWhatLearnChange={setDraftWhatLearn}
+                    onDraftRealWorldChange={setDraftRealWorld}
+                    onSaveTopicContent={async () => {
+                      if (
+                        !topicForHub.trim() ||
+                        !selectedSubject ||
+                        selectedTopicClassLevel === null
+                      )
+                        return;
+                      const boardName = (
+                        String(profileBoard).toUpperCase() === "ICSE" ? "ICSE" : "CBSE"
+                      ) as Board;
+                      setSavingTopicContent(true);
+                      try {
+                        await upsertTopicContent({
+                          board: boardName,
+                          subject: selectedSubject,
+                          classLevel: selectedTopicClassLevel as 11 | 12,
+                          topic: topicForHub,
+                          level: "basics",
+                          hubScope: hubScopeForHub,
+                          whyStudy: draftWhyStudy,
+                          whatLearn: draftWhatLearn,
+                          realWorld: draftRealWorld,
+                          subtopicPreviews: topicSubtopicPreviews,
+                        });
+                        setTopicWhyStudy(draftWhyStudy);
+                        setTopicWhatLearn(draftWhatLearn);
+                        setTopicRealWorld(draftRealWorld);
+                        setTopicContentExists(true);
+                        setTopicEditorOpen(false);
+                        toast({ title: hubAgentUi.toastSaved });
+                      } catch (e) {
+                        const message = e instanceof Error ? e.message : "Save failed";
+                        toast({ title: message, variant: "destructive" });
+                      } finally {
+                        setSavingTopicContent(false);
+                      }
+                    }}
+                    savingTopicContent={savingTopicContent}
+                    generatingTopic={generatingTopic}
+                    onRegenerateClick={async () => {
+                      if (
+                        !topicForHub.trim() ||
+                        !selectedSubject ||
+                        selectedTopicClassLevel === null ||
+                        !activeTopicForAgent
+                      )
+                        return;
+                      if (hubScopeForHub === "chapter") {
+                        if (!isAdminOnLocalhost) return;
+                        setChapterScheduleOpen(true);
+                        return;
+                      }
+                      if (topicContentExists) {
+                        setFbLiked("");
+                        setFbDisliked("");
+                        setFbInstructions("");
+                        setTopicRegenFeedbackOpen(true);
+                        return;
+                      }
+                      await runImmediateTopicHubGeneration();
+                    }}
+                    regenerateDisabled={
+                      generatingTopic ||
+                      topicContentLoading ||
+                      !topicForHub.trim() ||
+                      !selectedSubject ||
+                      selectedTopicClassLevel === null ||
+                      (hubScopeForHub === "chapter" && !isAdminOnLocalhost)
+                    }
+                    regenerateTooltip={hubAgentUi.regenerateTooltip}
+                    generateTooltip={hubAgentUi.generateTooltip}
+                    buttonRegenerate={hubAgentUi.buttonRegenerate}
+                    buttonGenerate={hubAgentUi.buttonGenerate}
+                    topicContentExistsForButton={topicContentExists}
+                    topicAgentTrace={topicAgentTrace}
+                    onClearAgentTrace={() => setTopicAgentTrace(null)}
+                    existingScheduledChapterJob={existingScheduledChapterJob}
+                  />
+                ) : (
                 <div className="flex flex-col lg:flex-row gap-6">
                   <div className="flex-1 min-w-0">
                     {focusedSubtopicIndex === null ? (
                       /* Intro / overview — only when no subtopic selected */
                       <div className="edu-card p-4 rounded-xl border border-border sm:p-6 sm:rounded-2xl">
-                        {isDetailedUnitView ? (
-                          <>
-                            {selectedChapterGroup && (
-                              <div className="space-y-4">
-                                <div className="flex flex-wrap items-start gap-2 mb-3">
-                                  <h3 className="font-extrabold text-lg text-foreground flex items-center gap-2 min-w-0">
-                                    <Sparkles className="w-5 h-5 text-primary" />
-                                    <span className="whitespace-normal break-words lg:truncate">
-                                      Let&apos;s take a look at {agentHeading}
-                                    </span>
-                                  </h3>
-                                  <div className="ml-auto flex items-center gap-2">
-                                    {canEditTopicContent ? (
-                                      <>
-                                        <span className="text-[11px] font-bold px-2 py-1 rounded-full bg-muted text-muted-foreground">
-                                          Admin
-                                        </span>
-                                        <Button
-                                          type="button"
-                                          size="sm"
-                                          variant="outline"
-                                          className="rounded-xl gap-2 font-bold shrink-0"
-                                          disabled={generatingTopic || savingTopicContent}
-                                          onClick={() => {
-                                            setDraftWhyStudy(topicWhyStudy);
-                                            setDraftWhatLearn(topicWhatLearn);
-                                            setDraftRealWorld(topicRealWorld);
-                                            setTopicEditorOpen((prev) => !prev);
-                                          }}
-                                          title="Edit and save topic info"
-                                        >
-                                          {topicEditorOpen ? "Close Edit" : "Edit"}
-                                        </Button>
-                                        <Button
-                                          type="button"
-                                          size="sm"
-                                          variant="secondary"
-                                          className="rounded-xl gap-2 font-bold shrink-0"
-                                          disabled={
-                                            generatingTopic ||
-                                            topicContentLoading ||
-                                            !topicForHub.trim() ||
-                                            !selectedSubject ||
-                                            selectedTopicClassLevel === null ||
-                                            (hubScopeForHub === "chapter" && !isAdminOnLocalhost)
-                                          }
-                                          title={
-                                            topicContentExists
-                                              ? hubAgentUi.regenerateTooltip
-                                              : hubAgentUi.generateTooltip
-                                          }
-                                          onClick={async () => {
-                                            if (
-                                              !topicForHub.trim() ||
-                                              !selectedSubject ||
-                                              selectedTopicClassLevel === null ||
-                                              !activeTopicForAgent
-                                            )
-                                              return;
-                                            if (hubScopeForHub === "chapter") {
-                                              if (!isAdminOnLocalhost) return;
-                                              setChapterScheduleOpen(true);
-                                              return;
-                                            }
-                                            if (topicContentExists) {
-                                              setFbLiked("");
-                                              setFbDisliked("");
-                                              setFbInstructions("");
-                                              setTopicRegenFeedbackOpen(true);
-                                              return;
-                                            }
-                                            await runImmediateTopicHubGeneration();
-                                          }}
-                                        >
-                                          <Bot className="w-4 h-4" />
-                                          {generatingTopic
-                                            ? topicContentExists
-                                              ? "Regenerating…"
-                                              : "Generating…"
-                                            : topicContentExists
-                                              ? hubAgentUi.buttonRegenerate
-                                              : hubAgentUi.buttonGenerate}
-                                        </Button>
-                                        {hubScopeForHub === "chapter" &&
-                                        existingScheduledChapterJob ? (
-                                          <p className="text-[11px] font-semibold text-amber-700 dark:text-amber-300">
-                                            Slot already allocated for{" "}
-                                            {new Date(
-                                              existingScheduledChapterJob.originalScheduledAt
-                                            ).toLocaleString()}
-                                            .
-                                          </p>
-                                        ) : null}
-                                      </>
-                                    ) : null}
-                                    <Button
-                                      type="button"
-                                      size="sm"
-                                      onClick={() => handleLinearMode()}
-                                      className="rounded-xl gap-2 edu-btn-primary shrink-0"
-                                    >
-                                      <Play className="w-4 h-4" /> Start Chapter
-                                    </Button>
-                                  </div>
-                                </div>
-                                {canEditTopicContent ? (
-                                  <TopicAgentTracePanel
-                                    trace={topicAgentTrace}
-                                    onClear={() => setTopicAgentTrace(null)}
-                                  />
-                                ) : null}
-                                <TopicHubOverviewSections
-                                  loading={topicContentLoading}
-                                  whyStudy={topicWhyStudy}
-                                  whatLearn={topicWhatLearn}
-                                  realWorld={topicRealWorld}
-                                  topicContentExists={topicContentExists}
-                                  hasOverviewProse={topicHubHasOverviewProse}
-                                  hasSubtopicPreviews={topicHubHasSubtopicPreviews}
-                                  missingGateLevels={topicHubMissingGateLevels}
-                                  canEditTopicContent={canEditTopicContent}
-                                />
-                                {topicEditorOpen && canEditTopicContent && (
-                                  <div className="mt-2 space-y-3 rounded-xl border border-border bg-background/80 p-3">
-                                    <p className="text-xs font-semibold text-muted-foreground">
-                                      Why study this topic? (markdown)
-                                    </p>
-                                    <textarea
-                                      value={draftWhyStudy}
-                                      onChange={(e) => setDraftWhyStudy(e.target.value)}
-                                      className="w-full min-h-[110px] rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                                      placeholder="Write why-study section..."
-                                    />
-                                    <p className="text-xs font-semibold text-muted-foreground">
-                                      What you will learn (markdown)
-                                    </p>
-                                    <textarea
-                                      value={draftWhatLearn}
-                                      onChange={(e) => setDraftWhatLearn(e.target.value)}
-                                      className="w-full min-h-[110px] rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                                      placeholder="Write learning outcomes..."
-                                    />
-                                    <p className="text-xs font-semibold text-muted-foreground">
-                                      Real-world importance (markdown)
-                                    </p>
-                                    <textarea
-                                      value={draftRealWorld}
-                                      onChange={(e) => setDraftRealWorld(e.target.value)}
-                                      className="w-full min-h-[110px] rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                                      placeholder="Write real-world impact..."
-                                    />
-                                    <div className="flex items-center gap-2">
-                                      <Button
-                                        type="button"
-                                        size="sm"
-                                        className="rounded-lg"
-                                        disabled={
-                                          savingTopicContent ||
-                                          !topicForHub.trim() ||
-                                          !selectedSubject ||
-                                          selectedTopicClassLevel === null
-                                        }
-                                        onClick={async () => {
-                                          if (
-                                            !topicForHub.trim() ||
-                                            !selectedSubject ||
-                                            selectedTopicClassLevel === null
-                                          )
-                                            return;
-                                          const boardName = (
-                                            String(profileBoard).toUpperCase() === "ICSE"
-                                              ? "ICSE"
-                                              : "CBSE"
-                                          ) as Board;
-                                          setSavingTopicContent(true);
-                                          try {
-                                            await upsertTopicContent({
-                                              board: boardName,
-                                              subject: selectedSubject,
-                                              classLevel: selectedTopicClassLevel as 11 | 12,
-                                              topic: topicForHub,
-                                              level: "basics",
-                                              hubScope: hubScopeForHub,
-                                              whyStudy: draftWhyStudy,
-                                              whatLearn: draftWhatLearn,
-                                              realWorld: draftRealWorld,
-                                              subtopicPreviews: topicSubtopicPreviews,
-                                            });
-                                            setTopicWhyStudy(draftWhyStudy);
-                                            setTopicWhatLearn(draftWhatLearn);
-                                            setTopicRealWorld(draftRealWorld);
-                                            setTopicContentExists(true);
-                                            setTopicEditorOpen(false);
-                                            toast({ title: hubAgentUi.toastSaved });
-                                          } catch (e) {
-                                            const message =
-                                              e instanceof Error ? e.message : "Save failed";
-                                            toast({ title: message, variant: "destructive" });
-                                          } finally {
-                                            setSavingTopicContent(false);
-                                          }
-                                        }}
-                                      >
-                                        {savingTopicContent ? "Saving…" : "Save"}
-                                      </Button>
-                                      <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        className="rounded-lg"
-                                        disabled={savingTopicContent}
-                                        onClick={() => {
-                                          setDraftWhyStudy(topicWhyStudy);
-                                          setDraftWhatLearn(topicWhatLearn);
-                                          setDraftRealWorld(topicRealWorld);
-                                          setTopicEditorOpen(false);
-                                        }}
-                                      >
-                                        Cancel
-                                      </Button>
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </>
-                        ) : selectedTopicNode.topic === "Thermodynamics" ? (
+                        {selectedTopicNode.topic === "Thermodynamics" ? (
                           <>
                             <div className="mb-3 flex items-start justify-between gap-3">
                               <h3 className="font-extrabold text-lg text-foreground flex items-center gap-2 min-w-0">
@@ -3431,15 +3343,6 @@ const Explore = () => {
                                   Thermodynamics: The Physics of Absolute Limits
                                 </span>
                               </h3>
-                              {isDetailedUnitView ? (
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleLinearMode()}
-                                  className="rounded-xl gap-2 edu-btn-primary shrink-0"
-                                >
-                                  <Play className="w-4 h-4" /> Start Chapter
-                                </Button>
-                              ) : null}
                             </div>
                             <div className="space-y-4 text-sm text-muted-foreground leading-relaxed">
                               <div>
@@ -3521,15 +3424,6 @@ const Explore = () => {
                                   Let&apos;s take a look at {selectedTopicNode.topic}
                                 </span>
                               </h3>
-                              {isDetailedUnitView ? (
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleLinearMode()}
-                                  className="rounded-xl gap-2 edu-btn-primary shrink-0"
-                                >
-                                  <Play className="w-4 h-4" /> Start Chapter
-                                </Button>
-                              ) : null}
                             </div>
                             <div className="space-y-4 text-sm text-muted-foreground leading-relaxed">
                               <div>
@@ -3919,6 +3813,7 @@ const Explore = () => {
                     </div>
                   </aside>
                 </div>
+                )}
 
                 <Dialog open={bitsAllPopup} onOpenChange={setBitsAllPopup}>
                   <DialogContent className="rounded-2xl max-w-lg max-h-[85vh] overflow-y-auto">

@@ -4,6 +4,7 @@ import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import { stripSarvamThinking } from "@/lib/sarvamGyanClient";
+import { sanitizeProfPiMultilingualOutput } from "@/lib/gyan/sanitizeProfPiMultilingualOutput";
 
 type DoubtMarkdownProps = {
   content: string;
@@ -22,7 +23,7 @@ export default function DoubtMarkdown({
   className = "",
   compact = false,
 }: DoubtMarkdownProps) {
-  const src = stripSarvamThinking(content?.trim() ?? "");
+  const src = sanitizeProfPiMultilingualOutput(stripSarvamThinking(content?.trim() ?? ""));
   if (!src) return null;
 
   const h12 = compact

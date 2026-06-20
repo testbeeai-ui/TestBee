@@ -3,6 +3,7 @@ import {
   mapCatalogQuestionRowToQuestion,
   type CatalogQuestionRow,
 } from "@/lib/mock/catalogQuestionMap";
+import { getClientApiAuthHeaders } from "@/lib/auth/clientApiAuth";
 import type { Question } from "@/types";
 
 export type SavedQuestionSource = "mock" | "past_paper" | "static";
@@ -20,7 +21,35 @@ function isSavedQuestionSource(s: string): s is SavedQuestionSource {
   return s === "mock" || s === "past_paper" || s === "static";
 }
 
-/** Upsert bookmark; idempotent on unique (user, question, source). */
+/** Upsert bookmark via API (plan cap enforced server-side). Prefer over saveQuestionToDb from the client. */
+export async function persistSavedQuestion(
+  questionId: string,
+  sourceType: SavedQuestionSource
+): Promise<{ error: Error | null; limitReached?: boolean }> {
+  try {
+    const headers = await getClientApiAuthHeaders();
+    const res = await fetch("/api/user/saved-questions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...headers },
+      body: JSON.stringify({ questionId, sourceType }),
+    });
+    const data = (await res.json().catch(() => ({}))) as {
+      error?: string;
+      limitReached?: boolean;
+    };
+    if (!res.ok) {
+      return {
+        error: new Error(data.error ?? "Could not save question"),
+        limitReached: res.status === 403 || data.limitReached === true,
+      };
+    }
+    return { error: null };
+  } catch (e) {
+    return { error: e instanceof Error ? e : new Error("Could not save question") };
+  }
+}
+
+/** @deprecated Use persistSavedQuestion — direct insert bypasses plan caps. */
 export async function saveQuestionToDb(
   userId: string,
   questionId: string,

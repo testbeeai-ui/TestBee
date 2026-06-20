@@ -12,9 +12,36 @@ import "katex/dist/katex.min.css";
 /** Geist uses bundled .woff2 via `geist` — no Google Fonts fetch at build time (offline CI). */
 
 export const metadata: Metadata = {
-  title: "EduBlast — Learn. Play. Conquer.",
+  title: {
+    default: "EduBlast — India's AI-Powered Learning Social Network",
+    template: "%s | EduBlast",
+  },
   description:
-    "Fire questions, earn RDM, and blast through your syllabus with byte-sized learning!",
+    "Gamify your PUC & JEE prep. Ask doubts to AI, solve adaptive mocks, earn RDM coins, and unlock EduFund scholarship grants with byte-sized learning!",
+  openGraph: {
+    title: "EduBlast — India's AI-Powered Learning Social Network",
+    description:
+      "Gamify your PUC & JEE prep. Ask doubts to AI, solve adaptive mocks, earn RDM coins, and unlock EduFund scholarship grants with byte-sized learning!",
+    type: "website",
+    locale: "en_IN",
+    url: "https://edublast.in",
+    siteName: "EduBlast",
+    images: [
+      {
+        url: "https://edublast.in/images/logo-2.png",
+        width: 1200,
+        height: 630,
+        alt: "EduBlast Learning Social Network",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "EduBlast — India's AI-Powered Learning Social Network",
+    description:
+      "Gamify your PUC & JEE prep. Ask doubts to AI, solve adaptive mocks, earn RDM coins, and unlock EduFund scholarship grants with byte-sized learning!",
+    images: ["https://edublast.in/images/logo-2.png"],
+  },
 };
 
 export default function RootLayout({

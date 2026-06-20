@@ -1488,47 +1488,6 @@ export type Database = {
           },
         ];
       };
-      notifications: {
-        Row: {
-          action_url: string | null;
-          body: string | null;
-          created_at: string;
-          id: string;
-          read: boolean;
-          title: string;
-          type: string;
-          user_id: string;
-        };
-        Insert: {
-          action_url?: string | null;
-          body?: string | null;
-          created_at?: string;
-          id?: string;
-          read?: boolean;
-          title: string;
-          type?: string;
-          user_id: string;
-        };
-        Update: {
-          action_url?: string | null;
-          body?: string | null;
-          created_at?: string;
-          id?: string;
-          read?: boolean;
-          title?: string;
-          type?: string;
-          user_id?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "notifications_user_id_fkey";
-            columns: ["user_id"];
-            isOneToOne: false;
-            referencedRelation: "profiles";
-            referencedColumns: ["id"];
-          },
-        ];
-      };
       prep_calendar_day_activity: {
         Row: {
           user_id: string;
@@ -2016,6 +1975,8 @@ export type Database = {
           signup_google?: boolean;
           state: string | null;
           stream: string | null;
+          subject_chat_regional_language: string | null;
+          subject_chat_regional_language_locked_at: string | null;
           subject_combo: string | null;
           subjects: string[] | null;
           target_exam: string | null;
@@ -2078,6 +2039,8 @@ export type Database = {
           signup_google?: boolean;
           state?: string | null;
           stream?: string | null;
+          subject_chat_regional_language?: string | null;
+          subject_chat_regional_language_locked_at?: string | null;
           subject_combo?: string | null;
           subjects?: string[] | null;
           target_exam?: string | null;
@@ -2140,6 +2103,8 @@ export type Database = {
           signup_google?: boolean;
           state?: string | null;
           stream?: string | null;
+          subject_chat_regional_language?: string | null;
+          subject_chat_regional_language_locked_at?: string | null;
           subject_combo?: string | null;
           subjects?: string[] | null;
           target_exam?: string | null;
@@ -2486,42 +2451,6 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "saved_questions_user_id_fkey";
-            columns: ["user_id"];
-            isOneToOne: false;
-            referencedRelation: "profiles";
-            referencedColumns: ["id"];
-          },
-        ];
-      };
-      session_attendance: {
-        Row: {
-          checked_in_at: string;
-          id: string;
-          session_id: string;
-          user_id: string;
-        };
-        Insert: {
-          checked_in_at?: string;
-          id?: string;
-          session_id: string;
-          user_id: string;
-        };
-        Update: {
-          checked_in_at?: string;
-          id?: string;
-          session_id?: string;
-          user_id?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "session_attendance_session_id_fkey";
-            columns: ["session_id"];
-            isOneToOne: false;
-            referencedRelation: "live_sessions";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "session_attendance_user_id_fkey";
             columns: ["user_id"];
             isOneToOne: false;
             referencedRelation: "profiles";
@@ -3322,6 +3251,10 @@ export type Database = {
       refund_expired_doubt_bounties: {
         Args: Record<PropertyKey, never>;
         Returns: number;
+      };
+      set_subject_chat_regional_language: {
+        Args: { p_language: string };
+        Returns: Json;
       };
       search_doubt_duplicates: {
         Args: { p_title: string };

@@ -2,16 +2,21 @@
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, X, ChevronDown, Globe, Copy, Check, ChevronUp, Lock } from "lucide-react";
+import { Send, X, ChevronDown, Globe, Copy, Check, ChevronUp, Lock, RotateCcw } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import type { Subject } from "@/types";
 import { useAuth } from "@/hooks/useAuth";
+import { useIsAppAdmin } from "@/hooks/useIsAppAdmin";
 import {
   fetchSubjectChatQuota,
+  resetSubjectChatRegionalLanguage,
   type SubjectChatQuotaResponse,
 } from "@/lib/subscription/subjectChatClient";
+import { resolveSubjectChatLanguage } from "@/lib/subscription/subjectChatLimits";
+import { getSubjectChatRegionalLabel, isRegionalSubjectChatCode, type SubjectChatRegionalCode } from "@/lib/subscription/subjectChatRegionalLanguage";
+import SubjectChatRegionalLanguageDropdownConfirm from "@/components/subject-chat/SubjectChatRegionalLanguageDropdownConfirm";
 
 interface Message {
   id: string;
@@ -71,7 +76,14 @@ const LANGUAGES = [
 ];
 
 const SUBJECT_CHAT_UPGRADE_COPY =
-  "**Starter** and **Pro** unlock unlimited chat and answers in Hindi, Kannada, Tamil, and Telugu.\n\nGo to **Profile → Change plan** to upgrade.";
+  "**Starter** and **Pro** unlock **unlimited** lesson chat per day.\n\nGo to **Profile → Change plan** to upgrade.";
+
+const SUBJECT_CHAT_MULTILINGUAL_UPGRADE_COPY =
+  "**Pro** unlocks lesson chat in **English** plus **one** regional language (Hindi, Kannada, Tamil, or Telugu).\n\nGo to **Profile → Change plan** to upgrade.";
+
+function buildLanguageLockedCopy(lockedLabel: string): string {
+  return `Your lesson-chat language is locked to **${lockedLabel}**. You can switch between **English** and **${lockedLabel}** only.`;
+}
 
 const TYPING_PHRASES: Record<string, string[]> = {
   physics: [
@@ -100,11 +112,9 @@ const COLLAPSE_THRESHOLD = 420; // chars
 function BotBubble({
   content,
   accentColor,
-  gradient,
 }: {
   content: string;
   accentColor: string;
-  gradient: string;
 }) {
   const isLong = content.length > COLLAPSE_THRESHOLD;
   const [expanded, setExpanded] = useState(!isLong);
@@ -197,7 +207,7 @@ function formatTime(date: Date) {
   return date.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
 }
 
-const CHATBOT_POSITION_KEY = "edublast-chatbot-position";
+const CHATBOT_POSITION_KEY = "edublast-chatbot-position-v2";
 const CHATBOT_SIZE_KEY = "edublast-chatbot-size";
 const CHATBOT_HIDE_UNTIL_KEY = "edublast-chatbot-hide-until";
 const CHATBOT_HISTORY_PREFIX = "edublast-chatbot-history";
@@ -300,6 +310,7 @@ export default function SubjectChatbot({
   chapterTitle,
 }: Props) {
   const { session } = useAuth();
+  const isAppAdmin = useIsAppAdmin();
   const [chatQuota, setChatQuota] = useState<SubjectChatQuotaResponse | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -307,6 +318,9 @@ export default function SubjectChatbot({
   const [isLoading, setIsLoading] = useState(false);
   const [language, setLanguage] = useState("en");
   const [showLangMenu, setShowLangMenu] = useState(false);
+  const [pendingRegionalCode, setPendingRegionalCode] = useState<SubjectChatRegionalCode | null>(null);
+  const [langConfirmOpen, setLangConfirmOpen] = useState(false);
+  const [resettingRegionalLanguage, setResettingRegionalLanguage] = useState(false);
   const [hasGreeted, setHasGreeted] = useState(false);
   const [position, setPosition] = useState<{ x: number; y: number }>({ x: 24, y: 24 });
   const [chatSize, setChatSize] = useState(DEFAULT_SIZE);
@@ -348,25 +362,143 @@ export default function SubjectChatbot({
   }, [isOpen, refreshChatQuota]);
 
   const hasMultilingual = chatQuota?.multilingual ?? false;
+  const regionalLanguage = chatQuota?.regionalLanguage ?? null;
+  const needsRegionalLanguageSelection = chatQuota?.needsRegionalLanguageSelection ?? false;
+
+  useEffect(() => {
+    if (!isOpen || chatQuota == null) return;
+    if (!hasMultilingual && language !== "en") {
+      setLanguage("en");
+    }
+  }, [isOpen, chatQuota, hasMultilingual, language]);
+
+  useEffect(() => {
+    if (!regionalLanguage) return;
+    if (language !== "en" && language !== regionalLanguage) {
+      setLanguage("en");
+    }
+  }, [regionalLanguage, language]);
+
+  const handleRegionalLanguageSaved = useCallback((patch: Partial<SubjectChatQuotaResponse>) => {
+    setChatQuota((prev) => (prev ? { ...prev, ...patch } : prev));
+    if (patch.regionalLanguage) {
+      setLanguage(patch.regionalLanguage);
+    }
+    setPendingRegionalCode(null);
+    setLangConfirmOpen(false);
+    setShowLangMenu(false);
+  }, []);
+
+  const handleRegionalLanguageError = useCallback((error: string) => {
+    const errMsg: Message = {
+      id: crypto.randomUUID(),
+      role: "bot",
+      content: error,
+      timestamp: new Date(),
+    };
+    setMessages((prev) => [...prev, errMsg]);
+    setPendingRegionalCode(null);
+  }, []);
 
   const handleLanguageSelect = useCallback(
     (code: string) => {
-      if (!hasMultilingual && code !== "en") {
+      if (code === "en") {
+        setLanguage("en");
+        setShowLangMenu(false);
+        return;
+      }
+
+      if (!hasMultilingual) {
         setShowLangMenu(false);
         const upgradeMsg: Message = {
           id: crypto.randomUUID(),
           role: "bot",
-          content: SUBJECT_CHAT_UPGRADE_COPY,
+          content: SUBJECT_CHAT_MULTILINGUAL_UPGRADE_COPY,
           timestamp: new Date(),
         };
         setMessages((prev) => [...prev, upgradeMsg]);
         return;
       }
-      setLanguage(code);
-      setShowLangMenu(false);
+
+      if (needsRegionalLanguageSelection) {
+        if (!isRegionalSubjectChatCode(code)) return;
+        setPendingRegionalCode(code);
+        setLangConfirmOpen(true);
+        setShowLangMenu(true);
+        return;
+      }
+
+      if (regionalLanguage && code !== regionalLanguage) {
+        setShowLangMenu(false);
+        const lockedMsg: Message = {
+          id: crypto.randomUUID(),
+          role: "bot",
+          content: buildLanguageLockedCopy(getSubjectChatRegionalLabel(regionalLanguage)),
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, lockedMsg]);
+        return;
+      }
+
+      if (regionalLanguage && code === regionalLanguage) {
+        setLanguage(regionalLanguage);
+        setShowLangMenu(false);
+      }
     },
-    [hasMultilingual]
+    [hasMultilingual, needsRegionalLanguageSelection, regionalLanguage]
   );
+
+  const handleLangConfirmCancel = useCallback(() => {
+    setLangConfirmOpen(false);
+    setPendingRegionalCode(null);
+    setShowLangMenu(true);
+  }, []);
+
+  const toggleLangMenu = useCallback(() => {
+    setShowLangMenu((open) => {
+      if (open) {
+        setLangConfirmOpen(false);
+        setPendingRegionalCode(null);
+        return false;
+      }
+      return true;
+    });
+  }, []);
+
+  const handleAdminResetRegionalLanguage = useCallback(async () => {
+    if (!isAppAdmin || !session?.access_token || resettingRegionalLanguage) return;
+    setResettingRegionalLanguage(true);
+    try {
+      const result = await resetSubjectChatRegionalLanguage(session.access_token);
+      if (!result.ok) {
+        handleRegionalLanguageError(result.error);
+        return;
+      }
+      setLanguage("en");
+      setShowLangMenu(false);
+      setLangConfirmOpen(false);
+      setPendingRegionalCode(null);
+      setChatQuota((prev) =>
+        prev
+          ? {
+              ...prev,
+              regionalLanguage: result.regionalLanguage,
+              needsRegionalLanguageSelection: result.needsRegionalLanguageSelection,
+              multilingual: result.multilingual,
+            }
+          : prev
+      );
+      void refreshChatQuota();
+    } finally {
+      setResettingRegionalLanguage(false);
+    }
+  }, [
+    handleRegionalLanguageError,
+    isAppAdmin,
+    refreshChatQuota,
+    resettingRegionalLanguage,
+    session?.access_token,
+  ]);
 
   const chatHistoryKey = buildChatHistoryKey({
     subject,
@@ -550,12 +682,17 @@ export default function SubjectChatbot({
           Authorization: `Bearer ${session.access_token}`,
         };
 
+        const resolvedLanguage = resolveSubjectChatLanguage(language, {
+          multilingual: chatQuota?.multilingual ?? false,
+          regionalLanguage: chatQuota?.regionalLanguage ?? null,
+        });
+
         const body: Record<string, unknown> = {
           message: trimmed,
           subject,
           topic,
           subtopic,
-          language: hasMultilingual ? language : "en",
+          language: resolvedLanguage,
           gradeLevel: gradeLevel ?? 11,
         };
         if (board) body.board = board;
@@ -634,9 +771,9 @@ export default function SubjectChatbot({
       topic,
       subtopic,
       language,
+      chatQuota,
       gradeLevel,
       session?.access_token,
-      hasMultilingual,
       board,
       unitSlug,
       topicSlug,
@@ -681,7 +818,7 @@ export default function SubjectChatbot({
       }
       if (isDragging || startedDrag) {
         setPosition({
-          x: Math.max(0, Math.min(window.innerWidth - 80, dragRef.current.startPos.x - dx)),
+          x: Math.max(0, Math.min(window.innerWidth - 80, dragRef.current.startPos.x + dx)),
           y: Math.max(0, Math.min(window.innerHeight - 100, dragRef.current.startPos.y - dy)),
         });
       }
@@ -768,9 +905,9 @@ export default function SubjectChatbot({
       <AnimatePresence>
         {!isOpen && !hideUntil && (
           <div
-            className="fixed z-50 flex flex-col items-end gap-3 pointer-events-auto select-none cursor-grab active:cursor-grabbing"
+            className="fixed z-50 flex flex-col items-start gap-3 pointer-events-auto select-none cursor-grab active:cursor-grabbing"
             style={{
-              right: position.x,
+              left: position.x,
               bottom: position.y,
             }}
             onPointerDown={handlePointerDown}
@@ -810,32 +947,15 @@ export default function SubjectChatbot({
               )}
             </AnimatePresence>
 
-            {/* Tooltip speech bubble — desktop only; mobile shows avatar only */}
-            <motion.div
-              initial={{ opacity: 0, y: 10, scale: 0.9 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ delay: 2, type: "spring" }}
-              className="hidden items-center gap-2 rounded-2xl rounded-br-sm border border-gray-100/50 bg-white px-4 py-2.5 shadow-xl origin-bottom-right cursor-grab active:cursor-grabbing lg:flex"
-              onClick={handleTriggerClick}
-            >
-              <span className="text-sm font-semibold text-gray-700">Need help? Ask AI!</span>
-              <motion.span
-                animate={{ rotate: [0, 15, -10, 15, 0] }}
-                transition={{ repeat: Infinity, duration: 2, delay: 3 }}
-                className="inline-block origin-bottom-center"
-              >
-                👋
-              </motion.span>
-            </motion.div>
-
-            {/* Interactive Bot Avatar */}
-            <motion.button
+            <div className="group flex flex-row items-center gap-3">
+              {/* Interactive Bot Avatar */}
+              <motion.button
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={handleTriggerClick}
-              className="relative group w-[68px] h-[68px] rounded-full flex items-center justify-center outline-none pointer-events-auto"
+              className="relative w-[68px] h-[68px] rounded-full flex items-center justify-center outline-none pointer-events-auto shrink-0"
             >
               {/* Pulse glowing rings */}
               <motion.div
@@ -917,6 +1037,25 @@ export default function SubjectChatbot({
                 </motion.div>
               </div>
             </motion.button>
+
+              {/* Tooltip — desktop only, right of avatar (toward content), hover only */}
+              <div
+                className="pointer-events-none hidden max-w-[220px] origin-left scale-95 flex-row items-center gap-2 rounded-2xl rounded-l-sm border border-gray-100/50 bg-white px-4 py-2.5 opacity-0 shadow-xl transition-all duration-200 group-hover:pointer-events-auto group-hover:scale-100 group-hover:opacity-100 lg:flex"
+                onClick={handleTriggerClick}
+                onPointerDown={(e) => e.stopPropagation()}
+              >
+                <span className="text-sm font-semibold text-gray-700 whitespace-nowrap">
+                  Need help? Ask AI!
+                </span>
+                <motion.span
+                  animate={{ rotate: [0, 15, -10, 15, 0] }}
+                  transition={{ repeat: Infinity, duration: 2 }}
+                  className="inline-block origin-bottom-center"
+                >
+                  👋
+                </motion.span>
+              </div>
+            </div>
           </div>
         )}
       </AnimatePresence>
@@ -929,7 +1068,7 @@ export default function SubjectChatbot({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 60, scale: 0.9 }}
             transition={{ type: "spring", stiffness: 280, damping: 26 }}
-            className="subject-chat-panel fixed bottom-6 right-6 z-50 flex min-h-0 min-w-0 flex-col rounded-3xl overflow-hidden shadow-2xl"
+            className="subject-chat-panel fixed bottom-6 left-6 z-50 flex min-h-0 min-w-0 flex-col rounded-3xl overflow-hidden shadow-2xl"
             style={{
               width: `min(${chatSize.width}px, calc(100vw - 24px))`,
               height: `min(${chatSize.height}px, calc(100vh - 80px))`,
@@ -967,10 +1106,24 @@ export default function SubjectChatbot({
               </div>
 
               <div className="flex items-center gap-2">
-                <div className="relative">
+                <div className="relative flex items-center gap-1.5">
+                  {isAppAdmin && (
+                    <button
+                      type="button"
+                      onClick={() => void handleAdminResetRegionalLanguage()}
+                      disabled={resettingRegionalLanguage}
+                      title="Reset language lock (admin)"
+                      aria-label="Reset language lock (admin)"
+                      className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20 text-white transition-colors hover:bg-white/30 disabled:opacity-60"
+                    >
+                      <RotateCcw
+                        className={`h-3.5 w-3.5 ${resettingRegionalLanguage ? "animate-spin" : ""}`}
+                      />
+                    </button>
+                  )}
                   <button
                     type="button"
-                    onClick={() => setShowLangMenu((p) => !p)}
+                    onClick={toggleLangMenu}
                     aria-expanded={showLangMenu}
                     aria-haspopup="listbox"
                     className="flex items-center gap-1.5 pl-2.5 pr-2 py-1.5 rounded-full bg-white shadow-sm border-2 transition-all hover:shadow-md text-xs font-semibold text-slate-800"
@@ -985,28 +1138,54 @@ export default function SubjectChatbot({
                   <AnimatePresence>
                     {showLangMenu && (
                       <motion.div
-                        role="listbox"
+                        role={langConfirmOpen && pendingRegionalCode ? "dialog" : "listbox"}
                         initial={{ opacity: 0, y: -6, scale: 0.95 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: -6, scale: 0.95 }}
-                        className="absolute right-0 top-full mt-1.5 bg-white rounded-xl shadow-lg overflow-hidden z-10 min-w-[9.5rem] border-2 py-0.5"
+                        className={`absolute right-0 top-full mt-1.5 bg-white rounded-xl overflow-hidden z-20 border-2 ${
+                          langConfirmOpen && pendingRegionalCode
+                            ? "min-w-[17rem] max-w-[min(17rem,calc(100vw-2rem))] shadow-xl"
+                            : "min-w-[9.5rem] py-0.5 shadow-lg"
+                        }`}
                         style={{ borderColor: meta.accentColor }}
+                        onClick={(e) => e.stopPropagation()}
                       >
-                        {LANGUAGES.map((lang) => {
+                        {langConfirmOpen && pendingRegionalCode ? (
+                          <SubjectChatRegionalLanguageDropdownConfirm
+                            pendingCode={pendingRegionalCode}
+                            accentColor={meta.accentColor}
+                            lightBg={meta.lightBg}
+                            accessToken={session?.access_token}
+                            onCancel={handleLangConfirmCancel}
+                            onSaved={handleRegionalLanguageSaved}
+                            onError={handleRegionalLanguageError}
+                          />
+                        ) : (
+                          LANGUAGES.map((lang) => {
                           const isActive = language === lang.code;
-                          const locked = !hasMultilingual && lang.code !== "en";
+                          const isEnglish = lang.code === "en";
+                          const isLockedNonPro = !isEnglish && !hasMultilingual;
+                          const isLockedOtherRegional =
+                            hasMultilingual &&
+                            regionalLanguage != null &&
+                            !isEnglish &&
+                            lang.code !== regionalLanguage;
+                          const isLocked = isLockedNonPro || isLockedOtherRegional;
                           return (
                             <button
                               key={lang.code}
                               type="button"
                               role="option"
                               aria-selected={isActive}
+                              aria-disabled={isLocked}
                               onClick={() => handleLanguageSelect(lang.code)}
                               className={`w-full flex items-center justify-between gap-2 px-3 py-2 text-[13px] text-left transition-colors border-l-[3px] ${
                                 isActive
                                   ? "font-semibold border-l-current"
-                                  : "font-medium text-slate-600 border-l-transparent hover:bg-slate-50"
-                              } ${locked ? "opacity-90" : ""}`}
+                                  : isLocked
+                                    ? "font-medium text-slate-400 border-l-transparent hover:bg-slate-50"
+                                    : "font-medium text-slate-600 border-l-transparent hover:bg-slate-50"
+                              }`}
                               style={
                                 isActive
                                   ? {
@@ -1018,14 +1197,15 @@ export default function SubjectChatbot({
                               }
                             >
                               <span>{lang.label}</span>
-                              {locked ? (
-                                <Lock className="w-3 h-3 shrink-0 text-slate-400" aria-hidden />
-                              ) : isActive ? (
+                              {isActive ? (
                                 <Check className="w-3.5 h-3.5 shrink-0" style={{ color: meta.accentColor }} />
+                              ) : isLocked ? (
+                                <Lock className="w-3.5 h-3.5 shrink-0 text-slate-400" />
                               ) : null}
                             </button>
                           );
-                        })}
+                        })
+                        )}
                       </motion.div>
                     )}
                   </AnimatePresence>
@@ -1082,7 +1262,6 @@ export default function SubjectChatbot({
                           <BotBubble
                             content={msg.content}
                             accentColor={meta.accentColor}
-                            gradient={meta.gradient}
                           />
                         )}
                         <span className="text-[10px] text-gray-400 px-1 opacity-0 group-hover/msg:opacity-100 transition-opacity">

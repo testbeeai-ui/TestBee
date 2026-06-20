@@ -3,6 +3,7 @@ export const PREVIEW_AUTH_PATH = "/preview-raknas-amu";
 
 /** Older obfuscated paths — redirect in middleware only. */
 export const PREVIEW_AUTH_LEGACY_PATHS = [
+  "/preview",
   "/preview-1006",
   "/preview-1006-raknas-amu-tsalbude",
 ] as const;

@@ -7,6 +7,8 @@
  * provider `usage` (prompt_tokens / completion_tokens / total_tokens) when the API returns them.
  */
 
+import { sanitizeProfPiMultilingualOutput } from "@/lib/gyan/sanitizeProfPiMultilingualOutput";
+
 const SARVAM_CHAT_URL = "https://api.sarvam.ai/v1/chat/completions";
 
 const SARVAM_OUTPUT_TOKENS_MIN = 64;
@@ -221,7 +223,7 @@ export function formatSarvamAssistantReply(raw: string): string {
   }
   t = normalizeLatexForGyan(t);
   t = normalizeTextWrappedFormulaTokensForGyan(t);
-  return t.trim();
+  return sanitizeProfPiMultilingualOutput(t.trim());
 }
 
 /** OpenAI-compatible usage block from Sarvam `v1/chat/completions` (field names may vary by version). */

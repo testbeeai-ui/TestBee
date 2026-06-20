@@ -17,7 +17,8 @@ export default function robots(): MetadataRoute.Robots {
         "/news-blog",
         "/pricing",
         "/contact",
-        "/terms-conditions"
+        "/terms-conditions",
+        "/waitlist"
       ],
       disallow: [
         "/admin",

@@ -139,7 +139,11 @@ async function checkCap(
   const cap =
     itemType === "saved_revision_card"
       ? planLimits.instacueCardLimit
-      : getSaveCap(tier as PlanTier, itemType);
+      : itemType === "saved_bit"
+        ? planLimits.savedBitLimit
+        : itemType === "saved_formula"
+          ? planLimits.savedFormulaLimit
+          : getSaveCap(tier as PlanTier, itemType);
 
   if (cap === Infinity || isUnlimited(cap)) return { error: null }; // unlimited
 
@@ -156,7 +160,11 @@ async function checkCap(
     const label =
       itemType === "saved_revision_card"
         ? `InstaCue revision save limit reached (${cap} card${cap === 1 ? "" : "s"} on your ${tier} plan).`
-        : `Save limit reached: ${cap} items allowed for your ${tier} plan.`;
+        : itemType === "saved_bit"
+          ? `Quiz save limit reached (${cap} question${cap === 1 ? "" : "s"} on your ${tier} plan).`
+          : itemType === "saved_formula"
+            ? `Numerals save limit reached (${cap} formula set${cap === 1 ? "" : "s"} on your ${tier} plan).`
+            : `Save limit reached: ${cap} items allowed for your ${tier} plan.`;
     return {
       error: `${label} You have ${currentCount} saved. Upgrade to save more.`,
     };

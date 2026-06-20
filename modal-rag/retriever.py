@@ -1,15 +1,16 @@
 """
-retriever.py - Multi-pass Supabase chunk retrieval + passage formatting.
+retriever.py - Always-on 3-pass Supabase chunk retrieval + passage formatting.
 
 Ported from generate.py's build_prompt() and relevance filtering logic.
 
-Multi-pass strategy:
+3-pass strategy (all three runs every query, no early short-circuit):
   Pass 1: Strict grade + subject
   Pass 2: Same grade, ALL subjects   (cross-subject fallback)
   Pass 3: ALL grades, ALL subjects   (full DB fallback)
 
-Fallback is triggered by the BEST chunk's similarity score (< MIN_SIMILARITY),
-NOT by an empty array — vector DBs always return nearest neighbours.
+The 3 results are merged, deduped, threshold-filtered, then capped at
+MAX_CHUNKS_TO_SEND (10) to give the LLM broader grounding context and
+reduce hallucination on edge queries.
 """
 
 import asyncio
@@ -25,7 +26,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
-MAX_CHUNKS_TO_SEND = 4
+MAX_CHUNKS_TO_SEND = 10
 
 # Per-subject similarity thresholds.
 # Math has dense symbolic content → require higher confidence.
@@ -115,65 +116,70 @@ async def retrieve_chunks(
     match_count: int = 8,
 ) -> list[dict]:
     """
-    Retrieve the most relevant textbook chunks using multi-pass fallback.
+    Retrieve the most relevant textbook chunks using always-on 3-pass strategy.
 
-    Returns a filtered, capped list of chunk dicts sorted by descending similarity.
+    Runs all 3 filter passes for every query (never short-circuits on pass 1):
+      Pass 1: Strict grade + subject
+      Pass 2: Same grade, ALL subjects   (cross-subject fallback)
+      Pass 3: ALL grades, ALL subjects   (full DB fallback)
+
+    Results are merged, threshold-filtered, deduped by section/chapter, and
+    capped at MAX_CHUNKS_TO_SEND (10). The extra passes give broader grounding
+    context for the LLM and reduce hallucination on edge queries.
     """
     mapped_subject = SUBJECT_MAP.get(subject.lower(), subject)
     min_sim = _get_min_similarity(mapped_subject)
 
     # Pass 1: Strict grade + subject
-    chunks = await _call_match_chunks(
+    pass1 = await _call_match_chunks(
         embedding, grade_level, mapped_subject, match_count
     )
-    best_pass1 = chunks[0]["distance"] if chunks else 0.0
     logger.info(
         "Pass 1 (grade=%s, subject=%s): %d chunks, best=%.3f",
-        grade_level, mapped_subject, len(chunks), best_pass1,
+        grade_level, mapped_subject, len(pass1),
+        pass1[0]["distance"] if pass1 else 0.0,
     )
 
-    # Pass 1 is good enough when we already have on-syllabus chunks above threshold —
-    # skip cross-subject / all-grade fallbacks (saves 1–2 vector RPCs per retrieve).
-    pass1_usable = [c for c in chunks if c.get("distance", 0) >= min_sim]
-    if pass1_usable or best_pass1 >= min_sim:
-        chunks = pass1_usable if pass1_usable else chunks
-    # Only fall through to Pass 2 if Pass 1 is truly hopeless (below the subject floor).
-    # A score in [PASS1_SUBJECT_FLOOR, min_sim) still stays in the right subject, which
-    # is better than fetching a cross-subject result with a marginally higher score.
-    elif best_pass1 < PASS1_SUBJECT_FLOOR:
-        # Pass 2: Same grade, ALL subjects (cross-subject fallback)
-        chunks = await _call_match_chunks(embedding, grade_level, None, match_count)
-        logger.info(
-            "Pass 2 (grade=%s, all subjects): %d chunks, best=%.3f",
-            grade_level,
-            len(chunks),
-            chunks[0]["distance"] if chunks else 0.0,
-        )
+    # Pass 2: Same grade, ALL subjects (cross-subject fallback) — always run.
+    pass2 = await _call_match_chunks(embedding, grade_level, None, match_count)
+    logger.info(
+        "Pass 2 (grade=%s, all subjects): %d chunks, best=%.3f",
+        grade_level, len(pass2),
+        pass2[0]["distance"] if pass2 else 0.0,
+    )
 
-        # Pass 3: ALL grades, ALL subjects (full DB fallback)
-        if not chunks or chunks[0]["distance"] < PASS1_SUBJECT_FLOOR:
-            chunks = await _call_match_chunks(embedding, None, None, match_count)
-            logger.info(
-                "Pass 3 (all grades, all subjects): %d chunks, best=%.3f",
-                len(chunks),
-                chunks[0]["distance"] if chunks else 0.0,
-            )
+    # Pass 3: ALL grades, ALL subjects (full DB fallback) — always run.
+    pass3 = await _call_match_chunks(embedding, None, None, match_count)
+    logger.info(
+        "Pass 3 (all grades, all subjects): %d chunks, best=%.3f",
+        len(pass3),
+        pass3[0]["distance"] if pass3 else 0.0,
+    )
 
-    # Filter by threshold — return empty list if nothing meets it.
-    # route.ts already handles null RAG gracefully (LLM-only fallback),
-    # which is strictly better than sending low-quality chunks as grounding.
-    min_sim = _get_min_similarity(mapped_subject)
-    filtered = [c for c in chunks if c["distance"] >= min_sim]
+    # Merge all three passes, preserving best distance per chunk id.
+    # Later passes only contribute chunks not already present from earlier passes.
+    by_id: dict[str, dict] = {}
+    for src in (pass1, pass2, pass3):
+        for c in src:
+            cid = c.get("id")
+            if cid is None:
+                continue
+            if cid not in by_id or c.get("distance", 0.0) > by_id[cid].get("distance", 0.0):
+                by_id[cid] = c
+    merged = list(by_id.values())
+
+    # Filter by similarity threshold.
+    filtered = [c for c in merged if c.get("distance", 0.0) >= min_sim]
     if not filtered:
         logger.warning(
-            "No chunks met min_similarity=%.2f for subject=%s after all passes. Returning empty.",
+            "No chunks met min_similarity=%.2f for subject=%s after all 3 passes. Returning empty.",
             min_sim, mapped_subject,
         )
 
-    # Deduplicate by section_heading+chapter — keep only best chunk per section
+    # Deduplicate by section_heading+chapter — keep only best chunk per section.
     seen: set[str] = set()
     deduped: list[dict] = []
-    for c in filtered:
+    for c in sorted(filtered, key=lambda x: x.get("distance", 0.0), reverse=True):
         section = c.get("section_heading", "").strip()
         chapter = c.get("chapter", "").strip()
         key = section if section else chapter  # fall back to chapter when no section
@@ -184,7 +190,7 @@ async def retrieve_chunks(
         deduped.append(c)
     filtered = deduped
 
-    # Cap at MAX_CHUNKS_TO_SEND for Sarvam token budget
+    # Cap at MAX_CHUNKS_TO_SEND (10) for Sarvam token budget.
     filtered = filtered[:MAX_CHUNKS_TO_SEND]
 
     return filtered

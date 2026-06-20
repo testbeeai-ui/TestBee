@@ -9,6 +9,9 @@ export type SubscriptionPlanLimits = {
   subjectChatMessagesPerDay: number;
   lessonsChapterLimit: number;
   instacueCardLimit: number;
+  savedBitLimit: number;
+  savedFormulaLimit: number;
+  savedQuestionLimit: number;
   mocksPerMonth: number;
   dailyDoseQuestionsPerDay: number;
   buddiesLimit: number;
@@ -42,8 +45,8 @@ export const SUBSCRIPTION_CONFIG_DEFAULTS: SubscriptionConfig = {
   starter_subject_chat_multilingual: 0,
   pro_subject_chat_multilingual: 1,
 
-  free_lessons_chapter_limit: 2,
-  free_trial_lessons_chapter_limit: 2,
+  free_lessons_chapter_limit: -1,
+  free_trial_lessons_chapter_limit: -1,
   starter_lessons_chapter_limit: -1,
   pro_lessons_chapter_limit: -1,
 
@@ -51,6 +54,21 @@ export const SUBSCRIPTION_CONFIG_DEFAULTS: SubscriptionConfig = {
   free_trial_instacue_card_limit: 20,
   starter_instacue_card_limit: 200,
   pro_instacue_card_limit: -1,
+
+  free_saved_bit_limit: 20,
+  free_trial_saved_bit_limit: 20,
+  starter_saved_bit_limit: 200,
+  pro_saved_bit_limit: -1,
+
+  free_saved_formula_limit: 20,
+  free_trial_saved_formula_limit: 20,
+  starter_saved_formula_limit: 200,
+  pro_saved_formula_limit: -1,
+
+  free_saved_question_limit: 20,
+  free_trial_saved_question_limit: 20,
+  starter_saved_question_limit: 200,
+  pro_saved_question_limit: -1,
 
   free_mocks_per_month: 3,
   free_trial_mocks_per_month: 3,
@@ -232,8 +250,11 @@ export function getPlanLimits(
     magicWallMonthlyAttempts: read("magic_wall_monthly_attempts", 3),
     gyanDoubtsPerDay: read("gyan_doubts_per_day", 1),
     subjectChatMessagesPerDay: read("subject_chat_messages_per_day", 3),
-    lessonsChapterLimit: read("lessons_chapter_limit", 2),
+    lessonsChapterLimit: read("lessons_chapter_limit", -1),
     instacueCardLimit: read("instacue_card_limit", 20),
+    savedBitLimit: read("saved_bit_limit", 20),
+    savedFormulaLimit: read("saved_formula_limit", 20),
+    savedQuestionLimit: read("saved_question_limit", 20),
     mocksPerMonth: read("mocks_per_month", 3),
     dailyDoseQuestionsPerDay: read("daily_dose_questions_per_day", 5),
     buddiesLimit: read("buddies_limit", 0),
@@ -247,7 +268,7 @@ export function isUnlimited(limit: number): boolean {
 
 /** Admin + UI copy: Lessons (/explore-1) chapter picker — not a monthly quota. */
 export const LESSONS_CHAPTER_LIMIT_RDM_DESCRIPTION =
-  "Max chapters unlockable per PCM subject on Lessons (/explore-1). Separate cap for Physics, Chemistry, and Math. Not monthly. One class (11 or 12) per subject. -1 = unlimited (disables chapter lock).";
+  "Legacy chapter picker cap on Lessons (/explore-1). Investor default: -1 (all chapters open for every plan). Premium is inside lessons (quiz Question bank, numerals, saves). Separate cap per PCM subject. Not monthly.";
 
 export function resolveLessonsChapterCap(limit: number, fallback = 2): number {
   if (isUnlimited(limit)) return Infinity;
@@ -264,7 +285,7 @@ export function lessonsChapterLockEnabled(
 export function formatLessonsChapterLimitLabel(limit: number): string {
   if (isUnlimited(limit)) return "Unlimited chapters (all subjects)";
   const n = limit > 0 ? limit : 2;
-  return `${n} chapter${n === 1 ? "" : "s"} per subject (Phy, Chem, Math)`;
+  return `${n} chapter${n === 1 ? "" : "s"} per subject`;
 }
 
 export async function fetchSubscriptionConfig(

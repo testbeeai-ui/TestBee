@@ -1,22 +1,35 @@
--- Student achievement marksheets (private storage) + verification + new fields.
--- Existing rows default to verified; new rows default to pending (see column default change below).
+-- Repair: achievement marksheets columns + trigger + bucket if missing (idempotent).
+-- Safe to run multiple times.
 
--- 1) Table columns
 ALTER TABLE public.profile_achievements
   ADD COLUMN IF NOT EXISTS percentage text NOT NULL DEFAULT '';
 
 ALTER TABLE public.profile_achievements
   ADD COLUMN IF NOT EXISTS marksheet_path text;
 
--- Default 'verified' applies to existing rows at add time; then future inserts use 'pending'
-ALTER TABLE public.profile_achievements
-  ADD COLUMN IF NOT EXISTS verified text NOT NULL DEFAULT 'verified'
-  CHECK (verified IN ('verified', 'pending', 'unverified'));
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'profile_achievements'
+      AND column_name = 'verified'
+  ) THEN
+    ALTER TABLE public.profile_achievements
+      ADD COLUMN verified text NOT NULL DEFAULT 'verified';
 
-ALTER TABLE public.profile_achievements
-  ALTER COLUMN verified SET DEFAULT 'pending';
+    ALTER TABLE public.profile_achievements
+      ADD CONSTRAINT profile_achievements_verified_check
+      CHECK (verified IN ('verified', 'pending', 'unverified'));
 
--- 2) Enforce: only service_role (or keeping an already-verified row) can set verified = 'verified' for end users
+    ALTER TABLE public.profile_achievements
+      ALTER COLUMN verified SET DEFAULT 'pending';
+
+    UPDATE public.profile_achievements SET verified = 'verified';
+  END IF;
+END $$;
+
 CREATE OR REPLACE FUNCTION public.profile_achievements_enforce_verified()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -58,7 +71,6 @@ COMMENT ON COLUMN public.profile_achievements.percentage IS 'Score or percentage
 COMMENT ON COLUMN public.profile_achievements.marksheet_path IS 'Private storage object path in achievement-marksheets bucket.';
 COMMENT ON COLUMN public.profile_achievements.verified IS 'verified | pending | unverified; only admins set verified.';
 
--- 3) Storage bucket (private)
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('achievement-marksheets', 'achievement-marksheets', false)
 ON CONFLICT (id) DO UPDATE

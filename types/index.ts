@@ -1,4 +1,4 @@
-/** Core CBSE/JEE subjects supported in product flows (no Biology track). */
+/** Core subjects in product flows (PCM only — biology removed 2026-06-13). */
 export const CORE_SUBJECTS = ["physics", "chemistry", "math"] as const;
 export type Subject = (typeof CORE_SUBJECTS)[number];
 
@@ -18,6 +18,8 @@ export interface MockPaper {
   subject: Subject;
   /** JEE-style shifts: filter matches if user picked any of these subjects. */
   subjectsCovered?: Subject[];
+  /** Exam this paper belongs to (e.g. "JEE Main", "BITSAT", "KCET", "CBSE XI"). Sourced from Supabase `exam_name`. */
+  exam: string;
   durationMinutes: number;
   questionsCount: number;
   totalMarks: number;
@@ -39,6 +41,8 @@ export interface PastPaper {
   subject: Subject;
   /** JEE-style shifts: filter matches if user picked any of these subjects. */
   subjectsCovered?: Subject[];
+  /** Exam this paper belongs to (e.g. "JEE Main", "BITSAT", "KCET", "CBSE XI"). Sourced from Supabase `exam_name`. */
+  exam: string;
   durationMinutes: number;
   questionsCount: number;
   totalMarks: number;

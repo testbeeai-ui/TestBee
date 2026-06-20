@@ -26,3 +26,7 @@ Merge with existing `.cursorrules` — do not duplicate conflicting instructions
 ## For contributors
 
 When editing the four Karpathy principles, update **only** [`.cursor/rules/karpathy-guidelines.mdc`](../../.cursor/rules/karpathy-guidelines.mdc). Do not recreate `.cursor/.cursor/rules/` (wrong nested path).
+
+## Hivemind (optional)
+
+Shared agent memory via Deeplake: [hivemind-setup.md](./hivemind-setup.md).

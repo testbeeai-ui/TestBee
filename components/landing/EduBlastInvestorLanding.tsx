@@ -1378,6 +1378,135 @@ export default function EduBlastInvestorLanding({ onOpenWaitlist }: { onOpenWait
             </div>
           </section>
 
+          {/* —— Pricing Plans (approved by investor) —— */}
+          <section
+            id="investor-pricing"
+            className={`scroll-mt-20 border-b border-white/10 bg-[#050505] ${SEC_PAD}`}
+          >
+            <div className="mx-auto max-w-6xl">
+              <p className="text-center text-[10px] font-bold uppercase tracking-[0.35em] text-[#34f5a4]">
+                Pricing Plans
+              </p>
+              <h2
+                className="mx-auto mt-3 max-w-3xl text-center text-[1.6rem] font-bold text-white sm:text-[1.75rem] lg:text-2xl xl:text-3xl 2xl:text-4xl"
+                style={{ fontFamily: "var(--font-landing-serif), ui-serif, Georgia, serif" }}
+              >
+                Choose your learning tier. <span className="text-[#34f5a4]">Upgrade when you want more.</span>
+              </h2>
+              <p className="mx-auto mt-4 max-w-2xl text-center text-sm text-zinc-400">
+                Unlock Gyan++ doubts, Testbee adaptive mock tests, spaced-repetition InstaCues, and earn real RDM toward your EduFund grants.
+              </p>
+
+              <div className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                {[
+                  {
+                    name: "Free",
+                    price: "Rs 0",
+                    desc: "Always-available free tier. Note: mock test access is limited to a total of 6 tests (2 months cap).",
+                    badge: "Free",
+                    features: [
+                      "Magic Wall: up to 2 active",
+                      "Gyan++ doubts: 1 per day",
+                      "Testbee mocks: 3 per month (6 max)",
+                      "DailyDose: 5 per day",
+                      "InstaCue cards: 20 cards",
+                      "RDM: 0.25x accumulation rate",
+                    ],
+                    cta: "Activate Free",
+                    highlight: false,
+                    accentClass: "border-cyan-500/20 bg-gradient-to-b from-[#0d1424] via-[#090f1c] to-[#070a13] shadow-[0_0_25px_rgba(6,182,212,0.08)]",
+                    btnClass: "bg-gradient-to-r from-cyan-500 to-blue-500 text-slate-950 font-bold hover:brightness-110",
+                  },
+                  {
+                    name: "Starter",
+                    price: "Rs 499",
+                    period: "/month",
+                    desc: "Expanded practice limits for consistent aspirants.",
+                    badge: "Most popular",
+                    features: [
+                      "Magic Wall: up to 5 active",
+                      "Gyan++ doubts: 30 per day",
+                      "Testbee mocks: 8 per month",
+                      "DailyDose: 10 per day",
+                      "InstaCue cards: 200 cards",
+                      "RDM: 0.50x → 1.00x loyalty rate",
+                    ],
+                    cta: "Activate Starter",
+                    highlight: false,
+                    accentClass: "border-blue-500/30 bg-gradient-to-b from-[#0d172e] via-[#091022] to-[#070a14] shadow-[0_0_30px_rgba(59,130,246,0.12)]",
+                    btnClass: "bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold hover:brightness-110",
+                  },
+                  {
+                    name: "Pro",
+                    price: "Rs 899",
+                    period: "/month",
+                    desc: "Unlimited daily practice and full analytics tier.",
+                    badge: "Most powerful",
+                    features: [
+                      "Magic Wall: up to 5 active (unlimited picks)",
+                      "Gyan++ doubts: Unlimited",
+                      "Testbee mocks: Unlimited",
+                      "DailyDose: 10 per day",
+                      "InstaCue cards: Unlimited",
+                      "RDM: 1.00x → 2.00x loyalty rate",
+                    ],
+                    cta: "Activate Pro",
+                    highlight: true,
+                    accentClass: "border-purple-500/35 bg-gradient-to-b from-[#140e34] via-[#0a0b1b] to-[#050610] shadow-[0_0_35px_rgba(139,92,246,0.22)] ring-1 ring-purple-500/20",
+                    btnClass: "bg-gradient-to-r from-purple-600 via-violet-600 to-indigo-600 text-white font-bold hover:brightness-110",
+                  },
+                ].map((plan) => (
+                  <div
+                    key={plan.name}
+                    className={`flex flex-col justify-between rounded-2xl border p-5 shadow-[0_0_32px_rgba(0,0,0,0.45)] transition duration-200 xl:p-6 ${plan.accentClass}`}
+                  >
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-serif text-lg font-bold text-white">
+                          {plan.name}
+                        </h3>
+                        {plan.badge && (
+                          <span className="rounded-full bg-white/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-zinc-300 ring-1 ring-white/20">
+                            {plan.badge}
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-1 text-[11px] text-zinc-500 leading-normal min-h-[36px]">{plan.desc}</p>
+                      
+                      <div className="mt-4 flex items-baseline gap-1">
+                        <span className="text-3xl font-extrabold text-white">{plan.price}</span>
+                        {plan.period && (
+                          <span className="text-xs text-zinc-500 font-medium">{plan.period}</span>
+                        )}
+                      </div>
+
+                      <div className="mt-6 border-t border-zinc-800/60 pt-4">
+                        <ul className="space-y-2.5">
+                          {plan.features.map((feature) => (
+                            <li key={feature} className="flex items-start gap-2 text-xs text-zinc-400">
+                              <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#34f5a4]" />
+                              <span>{feature}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => handleWaitlist("student")}
+                      className={`mt-8 w-full rounded-xl py-2.5 text-center text-xs font-bold transition duration-200 cursor-pointer ${plan.btnClass}`}
+                    >
+                      {plan.cta}
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-8 text-center text-[10px] text-zinc-500">
+                All plans contribute RDM toward your EduFund grant ceiling. Academic performance can offset costs.
+              </p>
+            </div>
+          </section>
+
           {/* —— Recruiting (ref. screen 9) —— */}
           <section
             id="investor-teachers"

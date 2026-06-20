@@ -16,6 +16,7 @@ export const INVESTOR_NAV_LINKS = [
   { label: "News & Blogs", href: "/news-blog" },
   { label: "Ts & Cs", href: "/terms-conditions" },
   { label: "EduFund", href: "#investor-edufund" },
+  { label: "Pricing", href: "/pricing" },
   { label: "Contact Us", href: "/contact" },
 ];
 
@@ -25,8 +26,8 @@ export const FOOTER_LINKS = [
   { label: "EduFund", href: "#" },
   { label: "For schools", href: "#" },
   { label: "For teachers", href: "#personas" },
-  { label: "Privacy", href: "#" },
-  { label: "Terms", href: "#" },
+  { label: "Privacy Policy", href: "/terms-conditions/privacy-policy" },
+  { label: "Terms", href: "/terms-conditions/terms-and-conditions" },
 ];
 
 export const HERO_STATS = [

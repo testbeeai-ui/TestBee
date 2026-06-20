@@ -12,6 +12,12 @@ export type TabFilter = "all" | "student" | "ai" | "teacher" | "revision";
 
 export const DOUBT_FLAIRS = ["Physics", "Chemistry", "Math", "General Question", "Other"] as const;
 
+/** Subjects students can pick when posting a new doubt (PCM only). */
+export const DOUBT_POST_FLAIRS = ["Physics", "Chemistry", "Math"] as const;
+
+/** Min title similarity (0–1) before showing "similar questions" when posting. */
+export const DOUBT_DUPLICATE_MIN_SIMILARITY = 0.6;
+
 export type ProfileRow = {
   id: string;
   name: string;
