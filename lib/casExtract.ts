@@ -271,7 +271,116 @@ function detectOperation(text: string): CalcOperation | null {
   for (const { pattern, op } of OPERATION_PATTERNS) {
     if (pattern.test(lower)) return op;
   }
+
+  // Language-independent fallback: English keywords didn't match (e.g. the
+  // doubt is written in a regional Indian language). Scan for universal math
+  // symbols so verification still fires on valid calculations.
+  if (/\\int|∫/.test(text)) return "integrate";
+  if (/\\lim|\blim\b/i.test(text)) return "limit";
+  if (/\\frac\s*\{\s*d\s*\}\s*\{\s*d|d\s*\/\s*dx|dy\s*\/\s*dx/i.test(text)) return "differentiate";
+  if (/=|\\le\b|\\ge\b|≤|≥/.test(text)) return "solve";
+  // Any other LaTeX present → a concrete expression to evaluate.
+  if (/\$[^$]+\$|\$\$[^$]+\$\$/.test(text)) return "evaluate";
+
   return null;
+}
+
+// ---------------------------------------------------------------------------
+// Regional header translation (Way B — instant local post-processing)
+// ---------------------------------------------------------------------------
+
+type RegionalLang = "kn" | "hi" | "te" | "ta";
+
+/** Unicode script ranges used to detect the regional language of an answer. */
+const SCRIPT_RANGES: Array<{ lang: RegionalLang; re: RegExp }> = [
+  { lang: "kn", re: /[\u0C80-\u0CFF]/ }, // Kannada
+  { lang: "hi", re: /[\u0900-\u097F]/ }, // Devanagari (Hindi)
+  { lang: "te", re: /[\u0C00-\u0C7F]/ }, // Telugu
+  { lang: "ta", re: /[\u0B80-\u0BFF]/ }, // Tamil
+];
+
+/**
+ * Localized section-header words per language. Order is most-specific first so
+ * compound headers ("Key intuition / Explanation") are replaced before the
+ * standalone "Explanation" rule can touch them.
+ */
+const HEADER_TRANSLATIONS: Record<
+  RegionalLang,
+  Array<{ keyword: string; localized: string }>
+> = {
+  kn: [
+    { keyword: "Key\\s*intuition(?:\\s*\\/\\s*Explanation)?", localized: "ಮುಖ್ಯ ಒಳನೋಟ" },
+    { keyword: "Exam\\s*trap", localized: "ಪರೀಕ್ಷಾ ಎಚ್ಚರಿಕೆ" },
+    { keyword: "Explanation", localized: "ವಿವರಣೆ" },
+    { keyword: "Given", localized: "ನೀಡಿರುವುದು" },
+    { keyword: "Formula", localized: "ಸೂತ್ರ" },
+    { keyword: "Steps", localized: "ಹಂತಗಳು" },
+    { keyword: "Answer", localized: "ಉತ್ತರ" },
+    { keyword: "Solution", localized: "ಪರಿಹಾರ" },
+    { keyword: "Proof", localized: "ಸಾಧನೆ" },
+  ],
+  hi: [
+    { keyword: "Key\\s*intuition(?:\\s*\\/\\s*Explanation)?", localized: "मुख्य अंतर्ज्ञान" },
+    { keyword: "Exam\\s*trap", localized: "परीक्षा चेतावनी" },
+    { keyword: "Explanation", localized: "व्याख्या" },
+    { keyword: "Given", localized: "दिया गया" },
+    { keyword: "Formula", localized: "सूत्र" },
+    { keyword: "Steps", localized: "चरण" },
+    { keyword: "Answer", localized: "उत्तर" },
+    { keyword: "Solution", localized: "हल" },
+    { keyword: "Proof", localized: "उपपत्ति" },
+  ],
+  te: [
+    { keyword: "Key\\s*intuition(?:\\s*\\/\\s*Explanation)?", localized: "ముఖ్య అవగాహన" },
+    { keyword: "Exam\\s*trap", localized: "పరీక్ష హెచ్చరిక" },
+    { keyword: "Explanation", localized: "వివరణ" },
+    { keyword: "Given", localized: "ఇవ్వబడింది" },
+    { keyword: "Formula", localized: "సూత్రం" },
+    { keyword: "Steps", localized: "దశలు" },
+    { keyword: "Answer", localized: "సమాధానం" },
+    { keyword: "Solution", localized: "పరిష్కారం" },
+    { keyword: "Proof", localized: "నిరూపణ" },
+  ],
+  ta: [
+    { keyword: "Key\\s*intuition(?:\\s*\\/\\s*Explanation)?", localized: "முக்கிய உள்ளுணர்வு" },
+    { keyword: "Exam\\s*trap", localized: "தேர்வு எச்சரிக்கை" },
+    { keyword: "Explanation", localized: "விளக்கம்" },
+    { keyword: "Given", localized: "கொடுக்கப்பட்டது" },
+    { keyword: "Formula", localized: "சூத்திரம்" },
+    { keyword: "Steps", localized: "படிகள்" },
+    { keyword: "Answer", localized: "விடை" },
+    { keyword: "Solution", localized: "தீர்வு" },
+    { keyword: "Proof", localized: "நிரூபணம்" },
+  ],
+};
+
+function detectRegionalLang(text: string): RegionalLang | null {
+  for (const { lang, re } of SCRIPT_RANGES) {
+    if (re.test(text)) return lang;
+  }
+  return null;
+}
+
+/**
+ * Translate Prof-Pi's English bold section headers (e.g. `**Answer:**`,
+ * `**📐 Formula:**`) into the regional language the answer body is written in.
+ *
+ * Way B: runs as a fast local post-processing step right before the answer is
+ * saved/displayed — 0ms extra latency, $0 extra cost. Any emoji/space prefix
+ * and the trailing colon are preserved; only the English keyword is swapped.
+ * Returns the text unchanged if no supported regional script is detected.
+ */
+export function translateEnglishHeadersToRegional(text: string): string {
+  if (!text) return text;
+  const lang = detectRegionalLang(text);
+  if (!lang) return text;
+
+  let out = text;
+  for (const { keyword, localized } of HEADER_TRANSLATIONS[lang]) {
+    const re = new RegExp(`(\\*\\*[^A-Za-z*]*)(?:${keyword})(\\s*:?\\s*\\*\\*)`, "gi");
+    out = out.replace(re, `$1${localized}$2`);
+  }
+  return out;
 }
 
 // ---------------------------------------------------------------------------
@@ -369,7 +478,7 @@ export function extractCalculations(params: {
   if (multiSteps && multiSteps.length > 1) {
     const answerContent = findSectionContent(
       answerMarkdown,
-      /\*\*(?:Answer|Solution|Result)\s*:?\*\*/i
+      /\*\*[^A-Za-z*]*(?:Answer|Solution|Result)\s*:?\*\*/i
     );
     const answerLatex = answerContent ? extractLatexBlocks(answerContent) : [];
     const claimedResult =
@@ -401,13 +510,13 @@ export function extractCalculations(params: {
   // Find answer section
   const answerContent = findSectionContent(
     answerMarkdown,
-    /\*\*(?:Answer|Solution|Result)\s*:?\*\*/i
+    /\*\*[^A-Za-z*]*(?:Answer|Solution|Result)\s*:?\*\*/i
   );
 
   // Find formula section
   const formulaContent = findSectionContent(
     answerMarkdown,
-    /\*\*(?:Formula|Expression|Integrand|Derivative)\s*:?\*\*/i
+    /\*\*[^A-Za-z*]*(?:Formula|Expression|Integrand|Derivative)\s*:?\*\*/i
   );
 
   // Extract LaTeX from answer section
@@ -481,18 +590,10 @@ export function shouldRunCasVerification(params: {
   // Only math and physics
   if (subject !== "math" && subject !== "physics") return false;
 
-  const text = `${doubtTitle}\n${doubtBody}`.toLowerCase();
-
-  // Must have some math operation keywords
-  const hasMathOp = OPERATION_PATTERNS.some(({ pattern }) => pattern.test(text));
-
-  // Or have LaTeX in the question (suggests a concrete calculation)
-  const hasLatex = /\$[^$]+\$|\$\$[^$]+\$\$/.test(`${doubtTitle}\n${doubtBody}`);
-
-  // Or have numbers (numerical problem)
-  const hasNumbers = /\d+/.test(doubtBody || doubtTitle);
-
-  return hasMathOp || (hasLatex && hasNumbers);
+  // Unified detection: verification runs whenever detectOperation resolves an
+  // operation — via English keywords OR the language-independent symbol
+  // fallback — so regional-language doubts are covered too.
+  return detectOperation(`${doubtTitle}\n${doubtBody}`) !== null;
 }
 
 // ---------------------------------------------------------------------------

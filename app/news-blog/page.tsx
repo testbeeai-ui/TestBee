@@ -13,14 +13,34 @@ export const dynamic = "force-dynamic";
 export const revalidate = 60;
 
 export const metadata: Metadata = {
-  title: "News & Blogs · EduBlast",
+  title: "News & Blogs",
   description:
     "Exam buzz, key dates, results, topper stories, study tips, and revision playbooks for JEE, board exams, and state CET — free to read on EduBlast.",
+  alternates: {
+    canonical: "https://edublast.in/news-blog",
+  },
   openGraph: {
-    title: "News & Blogs · EduBlast",
+    title: "News & Blogs | EduBlast",
     description:
-      "Latest exam news and preparation blogs for Indian students — JEE, boards, and competitive exams.",
+      "Exam buzz, key dates, results, topper stories, study tips, and revision playbooks for JEE, board exams, and state CET — free to read on EduBlast.",
+    url: "https://edublast.in/news-blog",
+    siteName: "EduBlast",
     type: "website",
+    images: [
+      {
+        url: "https://edublast.in/images/logo-2.png",
+        width: 1200,
+        height: 630,
+        alt: "News & Blogs | EduBlast",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "News & Blogs | EduBlast",
+    description:
+      "Exam buzz, key dates, results, topper stories, study tips, and revision playbooks for JEE, board exams, and state CET — free to read on EduBlast.",
+    images: ["https://edublast.in/images/logo-2.png"],
   },
 };
 

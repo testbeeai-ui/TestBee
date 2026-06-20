@@ -159,12 +159,12 @@ export const ONBOARDING_REWARD_TASKS: OnboardingTask[] = [
     time: "~4 min",
     steps: [
       "Go to Lessons and pick any subject (Physics, Chemistry, or Maths).",
-      "Select the chapters you like and tap Save to unlock them.",
-      "Browse chapters and open one sub-topic.",
-      "On a sub-topic, attempt the quiz or swipe through InstaCue cards.",
+      "Browse any chapter — all chapters are open on every plan.",
+      "Open a sub-topic and explore the lesson panels.",
+      "On a sub-topic, try Set 1 quiz free; Question bank unlocks extra sets on Starter & Pro.",
     ],
     hints: [
-      "Subject → save chapter picks → sub-topic → quiz or InstaCue (no separate revision step)",
+      "Subject → any chapter → sub-topic → quiz / numerals / InstaCue (premium inside panels)",
     ],
     href: lessonsOnboardingExploreHref(),
     icon: BookOpen,

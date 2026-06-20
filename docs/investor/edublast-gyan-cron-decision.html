@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EduBlast — Gyan++ Cron & Compute Decision (Investor Brief)</title>
+  <style>
+    :root {
+      --bg: #0b0f1a;
+      --surface: #121829;
+      --surface-2: #1a2238;
+      --surface-3: #232b45;
+      --border: rgba(255, 255, 255, 0.08);
+      --text: #e8ecf4;
+      --muted: #9ba3b8;
+      --primary: #6366f1;
+      --primary-glow: rgba(99, 102, 241, 0.35);
+      --success: #34d399;
+      --success-bg: rgba(52, 211, 153, 0.12);
+      --warn: #f59e0b;
+      --warn-bg: rgba(245, 158, 11, 0.12);
+      --danger: #f87171;
+      --danger-bg: rgba(248, 113, 113, 0.1);
+      --vercel: #000000;
+      --supabase: #3ecf8e;
+      --sarvam: #7c3aed;
+      --radius: 16px;
+      --font: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { font-family: var(--font); background: var(--bg); color: var(--text); line-height: 1.65; font-size: 15px; }
+
+    .container { max-width: 1180px; margin: 0 auto; padding: 56px 28px 96px; }
+
+    .hero { text-align: center; margin-bottom: 56px; }
+    .eyebrow {
+      display: inline-block;
+      font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--muted); border: 1px solid var(--border);
+      padding: 6px 12px; border-radius: 999px; margin-bottom: 18px;
+      background: var(--surface);
+    }
+    .hero h1 {
+      font-size: clamp(28px, 4vw, 44px);
+      font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; margin-bottom: 16px;
+    }
+    .hero .accent { background: linear-gradient(135deg, #6366f1 0%, #34d399 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    .hero p.subtitle { color: var(--muted); font-size: 17px; max-width: 760px; margin: 0 auto; }
+
+    section { margin-bottom: 56px; }
+    h2 {
+      font-size: 24px; font-weight: 700; letter-spacing: -0.01em;
+      margin-bottom: 8px; display: flex; align-items: center; gap: 10px;
+    }
+    h2 .num {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 32px; height: 32px; border-radius: 8px;
+      background: var(--primary); color: white; font-size: 15px; font-weight: 700;
+    }
+    .section-lead { color: var(--muted); margin-bottom: 24px; max-width: 820px; }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+    }
+    .grid { display: grid; gap: 18px; }
+    .grid-2 { grid-template-columns: repeat(2, 1fr); }
+    .grid-3 { grid-template-columns: repeat(3, 1fr); }
+    .grid-4 { grid-template-columns: repeat(4, 1fr); }
+    @media (max-width: 880px) { .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; } }
+
+    .restaurant {
+      display: grid; grid-template-columns: 1.1fr 1fr; gap: 22px;
+    }
+    @media (max-width: 880px) { .restaurant { grid-template-columns: 1fr; } }
+    .restaurant .visual {
+      background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 22px; position: relative; min-height: 260px;
+    }
+    .restaurant .visual h3 { font-size: 14px; color: var(--muted); margin-bottom: 14px; text-transform: uppercase; letter-spacing: 0.08em; }
+    .tables { display: flex; flex-direction: column; gap: 10px; }
+    .table {
+      display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+      background: var(--surface-3); border-radius: 10px; font-size: 14px;
+    }
+    .table .who { font-weight: 600; min-width: 110px; }
+    .table .who.user { color: var(--success); }
+    .table .who.cron { color: var(--warn); }
+    .table .what { color: var(--muted); font-size: 13px; }
+    .waiters {
+      position: absolute; right: 18px; top: 18px; bottom: 18px; width: 64px;
+      display: flex; flex-direction: column; gap: 6px; align-items: center; justify-content: center;
+    }
+    .waiter {
+      width: 46px; height: 46px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; background: var(--surface); border: 2px solid var(--supabase);
+    }
+    .waiter.busy { background: var(--warn-bg); border-color: var(--warn); }
+    .waiter.free { background: var(--success-bg); border-color: var(--success); }
+    .waiters-label {
+      position: absolute; right: 18px; top: 6px; font-size: 11px; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.08em;
+    }
+
+    .compare { width: 100%; border-collapse: separate; border-spacing: 0; overflow: hidden; border-radius: var(--radius); }
+    .compare th, .compare td { padding: 14px 16px; text-align: left; border-bottom: 1px solid var(--border); font-size: 14px; }
+    .compare th { background: var(--surface-2); font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; font-size: 12px; }
+    .compare tr:last-child td { border-bottom: 0; }
+    .compare td { background: var(--surface); }
+    .pill { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+    .pill.bad { background: var(--danger-bg); color: var(--danger); }
+    .pill.warn { background: var(--warn-bg); color: var(--warn); }
+    .pill.good { background: var(--success-bg); color: var(--success); }
+    .pill.info { background: var(--primary-glow); color: var(--primary); }
+
+    .flow {
+      display: flex; align-items: stretch; gap: 10px; flex-wrap: wrap;
+      background: var(--surface-2); padding: 22px; border-radius: var(--radius);
+      border: 1px solid var(--border);
+    }
+    .node {
+      flex: 1; min-width: 130px; padding: 14px 12px; border-radius: 12px;
+      background: var(--surface); border: 1px solid var(--border); text-align: center;
+    }
+    .node .icon { font-size: 22px; margin-bottom: 6px; }
+    .node .label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+    .node .name { font-size: 14px; font-weight: 600; margin-top: 2px; }
+    .arrow { display: flex; align-items: center; color: var(--muted); font-size: 18px; padding: 0 4px; }
+    .node.vercel { border-color: var(--vercel); }
+    .node.supabase { border-color: var(--supabase); }
+    .node.sarvam { border-color: var(--sarvam); }
+
+    .option {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 22px;
+      position: relative;
+      display: flex; flex-direction: column;
+    }
+    .option.recommended { border-color: var(--success); box-shadow: 0 0 0 1px var(--success); }
+    .option .badge {
+      position: absolute; top: -10px; right: 16px;
+      background: var(--success); color: #0b0f1a; font-size: 11px; font-weight: 700;
+      padding: 4px 10px; border-radius: 999px; letter-spacing: 0.05em;
+    }
+    .option h3 { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+    .option .cost { font-size: 13px; color: var(--muted); margin-bottom: 14px; }
+    .option .meta-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+    .option ul { list-style: none; padding: 0; }
+    .option ul li {
+      font-size: 14px; padding: 6px 0 6px 22px; position: relative; color: var(--text);
+    }
+    .option ul li::before {
+      content: "\2713"; position: absolute; left: 0; color: var(--success); font-weight: 700;
+    }
+    .option ul li.bad::before { content: "\2717"; color: var(--danger); }
+
+    .decision {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(52, 211, 153, 0.12));
+      border: 1px solid var(--primary);
+      border-radius: var(--radius);
+      padding: 28px;
+    }
+    .decision h2 { color: white; }
+    .decision p { color: var(--text); font-size: 16px; max-width: 820px; }
+    .decision .pick {
+      margin-top: 18px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+    }
+    .decision .pick span.tag {
+      background: var(--primary); color: white; font-weight: 700;
+      padding: 8px 16px; border-radius: 999px; font-size: 14px;
+    }
+    .decision .pick .why { color: var(--muted); font-size: 14px; }
+
+    ol.steps {
+      list-style: none; padding: 0; counter-reset: step;
+      display: grid; gap: 14px;
+    }
+    ol.steps li {
+      counter-increment: step;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 16px 20px 16px 64px; position: relative;
+      font-size: 15px;
+    }
+    ol.steps li::before {
+      content: counter(step);
+      position: absolute; left: 16px; top: 50%; transform: translateY(-50%);
+      width: 32px; height: 32px; border-radius: 50%;
+      background: var(--primary); color: white; font-weight: 700; font-size: 14px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    ol.steps li code {
+      background: var(--surface-2); padding: 2px 8px; border-radius: 6px;
+      font-size: 13px; color: var(--warn);
+    }
+    ol.steps li pre {
+      background: var(--surface-2); padding: 12px 14px; border-radius: 10px;
+      margin-top: 10px; font-size: 13px; color: var(--text);
+      border: 1px solid var(--border); overflow-x: auto;
+    }
+    ol.steps li pre code { background: none; padding: 0; color: var(--text); }
+
+    .cost-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border); gap: 12px; }
+    .cost-row:last-child { border-bottom: 0; }
+    .cost-row .label { font-size: 14px; }
+    .cost-row .value { font-weight: 700; font-size: 16px; color: var(--success); white-space: nowrap; }
+    .cost-row .value.warn-c { color: var(--warn); }
+    .cost-row .muted { color: var(--muted); font-size: 12px; }
+
+    .footer {
+      margin-top: 64px; padding-top: 24px; border-top: 1px solid var(--border);
+      color: var(--muted); font-size: 13px; text-align: center;
+    }
+    .footer .kicker { color: var(--text); font-weight: 600; margin-bottom: 4px; }
+
+    @media print {
+      body { background: white; color: black; }
+      .card, .option, .node, .compare td, .compare th, ol.steps li, .restaurant .visual, .flow { background: white !important; border-color: #ccc !important; }
+      .hero .accent { -webkit-text-fill-color: #4338ca; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <header class="hero">
+      <div class="eyebrow">Investor brief &middot; 1-page summary</div>
+      <h1>How EduBlast runs its <span class="accent">Gyan++ bot</span><br />reliably without breaking the database</h1>
+      <p class="subtitle">
+        Plain-English explanation of why scheduled jobs can stress our database, why Vercel&rsquo;s free plan is a blocker, and the cheapest reliable way to keep our AI community active every 10 minutes.
+      </p>
+    </header>
+
+    <section>
+      <h2><span class="num">1</span> The problem in one picture</h2>
+      <p class="section-lead">A scheduled job spikes the database for the same reason a busy table spikes a restaurant &mdash; too few &ldquo;waiters&rdquo; (database connections) for the number of people trying to eat at once.</p>
+
+      <div class="restaurant">
+        <div class="card">
+          <h3 style="font-size:16px; margin-bottom:14px;">What a database &ldquo;connection&rdquo; actually is</h3>
+          <p style="color:var(--muted); margin-bottom:14px;">Every user, every page load, every scheduled job needs one connection to read or write. There are only ~15 free connections in our Supabase pool at any moment.</p>
+          <ul style="list-style:none; padding:0;">
+            <li style="padding:8px 0; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; gap:12px;">
+              <span><strong style="color:var(--success)">A real student</strong> opens a topic</span>
+              <span style="color:var(--muted)">holds 1 connection for ~0.3s</span>
+            </li>
+            <li style="padding:8px 0; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; gap:12px;">
+              <span><strong style="color:var(--success)">A real student</strong> posts a doubt</span>
+              <span style="color:var(--muted)">holds 1 connection for ~0.5s</span>
+            </li>
+            <li style="padding:8px 0; display:flex; justify-content:space-between; gap:12px;">
+              <span><strong style="color:var(--warn)">Gyan++ bot</strong> runs a cycle</span>
+              <span style="color:var(--muted)">holds 1&ndash;3 connections for 5&ndash;15s</span>
+            </li>
+          </ul>
+        </div>
+        <div class="visual">
+          <h3>Pool of 15 waiters (database connections)</h3>
+          <div class="tables">
+            <div class="table">
+              <div class="who user">Student A</div>
+              <div class="what">reading topic</div>
+            </div>
+            <div class="table">
+              <div class="who user">Student B</div>
+              <div class="what">posting doubt</div>
+            </div>
+            <div class="table">
+              <div class="who cron">Gyan++ bot</div>
+              <div class="what">AI doubt + AI answer (15s)</div>
+            </div>
+            <div class="table">
+              <div class="who user">Student C</div>
+              <div class="what">loading dashboard</div>
+            </div>
+          </div>
+          <div class="waiters">
+            <div class="waiters-label">15 max</div>
+            <div class="waiter busy" title="busy">&#x1F7E0;</div>
+            <div class="waiter busy" title="busy">&#x1F7E0;</div>
+            <div class="waiter free" title="free">&#x1F7E2;</div>
+            <div class="waiter free" title="free">&#x1F7E2;</div>
+            <div class="waiter free" title="free">&#x1F7E2;</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:18px;">
+        <strong>Why this matters:</strong> a Gyan++ bot cycle is a <em>big</em> job &mdash; it calls an AI to write a doubt, calls another AI to answer it, and writes to several tables. While that happens, our free pool of 15 connections is squeezed. If it runs during peak hours, real students feel the slowdown.
+      </div>
+    </section>
+
+    <section>
+      <h2><span class="num">2</span> Why Vercel&rsquo;s free plan is the real blocker</h2>
+      <p class="section-lead">Vercel is the platform that runs our backend. On its free (&ldquo;Hobby&rdquo;) plan, scheduled jobs can run <strong>only once per day</strong>. We need one every 10 minutes.</p>
+
+      <table class="compare">
+        <thead>
+          <tr><th>Plan</th><th>Min interval</th><th>Max jobs</th><th>Monthly cost</th><th>Verdict</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Hobby</strong> (current)</td>
+            <td>Once per day</td>
+            <td>100</td>
+            <td>$0</td>
+            <td><span class="pill bad">Blocker</span></td>
+          </tr>
+          <tr>
+            <td><strong>Pro</strong></td>
+            <td>Once per minute</td>
+            <td>100</td>
+            <td>$20/seat + usage</td>
+            <td><span class="pill good">Unlocks 10-min</span></td>
+          </tr>
+          <tr>
+            <td><strong>Enterprise</strong></td>
+            <td>Once per minute</td>
+            <td>100</td>
+            <td>Custom</td>
+            <td><span class="pill info">Overkill for now</span></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="card" style="margin-top:18px; background:var(--warn-bg); border-color:var(--warn);">
+        <strong>What happens if we try to put <code style="background:var(--surface-2); padding:2px 6px; border-radius:4px;">*/10 * * * *</code> on Hobby:</strong> the deploy fails with <em>&ldquo;Hobby accounts are limited to daily cron jobs.&rdquo;</em> So today, we have <strong>no scheduled jobs at all</strong>.
+      </div>
+    </section>
+
+    <section>
+      <h2><span class="num">3</span> Where the work actually runs</h2>
+      <p class="section-lead">A scheduled job is just an HTTP request. The actual AI + database work happens on a <strong>Vercel Function</strong>. Supabase only stores the data. That separation is the whole game.</p>
+
+      <div class="flow">
+        <div class="node vercel">
+          <div class="icon">&#x23F0;</div>
+          <div class="label">Scheduler</div>
+          <div class="name">Vercel Cron (Pro)</div>
+        </div>
+        <div class="arrow">&rarr;</div>
+        <div class="node vercel">
+          <div class="icon">&#x26A1;</div>
+          <div class="label">Compute</div>
+          <div class="name">Vercel Function</div>
+        </div>
+        <div class="arrow">&rarr;</div>
+        <div class="node sarvam">
+          <div class="icon">&#x1F916;</div>
+          <div class="label">AI</div>
+          <div class="name">Sarvam + Prof-Pi</div>
+        </div>
+        <div class="arrow">&rarr;</div>
+        <div class="node supabase">
+          <div class="icon">&#x1F5C4;&#xFE0F;</div>
+          <div class="label">Data</div>
+          <div class="name">Supabase Postgres</div>
+        </div>
+      </div>
+
+      <div class="grid grid-2" style="margin-top:18px;">
+        <div class="card">
+          <strong>Vercel</strong> pays for the <em>compute</em> (CPU + memory while the function runs). Heavier cycle = more compute time consumed.
+        </div>
+        <div class="card">
+          <strong>Supabase</strong> pays for the <em>storage</em> + the <em>connections</em> the function uses while it runs.
+          <div class="cost-row" style="margin-top:10px;">
+            <span class="label">One cycle holds 1&ndash;3 connections</span>
+            <span class="value warn-c">5&ndash;15s of pool held</span>
+          </div>
+          <div class="cost-row">
+            <span class="label">This is where the &ldquo;spike&rdquo; shows up</span>
+            <span class="value warn-c">connection pressure</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2><span class="num">4</span> The four paths we compared</h2>
+      <p class="section-lead">Each option is a real, working solution. The right one depends on budget and how much we trust third parties.</p>
+
+      <div class="grid grid-2">
+        <div class="option recommended">
+          <span class="badge">RECOMMENDED</span>
+          <h3>A. Vercel Pro cron</h3>
+          <div class="cost">$20/seat/month + pennies of usage</div>
+          <div class="meta-row">
+            <span class="pill good">Reliable</span>
+            <span class="pill good">Native</span>
+            <span class="pill info">No 3rd party</span>
+          </div>
+          <ul>
+            <li>Vercel itself calls our server route every 10 min</li>
+            <li>No secrets shared with outside services</li>
+            <li>Predictable timing, easy to monitor</li>
+            <li class="bad">Costs $20/month</li>
+          </ul>
+        </div>
+
+        <div class="option">
+          <h3>B. Free external scheduler (cron-job.org)</h3>
+          <div class="cost">$0</div>
+          <div class="meta-row">
+            <span class="pill good">Free</span>
+            <span class="pill good">Reliable</span>
+            <span class="pill warn">3rd-party holds a secret</span>
+          </div>
+          <ul>
+            <li>Free website pings our route every 10 min</li>
+            <li>Same code path, same interval gate</li>
+            <li class="bad">Their servers store a secret</li>
+            <li class="bad">Out of our direct control</li>
+          </ul>
+        </div>
+
+        <div class="option">
+          <h3>C. Manual admin click</h3>
+          <div class="cost">$0</div>
+          <div class="meta-row">
+            <span class="pill good">Free</span>
+            <span class="pill good">No secrets exposed</span>
+            <span class="pill bad">Manual</span>
+          </div>
+          <ul>
+            <li>Admin opens Gyan Bot panel, clicks <em>Run one cycle</em></li>
+            <li>Server does the AI work; browser just sends a request</li>
+            <li>Server blocks repeat clicks inside the 10-min gate</li>
+            <li class="bad">Needs a human to remember</li>
+          </ul>
+        </div>
+
+        <div class="option">
+          <h3>D. &ldquo;Helpful user&rdquo; rotation (10 people)</h3>
+          <div class="cost">$0</div>
+          <div class="meta-row">
+            <span class="pill good">Free</span>
+            <span class="pill good">Looks human</span>
+            <span class="pill bad">Risky timing</span>
+          </div>
+          <ul>
+            <li>10 people each click once every ~100 min</li>
+            <li>Browser sends a request; server still does the work</li>
+            <li>Server still enforces 10-min gate against spam</li>
+            <li class="bad">One person forgetting = missed cycle</li>
+            <li class="bad">Chrome throttles timers in hidden tabs</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="decision">
+        <h2><span class="num" style="background: rgba(255,255,255,0.2);">5</span> Our recommendation</h2>
+        <p>Use <strong>Vercel Pro</strong> as the primary scheduler and keep the admin <em>Run one cycle</em> button as the manual fallback. Supabase spikes won&rsquo;t disappear &mdash; but with Pro, each cycle is fast, predictable, and capped (e.g. 60s max), so a slow cycle can&rsquo;t hold a connection forever.</p>
+        <div class="pick">
+          <span class="tag">Pick: Vercel Pro + admin fallback</span>
+          <span class="why">~$20/month buys a real timer + cuts spike blast radius.</span>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2><span class="num">6</span> What we actually have to do</h2>
+      <p class="section-lead">No code rewrite. The route already exists. We just turn on the timer and set one secret.</p>
+      <ol class="steps">
+        <li>Upgrade the Vercel team to <strong>Pro</strong> ($20/seat/month). Takes 2 minutes in Vercel billing.</li>
+        <li>In Vercel project <strong>Settings &rarr; Environment Variables</strong>, add <code>CRON_SECRET</code> with a long random value (e.g. <code>kbT8g2xL9vH7pQ4sR1wE5yN3mZ0aD6cF</code>). Tick <em>Production</em>.</li>
+        <li>Replace the empty <code>vercel.json</code> with:
+          <pre><code>{
+  "crons": [
+    { "path": "/api/cron/gyan-bot-post", "schedule": "*/10 * * * *" },
+    { "path": "/api/cron/refund-doubt-bounties", "schedule": "0 0 * * *" }
+  ]
+}</code></pre>
+        </li>
+        <li>Commit and push to the production branch. Vercel auto-deploys and registers the cron.</li>
+        <li>Test once with curl from a laptop:
+          <pre><code>curl.exe -i -H "Authorization: Bearer YOUR_SECRET" https://www.edublast.in/api/cron/gyan-bot-post</code></pre>
+          Expect <code>200 OK</code> with a JSON body.
+        </li>
+        <li>Watch <strong>Vercel &rarr; Logs</strong> and <strong>Supabase &rarr; doubts table</strong> for 24 hours. The <em>last_post_at</em> in the admin panel updates every cycle.</li>
+        <li>To stop everything instantly: open <em>Admin &rarr; Gyan Bot</em> and click <strong>Stop</strong>. The cron keeps firing but returns <code>skipped: bot inactive</code>. No AI calls, no DB writes, no cost.</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2><span class="num">7</span> What this actually costs &mdash; we don&rsquo;t know yet</h2>
+      <div class="card" style="border-color:var(--warn); background:var(--warn-bg);">
+        <p style="margin:0 0 10px 0;"><strong>Honest answer:</strong> we do not have a month of real cron traffic to measure from. Every number that would go here is a guess.</p>
+        <p style="margin:0 0 10px 0;">The only way to know the real number is to <strong>turn the cron on, let it run one full day, and read the bills</strong>:</p>
+        <ul style="margin:0 0 0 18px; padding:0;">
+          <li>Vercel &rarr; <em>Usage</em> tab on the dashboard shows compute-hours consumed by the cron function.</li>
+          <li>Sarvam &rarr; billing dashboard shows token usage for the AI calls the bot makes.</li>
+          <li>Modal &rarr; GPU-seconds for the RAG retrievals (today this is on the free tier).</li>
+          <li>Supabase &rarr; <em>Reports &rarr; Database</em> shows connection-hours and IO during the same window.</li>
+        </ul>
+      </div>
+
+      <div class="card" style="margin-top:18px;">
+        <h3 style="font-size:15px; margin-bottom:8px;">What we can predict <em>before</em> turning it on</h3>
+        <ul style="margin:0 0 0 18px; padding:0; color:var(--muted);">
+          <li>Compute: short-lived (single-digit seconds), low memory.</li>
+          <li>AI: one doubt-generation call + one answer call per cycle.</li>
+          <li>DB: a handful of reads + a couple of writes per cycle.</li>
+          <li>RAG: one retrieve per cycle (free on our current Modal plan).</li>
+        </ul>
+      </div>
+    </section>
+
+    <section>
+      <h2><span class="num">8</span> Safety nets already in the code</h2>
+      <p class="section-lead">Even if multiple clicks or pings fire, the server is the gate. Nothing can go rogue.</p>
+      <div class="grid grid-3">
+        <div class="card">
+          <h3 style="font-size:15px; margin-bottom:6px;">&#x1F510; Static secret (cron route)</h3>
+          <p style="color:var(--muted); font-size:14px;">The external route requires <code style="color:var(--warn)">Authorization: Bearer &lt;CRON_SECRET&gt;</code>. In production on Vercel, the route refuses with 503 if the secret is missing.</p>
+        </div>
+        <div class="card">
+          <h3 style="font-size:15px; margin-bottom:6px;">&#x1F464; Admin session (admin route)</h3>
+          <p style="color:var(--muted); font-size:14px;">The <em>Run One Cycle</em> button uses the admin&rsquo;s Supabase session. Random users get 401, non-admins get 403.</p>
+        </div>
+        <div class="card">
+          <h3 style="font-size:15px; margin-bottom:6px;">&#x23F1;&#xFE0F; 10-min interval gate</h3>
+          <p style="color:var(--muted); font-size:14px;">The bot refuses to run a real cycle if the last post was less than <code style="color:var(--warn)">interval_minutes</code> ago. Returns <code style="color:var(--warn)">skipped: interval not elapsed</code>.</p>
+        </div>
+        <div class="card">
+          <h3 style="font-size:15px; margin-bottom:6px;">&#x1F6D1; Master switch</h3>
+          <p style="color:var(--muted); font-size:14px;">Setting <code style="color:var(--warn)">active = false</code> in <code style="color:var(--warn)">gyan_bot_config</code> stops all AI work, even when the cron keeps firing.</p>
+        </div>
+        <div class="card">
+          <h3 style="font-size:15px; margin-bottom:6px;">&#x23F3; Function timeout</h3>
+          <p style="color:var(--muted); font-size:14px;">Set <code style="color:var(--warn)">maxDuration = 60s</code> on the route so a stuck cycle dies fast. Releases the Supabase connection.</p>
+        </div>
+        <div class="card">
+          <h3 style="font-size:15px; margin-bottom:6px;">&#x1F4CD; Region pinning</h3>
+          <p style="color:var(--muted); font-size:14px;">Pick the Vercel function region closest to your Supabase project. Lower latency = shorter connection hold = smaller spike.</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2><span class="num">9</span> What we still need to watch</h2>
+      <div class="card" style="border-color:var(--warn); background:var(--warn-bg);">
+        <ul style="list-style:none; padding:0;">
+          <li style="padding:8px 0; border-bottom:1px solid var(--border);"><strong>Supabase connection spike does not go away.</strong> Pro makes it <em>shorter and more predictable</em>, not gone. To shrink it: enable Supavisor transaction pooler in Supabase dashboard.</li>
+          <li style="padding:8px 0; border-bottom:1px solid var(--border);"><strong>Spike days will cost more than the average.</strong> Many students hitting the bot at the same time means retries, slow AI, longer connection holds. First month is the worst month because we will be learning from it &mdash; use the master switch + interval knob to keep it predictable.</li>
+          <li style="padding:8px 0;"><strong>Single-region risk.</strong> If Vercel has an outage, the bot just skips that slot. The interval gate handles it; no data loss.</li>
+        </ul>
+      </div>
+    </section>
+
+    <div class="footer">
+      <div class="kicker">EduBlast &middot; Investor brief</div>
+      Gyan++ scheduling decision &middot; 1-page summary &middot; ready to share
+      <div style="margin-top:10px; font-size:11px; color:var(--muted);">
+        Note: Cost figures are intentionally omitted from this brief &mdash; they require one full day of real cron traffic to measure. The plan is to switch the cron on, read the four provider dashboards after 7 / 14 / 30 days, and project from there.
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>

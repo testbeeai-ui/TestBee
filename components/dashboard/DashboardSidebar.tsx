@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -13,6 +13,7 @@ import {
   Map,
   Heart,
   BarChart3,
+  PanelLeftClose,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -21,11 +22,20 @@ import { useAuth } from "@/hooks/useAuth";
 import { useUserStore } from "@/store/useUserStore";
 import { useStudyStreakFromApi } from "@/hooks/useStudyStreakFromApi";
 import {
-  countInstacueRevisionDue,
   formatEdufundRdmBadge,
+  formatEdufundRdmBadgeDetail,
 } from "@/lib/dashboard/dashboardSidebarMetrics";
 
-type NavItem = { href: string; label: string; icon: LucideIcon; badge?: string | null };
+type NavItem = {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  badge?: string | null;
+  /** Tooltip text shown on the badge hover (full detail, e.g. "1,977 RDM → Sprout"). */
+  badgeTitle?: string | null;
+};
+
+const PIN_KEY = "eb_sidebar_pinned";
 
 function isActivePath(pathname: string, href: string): boolean {
   if (href === "/revision") return pathname === "/revision";
@@ -47,30 +57,36 @@ function NavRow({ item, active }: { item: NavItem; active: boolean }) {
         href={item.href}
         prefetch={!active}
         className={cn(
-          "group flex min-h-[40px] items-center gap-3 rounded-lg px-2.5 py-2 text-sm font-semibold transition-colors",
+          // Match v3 reference: 8px 15px padding, no chip-tile background,
+          // icon and label sit on a single line, active row gets a teal tint
+          // (not a bordered box). Icon column is a fixed 17px square so the
+          // labels line up between rows.
+          "flex h-8 items-center gap-2.5 px-3.5 text-[12.5px] font-semibold whitespace-nowrap transition-colors",
           active
-            ? "bg-primary/12 text-primary ring-1 ring-primary/20"
-            : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+            ? "bg-primary/12 text-primary"
+            : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
         )}
       >
-        <span
+        <Icon
           className={cn(
-            "flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-transparent bg-muted/40 text-foreground/80 group-hover:border-border/80",
-            active && "border-primary/25 bg-primary/10 text-primary"
+            "h-[17px] w-[17px] shrink-0",
+            active ? "text-primary" : "text-muted-foreground/80"
           )}
-        >
-          <Icon className="h-4 w-4" />
-        </span>
-        <span className="min-w-0 flex-1 truncate">{item.label}</span>
+          strokeWidth={2}
+        />
+        <span className="eb-sidebar-lbl flex-1 truncate">{item.label}</span>
         {item.badge ? (
           <span
             className={cn(
-              "max-w-[5.5rem] shrink-0 truncate rounded-md px-1.5 py-0.5 text-center text-[10px] font-bold tabular-nums",
+              // Cap badge width + truncate so a long badge can never
+              // squeeze the row label out (defends against future badge
+              // strings that grow). The full string is still in `title`.
+              "eb-sidebar-bdg max-w-[5.5rem] shrink-0 truncate rounded-full px-1.5 text-[9.5px] font-bold uppercase leading-[1.6] tabular-nums",
               item.badge === "Live"
-                ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-                : "bg-muted/80 text-muted-foreground"
+                ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400"
+                : "bg-amber-500/20 text-amber-700 dark:text-amber-400"
             )}
-            title={item.badge}
+            title={item.badgeTitle ?? item.badge}
           >
             {item.badge}
           </span>
@@ -82,11 +98,11 @@ function NavRow({ item, active }: { item: NavItem; active: boolean }) {
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <div className="space-y-1.5">
-      <p className="px-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground/90">
+    <div className="space-y-0.5">
+      <p className="eb-sidebar-lbl px-3.5 pt-2.5 pb-1 text-[9px] font-semibold uppercase tracking-[0.08em] text-muted-foreground/80">
         {title}
       </p>
-      <ul className="space-y-0.5">{children}</ul>
+      <ul className="space-y-0">{children}</ul>
     </div>
   );
 }
@@ -98,10 +114,27 @@ export default function DashboardSidebar() {
   const rdm = profile?.rdm ?? user?.rdm ?? 0;
   const { streakDays, ready: streakReady } = useStudyStreakFromApi();
 
-  const instacueDue = countInstacueRevisionDue(user?.savedRevisionCards);
-  const instacueBadge = instacueDue > 0 ? `${instacueDue} due` : null;
+  // Pin state — persisted in localStorage so the user's choice survives reloads.
+  const [pinned, setPinned] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    try {
+      setPinned(window.localStorage.getItem(PIN_KEY) === "1");
+    } catch {
+      /* private mode / storage blocked */
+    }
+    setHydrated(true);
+  }, []);
+
+  // Render in the unpinned (collapsed) state until hydration completes, so we
+  // don't flash the expanded sidebar on first paint when the saved pin is on.
+  void hydrated;
 
   const edufundBadge = profile?.id ? formatEdufundRdmBadge(rdm) : null;
+  // Full-detail string (RDM remaining → tier) for the badge tooltip; the
+  // badge itself only shows the tier name to keep the sidebar row readable.
+  const edufundBadgeTitle = profile?.id ? formatEdufundRdmBadgeDetail(rdm) : null;
 
   const learning: NavItem[] = [
     { href: "/home", label: "Dashboard", icon: LayoutDashboard },
@@ -112,7 +145,6 @@ export default function DashboardSidebar() {
       href: "/revision",
       label: "Instacue revision",
       icon: RotateCcw,
-      badge: instacueBadge,
     },
     { href: "/play", label: "Play arena", icon: Gamepad2 },
   ];
@@ -120,7 +152,13 @@ export default function DashboardSidebar() {
   const progress: NavItem[] = [
     { href: "/performance", label: "Performance", icon: BarChart3 },
     { href: EXPLORE_APP_PATH, label: "Unit maps", icon: Map },
-    { href: "/edufund", label: "EduFund", icon: Heart, badge: edufundBadge },
+    {
+      href: "/edufund",
+      label: "EduFund",
+      icon: Heart,
+      badge: edufundBadge,
+      badgeTitle: edufundBadgeTitle,
+    },
   ];
 
   const streakLabel = !profile?.id
@@ -130,39 +168,57 @@ export default function DashboardSidebar() {
       : "…";
 
   return (
-    <aside className="hidden w-[13.5rem] shrink-0 flex-col border-r border-border/50 bg-card/30 lg:flex xl:w-60">
+    <aside
+      data-pinned={pinned ? "true" : "false"}
+      data-sidebar="dashboard"
+      className={cn(
+        // v3 reference: collapsed = 52px (--sw), hover/expanded = 192px.
+        // - Default: 52px icon rail (width from .eb-sidebar in globals.css)
+        // - Hover: expands to 192px via .eb-sidebar:hover (plain CSS, no
+        //   Tailwind hover/JS state — this is exactly the v3 pattern and
+        //   bypasses any group-hover/group-focus issues).
+        // - When pinned: stays at 192px via .eb-sidebar[data-pinned="true"].
+        // Pin state is still settable via `localStorage` / `data-pinned` so
+        // the rail can be pinned open across reloads, but there is no
+        // visible toggle in the sidebar itself — pure hover-expand.
+        "eb-sidebar sticky top-2 hidden h-[calc(100vh-1rem)] shrink-0 flex-col overflow-hidden border-r border-border/50 bg-card/30 lg:flex"
+      )}
+      aria-label="Dashboard navigation"
+      aria-expanded={pinned}
+    >
       <nav
-        className="sticky top-4 flex max-h-[calc(100vh-2rem)] flex-col gap-6 overflow-y-auto px-2.5 pb-8 pt-1"
+        className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto pt-1"
         aria-label="Dashboard navigation"
       >
-        <Section title="Learning">
-          {learning.map((item) => (
+        <Section title="Learning">{learning.map((item) => (
             <NavRow key={item.href} item={item} active={isActivePath(pathname, item.href)} />
-          ))}
-        </Section>
+          ))}</Section>
 
-        <div className="h-px w-full bg-border/60" aria-hidden />
+        <div
+          className={cn("h-px bg-border/60", pinned ? "mx-3.5" : "mx-auto w-6")}
+          aria-hidden
+        />
 
-        <Section title="Progress">
-          {progress.map((item) => (
+        <Section title="Progress">{progress.map((item) => (
             <NavRow key={item.href} item={item} active={isActivePath(pathname, item.href)} />
-          ))}
-        </Section>
+          ))}</Section>
 
-        <div className="mt-auto rounded-xl border border-border/70 bg-muted/25 p-3 dark:bg-slate-950/50">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-            Study streak
-          </p>
-          <p className="mt-1.5 flex items-baseline gap-1.5 text-lg font-extrabold tabular-nums text-foreground">
-            <span aria-hidden>🔥</span>
-            {streakLabel}
-          </p>
-          <p className="mt-2 border-t border-border/50 pt-2 text-[11px] text-muted-foreground">
-            RDM balance{" "}
-            <span className="font-bold tabular-nums text-foreground">
-              {rdm.toLocaleString("en-IN")}
-            </span>
-          </p>
+        <div className="mt-auto px-3.5 pb-3">
+          <div className="eb-sidebar-foot rounded-lg border border-border/60 bg-muted/20 p-2.5">
+            <p className="text-[9px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
+              Study streak
+            </p>
+            <p className="mt-1 flex items-baseline gap-1 text-[13px] font-extrabold tabular-nums text-foreground">
+              <span aria-hidden>🔥</span>
+              {streakLabel}
+            </p>
+            <p className="mt-1.5 border-t border-border/50 pt-1.5 text-[10.5px] text-muted-foreground">
+              RDM{" "}
+              <span className="font-bold tabular-nums text-foreground">
+                {rdm.toLocaleString("en-IN")}
+              </span>
+            </p>
+          </div>
         </div>
       </nav>
     </aside>

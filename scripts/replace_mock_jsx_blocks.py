@@ -47,8 +47,8 @@ library_component = r"""          {isLibraryPage && view === "setup" && (
               startQuickTest={startQuickTest}
               librarySearch={librarySearch}
               setLibrarySearch={setLibrarySearch}
-              librarySubjectFilter={librarySubjectFilter}
-              setLibrarySubjectFilter={setLibrarySubjectFilter}
+              libraryExamFilter={libraryExamFilter}
+              setLibraryExamFilter={setLibraryExamFilter}
               filteredPastCatalogPapers={filteredPastCatalogPapers}
               filteredMockCatalogPapers={filteredMockCatalogPapers}
               pastPapersByClassLevel={pastPapersByClassLevel}

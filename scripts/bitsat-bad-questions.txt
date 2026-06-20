@@ -1,0 +1,695 @@
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2009.json | Q27478 | physics | answer=b =====
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2010.json | Q27397 | physics | answer=b =====
+<p><strong>A spherical ball is dropped in a long column of a viscous liquid. The speed <span class="math-tex">\((v)\)</span> of the ball as a function of time <span class="math-tex">\((t)\)</span> may be best represented by</strong></p>
+
+<p><strong><img alt="" src="https://www.testbee.in/preview/show_qimage/1595947470.png" /></strong></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2011.json | Q27229 | physics | answer=c =====
+<p><strong>ln an uniformly charged sphere of total charge Q and radius R, the electric field E is plotted as function of distance from the centre.The graph which would correspond to the above will be </strong></p>
+
+<p><strong><img alt="" src="https://www.testbee.in/preview/show_qimage/1595641435.png" style="height:246px; width:350px" /></strong></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2011.json | Q27238 | physics | answer=c =====
+<p><strong>Which one of the following curves represents the variation of impedance (Z) with frequency f in series LCR circuit? </strong></p>
+
+<p><strong><img alt="" src="https://www.testbee.in/preview/show_qimage/1595653353.png" style="height:177px; width:250px" /></strong></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2011.json | Q27186 | chemistry | answer=c =====
+<p><strong>What will be the product in the following reaction?</strong></p>
+
+<p><strong><img alt="" src="https://www.testbee.in/preview/show_qimage/1595561291.png" /></strong></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2012.json | Q27008 | physics | answer=c =====
+<p><strong>A body moves with uniform acceleration, then which of the following graph is correct ?</strong></p>
+
+<p><strong><img alt="" src="https://www.testbee.in/preview/show_qimage/1595262855.png" /></strong></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2012.json | Q26981 | chemistry | answer=a =====
+<p><strong>Which&nbsp;&nbsp;alkene on ozonolysis gives&nbsp;&nbsp;<span class="math-tex">\(CH_3CH_2CHO\ and \ CH_3CCH_3\\
+\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ || \ \ \ \\
+\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  \ \ \ \ \ \     O\)</span></strong></p>
+
+<p><strong><img alt="" src="https://www.testbee.in/preview/show_qimage/1595230238.png" style="height:152px; width:200px" /></strong></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2013.json | Q26884 | chemistry | answer=d =====
+<p><strong>The most stable carbanion among the following is:</strong></p>
+
+<p><strong><img alt="" src="https://www.testbee.in/preview/show_qimage/1595002980.png" /></strong></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2013.json | Q26936 | chemistry | answer=b =====
+<p><strong>Which of the following is not the product of</strong></p>
+
+<p><strong><img alt="" src="https://www.testbee.in/preview/show_qimage/1595082708.png" /></strong></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2013.json | Q26937 | chemistry | answer=a =====
+<p><strong>What will be the correct structural formula of product for the following reaction?</strong></p>
+
+<p><strong><img alt="" src="https://www.testbee.in/preview/show_qimage/1595082865.png" /></strong></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2014.json | Q26660 | physics | answer=c =====
+<p><strong>A spherically symmetric gravitational system of particles has a mass density <span class="math-tex">\(\rho =\begin{cases} \rho_0 for \ r \ \leq R \\ 0 for \ r &gt; R \end{cases}\)</span>&nbsp; where <span class="math-tex">\(r_0\)</span> is a constant. A test mass can undergo circular motion under the influence of the &nbsp;gravitational field of particles. Its speed <span class="math-tex">\(V\)</span> as a function of distance <span class="math-tex">\(r (0 \lt  r\lt \infty)\)</span> from the centre of the system is represented by</strong></p>
+
+<p><strong><img alt="" src="https://www.testbee.in/preview/show_qimage/1594390261.png" /></strong></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2014.json | Q26670 | physics | answer=d =====
+<p><strong>A sound source, emitting sound of constant frequency, moves with a constant speed and crosses a stationary observer. The frequency (n) of sound heard by the observer is plotted against time (t). Which of the following graphs represents the correct variation ?</strong></p>
+
+<p><strong><img alt="" src="https://www.testbee.in/preview/show_qimage/1594390465.png" /></strong></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2014.json | Q26687 | chemistry | answer=c =====
+<p><strong>Which of the following compounds has wrong IUPAC name ?</strong></p>
+
+<p><strong><img alt="" src=" https://www.testbee.in/preview/show_qimage/1594454356.png" style="height:299px; width:300px" /></strong></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2015.json | Q26566 | chemistry | answer=b =====
+<p><strong>The carbylamine reaction is</strong></p>
+
+<p><strong><img alt="" src="https://www.testbee.in/preview/show_qimage/1594219255.png" /></strong></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2016.json | Q26408 | chemistry | answer=d =====
+<p><img alt="" src="https://www.testbee.in/preview/show_qimage/1593862503.png" style="height:70px; width:250px" /></p>
+
+<p><img alt="" src="https://www.testbee.in/preview/show_qimage/1593862833.png" style="height:274px; width:250px" /></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2016.json | Q26412 | chemistry | answer=d =====
+<p><strong>Give the possible structure of X in the following reaction : </strong></p>
+
+<p><strong><span class="math-tex">\(C_6H_6+D_2SO_4 \xrightarrow {\ D_2O\ } x\)</span></strong></p>
+
+<p><strong><img alt="" src="https://www.testbee.in/preview/show_qimage/1593864430.png" style="height:210px; width:300px" /></strong></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2016.json | Q26431 | chemistry | answer=d =====
+<p><strong>The most likely acid-catalysed aldol condensation products of each of the two aldehydes I and II will respectively be </strong></p>
+
+<p><strong><img alt="" src="https://www.testbee.in/preview/show_qimage/1593926234.png" style="height:110px; width:250px" /></strong></p>
+
+<p><strong><img alt="" src="https://www.testbee.in/preview/show_qimage/1593926294.png" style="height:183px; width:278px" /></strong></p>
+
+<p>&nbsp;</p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2017.json | Q25800 | physics | answer=a =====
+<p><strong>Two concentric conducting thin spherical shells A, and B having radli <span class="math-tex">\(r_A \ \text{and}\ r_B\ ((r_B \gt r_A)\)</span>&nbsp;are charged to <span class="math-tex">\(Q_A\ \text{and}\ -Q_B\)</span>&nbsp;<span class="math-tex">\((|Q_B|\gt |Q_A|)\)</span>. The electric field along a line passing through the centre is</strong></p>
+
+<p><strong><img alt="" src="https://www.testbee.in/preview/show_qimage/1592379141.png" style="height:236px; width:352px" /></strong></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2017.json | Q25917 | physics | answer=a =====
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2017.json | Q26018 | chemistry | answer=c =====
+<p><strong>Identify the structure of water in the gaseous phase.</strong></p>
+
+<p><strong><img alt="" src="https://www.testbee.in/preview/show_qimage/1592810023.png" style="height:90px; width:300px" /></strong></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2018.json | Q25902 | physics | answer=b =====
+<p><strong>The variation of magnetic susceptibility(X) with temperature for a diamagnetic substance is&nbsp;best represented by</strong></p>
+
+<p><strong><img alt="" src="https://www.testbee.in/preview/show_qimage/1592535668.png" /></strong></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2018.json | Q25987 | chemistry | answer=d =====
+<p><strong>In a set of reactions, ethylbenzene yielded a product D.</strong></p>
+
+<p><strong><img alt="" src="https://www.testbee.in/preview/show_qimage/1593581150.png" /></strong></p>
+
+<p><strong><img alt="" src="https://www.testbee.in/preview/show_qimage/1593581185.png" /></strong></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2019.json | Q26289 | physics | answer=c =====
+<p><strong>Which one of the following graphs represents the variation of electric field with distance r from the centre of a charged spherical conductor of radius R?</strong></p>
+
+<p><strong><img alt="" src="https://www.testbee.in/preview/show_qimage/1593697276.png" style="height:187px; width:357px" /></strong></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2019.json | Q26368 | chemistry | answer=a =====
+<p><strong>Plots showing the variation of the rate constant (k) with temperature (T) are given below. The plot that follows Arrhenius equation is</strong></p>
+
+<p><strong><img alt="" src="https://www.testbee.in/preview/show_qimage/1593788489.png" /></strong></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2019.json | Q26417 | chemistry | answer=b =====
+<p><img alt="" src="https://www.testbee.in/preview/show_qimage/1593870636.png" /></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2019.json | Q26199 | chemistry | answer=b =====
+<p><strong>Which of the following is the strongest base ?</strong></p>
+
+<p><strong><img alt="" src="https://www.testbee.in/preview/show_qimage/1593507175.png" style="height:187px; width:343px" /></strong></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2019.json | Q26214 | chemistry | answer=a =====
+<p><strong>Most stable carbocation among the following is:</strong></p>
+
+<p><strong><img alt="" src=" https://www.testbee.in/preview/show_qimage/1593517148.png" style="height:223px; width:199px" /></strong></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2019.json | Q26244 | chemistry | answer=c =====
+<p><strong>Which of the following radial distribution graphs correspond to <span class="math-tex">\(l = 2\)</span> for the H atom?</strong></p>
+
+<p><strong><img alt="" src="https://www.testbee.in/preview/show_qimage/1593593688.png" style="height:403px; width:200px" /></strong></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2020.json | Q59503 | chemistry | answer=a =====
+<p><strong>A cyclic process ABCD is shown in P-V diagram for an ideal gas. Which of the following diagram represents the same process? </strong></p>
+
+<p><strong><img alt="" src=" https://www.testbee.in/preview/show_qimage/1630841394.png" style="height:303px; width:250px" /></strong></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2020.json | Q59545 | chemistry | answer=c =====
+<p><strong>The final product obtained in the reaction </strong></p>
+
+<p><strong><img alt="" src="https://www.testbee.in/preview/show_qimage/1630988398.png" style="height:280px; width:250px" /></strong></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2020.json | Q59546 | chemistry | answer=a =====
+<p><strong>What is the product of the following reaction ?</strong></p>
+
+<p><strong><img alt="" src="https://www.testbee.in/preview/show_qimage/1630993121.png" style="height:361px; width:250px" /></strong></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2020.json | Q59551 | chemistry | answer=b =====
+<p><strong>Which of the following reactions will not give N, N- dimethyl benzamide ? </strong></p>
+
+<p><strong><img alt="" src="https://www.testbee.in/preview/show_qimage/1631003434.png" style="height:270px; width:350px" /></strong></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2020.json | Q59554 | chemistry | answer=b =====
+<p><img alt="" src="https://www.testbee.in/preview/show_qimage/1631005968.png" style="height:279px; width:250px" /></p>
+
+<p>&nbsp;</p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2021.json | Q107277 | physics | answer=c =====
+<p>For a constant hydraulic stress on an object, the fractional change in the object&#39;s volume&nbsp;<span class="math-tex">\(\Big(\frac{\Delta\ V}{V}\Big)\)</span>&nbsp;and its bulk modulus B are related as</p>
+
+<p>a.&nbsp;<span class="math-tex">\(\frac{\Delta\ V}{V}\ \propto\ B\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; b.&nbsp;<span class="math-tex">\(\frac{\Delta\ V}{V}\ \propto\ B^2\)</span></p>
+
+<p>c.&nbsp;<span class="math-tex">\(\frac{\Delta\ V}{V}\ \propto\ \frac{1}{B}\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;d.&nbsp;<span class="math-tex">\(\frac{\Delta\ V}{V}\ \propto\ \frac{1}{B^2}\)</span></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2021.json | Q107290 | physics | answer=b =====
+<p>The phase difference between the&nbsp;<span class="math-tex">\(V_{out}\ \ and\ \ V_{in}\)</span>&nbsp;of CE-amplifier circuit is</p>
+
+<p>a.&nbsp;<span class="math-tex">\(90^\circ\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; b.&nbsp;<span class="math-tex">\(180^\circ\)</span></p>
+
+<p>c.&nbsp;<span class="math-tex">\(0^\circ\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; d.&nbsp;<span class="math-tex">\(270^\circ\)</span></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2021.json | Q107292 | physics | answer=c =====
+<p>If nth division of main scale coincides with (n + 1)th divisions of vernier scale. The least count of the vernier is (Given, one main&nbsp;scale division is equal to a units)</p>
+
+<p>a.&nbsp;<span class="math-tex">\(\frac{a\ +\ 1}{n\ +\ 1}\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;b.&nbsp;<span class="math-tex">\(\frac{a}{n}\)</span></p>
+
+<p>c.&nbsp;<span class="math-tex">\(\frac{a}{n\ +\ 1}\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; d.&nbsp;<span class="math-tex">\(\frac{a\ +\ 1}{n}\)</span></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2021.json | Q107295 | physics | answer=a =====
+<p>A uniform rod AB of length L = 1 m sliding along two mutually perpendicular surfaces OP and OQ as shown in figure.</p>
+
+<p><img alt="" src="https://www.testbee.in/preview/show_qimage/1740647748.png" style="height:163px; width:200px" /></p>
+
+<p>When the rod subtends an angle&nbsp;<span class="math-tex">\(\theta\ =\ 30^\circ\)</span>&nbsp;with OQ, then the end B has a velocity&nbsp;<span class="math-tex">\(\sqrt3\ m/s\)</span>. The velocity of end A at the time is</p>
+
+<p>a.&nbsp;<span class="math-tex">\(1\ m/s\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;b.&nbsp;<span class="math-tex">\(0.5\ m/s\)</span></p>
+
+<p>c.&nbsp;<span class="math-tex">\(\sqrt3\ m/s\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; d.&nbsp;<span class="math-tex">\(\frac{1}{\sqrt3}\ m/s\)</span></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2021.json | Q107304 | physics | answer=b =====
+<p>The equation of progressive wave is given by&nbsp;<span class="math-tex">\(Y\ =\ \sin\ \Big[x\ \Big(\frac{t}{5}\ -\ \frac{x}{9}\Big)\ +\ \frac{\pi}{6}\Big]\ cm\)</span>. Which one of the following is correct ?</p>
+
+<p>a.&nbsp;<span class="math-tex">\(\upsilon\ =\ 5\ cm/s\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; b.&nbsp;<span class="math-tex">\(\lambda\ =\ 18\ cm\)</span></p>
+
+<p>c.&nbsp;<span class="math-tex">\(A\ =\ 0.04\ cm\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;d.&nbsp;<span class="math-tex">\(f\ =\ 50\ Hz\)</span></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2021.json | Q107312 | physics | answer=b =====
+<p>From a solid sphere of mass M and radius R, a&nbsp;spherical portion of radius&nbsp;<span class="math-tex">\(\frac{R}{2}\)</span>&nbsp;is removed as shown in the figure.</p>
+
+<p><img alt="" src="https://testbee.in/preview/show_qimage/1720263158.png" style="height:175px; width:172px" /></p>
+
+<p>Taking gravitational potential V = 0 at&nbsp;<span class="math-tex">\(r\ =\ \infty\)</span>, the potential at the centre of the cavity thus formed is</p>
+
+<p>a.&nbsp;<span class="math-tex">\(-\ \frac{G\ M}{2\ R}\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;b.&nbsp;<span class="math-tex">\(-\frac{G\ M}{ R}\)</span></p>
+
+<p>c.&nbsp;<span class="math-tex">\(-\frac{2G\ M}{3 R}\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; d.&nbsp;<span class="math-tex">\(-\frac{2G\ M}{ R}\)</span></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2021.json | Q107316 | physics | answer=c =====
+<p>Four charges equal to + Q are placed at the four corners of a square and a charge (- q) is at its centre. If the system is in equilibrium,&nbsp;then the value of - q&nbsp;is</p>
+
+<p>a.&nbsp;<span class="math-tex">\(-\ \frac{Q}{4}\ (1\ +\ 2\sqrt2)\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; b.&nbsp;<span class="math-tex">\(\frac{Q}{2}\ (2\sqrt2\ +\ 1)\)</span></p>
+
+<p>c.&nbsp;<span class="math-tex">\(\frac{Q}{4}\ (1\ +\ 2\sqrt2)\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; d.&nbsp;<span class="math-tex">\(\frac{Q}{4}\ (1\ +\ \sqrt2)\)</span></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2021.json | Q107318 | physics | answer=a =====
+<p>A force <span class="math-tex">\(F\ =\ a\ +\ bx\)</span> acts on a particle in&nbsp;the x-direction, where a and b are constants. The work done by&nbsp;this force during a displacement from x = 0 to x&nbsp;= d is</p>
+
+<p>a.&nbsp;<span class="math-tex">\(\Big(a\ +\ \frac{bd}{2}\Big)d\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;b.&nbsp;<span class="math-tex">\(\Big(a\ d +\ \frac{bd}{2}\Big)\)</span></p>
+
+<p>c.&nbsp;<span class="math-tex">\(\Big(\frac{ad\ +\ bd}{2}\Big)\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;d.&nbsp;<span class="math-tex">\((ad\ +\ b)\ \frac{d}{2}\)</span></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2021.json | Q107320 | physics | answer=d =====
+<p>A proton has kinetic energy E = 100 eV which is equal to that of a photon. The wavelength of photon is&nbsp;<span class="math-tex">\(\lambda_2\)</span>&nbsp;and that&nbsp;of proton is&nbsp;<span class="math-tex">\(\lambda_1\)</span>. The ratio&nbsp;<span class="math-tex">\(\frac{\lambda_2}{\lambda_1}\)</span>&nbsp;is proportional to</p>
+
+<p>a.&nbsp;<span class="math-tex">\(E^2\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; b.&nbsp;<span class="math-tex">\(E^{\frac{1}{2}}\)</span></p>
+
+<p>c.&nbsp;<span class="math-tex">\(E^{-1}\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; d.&nbsp;<span class="math-tex">\(E^{-\frac{1}{2}}\)</span></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2021.json | Q107326 | physics | answer=b =====
+<p>Which of the following graphs show&nbsp;the correct relation between conductivity&nbsp;and temperature for&nbsp;a metallic conductor?</p>
+
+<p><img alt="" src="https://testbee.in/preview/show_qimage/1720277449.png" style="height:299px; width:390px" /></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2021.json | Q107327 | physics | answer=a =====
+<p>The radius of a muonic hydrogen atom is&nbsp;<span class="math-tex">\(25\ \times\ 10^{-13}\ m\)</span>.&nbsp;The total atomic volume (in&nbsp;<span class="math-tex">\(m^3\)</span>)&nbsp;of a mole of such hydrogen atoms is (Take,&nbsp;<span class="math-tex">\(\pi\ =\ 3.14\)</span>)</p>
+
+<p>a.&nbsp;<span class="math-tex">\(3.94\ \times\ 10^{-14}\ \)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; b.&nbsp;<span class="math-tex">\(3.09\ \times\ 10^{-14}\ \)</span></p>
+
+<p>c.&nbsp;<span class="math-tex">\(4\ \times\ 10^{-14}\ \)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; d.&nbsp;<span class="math-tex">\(3.9\ \times\ 10^{-14}\ \)</span></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2021.json | Q107333 | physics | answer=b =====
+<p>A projectile&nbsp;is given an initial velocity&nbsp;of <span class="math-tex">\((\hat{i}\ +\ \hat{j})\ m/s\)</span>. where <span class="math-tex">\(\hat{i}\)</span> is along the ground and <span class="math-tex">\(\hat{j}\)</span> is along the vertical. If&nbsp;<span class="math-tex">\(g\ =\ 10\ m/s^2\)</span>, then the equation of its trajectory is</p>
+
+<p>a.&nbsp;<span class="math-tex">\(y\ =\ x\ +\ 5x^2\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;b.&nbsp;<span class="math-tex">\(y\ =\ x\ -\ 5x^2\)</span></p>
+
+<p>c.&nbsp;<span class="math-tex">\(y\ =\ x^2\ +\ 5x\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;d.&nbsp;<span class="math-tex">\(y\ =\ x^2\ -\ 5x\)</span></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2021.json | Q107334 | physics | answer=a =====
+<p>Two drops of equal&nbsp;radius R coalesce to form&nbsp;a bigger drop. What is the ratio of surface energy&nbsp;of bigger drop to smaller one?</p>
+
+<p>a.&nbsp;<span class="math-tex">\(2^{-1/3}\ :\ 1\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;b.&nbsp;<span class="math-tex">\(2^{2/3}\ :\ 1\)</span></p>
+
+<p>c.&nbsp;<span class="math-tex">\(1\ :\ 1\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;d.&nbsp;<span class="math-tex">\(2^{1/2}\ :\ 1\)</span></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2021.json | Q107335 | physics | answer=b =====
+<p>Two particles A and B of masses&nbsp;<span class="math-tex">\(m_A\)</span>&nbsp;and&nbsp;<span class="math-tex">\(m_B\)</span>&nbsp;respectively, are having same charge and&nbsp;moving on same plane. A uniform magnetic field exists perpendicular to this plane. The&nbsp;speeds of the particles are&nbsp;<span class="math-tex">\( \upsilon_A\)</span>&nbsp;and&nbsp;<span class="math-tex">\( \upsilon_B\)</span>&nbsp;respectively and the trajectories are as shown in&nbsp;figure. Then,</p>
+
+<p><img alt="" src="https://testbee.in/preview/show_qimage/1720283266.png" style="height:177px; width:190px" /></p>
+
+<p>a.&nbsp;<span class="math-tex">\(m_A\ =\ m_B\ \ and\ \upsilon_A\ =\ \upsilon_B\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;b.&nbsp;<span class="math-tex">\(m_A\ \upsilon_A\ &gt;\ m_B\ \upsilon_B\)</span></p>
+
+<p>c.&nbsp;<span class="math-tex">\(m_A\ &lt;\ m_B\ \ and\ \upsilon_A\ &lt;\ \upsilon_B\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;d.&nbsp;<span class="math-tex">\(m_A\ \upsilon_A\ &lt;\ m_B\ \upsilon_B\)</span></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2021.json | Q107337 | physics | answer=b =====
+<p>The ratio of the specific&nbsp; heats&nbsp;<span class="math-tex">\(\frac{C_v}{C_p}\ =\ \frac{1}{\gamma}\)</span>&nbsp;in terms&nbsp;of degrees of freedom n is given by&nbsp;</p>
+
+<p>a.&nbsp;<span class="math-tex">\(\Big(1\ +\ \frac{n}{3}\Big)\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;b.&nbsp;<span class="math-tex">\(\Big(1\ +\ \frac{2}{n}\Big)\)</span></p>
+
+<p>c.&nbsp;<span class="math-tex">\(\Big(1\ +\ \frac{n}{2}\Big)\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;d.&nbsp;<span class="math-tex">\(\Big(1\ +\ \frac{1}{n}\Big)\)</span></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2021.json | Q107349 | physics | answer=c =====
+<p>Two coils A and B have a mutual inductance 0.001 H. The current changes in the first coil according to the equation&nbsp;<span class="math-tex">\(i\ =\ i_0\ \sin\ \omega t\)</span>, where&nbsp;<span class="math-tex">\(i_0\ =\ 10 A\)</span>&nbsp;and&nbsp;<span class="math-tex">\(\omega\ =\ 10\ \pi\ rads^{-1}\)</span>. The maximum value of emf in the second coil is</p>
+
+<p>a.&nbsp;<span class="math-tex">\(0.01\ \pi\ V\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;b.&nbsp;<span class="math-tex">\(1\ \pi\ V\)</span></p>
+
+<p>c.&nbsp;<span class="math-tex">\(0.1\ \pi\ V\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;d.&nbsp;<span class="math-tex">\(0.05\ \pi\ V\)</span></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2021.json | Q107354 | physics | answer=a =====
+<p>A radioactive sample at any instant has its disintegration rate 5000 disintegrations per min. After 5 min, the rate is 1250 disintegrations per min. Then, the disintegration constant (per min) is</p>
+
+<p>a.&nbsp;<span class="math-tex">\(0.4\ \log_e\ 2\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;b.&nbsp;<span class="math-tex">\(0.2\ \log_e\ 2\)</span></p>
+
+<p>c.&nbsp;<span class="math-tex">\(0.1\ \log_e\ 2\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;d.&nbsp;<span class="math-tex">\(0.8\ \log_e\ 2\)</span></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2021.json | Q107382 | physics | answer=b =====
+<p>Choose the correct statement.</p>
+
+<p>a.&nbsp;The speed of light in the meta-material is&nbsp;<span class="math-tex">\(\upsilon\ =\ c\ |\ n\ |.\)</span></p>
+
+<p>b.&nbsp;The speed of light in the meta-material is&nbsp;<span class="math-tex">\(\upsilon\ =\ \frac{c}{ |\ n\ |}.\)</span></p>
+
+<p>c.&nbsp;The speed of light in the meta-material is&nbsp;<span class="math-tex">\(\upsilon\ =\ c.\)</span></p>
+
+<p>d.&nbsp;The wavelength of the light in the meta-material&nbsp;<span class="math-tex">\((\lambda_m)\)</span>&nbsp;is given by&nbsp;<span class="math-tex">\(\lambda_m\ =\ \lambda_{air}\ |n|\)</span>.</p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2021.json | Q107383 | physics | answer=d =====
+<p>A T-shaped object with dimensions shown in figure, is lying on a smooth floor. A force F is applied at the point P parallel to AB, such that the object has only the translational motion&nbsp;without rotation, Find the location of P with respect to C.</p>
+
+<p><img alt="" src="https://testbee.in/preview/show_qimage/1720363457.png" style="height:212px; width:146px" /></p>
+
+<p>a.&nbsp;<span class="math-tex">\(\frac{2}{3}\ l\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;b.&nbsp;<span class="math-tex">\(\frac{3}{4}\ l\)</span></p>
+
+<p>c.&nbsp;<span class="math-tex">\(\frac{3}{2}\ l\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp; &nbsp; d.&nbsp;<span class="math-tex">\(\frac{4}{3}\ l\)</span></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2021.json | Q107385 | chemistry | answer=a =====
+<p>What is the magnetic moment of&nbsp;<span class="math-tex">\(Ti^{2+}\ ?\)</span>&nbsp;</p>
+
+<p>(Given : Atomic nurnber = 22)</p>
+
+<p>a.&nbsp;<span class="math-tex">\(\sqrt8\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; b.&nbsp;<span class="math-tex">\(\sqrt{10}\)</span></p>
+
+<p>c.&nbsp;<span class="math-tex">\(\sqrt6\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; d.&nbsp;<span class="math-tex">\(\sqrt9\)</span></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2021.json | Q107388 | chemistry | answer=c,d =====
+<p>For the following reaction,&nbsp;<span class="math-tex">\(2A\ +\ 3B\ \to\ 3C\ +\ 4D\)</span>&nbsp;expression for rate of reaction is</p>
+
+<p>a.&nbsp;<span class="math-tex">\(\frac{d [A]}{dt}\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; b.&nbsp;<span class="math-tex">\(\frac{1}{2}\frac{d [B]}{dt}\)</span></p>
+
+<p>c.&nbsp;<span class="math-tex">\(\frac{1}{3}\frac{d [C]}{dt}\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;d.&nbsp;<span class="math-tex">\(\frac{1}{4}\frac{d [D]}{dt}\)</span></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2021.json | Q107392 | chemistry | answer=a =====
+<p>Sodium iodide reacts with ammonia to give</p>
+
+<p>a.&nbsp;<span class="math-tex">\([Na(NH_3)_4]\ I\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;b.&nbsp;<span class="math-tex">\([Na(NH_3)_4]\ I_3\)</span></p>
+
+<p>c.&nbsp;<span class="math-tex">\([Na(NH_3)\ I_3]\ I\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; d.&nbsp;<span class="math-tex">\([Na(NH_3)_3\ I_3]\)</span></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2021.json | Q107395 | chemistry | answer=b =====
+<p>The process of removal of excess electrolyte from colloidal solution is&nbsp;</p>
+
+<p>a.&nbsp;coagulation&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; b.&nbsp;dialysis</p>
+
+<p>c.&nbsp;ultra-filtration&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; d.&nbsp;peptisation</p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2021.json | Q107399 | chemistry | answer=a =====
+<p>Sodium stearate&nbsp;<span class="math-tex">\((C_{17}\ H_{35}\ COO^-\ Na^+)\)</span>&nbsp;is</p>
+
+<p>a.&nbsp;anionic soap&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;b.&nbsp;cationic detergent</p>
+
+<p>c.&nbsp;anionic detergent&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;d.&nbsp;Non-ionic soap</p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2021.json | Q107400 | chemistry | answer=b =====
+<p>Which is not an anti-fluorite structure</p>
+
+<p>a.&nbsp;<span class="math-tex">\(Rb_2S\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;b.&nbsp;<span class="math-tex">\(BaF_2\)</span></p>
+
+<p>c.&nbsp;<span class="math-tex">\(K_2O\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; d.&nbsp;<span class="math-tex">\(Li_2O\)</span></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2021.json | Q107402 | chemistry | answer=b =====
+<p>Which of the following is diamagnetic in nature?&nbsp;</p>
+
+<p>a.&nbsp;<span class="math-tex">\(O_2\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;b.&nbsp;<span class="math-tex">\(O^{2-}_2\)</span></p>
+
+<p>c.&nbsp;<span class="math-tex">\(N^{2+}_2\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; d.&nbsp;<span class="math-tex">\(B_2\)</span></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2021.json | Q107408 | chemistry | answer=a =====
+<p>Which is true in case of&nbsp;<span class="math-tex">\([Ni(CO)_4]\)</span>&nbsp;?</p>
+
+<p>a.&nbsp;Hybridisation of Ni is <span class="math-tex">\(sp^3\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; b.&nbsp;Hybridisation of Ni is&nbsp;<span class="math-tex">\(dsp^2\)</span></p>
+
+<p>c.&nbsp;Paramagnetic&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;d.&nbsp;Square planar</p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2021.json | Q107411 | chemistry | answer=a =====
+<p>Magnetic moment of Co in&nbsp;<span class="math-tex">\([CoF_6]^{2-}\)</span>&nbsp;of unpaired electron is</p>
+
+<p>a.&nbsp;<span class="math-tex">\(\sqrt{35}\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; b.&nbsp;<span class="math-tex">\(\sqrt{45}\)</span></p>
+
+<p>c.&nbsp;<span class="math-tex">\(\sqrt{40}\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; d.&nbsp;<span class="math-tex">\(\sqrt{30}\)</span></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2021.json | Q107413 | chemistry | answer=c =====
+<p><span class="math-tex">\(CH_3-CHCl - CH_2 - CH_3\)</span>&nbsp;has a chiral centre, which of the following represents its R configurations?</p>
+
+<p><img alt="" src="https://testbee.in/preview/show_qimage/1720371620.png" style="height:160px; width:290px" /></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2021.json | Q107415 | chemistry | answer=a =====
+<p>For the complete combustion of ethanol,&nbsp;<span class="math-tex">\(C_2H_5OH(l)\ +\ 3O_2(g)\ \to\ 2CO_2(g)\ +\ 3H_2O(l)\)</span>,&nbsp;the amount of heat produced as measured in bomb calorimeter is&nbsp;<span class="math-tex">\(1364.47\ kJ\ mol^{-1}\)</span>&nbsp;at&nbsp;<span class="math-tex">\(25^\circ\ C\)</span>.&nbsp;Assuming ideality the enthalpy of combustion,&nbsp;<span class="math-tex">\(\Delta H_c\)</span>, for the reaction will be&nbsp;</p>
+
+<p><span class="math-tex">\((R\ =\ 8.314\ JK^{-1}\ mol^{-1})\)</span></p>
+
+<p>a.&nbsp;<span class="math-tex">\(-1366.95\ kJ\ mol^{-1}\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; b.&nbsp;<span class="math-tex">\(-1361.95\ kJ\ mol^{-1}\)</span></p>
+
+<p>c.&nbsp;<span class="math-tex">\(-1460.50\ kJ\ mol^{-1}\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;d.&nbsp;<span class="math-tex">\(-1350.50\ kJ\ mol^{-1}\)</span></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2021.json | Q107432 | chemistry | answer=d =====
+<p>The solubility of <span class="math-tex">\(Pb(OH)_2\)</span> in&nbsp;water is&nbsp;<span class="math-tex">\(6.7\ \times\ 10^{-6}\ M\)</span>.&nbsp;Its solubility in a buffer solution of pH = 8 would be</p>
+
+<p>a.&nbsp;<span class="math-tex">\(1.2\ \times\ 10^{-2}\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;b.&nbsp;<span class="math-tex">\(1.6\ \times\ 10^{-3}\)</span></p>
+
+<p>c.&nbsp;<span class="math-tex">\(1.6\ \times\ 10^{-2}\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;d.&nbsp;<span class="math-tex">\(1.6\ \times\ 10^{-3}\)</span></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2021.json | Q107436 | chemistry | answer=c =====
+<p>Equal masses of methane and oxygen are mixed in an empty&nbsp;container at&nbsp;<span class="math-tex">\(25^\circ\ C\)</span>.&nbsp;The fraction of the total&nbsp;pressure exerted by oxygen is</p>
+
+<p>a.&nbsp;<span class="math-tex">\(\frac{2}{3}\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; b.&nbsp;<span class="math-tex">\(\frac{1}{3}\ \times\ \frac{273}{298}\)</span></p>
+
+<p>c.&nbsp;<span class="math-tex">\(\frac{1}{3}\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; d.&nbsp;<span class="math-tex">\(\frac{1}{2}\)</span></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2021.json | Q107437 | chemistry | answer=b =====
+<p>The molar conductivities of KCl, NaCl and&nbsp;<span class="math-tex">\(KNO_3\)</span>&nbsp;are 152, 128 and &nbsp;S&nbsp;<span class="math-tex">\(111\ S\ cm^2\ mol^{-1}\)</span>&nbsp;respectiven. What is the molar conductivity of&nbsp;<span class="math-tex">\(NaNO_3\)</span>?</p>
+
+<p>a.&nbsp;<span class="math-tex">\(101\ S\ cm^2\ mol^{-1}\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; b.&nbsp;<span class="math-tex">\(87\ S\ cm^2\ mol^{-1}\)</span></p>
+
+<p>c.&nbsp;<span class="math-tex">\(-101\ S\ cm^2\ mol^{-1}\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;d.&nbsp;<span class="math-tex">\(-\ 391\ S\ cm^2\ mol^{-1}\)</span> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;</p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2021.json | Q107439 | chemistry | answer=a =====
+<p>Given, the reduction potential of&nbsp;</p>
+
+<p><span class="math-tex">\(Na^+,\ Mg^{2+},\ Al^{3+}\)</span>&nbsp; and&nbsp;<span class="math-tex">\(Ag^+\)</span>&nbsp;as&nbsp;<span class="math-tex">\(E^\circ_{Na^+/Na}\ =\ -\ 2.17\ V;\)</span>&nbsp;<span class="math-tex">\(E^\circ_{Mg^{2+}/Mg}\ =\ -\ 2.37\ V;\ E^\circ_{Ag^+/Ag}\ =\ -\ 0.08\ V;\)</span>&nbsp;<span class="math-tex">\(E^\circ_{Al^{3+}/Al}\ =\ -\ 1.66\ V\)</span></p>
+
+<p>The least stable oxide is</p>
+
+<p>a.&nbsp;<span class="math-tex">\(Ag_2O\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;b.&nbsp;<span class="math-tex">\(Al_2O_3\)</span></p>
+
+<p>c.&nbsp;<span class="math-tex">\(MgO\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;d.&nbsp;<span class="math-tex">\(Na_2O\)</span></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2021.json | Q107479 | mathematics | answer=a =====
+<p>If&nbsp;<span class="math-tex">\(a\ \in\ R,\ b\ \in\ R\)</span>, then the equatipon&nbsp;<span class="math-tex">\(x^2\ -\ abx\ -\ a^2\ =\ 0\)</span>&nbsp;has</p>
+
+<p>a.&nbsp;one positive root and one negative root&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;b.&nbsp;Both positive roots&nbsp;</p>
+
+<p>c.&nbsp;Both negative roots&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; d.&nbsp;Non-real roots</p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2021.json | Q107481 | mathematics | answer=c =====
+<p>If&nbsp;<span class="math-tex">\(a\ +\ 2b\ +\ 3c\ =\ 12,\ (a,\ b,\ c\ \in\ R^+)\)</span>, then the maximum value of&nbsp;<span class="math-tex">\(ab^2\ c^3\)</span>&nbsp;is</p>
+
+<p>a.&nbsp;<span class="math-tex">\(2^3\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; b.&nbsp;<span class="math-tex">\(2^4\)</span></p>
+
+<p>c.&nbsp;<span class="math-tex">\(2^6\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; d.&nbsp;<span class="math-tex">\(2^5\)</span></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2021.json | Q107482 | mathematics | answer=a =====
+<p>Sum of n terms of the infinite series&nbsp;<span class="math-tex">\(1.3^2\ +\ 25^2\ +\ 3.7^2\ +\ ...\ \infty\)</span>&nbsp;is</p>
+
+<p>a.&nbsp;<span class="math-tex">\(\frac{n}{6}\ (n\ +\ 1)\ (6n^2\ +\ 14n\ +\ 7)\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;b.&nbsp;<span class="math-tex">\(\frac{n}{6}\ (n\ +\ 1)\ (6n^2\ +\ 14n\ +\ 5)\)</span></p>
+
+<p>c.&nbsp;<span class="math-tex">\(\frac{n}{6}\ (n\ +\ 1)\ (2n\ +\ 1)\ (3n\ +\ 1)\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;d.&nbsp;<span class="math-tex">\(4n^3\ +\ 4n^2\ +\ n\)</span></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2021.json | Q107483 | mathematics | answer=d =====
+<p>If&nbsp;<span class="math-tex">\(\log_7\ 5\ =\ a,\ \log_5\ 3\ =\ b\)</span>&nbsp;and&nbsp;<span class="math-tex">\(\log_3\ 2\ =\ c\)</span>, then the logarithm of the number 70 to the base 225 is&nbsp;</p>
+
+<p>a.&nbsp;<span class="math-tex">\(\frac{1\ -\ a\ +\ abc}{2a\ (1\ +\ b)}\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; b.&nbsp;<span class="math-tex">\(\frac{1\ -\ a\ -\ abc}{2a\ (1\ +\ b)}\)</span></p>
+
+<p>c.&nbsp;<span class="math-tex">\(\frac{1\ +\ a\ -\ abc}{2a\ (1\ +\ b)}\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; d.&nbsp;<span class="math-tex">\(\frac{1\ +\ a\ +\ abc}{2a\ (1\ +\ b)}\)</span></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2021.json | Q107487 | mathematics | answer=c =====
+<p>Matrix&nbsp;<span class="math-tex">\(A\ =\ \begin{bmatrix}x &amp; 3 &amp; 2 \\ 1 &amp; y &amp; 4 \\ 2 &amp; 2 &amp; z\end{bmatrix}\)</span>, if&nbsp;<span class="math-tex">\(xyz\ =\ 60\)</span>&nbsp;and&nbsp;<span class="math-tex">\(8x\ +\ 4y\ +\ 3z\ =\ 20\)</span>&nbsp;, then&nbsp;<span class="math-tex">\(A(adj\ A)\)</span>&nbsp;is equal to&nbsp;</p>
+
+<p>a.&nbsp;<span class="math-tex">\( \begin{bmatrix}64 &amp; 0 &amp; 0 \\ 0 &amp; 64 &amp; 0 \\ 0 &amp; 0 &amp; 64\end{bmatrix}\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;b.&nbsp;<span class="math-tex">\( \begin{bmatrix}88 &amp; 0 &amp; 0 \\ 0 &amp; 88 &amp; 0 \\ 0 &amp; 0 &amp; 88\end{bmatrix}\)</span></p>
+
+<p>c.&nbsp;<span class="math-tex">\( \begin{bmatrix}68 &amp; 0 &amp; 0 \\ 0 &amp; 68 &amp; 0 \\ 0 &amp; 0 &amp; 68\end{bmatrix}\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; d.&nbsp;<span class="math-tex">\( \begin{bmatrix}34 &amp; 0 &amp; 0 \\ 0 &amp; 34 &amp; 0 \\ 0 &amp; 0 &amp; 34\end{bmatrix}\)</span></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2021.json | Q107553 | mathematics | answer=c =====
+<p>Which of the&nbsp;following is not an equivalence relation in z?</p>
+
+<p>a.&nbsp;<span class="math-tex">\(aRb\ \Leftrightarrow\ a\ +\ b\)</span>&nbsp;is an even integer&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;b.&nbsp;<span class="math-tex">\(aRb\ \Leftrightarrow\ a\ -\ b\)</span>&nbsp;is an even integer</p>
+
+<p>c.&nbsp;<span class="math-tex">\(aRb\ \Leftrightarrow\ a\ &lt;\ b\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; d.&nbsp;<span class="math-tex">\(aRb\ \Leftrightarrow\ a\ =\ b\)</span></p>
+
+<p>&nbsp;</p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2021.json | Q107554 | mathematics | answer=b =====
+<p>Which of the following is always true?</p>
+
+<p>a.&nbsp;<span class="math-tex">\((\sim\ p\ \vee\ \sim\ q)\ \equiv\ (p\ \wedge\ q)\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;b.&nbsp;<span class="math-tex">\((p\ \to\ q)\ \equiv\ (\sim\ q\ \to\ \sim\ p)\)</span></p>
+
+<p>c.&nbsp;<span class="math-tex">\(\sim\ (p\ \to\ \sim\ q)\ \equiv\ (p\ \wedge\ \sim\ q)\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;d.&nbsp;<span class="math-tex">\(\sim\ (p\ \leftrightarrow \ q)\ \equiv\ (p\ \to\ q)\ \to\ (q\ \to\ p)\)</span></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2021.json | Q107556 | mathematics | answer=a =====
+<p>If&nbsp;<span class="math-tex">\(\cos^3\ x\ \cdot\ \sin\ 2x\ =\ \displaystyle\sum_{m=1}^{n}\ a_m\ \sin\ mx\)</span>&nbsp;is identity in x,&nbsp; then</p>
+
+<p>a.&nbsp;<span class="math-tex">\(a_3\ =\ \frac{3}{8},\ a_2\ =\ 0\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;b.&nbsp;<span class="math-tex">\(n\ =\ 6,\ a_1\ =\ \frac{1}{2}\)</span></p>
+
+<p>c.&nbsp;<span class="math-tex">\(n\ =\ 5,\ a_1\ =\ \frac{3}{4}\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;d.&nbsp;<span class="math-tex">\(\sum a_m\ =\ \frac{1}{4}\)</span></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2021.json | Q107597 | mathematics | answer=a =====
+<p>The minimum value of&nbsp;<span class="math-tex">\((\sin^{-1}\ x)^3\ +\ (\cos^{-1}\ x)^3\)</span>&nbsp;is equal to&nbsp;</p>
+
+<p>a.&nbsp;<span class="math-tex">\(\frac{\pi^3}{32}\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; b.&nbsp;<span class="math-tex">\(\frac{5 \ \pi^3}{32}\)</span></p>
+
+<p>c.&nbsp;<span class="math-tex">\(\frac{9\ \pi^3}{32}\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; d.&nbsp;<span class="math-tex">\(\frac{11\ \pi^3}{32}\)</span></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2021.json | Q107605 | mathematics | answer=b =====
+<p>If&nbsp;<span class="math-tex">\(x\ =\ 9\)</span>&nbsp;is the chord of contact of the hyperbola&nbsp;<span class="math-tex">\(x^2\ -\ y^2\ =\ 9\)</span>, then the equation of the corresponding pair of tangent is&nbsp;</p>
+
+<p>a.&nbsp;<span class="math-tex">\(9x^2\ -\ 8y^2\ +\ 18x\ -\ 9\ =\ 0\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;b.&nbsp;<span class="math-tex">\(9x^2\ -\ 8y^2\ -\ 18x\ +\ 9\ =\ 0\)</span></p>
+
+<p>c.&nbsp;<span class="math-tex">\(9x^2\ -\ 8y^2\ -\ 18x\ -\ 9\ =\ 0\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;d.&nbsp;<span class="math-tex">\(9x^2\ -\ 8y^2\ +\ 18x\ +\ 9\ =\ 0\)</span></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2021.json | Q107608 | mathematics | answer=d =====
+<p>L.et a, b, c be vectors of lengths 3, 4, 5 respectively and a be perpendicular to&nbsp;<span class="math-tex">\((b\ +\ c),\ b\)</span>&nbsp;to&nbsp;<span class="math-tex">\((c\ +\ a)\)</span>&nbsp;and&nbsp;<span class="math-tex">\(c\)</span>&nbsp;to&nbsp;<span class="math-tex">\((a\ +\ b)\)</span>, then the value of&nbsp;<span class="math-tex">\((a\ +\ b\ +\ c)\)</span>&nbsp;is</p>
+
+<p>a.&nbsp;<span class="math-tex">\(2\sqrt5\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;b.&nbsp;<span class="math-tex">\(2\sqrt2\)</span></p>
+
+<p>c.&nbsp;<span class="math-tex">\(10\sqrt5\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;d.&nbsp;<span class="math-tex">\(5\sqrt2\)</span></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2021.json | Q107612 | mathematics | answer=d =====
+<p>For non-zero vectors&nbsp;<span class="math-tex">\(a,\ b,\ c;\ |(a\ \times\ b)\ \cdot\ c|\ =\ |a|\ |b|\ |c|\)</span>&nbsp;holds if and only if</p>
+
+<p>a.&nbsp; &nbsp;&nbsp;<span class="math-tex">\(a\ \cdot\ b\ =\ 0,\ b\ \cdot\ c \ =\ 0\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; b.&nbsp; &nbsp;&nbsp;<span class="math-tex">\(b\ \cdot\ c \ = \ 0,\ c\ \cdot\ a\ =\ 0\)</span></p>
+
+<p>c.&nbsp; &nbsp;&nbsp;<span class="math-tex">\(c\ \cdot\ a\ =\ 0,\ a\ \cdot\ b\ =\ 0\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; d.&nbsp;&nbsp; &nbsp;<span class="math-tex">\(a\ \cdot\ b\ =\ b\ \cdot\ c\ =\ c\ \cdot\ a\ =\ 0\)</span></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2021.json | Q107613 | mathematics | answer=c =====
+<p>Angle between the&nbsp;diagonals of a cube is</p>
+
+<p>a.&nbsp;<span class="math-tex">\(\pi/3\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;b.&nbsp;<span class="math-tex">\(\pi/2\)</span></p>
+
+<p>c.&nbsp;<span class="math-tex">\(\cos^{-1}(1/3)\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; d.&nbsp;<span class="math-tex">\(\cos^{-1}(1/\sqrt3)\)</span>&nbsp;</p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2021.json | Q107614 | mathematics | answer=b =====
+<p>Consider the two lines</p>
+
+<p><span class="math-tex">\(L_1\ :\ \frac{x\ +\ 1}{3}\ =\ \frac{y\ +\ 2}{1}\ =\ \frac{z\ +\ 1}{2}\)</span></p>
+
+<p>and&nbsp;<span class="math-tex">\(L_2\ :\ \frac{x\ -\ 2}{1}\ =\ \frac{y\ +\ 2}{2}\ =\ \frac{z\ -\ 3}{3}\)</span></p>
+
+<p>The unit vector perpenclicular to both the lines&nbsp;<span class="math-tex">\(L_1\)</span>&nbsp;and&nbsp;<span class="math-tex">\(L_2\)</span>&nbsp;is</p>
+
+<p>a.&nbsp;<span class="math-tex">\(\frac{-\ \hat{i}\ +\ 7\hat{j}\ +\ 7\hat{k}}{\sqrt{99}}\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; b.&nbsp;<span class="math-tex">\(\frac{-\ \hat{i}\ -\ 7\hat{j}\ +\ 5\hat{k}}{5\sqrt3}\)</span></p>
+
+<p>c.&nbsp;<span class="math-tex">\(\frac{-\ \hat{i}\ +\ 7\hat{j}\ +\ 5\hat{k}}{5\sqrt3}\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; d.&nbsp;<span class="math-tex">\(\frac{7 \hat{i}\ -\ 7\hat{j}\ +\ \hat{k}}{\sqrt{99}}\)</span></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2021.json | Q107619 | mathematics | answer=c =====
+<p>For a random variable&nbsp;<span class="math-tex">\(X,\ E(X)\ =\ 3\)</span>&nbsp;and&nbsp;<span class="math-tex">\(E(X^2)\ =\ 11\)</span>. The variable of X is</p>
+
+<p>a.&nbsp; 8&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; b.&nbsp; 5</p>
+
+<p>c.&nbsp; 2&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; d.&nbsp; 1</p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2021.json | Q107673 | mathematics | answer=b =====
+<p>Solution of&nbsp;<span class="math-tex">\(\Big(\frac{x\ +\ y\ -\ 1}{x\ +\ y\ -\ 2}\Big)\ \frac{dy}{dx}\ =\ \Big(\frac{x\ +\ y\ +\ 1}{x\ +\ y\ +\ 2}\Big)\)</span>, given that y = 1 when x = 1 is</p>
+
+<p>a.&nbsp;<span class="math-tex">\(ln\ \Bigg|\frac{(x\ -\ y)^2\ -\ 2}{2}\Bigg|\ =\ 2(x\ +\ y)\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;b.&nbsp;<span class="math-tex">\(ln\ \Bigg|\frac{(x\ +\ y)^2\ -\ 2}{2}\Bigg|\ =\ 2(x\ -\ y)\)</span></p>
+
+<p>c.&nbsp;<span class="math-tex">\(ln\ \Bigg|\frac{(x\ -\ y)^2\ +\ 2}{2}\Bigg|\ =\ 2(x\ +\ y)\)</span>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;d.&nbsp;<span class="math-tex">\(ln\ \Bigg|\frac{(x\ +\ y)^2\ +\ 2}{2}\Bigg|\ =\ 2(x\ -\ y)\)</span></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2022.json | Q107537 | physics | answer=d =====
+<p>Which one of the following graphs represents the variation of electric potential with distance r from the centre of a non-conducting charged sphere of radius R?</p>
+
+<p><img alt="" src="https://www.testbee.in/preview/show_qimage/1720596966.png" style="height:337px; width:450px" /></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2022.json | Q107852 | chemistry | answer=a =====
+<p>The reaction of&nbsp;<span class="math-tex">\(C_6H_5CH\ =\ CHCH_3\)</span> with HBr produces</p>
+
+<p><img alt="" src="https://www.testbee.in/preview/show_qimage/1723104293.png" style="height:173px; width:350px" /></p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2023.json | Q107127 | physics | answer=d =====
+<p>Truth table for system of four NAND gate and one NOT gate as shown in figure is.</p>
+
+<p><img alt="" src="https://testbee.in/preview/show_qimage/1720019936.png" style="height:313px; width:300px" /></p>
+
+<p>&nbsp;</p>
+
+<p>&nbsp;</p>
+
+<p>&nbsp;</p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2024.json | Q114069 | physics | answer=d =====
+<p>Identify the correct output signal Y in the given combination of gates for the given inputs A and B shown in the figure.</p>
+
+<p><img alt="" src="https://www.testbee.in/preview/show_qimage/1739542482.png" style="height:236px; width:300px" /></p>
+
+<p><img alt="" src="https://www.testbee.in/preview/show_qimage/1739542550.png" style="height:536px; width:350px" /></p>
+
+<p>&nbsp;</p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2024.json | Q114086 | chemistry | answer=b =====
+<p>The final product in following reaction Y is,</p>
+
+<p><img alt="" src="https://www.testbee.in/preview/show_qimage/1739592897.png" style="height:308px; width:350px" /></p>
+
+<p>&nbsp;</p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2024.json | Q114106 | chemistry | answer=c =====
+<p>The major product X in the following given reaction is</p>
+
+<p><img alt="" src="https://www.testbee.in/preview/show_qimage/1739604975.png" style="height:105px; width:150px" /></p>
+
+<p><img alt="" src="https://www.testbee.in/preview/show_qimage/1739605057.png" style="height:231px; width:350px" /></p>
+
+<p>&nbsp;</p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-BITSAT-2024.json | Q114127 | chemistry | answer=c =====
+<p>In&nbsp;&nbsp;<span class="math-tex">\(S_N2\)</span>&nbsp; substitution reaction of the type</p>
+
+<p><img alt="" src="https://www.testbee.in/preview/show_qimage/1739669251.png" style="height:53px; width:322px" /></p>
+
+<p>Which one of the following has highest relative rate ?</p>
+
+<p><img alt="" src="https://www.testbee.in/preview/show_qimage/1739669376.png" style="height:129px; width:350px" /></p>
+
+<p>&nbsp;</p>
+
+
+===== BITSAT-Previous-Question-Paper-Set-Solved-Question-Paper-Set.json | Q20324 | physics | answer=c =====
+<p><strong>Which one of the following graphs represents the variation of electric field with distance r from the centre of a charged spherical conductor of radius R? </strong></p>
+
+<p><strong><img alt="" src="https://www.testbee.in/preview/show_qimage/1573797900.png" style="height:175px; width:331px" /></strong></p>
+
+

@@ -24,7 +24,7 @@ type PaperRow = {
 };
 
 function isSubject(s: string): s is Subject {
-  return s === "physics" || s === "chemistry" || s === "math";
+  return s === "physics" || s === "chemistry" || s === "math" || s === "biology";
 }
 
 function isMockPaperType(s: string): s is MockPaperType {
@@ -49,6 +49,7 @@ export function mapPaperRowToMockPaper(row: PaperRow): MockPaper {
     type,
     subject: primary,
     subjectsCovered: covered.length > 0 ? covered : undefined,
+    exam: (row.exam_name ?? "").trim() || "Uncategorised",
     durationMinutes: row.duration_minutes,
     questionsCount: row.question_count,
     totalMarks: row.total_marks,

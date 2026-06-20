@@ -1,7 +1,17 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Question } from "@/types";
 import { useUserStore } from "@/store/useUserStore";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
+import { useRouter } from "next/navigation";
+import { ToastAction } from "@/components/ui/toast";
+import { persistSavedQuestion } from "@/lib/saved/savedQuestionsService";
+import {
+  resolveSavedQuestionLimit,
+  savedQuestionLimitToastCopy,
+  SAVED_QUESTION_UPGRADE_PATH,
+} from "@/lib/saved/savedQuestionSaveLimit";
 import { Button } from "@/components/ui/button";
 import {
   Heart,
@@ -52,6 +62,9 @@ interface Props {
 }
 
 const QuestionCard = ({ question, onNext, mockMode, onAnswerSelect }: Props) => {
+  const router = useRouter();
+  const { toast } = useToast();
+  const { user: authUser, profile } = useAuth();
   const { recordAnswer, saveQuestion, unsaveQuestion, likeQuestion, unlikeQuestion, user } =
     useUserStore();
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
@@ -63,6 +76,58 @@ const QuestionCard = ({ question, onNext, mockMode, onAnswerSelect }: Props) => 
   const isCorrect = selectedOption === question.correctAnswer;
   const isSaved = user?.savedQuestions.includes(question.id);
   const isLiked = user?.likedQuestions.includes(question.id);
+
+  const handleBookmarkToggle = useCallback(async () => {
+    if (isSaved) {
+      unsaveQuestion(question.id);
+      return;
+    }
+
+    const savedCount = user?.savedQuestions.length ?? 0;
+    const limit = await resolveSavedQuestionLimit(profile, savedCount);
+    if (limit.atLimit) {
+      const copy = savedQuestionLimitToastCopy(limit.cap);
+      toast({
+        title: copy.title,
+        description: copy.description,
+        action: (
+          <ToastAction altText="Upgrade plan" onClick={() => router.push(SAVED_QUESTION_UPGRADE_PATH)}>
+            Upgrade
+          </ToastAction>
+        ),
+      });
+      return;
+    }
+
+    saveQuestion(question.id);
+
+    if (!authUser?.id) return;
+
+    const { error, limitReached } = await persistSavedQuestion(question.id, "static");
+    if (error) {
+      unsaveQuestion(question.id);
+      toast({
+        title: limitReached ? savedQuestionLimitToastCopy(limit.cap).title : "Could not save question",
+        description: error.message,
+        variant: "destructive",
+        action: limitReached ? (
+          <ToastAction altText="Upgrade plan" onClick={() => router.push(SAVED_QUESTION_UPGRADE_PATH)}>
+            Upgrade
+          </ToastAction>
+        ) : undefined,
+      });
+    }
+  }, [
+    isSaved,
+    question.id,
+    user?.savedQuestions.length,
+    profile,
+    saveQuestion,
+    unsaveQuestion,
+    authUser?.id,
+    toast,
+    router,
+  ]);
 
   const handleAnswer = (index: number) => {
     if (answered) return;
@@ -228,7 +293,7 @@ const QuestionCard = ({ question, onNext, mockMode, onAnswerSelect }: Props) => 
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => (isSaved ? unsaveQuestion(question.id) : saveQuestion(question.id))}
+              onClick={() => void handleBookmarkToggle()}
               className="rounded-full"
             >
               <Bookmark className={`w-4 h-4 ${isSaved ? "fill-primary text-primary" : ""}`} />

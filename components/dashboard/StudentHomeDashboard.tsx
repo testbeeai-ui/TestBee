@@ -57,7 +57,6 @@ import {
   SUBSCRIPTION_CONFIG_DEFAULTS,
   type SubscriptionConfig,
 } from "@/lib/subscription/subscriptionConfig";
-import RawCommunityFeed from "@/components/explore/RawCommunityFeed";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useSitePresenceLiveMsToday } from "@/components/providers/SitePresenceProvider";
@@ -89,9 +88,6 @@ import {
 } from "@/lib/onboarding/dailyStreakClient";
 import {
   getActiveStreakDayNumber,
-  getHighestClaimedStreakDay,
-  getMaxReachableStreakDay,
-  isStreakDayLockedByTrialEnd,
   isWaitingForDay2Unlock,
   parseDailyStreakServerState,
 } from "@/lib/onboarding/dailyChecklistTaskStorage";
@@ -104,22 +100,20 @@ import {
 import {
   CalendarDays,
   CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
   Flame,
   LineChart,
-  Sprout,
   Star,
+  Bookmark,
+  MessageCircle,
+  Coins,
+  Heart,
+  ChevronRight as ChevronRightIcon,
+  AlertTriangle,
+  Info,
+  ExternalLink,
+  Check,
+  Clock,
 } from "lucide-react";
-
-const TOPIC_BAR_TONES = [
-  "bg-emerald-500",
-  "bg-blue-500",
-  "bg-orange-500",
-  "bg-rose-500",
-  "bg-violet-500",
-  "bg-cyan-500",
-];
 
 // const CHAPTER_ACCURACY_PAGE_SIZE = 5;
 
@@ -131,14 +125,6 @@ const SHOW_ONBOARDING_REWARD_AUTO_POPUP = true;
 
 type HeatmapMode = "7" | "30";
 
-/** Human-readable names for checklist items a–d (matches API flags). */
-function formatRemainingChecklistLabels(labels: string[]): string {
-  if (labels.length === 0) return "";
-  if (labels.length === 1) return labels[0]!;
-  if (labels.length === 2) return `${labels[0]!} and ${labels[1]!}`;
-  return `${labels.slice(0, -1).join(", ")}, and ${labels[labels.length - 1]!}`;
-}
-
 const MOCK_LEADERBOARD = [
   { rank: 1, name: "Karthik Reddy", city: "Bengaluru", pts: 985 },
   { rank: 2, name: "Ananya Iyer", city: "Mysuru", pts: 942 },
@@ -146,6 +132,78 @@ const MOCK_LEADERBOARD = [
   { rank: 4, name: "Meghana Gowda", city: "Hubli", pts: 812 },
   { rank: 5, name: "Praveen Kumar", city: "Davangere", pts: 790 },
 ] as const;
+
+const FEED_FILTERS = [
+  { id: "all", label: "All" },
+  { id: "physics", label: "Physics" },
+  { id: "chemistry", label: "Chemistry" },
+  { id: "math", label: "Math" },
+] as const;
+
+type FeedFilterId = (typeof FEED_FILTERS)[number]["id"];
+
+const MOCK_FEED_POSTS = [
+  {
+    initials: "YD",
+    tone: "blue" as const,
+    name: "Yash Diwan",
+    time: "13d ago",
+    tags: ["#challenge", "#refer-earn", "#funbrain"],
+    text: "Still working toward MentaMill Blitz — this round did not pass. 0/10 (0%) in 00:13. Pass bar: 6/10.",
+    subject: "Physics" as const,
+  },
+  {
+    initials: "MI",
+    tone: "purple" as const,
+    name: "mail id",
+    time: "14d ago",
+    tags: ["#challenge", "#refer-earn", "#Physics"],
+    text: "Still working toward MentaMill Blitz — this round did not pass. 0/10 (0%) in 00:08. Pass bar: 6/10.",
+    subject: "Physics" as const,
+  },
+  {
+    initials: "MI",
+    tone: "purple" as const,
+    name: "mail id",
+    time: "14d ago",
+    tags: ["#challenge", "#Math"],
+    text: "Mathematics challenge — Sets and Relations. Attempted 5 questions, scored 3/5.",
+    subject: "Math" as const,
+  },
+  {
+    initials: "NK",
+    tone: "emerald" as const,
+    name: "Nidhi K",
+    time: "2h ago",
+    tags: ["#gyan++", "#Physics", "#Electrostatics"],
+    text: "Why does a capacitor block DC current but allow AC current to pass? Prof-Pi answered in 1.8s.",
+    subject: "Physics" as const,
+  },
+  {
+    initials: "AR",
+    tone: "amber" as const,
+    name: "Arjun R",
+    time: "5h ago",
+    tags: ["#mock", "#Math", "#achievement"],
+    text: "Mock #4 done — 87%! Mechanics finally clicking. Testbee kept pushing Integration by parts.",
+    subject: "Math" as const,
+  },
+];
+
+/**
+ * Target exam date for the "Days to JEE Main" countdown in the icon-panel
+ * flyout. Update this annually to repoint the countdown to the next JEE
+ * Main session. The flyout recomputes the day count from `Date.now()` so
+ * the value always reflects "now → this date".
+ */
+const JEE_MAIN_TARGET_DATE_ISO = "2027-01-22";
+
+type IconFlyoutId =
+  | "rdm"
+  | "edufund"
+  | "examPlan"
+  | "accuracy"
+  | null;
 
 type UpcomingBlock = {
   key: string;
@@ -330,7 +388,6 @@ export default function StudentHomeDashboard() {
   const {
     taxonomy: fullTaxonomy,
     loading: taxonomyLoading,
-    error: taxonomyError,
   } = useTopicTaxonomy();
 
   const livePresencePendingMs = useSitePresenceLiveMsToday();
@@ -507,7 +564,6 @@ export default function StudentHomeDashboard() {
   }, [profile?.id, toast]);
 
   const streakDays = streakSummary?.streak ?? 0;
-  const activeDaysThisMonth = streakSummary?.activeDaysThisMonth ?? 0;
 
   const inactivePenaltyRdm = useMemo(() => {
     const plan = normalizePlanTier(profile?.plan_tier, profile?.free_trial_activated, profile);
@@ -826,7 +882,10 @@ export default function StudentHomeDashboard() {
     profile?.board,
   ]);
 
-  const [chapterAccuracyPageIdx, setChapterAccuracyPageIdx] = useState(0);
+  // Page index is not currently exposed in the UI (the v3 chapter accuracy
+  // panel shows the top 5 chapters in a single flyout), but the count
+  // helpers below still need the variable name.
+  const chapterAccuracyPageIdx = 0;
 
   const isChapterAccuracyPaginated = chapterRows.length >= 5;
   const chapterAccuracyPageSize = isChapterAccuracyPaginated ? 3 : 5;
@@ -859,6 +918,16 @@ export default function StudentHomeDashboard() {
     typeof window !== "undefined" ? getFreeTrialActivated(profile) : false
   );
   const [isOnboardingRewardOpen, setIsOnboardingRewardOpen] = useState(false);
+  const [openIconFlyout, setOpenIconFlyout] = useState<IconFlyoutId>(null);
+  const [activeFeedFilter, setActiveFeedFilter] = useState<FeedFilterId>("all");
+  const [feedLikes, setFeedLikes] = useState<Record<number, boolean>>({});
+  const [checklistTaps, setChecklistTaps] = useState<Record<string, boolean>>({});
+  // Admin-only manual override; non-admins never inflate the progress bar
+  // with their taps (the bar tracks server-side `item.done` only).
+  const checklistTapCount = useMemo(
+    () => (isAppAdmin ? Object.values(checklistTaps).filter(Boolean).length : 0),
+    [checklistTaps, isAppAdmin]
+  );
   const [welcomeRdm, setWelcomeRdm] = useState(
     DEFAULT_RDM_CONFIG.free_trial_welcome_rdm
   );
@@ -922,6 +991,18 @@ export default function StudentHomeDashboard() {
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
   }, [loadDailyChecklist]);
+
+  useEffect(() => {
+    if (!openIconFlyout) return;
+    const onDocClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      if (target.closest?.("[data-icon-flyout]")) return;
+      setOpenIconFlyout(null);
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [openIconFlyout]);
 
   useEffect(() => {
     if (!SHOW_DASHBOARD_CHECKLIST) return;
@@ -1085,60 +1166,9 @@ export default function StudentHomeDashboard() {
     });
   }, [profile?.onboarding_reward_claimed_at, profile?.id, dashboardClock, serverStreak]);
 
-  const highestClaimedStreakDay = useMemo(() => {
-    return getHighestClaimedStreakDay(profile?.id, serverStreak);
-  }, [profile?.id, serverStreak]);
-
-  const maxReachableStreakDay = useMemo(() => {
-    return getMaxReachableStreakDay({
-      claimedAt: profile?.onboarding_reward_claimed_at,
-      nowMs: dashboardClock,
-      userId: profile?.id,
-      freeTrialActivatedAt: profile?.free_trial_activated_at,
-      serverStreak,
-    });
-  }, [
-    profile?.onboarding_reward_claimed_at,
-    profile?.id,
-    profile?.free_trial_activated_at,
-    dashboardClock,
-    serverStreak,
-  ]);
-
-  const streakLockedByTrialEnd = useMemo(() => {
-    return isStreakDayLockedByTrialEnd({
-      streakDay: trialDayNumber,
-      claimedAt: profile?.onboarding_reward_claimed_at,
-      nowMs: dashboardClock,
-      userId: profile?.id,
-      freeTrialActivatedAt: profile?.free_trial_activated_at,
-      serverStreak,
-    });
-  }, [
-    trialDayNumber,
-    profile?.onboarding_reward_claimed_at,
-    profile?.id,
-    profile?.free_trial_activated_at,
-    dashboardClock,
-    serverStreak,
-  ]);
-
   const waitingForDay2 = useMemo(() => {
     return isWaitingForDay2Unlock(profile?.onboarding_reward_claimed_at, dashboardClock);
   }, [profile?.onboarding_reward_claimed_at, dashboardClock]);
-
-  const streakChecklistSuppressed = useMemo(() => {
-    return isDailyStreakChecklistSuppressed(profile?.id, dashboardClock);
-  }, [profile?.id, dashboardClock]);
-
-  const displayStreakDay =
-    streakChecklistSuppressed && highestClaimedStreakDay >= 2
-      ? highestClaimedStreakDay
-      : trialDayNumber;
-
-  const streakSuppressRemainingMs = useMemo(() => {
-    return getDailyStreakSuppressRemainingMs(profile?.id, dashboardClock);
-  }, [profile?.id, dashboardClock]);
 
   const freeTrialEndedForClock = useMemo(() => {
     return shouldShowTrialExpirationOverlay(profile, dashboardClock);
@@ -1151,14 +1181,6 @@ export default function StudentHomeDashboard() {
       setFreeTrialPromoOpen(false);
     });
   }, [freeTrialEndedForClock, profile?.trial_end_bonus_activated]);
-
-  function formatSuppressCountdown(remainingMs: number): string {
-    const totalSeconds = Math.max(0, Math.floor(remainingMs / 1000));
-    const h = Math.floor(totalSeconds / 3600);
-    const m = Math.floor((totalSeconds % 3600) / 60);
-    const s = totalSeconds % 60;
-    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-  }
 
   const trialExpirationOpen = useMemo(
     () => shouldShowTrialExpirationOverlay(profile, dashboardClock),
@@ -1288,50 +1310,6 @@ export default function StudentHomeDashboard() {
 
     return { progressLine, gyanLine };
   }, [dailyChecklist, dailyChecklistStatus, checklistDoneCount]);
-
-  /** Single-line checklist hint for the greeting strip (items a–e from GET /api/user/daily-checklist). */
-  const greetingChecklistLine = useMemo(() => {
-    if (!profile?.id) {
-      return {
-        tone: "muted" as const,
-        text: "Sign in to see your daily checklist and study streak.",
-      };
-    }
-    if (dailyChecklistStatus === "error") {
-      return {
-        tone: "warn" as const,
-        text: "We could not load today's checklist. Refresh the page to see what's left.",
-      };
-    }
-    if (dailyChecklistStatus === "loading" || dailyChecklist == null) {
-      return { tone: "muted" as const, text: "Loading today's checklist…" };
-    }
-    if (checklistDoneCount === 0) {
-      return {
-        tone: "muted" as const,
-        text: "Please go through and complete the checklist below.",
-      };
-    }
-    if (checklistDoneCount < 5) {
-      const labels: string[] = [];
-      if (!dailyChecklist.dailyDoseDone) labels.push("DailyDose");
-      if (!dailyChecklist.subtopicRoutineDone) labels.push("Subtopic routine");
-      if (!dailyChecklist.gyanPlusDone) labels.push("Gyan++");
-      if (!dailyChecklist.instacueSessionDone) labels.push("Instacue");
-      if (!dailyChecklist.challengeYourselfDone) labels.push("Challenge yourself");
-      const rest = formatRemainingChecklistLabels(labels);
-      return {
-        tone: "muted" as const,
-        text: labels.length
-          ? `Remaining: ${rest}.`
-          : "Almost there — finish the last items in the checklist below.",
-      };
-    }
-    return {
-      tone: "muted" as const,
-      text: "You've completed today's checklist — great work. Keep your streak going.",
-    };
-  }, [profile?.id, dailyChecklistStatus, dailyChecklist, checklistDoneCount]);
 
   const lowestChapter = useMemo(() => {
     const started = chapterRows.filter((r) => r.completed > 0);
@@ -1472,904 +1450,1016 @@ export default function StudentHomeDashboard() {
             : ""
         }`;
 
-  const studyStreakPending =
-    profile?.id && (studyDaysStatus === "idle" || studyDaysStatus === "loading");
-  const studyStreakReady = profile?.id && studyDaysStatus === "ready";
+  /** Target exam label for the exam-plan flyout. Always shows the combined
+   *  "JEE Main + KCET" message so every student sees the same headline. */
+  const targetExamDisplay = "JEE Main + KCET";
+
+  /** Days remaining until the JEE Main target date. Computed live from the
+   *  user's clock (recomputes every minute via `dashboardClock`). If the
+   *  target date is missing/invalid or already in the past, falls back to
+   *  the literal "280 Days" so the flyout still has a number. */
+  const daysToJeeMain = (() => {
+    const target = new Date(`${JEE_MAIN_TARGET_DATE_ISO}T00:00:00+05:30`);
+    if (Number.isNaN(target.getTime())) return null;
+    const diffMs = target.getTime() - now.getTime();
+    if (diffMs <= 0) return 0;
+    return Math.round(diffMs / (24 * 60 * 60 * 1000));
+  })();
+
+  /** Effective multiplier for the EduFund flyout. */
+  const edufundWallet = Math.max(0, Math.floor(Number(rdm) || 0));
+  const edufundPlanKey = normalizePlanTier(
+    profile?.plan_tier,
+    profile?.free_trial_activated,
+    profile
+  );
+  const edufundActiveMultiplier = calculateActiveMultiplier(
+    edufundPlanKey,
+    profile?.subscription_started_at,
+    profile?.created_at ?? new Date().toISOString(),
+    subscriptionCfg
+  );
+  const edufundEffective = Math.floor(edufundWallet * edufundActiveMultiplier);
+
+  /** Subject accuracy flyout data (top 3 chapters). */
+  const accuracyFlyoutRows =
+    chapterRowsVisible.length > 0 ? chapterRowsVisible : chapterRows.slice(0, 3);
+  const accuracyChaptersTracked = chapterRows.length;
+
+  /** Feed post list (mock or filtered by subject for the v3 preview surface). */
+  const visibleFeedPosts = useMemo(() => {
+    if (activeFeedFilter === "all") return MOCK_FEED_POSTS;
+    const target =
+      activeFeedFilter === "math"
+        ? "Math"
+        : activeFeedFilter === "physics"
+          ? "Physics"
+          : "Chemistry";
+    return MOCK_FEED_POSTS.filter((p) => p.subject === target);
+  }, [activeFeedFilter]);
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-5 pb-8">
-      {/* Greeting strip */}
-      <div className="rounded-2xl border border-border/60 bg-card/60 px-3 py-2.5 dark:bg-slate-950/50 sm:px-4 sm:py-3">
-        <p className="text-xs leading-relaxed text-foreground sm:text-sm sm:leading-normal">
-          <span className="font-bold">
-            {greeting}, {displayName}!
-          </span>{" "}
-          <span
-            className={
-              greetingChecklistLine.tone === "warn" ? "text-amber-200/90" : "text-muted-foreground"
-            }
-          >
-            {greetingChecklistLine.text}{" "}
-            {profile?.id && studyStreakReady ? (
-              <>
-                Your study streak is {streakDays} {streakDays === 1 ? "day" : "days"} — don&apos;t
-                break it.
-              </>
-            ) : profile?.id && studyStreakPending ? (
-              <>Loading your saved study streak…</>
-            ) : profile?.id && studyDaysStatus === "error" ? (
-              <>Study streak couldn&apos;t load — try again in a moment.</>
-            ) : !profile?.id ? (
-              <>Sign in to track your study streak from saved play and quiz time.</>
-            ) : null}
-          </span>
-        </p>
-      </div>
-
-      <div>
-        <h1 className="font-serif text-3xl font-bold tracking-tight text-foreground md:text-4xl">
-          My dashboard
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">{classLine}</p>
-      </div>
-
-      {/* Stat cards */}
-      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {[
-          {
-            label: "RDM EARNED",
-            value: !profile?.id
-              ? "—"
-              : rdmWeeklyLoadState === "loading"
-                ? "…"
-                : rdmWeeklyLoadState === "error"
-                  ? "—"
-                  : `+${(rdmEarnedThisWeek ?? 0).toLocaleString("en-IN")}`,
-            sub: !profile?.id
-              ? "Sign in to track weekly RDM"
-              : rdmWeeklyLoadState === "error"
-                ? "Could not load this week's earnings"
-                : "this week",
-            subClass: "text-muted-foreground",
-          },
-          {
-            label: "RDM BALANCE",
-            value: rdm.toLocaleString("en-IN"),
-            sub: "available",
-            subClass: "text-muted-foreground",
-          },
-          {
-            label: "EDUFUND PROGRESS",
-            value: edufundProgressData.displayPrimary,
-            valueSuffix: edufundProgressData.displaySuffix ?? undefined,
-            sub: "",
-            subClass: "text-muted-foreground",
-          },
-          {
-            label: "STUDY STREAK",
-            value: studyStreakReady
-              ? `${streakDays} days`
-              : studyStreakPending
-                ? "…"
-                : studyDaysStatus === "error"
-                  ? "—"
-                  : "—",
-            sub: studyStreakReady
-              ? `Active days this month: ${activeDaysThisMonth}/${monthDays}`
-              : studyStreakPending
-                ? "Loading from your account…"
-                : studyDaysStatus === "error"
-                  ? "Could not load study days"
-                  : "Sign in to see streak",
-            subClass: "text-muted-foreground",
-          },
-        ].map((c) => (
-          <div
-            key={c.label}
-            className="rounded-2xl border border-border/70 bg-card/90 p-4 shadow-sm dark:bg-slate-950/60"
-          >
-            <p className="text-[10px] font-bold tracking-widest text-muted-foreground">{c.label}</p>
-            <p className="mt-1 text-xl font-extrabold tabular-nums text-foreground sm:text-2xl">
-              {c.value}
-              {"valueSuffix" in c && c.valueSuffix ? (
-                <span className="text-xs font-semibold text-muted-foreground tabular-nums sm:text-sm">
-                  {c.valueSuffix}
-                </span>
-              ) : null}
-            </p>
-            {c.sub ? <p className={cn("mt-1 text-xs font-semibold", c.subClass)}>{c.sub}</p> : null}
-          </div>
-        ))}
-      </section>
-
-      {/* Study streak */}
-      <section className="rounded-2xl border border-border bg-card/90 p-4 shadow-sm dark:bg-slate-950/60">
-        <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2 flex-wrap">
-            <CalendarDays className="h-5 w-5 text-teal-500 shrink-0" />
-            <h2 className="text-base font-bold text-foreground sm:text-lg">Study streak</h2>
-            {inactivePenaltyRdm > 0 ? (
-              <span className="inline-flex w-fit items-center rounded-full border border-rose-500/40 bg-rose-500/10 px-2 py-0.5 text-[10px] font-bold text-rose-600 dark:text-rose-400 sm:px-2.5 sm:py-1 sm:text-[11px]">
-                -{inactivePenaltyRdm.toLocaleString("en-IN")} RDM Inactive streak
-              </span>
-            ) : null}
-          </div>
-          <span className="inline-flex w-fit items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-600 sm:px-2.5 sm:py-1 sm:text-[11px] dark:text-amber-300">
-            <Flame className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-            {studyStreakBonusDays} days Active streak bonus: +{studyStreakBonusRdm.toLocaleString("en-IN")} RDM
-          </span>
-        </div>
-
-        <p id="study-streak-map-help" className="sr-only">
-          Each day shows time on site with this tab in focus; hover for on-site time and saved study
-          time toward your streak.
-        </p>
-        <div
-          className="mb-3 inline-flex w-full rounded-full border border-border bg-muted/30 p-0.5 dark:bg-slate-900/80 sm:w-fit"
-          role="group"
-          aria-label="Time on site map range"
-          aria-describedby="study-streak-map-help"
-        >
-          <button
-            type="button"
-            onClick={() => setHeatmapMode("7")}
-            className={cn(
-              "flex-1 rounded-full px-3 py-1.5 text-xs font-bold transition-colors sm:flex-initial",
-              heatmapMode === "7"
-                ? "border border-foreground/20 bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            Last 7 days
-          </button>
-          <button
-            type="button"
-            onClick={() => setHeatmapMode("30")}
-            className={cn(
-              "flex-1 rounded-full px-3 py-1.5 text-xs font-bold transition-colors sm:flex-initial",
-              heatmapMode === "30"
-                ? "border border-foreground/20 bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            Last 30 days
-          </button>
-        </div>
-
-        {heatmapMode === "30" ? (
-          <p className="mb-2 text-center text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground sm:mb-3 sm:text-[11px] sm:tracking-[0.18em]">
-            {monthGrid.monthlyMapHeading}
+    <div
+      data-testid="v3-home-dashboard"
+      className="mx-auto w-full max-w-[1500px] space-y-4 pb-8 text-[13px] leading-[1.55]"
+    >
+      {/* ── GREETING + 4 ICON PANEL BUTTONS (v3 layout) ── */}
+      <section className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 flex-1">
+          <p className="text-[11px] font-medium text-muted-foreground sm:text-xs">
+            {greeting}, {displayName} · {dateStr}
           </p>
-        ) : null}
+          <h1 className="mt-1 font-serif text-xl font-bold tracking-tight text-foreground sm:text-2xl">
+            My dashboard
+          </h1>
+          <p className="mt-0.5 truncate text-[11px] text-muted-foreground sm:text-xs">
+            {classLine}
+          </p>
+          {streakDays === 0 && profile?.id ? (
+            <span className="mt-1.5 inline-flex items-center gap-1 rounded-full border border-rose-500/40 bg-rose-500/10 px-2 py-0.5 text-[10px] font-semibold text-rose-600 dark:text-rose-300">
+              <AlertTriangle className="h-3 w-3" aria-hidden />
+              Streak 0 days — don&apos;t break it
+            </span>
+          ) : null}
+        </div>
 
-        {heatmapMode === "7" ? (
-          <div className="grid grid-cols-7 gap-1 sm:gap-2">
-            {last7Series.map((cell) => {
-              const isToday =
-                localDayKeyFromDate(cell.date) === localDayKeyFromDate(startOfLocalDay(now));
-              const isReady = studyDaysStatus === "ready";
-              return (
-                <div
-                  key={cell.key}
-                  title={
-                    isReady ? `${cell.tooltipTitle} · Daily RDM: coming soon` : "Loading activity…"
-                  }
-                  className={cn(
-                    "flex min-h-[56px] flex-col items-center justify-center gap-0.5 rounded-lg px-1 py-1.5 sm:min-h-[72px] sm:px-2 sm:py-2",
-                    isReady ? greenCellClass(cell.level, isToday) : heatmapLoadingCellClass(isToday)
-                  )}
-                >
-                  <span className="text-[9px] font-bold uppercase text-muted-foreground sm:text-[10px]">
-                    {cell.date.toLocaleDateString(undefined, { weekday: "short" })}
+        <div className="flex flex-wrap items-start gap-2 sm:flex-nowrap">
+          {/* 1. RDM earned flyout */}
+          <div className="relative" data-icon-flyout>
+            <button
+              type="button"
+              onClick={() =>
+                setOpenIconFlyout((cur) => (cur === "rdm" ? null : "rdm"))
+              }
+              className={cn(
+                "flex min-w-[56px] flex-col items-center gap-0.5 rounded-xl border bg-card/80 px-2.5 py-2 text-foreground transition-colors hover:border-amber-500/60 hover:bg-amber-500/5",
+                openIconFlyout === "rdm" ? "border-amber-500/60" : "border-border/70"
+              )}
+              aria-expanded={openIconFlyout === "rdm"}
+              aria-label="RDM earned summary"
+            >
+              <Coins className="h-4 w-4 text-amber-500" aria-hidden />
+              <span className="text-[12px] font-bold tabular-nums text-amber-500">
+                {!profile?.id
+                  ? "—"
+                  : rdmWeeklyLoadState === "loading"
+                    ? "…"
+                    : rdmWeeklyLoadState === "error"
+                      ? "—"
+                      : `+${(rdmEarnedThisWeek ?? 0).toLocaleString("en-IN")}`}
+              </span>
+              <span className="text-[9px] font-medium text-muted-foreground">RDM earned</span>
+            </button>
+            {openIconFlyout === "rdm" ? (
+              <div
+                role="dialog"
+                aria-label="RDM summary"
+                className="absolute right-0 top-full z-50 mt-1.5 w-[280px] rounded-xl border border-border/70 bg-card p-3.5 text-[12px] shadow-xl"
+              >
+                <p className="mb-2 flex items-center gap-1.5 font-semibold text-foreground">
+                  <Coins className="h-3.5 w-3.5 text-amber-500" aria-hidden /> RDM summary
+                </p>
+                <div className="flex justify-between border-b border-border/60 py-1.5 text-muted-foreground">
+                  <span>Earned this week</span>
+                  <span className="font-semibold text-amber-500">
+                    {!profile?.id
+                      ? "—"
+                      : rdmWeeklyLoadState === "error"
+                        ? "—"
+                        : `+${(rdmEarnedThisWeek ?? 0).toLocaleString("en-IN")} RDM`}
                   </span>
-                  <span className="text-xs font-extrabold tabular-nums sm:text-sm">
-                    {isReady ? cell.label : "…"}
-                  </span>
-                  {isToday ? (
-                    <span className="text-[9px] font-semibold text-teal-400 sm:text-[10px]">
-                      Today
-                    </span>
-                  ) : null}
                 </div>
-              );
-            })}
+                <div className="flex justify-between border-b border-border/60 py-1.5 text-muted-foreground">
+                  <span>Total balance</span>
+                  <span className="font-semibold text-emerald-500">
+                    {rdm.toLocaleString("en-IN")} RDM
+                  </span>
+                </div>
+                <div className="flex justify-between border-b border-border/60 py-1.5 text-muted-foreground">
+                  <span>Active multiplier</span>
+                  <span className="font-semibold text-foreground">
+                    {edufundActiveMultiplier.toFixed(2)}×
+                  </span>
+                </div>
+                <div className="flex justify-between border-b border-border/60 py-1.5 text-muted-foreground">
+                  <span>Effective EduFund RDM</span>
+                  <span className="font-semibold text-emerald-500">
+                    {edufundEffective.toLocaleString("en-IN")} RDM
+                  </span>
+                </div>
+                <p className="mt-2 text-[10px] text-muted-foreground">
+                  Subscribe to Starter to unlock the 0.5× multiplier and earn faster.
+                </p>
+              </div>
+            ) : null}
           </div>
-        ) : (
-          <div>
-            <div className="grid grid-cols-7 gap-1 text-center text-[9px] font-bold text-muted-foreground sm:gap-1.5 sm:text-[10px]">
-              {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
-                <div key={d}>{d}</div>
-              ))}
-            </div>
-            <div className="mt-1 grid grid-cols-7 gap-1 sm:gap-1.5">
-              {monthGrid.cells.map((cell, idx) => {
-                if (cell.day == null) {
-                  return (
-                    <div key={`pad-${idx}`} className="aspect-square rounded-lg bg-transparent" />
-                  );
-                }
-                const d = new Date(now.getFullYear(), now.getMonth(), cell.day);
-                const isToday = startOfLocalDay(d).getTime() === monthGrid.todayStart.getTime();
-                return (
-                  <div
-                    key={cell.key}
-                    title={
-                      studyDaysStatus === "ready" && cell.tooltipTitle
-                        ? `${cell.tooltipTitle} · RDM: later`
-                        : undefined
-                    }
-                    className={cn(
-                      "flex aspect-square flex-col items-center justify-center gap-0.5 p-0.5 text-[9px] font-bold sm:p-1 sm:text-[10px]",
-                      studyDaysStatus === "ready"
-                        ? greenCellClass(cell.level, isToday)
-                        : heatmapLoadingCellClass(isToday)
-                    )}
-                  >
-                    <span>{cell.day}</span>
-                    <span className="text-[9px] opacity-90">
-                      {studyDaysStatus === "ready" ? cell.label : "…"}
-                    </span>
-                    {isToday ? <span className="text-[8px] text-teal-300">Today</span> : null}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
 
-        <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-          <span>Less</span>
-          <span className="h-3 w-8 rounded bg-gradient-to-r from-red-950/70 via-emerald-500/60 to-emerald-950" />
-          <span>More</span>
-          <span className="ml-0 max-sm:hidden sm:ml-2">
-            Red = no focus or under 30 minutes that day; light → dark green = longer focus (same as
-            your profile heatmap). Cell numbers show time on EduBlast with this tab in the
-            foreground (pauses when you switch tabs). A dash means no on-site time that day;{" "}
-            <span className="font-mono">{"<1m"}</span> means under one minute on site. Streak =
-            consecutive calendar days with at least 30 minutes of on-site time, counted through your most recent
-            active day on or before today.
-          </span>
-          <span className="sm:hidden">
-            Red = under 30 min; green = longer focus. Tap cells for details.
-          </span>
+          {/* 2. EduFund flyout */}
+          <div className="relative" data-icon-flyout>
+            <button
+              type="button"
+              onClick={() =>
+                setOpenIconFlyout((cur) => (cur === "edufund" ? null : "edufund"))
+              }
+              className={cn(
+                "flex min-w-[56px] flex-col items-center gap-0.5 rounded-xl border bg-card/80 px-2.5 py-2 text-foreground transition-colors hover:border-emerald-500/60 hover:bg-emerald-500/5",
+                openIconFlyout === "edufund" ? "border-emerald-500/60" : "border-border/70"
+              )}
+              aria-expanded={openIconFlyout === "edufund"}
+              aria-label="EduFund progress"
+            >
+              <Heart className="h-4 w-4 text-emerald-500" aria-hidden />
+              <span className="text-[12px] font-bold tabular-nums text-emerald-500">
+                {edufundProgressData.displayPrimary}
+              </span>
+              <span className="text-[9px] font-medium text-muted-foreground">EduFund</span>
+            </button>
+            {openIconFlyout === "edufund" ? (
+              <div
+                role="dialog"
+                aria-label="EduFund progress"
+                className="absolute right-0 top-full z-50 mt-1.5 w-[320px] rounded-xl border border-border/70 bg-card p-3.5 text-[12px] shadow-xl"
+              >
+                <p className="mb-2.5 flex items-center gap-1.5 font-semibold text-foreground">
+                  <Heart className="h-3.5 w-3.5 text-emerald-500" aria-hidden /> EduFund progress
+                </p>
+                <div className="mb-2.5 space-y-2.5">
+                  {edufundTiers.slice(0, 3).map((tier, i) => {
+                    const opacities = ["", "opacity-60", "opacity-40"];
+                    return (
+                      <div key={tier.name} className={opacities[i]}>
+                        <div className="mb-0.5 flex items-baseline justify-between">
+                          <span className="font-semibold text-foreground">{tier.name}</span>
+                          <span
+                            className={cn(
+                              "text-[11px] font-semibold",
+                              i === 0
+                                ? "text-emerald-500"
+                                : i === 1
+                                  ? "text-blue-500"
+                                  : "text-violet-500"
+                            )}
+                          >
+                            {tier.amount}
+                          </span>
+                        </div>
+                        <p className="mb-1 text-[10px] text-muted-foreground">{tier.detail}</p>
+                        <div className="h-1 overflow-hidden rounded-full bg-border/70">
+                          <div
+                            className={cn(
+                              "h-full rounded-full",
+                              i === 0
+                                ? "bg-emerald-500"
+                                : i === 1
+                                  ? "bg-blue-500"
+                                  : "bg-violet-500"
+                            )}
+                            style={{ width: `${Math.round(tier.progress * 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {edufundPlanKey !== "starter" && edufundPlanKey !== "pro" ? (
+                  <div className="flex items-start gap-1.5 rounded-lg border border-violet-500/30 bg-violet-500/10 p-2 text-[10px] text-violet-200">
+                    <Info className="mt-0.5 h-3 w-3 shrink-0 text-violet-400" aria-hidden />
+                    Upgrade to Premium — unlocks 1.0× multiplier, boosting effective RDM from{" "}
+                    {edufundEffective.toLocaleString("en-IN")} →{" "}
+                    {edufundWallet.toLocaleString("en-IN")}.
+                  </div>
+                ) : null}
+                <Link
+                  href="/edufund"
+                  className="mt-2.5 inline-flex items-center gap-1 text-[10px] font-bold text-emerald-500 hover:underline"
+                >
+                  View grants <ChevronRightIcon className="h-3 w-3" aria-hidden />
+                </Link>
+              </div>
+            ) : null}
+          </div>
+
+          {/* 3. Exam plan / AI Preparation calendar flyout (replaces the old "Streak" panel) */}
+          <div className="relative" data-icon-flyout>
+            <button
+              type="button"
+              onClick={() =>
+                setOpenIconFlyout((cur) => (cur === "examPlan" ? null : "examPlan"))
+              }
+              className={cn(
+                "flex min-w-[60px] flex-col items-center gap-0.5 rounded-xl border bg-card/80 px-2.5 py-2 text-foreground transition-colors hover:border-violet-500/60 hover:bg-violet-500/5",
+                openIconFlyout === "examPlan" ? "border-violet-500/60" : "border-border/70"
+              )}
+              aria-expanded={openIconFlyout === "examPlan"}
+              aria-label="AI Preparation calendar"
+            >
+              <CalendarDays className="h-4 w-4 text-violet-500" aria-hidden />
+              <span className="text-[11px] font-bold tabular-nums text-violet-500">
+                JEE+KCET
+              </span>
+              <span className="text-[9px] font-medium text-muted-foreground">Exam plan</span>
+            </button>
+            {openIconFlyout === "examPlan" ? (
+              <div
+                role="dialog"
+                aria-label="AI Preparation calendar"
+                className="absolute right-0 top-full z-50 mt-1.5 w-[300px] rounded-xl border border-border/70 bg-card p-3.5 text-[12px] shadow-xl"
+              >
+                <p className="mb-2 flex items-center gap-1.5 font-semibold text-foreground">
+                  <CalendarDays className="h-3.5 w-3.5 text-violet-500" aria-hidden /> AI
+                  Preparation calendar
+                </p>
+                <div className="flex justify-between border-b border-border/60 py-1.5 text-muted-foreground">
+                  <span>Target exam</span>
+                  <span className="font-semibold text-foreground">{targetExamDisplay}</span>
+                </div>
+                <div className="flex justify-between border-b border-border/60 py-1.5 text-muted-foreground">
+                  <span>Current class</span>
+                  <span className="font-semibold text-foreground">
+                    {classLevel != null ? `PUC ${classLevel === 12 ? 2 : 1}` : "PUC 1"}
+                  </span>
+                </div>
+                <div className="flex justify-between border-b border-border/60 py-1.5 text-muted-foreground">
+                  <span>Days to JEE Main</span>
+                  <span className="font-semibold tabular-nums text-amber-500">
+                    {daysToJeeMain != null ? `${daysToJeeMain} Days` : "280 Days"}
+                  </span>
+                </div>
+                <p className="mt-2 text-[11px] leading-snug text-muted-foreground">
+                  Open AI Calendar in Prep + Mock to see your personalised study plan.
+                </p>
+              </div>
+            ) : null}
+          </div>
+
+          {/* 4. Subject accuracy flyout */}
+          <div className="relative" data-icon-flyout>
+            <button
+              type="button"
+              onClick={() =>
+                setOpenIconFlyout((cur) => (cur === "accuracy" ? null : "accuracy"))
+              }
+              className={cn(
+                "flex min-w-[60px] flex-col items-center gap-0.5 rounded-xl border bg-card/80 px-2.5 py-2 text-foreground transition-colors hover:border-emerald-500/60 hover:bg-emerald-500/5",
+                openIconFlyout === "accuracy" ? "border-emerald-500/60" : "border-border/70"
+              )}
+              aria-expanded={openIconFlyout === "accuracy"}
+              aria-label="Subject accuracy"
+            >
+              <LineChart className="h-4 w-4 text-emerald-500" aria-hidden />
+              <span className="text-[11px] font-bold tabular-nums text-emerald-500">
+                {accuracyChaptersTracked > 0
+                  ? `${accuracyChaptersTracked} chapter${accuracyChaptersTracked === 1 ? "" : "s"}`
+                  : "0 chapters"}
+              </span>
+              <span className="text-[9px] font-medium text-muted-foreground">Accuracy</span>
+            </button>
+            {openIconFlyout === "accuracy" ? (
+              <div
+                role="dialog"
+                aria-label="Subject accuracy"
+                className="absolute right-0 top-full z-50 mt-1.5 w-[340px] rounded-xl border border-border/70 bg-card p-3.5 text-[12px] shadow-xl"
+              >
+                <div className="mb-1.5 flex items-center justify-between">
+                  <p className="flex items-center gap-1.5 font-semibold text-foreground">
+                    <LineChart className="h-3.5 w-3.5 text-emerald-500" aria-hidden /> Subject
+                    accuracy
+                  </p>
+                  <Link
+                    href="/performance"
+                    className="text-[10px] font-bold text-emerald-500 hover:underline"
+                  >
+                    Full report →
+                  </Link>
+                </div>
+                <p className="mb-2 text-[10px] leading-snug text-muted-foreground">
+                  {chapterAccuracyClassLabel} · Tracked when you tap{" "}
+                  <span className="font-semibold text-foreground/90">Marked completed</span> in
+                  Lessons/Progress. % = marked subtopics ÷ total in chapter.
+                </p>
+                {accuracyFlyoutRows.length === 0 ? (
+                  <p className="rounded-md border border-dashed border-border/70 p-3 text-center text-[11px] text-muted-foreground">
+                    Mark a subtopic complete in Lessons/Progress to populate this list.
+                  </p>
+                ) : (
+                  <ul className="space-y-2">
+                    {accuracyFlyoutRows.map((row) => (
+                      <li
+                        key={row.label}
+                        className="border-b border-border/60 pb-2 last:border-none"
+                      >
+                        <div className="mb-0.5 flex items-start justify-between gap-2">
+                          <span className="text-[11px] font-semibold leading-tight text-foreground">
+                            {row.label}
+                          </span>
+                          <span
+                            className={cn(
+                              "shrink-0 text-[12px] font-bold tabular-nums",
+                              row.completionPct >= 80
+                                ? "text-emerald-500"
+                                : row.completionPct >= 40
+                                  ? "text-blue-500"
+                                  : "text-amber-500"
+                            )}
+                          >
+                            {row.completionPct}%
+                          </span>
+                        </div>
+                        <p className="mb-1 text-[10px] text-muted-foreground">
+                          {row.completed}/{row.total} subtopics · {row.topicCountInChapter} topic
+                          {row.topicCountInChapter === 1 ? "" : "s"}
+                        </p>
+                        <div className="h-1 overflow-hidden rounded-full bg-border/70">
+                          <div
+                            className={cn(
+                              "h-full rounded-full",
+                              row.completionPct >= 80
+                                ? "bg-emerald-500"
+                                : row.completionPct >= 40
+                                  ? "bg-blue-500"
+                                  : "bg-amber-500"
+                            )}
+                            style={{ width: `${row.completionPct}%` }}
+                          />
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {lowestChapter && lowestChapter.completionPct < 100 ? (
+                  <div className="mt-2 flex items-start gap-1.5 rounded-md border border-rose-500/40 bg-rose-500/5 p-2 text-[10px] leading-snug text-rose-300">
+                    <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0 text-rose-400" aria-hidden />
+                    Needs attention: {lowestChapter.label} at {lowestChapter.completionPct}% —
+                    schedule revision or a targeted mock.
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
         </div>
       </section>
 
+      {/* ── TRIAL / ONBOARDING BANNER (slim, contextual) ── */}
       {trialActivated &&
       !freeTrialEndedForClock &&
       !profile?.trial_end_bonus_activated &&
       !isOnboardingRewardClaimed(profile) &&
       isOnboardingRewardComplete(profile) ? (
-        <section className="rounded-2xl border border-emerald-500/25 bg-gradient-to-r from-emerald-500/10 via-violet-500/5 to-amber-500/10 p-4 shadow-sm">
-          <button
-            type="button"
-            onClick={() => requestOnboardingClaimRewardPromo({ force: true })}
-            className="flex w-full flex-col gap-1 text-left sm:flex-row sm:items-center sm:justify-between"
-          >
-            <div>
-              <p className="text-sm font-bold text-foreground">
-                Claim your {checklistRewardRdm} RDM reward
-              </p>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                You completed every onboarding step — tap to add RDM to your wallet.
-              </p>
-            </div>
-            <span className="mt-2 inline-flex shrink-0 items-center justify-center rounded-full bg-emerald-600 px-4 py-2 text-xs font-bold text-white sm:mt-0">
-              Claim now
-            </span>
-          </button>
-        </section>
-      ) : trialActivated &&
-        !freeTrialEndedForClock &&
-        !profile?.trial_end_bonus_activated &&
-        !isOnboardingRewardComplete(profile) ? (
-        <section className="rounded-2xl border border-amber-500/25 bg-gradient-to-r from-amber-500/10 via-violet-500/5 to-emerald-500/10 p-4 shadow-sm">
-          <button
-            type="button"
-            onClick={() => setIsOnboardingRewardOpen(true)}
-            className="flex w-full flex-col gap-1 text-left sm:flex-row sm:items-center sm:justify-between"
-          >
-            <div>
-              <p className="text-sm font-bold text-foreground">
-                Do you want to start by earning a reward of {checklistRewardRdm} RDM?
-              </p>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                Open your onboarding checklist — tap Go on each step to explore the app.
-              </p>
-            </div>
-            <span className="mt-2 inline-flex shrink-0 items-center justify-center rounded-full bg-violet-600 px-4 py-2 text-xs font-bold text-white sm:mt-0">
-              View checklist
-            </span>
-          </button>
-        </section>
-      ) : trialActivated && isOnboardingRewardClaimed(profile) && !freeTrialEndedForClock ? (
-        <section
-          className={cn(
-            "rounded-2xl border p-4 shadow-sm animate-in fade-in duration-200",
-            streakChecklistSuppressed
-              ? "border-amber-500/25 bg-gradient-to-r from-amber-500/10 via-violet-500/5 to-emerald-500/10"
-              : "border-emerald-500/25 bg-gradient-to-r from-emerald-500/10 via-violet-500/5 to-amber-500/10"
-          )}
+        <button
+          type="button"
+          onClick={() => requestOnboardingClaimRewardPromo({ force: true })}
+          className="flex w-full items-center justify-between gap-3 rounded-xl border border-emerald-500/30 bg-gradient-to-r from-emerald-500/10 via-violet-500/5 to-amber-500/10 px-3.5 py-2.5 text-left text-[12px] shadow-sm transition-colors hover:from-emerald-500/15"
         >
-          <button
-            type="button"
-            onClick={() => {
-              if (!streakChecklistSuppressed) setIsOnboardingRewardOpen(true);
-            }}
-            disabled={streakChecklistSuppressed}
-            className={cn(
-              "flex w-full flex-col gap-1 text-left sm:flex-row sm:items-center sm:justify-between",
-              streakChecklistSuppressed && "cursor-default opacity-90"
-            )}
-          >
-            <div>
-              <p className="text-sm font-bold text-foreground">
-                {streakChecklistSuppressed
-                  ? waitingForDay2
-                    ? "Day 1 complete — Day 2 unlocks at 9:00 AM"
-                    : `Day ${displayStreakDay} streak done — next tasks after 9:00 AM`
-                  : waitingForDay2
-                    ? "Day 1 complete — Day 2 tasks unlock at 9:00 AM"
-                    : streakLockedByTrialEnd
-                      ? `Streak capped at Day ${maxReachableStreakDay} — trial time left`
-                      : `Day-${trialDayNumber} Tasks checklist is active! 🔥`}
-              </p>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                {streakChecklistSuppressed ? (
-                  streakSuppressRemainingMs > 0 ? (
-                    <>
-                      Unlocks in{" "}
-                      <span className="font-mono font-semibold text-amber-400">
-                        {formatSuppressCountdown(streakSuppressRemainingMs)}
-                      </span>{" "}
-                      (simulated time). This is separate from Today&apos;s 5 habits below.
-                    </>
-                  ) : (
-                    <>Opens at 9:00 AM simulated time. Separate from Today&apos;s 5 habits below.</>
-                  )
-                ) : (
-                  <>
-                    6 onboarding streak tasks (not the 5 daily habits). One day at a time — missed
-                    calendar days don&apos;t skip ahead.
-                  </>
-                )}
-              </p>
-            </div>
-            {!streakChecklistSuppressed && !streakLockedByTrialEnd ? (
-              <span className="mt-2 inline-flex shrink-0 items-center justify-center rounded-full bg-violet-600 px-4 py-2 text-xs font-bold text-white sm:mt-0">
-                View Day {trialDayNumber} checklist
-              </span>
-            ) : null}
-          </button>
-        </section>
+          <span className="font-bold text-foreground">
+            Claim your {checklistRewardRdm} RDM reward
+          </span>
+          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-3 py-1 text-[11px] font-bold text-white">
+            Claim now
+          </span>
+        </button>
       ) : null}
 
-      {SHOW_DASHBOARD_CHECKLIST ? (
-        <>
-          {/* Checklist trigger */}
-          <section className="rounded-2xl border border-border bg-card/90 shadow-sm dark:bg-slate-950/60">
+      {/* ── DASHBOARD MAIN GRID ── */}
+      <section className="grid gap-3 lg:grid-cols-[1fr_320px] items-start">
+        {/* Left column: Daily activity tracker + Community feed */}
+        <div className="flex flex-col gap-3">
+          {/* Daily activity tracker card */}
+          <div className="rounded-xl border border-border/70 bg-card/80 p-3.5 shadow-sm sm:p-4">
+            <div className="mb-2.5 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+              <div className="flex flex-wrap items-center gap-2">
+                <CalendarDays className="h-4 w-4 shrink-0 text-teal-500" />
+                <h2 className="text-[13px] font-bold text-foreground sm:text-sm">
+                  Daily activity tracker
+                </h2>
+                {inactivePenaltyRdm > 0 ? (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-rose-500/40 bg-rose-500/10 px-2 py-0.5 text-[10px] font-bold text-rose-500 dark:text-rose-300">
+                    <Clock className="h-3 w-3" aria-hidden />–
+                    {inactivePenaltyRdm.toLocaleString("en-IN")} RDM inactive streak
+                  </span>
+                ) : null}
+                <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-600 dark:text-amber-300">
+                  <Star className="h-3 w-3" aria-hidden />
+                  {studyStreakBonusDays}d bonus: +
+                  {studyStreakBonusRdm.toLocaleString("en-IN")} RDM
+                </span>
+              </div>
+              <Link
+                href="/performance"
+                className="inline-flex items-center gap-1 text-[11px] font-bold text-teal-500 hover:underline"
+              >
+                Full report <ChevronRightIcon className="h-3 w-3" aria-hidden />
+              </Link>
+            </div>
+
+            <div
+              className="mb-2.5 inline-flex w-full rounded-full border border-border/60 bg-muted/30 p-0.5 sm:w-fit"
+              role="group"
+              aria-label="Time on site map range"
+            >
+              {(["7", "30"] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setHeatmapMode(m)}
+                  className={cn(
+                    "flex-1 rounded-full px-3 py-1 text-[11px] font-bold transition-colors sm:flex-initial",
+                    heatmapMode === m
+                      ? "border border-foreground/15 bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  Last {m} days
+                </button>
+              ))}
+            </div>
+
+            {heatmapMode === "30" ? (
+              <p className="mb-1.5 text-center text-[9px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                {monthGrid.monthlyMapHeading}
+              </p>
+            ) : null}
+
+            {heatmapMode === "7" ? (
+              <div className="grid grid-cols-7 gap-1.5">
+                {last7Series.map((cell) => {
+                  const isToday =
+                    localDayKeyFromDate(cell.date) === localDayKeyFromDate(startOfLocalDay(now));
+                  const isReady = studyDaysStatus === "ready";
+                  return (
+                    <div
+                      key={cell.key}
+                      title={isReady ? cell.tooltipTitle : "Loading activity…"}
+                      className={cn(
+                        "flex min-h-[56px] flex-col items-center justify-center gap-0.5 rounded-lg px-1 py-1.5 sm:min-h-[64px]",
+                        isReady
+                          ? greenCellClass(cell.level, isToday)
+                          : heatmapLoadingCellClass(isToday)
+                      )}
+                    >
+                      <span className="text-[9px] font-bold uppercase text-muted-foreground">
+                        {cell.date.toLocaleDateString(undefined, { weekday: "short" })}
+                      </span>
+                      <span className="text-[11px] font-extrabold tabular-nums">
+                        {isReady ? cell.label : "…"}
+                      </span>
+                      {isToday ? (
+                        <span className="text-[9px] font-semibold text-teal-400">Today</span>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div>
+                <div className="grid grid-cols-7 gap-1 text-center text-[9px] font-bold text-muted-foreground">
+                  {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
+                    <div key={d}>{d}</div>
+                  ))}
+                </div>
+                <div className="mt-1 grid grid-cols-7 gap-1">
+                  {monthGrid.cells.map((cell, idx) => {
+                    if (cell.day == null) {
+                      return (
+                        <div
+                          key={`pad-${idx}`}
+                          className="aspect-square rounded-lg bg-transparent"
+                        />
+                      );
+                    }
+                    const d = new Date(now.getFullYear(), now.getMonth(), cell.day);
+                    const isToday =
+                      startOfLocalDay(d).getTime() === monthGrid.todayStart.getTime();
+                    return (
+                      <div
+                        key={cell.key}
+                        title={
+                          studyDaysStatus === "ready" && cell.tooltipTitle
+                            ? cell.tooltipTitle
+                            : undefined
+                        }
+                        className={cn(
+                          "flex aspect-square flex-col items-center justify-center gap-0.5 p-0.5 text-[9px] font-bold",
+                          studyDaysStatus === "ready"
+                            ? greenCellClass(cell.level, isToday)
+                            : heatmapLoadingCellClass(isToday)
+                        )}
+                      >
+                        <span>{cell.day}</span>
+                        <span className="text-[9px] opacity-90">
+                          {studyDaysStatus === "ready" ? cell.label : "…"}
+                        </span>
+                        {isToday ? <span className="text-[8px] text-teal-300">T</span> : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            <div className="mt-2.5 flex items-start gap-1.5 rounded-md border border-amber-500/30 bg-amber-500/5 p-2 text-[10px] text-amber-700 dark:text-amber-200">
+              <Info className="mt-0.5 h-3 w-3 shrink-0" aria-hidden />
+              5-day → +50 RDM · 7-day → +100 · 30-day → +200 · 90-day → +500. Missing a day deducts{" "}
+              {inactivePenaltyRdm.toLocaleString("en-IN")} RDM.
+            </div>
+          </div>
+
+          {/* Community feed card */}
+          <div className="rounded-xl border border-border/70 bg-card/80 p-3.5 shadow-sm">
+            <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
+              <h2 className="flex items-center gap-1.5 text-[13px] font-bold text-foreground sm:text-sm">
+                <Heart className="h-3.5 w-3.5 text-emerald-500" aria-hidden /> Community feed
+              </h2>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-muted-foreground">Latest from your network</span>
+                <Link
+                  href="/magic-wall"
+                  className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-500 hover:underline"
+                >
+                  Open feed <ExternalLink className="h-3 w-3" aria-hidden />
+                </Link>
+              </div>
+            </div>
+            <div className="mb-2.5 flex flex-wrap gap-1.5">
+              {FEED_FILTERS.map((f) => (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => setActiveFeedFilter(f.id)}
+                  className={cn(
+                    "rounded-full border px-2.5 py-0.5 text-[10px] font-bold transition-colors",
+                    activeFeedFilter === f.id
+                      ? "border-emerald-500 bg-emerald-500 text-white"
+                      : "border-border/70 bg-muted/40 text-muted-foreground hover:border-emerald-500/50 hover:text-emerald-500"
+                  )}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+            <ul className="space-y-0">
+              {visibleFeedPosts.length === 0 ? (
+                <li className="py-4 text-center text-[11px] text-muted-foreground">
+                  No posts in this filter yet.
+                </li>
+              ) : (
+                visibleFeedPosts.map((p, i) => {
+                  const liked = !!feedLikes[i];
+                  return (
+                    <li
+                      key={`${p.name}-${i}`}
+                      className="border-b border-border/60 py-2.5 last:border-none"
+                    >
+                      <div className="mb-1 flex items-center gap-2">
+                        <span
+                          className={cn(
+                            "flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold text-white",
+                            p.tone === "blue" ? "bg-blue-500" : "bg-violet-500"
+                          )}
+                        >
+                          {p.initials}
+                        </span>
+                        <span className="text-[11px] font-semibold text-foreground">{p.name}</span>
+                        <span className="ml-auto text-[10px] text-muted-foreground">{p.time}</span>
+                      </div>
+                      <div className="mb-1 flex flex-wrap gap-1">
+                        {p.tags.map((t) => (
+                          <span
+                            key={t}
+                            className="rounded-full bg-muted/60 px-1.5 py-px text-[9px] text-muted-foreground"
+                          >
+                            {t}
+                          </span>
+                        ))}
+                      </div>
+                      <p className="mb-1.5 text-[11px] leading-relaxed text-muted-foreground">
+                        {p.text}
+                      </p>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setFeedLikes((s) => ({ ...s, [i]: !s[i] }))
+                          }
+                          aria-pressed={liked}
+                          className={cn(
+                            "flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium transition-colors",
+                            liked
+                              ? "bg-pink-500/15 text-pink-600 dark:text-pink-300"
+                              : "text-muted-foreground hover:bg-pink-500/10 hover:text-pink-600"
+                          )}
+                        >
+                          <Heart
+                            className={cn("h-3 w-3", liked && "fill-current")}
+                            aria-hidden
+                          />
+                          {liked ? "Related" : "Relate"}
+                        </button>
+                        <button
+                          type="button"
+                          className="flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] text-muted-foreground transition-colors hover:bg-blue-500/10 hover:text-blue-500"
+                        >
+                          <Bookmark className="h-3 w-3" aria-hidden /> Save for revision
+                        </button>
+                        <button
+                          type="button"
+                          className="flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] text-muted-foreground transition-colors hover:bg-violet-500/10 hover:text-violet-500"
+                        >
+                          <MessageCircle className="h-3 w-3" aria-hidden /> Thread
+                        </button>
+                        <span className="ml-auto rounded-full border border-blue-500/30 bg-blue-500/10 px-2 py-0.5 text-[9px] font-bold text-blue-500 dark:text-blue-300">
+                          {p.subject}
+                        </span>
+                      </div>
+                    </li>
+                  );
+                })
+              )}
+            </ul>
+            <Link
+              href="/magic-wall"
+              className="mt-2 block text-center text-[11px] font-bold text-emerald-500 hover:underline"
+            >
+              View all community posts →
+            </Link>
+          </div>
+        </div>
+
+        {/* Right column: Today's checklist + Leaderboard + Upcoming mocks */}
+        <div className="flex flex-col gap-3">
+          {/* Today's checklist card */}
+          <div className="rounded-xl border border-border/70 bg-card/80 p-3.5 shadow-sm">
+            <div className="mb-2 flex items-center justify-between">
+              <h2 className="flex items-center gap-1.5 text-[13px] font-bold text-foreground sm:text-sm">
+                <CheckCircle2 className="h-4 w-4 text-emerald-500" aria-hidden /> Today&apos;s checklist
+              </h2>
+              <span className="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-500 dark:text-emerald-300">
+                +{checklistRewardRdm} RDM
+              </span>
+            </div>
+            <p className="mb-1 text-[10px] text-muted-foreground">
+              {dailyChecklistStatus === "error"
+                ? "Could not load checklist — refresh."
+                : `${checklistDoneCount} of ${checklistItems.length} done`}
+            </p>
+            <div className="mb-2.5 h-1 overflow-hidden rounded-full bg-border/60">
+              <div
+                className="h-full rounded-full bg-emerald-500 transition-all"
+                style={{
+                  width: `${Math.round((Math.max(checklistDoneCount, checklistTapCount) / checklistItems.length) * 100)}%`,
+                }}
+              />
+            </div>
+            <ul className="space-y-1">
+              {checklistItems.map((item) => {
+                // Normal students: `done` is purely server-driven (`item.done`
+                // flips to true when the student actually does the activity —
+                // e.g. completed a DailyDose, finished Instacue cards, posted
+                // a Gyan++ comment). They cannot click to mark items complete
+                // — clicking would let them self-claim the onboarding RDM.
+                // Admins keep the click-to-mark override for testing/demo.
+                const tapped = isAppAdmin && checklistTaps[item.id] === true;
+                const done = item.done || tapped;
+                return (
+                  <li
+                    key={item.id}
+                    data-checklist-item={item.id}
+                    title={
+                      isAppAdmin
+                        ? done
+                          ? "Completed (admin override)"
+                          : "Admin: click to mark complete (testing override)"
+                        : done
+                          ? "Completed — keep studying!"
+                          : "Auto-tracks as you do the activity"
+                    }
+                    className={cn(
+                      "flex items-center gap-2 border-b border-border/60 py-1.5 last:border-none",
+                      // Cursor: admins can click, students cannot.
+                      isAppAdmin && !done
+                        ? "cursor-pointer"
+                        : "cursor-default"
+                    )}
+                    onClick={() => {
+                      if (!isAppAdmin) return;
+                      if (done) return;
+                      setChecklistTaps((p) => ({ ...p, [item.id]: true }));
+                    }}
+                  >
+                    <span
+                      className={cn(
+                        "flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
+                        done
+                          ? "border-emerald-500 bg-emerald-500 text-white"
+                          : "border-border"
+                      )}
+                    >
+                      {done ? <Check className="h-2 w-2" aria-hidden /> : null}
+                    </span>
+                    <span
+                      className={cn(
+                        "min-w-0 flex-1 text-[11px] font-semibold",
+                        done ? "text-muted-foreground line-through" : "text-foreground"
+                      )}
+                    >
+                      {item.id.toUpperCase()} ·{" "}
+                      {item.id === "a"
+                        ? "Daily routine (DailyDose + Funbrain)"
+                        : item.id === "b"
+                          ? "Lessons/Progress complete in all 3 subjects"
+                          : item.id === "c"
+                            ? "Gyan++ feed — 5 min, save, react"
+                            : item.id === "d"
+                              ? "Instacue — 32 cards"
+                              : "Challenge Yourself"}
+                    </span>
+                    <Link
+                      href={
+                        item.id === "a"
+                          ? "/play"
+                          : item.id === "b"
+                            ? "/explore-1"
+                            : item.id === "c"
+                              ? "/doubts"
+                              : item.id === "d"
+                                ? "/revision"
+                                : "/refer-earn?tab=challenges"
+                      }
+                      onClick={(e) => e.stopPropagation()}
+                      className="rounded-full bg-muted/60 px-2 py-0.5 text-[10px] font-bold text-muted-foreground transition-colors hover:bg-emerald-500 hover:text-white"
+                    >
+                      Go
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
             <button
               type="button"
               onClick={() => setIsChecklistOpen(true)}
-              className="flex w-full items-start gap-3 p-3.5 text-left sm:items-center sm:gap-4 sm:p-4"
+              className="mt-2.5 w-full rounded-full bg-emerald-500/10 py-1.5 text-[11px] font-bold text-emerald-500 transition-colors hover:bg-emerald-500/20 dark:text-emerald-300"
             >
-              <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500 sm:mt-0" />
-              <div className="min-w-0 flex-1">
-                <h2 className="text-sm font-bold sm:text-base sm:text-lg">
-                  Today&apos;s checklist
-                </h2>
-                <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground sm:line-clamp-none sm:text-sm">
-                  {dailyChecklistStatus === "error" ? (
-                    <span className="text-rose-300">
-                      Could not load checklist status. Refresh and try again.
-                    </span>
-                  ) : checklistStripSummary ? (
-                    <>
-                      <span className="font-semibold text-foreground">
-                        {checklistStripSummary.progressLine}
-                      </span>
-                      {checklistStripSummary.gyanLine ? (
-                        <>
-                          {" · "}
-                          {checklistStripSummary.gyanLine}
-                        </>
-                      ) : null}
-                      <span className="sm:hidden"> &mdash; tap to view all items</span>
-                    </>
-                  ) : null}
-                </p>
-              </div>
-              <span className="mt-1 hidden shrink-0 rounded-full bg-primary/10 px-3 py-1.5 text-xs font-bold text-primary sm:inline-flex">
-                View
-              </span>
+              Open full checklist →
             </button>
-          </section>
-
-          <Dialog open={isChecklistOpen} onOpenChange={setIsChecklistOpen}>
-            <DialogContent
-              className={
-                "flex w-full max-w-3xl flex-col gap-0 overflow-hidden border-border/70 bg-card p-0 shadow-2xl " +
-                "ring-1 ring-black/5 dark:border-white/10 dark:bg-[#070b14] dark:ring-white/10 " +
-                "max-h-[min(92dvh,56rem)] " +
-                /* Small screens: anchored bottom sheet — easier thumb reach, stable on notches */
-                "max-sm:inset-x-0 max-sm:bottom-0 max-sm:left-0 max-sm:right-0 max-sm:top-auto " +
-                "max-sm:max-h-[min(90dvh,56rem)] max-sm:w-full max-sm:translate-x-0 max-sm:translate-y-0 " +
-                "max-sm:rounded-b-none max-sm:rounded-t-3xl max-sm:border-x-0 max-sm:border-b-0 " +
-                /* sm+: classic centered modal */
-                "sm:left-1/2 sm:top-1/2 sm:w-[calc(100vw-1.5rem)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl sm:border " +
-                "pb-[max(0.75rem,env(safe-area-inset-bottom))]"
-              }
-            >
-              {/* Header: fixed height region; close (X) stays in component chrome; pr-* clears it */}
-              <div className="shrink-0 border-b border-border/60 bg-gradient-to-b from-muted/50 to-transparent px-3.5 pb-3 pt-5 sm:px-6 sm:pb-5 sm:pt-7 dark:from-slate-900/90">
-                <DialogHeader className="space-y-2.5 text-left sm:space-y-3">
-                  <div className="flex items-start gap-2.5 pr-11 sm:gap-3 sm:pr-12">
-                    <CheckCircle2
-                      className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500"
-                      aria-hidden
-                    />
-                    <DialogTitle className="text-left text-[15px] font-bold leading-snug tracking-tight sm:text-lg">
-                      Today&apos;s checklist
-                    </DialogTitle>
-                  </div>
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-                    <Button
-                      type="button"
-                      size="default"
-                      className="h-11 w-full min-h-[44px] gap-2 rounded-full font-bold sm:h-10 sm:w-fit sm:min-h-0"
-                      onClick={() => router.push("/play")}
-                    >
-                      <Flame className="h-4 w-4 shrink-0" aria-hidden />
-                      Start streak for today
-                    </Button>
-                    <p className="text-[11px] leading-relaxed text-muted-foreground sm:text-xs">
-                      Esc or the top-right close to exit.
-                    </p>
-                  </div>
-                </DialogHeader>
-              </div>
-
-              {/* Scrollable list: avoids whole-modal scroll jank on short phones */}
-              <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-3 py-2.5 sm:px-6 sm:py-4">
-                <ul className="space-y-1.5 sm:space-y-2.5">
-                  {checklistItems.map((item) => (
-                    <li
-                      key={item.id}
-                      className={cn(
-                        "flex items-start gap-2.5 rounded-xl px-3 py-2.5 transition-colors sm:gap-3 sm:px-3.5 sm:py-3",
-                        item.done
-                          ? "bg-emerald-500/5 dark:bg-emerald-500/[0.03]"
-                          : "bg-background/60 dark:bg-slate-900/50"
-                      )}
-                    >
-                      {item.done ? (
-                        <CheckCircle2
-                          className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500"
-                          aria-label="Done"
-                        />
-                      ) : (
-                        <span
-                          className="mt-0.5 inline-flex h-4 w-4 shrink-0 rounded border border-dashed border-muted-foreground/50"
-                          aria-hidden
-                        />
-                      )}
-                      <span className="min-w-0 flex-1 text-[13px] leading-relaxed text-foreground sm:text-sm sm:leading-normal">
-                        <span className="font-bold">{item.id}.</span> {item.text}
-                        {item.id === "c" ? (
-                          <>
-                            {" "}
-                            <Link href="/doubts" className="font-bold text-primary hover:underline">
-                              Open Gyan++
-                            </Link>
-                          </>
-                        ) : null}
-                        {item.id === "e" ? (
-                          <>
-                            {" "}
-                            <Link
-                              href="/refer-earn"
-                              className="font-bold text-primary hover:underline"
-                            >
-                              Open Challenge Yourself
-                            </Link>
-                          </>
-                        ) : null}
-                        {item.id === "d" &&
-                        dailyChecklist &&
-                        !dailyChecklist.instacueSessionDone &&
-                        dailyChecklist.instacueCombinedCount < 32 ? (
-                          <span className="mt-1 block text-[11px] leading-snug text-muted-foreground sm:text-xs">
-                            InstaCue reads logged: {dailyChecklist.instacueReadCount}/32
-                            {dailyChecklist.instacueCombinedCount !==
-                            dailyChecklist.instacueReadCount ? (
-                              <>
-                                {" "}
-                                · {dailyChecklist.instacueCombinedCount}/32 toward unlock (includes
-                                today&apos;s revision saves)
-                              </>
-                            ) : null}
-                          </span>
-                        ) : null}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <div className="shrink-0 border-t border-border/60 bg-muted/25 px-3.5 py-2.5 sm:px-6 sm:py-3 dark:bg-slate-950/80">
-                <p className="text-[11px] leading-relaxed text-muted-foreground sm:text-xs">
-                  {dailyChecklistStatus === "error" ? (
-                    <span className="text-rose-300">
-                      Could not load checklist status. Refresh and try again.
-                    </span>
-                  ) : checklistStripSummary ? (
-                    <>
-                      <span className="font-semibold text-foreground">
-                        {checklistStripSummary.progressLine}
-                      </span>
-                      {checklistStripSummary.gyanLine ? (
-                        <>
-                          {" · "}
-                          {checklistStripSummary.gyanLine}
-                        </>
-                      ) : null}{" "}
-                      <span className="hidden sm:inline">
-                        (Items a–e are tracked live; Challenge Yourself completes after any Earn
-                        &amp; Learn challenge run ends today).
-                      </span>
-                      <span className="sm:hidden">Tracked live &middot; a&ndash;e</span>
-                    </>
-                  ) : null}
-                </p>
-              </div>
-            </DialogContent>
-          </Dialog>
-        </>
-      ) : null}
-
-      {/* Subject accuracy + Leaderboard */}
-      <section className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-2xl border border-border bg-card/90 p-4 shadow-sm dark:bg-slate-950/60">
-          <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-2">
-              <LineChart className="h-5 w-5 text-emerald-500" />
-              <h2 className="text-base font-bold sm:text-lg">Subject accuracy</h2>
-            </div>
-            <Link
-              href="/performance"
-              className="text-xs font-bold text-emerald-500 hover:underline"
-            >
-              View full report →
-            </Link>
           </div>
-          <p className="mb-3 text-xs text-muted-foreground">
-            {chapterAccuracyClassLabel} · Tracked only when you tap{" "}
-            <span className="font-semibold text-foreground/90">Marked completed</span> in
-            Lessons/Progress on a subtopic. Each chapter lists all curriculum subtopics; % is marked
-            subtopics ÷ total subtopics in that chapter; chapters with at least one mark first
-            (newest mark first).
-          </p>
-          {taxonomyLoading ? (
-            <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-              Loading curriculum…
-            </p>
-          ) : taxonomyError ? (
-            <p className="rounded-lg border border-dashed p-6 text-center text-sm text-rose-200">
-              {taxonomyError}
-            </p>
-          ) : chapterRows.length === 0 ? (
-            <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-              Open any subtopic, finish Lessons/Progress, and tap{" "}
-              <span className="font-semibold text-foreground/90">Marked completed</span> — those
-              chapters show here with real X/total subtopics (quizzes alone do not count).
-            </p>
-          ) : (
-            <>
-              <ul className="space-y-3">
-                {chapterRowsVisible.map((row, i) => {
-                  const toneIdx = effectiveChapterPageIdx * chapterAccuracyPageSize + i;
-                  const rowBody = (
-                    <>
-                      <div className="mb-1 flex justify-between text-sm font-semibold">
-                        <span>{row.label}</span>
-                        <span>{row.completionPct}%</span>
-                      </div>
-                      <p className="mb-1 text-[11px] text-muted-foreground">
-                        {row.completed}/{row.total} subtopics marked · {row.topicCountInChapter}{" "}
-                        topic
-                        {row.topicCountInChapter === 1 ? "" : "s"} in this chapter
-                      </p>
-                      <div className="h-2 overflow-hidden rounded-full bg-muted">
-                        <div
-                          className={cn(
-                            "h-full rounded-full transition-all",
-                            TOPIC_BAR_TONES[toneIdx % TOPIC_BAR_TONES.length]
-                          )}
-                          style={{ width: `${row.completionPct}%` }}
-                        />
-                      </div>
-                    </>
-                  );
-                  return (
-                    <li key={row.label}>
-                      {row.nextIncompleteSubtopicHref ? (
-                        <Link
-                          href={row.nextIncompleteSubtopicHref}
-                          className="-mx-1 block cursor-pointer rounded-xl px-1 py-1.5 transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        >
-                          {rowBody}
-                        </Link>
-                      ) : (
-                        rowBody
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-              {isChapterAccuracyPaginated ? (
-                <div className="mt-3 flex flex-col gap-2.5 border-t border-border/60 pt-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-                  <p className="text-[11px] text-muted-foreground tabular-nums">
-                    Showing {effectiveChapterPageIdx * chapterAccuracyPageSize + 1}–
-                    {Math.min(
-                      (effectiveChapterPageIdx + 1) * chapterAccuracyPageSize,
-                      chapterRows.length
-                    )}{" "}
-                    of {chapterRows.length} chapters
-                  </p>
-                  <div className="flex items-center justify-between gap-2 sm:justify-end">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-8 flex-1 rounded-lg px-3 text-xs font-semibold sm:flex-initial"
-                      disabled={effectiveChapterPageIdx <= 0}
-                      onClick={() =>
-                        setChapterAccuracyPageIdx((p) => {
-                          const e = Math.min(p, Math.max(0, chapterAccuracyPageCount - 1));
-                          return Math.max(0, e - 1);
-                        })
-                      }
-                      aria-label="Previous chapters"
-                    >
-                      <ChevronLeft className="mr-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-                      Previous
-                    </Button>
-                    <span className="min-w-[5rem] text-center text-[11px] font-semibold tabular-nums text-muted-foreground">
-                      {effectiveChapterPageIdx + 1} / {chapterAccuracyPageCount}
-                    </span>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-8 flex-1 rounded-lg px-3 text-xs font-semibold sm:flex-initial"
-                      disabled={effectiveChapterPageIdx >= chapterAccuracyPageCount - 1}
-                      onClick={() =>
-                        setChapterAccuracyPageIdx((p) => {
-                          const e = Math.min(p, Math.max(0, chapterAccuracyPageCount - 1));
-                          return Math.min(chapterAccuracyPageCount - 1, e + 1);
-                        })
-                      }
-                      aria-label="Next chapters"
-                    >
-                      Next
-                      <ChevronRight className="ml-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-                    </Button>
-                  </div>
-                </div>
-              ) : null}
-            </>
-          )}
-          {lowestChapter && lowestChapter.completionPct < 100 ? (
-            lowestChapter.nextIncompleteSubtopicHref ? (
+
+          {/* Leaderboard card */}
+          <div className="rounded-xl border border-border/70 bg-card/80 p-3 shadow-sm">
+            <div className="mb-2 flex items-center justify-between">
+              <h3 className="flex items-center gap-1.5 text-[12px] font-bold text-foreground">
+                <Star className="h-3.5 w-3.5 text-amber-500" aria-hidden /> Leaderboard
+              </h3>
               <Link
-                href={lowestChapter.nextIncompleteSubtopicHref}
-                className="mt-4 block cursor-pointer rounded-xl border border-rose-500/40 bg-rose-500/5 p-3 text-sm text-rose-200 transition-colors hover:bg-rose-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                href="/performance"
+                className="text-[10px] font-bold text-emerald-500 hover:underline"
               >
-                Needs attention: {lowestChapter.label} at {lowestChapter.completionPct}% (
-                {lowestChapter.completed}/{lowestChapter.total} subtopics across{" "}
-                {lowestChapter.topicCountInChapter} topic
-                {lowestChapter.topicCountInChapter === 1 ? "" : "s"}) — schedule revision or a
-                targeted mock on this chapter.
-              </Link>
-            ) : (
-              <div className="mt-4 rounded-xl border border-rose-500/40 bg-rose-500/5 p-3 text-sm text-rose-200">
-                Needs attention: {lowestChapter.label} at {lowestChapter.completionPct}% (
-                {lowestChapter.completed}/{lowestChapter.total} subtopics across{" "}
-                {lowestChapter.topicCountInChapter} topic
-                {lowestChapter.topicCountInChapter === 1 ? "" : "s"}) — schedule revision or a
-                targeted mock on this chapter.
-              </div>
-            )
-          ) : null}
-        </div>
-
-        <div className="rounded-2xl border border-border bg-card/90 p-4 shadow-sm dark:bg-slate-950/60">
-          <div className="mb-2 flex items-center gap-2">
-            <Star className="h-5 w-5 text-amber-500" />
-            <h2 className="text-base font-bold sm:text-lg">Leaderboard</h2>
-          </div>
-          <ul className="divide-y divide-border/60">
-            {MOCK_LEADERBOARD.map((row) => (
-              <li key={row.rank} className="flex items-center gap-3 py-2.5 text-sm">
-                <span className="w-6 font-bold text-muted-foreground">{row.rank}</span>
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/15 text-xs font-bold text-primary">
-                  {row.name
-                    .split(" ")
-                    .map((p) => p[0])
-                    .join("")}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-semibold">{row.name}</p>
-                  <p className="text-xs text-muted-foreground">{row.city}</p>
-                </div>
-                <span className="font-mono text-sm font-bold tabular-nums">
-                  {row.pts.toLocaleString()}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </section>
-
-      {/* Community + mocks + EduFund */}
-      <section className="grid gap-4 lg:grid-cols-5">
-        <div className="rounded-2xl border border-border bg-card/90 p-4 shadow-sm dark:bg-slate-950/60 lg:col-span-3">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-base font-bold sm:text-lg">CommunityFeed</h2>
-            <Link href="/magic-wall" className="text-xs font-bold text-primary hover:underline">
-              Open feed ↗
-            </Link>
-          </div>
-          <RawCommunityFeed />
-        </div>
-        <div className="space-y-4 lg:col-span-2">
-          <div className="rounded-2xl border border-border bg-card/90 p-4 shadow-sm dark:bg-slate-950/60">
-            <div className="mb-3 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <CalendarDays className="h-4 w-4 text-muted-foreground" />
-                <h3 className="text-sm font-bold sm:text-base">Upcoming Testbee mocks</h3>
-              </div>
-              <Link
-                href="/mock"
-                className="text-xs font-bold text-muted-foreground hover:underline"
-              >
-                All mocks →
+                All →
               </Link>
             </div>
-            <ul className="space-y-3">
-              {upcomingBlocks === null ? (
-                <>
-                  {[0, 1, 2].map((i) => (
-                    <li
-                      key={`upcoming-skel-${i}`}
-                      className="animate-pulse rounded-xl border border-border/60 bg-muted/15 p-3"
-                    >
-                      <div className="h-4 max-w-[78%] rounded bg-muted" />
-                      <div className="mt-2 h-3 max-w-[52%] rounded bg-muted" />
-                      <div className="mt-3 h-8 w-24 rounded-full bg-muted" />
-                    </li>
-                  ))}
-                </>
-              ) : (
-                upcomingBlocks.map((m) => (
-                  <li
-                    key={m.key}
+            <ul>
+              {MOCK_LEADERBOARD.map((row) => (
+                <li
+                  key={row.rank}
+                  className="flex items-center gap-2 border-b border-border/60 py-1.5 last:border-none"
+                >
+                  <span className="w-4 text-[10px] font-bold text-muted-foreground">
+                    {row.rank}
+                  </span>
+                  <span
                     className={cn(
-                      "rounded-xl border bg-background/60 p-3 dark:bg-slate-900/50",
-                      m.tone
+                      "flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-bold text-white",
+                      row.rank === 1
+                        ? "bg-emerald-500"
+                        : row.rank === 2
+                          ? "bg-blue-500"
+                          : row.rank === 3
+                            ? "bg-violet-500"
+                            : row.rank === 4
+                              ? "bg-amber-500"
+                              : "bg-blue-500"
                     )}
                   >
-                    <p className="font-semibold leading-snug">{m.title}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">{m.meta}</p>
-                    <div className="mt-2">
-                      <Button
-                        size="sm"
-                        className="rounded-full font-bold"
-                        onClick={() => router.push(m.href)}
-                      >
-                        Start now
-                      </Button>
-                    </div>
+                    {row.name
+                      .split(" ")
+                      .map((p) => p[0])
+                      .join("")}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[11px] font-semibold text-foreground">
+                      {row.name}
+                    </p>
+                    <p className="text-[9px] text-muted-foreground">{row.city}</p>
+                  </div>
+                  <span className="font-mono text-[11px] font-bold tabular-nums text-emerald-500">
+                    {row.pts}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Upcoming mocks card */}
+          <div className="rounded-xl border border-border/70 bg-card/80 p-3 shadow-sm">
+            <div className="mb-2 flex items-center justify-between">
+              <h3 className="flex items-center gap-1.5 text-[12px] font-bold text-foreground">
+                <CalendarDays className="h-3.5 w-3.5 text-blue-500" aria-hidden /> Upcoming mocks
+              </h3>
+              <Link
+                href="/mock"
+                className="text-[10px] font-bold text-muted-foreground hover:underline"
+              >
+                All →
+              </Link>
+            </div>
+            <ul className="space-y-2">
+              {upcomingBlocks === null ? (
+                [0, 1, 2].map((i) => (
+                  <li
+                    key={`upcoming-skel-${i}`}
+                    className="animate-pulse rounded-lg border border-border/60 bg-muted/15 p-2"
+                  >
+                    <div className="h-3 max-w-[78%] rounded bg-muted" />
+                    <div className="mt-1.5 h-2.5 max-w-[52%] rounded bg-muted" />
+                    <div className="mt-2 h-5 w-16 rounded-full bg-muted" />
+                  </li>
+                ))
+              ) : (
+                upcomingBlocks.slice(0, 3).map((m) => (
+                  <li
+                    key={m.key}
+                    className="rounded-lg border border-border/60 bg-background/40 p-2"
+                  >
+                    <p className="text-[11px] font-semibold leading-snug text-foreground">
+                      {m.title}
+                    </p>
+                    <p className="mt-0.5 text-[10px] text-muted-foreground">{m.meta}</p>
+                    <button
+                      type="button"
+                      onClick={() => router.push(m.href)}
+                      className="mt-1.5 rounded-full bg-emerald-500 px-2.5 py-0.5 text-[10px] font-bold text-white transition-colors hover:bg-emerald-600"
+                    >
+                      Start now
+                    </button>
                   </li>
                 ))
               )}
             </ul>
           </div>
-
-          <div className="rounded-2xl border border-border bg-card/90 p-4 shadow-sm dark:bg-slate-950/60">
-            <div className="mb-3 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Sprout className="h-4 w-4 text-emerald-500" />
-                <h3 className="text-sm font-bold sm:text-base">EduFund progress</h3>
-              </div>
-              <Link href="/edufund" className="text-xs font-bold text-emerald-500 hover:underline">
-                View grants →
-              </Link>
-            </div>
-
-            {/* Multiplier scaling details card */}
-            {(() => {
-              const wallet = Math.max(0, Math.floor(Number(rdm) || 0));
-              const planTier = (profile?.plan_tier ?? "free_trial") as "free" | "free_trial" | "starter" | "pro";
-              const isSubscribed = planTier === "starter" || planTier === "pro";
-              const activeMultiplier = calculateActiveMultiplier(
-                planTier,
-                profile?.subscription_started_at,
-                profile?.created_at ?? new Date().toISOString(),
-                subscriptionCfg
-              );
-              const effectiveWallet = Math.floor(wallet * activeMultiplier);
-
-              return (
-                <>
-                  <div className="mb-4 rounded-xl border border-slate-700/60 bg-slate-900/40 p-2.5 text-xs text-slate-300 dark:border-slate-800/80">
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="text-slate-400">Raw Earned RDM:</span>
-                      <span className="font-semibold text-white">{wallet.toLocaleString("en-IN")} RDM</span>
-                    </div>
-                    <div className="flex justify-between items-center text-xs mt-1">
-                      <span className="text-slate-400">Active Multiplier:</span>
-                      <span className={cn(
-                        "font-bold px-2 py-0.5 rounded-full text-[12px] sm:text-xs border",
-                        isSubscribed 
-                          ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" 
-                          : "bg-amber-500/10 text-amber-300 border-amber-500/20 animate-pulse"
-                      )}>
-                        {activeMultiplier.toFixed(2)}x
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center text-xs mt-1.5 border-t border-slate-700/50 pt-1.5 dark:border-slate-800/50">
-                      <span className="font-semibold text-emerald-400">Effective EduFund RDM:</span>
-                      <span className="font-extrabold text-emerald-400 tabular-nums">{effectiveWallet.toLocaleString("en-IN")} RDM</span>
-                    </div>
-                  </div>
-
-                  <ul className="space-y-4">
-                    {edufundTiers.map((tier) => (
-                      <li key={tier.name}>
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <p className="font-bold">{tier.name}</p>
-                          <span
-                            className={cn(
-                              "rounded-full px-2 py-0.5 text-[10px] font-bold",
-                              tier.status === "Unlocked" && "bg-emerald-500/15 text-emerald-600",
-                              tier.status === "In progress" && "bg-indigo-500/15 text-indigo-300",
-                              tier.status === "Locked" && "bg-orange-500/15 text-orange-400"
-                            )}
-                          >
-                            {tier.status}
-                          </span>
-                        </div>
-                        <p className="mt-1 text-xs text-muted-foreground">{tier.detail}</p>
-                        <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
-                          <div
-                            className={cn(
-                              "h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400"
-                            )}
-                            style={{ width: `${tier.progress * 100}%` }}
-                          />
-                        </div>
-                        <p className={cn("mt-1 text-sm font-bold", tier.tone)}>{tier.amount}</p>
-                      </li>
-                    ))}
-                  </ul>
-
-                  {!isSubscribed && (
-                    <div className="mt-4 rounded-xl border border-violet-500/30 bg-violet-600/10 p-3 text-[11px] leading-relaxed text-violet-200">
-                      <span className="font-bold text-violet-400 block mb-0.5">🚀 Upgrade to Premium Rate!</span>
-                      Your raw effort has built <strong>{wallet.toLocaleString("en-IN")} RDM</strong>. Upgrading to premium unlocks a <strong>1.0x rate</strong>—boosting your grant progress from {effectiveWallet.toLocaleString("en-IN")} RDM to <strong>{wallet.toLocaleString("en-IN")} RDM</strong> instantly!
-                    </div>
-                  )}
-                </>
-              );
-            })()}
-
-            <p className="mt-2.5 text-[10px] text-slate-500">
-              * RDM is subject to multiplier scaling based on active subscription tier.
-            </p>
-          </div>
         </div>
       </section>
+
+      {/* ── FULL CHECKLIST DIALOG (preserved) ── */}
+      {SHOW_DASHBOARD_CHECKLIST ? (
+        <Dialog open={isChecklistOpen} onOpenChange={setIsChecklistOpen}>
+          <DialogContent
+            className={
+              "flex w-full max-w-3xl flex-col gap-0 overflow-hidden border-border/70 bg-card p-0 shadow-2xl " +
+              "ring-1 ring-black/5 dark:border-white/10 dark:bg-[#070b14] dark:ring-white/10 " +
+              "max-h-[min(92dvh,56rem)] " +
+              "max-sm:inset-x-0 max-sm:bottom-0 max-sm:left-0 max-sm:right-0 max-sm:top-auto " +
+              "max-sm:max-h-[min(90dvh,56rem)] max-sm:w-full max-sm:translate-x-0 max-sm:translate-y-0 " +
+              "max-sm:rounded-b-none max-sm:rounded-t-3xl max-sm:border-x-0 max-sm:border-b-0 " +
+              "sm:left-1/2 sm:top-1/2 sm:w-[calc(100vw-1.5rem)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl sm:border " +
+              "pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+            }
+          >
+            <div className="shrink-0 border-b border-border/60 bg-gradient-to-b from-muted/50 to-transparent px-3.5 pb-3 pt-5 sm:px-6 sm:pb-5 sm:pt-7 dark:from-slate-900/90">
+              <DialogHeader className="space-y-2.5 text-left sm:space-y-3">
+                <div className="flex items-start gap-2.5 pr-11 sm:gap-3 sm:pr-12">
+                  <CheckCircle2
+                    className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500"
+                    aria-hidden
+                  />
+                  <DialogTitle className="text-left text-[15px] font-bold leading-snug tracking-tight sm:text-lg">
+                    Today&apos;s checklist
+                  </DialogTitle>
+                </div>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                  <Button
+                    type="button"
+                    size="default"
+                    className="h-11 w-full min-h-[44px] gap-2 rounded-full font-bold sm:h-10 sm:w-fit sm:min-h-0"
+                    onClick={() => router.push("/play")}
+                  >
+                    <Flame className="h-4 w-4 shrink-0" aria-hidden />
+                    Start streak for today
+                  </Button>
+                  <p className="text-[11px] leading-relaxed text-muted-foreground sm:text-xs">
+                    Esc or the top-right close to exit.
+                  </p>
+                </div>
+              </DialogHeader>
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-3 py-2.5 sm:px-6 sm:py-4">
+              <ul className="space-y-1.5 sm:space-y-2.5">
+                {checklistItems.map((item) => (
+                  <li
+                    key={item.id}
+                    className={cn(
+                      "flex items-start gap-2.5 rounded-xl px-3 py-2.5 transition-colors sm:gap-3 sm:px-3.5 sm:py-3",
+                      item.done
+                        ? "bg-emerald-500/5 dark:bg-emerald-500/[0.03]"
+                        : "bg-background/60 dark:bg-slate-900/50"
+                    )}
+                  >
+                    {item.done ? (
+                      <CheckCircle2
+                        className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500"
+                        aria-label="Done"
+                      />
+                    ) : (
+                      <span
+                        className="mt-0.5 inline-flex h-4 w-4 shrink-0 rounded border border-dashed border-muted-foreground/50"
+                        aria-hidden
+                      />
+                    )}
+                    <span className="min-w-0 flex-1 text-[13px] leading-relaxed text-foreground sm:text-sm sm:leading-normal">
+                      <span className="font-bold">{item.id}.</span> {item.text}
+                      {item.id === "c" ? (
+                        <>
+                          {" "}
+                          <Link href="/doubts" className="font-bold text-primary hover:underline">
+                            Open Gyan++
+                          </Link>
+                        </>
+                      ) : null}
+                      {item.id === "e" ? (
+                        <>
+                          {" "}
+                          <Link
+                            href="/refer-earn"
+                            className="font-bold text-primary hover:underline"
+                          >
+                            Open Challenge Yourself
+                          </Link>
+                        </>
+                      ) : null}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="shrink-0 border-t border-border/60 bg-muted/25 px-3.5 py-2.5 sm:px-6 sm:py-3 dark:bg-slate-950/80">
+              <p className="text-[11px] leading-relaxed text-muted-foreground sm:text-xs">
+                {checklistStripSummary ? (
+                  <>
+                    <span className="font-semibold text-foreground">
+                      {checklistStripSummary.progressLine}
+                    </span>
+                    {checklistStripSummary.gyanLine ? (
+                      <>
+                        {" · "}
+                        {checklistStripSummary.gyanLine}
+                      </>
+                    ) : null}
+                  </>
+                ) : null}
+              </p>
+            </div>
+          </DialogContent>
+        </Dialog>
+      ) : null}
 
       <FreeTrialPromoDialog
         open={freeTrialDialogOpen}

@@ -12,10 +12,18 @@ const headersMs = Number(process.env.SUPABASE_FETCH_HEADERS_TIMEOUT_MS ?? 60_000
 const bodyMs = Number(process.env.SUPABASE_FETCH_BODY_TIMEOUT_MS ?? 120_000);
 const retries = Math.min(5, Math.max(0, Number(process.env.SUPABASE_FETCH_RETRIES ?? 2)));
 
+// Optional: pin the IP family (e.g. `4`) to avoid flaky IPv6/NAT64 routes that
+// reset during the TLS handshake (common on some ISPs like Jio). Unset = default
+// dual-stack with Happy Eyeballs.
+const ipFamily = Number(process.env.SUPABASE_FETCH_IP_FAMILY ?? 0);
+const connect: Record<string, unknown> = { autoSelectFamily: true };
+if (ipFamily === 4 || ipFamily === 6) connect.family = ipFamily;
+
 const agent = new Agent({
   connectTimeout: Number.isFinite(connectMs) ? connectMs : 30_000,
   headersTimeout: Number.isFinite(headersMs) ? headersMs : 60_000,
   bodyTimeout: Number.isFinite(bodyMs) ? bodyMs : 120_000,
+  connect,
 });
 
 function isRetryableNetworkError(err: unknown): boolean {

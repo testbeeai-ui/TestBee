@@ -50,8 +50,10 @@ describe("popup priority matrix", () => {
   });
 
   it("B: day 1, not claimed → onboarding (Day 1 checklist)", () => {
-    const profile = baseProfile();
     const now = nowAtDay(1);
+    const profile = baseProfile({
+      time_travel_offset_ms: now - Date.now(),
+    });
     expect(getDashboardPopupPhase(profile, "u1")).toBe("onboarding");
     expect(shouldShowTrialExpirationOverlay(profile, now)).toBe(false);
     expect(shouldAutoOpenOnboardingRewardDialog(profile, now, "u1")).toBe(true);
@@ -123,8 +125,11 @@ describe("popup priority matrix", () => {
     allDone.gyan_browse = true;
     allDone.gyan_post = true;
     allDone.gyan_engagement = true;
-    const profile = baseProfile({ onboarding_reward_progress: allDone });
     const now = nowAtDay(5);
+    const profile = baseProfile({
+      onboarding_reward_progress: allDone,
+      time_travel_offset_ms: now - Date.now(),
+    });
     expect(getDashboardPopupPhase(profile, "u1")).toBe("claim_reward");
     expect(shouldAutoOpenOnboardingRewardDialog(profile, now, "u1")).toBe(false);
   });

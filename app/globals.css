@@ -757,6 +757,43 @@ html {
   font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
 
+/* ── Dashboard sidebar (hover-expand rail) ───────────────────────────────
+   Mirrors edublast_dashboard_v3.html: collapsed 52px icon rail that
+   expands to 192px on hover (or on `data-pinned="true"` when click-pinned).
+   All labels live inside descendants that fade in via the `:hover` selector
+   on the rail — no Tailwind group/hover state machinery, no JS, no
+   hydration flash. Pin click adds a separate `data-pinned` attribute that
+   a sibling selector targets to keep the rail open with labels visible.
+   Used by components/dashboard/DashboardSidebar.tsx. */
+.eb-sidebar {
+  width: 52px;
+  transition: width 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.eb-sidebar:hover {
+  width: 192px;
+}
+.eb-sidebar[data-pinned="true"] {
+  width: 192px;
+}
+.eb-sidebar-lbl,
+.eb-sidebar-bdg,
+.eb-sidebar-foot {
+  opacity: 0;
+  transition: opacity 0.15s 0.06s;
+}
+.eb-sidebar:hover .eb-sidebar-lbl,
+.eb-sidebar:hover .eb-sidebar-bdg,
+.eb-sidebar:hover .eb-sidebar-foot,
+.eb-sidebar:focus-within .eb-sidebar-lbl,
+.eb-sidebar:focus-within .eb-sidebar-bdg,
+.eb-sidebar:focus-within .eb-sidebar-foot,
+.eb-sidebar[data-pinned="true"] .eb-sidebar-lbl,
+.eb-sidebar[data-pinned="true"] .eb-sidebar-bdg,
+.eb-sidebar[data-pinned="true"] .eb-sidebar-foot {
+  opacity: 1;
+  transition-delay: 0.06s;
+}
+
 @layer utilities {
   .no-scrollbar {
     scrollbar-width: none;
@@ -2044,5 +2081,54 @@ html {
 }
 .bg-\[\#1a2420\]\/70 {
   background-color: rgba(6, 15, 12, 0.7) !important;
+}
+
+/* Invert transparent dark-mode diagrams/formulas inside questions, options, and solutions */
+.dark .prose img,
+.dark .math-tex img,
+.dark .math-text img,
+.dark .edu-card img,
+.dark [class*="prose"] img {
+  filter: invert(1) hue-rotate(180deg) !important;
+}
+
+/* Chapter hub — investor v2 (scoped; does not change global theme) */
+.chapter-hub-v2-start {
+  background: hsl(245 55% 67%);
+}
+.chapter-hub-v2-start:hover {
+  background: hsl(245 45% 50%);
+}
+.chapter-hub-v2-topic-num {
+  background: hsl(245 35% 14%);
+  border: 0.5px solid hsl(245 45% 42%);
+  color: hsl(245 55% 78%);
+}
+.chapter-hub-v2-current {
+  background: hsl(160 55% 12%);
+  color: hsl(160 55% 72%);
+  border: 0.5px solid hsl(160 68% 28%);
+}
+.chapter-hub-v2-prog-track {
+  background: hsl(var(--muted));
+}
+.chapter-hub-v2-prog-fill {
+  background: hsl(245 55% 67%);
+}
+.chapter-hub-v2-wt-band {
+  background: hsl(38 70% 10%);
+  border-color: hsl(38 85% 54%);
+}
+.chapter-hub-v2-leg-quiz {
+  background: hsl(160 55% 12%);
+}
+.chapter-hub-v2-leg-numbers {
+  background: hsl(210 55% 12%);
+}
+.chapter-hub-v2-leg-instacue {
+  background: hsl(340 40% 12%);
+}
+.chapter-hub-v2-leg-concepts {
+  background: hsl(38 70% 10%);
 }
 

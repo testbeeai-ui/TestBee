@@ -21,10 +21,11 @@ describe("waitlistEmailTemplate", () => {
     const { subject, html, text } = buildWaitlistConfirmationEmail({
       waitlistId: "EB-2026-1234",
       email: "arjun@example.com",
+      phone: "9876543210",
     });
     expect(subject).toContain("EB-2026-1234");
     expect(html).toContain("arjun@example.com");
-    expect(html).toContain("#ambassador");
+    expect(html).toContain("Ambassador");
     expect(text).toContain("EB-2026-1234");
   });
 
@@ -35,6 +36,7 @@ describe("waitlistEmailTemplate", () => {
       firstName: "Arjun",
       lastName: "Sharma",
       email: "arjun@example.com",
+      phone: "9876543210",
       role: "student",
     });
     expect(subject).toContain("Ambassador");

@@ -258,7 +258,7 @@ export async function GET(request: Request) {
         .select("id")
         .in("classroom_id", classroomIds)
         .lte("scheduled_at", new Date().toISOString()),
-      supabase.from("session_attendance").select("session_id").eq("user_id", uid),
+      supabase.from("live_session_joins").select("session_id").eq("user_id", uid),
     ]);
 
     const posts = postsRes.data ?? [];

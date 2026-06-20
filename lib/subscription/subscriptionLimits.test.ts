@@ -21,10 +21,19 @@ describe("subscription plan limits (admin rdm_config keys)", () => {
     expect(starter.gyanDoubtsPerDay).toBe(30);
     expect(pro.gyanDoubtsPerDay).toBe(-1);
 
-    expect(free.lessonsChapterLimit).toBe(2);
+    expect(free.lessonsChapterLimit).toBe(-1);
     expect(free.instacueCardLimit).toBe(20);
+    expect(free.savedBitLimit).toBe(20);
+    expect(free.savedFormulaLimit).toBe(20);
+    expect(free.savedQuestionLimit).toBe(20);
     expect(starter.instacueCardLimit).toBe(200);
+    expect(starter.savedBitLimit).toBe(200);
+    expect(starter.savedFormulaLimit).toBe(200);
+    expect(starter.savedQuestionLimit).toBe(200);
     expect(pro.instacueCardLimit).toBe(-1);
+    expect(pro.savedBitLimit).toBe(-1);
+    expect(pro.savedFormulaLimit).toBe(-1);
+    expect(pro.savedQuestionLimit).toBe(-1);
 
     expect(free.mocksPerMonth).toBe(3);
     expect(free.magicWallMonthlyAttempts).toBe(2);

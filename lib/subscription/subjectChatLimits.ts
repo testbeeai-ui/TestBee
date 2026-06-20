@@ -2,6 +2,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { getFreeTrialActivated } from "@/lib/subscription/freeTrialClient";
 import {
+  parseSubjectChatRegionalLanguage,
+  type SubjectChatRegionalCode,
+} from "@/lib/subscription/subjectChatRegionalLanguage";
+import {
   fetchSubscriptionConfig,
   getPlanLimits,
   isUnlimited,
@@ -16,6 +20,8 @@ export type SubjectChatProfileFields = {
   payment_card_details?: unknown;
   subscription_started_at?: string | null;
   time_travel_offset_ms?: number | null;
+  subject_chat_regional_language?: string | null;
+  subject_chat_regional_language_locked_at?: string | null;
 };
 
 export type SubjectChatAccess = {
@@ -23,6 +29,8 @@ export type SubjectChatAccess = {
   dailyLimit: number;
   unlimited: boolean;
   multilingual: boolean;
+  regionalLanguage: SubjectChatRegionalCode | null;
+  needsRegionalLanguageSelection: boolean;
   usedToday: number;
   remaining: number | null;
   canSend: boolean;
@@ -97,12 +105,15 @@ export function buildSubjectChatAccess(input: {
   plan: SubscriptionPlanKey;
   cfg: SubscriptionConfig;
   usedToday: number;
+  regionalLanguage?: SubjectChatRegionalCode | null;
   nowMs?: number;
 }): SubjectChatAccess {
   const { plan, cfg, usedToday } = input;
   const nowMs = input.nowMs ?? Date.now();
   const { dailyLimit, unlimited } = resolveSubjectChatDailyLimit(cfg, plan);
   const multilingual = planHasSubjectChatMultilingual(cfg, plan);
+  const regionalLanguage = input.regionalLanguage ?? null;
+  const needsRegionalLanguageSelection = multilingual && !regionalLanguage;
   const remaining = unlimited ? null : Math.max(0, dailyLimit - usedToday);
   const canSend = unlimited || usedToday < dailyLimit;
 
@@ -111,6 +122,8 @@ export function buildSubjectChatAccess(input: {
     dailyLimit,
     unlimited,
     multilingual,
+    regionalLanguage,
+    needsRegionalLanguageSelection,
     usedToday,
     remaining,
     canSend,
@@ -133,6 +146,9 @@ export function resolveSubjectChatAccessFromProfile(
     plan,
     cfg,
     usedToday,
+    regionalLanguage: parseSubjectChatRegionalLanguage(
+      profile?.subject_chat_regional_language
+    ),
     nowMs: nowMs ?? resolveSubjectChatNowMs(profile),
   });
 }
@@ -149,13 +165,16 @@ export async function resolveSubjectChatAccessForUser(
   return resolveSubjectChatAccessFromProfile(profile, config, usedToday, nowMs);
 }
 
-/** Server: clamp language to English when plan has no multilingual. */
+/** Server: normalize lesson-chat language; Pro users may use English + one locked regional lang. */
 export function resolveSubjectChatLanguage(
   requested: string,
-  access: Pick<SubjectChatAccess, "multilingual">
+  access: Pick<SubjectChatAccess, "multilingual" | "regionalLanguage">
 ): string {
   if (!access.multilingual) return "en";
+  if (!access.regionalLanguage) return "en";
+
   const code = String(requested ?? "en").trim().toLowerCase();
-  const allowed = new Set(["en", "hi", "kn", "ta", "te"]);
-  return allowed.has(code) ? code : "en";
+  if (code === "en") return "en";
+  if (code === access.regionalLanguage) return access.regionalLanguage;
+  return "en";
 }

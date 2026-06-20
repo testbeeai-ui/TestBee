@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { revisionCardLimitToastCopy } from "@/lib/saved/revisionCardSaveLimit";
+import { revisionCardLimitToastCopy } from "@/lib/saved/savedContentSaveLimit";
 import { isUnlimited } from "@/lib/subscription/subscriptionConfig";
 
 describe("revisionCardSaveLimit", () => {

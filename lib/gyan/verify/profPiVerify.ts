@@ -3,7 +3,7 @@
  * Pure routing helpers are unit-tested; network path lives in `maybeVerifyProfPiDraft`.
  */
 
-import { getProfPiVerifyMaxTokens } from "@/lib/gyanContentPolicy";
+import { getProfPiVerifyMaxTokens, getProfPiUiLanguagePreserveClause } from "@/lib/gyanContentPolicy";
 import {
   draftHasProfPiStructure,
   formatSarvamAssistantReply,
@@ -177,6 +177,7 @@ export async function maybeVerifyProfPiDraft(params: {
   body: string;
   ragKey: ProfPiRagKey;
   source: ProfPiAnswerSource;
+  responseLanguage?: string;
 }): Promise<{ text: string; ran: boolean; ok: boolean; error?: string }> {
   if (!isProfPiVerifyEnabled()) {
     return { text: params.draft, ran: false, ok: true };
@@ -187,9 +188,10 @@ export async function maybeVerifyProfPiDraft(params: {
 
   const draft = params.draft.trim();
   const verifyMaxTokens = resolveSarvamMaxTokens(getProfPiVerifyMaxTokens(draft.length));
+  const langClause = getProfPiUiLanguagePreserveClause(params.responseLanguage);
 
   const r = await sarvamChatCompletion({
-    systemPrompt: buildVerifierSystemPrompt(params.ragKey),
+    systemPrompt: buildVerifierSystemPrompt(params.ragKey) + langClause,
     userContent: buildProfPiVerifierUserContent({
       title: params.title,
       body: params.body,

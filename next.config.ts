@@ -1,12 +1,17 @@
 import type { NextConfig } from "next";
 
-const securityHeaders = [
+const defaultSecurityHeaders = [
   // Allow embedding only within the same origin (enables in-app previews without clickjacking exposure).
   { key: "X-Frame-Options", value: "SAMEORIGIN" },
   { key: "Content-Security-Policy", value: "frame-ancestors 'self'" },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+  // Razorpay checkout uses device-motion fingerprinting; blocking sensors breaks card/UPI flows.
+  {
+    key: "Permissions-Policy",
+    value:
+      "camera=(), microphone=(), geolocation=(), accelerometer=*, gyroscope=*, payment=(self \"https://api.razorpay.com\" \"https://checkout.razorpay.com\")",
+  },
   { key: "X-DNS-Prefetch-Control", value: "on" },
 ];
 
@@ -22,7 +27,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: "/(.*)",
-        headers: securityHeaders,
+        headers: defaultSecurityHeaders,
       },
     ];
   },

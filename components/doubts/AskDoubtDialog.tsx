@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,9 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, ChevronLeft, RotateCcw } from "lucide-react";
-import { DOUBT_FLAIRS } from "./doubtTypes";
+import { DOUBT_DUPLICATE_MIN_SIMILARITY } from "./doubtTypes";
+
+const ASK_DOUBT_SUBJECTS = ["Physics", "Chemistry", "Math"] as const;
 import {
   applyNormalizedPasteToField,
   normalizePastedMathForDoubt,
@@ -58,6 +60,18 @@ export default function AskDoubtDialog({ open, onOpenChange, onDoubtPosted }: As
   >([]);
   const [duplicateChecking, setDuplicateChecking] = useState(false);
   const [submitLoading, setSubmitLoading] = useState(false);
+  const duplicateCheckGenRef = useRef(0);
+
+  const resetAskDialogState = useCallback(() => {
+    duplicateCheckGenRef.current += 1;
+    setAskStep(1);
+    setTitle("");
+    setBody("");
+    setSubject("");
+    setDuplicateMatches([]);
+    setDuplicateChecking(false);
+    setSubmitLoading(false);
+  }, []);
 
   const clearDraft = useCallback(() => {
     try {
@@ -69,40 +83,38 @@ export default function AskDoubtDialog({ open, onOpenChange, onDoubtPosted }: As
 
   const handleStartAsNew = useCallback(() => {
     clearDraft();
-    setAskStep(1);
-    setTitle("");
-    setBody("");
-    setSubject("");
-    setDuplicateMatches([]);
-  }, [clearDraft]);
+    resetAskDialogState();
+  }, [clearDraft, resetAskDialogState]);
 
   const hydrateFromSessionOrReset = useCallback(() => {
     if (typeof window === "undefined") return;
     try {
       const raw = sessionStorage.getItem(DRAFT_KEY);
       if (!raw) {
-        handleStartAsNew();
+        resetAskDialogState();
         return;
       }
       const d = JSON.parse(raw) as Record<string, unknown>;
+      resetAskDialogState();
       if (d.title != null) setTitle(String(d.title));
       if (d.body != null) setBody(String(d.body));
       if (d.subject != null) setSubject(String(d.subject));
-      if (typeof d.askStep === "number") {
-        const step = d.askStep === 4 ? 1 : d.askStep;
-        if (step >= 1 && step <= 3) setAskStep(step);
+      if (typeof d.askStep === "number" && d.askStep === 3) {
+        setAskStep(3);
+        if (Array.isArray(d.duplicateMatches)) {
+          setDuplicateMatches(
+            d.duplicateMatches as { id: string; title: string; similarity_score: number }[]
+          );
+        }
       }
-      if (Array.isArray(d.duplicateMatches))
-        setDuplicateMatches(
-          d.duplicateMatches as { id: string; title: string; similarity_score: number }[]
-        );
     } catch {
-      handleStartAsNew();
+      resetAskDialogState();
     }
-  }, [handleStartAsNew]);
+  }, [resetAskDialogState]);
 
   const saveDraft = useCallback(() => {
     if (typeof window === "undefined") return;
+    if (askStep !== 1) return;
     try {
       sessionStorage.setItem(
         DRAFT_KEY,
@@ -119,13 +131,23 @@ export default function AskDoubtDialog({ open, onOpenChange, onDoubtPosted }: As
     }
   }, [title, body, subject, askStep, duplicateMatches]);
 
-  // Load draft when dialog opens — defer updates so we don't setState synchronously inside the effect body.
+  // Load draft when dialog opens.
   useEffect(() => {
     if (!open) return;
     queueMicrotask(() => {
       hydrateFromSessionOrReset();
     });
   }, [open, hydrateFromSessionOrReset]);
+
+  const handleDialogOpenChange = (next: boolean) => {
+    if (!next) {
+      duplicateCheckGenRef.current += 1;
+      setDuplicateChecking(false);
+      setSubmitLoading(false);
+      setAskStep(1);
+    }
+    onOpenChange(next);
+  };
 
   useEffect(() => {
     if (open) saveDraft();
@@ -160,6 +182,7 @@ export default function AskDoubtDialog({ open, onOpenChange, onDoubtPosted }: As
       daily_rdm?: { awarded?: boolean; amount?: number };
     };
     if (!postRes.ok) {
+      setAskStep(1);
       if (res.limitReached) {
         const access = (res as { access?: { dailyLimit?: number } }).access;
         const limit = access?.dailyLimit ?? 1;
@@ -182,6 +205,7 @@ export default function AskDoubtDialog({ open, onOpenChange, onDoubtPosted }: As
     if (res?.ok) {
       notifyBuddyActivityRefresh();
       clearDraft();
+      resetAskDialogState();
       toast({
         title: "Doubt posted!",
         description:
@@ -193,7 +217,7 @@ export default function AskDoubtDialog({ open, onOpenChange, onDoubtPosted }: As
         const at = (await safeGetSession()).session?.access_token;
         await incrementPrepCalendarDay(at ?? undefined, "doubt", localDayISO());
       })();
-      onOpenChange(false);
+      handleDialogOpenChange(false);
       const rawId = res.id;
       const doubtId =
         typeof rawId === "string"
@@ -255,6 +279,7 @@ export default function AskDoubtDialog({ open, onOpenChange, onDoubtPosted }: As
         }
       }
     } else {
+      setAskStep(1);
       toast({ title: res?.error ?? "Failed to post", variant: "destructive" });
     }
   };
@@ -263,7 +288,7 @@ export default function AskDoubtDialog({ open, onOpenChange, onDoubtPosted }: As
     if (
       !title.trim() ||
       !subject ||
-      !DOUBT_FLAIRS.includes(subject as (typeof DOUBT_FLAIRS)[number])
+      !ASK_DOUBT_SUBJECTS.includes(subject as (typeof ASK_DOUBT_SUBJECTS)[number])
     ) {
       toast({ title: "Title and subject required", variant: "destructive" });
       return;
@@ -272,9 +297,11 @@ export default function AskDoubtDialog({ open, onOpenChange, onDoubtPosted }: As
     const nb = normalizePastedMathForDoubt(body.trim());
     setTitle(nt);
     setBody(nb);
+    const checkGen = ++duplicateCheckGenRef.current;
     setDuplicateChecking(true);
     setAskStep(2);
-    supabase.rpc("search_doubt_duplicates", { p_title: nt }).then(({ data, error }) => {
+    void supabase.rpc("search_doubt_duplicates", { p_title: nt }).then(({ data, error }) => {
+      if (checkGen !== duplicateCheckGenRef.current) return;
       setDuplicateChecking(false);
       if (error) {
         setDuplicateMatches([]);
@@ -282,7 +309,7 @@ export default function AskDoubtDialog({ open, onOpenChange, onDoubtPosted }: As
         return;
       }
       const rows = (data || []) as { id: string; title: string; similarity_score: number }[];
-      const similar = rows.filter((r) => r.similarity_score >= 0.35);
+      const similar = rows.filter((r) => r.similarity_score >= DOUBT_DUPLICATE_MIN_SIMILARITY);
       if (similar.length > 0) {
         setDuplicateMatches(similar);
         setAskStep(3);
@@ -294,7 +321,7 @@ export default function AskDoubtDialog({ open, onOpenChange, onDoubtPosted }: As
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleDialogOpenChange}>
       <DialogContent className="rounded-2xl max-w-lg">
         <DialogHeader>
           <DialogTitle>Ask a Doubt</DialogTitle>
@@ -363,7 +390,7 @@ export default function AskDoubtDialog({ open, onOpenChange, onDoubtPosted }: As
                   Subject <span className="text-destructive">*</span>
                 </Label>
                 <div className="flex flex-wrap gap-2 mt-1">
-                  {DOUBT_FLAIRS.map((flair) => (
+                  {ASK_DOUBT_SUBJECTS.map((flair) => (
                     <Button
                       key={flair}
                       type="button"
@@ -380,11 +407,13 @@ export default function AskDoubtDialog({ open, onOpenChange, onDoubtPosted }: As
             </>
           )}
           {askStep === 2 && (
-            <div className="flex items-center justify-center py-8">
+            <div className="flex flex-col items-center justify-center gap-3 py-8">
               <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
               {submitLoading && !duplicateChecking ? (
-                <span className="sr-only">Posting…</span>
-              ) : null}
+                <span className="text-sm text-muted-foreground">Posting your doubt…</span>
+              ) : (
+                <span className="text-sm text-muted-foreground">Checking for similar questions…</span>
+              )}
             </div>
           )}
           {askStep === 3 && duplicateMatches.length > 0 && (
@@ -396,7 +425,7 @@ export default function AskDoubtDialog({ open, onOpenChange, onDoubtPosted }: As
                     <Link
                       href={`/doubts/${m.id}`}
                       className="text-sm text-primary hover:underline line-clamp-2 block py-1"
-                      onClick={() => onOpenChange(false)}
+                      onClick={() => handleDialogOpenChange(false)}
                     >
                       {m.title}
                     </Link>
@@ -412,7 +441,7 @@ export default function AskDoubtDialog({ open, onOpenChange, onDoubtPosted }: As
         <DialogFooter className="flex-wrap gap-2 sm:gap-2">
           {askStep === 1 && (
             <>
-              <Button variant="outline" className="rounded-xl" onClick={() => onOpenChange(false)}>
+              <Button variant="outline" className="rounded-xl" onClick={() => handleDialogOpenChange(false)}>
                 Cancel
               </Button>
               <Button
@@ -430,6 +459,21 @@ export default function AskDoubtDialog({ open, onOpenChange, onDoubtPosted }: As
                 {duplicateChecking ? <Loader2 className="w-4 h-4 animate-spin" /> : null} Post
               </Button>
             </>
+          )}
+          {askStep === 2 && (
+            <Button
+              variant="outline"
+              className="rounded-xl"
+              disabled={submitLoading || duplicateChecking}
+              onClick={() => {
+                duplicateCheckGenRef.current += 1;
+                setDuplicateChecking(false);
+                setSubmitLoading(false);
+                setAskStep(1);
+              }}
+            >
+              Cancel
+            </Button>
           )}
           {askStep === 3 && (
             <>

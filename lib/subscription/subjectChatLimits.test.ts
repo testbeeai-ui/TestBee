@@ -60,7 +60,20 @@ describe("subjectChatLimits", () => {
     expect(access.unlimited).toBe(true);
     expect(access.canSend).toBe(true);
     expect(access.multilingual).toBe(true);
+    expect(access.regionalLanguage).toBeNull();
+    expect(access.needsRegionalLanguageSelection).toBe(true);
     expect(access.remaining).toBeNull();
+  });
+
+  it("pro with locked regional language", () => {
+    const access = buildSubjectChatAccess({
+      plan: "pro",
+      cfg: SUBSCRIPTION_CONFIG_DEFAULTS,
+      usedToday: 0,
+      regionalLanguage: "kn",
+    });
+    expect(access.regionalLanguage).toBe("kn");
+    expect(access.needsRegionalLanguageSelection).toBe(false);
   });
 
   it("normalizePlanTier: paid starter is English-only chat-bot", () => {
@@ -78,12 +91,23 @@ describe("subjectChatLimits", () => {
   });
 
   it("forces English when multilingual is off", () => {
-    expect(
-      resolveSubjectChatLanguage("hi", { multilingual: false })
-    ).toBe("en");
-    expect(
-      resolveSubjectChatLanguage("kn", { multilingual: true })
-    ).toBe("kn");
+    const off = { multilingual: false, regionalLanguage: null };
+    expect(resolveSubjectChatLanguage("hi", off)).toBe("en");
+    expect(resolveSubjectChatLanguage("kn", off)).toBe("en");
+  });
+
+  it("pro without locked language: English only until picker completes", () => {
+    const pending = { multilingual: true, regionalLanguage: null };
+    expect(resolveSubjectChatLanguage("kn", pending)).toBe("en");
+    expect(resolveSubjectChatLanguage("en", pending)).toBe("en");
+  });
+
+  it("pro with locked language: English or locked regional only", () => {
+    const locked = { multilingual: true, regionalLanguage: "kn" as const };
+    expect(resolveSubjectChatLanguage("en", locked)).toBe("en");
+    expect(resolveSubjectChatLanguage("kn", locked)).toBe("kn");
+    expect(resolveSubjectChatLanguage("hi", locked)).toBe("en");
+    expect(resolveSubjectChatLanguage("ta", locked)).toBe("en");
   });
 
   it("admin override for multilingual flag", () => {

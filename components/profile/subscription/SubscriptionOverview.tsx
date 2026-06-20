@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { Crown, Zap, ArrowUp, Settings, AlertTriangle, ShieldCheck, Lock } from "lucide-react";
+import { Crown, Zap, ArrowUp, AlertTriangle } from "lucide-react";
 import type { SubViewId } from "./StudentSubscriptionHub";
 import type { Profile } from "@/hooks/useAuth";
 import { normalizePlanTier } from "@/lib/subscription/subscriptionConfig";

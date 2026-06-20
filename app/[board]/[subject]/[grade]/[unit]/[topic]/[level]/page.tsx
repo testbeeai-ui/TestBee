@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { getTheoryOrPlaceholder, getTopicOverviewOrPlaceholder } from "@/data/topicTheory";
+import TopicReferencesUpgradeDialog from "@/components/curriculum/TopicReferencesUpgradeDialog";
 import TheoryContent from "@/components/TheoryContent";
 import TopicAgentTracePanel from "@/components/TopicAgentTracePanel";
 import { TheoryPanelSkeleton } from "@/components/SubtopicLessonSkeletons";
@@ -51,7 +52,20 @@ import {
   subtopicDeepDiveHeadingMarkdown,
   subtopicMathTextLabel,
   subtopicNavPreviewPlain,
+  truncateSubtopicPreviewLabel,
 } from "@/lib/curriculum/subtopicTitles";
+import {
+  getAdvancedQuizSetLockState,
+  hasQuestionBankPlanAccess,
+  hasTopicReferencesAccess,
+  isTopicQuestionBankUnlocked,
+  markTopicQuestionBankUnlocked,
+  quizSetLockTitle,
+  resolvePlanTierFromProfile,
+  TOPIC_QUESTION_BANK_UPGRADE_PATH,
+  canAccessAdvancedQuizSet,
+  type TopicQuestionBankScope,
+} from "@/lib/curriculum/topicQuestionBankAccess";
 import { useTopicTaxonomy } from "@/hooks/useTopicTaxonomy";
 import type { DifficultyLevel } from "@/lib/slugs";
 import {
@@ -91,6 +105,7 @@ import {
   RotateCcw,
   Bookmark,
   Lock,
+  ClipboardList,
 } from "lucide-react";
 import type { DeepDiveReference } from "@/data/deepDiveContent";
 import MathText from "@/components/MathText";
@@ -101,6 +116,10 @@ import { getInstaCueCards, type InstaCueCard } from "@/data/instaCueCards";
 import { useUserStore } from "@/store/useUserStore";
 import type { Board, Subject, SavedBit, SavedFormula, SavedRevisionUnit } from "@/types";
 import { syncAllSavedContent } from "@/lib/saved/savedContentService";
+import {
+  resolveSavedContentLimit,
+  savedContentLimitToastCopy,
+} from "@/lib/saved/savedContentSaveLimit";
 import { applyInstacueCreateDailyRdmReward } from "@/lib/rdm/claims/applyInstacueCreateDailyRdmReward";
 import { applyTopicQuizAdvancedDailyRdmReward } from "@/lib/rdm/claims/applyTopicQuizAdvancedDailyRdmReward";
 import {
@@ -855,6 +874,67 @@ function TopicPageInner() {
   const { toast } = useToast();
   const { loading: authLoading, session, profile, refreshProfile } = useAuth();
 
+  const planTier = useMemo(() => resolvePlanTierFromProfile(profile), [profile]);
+  const hasPaidQuestionBank = hasQuestionBankPlanAccess(planTier);
+
+  const questionBankScope = useMemo((): TopicQuestionBankScope | null => {
+    if (!profile?.id || !pathname) return null;
+    return { userId: profile.id, lessonPath: pathname };
+  }, [profile?.id, pathname]);
+
+  const [questionBankUnlocked, setQuestionBankUnlocked] = useState(false);
+
+  useEffect(() => {
+    if (!questionBankScope) {
+      setQuestionBankUnlocked(false);
+      return;
+    }
+    setQuestionBankUnlocked(isTopicQuestionBankUnlocked(questionBankScope));
+  }, [questionBankScope]);
+
+  useEffect(() => {
+    if (!questionBankScope) return;
+    const syncUnlock = () =>
+      setQuestionBankUnlocked(isTopicQuestionBankUnlocked(questionBankScope));
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") syncUnlock();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, [questionBankScope]);
+
+  const openQuestionBankPremiumUpsell = useCallback(() => {
+    toast({
+      title: "Premium feature",
+      description: "Question bank is available on Starter & Pro plans.",
+    });
+    router.push(TOPIC_QUESTION_BANK_UPGRADE_PATH);
+  }, [router, toast]);
+
+  const unlockTopicQuestionBank = useCallback(() => {
+    if (!questionBankScope) return;
+    if (!hasPaidQuestionBank) {
+      openQuestionBankPremiumUpsell();
+      return;
+    }
+    markTopicQuestionBankUnlocked(questionBankScope);
+    setQuestionBankUnlocked(true);
+    toast({
+      title: "Question bank unlocked",
+      description: "Sets 2 & 3 are ready — start them below.",
+    });
+  }, [questionBankScope, hasPaidQuestionBank, openQuestionBankPremiumUpsell, toast]);
+
+  const resolveAdvancedQuizSetLock = useCallback(
+    (setIndex: AdvancedQuizSetIndex, isAssignmentSet: boolean) =>
+      getAdvancedQuizSetLockState(setIndex, {
+        plan: planTier,
+        questionBankUnlocked,
+        isAssignmentSet,
+      }),
+    [planTier, questionBankUnlocked]
+  );
+
   const boardNormalizedForLessons = useMemo(() => String(board).trim().toLowerCase(), [board]);
 
   const [advancedLessonKeys, setAdvancedLessonKeys] = useState<Set<string>>(() => new Set());
@@ -1071,6 +1151,7 @@ function TopicPageInner() {
     return undefined;
   }, [bitsDialogOpen]);
   const [referencesDialogOpen, setReferencesDialogOpen] = useState(false);
+  const [referencesUpgradeDialogOpen, setReferencesUpgradeDialogOpen] = useState(false);
   const [activeSectionIdx, setActiveSectionIdx] = useState(0);
   const [conceptsPage, setConceptsPage] = useState(0);
   /** Concept-tab pagination pages visited (for progress checklist item 5) */
@@ -1131,6 +1212,66 @@ function TopicPageInner() {
   const useAdvancedSetsUi = useMemo(
     () => isAdvancedMultiSet(difficultyLevel, dbBitsQuestions.length),
     [difficultyLevel, dbBitsQuestions.length]
+  );
+  const hasQuestionBankSets = useMemo(() => {
+    if (!useAdvancedSetsUi) return false;
+    const n = dbBitsQuestions.length;
+    return (
+      getAdvancedSetBounds(n, 2).length > 0 || getAdvancedSetBounds(n, 3).length > 0
+    );
+  }, [useAdvancedSetsUi, dbBitsQuestions.length]);
+
+  const renderAdvancedSetRow = useCallback(
+    (s: AdvancedQuizSetIndex) => {
+      const len = getAdvancedSetBounds(dbBitsQuestions.length, s).length;
+      if (len === 0) return null;
+      const isAssignmentSet =
+        searchParams.get("panel") === "quiz" &&
+        searchParams.get("quizSet") === String(s) &&
+        !!searchParams.get("postId");
+      const { locked, reason: lockReason } = resolveAdvancedQuizSetLock(s, isAssignmentSet);
+      const att = bitsAttemptBySet[s];
+      const isQuestionBankSet = s > 1;
+      return (
+        <div
+          key={s}
+          className="flex items-center justify-between gap-2 rounded-md border border-border/60 bg-muted/30 px-2 py-1"
+        >
+          <span className="font-semibold text-foreground min-w-0">
+            <span className="inline-flex flex-col">
+              <span>
+                Set {s}
+                {locked ? (
+                  <Lock className="inline h-3 w-3 ml-1 text-muted-foreground" />
+                ) : null}
+              </span>
+              {isQuestionBankSet ? (
+                <span
+                  className={`text-[10px] font-normal ${
+                    locked ? "text-muted-foreground" : "text-blue-600 dark:text-blue-300"
+                  }`}
+                >
+                  {locked
+                    ? lockReason === "needs_starter_or_pro"
+                      ? "Question bank"
+                      : "Question bank · tap below to unlock"
+                    : "Question bank"}
+                </span>
+              ) : (
+                <span className="text-[10px] font-normal text-muted-foreground">Free</span>
+              )}
+            </span>
+          </span>
+          <span className="text-muted-foreground shrink-0">
+            {len} Q
+            {att && att.totalQuestions > 0
+              ? ` · ${Math.round((att.correctCount / att.totalQuestions) * 100)}%`
+              : ""}
+          </span>
+        </div>
+      );
+    },
+    [dbBitsQuestions.length, searchParams, resolveAdvancedQuizSetLock, bitsAttemptBySet]
   );
 
   useEffect(() => {
@@ -1255,12 +1396,21 @@ function TopicPageInner() {
 
     const setNum: AdvancedQuizSetIndex =
       qs === "1" || qs === "2" || qs === "3" ? (Number(qs) as AdvancedQuizSetIndex) : 1;
+    if (
+      !fromAssignment &&
+      !canAccessAdvancedQuizSet(setNum, {
+        plan: planTier,
+        questionBankUnlocked,
+      })
+    ) {
+      return;
+    }
     setActiveQuizSet(setNum);
     const b = getAdvancedSetBounds(dbBitsQuestions.length, setNum);
     setBitsCurrentIdx(b.start);
     setBitsDialogOpen(true);
     hasAutoOpenedQuizRef.current = true;
-  }, [searchParams, difficultyLevel, dbBitsQuestions.length]);
+  }, [searchParams, difficultyLevel, dbBitsQuestions.length, planTier, questionBankUnlocked]);
 
   useEffect(() => {
     if (!bitsDialogOpen || dbBitsQuestions.length === 0) return;
@@ -1277,6 +1427,34 @@ function TopicPageInner() {
     if (topicHubGateLoading) return true;
     return !topicHubGateOk;
   }, [isOverview, canEditTheory, topicHubGateLoading, topicHubGateOk]);
+
+  /** Numerals per-formula regenerate: marketing UX by plan (admins keep real regenerate). */
+  const numeralsRegenerateMode = useMemo(() => {
+    if (canEditTheory) return "admin" as const;
+    if (planTier === "starter" || planTier === "pro") return "coming_soon" as const;
+    return "premium_upsell" as const;
+  }, [canEditTheory, planTier]);
+
+  const handleNumeralsRegenerateMarketingClick = useCallback(() => {
+    toast({
+      title: "Premium feature",
+      description: "Numerals regenerate is available on Starter & Pro plans.",
+    });
+    router.push("/profile?section=sub-plans");
+  }, [router, toast]);
+
+  const hasReferencesAccess = useMemo(
+    () => hasTopicReferencesAccess(planTier) || canEditTheory,
+    [planTier, canEditTheory],
+  );
+
+  const openReferencesDialog = useCallback(() => {
+    if (!hasReferencesAccess) {
+      setReferencesUpgradeDialogOpen(true);
+      return;
+    }
+    setReferencesDialogOpen(true);
+  }, [hasReferencesAccess]);
 
   /** Subtopic row already has AI output in Supabase — allow regen even if theory text fails placeholder heuristics. */
   const hasPersistedAiArtifacts = useMemo(
@@ -1296,6 +1474,14 @@ function TopicPageInner() {
   const bitsSignature = useMemo(() => getBitsSignature(dbBitsQuestions), [dbBitsQuestions]);
   /** Full "Standard areas: …" string must reach MathText so KaTeX can format circle/parabola rows. */
   const displaySubtopicTitle = useMemo(() => subtopicMathTextLabel(subtopicName), [subtopicName]);
+  const displaySubtopicPreview = useMemo(
+    () => truncateSubtopicPreviewLabel(subtopicName, 56),
+    [subtopicName]
+  );
+  const displaySubtopicTooltip = useMemo(
+    () => subtopicNavPreviewPlain(subtopicName) || displaySubtopicTitle,
+    [subtopicName, displaySubtopicTitle]
+  );
   const quizContextChips = useMemo(() => {
     const items: string[] = [];
     if (topicNode?.subject) items.push(topicNode.subject);
@@ -3402,8 +3588,24 @@ function TopicPageInner() {
     const n = dbBitsQuestions.length;
     if (activeQuizSet >= 3) return null;
     const next = (activeQuizSet + 1) as AdvancedQuizSetIndex;
-    return getAdvancedSetBounds(n, next).length > 0 ? next : null;
-  }, [useAdvancedSetsUi, displayBitsAttempt, activeQuizSet, dbBitsQuestions.length]);
+    if (getAdvancedSetBounds(n, next).length === 0) return null;
+    if (
+      !canAccessAdvancedQuizSet(next, {
+        plan: planTier,
+        questionBankUnlocked,
+      })
+    ) {
+      return null;
+    }
+    return next;
+  }, [
+    useAdvancedSetsUi,
+    displayBitsAttempt,
+    activeQuizSet,
+    dbBitsQuestions.length,
+    planTier,
+    questionBankUnlocked,
+  ]);
 
   const buildEngagementSnapshot = useCallback((): SubtopicEngagementSnapshot | null => {
     if (!engagementScope || dbBitsQuestions.length === 0) return null;
@@ -4627,83 +4829,51 @@ function TopicPageInner() {
                     {topicNode.topic}
                   </h1>
 
-                  {mode === "linear" && (
-                    <div className="flex flex-col gap-2 mb-6">
-                      <div className="flex flex-wrap gap-2">
-                        {LEVELS.map(({ value, label }) => {
-                          const href = withLessonNavQuery(
-                            buildTopicOverviewPath(
-                              board,
-                              topicNode.subject,
-                              topicNode.classLevel,
-                              topicNode.topic,
-                              value,
-                              isRandomMode ? "random" : undefined
-                            )
-                          );
-                          const isActive = difficultyLevel === value;
-                          const isPreviewOnlyLevel =
-                            LEVEL_PREVIEW_ROLES.has(value) && !authLoading && !isAdminUser;
+                  {mode === "linear" && isAdminUser ? (
+                    <div className="flex flex-wrap gap-2 mb-6">
+                      {LEVELS.map(({ value, label }) => {
+                        const href = withLessonNavQuery(
+                          buildTopicOverviewPath(
+                            board,
+                            topicNode.subject,
+                            topicNode.classLevel,
+                            topicNode.topic,
+                            value,
+                            isRandomMode ? "random" : undefined
+                          )
+                        );
+                        const isActive = difficultyLevel === value;
 
-                          if (isPreviewOnlyLevel) {
-                            return (
-                              <span
-                                key={value}
-                                role="note"
-                                title="Coming soon for all learners"
-                                className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold border border-dashed transition-colors cursor-not-allowed select-none ${
-                                  isActive
-                                    ? "border-amber-500/45 bg-amber-500/10 text-amber-100"
-                                    : "border-muted-foreground/35 bg-muted/25 text-muted-foreground"
-                                }`}
-                              >
-                                <span>{label}</span>
-                                <span className="text-[10px] font-extrabold uppercase tracking-wide text-amber-400/95">
-                                  Soon
-                                </span>
+                        return (
+                          <Link
+                            key={value}
+                            href={href}
+                            title={
+                              LEVEL_PREVIEW_ROLES.has(value)
+                                ? "Admin preview — not public yet"
+                                : undefined
+                            }
+                            className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold transition-all ${
+                              isActive
+                                ? "bg-primary text-primary-foreground shadow-md"
+                                : "bg-muted text-muted-foreground hover:bg-muted/80"
+                            } ${
+                              LEVEL_PREVIEW_ROLES.has(value)
+                                ? "ring-1 ring-amber-400/45 ring-offset-2 ring-offset-background"
+                                : ""
+                            }`}
+                          >
+                            {label}
+                            {LEVEL_PREVIEW_ROLES.has(value) ? (
+                              <span className="text-[9px] font-extrabold uppercase tracking-wide text-amber-200/90">
+                                Admin
                               </span>
-                            );
-                          }
-
-                          return (
-                            <Link
-                              key={value}
-                              href={href}
-                              title={
-                                isAdminUser && LEVEL_PREVIEW_ROLES.has(value)
-                                  ? "Admin preview — not public yet"
-                                  : undefined
-                              }
-                              className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold transition-all ${
-                                isActive
-                                  ? "bg-primary text-primary-foreground shadow-md"
-                                  : "bg-muted text-muted-foreground hover:bg-muted/80"
-                              } ${
-                                isAdminUser && LEVEL_PREVIEW_ROLES.has(value)
-                                  ? "ring-1 ring-amber-400/45 ring-offset-2 ring-offset-background"
-                                  : ""
-                              }`}
-                            >
-                              {label}
-                              {isAdminUser && LEVEL_PREVIEW_ROLES.has(value) ? (
-                                <span className="text-[9px] font-extrabold uppercase tracking-wide text-amber-200/90">
-                                  Admin
-                                </span>
-                              ) : null}
-                            </Link>
-                          );
-                        })}
-                      </div>
-                      {!authLoading && !isAdminUser ? (
-                        <p className="text-[11px] text-muted-foreground leading-snug max-w-xl">
-                          <span className="font-semibold text-foreground/90">Basic</span> and{" "}
-                          <span className="font-semibold text-foreground/90">Intermediate</span> are
-                          rolling out soon. Continue with{" "}
-                          <span className="font-semibold text-primary">Advanced</span> for now.
-                        </p>
-                      ) : null}
+                            ) : null}
+                          </Link>
+                        );
+                      })}
                     </div>
-                  )}
+                  ) : null}
 
                   <section className="mb-8 pb-6 border-b border-border">
                     <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
@@ -5182,10 +5352,19 @@ function TopicPageInner() {
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => setReferencesDialogOpen(true)}
-                      className="shrink-0 gap-2 rounded-full border-primary/50 bg-primary/5 font-semibold text-foreground hover:bg-primary/10"
+                      onClick={openReferencesDialog}
+                      className={cn(
+                        "shrink-0 gap-2 rounded-full font-semibold text-foreground",
+                        hasReferencesAccess
+                          ? "border-primary/50 bg-primary/5 hover:bg-primary/10"
+                          : "border-muted-foreground/30 bg-muted/20 hover:bg-muted/30",
+                      )}
                     >
-                      <BookOpen className="h-4 w-4" />
+                      {hasReferencesAccess ? (
+                        <BookOpen className="h-4 w-4" />
+                      ) : (
+                        <Lock className="h-4 w-4" />
+                      )}
                       References
                     </Button>
                   </div>
@@ -5536,13 +5715,31 @@ function TopicPageInner() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setReferencesDialogOpen(true)}
-                  className="rounded-full gap-2 font-semibold border-primary text-foreground bg-primary/5 hover:bg-primary/10"
+                  onClick={openReferencesDialog}
+                  className={cn(
+                    "rounded-full gap-2 font-semibold text-foreground",
+                    hasReferencesAccess
+                      ? "border-primary bg-primary/5 hover:bg-primary/10"
+                      : "border-muted-foreground/30 bg-muted/20 hover:bg-muted/30",
+                  )}
                 >
-                  <BookOpen className="w-4 h-4 text-foreground" />
+                  {hasReferencesAccess ? (
+                    <BookOpen className="w-4 h-4 text-foreground" />
+                  ) : (
+                    <Lock className="w-4 h-4 text-foreground" />
+                  )}
                   Video &amp; Reading References
                 </Button>
-                <Dialog open={referencesDialogOpen} onOpenChange={setReferencesDialogOpen}>
+                <Dialog
+                  open={referencesDialogOpen && hasReferencesAccess}
+                  onOpenChange={(open) => {
+                    if (!hasReferencesAccess) {
+                      setReferencesDialogOpen(false);
+                      return;
+                    }
+                    setReferencesDialogOpen(open);
+                  }}
+                >
                   <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto">
                     <DialogHeader>
                       <DialogTitle className="flex items-center gap-2">
@@ -6202,13 +6399,16 @@ function TopicPageInner() {
                           )}
                         </div>
                       ) : (
-                        <div className="edu-card space-y-3 rounded-xl border border-border p-3 sm:p-4">
-                          <div>
+                        <div className="edu-card space-y-3 rounded-xl border border-border p-3 sm:p-4 min-w-0 overflow-hidden">
+                          <div className="min-w-0 overflow-hidden">
                             <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">
                               Topic Quiz
                             </p>
-                            <p className="break-words text-sm font-bold leading-snug text-foreground">
-                              <MathText>{displaySubtopicTitle}</MathText>
+                            <p
+                              className="truncate text-sm font-bold leading-snug text-foreground"
+                              title={displaySubtopicTooltip}
+                            >
+                              {displaySubtopicPreview}
                             </p>
                           </div>
                           <div className="flex flex-wrap items-center gap-2">
@@ -6239,47 +6439,21 @@ function TopicPageInner() {
                               <>
                                 <li className="py-1.5">
                                   <span className="text-muted-foreground block mb-1.5">
-                                    Sets (10 + 10 + remainder)
+                                    {hasPaidQuestionBank
+                                      ? "3 sets (10 + 10 + remainder)"
+                                      : "Set 1 free"}
                                   </span>
                                   <div className="flex flex-col gap-1">
-                                    {([1, 2, 3] as const).map((s) => {
-                                      const len = getAdvancedSetBounds(
-                                        dbBitsQuestions.length,
-                                        s
-                                      ).length;
-                                      if (len === 0) return null;
-                                      const isAssignmentSet =
-                                        searchParams.get("panel") === "quiz" &&
-                                        searchParams.get("quizSet") === String(s) &&
-                                        !!searchParams.get("postId");
-                                      const locked =
-                                        !isAssignmentSet &&
-                                        (s === 2
-                                          ? !bitsAttemptBySet[1]
-                                          : s === 3
-                                            ? !bitsAttemptBySet[2]
-                                            : false);
-                                      const att = bitsAttemptBySet[s];
-                                      return (
-                                        <div
-                                          key={s}
-                                          className="flex items-center justify-between gap-2 rounded-md border border-border/60 bg-muted/30 px-2 py-1"
-                                        >
-                                          <span className="font-semibold text-foreground">
-                                            Set {s}
-                                            {locked ? (
-                                              <Lock className="inline h-3 w-3 ml-1 text-muted-foreground" />
-                                            ) : null}
-                                          </span>
-                                          <span className="text-muted-foreground">
-                                            {len} Q
-                                            {att && att.totalQuestions > 0
-                                              ? ` · ${Math.round((att.correctCount / att.totalQuestions) * 100)}%`
-                                              : ""}
-                                          </span>
-                                        </div>
-                                      );
-                                    })}
+                                    {renderAdvancedSetRow(1)}
+                                    {hasQuestionBankSets && hasPaidQuestionBank ? (
+                                      <>
+                                        <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground px-0.5 pt-1">
+                                          Question bank
+                                        </p>
+                                        {renderAdvancedSetRow(2)}
+                                        {renderAdvancedSetRow(3)}
+                                      </>
+                                    ) : null}
                                   </div>
                                 </li>
                                 <li className="flex justify-between py-1">
@@ -6334,6 +6508,35 @@ function TopicPageInner() {
                                 ? "Open quiz →"
                                 : "Start Quiz →"}
                           </Button>
+                          {useAdvancedSetsUi && hasQuestionBankSets ? (
+                            !hasPaidQuestionBank ? (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="w-full rounded-lg text-sm font-bold"
+                                onClick={openQuestionBankPremiumUpsell}
+                              >
+                                <Lock className="h-4 w-4 mr-1.5" />
+                                Question bank →
+                              </Button>
+                            ) : questionBankUnlocked ? (
+                              <p className="text-[10px] leading-snug text-green-700 dark:text-green-300 px-0.5">
+                                Question bank unlocked — sets 2 & 3 are ready below.
+                              </p>
+                            ) : (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="w-full rounded-lg text-sm font-bold"
+                                onClick={unlockTopicQuestionBank}
+                              >
+                                <ClipboardList className="h-4 w-4 mr-1.5" />
+                                Question bank →
+                              </Button>
+                            )
+                          ) : null}
                           <div className="flex flex-col gap-1.5">
                             {useAdvancedSetsUi
                               ? ([1, 2, 3] as const).map((s) => {
@@ -6342,21 +6545,29 @@ function TopicPageInner() {
                                     s
                                   ).length;
                                   if (len === 0) return null;
+                                  if (
+                                    s > 1 &&
+                                    (!hasPaidQuestionBank ||
+                                      (!questionBankUnlocked &&
+                                        !(
+                                          searchParams.get("panel") === "quiz" &&
+                                          searchParams.get("quizSet") === String(s) &&
+                                          !!searchParams.get("postId")
+                                        )))
+                                  ) {
+                                    return null;
+                                  }
                                   const isAssignmentSet =
                                     searchParams.get("panel") === "quiz" &&
                                     searchParams.get("quizSet") === String(s) &&
                                     !!searchParams.get("postId");
-                                  const locked =
-                                    !isAssignmentSet &&
-                                    (s === 2
-                                      ? !bitsAttemptBySet[1]
-                                      : s === 3
-                                        ? !bitsAttemptBySet[2]
-                                        : false);
+                                  const { locked, reason: lockReason } =
+                                    resolveAdvancedQuizSetLock(s, isAssignmentSet);
                                   const att = bitsAttemptBySet[s];
                                   const b = getAdvancedSetBounds(dbBitsQuestions.length, s);
                                   const inProgress =
                                     !att &&
+                                    !locked &&
                                     Array.from(
                                       { length: b.end - b.start },
                                       (_, i) => b.start + i
@@ -6367,11 +6578,20 @@ function TopicPageInner() {
                                       type="button"
                                       variant="outline"
                                       size="sm"
-                                      disabled={locked}
-                                      title={locked ? "Complete the previous set first" : undefined}
+                                      title={locked ? quizSetLockTitle(lockReason) : undefined}
                                       className="w-full rounded-lg text-xs font-bold"
                                       onClick={() => {
-                                        if (locked) return;
+                                        if (locked) {
+                                          if (lockReason === "needs_starter_or_pro") {
+                                            openQuestionBankPremiumUpsell();
+                                            return;
+                                          }
+                                          if (lockReason === "needs_question_bank_unlock") {
+                                            unlockTopicQuestionBank();
+                                            return;
+                                          }
+                                          return;
+                                        }
                                         setActiveQuizSet(s);
                                         setBitsCurrentIdx(b.start);
                                         setBitsReviewMode(att ? false : false);
@@ -6380,13 +6600,15 @@ function TopicPageInner() {
                                     >
                                       {locked ? (
                                         <>
-                                          <Lock className="h-3.5 w-3.5 mr-1" />
-                                          Set {s} (locked)
+                                          <Lock className="h-3.5 w-3.5 mr-1 shrink-0" />
+                                          {`Set ${s} · Question bank`}
                                         </>
                                       ) : att ? (
-                                        `Set ${s} — results`
+                                        s > 1 ? `Set ${s} · Question bank — results` : `Set ${s} — results`
                                       ) : inProgress ? (
-                                        `Continue set ${s} →`
+                                        s > 1 ? `Continue set ${s} · Question bank →` : `Continue set ${s} →`
+                                      ) : s > 1 ? (
+                                        `Start set ${s} · Question bank →`
                                       ) : (
                                         `Start set ${s} →`
                                       )}
@@ -6721,7 +6943,7 @@ function TopicPageInner() {
                                 const isCurrentQuizBitSaved = isBitSaved(q, savedBits);
                                 const currentQuizSavedBitId = getSavedBitId(q, savedBits);
                                 const useTwoColumns = shouldUseTwoColumnOptions(q.options);
-                                const handleToggleSaveCurrentQuizBit = () => {
+                                const handleToggleSaveCurrentQuizBit = async () => {
                                   if (!topicNode || !subtopicName) return;
                                   if (isCurrentQuizBitSaved) {
                                     if (currentQuizSavedBitId) {
@@ -6729,6 +6951,16 @@ function TopicPageInner() {
                                       persistSavedContent();
                                       toast({ title: "Removed from saved quizzes" });
                                     }
+                                    return;
+                                  }
+                                  const limit = await resolveSavedContentLimit(
+                                    profile,
+                                    "saved_bit",
+                                    savedBits.length
+                                  );
+                                  if (limit.atLimit) {
+                                    const copy = savedContentLimitToastCopy("saved_bit", limit.cap);
+                                    toast({ variant: "destructive", ...copy });
                                     return;
                                   }
                                   const bit: SavedBit = {
@@ -6747,7 +6979,17 @@ function TopicPageInner() {
                                     sectionIndex: subtopicIndex,
                                   };
                                   saveBit(bit);
-                                  persistSavedContent();
+                                  const sync = await syncAllSavedContent();
+                                  if (!sync.ok) {
+                                    unsaveBit(bit.id);
+                                    const copy = savedContentLimitToastCopy("saved_bit", limit.cap);
+                                    toast({
+                                      variant: "destructive",
+                                      title: sync.limitReached ? copy.title : "Could not save",
+                                      description: sync.error,
+                                    });
+                                    return;
+                                  }
                                   toast({ title: "Saved to your quizzes" });
                                 };
                                 const saveBitButtonClass = cn(
@@ -8249,13 +8491,27 @@ function TopicPageInner() {
                                 variant="outline"
                                 size="sm"
                                 className="h-9 shrink-0 gap-1.5 rounded-full font-semibold border-emerald-600/45 bg-emerald-500/12 text-emerald-950 text-[11px] ring-2 ring-emerald-500/35 shadow-[0_0_18px_rgba(16,185,129,0.18)] hover:bg-emerald-500/20 hover:border-emerald-600/60 dark:border-emerald-400/60 dark:text-emerald-50 dark:ring-emerald-400/40 dark:hover:border-emerald-400/80 sm:h-10 sm:gap-2 sm:text-sm"
-                                onClick={() => {
+                                onClick={async () => {
                                   if (!topicNode || !subtopicName || !currentFormulaQuestion)
                                     return;
                                   if (savedFormulaIdForCurrentQuestion) {
                                     unsaveFormula(savedFormulaIdForCurrentQuestion);
                                     persistSavedContent();
                                     toast({ title: "Removed from Saved Formulas" });
+                                    return;
+                                  }
+                                  const savedFormulaCount = user?.savedFormulas?.length ?? 0;
+                                  const limit = await resolveSavedContentLimit(
+                                    profile,
+                                    "saved_formula",
+                                    savedFormulaCount
+                                  );
+                                  if (limit.atLimit) {
+                                    const copy = savedContentLimitToastCopy(
+                                      "saved_formula",
+                                      limit.cap
+                                    );
+                                    toast({ variant: "destructive", ...copy });
                                     return;
                                   }
                                   const { formula: activeFormula, question: activeQuestion } =
@@ -8283,7 +8539,20 @@ function TopicPageInner() {
                                     sectionIndex: subtopicIndex,
                                   };
                                   saveFormula(payload);
-                                  persistSavedContent();
+                                  const sync = await syncAllSavedContent();
+                                  if (!sync.ok) {
+                                    unsaveFormula(payload.id);
+                                    const copy = savedContentLimitToastCopy(
+                                      "saved_formula",
+                                      limit.cap
+                                    );
+                                    toast({
+                                      variant: "destructive",
+                                      title: sync.limitReached ? copy.title : "Could not save",
+                                      description: sync.error,
+                                    });
+                                    return;
+                                  }
                                   toast({ title: "Saved to Saved Formulas" });
                                 }}
                               >
@@ -8295,10 +8564,26 @@ function TopicPageInner() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                disabled
-                                title="Regenerate is coming soon"
-                                className="h-9 shrink-0 cursor-not-allowed gap-1.5 rounded-full border-amber-400/70 bg-amber-500/15 font-semibold text-[11px] text-amber-100 ring-2 ring-amber-400/45 shadow-[0_0_18px_rgba(251,191,36,0.2)] hover:bg-amber-500/15 disabled:pointer-events-none disabled:opacity-100 sm:h-10 sm:gap-2 sm:text-sm"
+                                disabled={numeralsRegenerateMode === "coming_soon"}
+                                title={
+                                  numeralsRegenerateMode === "coming_soon"
+                                    ? "Regenerate is coming soon"
+                                    : numeralsRegenerateMode === "premium_upsell"
+                                      ? "Available on Starter & Pro plans"
+                                      : "Regenerate practice questions for this formula"
+                                }
+                                className={cn(
+                                  "h-9 shrink-0 gap-1.5 rounded-full font-semibold text-[11px] sm:h-10 sm:gap-2 sm:text-sm",
+                                  numeralsRegenerateMode === "coming_soon"
+                                    ? "cursor-not-allowed border-amber-400/70 bg-amber-500/15 text-amber-100 ring-2 ring-amber-400/45 shadow-[0_0_18px_rgba(251,191,36,0.2)] disabled:pointer-events-none disabled:opacity-100"
+                                    : "border-amber-400/70 bg-amber-500/15 text-amber-950 ring-2 ring-amber-400/45 shadow-[0_0_18px_rgba(251,191,36,0.2)] hover:bg-amber-500/25 hover:border-amber-500/80 dark:text-amber-50 dark:hover:bg-amber-500/20"
+                                )}
                                 onClick={async () => {
+                                  if (numeralsRegenerateMode === "premium_upsell") {
+                                    handleNumeralsRegenerateMarketingClick();
+                                    return;
+                                  }
+                                  if (numeralsRegenerateMode === "coming_soon") return;
                                   const next = regenerateFormulaBitsAlgorithmic(
                                     formula.name,
                                     formula.bitsQuestions ?? []
@@ -8348,7 +8633,7 @@ function TopicPageInner() {
                                 }}
                               >
                                 <RefreshCw className="h-3.5 w-3.5 opacity-80 sm:h-4 sm:w-4" />
-                                Regenerate (soon)
+                                {numeralsRegenerateMode === "coming_soon" ? "Coming soon" : "Regenerate"}
                               </Button>
                             </div>
                           </div>
@@ -8377,6 +8662,10 @@ function TopicPageInner() {
         onOpenChange={setWheelOpen}
         subtopics={topicNode.subtopics.map((s) => s.name)}
         onSelect={handleWheelSelect}
+      />
+      <TopicReferencesUpgradeDialog
+        open={referencesUpgradeDialogOpen}
+        onOpenChange={setReferencesUpgradeDialogOpen}
       />
     </AppLayout>
   );

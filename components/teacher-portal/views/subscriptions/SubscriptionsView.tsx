@@ -3,11 +3,6 @@
 import { useState, useEffect } from "react";
 import {
   Loader2,
-  Lock,
-  Smartphone,
-  CreditCard,
-  Building2,
-  Wallet,
   CheckCircle2,
   Copy,
   X,
@@ -19,6 +14,7 @@ import {
   History,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import RazorpayCheckoutButton from "@/components/payments/RazorpayCheckoutButton";
 
 export type RdmTopUpPack = {
   id: string;
@@ -79,13 +75,6 @@ type SubscriptionsViewProps = {
   onRefresh: () => Promise<void>;
 };
 
-const PAYMENT_TABS = [
-  { id: "upi", label: "UPI", icon: Smartphone },
-  { id: "card", label: "Card", icon: CreditCard },
-  { id: "nb", label: "Net banking", icon: Building2 },
-  { id: "wallet", label: "Wallets", icon: Wallet },
-] as const;
-
 function formatInr(amount: number): string {
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
@@ -123,16 +112,8 @@ export default function SubscriptionsView({
   const [couponCode, setCouponCode] = useState("");
   const [couponLoading, setCouponLoading] = useState(false);
 
-  // Razorpay Checkout Simulation states
+  // Razorpay checkout modal
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
-  const [paymentTab, setPaymentTab] = useState<string>("upi");
-  const [upiId, setUpiId] = useState("");
-  const [cardNumber, setCardNumber] = useState("");
-  const [expiry, setExpiry] = useState("");
-  const [cvv, setCvv] = useState("");
-  const [cardholderName, setCardholderName] = useState("");
-  
-  const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [purchasedCouponCode, setPurchasedCouponCode] = useState<string | null>(null);
   const [redeemingPurchased, setRedeemingPurchased] = useState(false);
 
@@ -219,43 +200,32 @@ export default function SubscriptionsView({
     setPurchasedCouponCode(null);
   };
 
-  const handlePaymentSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleRdmPaymentVerified = async (response: {
+    razorpay_order_id: string;
+    razorpay_payment_id: string;
+    razorpay_signature: string;
+  }) => {
     if (!selectedPack) return;
-    
-    setCheckoutLoading(true);
-    try {
-      // Simulate Razorpay network delay
-      await new Promise((r) => setTimeout(r, 1500));
 
-      const res = await fetch("/api/user/coupons/purchase", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          packId: selectedPack.id,
-          paymentMethod: paymentTab,
-        }),
-      });
+    const res = await fetch("/api/user/coupons/purchase", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({
+        packId: selectedPack.id,
+        ...response,
+      }),
+    });
 
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.error || "Payment failed");
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.error || "Payment failed");
 
-      // Save generated coupon code
-      setPurchasedCouponCode(body.code);
-      await loadUserCoupons();
-      toast({
-        title: "Payment Successful! 🎉",
-        description: `Your unique coupon for ${body.rdmAmount} RDM has been generated.`,
-      });
-    } catch (err) {
-      toast({
-        title: "Payment Failed",
-        description: err instanceof Error ? err.message : "Razorpay payment simulation failed.",
-        variant: "destructive",
-      });
-    } finally {
-      setCheckoutLoading(false);
-    }
+    setPurchasedCouponCode(body.code);
+    await loadUserCoupons();
+    toast({
+      title: "Payment Successful! 🎉",
+      description: `Your unique coupon for ${body.rdmAmount} RDM has been generated.`,
+    });
   };
 
   const handleRedeemPurchased = async () => {
@@ -623,7 +593,7 @@ export default function SubscriptionsView({
                   <p className="text-base font-semibold text-white font-mono leading-none mt-1">{formatInr(selectedPack.priceInr)}</p>
                 </div>
                 
-                {!checkoutLoading && (
+                {!purchasedCouponCode && (
                   <button
                     type="button"
                     onClick={() => setIsCheckoutOpen(false)}
@@ -638,169 +608,28 @@ export default function SubscriptionsView({
 
             {/* Main Content Area */}
             {!purchasedCouponCode ? (
-              <div className="flex flex-col">
-                {/* Tabs */}
-                <div className="flex border-b border-white/10 bg-white/[0.01]">
-                  {PAYMENT_TABS.map((t) => {
-                    const Icon = t.icon;
-                    return (
-                      <button
-                        key={t.id}
-                        type="button"
-                        onClick={() => setPaymentTab(t.id)}
-                        className={`flex-1 border-b-2 py-2.5 text-center text-[10px] font-medium transition-colors flex flex-col items-center gap-1 ${
-                          paymentTab === t.id
-                            ? "border-blue-400 text-blue-300 bg-blue-500/[0.03]"
-                            : "border-transparent text-slate-500 hover:text-slate-400"
-                        }`}
-                      >
-                        <Icon className="h-4 w-4" />
-                        {t.label}
-                      </button>
-                    );
-                  })}
+              <div className="flex flex-col p-4 space-y-4">
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Top up {selectedPack.rdmAmount} RDM credits. Payment is processed securely by
+                  Razorpay — test or live mode is controlled only by your API keys in the environment.
+                </p>
+                <RazorpayCheckoutButton
+                  amount={selectedPack.priceInr * 100}
+                  description={`RDM pack — ${selectedPack.rdmAmount} credits`}
+                  label={`Pay ${formatInr(selectedPack.priceInr)} securely`}
+                  createOrderBody={{
+                    purpose: "rdm_pack",
+                    packId: selectedPack.id,
+                    currency: "INR",
+                  }}
+                  onPaymentVerified={handleRdmPaymentVerified}
+                  showSuccessToast={false}
+                  testModeLayout
+                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-blue-500 py-3 text-xs font-semibold text-white transition hover:bg-blue-600 disabled:opacity-60 cursor-pointer"
+                />
+                <div className="flex items-center justify-center gap-1.5 text-[9px] text-slate-500">
+                  Secured by Razorpay • PCI-DSS Compliant
                 </div>
-
-                <form onSubmit={handlePaymentSubmit} className="p-4 space-y-4">
-                  {/* UPI */}
-                  {paymentTab === "upi" && (
-                    <div className="flex flex-col gap-3">
-                      <div className="space-y-1">
-                        <label className="text-xs text-slate-400 font-medium">Enter your UPI ID</label>
-                        <input
-                          required
-                          type="text"
-                          value={upiId}
-                          onChange={(e) => setUpiId(e.target.value)}
-                          placeholder="username@upi (e.g. rahul@paytm)"
-                          className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-xs text-white placeholder:text-slate-600 focus:border-blue-400 focus:outline-none transition"
-                        />
-                      </div>
-                      <div className="flex items-center justify-center border border-dashed border-white/10 rounded-xl p-4 bg-white/[0.01]">
-                        <div className="text-center">
-                          <p className="text-[10px] text-slate-500">Scan QR Code directly in app</p>
-                          <div className="mx-auto mt-2 flex h-16 w-16 items-center justify-center rounded-lg border border-white/10 bg-white/5">
-                            <span className="text-2xl text-slate-600">⊞</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Card */}
-                  {paymentTab === "card" && (
-                    <div className="flex flex-col gap-3">
-                      <div className="space-y-1">
-                        <label className="text-xs text-slate-400 font-medium">Card Number</label>
-                        <input
-                          required
-                          type="text"
-                          value={cardNumber}
-                          onChange={(e) => setCardNumber(e.target.value)}
-                          placeholder="4111 2222 3333 4444"
-                          className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-xs text-white placeholder:text-slate-600 focus:border-blue-400 focus:outline-none transition"
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1">
-                          <label className="text-xs text-slate-400 font-medium">Expiry</label>
-                          <input
-                            required
-                            type="text"
-                            value={expiry}
-                            onChange={(e) => setExpiry(e.target.value)}
-                            placeholder="MM / YY"
-                            className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-xs text-white placeholder:text-slate-600 focus:border-blue-400 focus:outline-none transition"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-xs text-slate-400 font-medium">CVV</label>
-                          <input
-                            required
-                            type="password"
-                            value={cvv}
-                            onChange={(e) => setCvv(e.target.value)}
-                            placeholder="•••"
-                            className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-xs text-white placeholder:text-slate-600 focus:border-blue-400 focus:outline-none transition"
-                          />
-                        </div>
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-xs text-slate-400 font-medium">Cardholder Name</label>
-                        <input
-                          required
-                          type="text"
-                          value={cardholderName}
-                          onChange={(e) => setCardholderName(e.target.value)}
-                          placeholder="Rahul Kumar"
-                          className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-xs text-white placeholder:text-slate-600 focus:border-blue-400 focus:outline-none transition"
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Net Banking */}
-                  {paymentTab === "nb" && (
-                    <div className="flex flex-col gap-2">
-                      <label className="text-xs text-slate-400 font-medium">Popular Banks</label>
-                      <div className="grid grid-cols-2 gap-2">
-                        {["HDFC", "SBI", "ICICI", "AXIS"].map((bank) => (
-                          <button
-                            key={bank}
-                            type="button"
-                            className="border border-white/10 hover:border-white/20 bg-white/5 hover:bg-white/10 rounded-xl p-2.5 text-xs font-semibold text-white transition text-center"
-                            onClick={() => {
-                              toast({ title: `Selected ${bank} bank` });
-                            }}
-                          >
-                            {bank} Bank
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Wallets */}
-                  {paymentTab === "wallet" && (
-                    <div className="flex flex-col gap-2">
-                      <label className="text-xs text-slate-400 font-medium">Link Wallet</label>
-                      <div className="grid grid-cols-2 gap-2">
-                        {["Paytm", "Amazon Pay", "PhonePe"].map((w) => (
-                          <button
-                            key={w}
-                            type="button"
-                            className="border border-white/10 hover:border-white/20 bg-white/5 hover:bg-white/10 rounded-xl p-2.5 text-xs font-semibold text-white transition text-center"
-                            onClick={() => {
-                              toast({ title: `Selected ${w} wallet` });
-                            }}
-                          >
-                            {w}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  <button
-                    type="submit"
-                    disabled={checkoutLoading}
-                    className="w-full flex items-center justify-center gap-2 rounded-xl bg-blue-500 py-3 text-xs font-semibold text-white transition hover:bg-blue-600 disabled:opacity-60 cursor-pointer"
-                  >
-                    {checkoutLoading ? (
-                      <Loader2 className="h-4 w-4 animate-spin text-white" />
-                    ) : (
-                      <>
-                        <Lock className="h-3.5 w-3.5" />
-                        <span>Pay {formatInr(selectedPack.priceInr)} securely</span>
-                      </>
-                    )}
-                  </button>
-
-                  <div className="flex items-center justify-center gap-1.5 text-[9px] text-slate-500">
-                    <Lock className="h-3 w-3" />
-                    Secured by Razorpay • PCI-DSS Compliant
-                  </div>
-                </form>
               </div>
             ) : (
               /* Success View showing coupon code */

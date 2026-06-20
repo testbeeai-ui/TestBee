@@ -6,7 +6,16 @@ import { track } from "@/lib/analytics/track";
 import { motion, AnimatePresence } from "framer-motion";
 import AppLayout from "@/components/AppLayout";
 import { useUserStore } from "@/store/useUserStore";
-import { saveQuestionToDb, type SavedQuestionSource } from "@/lib/saved/savedQuestionsService";
+import {
+  persistSavedQuestion,
+  fetchSavedQuestionRows,
+  type SavedQuestionSource,
+} from "@/lib/saved/savedQuestionsService";
+import {
+  resolveSavedQuestionLimit,
+  savedQuestionLimitToastCopy,
+  SAVED_QUESTION_UPGRADE_PATH,
+} from "@/lib/saved/savedQuestionSaveLimit";
 import { useAuth } from "@/hooks/useAuth";
 import { getMockQuestions, questions as questionBank } from "@/data/questions";
 import { useTheme } from "next-themes";
@@ -56,6 +65,7 @@ import {
   filterMockPapers,
   mockPaperTypeLabel,
   type LibraryCategoryFilter,
+  type LibraryExamFilter,
 } from "@/lib/mock/mockPapersCatalog";
 import { filterPastPapers } from "@/lib/mock/pastPapersCatalog";
 import {
@@ -165,6 +175,7 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
   const user = useUserStore((s) => s.user);
   const allResults = useUserStore((s) => s.allResults);
   const saveQuestionToStore = useUserStore((s) => s.saveQuestion);
+  const unsaveQuestionFromStore = useUserStore((s) => s.unsaveQuestion);
 
   const [nextClassInfo, setNextClassInfo] = useState<{ name: string; time: string } | null>(null);
   const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
@@ -189,6 +200,7 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
   const [mockLibraryCategory, setMockLibraryCategory] = useState<LibraryCategoryFilter>("all");
   const [librarySearch, setLibrarySearch] = useState("");
   const [librarySubjectFilter, setLibrarySubjectFilter] = useState<Subject | "all">("all");
+  const [libraryExamFilter, setLibraryExamFilter] = useState<LibraryExamFilter>("all");
   const [mockCatalogPapers, setMockCatalogPapers] = useState<MockPaper[]>([]);
   const [pastCatalogPapers, setPastCatalogPapers] = useState<PastPaper[]>([]);
   const [catalogLoading, setCatalogLoading] = useState(false);
@@ -274,7 +286,7 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
   }, []);
 
   useEffect(() => {
-    if (!authUser?.id) {
+    if (!authUser?.id || !session?.access_token) {
       setMonthlyAttemptsCount(null);
       return;
     }
@@ -289,27 +301,42 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
 
         // Dev time-travel: anchor "start of month" to the time-shifted date so the
         // monthly quota resets correctly when an admin jumps a student forward/back.
-        const offsetMs = profile?.time_travel_offset_ms ?? 0;
-        const startOfMonth = new Date(Date.now() + (offsetMs as number));
+        const offsetMs = Number(profile?.time_travel_offset_ms ?? 0);
+        const startOfMonth = new Date(Date.now() + offsetMs);
         startOfMonth.setUTCDate(1);
         startOfMonth.setUTCHours(0, 0, 0, 0);
+        if (Number.isNaN(startOfMonth.getTime())) {
+          return;
+        }
+        const startIso = startOfMonth.toISOString();
 
         const { count, error } = await supabase
           .from("mock_test_attempts")
-          .select("*", { head: true, count: "exact" })
+          .select("id", { head: true, count: "exact" })
           .eq("user_id", authUser.id)
-          .gte("created_at", startOfMonth.toISOString());
+          .gte("created_at", startIso);
+
+        if (cancelled) return;
 
         if (error) {
-          console.error("Error fetching mock test attempts count:", error);
+          const msg = [error.message, error.code, error.details, error.hint]
+            .filter(Boolean)
+            .join(" — ");
+          if (msg && !msg.toLowerCase().includes("abort")) {
+            console.error("Error fetching mock test attempts count:", msg);
+          }
           return;
         }
 
-        if (!cancelled && typeof count === "number") {
+        if (typeof count === "number") {
           setMonthlyAttemptsCount(count);
         }
       } catch (err) {
-        console.error("Failed to load attempt count and config:", err);
+        if (cancelled) return;
+        const message = err instanceof Error ? err.message : String(err);
+        if (!message.toLowerCase().includes("abort")) {
+          console.error("Failed to load attempt count and config:", message);
+        }
       }
     };
 
@@ -318,7 +345,7 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
     return () => {
       cancelled = true;
     };
-  }, [authUser?.id, view, profile?.time_travel_offset_ms]);
+  }, [authUser?.id, session?.access_token, view, profile?.time_travel_offset_ms]);
 
   const deepLinkPaperSlug = (searchParams.get("paper") ?? "").trim();
   const urlTrackingClassroomId = (searchParams.get("classroomId") ?? "").trim();
@@ -856,7 +883,8 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
       mockLibraryCategory,
       librarySearch,
       librarySubjectFilter,
-      subjects
+      subjects,
+      libraryExamFilter
     );
   }, [
     mockPapersByClassLevel,
@@ -864,13 +892,27 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
     mockLibraryCategory,
     librarySearch,
     librarySubjectFilter,
+    libraryExamFilter,
     subjects,
   ]);
 
   const filteredPastCatalogPapers = useMemo(() => {
     if (libraryCollectionTab !== "past") return [];
-    return filterPastPapers(pastPapersByClassLevel, librarySearch, librarySubjectFilter, subjects);
-  }, [pastPapersByClassLevel, libraryCollectionTab, librarySearch, librarySubjectFilter, subjects]);
+    return filterPastPapers(
+      pastPapersByClassLevel,
+      librarySearch,
+      librarySubjectFilter,
+      subjects,
+      libraryExamFilter
+    );
+  }, [
+    pastPapersByClassLevel,
+    libraryCollectionTab,
+    librarySearch,
+    librarySubjectFilter,
+    libraryExamFilter,
+    subjects,
+  ]);
 
   useEffect(() => {
     if (view !== "landing") return;
@@ -936,28 +978,73 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
   const candidateDisplayName = profile?.name ?? user?.name ?? "Candidate";
   const candidateAvatarUrl = profile?.avatar_url ?? null;
 
-  const persistBookmarkForCurrentQuestion = useCallback(() => {
+  const persistBookmarkForCurrentQuestion = useCallback(async () => {
     const id = questions[currentIndex]?.id;
     if (!id) return;
+    if (user?.savedQuestions.includes(id)) return;
+
     const source: SavedQuestionSource =
       activePaperSource === "past"
         ? "past_paper"
         : activePaperSource === "mock"
           ? "mock"
           : "static";
+
+    let savedCount = user?.savedQuestions.length ?? 0;
     if (authUser?.id) {
-      void saveQuestionToDb(authUser.id, id, source).then(({ error }) => {
-        if (error) {
-          toast({
-            title: "Could not save question",
-            description: error.message,
-            variant: "destructive",
-          });
-        }
+      try {
+        const rows = await fetchSavedQuestionRows(authUser.id);
+        savedCount = new Set(rows.map((r) => r.question_id)).size;
+      } catch {
+        /* use store count */
+      }
+    }
+
+    const limit = await resolveSavedQuestionLimit(profile, savedCount);
+    if (limit.atLimit) {
+      const copy = savedQuestionLimitToastCopy(limit.cap);
+      toast({
+        title: copy.title,
+        description: copy.description,
+        action: (
+          <ToastAction altText="Upgrade plan" onClick={() => router.push(SAVED_QUESTION_UPGRADE_PATH)}>
+            Upgrade
+          </ToastAction>
+        ),
+      });
+      return;
+    }
+
+    saveQuestionToStore(id);
+
+    if (!authUser?.id) return;
+
+    const { error, limitReached } = await persistSavedQuestion(id, source);
+    if (error) {
+      unsaveQuestionFromStore(id);
+      toast({
+        title: limitReached ? savedQuestionLimitToastCopy(limit.cap).title : "Could not save question",
+        description: error.message,
+        variant: "destructive",
+        action: limitReached ? (
+          <ToastAction altText="Upgrade plan" onClick={() => router.push(SAVED_QUESTION_UPGRADE_PATH)}>
+            Upgrade
+          </ToastAction>
+        ) : undefined,
       });
     }
-    saveQuestionToStore(id);
-  }, [questions, currentIndex, activePaperSource, authUser?.id, saveQuestionToStore, toast]);
+  }, [
+    questions,
+    currentIndex,
+    activePaperSource,
+    authUser?.id,
+    user?.savedQuestions,
+    profile,
+    saveQuestionToStore,
+    unsaveQuestionFromStore,
+    toast,
+    router,
+  ]);
 
   const handleNtaSaveAndNext = useCallback(() => {
     persistBookmarkForCurrentQuestion();
@@ -1462,9 +1549,12 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
   const ntaExamNameLine = activeExamTitle ? "JEE-Main" : "Testbee Quick";
   const ntaSubjectPaperLine = activeExamTitle ?? "Quick mock — timed practice";
 
+  const hideNav = immersiveNta;
+  const wideMain = immersiveNta;
+
   return (
     <ProtectedRoute allowRoles={["student"]}>
-      <AppLayout hideTopNav={immersiveNta} wideMain={immersiveNta}>
+      <AppLayout hideTopNav={hideNav} wideMain={wideMain}>
         <AnimatePresence mode="wait">
           {!isLibraryPage && view === "landing" && (
             <PrepMockDashboardView
@@ -1547,8 +1637,8 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
               startQuickTest={startQuickTest}
               librarySearch={librarySearch}
               setLibrarySearch={setLibrarySearch}
-              librarySubjectFilter={librarySubjectFilter}
-              setLibrarySubjectFilter={setLibrarySubjectFilter}
+              libraryExamFilter={libraryExamFilter}
+              setLibraryExamFilter={setLibraryExamFilter}
               filteredPastCatalogPapers={filteredPastCatalogPapers}
               filteredMockCatalogPapers={filteredMockCatalogPapers}
               pastPapersByClassLevel={pastPapersByClassLevel}

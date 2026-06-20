@@ -352,6 +352,25 @@ export function subtopicNavPreviewPlain(subtopicName: string): string {
     .trim();
 }
 
+/** Compact nav/card label with ellipsis when the plain preview exceeds `maxChars`. */
+export function truncateSubtopicPreviewLabel(
+  subtopicName: string,
+  maxChars = 52
+): string {
+  const plain = subtopicNavPreviewPlain(subtopicName);
+  if (!plain) return "";
+  if (plain.length <= maxChars) return plain;
+  const slice = plain.slice(0, maxChars);
+  const breakAt = Math.max(
+    slice.lastIndexOf(" "),
+    slice.lastIndexOf(";"),
+    slice.lastIndexOf(","),
+    slice.lastIndexOf("—")
+  );
+  const head = (breakAt > maxChars * 0.45 ? slice.slice(0, breakAt) : slice).trimEnd();
+  return `${head}…`;
+}
+
 /**
  * URL segment for a subtopic: short slug when the name was LaTeX-heavy; otherwise same as slugify(name).
  */
