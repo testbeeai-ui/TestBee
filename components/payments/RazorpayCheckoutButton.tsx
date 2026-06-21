@@ -188,6 +188,7 @@ export default function RazorpayCheckoutButton({
 
       const rzp = new window.Razorpay({
         key: keyId,
+        amount: checkoutAmount,
         currency: orderData.currency,
         name,
         description: description ?? `Payment of ₹${checkoutAmount / 100}`,
