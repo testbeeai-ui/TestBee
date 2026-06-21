@@ -34,7 +34,7 @@ export interface RazorpayApiError {
 }
 
 const RAZORPAY_KEY_MISMATCH_HINT =
-  "Razorpay rejected your API keys. In Vercel Production, set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET to the same key pair from Razorpay Dashboard → API Keys (no quotes), match NEXT_PUBLIC_RAZORPAY_KEY_ID to the key id, then redeploy.";
+  "Razorpay rejected this key pair. In Razorpay Dashboard (Test mode), go to Developers → API Keys, generate a fresh pair, and paste both Key ID and Key Secret together into Vercel (all 3 env vars), then redeploy.";
 
 export function parseRazorpayError(e: unknown): {
   message: string;
