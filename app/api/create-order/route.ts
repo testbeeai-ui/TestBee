@@ -27,6 +27,7 @@ function parsePaidPlan(raw: unknown): PaidSubscriptionPlan | null {
 }
 
 export async function POST(request: Request) {
+  let purpose: OrderPurpose = "demo";
   try {
     const razorpay = getRazorpayClient();
     const keyId = getRazorpayPublicKeyId();
@@ -41,7 +42,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json().catch(() => ({}));
-    const purpose = String(body.purpose ?? "demo").trim() as OrderPurpose;
+    purpose = String(body.purpose ?? "demo").trim() as OrderPurpose;
     const currency = String(body.currency ?? "INR").trim() || "INR";
 
     let amountPaise: number;
@@ -119,8 +120,11 @@ export async function POST(request: Request) {
       purpose,
     });
   } catch (e) {
-    const { message, status } = parseRazorpayError(e);
-    console.error("create-order error", e);
-    return NextResponse.json({ error: message }, { status });
+    const { message, status, detail, code } = parseRazorpayError(e);
+    console.error("create-order error", { purpose, e });
+    return NextResponse.json(
+      { error: message, purpose, razorpayDetail: detail, razorpayCode: code },
+      { status },
+    );
   }
 }
