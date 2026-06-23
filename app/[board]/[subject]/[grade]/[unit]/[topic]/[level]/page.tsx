@@ -10,6 +10,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { getTheoryOrPlaceholder, getTopicOverviewOrPlaceholder } from "@/data/topicTheory";
 import TopicReferencesUpgradeDialog from "@/components/curriculum/TopicReferencesUpgradeDialog";
+import TopicQuizInvestorCard, {
+  type TopicQuizBankSetRow,
+} from "@/components/curriculum/TopicQuizInvestorCard";
 import TheoryContent from "@/components/TheoryContent";
 import TopicAgentTracePanel from "@/components/TopicAgentTracePanel";
 import { TheoryPanelSkeleton } from "@/components/SubtopicLessonSkeletons";
@@ -52,7 +55,6 @@ import {
   subtopicDeepDiveHeadingMarkdown,
   subtopicMathTextLabel,
   subtopicNavPreviewPlain,
-  truncateSubtopicPreviewLabel,
 } from "@/lib/curriculum/subtopicTitles";
 import {
   getAdvancedQuizSetLockState,
@@ -60,7 +62,6 @@ import {
   hasTopicReferencesAccess,
   isTopicQuestionBankUnlocked,
   markTopicQuestionBankUnlocked,
-  quizSetLockTitle,
   resolvePlanTierFromProfile,
   TOPIC_QUESTION_BANK_UPGRADE_PATH,
   canAccessAdvancedQuizSet,
@@ -105,7 +106,6 @@ import {
   RotateCcw,
   Bookmark,
   Lock,
-  ClipboardList,
 } from "lucide-react";
 import type { DeepDiveReference } from "@/data/deepDiveContent";
 import MathText from "@/components/MathText";
@@ -113,6 +113,7 @@ import { stripFormulaDelimiters } from "@/lib/gyan/stripFormulaDelimiters";
 import SubjectChatbot from "@/components/SubjectChatbot";
 import InstaCue from "@/components/InstaCue";
 import { getInstaCueCards, type InstaCueCard } from "@/data/instaCueCards";
+import { INSTACUE_TYPE_CONFIG, INSTACUE_TYPE_ORDER } from "@/lib/instacue/instaCueTypeConfig";
 import { useUserStore } from "@/store/useUserStore";
 import type { Board, Subject, SavedBit, SavedFormula, SavedRevisionUnit } from "@/types";
 import { syncAllSavedContent } from "@/lib/saved/savedContentService";
@@ -175,7 +176,10 @@ import {
   type BitsAttemptRecord,
 } from "@/lib/play/bits/bitsAttemptService";
 import {
+  ADVANCED_QUIZ_BANK_SET_INDICES,
   getAdvancedSetBounds,
+  getNonEmptyAdvancedSetIndices,
+  hasAdvancedQuestionBankSets,
   isAdvancedMultiSet,
   type AdvancedQuizSetIndex,
 } from "@/lib/play/quiz/advancedQuizSets";
@@ -883,6 +887,7 @@ function TopicPageInner() {
   }, [profile?.id, pathname]);
 
   const [questionBankUnlocked, setQuestionBankUnlocked] = useState(false);
+  const [questionBankUpsellOpen, setQuestionBankUpsellOpen] = useState(false);
 
   useEffect(() => {
     if (!questionBankScope) {
@@ -1215,64 +1220,18 @@ function TopicPageInner() {
   );
   const hasQuestionBankSets = useMemo(() => {
     if (!useAdvancedSetsUi) return false;
-    const n = dbBitsQuestions.length;
-    return (
-      getAdvancedSetBounds(n, 2).length > 0 || getAdvancedSetBounds(n, 3).length > 0
-    );
+    return hasAdvancedQuestionBankSets(dbBitsQuestions.length);
   }, [useAdvancedSetsUi, dbBitsQuestions.length]);
 
-  const renderAdvancedSetRow = useCallback(
-    (s: AdvancedQuizSetIndex) => {
-      const len = getAdvancedSetBounds(dbBitsQuestions.length, s).length;
-      if (len === 0) return null;
-      const isAssignmentSet =
-        searchParams.get("panel") === "quiz" &&
-        searchParams.get("quizSet") === String(s) &&
-        !!searchParams.get("postId");
-      const { locked, reason: lockReason } = resolveAdvancedQuizSetLock(s, isAssignmentSet);
-      const att = bitsAttemptBySet[s];
-      const isQuestionBankSet = s > 1;
-      return (
-        <div
-          key={s}
-          className="flex items-center justify-between gap-2 rounded-md border border-border/60 bg-muted/30 px-2 py-1"
-        >
-          <span className="font-semibold text-foreground min-w-0">
-            <span className="inline-flex flex-col">
-              <span>
-                Set {s}
-                {locked ? (
-                  <Lock className="inline h-3 w-3 ml-1 text-muted-foreground" />
-                ) : null}
-              </span>
-              {isQuestionBankSet ? (
-                <span
-                  className={`text-[10px] font-normal ${
-                    locked ? "text-muted-foreground" : "text-blue-600 dark:text-blue-300"
-                  }`}
-                >
-                  {locked
-                    ? lockReason === "needs_starter_or_pro"
-                      ? "Question bank"
-                      : "Question bank · tap below to unlock"
-                    : "Question bank"}
-                </span>
-              ) : (
-                <span className="text-[10px] font-normal text-muted-foreground">Free</span>
-              )}
-            </span>
-          </span>
-          <span className="text-muted-foreground shrink-0">
-            {len} Q
-            {att && att.totalQuestions > 0
-              ? ` · ${Math.round((att.correctCount / att.totalQuestions) * 100)}%`
-              : ""}
-          </span>
-        </div>
-      );
-    },
-    [dbBitsQuestions.length, searchParams, resolveAdvancedQuizSetLock, bitsAttemptBySet]
-  );
+  const quizTabLabel = useMemo(() => {
+    const n = dbBitsQuestions.length;
+    if (n === 0) return "Quiz";
+    if (useAdvancedSetsUi) {
+      const setCount = getNonEmptyAdvancedSetIndices(n).length;
+      return `Quiz (${setCount} sets)`;
+    }
+    return `Quiz (${n})`;
+  }, [dbBitsQuestions.length, useAdvancedSetsUi]);
 
   useEffect(() => {
     if (!isLessonsOnboardingCompanionActive()) return;
@@ -1303,6 +1262,88 @@ function TopicPageInner() {
   const isActiveQuizSetShareClaimed = Boolean(claimedQuizShareSets[activeQuizSet]);
 
   const showPreviousQuizAttempt = Boolean(displayBitsAttempt);
+
+  const handleStartQuizSet1 = useCallback(() => {
+    if (!useAdvancedSetsUi) {
+      if (showPreviousQuizAttempt && bitsAttempt) {
+        setBitsCurrentIdx(0);
+        setBitsSelectedAnswers({});
+        setBitsReviewMode(false);
+      } else {
+        setBitsReviewMode(false);
+      }
+      setBitsDialogOpen(true);
+      return;
+    }
+    setActiveQuizSet(1);
+    const b1 = getAdvancedSetBounds(dbBitsQuestions.length, 1);
+    setBitsCurrentIdx(b1.start);
+    setBitsReviewMode(false);
+    setBitsDialogOpen(true);
+  }, [useAdvancedSetsUi, showPreviousQuizAttempt, bitsAttempt, dbBitsQuestions.length]);
+
+  const handleQuestionBankButtonClick = useCallback(() => {
+    if (!hasPaidQuestionBank) {
+      setQuestionBankUpsellOpen((open) => !open);
+      return;
+    }
+    unlockTopicQuestionBank();
+  }, [hasPaidQuestionBank, unlockTopicQuestionBank]);
+
+  const quizBankSetRows = useMemo((): TopicQuizBankSetRow[] => {
+    if (!useAdvancedSetsUi || !hasQuestionBankSets || !hasPaidQuestionBank || !questionBankUnlocked) {
+      return [];
+    }
+    return ADVANCED_QUIZ_BANK_SET_INDICES.flatMap((s): TopicQuizBankSetRow[] => {
+        const len = getAdvancedSetBounds(dbBitsQuestions.length, s).length;
+        if (len === 0) return [];
+        const isAssignmentSet =
+          searchParams.get("panel") === "quiz" &&
+          searchParams.get("quizSet") === String(s) &&
+          !!searchParams.get("postId");
+        const { locked, reason: lockReason } = resolveAdvancedQuizSetLock(s, isAssignmentSet);
+        return [
+          {
+            setIndex: s,
+            questionCount: len,
+            locked,
+            label: `Set ${s}`,
+            sublabel: locked
+              ? lockReason === "needs_starter_or_pro"
+                ? "Question bank · Premium"
+                : "Question bank · unlock above"
+              : `${len} questions · Question bank`,
+            onPlay: () => {
+              if (locked) {
+                if (lockReason === "needs_starter_or_pro") {
+                  setQuestionBankUpsellOpen(true);
+                  return;
+                }
+                if (lockReason === "needs_question_bank_unlock") {
+                  unlockTopicQuestionBank();
+                }
+                return;
+              }
+              setActiveQuizSet(s);
+              const b = getAdvancedSetBounds(dbBitsQuestions.length, s);
+              setBitsCurrentIdx(b.start);
+              setBitsReviewMode(false);
+              setBitsDialogOpen(true);
+            },
+          },
+        ];
+      });
+  }, [
+    useAdvancedSetsUi,
+    hasQuestionBankSets,
+    hasPaidQuestionBank,
+    questionBankUnlocked,
+    dbBitsQuestions.length,
+    searchParams,
+    resolveAdvancedQuizSetLock,
+    unlockTopicQuestionBank,
+  ]);
+
   const [selectedFormulaIdx, setSelectedFormulaIdx] = useState<number | null>(null);
   const [formulaBitsCurrentIdx, setFormulaBitsCurrentIdx] = useState(0);
   const [formulaBitsSelectedAnswers, setFormulaBitsSelectedAnswers] = useState<
@@ -1474,14 +1515,21 @@ function TopicPageInner() {
   const bitsSignature = useMemo(() => getBitsSignature(dbBitsQuestions), [dbBitsQuestions]);
   /** Full "Standard areas: …" string must reach MathText so KaTeX can format circle/parabola rows. */
   const displaySubtopicTitle = useMemo(() => subtopicMathTextLabel(subtopicName), [subtopicName]);
-  const displaySubtopicPreview = useMemo(
-    () => truncateSubtopicPreviewLabel(subtopicName, 56),
-    [subtopicName]
-  );
   const displaySubtopicTooltip = useMemo(
     () => subtopicNavPreviewPlain(subtopicName) || displaySubtopicTitle,
     [subtopicName, displaySubtopicTitle]
   );
+  const quizCardSubtopicTitle = useMemo(
+    () => prettifySubtopicTitle(humanReadableSubtopicTitle(subtopicName)),
+    [subtopicName]
+  );
+  const quizTopicTagLine = useMemo(() => {
+    if (!topicNode) return "";
+    const unit = topicNode.unitLabel?.trim();
+    const sub = subtopicIndex + 1;
+    const prefix = unit ? `${unit}.${sub}` : String(sub);
+    return `${prefix} ${topicNode.topic}`;
+  }, [topicNode, subtopicIndex]);
   const quizContextChips = useMemo(() => {
     const items: string[] = [];
     if (topicNode?.subject) items.push(topicNode.subject);
@@ -3517,11 +3565,13 @@ function TopicPageInner() {
     return topicNode.subtopics.slice(0, 8).map((s) => humanReadableSubtopicTitle(s.name));
   }, [topicNode, topicWhyStudy, topicIntroMarkdown]);
 
-  // Concept cards for Concepts tab (concept + formula types)
-  const conceptCards = useMemo(
-    () => sidebarInstaCueCards.filter((c) => c.type === "concept" || c.type === "formula"),
-    [sidebarInstaCueCards]
-  );
+  // Reference cards for Concepts tab (all types for this subtopic)
+  const conceptCards = useMemo(() => {
+    const order = new Map(INSTACUE_TYPE_ORDER.map((t, i) => [t, i]));
+    return [...sidebarInstaCueCards].sort(
+      (a, b) => (order.get(a.type) ?? 99) - (order.get(b.type) ?? 99)
+    );
+  }, [sidebarInstaCueCards]);
 
   const CONCEPTS_PER_PAGE = 5;
   const totalConceptPages = Math.ceil(conceptCards.length / CONCEPTS_PER_PAGE);
@@ -3761,9 +3811,16 @@ function TopicPageInner() {
       const snap = buildEngagementSnapshot();
       if (!snap) return;
       void saveSubtopicEngagement(engagementScope, snap).catch(() => {});
-    }, 400);
+    }, 1500);
     return () => {
-      if (engagementSaveTimerRef.current) clearTimeout(engagementSaveTimerRef.current);
+      if (engagementSaveTimerRef.current) {
+        clearTimeout(engagementSaveTimerRef.current);
+        engagementSaveTimerRef.current = null;
+        const snap = buildEngagementSnapshot();
+        if (snap) {
+          void saveSubtopicEngagement(engagementScope, snap).catch(() => {});
+        }
+      }
     };
   }, [buildEngagementSnapshot, engagementScope, session?.access_token, isOverview]);
 
@@ -6164,7 +6221,7 @@ function TopicPageInner() {
                         value="quiz"
                         className="px-1.5 py-2 text-[10px] leading-tight sm:text-xs lg:px-3"
                       >
-                        {`Quiz${dbBitsQuestions.length > 0 ? ` (${dbBitsQuestions.length})` : ""}`}
+                        {quizTabLabel}
                       </TabsTrigger>
                       <TabsTrigger
                         value="numerals"
@@ -6201,7 +6258,7 @@ function TopicPageInner() {
                                   board: (board === "icse" ? "ICSE" : "CBSE") as Board,
                                 } as Parameters<typeof saveRevisionCard>[0]);
                                 try {
-                                  await syncAllSavedContent();
+                                  await syncAllSavedContent({ immediate: true });
                                 } catch {
                                   /* best-effort */
                                 }
@@ -6399,246 +6456,47 @@ function TopicPageInner() {
                           )}
                         </div>
                       ) : (
-                        <div className="edu-card space-y-3 rounded-xl border border-border p-3 sm:p-4 min-w-0 overflow-hidden">
-                          <div className="min-w-0 overflow-hidden">
-                            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">
-                              Topic Quiz
-                            </p>
-                            <p
-                              className="truncate text-sm font-bold leading-snug text-foreground"
-                              title={displaySubtopicTooltip}
-                            >
-                              {displaySubtopicPreview}
-                            </p>
-                          </div>
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-blue-500/15 text-blue-700 dark:text-blue-300">
-                              {topicNode?.subject ?? "Subject"}
-                            </span>
-                            <span className="min-w-0 break-words text-xs text-muted-foreground">
-                              {topicNode?.topic ?? "Topic"}
-                            </span>
-                          </div>
-                          <ul className="space-y-1.5 text-xs divide-y divide-border/40">
-                            {!useAdvancedSetsUi ? (
-                              <>
-                                <li className="flex justify-between py-1">
-                                  <span className="text-muted-foreground">Questions</span>
-                                  <span className="font-bold text-foreground">
-                                    {dbBitsQuestions.length} MCQs
-                                  </span>
-                                </li>
-                                <li className="flex justify-between py-1">
-                                  <span className="text-muted-foreground">Level</span>
-                                  <span className="font-bold text-foreground capitalize">
-                                    {difficultyLevel}
-                                  </span>
-                                </li>
-                              </>
-                            ) : (
-                              <>
-                                <li className="py-1.5">
-                                  <span className="text-muted-foreground block mb-1.5">
-                                    {hasPaidQuestionBank
-                                      ? "3 sets (10 + 10 + remainder)"
-                                      : "Set 1 free"}
-                                  </span>
-                                  <div className="flex flex-col gap-1">
-                                    {renderAdvancedSetRow(1)}
-                                    {hasQuestionBankSets && hasPaidQuestionBank ? (
-                                      <>
-                                        <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground px-0.5 pt-1">
-                                          Question bank
-                                        </p>
-                                        {renderAdvancedSetRow(2)}
-                                        {renderAdvancedSetRow(3)}
-                                      </>
-                                    ) : null}
-                                  </div>
-                                </li>
-                                <li className="flex justify-between py-1">
-                                  <span className="text-muted-foreground">Level</span>
-                                  <span className="font-bold text-foreground capitalize">
-                                    {difficultyLevel}
-                                  </span>
-                                </li>
-                              </>
-                            )}
-                            {bitsQuizAggregate && (
-                              <li className="flex justify-between py-1">
-                                <span className="text-muted-foreground">
-                                  {useAdvancedSetsUi ? "Overall score" : "Last score"}
-                                </span>
-                                <span className="font-bold text-green-700 dark:text-green-300">
-                                  {bitsQuizAggregate.pct}% · {bitsQuizAggregate.correct}/
-                                  {bitsQuizAggregate.total}
-                                </span>
-                              </li>
-                            )}
-                          </ul>
-                          <Button
-                            className="w-full rounded-xl edu-btn-primary text-sm font-bold"
-                            onClick={() => {
-                              if (!useAdvancedSetsUi) {
-                                if (showPreviousQuizAttempt && bitsAttempt) {
-                                  setBitsCurrentIdx(0);
-                                  setBitsSelectedAnswers({});
-                                  setBitsReviewMode(false);
-                                } else {
-                                  setBitsReviewMode(false);
-                                }
-                                setBitsDialogOpen(true);
-                                return;
-                              }
-                              setActiveQuizSet(1);
-                              const b1 = getAdvancedSetBounds(dbBitsQuestions.length, 1);
-                              setBitsCurrentIdx(b1.start);
-                              setBitsReviewMode(false);
-                              setBitsDialogOpen(true);
-                            }}
-                          >
-                            {!useAdvancedSetsUi
-                              ? showPreviousQuizAttempt
-                                ? "Open quiz →"
-                                : bitsCurrentIdx > 0 || bitsFilledQuestionCount > 0
-                                  ? "Continue quiz →"
-                                  : "Start Quiz →"
-                              : Object.values(bitsAttemptBySet).some(Boolean) ||
-                                  bitsFilledQuestionCount > 0
-                                ? "Open quiz →"
-                                : "Start Quiz →"}
-                          </Button>
-                          {useAdvancedSetsUi && hasQuestionBankSets ? (
-                            !hasPaidQuestionBank ? (
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                className="w-full rounded-lg text-sm font-bold"
-                                onClick={openQuestionBankPremiumUpsell}
-                              >
-                                <Lock className="h-4 w-4 mr-1.5" />
-                                Question bank →
-                              </Button>
-                            ) : questionBankUnlocked ? (
-                              <p className="text-[10px] leading-snug text-green-700 dark:text-green-300 px-0.5">
-                                Question bank unlocked — sets 2 & 3 are ready below.
-                              </p>
-                            ) : (
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                className="w-full rounded-lg text-sm font-bold"
-                                onClick={unlockTopicQuestionBank}
-                              >
-                                <ClipboardList className="h-4 w-4 mr-1.5" />
-                                Question bank →
-                              </Button>
-                            )
-                          ) : null}
-                          <div className="flex flex-col gap-1.5">
-                            {useAdvancedSetsUi
-                              ? ([1, 2, 3] as const).map((s) => {
-                                  const len = getAdvancedSetBounds(
-                                    dbBitsQuestions.length,
-                                    s
-                                  ).length;
-                                  if (len === 0) return null;
-                                  if (
-                                    s > 1 &&
-                                    (!hasPaidQuestionBank ||
-                                      (!questionBankUnlocked &&
-                                        !(
-                                          searchParams.get("panel") === "quiz" &&
-                                          searchParams.get("quizSet") === String(s) &&
-                                          !!searchParams.get("postId")
-                                        )))
-                                  ) {
-                                    return null;
+                        <TopicQuizInvestorCard
+                          subtopicTitle={quizCardSubtopicTitle || displaySubtopicTooltip}
+                          subtopicTooltip={displaySubtopicTooltip}
+                          topicTagLine={quizTopicTagLine}
+                          subject={topicNode?.subject ?? "physics"}
+                          totalQuestionCount={dbBitsQuestions.length}
+                          set1QuestionCount={
+                            useAdvancedSetsUi
+                              ? getAdvancedSetBounds(dbBitsQuestions.length, 1).length
+                              : dbBitsQuestions.length
+                          }
+                          onStartSet1={handleStartQuizSet1}
+                          showQuestionBank={useAdvancedSetsUi && hasQuestionBankSets}
+                          questionBankUpsellOpen={questionBankUpsellOpen}
+                          onQuestionBankClick={handleQuestionBankButtonClick}
+                          onDismissUpsell={() => setQuestionBankUpsellOpen(false)}
+                          upgradeHref={TOPIC_QUESTION_BANK_UPGRADE_PATH}
+                          bankSets={quizBankSetRows}
+                          reviewPreviousLabel={
+                            showPreviousQuizAttempt && displayBitsAttempt && !useAdvancedSetsUi
+                              ? "Review previous answers"
+                              : undefined
+                          }
+                          onReviewPrevious={
+                            showPreviousQuizAttempt && displayBitsAttempt && !useAdvancedSetsUi
+                              ? () => {
+                                  const selected: Record<number, number> = {};
+                                  for (const [k, v] of Object.entries(
+                                    displayBitsAttempt.selectedAnswers
+                                  )) {
+                                    const idx = Number(k);
+                                    if (Number.isInteger(idx)) selected[idx] = v;
                                   }
-                                  const isAssignmentSet =
-                                    searchParams.get("panel") === "quiz" &&
-                                    searchParams.get("quizSet") === String(s) &&
-                                    !!searchParams.get("postId");
-                                  const { locked, reason: lockReason } =
-                                    resolveAdvancedQuizSetLock(s, isAssignmentSet);
-                                  const att = bitsAttemptBySet[s];
-                                  const b = getAdvancedSetBounds(dbBitsQuestions.length, s);
-                                  const inProgress =
-                                    !att &&
-                                    !locked &&
-                                    Array.from(
-                                      { length: b.end - b.start },
-                                      (_, i) => b.start + i
-                                    ).some((idx) => typeof bitsSelectedAnswers[idx] === "number");
-                                  return (
-                                    <Button
-                                      key={s}
-                                      type="button"
-                                      variant="outline"
-                                      size="sm"
-                                      title={locked ? quizSetLockTitle(lockReason) : undefined}
-                                      className="w-full rounded-lg text-xs font-bold"
-                                      onClick={() => {
-                                        if (locked) {
-                                          if (lockReason === "needs_starter_or_pro") {
-                                            openQuestionBankPremiumUpsell();
-                                            return;
-                                          }
-                                          if (lockReason === "needs_question_bank_unlock") {
-                                            unlockTopicQuestionBank();
-                                            return;
-                                          }
-                                          return;
-                                        }
-                                        setActiveQuizSet(s);
-                                        setBitsCurrentIdx(b.start);
-                                        setBitsReviewMode(att ? false : false);
-                                        setBitsDialogOpen(true);
-                                      }}
-                                    >
-                                      {locked ? (
-                                        <>
-                                          <Lock className="h-3.5 w-3.5 mr-1 shrink-0" />
-                                          {`Set ${s} · Question bank`}
-                                        </>
-                                      ) : att ? (
-                                        s > 1 ? `Set ${s} · Question bank — results` : `Set ${s} — results`
-                                      ) : inProgress ? (
-                                        s > 1 ? `Continue set ${s} · Question bank →` : `Continue set ${s} →`
-                                      ) : s > 1 ? (
-                                        `Start set ${s} · Question bank →`
-                                      ) : (
-                                        `Start set ${s} →`
-                                      )}
-                                    </Button>
-                                  );
-                                })
-                              : null}
-                          </div>
-                          {showPreviousQuizAttempt && displayBitsAttempt && !useAdvancedSetsUi && (
-                            <button
-                              type="button"
-                              className="w-full text-xs text-primary hover:underline text-center"
-                              onClick={() => {
-                                const selected: Record<number, number> = {};
-                                for (const [k, v] of Object.entries(
-                                  displayBitsAttempt.selectedAnswers
-                                )) {
-                                  const idx = Number(k);
-                                  if (Number.isInteger(idx)) selected[idx] = v;
+                                  setBitsSelectedAnswers(selected);
+                                  setBitsCurrentIdx(0);
+                                  setBitsReviewMode(true);
+                                  setBitsDialogOpen(true);
                                 }
-                                setBitsSelectedAnswers(selected);
-                                setBitsCurrentIdx(0);
-                                setBitsReviewMode(true);
-                                setBitsDialogOpen(true);
-                              }}
-                            >
-                              Review previous answers
-                            </button>
-                          )}
-                        </div>
+                              : undefined
+                          }
+                        />
                       )}
 
                       {/* Quiz Dialog */}
@@ -6979,7 +6837,7 @@ function TopicPageInner() {
                                     sectionIndex: subtopicIndex,
                                   };
                                   saveBit(bit);
-                                  const sync = await syncAllSavedContent();
+                                  const sync = await syncAllSavedContent({ immediate: true });
                                   if (!sync.ok) {
                                     unsaveBit(bit.id);
                                     const copy = savedContentLimitToastCopy("saved_bit", limit.cap);
@@ -7636,12 +7494,12 @@ function TopicPageInner() {
                     {/* Tab 4: Concepts */}
                     <TabsContent value="concepts" className="mt-0">
                       <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">
-                        Key Concepts
+                        Concepts · Traps · Mistakes
                       </p>
                       {conceptCards.length === 0 ? (
                         <div className="py-6 text-center">
                           <p className="text-sm text-muted-foreground">
-                            No concept cards yet for this subtopic.
+                            No reference cards yet for this subtopic.
                           </p>
                         </div>
                       ) : (
@@ -7655,19 +7513,28 @@ function TopicPageInner() {
                             conceptsHoveredRef.current = false;
                           }}
                         >
-                          {displayedConcepts.map((card) => (
-                            <div
-                              key={card.id}
-                              className="edu-card p-3 rounded-xl border border-border/60"
-                            >
-                              <p className="text-xs font-bold text-primary mb-1">
-                                <MathText>{card.frontContent}</MathText>
-                              </p>
-                              <p className="text-xs text-foreground/80">
-                                <MathText>{card.backContent}</MathText>
-                              </p>
-                            </div>
-                          ))}
+                          {displayedConcepts.map((card) => {
+                            const typeCfg =
+                              INSTACUE_TYPE_CONFIG[card.type] ?? INSTACUE_TYPE_CONFIG.concept;
+                            return (
+                              <div
+                                key={card.id}
+                                className="edu-card p-3 rounded-xl border border-border/60"
+                              >
+                                <span
+                                  className={`mb-1.5 inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${typeCfg.badge}`}
+                                >
+                                  {typeCfg.label}
+                                </span>
+                                <p className="text-xs font-bold text-primary mb-1">
+                                  <MathText>{card.frontContent}</MathText>
+                                </p>
+                                <p className="text-xs text-foreground/80">
+                                  <MathText>{card.backContent}</MathText>
+                                </p>
+                              </div>
+                            );
+                          })}
 
                           {totalConceptPages > 1 && (
                             <div className="flex items-center justify-between pt-2">
@@ -8539,7 +8406,7 @@ function TopicPageInner() {
                                     sectionIndex: subtopicIndex,
                                   };
                                   saveFormula(payload);
-                                  const sync = await syncAllSavedContent();
+                                  const sync = await syncAllSavedContent({ immediate: true });
                                   if (!sync.ok) {
                                     unsaveFormula(payload.id);
                                     const copy = savedContentLimitToastCopy(
@@ -8656,6 +8523,7 @@ function TopicPageInner() {
         unitSlug={unitSlug}
         topicSlug={topicSlug}
         levelSlug={level}
+        chapterTitle={topicNode.chapterTitle ?? undefined}
       />
       <SubtopicWheelDialog
         open={wheelOpen}
