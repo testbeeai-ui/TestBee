@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import { Loader2, Lock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { loadRazorpayCheckoutScript } from "@/lib/payments/loadRazorpayCheckoutScript";
+import { standardRazorpayCheckoutDisplayConfig } from "@/lib/razorpay/razorpayCheckoutDisplay";
+import type { RazorpayKeyMode } from "@/lib/razorpay/razorpayCheckoutDisplay";
 
 declare global {
   interface Window {
@@ -22,20 +24,7 @@ interface RazorpayCheckoutOptions {
   prefill?: { name?: string; email?: string; contact?: string };
   theme?: { color?: string };
   retry?: { enabled: boolean; max_count: number };
-  config?: {
-    display: {
-      blocks: Record<
-        string,
-        {
-          name: string;
-          instruments: Array<{ method: string }>;
-        }
-      >;
-      hide?: Array<{ method: string }>;
-      sequence: string[];
-      preferences: { show_default_blocks: boolean };
-    };
-  };
+  config?: ReturnType<typeof standardRazorpayCheckoutDisplayConfig>;
   handler: (response: RazorpaySuccessResponse) => void;
   modal?: { ondismiss?: () => void };
 }
@@ -64,6 +53,7 @@ interface CreateOrderResponse {
   amount: number;
   currency: string;
   key_id?: string;
+  key_mode?: RazorpayKeyMode;
   error?: string;
 }
 
@@ -201,6 +191,7 @@ export default function RazorpayCheckoutButton({
         },
         theme: { color: "#3395FF" },
         retry: { enabled: true, max_count: 3 },
+        config: standardRazorpayCheckoutDisplayConfig(),
         handler: (response) => {
           void (async () => {
             try {

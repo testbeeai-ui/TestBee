@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import RazorpayCheckoutButton from "@/components/payments/RazorpayCheckoutButton";
+import RazorpayPaymentHints from "@/components/payments/RazorpayPaymentHints";
 
 export default function RazorpayDemoPage() {
   const [origin, setOrigin] = useState("");
@@ -23,29 +24,12 @@ export default function RazorpayDemoPage() {
         ) : null}
       </div>
 
-      <div className="w-full rounded-xl border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-100">
-        <p className="font-semibold">If checkout Continue / card gives 401 in console</p>
-        <p className="mt-2 text-xs leading-relaxed text-red-100/90">
-          Razorpay binds checkout to the <strong>Website URL</strong> in your dashboard. That URL
-          must match where you pay — exactly.
+      <div className="w-full rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-100">
+        <p className="font-semibold">Website URL must match this origin</p>
+        <p className="mt-2 text-xs leading-relaxed text-amber-100/90">
+          Razorpay Dashboard → Account &amp; Settings → Website &amp; app settings → set{" "}
+          <code className="font-mono">{origin || "https://www.edublast.in"}</code> exactly.
         </p>
-        <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-red-100/90">
-          <li>
-            Dashboard → <strong>Account &amp; Settings → Website &amp; app settings</strong>
-          </li>
-          <li>
-            If website is <code className="font-mono">https://edublast.vercel.app</code>, pay there
-            — not localhost.
-          </li>
-          <li>
-            If testing locally, add <code className="font-mono">http://localhost:3000</code> as the
-            website URL in the wizard / dashboard.
-          </li>
-          <li>
-            Mismatch → <code className="font-mono">standard_checkout/payment/iin 401</code> and
-            broken QR/cards.
-          </li>
-        </ul>
       </div>
 
       <div className="w-full rounded-xl border border-border bg-card p-6 dark:border-white/10 dark:bg-[#0c1017]">
@@ -53,24 +37,12 @@ export default function RazorpayDemoPage() {
           <span className="text-muted-foreground dark:text-slate-400">Demo amount</span>
           <span className="font-semibold text-foreground dark:text-white">₹500.00</span>
         </div>
+        <RazorpayPaymentHints amountPaise={50000} className="mb-4" />
         <RazorpayCheckoutButton
           amount={50000}
           currency="INR"
           description="Razorpay demo payment"
         />
-        <ol className="mt-4 list-decimal space-y-2 pl-4 text-xs text-muted-foreground dark:text-slate-500">
-          <li>
-            Restart dev server after <code className="font-mono">next.config.ts</code> changes.
-          </li>
-          <li>
-            Use <strong>Netbanking</strong> → any bank → mock <strong>Success</strong> (most reliable
-            in test mode).
-          </li>
-          <li>
-            Card test: <span className="font-mono">4111 1111 1111 1111</span>,{" "}
-            <span className="font-mono">12/26</span>, CVV <span className="font-mono">123</span>.
-          </li>
-        </ol>
       </div>
     </main>
   );

@@ -11,6 +11,10 @@ import {
   getRazorpayPublicKeyId,
   parseRazorpayError,
 } from "@/lib/razorpay/razorpayClient";
+import {
+  getRazorpayCheckoutConfigId,
+  razorpayKeyMode,
+} from "@/lib/razorpay/razorpayEnv";
 
 export const runtime = "nodejs";
 
@@ -105,19 +109,33 @@ export async function POST(request: Request) {
       notes = { purpose: "demo" };
     }
 
-    const order = await razorpay.orders.create({
+    const checkoutConfigId = getRazorpayCheckoutConfigId();
+    const orderPayload: {
+      amount: number;
+      currency: string;
+      receipt: string;
+      notes: Record<string, string>;
+      checkout_config_id?: string;
+    } = {
       amount: Math.round(amountPaise),
       currency,
       receipt,
       notes,
-    });
+    };
+    if (checkoutConfigId) {
+      orderPayload.checkout_config_id = checkoutConfigId;
+    }
+
+    const order = await razorpay.orders.create(orderPayload);
 
     return NextResponse.json({
       order_id: order.id,
       amount: order.amount,
       currency: order.currency,
       key_id: keyId,
+      key_mode: razorpayKeyMode(keyId),
       purpose,
+      checkout_config_id: checkoutConfigId,
     });
   } catch (e) {
     const { message, status, detail, code } = parseRazorpayError(e);

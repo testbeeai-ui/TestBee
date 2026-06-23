@@ -11,6 +11,11 @@ export function normalizeRazorpayEnvValue(raw: string | undefined | null): strin
   return value.length > 0 ? value : null;
 }
 
+/** Optional Razorpay Dashboard → Checkout configuration id (config_…). */
+export function getRazorpayCheckoutConfigId(): string | null {
+  return normalizeRazorpayEnvValue(process.env.RAZORPAY_CHECKOUT_CONFIG_ID);
+}
+
 export function razorpayKeyMode(keyId: string | null): "test" | "live" | "unknown" {
   if (!keyId) return "unknown";
   if (keyId.startsWith("rzp_test_")) return "test";

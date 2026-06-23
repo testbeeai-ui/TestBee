@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getRazorpayEnvStatus } from "@/lib/razorpay/razorpayEnv";
+import { getRazorpayEnvStatus, getRazorpayCheckoutConfigId } from "@/lib/razorpay/razorpayEnv";
 import { pingRazorpayApi } from "@/lib/razorpay/pingRazorpayApi";
 
 export const runtime = "nodejs";
@@ -16,10 +16,13 @@ export async function GET() {
 
   const ready = envReady && apiPing.ok;
 
+  const checkoutConfigId = getRazorpayCheckoutConfigId();
+
   return NextResponse.json({
     ready,
     envReady,
     apiPing,
+    checkoutConfigIdPresent: Boolean(checkoutConfigId),
     ...status,
     hint: ready
       ? "Keys verified with Razorpay API. Checkout should work for demo and subscription."
