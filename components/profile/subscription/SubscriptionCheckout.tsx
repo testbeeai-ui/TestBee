@@ -7,7 +7,6 @@ import type { SubViewId } from "./StudentSubscriptionHub";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import RazorpayCheckoutButton from "@/components/payments/RazorpayCheckoutButton";
-import RazorpayPaymentHints from "@/components/payments/RazorpayPaymentHints";
 import { computeSubscriptionCheckoutSummary } from "@/lib/subscription/subscriptionCheckoutSummary";
 import type { PaidSubscriptionPlan } from "@/lib/subscription/subscriptionCheckoutSummary";
 
@@ -124,10 +123,10 @@ export default function SubscriptionCheckout({ profile, onNavigate }: Props) {
         </div>
 
         <div className="rounded-xl border border-border bg-card p-4 dark:border-white/10 dark:bg-[#0c1017]">
-          <p className="mb-2 text-xs font-medium text-foreground dark:text-white">
-            Payment methods (UPI, cards, netbanking, wallets, pay later, EMI)
+          <p className="mb-4 text-xs text-muted-foreground dark:text-slate-400">
+            You will complete payment on Razorpay&apos;s secure checkout. We never store your card
+            or UPI details.
           </p>
-          <RazorpayPaymentHints amountPaise={summary.amountPaise} className="mb-4" />
           <RazorpayCheckoutButton
             amount={summary.amountPaise}
             description={`${planName} — ${billingMode}`}
