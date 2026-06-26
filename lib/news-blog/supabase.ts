@@ -38,7 +38,7 @@ export function mapSupabaseNewsBlogPostRow(
     featured === "hero" || featured === "sidebar" ? featured : "feed";
   return {
     id: row.id,
-    portal: row.portal,
+    portal: row.portal === "blog" ? "blog" : "news",
     section: row.section,
     exam: row.exam,
     title: row.title,

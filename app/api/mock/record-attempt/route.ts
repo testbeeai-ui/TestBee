@@ -80,15 +80,15 @@ export async function POST(request: NextRequest) {
   const { data, error } = await auth.supabase.rpc("record_mock_test_attempt", {
     p_attempt_key: attemptKey,
     p_session_kind: sessionKind,
-    p_catalog_paper_id: catalogPaperId,
-    p_past_paper_id: pastPaperId,
-    p_paper_slug: paperSlug,
+    p_catalog_paper_id: catalogPaperId as string,
+    p_past_paper_id: pastPaperId as string,
+    p_paper_slug: paperSlug as string,
     p_paper_title: paperTitle,
     p_score_percent: scorePercent,
     p_correct_count: correct,
     p_total_questions: total,
     p_subject_breakdown: subjectBreakdown,
-    p_duration_seconds: durationSeconds,
+    p_duration_seconds: durationSeconds as number,
   });
 
   if (error) {

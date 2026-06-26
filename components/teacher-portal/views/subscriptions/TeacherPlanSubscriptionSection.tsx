@@ -5,7 +5,10 @@ import { Check, ChevronRight, Crown, Loader2, Sparkles } from "lucide-react";
 import RazorpayCheckoutButton from "@/components/payments/RazorpayCheckoutButton";
 import { useToast } from "@/hooks/use-toast";
 import { fetchWithClientAuth } from "@/lib/auth/clientApiAuth";
-import { computeTeacherCheckoutSummary } from "@/lib/subscription/teacherCheckoutSummary";
+import {
+  computeTeacherCheckoutSummary,
+  type PaidTeacherPlan,
+} from "@/lib/subscription/teacherCheckoutSummary";
 import {
   TEACHER_PLAN_TIERS,
   teacherPlanDisplayName,
@@ -150,8 +153,9 @@ export function TeacherPlanSubscriptionSection({ onPlanChanged }: Props) {
       <div className="relative grid gap-4 p-5 md:grid-cols-3 md:p-7 md:pt-6">
         {TEACHER_PLAN_TIERS.map((plan) => {
           const isCurrent = plan.id === tier;
-          const isPaid = plan.id === "starter" || plan.id === "pro";
-          const paidPlan = isPaid ? plan.id : null;
+          const paidPlan: PaidTeacherPlan | null =
+            plan.id === "starter" ? "starter" : plan.id === "pro" ? "pro" : null;
+          const isPaid = paidPlan !== null;
           const summary = paidPlan ? computeTeacherCheckoutSummary(paidPlan) : null;
           const accent = PLAN_ACCENT[plan.id];
           const isPopular = plan.id === "starter" && tier === "free";

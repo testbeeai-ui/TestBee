@@ -195,11 +195,6 @@ export default function JoinByCodeClient() {
       }
 
       if (isTeacherInvite) {
-        if (joinState === "joined") {
-          router.push(`/classroom/${classroom.id}`);
-          return;
-        }
-
         const res = await fetch("/api/user/classroom-invites/link", {
           method: "POST",
           credentials: "include",

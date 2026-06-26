@@ -138,7 +138,21 @@ export async function loadTeacherPortalBundle(
       .gte("paid_at", startOfWeekIso()),
   ]);
 
-  const profile = profileRes.data ?? {
+  const profile = (profileRes.data as {
+    id: string;
+    name: string;
+    avatar_url: string | null;
+    bio: string | null;
+    subjects: string[] | null;
+    exam_tags: string[] | null;
+    teaching_levels: number[] | null;
+    visibility: string | null;
+    rdm: number | null;
+    google_connected?: boolean | null;
+    teacher_plan_tier?: string | null;
+    teacher_plan_started_at?: string | null;
+    teacher_plan_expires_at?: string | null;
+  } | null) ?? {
     id: userId,
     name: "Teacher",
     avatar_url: null,

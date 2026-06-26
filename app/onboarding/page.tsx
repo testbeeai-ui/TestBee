@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense, useRef } from "react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -265,7 +266,7 @@ function OnboardingContent() {
           : null;
       }
 
-      const payload = { id: user.id, ...updates };
+      const payload = { id: user.id, ...updates } as Database["public"]["Tables"]["profiles"]["Insert"];
       const { error: profileError } = await supabase
         .from("profiles")
         .upsert(payload, { onConflict: "id" });
