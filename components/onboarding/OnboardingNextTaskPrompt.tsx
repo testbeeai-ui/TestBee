@@ -11,6 +11,7 @@ import {
   type OnboardingTaskCelebrationEndedDetail,
 } from "@/lib/onboarding/onboardingTaskCompanion";
 import { flushPendingOnboardingSiteTourPromo } from "@/lib/onboarding/onboardingSiteTourPromo";
+import { requestOpenSiteTourCarousel } from "@/lib/onboarding/openSiteTourCarousel";
 import {
   DAILY_STREAK_ALL_COMPLETE_EVENT,
   getDueDailyStreakTomorrowModal,
@@ -121,10 +122,11 @@ export function OnboardingNextTaskPrompt() {
 
       clearOpenTimer();
       setChecklistOpen(false);
+      setClaimOpen(false);
       const openDelayMs = force ? 0 : OPEN_DELAY_MS;
       openTimerRef.current = window.setTimeout(() => {
         openTimerRef.current = null;
-        setClaimOpen(true);
+        requestOpenSiteTourCarousel();
       }, openDelayMs);
     },
     [profile, passesEligibility, clearOpenTimer]
@@ -162,7 +164,7 @@ export function OnboardingNextTaskPrompt() {
       openTimerRef.current = window.setTimeout(() => {
         openTimerRef.current = null;
         promotedTaskIdRef.current = completedTaskId;
-        setChecklistOpen(true);
+        requestOpenSiteTourCarousel();
       }, OPEN_DELAY_MS);
     },
     [profile, passesEligibility, clearOpenTimer, maybeOpenClaimReward]

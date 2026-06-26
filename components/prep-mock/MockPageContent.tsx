@@ -88,8 +88,6 @@ import ClassesSection from "@/components/prep-mock/ClassesSection";
 import MockTestsSection from "@/components/prep-mock/MockTestsSection";
 import StreakCalendar from "@/components/prep-mock/StreakCalendar";
 import RevisionInstaCueSection from "@/components/prep-mock/RevisionInstaCueSection";
-import { fetchSavedContent } from "@/lib/saved/savedContentService";
-import { mergeAllSavedContent } from "@/lib/saved/mergeSavedContent";
 import {
   QUICK_DURATIONS,
   FEATURED_DASHBOARD_PYQ_SLUG,
@@ -1506,42 +1504,6 @@ export function MockPageContent({ pageMode = "dashboard" }: MockPageContentProps
     const correct = allResults.filter((r) => r.isCorrect).length;
     return Math.round((correct / allResults.length) * 100);
   }, [allResults]);
-
-  useEffect(() => {
-    if (!authUser?.id) return;
-    let cancelled = false;
-    fetchSavedContent()
-      .then((data) => {
-        if (cancelled) return;
-        const u = useUserStore.getState().user;
-        if (!u) return;
-        const merged = mergeAllSavedContent(
-          u.savedBits ?? [],
-          u.savedFormulas ?? [],
-          u.savedRevisionCards ?? [],
-          u.savedRevisionUnits ?? [],
-          u.savedCommunityPosts ?? [],
-          data.savedBits,
-          data.savedFormulas,
-          data.savedRevisionCards,
-          data.savedRevisionUnits,
-          data.savedCommunityPosts
-        );
-        useUserStore
-          .getState()
-          .setSavedFromServer(
-            merged.savedBits,
-            merged.savedFormulas,
-            merged.savedRevisionCards,
-            merged.savedRevisionUnits,
-            merged.savedCommunityPosts
-          );
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [authUser?.id]);
 
   const revisionCards = user?.savedRevisionCards ?? [];
 

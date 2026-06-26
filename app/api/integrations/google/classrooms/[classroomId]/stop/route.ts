@@ -18,6 +18,52 @@ type Body = {
   sectionId?: string | null;
 };
 
+function isGoogleEventMissingError(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err);
+  const m = message.toLowerCase();
+  return (
+    m.includes("not found") ||
+    m.includes("(404)") ||
+    m.includes("(410)") ||
+    m.includes("resource has been deleted") ||
+    m.includes("deleted")
+  );
+}
+
+async function clearGoogleLinkage(
+  admin: NonNullable<ReturnType<typeof createAdminClient>>,
+  classroomId: string,
+  teacherId: string,
+  sectionId: string | null
+) {
+  const clearedAt = new Date().toISOString();
+  if (sectionId) {
+    await admin
+      .from("classroom_sections" as any)
+      .update({
+        google_recurring_event_id: null,
+        google_meet_link: null,
+        google_rrule: null,
+        google_recurrence_end_date: null,
+        updated_at: clearedAt,
+      })
+      .eq("id", sectionId)
+      .eq("classroom_id", classroomId);
+    return;
+  }
+  await admin
+    .from("classrooms")
+    .update({
+      google_recurring_event_id: null,
+      google_meet_link: null,
+      google_rrule: null,
+      google_recurrence_end_date: null,
+      updated_at: clearedAt,
+    })
+    .eq("id", classroomId)
+    .eq("teacher_id", teacherId);
+}
+
 export async function POST(
   request: NextRequest,
   ctx: { params: Promise<{ classroomId: string }> }
@@ -88,13 +134,20 @@ export async function POST(
     google_rrule?: string | null;
   } | null;
   const eventId = sectionId
-    ? (sectionRow?.google_recurring_event_id ?? null)
-    : room.google_recurring_event_id;
+    ? (sectionRow?.google_recurring_event_id?.trim() ?? null)
+    : room.google_recurring_event_id?.trim() || null;
   const calId = sectionId
     ? sectionRow?.google_calendar_list_id?.trim() || "primary"
     : room.google_calendar_list_id?.trim() || "primary";
+
   if (!eventId) {
-    return NextResponse.json({ error: "No Google Calendar series linked." }, { status: 409 });
+    await clearGoogleLinkage(admin, classroomId, user.id, sectionId);
+    return NextResponse.json({
+      ok: true,
+      cleared: true,
+      reason: "no_event_linked",
+      message: "No Google series was linked — cleared any stale Calendar data in EduBlast.",
+    });
   }
 
   const { data: tokenRow, error: tokErr } = await admin
@@ -104,7 +157,14 @@ export async function POST(
     .maybeSingle();
 
   if (tokErr || !tokenRow?.refresh_token) {
-    return NextResponse.json({ error: "Google Calendar is not connected." }, { status: 409 });
+    await clearGoogleLinkage(admin, classroomId, user.id, sectionId);
+    return NextResponse.json({
+      ok: true,
+      cleared: true,
+      reason: "google_not_connected",
+      message:
+        "Google Calendar is not connected. Cleared the series link in EduBlast only (event may still exist in Google).",
+    });
   }
 
   try {
@@ -124,77 +184,65 @@ export async function POST(
       })
       .eq("user_id", user.id);
 
-    if (body.mode === "delete_series") {
-      await deleteCalendarEvent({
-        accessToken: refreshed.access_token,
-        calendarId: calId,
-        eventId,
-      });
-    } else {
-      const ev = (await getCalendarEvent({
-        accessToken: refreshed.access_token,
-        calendarId: calId,
-        eventId,
-      })) as { recurrence?: string[] };
-      const current = ev.recurrence?.[0];
-      if (!current || !current.startsWith("RRULE:")) {
+    try {
+      if (body.mode === "delete_series") {
         await deleteCalendarEvent({
           accessToken: refreshed.access_token,
           calendarId: calId,
           eventId,
         });
       } else {
-        const now = new Date();
-        const fmtUtc = (d: Date) => {
-          const y = d.getUTCFullYear();
-          const m = String(d.getUTCMonth() + 1).padStart(2, "0");
-          const day = String(d.getUTCDate()).padStart(2, "0");
-          const h = String(d.getUTCHours()).padStart(2, "0");
-          const min = String(d.getUTCMinutes()).padStart(2, "0");
-          const s = String(d.getUTCSeconds()).padStart(2, "0");
-          return `${y}${m}${day}T${h}${min}${s}Z`;
-        };
-        let base = current.replace(/^RRULE:/, "");
-        const parts = base
-          .split(";")
-          .filter((p) => !p.startsWith("UNTIL=") && !p.startsWith("COUNT="));
-        base = parts.join(";");
-        const nextRrule = `RRULE:${base};UNTIL=${fmtUtc(now)}`;
-        await patchCalendarEvent({
+        const ev = (await getCalendarEvent({
           accessToken: refreshed.access_token,
           calendarId: calId,
           eventId,
-          body: { recurrence: [nextRrule] },
-          sendUpdates: "none",
-        });
+        })) as { recurrence?: string[] };
+        const current = ev.recurrence?.[0];
+        if (!current || !current.startsWith("RRULE:")) {
+          await deleteCalendarEvent({
+            accessToken: refreshed.access_token,
+            calendarId: calId,
+            eventId,
+          });
+        } else {
+          const now = new Date();
+          const fmtUtc = (d: Date) => {
+            const y = d.getUTCFullYear();
+            const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+            const day = String(d.getUTCDate()).padStart(2, "0");
+            const h = String(d.getUTCHours()).padStart(2, "0");
+            const min = String(d.getUTCMinutes()).padStart(2, "0");
+            const s = String(d.getUTCSeconds()).padStart(2, "0");
+            return `${y}${m}${day}T${h}${min}${s}Z`;
+          };
+          let base = current.replace(/^RRULE:/, "");
+          const parts = base
+            .split(";")
+            .filter((p) => !p.startsWith("UNTIL=") && !p.startsWith("COUNT="));
+          base = parts.join(";");
+          const nextRrule = `RRULE:${base};UNTIL=${fmtUtc(now)}`;
+          await patchCalendarEvent({
+            accessToken: refreshed.access_token,
+            calendarId: calId,
+            eventId,
+            body: { recurrence: [nextRrule] },
+            sendUpdates: "none",
+          });
+        }
       }
+    } catch (googleErr) {
+      if (!isGoogleEventMissingError(googleErr)) throw googleErr;
+      await clearGoogleLinkage(admin, classroomId, user.id, sectionId);
+      return NextResponse.json({
+        ok: true,
+        cleared: true,
+        reason: "google_event_missing",
+        message:
+          "That Calendar event was already removed in Google. Cleared the link in EduBlast.",
+      });
     }
 
-    if (sectionId) {
-      await admin
-        .from("classroom_sections" as any)
-        .update({
-          google_recurring_event_id: null,
-          google_meet_link: null,
-          google_rrule: null,
-          google_recurrence_end_date: null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", sectionId)
-        .eq("classroom_id", classroomId);
-    } else {
-      await admin
-        .from("classrooms")
-        .update({
-          google_recurring_event_id: null,
-          google_meet_link: null,
-          google_rrule: null,
-          google_recurrence_end_date: null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", classroomId)
-        .eq("teacher_id", user.id);
-    }
+    await clearGoogleLinkage(admin, classroomId, user.id, sectionId);
 
     return NextResponse.json({ ok: true });
   } catch (e) {

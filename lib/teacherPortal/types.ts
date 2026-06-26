@@ -1,4 +1,6 @@
+import type { TeacherPlanKey } from "@/lib/teacherPortal/teacherPlan";
 import type { AssignmentTaskStored } from "@/lib/classroom/assignmentTasks";
+import type { AdvancedQuizSetIndex } from "@/lib/play/quiz/advancedQuizSets";
 import type { DifficultyLevel } from "@/lib/slugs";
 import type { ClassLevel, Subject } from "@/types";
 
@@ -86,6 +88,10 @@ export interface TeacherPortalClassroomSection {
   isActive?: boolean;
   googleMeetLink: string | null;
   googleSeriesLinked: boolean;
+  /** Expected delivery reward per ended schedule occurrence (base + capped roster bonus). */
+  expectedDeliveryRdm?: number;
+  /** Sum of delivery RDM already granted for this section schedule. */
+  deliveryRdmGrantedTotal?: number;
 }
 
 export interface TeacherPortalMotivationLogItem {
@@ -136,8 +142,8 @@ export interface TeacherPortalChapterQuizRef {
   topic: string;
   subtopicName: string;
   level: DifficultyLevel;
-  /** Present when `level` is `advanced` (Set 1–3). */
-  advancedSet?: 1 | 2 | 3;
+  /** Present when `level` is `advanced` (Set 1–6). */
+  advancedSet?: AdvancedQuizSetIndex;
 }
 
 export interface TeacherPortalAssignmentItem {
@@ -193,7 +199,11 @@ export interface TeacherPortalSessionItem {
   studentCount: number;
   status: string;
   isTrial: boolean;
+  /** Extra Schedule Live Session rows do not earn delivery RDM (Path B). Kept for compat; always 0. */
   rewardRdm: number;
+  deliveryRdmAwarded: number | null;
+  deliveryRdmGrantedAt: string | null;
+  deliveryRdmStudentCount: number | null;
   /** Legacy checklist lines; prefer `preWorkDisplay` for UI. */
   preWork: string[];
   /** Legacy checklist lines; prefer `postWorkDisplay` for UI. */
@@ -242,6 +252,9 @@ export interface TeacherPortalProfileView {
   studentsHelped: number;
   expertAnswers: number;
   avgUpvotes: number;
+  /** Teacher subscription tier (free | starter | pro). */
+  teacherPlanTier: TeacherPlanKey;
+  teacherPlanExpiresAt: string | null;
   details: {
     location: string | null;
     qualification: string | null;
@@ -287,12 +300,21 @@ export interface TeacherPortalSummary {
 
 export interface TeacherPortalReferStats {
   rdmBalance: number;
+  /** 7-hex referral code (first 7 hex chars of the teacher profile id, uppercased). */
+  referralCode: string;
+  /** Relative share path `/join?ref=<code>`; callers prepend the origin when copying. */
   referralLink: string;
   teachersReferred: number;
   studentsReferred: number;
   teacherRewardRdm: number;
   studentRewardRdm: number;
   teacherMilestoneBonusRdm: number;
+  /** RDM the teacher earns when a referred student completes signup/onboarding. */
+  teacherSignupRewardRdm: number;
+  /** RDM the teacher earns when a referred student goes paid within the window. */
+  teacherPaidBonusRdm: number;
+  /** Days after signup in which the referred student must go paid for the bonus. */
+  teacherPaidWindowDays: number;
 }
 
 /** Submitted mock attempt under 60% for nudge wizard ( keyed by assignment post id ). */

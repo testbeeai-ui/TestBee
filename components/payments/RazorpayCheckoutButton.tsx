@@ -89,6 +89,8 @@ export interface RazorpayCheckoutButtonProps {
   /** Called after signature verification succeeds. When set, default success toast is skipped. */
   onPaymentVerified?: (response: RazorpaySuccessResponse) => void | Promise<void>;
   showSuccessToast?: boolean;
+  /** When false, omits the lock icon (e.g. subscription CTAs). Default true. */
+  showLockIcon?: boolean;
 }
 
 export default function RazorpayCheckoutButton({
@@ -104,6 +106,7 @@ export default function RazorpayCheckoutButton({
   createOrderBody,
   onPaymentVerified,
   showSuccessToast,
+  showLockIcon = true,
 }: RazorpayCheckoutButtonProps) {
   const { toast } = useToast();
   const [scriptReady, setScriptReady] = useState(false);
@@ -289,9 +292,9 @@ export default function RazorpayCheckoutButton({
     >
       {loading ? (
         <Loader2 className="h-4 w-4 animate-spin" />
-      ) : (
+      ) : showLockIcon ? (
         <Lock className="h-4 w-4" />
-      )}
+      ) : null}
       {loading ? "Processing…" : displayLabel}
     </button>
   );

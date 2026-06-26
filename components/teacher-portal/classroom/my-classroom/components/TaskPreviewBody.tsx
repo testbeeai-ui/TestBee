@@ -45,7 +45,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { safeGetSession } from "@/lib/auth/safeSession";
 import { fetchWithClientAuth } from "@/lib/auth/clientApiAuth";
 import GeneratedMcqReview from "@/components/classroom/GeneratedMcqReview";
-import { getAdvancedSetBounds } from "@/lib/play/quiz/advancedQuizSets";
+import {
+  getAdvancedSetBounds,
+  isAdvancedMultiSet,
+  isAdvancedQuizSetIndex,
+  type AdvancedQuizSetIndex,
+} from "@/lib/play/quiz/advancedQuizSets";
 import { fetchSubtopicContent } from "@/lib/curriculum/subtopicContentService";
 import MeetSessionsStack from "@/components/teacher-portal/live/MeetSessionsStack";
 import { redirectToGoogleCalendarConsent } from "@/lib/integrations/googleCalendarOAuthClient";
@@ -132,7 +137,7 @@ export function TaskPreviewBody(props: {
     topic: string;
     subtopicName: string;
     level: string;
-    advancedSet?: 1 | 2 | 3;
+    advancedSet?: AdvancedQuizSetIndex;
   };
 }) {
   const [loading, setLoading] = useState(props.mode !== "iframe");
@@ -247,11 +252,9 @@ export function TaskPreviewBody(props: {
 
           const all = Array.isArray(row.bitsQuestions) ? row.bitsQuestions : [];
           let slice = all;
-          if (all.length > 10) {
-            const bounds = getAdvancedSetBounds(
-              all.length,
-              Math.max(1, Math.min(3, quizSet)) as 1 | 2 | 3
-            );
+          if (isAdvancedMultiSet("advanced", all.length)) {
+            const setIdx = isAdvancedQuizSetIndex(quizSet) ? quizSet : 1;
+            const bounds = getAdvancedSetBounds(all.length, setIdx);
             slice = all.slice(bounds.start, bounds.end);
           }
 

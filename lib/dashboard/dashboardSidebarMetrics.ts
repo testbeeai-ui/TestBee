@@ -1,9 +1,14 @@
 import type { SavedRevisionCard } from "@/types";
+import { isInMemoryRecallQueue, promoteDueTomorrowCards } from "@/lib/saved/revisionCardRecall";
 
-/** InstaCue cards not marked as fully known (same idea as “still in rotation”). */
-export function countInstacueRevisionDue(cards: SavedRevisionCard[] | undefined | null): number {
+/** InstaCue cards on dashboard Memory Recall (new + due tomorrow; excludes unsure and know_it). */
+export function countInstacueRevisionDue(
+  cards: SavedRevisionCard[] | undefined | null,
+  nowMs: number = Date.now()
+): number {
   if (!Array.isArray(cards) || cards.length === 0) return 0;
-  return cards.filter((c) => c && c.status !== "know_it").length;
+  const promoted = promoteDueTomorrowCards(cards, nowMs);
+  return promoted.filter((c) => c && isInMemoryRecallQueue(c, nowMs)).length;
 }
 
 /**

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { formatSectionScheduleDeliveryRdmLabel } from "@/lib/teacherPortal/liveClassDeliveryRdm";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { safeGetSession } from "@/lib/auth/safeSession";
 import { Button } from "@/components/ui/button";
@@ -92,6 +93,10 @@ type TeacherBundle = {
     status: string | null;
     sessionPlanAttached: boolean;
     postWorkReleaseLabel: string | null;
+    studentCount?: number;
+    rewardRdm?: number;
+    deliveryRdmAwarded?: number | null;
+    deliveryRdmGrantedAt?: string | null;
   }>;
   classroomDetails: Record<
     string,
@@ -102,6 +107,9 @@ type TeacherBundle = {
         name: string;
         scheduleLabel: string | null;
         isActive: boolean;
+        expectedDeliveryRdm?: number;
+        deliveryRdmGrantedTotal?: number;
+        googleSeriesLinked?: boolean;
       }>;
       assignments: Array<{
         id: string;
@@ -234,6 +242,10 @@ export default function AdminTeacherDetailPage() {
   const [pendingCancelSessionId, setPendingCancelSessionId] = useState<string | null>(null);
   const [sessionCancelNotes, setSessionCancelNotes] = useState("");
 
+  const [pendingAwardSectionId, setPendingAwardSectionId] = useState<string | null>(null);
+  const [sectionAwardOccurrenceAt, setSectionAwardOccurrenceAt] = useState("");
+  const [sectionAwardNotes, setSectionAwardNotes] = useState("");
+
   const [ccName, setCcName] = useState("");
   const [ccSubject, setCcSubject] = useState("");
   const [ccPucLevel, setCcPucLevel] = useState<"PUC 1" | "PUC 2" | "Both">("Both");
@@ -358,6 +370,18 @@ export default function AdminTeacherDetailPage() {
       0
     );
     return { totalAssignments, totalSections };
+  }, [bundle]);
+
+  const sectionScheduleRows = useMemo(() => {
+    if (!bundle) return [];
+    return bundle.classrooms.flatMap((c) => {
+      const detail = bundle.classroomDetails[c.id];
+      return (detail?.sections ?? []).map((sec) => ({
+        classroomId: c.id,
+        classroomName: c.name,
+        ...sec,
+      }));
+    });
   }, [bundle]);
 
   const postAdmin = async (path: string, payload: Record<string, unknown>) => {
@@ -891,6 +915,175 @@ export default function AdminTeacherDetailPage() {
             </TabsContent>
 
             <TabsContent value="lessons" className="mt-4 space-y-4">
+              <div className="rounded-lg border border-emerald-500/25 bg-emerald-500/5 px-4 py-3 text-sm">
+                <p className="font-semibold text-foreground">Section schedule delivery RDM (Path A)</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Teachers earn base + per-student bonus when a{" "}
+                  <span className="font-semibold">section Google Calendar / recurring schedule</span>{" "}
+                  occurrence ends (auto on portal load, or manual grant via sections API). Uses
+                  enrolled roster in that section —{" "}
+                  <span className="font-semibold">student join/attendance is not required</span>.
+                  Extra one-off sessions from &quot;Schedule Live Session&quot; do{" "}
+                  <span className="font-semibold">not</span> earn delivery RDM. Formula:{" "}
+                  <span className="font-mono">base + min(students, cap) × per-student</span>. Amounts
+                  in{" "}
+                  <Link href="/admin/rdm-table" className="font-semibold text-primary hover:underline">
+                    Admin → RDM Table → Teachers
+                  </Link>
+                  .
+                </p>
+              </div>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Section schedule delivery grants</CardTitle>
+                  <CardDescription>
+                    Path A only — grant RDM for a specific ended section occurrence (ISO timestamp).
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="rounded-xl border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Classroom</TableHead>
+                          <TableHead>Section</TableHead>
+                          <TableHead>Schedule</TableHead>
+                          <TableHead className="text-right">Earned RDM</TableHead>
+                          <TableHead className="text-right">Per class</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {sectionScheduleRows.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={6} className="text-muted-foreground">
+                              No sections with schedule.
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          sectionScheduleRows.flatMap((sec) => {
+                            const rdmLine = formatSectionScheduleDeliveryRdmLabel({
+                              hasSchedule: Boolean(
+                                sec.scheduleLabel?.trim() || sec.googleSeriesLinked
+                              ),
+                              expectedDeliveryRdm: sec.expectedDeliveryRdm,
+                              deliveryRdmGrantedTotal: sec.deliveryRdmGrantedTotal,
+                            });
+                            const rows = [
+                              <TableRow key={sec.id}>
+                                <TableCell className="text-sm">{sec.classroomName}</TableCell>
+                                <TableCell className="font-medium">{sec.name}</TableCell>
+                                <TableCell className="max-w-[200px] truncate text-xs text-muted-foreground">
+                                  {sec.scheduleLabel?.trim() || "—"}
+                                </TableCell>
+                                <TableCell className="text-right tabular-nums text-amber-300">
+                                  {fmt(sec.deliveryRdmGrantedTotal ?? 0)}
+                                </TableCell>
+                                <TableCell className="text-right tabular-nums text-muted-foreground">
+                                  ~{fmt(sec.expectedDeliveryRdm ?? 0)}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <Button
+                                    size="sm"
+                                    variant="secondary"
+                                    type="button"
+                                    onClick={() => {
+                                      setPendingAwardSectionId(sec.id);
+                                      setSectionAwardOccurrenceAt("");
+                                      setSectionAwardNotes("");
+                                    }}
+                                  >
+                                    Grant RDM
+                                  </Button>
+                                </TableCell>
+                              </TableRow>,
+                            ];
+                            if (pendingAwardSectionId === sec.id) {
+                              rows.push(
+                                <TableRow key={`${sec.id}-award`}>
+                                  <TableCell colSpan={6} className="bg-emerald-500/5">
+                                    <div className="grid gap-2 py-2">
+                                      <p className="text-xs text-muted-foreground">
+                                        Grant delivery RDM for{" "}
+                                        <span className="font-semibold">{sec.name}</span> (
+                                        {sec.classroomName}). {rdmLine ?? "No schedule hint."}
+                                      </p>
+                                      <Input
+                                        value={sectionAwardOccurrenceAt}
+                                        onChange={(e) => setSectionAwardOccurrenceAt(e.target.value)}
+                                        placeholder="Occurrence start (ISO), e.g. 2026-06-17T04:30:00.000Z"
+                                      />
+                                      <Input
+                                        value={sectionAwardNotes}
+                                        onChange={(e) => setSectionAwardNotes(e.target.value)}
+                                        placeholder="Reason (audit) for granting delivery RDM"
+                                      />
+                                      <div className="flex flex-wrap gap-2">
+                                        <Button
+                                          size="sm"
+                                          type="button"
+                                          onClick={async () => {
+                                            setLessonsStatus("");
+                                            try {
+                                              if (!sectionAwardNotes.trim()) {
+                                                throw new Error("Reason required.");
+                                              }
+                                              if (!sectionAwardOccurrenceAt.trim()) {
+                                                throw new Error("occurrenceAt (ISO) required.");
+                                              }
+                                              const res = await postAdmin(
+                                                `/api/admin/teachers/${teacherId}/sections/award-delivery-rdm`,
+                                                {
+                                                  sectionId: sec.id,
+                                                  occurrenceAt: sectionAwardOccurrenceAt.trim(),
+                                                  notes: sectionAwardNotes.trim(),
+                                                  forceBeforeEnd: false,
+                                                }
+                                              );
+                                              const total =
+                                                typeof (res as { result?: { total_rdm?: number } })
+                                                  ?.result?.total_rdm === "number"
+                                                  ? (res as { result: { total_rdm: number } }).result
+                                                      .total_rdm
+                                                  : 0;
+                                              setPendingAwardSectionId(null);
+                                              setLessonsStatus(
+                                                total > 0
+                                                  ? `Granted +${fmt(total)} RDM for “${sec.name}”.`
+                                                  : "Delivery RDM already granted or zero."
+                                              );
+                                              await load();
+                                            } catch (e) {
+                                              setLessonsStatus(
+                                                e instanceof Error ? e.message : "Failed"
+                                              );
+                                            }
+                                          }}
+                                        >
+                                          Confirm grant
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          variant="ghost"
+                                          type="button"
+                                          onClick={() => setPendingAwardSectionId(null)}
+                                        >
+                                          Abort
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            }
+                            return rows;
+                          })
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
               <Card>
                 <CardHeader>
                   <CardTitle>Schedule a lesson (live session)</CardTitle>
@@ -991,6 +1184,7 @@ export default function AdminTeacherDetailPage() {
                           <TableHead>Classroom</TableHead>
                           <TableHead>Title</TableHead>
                           <TableHead>Status</TableHead>
+                          <TableHead className="text-right">Students</TableHead>
                           <TableHead>Meet</TableHead>
                           <TableHead className="text-right">Duration</TableHead>
                           <TableHead className="text-right">Actions</TableHead>
@@ -999,7 +1193,7 @@ export default function AdminTeacherDetailPage() {
                       <TableBody>
                         {bundle.sessions.length === 0 ? (
                           <TableRow>
-                            <TableCell colSpan={7} className="text-muted-foreground">
+                            <TableCell colSpan={8} className="text-muted-foreground">
                               No sessions.
                             </TableCell>
                           </TableRow>
@@ -1014,6 +1208,9 @@ export default function AdminTeacherDetailPage() {
                                 <TableCell className="font-medium">{s.title}</TableCell>
                                 <TableCell>
                                   <Badge variant="secondary">{s.status ?? "—"}</Badge>
+                                </TableCell>
+                                <TableCell className="text-right tabular-nums">
+                                  {fmt(s.studentCount ?? 0)}
                                 </TableCell>
                                 <TableCell className="text-xs">
                                   {s.meetLink ? (
@@ -1054,7 +1251,7 @@ export default function AdminTeacherDetailPage() {
                             if (pendingCancelSessionId === s.id) {
                               rows.push(
                                 <TableRow key={`${s.id}-cancel`}>
-                                  <TableCell colSpan={7} className="bg-muted/30">
+                                  <TableCell colSpan={8} className="bg-muted/30">
                                     <div className="grid gap-2 py-2 md:grid-cols-2">
                                       <Input
                                         value={sessionCancelNotes}

@@ -63,7 +63,7 @@ import { useSitePresenceLiveMsToday } from "@/components/providers/SitePresenceP
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { FreeTrialPromoDialog } from "@/components/dashboard/FreeTrialPromoDialog";
-import { OnboardingRewardDialog } from "@/components/dashboard/OnboardingRewardDialog";
+import DashboardMemoryRecallPanel from "@/components/dashboard/DashboardMemoryRecallPanel";
 import {
   FREE_TRIAL_ACTIVATED_EVENT,
   FREE_TRIAL_DEMO_RESET_EVENT,
@@ -79,7 +79,6 @@ import {
   isOnboardingRewardClaimed,
   isOnboardingRewardComplete,
   ONBOARDING_PROGRESS_EVENT,
-  requestOnboardingClaimRewardPromo,
 } from "@/lib/subscription/freeTrialClient";
 import {
   getDailyStreakSuppressRemainingMs,
@@ -93,10 +92,11 @@ import {
 } from "@/lib/onboarding/dailyChecklistTaskStorage";
 import { TIME_TRAVEL_OFFSET_CHANGED_EVENT } from "@/lib/dev/timeTravel";
 import { fetchOnboardingRewardState } from "@/lib/subscription/onboardingRewardApi";
+import { requestOpenSiteTourCarousel } from "@/lib/onboarding/openSiteTourCarousel";
 import {
-  shouldAutoOpenOnboardingRewardDialog,
   shouldShowTrialExpirationOverlay,
 } from "@/lib/subscription/dashboardTrialPopups";
+import { isFreeTrialPeriodEndedForProfile } from "@/lib/subscription/freeTrialTimer";
 import {
   CalendarDays,
   CheckCircle2,
@@ -119,9 +119,6 @@ import {
 
 /** Dashboard Today's checklist strip + modal (after onboarding RDM claim, from next page load). */
 const SHOW_DASHBOARD_CHECKLIST = true;
-
-/** Flip to true to auto-open the +100 RDM onboarding popup after trial activation. */
-const SHOW_ONBOARDING_REWARD_AUTO_POPUP = true;
 
 type HeatmapMode = "7" | "30";
 
@@ -815,7 +812,7 @@ export default function StudentHomeDashboard() {
         blocks.push({
           key: `adv-quiz-${node.subject}-${node.classLevel}-${normalizeCurriculumText(node.topic)}-${normalizeCurriculumText(subName ?? "overview")}`,
           title: `${SUBJECT_DISPLAY[node.subject]} — ${node.topic}`,
-          meta: `Advanced quiz · Class ${node.classLevel} · Start opens a random subtopic you have not finished at Advanced`,
+          meta: `Topic quiz · Class ${node.classLevel} · Start opens a random subtopic you have not finished yet`,
           tone: quizTones[Math.min(idx, 1)]!,
           href,
         });
@@ -917,7 +914,6 @@ export default function StudentHomeDashboard() {
   const [trialActivated, setTrialActivated] = useState(() =>
     typeof window !== "undefined" ? getFreeTrialActivated(profile) : false
   );
-  const [isOnboardingRewardOpen, setIsOnboardingRewardOpen] = useState(false);
   const [openIconFlyout, setOpenIconFlyout] = useState<IconFlyoutId>(null);
   const [activeFeedFilter, setActiveFeedFilter] = useState<FeedFilterId>("all");
   const [feedLikes, setFeedLikes] = useState<Record<number, boolean>>({});
@@ -934,6 +930,8 @@ export default function StudentHomeDashboard() {
   const [checklistRewardRdm, setChecklistRewardRdm] = useState(
     DEFAULT_RDM_CONFIG.free_trial_checklist_reward_rdm
   );
+  // One-time site-tour +100 RDM: true once granted, persists across trial resets.
+  const [siteTourClaimedEver, setSiteTourClaimedEver] = useState(false);
 
   const loadDailyChecklist = useCallback(async () => {
     if (!SHOW_DASHBOARD_CHECKLIST) return;
@@ -1024,16 +1022,9 @@ export default function StudentHomeDashboard() {
   const applyDashboardPopupPhase = useCallback(() => {
     const activated = getFreeTrialActivated(profile);
     const phase = getDashboardPopupPhase(profile, profile?.id);
-    const popupNow = Date.now() + (profile?.time_travel_offset_ms ?? 0);
     setTrialActivated(activated);
     setFreeTrialPromoOpen(phase === "free_trial");
-    setIsOnboardingRewardOpen(
-      SHOW_ONBOARDING_REWARD_AUTO_POPUP &&
-        shouldAutoOpenOnboardingRewardDialog(profile, popupNow, profile?.id)
-    );
-    if (phase === "claim_reward" && SHOW_ONBOARDING_REWARD_AUTO_POPUP) {
-      requestOnboardingClaimRewardPromo();
-    }
+    // Site-tour carousel auto-opens from AppLayout `SiteTourCarouselHost` (not legacy checklist).
     // eslint-disable-next-line react-hooks/exhaustive-deps -- granular fields avoid re-running on unrelated profile columns (e.g. RDM ticks)
   }, [
     profile?.id,
@@ -1064,13 +1055,15 @@ export default function StudentHomeDashboard() {
         checklistRewardRdm: state.checklistRewardRdm,
       });
       setChecklistRewardRdm(state.checklistRewardRdm);
+      setSiteTourClaimedEver(state.claimedEver === true);
       setWelcomeRdm(state.freeTrialWelcomeRdm ?? DEFAULT_RDM_CONFIG.free_trial_welcome_rdm);
       startTransition(() => applyDashboardPopupPhase());
     });
     return () => {
       cancelled = true;
     };
-  }, [profile?.id, applyDashboardPopupPhase]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetch once per user; popup phase uses latest profile when invoked
+  }, [profile?.id]);
 
   useEffect(() => {
     if (!profile?.id) return;
@@ -1131,7 +1124,6 @@ export default function StudentHomeDashboard() {
       dailyChecklistAutoOpenedRef.current = false;
       startTransition(() => {
         setIsChecklistOpen(false);
-        setIsOnboardingRewardOpen(false);
         applyDashboardPopupPhase();
       });
     };
@@ -1174,10 +1166,16 @@ export default function StudentHomeDashboard() {
     return shouldShowTrialExpirationOverlay(profile, dashboardClock);
   }, [profile, dashboardClock]);
 
+  /** Hide +100 Site Tour badge once the 14-day (or extended) trial window has ended. */
+  const showSiteTourRewardCard = useMemo(() => {
+    if (!profile?.id) return false;
+    if (!getFreeTrialActivated(profile)) return true;
+    return !isFreeTrialPeriodEndedForProfile(profile, dashboardClock);
+  }, [profile, dashboardClock]);
+
   useEffect(() => {
     if (!freeTrialEndedForClock || profile?.trial_end_bonus_activated) return;
     startTransition(() => {
-      setIsOnboardingRewardOpen(false);
       setFreeTrialPromoOpen(false);
     });
   }, [freeTrialEndedForClock, profile?.trial_end_bonus_activated]);
@@ -1188,14 +1186,8 @@ export default function StudentHomeDashboard() {
   );
 
   const freeTrialDialogOpen = !trialActivated && freeTrialPromoOpen;
-  const onboardingDialogOpen =
-    trialActivated &&
-    isOnboardingRewardOpen &&
-    shouldAutoOpenOnboardingRewardDialog(profile, dashboardClock, profile?.id) &&
-    !trialExpirationOpen;
 
-  const higherPriorityPopupOpen =
-    freeTrialDialogOpen || onboardingDialogOpen || trialExpirationOpen;
+  const higherPriorityPopupOpen = freeTrialDialogOpen || trialExpirationOpen;
 
   const tryAutoOpenDailyChecklist = useCallback(() => {
     // Disabled auto-opening of Today's checklist as requested by the user.
@@ -1524,6 +1516,43 @@ export default function StudentHomeDashboard() {
         </div>
 
         <div className="flex flex-wrap items-start gap-2 sm:flex-nowrap">
+          {/* 0. Site Tour reward — one-time +100 RDM (survives trial resets) */}
+          {showSiteTourRewardCard ? (
+          <button
+            type="button"
+            onClick={() => requestOpenSiteTourCarousel()}
+            className={cn(
+              "flex min-w-[56px] flex-col items-center gap-0.5 rounded-xl border bg-card/80 px-2.5 py-2 text-foreground transition-colors hover:border-emerald-500/50 hover:bg-emerald-500/5",
+              siteTourClaimedEver ? "border-emerald-500/50" : "border-border/70"
+            )}
+            title={
+              siteTourClaimedEver
+                ? "Site Tour reward already claimed (+100 RDM). Open the tour again."
+                : "Open Site Tour to claim +100 RDM — a one-time reward."
+            }
+            aria-label="Open Site Tour"
+          >
+            <Star
+              className={cn(
+                "h-4 w-4",
+                siteTourClaimedEver ? "text-emerald-500" : "text-muted-foreground"
+              )}
+              aria-hidden
+            />
+            <span
+              className={cn(
+                "text-[12px] font-bold tabular-nums",
+                siteTourClaimedEver ? "text-emerald-500" : "text-muted-foreground"
+              )}
+            >
+              +100
+            </span>
+            <span className="text-[9px] font-medium text-muted-foreground">
+              {siteTourClaimedEver ? "Tour claimed" : "Site Tour"}
+            </span>
+          </button>
+          ) : null}
+
           {/* 1. RDM earned flyout */}
           <div className="relative" data-icon-flyout>
             <button
@@ -1847,7 +1876,7 @@ export default function StudentHomeDashboard() {
       isOnboardingRewardComplete(profile) ? (
         <button
           type="button"
-          onClick={() => requestOnboardingClaimRewardPromo({ force: true })}
+          onClick={() => requestOpenSiteTourCarousel()}
           className="flex w-full items-center justify-between gap-3 rounded-xl border border-emerald-500/30 bg-gradient-to-r from-emerald-500/10 via-violet-500/5 to-amber-500/10 px-3.5 py-2.5 text-left text-[12px] shadow-sm transition-colors hover:from-emerald-500/15"
         >
           <span className="font-bold text-foreground">
@@ -1859,11 +1888,8 @@ export default function StudentHomeDashboard() {
         </button>
       ) : null}
 
-      {/* ── DASHBOARD MAIN GRID ── */}
-      <section className="grid gap-3 lg:grid-cols-[1fr_320px] items-start">
-        {/* Left column: Daily activity tracker + Community feed */}
-        <div className="flex flex-col gap-3">
-          {/* Daily activity tracker card */}
+      {/* ── Daily activity tracker (full width) ── */}
+      <section>
           <div className="rounded-xl border border-border/70 bg-card/80 p-3.5 shadow-sm sm:p-4">
             <div className="mb-2.5 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
               <div className="flex flex-wrap items-center gap-2">
@@ -2002,34 +2028,34 @@ export default function StudentHomeDashboard() {
               {inactivePenaltyRdm.toLocaleString("en-IN")} RDM.
             </div>
           </div>
+      </section>
 
-          {/* Community feed card */}
-          <div className="rounded-xl border border-border/70 bg-card/80 p-3.5 shadow-sm">
-            <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
-              <h2 className="flex items-center gap-1.5 text-[13px] font-bold text-foreground sm:text-sm">
-                <Heart className="h-3.5 w-3.5 text-emerald-500" aria-hidden /> Community feed
+      {/* ── DASHBOARD MAIN GRID: Community feed | Memory Recall | Sidebar ── */}
+      <section className="grid grid-cols-1 items-start gap-3 lg:grid-cols-[minmax(0,560px)_minmax(240px,1fr)_320px]">
+          {/* Community feed (left column) */}
+          <div className="min-w-0 max-w-full overflow-hidden rounded-xl border border-border/70 bg-card/80 p-3 shadow-sm lg:max-w-[560px]">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-1.5 border-b border-border/60 pb-2">
+              <h2 className="flex items-center gap-1.5 text-[13.5px] font-medium text-foreground">
+                <Heart className="h-4 w-4 text-pink-500" aria-hidden /> Community feed
               </h2>
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] text-muted-foreground">Latest from your network</span>
-                <Link
-                  href="/magic-wall"
-                  className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-500 hover:underline"
-                >
-                  Open feed <ExternalLink className="h-3 w-3" aria-hidden />
-                </Link>
-              </div>
+              <Link
+                href="/magic-wall"
+                className="inline-flex items-center gap-1 text-[11.5px] font-medium text-emerald-500 hover:underline"
+              >
+                Open feed <ExternalLink className="h-3 w-3" aria-hidden />
+              </Link>
             </div>
-            <div className="mb-2.5 flex flex-wrap gap-1.5">
+            <div className="mb-2 flex flex-wrap gap-1 border-b border-border/60 pb-2">
               {FEED_FILTERS.map((f) => (
                 <button
                   key={f.id}
                   type="button"
                   onClick={() => setActiveFeedFilter(f.id)}
                   className={cn(
-                    "rounded-full border px-2.5 py-0.5 text-[10px] font-bold transition-colors",
+                    "rounded-full border px-2 py-0.5 text-[11.5px] font-medium transition-colors",
                     activeFeedFilter === f.id
                       ? "border-emerald-500 bg-emerald-500 text-white"
-                      : "border-border/70 bg-muted/40 text-muted-foreground hover:border-emerald-500/50 hover:text-emerald-500"
+                      : "border-border/70 bg-muted/40 text-muted-foreground hover:border-border hover:text-foreground"
                   )}
                 >
                   {f.label}
@@ -2038,7 +2064,7 @@ export default function StudentHomeDashboard() {
             </div>
             <ul className="space-y-0">
               {visibleFeedPosts.length === 0 ? (
-                <li className="py-4 text-center text-[11px] text-muted-foreground">
+                <li className="py-4 text-center text-[11.5px] text-muted-foreground">
                   No posts in this filter yet.
                 </li>
               ) : (
@@ -2047,34 +2073,36 @@ export default function StudentHomeDashboard() {
                   return (
                     <li
                       key={`${p.name}-${i}`}
-                      className="border-b border-border/60 py-2.5 last:border-none"
+                      className="border-b border-border/60 py-2 last:border-none"
                     >
-                      <div className="mb-1 flex items-center gap-2">
+                      <div className="mb-1 flex items-center gap-1.5">
                         <span
                           className={cn(
-                            "flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold text-white",
+                            "flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-full text-[10.5px] font-semibold text-white",
                             p.tone === "blue" ? "bg-blue-500" : "bg-violet-500"
                           )}
                         >
                           {p.initials}
                         </span>
-                        <span className="text-[11px] font-semibold text-foreground">{p.name}</span>
-                        <span className="ml-auto text-[10px] text-muted-foreground">{p.time}</span>
+                        <span className="min-w-0 truncate text-[12.5px] font-medium text-foreground">
+                          {p.name}
+                        </span>
+                        <span className="ml-auto shrink-0 text-[10.5px] text-muted-foreground">{p.time}</span>
                       </div>
                       <div className="mb-1 flex flex-wrap gap-1">
                         {p.tags.map((t) => (
                           <span
                             key={t}
-                            className="rounded-full bg-muted/60 px-1.5 py-px text-[9px] text-muted-foreground"
+                            className="rounded-full bg-muted/60 px-1.5 py-px text-[10.5px] text-muted-foreground"
                           >
                             {t}
                           </span>
                         ))}
                       </div>
-                      <p className="mb-1.5 text-[11px] leading-relaxed text-muted-foreground">
+                      <p className="mb-1.5 line-clamp-3 text-[11.5px] leading-snug text-muted-foreground">
                         {p.text}
                       </p>
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex flex-wrap items-center gap-1">
                         <button
                           type="button"
                           onClick={() =>
@@ -2082,7 +2110,7 @@ export default function StudentHomeDashboard() {
                           }
                           aria-pressed={liked}
                           className={cn(
-                            "flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium transition-colors",
+                            "flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10.5px] transition-colors",
                             liked
                               ? "bg-pink-500/15 text-pink-600 dark:text-pink-300"
                               : "text-muted-foreground hover:bg-pink-500/10 hover:text-pink-600"
@@ -2096,17 +2124,17 @@ export default function StudentHomeDashboard() {
                         </button>
                         <button
                           type="button"
-                          className="flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] text-muted-foreground transition-colors hover:bg-blue-500/10 hover:text-blue-500"
+                          className="flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10.5px] text-muted-foreground transition-colors hover:text-foreground"
                         >
-                          <Bookmark className="h-3 w-3" aria-hidden /> Save for revision
+                          <Bookmark className="h-3 w-3" aria-hidden /> Save
                         </button>
                         <button
                           type="button"
-                          className="flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] text-muted-foreground transition-colors hover:bg-violet-500/10 hover:text-violet-500"
+                          className="flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10.5px] text-muted-foreground transition-colors hover:text-foreground"
                         >
                           <MessageCircle className="h-3 w-3" aria-hidden /> Thread
                         </button>
-                        <span className="ml-auto rounded-full border border-blue-500/30 bg-blue-500/10 px-2 py-0.5 text-[9px] font-bold text-blue-500 dark:text-blue-300">
+                        <span className="ml-auto rounded-full border border-blue-500/30 bg-blue-500/10 px-2 py-0.5 text-[10.5px] font-medium text-blue-500 dark:text-blue-300">
                           {p.subject}
                         </span>
                       </div>
@@ -2117,12 +2145,16 @@ export default function StudentHomeDashboard() {
             </ul>
             <Link
               href="/magic-wall"
-              className="mt-2 block text-center text-[11px] font-bold text-emerald-500 hover:underline"
+              className="mt-2 block border-t border-border/60 pt-2 text-center text-[11.5px] font-medium text-emerald-500 hover:underline"
             >
               View all community posts →
             </Link>
           </div>
-        </div>
+
+          {/* Memory Recall — saved InstaCue revision cards (flip + spaced recall) */}
+          <div className="min-w-0 w-full">
+            <DashboardMemoryRecallPanel />
+          </div>
 
         {/* Right column: Today's checklist + Leaderboard + Upcoming mocks */}
         <div className="flex flex-col gap-3">
@@ -2465,11 +2497,6 @@ export default function StudentHomeDashboard() {
         open={freeTrialDialogOpen}
         onOpenChange={setFreeTrialPromoOpen}
         welcomeRdm={welcomeRdm}
-        checklistRewardRdm={checklistRewardRdm}
-      />
-      <OnboardingRewardDialog
-        open={onboardingDialogOpen}
-        onOpenChange={setIsOnboardingRewardOpen}
         checklistRewardRdm={checklistRewardRdm}
       />
       {/* Trial-end payment gate: TrialExpirationGate in app/providers.tsx (single overlay) */}

@@ -11,7 +11,7 @@
 ## Code discipline
 - **Minimize scope** — only change what the task needs; match existing patterns in the file.
 - **No secrets in git** — never commit `.env`, keys, or `data/local-cache/news-blog.local.sqlite*`.
-- **Commits / push** — only when the user explicitly asks.
+- **Commits / push** — commit only when the user explicitly asks; **never push without explicit approval** (see `.cursor/rules/git-push-approval.mdc`).
 - **Tests** — run `npx vitest run <file>` when touching `lib/sarvamGyanClient*` or verifier logic.
 - **Gyan++/Prof-Pi** — math layout unchanged unless asked; physics uses `PROF_PI_PHYSICS_STRUCTURE_CONTRACT` in `lib/gyanContentPolicy.ts`.
 

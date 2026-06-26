@@ -17,44 +17,22 @@ import { useUserStore } from "@/store/useUserStore";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import type { InstaCueCard, InstaCueCardType, InstaCueLevel } from "@/data/instaCueCards";
-import type { SavedRevisionCard } from "@/types";
+import type { InstaCueCard, InstaCueLevel } from "@/data/instaCueCards";
+import {
+  INSTACUE_TYPE_CONFIG,
+  type InstaCueCardType,
+} from "@/lib/instacue/instaCueTypeConfig";
 import { syncAllSavedContent } from "@/lib/saved/savedContentService";
 import {
   resolveRevisionCardSaveLimit,
   revisionCardLimitToastCopy,
 } from "@/lib/saved/revisionCardSaveLimit";
 import { reportInstacueCardRead } from "@/lib/rdm/reports/reportInstacueCardRead";
-
-const TYPE_CONFIG: Record<
-  InstaCueCardType,
-  { label: string; badge: string; border: string; accent: string }
-> = {
-  concept: {
-    label: "Concept",
-    badge: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200",
-    border: "border-t-amber-200 dark:border-t-amber-800",
-    accent: "text-amber-700 dark:text-amber-300",
-  },
-  formula: {
-    label: "Formula",
-    badge: "bg-slate-100 text-slate-700 dark:bg-slate-800/50 dark:text-slate-200",
-    border: "border-t-slate-200 dark:border-t-slate-700",
-    accent: "text-slate-600 dark:text-slate-300",
-  },
-  common_mistake: {
-    label: "Common Mistake",
-    badge: "bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-200",
-    border: "border-t-red-200 dark:border-t-red-800",
-    accent: "text-red-600 dark:text-red-300",
-  },
-  trap: {
-    label: "Trap",
-    badge: "bg-violet-50 text-violet-700 dark:bg-violet-900/30 dark:text-violet-200",
-    border: "border-t-violet-200 dark:border-t-violet-800",
-    accent: "text-violet-600 dark:text-violet-300",
-  },
-};
+import {
+  findSavedRevisionCardId,
+  isRevisionCardSaved,
+  normalizeRevisionCardForSave,
+} from "@/lib/saved/revisionCardIdentity";
 
 function normalizeCardMath(raw: string): string {
   let out = raw ?? "";
@@ -81,7 +59,8 @@ function SaveCardButton({ card }: { card: InstaCueCard }) {
   const { toast } = useToast();
   const [justSaved, setJustSaved] = useState(false);
   const [saving, setSaving] = useState(false);
-  const saved = user?.savedRevisionCards?.some((c) => c.id === card.id) ?? false;
+  const savedList = user?.savedRevisionCards ?? [];
+  const saved = isRevisionCardSaved(savedList, card);
 
   const handleClick = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -91,8 +70,9 @@ function SaveCardButton({ card }: { card: InstaCueCard }) {
       return;
     }
     if (saved) {
-      unsaveRevisionCard(card.id);
-      await syncAllSavedContent();
+      const savedId = findSavedRevisionCardId(savedList, card);
+      if (savedId) unsaveRevisionCard(savedId);
+      await syncAllSavedContent({ immediate: true });
       toast({ title: "Removed from Revision Bank" });
       return;
     }
@@ -106,11 +86,12 @@ function SaveCardButton({ card }: { card: InstaCueCard }) {
     }
 
     setSaving(true);
-    saveRevisionCard(card as unknown as SavedRevisionCard);
-    const sync = await syncAllSavedContent();
+    const stamped = normalizeRevisionCardForSave(card);
+    saveRevisionCard(stamped);
+    const sync = await syncAllSavedContent({ immediate: true });
     setSaving(false);
     if (!sync.ok) {
-      unsaveRevisionCard(card.id);
+      unsaveRevisionCard(stamped.id);
       toast({
         variant: "destructive",
         title: sync.limitReached ? revisionCardLimitToastCopy(limit.cap).title : "Could not save",
@@ -180,7 +161,7 @@ function RevisionCard({
   onFlip: () => void;
   compact?: boolean;
 }) {
-  const config = TYPE_CONFIG[card.type];
+  const config = INSTACUE_TYPE_CONFIG[card.type];
 
   const cardH = compact ? 148 : 200;
   return (
@@ -198,52 +179,60 @@ function RevisionCard({
       >
         {/* Front */}
         <div
-          className="absolute inset-0 rounded-xl bg-card border border-border shadow-sm overflow-hidden"
+          className="absolute inset-0 flex flex-col rounded-xl bg-card border border-border shadow-sm overflow-hidden"
           style={{
             backfaceVisibility: "hidden",
             transform: "rotateY(0deg)",
             WebkitBackfaceVisibility: "hidden",
           }}
         >
-          <div className={`h-1.5 rounded-t-xl ${config.badge.split(" ")[0]}`} />
-          <div className="p-4 flex flex-col flex-1 min-h-0">
-            <span
-              className={`inline-flex w-fit px-2.5 py-0.5 rounded-full text-xs font-bold ${config.badge} mb-3`}
+          <div className={`h-1.5 shrink-0 rounded-t-xl ${config.badge.split(" ")[0]}`} />
+          <div className="flex min-h-0 flex-1 flex-col p-4">
+            <div className="mb-2 shrink-0">
+              <span
+                className={`inline-flex w-fit rounded-full px-2 py-0.5 text-[10px] font-semibold leading-none sm:text-[11px] ${config.badge}`}
+              >
+                {config.label}
+              </span>
+            </div>
+            <div
+              className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1 text-[15px] font-semibold leading-snug break-words text-foreground touch-pan-y sm:text-base"
+              onClick={(e) => e.stopPropagation()}
             >
-              {config.label}
-            </span>
-            <div className="text-sm font-semibold text-foreground flex-1 leading-relaxed break-words overflow-auto pr-1">
               <TheoryContent
                 theory={normalizeCardMath(card.frontContent)}
-                className="!space-y-2 !text-sm !leading-relaxed"
+                className="!space-y-2 !text-[15px] !font-semibold !leading-snug sm:!text-base"
               />
             </div>
-            <p className="text-xs text-muted-foreground mt-2 shrink-0">Tap to flip</p>
+            <p className="mt-2 shrink-0 text-xs text-muted-foreground">Tap to flip</p>
           </div>
         </div>
 
         {/* Back */}
         <div
-          className="absolute inset-0 rounded-xl bg-card border border-border shadow-sm overflow-hidden"
+          className="absolute inset-0 flex flex-col rounded-xl bg-card border border-border shadow-sm overflow-hidden"
           style={{
             backfaceVisibility: "hidden",
             transform: "rotateY(180deg)",
             WebkitBackfaceVisibility: "hidden",
           }}
         >
-          <div className="h-1.5 rounded-t-xl bg-edu-green/20 dark:bg-edu-green/30" />
-          <div className="p-4 flex flex-col flex-1 min-h-0">
-            <div className="flex items-center gap-2 text-edu-green/90 dark:text-edu-green font-semibold text-sm mb-3">
+          <div className="h-1.5 shrink-0 rounded-t-xl bg-edu-green/20 dark:bg-edu-green/30" />
+          <div className="flex min-h-0 flex-1 flex-col p-4">
+            <div className="mb-2 flex shrink-0 items-center gap-2 text-sm font-semibold text-edu-green/90 dark:text-edu-green">
               <Check className="w-4 h-4" />
               Answer
             </div>
-            <div className="text-sm text-foreground flex-1 leading-relaxed break-words overflow-auto pr-1">
+            <div
+              className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1 text-sm leading-relaxed break-words text-foreground touch-pan-y sm:text-[15px]"
+              onClick={(e) => e.stopPropagation()}
+            >
               <TheoryContent
                 theory={normalizeCardMath(card.backContent)}
-                className="!space-y-2 !text-sm !leading-relaxed"
+                className="!space-y-2 !text-sm !leading-relaxed sm:!text-[15px]"
               />
             </div>
-            <p className="text-xs text-muted-foreground mt-2 shrink-0">Tap to flip back</p>
+            <p className="mt-2 shrink-0 text-xs text-muted-foreground">Tap to flip back</p>
           </div>
         </div>
       </div>

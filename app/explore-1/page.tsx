@@ -791,7 +791,7 @@ function UnitRoadmap({
             {chapterCompleteAdvanced ? (
               <span
                 className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-emerald-500/45 bg-emerald-500/10 text-emerald-500 shadow-sm"
-                title="All topics completed at Advanced"
+                title="All topics completed"
               >
                 <CheckCircle2 className="h-4 w-4" aria-hidden />
               </span>
@@ -917,7 +917,7 @@ function UnitRoadmap({
             {chapterCompleteAdvanced ? (
               <span
                 className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-emerald-500/45 bg-emerald-500/10 text-emerald-500 shadow-sm"
-                title="All topics completed at Advanced"
+                title="All topics completed"
               >
                 <CheckCircle2 className="h-4 w-4" aria-hidden />
               </span>
@@ -1070,7 +1070,7 @@ function UnitRoadmap({
             {chapterCompleteAdvanced ? (
               <span
                 className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-emerald-500/45 bg-emerald-500/10 text-emerald-500 shadow-sm"
-                title="All topics completed at Advanced"
+                title="All topics completed"
               >
                 <CheckCircle2 className="h-4 w-4" aria-hidden />
               </span>
@@ -1302,7 +1302,7 @@ function UnitRoadmap({
               {chapterCompleteAdvanced ? (
                 <span
                   className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-emerald-500/45 bg-emerald-500/10 text-emerald-500 shadow-sm"
-                  title="All topics completed at Advanced"
+                  title="All topics completed"
                 >
                   <CheckCircle2 className="h-4 w-4" aria-hidden />
                 </span>
@@ -3736,7 +3736,7 @@ const Explore = () => {
                                         {topicDoneAtAdvanced ? (
                                           <span
                                             className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-emerald-500/45 bg-emerald-500/12 text-emerald-600 shadow-sm dark:text-emerald-400"
-                                            title="All subtopics complete at Advanced"
+                                            title="All subtopics complete"
                                           >
                                             <CheckCircle2 className="h-5 w-5" aria-hidden />
                                           </span>

@@ -16,7 +16,6 @@ import {
   Lock,
   Sparkles,
   Check,
-  UserCircle2,
 } from "lucide-react";
 import { TARGET_EXAM_OPTIONS, type TargetExamKey } from "@/lib/profile/targetExam";
 import {
@@ -34,8 +33,10 @@ import {
   clearPendingReferralRef,
   resolvePendingReferralRef,
 } from "@/lib/rdm/referral/referralClient";
+import { StudentProfileSetupCard } from "@/components/onboarding/StudentProfileSetupCard";
 import { OnboardingTermsAcceptance } from "@/components/legal/OnboardingTermsAcceptance";
 import { track } from "@/lib/analytics/track";
+import { cn } from "@/lib/utils";
 
 const EDUBLAST_LOGO_SRC = "/images/logo-2.png";
 
@@ -54,21 +55,6 @@ function OnboardingLoadingLogo() {
 }
 
 const subjects = ["Physics", "Chemistry", "Math"];
-const studentExamTargets: { key: TargetExamKey; label: string; tag?: string; locked?: boolean }[] =
-  [
-    { key: "cbse", label: "CBSE Board", locked: true },
-    { key: "jee_mains", label: "JEE Main", tag: "NTA" },
-    { key: "jee_advance", label: "JEE Advanced", tag: "IIT" },
-    { key: "other", label: "Other" },
-  ];
-const mandatoryStudentSubjects = [
-  { key: "physics", label: "Physics", subtitle: "Mechanics, electrostatics, optics" },
-  { key: "chemistry", label: "Chemistry", subtitle: "Organic, inorganic & physical" },
-  { key: "math", label: "Mathematics", subtitle: "Calculus, algebra, geometry" },
-];
-const comingSoonStudentSubjects = [
-  { key: "other", label: "Other", subtitle: "Specify when available" },
-];
 const visibilityOptions = [
   { value: "public", label: "Public", desc: "Anyone can find you", Icon: Globe },
   { value: "invite_only", label: "Invite-only", desc: "Only via link/code", Icon: Lock },
@@ -242,6 +228,7 @@ function OnboardingContent() {
   };
 
   const handleComplete = async () => {
+    if (!termsAccepted) return;
     setSaving(true);
     try {
       const updates: Record<string, unknown> = {
@@ -256,9 +243,11 @@ function OnboardingContent() {
           ? "jee_advance"
           : studentTargetExams.includes("jee_mains")
             ? "jee_mains"
-            : studentTargetExams.includes("other")
-              ? "other"
-              : "cbse";
+            : studentTargetExams.includes("kcet")
+              ? "kcet"
+              : studentTargetExams.includes("other")
+                ? "other"
+                : "cbse";
         (updates as Record<string, unknown>).class_level = studentClassLevel;
         (updates as Record<string, unknown>).target_exam = primaryTargetExam;
         (updates as Record<string, unknown>).exam_tags = studentTargetExams;
@@ -313,6 +302,15 @@ function OnboardingContent() {
         }
       }
 
+      try {
+        await fetch("/api/user/classroom-invites/link", {
+          method: "POST",
+          credentials: "include",
+        });
+      } catch {
+        // Non-fatal: email match at payment still awards batch bonus.
+      }
+
       track("onboarding_completed", {
         role,
         classLevel: role === "student" ? studentClassLevel : undefined,
@@ -331,9 +329,21 @@ function OnboardingContent() {
     }
   };
 
+  const isStudentProfileStep = step === "details" && role === "student";
+
   return (
-    <div className="auth-glass-page flex min-h-screen flex-col">
-      <div className="relative flex min-h-0 flex-1 items-start justify-center px-4 py-6 sm:items-center sm:px-6 sm:py-8">
+    <div
+      className={cn(
+        "flex min-h-screen flex-col",
+        isStudentProfileStep ? "bg-[#0E1117]" : "auth-glass-page"
+      )}
+    >
+      <div
+        className={cn(
+          "relative flex min-h-0 flex-1 justify-center px-4 py-6 sm:px-6",
+          isStudentProfileStep ? "items-start pt-8" : "items-start sm:items-center sm:py-8"
+        )}
+      >
         {step === "role" && (
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -401,205 +411,25 @@ function OnboardingContent() {
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            className="auth-glass-card rounded-3xl p-6 sm:p-7 w-full max-w-6xl border border-white/12"
+            className="w-full flex justify-center"
           >
-            <div className="mb-6">
-              <div className="mb-4 grid grid-cols-2 gap-2">
-                <div className="h-1.5 rounded-full bg-primary/80" />
-                <div className="h-1.5 rounded-full bg-primary/35" />
-              </div>
-              <div className="flex items-start gap-3">
-                <div className="rounded-xl bg-primary/16 p-2.5 text-primary shadow-[0_0_0_1px_rgba(255,255,255,0.05)]">
-                  <UserCircle2 className="h-5 w-5" />
-                </div>
-                <div>
-                  <h2 className="text-[2rem] sm:text-[2.15rem] font-extrabold leading-tight text-white">
-                    Set up your profile
-                  </h2>
-                  <p className="text-sm sm:text-[15px] text-zinc-200 mt-1">
-                    Personalises learning and verifies you for scholarships, awards & rewards
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="space-y-6">
-              <div>
-                <label className="text-sm font-extrabold text-white mb-1.5 block">Full name</label>
-                <p className="text-sm text-zinc-200/95 mb-2">As per govt ID (Aadhaar / PAN)</p>
-                <Input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="auth-glass-input rounded-xl h-12 text-base font-semibold text-white placeholder:text-zinc-500"
-                  placeholder="e.g. Sanjana Lakshmi"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                <div>
-                  <label className="text-sm font-extrabold text-white mb-2 block">Class</label>
-                  <div className="grid grid-cols-2 gap-3">
-                    {[
-                      { value: 11 as const, label: "11", subtitle: "First year" },
-                      { value: 12 as const, label: "12", subtitle: "Second year" },
-                    ].map((cl) => (
-                      <button
-                        key={cl.value}
-                        type="button"
-                        onClick={() => setStudentClassLevel(cl.value)}
-                        className={`rounded-2xl border px-4 py-3 text-left transition-all duration-200 ${
-                          studentClassLevel === cl.value
-                            ? "border-primary/75 bg-primary/16 shadow-[0_0_0_1px_rgba(59,130,246,0.26)]"
-                            : "border-white/14 bg-white/[0.025] hover:bg-white/[0.05]"
-                        }`}
-                      >
-                        <div className="text-4xl font-black leading-none text-white">
-                          {cl.label}
-                        </div>
-                        <div className="mt-1 text-sm font-semibold text-zinc-200">
-                          {cl.subtitle}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-sm font-extrabold text-white mb-2 block">
-                    Exam targets — multi-select
-                  </label>
-                  <div className="grid grid-cols-2 gap-3">
-                    {studentExamTargets.map((exam) => {
-                      const active = studentTargetExams.includes(exam.key);
-                      return (
-                        <button
-                          key={exam.key}
-                          type="button"
-                          onClick={() => toggleStudentExam(exam.key, exam.locked)}
-                          className={`rounded-2xl border px-4 py-3 text-left transition-all duration-200 ${
-                            active
-                              ? "border-primary/75 bg-primary/16 shadow-[0_0_0_1px_rgba(59,130,246,0.24)]"
-                              : "border-white/14 bg-white/[0.025] hover:bg-white/[0.05]"
-                          } ${exam.locked ? "cursor-default" : ""}`}
-                        >
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="flex items-center gap-2">
-                              <span
-                                className={`inline-flex h-7 w-7 items-center justify-center rounded-md border ${
-                                  active
-                                    ? "border-primary bg-primary text-primary-foreground"
-                                    : "border-white/15 bg-black/40"
-                                }`}
-                              >
-                                {active ? <Check className="h-4 w-4" /> : null}
-                              </span>
-                              <span className="text-lg leading-tight font-extrabold text-white tracking-tight">
-                                {exam.label}
-                              </span>
-                            </div>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <label className="text-sm font-extrabold text-white mb-2 block">
-                  Subjects — pick what you study
-                </label>
-                <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-                  <div className="space-y-3">
-                    {mandatoryStudentSubjects.map((item) => (
-                      <div
-                        key={item.key}
-                        className="group relative overflow-hidden rounded-2xl border border-emerald-100/85 bg-gradient-to-r from-[#f1fffa] via-[#ebfff7] to-[#e4fbf3] px-4 py-3 shadow-[0_10px_24px_-18px_rgba(16,185,129,0.45)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_18px_34px_-20px_rgba(16,185,129,0.55)]"
-                      >
-                        <div className="pointer-events-none absolute right-0 top-0 h-16 w-24 bg-gradient-to-bl from-emerald-200/35 to-transparent opacity-80" />
-                        <div className="relative flex items-center gap-3">
-                          <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-emerald-500 text-white shadow-[0_4px_10px_-6px_rgba(5,150,105,0.8)]">
-                            <Check className="h-4 w-4" />
-                          </span>
-                          <div className="min-w-0">
-                            <p className="truncate text-[2rem] font-black leading-none tracking-tight text-zinc-900">
-                              {item.label}
-                            </p>
-                            <p className="mt-0.5 truncate text-sm font-medium text-zinc-500">
-                              {item.subtitle}
-                            </p>
-                          </div>
-                          <span className="ml-auto hidden rounded-full border border-emerald-300/80 bg-emerald-100/80 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-emerald-700 sm:inline-flex">
-                            Core
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="space-y-3">
-                    {comingSoonStudentSubjects.map((item) => (
-                      <div
-                        key={item.key}
-                        className="rounded-2xl border border-white/14 bg-white/[0.025] px-4 py-3 opacity-70"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="text-[2.1rem] font-black text-zinc-200 leading-none">
-                              {item.label}
-                            </p>
-                            <p className="mt-0.5 text-sm text-zinc-400">{item.subtitle}</p>
-                          </div>
-                          <span className="text-sm font-bold text-zinc-500">Soon</span>
-                        </div>
-                      </div>
-                    ))}
-                    <p className="px-1 text-sm text-zinc-300">
-                      Specify other subject
-                      <br />
-                      <span className="font-semibold text-base text-zinc-200">Unlocks soon…</span>
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <OnboardingTermsAcceptance
-                accepted={termsAccepted}
-                onAcceptedChange={setTermsAccepted}
-                action={
-                  <div className="flex gap-3">
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setTermsAccepted(false);
-                        setStep("role");
-                      }}
-                      className="auth-glass-outline-btn min-w-24 rounded-xl"
-                    >
-                      Back
-                    </Button>
-                    <Button
-                      onClick={handleComplete}
-                      disabled={saving}
-                      className="edu-btn-primary h-12 flex-1 rounded-xl text-base font-extrabold"
-                    >
-                      {saving ? "Saving..." : "Continue"} <ArrowRight className="ml-1 h-4 w-4" />
-                    </Button>
-                  </div>
-                }
-              />
-              <p className="mt-4 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center text-[11px] text-zinc-500">
-                <Link href="/" className="underline-offset-2 hover:text-zinc-300 hover:underline">
-                  Exit to home
-                </Link>
-                <span className="text-zinc-600">·</span>
-                <button
-                  type="button"
-                  className="underline-offset-2 hover:text-zinc-300 hover:underline"
-                  onClick={() => void signOutAndReturnToLogin()}
-                >
-                  Sign out
-                </button>
-              </p>
-            </div>
+            <StudentProfileSetupCard
+              name={name}
+              onNameChange={setName}
+              classLevel={studentClassLevel}
+              onClassLevelChange={setStudentClassLevel}
+              targetExams={studentTargetExams}
+              onToggleExam={toggleStudentExam}
+              termsAccepted={termsAccepted}
+              onTermsAcceptedChange={setTermsAccepted}
+              saving={saving}
+              onBack={() => {
+                setTermsAccepted(false);
+                setStep("role");
+              }}
+              onContinue={() => void handleComplete()}
+              onSignOut={() => void signOutAndReturnToLogin()}
+            />
           </motion.div>
         )}
 

@@ -11,17 +11,12 @@ import {
   parseDailyStreakServerState,
 } from "@/lib/onboarding/dailyStreakProgress";
 import {
-  bulkMergeOnboardingProgressToServer,
   claimDailyStreakReward,
-  claimOnboardingReward,
+  completeSiteTourRewardOnServer,
   fetchOnboardingRewardState,
   invalidateOnboardingRewardStateCache,
   syncDailyStreakTaskToServer,
 } from "@/lib/subscription/onboardingRewardApi";
-import {
-  ONBOARDING_REWARD_TASK_IDS,
-  ONBOARDING_GYAN_PLUS_SUBSTEP_IDS,
-} from "@/lib/subscription/onboardingRewardConstants";
 import {
   FREE_TRIAL_ACTIVATED_EVENT,
   FREE_TRIAL_DEMO_RESET_EVENT,
@@ -138,16 +133,7 @@ export async function completeActiveTrialDay(): Promise<CompleteActiveTrialDayRe
 
   // Day 1 — site tour not yet claimed.
   if (!state.claimedAt) {
-    const allSiteTourKeys: Record<string, boolean> = {};
-    for (const id of ONBOARDING_REWARD_TASK_IDS) allSiteTourKeys[id] = true;
-    for (const id of ONBOARDING_GYAN_PLUS_SUBSTEP_IDS) allSiteTourKeys[id] = true;
-
-    const merged = await bulkMergeOnboardingProgressToServer(allSiteTourKeys);
-    if (!merged.ok) {
-      throw new Error(merged.error ?? "Failed to mark site-tour tasks");
-    }
-
-    const claim = await claimOnboardingReward();
+    const claim = await completeSiteTourRewardOnServer();
     if (!claim.ok && !claim.alreadyClaimed) {
       throw new Error(claim.error ?? "Failed to claim site-tour reward");
     }

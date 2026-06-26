@@ -11,7 +11,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import type { TopicNode } from "@/data/topicTaxonomy";
-import { getAdvancedSetBounds, type AdvancedQuizSetIndex } from "@/lib/play/quiz/advancedQuizSets";
+import {
+  ADVANCED_QUIZ_SET_INDICES,
+  getAdvancedSetBounds,
+  isAdvancedMultiSet,
+  type AdvancedQuizSetIndex,
+} from "@/lib/play/quiz/advancedQuizSets";
 import type { ChapterQuizSelectionState } from "@/lib/teacherPortal/chapterQuizUtils";
 import {
   topicOptionLabel,
@@ -28,7 +33,7 @@ export type { ChapterQuizSelectionState };
 
 const SUBJECTS: Subject[] = ["physics", "chemistry", "math"];
 
-const PRACTICE_SETS = [1, 2, 3] as const;
+const PRACTICE_SETS = ADVANCED_QUIZ_SET_INDICES;
 
 type Props = {
   taxonomy: TopicNode[];
@@ -45,13 +50,13 @@ function pillClass(active: boolean) {
     : "border-white/15 bg-white/5 text-slate-300 hover:bg-white/10";
 }
 
-/** Match topic page: single pool when ≤10 advanced MCQs; else 10+10+rest. */
+/** Match topic page: single pool when ≤5 advanced MCQs; else 5×5+… sets. */
 function bitsForPracticeSet(
   all: ArtifactBitsQuestion[],
   setIndex: AdvancedQuizSetIndex
 ): ArtifactBitsQuestion[] {
   const n = all.length;
-  if (n <= 10) return [...all];
+  if (!isAdvancedMultiSet("advanced", n)) return [...all];
   const { start, end } = getAdvancedSetBounds(n, setIndex);
   return all.slice(start, end);
 }
@@ -152,7 +157,7 @@ export default function ChapterQuizAssignmentFields({
       <div>
         <p className="text-sm font-semibold text-slate-200">Chapter quiz target</p>
         <p className="mt-0.5 text-[11px] text-slate-500">
-          Pick class → subject → chapter → lesson → subtopic, then which practice set (1–3) matches
+          Pick class → subject → chapter → lesson → subtopic, then which practice set (1–6) matches
           the topic page quiz flow.
         </p>
       </div>
@@ -328,7 +333,7 @@ export default function ChapterQuizAssignmentFields({
             </button>
           </div>
           <p className="mt-1.5 text-[11px] text-slate-500">
-            Same three sets as the lesson quiz panel. Preview lists stems and options only (no
+            Same six sets as the lesson quiz panel. Preview lists stems and options only (no
             marked correct answers).
           </p>
         </div>

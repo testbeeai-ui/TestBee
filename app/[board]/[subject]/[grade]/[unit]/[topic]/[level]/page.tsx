@@ -68,7 +68,12 @@ import {
   type TopicQuestionBankScope,
 } from "@/lib/curriculum/topicQuestionBankAccess";
 import { useTopicTaxonomy } from "@/hooks/useTopicTaxonomy";
-import type { DifficultyLevel } from "@/lib/slugs";
+import {
+  formatDifficultyPreviewTierLabel,
+  isDifficultyLevelShownInUi,
+  formatDifficultyLevelForUi,
+  type DifficultyLevel,
+} from "@/lib/slugs";
 import {
   Dialog,
   DialogContent,
@@ -510,6 +515,23 @@ const LEVELS: { value: DifficultyLevel; label: string }[] = [
   { value: "intermediate", label: "Intermediate" },
   { value: "advanced", label: "Advanced" },
 ];
+
+function formatQuizSetScoreSublabel(attempt: BitsAttemptRecord): string {
+  const pct =
+    attempt.totalQuestions > 0
+      ? Math.round((attempt.correctCount / attempt.totalQuestions) * 100)
+      : 0;
+  return `${attempt.correctCount}/${attempt.totalQuestions} · ${pct}%`;
+}
+
+function formatQuizSetPendingSublabel(
+  questionCount: number,
+  opts?: { free?: boolean; locked?: boolean; lockLabel?: string }
+): string {
+  if (opts?.locked && opts.lockLabel) return opts.lockLabel;
+  const q = `${questionCount} question${questionCount === 1 ? "" : "s"}`;
+  return opts?.free ? `Free · ${q}` : q;
+}
 
 /** Basic & Intermediate are admin-preview until public launch; learners use Advanced only. */
 const LEVEL_PREVIEW_ROLES: ReadonlySet<DifficultyLevel> = new Set(["basics", "intermediate"]);
@@ -1302,17 +1324,24 @@ function TopicPageInner() {
           searchParams.get("quizSet") === String(s) &&
           !!searchParams.get("postId");
         const { locked, reason: lockReason } = resolveAdvancedQuizSetLock(s, isAssignmentSet);
+        const attempt = bitsAttemptBySet[s];
+        const lockLabel =
+          lockReason === "needs_starter_or_pro"
+            ? "Question bank · Premium"
+            : lockReason === "needs_question_bank_unlock"
+              ? "Question bank · unlock above"
+              : undefined;
+        const sublabel = attempt
+          ? formatQuizSetScoreSublabel(attempt)
+          : formatQuizSetPendingSublabel(len, { locked, lockLabel });
         return [
           {
             setIndex: s,
             questionCount: len,
             locked,
             label: `Set ${s}`,
-            sublabel: locked
-              ? lockReason === "needs_starter_or_pro"
-                ? "Question bank · Premium"
-                : "Question bank · unlock above"
-              : `${len} questions · Question bank`,
+            scored: Boolean(attempt),
+            sublabel,
             onPlay: () => {
               if (locked) {
                 if (lockReason === "needs_starter_or_pro") {
@@ -1342,7 +1371,21 @@ function TopicPageInner() {
     searchParams,
     resolveAdvancedQuizSetLock,
     unlockTopicQuestionBank,
+    bitsAttemptBySet,
   ]);
+
+  const quizSet1CardMeta = useMemo(() => {
+    const len = useAdvancedSetsUi
+      ? getAdvancedSetBounds(dbBitsQuestions.length, 1).length
+      : dbBitsQuestions.length;
+    const attempt = useAdvancedSetsUi ? bitsAttemptBySet[1] : bitsAttempt;
+    if (attempt) {
+      return { sublabel: formatQuizSetScoreSublabel(attempt) };
+    }
+    return {
+      sublabel: formatQuizSetPendingSublabel(len, { free: true }),
+    };
+  }, [useAdvancedSetsUi, dbBitsQuestions.length, bitsAttemptBySet, bitsAttempt]);
 
   const [selectedFormulaIdx, setSelectedFormulaIdx] = useState<number | null>(null);
   const [formulaBitsCurrentIdx, setFormulaBitsCurrentIdx] = useState(0);
@@ -4758,12 +4801,14 @@ function TopicPageInner() {
                         {topicNode.subject}
                       </span>
                     </li>
-                    <li className="flex items-center justify-between gap-1">
-                      <span className="text-xs text-muted-foreground">Level</span>
-                      <span className="text-xs font-bold text-primary capitalize">
-                        {difficultyLevel}
-                      </span>
-                    </li>
+                    {isDifficultyLevelShownInUi(difficultyLevel) ? (
+                      <li className="flex items-center justify-between gap-1">
+                        <span className="text-xs text-muted-foreground">Level</span>
+                        <span className="text-xs font-bold text-primary capitalize">
+                          {formatDifficultyLevelForUi(difficultyLevel)}
+                        </span>
+                      </li>
+                    ) : null}
                   </ul>
                 </div>
 
@@ -4821,12 +4866,14 @@ function TopicPageInner() {
                       <span className="text-xs text-muted-foreground">Exam Weight</span>
                       <span className="text-xs font-bold text-red-600">High · JEE/NEET</span>
                     </li>
-                    <li className="flex items-center justify-between gap-1">
-                      <span className="text-xs text-muted-foreground">Level</span>
-                      <span className="text-xs font-bold text-primary capitalize">
-                        {difficultyLevel}
-                      </span>
-                    </li>
+                    {isDifficultyLevelShownInUi(difficultyLevel) ? (
+                      <li className="flex items-center justify-between gap-1">
+                        <span className="text-xs text-muted-foreground">Level</span>
+                        <span className="text-xs font-bold text-primary capitalize">
+                          {formatDifficultyLevelForUi(difficultyLevel)}
+                        </span>
+                      </li>
+                    ) : null}
                   </ul>
                 </div>
 
@@ -5267,13 +5314,10 @@ function TopicPageInner() {
                     </Dialog>
 
                     <h2 className="text-sm font-bold text-primary uppercase tracking-wide mb-4 mt-2">
-                      Subtopics (
-                      {difficultyLevel === "intermediate"
-                        ? "Intermediate"
-                        : difficultyLevel === "advanced"
-                          ? "Advanced"
-                          : "Basic"}{" "}
-                      preview cards)
+                      Subtopics
+                      {formatDifficultyPreviewTierLabel(difficultyLevel)
+                        ? ` (${formatDifficultyPreviewTierLabel(difficultyLevel)} preview cards)`
+                        : " (preview cards)"}
                     </h2>
                     <div className="space-y-6">
                       {subtopicStackRows.map((row, idx) => {
@@ -6065,7 +6109,7 @@ function TopicPageInner() {
                               {subAdvComplete ? (
                                 <span
                                   className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-emerald-500/45 bg-emerald-500/12 text-emerald-600 shadow-sm dark:text-emerald-400"
-                                  title="Marked complete at Advanced"
+                                  title="Marked complete"
                                 >
                                   <CheckCircle2 className="h-5 w-5" aria-hidden />
                                 </span>
@@ -6467,8 +6511,11 @@ function TopicPageInner() {
                               ? getAdvancedSetBounds(dbBitsQuestions.length, 1).length
                               : dbBitsQuestions.length
                           }
+                          set1Sublabel={quizSet1CardMeta.sublabel}
                           onStartSet1={handleStartQuizSet1}
-                          showQuestionBank={useAdvancedSetsUi && hasQuestionBankSets}
+                          showQuestionBank={
+                            useAdvancedSetsUi && hasQuestionBankSets && !questionBankUnlocked
+                          }
                           questionBankUpsellOpen={questionBankUpsellOpen}
                           onQuestionBankClick={handleQuestionBankButtonClick}
                           onDismissUpsell={() => setQuestionBankUpsellOpen(false)}
@@ -7235,14 +7282,14 @@ function TopicPageInner() {
                                                     toast({
                                                       title: `+${rdmConfig.subtopic_quiz_advanced_rdm} RDM`,
                                                       description:
-                                                        "Advanced topic quiz: ≥60% overall with all sets complete. Credited for today (IST).",
+                                                        "Topic quiz: ≥60% overall with all sets complete. Credited for today (IST).",
                                                     });
                                                   } else if (
                                                     reward.reason === "already_claimed_today"
                                                   ) {
                                                     toast({
                                                       title: "Daily topic-quiz bonus already used",
-                                                      description: `You already earned +${rdmConfig.subtopic_quiz_advanced_rdm} RDM from an advanced topic quiz today (IST).`,
+                                                      description: `You already earned +${rdmConfig.subtopic_quiz_advanced_rdm} RDM from a topic quiz today (IST).`,
                                                     });
                                                   } else if (
                                                     reward.reason &&

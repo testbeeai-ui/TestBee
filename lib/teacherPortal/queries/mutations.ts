@@ -1,3 +1,4 @@
+import type { AdvancedQuizSetIndex } from "@/lib/play/quiz/advancedQuizSets";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import {
@@ -39,6 +40,7 @@ import {
 } from "./utils";
 import { allocateUniqueJoinCode } from "./helpers";
 import { assertTeacherApprovedForMutations, type TeacherMutationGuardOptions } from "./guards";
+import { assertTeacherCanCreateAssignmentWithDb } from "@/lib/teacherPortal/teacherPlanQuota";
 
 export async function postTeacherSection(
   input: {
@@ -433,6 +435,9 @@ export async function createClassroomAssignment(
 ): Promise<{ id: string }> {
   const db = client ?? supabase;
   await assertTeacherApprovedForMutations(input.teacherId, db, options);
+  if (!options?.skipPlanQuotaCheck) {
+    await assertTeacherCanCreateAssignmentWithDb(input.teacherId, db);
+  }
   const title = input.title.trim();
   if (!title) throw new Error("Assignment title is required.");
   let taskList = normalizeTaskPositions(
@@ -815,7 +820,7 @@ export async function createTeacherLiveSession(
       topic: string;
       subtopicName: string;
       level: "basics" | "intermediate" | "advanced";
-      advancedSet?: 1 | 2 | 3;
+      advancedSet?: AdvancedQuizSetIndex;
     } | null;
     postWorkMode?: "none" | "custom" | "concept_focus";
     postWorkConceptRef?: {
@@ -826,7 +831,7 @@ export async function createTeacherLiveSession(
       topic: string;
       subtopicName: string;
       level: "basics" | "intermediate" | "advanced";
-      advancedSet?: 1 | 2 | 3;
+      advancedSet?: AdvancedQuizSetIndex;
     } | null;
     postWorkDelayDays?: number;
   },

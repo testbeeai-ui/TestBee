@@ -19,7 +19,7 @@ export const WIZARD_TASKS: WizardTask[] = [
     steps: [
       { label: "Name your classroom & set subject" },
       { label: "Choose PUC level & exam target" },
-      { label: "Add sections (real schedule + calendar sync)" },
+      { label: "Add a section batch (name only — book classes after launch)" },
       { label: "Review & launch classroom" },
     ],
     main: {

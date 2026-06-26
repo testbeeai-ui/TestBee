@@ -2,6 +2,7 @@ import type { TopicNode } from "@/data/topicTaxonomy";
 import type { TeacherPortalChapterQuizRef } from "@/lib/teacherPortal/types";
 import type { ClassLevel, Subject } from "@/types";
 import type { DifficultyLevel } from "@/lib/slugs";
+import type { AdvancedQuizSetIndex } from "@/lib/play/quiz/advancedQuizSets";
 
 export type ChapterQuizSelectionState = {
   classLevel: ClassLevel | null;
@@ -11,7 +12,7 @@ export type ChapterQuizSelectionState = {
   topicIndex: number | null;
   subtopicName: string | null;
   level: DifficultyLevel;
-  advancedSet: 1 | 2 | 3;
+  advancedSet: AdvancedQuizSetIndex;
 };
 
 export const initialChapterQuizSelection = (): ChapterQuizSelectionState => ({
@@ -20,7 +21,7 @@ export const initialChapterQuizSelection = (): ChapterQuizSelectionState => ({
   chapterTitle: null,
   topicIndex: null,
   subtopicName: null,
-  /** Teacher flow uses advanced practice tiers only; UI picks practice set (1–3). */
+  /** Teacher flow uses advanced practice tiers only; UI picks practice set (1–6). */
   level: "advanced",
   advancedSet: 1,
 });

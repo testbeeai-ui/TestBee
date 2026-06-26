@@ -298,29 +298,33 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const syncSavedFromProfile = async () => {
       const store = useUserStore.getState();
       if (!store.user || store.linkedAuthUserId !== profile.id) return;
-      const { fetchSavedContent } = await import("@/lib/saved/savedContentService");
-      const server = await fetchSavedContent();
-      const merged = mergeAllSavedContent(
-        store.user.savedBits ?? [],
-        store.user.savedFormulas ?? [],
-        store.user.savedRevisionCards ?? [],
-        store.user.savedRevisionUnits ?? [],
-        store.user.savedCommunityPosts ?? [],
-        server.savedBits,
-        server.savedFormulas,
-        server.savedRevisionCards,
-        server.savedRevisionUnits,
-        server.savedCommunityPosts
-      );
-      useUserStore
-        .getState()
-        .setSavedFromServer(
-          merged.savedBits,
-          merged.savedFormulas,
-          merged.savedRevisionCards,
-          merged.savedRevisionUnits,
-          merged.savedCommunityPosts
+      try {
+        const { fetchSavedContent } = await import("@/lib/saved/savedContentService");
+        const server = await fetchSavedContent();
+        const merged = mergeAllSavedContent(
+          store.user.savedBits ?? [],
+          store.user.savedFormulas ?? [],
+          store.user.savedRevisionCards ?? [],
+          store.user.savedRevisionUnits ?? [],
+          store.user.savedCommunityPosts ?? [],
+          server.savedBits,
+          server.savedFormulas,
+          server.savedRevisionCards,
+          server.savedRevisionUnits,
+          server.savedCommunityPosts
         );
+        useUserStore
+          .getState()
+          .setSavedFromServer(
+            merged.savedBits,
+            merged.savedFormulas,
+            merged.savedRevisionCards,
+            merged.savedRevisionUnits,
+            merged.savedCommunityPosts
+          );
+      } catch (e) {
+        console.warn("[useAuth] saved content sync skipped", e);
+      }
     };
     const run = () => {
       bindLocalUserToProfile();

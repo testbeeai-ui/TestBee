@@ -1,7 +1,9 @@
 import type { Subject } from "@/types";
 import type { ClassLevel } from "@/types";
+import type { InstaCueCardType } from "@/lib/instacue/instaCueTypeConfig";
 
-export type InstaCueCardType = "concept" | "formula" | "common_mistake" | "trap";
+export type { InstaCueCardType } from "@/lib/instacue/instaCueTypeConfig";
+export { INSTACUE_TYPE_ORDER, INSTACUE_TYPE_CONFIG } from "@/lib/instacue/instaCueTypeConfig";
 export type InstaCueLevel = "basics" | "intermediate" | "advanced";
 
 export interface InstaCueCard {

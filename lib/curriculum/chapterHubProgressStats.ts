@@ -5,16 +5,17 @@ import {
   normalizeCurriculumText,
   stripBitsAttemptSetSuffix,
 } from "@/lib/dashboard/dashboardChapterCompletion";
+import { ADVANCED_QUIZ_MAX_SETS } from "@/lib/play/quiz/advancedQuizSets";
 
-/** Advanced topic quizzes expose up to three sets per subtopic (Set 1 free; 2–3 via Question bank). */
-export const ADVANCED_QUIZ_SETS_PER_SUBTOPIC = 3;
+/** Advanced topic quizzes expose up to six sets per subtopic (Set 1 free; 2–6 via Question bank). */
+export const ADVANCED_QUIZ_SETS_PER_SUBTOPIC = ADVANCED_QUIZ_MAX_SETS;
 
-const SET_SUFFIX_RE = /\|\|set:([123])\s*$/i;
+const SET_SUFFIX_RE = /\|\|set:([1-6])\s*$/i;
 
 export type ChapterHubActivityStats = {
   /** Submitted advanced quiz sets in this chapter (each ||set:N key counts once). */
   quizSetsTaken: number;
-  /** Max advanced quiz sets across chapter subtopics (3 × subtopic count). */
+  /** Max advanced quiz sets across chapter subtopics (6 × subtopic count). */
   quizSetsTotal: number;
   /** InstaCue cards flipped (validated) on advanced lessons in this chapter. */
   instaCueCardsCreated: number;
@@ -29,9 +30,9 @@ function subtopicScopeKey(
   return `${subject}::${classLevel}::${normalizeCurriculumText(topic)}::${normalizeCurriculumText(subtopic)}`;
 }
 
-function parseSetFromStorageKey(key: string): 1 | 2 | 3 {
+function parseSetFromStorageKey(key: string): 1 | 2 | 3 | 4 | 5 | 6 {
   const m = key.match(SET_SUFFIX_RE);
-  if (m) return Number(m[1]) as 1 | 2 | 3;
+  if (m) return Number(m[1]) as 1 | 2 | 3 | 4 | 5 | 6;
   return 1;
 }
 

@@ -8,6 +8,7 @@ import { fetchRdmConfig } from "@/lib/rdm/rdmConfig";
 import {
   ONBOARDING_GYAN_PLUS_SUBSTEP_IDS,
   ONBOARDING_REWARD_TASK_IDS,
+  isFullSiteTourProgressBulkMerge,
 } from "@/lib/subscription/onboardingRewardConstants";
 
 function parseProgress(raw: unknown): Record<string, boolean> {
@@ -39,7 +40,7 @@ export async function GET(request: NextRequest) {
       supabase
         .from("profiles")
         .select(
-          "onboarding_reward_progress, onboarding_reward_claimed_at, free_trial_activated, free_trial_daily_streak"
+          "onboarding_reward_progress, onboarding_reward_claimed_at, free_trial_checklist_reward_claimed_ever, free_trial_activated, free_trial_daily_streak"
         )
         .eq("id", user.id)
         .maybeSingle(),
@@ -53,6 +54,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       progress: parseProgress(profile?.onboarding_reward_progress),
       claimedAt: profile?.onboarding_reward_claimed_at ?? null,
+      claimedEver: profile?.free_trial_checklist_reward_claimed_ever === true,
       checklistRewardRdm: rdmConfig.free_trial_checklist_reward_rdm,
       freeTrialWelcomeRdm: rdmConfig.free_trial_welcome_rdm,
       freeTrialActivated: profile?.free_trial_activated === true,
@@ -136,6 +138,7 @@ export async function PATCH(request: NextRequest) {
 
       const needsBuddyVerify =
         !isAdmin &&
+        !isFullSiteTourProgressBulkMerge(keysToMark) &&
         keysToMark.some((key) => key === "earn_buddy" || key === "earn_buddy_step_2") &&
         !progress.earn_buddy &&
         !progress.earn_buddy_step_2;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -324,7 +324,7 @@ export function FreeTrialPromoDialog({
   }, [timerStarted]);
 
   const progressWidth = TRIAL_STEP_PCTS[screen] ?? 0;
-  const trialEndDate = useMemo(() => formatTrialEndDate(14), [screen === 6]);
+  const trialEndDate = formatTrialEndDate(14);
 
   const pickOne = <K extends keyof TrialOnboardingAnswers>(
     key: K,

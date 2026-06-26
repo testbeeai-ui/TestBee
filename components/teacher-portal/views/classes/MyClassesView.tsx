@@ -10,6 +10,7 @@ import type {
   TeacherPortalSessionItem,
   TeacherPortalSessionWorkKind,
 } from "@/lib/teacherPortal/types";
+import type { AdvancedQuizSetIndex } from "@/lib/play/quiz/advancedQuizSets";
 
 interface MyClassesViewProps {
   sessions: TeacherPortalSessionItem[];
@@ -34,7 +35,7 @@ interface MyClassesViewProps {
       topic: string;
       subtopicName: string;
       level: "basics" | "intermediate" | "advanced";
-      advancedSet?: 1 | 2 | 3;
+      advancedSet?: AdvancedQuizSetIndex;
     } | null;
     postWorkMode?: "none" | "custom" | "concept_focus";
     postWorkConceptRef?: {
@@ -45,7 +46,7 @@ interface MyClassesViewProps {
       topic: string;
       subtopicName: string;
       level: "basics" | "intermediate" | "advanced";
-      advancedSet?: 1 | 2 | 3;
+      advancedSet?: AdvancedQuizSetIndex;
     } | null;
     postWorkDelayDays?: number;
   }) => Promise<void>;

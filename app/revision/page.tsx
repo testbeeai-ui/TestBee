@@ -29,8 +29,15 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import InstaCuePlayer from "@/components/InstaCuePlayer";
 import AddRevisionCardModal from "@/components/AddRevisionCardModal";
 import { buildDeepDivePath } from "@/lib/curriculum/topicRoutes";
+import { formatDifficultyLevelForUi } from "@/lib/slugs";
 import { fetchSavedContent, syncAllSavedContent } from "@/lib/saved/savedContentService";
 import { mergeAllSavedContent } from "@/lib/saved/mergeSavedContent";
+import { dedupeRevisionCards } from "@/lib/saved/revisionCardIdentity";
+import {
+  isInRevisionStudyDeck,
+  promoteDueTomorrowCards,
+} from "@/lib/saved/revisionCardRecall";
+import { useRecallNowMs } from "@/hooks/useRecallNowMs";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -42,44 +49,7 @@ import {
 import { CORE_SUBJECTS, type Question, type Subject } from "@/types";
 import { cn } from "@/lib/utils";
 
-const DEMO_CARDS: SavedRevisionCard[] = [
-  {
-    id: "demo-1",
-    type: "formula",
-    frontContent: "What is Newton's Second Law of Motion?",
-    backContent:
-      "F = ma\n\nForce equals mass times acceleration. The acceleration of an object is directly proportional to the net force acting on it and inversely proportional to its mass.",
-    subtopicName: "Newton's Second Law",
-    topic: "Laws of Motion",
-    subject: "physics",
-    classLevel: 11,
-    status: "new",
-  },
-  {
-    id: "demo-2",
-    type: "concept",
-    frontContent: "What is the powerhouse of the cell?",
-    backContent:
-      "Mitochondria\n\nThey generate most of the chemical energy needed to power the cell's biochemical reactions.",
-    subtopicName: "Cellular Respiration",
-    topic: "Cell Biology",
-    subject: "chemistry",
-    classLevel: 11,
-    status: "new",
-  },
-  {
-    id: "demo-3",
-    type: "common_mistake",
-    frontContent: "Does (x + y)² equal x² + y²?",
-    backContent:
-      "No, (x + y)² = x² + 2xy + y²\n\nForgetting the middle term (2xy) is a very common algebraic mistake.",
-    subtopicName: "Binomial Expansion",
-    topic: "Algebra",
-    subject: "math",
-    classLevel: 11,
-    status: "new",
-  },
-];
+import { DEMO_REVISION_CARDS } from "@/lib/saved/demoRevisionCards";
 
 type RevisionTab = "instacue" | "units" | "saved" | "community" | "questions";
 
@@ -104,6 +74,8 @@ const RevisionContent = () => {
   const unsaveRevisionUnit = useUserStore((s) => s.unsaveRevisionUnit);
   const unsaveBit = useUserStore((s) => s.unsaveBit);
   const unsaveFormula = useUserStore((s) => s.unsaveFormula);
+  const refreshDueRevisionCards = useUserStore((s) => s.refreshDueRevisionCards);
+  const recallNowMs = useRecallNowMs();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<RevisionTab>("instacue");
 
@@ -129,9 +101,17 @@ const RevisionContent = () => {
     [user?.savedQuestions]
   );
 
-  const savedCards = user?.savedRevisionCards ?? [];
+  const savedCards = dedupeRevisionCards(user?.savedRevisionCards ?? []);
   const signedIn = Boolean(authUser);
-  const displayCards = signedIn ? savedCards : savedCards.length > 0 ? savedCards : DEMO_CARDS;
+  const displayCards = signedIn ? savedCards : savedCards.length > 0 ? savedCards : DEMO_REVISION_CARDS;
+  const instacueStudyCards = useMemo(() => {
+    const promoted = promoteDueTomorrowCards(displayCards, recallNowMs);
+    return promoted.filter((c) => isInRevisionStudyDeck(c));
+  }, [displayCards, recallNowMs]);
+
+  useEffect(() => {
+    refreshDueRevisionCards();
+  }, [recallNowMs, refreshDueRevisionCards]);
   const savedRevisionUnits = user?.savedRevisionUnits ?? [];
   const savedBitsStoreCount = user?.savedBits?.length ?? 0;
   const savedFormulasStoreCount = user?.savedFormulas?.length ?? 0;
@@ -150,50 +130,16 @@ const RevisionContent = () => {
 
   useEffect(() => {
     if (!authUser?.id) return;
-    let cancelled = false;
-    fetchSavedContent()
-      .then((data) => {
-        if (cancelled) return;
-        const u = useUserStore.getState().user;
-        if (!u) return;
-        const merged = mergeAllSavedContent(
-          u.savedBits ?? [],
-          u.savedFormulas ?? [],
-          u.savedRevisionCards ?? [],
-          u.savedRevisionUnits ?? [],
-          u.savedCommunityPosts ?? [],
-          data.savedBits,
-          data.savedFormulas,
-          data.savedRevisionCards,
-          data.savedRevisionUnits,
-          data.savedCommunityPosts
-        );
-        useUserStore
-          .getState()
-          .setSavedFromServer(
-            merged.savedBits,
-            merged.savedFormulas,
-            merged.savedRevisionCards,
-            merged.savedRevisionUnits,
-            merged.savedCommunityPosts
-          );
-        setSavedBits(merged.savedBits);
-        setSavedFormulas(merged.savedFormulas);
-        setSavedCommunityPosts(merged.savedCommunityPosts);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [authUser?.id]);
-
-  useEffect(() => {
     if (activeTab !== "saved" && activeTab !== "community") return;
+    const types =
+      activeTab === "community"
+        ? (["savedCommunityPosts"] as const)
+        : (["savedBits", "savedFormulas"] as const);
     const storeBits = useUserStore.getState().user?.savedBits ?? [];
     const storeFormulas = useUserStore.getState().user?.savedFormulas ?? [];
     const storeCommunityPosts = useUserStore.getState().user?.savedCommunityPosts ?? [];
     queueMicrotask(() => setSavedContentLoading(true));
-    fetchSavedContent()
+    fetchSavedContent({ types: [...types] })
       .then(
         ({
           savedBits: bits,
@@ -240,7 +186,7 @@ const RevisionContent = () => {
         setSavedCommunityPosts(storeCommunityPosts);
       })
       .finally(() => setSavedContentLoading(false));
-  }, [activeTab]);
+  }, [activeTab, authUser?.id]);
 
   useEffect(() => {
     if (!authUser?.id) {
@@ -389,7 +335,7 @@ const RevisionContent = () => {
 
   const revisionNavItems = useMemo(
     () => [
-      { id: "instacue" as const, label: "InstaCue Cards", count: displayCards.length },
+      { id: "instacue" as const, label: "InstaCue Cards", count: instacueStudyCards.length },
       { id: "units" as const, label: "Unit Revision", count: savedRevisionUnits.length },
       { id: "saved" as const, label: "Saved Quiz & Formulas", count: savedTabBadgeCount },
       {
@@ -400,7 +346,7 @@ const RevisionContent = () => {
       { id: "questions" as const, label: "Saved Questions", count: savedQuestionsCount },
     ],
     [
-      displayCards.length,
+      instacueStudyCards.length,
       savedRevisionUnits.length,
       savedTabBadgeCount,
       savedCommunityPostsStoreCount,
@@ -506,7 +452,7 @@ const RevisionContent = () => {
                   </Button>
                 </div>
               ) : (
-                <InstaCuePlayer cards={displayCards} onClose={() => {}} />
+                <InstaCuePlayer cards={instacueStudyCards} onClose={() => {}} />
               )}
             </>
           )}
@@ -848,7 +794,7 @@ const RevisionContent = () => {
                       unit.level,
                       unit.sectionIndex
                     );
-                    const levelLabel = unit.level.charAt(0).toUpperCase() + unit.level.slice(1);
+                    const levelLabel = formatDifficultyLevelForUi(unit.level);
                     const levelStyles =
                       unit.level === "basics"
                         ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-400/40 font-bold"
@@ -868,11 +814,13 @@ const RevisionContent = () => {
                             {unit.subject.charAt(0).toUpperCase() + unit.subject.slice(1)} · Class{" "}
                             {unit.classLevel}
                           </span>
-                          <span
-                            className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs ${levelStyles}`}
-                          >
-                            {levelLabel}
-                          </span>
+                          {levelLabel ? (
+                            <span
+                              className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs ${levelStyles}`}
+                            >
+                              {levelLabel}
+                            </span>
+                          ) : null}
                         </div>
                         <p className="text-xs text-muted-foreground line-clamp-2">
                           {unit.unitName} → {unit.subtopicName}

@@ -5,6 +5,10 @@ import {
   rdmPackAmountPaise,
   type PaidSubscriptionPlan,
 } from "@/lib/subscription/subscriptionCheckoutSummary";
+import {
+  computeTeacherCheckoutSummary,
+  type PaidTeacherPlan,
+} from "@/lib/subscription/teacherCheckoutSummary";
 import type { BillingCycle } from "@/lib/subscription/subscriptionBilling";
 import {
   getRazorpayClient,
@@ -18,7 +22,7 @@ import {
 
 export const runtime = "nodejs";
 
-type OrderPurpose = "demo" | "subscription" | "rdm_pack";
+type OrderPurpose = "demo" | "subscription" | "teacher_subscription" | "rdm_pack";
 
 function parseBillingCycle(raw: unknown): BillingCycle | null {
   const v = String(raw ?? "").trim().toLowerCase();
@@ -26,6 +30,11 @@ function parseBillingCycle(raw: unknown): BillingCycle | null {
 }
 
 function parsePaidPlan(raw: unknown): PaidSubscriptionPlan | null {
+  const v = String(raw ?? "").trim().toLowerCase();
+  return v === "starter" || v === "pro" ? v : null;
+}
+
+function parsePaidTeacherPlan(raw: unknown): PaidTeacherPlan | null {
   const v = String(raw ?? "").trim().toLowerCase();
   return v === "starter" || v === "pro" ? v : null;
 }
@@ -76,6 +85,35 @@ export async function POST(request: Request) {
         user_id: ctx.user.id,
         plan,
         billing_cycle: billingCycle,
+      };
+    } else if (purpose === "teacher_subscription") {
+      const ctx = await getSupabaseAndUser(request);
+      if (!ctx) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+
+      const { data: profileRow } = await ctx.supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", ctx.user.id)
+        .maybeSingle();
+      if (profileRow?.role !== "teacher") {
+        return NextResponse.json({ error: "Teachers only" }, { status: 403 });
+      }
+
+      const plan = parsePaidTeacherPlan(body.plan);
+      if (!plan) {
+        return NextResponse.json({ error: "Invalid teacher plan" }, { status: 400 });
+      }
+
+      const summary = computeTeacherCheckoutSummary(plan);
+      amountPaise = summary.amountPaise;
+      receipt = `tsub_${ctx.user.id.slice(0, 8)}_${Date.now()}`;
+      notes = {
+        purpose: "teacher_subscription",
+        user_id: ctx.user.id,
+        plan,
+        billing_cycle: "monthly",
       };
     } else if (purpose === "rdm_pack") {
       const ctx = await getSupabaseAndUser(request);

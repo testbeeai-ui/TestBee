@@ -7,6 +7,8 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { useAuth } from "@/hooks/useAuth";
 import { useTeacherPortalData } from "@/hooks/useTeacherPortalData";
 import { useTeacherPortalBundleAutoRefresh } from "@/hooks/useTeacherPortalBundleAutoRefresh";
+import { useTeacherLiveClassDeliveryRdmAwards } from "@/hooks/useTeacherLiveClassDeliveryRdmAwards";
+import { useTeacherLiveClassQualityRdmAwards } from "@/hooks/useTeacherLiveClassQualityRdmAwards";
 import { useAdminTeacherPortalData } from "@/hooks/useAdminTeacherPortalData";
 import type { TeacherPortalSection } from "@/lib/teacherPortal/types";
 import TeacherPortalShell from "@/components/teacher-portal/shell/TeacherPortalShell";
@@ -148,6 +150,24 @@ function TeacherPortalPageContent() {
     enabled: Boolean(activeHook.data),
     skipRealtime: isAdminImpersonation,
     refresh: activeHook.refresh,
+  });
+
+  useTeacherLiveClassDeliveryRdmAwards({
+    teacherUserId: targetTeacherId,
+    enabled: Boolean(activeHook.data) && isTeacherRole && !isAdminImpersonation,
+    toast,
+    onAwarded: () => {
+      void activeHook.refresh({ silent: true });
+    },
+  });
+
+  useTeacherLiveClassQualityRdmAwards({
+    teacherUserId: targetTeacherId,
+    enabled: Boolean(activeHook.data) && isTeacherRole && !isAdminImpersonation,
+    toast,
+    onAwarded: () => {
+      void activeHook.refresh({ silent: true });
+    },
   });
 
   const { guardAction, isGateOpen, blockedActionLabel, closeGate } =
@@ -388,18 +408,25 @@ function TeacherPortalPageContent() {
             {activeSection === "referEarn" ? (
               <ReferEarnView
                 referStats={activeHook.data.referStats}
+                classrooms={activeHook.data.classrooms.map((c) => ({
+                  id: c.id,
+                  name: c.name,
+                  joinCode: c.joinCode,
+                  studentCount: c.studentCount,
+                }))}
                 onCopyLink={() => {
-                  void navigator.clipboard.writeText(activeHook.data!.referStats.referralLink);
+                  const link = activeHook.data!.referStats.referralLink;
+                  const fullLink =
+                    typeof window !== "undefined" && link.startsWith("/")
+                      ? `${window.location.origin}${link}`
+                      : link;
+                  void navigator.clipboard.writeText(fullLink);
                   toast({ title: "Referral link copied" });
                 }}
               />
             ) : null}
             {activeSection === "subscriptions" ? (
-              <SubscriptionsView
-                rdmBalance={rdmBalance}
-                teacherId={targetTeacherId ?? ""}
-                onRefresh={activeHook.refresh}
-              />
+              <SubscriptionsView onRefresh={activeHook.refresh} />
             ) : null}
             {activeSection === "profile" ? (
               <TeacherProfileView

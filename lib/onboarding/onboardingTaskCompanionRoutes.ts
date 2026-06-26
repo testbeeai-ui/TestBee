@@ -69,6 +69,15 @@ export function isPathRelevantForOnboardingTask(taskId: string, pathname: string
     case "profile":
       return p === "/profile" || p.startsWith("/profile/");
 
+    case "dashboard":
+      return p === "/home" || p.startsWith("/home/");
+
+    case "prep_mock":
+      return isPrepClassesPath(p) || isPrepMockPath(p);
+
+    case "rdm_wallet":
+      return p === "/profile" || p.startsWith("/profile/");
+
     case "play_dailydose":
       return p === "/play" || p.startsWith("/play/");
 

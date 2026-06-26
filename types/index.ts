@@ -115,6 +115,8 @@ export interface SavedRevisionCard {
   subject: Subject;
   classLevel: ClassLevel;
   status?: "unsure" | "tomorrow" | "know_it" | "new";
+  /** ISO — when a `tomorrow` card becomes due (next calendar day 9:00 local). */
+  reviewAt?: string;
   /** Deep Dive / InstaCue context when saved from a section */
   level?: DifficultyLevel;
   board?: Board;

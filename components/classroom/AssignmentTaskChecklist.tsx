@@ -110,7 +110,7 @@ function parseQuizSetFromHref(href: string): string | null {
         ? new URL(href)
         : new URL(href, "https://edublast.local");
     const set = url.searchParams.get("quizSet");
-    return set && /^[1-3]$/.test(set) ? set : null;
+    return set && /^[1-6]$/.test(set) ? set : null;
   } catch {
     return null;
   }

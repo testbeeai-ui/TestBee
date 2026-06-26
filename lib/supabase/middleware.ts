@@ -1,6 +1,10 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import type { Database } from "@/integrations/supabase/types";
+import { fetchWithDeadline } from "@/lib/supabase/fetchWithDeadline";
+
+const middlewareFetchTimeoutMs = Number(process.env.SUPABASE_MIDDLEWARE_FETCH_TIMEOUT_MS ?? 12_000);
+const middlewareFetch = fetchWithDeadline(fetch, middlewareFetchTimeoutMs);
 
 /**
  * Refreshes the Supabase session from cookies and returns a response that may
@@ -17,6 +21,7 @@ export function createSupabaseMiddleware(request: NextRequest): {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      global: { fetch: middlewareFetch },
       cookies: {
         getAll() {
           return request.cookies.getAll();

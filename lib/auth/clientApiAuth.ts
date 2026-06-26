@@ -2,6 +2,9 @@ import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { safeGetSession } from "@/lib/auth/safeSession";
 
+/** Abort hung browser → API calls (presence heartbeats, etc.). */
+const CLIENT_API_TIMEOUT_MS = Number(process.env.CLIENT_API_FETCH_TIMEOUT_MS ?? 25_000);
+
 /** Refresh access token before it expires (long orchestrator runs). */
 const EXPIRY_BUFFER_MS = 120_000;
 
@@ -62,18 +65,29 @@ export async function getClientApiAuthHeaders(): Promise<Record<string, string>>
 
 /**
  * Browser fetch with Supabase Bearer. On 401, refreshes session once and retries.
+ * Aborts after CLIENT_API_TIMEOUT_MS so heartbeats do not pile up for minutes.
  */
 export async function fetchWithClientAuth(
   input: RequestInfo | URL,
   init: RequestInit = {}
 ): Promise<Response> {
-  const auth = await getClientApiAuthHeaders();
-  const res = await fetch(input, mergeAuthHeaders(init, auth));
-  if (res.status !== 401) return res;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), CLIENT_API_TIMEOUT_MS);
 
-  const refreshed = await refreshSessionDeduped();
-  const token = refreshed?.access_token;
-  if (!token) return res;
+  const doFetch = async (auth: Record<string, string>) =>
+    fetch(input, { ...mergeAuthHeaders(init, auth), signal: controller.signal });
 
-  return fetch(input, mergeAuthHeaders(init, { Authorization: `Bearer ${token}` }));
+  try {
+    const auth = await getClientApiAuthHeaders();
+    const res = await doFetch(auth);
+    if (res.status !== 401) return res;
+
+    const refreshed = await refreshSessionDeduped();
+    const token = refreshed?.access_token;
+    if (!token) return res;
+
+    return doFetch({ Authorization: `Bearer ${token}` });
+  } finally {
+    clearTimeout(timer);
+  }
 }

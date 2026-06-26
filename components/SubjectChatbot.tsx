@@ -2,7 +2,11 @@
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, X, ChevronDown, Globe, Copy, Check, ChevronUp, Lock, RotateCcw } from "lucide-react";
+import { Send, ChevronDown, Copy, Check, ChevronUp, Bot } from "lucide-react";
+import ProfPiChatTrigger from "@/components/subject-chat/ProfPiChatTrigger";
+import ProfPiChatHeader from "@/components/subject-chat/ProfPiChatHeader";
+import ProfPiSuggestedChips from "@/components/subject-chat/ProfPiSuggestedChips";
+import { SUBJECT_META } from "@/components/subject-chat/profPiChatTheme";
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
@@ -16,7 +20,6 @@ import {
 } from "@/lib/subscription/subjectChatClient";
 import { resolveSubjectChatLanguage } from "@/lib/subscription/subjectChatLimits";
 import { getSubjectChatRegionalLabel, isRegionalSubjectChatCode, type SubjectChatRegionalCode } from "@/lib/subscription/subjectChatRegionalLanguage";
-import SubjectChatRegionalLanguageDropdownConfirm from "@/components/subject-chat/SubjectChatRegionalLanguageDropdownConfirm";
 
 interface Message {
   id: string;
@@ -39,33 +42,6 @@ interface Props {
   unitLabel?: string;
   chapterTitle?: string;
 }
-
-const SUBJECT_META: Record<
-  Subject,
-  { label: string; emoji: string; gradient: string; accentColor: string; lightBg: string }
-> = {
-  physics: {
-    label: "Physics Bot",
-    emoji: "⚡",
-    gradient: "from-blue-600 to-cyan-500",
-    accentColor: "#2563eb",
-    lightBg: "#eff6ff",
-  },
-  chemistry: {
-    label: "Chemistry Bot",
-    emoji: "🧪",
-    gradient: "from-purple-600 to-violet-500",
-    accentColor: "#7c3aed",
-    lightBg: "#f5f3ff",
-  },
-  math: {
-    label: "Math Bot",
-    emoji: "📐",
-    gradient: "from-orange-500 to-amber-400",
-    accentColor: "#ea580c",
-    lightBg: "#fff7ed",
-  },
-};
 
 const LANGUAGES = [
   { code: "en", label: "English" },
@@ -109,13 +85,7 @@ const TYPING_PHRASES: Record<string, string[]> = {
 // BotBubble: renders a bot message with collapsible long content + copy button
 const COLLAPSE_THRESHOLD = 420; // chars
 
-function BotBubble({
-  content,
-  accentColor,
-}: {
-  content: string;
-  accentColor: string;
-}) {
+function BotBubble({ content }: { content: string }) {
   const isLong = content.length > COLLAPSE_THRESHOLD;
   const [expanded, setExpanded] = useState(!isLong);
   const [copied, setCopied] = useState(false);
@@ -130,13 +100,31 @@ function BotBubble({
   return (
     <div className="group relative min-w-0 max-w-full w-full">
       <div
-        className={`min-w-0 max-w-full px-3 py-2 rounded-2xl rounded-bl-md shadow-sm border border-gray-100 bg-white text-gray-800 chat-markdown text-[14px] leading-snug ${!expanded ? "overflow-hidden" : "overflow-x-hidden"}`}
+        className={`min-w-0 max-w-full rounded-[14px] border border-[#2A3347] bg-[#1C2333] px-3.5 py-3 chat-markdown text-[13px] leading-relaxed ${!expanded ? "overflow-hidden" : "overflow-x-hidden"}`}
       >
+        <div className="mb-1.5 flex items-center gap-1.5">
+          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#534AB7] to-[#7F77DD]">
+            <Bot className="h-3 w-3 text-white" strokeWidth={2} aria-hidden />
+          </div>
+          <span className="text-xs font-semibold text-[#AFA9EC]">Prof Pi</span>
+          <button
+            type="button"
+            onClick={handleCopy}
+            className="ml-auto text-[#5C6480] transition-colors hover:text-[#9BA3B8]"
+            title="Copy"
+            aria-label="Copy message"
+          >
+            {copied ? (
+              <Check className="h-3.5 w-3.5 text-[#1D9E75]" />
+            ) : (
+              <Copy className="h-3.5 w-3.5" />
+            )}
+          </button>
+        </div>
         <ReactMarkdown
           remarkPlugins={[remarkMath]}
           rehypePlugins={[rehypeKatex]}
           components={{
-            // Sanitize links: block javascript: hrefs, always open external links safely
             a: ({ href, children }) => {
               const safe = href && !href.startsWith("javascript:") ? href : "#";
               return (
@@ -144,45 +132,32 @@ function BotBubble({
                   href={safe}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-blue-600 underline"
+                  className="text-[#AFA9EC] underline"
                 >
                   {children}
                 </a>
               );
             },
-            // Disable image rendering — LLM-generated image URLs can be tracking pixels
             img: () => null,
           }}
         >
           {expanded ? content : content.slice(0, COLLAPSE_THRESHOLD) + "…"}
         </ReactMarkdown>
       </div>
-      {/* Copy button — shown on hover */}
-      <button
-        onClick={handleCopy}
-        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-white border border-gray-200 rounded-lg p-1 shadow-sm hover:bg-gray-50"
-        title="Copy"
-      >
-        {copied ? (
-          <Check className="w-3 h-3 text-green-500" />
-        ) : (
-          <Copy className="w-3 h-3 text-gray-400" />
-        )}
-      </button>
       {isLong && (
         <button
+          type="button"
           onClick={() => setExpanded((p) => !p)}
-          className="mt-1 flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full hover:bg-gray-100 transition-colors"
-          style={{ color: accentColor }}
+          className="mt-1 flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold text-[#AFA9EC] transition-colors hover:bg-[#1C2333]"
         >
           {expanded ? (
             <>
-              <ChevronUp className="w-3 h-3" />
+              <ChevronUp className="h-3 w-3" />
               Show less
             </>
           ) : (
             <>
-              <ChevronDown className="w-3 h-3" />
+              <ChevronDown className="h-3 w-3" />
               Show more
             </>
           )}
@@ -207,7 +182,9 @@ function formatTime(date: Date) {
   return date.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
 }
 
-const CHATBOT_POSITION_KEY = "edublast-chatbot-position-v2";
+const CHATBOT_POSITION_KEY = "edublast-chatbot-position-v3";
+const CHATBOT_POSITION_KEY_LEGACY = "edublast-chatbot-position-v2";
+const LAUNCHER_BOUNDS = { width: 72, height: 72, margin: 8 };
 const CHATBOT_SIZE_KEY = "edublast-chatbot-size";
 const CHATBOT_HIDE_UNTIL_KEY = "edublast-chatbot-hide-until";
 const CHATBOT_HISTORY_PREFIX = "edublast-chatbot-history";
@@ -222,13 +199,50 @@ type StoredMessage = {
   timestamp: string;
 };
 
+function clampLauncherPosition(x: number, y: number): { x: number; y: number } {
+  if (typeof window === "undefined") return { x, y };
+  const maxX = Math.max(
+    LAUNCHER_BOUNDS.margin,
+    window.innerWidth - LAUNCHER_BOUNDS.width - LAUNCHER_BOUNDS.margin
+  );
+  const maxY = Math.max(
+    LAUNCHER_BOUNDS.margin,
+    window.innerHeight - LAUNCHER_BOUNDS.height - LAUNCHER_BOUNDS.margin
+  );
+  return {
+    x: Math.min(maxX, Math.max(LAUNCHER_BOUNDS.margin, x)),
+    y: Math.min(maxY, Math.max(LAUNCHER_BOUNDS.margin, y)),
+  };
+}
+
+function defaultLauncherPosition(): { x: number; y: number } {
+  if (typeof window === "undefined") return { x: 24, y: 24 };
+  return clampLauncherPosition(
+    24,
+    window.innerHeight - LAUNCHER_BOUNDS.height - 24
+  );
+}
+
 function getStoredPosition(): { x: number; y: number } | null {
   if (typeof window === "undefined") return null;
   try {
-    const s = localStorage.getItem(CHATBOT_POSITION_KEY);
-    if (!s) return null;
-    const { x, y } = JSON.parse(s) as { x: number; y: number };
-    if (typeof x === "number" && typeof y === "number") return { x, y };
+    const v3 = localStorage.getItem(CHATBOT_POSITION_KEY);
+    if (v3) {
+      const { x, y } = JSON.parse(v3) as { x: number; y: number };
+      if (typeof x === "number" && typeof y === "number") {
+        return clampLauncherPosition(x, y);
+      }
+    }
+    const legacy = localStorage.getItem(CHATBOT_POSITION_KEY_LEGACY);
+    if (legacy) {
+      const { x, y } = JSON.parse(legacy) as { x: number; y: number };
+      if (typeof x === "number" && typeof y === "number") {
+        return clampLauncherPosition(
+          x,
+          window.innerHeight - y - LAUNCHER_BOUNDS.height
+        );
+      }
+    }
   } catch {}
   return null;
 }
@@ -324,16 +338,18 @@ export default function SubjectChatbot({
   const [hasGreeted, setHasGreeted] = useState(false);
   const [position, setPosition] = useState<{ x: number; y: number }>({ x: 24, y: 24 });
   const [chatSize, setChatSize] = useState(DEFAULT_SIZE);
-  const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const [showHideMenu, setShowHideMenu] = useState(false);
   const [hideUntil, setHideUntil] = useState<number | null>(null);
   const [historyHydrated, setHistoryHydrated] = useState(false);
+  const [chipsResetKey, setChipsResetKey] = useState(0);
   const dragRef = useRef<{
     startX: number;
     startY: number;
     startPos: { x: number; y: number };
+    grabOffsetX: number;
+    grabOffsetY: number;
   } | null>(null);
   const resizeRef = useRef<{
     startX: number;
@@ -341,6 +357,9 @@ export default function SubjectChatbot({
     startSize: { width: number; height: number };
   } | null>(null);
   const justDraggedRef = useRef(false);
+  const isDraggingRef = useRef(false);
+  const positionRef = useRef(position);
+  positionRef.current = position;
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -517,7 +536,7 @@ export default function SubjectChatbot({
   // Apply stored position/size after mount to avoid hydration mismatch (localStorage only on client)
   useEffect(() => {
     const stored = getStoredPosition();
-    if (stored) setPosition(stored);
+    setPosition(stored ?? defaultLauncherPosition());
     const storedSize = getStoredSize();
     if (storedSize) setChatSize(storedSize);
     const storedHideUntil = getStoredHideUntil();
@@ -635,7 +654,7 @@ export default function SubjectChatbot({
       const greeting: Message = {
         id: crypto.randomUUID(),
         role: "bot",
-        content: `Hi! I'm your ${meta.label} ${meta.emoji}\n\nI'm here to help you master **${topic}**. Ask me anything — I can explain concepts, solve examples, and give memory tricks!\n\nWhat would you like to know? 🚀`,
+        content: `Hi! I'm your **${meta.label}** ${meta.emoji}\n\nI'm here to help you master **${topic}**. Ask me anything — I can explain concepts, solve numerical problems, and give you memory tricks for exams!\n\nWhat would you like to know? 🚀`,
         timestamp: new Date(),
       };
       setTimeout(() => setMessages([greeting]), 300);
@@ -794,50 +813,56 @@ export default function SubjectChatbot({
 
   const selectedLang = LANGUAGES.find((l) => l.code === language) ?? LANGUAGES[0];
 
-  const handlePointerDown = useCallback(
-    (e: React.PointerEvent) => {
-      if (e.button !== 0) return;
-      e.preventDefault();
-      // Do NOT capture pointer here — otherwise the bubble/button never receive click.
-      // We'll capture only once a drag is detected in handlePointerMove.
-      dragRef.current = { startX: e.clientX, startY: e.clientY, startPos: { ...position } };
-      setIsDragging(false);
-    },
-    [position]
-  );
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
 
-  const handlePointerMove = useCallback(
-    (e: React.PointerEvent) => {
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    dragRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      startPos: { ...positionRef.current },
+      grabOffsetX: e.clientX - rect.left,
+      grabOffsetY: e.clientY - rect.top,
+    };
+    isDraggingRef.current = false;
+
+    const onWindowMove = (ev: PointerEvent) => {
       if (!dragRef.current) return;
-      const dx = e.clientX - dragRef.current.startX;
-      const dy = e.clientY - dragRef.current.startY;
-      const startedDrag = !isDragging && (Math.abs(dx) > 4 || Math.abs(dy) > 4);
-      if (startedDrag) {
-        setIsDragging(true);
-        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+      const dx = ev.clientX - dragRef.current.startX;
+      const dy = ev.clientY - dragRef.current.startY;
+      if (!isDraggingRef.current && (Math.abs(dx) > 3 || Math.abs(dy) > 3)) {
+        isDraggingRef.current = true;
       }
-      if (isDragging || startedDrag) {
-        setPosition({
-          x: Math.max(0, Math.min(window.innerWidth - 80, dragRef.current.startPos.x + dx)),
-          y: Math.max(0, Math.min(window.innerHeight - 100, dragRef.current.startPos.y - dy)),
-        });
-      }
-    },
-    [isDragging]
-  );
+      if (!isDraggingRef.current) return;
+      const next = clampLauncherPosition(
+        ev.clientX - dragRef.current.grabOffsetX,
+        ev.clientY - dragRef.current.grabOffsetY
+      );
+      positionRef.current = next;
+      setPosition(next);
+    };
 
-  const handlePointerUp = useCallback(() => {
-    if (dragRef.current) {
-      if (isDragging) {
+    const onWindowUp = () => {
+      window.removeEventListener("pointermove", onWindowMove);
+      window.removeEventListener("pointerup", onWindowUp);
+      window.removeEventListener("pointercancel", onWindowUp);
+      if (!dragRef.current) return;
+      if (isDraggingRef.current) {
         justDraggedRef.current = true;
         try {
-          localStorage.setItem(CHATBOT_POSITION_KEY, JSON.stringify(position));
+          localStorage.setItem(CHATBOT_POSITION_KEY, JSON.stringify(positionRef.current));
         } catch {}
       }
       dragRef.current = null;
-    }
-    setIsDragging(false);
-  }, [isDragging, position]);
+      isDraggingRef.current = false;
+    };
+
+    window.addEventListener("pointermove", onWindowMove);
+    window.addEventListener("pointerup", onWindowUp);
+    window.addEventListener("pointercancel", onWindowUp);
+  }, []);
 
   const handleTriggerClick = useCallback(() => {
     if (justDraggedRef.current) {
@@ -856,6 +881,23 @@ export default function SubjectChatbot({
       localStorage.setItem(CHATBOT_HIDE_UNTIL_KEY, String(until));
     } catch {}
   }, []);
+
+  const buildWelcomeMessage = useCallback((): Message => {
+    return {
+      id: crypto.randomUUID(),
+      role: "bot",
+      content: `Hi! I'm your **${meta.label}** ${meta.emoji}\n\nI'm here to help you master **${topic}**. Ask me anything — I can explain concepts, solve numerical problems, and give you memory tricks for exams!\n\nWhat would you like to know? 🚀`,
+      timestamp: new Date(),
+    };
+  }, [meta.label, meta.emoji, topic]);
+
+  const handleResetChat = useCallback(() => {
+    try {
+      localStorage.removeItem(chatHistoryKey);
+    } catch {}
+    setChipsResetKey((k) => k + 1);
+    setMessages([buildWelcomeMessage()]);
+  }, [chatHistoryKey, buildWelcomeMessage]);
 
   const handleResizePointerDown = useCallback(
     (e: React.PointerEvent) => {
@@ -901,166 +943,23 @@ export default function SubjectChatbot({
 
   return (
     <>
-      {/* Floating trigger button - draggable */}
       <AnimatePresence>
         {!isOpen && !hideUntil && (
-          <div
-            className="fixed z-50 flex flex-col items-start gap-3 pointer-events-auto select-none cursor-grab active:cursor-grabbing"
-            style={{
-              left: position.x,
-              bottom: position.y,
-            }}
+          <ProfPiChatTrigger
+            position={position}
+            showHideMenu={showHideMenu}
+            onHideForMinutes={hideForMinutes}
+            onTriggerClick={handleTriggerClick}
             onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-            onPointerLeave={handlePointerUp}
-            onPointerCancel={handlePointerUp}
             onContextMenu={(e) => {
               e.preventDefault();
               e.stopPropagation();
               setShowHideMenu(true);
             }}
-          >
-            <AnimatePresence>
-              {showHideMenu && (
-                <motion.div
-                  initial={{ opacity: 0, y: 6, scale: 0.96 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 6, scale: 0.96 }}
-                  className="bg-white border border-gray-200 shadow-xl rounded-xl p-2 w-44"
-                  onPointerDown={(e) => e.stopPropagation()}
-                >
-                  <p className="text-[11px] font-semibold text-gray-500 px-2 pb-1">
-                    Hide AI helper
-                  </p>
-                  {[2, 5, 10].map((min) => (
-                    <button
-                      key={min}
-                      type="button"
-                      className="w-full text-left text-sm px-2.5 py-1.5 rounded-lg hover:bg-gray-100 text-gray-700"
-                      onClick={() => hideForMinutes(min)}
-                    >
-                      Hide for {min} min
-                    </button>
-                  ))}
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            <div className="group flex flex-row items-center gap-3">
-              {/* Interactive Bot Avatar */}
-              <motion.button
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={handleTriggerClick}
-              className="relative w-[68px] h-[68px] rounded-full flex items-center justify-center outline-none pointer-events-auto shrink-0"
-            >
-              {/* Pulse glowing rings */}
-              <motion.div
-                animate={{ scale: [1, 1.4, 1], opacity: [0.3, 0, 0.3] }}
-                transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
-                className={`absolute inset-0 rounded-full bg-gradient-to-br ${meta.gradient}`}
-              />
-              <motion.div
-                animate={{ scale: [1, 1.2, 1], opacity: [0.5, 0.1, 0.5] }}
-                transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
-                className={`absolute inset-0 rounded-full bg-gradient-to-br ${meta.gradient}`}
-              />
-
-              {/* Main orb core */}
-              <div
-                className={`relative w-full h-full rounded-full bg-gradient-to-br ${meta.gradient} shadow-2xl flex items-center justify-center overflow-visible border-2 border-white/30`}
-                style={{
-                  boxShadow: `0 8px 32px ${meta.accentColor}77, inset 0 4px 8px rgba(255,255,255,0.4)`,
-                }}
-              >
-                {/* Animated SVG inside */}
-                <motion.div
-                  animate={{ y: [-2, 2, -2] }}
-                  transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-                  className="flex items-center justify-center relative w-full h-full"
-                >
-                  <svg
-                    viewBox="0 0 100 100"
-                    className="w-[58%] h-[58%] fill-white overflow-visible"
-                  >
-                    {/* Head */}
-                    <rect
-                      x="15"
-                      y="30"
-                      width="70"
-                      height="50"
-                      rx="16"
-                      fill="white"
-                      opacity="0.95"
-                    />
-                    {/* Ears/Antenna base */}
-                    <rect x="8" y="45" width="10" height="20" rx="4" fill="white" opacity="0.8" />
-                    <rect x="82" y="45" width="10" height="20" rx="4" fill="white" opacity="0.8" />
-                    {/* Antenna wire & bulb */}
-                    <path
-                      d="M50 30 L50 12"
-                      stroke="white"
-                      strokeWidth="4"
-                      strokeLinecap="round"
-                      opacity="0.9"
-                    />
-                    <motion.circle
-                      cx="50"
-                      cy="8"
-                      r="6"
-                      fill="#fbbf24"
-                      animate={{ opacity: [0.4, 1, 0.4], scale: [0.9, 1.2, 0.9] }}
-                      transition={{ repeat: Infinity, duration: 1.5 }}
-                    />
-
-                    {/* Screen/Visor */}
-                    <rect x="25" y="42" width="50" height="28" rx="10" fill={meta.accentColor} />
-
-                    {/* Blinking Eyes */}
-                    <motion.g
-                      animate={{ scaleY: [1, 1, 0.1, 1, 1] }}
-                      transition={{ times: [0, 0.9, 0.95, 1, 1], duration: 4, repeat: Infinity }}
-                      style={{ transformOrigin: "50px 56px" }}
-                    >
-                      <circle cx="38" cy="56" r="6" fill="white" />
-                      <circle cx="62" cy="56" r="6" fill="white" />
-                    </motion.g>
-                  </svg>
-
-                  {/* Subject Context Badge */}
-                  <div className="absolute -bottom-1 -right-2 w-7 h-7 bg-white rounded-full flex items-center justify-center text-sm shadow-[0_4px_12px_rgba(0,0,0,0.15)] border-2 border-slate-50">
-                    {meta.emoji}
-                  </div>
-                </motion.div>
-              </div>
-            </motion.button>
-
-              {/* Tooltip — desktop only, right of avatar (toward content), hover only */}
-              <div
-                className="pointer-events-none hidden max-w-[220px] origin-left scale-95 flex-row items-center gap-2 rounded-2xl rounded-l-sm border border-gray-100/50 bg-white px-4 py-2.5 opacity-0 shadow-xl transition-all duration-200 group-hover:pointer-events-auto group-hover:scale-100 group-hover:opacity-100 lg:flex"
-                onClick={handleTriggerClick}
-                onPointerDown={(e) => e.stopPropagation()}
-              >
-                <span className="text-sm font-semibold text-gray-700 whitespace-nowrap">
-                  Need help? Ask AI!
-                </span>
-                <motion.span
-                  animate={{ rotate: [0, 15, -10, 15, 0] }}
-                  transition={{ repeat: Infinity, duration: 2 }}
-                  className="inline-block origin-bottom-center"
-                >
-                  👋
-                </motion.span>
-              </div>
-            </div>
-          </div>
+          />
         )}
       </AnimatePresence>
 
-      {/* Chat window */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -1068,166 +967,60 @@ export default function SubjectChatbot({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 60, scale: 0.9 }}
             transition={{ type: "spring", stiffness: 280, damping: 26 }}
-            className="subject-chat-panel fixed bottom-6 left-6 z-50 flex min-h-0 min-w-0 flex-col rounded-3xl overflow-hidden shadow-2xl"
+            className="subject-chat-panel fixed bottom-6 left-6 z-50 flex min-h-0 min-w-0 flex-col overflow-hidden rounded-[20px] border border-[#2A3347] bg-[#161B25]"
             style={{
               width: `min(${chatSize.width}px, calc(100vw - 24px))`,
               height: `min(${chatSize.height}px, calc(100vh - 80px))`,
-              boxShadow: `0 24px 80px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)`,
+              boxShadow: "0 8px 40px rgba(0,0,0,0.6)",
             }}
           >
-            {/* Resize handle — top-left corner, 3×3 dot grip */}
             <div
               onPointerDown={handleResizePointerDown}
               onPointerMove={handleResizePointerMove}
               onPointerUp={handleResizePointerUp}
               onPointerCancel={handleResizePointerUp}
-              className="absolute top-0 left-0 w-8 h-8 z-[60] cursor-nw-resize flex items-center justify-center group/resize"
+              className="absolute top-0 left-0 z-[60] flex h-8 w-8 cursor-nw-resize items-center justify-center group/resize"
               style={{ touchAction: "none" }}
               title="Drag to resize"
             >
-              <div className="grid grid-cols-3 gap-[3px] opacity-40 group-hover/resize:opacity-80 transition-opacity">
+              <div className="grid grid-cols-3 gap-[3px] opacity-40 transition-opacity group-hover/resize:opacity-80">
                 {Array.from({ length: 9 }).map((_, i) => (
-                  <div key={i} className="w-[3px] h-[3px] rounded-full bg-white" />
+                  <div key={i} className="h-[3px] w-[3px] rounded-full bg-white/60" />
                 ))}
               </div>
             </div>
-            {/* Header */}
-            <div
-              className={`flex items-center justify-between px-3 py-2.5 bg-gradient-to-br ${meta.gradient} text-white shrink-0`}
-            >
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center text-base backdrop-blur-sm shrink-0">
-                  {meta.emoji}
-                </div>
-                <div className="min-w-0">
-                  <p className="font-semibold text-sm leading-tight truncate">{meta.label}</p>
-                  <p className="text-[10px] text-white/70 leading-tight truncate">{topic}</p>
-                </div>
-              </div>
 
-              <div className="flex items-center gap-2">
-                <div className="relative flex items-center gap-1.5">
-                  {isAppAdmin && (
-                    <button
-                      type="button"
-                      onClick={() => void handleAdminResetRegionalLanguage()}
-                      disabled={resettingRegionalLanguage}
-                      title="Reset language lock (admin)"
-                      aria-label="Reset language lock (admin)"
-                      className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20 text-white transition-colors hover:bg-white/30 disabled:opacity-60"
-                    >
-                      <RotateCcw
-                        className={`h-3.5 w-3.5 ${resettingRegionalLanguage ? "animate-spin" : ""}`}
-                      />
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={toggleLangMenu}
-                    aria-expanded={showLangMenu}
-                    aria-haspopup="listbox"
-                    className="flex items-center gap-1.5 pl-2.5 pr-2 py-1.5 rounded-full bg-white shadow-sm border-2 transition-all hover:shadow-md text-xs font-semibold text-slate-800"
-                    style={{ borderColor: meta.accentColor }}
-                  >
-                    <Globe className="w-3.5 h-3.5 shrink-0" style={{ color: meta.accentColor }} />
-                    <span className="max-w-[5.5rem] truncate">{selectedLang.label}</span>
-                    <ChevronDown
-                      className={`w-3.5 h-3.5 shrink-0 text-slate-500 transition-transform ${showLangMenu ? "rotate-180" : ""}`}
-                    />
-                  </button>
-                  <AnimatePresence>
-                    {showLangMenu && (
-                      <motion.div
-                        role={langConfirmOpen && pendingRegionalCode ? "dialog" : "listbox"}
-                        initial={{ opacity: 0, y: -6, scale: 0.95 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: -6, scale: 0.95 }}
-                        className={`absolute right-0 top-full mt-1.5 bg-white rounded-xl overflow-hidden z-20 border-2 ${
-                          langConfirmOpen && pendingRegionalCode
-                            ? "min-w-[17rem] max-w-[min(17rem,calc(100vw-2rem))] shadow-xl"
-                            : "min-w-[9.5rem] py-0.5 shadow-lg"
-                        }`}
-                        style={{ borderColor: meta.accentColor }}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {langConfirmOpen && pendingRegionalCode ? (
-                          <SubjectChatRegionalLanguageDropdownConfirm
-                            pendingCode={pendingRegionalCode}
-                            accentColor={meta.accentColor}
-                            lightBg={meta.lightBg}
-                            accessToken={session?.access_token}
-                            onCancel={handleLangConfirmCancel}
-                            onSaved={handleRegionalLanguageSaved}
-                            onError={handleRegionalLanguageError}
-                          />
-                        ) : (
-                          LANGUAGES.map((lang) => {
-                          const isActive = language === lang.code;
-                          const isEnglish = lang.code === "en";
-                          const isLockedNonPro = !isEnglish && !hasMultilingual;
-                          const isLockedOtherRegional =
-                            hasMultilingual &&
-                            regionalLanguage != null &&
-                            !isEnglish &&
-                            lang.code !== regionalLanguage;
-                          const isLocked = isLockedNonPro || isLockedOtherRegional;
-                          return (
-                            <button
-                              key={lang.code}
-                              type="button"
-                              role="option"
-                              aria-selected={isActive}
-                              aria-disabled={isLocked}
-                              onClick={() => handleLanguageSelect(lang.code)}
-                              className={`w-full flex items-center justify-between gap-2 px-3 py-2 text-[13px] text-left transition-colors border-l-[3px] ${
-                                isActive
-                                  ? "font-semibold border-l-current"
-                                  : isLocked
-                                    ? "font-medium text-slate-400 border-l-transparent hover:bg-slate-50"
-                                    : "font-medium text-slate-600 border-l-transparent hover:bg-slate-50"
-                              }`}
-                              style={
-                                isActive
-                                  ? {
-                                      color: meta.accentColor,
-                                      backgroundColor: meta.lightBg,
-                                      borderLeftColor: meta.accentColor,
-                                    }
-                                  : undefined
-                              }
-                            >
-                              <span>{lang.label}</span>
-                              {isActive ? (
-                                <Check className="w-3.5 h-3.5 shrink-0" style={{ color: meta.accentColor }} />
-                              ) : isLocked ? (
-                                <Lock className="w-3.5 h-3.5 shrink-0 text-slate-400" />
-                              ) : null}
-                            </button>
-                          );
-                        })
-                        )}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
+            <ProfPiChatHeader
+              subject={subject}
+              topic={topic}
+              subtopic={subtopic}
+              chapterTitle={chapterTitle}
+              gradeLevel={gradeLevel}
+              selectedLangLabel={selectedLang.label}
+              language={language}
+              showLangMenu={showLangMenu}
+              langConfirmOpen={langConfirmOpen}
+              pendingRegionalCode={pendingRegionalCode}
+              hasMultilingual={hasMultilingual}
+              regionalLanguage={regionalLanguage}
+              isAppAdmin={isAppAdmin}
+              resettingRegionalLanguage={resettingRegionalLanguage}
+              accessToken={session?.access_token}
+              onToggleLangMenu={toggleLangMenu}
+              onLanguageSelect={handleLanguageSelect}
+              onLangConfirmCancel={handleLangConfirmCancel}
+              onRegionalLanguageSaved={handleRegionalLanguageSaved}
+              onRegionalLanguageError={handleRegionalLanguageError}
+              onAdminResetRegionalLanguage={handleAdminResetRegionalLanguage}
+              onResetChat={handleResetChat}
+              onClose={() => setIsOpen(false)}
+            />
 
-                <button
-                  type="button"
-                  onClick={() => setIsOpen(false)}
-                  className="w-8 h-8 rounded-xl bg-white/15 hover:bg-white/25 transition-colors flex items-center justify-center"
-                  aria-label="Close chat"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-
-            {/* Messages + presets (single surface — avoids seam / dark line between sections) */}
-            <div className="relative flex-1 min-h-0 min-w-0 overflow-hidden bg-[#f8f9fc]">
+            <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden bg-[#161B25]">
               <div
                 ref={scrollContainerRef}
                 onScroll={handleScroll}
-                className="h-full min-h-0 min-w-0 overflow-y-auto overflow-x-hidden overscroll-contain px-3 py-2.5 space-y-2.5"
+                className="h-full min-h-0 min-w-0 space-y-2.5 overflow-y-auto overflow-x-hidden overscroll-contain px-3.5 py-3.5 [scrollbar-color:#334060_transparent] [scrollbar-width:thin]"
                 onClick={() => setShowLangMenu(false)}
               >
                 <AnimatePresence initial={false}>
@@ -1237,92 +1030,53 @@ export default function SubjectChatbot({
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.2 }}
-                      className={`flex min-w-0 ${msg.role === "user" ? "justify-end" : "justify-start"} gap-2`}
+                      className={`flex min-w-0 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
                     >
-                      {msg.role === "bot" && (
-                        <div
-                          className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs shrink-0 mt-0.5 bg-gradient-to-br ${meta.gradient} text-white`}
-                        >
-                          {meta.emoji}
-                        </div>
-                      )}
                       <div
-                        className={`min-w-0 max-w-[82%] ${msg.role === "user" ? "items-end" : "items-start"} flex flex-col gap-1 group/msg`}
+                        className={`min-w-0 flex flex-col gap-1 group/msg ${msg.role === "user" ? "max-w-[88%] items-end" : "max-w-full w-full items-start"}`}
                       >
                         {msg.role === "user" ? (
-                          <div
-                            className="px-3 py-2 rounded-2xl text-[14px] leading-snug text-white rounded-br-md whitespace-pre-wrap"
-                            style={{
-                              background: `linear-gradient(135deg, ${meta.accentColor}, ${meta.accentColor}cc)`,
-                            }}
-                          >
+                          <div className="whitespace-pre-wrap rounded-[14px] border border-[#1D9E75]/40 bg-[#0A2A20] px-3.5 py-2.5 text-[13px] leading-relaxed text-[#9FE1CB]">
                             {msg.content}
                           </div>
                         ) : (
-                          <BotBubble
-                            content={msg.content}
-                            accentColor={meta.accentColor}
-                          />
+                          <BotBubble content={msg.content} />
                         )}
-                        <span className="text-[10px] text-gray-400 px-1 opacity-0 group-hover/msg:opacity-100 transition-opacity">
+                        <span className="px-1 text-[10px] text-[#5C6480] opacity-0 transition-opacity group-hover/msg:opacity-100">
                           {formatTime(msg.timestamp)}
                         </span>
                       </div>
                     </motion.div>
                   ))}
 
-                  {/* Typing indicator */}
                   {isLoading && (
                     <motion.div
                       key="typing"
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0 }}
-                      className="flex items-center gap-2"
+                      className="flex items-start"
                     >
-                      <div
-                        className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs bg-gradient-to-br ${meta.gradient} text-white`}
-                      >
-                        {meta.emoji}
-                      </div>
-                      <div className="bg-white rounded-2xl rounded-bl-md px-3 py-2 shadow-sm border border-gray-100 flex items-center gap-2">
+                      <div className="flex items-center gap-2 rounded-[14px] border border-[#2A3347] bg-[#1C2333] px-3.5 py-2.5">
                         <div className="flex items-center gap-1.5">
                           {[0, 0.15, 0.3].map((delay, i) => (
                             <motion.div
                               key={i}
-                              className="w-2 h-2 rounded-full"
-                              style={{ backgroundColor: meta.accentColor }}
+                              className="h-2 w-2 rounded-full bg-[#7F77DD]"
                               animate={{ y: [0, -5, 0], opacity: [0.4, 1, 0.4] }}
                               transition={{ repeat: Infinity, duration: 0.8, delay }}
                             />
                           ))}
                         </div>
-                        <span className="text-[10px] text-gray-400 italic">{typingPhrase}</span>
+                        <span className="text-[10px] italic text-[#5C6480]">{typingPhrase}</span>
                       </div>
                     </motion.div>
                   )}
                 </AnimatePresence>
 
-                {messages.length <= 1 && (
-                  <div className="flex flex-wrap gap-1.5 pt-1">
-                    {presets.map((q) => (
-                      <button
-                        key={q}
-                        type="button"
-                        onClick={() => sendMessage(q)}
-                        disabled={isLoading}
-                        className="text-[10px] font-medium px-2.5 py-1 rounded-full border border-gray-200 bg-white hover:border-blue-300 hover:text-blue-600 text-gray-600 transition-colors shadow-sm leading-snug disabled:opacity-50"
-                      >
-                        {q}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Scroll-to-bottom button */}
               <AnimatePresence>
                 {showScrollBtn && (
                   <motion.button
@@ -1331,49 +1085,56 @@ export default function SubjectChatbot({
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.8 }}
                     onClick={scrollToBottom}
-                    className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-gray-200 shadow-md text-[11px] font-semibold text-gray-600 hover:bg-gray-50 transition-colors z-10"
+                    className="absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-[#2A3347] bg-[#1C2333] px-3 py-1.5 text-[11px] font-semibold text-[#9BA3B8] shadow-md transition-colors hover:bg-[#222A3A]"
                   >
-                    <ChevronDown className="w-3.5 h-3.5" />
+                    <ChevronDown className="h-3.5 w-3.5" />
                     Scroll to latest
                   </motion.button>
                 )}
               </AnimatePresence>
             </div>
 
-            {/* Input bar */}
-            <div className="shrink-0 bg-white border-t border-gray-100/80 px-2.5 py-2 flex items-end gap-2">
-              <div className="flex-1 bg-[#f1f5f9] rounded-xl px-3 py-2 flex items-end gap-2 min-h-[40px]">
-                <textarea
-                  ref={inputRef}
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder={
-                    !session?.access_token ? "Sign in to chat..." : `Ask ${meta.label}...`
-                  }
-                  rows={1}
-                  disabled={isLoading}
-                  className="flex-1 bg-transparent resize-none text-xs text-gray-800 placeholder-gray-400 outline-none leading-snug max-h-24 overflow-y-auto"
-                  style={{ minHeight: "18px" }}
-                  onInput={(e) => {
-                    const el = e.currentTarget;
-                    el.style.height = "auto";
-                    el.style.height = Math.min(el.scrollHeight, 96) + "px";
-                  }}
-                />
-              </div>
+            {messages.length <= 1 && (
+              <ProfPiSuggestedChips
+                presets={presets}
+                subject={subject}
+                isLoading={isLoading}
+                resetKey={chipsResetKey}
+                onSelect={sendMessage}
+              />
+            )}
+
+            <div className="flex shrink-0 items-center gap-2 border-t border-[#2A3347] bg-[#161B25] px-3.5 py-2.5">
+              <textarea
+                ref={inputRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder={
+                  !session?.access_token ? "Sign in to chat..." : "Ask Prof Pi anything…"
+                }
+                rows={1}
+                disabled={isLoading}
+                className="min-h-[36px] max-h-24 flex-1 resize-none rounded-[20px] border border-[#2A3347] bg-[#1C2333] px-3.5 py-2 text-[13px] leading-snug text-[#E8EAF0] outline-none placeholder:text-[#5C6480] focus:border-[#7F77DD] focus:shadow-[0_0_0_2px_rgba(127,119,221,0.15)] overflow-y-auto"
+                onInput={(e) => {
+                  const el = e.currentTarget;
+                  el.style.height = "auto";
+                  el.style.height = Math.min(el.scrollHeight, 96) + "px";
+                }}
+              />
               <motion.button
                 whileHover={{ scale: 1.08 }}
                 whileTap={{ scale: 0.92 }}
                 onClick={() => sendMessage(input)}
                 disabled={!input.trim() || isLoading}
-                className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all shrink-0 ${
+                aria-label="Send message"
+                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-all ${
                   input.trim() && !isLoading
-                    ? `bg-gradient-to-br ${meta.gradient} text-white shadow-md`
-                    : "bg-gray-100 text-gray-400"
+                    ? "bg-gradient-to-br from-[#534AB7] to-[#7F77DD] text-white shadow-md"
+                    : "bg-[#1C2333] text-[#5C6480]"
                 }`}
               >
-                <Send className="w-3.5 h-3.5" />
+                <Send className="h-4 w-4" />
               </motion.button>
             </div>
           </motion.div>

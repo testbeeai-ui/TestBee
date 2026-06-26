@@ -1,0 +1,34 @@
+﻿# Build & dependencies — large, regenerated; rarely edited by agents
+.next/
+out/
+build/
+node_modules/
+.pnp
+.pnp.js
+
+# Local indexes & caches (.codegraph/ kept — agent uses CodeGraph MCP)
+/data/local-cache/
+coverage/
+*.tsbuildinfo
+
+# Generated / bulk types — huge; edit via migrations or regen, not by hand
+integrations/supabase/types.ts
+
+# Transient debug & one-off scripts (see repo-layout: scratch → docs/dev-notes or scripts/)
+scratch/
+/docs/dev-notes/
+
+# Python / Modal local env
+__pycache__/
+modal-rag/.venv/
+
+# Supabase local temp
+supabase/.temp/
+
+# Env & secrets (never index)
+.env
+.env*.local
+
+# Vercel / misc local
+.vercel/
+.DS_Store

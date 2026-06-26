@@ -58,6 +58,12 @@ export function TeacherCouponsTab() {
   const [restrictedIds, setRestrictedIds] = useState<string[]>([]);
   const [generatorLoading, setGeneratorLoading] = useState(false);
 
+  const [planCouponTier, setPlanCouponTier] = useState<"starter" | "pro">("starter");
+  const [planCouponMonths, setPlanCouponMonths] = useState(1);
+  const [planCouponCount, setPlanCouponCount] = useState(1);
+  const [planCouponRestrictedIds, setPlanCouponRestrictedIds] = useState<string[]>([]);
+  const [planGeneratorLoading, setPlanGeneratorLoading] = useState(false);
+
   // Load coupons and teachers
   async function loadData() {
     setLoading(true);
@@ -168,6 +174,48 @@ export function TeacherCouponsTab() {
       });
     } finally {
       setGeneratorLoading(false);
+    }
+  };
+
+  const handleGeneratePlanCoupons = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPlanGeneratorLoading(true);
+    try {
+      const { session } = await safeGetSession();
+      if (!session?.access_token) throw new Error("Missing session");
+
+      const res = await fetch("/api/admin/coupons/teacher-plan", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          planTier: planCouponTier,
+          durationMonths: planCouponMonths,
+          count: planCouponCount,
+          restrictedToTeacherIds:
+            planCouponRestrictedIds.length > 0 ? planCouponRestrictedIds : null,
+        }),
+      });
+
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error || "Failed to generate plan coupons");
+
+      toast({
+        title: "Plan coupons generated",
+        description: `Created ${body.coupons?.length ?? planCouponCount} ${planCouponTier === "pro" ? "Premium (Pro)" : "Basic (Starter)"} coupon(s).`,
+      });
+      setPlanCouponRestrictedIds([]);
+      setPlanCouponCount(1);
+    } catch (err) {
+      toast({
+        title: "Generation failed",
+        description: err instanceof Error ? err.message : "Could not generate plan coupons",
+        variant: "destructive",
+      });
+    } finally {
+      setPlanGeneratorLoading(false);
     }
   };
 
@@ -646,6 +694,89 @@ export function TeacherCouponsTab() {
               {generatorLoading ? "Generating..." : `Generate ${generateCount} Coupon(s)`}
             </Button>
           </div>
+        </form>
+      )}
+
+      {activeTab === "generate" && (
+        <form
+          onSubmit={(e) => void handleGeneratePlanCoupons(e)}
+          className="rounded-xl border border-violet-500/20 bg-card p-6 space-y-5"
+        >
+          <div>
+            <h3 className="text-lg font-bold">Plan coupons (Basic / Premium)</h3>
+            <p className="text-xs text-muted-foreground mt-1">
+              Basic = Starter Teacher · Premium = Pro Teacher. Teachers claim these on Subscriptions.
+            </p>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Plan</label>
+              <select
+                className="w-full border bg-background rounded-xl px-3 py-2 text-sm"
+                value={planCouponTier}
+                onChange={(e) => setPlanCouponTier(e.target.value as "starter" | "pro")}
+              >
+                <option value="starter">Basic (Starter)</option>
+                <option value="pro">Premium (Pro)</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Duration (months)</label>
+              <Input
+                type="number"
+                min={1}
+                max={24}
+                value={planCouponMonths}
+                onChange={(e) =>
+                  setPlanCouponMonths(Math.max(1, Math.min(24, Number(e.target.value))))
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Quantity</label>
+              <Input
+                type="number"
+                min={1}
+                max={100}
+                value={planCouponCount}
+                disabled={planCouponRestrictedIds.length > 0}
+                onChange={(e) =>
+                  setPlanCouponCount(Math.max(1, Math.min(100, Number(e.target.value))))
+                }
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Restrict to teachers (optional)</label>
+            <div className="border rounded-xl max-h-40 overflow-y-auto divide-y p-1">
+              {teachers.map((teacher) => {
+                const checked = planCouponRestrictedIds.includes(teacher.id);
+                return (
+                  <label key={teacher.id} className="flex items-center gap-2 p-2 text-xs cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => {
+                        if (checked) {
+                          const next = planCouponRestrictedIds.filter((id) => id !== teacher.id);
+                          setPlanCouponRestrictedIds(next);
+                          setPlanCouponCount(next.length > 0 ? next.length : 1);
+                        } else {
+                          const next = [...planCouponRestrictedIds, teacher.id];
+                          setPlanCouponRestrictedIds(next);
+                          setPlanCouponCount(next.length);
+                        }
+                      }}
+                    />
+                    {teacher.email || teacher.name || teacher.id}
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+          <Button type="submit" disabled={planGeneratorLoading} className="w-full rounded-xl py-6">
+            {planGeneratorLoading ? "Generating…" : "Generate plan coupon(s)"}
+          </Button>
         </form>
       )}
     </div>

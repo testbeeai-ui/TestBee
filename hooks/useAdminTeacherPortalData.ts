@@ -125,6 +125,8 @@ interface UseAdminTeacherPortalDataResult {
   deleteClassroom: (input: { teacherId: string; classroomId: string }) => Promise<void>;
 }
 
+type AdminPortalCallbackArg<T extends (...args: never[]) => unknown> = Parameters<T>[0];
+
 export function useAdminTeacherPortalData(
   teacherId: string | null | undefined
 ): UseAdminTeacherPortalDataResult {
@@ -171,11 +173,7 @@ export function useAdminTeacherPortalData(
   }, [teacherId, refresh]);
 
   const createClassroom = useCallback(
-    async (
-      input: UseAdminTeacherPortalDataResult["createClassroom"] extends (a: infer A) => any
-        ? A
-        : never
-    ) => {
+    async (input: AdminPortalCallbackArg<UseAdminTeacherPortalDataResult["createClassroom"]>) => {
       if (!teacherId) throw new Error("Missing teacherId");
       const res = await adminFetch(`/api/admin/teachers/${teacherId}/classrooms/create`, {
         method: "POST",
@@ -190,11 +188,7 @@ export function useAdminTeacherPortalData(
   );
 
   const updateClassroom = useCallback(
-    async (
-      input: UseAdminTeacherPortalDataResult["updateClassroom"] extends (a: infer A) => any
-        ? A
-        : never
-    ) => {
+    async (input: AdminPortalCallbackArg<UseAdminTeacherPortalDataResult["updateClassroom"]>) => {
       if (!teacherId) throw new Error("Missing teacherId");
       const res = await adminFetch(`/api/admin/teachers/${teacherId}/classrooms/update`, {
         method: "POST",
@@ -209,11 +203,7 @@ export function useAdminTeacherPortalData(
   );
 
   const deleteClassroom = useCallback(
-    async (
-      input: UseAdminTeacherPortalDataResult["deleteClassroom"] extends (a: infer A) => any
-        ? A
-        : never
-    ) => {
+    async (input: AdminPortalCallbackArg<UseAdminTeacherPortalDataResult["deleteClassroom"]>) => {
       if (!teacherId) throw new Error("Missing teacherId");
       const res = await adminFetch(`/api/admin/teachers/${teacherId}/classrooms/delete`, {
         method: "POST",
@@ -228,9 +218,7 @@ export function useAdminTeacherPortalData(
   );
 
   const saveProfile = useCallback(
-    async (
-      input: UseAdminTeacherPortalDataResult["saveProfile"] extends (a: infer A) => any ? A : never
-    ) => {
+    async (input: AdminPortalCallbackArg<UseAdminTeacherPortalDataResult["saveProfile"]>) => {
       if (!teacherId) throw new Error("Missing teacherId");
       const res = await adminFetch(`/api/admin/teachers/${teacherId}/profile/update`, {
         method: "POST",
@@ -245,11 +233,7 @@ export function useAdminTeacherPortalData(
   );
 
   const createAssignment = useCallback(
-    async (
-      input: UseAdminTeacherPortalDataResult["createAssignment"] extends (a: infer A) => any
-        ? A
-        : never
-    ) => {
+    async (input: AdminPortalCallbackArg<UseAdminTeacherPortalDataResult["createAssignment"]>) => {
       if (!teacherId) throw new Error("Missing teacherId");
       const res = await adminFetch(`/api/admin/teachers/${teacherId}/assignments/create`, {
         method: "POST",
@@ -267,11 +251,7 @@ export function useAdminTeacherPortalData(
   );
 
   const createSession = useCallback(
-    async (
-      input: UseAdminTeacherPortalDataResult["createSession"] extends (a: infer A) => any
-        ? A
-        : never
-    ) => {
+    async (input: AdminPortalCallbackArg<UseAdminTeacherPortalDataResult["createSession"]>) => {
       if (!teacherId) throw new Error("Missing teacherId");
       const res = await adminFetch(`/api/admin/teachers/${teacherId}/sessions/create`, {
         method: "POST",
@@ -286,11 +266,7 @@ export function useAdminTeacherPortalData(
   );
 
   const motivateStudents = useCallback(
-    async (
-      input: UseAdminTeacherPortalDataResult["motivateStudents"] extends (a: infer A) => any
-        ? A
-        : never
-    ) => {
+    async (input: AdminPortalCallbackArg<UseAdminTeacherPortalDataResult["motivateStudents"]>) => {
       if (!teacherId) throw new Error("Missing teacherId");
       const res = await adminFetch(`/api/admin/teachers/${teacherId}/motivation/send`, {
         method: "POST",
@@ -305,11 +281,7 @@ export function useAdminTeacherPortalData(
   );
 
   const rewardTopStudents = useCallback(
-    async (
-      input: UseAdminTeacherPortalDataResult["rewardTopStudents"] extends (a: infer A) => any
-        ? A
-        : never
-    ) => {
+    async (input: AdminPortalCallbackArg<UseAdminTeacherPortalDataResult["rewardTopStudents"]>) => {
       if (!teacherId) throw new Error("Missing teacherId");
       const res = await adminFetch(`/api/admin/teachers/${teacherId}/motivation/send`, {
         method: "POST",

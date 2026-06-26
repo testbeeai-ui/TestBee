@@ -9,6 +9,11 @@ import { Button } from "@/components/ui/button";
 import { getDeepDiveContent } from "@/data/deepDiveContent";
 import { getTheoryOrPlaceholder } from "@/data/topicTheory";
 import { resolveTopicFromParams, buildTopicPath } from "@/lib/curriculum/topicRoutes";
+import {
+  formatDifficultyLevelForUi,
+  type DifficultyLevel,
+  stripCurriculumLevelFromTitle,
+} from "@/lib/slugs";
 import { useTopicTaxonomy } from "@/hooks/useTopicTaxonomy";
 import type { SavedRevisionUnit, SavedBit, SavedFormula, Board } from "@/types";
 import { parseTheorySections } from "@/components/TheoryContentWithDeepDive";
@@ -380,8 +385,7 @@ function DeepDivePageInner() {
   const [formulaSaveDialogOpen, setFormulaSaveDialogOpen] = useState(false);
   const [formulaRegenDialogOpen, setFormulaRegenDialogOpen] = useState(false);
   const [formulaCurrentIndex, setFormulaCurrentIndex] = useState(0);
-  const levelLabel =
-    level === "intermediate" ? "Intermediate" : level === "advanced" ? "Advanced" : "Basic";
+  const levelUiLabel = formatDifficultyLevelForUi(level as DifficultyLevel);
 
   const { deepDiveContent, sectionTitle, instaCueCards, topicHref, topicNode, subtopicName } =
     useMemo(() => {
@@ -585,7 +589,7 @@ function DeepDivePageInner() {
 
         <h2 className="font-extrabold text-xl text-foreground mb-2 flex items-center gap-2">
           <BookOpen className="w-5 h-5 text-primary" />
-          {sectionTitle}
+          {stripCurriculumLevelFromTitle(sectionTitle)}
         </h2>
         <p className="text-sm text-muted-foreground mb-6 min-w-0 overflow-hidden">
           <MathText as="span" weight="semibold" className="font-semibold text-foreground">
@@ -631,7 +635,7 @@ function DeepDivePageInner() {
                           board: (board === "icse" ? "ICSE" : "CBSE") as Board,
                         } as Parameters<typeof saveRevisionCard>[0]);
                         try {
-                          await syncAllSavedContent();
+                          await syncAllSavedContent({ immediate: true });
                         } catch {
                           /* best-effort */
                         }
@@ -700,7 +704,7 @@ function DeepDivePageInner() {
                 <MathText as="span" className="min-w-0">
                   {subtopicMathTextLabel(subtopicName)}
                 </MathText>
-                <span> (Level: {levelLabel})</span>
+                {levelUiLabel ? <span> (Level: {levelUiLabel})</span> : null}
               </DialogTitle>
             </DialogHeader>
             {deepDiveContent?.bitsQuestions && deepDiveContent.bitsQuestions.length > 0 ? (

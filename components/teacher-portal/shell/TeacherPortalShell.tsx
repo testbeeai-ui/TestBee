@@ -22,6 +22,7 @@ import type { TeacherPortalSection } from "@/lib/teacherPortal/types";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { TEACHER_PORTAL_CLASSROOMS_URL } from "@/lib/teacherPortal/routes";
+import { DEFAULT_LIVE_CLASS_DELIVERY_RDM_CONFIG } from "@/lib/teacherPortal/liveClassDeliveryRdm";
 import { DEFAULT_RDM_CONFIG } from "@/lib/rdm/rdmConfig";
 
 interface TeacherPortalShellProps {
@@ -52,7 +53,12 @@ const WALLET_EARNING_RATES = [
     icon: Star,
     color: "text-amber-300",
   },
-  { label: "Live class conversion", amount: 30, icon: Zap, color: "text-emerald-300" },
+  {
+    label: "Section schedule class",
+    amount: DEFAULT_LIVE_CLASS_DELIVERY_RDM_CONFIG.baseRdm,
+    icon: Zap,
+    color: "text-emerald-300",
+  },
   { label: "Refer a teacher", amount: 100, icon: Users, color: "text-violet-300" },
   { label: "Content co-creation", amount: 20, icon: TrendingUp, color: "text-sky-300" },
 ] as const;

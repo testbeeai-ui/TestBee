@@ -935,6 +935,8 @@ interface MathTextProps {
   as?: "span" | "div";
   /** Heavier weight for headings (plain text + KaTeX formulas). */
   weight?: "normal" | "semibold" | "bold" | "extrabold";
+  /** Single-line pill/chip: skip multi-line subtopic layouts; ellipsis at container edge. */
+  compact?: boolean;
 }
 
 /**
@@ -961,12 +963,78 @@ export default function MathText({
   title,
   as: Tag = "span",
   weight = "normal",
+  compact = false,
 }: MathTextProps) {
   const w = WEIGHT_CLASS[weight];
   const rawBase = preprocessPartnershipRatios(
     repairPlayQuestionDollarSegments(String(children).trim())
   );
   if (!rawBase) return <Tag className={`${w} ${className}`.trim()} />;
+
+  if (compact) {
+    const invTrigDomainRange = parseInverseTrigDomainRangeTitle(rawBase);
+    if (invTrigDomainRange) {
+      const html = renderLatex(toLatex(invTrigDomainRange), false);
+      const katexW = katexWeightClass(weight);
+      if (html) {
+        return (
+          <Tag
+            className={`instacue-subtopic-pill-math ${w} ${className} block min-w-0 max-w-full overflow-hidden text-ellipsis whitespace-nowrap leading-snug`.trim()}
+            title={title ?? rawBase}
+          >
+            <span
+              className={`${katexW} inline-block max-w-full min-w-0 overflow-hidden text-ellipsis whitespace-nowrap align-middle [&>.katex]:text-[0.92em]`}
+              dangerouslySetInnerHTML={{ __html: html }}
+            />
+          </Tag>
+        );
+      }
+    }
+    const raw = preprocessNakedMath(rawBase);
+    if (!hasMathNotation(raw)) {
+      return (
+        <Tag
+          className={`instacue-subtopic-pill-math ${w} ${className} block min-w-0 max-w-full truncate`.trim()}
+          title={title ?? rawBase}
+        >
+          {raw}
+        </Tag>
+      );
+    }
+    const chunks = splitIntoMathChunks(raw);
+    const katexW = katexWeightClass(weight);
+    return (
+      <Tag
+        className={`instacue-subtopic-pill-math ${w} ${className} block min-w-0 max-w-full overflow-hidden text-ellipsis whitespace-nowrap`.trim()}
+        title={title ?? rawBase}
+      >
+        {chunks.map((chunk, i) => {
+          if (!chunk.isMath) {
+            return (
+              <span key={`t-${i}`} className="whitespace-nowrap">
+                {chunk.text}
+              </span>
+            );
+          }
+          const html = renderLatex(toLatex(chunk.text), false);
+          if (!html) {
+            return (
+              <span key={`m-${i}`} className="whitespace-nowrap">
+                {chunk.text}
+              </span>
+            );
+          }
+          return (
+            <span
+              key={`m-${i}`}
+              className={`${katexW} inline-block align-middle whitespace-nowrap [&>.katex]:text-[0.92em]`}
+              dangerouslySetInnerHTML={{ __html: html }}
+            />
+          );
+        })}
+      </Tag>
+    );
+  }
 
   const equivParts = parseEquivalenceClassCurriculumParts(rawBase);
   if (equivParts) {

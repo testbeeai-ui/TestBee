@@ -1,9 +1,6 @@
 import { getLaunchedOnboardingTaskId } from "@/lib/onboarding/onboardingTaskCompanion";
 import { isMainOnboardingTaskId } from "@/lib/onboarding/onboardingNextTask";
-import {
-  ONBOARDING_POST_TASK_SITE_TOUR_EVENT,
-  type OnboardingPostTaskSiteTourDetail,
-} from "@/lib/subscription/freeTrialClient";
+import { requestOpenSiteTourCarousel } from "@/lib/onboarding/openSiteTourCarousel";
 
 const PENDING_TASK_KEY = "edublast.onboarding_site_tour_pending_task_v1";
 
@@ -26,14 +23,10 @@ function clearPendingFallbackTimer(): void {
   }
 }
 
-function dispatchSiteTourPromo(taskId: string, afterCompanionCelebration = false): void {
-  if (typeof window === "undefined" || !taskId) return;
+function dispatchSiteTourPromo(_taskId: string, _afterCompanionCelebration = false): void {
+  if (typeof window === "undefined") return;
   clearPendingFallbackTimer();
-  window.dispatchEvent(
-    new CustomEvent<OnboardingPostTaskSiteTourDetail>(ONBOARDING_POST_TASK_SITE_TOUR_EVENT, {
-      detail: { taskId, afterCompanionCelebration },
-    })
-  );
+  requestOpenSiteTourCarousel();
 }
 
 function schedulePendingFallback(): void {
