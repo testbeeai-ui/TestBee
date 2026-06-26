@@ -24,10 +24,7 @@ type Body = {
   text?: string;
 };
 
-export async function POST(
-  request: Request,
-  context: { params: Promise<{ id: string }> },
-) {
+export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   const originBlock = enforceSameOriginForCookieAuth(request);
   if (originBlock) return originBlock;
 
@@ -49,10 +46,11 @@ export async function POST(
   const fromArray = Array.isArray(body.emails)
     ? body.emails.filter((e): e is string => typeof e === "string")
     : [];
-  const fromText = typeof body.text === "string" ? parseBulkInviteEmails(body.text, MAX_EMAILS) : [];
+  const fromText =
+    typeof body.text === "string" ? parseBulkInviteEmails(body.text, MAX_EMAILS) : [];
   const emails = [...new Set([...fromArray.map((e) => e.trim().toLowerCase()), ...fromText])].slice(
     0,
-    MAX_EMAILS,
+    MAX_EMAILS
   );
 
   const { supabase, user } = ctx;
@@ -61,7 +59,24 @@ export async function POST(
     return NextResponse.json({ error: "No valid emails" }, { status: 400 });
   }
 
-  const capCheck = await assertClassroomHasStudentCapacity(user.id, classroomId, emails.length);
+  const { data: existingInviteRows, error: existingInviteError } = await supabase
+    .from("classroom_invite_recipients")
+    .select("email")
+    .eq("classroom_id", classroomId)
+    .in("email", emails);
+
+  if (existingInviteError) {
+    return NextResponse.json({ error: existingInviteError.message }, { status: 500 });
+  }
+
+  const alreadyInvitedEmails = new Set(
+    ((existingInviteRows ?? []) as Array<{ email: string | null }>)
+      .map((row) => row.email)
+      .filter((email): email is string => typeof email === "string")
+  );
+  const newInviteCount = emails.filter((email) => !alreadyInvitedEmails.has(email)).length;
+
+  const capCheck = await assertClassroomHasStudentCapacity(user.id, classroomId, newInviteCount);
   if (!capCheck.ok) {
     return NextResponse.json({ error: capCheck.error, code: capCheck.code }, { status: 403 });
   }

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAndUser } from "@/lib/auth/apiAuth";
-import { DEFAULT_RDM_CONFIG } from "@/lib/rdm/rdmConfig";
+import { fetchRdmConfig } from "@/lib/rdm/rdmConfig";
 
 export const runtime = "nodejs";
 
@@ -23,10 +23,7 @@ type BatchRow = {
  * owning teacher (teacher_id = auth.uid()), so a non-owner simply gets
  * empty results rather than another's data.
  */
-export async function GET(
-  request: Request,
-  context: { params: Promise<{ id: string }> },
-) {
+export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
   const ctx = await getSupabaseAndUser(request);
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -37,7 +34,7 @@ export async function GET(
 
   const { supabase } = ctx;
 
-  const [recipientsRes, batchesRes] = await Promise.all([
+  const [recipientsRes, batchesRes, rdmConfig] = await Promise.all([
     supabase
       .from("classroom_invite_recipients")
       .select("email, invited_at, linked_user_id, linked_at, paid_bonus_awarded_at")
@@ -47,6 +44,7 @@ export async function GET(
       .from("classroom_invite_batches")
       .select("flat_reward_granted, flat_reward_rdm")
       .eq("classroom_id", classroomId),
+    fetchRdmConfig(supabase),
   ]);
 
   if (recipientsRes.error) {
@@ -70,7 +68,7 @@ export async function GET(
   const grantedBatch = batches.find((b) => b.flat_reward_granted);
   const flatRewarded = Boolean(grantedBatch);
   const flatRewardRdm = grantedBatch?.flat_reward_rdm ?? 0;
-  const paidBonus = DEFAULT_RDM_CONFIG.classroom_batch_paid_bonus_rdm;
+  const paidBonus = rdmConfig.classroom_batch_paid_bonus_rdm;
 
   return NextResponse.json({
     ok: true,
